@@ -1,0 +1,614 @@
+import { expect } from "chai";
+import { ethers } from "hardhat";
+import {
+  BigNumber,
+  BigNumberish,
+  Contract,
+  ContractFactory,
+  Signer,
+} from "ethers";
+import "@nomiclabs/hardhat-waffle";
+import { ResearchObject__factory, ResearchObject } from "../typechain-types";
+import CID from "cids";
+
+function checkExpectedBalances(
+  actualBalances: Array<any[]>,
+  expectedBalances: { [key: string]: BigNumber }
+) {
+  return !Object.keys(expectedBalances)
+    .map((key: string) => {
+      let index = actualBalances[0].indexOf(key);
+      const expected = expectedBalances[key];
+      const actual = actualBalances[1][index];
+      if (BigNumber.isBigNumber(expected) && BigNumber.isBigNumber(actual)) {
+        return !expected.eq(actual);
+      }
+      return true;
+    })
+    .filter(Boolean).length;
+}
+
+describe("checkExpectedBalances Utility", function () {
+  it("Returns false if one expected balance is missing from actual balance", () => {
+    const expectedBalance = {
+      A: BigNumber.from(1),
+      B: BigNumber.from(2),
+    };
+    const actualBalance = [["A"], [BigNumber.from(1)]];
+    expect(checkExpectedBalances(actualBalance, expectedBalance)).to.be.false;
+  });
+  it("Returns false if multiple expected balances are missing from actual balance", () => {
+    const expectedBalance = {
+      A: BigNumber.from(1),
+      B: BigNumber.from(2),
+      C: BigNumber.from(3),
+    };
+    const actualBalance = [["A"], [BigNumber.from(1)]];
+    expect(checkExpectedBalances(actualBalance, expectedBalance)).to.be.false;
+  });
+  it("Returns false if one expected balance is present, but differs from actual balance", () => {
+    const expectedBalance = {
+      A: BigNumber.from(1),
+    };
+    const actualBalance = [["A"], [BigNumber.from(2)]];
+    expect(checkExpectedBalances(actualBalance, expectedBalance)).to.be.false;
+  });
+  it("Returns false if multiple expected balances are present, but differ from actual balance", () => {
+    const expectedBalance = {
+      A: BigNumber.from(1),
+      B: BigNumber.from(2),
+      C: BigNumber.from(3),
+    };
+    const actualBalance = [
+      ["A", "B", "C"],
+      [BigNumber.from(1), BigNumber.from(3), BigNumber.from(3)],
+    ];
+    expect(checkExpectedBalances(actualBalance, expectedBalance)).to.be.false;
+  });
+  it("Returns true if all expected balances are the actual balances", () => {
+    const expectedBalance = {
+      A: BigNumber.from(1),
+      B: BigNumber.from(2),
+      C: BigNumber.from(3),
+    };
+    const actualBalance = [
+      ["A", "B", "C"],
+      [BigNumber.from(1), BigNumber.from(2), BigNumber.from(3)],
+    ];
+    expect(checkExpectedBalances(actualBalance, expectedBalance)).to.be.true;
+  });
+  it("Returns true if all expected balances are the actual balances, if out of order or with extraneous actual balances, or with zeros", () => {
+    const expectedBalance = {
+      A: BigNumber.from(1),
+      B: BigNumber.from(2),
+      C: BigNumber.from(3),
+      G: BigNumber.from(0),
+    };
+    const actualBalance = [
+      ["C", "G", "D", "A", "B"],
+      [
+        BigNumber.from(3),
+        BigNumber.from(0),
+        BigNumber.from(44),
+        BigNumber.from(1),
+        BigNumber.from(2),
+      ],
+    ];
+    expect(checkExpectedBalances(actualBalance, expectedBalance)).to.be.true;
+  });
+  it("Does not support mixed case", () => {
+    const expectedBalance = {
+      A: BigNumber.from(1),
+      B: BigNumber.from(2),
+    };
+    const actualBalance = [
+      ["a", "b"],
+      [BigNumber.from(1), BigNumber.from(2)],
+    ];
+    expect(checkExpectedBalances(actualBalance, expectedBalance)).to.be.false;
+  });
+});
+let TestTokenFactory: TestToken__factory;
+let tokenA: TestToken;
+let tokenB: TestToken;
+let tokenC: TestToken;
+let accounts: Signer[];
+let ResearchObjectFactory: ResearchObject__factory;
+let researchObject: ResearchObject;
+
+let PrizeFactory: Prize__factory;
+let prize: Prize;
+describe("Prize", function () {
+  beforeEach(async function () {
+    accounts = await ethers.getSigners();
+
+    ResearchObjectFactory = (await ethers.getContractFactory(
+      "ResearchObject"
+    )) as unknown as ResearchObject__factory;
+
+    researchObject = await ResearchObjectFactory.deploy();
+    const tx = await researchObject.deployed();
+
+    PrizeFactory = (await ethers.getContractFactory(
+      "Prize"
+    )) as unknown as Prize__factory;
+
+    prize = await PrizeFactory.deploy(
+      "DeSci Replication Prize",
+      "DeSci-DRP",
+      tx.address,
+      []
+    );
+  });
+
+  describe("Gas", () => {
+    it("Costs a reasonable amount of gas to deploy", async () => {
+      // wait until the transaction is mined
+      let tx = await prize.deployed();
+      let res = await tx.deployTransaction.wait();
+      // console.log("DISCOVERY DEPLOY", res);
+      console.log(`Deployment cost ${res.cumulativeGasUsed} gas units`);
+      expect(
+        BigNumber.from(res.cumulativeGasUsed).lte(32000000),
+        `Gas limit exceeded`
+      ).to.be.true;
+    });
+  });
+
+  describe("ERC721", () => {
+    describe("Minting", () => {
+      it("Is mintable", async function () {
+        const mintTx = await prize.mint(getBytes());
+
+        // wait until the transaction is mined
+        const res = await mintTx.wait();
+
+        expect(
+          BigNumber.from(res.cumulativeGasUsed).lte(300000),
+          "Gas limit exceeded"
+        ).to.be.true;
+      });
+
+      it("Is mintable to the caller by default", async function () {
+        const mintTx = await prize.connect(accounts[1]).mint(getBytes());
+
+        // wait until the transaction is mined
+        await mintTx.wait();
+
+        expect(await prize.ownerOf(0)).eq(
+          await accounts[1].getAddress(),
+          "Wrong owner"
+        );
+      });
+
+      it("Can be minted by non-deployer", async function () {
+        const mintTx = await prize.connect(accounts[4]).mint(getBytes());
+
+        await mintTx.wait();
+
+        const owner = await prize.ownerOf(0);
+
+        expect(owner).eq(await accounts[4].getAddress(), "Wrong owner");
+      });
+
+      it("Can be minted to different account", async function () {
+        const mintTx = await prize.mintFor(
+          await accounts[3].getAddress(),
+          getBytes()
+        );
+
+        await mintTx.wait();
+
+        const owner = await prize.ownerOf(0);
+
+        expect(owner).eq(await accounts[3].getAddress(), "Wrong owner");
+      });
+    });
+
+    describe("Burn", () => {
+      it.skip("Cannot be burned", async () => {});
+      it.skip("Cannot be burned by owner", async () => {});
+    });
+
+    describe("Transfers", () => {
+      it("Cannot be transferred after mint", async function () {
+        const mintTx = await prize.mint(getBytes());
+
+        await mintTx.wait();
+
+        const fromAddress = await accounts[0].getAddress();
+        const toAddress = await accounts[1].getAddress();
+
+        await expect(
+          prize.transferFrom(fromAddress, toAddress, 0)
+        ).to.be.revertedWith("No transfers");
+
+        await expect(
+          prize["safeTransferFrom(address,address,uint256)"](
+            fromAddress,
+            toAddress,
+            0
+          )
+        ).to.be.revertedWith("No transfers");
+
+        await expect(
+          prize["safeTransferFrom(address,address,uint256,bytes)"](
+            fromAddress,
+            toAddress,
+            0,
+            "0x0000000000000000000000000000000000000000000000000000006d6168616d"
+          )
+        ).to.be.revertedWith("No transfers");
+
+        const owner = await prize.ownerOf(0);
+
+        expect(owner).eq(await accounts[0].getAddress(), "Wrong owner");
+      });
+    });
+
+    describe("Metadata", () => {
+      it("Allows contract owner to add revisions", async () => {
+        const mintTx = await prize.connect(accounts[2]).mint(getBytes());
+
+        await mintTx.wait();
+
+        const revisionTx = await prize.updateMetadata(0, getBytes2());
+
+        await revisionTx.wait();
+
+        expect(await prize._metadata(0)).eq(getBytes2(), "Version not updated");
+        // expect(await prize.getVersionCount(0)).eq(
+        //   2,
+        //   "Version count not updated"
+        // );
+      });
+
+      it("Prevents object holder which is not contract owner from adding revisions", async () => {
+        const mintTx = await prize.connect(accounts[2]).mint(getBytes());
+
+        await mintTx.wait();
+
+        await expect(
+          prize.connect(accounts[3]).updateMetadata(0, getBytes2())
+        ).to.be.revertedWith("No");
+
+        expect(await prize._metadata(0)).to.be.eq(getBytes());
+        // expect(await prize.getVersionCount(0)).eq(
+        //   1,
+        //   "Version count incorrectly updated"
+        // );
+      });
+    });
+  });
+
+  describe("Prizes", () => {
+    beforeEach(async function () {
+      TestTokenFactory = (await ethers.getContractFactory(
+        "TestToken"
+      )) as unknown as TestToken__factory;
+
+      tokenA = await TestTokenFactory.deploy("Token A", "TA", 1000000000);
+      tokenB = await TestTokenFactory.deploy("Token B", "TB", 1000000000);
+      tokenC = await TestTokenFactory.deploy("Token C", "TC", 1000000000);
+      const ta = await tokenA.deployed();
+      const tb = await tokenB.deployed();
+      const tc = await tokenC.deployed();
+    });
+    describe("Deposits", () => {
+      it("Can receive an Ether prize", async () => {
+        const holder = accounts[2];
+        const mintTx = await prize.connect(holder).mint(getBytes());
+        await mintTx.wait();
+
+        await prize
+          .connect(holder)
+          .depositPrize(0, [], [], { value: ethers.utils.parseEther("1") });
+
+        const balances = await prize.getPrizeBalances(0);
+
+        expect(balances[0][0]).to.equal(BigNumber.from(0));
+        expect(balances[1][0]).to.equal(ethers.utils.parseEther("1"));
+      });
+      it("Can receive whitelisted ERC-20 prize", async () => {
+        await prize.approveForWhitelist([tokenA.address]);
+
+        const holder = accounts[2];
+        await tokenA.transfer(await holder.getAddress(), 100);
+
+        const mintTx = await prize.connect(holder).mint(getBytes());
+        await mintTx.wait();
+
+        await tokenA.connect(holder).approve(prize.address, 100);
+
+        await prize.connect(holder).depositPrize(0, [tokenA.address], [10]);
+
+        const balances = await prize.getPrizeBalances(0);
+
+        expect(balances[0][0]).to.equal(tokenA.address);
+        expect(balances[1][0]).to.equal(10);
+      });
+      it("Rejects un-whitelisted ERC-20 prize", async () => {
+        const holder = accounts[2];
+        await tokenA.transfer(await holder.getAddress(), 100);
+
+        const mintTx = await prize.connect(holder).mint(getBytes());
+        await mintTx.wait();
+
+        await tokenA.connect(holder).approve(prize.address, 100);
+
+        await expect(
+          prize.connect(holder).depositPrize(0, [tokenA.address], [10])
+        ).to.be.revertedWith("Token not whitelisted");
+
+        const balances = await prize.getPrizeBalances(0);
+        expect(balances[0].length).to.equal(0);
+      });
+      it("Can receive both an Ether and ERC-20 prize", async () => {
+        await prize.approveForWhitelist([tokenA.address]);
+
+        const holder = accounts[2];
+        await tokenA.transfer(await holder.getAddress(), 100);
+
+        const mintTx = await prize.connect(holder).mint(getBytes());
+        await mintTx.wait();
+
+        await tokenA.connect(holder).approve(prize.address, 100);
+
+        await prize.connect(holder).depositPrize(0, [tokenA.address], [10], {
+          value: ethers.utils.parseEther("1"),
+        });
+
+        const balances = await prize.getPrizeBalances(0);
+
+        // NOTE: no guarantees are made on order of balances, so we use checkExpectedBalances
+        const expectedBalances = {
+          [ethers.constants.AddressZero]: ethers.utils.parseEther("1"),
+          [tokenA.address]: ethers.utils.parseUnits("10", "wei"),
+        };
+
+        expect(checkExpectedBalances(balances, expectedBalances)).to.be.true;
+      });
+      it("Can receive multiple ERC-20 token prizes", async () => {
+        await prize.approveForWhitelist([tokenA.address, tokenB.address]);
+
+        const holder = accounts[2];
+        await tokenA.transfer(await holder.getAddress(), 100);
+        await tokenB.transfer(await holder.getAddress(), 200);
+
+        const mintTx = await prize.connect(holder).mint(getBytes());
+        await mintTx.wait();
+
+        await tokenA.connect(holder).approve(prize.address, 100);
+        await tokenB.connect(holder).approve(prize.address, 200);
+
+        await prize
+          .connect(holder)
+          .depositPrize(0, [tokenA.address, tokenB.address], [10, 20]);
+
+        const balances = await prize.getPrizeBalances(0);
+
+        // NOTE: no guarantees are made on order of balances, so we use checkExpectedBalances
+        const expectedBalances = {
+          [tokenA.address]: ethers.utils.parseUnits("10", "wei"),
+          [tokenB.address]: ethers.utils.parseUnits("20", "wei"),
+        };
+
+        expect(checkExpectedBalances(balances, expectedBalances)).to.be.true;
+      });
+      it("Can receive Ether and multiple ERC-20 token prizes", async () => {
+        await prize.approveForWhitelist([tokenA.address, tokenB.address]);
+
+        const holder = accounts[2];
+        await tokenA.transfer(await holder.getAddress(), 100);
+        await tokenB.transfer(await holder.getAddress(), 200);
+
+        const mintTx = await prize.connect(holder).mint(getBytes());
+        await mintTx.wait();
+
+        await tokenA.connect(holder).approve(prize.address, 100);
+        await tokenB.connect(holder).approve(prize.address, 200);
+
+        await prize
+          .connect(holder)
+          .depositPrize(0, [tokenA.address, tokenB.address], [10, 20], {
+            value: ethers.utils.parseEther("1"),
+          });
+
+        const balances = await prize.getPrizeBalances(0);
+
+        // NOTE: no guarantees are made on order of balances, so we use checkExpectedBalances
+        const expectedBalances = {
+          [ethers.constants.AddressZero]: ethers.utils.parseEther("1"),
+          [tokenA.address]: ethers.utils.parseUnits("10", "wei"),
+          [tokenB.address]: ethers.utils.parseUnits("20", "wei"),
+        };
+
+        expect(checkExpectedBalances(balances, expectedBalances)).to.be.true;
+      });
+      it("Can receive prizes and later receive more prizes", async () => {
+        await prize.approveForWhitelist([tokenA.address, tokenB.address]);
+
+        const holder = accounts[2];
+        await tokenA.transfer(await holder.getAddress(), 100);
+        await tokenB.transfer(await holder.getAddress(), 200);
+
+        const mintTx = await prize.connect(holder).mint(getBytes());
+        await mintTx.wait();
+
+        await tokenA.connect(holder).approve(prize.address, 100);
+        await tokenB.connect(holder).approve(prize.address, 200);
+
+        await prize
+          .connect(holder)
+          .depositPrize(0, [tokenA.address, tokenB.address], [10, 20], {
+            value: ethers.utils.parseEther("1"),
+          });
+
+        await prize
+          .connect(holder)
+          .depositPrize(0, [tokenA.address, tokenB.address], [10, 20], {
+            value: ethers.utils.parseEther("1"),
+          });
+
+        const balances = await prize.getPrizeBalances(0);
+
+        // NOTE: no guarantees are made on order of balances, so we use checkExpectedBalances
+        const expectedBalances = {
+          [ethers.constants.AddressZero]: ethers.utils.parseEther("2"),
+          [tokenA.address]: ethers.utils.parseUnits("20", "wei"),
+          [tokenB.address]: ethers.utils.parseUnits("40", "wei"),
+        };
+
+        expect(checkExpectedBalances(balances, expectedBalances)).to.be.true;
+      });
+      it("Can receive prizes upon mint", async () => {
+        await prize.approveForWhitelist([tokenA.address, tokenB.address]);
+
+        const holder = accounts[2];
+        await tokenA.transfer(await holder.getAddress(), 100);
+        await tokenB.transfer(await holder.getAddress(), 200);
+
+        await tokenA.connect(holder).approve(prize.address, 100);
+        await tokenB.connect(holder).approve(prize.address, 200);
+
+        const mintTx = await prize
+          .connect(holder)
+          .mintWithPrize(
+            getBytes(),
+            [tokenA.address, tokenB.address],
+            [10, 20],
+            {
+              value: ethers.utils.parseEther("1"),
+            }
+          );
+        await mintTx.wait();
+
+        const balances = await prize.getPrizeBalances(0);
+
+        // NOTE: no guarantees are made on order of balances, so we use checkExpectedBalances
+        const expectedBalances = {
+          [ethers.constants.AddressZero]: ethers.utils.parseEther("1"),
+          [tokenA.address]: ethers.utils.parseUnits("10", "wei"),
+          [tokenB.address]: ethers.utils.parseUnits("20", "wei"),
+        };
+
+        expect(checkExpectedBalances(balances, expectedBalances)).to.be.true;
+      });
+      it("Can receive prizes upon mint and later receive more prizes", async () => {
+        await prize.approveForWhitelist([tokenA.address, tokenB.address]);
+
+        const holder = accounts[2];
+        await tokenA.transfer(await holder.getAddress(), 100);
+        await tokenB.transfer(await holder.getAddress(), 200);
+
+        await tokenA.connect(holder).approve(prize.address, 100);
+        await tokenB.connect(holder).approve(prize.address, 200);
+
+        const mintTx = await prize
+          .connect(holder)
+          .mintWithPrize(
+            getBytes(),
+            [tokenA.address, tokenB.address],
+            [10, 20],
+            {
+              value: ethers.utils.parseEther("1"),
+            }
+          );
+        await mintTx.wait();
+
+        await prize
+          .connect(holder)
+          .depositPrize(0, [tokenA.address, tokenB.address], [10, 20]);
+
+        await prize.connect(holder).depositPrize(0, [], [], {
+          value: ethers.utils.parseEther("1"),
+        });
+
+        const balances = await prize.getPrizeBalances(0);
+
+        // NOTE: no guarantees are made on order of balances, so we use checkExpectedBalances
+        const expectedBalances = {
+          [ethers.constants.AddressZero]: ethers.utils.parseEther("2"),
+          [tokenA.address]: ethers.utils.parseUnits("20", "wei"),
+          [tokenB.address]: ethers.utils.parseUnits("40", "wei"),
+        };
+
+        expect(checkExpectedBalances(balances, expectedBalances)).to.be.true;
+      });
+      it("Can receive an ERC-20 prize and later receive an Ether prize", async () => {
+        await prize.approveForWhitelist([tokenA.address, tokenB.address]);
+
+        const holder = accounts[2];
+        await tokenA.transfer(await holder.getAddress(), 100);
+        await tokenB.transfer(await holder.getAddress(), 200);
+
+        const mintTx = await prize.connect(holder).mint(getBytes());
+        await mintTx.wait();
+
+        await tokenA.connect(holder).approve(prize.address, 100);
+        await tokenB.connect(holder).approve(prize.address, 200);
+
+        await prize
+          .connect(holder)
+          .depositPrize(0, [tokenA.address, tokenB.address], [10, 20]);
+
+        await prize.connect(holder).depositPrize(0, [], [], {
+          value: ethers.utils.parseEther("1"),
+        });
+
+        const balances = await prize.getPrizeBalances(0);
+
+        // NOTE: no guarantees are made on order of balances, so we use checkExpectedBalances
+        const expectedBalances = {
+          [ethers.constants.AddressZero]: ethers.utils.parseEther("1"),
+          [tokenA.address]: ethers.utils.parseUnits("10", "wei"),
+          [tokenB.address]: ethers.utils.parseUnits("20", "wei"),
+        };
+
+        expect(checkExpectedBalances(balances, expectedBalances)).to.be.true;
+      });
+      it.skip("Cannot deposit prize into unheld object", async () => {});
+      it.skip("Can deposit prize into assigned object", async () => {});
+      it.skip("Cannot deposit prize into completed object", async () => {});
+    });
+
+    describe("Refunds", () => {
+      it.skip("Object holder can get full refund if unassigned", async () => {});
+      it.skip("Object holder can get refund of one ERC-20 token if unassigned", async () => {});
+      it.skip("Object holder can get refund of multiple ERC-20 token if unassigned", async () => {});
+      it.skip("Object holder can get refund of Ether and ERC-20 token if unassigned", async () => {});
+      it.skip("Object holder fails to get refund if assigned", async () => {});
+      it.skip("Object holder fails to get refund if complete", async () => {});
+      it.skip("Object holder fails to get refund of another Object", async () => {});
+    });
+
+    describe("Withdrawals", () => {
+      it.skip("Owner can assign object prize to assignee", async () => {});
+      it.skip("Owner cannot change assignee if complete", async () => {});
+      it.skip("Owner can set object to incomplete after setting to complete by accident", async () => {});
+      it.skip("Assignee can receive all prizes", async () => {});
+      it.skip("Assignee can receive Ether prize", async () => {});
+      it.skip("Assignee can receive ERC-20 prize", async () => {});
+      it.skip("Assignee can receive multiple ERC-20 prizes", async () => {});
+      it.skip("If prize fully withdrawn, Owner can no longer change assignee", async () => {});
+    });
+  });
+});
+
+const getBytes = () => {
+  const rootStrHex = new CID(
+    "bafybeiexeicryslhwnydxpffx6tv2lz6jg4orcm4pi2val53v4ig77i7ri"
+  ).toString("base16");
+  const hexEncoded =
+    "0x" + (rootStrHex.length % 2 == 0 ? rootStrHex : "0" + rootStrHex);
+  return hexEncoded;
+};
+
+const getBytes2 = () => {
+  const rootStrHex = new CID(
+    "bafybeidockyyycgrbwzacxknscvewla4ymlr4k54mbqc3ttsiq62ws2fqu"
+  ).toString("base16");
+  const hexEncoded =
+    "0x" + (rootStrHex.length % 2 == 0 ? rootStrHex : "0" + rootStrHex);
+  return hexEncoded;
+};

@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodes-media-server
+  labels:
+    App: NodesMediaServer
+spec:
+  replicas: 2
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      App: NodesMediaServer
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        App: NodesMediaServer
+    spec:
+      containers:
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/nodes-media-server:latest
+          name: nodes-media-server
+          command: ['/bin/bash', '-c']
+          args:
+            - NODE_PATH=./dist node ./dist/index.js;
+          ports:
+            - containerPort: 5454
+          resources:
+            limits:
+              cpu: '0.5'
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 50Mi

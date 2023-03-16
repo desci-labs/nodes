@@ -1,0 +1,132 @@
+version: "3"
+
+services:
+  db_postgres:
+    container_name: "db_boilerplate"
+    image: "postgres:12.6-alpine"
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "5433:5432"
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
+    volumes:
+      - ./local-data/database/boilerplate:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_INITDB_ARGS: '--encoding=UTF-8 --lc-collate=C --lc-ctype=C'
+  desci_blockchain_ganache:
+    container_name: "desci_blockchain_ganache"
+    build: ./desci-contracts
+    restart: always
+    ports:
+      - "8545:8545"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./local-data/ganache:/data
+      - ./desci-contracts/.openzeppelin:/app/.openzeppelin
+    depends_on:
+      - graph_node
+  desci_nodes_backend:
+    entrypoint: /bin/sh './desci-server/scripts/be-node-dev.sh'
+    env_file:
+      - .env
+    ports:
+      - "5420:5420"
+      - "9229:9229"
+      - "5555:5555"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      - db_postgres
+      - desci_blockchain_ganache
+      - graph_node
+      # - nodes_media # UNCOMMENT FOR LOCAL DEV OF nodes-media
+    links:
+      - db_postgres
+    volumes:
+      - ./local-data/yarn_cache:/root/.yarn
+
+  block_explorer_dev:
+    image: sinaiman/expedition-dev:latest
+    ports:
+      - "3001:80"
+  graph_node:
+    image: graphprotocol/graph-node
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8020:8020"
+      - "8030:8030"
+      - "8040:8040"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      ipfs:
+        condition: service_healthy
+      db_postgres:
+        condition: service_started
+    #extra_hosts:
+    #  - host.docker.internal:host-gateway
+    environment:
+      # https://github.com/graphprotocol/graph-node/blob/master/docs/environment-variables.md
+      postgres_host: db_postgres
+      # postgres_port: 5433
+      postgres_user: walter
+      postgres_pass: white
+      postgres_db: postgres
+      ipfs: "host.docker.internal:5001"
+      ethereum: "ganache:http://host.docker.internal:8545"
+      # see levels here https://docs.rs/env_logger/0.6.0/env_logger/
+      GRAPH_LOG: info
+      RUST_BACKTRACE: 1
+      GRAPH_MAPPING_HANDLER_TIMEOUT: 10
+      # GRAPH_ETHEREUM_FETCH_TXN_RECEIPTS_IN_BATCHES: true
+      GRAPH_IPFS_TIMEOUT: 10
+      # ENABLE_GRAPHQL_VALIDATIONS: true
+      # GRAPH_QUERY_CACHE_BLOCKS: 0
+      # GRAPH_LOG_POI_EVENTS: true
+      # GRAPH_LOAD_THRESHOLD: 250
+      # EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE: synced
+  ipfs:
+    image: ipfs/go-ipfs:v0.13.0
+    environment:
+      IPFS_SWARM_KEY: "/key/swarm/psk/1.0.0/\n/base16/\n9d002c50635a479d29dcc0ccb49d862952a0dcc52baddd253167adcd496c8d04"
+    ports:
+      - "5001:5001"
+      - "8089:8080"
+    volumes:
+      - ./local-data/ipfs:/data/ipfs
+    healthcheck:
+      test: ipfs ls QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn || exit 1
+      interval: 5s
+      retries: 5
+      start_period: 10s
+      timeout: 2s
+
+  # UNCOMMENT FOR LOCAL DEV:
+  # nodes_media:
+  #   entrypoint: /bin/sh './scripts/nodes-media-dev.sh'
+  #   env_file:
+  #     - ./nodes-media/.env
+  #   ports:
+  #     - '5454:5454'
+  #     - '9230:9230'
+  #   volumes:
+  #     - ./local-data/yarn_cache:/root/.yarn
+
+  # desci_nodes_backend_test:
+  #   container_name: 'be_test_boilerplate'
+  #   command: echo 'Test container ready'
+  #   build: .
+  #   stdin_open: true
+  #   tty: true
+  #   depends_on:
+  #     - db_postgres
+  #   links:
+  #     - db_postgres
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - .:/app/
+  #     - /app/node_modules

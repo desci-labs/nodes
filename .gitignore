@@ -1,0 +1,17 @@
+.DS_Store
+.env
+desci-ipfs
+desci-server/tmp/
+desci-server/temp_downloads
+desci-art-viewer/dist/*
+desci-nodes-mirror
+.VSCodeCounter
+tmp
+yarn_cache
+yarn-error.log
+database/
+ganache-data/
+ipfs-data/
+local-data/
+node-modules/
+node_modules/*

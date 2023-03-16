@@ -1,0 +1,58 @@
+version: '3'
+
+services:
+  nodes_test_db:
+    container_name: 'nodes_test_db'
+    image: 'postgres:12.6-alpine'
+    restart: always
+    env_file:
+      - .env.test
+    ports:
+      - '5434:5432'
+    # volumes:
+    #   - ./database/test:/var/lib/postgresql/data/
+
+  nodes_backend_test:
+    build: .
+    entrypoint: /bin/sh './desci-server/scripts/be-node-test.sh'
+    env_file:
+      - .env.test
+    ports:
+      - '5421:5420'
+    depends_on:
+      - nodes_test_db
+      - nodes_test_ipfs
+    links:
+      - nodes_test_db
+    container_name: 'nodes_backend_test'
+    restart: always
+    volumes:
+      - .:/app/
+    #   - /app/node_modules
+    # volumes:
+    #   - ./tmp/nebulus:/tmp/nebulus
+
+  nodes_test_ipfs:
+    image: ipfs/go-ipfs:v0.13.0
+    environment:
+      IPFS_SWARM_KEY: "/key/swarm/psk/1.0.0/\n/base16/\n9d002c50635a479d29dcc0ccb49d862952a0dcc52baddd253167adcd496c8d04"
+    ports:
+      - '5002:5001'
+      - '8090:8080'
+    volumes:
+      - ./local-data/test/ipfs:/data/ipfs
+  # desci_nodes_backend_test:
+  #   container_name: 'be_test_boilerplate'
+  #   command: echo 'Test container ready'
+  #   build: .
+  #   stdin_open: true
+  #   tty: true
+  #   depends_on:
+  #     - db_postgres
+  #   links:
+  #     - db_postgres
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - .:/app/
+  #     - /app/node_modules

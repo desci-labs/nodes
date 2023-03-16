@@ -1,0 +1,12 @@
+node_modules
+.env
+
+#Hardhat files
+cache
+artifacts/build-info
+frontend/*
+subgraph/subgraph.yaml
+build
+.openzeppelin/unknown-*.json
+*.dbg.json
+flat.sol

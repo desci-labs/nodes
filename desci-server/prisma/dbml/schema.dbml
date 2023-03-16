@@ -1,0 +1,220 @@
+//// ------------------------------------------------------
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+//// ------------------------------------------------------
+
+Table Discovery {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  title String [not null]
+  state DiscoveryState [not null, default: 'NEW']
+  isFeatured Boolean [not null, default: false]
+  isBreakthrough Boolean [not null, default: false]
+  manifestUrl String [not null]
+  replicationFactor Int [not null]
+  transactions ChainTransaction [not null]
+  owner User [not null]
+  ownerId Int [not null]
+  vault Vault [not null]
+  vaultId Int [not null]
+  authors DiscoveryAuthor [not null]
+  votes DiscoveryVote [not null]
+  reviews DiscoveryReview [not null]
+  versions DiscoveryVersion [not null]
+  authorInvites AuthorInvite [not null]
+}
+
+Table DiscoveryVersion {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  manifestUrl String [not null]
+  discovery Discovery
+  discoveryId Int
+}
+
+Table User {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  email String [unique, not null]
+  phoneNumber String [unique, not null]
+  name String
+  walletAddress String
+  isPatron Boolean [not null]
+  isWarden Boolean [not null]
+  isKeeper Boolean [not null]
+  ownedDiscoveries Discovery [not null]
+  authoredDiscoveries DiscoveryAuthor [not null]
+  discoveryVotes DiscoveryVote [not null]
+  reviews DiscoveryReview [not null]
+  reviewVotes DiscoveryReviewVote [not null]
+  invitesSent Invite [not null]
+  invitesReceived Invite [not null]
+  sentTransactions ChainTransaction [not null]
+  receivedTransactions ChainTransaction [not null]
+  authorInvitesSent AuthorInvite [not null]
+  authorInvitesReceived AuthorInvite [not null]
+}
+
+Table Invite {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  email String [unique, not null]
+  phoneNumber String [unique, not null]
+  sender User [not null]
+  senderId Int [not null]
+  receiver User [not null]
+  receiverId Int [not null]
+}
+
+Table AuthorInvite {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  email String [unique, not null]
+  phoneNumber String [unique, not null]
+  discovery Discovery [not null]
+  discoveryId Int [not null]
+  sender User [not null]
+  senderId Int [not null]
+  receiver User [not null]
+  receiverId Int [not null]
+}
+
+Table DiscoveryAuthor {
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  shares Int [not null]
+  user User [not null]
+  userId Int [not null]
+  discovery Discovery [not null]
+  discoveryId Int [not null]
+
+  indexes {
+    (userId, discoveryId) [pk]
+  }
+}
+
+Table DiscoveryVote {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  voteWeight Int [not null]
+  transaction ChainTransaction
+  user User [not null]
+  userId Int [not null]
+  discovery Discovery [not null]
+  discoveryId Int [not null]
+}
+
+Table DiscoveryReview {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  owner User [not null]
+  ownerId Int [not null]
+  discovery Discovery
+  discoveryId Int
+  votes DiscoveryReviewVote [not null]
+}
+
+Table DiscoveryReviewVote {
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  voteWeight Int [not null]
+  user User [not null]
+  userId Int [not null]
+  discoveryReview DiscoveryReview [not null]
+  discoveryReviewId Int [not null]
+
+  indexes {
+    (userId, discoveryReviewId) [pk]
+  }
+}
+
+Table Vault {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  name String [not null]
+  description String [not null]
+  Discovery Discovery [not null]
+  transactions ChainTransaction [not null]
+}
+
+Table ChainTransaction {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  hash String [not null]
+  type ChainTransactionType [not null]
+  discovery Discovery
+  discoveryId Int
+  user User
+  userId Int
+  targetUser User
+  targetUserId Int
+  vault Vault
+  vaultId Int
+  discoveryVote DiscoveryVote
+  discoveryVoteId Int
+}
+
+Enum ChainTransactionType {
+  DISCOVERY_MINT
+  DISCOVERY_UPDATE
+  DISCOVERY_VOTE
+}
+
+Enum DiscoveryState {
+  NEW
+  PENDING_DAO_APPROVAL
+  DAO_APPROVED
+  PENDING_VALIDATION
+  VALIDATED
+  WITHDRAWN
+}
+
+Ref: Discovery.ownerId > User.id
+
+Ref: Discovery.vaultId > Vault.id
+
+Ref: DiscoveryVersion.discoveryId > Discovery.id
+
+Ref: Invite.senderId > User.id
+
+Ref: Invite.receiverId > User.id
+
+Ref: AuthorInvite.discoveryId > Discovery.id
+
+Ref: AuthorInvite.senderId > User.id
+
+Ref: AuthorInvite.receiverId > User.id
+
+Ref: DiscoveryAuthor.userId > User.id
+
+Ref: DiscoveryAuthor.discoveryId > Discovery.id
+
+Ref: DiscoveryVote.userId > User.id
+
+Ref: DiscoveryVote.discoveryId > Discovery.id
+
+Ref: DiscoveryReview.ownerId > User.id
+
+Ref: DiscoveryReview.discoveryId > Discovery.id
+
+Ref: DiscoveryReviewVote.userId > User.id
+
+Ref: DiscoveryReviewVote.discoveryReviewId > DiscoveryReview.id
+
+Ref: ChainTransaction.discoveryId > Discovery.id
+
+Ref: ChainTransaction.userId > User.id
+
+Ref: ChainTransaction.targetUserId > User.id
+
+Ref: ChainTransaction.vaultId > Vault.id
+
+Ref: ChainTransaction.discoveryVoteId - DiscoveryVote.id

@@ -1,0 +1,33 @@
+{
+  "name": "@desci-labs/desci-models",
+  "version": "0.1.0",
+  "description": "Data models for DeSci Nodes",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "/dist"
+  ],
+  "scripts": {
+    "test": "yarn generate && mocha -r ts-node/register tests/**/*.test.ts",
+    "coverage": "nyc -r lcov -e .ts -x \"*.test.ts\" npm run test",
+    "build": "tsc",
+    "publish": "npm publish --registry https://npm.desci.com",
+    "generate": "npx ts-interface-builder src/ResearchObject.ts --ignore-generics"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "typescript": "^4.9.4",
+    "zod": "^3.20.2"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.4",
+    "@types/mocha": "^10.0.1",
+    "chai": "^4.3.7",
+    "mocha": "^10.2.0",
+    "nyc": "^15.1.0",
+    "ts-interface-builder": "^0.3.3",
+    "ts-interface-checker": "^1.0.2",
+    "ts-node": "^10.9.1"
+  }
+}

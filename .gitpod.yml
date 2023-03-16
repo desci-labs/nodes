@@ -1,0 +1,48 @@
+# tasks:
+#   - name: Run Docker Backend
+#   - before: |
+#       ./.gitpodEnv.rb
+#   - init: |
+#       echo "init be"
+#     command: |
+#       echo "Sleeping"
+#       sleep 5
+#       echo "starting be"
+#       ./dockerDev.sh
+
+#   - name: Run Frontend
+#   - init: |
+#       echo "init fe"
+#     command: |
+#       ./.gitpodDapp.sh
+
+ports:
+  - name: Front End
+    port: 3000
+    onOpen: open-browser
+
+  - name: Server API
+    port: 5420
+
+  - name: Database
+    port: 5433
+    onOpen: ignore
+
+  - name: IPFS
+    port: 5001
+
+  - name: Graph Node
+    port: 8001
+
+  - name: Ganache Local Blockchain
+    port: 8545
+  
+  - name: Element Block Explorer
+    port: 3001
+
+  - name: Server API Debugger
+    port: 9229
+    onOpen: ignore
+
+  - name: Prisma Studio
+    port: 5555

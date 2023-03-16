@@ -1,0 +1,16 @@
+type ResearchObjectVersion @entity {
+  id: ID!
+  time: BigInt!
+  cid: String!
+  from: String!
+  researchObject: ResearchObject!
+}
+
+type ResearchObject @entity {
+  id: ID!
+  id64: String!
+  id10: String!
+  owner: String!
+  recentCid: String!
+  versions: [ResearchObjectVersion!]! @derivedFrom(field: "researchObject")
+}

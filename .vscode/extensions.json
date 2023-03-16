@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+        "bradlc.vscode-tailwindcss",
+        "juanblanco.solidity",
+        "esbenp.prettier-vscode",
+        "prisma.prisma",
+        "rbbit.typescript-hero"
+    ]
+}
