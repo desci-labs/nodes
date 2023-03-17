@@ -32,7 +32,7 @@ export interface UrlWithCid {
 }
 
 // connect to a different API
-const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
+export const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
@@ -219,13 +219,16 @@ export interface IpfsPinnedResult {
   size: number;
 }
 
-export const pinDirectory = async (files: IpfsDirStructuredInput[]): Promise<IpfsPinnedResult[]> => {
+export const pinDirectory = async (
+  files: IpfsDirStructuredInput[],
+  wrapWithDirectory = false,
+): Promise<IpfsPinnedResult[]> => {
   const isOnline = await client.isOnline();
   console.log('isOnline', isOnline);
 
   //possibly check if uploaded with a root dir, omit the wrapping if there is a root dir
   const uploaded: IpfsPinnedResult[] = [];
-  for await (const file of client.addAll(files, { wrapWithDirectory: true, cidVersion: 1 })) {
+  for await (const file of client.addAll(files, { wrapWithDirectory: wrapWithDirectory, cidVersion: 1 })) {
     uploaded.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
 

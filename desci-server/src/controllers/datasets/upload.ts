@@ -62,7 +62,7 @@ export const uploadDataset = async (req: Request, res: Response, next: NextFunct
 
   // const fullPaths = structuredFiles.map((f) => f.path);
 
-  const uploaded: IpfsPinnedResult[] = await pinDirectory(structuredFiles);
+  const uploaded: IpfsPinnedResult[] = await pinDirectory(structuredFiles, true);
   if (!uploaded.length) res.status(400).json({ error: 'failed uploading to ipfs' });
   const rootCid = uploaded[uploaded.length - 1].cid;
 

@@ -33,7 +33,7 @@
   "dependencies": {
     "@desci-labs/desci-models": "link:./desci-models",
     "@gitcoinco/passport-sdk-reader": "^0.1.4",
-    "@ipld/dag-pb": "^3.0.2",
+    "@ipld/dag-pb": "^2.1.0",
     "@prisma/client": "4.2.1",
     "@quixo3/prisma-session-store": "^3.1.0",
     "@sendgrid/mail": "^7.7.0",
@@ -59,6 +59,7 @@
     "helmet": "^4.6.0",
     "http-proxy-middleware": "3.0.0-beta.0",
     "ipfs-http-client": "56.0.2",
+    "ipfs-unixfs": "^2.0.0",
     "ipfs-utils": "9.0.6",
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.21",
