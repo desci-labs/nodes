@@ -408,10 +408,10 @@ export const updateV2 = async (req: Request, res: Response) => {
   //Add dags to be reset in order
   dagCidsToBeReset.push(CID.parse(rootCid));
   const stagingDagNames = cleanContextPath.split('/');
-  //while stagingDagNames.length, object.get(prevNode) to match the link folder name with its cid
   try {
-    stagingDagNames.forEach(async (dagLinkName: string, idx: number) => {
-      const containingDagCid = dagCidsToBeReset[idx];
+    for (let i = 0; i < stagingDagNames.length; i++) {
+      const dagLinkName = stagingDagNames[i];
+      const containingDagCid = dagCidsToBeReset[i];
       //FIXME containingDag is of type PBNode
       const containingDag: any = await ipfs.object.get(containingDagCid);
       if (!containingDag) {
@@ -423,7 +423,7 @@ export const updateV2 = async (req: Request, res: Response) => {
         throw Error('Failed updating dataset, existing DAG link not found');
       }
       dagCidsToBeReset.push(matchingLink.Hash);
-    });
+    }
   } catch (e: any) {
     return res.status(400).json({ error: e });
   }
