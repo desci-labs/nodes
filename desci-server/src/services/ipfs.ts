@@ -373,3 +373,19 @@ export const getFilesAndPaths = async (tree: RecursiveLsResult) => {
   await Promise.all(promises);
   return filesAndPaths;
 };
+
+export const isDir = async (cid: string): Promise<boolean> => {
+  try {
+    const files = await client.ls(cid);
+
+    for await (const file of files) {
+      if (file.type === 'dir') {
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error(`Failed checking if CID is dir: ${error}`);
+    return false;
+  }
+};

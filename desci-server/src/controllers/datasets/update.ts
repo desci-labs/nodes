@@ -14,6 +14,7 @@ import {
   getFilesAndPaths,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
+  isDir,
   pinDirectory,
   RecursiveLsResult,
 } from 'services/ipfs';
@@ -521,7 +522,6 @@ export const updateV2 = async (req: Request, res: Response) => {
     datasetId: datasetId,
     newRootCid: newRootCidString,
   });
-  debugger;
 
   try {
     //Update refs
@@ -557,14 +557,11 @@ export const updateV2 = async (req: Request, res: Response) => {
         size: f.size,
       };
     });
-    debugger;
 
     const upserts = await prisma.$transaction(
       dataRefsToUpsert.map((fd) => {
         const oldPath = fd.path.replace(newRootCidString, rootCid);
-        const match = dataRefIds.find((dref) => {
-          return dref.cid === fd.cid && dref.path === oldPath;
-        });
+        const match = dataRefIds.find((dref) => dref.path === oldPath);
         let refId = 0;
         if (match) refId = match.id;
         return prisma.dataReference.upsert({
@@ -583,26 +580,22 @@ export const updateV2 = async (req: Request, res: Response) => {
     if (upserts) console.log(`${upserts.length} new data references added/modified`);
 
     // //CLEANUP DANGLING REFERENCES//
-    // // console.log('oldRootCid CHECK: ', rootCid);
     oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
-    // const newFilesPathAdjusted = flatTree.map((f) => {
-    //   f.path = f.path.replace(newRootCidString, '', 0);
-    //   return f;
-    // });
 
-    // const pruneList = oldFlatTree.filter((oldF) => {
-    //   const oldPathAdjusted = oldF.path.replace(rootCid, '', 0);
-    //   //a path match && a CID difference = prune
-    //   return newFilesPathAdjusted.some((newF) => oldPathAdjusted === newF.path && oldF.cid !== newF.cid);
-    // });
+    const newFilesPathAdjusted = flatTree.map((f) => {
+      f.path = f.path.replace(newRootCidString, '', 0);
+      return f;
+    });
 
-    // //missing cids
-    // const pruneCids = pruneList.map((e) => e.cid);
+    //length should be n + 1, n being nested dirs + rootCid
+    const pruneList = oldFlatTree.filter((oldF) => {
+      const oldPathAdjusted = oldF.path.replace(rootCid, '', 0);
+      //a path match && a CID difference = prune
+      return newFilesPathAdjusted.some((newF) => oldPathAdjusted === newF.path && oldF.cid !== newF.cid);
+    });
+
     // const prunePaths = pruneList.map((e) => e.path);
-    // pruneCids.push(rootCid);
-    // prunePaths.push(rootCid);
 
-    // //doesn't find all
     // const deletionEntries = await prisma.dataReference.findMany({
     //   where: {
     //     cid: { in: pruneCids },
@@ -629,30 +622,22 @@ export const updateV2 = async (req: Request, res: Response) => {
     // // console.log('PRUNELIST: ', formattedPruneListPrinting);
 
     // console.log('deletionEntries: ', deletionEntries);
-    // const formattedPruneList = pruneList.map((e) => {
-    //   console.log('formattedPruneList Entry: ', e);
-    //   const size = deletionEntries.find((s) => e.cid === s.cid).size;
-    //   return {
-    //     description: 'DANGLING DAG, UPDATED DATASET',
-    //     cid: e.cid,
-    //     type: dataType,
-    //     size: size || 0,
-    //     nodeId: node.id,
-    //     userId: owner.id,
-    //     directory: e.type === 'dir' ? true : false,
-    //   };
-    // });
+    const formattedPruneList = pruneList.map((e) => {
+      return {
+        description: 'DANGLING DAG, UPDATED DATASET (update v2)',
+        cid: e.cid,
+        type: DataType.DATASET,
+        size: 0, //only dags being removed in an update op
+        nodeId: node.id,
+        userId: owner.id,
+        directory: e.type === 'dir' ? true : false,
+      };
+    });
 
-    // const pruneRes = await prisma.$transaction([
-    //   prisma.dataReference.deleteMany({ where: { id: { in: deletionIds } } }),
-    //   prisma.cidPruneList.createMany({ data: formattedPruneList }),
-    // ]);
+    const pruneRes = await prisma.cidPruneList.createMany({ data: formattedPruneList });
+    console.log(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
+    //END OF CLEAN UP//
 
-    // console.log(
-    //   `[PRUNING] ${pruneRes[0].count} dataReferences deleted, ${pruneRes[1].count} cidPruneList entries added.`,
-    // );
-    // //END OF CLEAN UP//
-    debugger;
     const tree = await getTreeAndFillSizes(newRootCidString, uuid, DataReferenceSrc.PRIVATE, owner.id);
     const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
@@ -667,33 +652,26 @@ export const updateV2 = async (req: Request, res: Response) => {
     });
   } catch (e: any) {
     console.log(`[UPDATE DATASET] error: ${e}`);
-    //checks if any failures occured post pinning files and adds the CIDs to the prunelist, this could result in disk usage leaks
-    // if (uploaded.length) {
-    //   console.log(`[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED, FILES: ${uploaded}`);
-    //   const formattedPruneList = uploadedStructured.map((e) => {
-    //     return {
-    //       description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE',
-    //       cid: e.cid,
-    //       type: DataType.DATASET,
-    //       size: e.size || 0,
-    //       nodeId: node.id,
-    //       userId: owner.id,
-    //       directory: e.directory,
-    //     };
-    //   });
-    //   const prunedEntries = await prisma.cidPruneList.createMany({ data: formattedPruneList });
-    //   if (prunedEntries.count) {
-    //     console.log(`[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`);
-    //   } else {
-    //     console.log(`[UPDATE DATASET E:2] failed adding files to prunelist, db may be down`);
-    //   }
-    // }
-    //delete flow
+    if (uploaded.length) {
+      console.log(`[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED, FILES: ${uploaded}`);
+      const formattedPruneList = uploaded.map(async (e) => {
+        return {
+          description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE (update v2)',
+          cid: e.cid,
+          type: DataType.DATASET,
+          size: e.size || 0,
+          nodeId: node.id,
+          userId: owner.id,
+          directory: await isDir(e.cid),
+        };
+      });
+      const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });
+      if (prunedEntries.count) {
+        console.log(`[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`);
+      } else {
+        console.log(`[UPDATE DATASET E:2] failed adding files to prunelist, db may be down`);
+      }
+    }
     return res.status(400).json({ error: 'failed #1' });
   }
-
-  //Cleanup outdated refs
-  return res.status(400);
 };
-
-//helper fn(rootCid, pathFromRoot, files), pathFromRoot, remove '/' at start.
