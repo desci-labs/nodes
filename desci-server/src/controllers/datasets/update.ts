@@ -409,20 +409,22 @@ export const updateV2 = async (req: Request, res: Response) => {
   dagCidsToBeReset.push(CID.parse(rootCid));
   const stagingDagNames = cleanContextPath.split('/');
   try {
-    for (let i = 0; i < stagingDagNames.length; i++) {
-      const dagLinkName = stagingDagNames[i];
-      const containingDagCid = dagCidsToBeReset[i];
-      //FIXME containingDag is of type PBNode
-      const containingDag: any = await ipfs.object.get(containingDagCid);
-      if (!containingDag) {
-        throw Error('Failed updating dataset, existing DAG not found');
+    if (cleanContextPath.length) {
+      for (let i = 0; i < stagingDagNames.length; i++) {
+        const dagLinkName = stagingDagNames[i];
+        const containingDagCid = dagCidsToBeReset[i];
+        //FIXME containingDag is of type PBNode
+        const containingDag: any = await ipfs.object.get(containingDagCid);
+        if (!containingDag) {
+          throw Error('Failed updating dataset, existing DAG not found');
+        }
+        dagsLoaded[containingDagCid.toString()] = containingDag;
+        const matchingLink = containingDag.Links.find((linkNode) => linkNode.Name === dagLinkName);
+        if (!matchingLink) {
+          throw Error('Failed updating dataset, existing DAG link not found');
+        }
+        dagCidsToBeReset.push(matchingLink.Hash);
       }
-      dagsLoaded[containingDagCid.toString()] = containingDag;
-      const matchingLink = containingDag.Links.find((linkNode) => linkNode.Name === dagLinkName);
-      if (!matchingLink) {
-        throw Error('Failed updating dataset, existing DAG link not found');
-      }
-      dagCidsToBeReset.push(matchingLink.Hash);
     }
   } catch (e: any) {
     return res.status(400).json({ error: e });
