@@ -119,6 +119,7 @@ export const update = async (req: Request, res: Response) => {
   });
 
   const newRootCidString = await addFilesToDag(rootCid, cleanContextPath, filesToAddToDag);
+  if (typeof newRootCidString !== 'string') return res.status(400).json({ error: 'DAG extension failed' });
 
   const datasetId = manifestObj.components.find((c) => c.payload.cid === rootCid).id;
 

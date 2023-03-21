@@ -7,6 +7,7 @@ import { expect } from 'chai';
 
 import prisma from '../../src/client';
 import * as ipfs from '../../src/services/ipfs';
+import { recursiveFlattenTree } from '../../src/utils/driveUtils';
 import { expectThrowsAsync } from '../util';
 
 describe('IPFS', () => {
@@ -96,6 +97,52 @@ describe('IPFS', () => {
 
       console.log('cids', cids, 'uploaded', uploaded, rootCid);
       expect(cids.length).to.eq(uploaded.length);
+    });
+  });
+
+  describe('Extend DAGs', async () => {
+    const structuredFiles: ipfs.IpfsDirStructuredInput[] = [
+      {
+        path: 'dir/a.txt',
+        content: Buffer.from('A'),
+      },
+      {
+        path: 'dir/subdir/b.txt',
+        content: Buffer.from('B'),
+      },
+      {
+        path: 'dir/c.txt',
+        content: Buffer.from('C'),
+      },
+    ];
+
+    const uploaded: ipfs.IpfsPinnedResult[] = await ipfs.pinDirectory(structuredFiles, true);
+    const rootCid = uploaded[uploaded.length - 1].cid;
+
+    const newFiles = await ipfs.pinDirectory([{ path: 'd.txt', content: Buffer.from('D') }]);
+
+    const filesToAddToDag: ipfs.FilesToAddToDag = {};
+    newFiles.forEach((file) => {
+      filesToAddToDag[file.path] = { cid: file.cid, size: file.size };
+    });
+
+    it('Extends a DAG at root level', async () => {
+      const newDagCid = await ipfs.addFilesToDag(rootCid, '', filesToAddToDag);
+      const flatTree: any = recursiveFlattenTree(await ipfs.getDirectoryTree(newDagCid));
+      const newFilesFound = flatTree.some((fd) => fd.path === newDagCid + '/' + 'd.txt');
+      expect(newFilesFound).to.be.true;
+    });
+    it('Extends a DAG at a single nesting ', async () => {
+      const newDagCid = await ipfs.addFilesToDag(rootCid, 'dir', filesToAddToDag);
+      const flatTree: any = recursiveFlattenTree(await ipfs.getDirectoryTree(newDagCid));
+      const newFilesFound = flatTree.some((fd) => fd.path === newDagCid + '/dir/' + 'd.txt');
+      expect(newFilesFound).to.be.true;
+    });
+    it('Extends a DAG at a deeply nested level', async () => {
+      const newDagCid = await ipfs.addFilesToDag(rootCid, 'dir/subdir', filesToAddToDag);
+      const flatTree: any = recursiveFlattenTree(await ipfs.getDirectoryTree(newDagCid));
+      const newFilesFound = flatTree.some((fd) => fd.path === newDagCid + '/dir/subdir/' + 'd.txt');
+      expect(newFilesFound).to.be.true;
     });
   });
 });
