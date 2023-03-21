@@ -3,20 +3,24 @@ import { PBNode } from '@ipld/dag-pb/src/interface';
 import { DataType, User } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
-import { CID } from 'ipfs-http-client';
 
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import { getAvailableDataUsageForUserBytes, hasAvailableDataUsageForUpload } from 'services/dataService';
-import { getDirectoryTree, IpfsDirStructuredInput, IpfsPinnedResult, isDir, pinDirectory } from 'services/ipfs';
-import { client as ipfs } from 'services/ipfs';
+import {
+  addFilesToDag,
+  FilesToAddToDag,
+  getDirectoryTree,
+  IpfsDirStructuredInput,
+  IpfsPinnedResult,
+  isDir,
+  pinDirectory,
+} from 'services/ipfs';
 import { gbToBytes, getTreeAndFillSizes, recursiveFlattenTree } from 'utils/driveUtils';
 
 import { DataReferenceSrc } from './retrieve';
 import { persistManifest } from './upload';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { addToDir, concat, getSize } = require('../../utils/dagConcat.cjs');
 interface UpdatingManifestParams {
   manifest: ResearchObjectV1;
   datasetId: string;
@@ -97,38 +101,6 @@ export const update = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Duplicate files rejected' });
   }
 
-  //Add dags to be reset in order
-  dagCidsToBeReset.push(CID.parse(rootCid));
-  const stagingDagNames = cleanContextPath.split('/');
-  try {
-    if (cleanContextPath.length) {
-      for (let i = 0; i < stagingDagNames.length; i++) {
-        const dagLinkName = stagingDagNames[i];
-        const containingDagCid = dagCidsToBeReset[i];
-        //FIXME containingDag is of type PBNode
-        const containingDag: any = await ipfs.object.get(containingDagCid);
-        if (!containingDag) {
-          throw Error('Failed updating dataset, existing DAG not found');
-        }
-        dagsLoaded[containingDagCid.toString()] = containingDag;
-        const matchingLink = containingDag.Links.find((linkNode) => linkNode.Name === dagLinkName);
-        if (!matchingLink) {
-          throw Error('Failed updating dataset, existing DAG link not found');
-        }
-        dagCidsToBeReset.push(matchingLink.Hash);
-      }
-    }
-  } catch (e: any) {
-    return res.status(400).json({ error: e });
-  }
-
-  //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
-  if (!dagsLoaded.length) {
-    //FIXME rootDag is of type PBNode
-    const rootDag: any = await ipfs.object.get(dagCidsToBeReset[0]);
-    dagsLoaded[rootCid] = rootDag;
-  }
-
   //Pin the new files
   const structuredFilesForPinning: IpfsDirStructuredInput[] = files.map((f: any) => {
     return { path: f.originalname, content: f.buffer };
@@ -141,41 +113,12 @@ export const update = async (req: Request, res: Response) => {
     return file.path.split('/').length === 1;
   });
 
-  //establishing the tail dag that's being updated
-  const tailNodeCid = dagCidsToBeReset.pop();
-  const tailNode = dagsLoaded[tailNodeCid.toString()]
-    ? dagsLoaded[tailNodeCid.toString()]
-    : await ipfs.object.get(tailNodeCid);
-
-  const filesToAddToDag = {};
-  filteredFiles.forEach(async (file) => {
+  const filesToAddToDag: FilesToAddToDag = {};
+  filteredFiles.forEach((file) => {
     filesToAddToDag[file.path] = { cid: file.cid, size: file.size };
   });
 
-  //length should === n+1, n being nestings
-  // const oldToNewCidMap = {};
-
-  const updatedTailNodeCid = await addToDir(ipfs, tailNodeCid.toString(), filesToAddToDag);
-  // oldToNewCidMap[tailNodeCid.toString()] = updatedTailNodeCid.toString();
-  const treehere = await getDirectoryTree(updatedTailNodeCid);
-
-  let lastUpdatedCid = updatedTailNodeCid;
-  while (dagCidsToBeReset.length) {
-    const currentNodeCid = dagCidsToBeReset.pop();
-    //FIXME should be PBLink
-    const currentNode: any = dagsLoaded[currentNodeCid.toString()]
-      ? dagsLoaded[currentNodeCid.toString()]
-      : await ipfs.object.get(currentNodeCid);
-    const linkName = stagingDagNames.pop();
-    const dagIdx = currentNode.Links.findIndex((dag) => dag.Name === linkName);
-    if (dagIdx === -1) return res.status(400).json({ error: `Failed to find DAG link: ${linkName}` });
-    // const oldCid = currentNode.Links[dagIdx].Hash.toString();
-    const oldLinkRemovedCid = await ipfs.object.patch.rmLink(currentNodeCid, currentNode.Links[dagIdx]);
-    lastUpdatedCid = await addToDir(ipfs, oldLinkRemovedCid, { [linkName]: { cid: lastUpdatedCid } });
-    // oldToNewCidMap[oldCid] = lastUpdatedCid.toString();
-  }
-  const newRootCid = lastUpdatedCid;
-  const newRootCidString = lastUpdatedCid.toString();
+  const newRootCidString = await addFilesToDag(rootCid, cleanContextPath, filesToAddToDag);
 
   const datasetId = manifestObj.components.find((c) => c.payload.cid === rootCid).id;
 
@@ -203,7 +146,7 @@ export const update = async (req: Request, res: Response) => {
 
   try {
     //Update refs
-    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCid));
+    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString));
     flatTree.push({
       cid: newRootCidString,
       type: 'dir',

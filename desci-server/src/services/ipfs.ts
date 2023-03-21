@@ -1,8 +1,10 @@
 import { CodeComponent, PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import { PBNode } from '@ipld/dag-pb/src/interface';
 import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import axios from 'axios';
 import CID from 'cids';
 import * as ipfs from 'ipfs-http-client';
+import { CID as CID2 } from 'ipfs-http-client';
 import toBuffer from 'it-to-buffer';
 import flatten from 'lodash/flatten';
 import uniq from 'lodash/uniq';
@@ -11,6 +13,9 @@ import * as multiformats from 'multiformats';
 import prisma from 'client';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { addToDir, concat, getSize } = require('../utils/dagConcat.cjs');
 
 // !!NOTE: this will point to your local, ephemeral nebulus IPFS store
 // in staging / prod, it will need to point to the appropriate IPFS gateway, which is either private or public
@@ -388,4 +393,69 @@ export const isDir = async (cid: string): Promise<boolean> => {
     console.error(`Failed checking if CID is dir: ${error}`);
     return false;
   }
+};
+
+type FilePath = string;
+type FileInfo = { cid: string; size: number };
+export type FilesToAddToDag = Record<FilePath, FileInfo>;
+
+export const addFilesToDag = async (rootCid: string, contextPath: string, filesToAddToDag: FilesToAddToDag) => {
+  const dagCidsToBeReset = [];
+  //                  CID(String): DAGNode     - cached to prevent duplicate calls
+  const dagsLoaded: Record<string, PBNode> = {};
+  dagCidsToBeReset.push(CID2.parse(rootCid));
+  const stagingDagNames = contextPath.split('/');
+
+  if (contextPath.length) {
+    for (let i = 0; i < stagingDagNames.length; i++) {
+      const dagLinkName = stagingDagNames[i];
+      const containingDagCid = dagCidsToBeReset[i];
+      //FIXME containingDag is of type PBNode
+      const containingDag: any = await client.object.get(containingDagCid);
+      if (!containingDag) {
+        throw Error('Failed updating dataset, existing DAG not found');
+      }
+      dagsLoaded[containingDagCid.toString()] = containingDag;
+      const matchingLink = containingDag.Links.find((linkNode) => linkNode.Name === dagLinkName);
+      if (!matchingLink) {
+        throw Error('Failed updating dataset, existing DAG link not found');
+      }
+      dagCidsToBeReset.push(matchingLink.Hash);
+    }
+  }
+
+  //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
+  if (!dagsLoaded.length) {
+    //FIXME rootDag is of type PBNode
+    const rootDag = await client.object.get(dagCidsToBeReset[0]);
+    dagsLoaded[rootCid] = rootDag;
+  }
+
+  //establishing the tail dag that's being updated
+  const tailNodeCid = dagCidsToBeReset.pop();
+  const tailNode = dagsLoaded[tailNodeCid.toString()]
+    ? dagsLoaded[tailNodeCid.toString()]
+    : await client.object.get(tailNodeCid);
+
+  const updatedTailNodeCid = await addToDir(client, tailNodeCid.toString(), filesToAddToDag);
+  // oldToNewCidMap[tailNodeCid.toString()] = updatedTailNodeCid.toString();
+  const treehere = await getDirectoryTree(updatedTailNodeCid);
+
+  let lastUpdatedCid = updatedTailNodeCid;
+  while (dagCidsToBeReset.length) {
+    const currentNodeCid = dagCidsToBeReset.pop();
+    //FIXME should be PBLink
+    const currentNode: any = dagsLoaded[currentNodeCid.toString()]
+      ? dagsLoaded[currentNodeCid.toString()]
+      : await client.object.get(currentNodeCid);
+    const linkName = stagingDagNames.pop();
+    const dagIdx = currentNode.Links.findIndex((dag) => dag.Name === linkName);
+    if (dagIdx === -1) throw Error(`Failed to find DAG link: ${linkName}`);
+    // const oldCid = currentNode.Links[dagIdx].Hash.toString();
+    const oldLinkRemovedCid = await client.object.patch.rmLink(currentNodeCid, currentNode.Links[dagIdx]);
+    lastUpdatedCid = await addToDir(client, oldLinkRemovedCid, { [linkName]: { cid: lastUpdatedCid } });
+    // oldToNewCidMap[oldCid] = lastUpdatedCid.toString();
+  }
+
+  return lastUpdatedCid.toString();
 };
