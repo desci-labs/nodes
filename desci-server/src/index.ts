@@ -22,9 +22,10 @@ import routes from './routes';
 
 export const app = express();
 
-const ENABLE_SENTRY = process.env.NODE_ENV != 'dev';
+const ENABLE_TELEMETRY = process.env.NODE_ENV != 'dev';
+if (ENABLE_TELEMETRY) {
+  console.log('[DeSci Nodes] Telemetry enabled');
 
-if (ENABLE_SENTRY) {
   Sentry.init({
     dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
     release: 'desci-nodes-server@' + process.env.npm_package_version,
@@ -36,6 +37,8 @@ if (ENABLE_SENTRY) {
   });
   app.use(Sentry.Handlers.requestHandler());
   app.use(Sentry.Handlers.tracingHandler());
+} else {
+  console.log('[DeSci Nodes] Telemetry disabled');
 }
 
 const allowlist = [
@@ -135,7 +138,7 @@ app.get('/', orcidConnect);
 
 app.use('/', routes);
 
-if (ENABLE_SENTRY) {
+if (ENABLE_TELEMETRY) {
   app.use(Sentry.Handlers.errorHandler());
 }
 
