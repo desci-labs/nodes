@@ -13,7 +13,7 @@
     "generate": "npx prisma generate",
     "migrate:local": "DATABASE_URL=postgresql://walter:white@localhost:5433/boilerplate npx prisma migrate dev",
     "migrate": "yarn generate && npx prisma migrate deploy --preview-feature",
-    "start": "NODE_PATH=./dist node -r ./dist/tracing.js ./dist/index.js",
+    "start": "NODE_PATH=./dist node ./dist/index.js",
     "prepare": "",
     "lint": "eslint --max-warnings 0 --ext .js,ts src",
     "lint-staged-husky": "lint-staged",

@@ -60,6 +60,8 @@ spec:
           export NODES_MEDIA_SERVER_URL={{ .Data.NODES_MEDIA_SERVER_URL }}
           export OTEL_SERVICE_NAME={{ .Data.OTEL_SERVICE_NAME }}
           export HONEYCOMB_API_KEY={{ .Data.HONEYCOMB_API_KEY }}
+          export DEBUG_TEST=0;
+          echo "appfinish";
           {{- end -}}
       labels:
         App: DesciServerDev
