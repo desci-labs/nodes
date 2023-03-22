@@ -95,35 +95,38 @@ describe('IPFS', () => {
       // console.log('treeCids', JSON.stringify(treeCids));
       // expect(treeCids.length).to.eq(uploaded.length);
 
-      console.log('cids', cids, 'uploaded', uploaded, rootCid);
+      // console.log('cids', cids, 'uploaded', uploaded, rootCid);
       expect(cids.length).to.eq(uploaded.length);
     });
   });
 
-  describe('Extend DAGs', async () => {
-    const structuredFiles: ipfs.IpfsDirStructuredInput[] = [
-      {
-        path: 'dir/a.txt',
-        content: Buffer.from('A'),
-      },
-      {
-        path: 'dir/subdir/b.txt',
-        content: Buffer.from('B'),
-      },
-      {
-        path: 'dir/c.txt',
-        content: Buffer.from('C'),
-      },
-    ];
-
-    const uploaded: ipfs.IpfsPinnedResult[] = await ipfs.pinDirectory(structuredFiles, true);
-    const rootCid = uploaded[uploaded.length - 1].cid;
-
-    const newFiles = await ipfs.pinDirectory([{ path: 'd.txt', content: Buffer.from('D') }]);
-
+  describe('Extend DAGs', () => {
+    let rootCid;
     const filesToAddToDag: ipfs.FilesToAddToDag = {};
-    newFiles.forEach((file) => {
-      filesToAddToDag[file.path] = { cid: file.cid, size: file.size };
+    before(async () => {
+      const structuredFiles: ipfs.IpfsDirStructuredInput[] = [
+        {
+          path: 'dir/a.txt',
+          content: Buffer.from('A'),
+        },
+        {
+          path: 'dir/subdir/b.txt',
+          content: Buffer.from('B'),
+        },
+        {
+          path: 'dir/c.txt',
+          content: Buffer.from('C'),
+        },
+      ];
+
+      const uploaded: ipfs.IpfsPinnedResult[] = await ipfs.pinDirectory(structuredFiles, true);
+      rootCid = uploaded[uploaded.length - 1].cid;
+
+      const newFiles = await ipfs.pinDirectory([{ path: 'd.txt', content: Buffer.from('D') }]);
+
+      newFiles.forEach((file) => {
+        filesToAddToDag[file.path] = { cid: file.cid, size: file.size };
+      });
     });
 
     it('Extends a DAG at root level', async () => {
