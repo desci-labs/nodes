@@ -52,6 +52,7 @@ export interface ResearchObjectV1Component {
   icon?: any;
   payload: any;
   primary?: boolean;
+  starred?: boolean;
 }
 
 export interface ResearchObjectAuthor {
