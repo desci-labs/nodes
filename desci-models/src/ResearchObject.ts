@@ -186,6 +186,8 @@ export interface DataComponentPayload {
 
 export interface DataBucketComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.DATA_BUCKET;
+  id: 'root';
+  name: 'root';
   payload: DataBucketComponentPayload;
 }
 export interface DataBucketComponentPayload {
