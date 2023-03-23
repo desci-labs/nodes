@@ -1,8 +1,8 @@
 import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import { getCountActiveUsersInXDays } from 'services/interactionLog';
-import { getCountNewNodesInXDays } from 'services/nodeManager';
+import { getCountActiveUsersInXDays, getNodeViewsInXDays } from 'services/interactionLog';
+import { getCountNewNodesInXDays, getBytesInXDays } from 'services/nodeManager';
 import { getCountNewUsersInXDays } from 'services/user';
 
 export const getAnalytics = async (req: Request, res: Response) => {
@@ -25,6 +25,16 @@ export const getAnalytics = async (req: Request, res: Response) => {
     const activeUsersInLast7Days = await getCountActiveUsersInXDays(7);
     const activeUsersInLast30Days = await getCountActiveUsersInXDays(30);
 
+    console.log('Fetching views');
+    const nodeViewsToday = await getNodeViewsInXDays(1);
+    const nodeViewsInLast7Days = await getNodeViewsInXDays(7);
+    const nodeViewsInLast30Days = await getNodeViewsInXDays(30);
+
+    console.log('Fetching bytes');
+    const bytesToday = await getBytesInXDays(1);
+    const bytesInLast7Days = await getBytesInXDays(7);
+    const bytesInLast30Days = await getBytesInXDays(30);
+
     const analytics = {
       newUsersInLast30Days,
       newUsersInLast7Days,
@@ -35,6 +45,12 @@ export const getAnalytics = async (req: Request, res: Response) => {
       activeUsersToday,
       activeUsersInLast7Days,
       activeUsersInLast30Days,
+      nodeViewsToday,
+      nodeViewsInLast7Days,
+      nodeViewsInLast30Days,
+      bytesToday,
+      bytesInLast7Days,
+      bytesInLast30Days,
     };
 
     console.log('getAnalytics returning', analytics);
