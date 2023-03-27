@@ -320,23 +320,23 @@ export const getDirectoryTree = async (cid: string): Promise<RecursiveLsResult[]
   return tree;
 };
 
-export const recursiveLs = async (cid: string, parent?: RecursiveLsResult, carryPath?: string) => {
+export const recursiveLs = async (cid: string, carryPath?: string) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
   for await (const filedir of client.ls(cid)) {
     const res: any = filedir;
-    if (parent) {
-      res.parent = parent;
-      const pathSplit = res.path.split('/');
-      pathSplit[0] = carryPath;
-      res.path = pathSplit.join('/');
-    }
+    // if (parent) {
+    //   res.parent = parent;
+    //   const pathSplit = res.path.split('/');
+    //   pathSplit[0] = carryPath;
+    //   res.path = pathSplit.join('/');
+    // }
     const v1StrCid = convertToCidV1(res.cid);
 
     if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
     if (filedir.type === 'dir') {
       res.cid = v1StrCid;
-      res.contains = await recursiveLs(res.cid, { ...res, cid: v1StrCid }, carryPath + '/' + res.name);
+      res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
       tree.push({ ...res, cid: v1StrCid });
     }
   }
