@@ -28,7 +28,7 @@ New contributors are very welcome!
 
 We are actively building out resources for open source contributors. Check back often to see what's new!
 
-[Code of Conduct](https://github.com/jring-o/nodes/blob/develop/CodeofConduct.md)
+[Code of Conduct](https://github.com/desci-labs/nodes/blob/develop/CodeofConduct.md)
 
 The simplest ways to get involved are to:
 - Make a PR, issue, or hit us up on [Discord](https://discord.gg/BeJ4dxXdaJ)
