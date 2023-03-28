@@ -327,9 +327,9 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
     const res: any = filedir;
     // if (parent) {
     //   res.parent = parent;
-    //   const pathSplit = res.path.split('/');
-    //   pathSplit[0] = carryPath;
-    //   res.path = pathSplit.join('/');
+    const pathSplit = res.path.split('/');
+    pathSplit[0] = carryPath;
+    res.path = pathSplit.join('/');
     // }
     const v1StrCid = convertToCidV1(res.cid);
 
