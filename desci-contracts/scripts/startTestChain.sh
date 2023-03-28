@@ -12,4 +12,4 @@ fi
 echo "SHOULD_UPGRADE=$SHOULD_UPGRADE"
 (echo "waiting for ganache..." && sleep 10 && (scripts/checkTestDeployments.sh ".openzeppelin/unknown-dpid.json" && yarn deploy:dpid:ganache) ; sleep 10 && (scripts/checkTestDeployments.sh ".openzeppelin/unknown-research-object.json" && yarn deploy:ganache) ; sleep 10 && ( [ $SHOULD_UPGRADE = 1 ] && yarn upgrade:local ) ) &
 (echo "deploy subgraph..." && sleep 30 && scripts/deployLocalSubgraph.sh ) &
-npx ganache-cli -i 1111 --quiet -h 0.0.0.0 --mnemonic "test test test test test test test test test test test junk" --db /data
+npx ganache-cli -i 1111 --quiet -h 0.0.0.0 --mnemonic "${MNEMONIC}" --db /data
