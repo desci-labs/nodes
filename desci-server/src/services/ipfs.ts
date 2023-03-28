@@ -15,7 +15,7 @@ import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { addToDir, concat, getSize } = require('../utils/dagConcat.cjs');
+const { addToDir, concat, getSize, makeDir } = require('../utils/dagConcat.cjs');
 
 // !!NOTE: this will point to your local, ephemeral nebulus IPFS store
 // in staging / prod, it will need to point to the appropriate IPFS gateway, which is either private or public
@@ -396,7 +396,7 @@ export const isDir = async (cid: string): Promise<boolean> => {
 };
 
 type FilePath = string;
-type FileInfo = { cid: string; size: number };
+type FileInfo = { cid: string; size?: number };
 export type FilesToAddToDag = Record<FilePath, FileInfo>;
 
 export const addFilesToDag = async (rootCid: string, contextPath: string, filesToAddToDag: FilesToAddToDag) => {
@@ -458,4 +458,8 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
   }
 
   return lastUpdatedCid.toString();
+};
+
+export const createDag = async (files: FilesToAddToDag): Promise<string> => {
+  return await makeDir(client, files);
 };
