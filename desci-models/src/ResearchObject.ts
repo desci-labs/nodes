@@ -12,11 +12,11 @@ export interface ResearchObjectPreviewResult {
 }
 
 export interface IpldUrl {
-  ['/']: string;
+  ["/"]: string;
 }
 
 export interface ResearchObjectV1 extends ResearchObject {
-  version: 'desci-nodes-0.1.0' | 1;
+  version: "desci-nodes-0.1.0" | 1;
   title?: string;
   defaultLicense?: string;
   image?: string | IpldUrl;
@@ -78,12 +78,12 @@ export interface ResearchObjectTransaction {
 }
 
 export enum ResearchObjectValidationType {
-  GRANT = 'grant',
-  REVIEW = 'review',
-  CONFERENCE = 'conference',
-  AUDIT = 'audit',
-  CERTIFICATION = 'certification',
-  CERTIFICATION_ARC = 'certification-arc',
+  GRANT = "grant",
+  REVIEW = "review",
+  CONFERENCE = "conference",
+  AUDIT = "audit",
+  CERTIFICATION = "certification",
+  CERTIFICATION_ARC = "certification-arc",
 }
 export interface ResearchObjectValidationDeposit {
   token: string;
@@ -108,11 +108,11 @@ export interface ResearchObjectV1Contributor {
 }
 
 export enum ResearchObjectAttributeKey {
-  ACM_AVAILABLE = 'available',
-  ACM_FUNCTIONAL = 'functional',
-  ACM_REUSABLE = 'reusable',
-  ACM_REPRODUCED = 'reproduced',
-  ACM_REPLICATED = 'replicated',
+  ACM_AVAILABLE = "available",
+  ACM_FUNCTIONAL = "functional",
+  ACM_REUSABLE = "reusable",
+  ACM_REPRODUCED = "reproduced",
+  ACM_REPLICATED = "replicated",
 }
 
 export interface ResearchObjectV1Attributes {
@@ -121,31 +121,31 @@ export interface ResearchObjectV1Attributes {
 }
 
 export enum ResearchObjectComponentType {
-  DATA_BUCKET = 'data-bucket',
-  PDF = 'pdf',
-  CODE = 'code',
-  VIDEO = 'video',
-  TERMINAL = 'terminal', // not used, TODO: remove
-  DATA = 'data',
-  LINK = 'link', // external link
+  DATA_BUCKET = "data-bucket",
+  PDF = "pdf",
+  CODE = "code",
+  VIDEO = "video",
+  TERMINAL = "terminal", // not used, TODO: remove
+  DATA = "data",
+  LINK = "link", // external link
 }
 
 export enum ResearchObjectComponentDocumentSubtype {
-  RESEARCH_ARTICLE = 'research-article',
-  PREREGISTERED_REPORT = 'preregistered-report',
-  PREREGISTERED_ANALYSIS_PLAN = 'preregistered-analysis-plan',
-  SUPPLEMENTARY_INFORMATION = 'supplementary-information',
-  PRESENTATION_DECK = 'presentation-deck',
-  OTHER = 'other',
+  RESEARCH_ARTICLE = "research-article",
+  PREREGISTERED_REPORT = "preregistered-report",
+  PREREGISTERED_ANALYSIS_PLAN = "preregistered-analysis-plan",
+  SUPPLEMENTARY_INFORMATION = "supplementary-information",
+  PRESENTATION_DECK = "presentation-deck",
+  OTHER = "other",
 }
 
 export enum ResearchObjectComponentLinkSubtype {
-  COMMUNITY_DISCUSSION = 'community-discussion',
-  VIDEO_RESOURCE = 'video-resource',
-  EXTERNAL_API = 'external-api',
-  RESTRICTED_DATA = 'restricted',
-  PRESENTATION_DECK = 'presentation-deck',
-  OTHER = 'other',
+  COMMUNITY_DISCUSSION = "community-discussion",
+  VIDEO_RESOURCE = "video-resource",
+  EXTERNAL_API = "external-api",
+  RESTRICTED_DATA = "restricted",
+  PRESENTATION_DECK = "presentation-deck",
+  OTHER = "other",
 }
 
 export type ResearchObjectComponentSubtypes =
@@ -157,6 +157,7 @@ export interface CommonComponentPayload {
   keywords?: string[];
   description?: string;
   licenseType?: string;
+  path?: string;
 }
 
 export interface PdfComponentPayload {
@@ -187,8 +188,8 @@ export interface DataComponentPayload {
 
 export interface DataBucketComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.DATA_BUCKET;
-  id: 'root';
-  name: 'root';
+  id: "root";
+  name: "root";
   payload: DataBucketComponentPayload;
 }
 export interface DataBucketComponentPayload {
