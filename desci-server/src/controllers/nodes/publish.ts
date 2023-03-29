@@ -4,6 +4,8 @@ import { Request, Response, NextFunction } from 'express';
 import prisma from 'client';
 import { saveInteraction } from 'services/interactionLog';
 import { publishCIDS, publishResearchObject } from 'services/nodeManager';
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { discordNotify } from 'utils/discordUtils';
 
 // call node publish service and add job to queue
 export const publish = async (req: Request, res: Response, next: NextFunction) => {
@@ -62,12 +64,18 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
           researchObjectToPublish,
           result: publishedResearchObjectResult,
         });
+
+        const manifestSource = manifest as ResearchObjectV1;
+        discordNotify(`https://${manifestSource.dpid.prefix}.dpid.org/${manifestSource.dpid.id}`);
       })
       .catch(async (error) => {
         await saveInteraction(req, ActionType.PUBLISH_NODE_RESEARCH_OBJECT_FAIL, {
           researchObjectToPublish,
           error,
         });
+
+        const manifestSource = manifest as ResearchObjectV1;
+        discordNotify(`https://${manifestSource.dpid.prefix}.dpid.org/${manifestSource.dpid.id} (note: estuary-err)`);
       });
 
     return res.send({
