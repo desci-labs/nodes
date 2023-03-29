@@ -95,7 +95,7 @@ export async function getTreeAndFillSizes(
             },
           },
         })
-      : null; 
+      : null;
 
   const cidInfoMap: Record<string, CidEntryDetails> = {};
   if (dbEntries.length) {

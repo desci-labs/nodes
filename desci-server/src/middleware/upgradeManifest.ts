@@ -3,6 +3,8 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { createDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
+// import { persistManifest } from 'controllers/datasets';
+import { ensureUniqueString } from 'utils';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
@@ -44,20 +46,41 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   const codeReposDagFiles: FilesToAddToDag = {};
   const dataDagFiles: FilesToAddToDag = {};
 
+  const idsEncountered = [];
+  const pathsEncountered = [];
+
   manifestObj.components.forEach((c) => {
+    const uniqueId = ensureUniqueString(c.id, idsEncountered);
+    idsEncountered.push(uniqueId);
+    if (c.id !== uniqueId) c.id = uniqueId;
     c.starred = true;
+    let path: string;
+    let uniqueName: string;
     switch (c.type) {
       case ResearchObjectComponentType.PDF:
+        path = ensureUniqueString(`${rootPath}/${researchReportPath}/${c.name}`, pathsEncountered);
+        pathsEncountered.push(path);
+        uniqueName = path.split('/').pop();
+        if (uniqueName !== c.name) c.name = uniqueName;
         researchReportsDagFiles[c.name] = { cid: c.payload.url };
-        c.payload.path = `${rootPath}/${researchReportPath}/${c.name}`;
+        c.payload.path = path;
         return;
       case ResearchObjectComponentType.CODE:
+        path = ensureUniqueString(`${rootPath}/${codeReposPath}/${c.name}`, pathsEncountered);
+        pathsEncountered.push(path);
+        uniqueName = path.split('/').pop();
+        if (uniqueName !== c.name) c.name = uniqueName;
         codeReposDagFiles[c.name] = { cid: c.payload.url };
-        c.payload.path = `${rootPath}/${codeReposPath}/${c.name}`;
+        c.payload.path = path;
         return;
       case ResearchObjectComponentType.DATA:
+        path = ensureUniqueString(`${rootPath}/${dataPath}/${c.name}`, pathsEncountered);
+        pathsEncountered.push(path);
+        uniqueName = path.split('/').pop();
+        if (uniqueName !== c.name) c.name = uniqueName;
         dataDagFiles[c.name] = { cid: c.payload.cid };
-        c.payload.path = `${rootPath}/${dataPath}/${c.name}`;
+        c.payload.path = path;
+        // debugger;
         return;
       default:
         return;
@@ -85,12 +108,13 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   };
 
   manifestObj.components.push(dataBucketComponent);
-  const dagTree = await getDirectoryTree(rootDagCid);
+  // const dagTree = await getDirectoryTree(rootDagCid);
 
-  debugger;
+  // Persist new manifest to db
+  const { persistedManifestCid } = await persistManifest({ manifest: manifestObj, node, userId: owner.id });
+  if (!persistedManifestCid)
+    throw Error(`Failed to persist manifest during upgrade, node: ${node}, userId: ${owner.id}`);
 
-  //persist new manifest to db
-  //uniqueness on names within same dir and IDs
   next();
   return;
 };

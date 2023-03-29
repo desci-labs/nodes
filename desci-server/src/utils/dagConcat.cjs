@@ -131,4 +131,5 @@ module.exports = {
   addToDir,
   concat,
   getSize,
+  makeDir,
 };

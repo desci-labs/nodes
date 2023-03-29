@@ -40,12 +40,24 @@ export async function asyncMap<T, E>(arr: E[], predicate: (input: E) => Promise<
   return results as T[];
 }
 
-
 export function extractManifestCids(manifest: ResearchObjectV1) {
-  const cids = []
+  const cids = [];
   manifest.components.forEach((c) => {
-    if (c.type !== ResearchObjectComponentType.DATA && c.payload?.url) cids.push(c.payload.url)
-    if (c.type === ResearchObjectComponentType.DATA && c.payload?.cid) cids.push(c.payload.cid)
-  })
-  return cids
+    if (c.type !== ResearchObjectComponentType.DATA && c.payload?.url) cids.push(c.payload.url);
+    if (c.type === ResearchObjectComponentType.DATA && c.payload?.cid) cids.push(c.payload.cid);
+  });
+  return cids;
+}
+
+export function ensureUniqueString(string, collisionList) {
+  if (collisionList.includes(string)) {
+    let i = 1;
+    let newString = `${string}${i}`;
+    while (collisionList.includes(newString)) {
+      i++;
+      newString = `${string}${i}`;
+    }
+    return newString;
+  }
+  return string;
 }
