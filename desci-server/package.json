@@ -36,6 +36,7 @@
     "@honeycombio/opentelemetry-node": "^0.3.2",
     "@ipld/dag-pb": "^3.0.2",
     "@opentelemetry/auto-instrumentations-node": "^0.36.4",
+    "@penseapp/discord-notification": "^2.0.9",
     "@prisma/client": "4.2.1",
     "@quixo3/prisma-session-store": "^3.1.0",
     "@sendgrid/mail": "^7.7.0",
