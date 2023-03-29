@@ -2,8 +2,8 @@ import { ResearchObjectComponentType, ResearchObjectV1, ResearchObjectV1Componen
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import { persistManifest } from 'controllers/datasets';
 import { createDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
-// import { persistManifest } from 'controllers/datasets';
 import { ensureUniqueString } from 'utils';
 
 /* 
