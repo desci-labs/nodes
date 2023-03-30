@@ -1,4 +1,4 @@
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { PBNode } from '@ipld/dag-pb/src/interface';
 import { DataType, User } from '@prisma/client';
 import axios from 'axios';
@@ -42,10 +42,10 @@ export function updateManifestDataset({ manifest, datasetId, newRootCid }: Updat
 
 export const update = async (req: Request, res: Response) => {
   const owner = (req as any).user as User;
-  const { uuid, manifest, rootCid, contextPath } = req.body;
+  const { uuid, manifest, contextPath } = req.body;
   console.log('files rcvd: ', req.files);
   console.log('[UPDATE DATASET] Updating in context: ', contextPath);
-  if (uuid === undefined || manifest === undefined || rootCid === undefined || contextPath === undefined)
+  if (uuid === undefined || manifest === undefined || contextPath === undefined)
     return res.status(400).json({ error: 'uuid, manifest, rootCid, contextPath required' });
   const manifestObj: ResearchObjectV1 = JSON.parse(manifest);
 
@@ -60,6 +60,17 @@ export const update = async (req: Request, res: Response) => {
     console.log(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
     return res.status(400).json({ error: 'failed' });
   }
+
+  const manifestCidEntry = node.manifestUrl || node.cid;
+  const manifestUrlEntry = manifestCidEntry
+    ? cleanupManifestUrl(manifestCidEntry as string, req.query?.g as string)
+    : null;
+
+  const fetchedManifestEntry = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
+  const latestManifestEntry = fetchedManifestEntry || manifestObj;
+
+  const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
+    .cid; //changing the rootCid to the data bucket entry
 
   const files = req.files as Express.Multer.File[];
   if (!files) return res.status(400).json({ message: 'No files received' });
