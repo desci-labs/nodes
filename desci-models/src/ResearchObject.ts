@@ -21,7 +21,7 @@ export interface ResearchObjectV1 extends ResearchObject {
   defaultLicense?: string;
   image?: string | IpldUrl;
   components: ResearchObjectV1Component[];
-  contributors: ResearchObjectV1Contributor[];
+  contributors: ResearchObjectV1Contributor[]; // Todo: Remove stale field
   validations?: ResearchObjectV1Validation[];
   attributes?: ResearchObjectV1Attributes[];
   history?: ResearchObjectV1History[];
@@ -60,6 +60,8 @@ export interface ResearchObjectV1Author {
   orcid?: string;
   googleScholar?: string;
 }
+
+// Todo: Remove stale interface
 export interface ResearchObjectAuthor {
   id: string;
   name: string;
@@ -107,6 +109,7 @@ export interface ResearchObjectV1Validation {
   deposits?: ResearchObjectValidationDeposit[];
 }
 
+// Todo: Remove stale interface
 export interface ResearchObjectV1Contributor {
   title: string;
   author: ResearchObjectAuthor;
