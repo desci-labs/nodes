@@ -1,9 +1,10 @@
 import { ResearchObjectComponentType, ResearchObjectV1, ResearchObjectV1Component } from '@desci-labs/desci-models';
+import { DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { persistManifest } from 'controllers/datasets';
-import { createDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
+import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
 
 /* 
@@ -15,7 +16,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   const { uuid, manifest } = req.body;
   const manifestObj: ResearchObjectV1 = JSON.parse(manifest);
 
-  //   Verify node ownership
+  // Verify node ownership
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
@@ -87,9 +88,13 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
     }
   });
 
-  const researchReportsDagCid = await createDag(researchReportsDagFiles);
-  const codeReposDagCid = await createDag(codeReposDagFiles);
-  const dataDagCid = await createDag(dataDagFiles);
+  const emptyDag = await createEmptyDag();
+
+  const researchReportsDagCid = Object.entries(researchReportsDagFiles).length
+    ? await createDag(researchReportsDagFiles)
+    : emptyDag;
+  const codeReposDagCid = Object.entries(codeReposDagFiles).length ? await createDag(codeReposDagFiles) : emptyDag;
+  const dataDagCid = Object.entries(dataDagFiles).length ? await createDag(dataDagFiles) : emptyDag;
 
   const rootDagFiles: FilesToAddToDag = {
     [researchReportPath]: { cid: researchReportsDagCid },
@@ -97,18 +102,20 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
     [dataPath]: { cid: dataDagCid },
   };
   const rootDagCid = await createDag(rootDagFiles);
+  const rootDagCidStr = rootDagCid.toString();
 
   const dataBucketComponent: ResearchObjectV1Component = {
     id: 'root',
     name: 'root',
     type: ResearchObjectComponentType.DATA_BUCKET,
     payload: {
-      cid: rootDagCid.toString(),
+      cid: rootDagCidStr,
     },
   };
 
   manifestObj.components.push(dataBucketComponent);
-  // const dagTree = await getDirectoryTree(rootDagCid);
+  const dagTree = await getDirectoryTree(rootDagCid);
+  // debugger;
 
   // Persist new manifest to db
   const { persistedManifestCid } = await persistManifest({ manifest: manifestObj, node, userId: owner.id });

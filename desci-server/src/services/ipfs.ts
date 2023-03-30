@@ -463,3 +463,9 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
 export const createDag = async (files: FilesToAddToDag): Promise<string> => {
   return await makeDir(client, files);
 };
+
+export async function createEmptyDag() {
+  const nodeKeepCid = await client.add(Buffer.from(''));
+  const cid = await makeDir(client, { '.nodeKeep': { cid: nodeKeepCid.cid } });
+  return cid.toString();
+}
