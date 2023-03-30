@@ -6,6 +6,7 @@ import prisma from 'client';
 import { persistManifest } from 'controllers/datasets';
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
+import { recursiveFlattenTree } from 'utils/driveUtils';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
@@ -115,7 +116,73 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
 
   manifestObj.components.push(dataBucketComponent);
   const dagTree = await getDirectoryTree(rootDagCid);
-  // debugger;
+  const flatTree = recursiveFlattenTree(dagTree);
+  debugger;
+
+  // Migrate old refs, add new refs
+  const oldDataRefs = await prisma.dataReference.findMany({
+    where: { nodeId: node.id, userId: owner.id, type: { not: DataType.MANIFEST } },
+  });
+  const oldRefsToUpsert = oldDataRefs.map((e) => {
+    let path: string;
+    if (e.path) {
+      const splitPath = e.path.split('/');
+      splitPath.shift();
+      const cidlessPath = splitPath.join('/');
+      const match = flatTree.find((f) => f.path.includes(cidlessPath));
+      path = match ? match.path : flatTree.find((f) => f.cid === e.cid).path;
+    } else {
+      const match = flatTree.find((f) => f.cid === e.cid);
+      path = match.path;
+    }
+    return {
+      id: e.id,
+      cid: e.cid,
+      root: e.cid === rootDagCidStr,
+      rootCid: rootDagCidStr,
+      path: path,
+      type: DataType.DATASET,
+      userId: owner.id,
+      nodeId: node.id,
+      directory: e.directory,
+      size: e.size || 0,
+    };
+  });
+  const newRefsToUpsert = Object.entries(rootDagFiles).map(([name, { cid }]) => {
+    return {
+      id: 0,
+      cid: cid,
+      root: false,
+      rootCid: rootDagCidStr,
+      path: rootDagCidStr + '/' + name,
+      type:
+        name === dataPath ? DataType.DATASET : name === researchReportPath ? DataType.DOCUMENT : DataType.CODE_REPOS,
+      userId: owner.id,
+      nodeId: node.id,
+      directory: true,
+      size: 0,
+    };
+  });
+  const refsToUpsert = [...oldRefsToUpsert, ...newRefsToUpsert];
+
+  const upserts = await prisma.$transaction(
+    refsToUpsert.map((fd) => {
+      const refId = fd.id;
+      delete fd.id;
+      return prisma.dataReference.upsert({
+        where: {
+          id: refId,
+        },
+        update: {
+          ...fd,
+        },
+        create: {
+          ...fd,
+        },
+      });
+    }),
+  );
+  if (upserts) console.log(`[UNOPINIATED DATA TRANSFORMER] ${upserts.length} new data references added/modified`);
 
   // Persist new manifest to db
   const { persistedManifestCid } = await persistManifest({ manifest: manifestObj, node, userId: owner.id });
