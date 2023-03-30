@@ -1,5 +1,5 @@
 FILE=.openzeppelin/unknown-dpid.json
-
+MNEMONIC=$(grep MNEMONIC ../.env | cut -d '=' -f 2-)
 RUNNING=true
 function check() {
     FILE=.openzeppelin/unknown-dpid.json
@@ -38,7 +38,7 @@ else
     sudo chown -R $(whoami) ../local-data/ganache
     (echo "sleeping until contract deployed" && check ) &
     child=$!
-    npx ganache-cli -i 1111 --quiet -h 0.0.0.0 --mnemonic "test test test test test test test test test test test junk" --db ../local-data/ganache
+    npx ganache-cli -i 1111 --quiet -h 0.0.0.0 --mnemonic "${MNEMONIC}" --db ../local-data/ganache
     wait "$child"
 fi
 

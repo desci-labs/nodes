@@ -46,7 +46,7 @@ module.exports = {
       url: "http://127.0.0.1:8545",
       chainId: 17,
       accounts: {
-        mnemonic: "test test test test test test test test test test test junk",
+        mnemonic: process.env.MNEMONIC,
       },
     },
     ganache: {
@@ -55,7 +55,7 @@ module.exports = {
       live: false,
       url: "http://127.0.0.1:8545",
       accounts: {
-        mnemonic: "test test test test test test test test test test test junk",
+        mnemonic: process.env.MNEMONIC,
       },
     },
     rinkeby: {
@@ -66,8 +66,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY
         ? [process.env.PRIVATE_KEY]
         : {
-            mnemonic:
-              "test test test test test test test test test test test junk",
+            mnemonic: process.env.MNEMONIC,
           },
     },
     goerli: {
@@ -78,8 +77,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY
         ? [process.env.PRIVATE_KEY]
         : {
-            mnemonic:
-              "test test test test test test test test test test test junk",
+            mnemonic: process.env.MNEMONIC,
           },
       gasPrice: 35000000000,
     },
