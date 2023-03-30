@@ -23,12 +23,12 @@ import { persistManifest } from './upload';
 
 interface UpdatingManifestParams {
   manifest: ResearchObjectV1;
-  datasetId: string;
+  dataBucketId: string;
   newRootCid: string;
 }
 
-export function updateManifestDataset({ manifest, datasetId, newRootCid }: UpdatingManifestParams) {
-  const componentIndex = manifest.components.findIndex((c) => c.id === datasetId);
+export function updateManifestDataset({ manifest, dataBucketId, newRootCid }: UpdatingManifestParams) {
+  const componentIndex = manifest.components.findIndex((c) => c.id === dataBucketId);
   manifest.components[componentIndex] = {
     ...manifest.components[componentIndex],
     payload: {
@@ -61,6 +61,7 @@ export const update = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'failed' });
   }
 
+  //finding rootCid
   const manifestCidEntry = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCidEntry
     ? cleanupManifestUrl(manifestCidEntry as string, req.query?.g as string)
@@ -68,7 +69,6 @@ export const update = async (req: Request, res: Response) => {
 
   const fetchedManifestEntry = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
   const latestManifestEntry = fetchedManifestEntry || manifestObj;
-
   const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
     .cid; //changing the rootCid to the data bucket entry
 
@@ -83,11 +83,6 @@ export const update = async (req: Request, res: Response) => {
     return res.send(400).json({
       error: `upload size of ${uploadSizeBytes} exceeds users data budget of ${owner.currentDriveStorageLimitGb} GB`,
     });
-
-  const dagCidsToBeReset = [];
-
-  //                  CID(String): DAGNode     - cached to prevent duplicate calls
-  const dagsLoaded: Record<string, PBNode> = {};
 
   //Pull old tree
   const oldTree = await getDirectoryTree(rootCid);
@@ -132,8 +127,6 @@ export const update = async (req: Request, res: Response) => {
   const newRootCidString = await addFilesToDag(rootCid, cleanContextPath, filesToAddToDag);
   if (typeof newRootCidString !== 'string') return res.status(400).json({ error: 'DAG extension failed' });
 
-  const datasetId = manifestObj.components.find((c) => c.payload.cid === rootCid).id;
-
   //repull of node required, previous manifestUrl may already be stale
   const ltsNode = await prisma.node.findFirst({
     where: {
@@ -150,9 +143,11 @@ export const update = async (req: Request, res: Response) => {
   const fetchedManifest = manifestUrl ? await (await axios.get(manifestUrl)).data : null;
   const latestManifest = fetchedManifest || manifestObj;
 
+  const dataBucketId = latestManifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).id;
+
   const updatedManifest = updateManifestDataset({
     manifest: latestManifest,
-    datasetId: datasetId,
+    dataBucketId: dataBucketId,
     newRootCid: newRootCidString,
   });
 
@@ -186,7 +181,7 @@ export const update = async (req: Request, res: Response) => {
         userId: owner.id,
         nodeId: node.id,
         directory: f.type === 'dir' ? true : false,
-        size: f.size,
+        size: f.size || 0,
       };
     });
 

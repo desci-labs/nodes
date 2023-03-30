@@ -8,7 +8,7 @@ import { ensureUniqueString } from 'utils';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
-IMPORTANT: Called after ensureUser
+IMPORTANT: Called after ensureUser and multer
 */
 export const upgradeManifestTransformer = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;

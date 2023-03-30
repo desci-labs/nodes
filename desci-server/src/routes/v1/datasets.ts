@@ -5,14 +5,15 @@ import { downloadDataset, pubTree, retrieveTree, uploadDataset } from 'controlle
 import { deleteDataset } from 'controllers/datasets/delete';
 import { update } from 'controllers/datasets/update';
 import { ensureUser } from 'middleware/ensureUser';
+import { upgradeManifestTransformer } from 'middleware/upgradeManifest';
 
 const router = Router();
 const upload = multer({ preservePath: true });
 
-router.post('/upload', [ensureUser, upload.array('files')], uploadDataset);
-router.post('/update', [ensureUser, upload.array('files')], update);
+router.post('/upload', [ensureUser, upload.array('files'), upgradeManifestTransformer], uploadDataset);
+router.post('/update', [ensureUser, upload.array('files'), upgradeManifestTransformer], update);
 router.post('/delete', [ensureUser], deleteDataset);
-//TODO adjust auth for both pub and priv datasets
+
 router.get('/retrieveTree/:nodeUuid/:cid', [ensureUser], retrieveTree);
 router.get('/pubTree/:nodeUuid/:cid', pubTree);
 router.get('/downloadDataset/:nodeUuid/:cid', [ensureUser], downloadDataset);
