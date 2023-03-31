@@ -21,7 +21,6 @@ export interface ResearchObjectV1 extends ResearchObject {
   defaultLicense?: string;
   image?: string | IpldUrl;
   components: ResearchObjectV1Component[];
-  contributors: ResearchObjectV1Contributor[]; // Todo: Remove stale field
   validations?: ResearchObjectV1Validation[];
   attributes?: ResearchObjectV1Attributes[];
   history?: ResearchObjectV1History[];
@@ -61,19 +60,9 @@ export interface ResearchObjectV1Author {
   googleScholar?: string;
 }
 
-// Todo: Remove stale interface
-export interface ResearchObjectAuthor {
-  id: string;
-  name: string;
-  orcid?: string;
-  github?: string;
-  twitter?: string;
-  holonym?: string;
-}
-
 export interface ResearchObjectV1History {
   title: string;
-  author: ResearchObjectAuthor;
+  author?: any; // does not refer to ResearchObject author for credit purpose, refers to the on-chain identity of the account who made the publication, this should not be stored in manifest and used in client only
   content: string;
   date?: number; // utc seconds
   transaction?: ResearchObjectTransaction;
@@ -107,12 +96,6 @@ export interface ResearchObjectV1Validation {
   tokenId?: string;
   url?: string;
   deposits?: ResearchObjectValidationDeposit[];
-}
-
-// Todo: Remove stale interface
-export interface ResearchObjectV1Contributor {
-  title: string;
-  author: ResearchObjectAuthor;
 }
 
 export enum ResearchObjectAttributeKey {
