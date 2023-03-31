@@ -125,7 +125,7 @@ This starts:
 _Optional:_ Edit the DB, open http://localhost:5555
 
 1. Go to User table
-2. Edit user to have your email (default is sina@desci.com)
+2. Edit user to have your email (default is noreply@desci.com)
    <br><br>
 
 ---
@@ -155,11 +155,11 @@ _Note:_ If running for the first time, make sure the server started, you may hav
 
 <br>
 
-Login with your email (or sina@desci.com), view the generated code in the Docker console for desci-server.
+Login with your email (or noreply@desci.com), view the generated code in the Docker console for desci-server.
 
 ```
 # this will appear in the console
-Simulating email to sina@desci.com token: 123456
+Simulating email to noreply@desci.com token: 123456
 ```
 
 <br>
