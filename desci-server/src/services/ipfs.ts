@@ -311,6 +311,8 @@ export const getDirectoryTreeCids = async (cid: string): Promise<string[]> => {
   return flatCids;
 };
 
+export const nodeKeepFile = '.nodeKeep';
+
 export const getDirectoryTree = async (cid: string): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
   console.log(`retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
@@ -333,7 +335,7 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
     // }
     const v1StrCid = convertToCidV1(res.cid);
 
-    if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
+    if (filedir.type === 'file' && filedir.name !== nodeKeepFile) tree.push({ ...res, cid: v1StrCid });
     if (filedir.type === 'dir') {
       res.cid = v1StrCid;
       res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
