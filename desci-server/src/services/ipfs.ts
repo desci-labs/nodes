@@ -80,7 +80,7 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
   const researchObject: ResearchObjectV1 = {
     version: 1,
     components: [],
-    contributors: [],
+    authors: [],
   };
 
   const pdfComponents = (await pdfHashes).map((d: UrlWithCid) => {

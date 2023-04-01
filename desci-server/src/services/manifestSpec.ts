@@ -4,12 +4,12 @@ import {
   ResearchObjectV1Validation,
   ResearchObjectV1,
   ResearchObjectV1Attributes,
-  ResearchObjectV1Contributor,
   ResearchObjectAttributeKey,
   ResearchObjectV1History,
   ResearchObjectV1Tags,
-  ResearchObjectAuthor,
   ResearchObjectV1Organization,
+  ResearchObjectV1Author,
+  ResearchObjectV1AuthorRole,
 } from '@desci-labs/desci-models';
 
 const components = [
@@ -151,39 +151,39 @@ const attributes: ResearchObjectV1Attributes[] = [
   },
 ];
 
-const authors: { [key: string]: ResearchObjectAuthor } = {
+const authorsMap: { [key: string]: ResearchObjectV1Author } = {
   john: {
-    id: 'John Daily',
     name: 'John Daily',
     orcid: 'John Daily',
+    role: ResearchObjectV1AuthorRole.AUTHOR,
   },
   mary: {
-    id: 'Mary Maller',
     name: 'Mary Maller',
     orcid: 'Mary Maller',
+    role: ResearchObjectV1AuthorRole.AUTHOR,
   },
   nicolas: {
-    id: 'Nicolas Gailly',
     name: 'Nicolas Gailly',
     orcid: 'Nicolas Gailly',
+    role: ResearchObjectV1AuthorRole.AUTHOR,
   },
   anca: {
-    id: 'Anca Nitulescu',
     name: 'Anca Nitulescu',
     orcid: 'Anca Nitulescu',
+    role: ResearchObjectV1AuthorRole.AUTHOR,
   },
 };
 
-const contributors: ResearchObjectV1Contributor[] = [
-  { title: 'Author', author: authors.nicolas },
-  { title: 'Author', author: authors.mary },
-  { title: 'Author', author: authors.anca },
+const authors: ResearchObjectV1Author[] = [
+  { role: ResearchObjectV1AuthorRole.AUTHOR, name: authorsMap.nicolas.name },
+  { role: ResearchObjectV1AuthorRole.AUTHOR, name: authorsMap.mary.name },
+  { role: ResearchObjectV1AuthorRole.AUTHOR, name: authorsMap.anca.name },
 ];
 
 const history: ResearchObjectV1History[] = [
   {
     title: '01-06-2021',
-    author: authors.john,
+    author: authorsMap.john,
     content: `Attributes certified (invited)
   * Certified Artifacts available
   * Certified Artifacts verified
@@ -191,7 +191,7 @@ const history: ResearchObjectV1History[] = [
   },
   {
     title: '28-05-2021',
-    author: authors.john,
+    author: authorsMap.john,
     content: `Attributes
   * Certified Artifacts available
   * Certified Artifacts verified
@@ -199,7 +199,7 @@ const history: ResearchObjectV1History[] = [
   },
   {
     title: '17-05-2021',
-    author: authors.mary,
+    author: authorsMap.mary,
     content: `## Components
   * Add SnarkPack code & tests
   * Add Results presentation deck
@@ -208,7 +208,7 @@ const history: ResearchObjectV1History[] = [
   },
   {
     title: '13-05-2021',
-    author: authors.nicolas,
+    author: authorsMap.nicolas,
     content: `Components
   
   * Add Research report`,
@@ -241,7 +241,7 @@ const organizations: ResearchObjectV1Organization[] = [
 const researchObject: ResearchObjectV1 = {
   version: 1,
   validations,
-  contributors,
+  authors,
   attributes,
   components,
   history,
