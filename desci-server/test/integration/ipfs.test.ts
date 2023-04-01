@@ -23,7 +23,7 @@ describe('IPFS', () => {
 
     admin = await prisma.user.create({
       data: {
-        email: 'sina@desci.com',
+        email: 'noreply@desci.com',
         isAdmin: true,
       },
     });

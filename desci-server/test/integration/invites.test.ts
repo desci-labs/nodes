@@ -19,7 +19,7 @@ describe('Invites', () => {
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
     admin = await prisma.user.create({
       data: {
-        email: 'sina@desci.com',
+        email: 'noreply@desci.com',
         isAdmin: true,
       },
     });
