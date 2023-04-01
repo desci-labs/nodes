@@ -19,6 +19,8 @@ services:
       - .env.test
     ports:
       - '5421:5420'
+    extra_hosts:
+      - host.docker.internal:host-gateway
     depends_on:
       - nodes_test_db
       - nodes_test_ipfs
