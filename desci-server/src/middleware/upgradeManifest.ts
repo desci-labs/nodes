@@ -173,7 +173,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
     nodeId: node.id,
     directory: true,
     size: 0,
-  });
+  } as any);
   const refsToUpsert = [...oldRefsToUpsert, ...newRefsToUpsert];
 
   const upserts = await prisma.$transaction(
