@@ -117,7 +117,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   manifestObj.components.push(dataBucketComponent);
   const dagTree = await getDirectoryTree(rootDagCid);
   const flatTree = recursiveFlattenTree(dagTree);
-  debugger;
+  // debugger;
 
   // Migrate old refs, add new refs
   const oldDataRefs = await prisma.dataReference.findMany({
@@ -151,7 +151,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   const newRefsToUpsert = Object.entries(rootDagFiles).map(([name, { cid }]) => {
     return {
       id: 0,
-      cid: cid,
+      cid: cid.toString(),
       root: false,
       rootCid: rootDagCidStr,
       path: rootDagCidStr + '/' + name,
