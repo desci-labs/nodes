@@ -22,7 +22,7 @@ jobs:
           node-version: 16
 
       - name: Install dependencies
-        run: yarn
+        run: cd desci-server && yarn
 
       - name: Run tests
         run: yarn test
