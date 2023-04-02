@@ -24,7 +24,7 @@ describe('IPFS', () => {
 
     admin = await prisma.user.create({
       data: {
-        email: 'sina@desci.com',
+        email: 'noreply@desci.com',
         isAdmin: true,
       },
     });
@@ -43,7 +43,7 @@ describe('IPFS', () => {
 
   const EXAMPLE_MANIFEST: ResearchObjectV1 = {
     components: [],
-    contributors: [],
+    authors: [],
     version: 1,
   };
 

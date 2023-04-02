@@ -24,3 +24,12 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
     })
   ).length;
 };
+
+export const getNodeViewsInXDays = async (daysAgo: number): Promise<number> => {
+  console.log('interactionLog::getNodeViewsInXDays');
+  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  const res =
+    await prisma.$queryRaw`select count(1) as count from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"viewedNode"'::jsonb and "createdAt" >= ${dateXDaysAgo}`;
+  const count = (res as any[])[0].count.toString();
+  return parseInt(count);
+};

@@ -27,13 +27,16 @@
     "docker:dev": "../dockerDev.sh",
     "docker:test": "CI=true docker-compose --file ../docker-compose.test.yml --compatibility run nodes_backend_test && docker-compose  --file ../docker-compose.test.yml down",
     "docker:stage": "docker-compose --file docker-compose.yml --file docker-compose.stage.yml --compatibility up --build",
-    "docker:prod": "docker-compose --file docker-compose.yml --file docker-compose.prod.yml --compatibility up --build",
+    "docker:prod": "../dockerProd.sh",
     "podman:dev": "podman-compose --file docker-compose.yml --file docker-compose.dev.yml up --build"
   },
   "dependencies": {
     "@desci-labs/desci-models": "link:./desci-models",
     "@gitcoinco/passport-sdk-reader": "^0.1.4",
+    "@honeycombio/opentelemetry-node": "^0.3.2",
     "@ipld/dag-pb": "^2.1.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.36.4",
+    "@penseapp/discord-notification": "^2.0.9",
     "@prisma/client": "4.2.1",
     "@quixo3/prisma-session-store": "^3.1.0",
     "@sendgrid/mail": "^7.7.0",

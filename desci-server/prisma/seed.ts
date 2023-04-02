@@ -4,11 +4,11 @@ import prisma from '../src/client';
 async function main() {
   const owner = await prisma.user.upsert({
     where: {
-      email: 'sina@desci.com',
+      email: 'noreply@desci.com',
     },
     update: {},
     create: {
-      email: 'sina@desci.com',
+      email: 'noreply@desci.com',
       phoneNumber: '123',
 
       isPatron: false,

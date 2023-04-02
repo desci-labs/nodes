@@ -330,3 +330,19 @@ export const getCountNewNodesInXDays = async (daysAgo: number): Promise<number> 
 
   return newNodesInXDays;
 };
+
+export const getBytesInXDays = async (daysAgo: number): Promise<number> => {
+  console.log('node::getBytesInXDays');
+  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+
+  const bytesInXDays = await prisma.dataReference.aggregate({
+    _sum: { size: true },
+    where: {
+      createdAt: {
+        gte: dateXDaysAgo,
+      },
+    },
+  });
+
+  return bytesInXDays._sum.size;
+};

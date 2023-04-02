@@ -1,14 +1,14 @@
-version: '3'
+version: "3"
 
 services:
   desci_nodes_backend:
     deploy:
       resources:
         limits:
-          cpus: '0.90'
+          cpus: "0.90"
           # memory: 400M
     command: /bin/sh -c "echo 'Running API on production!' && npm run build && npm start"
     ports:
-      - '5420:5420'
+      - "5420:5420"
     env_file:
-      - ./config/prod.env
+      - .env

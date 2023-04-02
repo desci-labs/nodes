@@ -21,7 +21,6 @@ export interface ResearchObjectV1 extends ResearchObject {
   defaultLicense?: string;
   image?: string | IpldUrl;
   components: ResearchObjectV1Component[];
-  contributors: ResearchObjectV1Contributor[];
   validations?: ResearchObjectV1Validation[];
   attributes?: ResearchObjectV1Attributes[];
   history?: ResearchObjectV1History[];
@@ -29,6 +28,7 @@ export interface ResearchObjectV1 extends ResearchObject {
   organizations?: ResearchObjectV1Organization[];
   dpid?: ResearchObjectV1Dpid;
   researchFields?: string[];
+  authors?: ResearchObjectV1Author[];
 }
 
 export interface ResearchObjectV1Dpid {
@@ -55,18 +55,16 @@ export interface ResearchObjectV1Component {
   starred?: boolean;
 }
 
-export interface ResearchObjectAuthor {
-  id: string;
+export interface ResearchObjectV1Author {
   name: string;
   orcid?: string;
-  github?: string;
-  twitter?: string;
-  holonym?: string;
+  googleScholar?: string;
+  role: ResearchObjectV1AuthorRole;
 }
 
 export interface ResearchObjectV1History {
   title: string;
-  author: ResearchObjectAuthor;
+  author?: any; // does not refer to ResearchObject author for credit purpose, refers to the on-chain identity of the account who made the publication, this should not be stored in manifest and used in client only
   content: string;
   date?: number; // utc seconds
   transaction?: ResearchObjectTransaction;
@@ -100,11 +98,6 @@ export interface ResearchObjectV1Validation {
   tokenId?: string;
   url?: string;
   deposits?: ResearchObjectValidationDeposit[];
-}
-
-export interface ResearchObjectV1Contributor {
-  title: string;
-  author: ResearchObjectAuthor;
 }
 
 export enum ResearchObjectAttributeKey {
@@ -252,3 +245,8 @@ export type ResearchObjectComponentAnnotation = {
   title?: string;
   __client?: any; // client-only variables, deleted before saving to server
 };
+
+export enum ResearchObjectV1AuthorRole {
+  AUTHOR = "Author",
+  NODE_STEWARD = "Node Steward",
+}

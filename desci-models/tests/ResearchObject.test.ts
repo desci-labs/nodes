@@ -6,7 +6,7 @@ const checkers = createCheckers(ResearchObjectTi);
 
 describe("ResearchObject", () => {
   it("Has a simple valid base form", () => {
-    const obj = { version: 1, components: [], contributors: [] };
+    const obj = { version: 1, components: [], authors: [] };
     checkers.ResearchObjectV1.check(obj);
   });
 
@@ -32,7 +32,7 @@ value.components is missing`);
           },
         },
       ],
-      contributors: [],
+      authors: [],
     };
     checkers.ResearchObjectV1.check(obj);
   });
@@ -41,7 +41,7 @@ value.components is missing`);
     const obj = {
       version: "desci-nodes-0.1.0",
       components: [],
-      contributors: [],
+      authors: [],
     };
     checkers.ResearchObjectV1.check(obj);
   });

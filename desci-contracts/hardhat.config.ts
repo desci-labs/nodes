@@ -16,6 +16,11 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   }
 });
 
+// this is specified in .env.example, so not required, but if
+// you already generated .env, this will prevent deployment failure
+const DEFAULT_MNEMONIC =
+  "test test test test test test test test test test test junk";
+
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
@@ -46,7 +51,7 @@ module.exports = {
       url: "http://127.0.0.1:8545",
       chainId: 17,
       accounts: {
-        mnemonic: "test test test test test test test test test test test junk",
+        mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
       },
     },
     ganache: {
@@ -55,7 +60,7 @@ module.exports = {
       live: false,
       url: "http://127.0.0.1:8545",
       accounts: {
-        mnemonic: "test test test test test test test test test test test junk",
+        mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
       },
     },
     rinkeby: {
@@ -66,8 +71,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY
         ? [process.env.PRIVATE_KEY]
         : {
-            mnemonic:
-              "test test test test test test test test test test test junk",
+            mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
           },
     },
     goerli: {
@@ -78,8 +82,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY
         ? [process.env.PRIVATE_KEY]
         : {
-            mnemonic:
-              "test test test test test test test test test test test junk",
+            mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
           },
       gasPrice: 35000000000,
     },

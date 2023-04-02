@@ -16,14 +16,6 @@ import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraf
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { addToDir, concat, getSize, makeDir } = require('../utils/dagConcat.cjs');
-
-// !!NOTE: this will point to your local, ephemeral nebulus IPFS store
-// in staging / prod, it will need to point to the appropriate IPFS gateway, which is either private or public
-// export const PUBLIC_IPFS_PATH =
-//   process.env.NODE_ENV === 'dev' || process.env.NODE_ENV === 'test'
-//     ? `http://host.docker.internal:8089/ipfs`
-//     : 'https://ipfs.desci.com/ipfs';
-
 export const IPFS_PATH_TMP = '/tmp/ipfs';
 
 // key = type
@@ -83,9 +75,9 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
   // make manifest
 
   const researchObject: ResearchObjectV1 = {
-    version: 1,
+    version: 'desci-nodes-0.1.0',
     components: [],
-    contributors: [],
+    authors: [],
   };
 
   const pdfComponents = (await pdfHashes).map((d: UrlWithCid) => {
