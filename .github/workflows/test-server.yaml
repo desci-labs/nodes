@@ -6,6 +6,9 @@ on:
       - main
       - develop
 
+env:
+  DOCKER_BUILDKIT: 1
+
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
