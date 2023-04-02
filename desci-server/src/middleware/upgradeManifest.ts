@@ -118,7 +118,6 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   const dagTree = await getDirectoryTree(rootDagCid);
   const flatTree = recursiveFlattenTree(dagTree);
   // debugger;
-
   // Migrate old refs, add new refs
   const oldDataRefs = await prisma.dataReference.findMany({
     where: { nodeId: node.id, userId: owner.id, type: { not: DataType.MANIFEST } },
@@ -162,6 +161,18 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
       directory: true,
       size: 0,
     };
+  });
+  newRefsToUpsert.push({
+    id: 0,
+    cid: rootDagCidStr,
+    root: true,
+    rootCid: rootDagCidStr,
+    path: rootDagCidStr,
+    type: DataType.DATA_BUCKET,
+    userId: owner.id,
+    nodeId: node.id,
+    directory: true,
+    size: 0,
   });
   const refsToUpsert = [...oldRefsToUpsert, ...newRefsToUpsert];
 
