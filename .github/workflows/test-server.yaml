@@ -17,9 +17,9 @@ jobs:
       - name: Set up the environment
         # Replace this line with the appropriate setup for your project
         # Examples:
-        - uses: actions/setup-node@v2
-          with:
-            node-version: '16'
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
 
       - name: Install dependencies
         run: yarn
