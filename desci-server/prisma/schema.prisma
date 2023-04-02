@@ -462,7 +462,9 @@ enum NodeState {
 }
 
 enum DataType {
+  DATA_BUCKET
   MANIFEST
+  UNKNOWN
   DATASET
   IMAGES
   VIDEOS
