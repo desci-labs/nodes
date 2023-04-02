@@ -25,4 +25,4 @@ jobs:
         run: cd desci-models && yarn && yarn build && cd ../desci-server && yarn
 
       - name: Run tests
-        run: yarn test
+        run: cd desci-server && yarn test
