@@ -25,7 +25,7 @@
     "commit": "git-cz",
     "db:forward": "kubectl run --env REMOTE_HOST=$REMOTE_HOST --env REMOTE_PORT=5432 --env LOCAL_PORT=8080 --port 8080 --image marcnuri/port-forward test-port-forward ;  kubectl port-forward test-port-forward 8080:8080",
     "docker:dev": "../dockerDev.sh",
-    "docker:test": "CI=true docker-compose --file ../docker-compose.test.yml --compatibility run nodes_backend_test && docker-compose  --file ../docker-compose.test.yml down",
+    "docker:test": "DOCKER_BUILDKIT=1 CI=true docker-compose --file ../docker-compose.test.yml --compatibility run nodes_backend_test && docker-compose  --file ../docker-compose.test.yml down",
     "docker:stage": "docker-compose --file docker-compose.yml --file docker-compose.stage.yml --compatibility up --build",
     "docker:prod": "../dockerProd.sh",
     "podman:dev": "podman-compose --file docker-compose.yml --file docker-compose.dev.yml up --build"
