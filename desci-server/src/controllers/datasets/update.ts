@@ -16,7 +16,13 @@ import {
   isDir,
   pinDirectory,
 } from 'services/ipfs';
-import { gbToBytes, getTreeAndFillSizes, recursiveFlattenTree } from 'utils/driveUtils';
+import {
+  ROTypesToPrismaTypes,
+  gbToBytes,
+  generateManifestPathsToDbTypeMap,
+  getTreeAndFillSizes,
+  recursiveFlattenTree,
+} from 'utils/driveUtils';
 
 import { DataReferenceSrc } from './retrieve';
 import { persistManifest } from './upload';
@@ -74,6 +80,8 @@ export const update = async (req: Request, res: Response) => {
 
   const files = req.files as Express.Multer.File[];
   if (!files) return res.status(400).json({ message: 'No files received' });
+
+  const manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(latestManifestEntry);
 
   let uploadSizeBytes = 0;
   files.forEach((f) => (uploadSizeBytes += f.size));
@@ -177,7 +185,7 @@ export const update = async (req: Request, res: Response) => {
         root: f.cid === newRootCidString,
         rootCid: newRootCidString,
         path: f.path,
-        type: DataType.DATASET,
+        type: DataType.UNKNOWN,
         userId: owner.id,
         nodeId: node.id,
         directory: f.type === 'dir' ? true : false,
@@ -185,12 +193,16 @@ export const update = async (req: Request, res: Response) => {
       };
     });
 
+    const manifestPathsToTypes = generateManifestPathsToDbTypeMap(updatedManifest);
+
     const upserts = await prisma.$transaction(
       dataRefsToUpsert.map((fd) => {
         const oldPath = fd.path.replace(newRootCidString, rootCid);
+        const neutralPath = fd.path.replace(newRootCidString, 'root');
         const match = dataRefIds.find((dref) => dref.path === oldPath);
         let refId = 0;
         if (match) refId = match.id;
+        fd.type = manifestPathsToTypes[neutralPath] || DataType.UNKNOWN;
         return prisma.dataReference.upsert({
           where: {
             id: refId,
@@ -222,10 +234,11 @@ export const update = async (req: Request, res: Response) => {
     });
 
     const formattedPruneList = pruneList.map((e) => {
+      const neutralPath = e.path.replace(rootCid, 'root');
       return {
         description: 'DANGLING DAG, UPDATED DATASET (update v2)',
         cid: e.cid,
-        type: DataType.DATASET,
+        type: manifestPathsToTypesPrune[e.path] || DataType.UNKNOWN,
         size: 0, //only dags being removed in an update op
         nodeId: node.id,
         userId: owner.id,
@@ -254,10 +267,13 @@ export const update = async (req: Request, res: Response) => {
     if (uploaded.length) {
       console.log(`[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED, FILES: ${uploaded}`);
       const formattedPruneList = uploaded.map(async (e) => {
+        const pathSplit = e.path.split('/');
+        pathSplit[0] = 'root';
+        const neutralPath = pathSplit.join('/');
         return {
           description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE (update v2)',
           cid: e.cid,
-          type: DataType.DATASET,
+          type: manifestPathsToTypesPrune[neutralPath] || DataType.UNKNOWN,
           size: e.size || 0,
           nodeId: node.id,
           userId: owner.id,

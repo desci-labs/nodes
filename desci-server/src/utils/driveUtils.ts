@@ -1,3 +1,4 @@
+import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 
 import prisma from 'client';
@@ -119,3 +120,22 @@ export async function getTreeAndFillSizes(
 
 export const gbToBytes = (gb: number) => gb * 1000000000;
 export const bytesToGb = (bytes: number) => bytes / 1000000000;
+
+export const ROTypesToPrismaTypes = {
+  [ResearchObjectComponentType.DATA]: DataType.DATASET,
+  [ResearchObjectComponentType.PDF]: DataType.DOCUMENT,
+  [ResearchObjectComponentType.CODE]: DataType.CODE_REPOS,
+  [ResearchObjectComponentType.VIDEO]: DataType.VIDEOS,
+  [ResearchObjectComponentType.DATA_BUCKET]: DataType.DATA_BUCKET,
+};
+
+export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
+  const manifestPathsToTypes: Record<string, string> = {};
+  manifest.components.forEach((c) => {
+    if (c.payload?.path) {
+      const dbType: DataType = ROTypesToPrismaTypes[c.type];
+      if (dbType) manifestPathsToTypes[c.payload.path] = dbType;
+    }
+  });
+  return manifestPathsToTypes;
+}
