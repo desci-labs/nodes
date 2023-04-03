@@ -232,13 +232,13 @@ export const update = async (req: Request, res: Response) => {
       //a path match && a CID difference = prune
       return newFilesPathAdjusted.some((newF) => oldPathAdjusted === newF.path && oldF.cid !== newF.cid);
     });
-
+    debugger;
     const formattedPruneList = pruneList.map((e) => {
       const neutralPath = e.path.replace(rootCid, 'root');
       return {
         description: 'DANGLING DAG, UPDATED DATASET (update v2)',
         cid: e.cid,
-        type: manifestPathsToTypesPrune[e.path] || DataType.UNKNOWN,
+        type: manifestPathsToTypesPrune[neutralPath] || DataType.UNKNOWN,
         size: 0, //only dags being removed in an update op
         nodeId: node.id,
         userId: owner.id,

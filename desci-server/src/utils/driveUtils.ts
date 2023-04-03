@@ -65,7 +65,7 @@ export async function getTreeAndFillSizes(
       ? await prisma.dataReference.findMany({
           where: {
             userId: ownerId,
-            type: DataType.DATASET,
+            type: { not: DataType.MANIFEST },
             rootCid: rootCid,
             // cid: { in: dirCids },
             node: {
@@ -75,7 +75,7 @@ export async function getTreeAndFillSizes(
         })
       : await prisma.publicDataReference.findMany({
           where: {
-            type: DataType.DATASET,
+            type: { not: DataType.MANIFEST },
             // cid: { in: dirCids },
             // rootCid: rootCid,
             node: {
@@ -90,7 +90,7 @@ export async function getTreeAndFillSizes(
     dataSrc === DataReferenceSrc.PRIVATE
       ? await prisma.publicDataReference.findMany({
           where: {
-            type: DataType.DATASET,
+            type: { not: DataType.MANIFEST },
             node: {
               uuid: nodeUuid + '.',
             },

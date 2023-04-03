@@ -140,7 +140,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
       root: e.cid === rootDagCidStr,
       rootCid: rootDagCidStr,
       path: path,
-      type: DataType.DATASET,
+      type: e.type,
       userId: owner.id,
       nodeId: node.id,
       directory: e.directory,

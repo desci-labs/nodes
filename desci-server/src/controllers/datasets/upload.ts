@@ -69,7 +69,6 @@ export const uploadDataset = async (req: Request, res: Response, next: NextFunct
   try {
     const flatTree = recursiveFlattenTree(await getDirectoryTree(rootCid));
     flatTree.push({ cid: rootCid, type: 'dir', path: rootCid });
-    const dataType: DataType = 'DATASET';
     const uploadedStructured = uploaded.map((f) => {
       const treeMatch = flatTree.find((fd) => f.cid === fd.cid);
       const path = treeMatch.path;
@@ -80,7 +79,7 @@ export const uploadDataset = async (req: Request, res: Response, next: NextFunct
         root: f.cid === rootCid,
         rootCid: rootCid,
         path: path,
-        type: dataType,
+        type: DataType.DATASET,
         userId: owner.id,
         nodeId: node.id,
         // versionId: nodeVersion.id,
