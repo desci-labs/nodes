@@ -12,6 +12,9 @@ env:
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
+    container:
+      image: node:16
+      options: --user 1001
 
     steps:
       - name: Check out repository
@@ -33,4 +36,4 @@ jobs:
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
 
       - name: Run tests
-        run: sudo npm i yarn --global && cd desci-server && export DOCKER_BUILDKIT=1 && yarn && yarn test
+        run: cd desci-server && export DOCKER_BUILDKIT=1 && yarn && yarn test
