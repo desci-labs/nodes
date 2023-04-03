@@ -115,6 +115,7 @@ export interface ResearchObjectV1Attributes {
 
 export enum ResearchObjectComponentType {
   DATA_BUCKET = "data-bucket",
+  UNKNOWN = "unknown",
   PDF = "pdf",
   CODE = "code",
   VIDEO = "video",
