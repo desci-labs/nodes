@@ -33,4 +33,4 @@ jobs:
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
 
       - name: Run tests
-        run: cd desci-server && export DOCKER_BUILDKIT=1 && yarn && yarn test
+        run: sudo npm i yarn --global && cd desci-server && export DOCKER_BUILDKIT=1 && yarn && yarn test
