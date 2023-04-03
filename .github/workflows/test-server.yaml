@@ -28,7 +28,7 @@ jobs:
           node-version: 16
 
       - name: Install dependencies
-        run: cd desci-models && yarn && yarn build && cd ../desci-server && yarn
+        run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn
 
       - name: Stub contract
         run: |
