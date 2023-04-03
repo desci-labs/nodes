@@ -130,7 +130,7 @@ export const ROTypesToPrismaTypes = {
 };
 
 export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
-  const manifestPathsToTypes: Record<string, string> = {};
+  const manifestPathsToTypes: Record<string, DataType> = {};
   manifest.components.forEach((c) => {
     if (c.payload?.path) {
       const dbType: DataType = ROTypesToPrismaTypes[c.type];

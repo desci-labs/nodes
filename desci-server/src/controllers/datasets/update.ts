@@ -1,6 +1,6 @@
 import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { PBNode } from '@ipld/dag-pb/src/interface';
-import { DataType, User } from '@prisma/client';
+import { DataReference, DataType, User } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
@@ -178,7 +178,7 @@ export const update = async (req: Request, res: Response) => {
       },
     });
 
-    const dataRefsToUpsert = flatTree.map((f) => {
+    const dataRefsToUpsert: Partial<DataReference>[] = flatTree.map((f) => {
       if (typeof f.cid !== 'string') f.cid = f.cid.toString();
       return {
         cid: f.cid,
@@ -196,7 +196,7 @@ export const update = async (req: Request, res: Response) => {
     const manifestPathsToTypes = generateManifestPathsToDbTypeMap(updatedManifest);
 
     const upserts = await prisma.$transaction(
-      dataRefsToUpsert.map((fd) => {
+      (dataRefsToUpsert as any).map((fd) => {
         const oldPath = fd.path.replace(newRootCidString, rootCid);
         const neutralPath = fd.path.replace(newRootCidString, 'root');
         const match = dataRefIds.find((dref) => dref.path === oldPath);
