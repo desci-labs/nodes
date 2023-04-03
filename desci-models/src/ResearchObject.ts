@@ -58,6 +58,7 @@ export interface ResearchObjectV1Author {
   name: string;
   orcid?: string;
   googleScholar?: string;
+  role: ResearchObjectV1AuthorRole;
 }
 
 export interface ResearchObjectV1History {
@@ -231,3 +232,8 @@ export type ResearchObjectComponentAnnotation = {
   title?: string;
   __client?: any; // client-only variables, deleted before saving to server
 };
+
+export enum ResearchObjectV1AuthorRole {
+  AUTHOR = "Author",
+  NODE_STEWARD = "Node Steward",
+}

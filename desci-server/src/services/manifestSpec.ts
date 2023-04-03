@@ -3,10 +3,12 @@ import {
   ResearchObjectV1Validation,
   ResearchObjectV1,
   ResearchObjectV1Attributes,
+  ResearchObjectAttributeKey,
   ResearchObjectV1History,
   ResearchObjectV1Tags,
   ResearchObjectV1Organization,
   ResearchObjectV1Author,
+  ResearchObjectV1AuthorRole,
 } from '@desci-labs/desci-models';
 
 const components = [] as ResearchObjectV1Component[];

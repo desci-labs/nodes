@@ -42,7 +42,7 @@ describe('IPFS', () => {
 
   const EXAMPLE_MANIFEST: ResearchObjectV1 = {
     components: [],
-
+    authors: [],
     version: 1,
   };
 
