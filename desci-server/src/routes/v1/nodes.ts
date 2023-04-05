@@ -12,6 +12,9 @@ import {
   api,
   publish,
   retrievePublishStatus,
+  createPrivateShare,
+  revokePrivateShare,
+  getPrivateShare,
 } from 'controllers/nodes/index';
 import { retrieveTitle } from 'controllers/nodes/legacyManifestApi';
 import { versionDetails } from 'controllers/nodes/versionDetails';
@@ -29,6 +32,9 @@ router.post('/doi', [ensureUser], retrieveDoi);
 router.get('/pdf', proxyPdf);
 router.get('/publishStatus/:nodeUuid/:manifestCid', retrievePublishStatus);
 router.post('/consent', [ensureUser], consent);
+router.get('/share', [ensureUser], getPrivateShare);
+router.post('/share', [ensureUser], createPrivateShare);
+router.post('/revokeShare', [ensureUser], revokePrivateShare);
 
 router.get('/legacy/retrieveTitle', retrieveTitle);
 
