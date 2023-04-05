@@ -139,3 +139,21 @@ export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
   });
   return manifestPathsToTypes;
 }
+
+/* 
+Inconsistent use of URL and CID within the manifest payloads, PDFs and Code Repos use .url,
+ others generally use .cid, this helper function fetches the appropriate property
+  */
+export function urlOrCid(cid: string, type: ResearchObjectComponentType) {
+  switch (type) {
+    case ResearchObjectComponentType.PDF:
+    case ResearchObjectComponentType.CODE:
+    case ResearchObjectComponentType.LINK:
+      return { url: cid };
+    case ResearchObjectComponentType.DATA:
+    case ResearchObjectComponentType.DATA_BUCKET:
+      return { cid };
+    default:
+      return { cid };
+  }
+}

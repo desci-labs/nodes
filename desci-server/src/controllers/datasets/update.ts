@@ -1,4 +1,10 @@
-import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import { randomUUID } from 'crypto';
+
+import {
+  ResearchObjectComponentSubtypes,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+} from '@desci-labs/desci-models';
 import { PBNode } from '@ipld/dag-pb/src/interface';
 import { DataReference, DataType, User } from '@prisma/client';
 import axios from 'axios';
@@ -22,10 +28,12 @@ import {
   generateManifestPathsToDbTypeMap,
   getTreeAndFillSizes,
   recursiveFlattenTree,
+  urlOrCid,
 } from 'utils/driveUtils';
 
 import { DataReferenceSrc } from './retrieve';
 import { persistManifest } from './upload';
+import path from 'path';
 
 interface UpdatingManifestParams {
   manifest: ResearchObjectV1;
@@ -46,9 +54,33 @@ export function updateManifestDataset({ manifest, dataBucketId, newRootCid }: Up
   return manifest;
 } //
 
+interface FirstNestingComponent {
+  name: string;
+  path: string;
+  cid: string;
+  componentType?: ResearchObjectComponentType;
+  componentSubType?: ResearchObjectComponentSubtypes;
+}
+export function addComponentsToManifest(manifest: ResearchObjectV1, firstNestingComponents: FirstNestingComponent[]) {
+  firstNestingComponents.forEach((c) => {
+    const comp = {
+      id: randomUUID(),
+      name: c.name,
+      ...(c.componentType && { type: c.componentType }),
+      ...(c.componentSubType && { subtype: c.componentSubType }),
+      payload: {
+        ...urlOrCid(c.cid, c.componentType),
+        path: c.path,
+      },
+    };
+    manifest.components.push(comp);
+  });
+  return manifest;
+}
+
 export const update = async (req: Request, res: Response) => {
   const owner = (req as any).user as User;
-  const { uuid, manifest, contextPath } = req.body;
+  const { uuid, manifest, contextPath, componentType, componentSubType, externalCids } = req.body;
   console.log('files rcvd: ', req.files);
   console.log('[UPDATE DATASET] Updating in context: ', contextPath);
   if (uuid === undefined || manifest === undefined || contextPath === undefined)
