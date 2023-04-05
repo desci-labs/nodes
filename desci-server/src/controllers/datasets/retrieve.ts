@@ -58,7 +58,7 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
 
   const filledTree = await getTreeAndFillSizes(cid, uuid, dataSource, owner.id);
 
-  return res.status(200).json({ tree: filledTree, date: dataset.updatedAt });
+  return res.status(200).json({ tree: filledTree, date: dataset?.updatedAt });
 };
 
 export const pubTree = async (req: Request, res: Response, next: NextFunction) => {
