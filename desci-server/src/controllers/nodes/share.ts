@@ -5,7 +5,7 @@ import prisma from 'client';
 
 export const createPrivateShare = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
-  const uuid = req.query.uuid as string;
+  const uuid = req.params.uuid as string;
 
   const discovery = await prisma.node.findFirst({
     where: {
@@ -36,7 +36,7 @@ export const createPrivateShare = async (req: Request, res: Response, next: Next
 
 export const getPrivateShare = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
-  const uuid = req.query.uuid as string;
+  const uuid = req.params.uuid as string;
 
   try {
     const discovery = await prisma.node.findFirst({
@@ -63,7 +63,6 @@ export const getPrivateShare = async (req: Request, res: Response, next: NextFun
 };
 export const checkPrivateShareId = async (req: Request, res: Response, next: NextFunction) => {
   const shareId = req.params.shareId as string;
-  console.log('check', shareId, req.params);
 
   if (!shareId) {
     res.status(400).send({ ok: false, message: 'ShareId required!' });
@@ -72,7 +71,6 @@ export const checkPrivateShareId = async (req: Request, res: Response, next: Nex
 
   try {
     const privateShare = await prisma.privateShare.findFirst({ where: { shareId } });
-    console.log('verified', privateShare);
 
     res.send({ ok: true, share: privateShare });
   } catch (e) {

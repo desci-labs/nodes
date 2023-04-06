@@ -33,9 +33,9 @@ router.post('/doi', [ensureUser], retrieveDoi);
 router.get('/pdf', proxyPdf);
 router.get('/publishStatus/:nodeUuid/:manifestCid', retrievePublishStatus);
 router.post('/consent', [ensureUser], consent);
-router.get('/share/:shareId', checkPrivateShareId);
-router.get('/share', [ensureUser], getPrivateShare);
-router.post('/share', [ensureUser], createPrivateShare);
+router.get('/share/verify/:shareId', checkPrivateShareId);
+router.get('/share/:uuid', [ensureUser], getPrivateShare);
+router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare', [ensureUser], revokePrivateShare);
 
 router.get('/legacy/retrieveTitle', retrieveTitle);
