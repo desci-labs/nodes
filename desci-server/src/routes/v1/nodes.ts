@@ -27,7 +27,7 @@ router.post('/publish', [ensureUser], publish);
 router.post('/createDraft', [ensureUser], draftCreate);
 router.post('/addComponentToDraft', [ensureUser], draftAddComponent);
 router.post('/updateDraft', [ensureUser], draftUpdate);
-router.get('/versionDetails', [ensureUser], versionDetails);
+router.get('/versionDetails', [], versionDetails);
 router.get('/', [ensureUser], list);
 router.post('/doi', [ensureUser], retrieveDoi);
 router.get('/pdf', proxyPdf);
