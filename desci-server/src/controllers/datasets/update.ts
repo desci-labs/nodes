@@ -62,6 +62,7 @@ interface FirstNestingComponent {
   componentSubType?: ResearchObjectComponentSubtypes;
 }
 export function addComponentsToManifest(manifest: ResearchObjectV1, firstNestingComponents: FirstNestingComponent[]) {
+  //add duplicate path check
   firstNestingComponents.forEach((c) => {
     const comp = {
       id: randomUUID(),
@@ -155,6 +156,8 @@ export const update = async (req: Request, res: Response) => {
   const uploaded: IpfsPinnedResult[] = await pinDirectory(structuredFilesForPinning);
   if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
   console.log('[UPDATE DATASET] Pinned files: ', uploaded);
+
+  //Filtered to first nestings only
   const filteredFiles = uploaded.filter((file) => {
     return file.path.split('/').length === 1;
   });
@@ -185,11 +188,28 @@ export const update = async (req: Request, res: Response) => {
 
   const dataBucketId = latestManifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).id;
 
-  const updatedManifest = updateManifestDataset({
+  let updatedManifest = updateManifestDataset({
     manifest: latestManifest,
     dataBucketId: dataBucketId,
     newRootCid: newRootCidString,
   });
+
+  //Only needs to happen if a predefined component type is to be added
+  if (componentType) {
+    const firstNestingComponents: FirstNestingComponent[] = filteredFiles.map((file) => {
+      const neutralFullPath = contextPath + '/' + file.path;
+      const pathSplit = file.path.split('/');
+      const name = pathSplit.pop();
+      return {
+        name: name,
+        path: neutralFullPath,
+        cid: file.cid,
+        componentType,
+        componentSubType,
+      };
+    });
+    updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
+  }
 
   try {
     //Update refs
@@ -264,7 +284,7 @@ export const update = async (req: Request, res: Response) => {
       //a path match && a CID difference = prune
       return newFilesPathAdjusted.some((newF) => oldPathAdjusted === newF.path && oldF.cid !== newF.cid);
     });
-    debugger;
+
     const formattedPruneList = pruneList.map((e) => {
       const neutralPath = e.path.replace(rootCid, 'root');
       return {
