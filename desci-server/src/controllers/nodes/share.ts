@@ -61,6 +61,24 @@ export const getPrivateShare = async (req: Request, res: Response, next: NextFun
     res.status(403).send({ ok: false, message: e.message || 'Error querying private share link' });
   }
 };
+export const checkPrivateShareId = async (req: Request, res: Response, next: NextFunction) => {
+  const shareId = req.params.shareId as string;
+  console.log('check', shareId, req.params);
+
+  if (!shareId) {
+    res.status(400).send({ ok: false, message: 'ShareId required!' });
+    return;
+  }
+
+  try {
+    const privateShare = await prisma.privateShare.findFirst({ where: { shareId } });
+    console.log('verified', privateShare);
+
+    res.send({ ok: true, share: privateShare });
+  } catch (e) {
+    res.status(403).send({ ok: false, message: e.message || 'Error querying private share link' });
+  }
+};
 
 export const revokePrivateShare = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
