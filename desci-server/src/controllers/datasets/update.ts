@@ -24,6 +24,7 @@ import {
 } from 'services/ipfs';
 import {
   ROTypesToPrismaTypes,
+  deneutralizePath,
   gbToBytes,
   generateManifestPathsToDbTypeMap,
   getTreeAndFillSizes,
@@ -33,7 +34,6 @@ import {
 
 import { DataReferenceSrc } from './retrieve';
 import { persistManifest } from './upload';
-import path from 'path';
 
 interface UpdatingManifestParams {
   manifest: ResearchObjectV1;
@@ -212,6 +212,14 @@ export const update = async (req: Request, res: Response) => {
     updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
   }
 
+  //For adding correct types to the db, when a predefined component type is used
+  const newFilePathDbTypeMap = {};
+  uploaded.forEach((file) => {
+    const neutralFullPath = contextPath + '/' + file.path;
+    const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
+    newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
+  });
+
   try {
     //Update refs
     const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString));
@@ -255,7 +263,11 @@ export const update = async (req: Request, res: Response) => {
         const match = dataRefIds.find((dref) => dref.path === oldPath);
         let refId = 0;
         if (match) refId = match.id;
-        fd.type = manifestPathsToTypes[neutralPath] || DataType.UNKNOWN;
+        const newFileType = newFilePathDbTypeMap[fd.path];
+        fd.type =
+          newFileType && newFileType !== DataType.UNKNOWN
+            ? newFileType
+            : manifestPathsToTypes[neutralPath] || DataType.UNKNOWN;
         return prisma.dataReference.upsert({
           where: {
             id: refId,

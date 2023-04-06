@@ -157,3 +157,13 @@ export function urlOrCid(cid: string, type: ResearchObjectComponentType) {
       return { cid };
   }
 }
+
+export type DrivePath = string;
+export const DRIVE_NODE_ROOT_PATH = 'root';
+
+export function neutralizePath(path: DrivePath) {
+  return path.replace(/^[^/]+/, DRIVE_NODE_ROOT_PATH);
+}
+export function deneutralizePath(path: DrivePath, rootCid: string) {
+  return path.replace(/^[^/]+/, rootCid);
+}
