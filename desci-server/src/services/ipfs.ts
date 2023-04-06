@@ -463,3 +463,8 @@ export async function createEmptyDag() {
   const cid = await makeDir(client, { '.nodeKeep': { cid: nodeKeepCid.cid } });
   return cid.toString();
 }
+
+export async function getExternalSize(cid: string) {
+  const { data } = await axios.head(`${process.env.PUBLIC_IPFS_RESOLVER}/ipfs/${cid}`);
+  return data.headers['Content-Length'];
+}
