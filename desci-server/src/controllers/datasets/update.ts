@@ -73,6 +73,7 @@ export function addComponentsToManifest(manifest: ResearchObjectV1, firstNesting
         ...urlOrCid(c.cid, c.componentType),
         path: c.path,
       },
+      starred: true,
     };
     manifest.components.push(comp);
   });
