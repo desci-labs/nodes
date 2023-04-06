@@ -36,7 +36,7 @@ router.post('/consent', [ensureUser], consent);
 router.get('/share/verify/:shareId', checkPrivateShareId);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);
 router.post('/share/:uuid', [ensureUser], createPrivateShare);
-router.post('/revokeShare', [ensureUser], revokePrivateShare);
+router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
 
 router.get('/legacy/retrieveTitle', retrieveTitle);
 

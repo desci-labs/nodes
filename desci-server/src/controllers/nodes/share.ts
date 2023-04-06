@@ -80,7 +80,7 @@ export const checkPrivateShareId = async (req: Request, res: Response, next: Nex
 
 export const revokePrivateShare = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
-  const uuid = req.query.uuid as string;
+  const uuid = req.params.uuid as string;
 
   try {
     const discovery = await prisma.node.findFirst({
