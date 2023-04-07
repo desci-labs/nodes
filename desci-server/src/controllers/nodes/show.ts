@@ -67,10 +67,8 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
     return;
   }
 
-  console.log('show research object', shareId, ownerId, pid);
   // console.log(pid, ownerId, RESEARCH_OBJECT_NODES_PREFIX);
   if (pid.substring(0, RESEARCH_OBJECT_NODES_PREFIX.length) === RESEARCH_OBJECT_NODES_PREFIX) {
-    console.log('Loading Draft / Stub ResearchObject');
     let id = 0;
     let uuid = null;
     try {
@@ -78,7 +76,6 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
         throw Error('uuid');
       }
       id = parseInt((pid.substring(RESEARCH_OBJECT_NODES_PREFIX.length) || '').toString());
-      console.log('GOT ID', id);
     } catch (e) {
       // console.log('YERROR');
       // console.error(e);
