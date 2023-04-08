@@ -108,13 +108,44 @@ async function addToDir(ipfs, dirCid, files) {
   if (!node.isDirectory()) {
     throw new Error(`file cid -- not a directory`);
   }
-  // debugger;
   const newLinks = await _createDirLinks(ipfs, files);
 
+  // debugger;
   Links = [...Links, ...newLinks];
 
   // todo: disallow duplicates
   Links.sort((a, b) => (a.Name < b.Name ? -1 : 1));
+
+  return await putBlock(ipfs, { Data, Links });
+}
+
+//nodeCid refers to the dag node being updated, oldCid is the cid of the link to be replaced, newCid is the cid of the new link
+async function updateDagCid(ipfs, nodeCid, oldCid, newCid) {
+  if (typeof nodeCid === 'string') oldCid = CID.parse(oldCid);
+  if (typeof oldCid === 'string') oldCid = CID.parse(oldCid);
+  if (typeof newCid === 'string') newCid = CID.parse(newCid);
+
+  if (nodeCid.code == rawCode) {
+    throw new Error('raw cid -- not a directory');
+  }
+
+  const block = await ipfs.block.get(nodeCid);
+
+  let { Data, Links } = dagPb.decode(block);
+
+  let node = UnixFS.unmarshal(Data);
+  UnixFS.unmarshal;
+
+  if (!node.isDirectory()) {
+    throw new Error(`file cid -- not a directory`);
+  }
+
+  linkIdx = Links.findIndex((link) => link.Hash.equals(oldCid));
+
+  // debugger;
+  if (linkIdx !== -1) {
+    Links[linkIdx].Hash = newCid;
+  }
 
   return await putBlock(ipfs, { Data, Links });
 }
@@ -132,4 +163,5 @@ module.exports = {
   concat,
   getSize,
   makeDir,
+  updateDagCid,
 };

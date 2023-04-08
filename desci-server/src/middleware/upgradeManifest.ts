@@ -82,7 +82,6 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
         if (uniqueName !== c.name) c.name = uniqueName;
         dataDagFiles[c.name] = { cid: c.payload.cid };
         c.payload.path = path;
-        // debugger;
         return;
       default:
         return;

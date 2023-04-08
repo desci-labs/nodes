@@ -15,7 +15,7 @@ import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { addToDir, concat, getSize, makeDir } = require('../utils/dagConcat.cjs');
+const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
 export const IPFS_PATH_TMP = '/tmp/ipfs';
 
 // key = type
@@ -433,7 +433,7 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
 
   const updatedTailNodeCid = await addToDir(client, tailNodeCid.toString(), filesToAddToDag);
   // oldToNewCidMap[tailNodeCid.toString()] = updatedTailNodeCid.toString();
-  const treehere = await getDirectoryTree(updatedTailNodeCid);
+  // const treehere = await getDirectoryTree(updatedTailNodeCid);
 
   let lastUpdatedCid = updatedTailNodeCid;
   while (dagCidsToBeReset.length) {
@@ -445,9 +445,10 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
     const linkName = stagingDagNames.pop();
     const dagIdx = currentNode.Links.findIndex((dag) => dag.Name === linkName);
     if (dagIdx === -1) throw Error(`Failed to find DAG link: ${linkName}`);
-    // const oldCid = currentNode.Links[dagIdx].Hash.toString();
-    const oldLinkRemovedCid = await client.object.patch.rmLink(currentNodeCid, currentNode.Links[dagIdx]);
-    lastUpdatedCid = await addToDir(client, oldLinkRemovedCid, { [linkName]: { cid: lastUpdatedCid } });
+    const oldCid = currentNode.Links[dagIdx].Hash;
+    // const oldLinkRemovedCid = await client.object.patch.rmLink(currentNodeCid, currentNode.Links[dagIdx]);
+    // lastUpdatedCid = await addToDir(client, oldLinkRemovedCid, { [linkName]: { cid: lastUpdatedCid } });
+    lastUpdatedCid = await updateDagCid(client, currentNodeCid, oldCid, lastUpdatedCid);
     // oldToNewCidMap[oldCid] = lastUpdatedCid.toString();
   }
 
