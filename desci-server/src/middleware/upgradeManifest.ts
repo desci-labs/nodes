@@ -1,12 +1,12 @@
 import { ResearchObjectComponentType, ResearchObjectV1, ResearchObjectV1Component } from '@desci-labs/desci-models';
-import { DataType } from '@prisma/client';
+import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { persistManifest } from 'controllers/datasets';
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
-import { recursiveFlattenTree } from 'utils/driveUtils';
+import { neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
@@ -121,48 +121,46 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   const oldDataRefs = await prisma.dataReference.findMany({
     where: { nodeId: node.id, userId: owner.id, type: { not: DataType.MANIFEST } },
   });
-  const oldRefsToUpsert = oldDataRefs.map((e) => {
-    let path: string;
-    if (e.path) {
-      const splitPath = e.path.split('/');
-      splitPath.shift();
-      const cidlessPath = splitPath.join('/');
-      const match = flatTree.find((f) => f.path.includes(cidlessPath));
-      path = match ? match.path : flatTree.find((f) => f.cid === e.cid).path;
-    } else {
-      const match = flatTree.find((f) => f.cid === e.cid);
-      path = match.path;
+
+  const dataRefIds = oldDataRefs.map((e) => e.id);
+
+  const formattedPruneList = oldDataRefs.map((e) => {
+    return {
+      description: '[TRANSFORMER::UNOPINIONATED RO UPGRADE]',
+      cid: e.cid,
+      type: e.type,
+      size: e.size,
+      nodeId: e.nodeId,
+      userId: e.userId,
+      directory: e.directory,
+    };
+  });
+
+  const pathToTypeMap = {};
+  Object.entries(rootDagFiles).forEach(([name, { cid }]) => {
+    pathToTypeMap[rootDagCidStr + '/' + name] =
+      name === dataPath ? DataType.DATASET : name === researchReportPath ? DataType.DOCUMENT : DataType.CODE_REPOS;
+  });
+
+  const treeRefsToUpsert: any = flatTree.map((e) => {
+    let dbType = DataType.UNKNOWN;
+    if (e.path in pathToTypeMap) {
+      dbType = pathToTypeMap[e.path];
     }
     return {
-      id: e.id,
       cid: e.cid,
       root: e.cid === rootDagCidStr,
       rootCid: rootDagCidStr,
-      path: path,
-      type: e.type,
+      path: e.path,
+      type: dbType,
       userId: owner.id,
       nodeId: node.id,
-      directory: e.directory,
+      directory: e.type === 'dir' ? true : false,
       size: e.size || 0,
     };
   });
-  const newRefsToUpsert = Object.entries(rootDagFiles).map(([name, { cid }]) => {
-    return {
-      id: 0,
-      cid: cid.toString(),
-      root: false,
-      rootCid: rootDagCidStr,
-      path: rootDagCidStr + '/' + name,
-      type:
-        name === dataPath ? DataType.DATASET : name === researchReportPath ? DataType.DOCUMENT : DataType.CODE_REPOS,
-      userId: owner.id,
-      nodeId: node.id,
-      directory: true,
-      size: 0,
-    };
-  });
-  newRefsToUpsert.push({
-    id: 0,
+
+  treeRefsToUpsert.push({
     cid: rootDagCidStr,
     root: true,
     rootCid: rootDagCidStr,
@@ -173,26 +171,15 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
     directory: true,
     size: 0,
   } as any);
-  const refsToUpsert = [...oldRefsToUpsert, ...newRefsToUpsert];
 
-  const upserts = await prisma.$transaction(
-    refsToUpsert.map((fd) => {
-      const refId = fd.id;
-      delete fd.id;
-      return prisma.dataReference.upsert({
-        where: {
-          id: refId,
-        },
-        update: {
-          ...fd,
-        },
-        create: {
-          ...fd,
-        },
-      });
-    }),
+  const [deleteResult, pruneResult, createResult] = await prisma.$transaction([
+    prisma.dataReference.deleteMany({ where: { id: { in: dataRefIds } } }),
+    prisma.cidPruneList.createMany({ data: formattedPruneList }),
+    prisma.dataReference.createMany({ data: treeRefsToUpsert }),
+  ]);
+  console.log(
+    `[UNOPINIONATED DATA TRANSFORMER] ${deleteResult.count} dataReferences deleted, ${pruneResult.count} cidPruneList entries added, ${createResult.count} new dataReferences created.`,
   );
-  if (upserts) console.log(`[UNOPINIATED DATA TRANSFORMER] ${upserts.length} new data references added/modified`);
 
   // Persist new manifest to db
   const { persistedManifestCid } = await persistManifest({ manifest: manifestObj, node, userId: owner.id });
