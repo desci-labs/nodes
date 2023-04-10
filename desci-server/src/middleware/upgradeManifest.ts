@@ -6,7 +6,7 @@ import prisma from 'client';
 import { persistManifest } from 'controllers/datasets';
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
-import { neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
+import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
@@ -15,7 +15,7 @@ IMPORTANT: Called after ensureUser and multer
 export const upgradeManifestTransformer = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
   const { uuid, manifest } = req.body;
-  const manifestObj: ResearchObjectV1 = JSON.parse(manifest);
+  let manifestObj: ResearchObjectV1 = JSON.parse(manifest);
 
   // Verify node ownership
   const node = await prisma.node.findFirst({
@@ -104,6 +104,20 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   const rootDagCid = await createDag(rootDagFiles);
   const rootDagCidStr = rootDagCid.toString();
 
+  const opinionatedDirsFormatted = Object.entries(rootDagFiles).map(([path, { cid }]) => {
+    return {
+      name: path,
+      path: 'root/' + path,
+      cid: cid.toString(),
+      componentType:
+        path === researchReportPath
+          ? ResearchObjectComponentType.PDF
+          : path === codeReposPath
+          ? ResearchObjectComponentType.CODE
+          : ResearchObjectComponentType.DATA,
+    };
+  });
+
   const dataBucketComponent: ResearchObjectV1Component = {
     id: 'root',
     name: 'root',
@@ -112,8 +126,9 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
       cid: rootDagCidStr,
     },
   };
-
   manifestObj.components.push(dataBucketComponent);
+  manifestObj = addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
+
   const dagTree = await getDirectoryTree(rootDagCid);
   const flatTree = recursiveFlattenTree(dagTree);
   // debugger;

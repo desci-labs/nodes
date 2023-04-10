@@ -23,7 +23,9 @@ import {
   pinDirectory,
 } from 'services/ipfs';
 import {
+  FirstNestingComponent,
   ROTypesToPrismaTypes,
+  addComponentsToManifest,
   deneutralizePath,
   gbToBytes,
   generateManifestPathsToDbTypeMap,
@@ -53,32 +55,6 @@ export function updateManifestDataset({ manifest, dataBucketId, newRootCid }: Up
 
   return manifest;
 } //
-
-interface FirstNestingComponent {
-  name: string;
-  path: string;
-  cid: string;
-  componentType?: ResearchObjectComponentType;
-  componentSubType?: ResearchObjectComponentSubtypes;
-}
-export function addComponentsToManifest(manifest: ResearchObjectV1, firstNestingComponents: FirstNestingComponent[]) {
-  //add duplicate path check
-  firstNestingComponents.forEach((c) => {
-    const comp = {
-      id: randomUUID(),
-      name: c.name,
-      ...(c.componentType && { type: c.componentType }),
-      ...(c.componentSubType && { subtype: c.componentSubType }),
-      payload: {
-        ...urlOrCid(c.cid, c.componentType),
-        path: c.path,
-      },
-      starred: true,
-    };
-    manifest.components.push(comp);
-  });
-  return manifest;
-}
 
 export const update = async (req: Request, res: Response) => {
   const owner = (req as any).user as User;
@@ -207,6 +183,7 @@ export const update = async (req: Request, res: Response) => {
         cid: file.cid,
         componentType,
         componentSubType,
+        star: true,
       };
     });
     updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);

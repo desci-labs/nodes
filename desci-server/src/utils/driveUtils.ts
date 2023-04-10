@@ -1,8 +1,13 @@
-import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import {
+  ResearchObjectComponentSubtypes,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+} from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 
 import prisma from 'client';
 import { DataReferenceSrc } from 'controllers/datasets';
+import { randomUUID } from 'crypto';
 import { getDirectoryTree, RecursiveLsResult } from 'services/ipfs';
 
 export function recursiveFlattenTreeFilterDirs(tree) {
@@ -166,4 +171,31 @@ export function neutralizePath(path: DrivePath) {
 }
 export function deneutralizePath(path: DrivePath, rootCid: string) {
   return path.replace(/^[^/]+/, rootCid);
+}
+
+export interface FirstNestingComponent {
+  name: string;
+  path: string;
+  cid: string;
+  componentType?: ResearchObjectComponentType;
+  componentSubType?: ResearchObjectComponentSubtypes;
+  star?: boolean;
+}
+export function addComponentsToManifest(manifest: ResearchObjectV1, firstNestingComponents: FirstNestingComponent[]) {
+  //add duplicate path check
+  firstNestingComponents.forEach((c) => {
+    const comp = {
+      id: randomUUID(),
+      name: c.name,
+      ...(c.componentType && { type: c.componentType }),
+      ...(c.componentSubType && { subtype: c.componentSubType }),
+      payload: {
+        ...urlOrCid(c.cid, c.componentType),
+        path: c.path,
+      },
+      starred: c.star || false,
+    };
+    manifest.components.push(comp);
+  });
+  return manifest;
 }
