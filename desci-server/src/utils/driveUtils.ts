@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+
 import {
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
@@ -7,7 +9,6 @@ import { DataType } from '@prisma/client';
 
 import prisma from 'client';
 import { DataReferenceSrc } from 'controllers/datasets';
-import { randomUUID } from 'crypto';
 import { getDirectoryTree, RecursiveLsResult } from 'services/ipfs';
 
 export function recursiveFlattenTreeFilterDirs(tree) {
@@ -196,6 +197,16 @@ export function addComponentsToManifest(manifest: ResearchObjectV1, firstNesting
       starred: c.star || false,
     };
     manifest.components.push(comp);
+  });
+  return manifest;
+}
+
+export type oldCid = string;
+export type newCid = string;
+export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
+  manifest.components.forEach((c) => {
+    if (c.payload.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
+    if (c.payload.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
   });
   return manifest;
 }

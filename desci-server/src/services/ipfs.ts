@@ -11,6 +11,7 @@ import uniq from 'lodash/uniq';
 import * as multiformats from 'multiformats';
 
 import prisma from 'client';
+import { newCid, oldCid } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
 
@@ -435,6 +436,8 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
   // oldToNewCidMap[tailNodeCid.toString()] = updatedTailNodeCid.toString();
   // const treehere = await getDirectoryTree(updatedTailNodeCid);
 
+  const updatedDagCidMap: Record<oldCid, newCid> = {};
+
   let lastUpdatedCid = updatedTailNodeCid;
   while (dagCidsToBeReset.length) {
     const currentNodeCid = dagCidsToBeReset.pop();
@@ -449,10 +452,11 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
     // const oldLinkRemovedCid = await client.object.patch.rmLink(currentNodeCid, currentNode.Links[dagIdx]);
     // lastUpdatedCid = await addToDir(client, oldLinkRemovedCid, { [linkName]: { cid: lastUpdatedCid } });
     lastUpdatedCid = await updateDagCid(client, currentNodeCid, oldCid, lastUpdatedCid);
+    updatedDagCidMap[oldCid.toString()] = lastUpdatedCid.toString();
     // oldToNewCidMap[oldCid] = lastUpdatedCid.toString();
   }
 
-  return lastUpdatedCid.toString();
+  return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
 };
 
 export const createDag = async (files: FilesToAddToDag): Promise<string> => {

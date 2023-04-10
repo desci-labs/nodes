@@ -31,6 +31,7 @@ import {
   generateManifestPathsToDbTypeMap,
   getTreeAndFillSizes,
   recursiveFlattenTree,
+  updateManifestComponentDagCids,
   urlOrCid,
 } from 'utils/driveUtils';
 
@@ -144,7 +145,11 @@ export const update = async (req: Request, res: Response) => {
     filesToAddToDag[file.path] = { cid: file.cid, size: file.size };
   });
 
-  const newRootCidString = await addFilesToDag(rootCid, cleanContextPath, filesToAddToDag);
+  const { updatedRootCid: newRootCidString, updatedDagCidMap } = await addFilesToDag(
+    rootCid,
+    cleanContextPath,
+    filesToAddToDag,
+  );
   if (typeof newRootCidString !== 'string') return res.status(400).json({ error: 'DAG extension failed' });
 
   //repull of node required, previous manifestUrl may already be stale
@@ -170,6 +175,11 @@ export const update = async (req: Request, res: Response) => {
     dataBucketId: dataBucketId,
     newRootCid: newRootCidString,
   });
+
+  //Update all existing DAG components with new CIDs if they were apart of a cascading update
+  if (Object.keys(updatedDagCidMap).length) {
+    updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
+  }
 
   //Only needs to happen if a predefined component type is to be added
   if (componentType) {
