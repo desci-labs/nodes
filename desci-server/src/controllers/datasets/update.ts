@@ -30,6 +30,7 @@ import {
   gbToBytes,
   generateManifestPathsToDbTypeMap,
   getTreeAndFillSizes,
+  neutralizePath,
   recursiveFlattenTree,
   updateManifestComponentDagCids,
   urlOrCid,
@@ -220,11 +221,12 @@ export const update = async (req: Request, res: Response) => {
     //existing refs
     const dataRefIds = await prisma.dataReference.findMany({
       where: {
-        rootCid: rootCid,
         nodeId: node.id,
         userId: owner.id,
+        type: { not: DataType.MANIFEST },
       },
     });
+    debugger;
 
     const dataRefsToUpsert: Partial<DataReference>[] = flatTree.map((f) => {
       if (typeof f.cid !== 'string') f.cid = f.cid.toString();
@@ -245,10 +247,10 @@ export const update = async (req: Request, res: Response) => {
 
     const upserts = await prisma.$transaction(
       (dataRefsToUpsert as any).map((fd) => {
-        const oldPath = fd.path.replace(newRootCidString, rootCid);
+        // const oldPath = fd.path.replace(newRootCidString, rootCid);
         const neutralPath = fd.path.replace(newRootCidString, 'root');
-        const match = dataRefIds.find((dref) => dref.path === oldPath);
-        let refId = 0;
+        const match = dataRefIds.find((dref) => neutralizePath(dref.path) === neutralPath);
+        let refId = -1;
         if (match) refId = match.id;
         const newFileType = newFilePathDbTypeMap[fd.path];
         fd.type =
@@ -301,12 +303,12 @@ export const update = async (req: Request, res: Response) => {
     const pruneRes = await prisma.cidPruneList.createMany({ data: formattedPruneList });
     console.log(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
     //END OF CLEAN UP//
-
-    const tree = await getTreeAndFillSizes(newRootCidString, uuid, DataReferenceSrc.PRIVATE, owner.id);
+    debugger;
     const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
       throw Error(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
+    const tree = await getTreeAndFillSizes(newRootCidString, uuid, DataReferenceSrc.PRIVATE, owner.id);
     return res.status(200).json({
       rootDataCid: newRootCidString,
       manifest: updatedManifest,
