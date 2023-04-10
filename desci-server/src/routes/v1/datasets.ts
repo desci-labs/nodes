@@ -14,6 +14,7 @@ router.post('/update', [ensureUser, upload.array('files')], update);
 router.post('/delete', [ensureUser], deleteDataset);
 //TODO adjust auth for both pub and priv datasets
 router.get('/retrieveTree/:nodeUuid/:cid', [ensureUser], retrieveTree);
+router.get('/retrieveTree/:nodeUuid/:cid/:shareId', retrieveTree);
 router.get('/pubTree/:nodeUuid/:cid', pubTree);
 router.get('/downloadDataset/:nodeUuid/:cid', [ensureUser], downloadDataset);
 

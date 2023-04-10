@@ -16,12 +16,42 @@ export enum DataReferenceSrc {
 }
 
 export const retrieveTree = async (req: Request, res: Response, next: NextFunction) => {
-  const owner = (req as any).user;
+  let ownerId = (req as any).user?.id;
   const cid: string = req.params.cid;
   const uuid: string = req.params.nodeUuid;
+  const shareId: string = req.params.shareId;
+
+  if (shareId) {
+    const privateShare = await prisma.privateShare.findFirst({
+      where: { shareId },
+      select: { node: true, nodeUUID: true },
+    });
+    const node = privateShare.node;
+
+    if (privateShare && node) {
+      ownerId = node.ownerId;
+    }
+
+    const verifiedOwner = await prisma.user.findFirst({ where: { id: ownerId } });
+    if (!verifiedOwner || (verifiedOwner.id !== ownerId && verifiedOwner.id > 0)) {
+      res.status(400).send({ ok: false, message: 'Invalid node owner' });
+      return;
+    }
+  }
+  if (!ownerId) {
+    res.status(401).send({ ok: false, message: 'Unauthorized user' });
+    return;
+  }
+
   console.log(`retrieveTree called, cid received: ${cid} uuid provided: ${uuid}`);
-  if (!cid) return res.status(400).json({ error: 'no CID provided' });
-  if (!uuid) return res.status(400).json({ error: 'no UUID provided' });
+  if (!cid) {
+    res.status(400).json({ error: 'no CID provided' });
+    return;
+  }
+  if (!uuid) {
+    res.status(400).json({ error: 'no UUID provided' });
+    return;
+  }
 
   //validate requester owns the dataset
   const dataType: DataType = 'DATASET';
@@ -31,7 +61,7 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
   let dataSource = DataReferenceSrc.PRIVATE;
   const dataset = await prisma.dataReference.findFirst({
     where: {
-      userId: owner.id,
+      userId: ownerId,
       type: dataType,
       cid: cid,
       node: {
@@ -52,13 +82,14 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
   if (publicDataset) dataSource = DataReferenceSrc.PUBLIC;
 
   if (!dataset && dataSource === DataReferenceSrc.PRIVATE) {
-    console.log(`unauthed access user: ${owner}, cid provided: ${cid}, nodeUuid provided: ${uuid}`);
-    return res.status(400).json({ error: 'failed' });
+    console.log(`unauthed access user: ${ownerId}, cid provided: ${cid}, nodeUuid provided: ${uuid}`);
+    res.status(400).json({ error: 'failed' });
+    return;
   }
 
-  const filledTree = await getTreeAndFillSizes(cid, uuid, dataSource, owner.id);
+  const filledTree = await getTreeAndFillSizes(cid, uuid, dataSource, ownerId);
 
-  return res.status(200).json({ tree: filledTree, date: dataset.updatedAt });
+  res.status(200).json({ tree: filledTree, date: dataset?.updatedAt });
 };
 
 export const pubTree = async (req: Request, res: Response, next: NextFunction) => {

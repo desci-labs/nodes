@@ -19,7 +19,8 @@ model Node {
   restBody            Json                  @default("{}")
   replicationFactor   Int
   ownerId             Int
-  uuid                String?               @default(uuid())
+  uuid                String?               @unique @default(uuid())
+  privateShare        PrivateShare?
   owner               User                  @relation(fields: [ownerId], references: [id])
   authorInvites       AuthorInvite[]
   transactions        ChainTransaction[]
@@ -398,6 +399,17 @@ model PublicDataReferenceOnIpfsMirror {
   providerCount       Int                 @default(0)
 
   @@id([dataReferenceId, mirrorId])
+}
+
+model PrivateShare {
+  id        Int      @id @default(autoincrement())
+  shareId   String   @unique
+  nodeUUID  String   @unique
+  node      Node     @relation(fields: [nodeUUID], references: [uuid])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shareId])
 }
 
 model FriendReferral {

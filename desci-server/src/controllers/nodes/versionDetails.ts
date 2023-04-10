@@ -5,22 +5,22 @@ import prisma from 'client';
 // call node publish service and add job to queue
 export const versionDetails = async (req: Request, res: Response, next: NextFunction) => {
   const transactionId = req.query.transactionId as string;
-  const email = (req as any).user.email;
+  // const email = (req as any).user.email;
 
   if (!transactionId) {
     return res.status(404).send({ message: 'transactionId must be valid' });
   }
 
   try {
-    const owner = await prisma.user.findFirst({
-      where: {
-        email,
-      },
-    });
+    // const owner = await prisma.user.findFirst({
+    //   where: {
+    //     email,
+    //   },
+    // });
 
-    if (!owner.id || owner.id < 1) {
-      throw Error('User ID mismatch');
-    }
+    // if (!owner.id || owner.id < 1) {
+    //   throw Error('User ID mismatch');
+    // }
 
     // update node version
     const nodeVersion = await prisma.nodeVersion.findFirst({
@@ -30,8 +30,8 @@ export const versionDetails = async (req: Request, res: Response, next: NextFunc
     });
     // console.log('[NODE VERSION]::', nodeVersion);
     if (!nodeVersion) {
-      console.log(`unauthed node user: ${owner.email}, transactionID is not published`);
-      return res.status(400).json({ error: 'failed' });
+      // console.log(`unauthed node user: ${owner.email}, transactionID is not published`);
+      return res.status(400).json({ error: 'Failed: transactionID is not published' });
     }
 
     const node = await prisma.node.findFirst({
