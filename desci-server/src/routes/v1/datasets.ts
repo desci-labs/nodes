@@ -15,6 +15,7 @@ router.post('/update', [ensureUser, upload.array('files'), upgradeManifestTransf
 router.post('/delete', [ensureUser], deleteDataset);
 
 router.get('/retrieveTree/:nodeUuid/:cid', [ensureUser], retrieveTree);
+router.get('/retrieveTree/:nodeUuid/:cid/:shareId', retrieveTree);
 router.get('/pubTree/:nodeUuid/:cid', pubTree);
 router.get('/downloadDataset/:nodeUuid/:cid', [ensureUser], downloadDataset);
 
