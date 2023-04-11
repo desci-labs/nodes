@@ -6,7 +6,7 @@ import {
   ResearchObjectV1,
 } from '@desci-labs/desci-models';
 import { PBNode } from '@ipld/dag-pb/src/interface';
-import { DataReference, DataType, User } from '@prisma/client';
+import { DataReference, DataType, PrismaPromise, User } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
@@ -219,7 +219,7 @@ export const update = async (req: Request, res: Response) => {
     });
 
     //existing refs
-    const dataRefIds = await prisma.dataReference.findMany({
+    const existingRefs = await prisma.dataReference.findMany({
       where: {
         nodeId: node.id,
         userId: owner.id,
@@ -244,32 +244,46 @@ export const update = async (req: Request, res: Response) => {
     });
 
     const manifestPathsToTypes = generateManifestPathsToDbTypeMap(updatedManifest);
-
-    const upserts = await prisma.$transaction(
-      (dataRefsToUpsert as any).map((fd) => {
-        // const oldPath = fd.path.replace(newRootCidString, rootCid);
-        const neutralPath = fd.path.replace(newRootCidString, 'root');
-        const match = dataRefIds.find((dref) => neutralizePath(dref.path) === neutralPath);
-        let refId = -1;
-        if (match) refId = match.id;
-        const newFileType = newFilePathDbTypeMap[fd.path];
-        fd.type =
+    //Manual upsert
+    const dataRefUpdates = dataRefsToUpsert
+      .filter((dref) => {
+        const neutralPath = dref.path.replace(newRootCidString, 'root');
+        const match = existingRefs.find((ref) => neutralizePath(ref.path) === neutralPath);
+        return match;
+      })
+      .map((dref) => {
+        const neutralPath = dref.path.replace(newRootCidString, 'root');
+        const match = existingRefs.find((ref) => neutralizePath(ref.path) === neutralPath);
+        dref.id = match.id;
+        const newFileType = newFilePathDbTypeMap[dref.path];
+        dref.type =
           newFileType && newFileType !== DataType.UNKNOWN
             ? newFileType
             : manifestPathsToTypes[neutralPath] || DataType.UNKNOWN;
-        return prisma.dataReference.upsert({
-          where: {
-            id: refId,
-          },
-          update: {
-            ...fd,
-          },
-          create: {
-            ...fd,
-          },
-        });
+        return dref;
+      });
+    const dataRefCreates = dataRefsToUpsert
+      .filter((dref) => {
+        const neutralPath = dref.path.replace(newRootCidString, 'root');
+        const inUpdates = dataRefUpdates.find((ref) => neutralizePath(ref.path) === neutralPath);
+        return !inUpdates;
+      })
+      .map((dref) => {
+        const neutralPath = dref.path.replace(newRootCidString, 'root');
+        const newFileType = newFilePathDbTypeMap[dref.path];
+        dref.type =
+          newFileType && newFileType !== DataType.UNKNOWN
+            ? newFileType
+            : manifestPathsToTypes[neutralPath] || DataType.UNKNOWN;
+        return dref;
+      }) as DataReference[];
+
+    const upserts = await prisma.$transaction([
+      ...(dataRefUpdates as any).map((fd) => {
+        return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
       }),
-    );
+      prisma.dataReference.createMany({ data: dataRefCreates }),
+    ]);
     if (upserts) console.log(`${upserts.length} new data references added/modified`);
 
     // //CLEANUP DANGLING REFERENCES//
