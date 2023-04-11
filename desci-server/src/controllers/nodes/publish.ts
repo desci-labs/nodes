@@ -66,7 +66,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
         });
 
         const manifestSource = manifest as ResearchObjectV1;
-        discordNotify(`https://${manifestSource.dpid.prefix}.dpid.org/${manifestSource.dpid.id}`);
+        discordNotify(`https://${manifestSource.dpid?.prefix}.dpid.org/${manifestSource.dpid?.id}`);
       })
       .catch(async (error) => {
         await saveInteraction(req, ActionType.PUBLISH_NODE_RESEARCH_OBJECT_FAIL, {
@@ -75,7 +75,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
         });
 
         const manifestSource = manifest as ResearchObjectV1;
-        discordNotify(`https://${manifestSource.dpid.prefix}.dpid.org/${manifestSource.dpid.id} (note: estuary-err)`);
+        discordNotify(`https://${manifestSource.dpid?.prefix}.dpid.org/${manifestSource.dpid?.id} (note: estuary-err)`);
       });
 
     return res.send({
