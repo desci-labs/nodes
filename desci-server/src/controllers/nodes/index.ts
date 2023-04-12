@@ -7,5 +7,4 @@ export * from './show';
 export * from './consent';
 export * from './api';
 export * from './publish';
-export * from './publishStatus';
 export * from './share';

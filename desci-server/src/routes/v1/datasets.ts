@@ -12,7 +12,7 @@ const upload = multer({ preservePath: true });
 
 router.post('/upload', [ensureUser, upload.array('files'), upgradeManifestTransformer], uploadDataset);
 router.post('/update', [ensureUser, upload.array('files'), upgradeManifestTransformer], update);
-router.post('/delete', [ensureUser], deleteDataset);
+// router.post('/delete', [ensureUser], deleteDataset);
 
 router.get('/retrieveTree/:nodeUuid/:cid', [ensureUser], retrieveTree);
 router.get('/retrieveTree/:nodeUuid/:cid/:shareId', retrieveTree);
