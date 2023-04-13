@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "debug=* NODE_PATH=./src ts-node-dev --inspect=0.0.0.0:9229 --respawn --exit-child ./src/index.ts",
     "script:fix-mirrors": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/retry-mirrors.ts",
+    "script:upgrade-manifests": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/upgradeManifests.ts",
     "script:fill-research-fields": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/fill-research-fields.ts",
     "build": "rimraf dist && tsc",
     "generate": "npx prisma generate",

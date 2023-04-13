@@ -87,7 +87,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
         return;
     }
   });
-
+  debugger;
   const emptyDag = await createEmptyDag();
 
   const researchReportsDagCid = Object.entries(researchReportsDagFiles).length
@@ -196,6 +196,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
     `[UNOPINIONATED DATA TRANSFORMER] ${deleteResult.count} dataReferences deleted, ${pruneResult.count} cidPruneList entries added, ${createResult.count} new dataReferences created.`,
   );
 
+  manifestObj.version = 'desci-nodes-0.2.0';
   // Persist new manifest to db
   const { persistedManifestCid } = await persistManifest({ manifest: manifestObj, node, userId: owner.id });
   if (!persistedManifestCid)

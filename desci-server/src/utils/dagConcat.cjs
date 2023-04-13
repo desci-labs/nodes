@@ -2,13 +2,16 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const dagPb = require('@ipld/dag-pb');
 const UnixFS = require('ipfs-unixfs');
+const multiformats = require('multiformats');
 const { code } = require('multiformats/codecs/raw');
 
 const rawCode = code;
 // ===========================================================================
 async function getSize(ipfs, cid, allowDir = false) {
-  // debugger;
   const block = await ipfs.block.get(cid);
+  console.log('cid: ', cid);
+  if (typeof cid === 'string') cid = multiformats.CID.parse(cid);
+  console.log('cid.code: ', cid.code);
   // if raw, use length of block
   if (cid.code == rawCode) {
     return block.length;
@@ -82,6 +85,7 @@ async function _createDirLinks(ipfs, files) {
 
 // ===========================================================================
 async function makeDir(ipfs, files) {
+  // debugger;
   const node = new UnixFS({ type: 'directory' });
 
   const Data = node.marshal();

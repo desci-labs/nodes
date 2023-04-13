@@ -42,8 +42,8 @@ export function fillDirSizes(tree, cidInfoMap) {
       fd.contains = fillDirSizes(fd.contains, cidInfoMap);
     }
     // debugger
-    fd.date = cidInfoMap[fd.cid].date || Date.now();
-    fd.published = cidInfoMap[fd.cid].published;
+    fd.date = cidInfoMap[fd.cid]?.date || Date.now();
+    fd.published = cidInfoMap[fd.cid]?.published;
     contains.push(fd);
   });
   return contains;
@@ -113,7 +113,7 @@ export async function getTreeAndFillSizes(
       const entryDetails = {
         size: d.size || 0,
         published: isPublished,
-        date: d.createdAt.toString(),
+        date: d.createdAt?.toString(),
       };
       cidInfoMap[d.cid] = entryDetails;
     });
