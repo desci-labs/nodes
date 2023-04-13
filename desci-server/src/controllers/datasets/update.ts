@@ -226,7 +226,6 @@ export const update = async (req: Request, res: Response) => {
         type: { not: DataType.MANIFEST },
       },
     });
-    debugger;
 
     const dataRefsToUpsert: Partial<DataReference>[] = flatTree.map((f) => {
       if (typeof f.cid !== 'string') f.cid = f.cid.toString();
@@ -242,7 +241,6 @@ export const update = async (req: Request, res: Response) => {
         size: f.size || 0,
       };
     });
-
     const manifestPathsToTypes = generateManifestPathsToDbTypeMap(updatedManifest);
     //Manual upsert
     const dataRefUpdates = dataRefsToUpsert
@@ -317,7 +315,6 @@ export const update = async (req: Request, res: Response) => {
     const pruneRes = await prisma.cidPruneList.createMany({ data: formattedPruneList });
     console.log(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
     //END OF CLEAN UP//
-    debugger;
     const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
       throw Error(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);

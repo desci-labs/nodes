@@ -1,4 +1,10 @@
-import { CodeComponent, PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import {
+  CodeComponent,
+  PdfComponent,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+  ResearchObjectV1Component,
+} from '@desci-labs/desci-models';
 import { PBNode } from '@ipld/dag-pb/src/interface';
 import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import axios from 'axios';
@@ -76,9 +82,20 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
   // make manifest
 
   const researchObject: ResearchObjectV1 = {
-    version: 'desci-nodes-0.1.0',
+    version: 'desci-nodes-0.2.0',
     components: [],
     authors: [],
+  };
+
+  const emptyDagCid = await createEmptyDag();
+
+  const dataBucketComponent: ResearchObjectV1Component = {
+    id: 'root',
+    name: 'root',
+    type: ResearchObjectComponentType.DATA_BUCKET,
+    payload: {
+      cid: emptyDagCid,
+    },
   };
 
   const pdfComponents = (await pdfHashes).map((d: UrlWithCid) => {
@@ -108,7 +125,7 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
   researchObject.title = title;
   researchObject.defaultLicense = defaultLicense;
   researchObject.researchFields = researchFields;
-  researchObject.components = researchObject.components.concat(pdfComponents, codeComponents);
+  researchObject.components = researchObject.components.concat(dataBucketComponent, pdfComponents, codeComponents);
 
   console.log('RESEARCH OBJCECT', JSON.stringify(researchObject));
 
