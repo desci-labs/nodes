@@ -54,7 +54,7 @@ export async function upgradeManifestsScript() {
     //   }
 
     const hasDataBucket =
-      manifestObj?.components[0].type === ResearchObjectComponentType.DATA_BUCKET
+      manifestObj?.components[0]?.type === ResearchObjectComponentType.DATA_BUCKET
         ? true
         : manifestObj?.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
 
