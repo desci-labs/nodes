@@ -12,6 +12,10 @@ RUN apt-get -qy update && apt-get install -y     texlive-xetex
 RUN apt-get -qy update && apt-get install -y    unzip \
     curl
 
+RUN apt-get update
+RUN apt-get install ghostscript
+RUN apt-get install graphicsmagick
+
 RUN npm install -g npm@8.10.0
 
 RUN mkdir /app
