@@ -181,6 +181,7 @@ export interface FirstNestingComponent {
   componentType?: ResearchObjectComponentType;
   componentSubType?: ResearchObjectComponentSubtypes;
   star?: boolean;
+  externalUrl?: string;
 }
 export function addComponentsToManifest(manifest: ResearchObjectV1, firstNestingComponents: FirstNestingComponent[]) {
   //add duplicate path check
@@ -193,6 +194,7 @@ export function addComponentsToManifest(manifest: ResearchObjectV1, firstNesting
       payload: {
         ...urlOrCid(c.cid, c.componentType),
         path: c.path,
+        ...(c.externalUrl && { externalUrl: c.externalUrl }),
       },
       starred: c.star || false,
     };

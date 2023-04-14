@@ -22,6 +22,7 @@ import * as yauzl from 'yauzl';
 import prisma from 'client';
 import { bufferToStream } from 'utils';
 import { newCid, oldCid } from 'utils/driveUtils';
+import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
 
@@ -229,7 +230,7 @@ export const downloadSingleFile = async (url: string): Promise<PdfComponentSingl
 
 export interface IpfsDirStructuredInput {
   path: string;
-  content: Buffer | internal.Readable;
+  content: Buffer;
 }
 
 export interface IpfsPinnedResult {
@@ -247,7 +248,10 @@ export const pinDirectory = async (
 
   //possibly check if uploaded with a root dir, omit the wrapping if there is a root dir
   const uploaded: IpfsPinnedResult[] = [];
-  for await (const file of client.addAll(files, { wrapWithDirectory: wrapWithDirectory, cidVersion: 1 })) {
+  const addAll = await client.addAll(files, { wrapWithDirectory: wrapWithDirectory, cidVersion: 1 });
+  console.log(addAll);
+  console.log(JSON.stringify(addAll));
+  for await (const file of addAll) {
     uploaded.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
 
@@ -496,13 +500,14 @@ export async function getExternalSize(cid: string) {
 }
 
 export interface ZipToDagAndPinResult {
-  uploaded: IpfsPinnedResult[];
-  rootCid: string;
+  files: IpfsDirStructuredInput[];
+  totalSize: number;
 }
 
-export async function zipToDagAndPin(zipBuffer: Buffer): Promise<ZipToDagAndPinResult> {
+export async function zipToPinFormat(zipBuffer: Buffer, nameOverride?: string): Promise<ZipToDagAndPinResult> {
   return new Promise((resolve, reject) => {
     const files = [];
+    let totalSize = 0;
 
     yauzl.fromBuffer(zipBuffer, { lazyEntries: true }, (err, zipfile) => {
       if (err) reject(err);
@@ -518,10 +523,14 @@ export async function zipToDagAndPin(zipBuffer: Buffer): Promise<ZipToDagAndPinR
               chunks.push(chunk);
             }
             const fileBuffer = Buffer.concat(chunks);
-            files.push({
-              path: entry.fileName,
-              content: bufferToStream(fileBuffer),
-            });
+            if (entry.uncompressedSize > 0) {
+              totalSize += entry.uncompressedSize;
+              if (nameOverride) entry.fileName = deneutralizePath(entry.fileName, nameOverride);
+              files.push({
+                path: entry.fileName,
+                content: fileBuffer,
+              });
+            }
             zipfile.readEntry();
           });
         } else {
@@ -531,11 +540,7 @@ export async function zipToDagAndPin(zipBuffer: Buffer): Promise<ZipToDagAndPinR
 
       zipfile.on('end', async () => {
         try {
-          const uploaded = await pinDirectory(files);
-          const rootCid = uploaded[uploaded.length - 1].cid.toString();
-          const treeHere = await getDirectoryTree(rootCid);
-          debugger;
-          resolve({ uploaded, rootCid });
+          resolve({ files, totalSize });
         } catch (error) {
           reject(error);
         }

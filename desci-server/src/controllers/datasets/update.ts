@@ -21,9 +21,9 @@ import {
   IpfsPinnedResult,
   isDir,
   pinDirectory,
-  zipToDagAndPin,
+  zipToPinFormat,
 } from 'services/ipfs';
-import { processExternalUrls, zipUrlToBuffer } from 'utils';
+import { boolXor, processExternalUrls, zipUrlToBuffer } from 'utils';
 import {
   FirstNestingComponent,
   ROTypesToPrismaTypes,
@@ -74,19 +74,7 @@ export const update = async (req: Request, res: Response) => {
   const manifestObj: ResearchObjectV1 = JSON.parse(manifest);
   if (externalUrl) externalUrl = JSON.parse(externalUrl);
 
-  if (
-    externalUrl &&
-    externalUrl?.path?.length &&
-    externalUrl?.url?.length &&
-    componentType === ResearchObjectComponentType.CODE
-  ) {
-    const processedUrl = await processExternalUrls(externalUrl.url, componentType);
-    const zipBuffer = await zipUrlToBuffer(processedUrl);
-    const { uploaded, rootCid } = await zipToDagAndPin(zipBuffer);
-    // debugger;
-  }
-
-  // return res.status(400).json({ error: 'early terminate' });
+  let uploaded: IpfsPinnedResult[];
 
   //validate requester owns the node
   const node = await prisma.node.findFirst({
@@ -100,6 +88,28 @@ export const update = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'failed' });
   }
 
+  const files = req.files as Express.Multer.File[];
+
+  if (!boolXor([!!externalUrl, !!files.length, !!externalCids]))
+    return res.status(400).json({ error: 'Choose between one of the following; files, externalUrl or externalCids' });
+  /*
+   ** Github Code Repositories pathway (and future externalURLs)
+   */
+  let externalUrlFiles: IpfsDirStructuredInput[];
+  let externalUrlTotalSizeBytes: number;
+  if (
+    externalUrl &&
+    externalUrl?.path?.length &&
+    externalUrl?.url?.length &&
+    componentType === ResearchObjectComponentType.CODE
+  ) {
+    const processedUrl = await processExternalUrls(externalUrl.url, componentType);
+    const zipBuffer = await zipUrlToBuffer(processedUrl);
+    const { files, totalSize } = await zipToPinFormat(zipBuffer);
+    externalUrlFiles = files;
+    externalUrlTotalSizeBytes = totalSize;
+  }
+
   //finding rootCid
   const manifestCidEntry = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCidEntry
@@ -111,14 +121,14 @@ export const update = async (req: Request, res: Response) => {
   const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
     .cid; //changing the rootCid to the data bucket entry
 
-  const files = req.files as Express.Multer.File[];
-  if (!files) return res.status(400).json({ message: 'No files received' });
-
   const manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(latestManifestEntry);
 
+  /*
+   ** Check if user has enough storage space to upload
+   */
   let uploadSizeBytes = 0;
-  files.forEach((f) => (uploadSizeBytes += f.size));
-
+  if (files.length) files.forEach((f) => (uploadSizeBytes += f.size));
+  if (externalUrl) uploadSizeBytes += externalUrlTotalSizeBytes;
   const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(owner, { fileSizeBytes: uploadSizeBytes });
   if (!hasStorageSpaceToUpload)
     return res.send(400).json({
@@ -129,8 +139,10 @@ export const update = async (req: Request, res: Response) => {
   const oldTree = await getDirectoryTree(rootCid);
   const oldFlatTree = recursiveFlattenTree(oldTree);
 
+  /*
+   ** Determine the path of the directory to be updated
+   */
   const splitContextPath = contextPath.split('/');
-  if (splitContextPath[0] === 'Data') splitContextPath.shift();
   splitContextPath.shift();
   //cleanContextPath = how many dags need to be reset, n + 1
   const cleanContextPath = splitContextPath.join('/');
@@ -138,10 +150,20 @@ export const update = async (req: Request, res: Response) => {
 
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
   const OldTreePaths = oldFlatTree.map((e) => e.path);
-  const newPathsFormatted = files.map((f) => {
-    const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
-    return header + f.originalname;
-  });
+  let newPathsFormatted: string[] = [];
+  if (files.length) {
+    newPathsFormatted = files.map((f) => {
+      const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
+      return header + f.originalname;
+    });
+  }
+  if (externalUrl) {
+    newPathsFormatted = externalUrlFiles.map((f) => {
+      const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
+      return header + '/' + f.path;
+    });
+  }
+
   const hasDuplicates = OldTreePaths.some((oldPath) => newPathsFormatted.includes(oldPath));
   if (hasDuplicates) {
     console.log('[UPDATE DATASET] Rejected as duplicate paths were found');
@@ -153,9 +175,12 @@ export const update = async (req: Request, res: Response) => {
     return { path: f.originalname, content: f.buffer };
   });
 
-  const uploaded: IpfsPinnedResult[] = await pinDirectory(structuredFilesForPinning);
-  if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
-  console.log('[UPDATE DATASET] Pinned files: ', uploaded);
+  if (structuredFilesForPinning.length || externalUrlFiles?.length) {
+    const filesToPin = structuredFilesForPinning.concat(externalUrlFiles || structuredFilesForPinning);
+    uploaded = await pinDirectory(filesToPin);
+    if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
+    console.log('[UPDATE DATASET] Pinned files: ', uploaded);
+  }
 
   //Filtered to first nestings only
   const filteredFiles = uploaded.filter((file) => {
@@ -216,6 +241,7 @@ export const update = async (req: Request, res: Response) => {
         componentType,
         componentSubType,
         star: true,
+        ...(externalUrl && { externalUrl: externalUrl.url }),
       };
     });
     updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
