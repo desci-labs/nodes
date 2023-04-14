@@ -19,6 +19,7 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 nvm install $(cat .nvmrc)
 nvm use
 npm i -g hardhat
+npm i -g yarn
 
 if [ -d "desci-contracts" ]; then
     cd desci-contracts
