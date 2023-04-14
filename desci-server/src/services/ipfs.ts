@@ -1,3 +1,5 @@
+import internal from 'stream';
+
 import {
   CodeComponent,
   PdfComponent,
@@ -15,8 +17,10 @@ import toBuffer from 'it-to-buffer';
 import flatten from 'lodash/flatten';
 import uniq from 'lodash/uniq';
 import * as multiformats from 'multiformats';
+import * as yauzl from 'yauzl';
 
 import prisma from 'client';
+import { bufferToStream } from 'utils';
 import { newCid, oldCid } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
@@ -225,7 +229,7 @@ export const downloadSingleFile = async (url: string): Promise<PdfComponentSingl
 
 export interface IpfsDirStructuredInput {
   path: string;
-  content: Buffer;
+  content: Buffer | internal.Readable;
 }
 
 export interface IpfsPinnedResult {
@@ -489,4 +493,53 @@ export async function createEmptyDag() {
 export async function getExternalSize(cid: string) {
   const { data } = await axios.head(`${process.env.PUBLIC_IPFS_RESOLVER}/ipfs/${cid}`);
   return data.headers['Content-Length'];
+}
+
+export interface ZipToDagAndPinResult {
+  uploaded: IpfsPinnedResult[];
+  rootCid: string;
+}
+
+export async function zipToDagAndPin(zipBuffer: Buffer): Promise<ZipToDagAndPinResult> {
+  return new Promise((resolve, reject) => {
+    const files = [];
+
+    yauzl.fromBuffer(zipBuffer, { lazyEntries: true }, (err, zipfile) => {
+      if (err) reject(err);
+
+      zipfile.readEntry();
+
+      zipfile.on('entry', (entry) => {
+        if (!entry.isDirectory) {
+          zipfile.openReadStream(entry, async (err, readStream) => {
+            if (err) reject(err);
+            const chunks = [];
+            for await (const chunk of readStream) {
+              chunks.push(chunk);
+            }
+            const fileBuffer = Buffer.concat(chunks);
+            files.push({
+              path: entry.fileName,
+              content: bufferToStream(fileBuffer),
+            });
+            zipfile.readEntry();
+          });
+        } else {
+          zipfile.readEntry();
+        }
+      });
+
+      zipfile.on('end', async () => {
+        try {
+          const uploaded = await pinDirectory(files);
+          const rootCid = uploaded[uploaded.length - 1].cid.toString();
+          const treeHere = await getDirectoryTree(rootCid);
+          debugger;
+          resolve({ uploaded, rootCid });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+  });
 }

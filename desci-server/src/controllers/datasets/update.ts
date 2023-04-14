@@ -21,7 +21,9 @@ import {
   IpfsPinnedResult,
   isDir,
   pinDirectory,
+  zipToDagAndPin,
 } from 'services/ipfs';
+import { processExternalUrls, zipUrlToBuffer } from 'utils';
 import {
   FirstNestingComponent,
   ROTypesToPrismaTypes,
@@ -61,11 +63,30 @@ export function updateManifestDataset({ manifest, dataBucketId, newRootCid }: Up
 export const update = async (req: Request, res: Response) => {
   const owner = (req as any).user as User;
   const { uuid, manifest, contextPath, componentType, componentSubType, externalCids } = req.body;
+  let { externalUrl } = req.body;
+  //Require XOR (files, externalCid, externalUrl)
+  //ExternalURL - url + type (code for now)
+  //v0 ExternalCids - cids + type (data for now), no pinning
   console.log('files rcvd: ', req.files);
   console.log('[UPDATE DATASET] Updating in context: ', contextPath);
   if (uuid === undefined || manifest === undefined || contextPath === undefined)
-    return res.status(400).json({ error: 'uuid, manifest, rootCid, contextPath required' });
+    return res.status(400).json({ error: 'uuid, manifest, contextPath required' });
   const manifestObj: ResearchObjectV1 = JSON.parse(manifest);
+  if (externalUrl) externalUrl = JSON.parse(externalUrl);
+
+  if (
+    externalUrl &&
+    externalUrl?.path?.length &&
+    externalUrl?.url?.length &&
+    componentType === ResearchObjectComponentType.CODE
+  ) {
+    const processedUrl = await processExternalUrls(externalUrl.url, componentType);
+    const zipBuffer = await zipUrlToBuffer(processedUrl);
+    const { uploaded, rootCid } = await zipToDagAndPin(zipBuffer);
+    // debugger;
+  }
+
+  // return res.status(400).json({ error: 'early terminate' });
 
   //validate requester owns the node
   const node = await prisma.node.findFirst({
