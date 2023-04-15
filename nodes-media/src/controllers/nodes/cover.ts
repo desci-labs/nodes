@@ -2,31 +2,25 @@ import { Request, Response } from 'express';
 import { cleanupManifestUrl } from 'utils';
 import { fromPath } from 'pdf2pic';
 import axios from 'axios';
-import { createWriteStream, existsSync, mkdirSync } from 'fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, unlinkSync } from 'fs';
 import { promisify } from 'util';
 import * as stream from 'stream';
 import path from 'path';
+import * as ipfs from 'ipfs-http-client';
+import { PUBLIC_IPFS_PATH } from 'config';
+
+const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
 
 const finished = promisify(stream.finished);
 
-const BANNER_URL =
-  'https://images.unsplash.com/photo-1679669693237-74d556d6b5ba?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2298&q=80';
-
-const TMP_DIR = path.join(process.cwd(), '/tmp/');
+const TMP_DIR = path.join(process.cwd(), '/tmp');
 const TMP_FILE = path.join(TMP_DIR, 'cover.pdf');
+const TMP_IMG = path.join(TMP_DIR, 'cover.1.png');
 
 if (!existsSync(TMP_DIR)) {
   mkdirSync(TMP_DIR);
 }
-console.log(TMP_FILE);
-// temp cache
-const cache = {};
-// TODO:
-// verify CID is in dataRefs table
-// pull cover images from db if cid has been generated
-// generate new cover image from pdf if not found
-// push to ipfs and get image Link
-// store in database and return ipfs link
+
 const options = {
   density: 100,
   saveFilename: 'cover',
@@ -40,28 +34,30 @@ const cover = async function (req: Request, res: Response) {
   const url = cleanupManifestUrl(req.params.cid, req.query?.g as string);
 
   const downloaded = await downloadFile(url, TMP_FILE);
-  console.log('pdf data', downloaded);
-  console.log('request', req.query, req.params, url);
 
   if (downloaded === false) {
     res.status(400).send({ ok: false, message: 'Cover not found' });
     return;
   }
-  const nodeId = req.query?.nodeUUID as string;
 
-  if (nodeId && cache[nodeId]) {
-    res.status(200).send({ url: cache[nodeId] });
-    return;
+  if (existsSync(TMP_IMG)) {
+    rmSync(TMP_IMG);
   }
 
   const storeAsImage = fromPath(TMP_FILE, options);
-  const pageToConvertAsImage = 1;
 
-  const cover = await storeAsImage(pageToConvertAsImage);
+  const cover = await storeAsImage(1);
   console.log('Page 1 is now converted as image', cover);
 
+  const buffer = readFileSync(TMP_IMG);
+  const storedCover = await client.add(buffer, { cidVersion: 1 });
+
+  unlinkSync(TMP_IMG);
+
+  console.log('storedCover', storedCover);
+
   try {
-    res.status(200).send({ url: BANNER_URL });
+    res.status(200).send({ url: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` });
   } catch (err) {
     console.log(err);
     res.status(500).send(JSON.stringify(err));
