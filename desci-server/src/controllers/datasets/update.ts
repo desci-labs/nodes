@@ -106,7 +106,7 @@ export const update = async (req: Request, res: Response) => {
   ) {
     const processedUrl = await processExternalUrls(externalUrl.url, componentType);
     const zipBuffer = await zipUrlToBuffer(processedUrl);
-    const { files, totalSize } = await zipToPinFormat(zipBuffer);
+    const { files, totalSize } = await zipToPinFormat(zipBuffer, externalUrl.path);
     externalUrlFiles = files;
     externalUrlTotalSizeBytes = totalSize;
   }
