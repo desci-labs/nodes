@@ -9,6 +9,7 @@ import path from 'path';
 import * as ipfs from 'ipfs-http-client';
 import { PUBLIC_IPFS_PATH } from 'config';
 
+const SECRET_KEY = process.env.MEDIA_SECRET_KEY;
 const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
 
 const finished = promisify(stream.finished);
@@ -31,36 +32,36 @@ const options = {
 };
 
 const cover = async function (req: Request, res: Response) {
-  const url = cleanupManifestUrl(req.params.cid, req.query?.g as string);
-
-  const downloaded = await downloadFile(url, TMP_FILE);
-
-  if (downloaded === false) {
-    res.status(400).send({ ok: false, message: 'Cover not found' });
-    return;
-  }
-
-  if (existsSync(TMP_IMG)) {
-    rmSync(TMP_IMG);
-  }
-
-  const storeAsImage = fromPath(TMP_FILE, options);
-
-  const cover = await storeAsImage(1);
-  console.log('Page 1 is now converted as image', cover);
-
-  const buffer = readFileSync(TMP_IMG);
-  const storedCover = await client.add(buffer, { cidVersion: 1 });
-
-  unlinkSync(TMP_IMG);
-
-  console.log('storedCover', storedCover);
-
   try {
-    res.status(200).send({ url: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` });
+    const url = cleanupManifestUrl(req.params.cid, req.query?.g as string);
+
+    const downloaded = await downloadFile(url, TMP_FILE);
+
+    if (downloaded === false) {
+      res.status(400).send({ ok: false, message: 'Cover not found' });
+      return;
+    }
+
+    if (existsSync(TMP_IMG)) {
+      // rmSync(TMP_IMG);
+    }
+
+    const storeAsImage = fromPath(TMP_FILE, options);
+
+    const cover = await storeAsImage(1);
+    console.log('Page 1 is now converted as image', cover);
+
+    const buffer = readFileSync(TMP_IMG);
+    const storedCover = await client.add(buffer, { cidVersion: 1 });
+
+    // unlinkSync(TMP_IMG);
+
+    console.log('storedCover', storedCover);
+
+    res.status(200).send({ ok: true, url: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` });
   } catch (err) {
     console.log(err);
-    res.status(500).send(JSON.stringify(err));
+    res.status(500).send({ ok: false, message: JSON.stringify(err) });
   }
 };
 

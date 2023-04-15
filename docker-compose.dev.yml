@@ -107,15 +107,17 @@ services:
       timeout: 2s
 
   # UNCOMMENT FOR LOCAL DEV:
-  # nodes_media:
-  #   entrypoint: /bin/sh './scripts/nodes-media-dev.sh'
-  #   env_file:
-  #     - ./nodes-media/.env
-  #   ports:
-  #     - '5454:5454'
-  #     - '9230:9230'
-  #   volumes:
-  #     - ./local-data/yarn_cache:/root/.yarn
+  nodes_media:
+    entrypoint: /bin/sh './nodes-media/scripts/nodes-media-dev.sh'
+    env_file:
+      - ./nodes-media/.env
+    ports:
+      - '5454:5454'
+      - '9230:9230'
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./local-data/yarn_cache:/root/.yarn
 
   # desci_nodes_backend_test:
   #   container_name: 'be_test_boilerplate'
@@ -128,7 +130,7 @@ services:
   #   links:
   #     - db_postgres
   #   env_file:
-  #     - .env
+  #     - .envs
   #   volumes:
   #     - .:/app/
   #     - /app/node_modules
