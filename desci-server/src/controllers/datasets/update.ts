@@ -92,6 +92,7 @@ export const update = async (req: Request, res: Response) => {
 
   if (!boolXor([!!externalUrl, !!files.length, !!externalCids]))
     return res.status(400).json({ error: 'Choose between one of the following; files, externalUrl or externalCids' });
+
   /*
    ** Github Code Repositories pathway (and future externalURLs)
    */
@@ -176,8 +177,9 @@ export const update = async (req: Request, res: Response) => {
   });
 
   if (structuredFilesForPinning.length || externalUrlFiles?.length) {
-    const filesToPin = structuredFilesForPinning.concat(externalUrlFiles || structuredFilesForPinning);
-    uploaded = await pinDirectory(filesToPin);
+    const filesToPin = structuredFilesForPinning.length ? structuredFilesForPinning : externalUrlFiles;
+    // debugger;
+    if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
     if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
     console.log('[UPDATE DATASET] Pinned files: ', uploaded);
   }

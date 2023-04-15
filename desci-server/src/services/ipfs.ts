@@ -245,16 +245,12 @@ export const pinDirectory = async (
 ): Promise<IpfsPinnedResult[]> => {
   const isOnline = await client.isOnline();
   console.log('isOnline', isOnline);
-
   //possibly check if uploaded with a root dir, omit the wrapping if there is a root dir
   const uploaded: IpfsPinnedResult[] = [];
   const addAll = await client.addAll(files, { wrapWithDirectory: wrapWithDirectory, cidVersion: 1 });
-  console.log(addAll);
-  console.log(JSON.stringify(addAll));
   for await (const file of addAll) {
     uploaded.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
-
   return uploaded;
 };
 
