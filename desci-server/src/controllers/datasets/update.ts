@@ -1,35 +1,80 @@
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { DataType, User } from '@prisma/client';
-import { Request, Response, NextFunction } from 'express';
-import flattenDeep from 'lodash/flattenDeep';
+import { randomUUID } from 'crypto';
+
+import {
+  ResearchObjectComponentSubtypes,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+} from '@desci-labs/desci-models';
+import { PBNode } from '@ipld/dag-pb/src/interface';
+import { DataReference, DataType, PrismaPromise, User } from '@prisma/client';
 import axios from 'axios';
+import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import { cleanupManifestUrl } from 'controllers/nodes';
 import { getAvailableDataUsageForUserBytes, hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
+  addFilesToDag,
+  FilesToAddToDag,
   getDirectoryTree,
-  getFilesAndPaths,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
+  isDir,
   pinDirectory,
-  RecursiveLsResult,
+  zipToPinFormat,
 } from 'services/ipfs';
-import { gbToBytes, getTreeAndFillSizes, recursiveFlattenTree } from 'utils/driveUtils';
+import { boolXor, processExternalUrls, zipUrlToBuffer } from 'utils';
+import {
+  FirstNestingComponent,
+  ROTypesToPrismaTypes,
+  addComponentsToManifest,
+  deneutralizePath,
+  gbToBytes,
+  generateManifestPathsToDbTypeMap,
+  getTreeAndFillSizes,
+  neutralizePath,
+  recursiveFlattenTree,
+  updateManifestComponentDagCids,
+  urlOrCid,
+} from 'utils/driveUtils';
 
 import { DataReferenceSrc } from './retrieve';
 import { persistManifest } from './upload';
-import { cleanupManifestUrl } from 'controllers/nodes';
+
+interface UpdatingManifestParams {
+  manifest: ResearchObjectV1;
+  dataBucketId: string;
+  newRootCid: string;
+}
+
+export function updateManifestDataset({ manifest, dataBucketId, newRootCid }: UpdatingManifestParams) {
+  const componentIndex = manifest.components.findIndex((c) => c.id === dataBucketId);
+  manifest.components[componentIndex] = {
+    ...manifest.components[componentIndex],
+    payload: {
+      ...manifest.components[componentIndex].payload,
+      cid: newRootCid,
+    },
+  };
+
+  return manifest;
+} //
 
 export const update = async (req: Request, res: Response) => {
   const owner = (req as any).user as User;
-  const { uuid, manifest, rootCid, contextPath } = req.body;
-  console.log('body: ', JSON.stringify(req.body));
+  const { uuid, manifest, contextPath, componentType, componentSubType, externalCids } = req.body;
+  let { externalUrl } = req.body;
+  //Require XOR (files, externalCid, externalUrl)
+  //ExternalURL - url + type (code for now)
+  //v0 ExternalCids - cids + type (data for now), no pinning
   console.log('files rcvd: ', req.files);
-  console.log('update dataset hit');
   console.log('[UPDATE DATASET] Updating in context: ', contextPath);
-  if (uuid === undefined || manifest === undefined || rootCid === undefined || contextPath === undefined)
-    return res.status(400).json({ error: 'uuid, manifest, rootCid, contextPath required' });
+  if (uuid === undefined || manifest === undefined || contextPath === undefined)
+    return res.status(400).json({ error: 'uuid, manifest, contextPath required' });
   const manifestObj: ResearchObjectV1 = JSON.parse(manifest);
+  if (externalUrl) externalUrl = JSON.parse(externalUrl);
+
+  let uploaded: IpfsPinnedResult[];
 
   //validate requester owns the node
   const node = await prisma.node.findFirst({
@@ -44,71 +89,117 @@ export const update = async (req: Request, res: Response) => {
   }
 
   const files = req.files as Express.Multer.File[];
-  if (!files) return res.status(400).json({ message: 'No files received' });
 
-  console.log('usr: ', owner);
+  if (!boolXor([!!externalUrl, !!files.length, !!externalCids]))
+    return res.status(400).json({ error: 'Choose between one of the following; files, externalUrl or externalCids' });
+
+  /*
+   ** Github Code Repositories pathway (and future externalURLs)
+   */
+  let externalUrlFiles: IpfsDirStructuredInput[];
+  let externalUrlTotalSizeBytes: number;
+  if (
+    externalUrl &&
+    externalUrl?.path?.length &&
+    externalUrl?.url?.length &&
+    componentType === ResearchObjectComponentType.CODE
+  ) {
+    const processedUrl = await processExternalUrls(externalUrl.url, componentType);
+    const zipBuffer = await zipUrlToBuffer(processedUrl);
+    const { files, totalSize } = await zipToPinFormat(zipBuffer, externalUrl.path);
+    externalUrlFiles = files;
+    externalUrlTotalSizeBytes = totalSize;
+  }
+
+  //finding rootCid
+  const manifestCidEntry = node.manifestUrl || node.cid;
+  const manifestUrlEntry = manifestCidEntry
+    ? cleanupManifestUrl(manifestCidEntry as string, req.query?.g as string)
+    : null;
+
+  const fetchedManifestEntry = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
+  const latestManifestEntry = fetchedManifestEntry || manifestObj;
+  const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
+    .cid; //changing the rootCid to the data bucket entry
+
+  const manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(latestManifestEntry);
+
+  /*
+   ** Check if user has enough storage space to upload
+   */
   let uploadSizeBytes = 0;
-  files.forEach((f) => (uploadSizeBytes += f.size));
-
+  if (files.length) files.forEach((f) => (uploadSizeBytes += f.size));
+  if (externalUrl) uploadSizeBytes += externalUrlTotalSizeBytes;
   const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(owner, { fileSizeBytes: uploadSizeBytes });
   if (!hasStorageSpaceToUpload)
     return res.send(400).json({
       error: `upload size of ${uploadSizeBytes} exceeds users data budget of ${owner.currentDriveStorageLimitGb} GB`,
     });
 
+  //Pull old tree
   const oldTree = await getDirectoryTree(rootCid);
   const oldFlatTree = recursiveFlattenTree(oldTree);
 
+  /*
+   ** Determine the path of the directory to be updated
+   */
   const splitContextPath = contextPath.split('/');
-  if (splitContextPath[0] === 'Data') splitContextPath.shift();
   splitContextPath.shift();
+  //cleanContextPath = how many dags need to be reset, n + 1
   const cleanContextPath = splitContextPath.join('/');
   console.log('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
 
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
   const OldTreePaths = oldFlatTree.map((e) => e.path);
-  const newPathsFormatted = files.map((f) => {
-    const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
-    return header + f.originalname;
-  });
+  let newPathsFormatted: string[] = [];
+  if (files.length) {
+    newPathsFormatted = files.map((f) => {
+      const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
+      return header + f.originalname;
+    });
+  }
+  if (externalUrl) {
+    newPathsFormatted = externalUrlFiles.map((f) => {
+      const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
+      return header + '/' + f.path;
+    });
+  }
+
   const hasDuplicates = OldTreePaths.some((oldPath) => newPathsFormatted.includes(oldPath));
   if (hasDuplicates) {
     console.log('[UPDATE DATASET] Rejected as duplicate paths were found');
     return res.status(400).json({ error: 'Duplicate files rejected' });
   }
 
-  const oldTreeWrapped: RecursiveLsResult = {
-    name: 'wrapper',
-    contains: oldTree,
-    type: 'dir',
-    path: 'wrapper',
-    cid: 'wrapper',
-    size: 0,
-  };
-  const oldFilesAndPaths = await getFilesAndPaths(oldTreeWrapped);
-  // console.log('Existing Files & Paths: ', oldFilesAndPaths);
-
-  const structuredFiles: IpfsDirStructuredInput[] = files.map((f: any) => {
-    return { path: cleanContextPath + f.originalname, content: f.buffer };
+  //Pin the new files
+  const structuredFilesForPinning: IpfsDirStructuredInput[] = files.map((f: any) => {
+    return { path: f.originalname, content: f.buffer };
   });
 
-  //combines old files + new files, and cleans the old root hash from the old file paths
-  const flatFilePaths = flattenDeep([structuredFiles, ...oldFilesAndPaths]);
-  // console.log('flatFilePaths: ', flatFilePaths);
-  const newFilePaths = flatFilePaths.map((fp) => {
-    const splitPath = fp.path.split('/');
-    if (splitPath[0] === rootCid) splitPath.shift();
-    return { path: splitPath.join('/'), content: fp.content };
+  if (structuredFilesForPinning.length || externalUrlFiles?.length) {
+    const filesToPin = structuredFilesForPinning.length ? structuredFilesForPinning : externalUrlFiles;
+    // debugger;
+    if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
+    if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
+    console.log('[UPDATE DATASET] Pinned files: ', uploaded);
+  }
+
+  //Filtered to first nestings only
+  const filteredFiles = uploaded.filter((file) => {
+    return file.path.split('/').length === 1;
   });
 
-  // console.log('newFilePaths: ', newFilePaths);
+  const filesToAddToDag: FilesToAddToDag = {};
+  filteredFiles.forEach((file) => {
+    filesToAddToDag[file.path] = { cid: file.cid, size: file.size };
+  });
 
-  const uploaded: IpfsPinnedResult[] = await pinDirectory(newFilePaths);
-  if (!uploaded.length) res.status(400).json({ error: 'failed uploading to ipfs' });
-  console.log('pinned: ', uploaded);
-  const newRootCid = uploaded[uploaded.length - 1].cid;
-
-  const datasetId = manifestObj.components.find((c) => c.payload.cid === rootCid).id;
+  const { updatedRootCid: newRootCidString, updatedDagCidMap } = await addFilesToDag(
+    rootCid,
+    cleanContextPath,
+    filesToAddToDag,
+  );
+  if (typeof newRootCidString !== 'string') return res.status(400).json({ error: 'DAG extension failed' });
 
   //repull of node required, previous manifestUrl may already be stale
   const ltsNode = await prisma.node.findFirst({
@@ -122,167 +213,164 @@ export const update = async (req: Request, res: Response) => {
   const manifestUrl = latestManifestCid
     ? cleanupManifestUrl(latestManifestCid as string, req.query?.g as string)
     : null;
-  // debugger;
-  const fetchedManifest = manifestUrl ? await (await axios.get(manifestUrl)).data : null;
 
+  const fetchedManifest = manifestUrl ? await (await axios.get(manifestUrl)).data : null;
   const latestManifest = fetchedManifest || manifestObj;
 
-  const updatedManifest = updateManifestDataset({
-    manifest: latestManifest,
-    datasetId: datasetId,
-    newRootCid: newRootCid,
-  });
-  const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCid));
-  flatTree.push({ cid: newRootCid, type: 'dir', path: newRootCid, size: uploaded[uploaded.length - 1].size });
-  const dataType: DataType = 'DATASET';
-  // const uploadedStructured = uploaded.map((f) => {
-  //   console.log('f in finding: ', f);
-  //   const treeMatch = flatTree.find((fd) => f.cid === fd.cid);
-  //   const fdType = treeMatch.type;
-  //   // const path = treeMatch.path;
-  //   return {
-  //     cid: f.cid,
-  //     size: f.size,
-  //     root: f.cid === newRootCid,
-  //     rootCid: newRootCid,
-  //     path: f.path, //prev path, issue with dupes
-  //     type: dataType,
-  //     userId: owner.id,
-  //     nodeId: node.id,
-  //     directory: fdType === 'dir' ? true : false,
-  //   };
-  // });
+  const dataBucketId = latestManifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).id;
 
-  console.log('uploaded: ', uploaded);
-  const uploadedStructured = flatTree.map((f) => {
-    console.log('f in finding: ', f);
-    const treeMatch = uploaded.find((fd) => f.cid === fd.cid);
-    const size = treeMatch.size;
-    // const fdType = treeMatch.type;
-    // const path = treeMatch.path;
-    return {
-      cid: f.cid,
-      size: size,
-      root: f.cid === newRootCid,
-      rootCid: newRootCid,
-      path: f.path, //prev path, issue with dupes
-      type: dataType,
-      userId: owner.id,
-      nodeId: node.id,
-      directory: f.type === 'dir' ? true : false,
-    };
+  let updatedManifest = updateManifestDataset({
+    manifest: latestManifest,
+    dataBucketId: dataBucketId,
+    newRootCid: newRootCidString,
   });
+
+  //Update all existing DAG components with new CIDs if they were apart of a cascading update
+  if (Object.keys(updatedDagCidMap).length) {
+    updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
+  }
+
+  //Only needs to happen if a predefined component type is to be added
+  if (componentType) {
+    const firstNestingComponents: FirstNestingComponent[] = filteredFiles.map((file) => {
+      const neutralFullPath = contextPath + '/' + file.path;
+      const pathSplit = file.path.split('/');
+      const name = pathSplit.pop();
+      return {
+        name: name,
+        path: neutralFullPath,
+        cid: file.cid,
+        componentType,
+        componentSubType,
+        star: true,
+        ...(externalUrl && { externalUrl: externalUrl.url }),
+      };
+    });
+    updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
+  }
+
+  //For adding correct types to the db, when a predefined component type is used
+  const newFilePathDbTypeMap = {};
+  uploaded.forEach((file) => {
+    const neutralFullPath = contextPath + '/' + file.path;
+    const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
+    newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
+  });
+
   try {
+    //Update refs
+    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString));
+    flatTree.push({
+      cid: newRootCidString,
+      type: 'dir',
+      path: newRootCidString,
+      size: 0,
+    });
+
     //existing refs
-    const dataRefIds = await prisma.dataReference.findMany({
+    const existingRefs = await prisma.dataReference.findMany({
       where: {
-        rootCid: rootCid,
         nodeId: node.id,
         userId: owner.id,
+        type: { not: DataType.MANIFEST },
       },
     });
 
-    const upserts = await prisma.$transaction(
-      uploadedStructured.map((fd) => {
-        const oldPath = fd.path.replace(newRootCid, rootCid);
-        const match = dataRefIds.find((dref) => {
-          return dref.cid === fd.cid && dref.path === oldPath;
-        });
-        let refId = 0;
-        if (match) refId = match.id;
-        return prisma.dataReference.upsert({
-          where: {
-            id: refId,
-          },
-          update: {
-            ...fd,
-          },
-          create: {
-            ...fd,
-          },
-        });
+    const dataRefsToUpsert: Partial<DataReference>[] = flatTree.map((f) => {
+      if (typeof f.cid !== 'string') f.cid = f.cid.toString();
+      return {
+        cid: f.cid,
+        root: f.cid === newRootCidString,
+        rootCid: newRootCidString,
+        path: f.path,
+        type: DataType.UNKNOWN,
+        userId: owner.id,
+        nodeId: node.id,
+        directory: f.type === 'dir' ? true : false,
+        size: f.size || 0,
+      };
+    });
+    const manifestPathsToTypes = generateManifestPathsToDbTypeMap(updatedManifest);
+    //Manual upsert
+    const dataRefUpdates = dataRefsToUpsert
+      .filter((dref) => {
+        const neutralPath = dref.path.replace(newRootCidString, 'root');
+        const match = existingRefs.find((ref) => neutralizePath(ref.path) === neutralPath);
+        return match;
+      })
+      .map((dref) => {
+        const neutralPath = dref.path.replace(newRootCidString, 'root');
+        const match = existingRefs.find((ref) => neutralizePath(ref.path) === neutralPath);
+        dref.id = match.id;
+        const newFileType = newFilePathDbTypeMap[dref.path];
+        dref.type =
+          newFileType && newFileType !== DataType.UNKNOWN
+            ? newFileType
+            : manifestPathsToTypes[neutralPath] || DataType.UNKNOWN;
+        return dref;
+      });
+    const dataRefCreates = dataRefsToUpsert
+      .filter((dref) => {
+        const neutralPath = dref.path.replace(newRootCidString, 'root');
+        const inUpdates = dataRefUpdates.find((ref) => neutralizePath(ref.path) === neutralPath);
+        return !inUpdates;
+      })
+      .map((dref) => {
+        const neutralPath = dref.path.replace(newRootCidString, 'root');
+        const newFileType = newFilePathDbTypeMap[dref.path];
+        dref.type =
+          newFileType && newFileType !== DataType.UNKNOWN
+            ? newFileType
+            : manifestPathsToTypes[neutralPath] || DataType.UNKNOWN;
+        return dref;
+      }) as DataReference[];
+
+    const upserts = await prisma.$transaction([
+      ...(dataRefUpdates as any).map((fd) => {
+        return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
       }),
-    );
+      prisma.dataReference.createMany({ data: dataRefCreates }),
+    ]);
     if (upserts) console.log(`${upserts.length} new data references added/modified`);
 
-    //CLEANUP DANGLING REFERENCES//
-    // console.log('oldRootCid CHECK: ', rootCid);
+    // //CLEANUP DANGLING REFERENCES//
     oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
+
     const newFilesPathAdjusted = flatTree.map((f) => {
-      f.path = f.path.replace(newRootCid, '', 0);
+      f.path = f.path.replace(newRootCidString, '', 0);
       return f;
     });
 
+    //length should be n + 1, n being nested dirs + rootCid
     const pruneList = oldFlatTree.filter((oldF) => {
       const oldPathAdjusted = oldF.path.replace(rootCid, '', 0);
       //a path match && a CID difference = prune
       return newFilesPathAdjusted.some((newF) => oldPathAdjusted === newF.path && oldF.cid !== newF.cid);
     });
 
-    //missing cids
-    const pruneCids = pruneList.map((e) => e.cid);
-    const prunePaths = pruneList.map((e) => e.path);
-    pruneCids.push(rootCid);
-    prunePaths.push(rootCid);
-
-    //doesn't find all
-    const deletionEntries = await prisma.dataReference.findMany({
-      where: {
-        cid: { in: pruneCids },
-        path: { in: prunePaths },
-        rootCid: rootCid,
-        nodeId: node.id,
-        userId: owner.id,
-      },
-    });
-
-    const deletionIds = deletionEntries.map((e) => e.id);
-
-    //FOR DEBUGGING
-    // const formattedPruneListPrinting = pruneList.map((e) => {
-    //   const size = deletionEntries.find((s) => e.cid === s.cid).size;
-    //   return {
-    //     name: e.name,
-    //     cid: e.cid,
-    //     path: e.path,
-    //     type: e.type,
-    //     size: size || 0,
-    //   };
-    // });
-    // console.log('PRUNELIST: ', formattedPruneListPrinting);
-
-    console.log('deletionEntries: ', deletionEntries);
     const formattedPruneList = pruneList.map((e) => {
-      console.log('formattedPruneList Entry: ', e);
-      const size = deletionEntries.find((s) => e.cid === s.cid).size;
+      const neutralPath = e.path.replace(rootCid, 'root');
       return {
-        description: 'DANGLING DAG, UPDATED DATASET',
+        description: 'DANGLING DAG, UPDATED DATASET (update v2)',
         cid: e.cid,
-        type: dataType,
-        size: size || 0,
+        type: manifestPathsToTypesPrune[neutralPath] || DataType.UNKNOWN,
+        size: 0, //only dags being removed in an update op
         nodeId: node.id,
         userId: owner.id,
         directory: e.type === 'dir' ? true : false,
       };
     });
 
-    const pruneRes = await prisma.$transaction([
-      prisma.dataReference.deleteMany({ where: { id: { in: deletionIds } } }),
-      prisma.cidPruneList.createMany({ data: formattedPruneList }),
-    ]);
-
-    console.log(
-      `[PRUNING] ${pruneRes[0].count} dataReferences deleted, ${pruneRes[1].count} cidPruneList entries added.`,
-    );
+    const pruneRes = await prisma.cidPruneList.createMany({ data: formattedPruneList });
+    console.log(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
     //END OF CLEAN UP//
-
-    const tree = await getTreeAndFillSizes(newRootCid, uuid, DataReferenceSrc.PRIVATE, owner.id);
     const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
       throw Error(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
+    const tree = await getTreeAndFillSizes(newRootCidString, uuid, DataReferenceSrc.PRIVATE, owner.id);
     return res.status(200).json({
-      rootDataCid: newRootCid,
+      rootDataCid: newRootCidString,
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
       tree: tree,
@@ -290,47 +378,29 @@ export const update = async (req: Request, res: Response) => {
     });
   } catch (e: any) {
     console.log(`[UPDATE DATASET] error: ${e}`);
-    //checks if any failures occured post pinning files and adds the CIDs to the prunelist, this could result in disk usage leaks
     if (uploaded.length) {
       console.log(`[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED, FILES: ${uploaded}`);
-      const formattedPruneList = uploadedStructured.map((e) => {
+      const formattedPruneList = uploaded.map(async (e) => {
+        const pathSplit = e.path.split('/');
+        pathSplit[0] = 'root';
+        const neutralPath = pathSplit.join('/');
         return {
-          description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE',
+          description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE (update v2)',
           cid: e.cid,
-          type: DataType.DATASET,
+          type: manifestPathsToTypesPrune[neutralPath] || DataType.UNKNOWN,
           size: e.size || 0,
           nodeId: node.id,
           userId: owner.id,
-          directory: e.directory,
+          directory: await isDir(e.cid),
         };
       });
-      const prunedEntries = await prisma.cidPruneList.createMany({ data: formattedPruneList });
+      const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });
       if (prunedEntries.count) {
         console.log(`[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`);
       } else {
         console.log(`[UPDATE DATASET E:2] failed adding files to prunelist, db may be down`);
       }
     }
-    //delete flow
     return res.status(400).json({ error: 'failed #1' });
   }
 };
-
-interface UpdatingManifestParams {
-  manifest: ResearchObjectV1;
-  datasetId: string;
-  newRootCid: string;
-}
-
-export function updateManifestDataset({ manifest, datasetId, newRootCid }: UpdatingManifestParams) {
-  const componentIndex = manifest.components.findIndex((c) => c.id === datasetId);
-  manifest.components[componentIndex] = {
-    ...manifest.components[componentIndex],
-    payload: {
-      ...manifest.components[componentIndex].payload,
-      cid: newRootCid,
-    },
-  };
-
-  return manifest;
-} //

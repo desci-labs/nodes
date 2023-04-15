@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "debug=* NODE_PATH=./src ts-node-dev --inspect=0.0.0.0:9229 --respawn --exit-child ./src/index.ts",
     "script:fix-mirrors": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/retry-mirrors.ts",
+    "script:upgrade-manifests": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/upgradeManifests.ts",
     "script:fill-research-fields": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/fill-research-fields.ts",
     "build": "rimraf dist && tsc",
     "generate": "npx prisma generate",
@@ -34,7 +35,7 @@
     "@desci-labs/desci-models": "link:./desci-models",
     "@gitcoinco/passport-sdk-reader": "^0.1.4",
     "@honeycombio/opentelemetry-node": "^0.3.2",
-    "@ipld/dag-pb": "^3.0.2",
+    "@ipld/dag-pb": "^2.1.0",
     "@opentelemetry/auto-instrumentations-node": "^0.36.4",
     "@penseapp/discord-notification": "^2.0.9",
     "@prisma/client": "4.2.1",
@@ -62,6 +63,7 @@
     "helmet": "^4.6.0",
     "http-proxy-middleware": "3.0.0-beta.0",
     "ipfs-http-client": "56.0.2",
+    "ipfs-unixfs": "^2.0.0",
     "ipfs-utils": "9.0.6",
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.21",
@@ -82,6 +84,7 @@
     "uuid": "^8.3.2",
     "validator": "^13.6.0",
     "yaml": "^1.10.2",
+    "yauzl": "^2.10.0",
     "yazl": "^2.5.1",
     "zip-a-folder": "^1.1.5",
     "zlib": "^1.0.5"

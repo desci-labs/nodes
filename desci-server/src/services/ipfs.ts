@@ -1,17 +1,33 @@
-import { CodeComponent, PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import internal from 'stream';
+
+import {
+  CodeComponent,
+  PdfComponent,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+  ResearchObjectV1Component,
+} from '@desci-labs/desci-models';
+import { PBNode } from '@ipld/dag-pb/src/interface';
 import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import axios from 'axios';
 import CID from 'cids';
 import * as ipfs from 'ipfs-http-client';
+import { CID as CID2 } from 'ipfs-http-client';
 import toBuffer from 'it-to-buffer';
 import flatten from 'lodash/flatten';
 import uniq from 'lodash/uniq';
 import * as multiformats from 'multiformats';
+import * as yauzl from 'yauzl';
 
 import prisma from 'client';
+import { bufferToStream } from 'utils';
+import { newCid, oldCid } from 'utils/driveUtils';
+import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
 export const IPFS_PATH_TMP = '/tmp/ipfs';
 
 // key = type
@@ -25,7 +41,7 @@ export interface UrlWithCid {
 }
 
 // connect to a different API
-const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
+export const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
@@ -71,9 +87,20 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
   // make manifest
 
   const researchObject: ResearchObjectV1 = {
-    version: 'desci-nodes-0.1.0',
+    version: 'desci-nodes-0.2.0',
     components: [],
     authors: [],
+  };
+
+  const emptyDagCid = await createEmptyDag();
+
+  const dataBucketComponent: ResearchObjectV1Component = {
+    id: 'root',
+    name: 'root',
+    type: ResearchObjectComponentType.DATA_BUCKET,
+    payload: {
+      cid: emptyDagCid,
+    },
   };
 
   const pdfComponents = (await pdfHashes).map((d: UrlWithCid) => {
@@ -103,7 +130,7 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
   researchObject.title = title;
   researchObject.defaultLicense = defaultLicense;
   researchObject.researchFields = researchFields;
-  researchObject.components = researchObject.components.concat(pdfComponents, codeComponents);
+  researchObject.components = researchObject.components.concat(dataBucketComponent, pdfComponents, codeComponents);
 
   console.log('RESEARCH OBJCECT', JSON.stringify(researchObject));
 
@@ -212,16 +239,18 @@ export interface IpfsPinnedResult {
   size: number;
 }
 
-export const pinDirectory = async (files: IpfsDirStructuredInput[]): Promise<IpfsPinnedResult[]> => {
+export const pinDirectory = async (
+  files: IpfsDirStructuredInput[],
+  wrapWithDirectory = false,
+): Promise<IpfsPinnedResult[]> => {
   const isOnline = await client.isOnline();
   console.log('isOnline', isOnline);
-
   //possibly check if uploaded with a root dir, omit the wrapping if there is a root dir
   const uploaded: IpfsPinnedResult[] = [];
-  for await (const file of client.addAll(files, { wrapWithDirectory: true, cidVersion: 1 })) {
+  const addAll = await client.addAll(files, { wrapWithDirectory: wrapWithDirectory, cidVersion: 1 });
+  for await (const file of addAll) {
     uploaded.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
-
   return uploaded;
 };
 
@@ -296,6 +325,8 @@ export const getDirectoryTreeCids = async (cid: string): Promise<string[]> => {
   return flatCids;
 };
 
+export const nodeKeepFile = '.nodeKeep';
+
 export const getDirectoryTree = async (cid: string): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
   console.log(`retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
@@ -305,23 +336,23 @@ export const getDirectoryTree = async (cid: string): Promise<RecursiveLsResult[]
   return tree;
 };
 
-export const recursiveLs = async (cid: string, parent?: RecursiveLsResult, carryPath?: string) => {
+export const recursiveLs = async (cid: string, carryPath?: string) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
   for await (const filedir of client.ls(cid)) {
     const res: any = filedir;
-    if (parent) {
-      res.parent = parent;
-      const pathSplit = res.path.split('/');
-      pathSplit[0] = carryPath;
-      res.path = pathSplit.join('/');
-    }
+    // if (parent) {
+    //   res.parent = parent;
+    const pathSplit = res.path.split('/');
+    pathSplit[0] = carryPath;
+    res.path = pathSplit.join('/');
+    // }
     const v1StrCid = convertToCidV1(res.cid);
 
-    if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
+    if (filedir.type === 'file' && filedir.name !== nodeKeepFile) tree.push({ ...res, cid: v1StrCid });
     if (filedir.type === 'dir') {
       res.cid = v1StrCid;
-      res.contains = await recursiveLs(res.cid, { ...res, cid: v1StrCid }, carryPath + '/' + res.name);
+      res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
       tree.push({ ...res, cid: v1StrCid });
     }
   }
@@ -363,3 +394,153 @@ export const getFilesAndPaths = async (tree: RecursiveLsResult) => {
   await Promise.all(promises);
   return filesAndPaths;
 };
+
+export const isDir = async (cid: string): Promise<boolean> => {
+  try {
+    const files = await client.ls(cid);
+
+    for await (const file of files) {
+      if (file.type === 'dir') {
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error(`Failed checking if CID is dir: ${error}`);
+    return false;
+  }
+};
+
+type FilePath = string;
+type FileInfo = { cid: string; size?: number };
+export type FilesToAddToDag = Record<FilePath, FileInfo>;
+
+export const addFilesToDag = async (rootCid: string, contextPath: string, filesToAddToDag: FilesToAddToDag) => {
+  const dagCidsToBeReset = [];
+  //                  CID(String): DAGNode     - cached to prevent duplicate calls
+  const dagsLoaded: Record<string, PBNode> = {};
+  dagCidsToBeReset.push(CID2.parse(rootCid));
+  const stagingDagNames = contextPath.split('/');
+
+  if (contextPath.length) {
+    for (let i = 0; i < stagingDagNames.length; i++) {
+      const dagLinkName = stagingDagNames[i];
+      const containingDagCid = dagCidsToBeReset[i];
+      //FIXME containingDag is of type PBNode
+      const containingDag: any = await client.object.get(containingDagCid);
+      if (!containingDag) {
+        throw Error('Failed updating dataset, existing DAG not found');
+      }
+      dagsLoaded[containingDagCid.toString()] = containingDag;
+      const matchingLink = containingDag.Links.find((linkNode) => linkNode.Name === dagLinkName);
+      if (!matchingLink) {
+        throw Error('Failed updating dataset, existing DAG link not found');
+      }
+      dagCidsToBeReset.push(matchingLink.Hash);
+    }
+  }
+
+  //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
+  if (!dagsLoaded.length) {
+    //FIXME rootDag is of type PBNode
+    const rootDag = await client.object.get(dagCidsToBeReset[0]);
+    dagsLoaded[rootCid] = rootDag;
+  }
+
+  //establishing the tail dag that's being updated
+  const tailNodeCid = dagCidsToBeReset.pop();
+  const tailNode = dagsLoaded[tailNodeCid.toString()]
+    ? dagsLoaded[tailNodeCid.toString()]
+    : await client.object.get(tailNodeCid);
+
+  const updatedTailNodeCid = await addToDir(client, tailNodeCid.toString(), filesToAddToDag);
+  // oldToNewCidMap[tailNodeCid.toString()] = updatedTailNodeCid.toString();
+  // const treehere = await getDirectoryTree(updatedTailNodeCid);
+
+  const updatedDagCidMap: Record<oldCid, newCid> = {};
+
+  let lastUpdatedCid = updatedTailNodeCid;
+  while (dagCidsToBeReset.length) {
+    const currentNodeCid = dagCidsToBeReset.pop();
+    //FIXME should be PBLink
+    const currentNode: any = dagsLoaded[currentNodeCid.toString()]
+      ? dagsLoaded[currentNodeCid.toString()]
+      : await client.object.get(currentNodeCid);
+    const linkName = stagingDagNames.pop();
+    const dagIdx = currentNode.Links.findIndex((dag) => dag.Name === linkName);
+    if (dagIdx === -1) throw Error(`Failed to find DAG link: ${linkName}`);
+    const oldCid = currentNode.Links[dagIdx].Hash;
+    // const oldLinkRemovedCid = await client.object.patch.rmLink(currentNodeCid, currentNode.Links[dagIdx]);
+    // lastUpdatedCid = await addToDir(client, oldLinkRemovedCid, { [linkName]: { cid: lastUpdatedCid } });
+    lastUpdatedCid = await updateDagCid(client, currentNodeCid, oldCid, lastUpdatedCid);
+    updatedDagCidMap[oldCid.toString()] = lastUpdatedCid.toString();
+    // oldToNewCidMap[oldCid] = lastUpdatedCid.toString();
+  }
+
+  return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
+};
+
+export const createDag = async (files: FilesToAddToDag): Promise<string> => {
+  return await makeDir(client, files);
+};
+
+export async function createEmptyDag() {
+  const nodeKeepCid = await client.add(Buffer.from(''));
+  const cid = await makeDir(client, { '.nodeKeep': { cid: nodeKeepCid.cid } });
+  return cid.toString();
+}
+
+export async function getExternalSize(cid: string) {
+  const { data } = await axios.head(`${process.env.PUBLIC_IPFS_RESOLVER}/ipfs/${cid}`);
+  return data.headers['Content-Length'];
+}
+
+export interface ZipToDagAndPinResult {
+  files: IpfsDirStructuredInput[];
+  totalSize: number;
+}
+
+export async function zipToPinFormat(zipBuffer: Buffer, nameOverride?: string): Promise<ZipToDagAndPinResult> {
+  return new Promise((resolve, reject) => {
+    const files = [];
+    let totalSize = 0;
+
+    yauzl.fromBuffer(zipBuffer, { lazyEntries: true }, (err, zipfile) => {
+      if (err) reject(err);
+
+      zipfile.readEntry();
+
+      zipfile.on('entry', (entry) => {
+        if (!entry.isDirectory) {
+          zipfile.openReadStream(entry, async (err, readStream) => {
+            if (err) reject(err);
+            const chunks = [];
+            for await (const chunk of readStream) {
+              chunks.push(chunk);
+            }
+            const fileBuffer = Buffer.concat(chunks);
+            if (entry.uncompressedSize > 0) {
+              totalSize += entry.uncompressedSize;
+              if (nameOverride) entry.fileName = deneutralizePath(entry.fileName, nameOverride);
+              files.push({
+                path: entry.fileName,
+                content: fileBuffer,
+              });
+            }
+            zipfile.readEntry();
+          });
+        } else {
+          zipfile.readEntry();
+        }
+      });
+
+      zipfile.on('end', async () => {
+        try {
+          resolve({ files, totalSize });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+  });
+}

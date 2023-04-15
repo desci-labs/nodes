@@ -5,7 +5,7 @@ import { UrlWithCid } from 'services/ipfs';
 export const cleanManifestForSaving = (manifest: ResearchObjectV1) => {
   manifest.components = manifest.components.map((c) => {
     if (c.type == ResearchObjectComponentType.PDF) {
-      (c.payload as PdfComponentPayload).annotations.forEach((a) => {
+      (c.payload as PdfComponentPayload).annotations?.forEach((a) => {
         delete a.__client;
       });
     }
