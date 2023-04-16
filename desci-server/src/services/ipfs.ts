@@ -490,10 +490,36 @@ export async function createEmptyDag() {
   return cid.toString();
 }
 
-export async function getExternalSize(cid: string) {
-  const res = await axios.head(`${process.env.PUBLIC_IPFS_RESOLVER}/ipfs/${cid}`);
-  // debugger;
-  return res.headers['content-length'];
+export interface GetExternalSizeAndTypeResult {
+  isDirectory: boolean;
+  size: number;
+}
+
+export async function getExternalSizeAndType(cid: string): Promise<GetExternalSizeAndTypeResult | null> {
+  try {
+    const res = await axios.head(`${process.env.PUBLIC_IPFS_RESOLVER}/ipfs/${cid}`);
+
+    let isDirectory;
+    let size;
+    if (res.status === 200 && res.headers) {
+      const contentType = res.headers['content-type'];
+      const fileSize = res.headers['content-length'];
+      if (contentType === 'application/x-directory') {
+        isDirectory = true;
+        size = 0;
+      } else if (contentType === 'application/octet-stream' || contentType === 'application/x-git' || contentType) {
+        isDirectory = false;
+        size = parseInt(fileSize);
+      }
+    }
+    if (isDirectory !== undefined && size !== undefined) {
+      return { isDirectory, size };
+    }
+    throw new Error('Unable to fetch CID or determine file size/type');
+  } catch (error) {
+    console.error(`[getExternalSizeAndType] Error: ${error.message}`);
+    return null;
+  }
 }
 
 export interface ZipToDagAndPinResult {

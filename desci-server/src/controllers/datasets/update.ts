@@ -18,6 +18,8 @@ import {
   FilesToAddToDag,
   getDirectoryTree,
   getExternalSize,
+  getExternalSizeAndType,
+  GetExternalSizeAndTypeResult,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
   isDir,
@@ -116,14 +118,14 @@ export const update = async (req: Request, res: Response) => {
    ** External CID setup
    */
   if (externalCids && externalCids.length && componentType === ResearchObjectComponentType.DATA) {
-    const cidSizes: Record<string, number> = {};
+    const cidSizes: Record<string, GetExternalSizeAndTypeResult> = {};
     try {
       for (const extCid of externalCids) {
-        const size = await getExternalSize(extCid.cid);
-        if (size) {
-          cidSizes[extCid.cid] = parseInt(size);
+        const { isDirectory, size } = await getExternalSizeAndType(extCid.cid);
+        if (size !== undefined && isDirectory !== undefined) {
+          cidSizes[extCid.cid] = { size, isDirectory };
         } else {
-          throw new Error(`Failed to get size of external CID: ${extCid}`);
+          throw new Error(`Failed to get size and type of external CID: ${extCid}`);
         }
       }
     } catch (e: any) {
