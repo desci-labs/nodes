@@ -491,8 +491,9 @@ export async function createEmptyDag() {
 }
 
 export async function getExternalSize(cid: string) {
-  const { data } = await axios.head(`${process.env.PUBLIC_IPFS_RESOLVER}/ipfs/${cid}`);
-  return data.headers['Content-Length'];
+  const res = await axios.head(`${process.env.PUBLIC_IPFS_RESOLVER}/ipfs/${cid}`);
+  // debugger;
+  return res.headers['content-length'];
 }
 
 export interface ZipToDagAndPinResult {

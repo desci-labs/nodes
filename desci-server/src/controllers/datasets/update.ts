@@ -17,13 +17,14 @@ import {
   addFilesToDag,
   FilesToAddToDag,
   getDirectoryTree,
+  getExternalSize,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
   isDir,
   pinDirectory,
   zipToPinFormat,
 } from 'services/ipfs';
-import { boolXor, processExternalUrls, zipUrlToBuffer } from 'utils';
+import { arrayXor, processExternalUrls, zipUrlToBuffer } from 'utils';
 import {
   FirstNestingComponent,
   ROTypesToPrismaTypes,
@@ -62,8 +63,8 @@ export function updateManifestDataset({ manifest, dataBucketId, newRootCid }: Up
 
 export const update = async (req: Request, res: Response) => {
   const owner = (req as any).user as User;
-  const { uuid, manifest, contextPath, componentType, componentSubType, externalCids } = req.body;
-  let { externalUrl } = req.body;
+  const { uuid, manifest, contextPath, componentType, componentSubType } = req.body;
+  let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl)
   //ExternalURL - url + type (code for now)
   //v0 ExternalCids - cids + type (data for now), no pinning
@@ -73,6 +74,7 @@ export const update = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'uuid, manifest, contextPath required' });
   const manifestObj: ResearchObjectV1 = JSON.parse(manifest);
   if (externalUrl) externalUrl = JSON.parse(externalUrl);
+  if (externalCids) externalCids = JSON.parse(externalCids);
 
   let uploaded: IpfsPinnedResult[];
 
@@ -89,12 +91,11 @@ export const update = async (req: Request, res: Response) => {
   }
 
   const files = req.files as Express.Multer.File[];
-
-  if (!boolXor([!!externalUrl, !!files.length, !!externalCids]))
+  if (!arrayXor([externalUrl, files.length, externalCids?.length]))
     return res.status(400).json({ error: 'Choose between one of the following; files, externalUrl or externalCids' });
 
   /*
-   ** Github Code Repositories pathway (and future externalURLs)
+   ** Github Code Repositories setup (and future externalURLs)
    */
   let externalUrlFiles: IpfsDirStructuredInput[];
   let externalUrlTotalSizeBytes: number;
@@ -109,6 +110,28 @@ export const update = async (req: Request, res: Response) => {
     const { files, totalSize } = await zipToPinFormat(zipBuffer, externalUrl.path);
     externalUrlFiles = files;
     externalUrlTotalSizeBytes = totalSize;
+  }
+
+  /*
+   ** External CID setup
+   */
+  if (externalCids && externalCids.length && componentType === ResearchObjectComponentType.DATA) {
+    const cidSizes: Record<string, number> = {};
+    try {
+      for (const extCid of externalCids) {
+        const size = await getExternalSize(extCid.cid);
+        if (size) {
+          cidSizes[extCid.cid] = parseInt(size);
+        } else {
+          throw new Error(`Failed to get size of external CID: ${extCid}`);
+        }
+      }
+    } catch (e: any) {
+      console.error(`[UPDATE DAG] External CID Method: ${e}`);
+      debugger;
+      return res.status(400).json({ error: 'Failed to resolve external CID' });
+    }
+    debugger;
   }
 
   //finding rootCid
