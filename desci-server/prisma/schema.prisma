@@ -363,6 +363,7 @@ model PublicDataReference {
   nodeId      Int
   userId      Int
   versionId   Int?
+  external    Boolean?
   mirrors     PublicDataReferenceOnIpfsMirror[]
   node        Node                              @relation(fields: [nodeId], references: [id])
   user        User                              @relation(fields: [userId], references: [id])
