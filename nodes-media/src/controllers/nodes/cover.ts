@@ -33,7 +33,6 @@ const options = {
 
 const cover = async function (req: Request, res: Response) {
   try {
-    console.log('cover running: ', req.params, req.query);
     const url = cleanupManifestUrl(req.params.cid, req.query?.g as string);
 
     const downloaded = await downloadFile(url, TMP_FILE);
@@ -48,16 +47,12 @@ const cover = async function (req: Request, res: Response) {
     }
 
     const storeAsImage = fromPath(TMP_FILE, options);
-
-    const cover = await storeAsImage(1);
-    console.log('Page 1 is now converted as image', cover);
+    await storeAsImage(1);
 
     const buffer = readFileSync(TMP_IMG);
     const storedCover = await client.add(buffer, { cidVersion: 1 });
 
     // unlinkSync(TMP_IMG);
-
-    console.log('storedCover', storedCover);
 
     res.status(200).send({ ok: true, url: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` });
   } catch (err) {

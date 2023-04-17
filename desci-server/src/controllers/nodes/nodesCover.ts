@@ -33,7 +33,15 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     const dataRefExists = await prisma.dataReference.findFirst({ where: { cid, node: { uuid: nodeUUID + '.' } } });
     if (!dataRefExists) throw Error('Unknown CID reference');
 
-    const data = await (await axios.post(`${MEDIA_SERVER_API_URL}/v1/nodes/cover/${cid}`, {})).data;
+    const data = await (
+      await axios.post(
+        `${MEDIA_SERVER_API_URL}/v1/nodes/cover/${cid}`,
+        {},
+        {
+          headers: { 'x-api-key': MEDIA_SERVER_API_KEY },
+        },
+      )
+    ).data;
 
     await prisma.nodeCover.upsert({
       where: { nodeUUID: nodeUUID + '.' },
