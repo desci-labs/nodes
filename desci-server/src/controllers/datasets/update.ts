@@ -316,7 +316,6 @@ export const update = async (req: Request, res: Response) => {
     const dataRefsToUpsert: Partial<DataReference>[] = flatTree.map((f) => {
       if (typeof f.cid !== 'string') f.cid = f.cid.toString();
       const neutralPath = neutralizePath(f.path);
-      const external = externalPathsAdded[neutralPath];
       return {
         cid: f.cid,
         root: f.cid === newRootCidString,
@@ -327,7 +326,6 @@ export const update = async (req: Request, res: Response) => {
         nodeId: node.id,
         directory: f.type === 'dir' ? true : false,
         size: f.size || 0,
-        ...(external && { external }),
       };
     });
 
@@ -359,10 +357,12 @@ export const update = async (req: Request, res: Response) => {
       .map((dref) => {
         const neutralPath = dref.path.replace(newRootCidString, 'root');
         const newFileType = newFilePathDbTypeMap[dref.path];
+        const external = externalPathsAdded[dref.path];
         dref.type =
           newFileType && newFileType !== DataType.UNKNOWN
             ? newFileType
             : manifestPathsToTypes[neutralPath] || DataType.UNKNOWN;
+        if (external) dref.external = true;
         return dref;
       }) as DataReference[];
 
