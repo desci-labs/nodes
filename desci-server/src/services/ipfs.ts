@@ -7,16 +7,19 @@ import {
   ResearchObjectV1,
   ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
+import * as dagPb from '@ipld/dag-pb';
 import { PBNode } from '@ipld/dag-pb/src/interface';
 import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import axios from 'axios';
 import CID from 'cids';
 import * as ipfs from 'ipfs-http-client';
 import { CID as CID2 } from 'ipfs-http-client';
+import UnixFS from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
 import flatten from 'lodash/flatten';
 import uniq from 'lodash/uniq';
 import * as multiformats from 'multiformats';
+import { code as rawCode } from 'multiformats/codecs/raw';
 import * as yauzl from 'yauzl';
 
 import prisma from 'client';
@@ -42,6 +45,7 @@ export interface UrlWithCid {
 
 // connect to a different API
 export const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
+export const publicIpfs = ipfs.create({ url: process.env.PUBLIC_IPFS_RESOLVER });
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
@@ -495,29 +499,40 @@ export interface GetExternalSizeAndTypeResult {
   size: number;
 }
 
-export async function getExternalSizeAndType(cid: string): Promise<GetExternalSizeAndTypeResult | null> {
-  try {
-    const res = await axios.head(`${process.env.PUBLIC_IPFS_RESOLVER}/ipfs/${cid}`);
+const dirTypes = ['directory', 'hamt-sharded-directory'];
 
+export async function getExternalCidSizeAndType(cid: string) {
+  try {
+    const cidObject = multiformats.CID.parse(cid);
+    const code = cidObject.code;
+    const block = await publicIpfs.block.get(cidObject);
+    if (cidObject.code === rawCode) {
+      return { isDirectory: false, size: block.length };
+    }
+    const { Data } = dagPb.decode(block);
+
+    const unixFs = UnixFS.unmarshal(Data);
     let isDirectory;
     let size;
-    if (res.status === 200 && res.headers) {
-      const contentType = res.headers['content-type'];
-      const fileSize = res.headers['content-length'];
-      if (contentType === 'application/x-directory') {
-        isDirectory = true;
-        size = 0;
-      } else if (contentType === 'application/octet-stream' || contentType === 'application/x-git' || contentType) {
-        isDirectory = false;
-        size = parseInt(fileSize);
+    const isDir = dirTypes.includes(unixFs?.type);
+    if (code === 0x70 && isDir) {
+      //0x70 === dag-pb
+      isDirectory = true;
+      size = 0;
+    } else {
+      isDirectory = false;
+      const fSize = unixFs.fileSize();
+      if (fSize) {
+        size = fSize;
+      } else {
+        // eslint-disable-next-line no-array-reduce/no-reduce
+        size = unixFs.blockSizes.reduce((a, b) => a + b, 0);
       }
     }
-    if (isDirectory !== undefined && size !== undefined) {
-      return { isDirectory, size };
-    }
-    throw new Error('Unable to fetch CID or determine file size/type');
+    if (isDirectory !== undefined && size !== undefined) return { isDirectory, size };
+    throw new Error(`Failed to resolve CID or determine file size/type for cid: ${cid}`);
   } catch (error) {
-    console.error(`[getExternalSizeAndType] Error: ${error.message}`);
+    console.error(`[getExternalCidSizeAndType]Error: ${error.message}`);
     return null;
   }
 }

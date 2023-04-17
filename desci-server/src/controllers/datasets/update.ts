@@ -17,8 +17,7 @@ import {
   addFilesToDag,
   FilesToAddToDag,
   getDirectoryTree,
-  getExternalSize,
-  getExternalSizeAndType,
+  getExternalCidSizeAndType,
   GetExternalSizeAndTypeResult,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
@@ -117,23 +116,21 @@ export const update = async (req: Request, res: Response) => {
   /*
    ** External CID setup
    */
+  const cidTypesSizes: Record<string, GetExternalSizeAndTypeResult> = {};
   if (externalCids && externalCids.length && componentType === ResearchObjectComponentType.DATA) {
-    const cidSizes: Record<string, GetExternalSizeAndTypeResult> = {};
     try {
       for (const extCid of externalCids) {
-        const { isDirectory, size } = await getExternalSizeAndType(extCid.cid);
+        const { isDirectory, size } = await getExternalCidSizeAndType(extCid.cid);
         if (size !== undefined && isDirectory !== undefined) {
-          cidSizes[extCid.cid] = { size, isDirectory };
+          cidTypesSizes[extCid.cid] = { size, isDirectory };
         } else {
           throw new Error(`Failed to get size and type of external CID: ${extCid}`);
         }
       }
     } catch (e: any) {
       console.error(`[UPDATE DAG] External CID Method: ${e}`);
-      debugger;
       return res.status(400).json({ error: 'Failed to resolve external CID' });
     }
-    debugger;
   }
 
   //finding rootCid
@@ -177,17 +174,19 @@ export const update = async (req: Request, res: Response) => {
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
   const OldTreePaths = oldFlatTree.map((e) => e.path);
   let newPathsFormatted: string[] = [];
+  const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
   if (files.length) {
     newPathsFormatted = files.map((f) => {
-      const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
       return header + f.originalname;
     });
   }
   if (externalUrl) {
     newPathsFormatted = externalUrlFiles.map((f) => {
-      const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
       return header + '/' + f.path;
     });
+  }
+  if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
+    newPathsFormatted = externalCids.map((extCid) => header + extCid.name);
   }
 
   const hasDuplicates = OldTreePaths.some((oldPath) => newPathsFormatted.includes(oldPath));
@@ -203,10 +202,21 @@ export const update = async (req: Request, res: Response) => {
 
   if (structuredFilesForPinning.length || externalUrlFiles?.length) {
     const filesToPin = structuredFilesForPinning.length ? structuredFilesForPinning : externalUrlFiles;
-    // debugger;
     if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
     if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
     console.log('[UPDATE DATASET] Pinned files: ', uploaded);
+  }
+
+  //If External Cids used, add to uploaded
+  if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
+    uploaded = externalCids.map((extCid) => {
+      const { size } = cidTypesSizes[extCid.cid];
+      return {
+        path: extCid.name,
+        cid: extCid.cid,
+        size: size,
+      };
+    });
   }
 
   //Filtered to first nestings only
@@ -276,10 +286,12 @@ export const update = async (req: Request, res: Response) => {
 
   //For adding correct types to the db, when a predefined component type is used
   const newFilePathDbTypeMap = {};
+  const externalPathsAdded = {};
   uploaded.forEach((file) => {
     const neutralFullPath = contextPath + '/' + file.path;
     const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
     newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
+    if (Object.keys(cidTypesSizes)?.length) externalPathsAdded[deneutralizedFullPath] = true;
   });
 
   try {
@@ -303,6 +315,8 @@ export const update = async (req: Request, res: Response) => {
 
     const dataRefsToUpsert: Partial<DataReference>[] = flatTree.map((f) => {
       if (typeof f.cid !== 'string') f.cid = f.cid.toString();
+      const neutralPath = neutralizePath(f.path);
+      const external = externalPathsAdded[neutralPath];
       return {
         cid: f.cid,
         root: f.cid === newRootCidString,
@@ -313,6 +327,7 @@ export const update = async (req: Request, res: Response) => {
         nodeId: node.id,
         directory: f.type === 'dir' ? true : false,
         size: f.size || 0,
+        ...(external && { external }),
       };
     });
     const manifestPathsToTypes = generateManifestPathsToDbTypeMap(updatedManifest);
