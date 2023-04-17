@@ -23,16 +23,19 @@ if (!existsSync(TMP_DIR)) {
 }
 
 const options = {
-  density: 100,
+  density: 60,
   saveFilename: 'cover',
   savePath: TMP_DIR,
   format: 'png',
-  width: 600,
-  height: 600,
 };
 
 const cover = async function (req: Request, res: Response) {
   try {
+    if (existsSync(TMP_IMG)) {
+      rmSync(TMP_FILE);
+      rmSync(TMP_IMG);
+    }
+
     const url = cleanupManifestUrl(req.params.cid, req.query?.g as string);
 
     const downloaded = await downloadFile(url, TMP_FILE);
@@ -42,17 +45,11 @@ const cover = async function (req: Request, res: Response) {
       return;
     }
 
-    if (existsSync(TMP_IMG)) {
-      // rmSync(TMP_IMG);
-    }
-
     const storeAsImage = fromPath(TMP_FILE, options);
     await storeAsImage(1);
 
     const buffer = readFileSync(TMP_IMG);
     const storedCover = await client.add(buffer, { cidVersion: 1 });
-
-    // unlinkSync(TMP_IMG);
 
     res.status(200).send({ ok: true, url: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` });
   } catch (err) {

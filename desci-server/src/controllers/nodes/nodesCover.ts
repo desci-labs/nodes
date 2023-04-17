@@ -13,7 +13,6 @@ const MEDIA_SERVER_API_KEY = process.env.MEDIA_SECRET_KEY;
 
 export const getCoverImage = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const owner = (req as any).user as User;
     const cid = req.params.cid as string;
     const nodeUUID = req.query.nodeUuid as string;
 
@@ -23,7 +22,6 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     const node = await prisma.node.findFirst({ where: { uuid: nodeUUID + '.' } });
 
     if (!node) throw Error('Node not found');
-
     const exists = await prisma.nodeCover.findFirst({ where: { nodeUUID: nodeUUID + '.' } });
     if (exists) {
       res.send({ ok: true, url: exists.url });

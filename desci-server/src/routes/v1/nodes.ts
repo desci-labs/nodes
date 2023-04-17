@@ -36,7 +36,7 @@ router.get('/share/verify/:shareId', checkPrivateShareId);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);
 router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
-router.get('/cover/:cid', [ensureUser], getCoverImage);
+router.get('/cover/:cid', [], getCoverImage);
 
 router.get('/legacy/retrieveTitle', retrieveTitle);
 
