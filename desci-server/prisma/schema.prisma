@@ -416,8 +416,9 @@ model PrivateShare {
 model NodeCover {
   id       Int    @id @default(autoincrement())
   url      String
-  nodeUUID String @unique
-  node     Node   @relation(fields: [nodeUUID], references: [uuid])
+  nodeUuid String @unique
+  cid      String?
+  node     Node   @relation(fields: [nodeUuid], references: [uuid])
 }
 
 model FriendReferral {

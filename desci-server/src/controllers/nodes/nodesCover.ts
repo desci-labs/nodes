@@ -22,7 +22,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     const node = await prisma.node.findFirst({ where: { uuid: nodeUUID + '.' } });
 
     if (!node) throw Error('Node not found');
-    const exists = await prisma.nodeCover.findFirst({ where: { nodeUUID: nodeUUID + '.' } });
+    const exists = await prisma.nodeCover.findFirst({ where: { nodeUuid: nodeUUID + '.', cid } });
     if (exists) {
       res.send({ ok: true, url: exists.url });
       return;
@@ -42,9 +42,9 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     ).data;
 
     await prisma.nodeCover.upsert({
-      where: { nodeUUID: nodeUUID + '.' },
-      update: { url: data.url },
-      create: { url: data.url, nodeUUID: nodeUUID + '.' },
+      where: { nodeUuid: nodeUUID + '.' },
+      update: { url: data.url, cid },
+      create: { url: data.url, nodeUuid: nodeUUID + '.', cid },
     });
 
     res.send({ ok: true, url: data.url });

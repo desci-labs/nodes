@@ -28,4 +28,4 @@ RUN yarn build
 # server api
 EXPOSE 5454
 
-CMD [ "yarn", "dev" ]
+CMD [ "yarn", "start" ]
