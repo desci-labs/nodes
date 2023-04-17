@@ -31,6 +31,7 @@ model Node {
   DataReference       DataReference[]
   PublicDataReference PublicDataReference[]
   CidPruneList        CidPruneList[]
+  NodeCover           NodeCover?
 
   @@index([ownerId])
   @@index([uuid])
@@ -410,6 +411,13 @@ model PrivateShare {
   updatedAt DateTime @updatedAt
 
   @@index([shareId])
+}
+
+model NodeCover {
+  id       Int    @id @default(autoincrement())
+  url      String
+  nodeUUID String @unique
+  node     Node   @relation(fields: [nodeUUID], references: [uuid])
 }
 
 model FriendReferral {
