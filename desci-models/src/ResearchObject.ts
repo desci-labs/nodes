@@ -16,7 +16,7 @@ export interface IpldUrl {
 }
 
 export interface ResearchObjectV1 extends ResearchObject {
-  version: "desci-nodes-0.1.0" | 1;
+  version: "desci-nodes-0.1.0" | "desci-nodes-0.2.0" | 1;
   title?: string;
   defaultLicense?: string;
   image?: string | IpldUrl;
@@ -52,6 +52,7 @@ export interface ResearchObjectV1Component {
   icon?: any;
   payload: any;
   primary?: boolean;
+  starred?: boolean;
 }
 
 export interface ResearchObjectV1Author {
@@ -113,6 +114,8 @@ export interface ResearchObjectV1Attributes {
 }
 
 export enum ResearchObjectComponentType {
+  DATA_BUCKET = "data-bucket",
+  UNKNOWN = "unknown",
   PDF = "pdf",
   CODE = "code",
   VIDEO = "video",
@@ -148,6 +151,7 @@ export interface CommonComponentPayload {
   keywords?: string[];
   description?: string;
   licenseType?: string;
+  path?: string;
 }
 
 export interface PdfComponentPayload {
@@ -174,6 +178,16 @@ export interface DataComponentMetadata extends CommonComponentPayload {
 export interface DataComponentPayload {
   cid: string;
   subMetadata: Record<Path, DataComponentMetadata>;
+}
+
+export interface DataBucketComponent extends ResearchObjectV1Component {
+  type: ResearchObjectComponentType.DATA_BUCKET;
+  id: "root";
+  name: "root";
+  payload: DataBucketComponentPayload;
+}
+export interface DataBucketComponentPayload {
+  cid: string;
 }
 
 export interface PdfComponent extends ResearchObjectV1Component {

@@ -11,7 +11,6 @@ import {
   consent,
   api,
   publish,
-  retrievePublishStatus,
   createPrivateShare,
   revokePrivateShare,
   getPrivateShare,
@@ -32,7 +31,6 @@ router.get('/versionDetails', [], versionDetails);
 router.get('/', [ensureUser], list);
 router.post('/doi', [ensureUser], retrieveDoi);
 router.get('/pdf', proxyPdf);
-router.get('/publishStatus/:nodeUuid/:manifestCid', retrievePublishStatus);
 router.post('/consent', [ensureUser], consent);
 router.get('/share/verify/:shareId', checkPrivateShareId);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);

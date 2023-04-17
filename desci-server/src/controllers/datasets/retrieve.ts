@@ -53,16 +53,13 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
     return;
   }
 
-  //validate requester owns the dataset
-  const dataType: DataType = 'DATASET';
-
   // TODOD: Pull data references from publishDataReferences table
   // TODO: Later expand to never require auth from publicDataRefs
   let dataSource = DataReferenceSrc.PRIVATE;
   const dataset = await prisma.dataReference.findFirst({
     where: {
+      type: { not: DataType.MANIFEST },
       userId: ownerId,
-      type: dataType,
       cid: cid,
       node: {
         uuid: uuid + '.',
@@ -71,8 +68,8 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
   });
   const publicDataset = await prisma.publicDataReference.findFirst({
     where: {
-      type: dataType,
       cid: cid,
+      type: { not: DataType.MANIFEST },
       node: {
         uuid: uuid + '.',
       },
@@ -104,7 +101,7 @@ export const pubTree = async (req: Request, res: Response, next: NextFunction) =
   let dataSource = DataReferenceSrc.PRIVATE;
   const publicDataset = await prisma.publicDataReference.findFirst({
     where: {
-      type: DataType.DATASET,
+      type: { not: DataType.MANIFEST },
       cid: cid,
       node: {
         uuid: uuid + '.',
@@ -140,12 +137,10 @@ export const downloadDataset = async (req: Request, res: Response, next: NextFun
     return;
   }
 
-  const dataType: DataType = 'DATASET';
-
   const dataset = await prisma.dataReference.findFirst({
     where: {
       userId: owner.id,
-      type: dataType,
+      type: { not: DataType.MANIFEST },
       cid: cid,
       node: {
         uuid: uuid + '.',
