@@ -56,6 +56,7 @@ export class RoCrateTransformer implements BaseTransformer {
 
   exportObject(obj: ResearchObject): any {
     const nodeObject = obj as ResearchObjectV1;
+    const authors = nodeObject.authors?.map(this.mapAuthor);
     const crate: any = {
       "@context": "https://w3id.org/ro/crate/1.1/context",
       "@graph": [
@@ -77,9 +78,9 @@ export class RoCrateTransformer implements BaseTransformer {
           url: nodeObject.dpid
             ? `https://doi.org/${nodeObject.dpid.prefix}/${nodeObject.dpid.id}`
             : undefined,
-          creator: nodeObject.authors?.map(this.mapAuthor),
+          creator: authors?.map((a) => ({ "@id": a["@id"] })),
         },
-      ],
+      ].concat(authors || [{}]),
     };
 
     nodeObject.components.forEach((component) => {
@@ -124,7 +125,8 @@ export class RoCrateTransformer implements BaseTransformer {
         ...(crateComponent as Dataset),
       };
       dataset.encodingFormat = "application/octet-stream";
-      dataset.url = (component.payload as any).cid;
+      dataset.url =
+        (component.payload as any).url || (component.payload as any).cid;
       dataset["@type"] = "Dataset";
       crateComponent = dataset;
     }

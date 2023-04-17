@@ -104,7 +104,9 @@ describe("RoCrateTransformer", () => {
     ) as CreativeWork;
 
     expect(pdfComponent).to.not.be.undefined;
-    expect(pdfComponent.url).to.equal("https://example.com/example.pdf");
+    expect(pdfComponent.url).to.equal(
+      "https://ipfs.io/ipfs/bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy"
+    );
   });
 
   it("Properly exports code components", () => {
@@ -120,7 +122,9 @@ describe("RoCrateTransformer", () => {
     );
 
     expect(codeComponent).to.not.be.undefined;
-    expect(codeComponent.url).to.equal("https://example.com/code");
+    expect(codeComponent.url).to.equal(
+      "https://ipfs.io/ipfs/bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i"
+    );
   });
 
   it("Properly exports data components", () => {
@@ -134,6 +138,8 @@ describe("RoCrateTransformer", () => {
     );
 
     expect(dataComponent).to.not.be.undefined;
-    expect(dataComponent.url).to.equal("cid");
+    expect(dataComponent.url).to.equal(
+      "https://ipfs.io/ipfs/bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m"
+    );
   });
 });

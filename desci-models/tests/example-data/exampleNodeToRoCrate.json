@@ -4,50 +4,42 @@
     {
       "@id": "ro-crate-metadata.jsonld",
       "@type": "CreativeWork",
-      "about": [{ "@id": "/" }],
-      "conformsTo": [{ "@id": "https://w3id.org/ro/crate/1.1" }]
+      "about": { "@id": "./" },
+      "conformsTo": { "@id": "https://w3id.org/ro/crate/1.1" }
     },
     {
-      "@id": "/",
+      "@id": "./",
       "@type": "Thing",
-      "author": [
-        {
-          "@id": "https://orcid.org/0000-0001-2345-6789",
-          "@type": "Person",
-          "name": "John Doe"
-        }
-      ],
+      "creator": [{ "@id": "https://orcid.org/0000-0001-2345-6789" }],
       "license": "https://creativecommons.org/licenses/by/4.0/",
       "name": "Test dataset",
       "url": "https://doi.org/beta/123"
+    },
+    {
+      "@id": "https://orcid.org/0000-0001-2345-6789",
+      "@type": "Person",
+      "name": "John Doe"
     },
     {
       "@id": "example.pdf",
       "@type": "CreativeWork",
       "encodingFormat": "application/pdf",
       "name": "Example PDF",
-      "url": "https://example.com/example.pdf"
+      "url": "https://ipfs.io/ipfs/bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy"
     },
     {
       "@id": "example.zip",
       "@type": "SoftwareSourceCode",
       "encodingFormat": "text/plain",
       "name": "Example Code",
-      "url": "https://example.com/code"
-    },
-    {
-      "@id": "example.zip",
-      "@type": "SoftwareSourceCode",
-      "encodingFormat": "text/plain",
-      "name": "Example Code",
-      "url": "https://example.com/code"
+      "url": "https://ipfs.io/ipfs/bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i"
     },
     {
       "@id": "data.zip",
       "@type": "Dataset",
       "encodingFormat": "application/octet-stream",
       "name": "Example Data",
-      "url": "cid"
+      "url": "https://ipfs.io/ipfs/bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m"
     }
   ]
 }
