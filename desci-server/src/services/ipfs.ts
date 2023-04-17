@@ -24,7 +24,7 @@ import * as yauzl from 'yauzl';
 
 import prisma from 'client';
 import { bufferToStream } from 'utils';
-import { newCid, oldCid } from 'utils/driveUtils';
+import { DRIVE_NODE_ROOT_PATH, newCid, oldCid } from 'utils/driveUtils';
 import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
@@ -104,6 +104,7 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
     type: ResearchObjectComponentType.DATA_BUCKET,
     payload: {
       cid: emptyDagCid,
+      path: DRIVE_NODE_ROOT_PATH,
     },
   };
 

@@ -143,6 +143,7 @@ export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
       if (dbType) manifestPathsToTypes[c.payload.path] = dbType;
     }
   });
+  manifestPathsToTypes[DRIVE_NODE_ROOT_PATH] = DataType.DATA_BUCKET;
   return manifestPathsToTypes;
 }
 
