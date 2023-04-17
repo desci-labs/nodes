@@ -330,6 +330,7 @@ export const update = async (req: Request, res: Response) => {
         ...(external && { external }),
       };
     });
+
     const manifestPathsToTypes = generateManifestPathsToDbTypeMap(updatedManifest);
     //Manual upsert
     const dataRefUpdates = dataRefsToUpsert
