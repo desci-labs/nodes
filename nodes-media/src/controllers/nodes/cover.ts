@@ -33,6 +33,7 @@ const options = {
 
 const cover = async function (req: Request, res: Response) {
   try {
+    console.log('cover running: ', req.params, req.query);
     const url = cleanupManifestUrl(req.params.cid, req.query?.g as string);
 
     const downloaded = await downloadFile(url, TMP_FILE);

@@ -21,7 +21,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     const url = `${MEDIA_SERVER_API_URL}/v1/nodes/cover/${cid}`;
     const data = await (await axios.post(url, {})).data;
     console.log('response from nodes media: ', data);
-    res.send({ ok: true, url: '' });
+    res.send({ ok: true, url: data.url });
   } catch (e) {
     console.log('error', e);
     res.status(404).send({ ok: false, message: 'Error generating cover image' });
