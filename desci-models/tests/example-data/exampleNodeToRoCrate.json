@@ -1,0 +1,53 @@
+{
+  "@context": "https://w3id.org/ro/crate/1.1/context",
+  "@graph": [
+    {
+      "@id": "ro-crate-metadata.jsonld",
+      "@type": "CreativeWork",
+      "about": [{ "@id": "/" }],
+      "conformsTo": [{ "@id": "https://w3id.org/ro/crate/1.1" }]
+    },
+    {
+      "@id": "/",
+      "@type": "Thing",
+      "author": [
+        {
+          "@id": "https://orcid.org/0000-0001-2345-6789",
+          "@type": "Person",
+          "name": "John Doe"
+        }
+      ],
+      "license": "https://creativecommons.org/licenses/by/4.0/",
+      "name": "Test dataset",
+      "url": "https://doi.org/beta/123"
+    },
+    {
+      "@id": "example.pdf",
+      "@type": "CreativeWork",
+      "encodingFormat": "application/pdf",
+      "name": "Example PDF",
+      "url": "https://example.com/example.pdf"
+    },
+    {
+      "@id": "example.zip",
+      "@type": "SoftwareSourceCode",
+      "encodingFormat": "text/plain",
+      "name": "Example Code",
+      "url": "https://example.com/code"
+    },
+    {
+      "@id": "example.zip",
+      "@type": "SoftwareSourceCode",
+      "encodingFormat": "text/plain",
+      "name": "Example Code",
+      "url": "https://example.com/code"
+    },
+    {
+      "@id": "data.zip",
+      "@type": "Dataset",
+      "encodingFormat": "application/octet-stream",
+      "name": "Example Data",
+      "url": "cid"
+    }
+  ]
+}

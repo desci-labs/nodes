@@ -1,0 +1,50 @@
+{
+  "version": "desci-nodes-0.2.0",
+  "title": "Test dataset",
+  "defaultLicense": "https://creativecommons.org/licenses/by/4.0/",
+  "components": [
+    {
+      "id": "example.pdf",
+      "name": "Example PDF",
+      "type": "pdf",
+      "payload": {
+        "url": "https://example.com/example.pdf"
+      }
+    },
+    {
+      "id": "example.zip",
+      "name": "Example Code",
+      "type": "code",
+      "payload": {
+        "url": "https://example.com/code"
+      }
+    },
+    {
+      "id": "example.zip",
+      "name": "Example Code",
+      "type": "code",
+      "payload": {
+        "url": "https://example.com/code"
+      }
+    },
+    {
+      "id": "data.zip",
+      "name": "Example Data",
+      "type": "data",
+      "payload": {
+        "cid": "cid"
+      }
+    }
+  ],
+  "authors": [
+    {
+      "name": "John Doe",
+      "orcid": "https://orcid.org/0000-0001-2345-6789",
+      "role": "Author"
+    }
+  ],
+  "dpid": {
+    "prefix": "beta",
+    "id": "123"
+  }
+}

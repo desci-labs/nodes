@@ -1,0 +1,43 @@
+{
+  "@context": "https://w3id.org/ro/crate/1.1/context",
+  "@graph": [
+    {
+      "@type": "CreativeWork",
+      "@id": "ro-crate-metadata.json",
+      "conformsTo": { "@id": "https://w3id.org/ro/crate/1.1" },
+      "about": { "@id": "./" },
+      "description": "RO-Crate Metadata File Descriptor (this file)"
+    },
+    {
+      "@id": "./",
+      "@type": "Dataset",
+      "name": "Example RO-Crate",
+      "description": "The RO-Crate Root Data Entity",
+      "hasPart": [{ "@id": "data1.txt" }, { "@id": "data2.txt" }]
+    },
+
+    {
+      "@id": "data1.txt",
+      "@type": "File",
+      "description": "One of hopefully many Data Entities",
+      "author": { "@id": "#alice" },
+      "contentLocation": { "@id": "http://sws.geonames.org/8152662/" }
+    },
+    {
+      "@id": "data2.txt",
+      "@type": "File"
+    },
+
+    {
+      "@id": "#alice",
+      "@type": "Person",
+      "name": "Alice",
+      "description": "One of hopefully many Contextual Entities"
+    },
+    {
+      "@id": "http://sws.geonames.org/8152662/",
+      "@type": "Place",
+      "name": "Catalina Park"
+    }
+  ]
+}
