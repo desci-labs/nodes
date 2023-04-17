@@ -14,8 +14,7 @@ import {
   PdfComponent,
   ResearchObjectV1,
 } from "../../src/ResearchObject";
-import { compact } from "jsonld";
-import util from "util";
+
 import { CreativeWork } from "schema-dts";
 const context = "https://www.researchobject.org/ro-crate/1.1/context.jsonld";
 const checkers = createCheckers(ResearchObjectTi);
