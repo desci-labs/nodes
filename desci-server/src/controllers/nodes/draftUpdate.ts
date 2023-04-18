@@ -24,7 +24,7 @@ export const draftUpdate = async (req: Request, res: Response, next: NextFunctio
       },
     });
 
-    console.log('loggedIn', loggedIn);
+    console.log('[draftUpdate] for', loggedIn.email);
     const loggedInUser = loggedIn.id;
 
     if (!loggedInUser || loggedInUser < 1) {
