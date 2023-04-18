@@ -22,6 +22,7 @@ import {
   IpfsDirStructuredInput,
   IpfsPinnedResult,
   isDir,
+  mixedLs,
   pinDirectory,
   zipToPinFormat,
 } from 'services/ipfs';
@@ -32,6 +33,7 @@ import {
   addComponentsToManifest,
   deneutralizePath,
   gbToBytes,
+  generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
   getTreeAndFillSizes,
   neutralizePath,
@@ -133,6 +135,14 @@ export const update = async (req: Request, res: Response) => {
     }
   }
 
+  //TESTING ONLY
+  if (externalCids.length) {
+    const dagCid = externalCids[0].cid;
+    const mixedLsRes = await mixedLs(dagCid);
+    debugger;
+    return res.status(400).json({ error: 'early terminate' });
+  }
+
   //finding rootCid
   const manifestCidEntry = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCidEntry
@@ -159,7 +169,8 @@ export const update = async (req: Request, res: Response) => {
     });
 
   //Pull old tree
-  const oldTree = await getDirectoryTree(rootCid);
+  const externalCidMap = await generateExternalCidMap(node.uuid);
+  const oldTree = await getDirectoryTree(rootCid, externalCidMap);
   const oldFlatTree = recursiveFlattenTree(oldTree);
 
   /*
@@ -207,10 +218,11 @@ export const update = async (req: Request, res: Response) => {
     console.log('[UPDATE DATASET] Pinned files: ', uploaded);
   }
 
-  //If External Cids used, add to uploaded
+  //If External Cids used, add to uploaded, and add to externalCidMap
   if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
     uploaded = externalCids.map((extCid) => {
-      const { size } = cidTypesSizes[extCid.cid];
+      const { size, isDirectory } = cidTypesSizes[extCid.cid];
+      externalCidMap[extCid.cid] = { size, directory: isDirectory, path: extCid.name };
       return {
         path: extCid.name,
         cid: extCid.cid,
@@ -287,7 +299,7 @@ export const update = async (req: Request, res: Response) => {
   //For adding correct types to the db, when a predefined component type is used
   const newFilePathDbTypeMap = {};
   const externalPathsAdded = {};
-  uploaded.forEach((file) => {
+  uploaded.forEach((file: IpfsPinnedResult) => {
     const neutralFullPath = contextPath + '/' + file.path;
     const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
     newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
@@ -296,7 +308,7 @@ export const update = async (req: Request, res: Response) => {
 
   try {
     //Update refs
-    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString));
+    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString, externalCidMap));
     flatTree.push({
       cid: newRootCidString,
       type: 'dir',
@@ -330,7 +342,6 @@ export const update = async (req: Request, res: Response) => {
     });
 
     const manifestPathsToTypes = generateManifestPathsToDbTypeMap(updatedManifest);
-    debugger;
     //Manual upsert
     const dataRefUpdates = dataRefsToUpsert
       .filter((dref) => {

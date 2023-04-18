@@ -14,7 +14,7 @@ import {
   pinDirectory,
   updateManifestAndAddToIpfs,
 } from 'services/ipfs';
-import { getTreeAndFillSizes, recursiveFlattenTree } from 'utils/driveUtils';
+import { generateExternalCidMap, getTreeAndFillSizes, recursiveFlattenTree } from 'utils/driveUtils';
 
 import { DataReferenceSrc } from './retrieve';
 
@@ -67,7 +67,7 @@ export const uploadDataset = async (req: Request, res: Response, next: NextFunct
   const rootCid = uploaded[uploaded.length - 1].cid;
 
   try {
-    const flatTree = recursiveFlattenTree(await getDirectoryTree(rootCid));
+    const flatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, await generateExternalCidMap(node.uuid)));
     flatTree.push({ cid: rootCid, type: 'dir', path: rootCid });
     const uploadedStructured = uploaded.map((f) => {
       const treeMatch = flatTree.find((fd) => f.cid === fd.cid);

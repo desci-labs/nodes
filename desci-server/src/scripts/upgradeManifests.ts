@@ -154,7 +154,7 @@ export async function upgradeManifestsScript() {
     manifestObj.components.push(dataBucketComponent);
     manifestObj = addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
 
-    const dagTree = await getDirectoryTree(rootDagCid);
+    const dagTree = await getDirectoryTree(rootDagCid, {});
     const flatTree = recursiveFlattenTree(dagTree);
     // debugger;
     // Migrate old refs, add new refs

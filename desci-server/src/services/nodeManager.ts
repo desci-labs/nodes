@@ -14,6 +14,7 @@ import prisma from 'client';
 import { uploadData } from 'services/estuary';
 import { randomUUID64 } from 'utils';
 import { asyncMap } from 'utils';
+import { generateExternalCidMap } from 'utils/driveUtils';
 import { cleanManifestForSaving } from 'utils/manifestDraftUtils';
 
 import { addBufferToIpfs, downloadFilesAndMakeManifest, getDirectoryTreeCids, resolveIpfsData } from './ipfs';
@@ -118,7 +119,7 @@ export const publishCIDS = async ({
 };
 
 async function publishComponent(
-  component: ResearchObjectV1Component & { userId: number; nodeId: number },
+  component: ResearchObjectV1Component & { userId: number; nodeId: number; nodeUuid: string },
 ): Promise<boolean> {
   console.log('node::publishComponent');
   let buffer;
@@ -140,7 +141,9 @@ async function publishComponent(
     case ResearchObjectComponentType.DATA:
       payload = (component as DataComponent).payload as DataComponentPayload;
       const rootCid = payload.cid;
-      const tree = await getDirectoryTreeCids(rootCid);
+
+      const externalCidMap = await generateExternalCidMap(component.nodeUuid);
+      const tree = await getDirectoryTreeCids(rootCid, externalCidMap);
       return (
         (
           await Throttle.all(
@@ -297,7 +300,7 @@ export const publishResearchObject = async ({
     // console.log('[publishResearchObject]::currentManifest', currentManifest);
 
     const publishedComponents = await asyncMap<boolean, ResearchObjectV1Component>(
-      parsedManifest.components.map((c) => ({ ...c, userId: ownerId, nodeId: node.id })),
+      parsedManifest.components.map((c) => ({ ...c, userId: ownerId, nodeId: node.id, nodeUuid: node.uuid })),
       publishComponent,
     );
     console.log('publishedComponents', publishedComponents);
