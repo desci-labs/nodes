@@ -1,0 +1,47 @@
+{
+  "version": "desci-nodes-0.2.0",
+  "title": "Test dataset",
+  "defaultLicense": "https://creativecommons.org/licenses/by/4.0/",
+  "components": [
+    {
+      "id": "example.pdf",
+      "name": "Example PDF",
+      "type": "pdf",
+      "payload": {
+        "url": "https://ipfs.io/ipfs/bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy",
+        "/": "bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy"
+      }
+    },
+    {
+      "id": "example.zip",
+      "name": "Example Code",
+      "type": "code",
+      "payload": {
+        "externalUrl": "https://github.com/hubsmoke/rhapsody-in-blue",
+        "url": "https://ipfs.io/ipfs/bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i",
+        "/": "bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i"
+      }
+    },
+    {
+      "id": "data.zip",
+      "name": "Example Data",
+      "type": "data",
+      "payload": {
+        "cid": "bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m",
+        "url": "https://ipfs.io/ipfs/bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m",
+        "/": "bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m"
+      }
+    }
+  ],
+  "authors": [
+    {
+      "name": "John Doe",
+      "orcid": "https://orcid.org/0000-0001-2345-6789",
+      "role": "Author"
+    }
+  ],
+  "dpid": {
+    "prefix": "beta",
+    "id": "123"
+  }
+}
