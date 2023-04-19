@@ -115,6 +115,14 @@ export const update = async (req: Request, res: Response) => {
     externalUrlTotalSizeBytes = totalSize;
   }
 
+  // TESTING ONLY
+  if (externalCids.length) {
+    const dagCid = externalCids[0].cid;
+    const mixedLsRes = await mixedLs(dagCid, {});
+    debugger;
+    return res.status(400).json({ error: 'early terminate' });
+  }
+
   /*
    ** External CID setup
    */
@@ -133,14 +141,6 @@ export const update = async (req: Request, res: Response) => {
       console.error(`[UPDATE DAG] External CID Method: ${e}`);
       return res.status(400).json({ error: 'Failed to resolve external CID' });
     }
-  }
-
-  //TESTING ONLY
-  if (externalCids.length) {
-    const dagCid = externalCids[0].cid;
-    const mixedLsRes = await mixedLs(dagCid);
-    debugger;
-    return res.status(400).json({ error: 'early terminate' });
   }
 
   //finding rootCid

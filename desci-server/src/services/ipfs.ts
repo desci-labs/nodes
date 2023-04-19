@@ -334,18 +334,22 @@ export const nodeKeepFile = '.nodeKeep';
 
 export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidMap): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
-  console.log(`retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
+  console.log(`[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
 
-  const tree = await recursiveLs(cid, externalCidMap);
-  // debugger;
-  return tree;
+  if (Object.keys(externalCidMap).length === 0) {
+    // if (true) {
+    console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
+    return await recursiveLs(cid);
+  } else {
+    console.log('[getDirectoryTree] using mixed ls, dagCid: , cid');
+    return await mixedLs(cid, externalCidMap);
+  }
 };
 
-export const recursiveLs = async (cid: string, externalCidMap, carryPath?: string) => {
+export const recursiveLs = async (cid: string, carryPath?: string) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
-  const isExternal = !!externalCidMap[cid];
-  const lsOp = isExternal ? publicIpfs.ls(cid) : client.ls(cid);
+  const lsOp = client.ls(cid);
   for await (const filedir of lsOp) {
     const res: any = filedir;
     // if (parent) {
@@ -358,7 +362,7 @@ export const recursiveLs = async (cid: string, externalCidMap, carryPath?: strin
     if (filedir.type === 'file' && filedir.name !== nodeKeepFile) tree.push({ ...res, cid: v1StrCid });
     if (filedir.type === 'dir') {
       res.cid = v1StrCid;
-      res.contains = await recursiveLs(res.cid, externalCidMap, carryPath + '/' + res.name);
+      res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
       tree.push({ ...res, cid: v1StrCid });
     }
   }
@@ -366,22 +370,17 @@ export const recursiveLs = async (cid: string, externalCidMap, carryPath?: strin
 };
 
 //Used for recursively lsing a DAG containing both public and private cids
-export async function mixedLs(dagCid: string, carryPath?: string) {
+export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, carryPath?: string) {
   carryPath = carryPath || convertToCidV1(dagCid);
   const tree = [];
   const cidObject = multiformats.CID.parse(dagCid);
-  const block = await publicIpfs.block.get(cidObject);
+  const block = await client.block.get(cidObject);
   const { Data, Links } = dagPb.decode(block);
   const unixFs = UnixFS.unmarshal(Data);
   const isDir = dirTypes.includes(unixFs?.type);
-  debugger;
   if (!isDir) return null;
   for (const link of Links) {
-    const linkCidObject = multiformats.CID.parse(link.Hash.toString());
-    const linkBlock = await publicIpfs.block.get(linkCidObject);
-    const { Data: linkData } = dagPb.decode(linkBlock);
-    const unixFsLink = UnixFS.unmarshal(linkData);
-    const isLinkDir = dirTypes.includes(unixFsLink?.type);
+    // debugger;
 
     const result: RecursiveLsResult = {
       name: link.Name,
@@ -390,17 +389,35 @@ export async function mixedLs(dagCid: string, carryPath?: string) {
       size: 0,
       type: 'file',
     };
-    if (isLinkDir) {
-      result.size = 0;
-      result.type = 'dir';
-      result.contains = (await mixedLs(result.cid, carryPath + '/' + result.name)) as RecursiveLsResult[];
-    } else {
+
+    const linkCidObject = multiformats.CID.parse(link.Hash.toString());
+    if (linkCidObject.code === rawCode) {
       result.size = link.Tsize;
+    } else {
+      const linkBlock = await client.block.get(linkCidObject);
+      const { Data: linkData } = dagPb.decode(linkBlock);
+      const unixFsLink = UnixFS.unmarshal(linkData);
+      const isLinkDir = dirTypes.includes(unixFsLink?.type);
+
+      if (isLinkDir) {
+        result.size = 0;
+        result.type = 'dir';
+        result.contains = (await mixedLs(
+          result.cid,
+          externalCidMap,
+          carryPath + '/' + result.name,
+        )) as RecursiveLsResult[];
+      } else {
+        result.size = link.Tsize;
+      }
     }
     tree.push(result);
   }
-  debugger;
   return tree;
+}
+
+export async function dirContainsExternals(path: string, externalCidMap: ExternalCidMap) {
+  return Object.values(externalCidMap).some((e) => e.path.startsWith(path));
 }
 
 export async function DELETEgetExternalCidSizeAndType(cid: string) {
