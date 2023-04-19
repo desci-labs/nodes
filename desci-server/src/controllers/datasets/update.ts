@@ -24,6 +24,8 @@ import {
   isDir,
   mixedLs,
   pinDirectory,
+  pubRecursiveLs,
+  RecursiveLsResult,
   zipToPinFormat,
 } from 'services/ipfs';
 import { arrayXor, processExternalUrls, zipUrlToBuffer } from 'utils';
@@ -116,16 +118,18 @@ export const update = async (req: Request, res: Response) => {
   }
 
   // TESTING ONLY
-  if (externalCids.length) {
-    const dagCid = externalCids[0].cid;
-    const mixedLsRes = await mixedLs(dagCid, {});
-    debugger;
-    return res.status(400).json({ error: 'early terminate' });
-  }
+  // if (externalCids.length) {
+  // const dagCid = externalCids[0].cid;
+  // const mixedLsRes = await mixedLs(dagCid, {});
+  // const pubRecursiveLsRes = await pubRecursiveLs(dagCid, externalCids[0].name);
+  // debugger;
+  //   return res.status(400).json({ error: 'early terminate' });
+  // }
 
   /*
    ** External CID setup
    */
+
   const cidTypesSizes: Record<string, GetExternalSizeAndTypeResult> = {};
   if (externalCids && externalCids.length && componentType === ResearchObjectComponentType.DATA) {
     try {
@@ -197,7 +201,7 @@ export const update = async (req: Request, res: Response) => {
     });
   }
   if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
-    newPathsFormatted = externalCids.map((extCid) => header + extCid.name);
+    newPathsFormatted = externalCids.map((extCid) => header + '/' + extCid.name);
   }
 
   const hasDuplicates = OldTreePaths.some((oldPath) => newPathsFormatted.includes(oldPath));
@@ -205,6 +209,39 @@ export const update = async (req: Request, res: Response) => {
     console.log('[UPDATE DATASET] Rejected as duplicate paths were found');
     return res.status(400).json({ error: 'Duplicate files rejected' });
   }
+
+  //[EXTERNAL CIDS] If External Cids used, add to uploaded, and add to externalCidMap, also add to externalDagsToPin
+  const externalDagsToPin = [];
+  if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
+    const uploadedExpanded = [];
+    uploaded = externalCids.map(async (extCid) => {
+      const { size, isDirectory } = cidTypesSizes[extCid.cid];
+      externalCidMap[extCid.cid] = { size, directory: isDirectory, path: extCid.name };
+      if (isDirectory) {
+        //Get external dag tree, add to external dag pin list
+        debugger;
+        const tree: RecursiveLsResult[] = await pubRecursiveLs(extCid.cid, contextPath + '/' + extCid.name);
+        debugger;
+        if (!tree) res.status(400).json({ error: 'Failed resolving external dag tree' });
+        const flatTree = recursiveFlattenTree(tree);
+        flatTree.forEach((file: RecursiveLsResult) => {
+          if (file.type === 'dir') externalDagsToPin.push(file.cid);
+          uploadedExpanded.push({ path: file.path, cid: file.cid, size: file.size });
+          externalCidMap[file.cid] = { size: file.size, directory: file.type === 'dir', path: file.path };
+        });
+        externalDagsToPin.push(extCid.cid);
+      }
+      return {
+        path: extCid.name,
+        cid: extCid.cid,
+        size: size,
+      };
+    });
+    uploaded = [uploaded, ...uploadedExpanded];
+  }
+  debugger;
+
+  //pin exteralDagsToPin
 
   //Pin the new files
   const structuredFilesForPinning: IpfsDirStructuredInput[] = files.map((f: any) => {
@@ -216,19 +253,6 @@ export const update = async (req: Request, res: Response) => {
     if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
     if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
     console.log('[UPDATE DATASET] Pinned files: ', uploaded);
-  }
-
-  //If External Cids used, add to uploaded, and add to externalCidMap
-  if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
-    uploaded = externalCids.map((extCid) => {
-      const { size, isDirectory } = cidTypesSizes[extCid.cid];
-      externalCidMap[extCid.cid] = { size, directory: isDirectory, path: extCid.name };
-      return {
-        path: extCid.name,
-        cid: extCid.cid,
-        size: size,
-      };
-    });
   }
 
   //Filtered to first nestings only

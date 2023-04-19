@@ -418,8 +418,9 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, ca
 export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
-  const lsOp = publicIpfs.ls(cid);
+  const lsOp = await publicIpfs.ls(cid);
   for await (const filedir of lsOp) {
+    debugger;
     const res: any = filedir;
     // if (parent) {
     //   res.parent = parent;
@@ -431,7 +432,7 @@ export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
     if (filedir.type === 'file' && filedir.name !== nodeKeepFile) tree.push({ ...res, cid: v1StrCid });
     if (filedir.type === 'dir') {
       res.cid = v1StrCid;
-      res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
+      res.contains = await pubRecursiveLs(res.cid, carryPath + '/' + res.name);
       tree.push({ ...res, cid: v1StrCid });
     }
   }
