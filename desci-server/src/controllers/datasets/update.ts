@@ -84,7 +84,6 @@ export const update = async (req: Request, res: Response) => {
   const manifestObj: ResearchObjectV1 = JSON.parse(manifest);
   if (externalUrl) externalUrl = JSON.parse(externalUrl);
   if (externalCids) externalCids = JSON.parse(externalCids);
-
   let uploaded: IpfsPinnedResult[];
 
   //validate requester owns the node
@@ -171,6 +170,15 @@ export const update = async (req: Request, res: Response) => {
   const externalCidMap = await generateExternalCidMap(node.uuid);
   const oldTree = await getDirectoryTree(rootCid, externalCidMap);
   const oldFlatTree = recursiveFlattenTree(oldTree);
+
+  /*
+   ** Check if update path contains externals, temporarily disable adding to external DAGs
+   */
+  const pathMatch = oldFlatTree.find((c) => {
+    const neutralPath = neutralizePath(c.path);
+    return neutralPath === contextPath;
+  });
+  if (pathMatch?.external) return res.status(400).json({ error: 'Cannot update externally added directories' });
 
   /*
    ** Determine the path of the directory to be updated
