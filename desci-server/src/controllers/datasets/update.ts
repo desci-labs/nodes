@@ -9,12 +9,15 @@ import { PBNode } from '@ipld/dag-pb/src/interface';
 import { DataReference, DataType, PrismaPromise, User } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
+import { CID } from 'multiformats';
 
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import { getAvailableDataUsageForUserBytes, hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addFilesToDag,
+  convertToCidV0,
+  convertToCidV1,
   FilesToAddToDag,
   getDirectoryTree,
   getExternalCidSizeAndType,
@@ -24,6 +27,7 @@ import {
   isDir,
   mixedLs,
   pinDirectory,
+  pinExternalDags,
   pubRecursiveLs,
   RecursiveLsResult,
   zipToPinFormat,
@@ -117,22 +121,13 @@ export const update = async (req: Request, res: Response) => {
     externalUrlTotalSizeBytes = totalSize;
   }
 
-  // TESTING ONLY
-  // if (externalCids.length) {
-  // const dagCid = externalCids[0].cid;
-  // const mixedLsRes = await mixedLs(dagCid, {});
-  // const pubRecursiveLsRes = await pubRecursiveLs(dagCid, externalCids[0].name);
-  // debugger;
-  //   return res.status(400).json({ error: 'early terminate' });
-  // }
-
   /*
    ** External CID setup
    */
-
   const cidTypesSizes: Record<string, GetExternalSizeAndTypeResult> = {};
   if (externalCids && externalCids.length && componentType === ResearchObjectComponentType.DATA) {
     try {
+      externalCids = externalCids.map((extCid) => ({ ...extCid, cid: convertToCidV1(extCid.cid) }));
       for (const extCid of externalCids) {
         const { isDirectory, size } = await getExternalCidSizeAndType(extCid.cid);
         if (size !== undefined && isDirectory !== undefined) {
@@ -213,36 +208,33 @@ export const update = async (req: Request, res: Response) => {
   //[EXTERNAL CIDS] If External Cids used, add to uploaded, and add to externalCidMap, also add to externalDagsToPin
   const externalDagsToPin = [];
   if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
-    const uploadedExpanded = [];
-    uploaded = externalCids.map(async (extCid) => {
+    uploaded = [];
+    for await (const extCid of externalCids) {
       const { size, isDirectory } = cidTypesSizes[extCid.cid];
       externalCidMap[extCid.cid] = { size, directory: isDirectory, path: extCid.name };
       if (isDirectory) {
         //Get external dag tree, add to external dag pin list
-        debugger;
-        const tree: RecursiveLsResult[] = await pubRecursiveLs(extCid.cid, contextPath + '/' + extCid.name);
-        debugger;
+        const tree: RecursiveLsResult[] = await pubRecursiveLs(extCid.cid, extCid.name);
         if (!tree) res.status(400).json({ error: 'Failed resolving external dag tree' });
         const flatTree = recursiveFlattenTree(tree);
         flatTree.forEach((file: RecursiveLsResult) => {
+          cidTypesSizes[file.cid] = { size: file.size, isDirectory: file.type === 'dir' };
           if (file.type === 'dir') externalDagsToPin.push(file.cid);
-          uploadedExpanded.push({ path: file.path, cid: file.cid, size: file.size });
+          uploaded.push({ path: file.path, cid: file.cid, size: file.size });
           externalCidMap[file.cid] = { size: file.size, directory: file.type === 'dir', path: file.path };
         });
         externalDagsToPin.push(extCid.cid);
       }
-      return {
+      uploaded.push({
         path: extCid.name,
         cid: extCid.cid,
         size: size,
-      };
-    });
-    uploaded = [uploaded, ...uploadedExpanded];
+      });
+    }
   }
-  debugger;
 
   //pin exteralDagsToPin
-
+  const externalDagsPinned = await pinExternalDags(externalDagsToPin);
   //Pin the new files
   const structuredFilesForPinning: IpfsDirStructuredInput[] = files.map((f: any) => {
     return { path: f.originalname, content: f.buffer };
@@ -352,6 +344,8 @@ export const update = async (req: Request, res: Response) => {
     const dataRefsToUpsert: Partial<DataReference>[] = flatTree.map((f) => {
       if (typeof f.cid !== 'string') f.cid = f.cid.toString();
       const neutralPath = neutralizePath(f.path);
+      const extTypeAndSize = externalCidMap[f.cid];
+      if (extTypeAndSize) f.directory = extTypeAndSize.directory;
       return {
         cid: f.cid,
         root: f.cid === newRootCidString,
@@ -360,7 +354,7 @@ export const update = async (req: Request, res: Response) => {
         type: DataType.UNKNOWN,
         userId: owner.id,
         nodeId: node.id,
-        directory: f.type === 'dir' ? true : false,
+        directory: f.directory || f.type === 'dir' ? true : false,
         size: f.size || 0,
       };
     });
