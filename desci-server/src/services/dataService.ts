@@ -15,7 +15,7 @@ export const getDataUsageForUserBytes = async (user: User) => {
     where: {
       userId: user.id,
       directory: false,
-      external: false,
+      external: false || null,
     },
   });
 
