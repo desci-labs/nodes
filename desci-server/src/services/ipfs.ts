@@ -275,6 +275,7 @@ export interface RecursiveLsResult extends IpfsPinnedResult {
   contains?: RecursiveLsResult[];
   type: 'dir' | 'file';
   parent?: RecursiveLsResult;
+  external?: boolean;
 }
 
 export interface FileDir extends RecursiveLsResult {
@@ -398,7 +399,9 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, ca
       size: 0,
       type: 'file',
     };
-    const isExternalFile = !externalCidMap[result.cid]?.directory;
+    const externalCidMapEntry = externalCidMap[result.cid];
+    if (externalCidMapEntry) result.external = true;
+    const isExternalFile = externalCidMapEntry && externalCidMapEntry.directory == false;
     const linkCidObject = multiformats.CID.parse(result.cid);
     if (linkCidObject.code === rawCode || isExternalFile) {
       result.size = link.Tsize;
