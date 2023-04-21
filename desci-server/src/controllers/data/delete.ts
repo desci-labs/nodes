@@ -58,7 +58,8 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
     });
 
     const externalCidMap = await generateExternalCidMap(node.uuid);
-    const flatTree = recursiveFlattenTree(await getDirectoryTree(updatedRootCid, externalCidMap));
+    const tree = await getDirectoryTree(updatedRootCid, externalCidMap);
+    const flatTree = recursiveFlattenTree(tree);
     flatTree.push({
       cid: updatedRootCid,
       path: updatedRootCid,
