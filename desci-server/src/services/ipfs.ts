@@ -515,7 +515,6 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
   const dagsLoaded: Record<string, PBNode> = {};
   dagCidsToBeReset.push(CID2.parse(rootCid));
   const stagingDagNames = contextPath.split('/');
-  debugger;
   if (contextPath.length) {
     for (let i = 0; i < stagingDagNames.length; i++) {
       const dagLinkName = stagingDagNames[i];

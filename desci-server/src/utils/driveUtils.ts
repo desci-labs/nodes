@@ -171,9 +171,11 @@ export type DrivePath = string;
 export const DRIVE_NODE_ROOT_PATH = 'root';
 
 export function neutralizePath(path: DrivePath) {
+  if (!path.includes('/') && path.length) return 'root';
   return path.replace(/^[^/]+/, DRIVE_NODE_ROOT_PATH);
 }
 export function deneutralizePath(path: DrivePath, rootCid: string) {
+  if (!path.includes('/') && path.length) return rootCid;
   return path.replace(/^[^/]+/, rootCid);
 }
 

@@ -113,7 +113,7 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
       }),
     ]);
     console.log(
-      `[DATA::DELETE] ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added.`,
+      `[DATA::DELETE] ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added, ${updates.length} dataReferences updated`,
     );
     debugger;
 
