@@ -1,8 +1,10 @@
 import { DataComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
+import axios from 'axios';
 import { v4 as uuid } from 'uuid';
 
 import prisma from 'client';
+import { cleanupManifestUrl } from 'controllers/nodes';
 import { updateManifestAndAddToIpfs } from 'services/ipfs';
 
 interface UpdatingManifestParams {
@@ -63,4 +65,16 @@ export async function persistManifest({ manifest, node, userId }: PersistManifes
     console.error(`failed persisting manifest, manifest: ${manifest}, dbnode: ${node}, userId: ${userId}, e: ${e}`);
   }
   return { persistedManifestCid: null, date: null };
+}
+
+export async function getLatestManifest(
+  nodeUuid: string,
+  resolver: string,
+  node?: Node,
+): Promise<ResearchObjectV1 | null> {
+  node = node || (await prisma.node.findUnique({ where: { uuid: nodeUuid } }));
+  const latestManifestCid = node.manifestUrl || node.cid;
+  const manifestUrl = latestManifestCid ? cleanupManifestUrl(latestManifestCid as string, resolver as string) : null;
+
+  return manifestUrl ? await (await axios.get(manifestUrl)).data : null;
 }

@@ -1,20 +1,20 @@
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import { getDirectoryTree, removeFileFromDag } from 'services/ipfs';
+import { deneutralizePath, updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
+import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
 
-import { persistManifest } from './utils';
+import { getLatestManifest, persistManifest } from './utils';
 
 //Delete Dataset
-export const deleteDataset = async (req: Request, res: Response, next: NextFunction) => {
+export const deleteData = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
-  const { uuid, manifest, rootCid } = req.body;
-  console.log('body: ', JSON.stringify(req.body));
-  console.log('[DELETE DATASET] hit');
-  if (uuid === undefined || manifest === undefined || rootCid === undefined)
-    return res.status(400).json({ error: 'uuid, manifest, rootCid required' });
-  const manifestObj: ResearchObjectV1 = JSON.parse(manifest);
-  console.log('usr: ', owner);
+  const { uuid, path } = req.body;
+  console.log('[DATA::DELETE] hit, path: ', path, ' nodeUuid: ', uuid, ' user: ', owner.id);
+  if (uuid === undefined || path === undefined) return res.status(400).json({ error: 'uuid and path required' });
 
   //validate requester owns the node
   const node = await prisma.node.findFirst({
@@ -24,24 +24,78 @@ export const deleteDataset = async (req: Request, res: Response, next: NextFunct
     },
   });
   if (!node) {
-    console.log(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
+    console.log(`[DATA::DELETE]unauthed node user: ${owner}, node uuid provided: ${uuid}`);
     return res.status(400).json({ error: 'failed' });
   }
 
+  const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
+  const dataBucket = latestManifest?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+
   try {
-    const dataRefsToDelete = await prisma.dataReference.findMany({
+    /*
+     ** Delete from DAG
+     */
+    const splitContextPath = path.split('/');
+    splitContextPath.shift(); //remove root
+    const pathToDelete = splitContextPath.pop();
+    const cleanContextPath = splitContextPath.join('/');
+    console.log('[DATA::DELETE] cleanContextPath: ', cleanContextPath, ' Deleting: ', pathToDelete);
+    const { updatedDagCidMap, updatedRootCid } = await removeFileFromDag(
+      dataBucket.payload.cid,
+      cleanContextPath,
+      pathToDelete,
+    );
+
+    /*
+     ** Prepare updated refs
+     */
+    const existingDataRefs = await prisma.dataReference.findMany({
       where: {
-        rootCid: rootCid,
         nodeId: uuid.id,
         userId: owner.id,
+        type: { not: DataType.MANIFEST },
       },
     });
 
-    const dataRefIds = dataRefsToDelete.map((e) => e.id);
+    const externalCidMap = await generateExternalCidMap(node.uuid);
+    const flatTree = recursiveFlattenTree(await getDirectoryTree(updatedRootCid, externalCidMap));
+    flatTree.push({
+      cid: updatedRootCid,
+      path: updatedRootCid,
+      rootCid: updatedRootCid,
+    });
 
+    const dataRefsToUpdate: Partial<DataReference>[] = flatTree.map((f) => {
+      if (typeof f.cid !== 'string') f.cid = f.cid.toString();
+      return {
+        cid: f.cid,
+        rootCid: updatedRootCid,
+        path: f.path,
+      };
+    });
+
+    const dataRefUpdates = dataRefsToUpdate
+      .filter((dref) => {
+        const neutralPath = dref.path.replace(updatedRootCid, 'root');
+        return !neutralPath.startsWith(path);
+      })
+      .map((dref) => {
+        const neutralPath = dref.path.replace(updatedRootCid, 'root');
+        const match = existingDataRefs.find((ref) => neutralizePath(ref.path) === neutralPath);
+        dref.id = match?.id;
+        return dref;
+      });
+
+    /*
+     ** Delete dataRefs, add to cidPruneList
+     */
+    const deneutralizedPath = deneutralizePath(path, dataBucket?.payload?.cid);
+    const dataRefsToDelete = existingDataRefs.filter((e) => e.path.startsWith(deneutralizedPath));
+
+    const dataRefDeletionIds = dataRefsToDelete.map((e) => e.id);
     const formattedPruneList = dataRefsToDelete.map((e) => {
       return {
-        description: '[DATASET::DELETE]',
+        description: '[DATA::DELETE]path: ' + path,
         cid: e.cid,
         type: e.type,
         size: e.size,
@@ -51,39 +105,57 @@ export const deleteDataset = async (req: Request, res: Response, next: NextFunct
       };
     });
 
-    const deleteRes = await prisma.$transaction([
-      prisma.dataReference.deleteMany({ where: { id: { in: dataRefIds } } }),
+    const [deletions, creations, ...updates] = await prisma.$transaction([
+      prisma.dataReference.deleteMany({ where: { id: { in: dataRefDeletionIds } } }),
       prisma.cidPruneList.createMany({ data: formattedPruneList }),
+      ...(dataRefUpdates as any).map((fd) => {
+        return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
+      }),
     ]);
     console.log(
-      `[DATASET::DELETE] ${deleteRes[0].count} dataReferences deleted, ${deleteRes[1].count} cidPruneList entries added.`,
+      `[DATA::DELETE] ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added.`,
     );
+    debugger;
 
-    const updatedManifest = deleteComponentFromManifest({
-      manifest: manifestObj,
-      componentId: rootCid,
+    /*
+     ** Delete components in Manifest, update DAG cids in manifest
+     */
+    const componentDeletionIds = latestManifest.components
+      .filter((c) => c.payload.path.startsWith(path))
+      .map((c) => c.id);
+
+    let updatedManifest = deleteComponentsFromManifest({
+      manifest: latestManifest,
+      componentIds: componentDeletionIds,
     });
+
+    if (Object.keys(updatedDagCidMap).length) {
+      updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
+    }
+
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
-      throw Error(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
+      throw Error(`[DATA::DELETE]Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
     return res.status(200).json({
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    console.log(`[DATASET::DELETE] error: ${e}`);
+    console.log(`[DATA::DELETE] error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };
 
 interface UpdatingManifestParams {
   manifest: ResearchObjectV1;
-  componentId: string;
+  componentIds: string[];
 }
 
-export function deleteComponentFromManifest({ manifest, componentId }: UpdatingManifestParams) {
-  const componentIndex = manifest.components.findIndex((c) => c.id === componentId);
-  manifest.components.splice(componentIndex, 1);
+export function deleteComponentsFromManifest({ manifest, componentIds }: UpdatingManifestParams) {
+  for (const compId in componentIds) {
+    const componentIndex = manifest.components.findIndex((c) => c.id === compId);
+    manifest.components.splice(componentIndex, 1);
+  }
   return manifest;
 }
