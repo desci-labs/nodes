@@ -12,7 +12,7 @@ Nodes is a tool for creating research objects - a type of verifiable scientific 
 
 Nodes are published on a decentralized (“Open State”) repository that provides open content resolution, storage, provenance, data cataloguing, secure PIDs, and compute capabilities.
 
-These resources will help you if you want to learn more (or join us on [Discord](https://discord.gg/BeJ4dxXdaJ)):<br>
+These resources will help you if you want to learn more (or join us on [Discord](https://discord.gg/A5P9fgB5Cf)):<br>
 [Beta announcement post](https://descilabs.substack.com/p/574f74ae-7c4c-4016-9c50-20093d654698)<br>
 [User documentation](https://docs.desci.com/using-nodes/getting-started)<br>
 [Learning materials](https://docs.desci.com/learn/open-state-repository)
@@ -21,7 +21,7 @@ These resources will help you if you want to learn more (or join us on [Discord]
 
 The best place to find the community is on the DeSci Labs Discord server. There you will find contributors working on various projects, the DeSci Labs team, scientists and researchers, Node Stewards, and other open-science enthusiasts. Come ask questions, test your ideas and projects, and get involved with the events we host every week!
 
-[Discord](https://discord.gg/BeJ4dxXdaJ)<br>
+[Discord](https://discord.gg/A5P9fgB5Cf)<br>
 [Community Google Calendar](https://calendar.google.com/calendar/u/2?cid=Y181MWUxMDI2ZTA4Zjg4N2IzNDQ1ZDE0ODk2N2M4ZGE3NWY4OWM2ZmViYTNlZjAxZWZhZTZiZjRhOWEzMGE1MmJkQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20)
 
 ## Contributing
@@ -34,7 +34,7 @@ We are actively building out resources for open source contributors. Check back 
 
 The simplest ways to get involved are to:
 
-- Make a PR, issue, or hit us up on [Discord](https://discord.gg/BeJ4dxXdaJ)
+- Make a PR, issue, or hit us up on [Discord](https://discord.gg/A5P9fgB5Cf)
 - Submit a bug as an issue
 - Submit a feature request as an issue
 - Write and polish documentation
