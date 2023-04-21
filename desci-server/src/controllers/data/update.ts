@@ -45,7 +45,7 @@ interface UpdatingManifestParams {
   newRootCid: string;
 }
 
-export function updateManifestDataset({ manifest, dataBucketId, newRootCid }: UpdatingManifestParams) {
+export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }: UpdatingManifestParams) {
   const componentIndex = manifest.components.findIndex((c) => c.id === dataBucketId);
   manifest.components[componentIndex] = {
     ...manifest.components[componentIndex],
@@ -278,7 +278,7 @@ export const update = async (req: Request, res: Response) => {
 
   const dataBucketId = latestManifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).id;
 
-  let updatedManifest = updateManifestDataset({
+  let updatedManifest = updateManifestDataBucket({
     manifest: latestManifest,
     dataBucketId: dataBucketId,
     newRootCid: newRootCidString,

@@ -615,6 +615,7 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
 
   const updatedDagCidMap: Record<oldCid, newCid> = {};
 
+  debugger;
   let lastUpdatedCid = updatedTailNodeCid;
   while (dagCidsToBeReset.length) {
     const currentNodeCid = dagCidsToBeReset.pop();
@@ -650,7 +651,7 @@ export async function removeDagLink(dagCid: string | multiformats.CID, linkName:
   }
   const newLinks = Links.filter((link) => link.Name !== linkName);
 
-  return client.block.put(dagPb.encode(dagPb.prepare({ Data, newLinks })), {
+  return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links: newLinks })), {
     version: 1,
     format: 'dag-pb',
   });

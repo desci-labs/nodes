@@ -8,6 +8,7 @@ import { deneutralizePath, updateManifestComponentDagCids, neutralizePath } from
 import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
 
 import { getLatestManifest, persistManifest } from './utils';
+import { updateManifestDataBucket } from './update';
 
 //Delete Dataset
 export const deleteData = async (req: Request, res: Response, next: NextFunction) => {
@@ -130,9 +131,16 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
       componentIds: componentDeletionIds,
     });
 
+    updatedManifest = updateManifestDataBucket({
+      manifest: latestManifest,
+      dataBucketId: dataBucket.id,
+      newRootCid: updatedRootCid,
+    });
+
     if (Object.keys(updatedDagCidMap).length) {
       updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
     }
+    debugger;
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
