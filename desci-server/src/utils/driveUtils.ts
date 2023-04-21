@@ -8,7 +8,7 @@ import {
 import { DataReference, DataType } from '@prisma/client';
 
 import prisma from 'client';
-import { DataReferenceSrc } from 'controllers/datasets';
+import { DataReferenceSrc } from 'controllers/data';
 import { getDirectoryTree, RecursiveLsResult } from 'services/ipfs';
 
 export function recursiveFlattenTreeFilterDirs(tree) {

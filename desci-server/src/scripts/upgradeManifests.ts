@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
-import { persistManifest } from 'controllers/datasets';
+import { persistManifest } from 'controllers/data/utils';
 import { client, createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
 import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';

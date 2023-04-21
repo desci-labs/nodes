@@ -3,7 +3,7 @@ import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
-import { persistManifest } from 'controllers/datasets';
+import { persistManifest } from 'controllers/data/utils';
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
 import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';

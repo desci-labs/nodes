@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 
-import { persistManifest } from './upload';
+import { persistManifest } from './utils';
 
 //Delete Dataset
 export const deleteDataset = async (req: Request, res: Response, next: NextFunction) => {
