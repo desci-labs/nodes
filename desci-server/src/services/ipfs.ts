@@ -7,21 +7,24 @@ import {
   ResearchObjectV1,
   ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
+import * as dagPb from '@ipld/dag-pb';
 import { PBNode } from '@ipld/dag-pb/src/interface';
 import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import axios from 'axios';
 import CID from 'cids';
 import * as ipfs from 'ipfs-http-client';
 import { CID as CID2 } from 'ipfs-http-client';
+import UnixFS from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
 import flatten from 'lodash/flatten';
 import uniq from 'lodash/uniq';
 import * as multiformats from 'multiformats';
+import { code as rawCode } from 'multiformats/codecs/raw';
 import * as yauzl from 'yauzl';
 
 import prisma from 'client';
 import { bufferToStream } from 'utils';
-import { newCid, oldCid } from 'utils/driveUtils';
+import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
@@ -42,6 +45,7 @@ export interface UrlWithCid {
 
 // connect to a different API
 export const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
+export const publicIpfs = ipfs.create({ url: process.env.PUBLIC_IPFS_RESOLVER });
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
@@ -100,6 +104,7 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
     type: ResearchObjectComponentType.DATA_BUCKET,
     payload: {
       cid: emptyDagCid,
+      path: DRIVE_NODE_ROOT_PATH,
     },
   };
 
@@ -254,11 +259,23 @@ export const pinDirectory = async (
   return uploaded;
 };
 
+export async function pinExternalDags(cids: string[]) {
+  const result = [];
+  for await (const cid of cids) {
+    const cidType = multiformats.CID.parse(cid);
+    const block = await publicIpfs.block.get(cidType);
+    const res = await client.block.put(block);
+    result.push(res);
+  }
+  return result;
+}
+
 export interface RecursiveLsResult extends IpfsPinnedResult {
   name: string;
   contains?: RecursiveLsResult[];
   type: 'dir' | 'file';
   parent?: RecursiveLsResult;
+  external?: boolean;
 }
 
 export interface FileDir extends RecursiveLsResult {
@@ -266,9 +283,9 @@ export interface FileDir extends RecursiveLsResult {
   published?: boolean;
 }
 
-const convertToCidV1 = (cid: string | CID): string => {
+export const convertToCidV1 = (cid: string | CID): string => {
   if (typeof cid === 'string') {
-    const c = new CID(cid, cid.substring(0, 1) === 'Q' ? 0 : 1);
+    const c = multiformats.CID.parse(cid);
     // console.log(`cid provided: ${cid} into ${c}`);
     return c.toV1().toString();
   } else {
@@ -305,8 +322,8 @@ export const convertToCidV0 = (cid: string) => {
   return c.toV0().toString();
 };
 
-export const getDirectoryTreeCids = async (cid: string): Promise<string[]> => {
-  const tree = await getDirectoryTree(cid);
+export const getDirectoryTreeCids = async (cid: string, externalCidMap: ExternalCidMap): Promise<string[]> => {
+  const tree = await getDirectoryTree(cid, externalCidMap);
   const recurse = (arr: RecursiveLsResult[]) => {
     return arr.flatMap((e) => {
       if (e && e.contains) {
@@ -327,19 +344,25 @@ export const getDirectoryTreeCids = async (cid: string): Promise<string[]> => {
 
 export const nodeKeepFile = '.nodeKeep';
 
-export const getDirectoryTree = async (cid: string): Promise<RecursiveLsResult[]> => {
+export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidMap): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
-  console.log(`retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
-
-  const tree = await recursiveLs(cid);
-  // debugger;
-  return tree;
+  console.log(`[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
+  if (Object.keys(externalCidMap).length === 0) {
+    // if (true) {
+    console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
+    return await recursiveLs(cid);
+  } else {
+    console.log('[getDirectoryTree] using mixed ls, dagCid: , cid');
+    const tree = await mixedLs(cid, externalCidMap);
+    return tree;
+  }
 };
 
 export const recursiveLs = async (cid: string, carryPath?: string) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
-  for await (const filedir of client.ls(cid)) {
+  const lsOp = client.ls(cid);
+  for await (const filedir of lsOp) {
     const res: any = filedir;
     // if (parent) {
     //   res.parent = parent;
@@ -348,11 +371,81 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
     res.path = pathSplit.join('/');
     // }
     const v1StrCid = convertToCidV1(res.cid);
-
     if (filedir.type === 'file' && filedir.name !== nodeKeepFile) tree.push({ ...res, cid: v1StrCid });
     if (filedir.type === 'dir') {
       res.cid = v1StrCid;
       res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
+      tree.push({ ...res, cid: v1StrCid });
+    }
+  }
+  return tree;
+};
+
+//Used for recursively lsing a DAG containing both public and private cids
+export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, carryPath?: string) {
+  carryPath = carryPath || convertToCidV1(dagCid);
+  const tree = [];
+  const cidObject = multiformats.CID.parse(dagCid);
+  const block = await client.block.get(cidObject);
+  const { Data, Links } = dagPb.decode(block);
+  const unixFs = UnixFS.unmarshal(Data);
+  const isDir = dirTypes.includes(unixFs?.type);
+  if (!isDir) return null;
+  for (const link of Links) {
+    const result: RecursiveLsResult = {
+      name: link.Name,
+      path: carryPath + '/' + link.Name,
+      cid: convertToCidV1(link.Hash.toString()),
+      size: 0,
+      type: 'file',
+    };
+    const externalCidMapEntry = externalCidMap[result.cid];
+    if (externalCidMapEntry) result.external = true;
+    const isExternalFile = externalCidMapEntry && externalCidMapEntry.directory == false;
+    const linkCidObject = multiformats.CID.parse(result.cid);
+    if (linkCidObject.code === rawCode || isExternalFile) {
+      result.size = link.Tsize;
+    } else {
+      const linkBlock = await client.block.get(linkCidObject);
+      const { Data: linkData } = dagPb.decode(linkBlock);
+      const unixFsLink = UnixFS.unmarshal(linkData);
+      const isLinkDir = dirTypes.includes(unixFsLink?.type);
+
+      if (isLinkDir) {
+        result.size = 0;
+        result.type = 'dir';
+        result.contains = (await mixedLs(
+          result.cid,
+          externalCidMap,
+          carryPath + '/' + result.name,
+        )) as RecursiveLsResult[];
+      } else {
+        result.size = link.Tsize;
+      }
+    }
+    if (result.name !== nodeKeepFile) tree.push(result);
+  }
+  return tree;
+}
+
+export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
+  carryPath = carryPath || convertToCidV1(cid);
+  const tree = [];
+  const lsOp = await publicIpfs.ls(cid);
+  for await (const filedir of lsOp) {
+    // debugger;
+    const res: any = filedir;
+    // if (parent) {
+    //   res.parent = parent;
+    const pathSplit = res.path.split('/');
+    pathSplit[0] = carryPath;
+    res.path = pathSplit.join('/');
+    // }
+    const v1StrCid = convertToCidV1(res.cid);
+    if (filedir.type === 'file' && filedir.name !== nodeKeepFile) tree.push({ ...res, cid: v1StrCid });
+    if (filedir.type === 'dir') {
+      res.cid = v1StrCid;
+      res.contains = await pubRecursiveLs(res.cid, carryPath + '/' + res.name);
       tree.push({ ...res, cid: v1StrCid });
     }
   }
@@ -490,9 +583,47 @@ export async function createEmptyDag() {
   return cid.toString();
 }
 
-export async function getExternalSize(cid: string) {
-  const { data } = await axios.head(`${process.env.PUBLIC_IPFS_RESOLVER}/ipfs/${cid}`);
-  return data.headers['Content-Length'];
+export interface GetExternalSizeAndTypeResult {
+  isDirectory: boolean;
+  size: number;
+}
+
+const dirTypes = ['directory', 'hamt-sharded-directory'];
+
+export async function getExternalCidSizeAndType(cid: string) {
+  try {
+    const cidObject = multiformats.CID.parse(cid);
+    const code = cidObject.code;
+    const block = await publicIpfs.block.get(cidObject);
+    if (cidObject.code === rawCode) {
+      return { isDirectory: false, size: block.length };
+    }
+    const { Data } = dagPb.decode(block);
+
+    const unixFs = UnixFS.unmarshal(Data);
+    let isDirectory;
+    let size;
+    const isDir = dirTypes.includes(unixFs?.type);
+    if (code === 0x70 && isDir) {
+      //0x70 === dag-pb
+      isDirectory = true;
+      size = 0;
+    } else {
+      isDirectory = false;
+      const fSize = unixFs.fileSize();
+      if (fSize) {
+        size = fSize;
+      } else {
+        // eslint-disable-next-line no-array-reduce/no-reduce
+        size = unixFs.blockSizes.reduce((a, b) => a + b, 0);
+      }
+    }
+    if (isDirectory !== undefined && size !== undefined) return { isDirectory, size };
+    throw new Error(`Failed to resolve CID or determine file size/type for cid: ${cid}`);
+  } catch (error) {
+    console.error(`[getExternalCidSizeAndType]Error: ${error.message}`);
+    return null;
+  }
 }
 
 export interface ZipToDagAndPinResult {
