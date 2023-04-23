@@ -87,7 +87,6 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
         return;
     }
   });
-  debugger;
   const emptyDag = await createEmptyDag();
 
   const researchReportsDagCid = Object.entries(researchReportsDagFiles).length

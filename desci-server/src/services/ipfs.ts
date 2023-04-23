@@ -579,7 +579,6 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
   const dagsLoaded: Record<string, PBNode> = {};
   dagCidsToBeReset.push(CID2.parse(rootCid));
   const stagingDagNames = contextPath.split('/');
-  debugger;
   if (contextPath.length) {
     for (let i = 0; i < stagingDagNames.length; i++) {
       const dagLinkName = stagingDagNames[i];
@@ -615,7 +614,6 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
 
   const updatedDagCidMap: Record<oldCid, newCid> = {};
 
-  debugger;
   let lastUpdatedCid = updatedTailNodeCid;
   while (dagCidsToBeReset.length) {
     const currentNodeCid = dagCidsToBeReset.pop();

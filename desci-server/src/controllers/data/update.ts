@@ -56,7 +56,7 @@ export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }:
   };
 
   return manifest;
-} //
+}
 
 export const update = async (req: Request, res: Response) => {
   const owner = (req as any).user as User;

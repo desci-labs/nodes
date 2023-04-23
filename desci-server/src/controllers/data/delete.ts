@@ -7,8 +7,8 @@ import { getDirectoryTree, removeFileFromDag } from 'services/ipfs';
 import { deneutralizePath, updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
 import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
 
-import { getLatestManifest, persistManifest } from './utils';
 import { updateManifestDataBucket } from './update';
+import { getLatestManifest, persistManifest } from './utils';
 
 //Delete Dataset
 export const deleteData = async (req: Request, res: Response, next: NextFunction) => {
@@ -52,7 +52,7 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
      */
     const existingDataRefs = await prisma.dataReference.findMany({
       where: {
-        nodeId: uuid.id,
+        nodeId: node.id,
         userId: owner.id,
         type: { not: DataType.MANIFEST },
       },
