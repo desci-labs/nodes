@@ -14,6 +14,9 @@ RUN apt-get -qy update && apt-get install -y    unzip \
 
 RUN apt-get update && apt-get install imagemagick
 
+# update imagemagick security policy to allow pdf
+RUN sed '/"PDF"/d' /etc/ImageMagick-6/policy.xml > /etc/ImageMagick-6/policy.xml
+
 RUN npm install -g npm@8.10.0
 
 RUN mkdir /app
