@@ -22,11 +22,11 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     const node = await prisma.node.findFirst({ where: { uuid: nodeUUID + '.' } });
 
     if (!node) throw Error('Node not found');
-    // const exists = await prisma.nodeCover.findFirst({ where: { nodeUuid: nodeUUID + '.' } });
-    // if (exists) {
-    //   res.send({ ok: true, url: exists.url });
-    //   return;
-    // }
+    const exists = await prisma.nodeCover.findFirst({ where: { nodeUuid: nodeUUID + '.' } });
+    if (exists) {
+      res.send({ ok: true, url: exists.url });
+      return;
+    }
 
     const dataRefExists = await prisma.dataReference.findFirst({ where: { cid, nodeId: node.id } });
     console.log('dataRefExists', cid, node.id, nodeUUID);
