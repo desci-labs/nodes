@@ -1,45 +1,43 @@
-import { randomUUID } from 'crypto';
-
-import {
-  ResearchObjectComponentSubtypes,
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-} from '@desci-labs/desci-models';
-import { PBNode } from '@ipld/dag-pb/src/interface';
+import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DataReference, DataType, PrismaPromise, User } from '@prisma/client';
 import axios from 'axios';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
-import { getAvailableDataUsageForUserBytes, hasAvailableDataUsageForUpload } from 'services/dataService';
+import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addFilesToDag,
+  convertToCidV1,
   FilesToAddToDag,
   getDirectoryTree,
+  getExternalCidSizeAndType,
+  GetExternalSizeAndTypeResult,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
   isDir,
   pinDirectory,
+  pinExternalDags,
+  pubRecursiveLs,
+  RecursiveLsResult,
   zipToPinFormat,
 } from 'services/ipfs';
-import { boolXor, processExternalUrls, zipUrlToBuffer } from 'utils';
+import { arrayXor, processExternalUrls, zipUrlToBuffer } from 'utils';
 import {
   FirstNestingComponent,
   ROTypesToPrismaTypes,
   addComponentsToManifest,
   deneutralizePath,
-  gbToBytes,
+  generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
   getTreeAndFillSizes,
   neutralizePath,
   recursiveFlattenTree,
   updateManifestComponentDagCids,
-  urlOrCid,
 } from 'utils/driveUtils';
 
 import { DataReferenceSrc } from './retrieve';
-import { persistManifest } from './upload';
+import { persistManifest } from './utils';
 
 interface UpdatingManifestParams {
   manifest: ResearchObjectV1;
@@ -47,7 +45,7 @@ interface UpdatingManifestParams {
   newRootCid: string;
 }
 
-export function updateManifestDataset({ manifest, dataBucketId, newRootCid }: UpdatingManifestParams) {
+export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }: UpdatingManifestParams) {
   const componentIndex = manifest.components.findIndex((c) => c.id === dataBucketId);
   manifest.components[componentIndex] = {
     ...manifest.components[componentIndex],
@@ -58,12 +56,12 @@ export function updateManifestDataset({ manifest, dataBucketId, newRootCid }: Up
   };
 
   return manifest;
-} //
+}
 
 export const update = async (req: Request, res: Response) => {
   const owner = (req as any).user as User;
-  const { uuid, manifest, contextPath, componentType, componentSubType, externalCids } = req.body;
-  let { externalUrl } = req.body;
+  const { uuid, manifest, contextPath, componentType, componentSubType } = req.body;
+  let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl)
   //ExternalURL - url + type (code for now)
   //v0 ExternalCids - cids + type (data for now), no pinning
@@ -73,7 +71,7 @@ export const update = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'uuid, manifest, contextPath required' });
   const manifestObj: ResearchObjectV1 = JSON.parse(manifest);
   if (externalUrl) externalUrl = JSON.parse(externalUrl);
-
+  if (externalCids) externalCids = JSON.parse(externalCids);
   let uploaded: IpfsPinnedResult[];
 
   //validate requester owns the node
@@ -89,12 +87,11 @@ export const update = async (req: Request, res: Response) => {
   }
 
   const files = req.files as Express.Multer.File[];
-
-  if (!boolXor([!!externalUrl, !!files.length, !!externalCids]))
+  if (!arrayXor([externalUrl, files.length, externalCids?.length]))
     return res.status(400).json({ error: 'Choose between one of the following; files, externalUrl or externalCids' });
 
   /*
-   ** Github Code Repositories pathway (and future externalURLs)
+   ** Github Code Repositories setup (and future externalURLs)
    */
   let externalUrlFiles: IpfsDirStructuredInput[];
   let externalUrlTotalSizeBytes: number;
@@ -109,6 +106,27 @@ export const update = async (req: Request, res: Response) => {
     const { files, totalSize } = await zipToPinFormat(zipBuffer, externalUrl.path);
     externalUrlFiles = files;
     externalUrlTotalSizeBytes = totalSize;
+  }
+
+  /*
+   ** External CID setup
+   */
+  const cidTypesSizes: Record<string, GetExternalSizeAndTypeResult> = {};
+  if (externalCids && externalCids.length && componentType === ResearchObjectComponentType.DATA) {
+    try {
+      externalCids = externalCids.map((extCid) => ({ ...extCid, cid: convertToCidV1(extCid.cid) }));
+      for (const extCid of externalCids) {
+        const { isDirectory, size } = await getExternalCidSizeAndType(extCid.cid);
+        if (size !== undefined && isDirectory !== undefined) {
+          cidTypesSizes[extCid.cid] = { size, isDirectory };
+        } else {
+          throw new Error(`Failed to get size and type of external CID: ${extCid}`);
+        }
+      }
+    } catch (e: any) {
+      console.error(`[UPDATE DAG] External CID Method: ${e}`);
+      return res.status(400).json({ error: 'Failed to resolve external CID' });
+    }
   }
 
   //finding rootCid
@@ -137,8 +155,18 @@ export const update = async (req: Request, res: Response) => {
     });
 
   //Pull old tree
-  const oldTree = await getDirectoryTree(rootCid);
+  const externalCidMap = await generateExternalCidMap(node.uuid);
+  const oldTree = await getDirectoryTree(rootCid, externalCidMap);
   const oldFlatTree = recursiveFlattenTree(oldTree);
+
+  /*
+   ** Check if update path contains externals, temporarily disable adding to external DAGs
+   */
+  const pathMatch = oldFlatTree.find((c) => {
+    const neutralPath = neutralizePath(c.path);
+    return neutralPath === contextPath;
+  });
+  if (pathMatch?.external) return res.status(400).json({ error: 'Cannot update externally added directories' });
 
   /*
    ** Determine the path of the directory to be updated
@@ -152,17 +180,19 @@ export const update = async (req: Request, res: Response) => {
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
   const OldTreePaths = oldFlatTree.map((e) => e.path);
   let newPathsFormatted: string[] = [];
+  const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
   if (files.length) {
     newPathsFormatted = files.map((f) => {
-      const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
       return header + f.originalname;
     });
   }
   if (externalUrl) {
     newPathsFormatted = externalUrlFiles.map((f) => {
-      const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
       return header + '/' + f.path;
     });
+  }
+  if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
+    newPathsFormatted = externalCids.map((extCid) => header + '/' + extCid.name);
   }
 
   const hasDuplicates = OldTreePaths.some((oldPath) => newPathsFormatted.includes(oldPath));
@@ -171,6 +201,36 @@ export const update = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Duplicate files rejected' });
   }
 
+  //[EXTERNAL CIDS] If External Cids used, add to uploaded, and add to externalCidMap, also add to externalDagsToPin
+  const externalDagsToPin = [];
+  if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
+    uploaded = [];
+    for await (const extCid of externalCids) {
+      const { size, isDirectory } = cidTypesSizes[extCid.cid];
+      externalCidMap[extCid.cid] = { size, directory: isDirectory, path: extCid.name };
+      if (isDirectory) {
+        //Get external dag tree, add to external dag pin list
+        const tree: RecursiveLsResult[] = await pubRecursiveLs(extCid.cid, extCid.name);
+        if (!tree) res.status(400).json({ error: 'Failed resolving external dag tree' });
+        const flatTree = recursiveFlattenTree(tree);
+        flatTree.forEach((file: RecursiveLsResult) => {
+          cidTypesSizes[file.cid] = { size: file.size, isDirectory: file.type === 'dir' };
+          if (file.type === 'dir') externalDagsToPin.push(file.cid);
+          uploaded.push({ path: file.path, cid: file.cid, size: file.size });
+          externalCidMap[file.cid] = { size: file.size, directory: file.type === 'dir', path: file.path };
+        });
+        externalDagsToPin.push(extCid.cid);
+      }
+      uploaded.push({
+        path: extCid.name,
+        cid: extCid.cid,
+        size: size,
+      });
+    }
+  }
+
+  //pin exteralDagsToPin
+  const externalDagsPinned = await pinExternalDags(externalDagsToPin);
   //Pin the new files
   const structuredFilesForPinning: IpfsDirStructuredInput[] = files.map((f: any) => {
     return { path: f.originalname, content: f.buffer };
@@ -178,7 +238,6 @@ export const update = async (req: Request, res: Response) => {
 
   if (structuredFilesForPinning.length || externalUrlFiles?.length) {
     const filesToPin = structuredFilesForPinning.length ? structuredFilesForPinning : externalUrlFiles;
-    // debugger;
     if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
     if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
     console.log('[UPDATE DATASET] Pinned files: ', uploaded);
@@ -219,7 +278,7 @@ export const update = async (req: Request, res: Response) => {
 
   const dataBucketId = latestManifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).id;
 
-  let updatedManifest = updateManifestDataset({
+  let updatedManifest = updateManifestDataBucket({
     manifest: latestManifest,
     dataBucketId: dataBucketId,
     newRootCid: newRootCidString,
@@ -251,15 +310,17 @@ export const update = async (req: Request, res: Response) => {
 
   //For adding correct types to the db, when a predefined component type is used
   const newFilePathDbTypeMap = {};
-  uploaded.forEach((file) => {
+  const externalPathsAdded = {};
+  uploaded.forEach((file: IpfsPinnedResult) => {
     const neutralFullPath = contextPath + '/' + file.path;
     const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
     newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
+    if (Object.keys(cidTypesSizes)?.length) externalPathsAdded[deneutralizedFullPath] = true;
   });
 
   try {
     //Update refs
-    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString));
+    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString, externalCidMap));
     flatTree.push({
       cid: newRootCidString,
       type: 'dir',
@@ -278,6 +339,9 @@ export const update = async (req: Request, res: Response) => {
 
     const dataRefsToUpsert: Partial<DataReference>[] = flatTree.map((f) => {
       if (typeof f.cid !== 'string') f.cid = f.cid.toString();
+      const neutralPath = neutralizePath(f.path);
+      const extTypeAndSize = externalCidMap[f.cid];
+      if (extTypeAndSize) f.directory = extTypeAndSize.directory;
       return {
         cid: f.cid,
         root: f.cid === newRootCidString,
@@ -286,10 +350,11 @@ export const update = async (req: Request, res: Response) => {
         type: DataType.UNKNOWN,
         userId: owner.id,
         nodeId: node.id,
-        directory: f.type === 'dir' ? true : false,
+        directory: f.directory || f.type === 'dir' ? true : false,
         size: f.size || 0,
       };
     });
+
     const manifestPathsToTypes = generateManifestPathsToDbTypeMap(updatedManifest);
     //Manual upsert
     const dataRefUpdates = dataRefsToUpsert
@@ -318,10 +383,12 @@ export const update = async (req: Request, res: Response) => {
       .map((dref) => {
         const neutralPath = dref.path.replace(newRootCidString, 'root');
         const newFileType = newFilePathDbTypeMap[dref.path];
+        const external = externalPathsAdded[dref.path];
         dref.type =
           newFileType && newFileType !== DataType.UNKNOWN
             ? newFileType
             : manifestPathsToTypes[neutralPath] || DataType.UNKNOWN;
+        if (external) dref.external = true;
         return dref;
       }) as DataReference[];
 

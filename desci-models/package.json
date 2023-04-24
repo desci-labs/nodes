@@ -11,7 +11,7 @@
     "test": "yarn generate && mocha -r ts-node/register tests/**/*.test.ts",
     "coverage": "nyc -r lcov -e .ts -x \"*.test.ts\" npm run test",
     "build": "tsc",
-    "publish": "npm publish --registry https://npm.desci.com",
+    "publish": "npm publish",
     "generate": "npx ts-interface-builder src/ResearchObject.ts src/RoCrate.ts --ignore-generics"
   },
   "author": "",

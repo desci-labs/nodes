@@ -3,7 +3,7 @@ import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
-import { persistManifest } from 'controllers/datasets';
+import { persistManifest } from 'controllers/data/utils';
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
 import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
@@ -87,7 +87,6 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
         return;
     }
   });
-  debugger;
   const emptyDag = await createEmptyDag();
 
   const researchReportsDagCid = Object.entries(researchReportsDagFiles).length
@@ -129,7 +128,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   manifestObj.components.push(dataBucketComponent);
   manifestObj = addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
 
-  const dagTree = await getDirectoryTree(rootDagCid);
+  const dagTree = await getDirectoryTree(rootDagCid, {});
   const flatTree = recursiveFlattenTree(dagTree);
   // debugger;
   // Migrate old refs, add new refs

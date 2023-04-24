@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
-import { persistManifest } from 'controllers/datasets';
+import { persistManifest } from 'controllers/data/utils';
 import { client, createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
 import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
@@ -154,7 +154,7 @@ export async function upgradeManifestsScript() {
     manifestObj.components.push(dataBucketComponent);
     manifestObj = addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
 
-    const dagTree = await getDirectoryTree(rootDagCid);
+    const dagTree = await getDirectoryTree(rootDagCid, {});
     const flatTree = recursiveFlattenTree(dagTree);
     // debugger;
     // Migrate old refs, add new refs

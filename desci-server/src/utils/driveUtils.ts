@@ -5,10 +5,10 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
 } from '@desci-labs/desci-models';
-import { DataType } from '@prisma/client';
+import { DataReference, DataType } from '@prisma/client';
 
 import prisma from 'client';
-import { DataReferenceSrc } from 'controllers/datasets';
+import { DataReferenceSrc } from 'controllers/data';
 import { getDirectoryTree, RecursiveLsResult } from 'services/ipfs';
 
 export function recursiveFlattenTreeFilterDirs(tree) {
@@ -63,7 +63,8 @@ export async function getTreeAndFillSizes(
 ) {
   // debugger
   //NOTE/TODO: Adapted for priv(owner) and public (unauthed), may not work for node sharing users(authed/contributors)
-  const tree: RecursiveLsResult[] = await getDirectoryTree(rootCid);
+  const externalCidMap = await generateExternalCidMap(nodeUuid + '.');
+  const tree: RecursiveLsResult[] = await getDirectoryTree(rootCid, externalCidMap);
 
   // const dirCids = recursiveFlattenTreeFilterDirs(tree).map((dir) => dir.cid);
   const dbEntries =
@@ -114,6 +115,7 @@ export async function getTreeAndFillSizes(
         size: d.size || 0,
         published: isPublished,
         date: d.createdAt?.toString(),
+        external: d.external ? true : false,
       };
       cidInfoMap[d.cid] = entryDetails;
     });
@@ -143,6 +145,7 @@ export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
       if (dbType) manifestPathsToTypes[c.payload.path] = dbType;
     }
   });
+  manifestPathsToTypes[DRIVE_NODE_ROOT_PATH] = DataType.DATA_BUCKET;
   return manifestPathsToTypes;
 }
 
@@ -168,9 +171,11 @@ export type DrivePath = string;
 export const DRIVE_NODE_ROOT_PATH = 'root';
 
 export function neutralizePath(path: DrivePath) {
+  if (!path.includes('/') && path.length) return 'root';
   return path.replace(/^[^/]+/, DRIVE_NODE_ROOT_PATH);
 }
 export function deneutralizePath(path: DrivePath, rootCid: string) {
+  if (!path.includes('/') && path.length) return rootCid;
   return path.replace(/^[^/]+/, rootCid);
 }
 
@@ -207,8 +212,30 @@ export type oldCid = string;
 export type newCid = string;
 export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
   manifest.components.forEach((c) => {
-    if (c.payload.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
-    if (c.payload.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
+    if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
+    if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
   });
   return manifest;
+}
+
+export type ExternalCidMap = Record<string, { size: number; path: string; directory: boolean }>;
+
+export async function generateExternalCidMap(nodeUuid) {
+  const externalCidMap: ExternalCidMap = {};
+  const dataReferences = await prisma.dataReference.findMany({
+    where: {
+      node: {
+        uuid: nodeUuid,
+      },
+      external: true,
+    },
+  });
+  dataReferences.forEach((d: DataReference) => {
+    externalCidMap[d.cid] = {
+      size: d.size,
+      path: d.path,
+      directory: d.directory,
+    };
+  });
+  return externalCidMap;
 }

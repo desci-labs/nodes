@@ -309,17 +309,6 @@ model UserIdentity {
   @@index([userId])
 }
 
-// model Dataset {
-//   id            Int             @id @default(autoincrement())
-//   createdAt     DateTime        @default(now())
-//   updatedAt     DateTime        @updatedAt
-//   rootCid       String
-//   size          Int
-//   userId        Int
-//   user          User            @relation(fields: [userId], references: [id])
-//   DataReference DataReference[]
-// }
-
 model DataReference {
   id          Int          @id @default(autoincrement())
   createdAt   DateTime     @default(now())
@@ -333,6 +322,7 @@ model DataReference {
   directory   Boolean
   size        Int
   type        DataType
+  external    Boolean?
   nodeId      Int
   userId      Int
   versionId   Int?
@@ -374,6 +364,7 @@ model PublicDataReference {
   nodeId      Int
   userId      Int
   versionId   Int?
+  external    Boolean?
   mirrors     PublicDataReferenceOnIpfsMirror[]
   node        Node                              @relation(fields: [nodeId], references: [id])
   user        User                              @relation(fields: [userId], references: [id])
