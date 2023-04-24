@@ -117,13 +117,13 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
     console.log(
       `[DATA::DELETE] ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added, ${updates.length} dataReferences updated`,
     );
-    debugger;
 
     /*
      ** Delete components in Manifest, update DAG cids in manifest
      */
+    debugger;
     const componentDeletionIds = latestManifest.components
-      .filter((c) => c.payload.path.startsWith(path))
+      .filter((c) => c.payload?.path?.startsWith(path))
       .map((c) => c.id);
 
     let updatedManifest = deleteComponentsFromManifest({
@@ -140,11 +140,12 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
     if (Object.keys(updatedDagCidMap).length) {
       updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
     }
-    debugger;
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
       throw Error(`[DATA::DELETE]Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
+
+    console.log(`[DATA::DELETE] Success, path: `, path, ' deleted');
 
     return res.status(200).json({
       manifest: updatedManifest,
