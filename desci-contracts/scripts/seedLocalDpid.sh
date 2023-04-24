@@ -1,5 +1,5 @@
 FILE=.openzeppelin/unknown-dpid.json
-MNEMONIC=$(grep MNEMONIC ../.env | cut -d '=' -f 2-)
+MNEMONIC=$(grep MNEMONIC .env | cut -d '=' -f 2-)
 RUNNING=true
 function check() {
     FILE=.openzeppelin/unknown-dpid.json
@@ -32,13 +32,13 @@ if [ -f "$FILE" ]; then
     echo "found DPID Registry deployment file"
 else
     echo "no DPID Registry deployment file, running local ganache and deploying"
-    (echo "waiting for ganache..." && sleep 10 && PRIVATE_KEY="1234567812345678123456781234567812345678123456781234567812345678" yarn deploy:dpid:ganache ) &
+    (echo "waiting for ganache..." && sleep 10 && MNEMONIC="$MNEMONIC" yarn deploy:dpid:ganache ) &
     mkdir -p ../local-data/ganache
     echo "sudo needed only first time to deploy contract"
     sudo chown -R $(whoami) ../local-data/ganache
     (echo "sleeping until contract deployed" && check ) &
     child=$!
-    npx ganache-cli -i 1111 --quiet -h 0.0.0.0 --mnemonic "${MNEMONIC}" --db ../local-data/ganache
+    npx ganache-cli -i 1111 --quiet -h 0.0.0.0 --mnemonic "$MNEMONIC" --db ../local-data/ganache
     wait "$child"
 fi
 
