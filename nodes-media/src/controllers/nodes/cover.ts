@@ -23,7 +23,7 @@ if (!existsSync(TMP_DIR)) {
 }
 
 const options = {
-  density: 60,
+  density: 1800,
   saveFilename: 'cover',
   savePath: TMP_DIR,
   format: 'png',
