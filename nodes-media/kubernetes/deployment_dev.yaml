@@ -27,6 +27,8 @@ spec:
           echo "sourcing"; 
           export AWS_ACCESS_KEY_ID={{ .Data.AWS_ACCESS_KEY_ID }}
           export AWS_SECRET_ACCESS_KEY={{ .Data.AWS_SECRET_ACCESS_KEY }}
+          export IPFS_NODE_URL={{ .Data.IPFS_NODE_URL }}
+          export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
           {{- end -}}
       labels:
         App: NodesMediaServerDev
@@ -42,8 +44,8 @@ spec:
           resources:
             limits:
               cpu: '0.5'
-              memory: 512Mi
+              memory: 2Gi
             requests:
               cpu: 250m
-              memory: 50Mi
+              memory: 1Gi
       serviceAccountName: 'vault-auth'

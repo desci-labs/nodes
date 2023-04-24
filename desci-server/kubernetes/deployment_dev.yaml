@@ -61,6 +61,8 @@ spec:
           export OTEL_SERVICE_NAME={{ .Data.OTEL_SERVICE_NAME }}
           export HONEYCOMB_API_KEY={{ .Data.HONEYCOMB_API_KEY }}
           export DISCORD_NOTIFICATIONS_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}
+          export PUBLIC_IPFS_RESOLVER={{ .Data.PUBLIC_IPFS_RESOLVER }}
+          export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
