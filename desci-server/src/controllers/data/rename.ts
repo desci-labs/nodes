@@ -17,6 +17,7 @@ export const renameData = async (req: Request, res: Response, next: NextFunction
   if (uuid === undefined || path === undefined)
     return res.status(400).json({ error: 'uuid, path and newName required' });
 
+  debugger;
   //validate requester owns the node
   const node = await prisma.node.findFirst({
     where: {

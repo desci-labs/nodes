@@ -734,8 +734,9 @@ export async function renameDagLink(dagCid: string | multiformats.CID, linkName:
   if (!node.isDirectory()) {
     throw new Error(`file cid -- not a directory`);
   }
-  Links[newName] = Links[linkName];
-  delete Links[linkName];
+
+  const linkIdx = Links.findIndex((link) => link.Name === linkName);
+  Links[linkIdx].Name = newName;
 
   return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links })), {
     version: 1,
