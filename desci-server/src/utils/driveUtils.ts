@@ -8,7 +8,7 @@ import {
 import { DataReference, DataType } from '@prisma/client';
 
 import prisma from 'client';
-import { DataReferenceSrc } from 'controllers/datasets';
+import { DataReferenceSrc } from 'controllers/data';
 import { getDirectoryTree, RecursiveLsResult } from 'services/ipfs';
 
 export function recursiveFlattenTreeFilterDirs(tree) {
@@ -171,9 +171,11 @@ export type DrivePath = string;
 export const DRIVE_NODE_ROOT_PATH = 'root';
 
 export function neutralizePath(path: DrivePath) {
+  if (!path.includes('/') && path.length) return 'root';
   return path.replace(/^[^/]+/, DRIVE_NODE_ROOT_PATH);
 }
 export function deneutralizePath(path: DrivePath, rootCid: string) {
+  if (!path.includes('/') && path.length) return rootCid;
   return path.replace(/^[^/]+/, rootCid);
 }
 
@@ -210,8 +212,8 @@ export type oldCid = string;
 export type newCid = string;
 export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
   manifest.components.forEach((c) => {
-    if (c.payload.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
-    if (c.payload.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
+    if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
+    if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
   });
   return manifest;
 }

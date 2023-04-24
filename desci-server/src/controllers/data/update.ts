@@ -1,22 +1,13 @@
-import { randomUUID } from 'crypto';
-
-import {
-  ResearchObjectComponentSubtypes,
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-} from '@desci-labs/desci-models';
-import { PBNode } from '@ipld/dag-pb/src/interface';
+import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DataReference, DataType, PrismaPromise, User } from '@prisma/client';
 import axios from 'axios';
-import { Request, Response, NextFunction } from 'express';
-import { CID } from 'multiformats';
+import { Request, Response } from 'express';
 
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
-import { getAvailableDataUsageForUserBytes, hasAvailableDataUsageForUpload } from 'services/dataService';
+import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addFilesToDag,
-  convertToCidV0,
   convertToCidV1,
   FilesToAddToDag,
   getDirectoryTree,
@@ -25,7 +16,6 @@ import {
   IpfsDirStructuredInput,
   IpfsPinnedResult,
   isDir,
-  mixedLs,
   pinDirectory,
   pinExternalDags,
   pubRecursiveLs,
@@ -38,18 +28,16 @@ import {
   ROTypesToPrismaTypes,
   addComponentsToManifest,
   deneutralizePath,
-  gbToBytes,
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
   getTreeAndFillSizes,
   neutralizePath,
   recursiveFlattenTree,
   updateManifestComponentDagCids,
-  urlOrCid,
 } from 'utils/driveUtils';
 
 import { DataReferenceSrc } from './retrieve';
-import { persistManifest } from './upload';
+import { persistManifest } from './utils';
 
 interface UpdatingManifestParams {
   manifest: ResearchObjectV1;
@@ -57,7 +45,7 @@ interface UpdatingManifestParams {
   newRootCid: string;
 }
 
-export function updateManifestDataset({ manifest, dataBucketId, newRootCid }: UpdatingManifestParams) {
+export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }: UpdatingManifestParams) {
   const componentIndex = manifest.components.findIndex((c) => c.id === dataBucketId);
   manifest.components[componentIndex] = {
     ...manifest.components[componentIndex],
@@ -68,7 +56,7 @@ export function updateManifestDataset({ manifest, dataBucketId, newRootCid }: Up
   };
 
   return manifest;
-} //
+}
 
 export const update = async (req: Request, res: Response) => {
   const owner = (req as any).user as User;
@@ -290,7 +278,7 @@ export const update = async (req: Request, res: Response) => {
 
   const dataBucketId = latestManifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).id;
 
-  let updatedManifest = updateManifestDataset({
+  let updatedManifest = updateManifestDataBucket({
     manifest: latestManifest,
     dataBucketId: dataBucketId,
     newRootCid: newRootCidString,
