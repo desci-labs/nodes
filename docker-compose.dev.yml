@@ -114,6 +114,8 @@ services:
   #   ports:
   #     - '5454:5454'
   #     - '9230:9230'
+  #   extra_hosts:
+  #     - host.docker.internal:host-gateway
   #   volumes:
   #     - ./local-data/yarn_cache:/root/.yarn
 
@@ -128,7 +130,7 @@ services:
   #   links:
   #     - db_postgres
   #   env_file:
-  #     - .env
+  #     - .envs
   #   volumes:
   #     - .:/app/
   #     - /app/node_modules

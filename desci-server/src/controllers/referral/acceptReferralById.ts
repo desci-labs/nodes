@@ -18,7 +18,7 @@ export const acceptReferralById = async (req: Request, res: Response) => {
       return;
     }
 
-    console.log('Accepting referral for authd user', user, referralUuid);
+    console.log('Accepting referral for authd user', user.id, referralUuid);
     const referralToUpdate = await getReferralByUuid(referralUuid);
     const isReferralForAcceptingUser = referralToUpdate.receiverEmail === user.email;
 

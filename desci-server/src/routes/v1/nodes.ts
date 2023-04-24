@@ -15,6 +15,8 @@ import {
   revokePrivateShare,
   getPrivateShare,
   checkPrivateShareId,
+  getCoverImage,
+  setCoverImage,
 } from 'controllers/nodes/index';
 import { retrieveTitle } from 'controllers/nodes/legacyManifestApi';
 import { versionDetails } from 'controllers/nodes/versionDetails';
@@ -35,6 +37,8 @@ router.get('/share/verify/:shareId', checkPrivateShareId);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);
 router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
+router.get('/cover/:cid', [], getCoverImage);
+router.post('/cover/:cid', [ensureUser], setCoverImage);
 
 router.get('/legacy/retrieveTitle', retrieveTitle);
 

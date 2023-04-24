@@ -1,5 +1,6 @@
 FILE=.openzeppelin/unknown-research-object.json
-MNEMONIC=$(grep MNEMONIC ../.env | cut -d '=' -f 2-)
+MNEMONIC=$(grep MNEMONIC .env | cut -d '=' -f 2-)
+echo "GOT MNEMONIC $MNEMONIC"
 RUNNING=true
 function check() {
     FILE=.openzeppelin/unknown-research-object.json
@@ -32,7 +33,7 @@ if [ -f "$FILE" ]; then
     echo "found ResearchObject deployment file"
 else
     echo "no ResearchObject deployment file, running local ganache and deploying"
-    (echo "waiting for ganache..." && sleep 10 && PRIVATE_KEY="1234567812345678123456781234567812345678123456781234567812345678" yarn deploy:ganache ) &
+    (echo "waiting for ganache..." && sleep 10 && MNEMONIC="$MNEMONIC" yarn deploy:ganache ) &
     mkdir -p ../local-data/ganache
     echo "sudo needed only first time to deploy contract"
     sudo chown -R $(whoami) ../local-data/ganache
