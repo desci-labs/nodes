@@ -102,12 +102,12 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
       return {
         cid: cid,
         size: size,
-        root: false,
+        root: isDataBucket,
         type: componentTypeToDataType(component.type),
         userId: owner.id,
         nodeId: node.id,
         directory: isDataBucket,
-        path: DRIVE_NODE_ROOT_PATH + '/' + component.name,
+        path: isDataBucket ? DRIVE_NODE_ROOT_PATH : DRIVE_NODE_ROOT_PATH + '/' + component.name,
         // versionId: nodeVersion.id,
       };
     });

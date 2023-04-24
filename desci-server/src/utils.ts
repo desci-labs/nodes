@@ -92,7 +92,7 @@ export const processExternalUrls = async (
   return null;
 };
 
-export function boolXor(arr: boolean[]): boolean {
+export function arrayXor(arr: any[]): boolean {
   // eslint-disable-next-line no-array-reduce/no-reduce
   return arr.reduce((acc, val) => acc !== !!val, false);
 }
