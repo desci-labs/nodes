@@ -131,7 +131,7 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
     });
 
     updatedManifest = updateManifestDataBucket({
-      manifest: latestManifest,
+      manifest: updatedManifest,
       dataBucketId: dataBucket.id,
       newRootCid: updatedRootCid,
     });
