@@ -1,41 +1,32 @@
 import { Request, Response } from 'express';
 import { cleanupManifestUrl } from 'utils';
-import { fromPath } from 'pdf2pic';
+// import { fromPath } from 'pdf2pic';
 import axios from 'axios';
-import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, unlinkSync } from 'fs';
+import { createWriteStream, existsSync, mkdirSync } from 'fs';
 import { promisify } from 'util';
 import * as stream from 'stream';
 import path from 'path';
 import * as ipfs from 'ipfs-http-client';
 import { PUBLIC_IPFS_PATH } from 'config';
+import { readFile } from 'fs/promises';
+import * as im from "imagemagick";
 
-const SECRET_KEY = process.env.MEDIA_SECRET_KEY;
 const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
 
 const finished = promisify(stream.finished);
+const convertAsync = promisify(im.convert);
 
 const TMP_DIR = path.join(process.cwd(), '/tmp');
 const TMP_FILE = path.join(TMP_DIR, 'cover.pdf');
-const TMP_IMG = path.join(TMP_DIR, 'cover.1.png');
+const TARGET_IMG = path.join(TMP_DIR, 'cover.jpeg');
 
 if (!existsSync(TMP_DIR)) {
   mkdirSync(TMP_DIR);
 }
 
-const options = {
-  density: 1800,
-  saveFilename: 'cover',
-  savePath: TMP_DIR,
-  format: 'png',
-};
 
 const cover = async function (req: Request, res: Response) {
   try {
-    if (existsSync(TMP_IMG)) {
-      rmSync(TMP_FILE);
-      rmSync(TMP_IMG);
-    }
-
     const url = cleanupManifestUrl(req.params.cid, req.query?.g as string);
 
     const downloaded = await downloadFile(url, TMP_FILE);
@@ -45,10 +36,9 @@ const cover = async function (req: Request, res: Response) {
       return;
     }
 
-    const storeAsImage = fromPath(TMP_FILE, options);
-    await storeAsImage(1);
+    await convertAsync([`${TMP_FILE}[0]`, '-quality', '100', TARGET_IMG])
 
-    const buffer = readFileSync(TMP_IMG);
+    const buffer = await readFile(TARGET_IMG);
     const storedCover = await client.add(buffer, { cidVersion: 1 });
 
     res.status(200).send({ ok: true, url: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` });

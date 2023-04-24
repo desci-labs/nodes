@@ -2,7 +2,6 @@
 #!/bin/sh
 cd /app
 
-apt-get update && apt-get install -y graphicsmagick
-apt-get install -y ghostscript
+apt install imagemagick
 
 npm run dev
