@@ -121,7 +121,6 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
     /*
      ** Delete components in Manifest, update DAG cids in manifest
      */
-    debugger;
     const componentDeletionIds = latestManifest.components
       .filter((c) => c.payload?.path?.startsWith(path))
       .map((c) => c.id);

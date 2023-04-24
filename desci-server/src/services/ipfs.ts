@@ -649,6 +649,11 @@ export async function removeDagLink(dagCid: string | multiformats.CID, linkName:
   }
   const newLinks = Links.filter((link) => link.Name !== linkName);
 
+  if (newLinks.length === 0) {
+    const nodeKeep = await client.add(Buffer.from(''), { cidVersion: 1 });
+    newLinks.push({ Name: '.nodeKeep', Hash: nodeKeep.cid as any, Tsize: nodeKeep.size });
+  }
+
   return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links: newLinks })), {
     version: 1,
     format: 'dag-pb',
