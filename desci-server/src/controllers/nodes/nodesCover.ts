@@ -24,6 +24,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     if (!node) throw Error('Node not found');
     const exists = await prisma.nodeCover.findFirst({ where: { nodeUuid: nodeUUID + '.' } });
     if (exists) {
+      console.log('found cover from cache', cid, nodeUUID, exists.url);
       res.send({ ok: true, url: exists.url });
       return;
     }
