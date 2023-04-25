@@ -60,7 +60,7 @@ export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }:
 
 export const update = async (req: Request, res: Response) => {
   const owner = (req as any).user as User;
-  const { uuid, manifest, contextPath, componentType, componentSubType } = req.body;
+  const { uuid, manifest, contextPath, componentType, componentSubType, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl)
   //ExternalURL - url + type (code for now)
@@ -87,7 +87,7 @@ export const update = async (req: Request, res: Response) => {
   }
 
   const files = req.files as Express.Multer.File[];
-  if (!arrayXor([externalUrl, files.length, externalCids?.length]))
+  if (!arrayXor([externalUrl, files.length, externalCids?.length, newFolderName?.length]))
     return res.status(400).json({ error: 'Choose between one of the following; files, externalUrl or externalCids' });
 
   /*
@@ -191,6 +191,11 @@ export const update = async (req: Request, res: Response) => {
       return header + '/' + f.path;
     });
   }
+
+  if (newFolderName) {
+    newPathsFormatted = [header + '/' + newFolderName];
+  }
+
   if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
     newPathsFormatted = externalCids.map((extCid) => header + '/' + extCid.name);
   }
@@ -230,7 +235,9 @@ export const update = async (req: Request, res: Response) => {
   }
 
   //pin exteralDagsToPin
-  const externalDagsPinned = await pinExternalDags(externalDagsToPin);
+  if (externalDagsToPin.length) {
+    const externalDagsPinned = await pinExternalDags(externalDagsToPin);
+  }
   //Pin the new files
   const structuredFilesForPinning: IpfsDirStructuredInput[] = files.map((f: any) => {
     return { path: f.originalname, content: f.buffer };
@@ -241,6 +248,13 @@ export const update = async (req: Request, res: Response) => {
     if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
     if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
     console.log('[UPDATE DATASET] Pinned files: ', uploaded);
+  }
+
+  //New folder creation, add to uploaded
+  if (newFolderName) {
+    const newFolder = await pinDirectory([{ path: newFolderName + '/.nodeKeep', content: Buffer.from('') }]);
+    if (!newFolder.length) res.status(400).json({ error: 'Failed creating new folder' });
+    uploaded = newFolder;
   }
 
   //Filtered to first nestings only
