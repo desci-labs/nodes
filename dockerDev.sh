@@ -48,4 +48,4 @@ if [ $GANACHE_PID ]; then
 fi
 
 echo $PWD
-COMPOSE_HTTP_TIMEOUT=120 docker-compose --file docker-compose.yml --file docker-compose.dev.yml --compatibility up --build
+COMPOSE_HTTP_TIMEOUT=120 docker-compose --file docker-compose.yml --file docker-compose.dev.yml $ADDITIONAL_FLAGS --compatibility up --build
