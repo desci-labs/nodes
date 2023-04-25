@@ -660,6 +660,90 @@ export async function removeDagLink(dagCid: string | multiformats.CID, linkName:
   });
 }
 
+export const renameFileInDag = async (rootCid: string, contextPath: string, linkToRename: string, newName: string) => {
+  const dagCidsToBeReset = [];
+  //                  CID(String): DAGNode     - cached to prevent duplicate calls
+  const dagsLoaded: Record<string, PBNode> = {};
+  dagCidsToBeReset.push(CID2.parse(rootCid));
+  const stagingDagNames = contextPath.split('/');
+  if (contextPath.length) {
+    for (let i = 0; i < stagingDagNames.length; i++) {
+      const dagLinkName = stagingDagNames[i];
+      const containingDagCid = dagCidsToBeReset[i];
+      //FIXME containingDag is of type PBNode
+      const containingDag: any = await client.object.get(containingDagCid);
+      if (!containingDag) {
+        throw Error('Failed updating dataset, existing DAG not found');
+      }
+      dagsLoaded[containingDagCid.toString()] = containingDag;
+      const matchingLink = containingDag.Links.find((linkNode) => linkNode.Name === dagLinkName);
+      if (!matchingLink) {
+        throw Error('Failed updating dataset, existing DAG link not found');
+      }
+      dagCidsToBeReset.push(matchingLink.Hash);
+    }
+  }
+
+  //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
+  if (!dagsLoaded.length) {
+    //FIXME rootDag is of type PBNode
+    const rootDag = await client.object.get(dagCidsToBeReset[0]);
+    dagsLoaded[rootCid] = rootDag;
+  }
+
+  //establishing the tail dag that's being updated
+  const tailNodeCid = dagCidsToBeReset.pop();
+  const tailNode = dagsLoaded[tailNodeCid.toString()]
+    ? dagsLoaded[tailNodeCid.toString()]
+    : await client.object.get(tailNodeCid);
+
+  const updatedTailNodeCid = await renameDagLink(tailNodeCid.toString(), linkToRename, newName);
+
+  const updatedDagCidMap: Record<oldCid, newCid> = {};
+
+  let lastUpdatedCid = updatedTailNodeCid;
+  while (dagCidsToBeReset.length) {
+    const currentNodeCid = dagCidsToBeReset.pop();
+    //FIXME should be PBLink
+    const currentNode: any = dagsLoaded[currentNodeCid.toString()]
+      ? dagsLoaded[currentNodeCid.toString()]
+      : await client.object.get(currentNodeCid);
+    const linkName = stagingDagNames.pop();
+    const dagIdx = currentNode.Links.findIndex((dag) => dag.Name === linkName);
+    if (dagIdx === -1) throw Error(`Failed to find DAG link: ${linkName}`);
+    const oldCid = currentNode.Links[dagIdx].Hash;
+    lastUpdatedCid = await updateDagCid(client, currentNodeCid, oldCid, lastUpdatedCid);
+    updatedDagCidMap[oldCid.toString()] = lastUpdatedCid.toString();
+  }
+
+  return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
+};
+
+export async function renameDagLink(dagCid: string | multiformats.CID, linkName: string, newName: string) {
+  if (typeof dagCid === 'string') dagCid = multiformats.CID.parse(dagCid);
+
+  if (dagCid.code == rawCode) {
+    throw new Error('raw cid -- not a directory');
+  }
+
+  const block = await client.block.get(dagCid);
+  const { Data, Links } = dagPb.decode(block);
+
+  const node = UnixFS.unmarshal(Data);
+
+  if (!node.isDirectory()) {
+    throw new Error(`file cid -- not a directory`);
+  }
+
+  const linkIdx = Links.findIndex((link) => link.Name === linkName);
+  Links[linkIdx].Name = newName;
+
+  return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links })), {
+    version: 1,
+    format: 'dag-pb',
+  });
+}
+
 export const createDag = async (files: FilesToAddToDag): Promise<string> => {
   return await makeDir(client, files);
 };
