@@ -153,7 +153,7 @@ interface UpdateComponentPathsInManifest {
 export function updateComponentPathsInManifest({ manifest, oldPath, newPath }: UpdateComponentPathsInManifest) {
   manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
     if (c.payload?.path.startsWith(oldPath)) {
-      manifest.components[idx].payload = c.payload.path.replace(oldPath, newPath);
+      manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
     }
   });
   return manifest;
