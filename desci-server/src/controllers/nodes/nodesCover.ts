@@ -48,7 +48,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
       create: { url: data.url, nodeUuid: nodeUUID + '.', cid },
     });
 
-    res.send({ ok: true, url: data.url });
+    res.send({ ok: true, url: data.url, title: node.title });
   } catch (e) {
     console.log('error', e);
     res.status(404).send({ ok: false, message: e.message || 'Error generating cover image' });

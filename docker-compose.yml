@@ -9,10 +9,10 @@ services:
       - .:/app/
       - /app/node_modules
 # UNCOMMENT FOR LOCAL DEV OF NODES_MEDIA
-  # nodes_media:
-  #   container_name: 'nodes_media'
-  #   build: ./nodes-media
-  #   restart: always
-  #   volumes:
-  #     - ./nodes-media:/app/
-  #     - /app/node_modules
+  nodes_media:
+    container_name: 'nodes_media'
+    build: ./nodes-media
+    restart: always
+    volumes:
+      - ./nodes-media:/app/
+      - /app/node_modules
