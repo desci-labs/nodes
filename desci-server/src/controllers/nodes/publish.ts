@@ -1,10 +1,10 @@
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { saveInteraction } from 'services/interactionLog';
-import { publishCIDS, publishResearchObject } from 'services/nodeManager';
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { publishCIDS, publishResearchObject, updateNodeMetadata } from 'services/nodeManager';
 import { discordNotify } from 'utils/discordUtils';
 
 // call node publish service and add job to queue
@@ -77,6 +77,8 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
         const manifestSource = manifest as ResearchObjectV1;
         discordNotify(`https://${manifestSource.dpid.prefix}.dpid.org/${manifestSource.dpid.id} (note: estuary-err)`);
       });
+
+    updateNodeMetadata(node.uuid, cid);
 
     return res.send({
       ok: true,

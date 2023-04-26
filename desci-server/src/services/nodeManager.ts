@@ -2,16 +2,22 @@ import {
   CodeComponent,
   DataComponent,
   DataComponentPayload,
+  PdfComponent,
   PdfComponentPayload,
+  ResearchObjectComponentDocumentSubtype,
   ResearchObjectComponentType,
   ResearchObjectV1,
   ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
 import { DataReference, PublicDataReferenceOnIpfsMirror, User } from '@prisma/client';
+import axios from 'axios';
 import * as Throttle from 'promise-parallel-throttle';
 
 import prisma from 'client';
+import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL } from 'config';
+import { cleanupManifestUrl } from 'controllers/nodes';
 import { uploadData } from 'services/estuary';
+import { getIndexedResearchObjects } from 'theGraph';
 import { randomUUID64 } from 'utils';
 import { asyncMap } from 'utils';
 import { generateExternalCidMap } from 'utils/driveUtils';
@@ -348,4 +354,67 @@ export const getBytesInXDays = async (daysAgo: number): Promise<number> => {
   });
 
   return bytesInXDays._sum.size;
+};
+
+export const updateNodeMetadata = async (uuid: string, manifestCid: string) => {
+  try {
+    // pull manifest data from ipfs
+    const gatewayUrl = cleanupManifestUrl(manifestCid);
+    console.log('gatewayUrl', gatewayUrl, manifestCid);
+    const manifest: ResearchObjectV1 = (await axios.get(gatewayUrl)).data;
+    console.log('updateNodeMetadata::Manifest', manifest);
+    // pull versions indexes from graph node
+    const { researchObjects } = await getIndexedResearchObjects([uuid]);
+    const history = researchObjects[0];
+    const version = history?.versions.length ? history.versions.length - 1 : 0;
+    console.log('Node version', history, version);
+    const pdfs = manifest.components.filter((c) => c.type === ResearchObjectComponentType.PDF) as PdfComponent[];
+    console.log('PDFS:::=>>>>>>>>>>>>', pdfs);
+    const cid = pdfs.find((doc) => doc.subtype === ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE)?.payload
+      .url;
+    console.log('Component CID', cid);
+
+    let url = '';
+    const existingCid = await prisma.nodeCover.findFirst({ where: { cid } });
+    console.log('existingCid', existingCid);
+
+    if (existingCid) {
+      // use cached cid cover url;
+      console.log('Use existing url', url, cid);
+      url = existingCid.url;
+    } else {
+      // create cover
+      console.log('create cover url', cid);
+      const data = await (
+        await axios.post(
+          `${MEDIA_SERVER_API_URL}/v1/nodes/cover/${cid}`,
+          {},
+          {
+            headers: { 'x-api-key': MEDIA_SERVER_API_KEY },
+          },
+        )
+      ).data;
+      url = data.url;
+    }
+
+    // update node cover
+    await prisma.nodeCover.upsert({
+      where: { nodeUuid_version: { nodeUuid: uuid, version: version } },
+      create: {
+        url: url,
+        nodeUuid: uuid,
+        cid,
+        version: version,
+        name: manifest.title,
+      },
+      update: {
+        url: url,
+        cid,
+        name: manifest.title,
+      },
+    });
+  } catch (e) {
+    console.log('Error updateNodeMetadata', e);
+    return;
+  }
 };

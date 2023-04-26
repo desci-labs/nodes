@@ -9,7 +9,7 @@ import path from 'path';
 import * as ipfs from 'ipfs-http-client';
 import { PUBLIC_IPFS_PATH } from 'config';
 import { readFile } from 'fs/promises';
-import * as im from "imagemagick";
+import * as im from 'imagemagick';
 
 const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
 
@@ -25,19 +25,25 @@ if (!existsSync(TMP_DIR)) {
 }
 
 
+console.log("TMPDIR", TMP_DIR);
+
 const cover = async function (req: Request, res: Response) {
+  console.log("REQ", req.params, req.query)
   try {
     const url = cleanupManifestUrl(req.params.cid, req.query?.g as string);
+    console.log("URL", url)
 
     const downloaded = await downloadFile(url, TMP_FILE);
 
     if (downloaded === false) {
+      console.log("cover not found",url);
       res.status(400).send({ ok: false, message: 'Cover not found' });
       return;
     }
 
+    console.log("starting convert", url)
     await convertAsync([`${TMP_FILE}[0]`, '-quality', '100', TARGET_IMG])
-
+    console.log("done convert", url)
     const buffer = await readFile(TARGET_IMG);
     const storedCover = await client.add(buffer, { cidVersion: 1 });
 
