@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { saveInteraction } from 'services/interactionLog';
-import { publishCIDS, publishResearchObject, updateNodeMetadata } from 'services/nodeManager';
+import { publishCIDS, publishResearchObject, cacheNodeMetadata } from 'services/nodeManager';
 import { discordNotify } from 'utils/discordUtils';
 
 // call node publish service and add job to queue
@@ -78,7 +78,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
         discordNotify(`https://${manifestSource.dpid.prefix}.dpid.org/${manifestSource.dpid.id} (note: estuary-err)`);
       });
 
-    updateNodeMetadata(node.uuid, cid);
+    cacheNodeMetadata(node.uuid, cid);
 
     return res.send({
       ok: true,

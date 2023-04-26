@@ -356,13 +356,13 @@ export const getBytesInXDays = async (daysAgo: number): Promise<number> => {
   return bytesInXDays._sum.size;
 };
 
-export const updateNodeMetadata = async (uuid: string, manifestCid: string) => {
+export const cacheNodeMetadata = async (uuid: string, manifestCid: string) => {
   try {
     // pull manifest data from ipfs
     const gatewayUrl = cleanupManifestUrl(manifestCid);
     console.log('gatewayUrl', gatewayUrl, manifestCid);
     const manifest: ResearchObjectV1 = (await axios.get(gatewayUrl)).data;
-    console.log('updateNodeMetadata::Manifest', manifest);
+    console.log('cacheNodeMetadata::Manifest', manifest);
     // pull versions indexes from graph node
     const { researchObjects } = await getIndexedResearchObjects([uuid]);
     const history = researchObjects[0];
@@ -414,7 +414,7 @@ export const updateNodeMetadata = async (uuid: string, manifestCid: string) => {
       },
     });
   } catch (e) {
-    console.log('Error updateNodeMetadata', e);
+    console.log('Error cacheNodeMetadata', e);
     return;
   }
 };

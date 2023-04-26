@@ -159,23 +159,23 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
 //   }
 // };
 
-export const resetCoverImage = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const cid = req.query.cid as string;
-    const uuid = req.params.uuid as string;
-    const versionQuery = req.params.version as string;
-    const version = parseVersion(versionQuery);
+// export const resetCoverImage = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const cid = req.query.cid as string;
+//     const uuid = req.params.uuid as string;
+//     const versionQuery = req.params.version as string;
+//     const version = parseVersion(versionQuery);
 
-    if (!cid || !uuid || !version) throw Error('Invalid CID params or NodeUuid query');
-    // check cid exists in data refs table
+//     if (!cid || !uuid || !version) throw Error('Invalid CID params or NodeUuid query');
+//     // check cid exists in data refs table
 
-    await prisma.nodeCover.delete({
-      where: { nodeUuid_version: { nodeUuid: uuid + '.', version } },
-    });
+//     await prisma.nodeCover.delete({
+//       where: { nodeUuid_version: { nodeUuid: uuid + '.', version } },
+//     });
 
-    res.send({ ok: true });
-  } catch (e) {
-    console.log('error', e);
-    res.status(404).send({ ok: false, message: e.message || 'Error generating cover image' });
-  }
-};
+//     res.send({ ok: true });
+//   } catch (e) {
+//     console.log('error', e);
+//     res.status(404).send({ ok: false, message: e.message || 'Error generating cover image' });
+//   }
+// };
