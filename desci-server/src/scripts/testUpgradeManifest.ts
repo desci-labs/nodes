@@ -33,8 +33,8 @@ async function loadFiles(folderPath: string): Promise<Manifest[]> {
   return manifests;
 }
 
-testUpgradeManifest();
-export async function testUpgradeManifest() {
+testUpgradeManifests();
+export async function testUpgradeManifests() {
   const manifests = await loadFiles('./manifests');
 
   console.log(`[TRANSFORMER]Manifests found: ${manifests.length}`);
