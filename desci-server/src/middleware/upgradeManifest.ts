@@ -125,7 +125,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
       cid: rootDagCidStr,
     },
   };
-  manifestObj.components.push(dataBucketComponent);
+  manifestObj.components.unshift(dataBucketComponent);
   manifestObj = addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
 
   const dagTree = await getDirectoryTree(rootDagCid, {});
