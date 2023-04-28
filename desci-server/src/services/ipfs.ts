@@ -852,7 +852,7 @@ export function strIsCid(cid: string) {
     const cidObj = multiformats.CID.parse(cid);
     const validCid = multiformats.CID.asCID(cidObj);
 
-    if (validCid) return true;
+    if (!!validCid) return true;
     return false;
   } catch (e) {
     return false;
