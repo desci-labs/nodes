@@ -63,7 +63,7 @@ export const update = async (req: Request, res: Response) => {
   const { uuid, manifest, contextPath, componentType, componentSubType, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl)
-  //ExternalURL - url + type (code for now)
+  //ExternalURL - url + type, code (github) & external pdfs for now
   //v0 ExternalCids - cids + type (data for now), no pinning
   console.log('files rcvd: ', req.files);
   console.log('[UPDATE DATASET] Updating in context: ', contextPath);
@@ -91,21 +91,38 @@ export const update = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Choose between one of the following; files, externalUrl or externalCids' });
 
   /*
-   ** Github Code Repositories setup (and future externalURLs)
+   ** External URL setup, currnetly used for Github Code Repositories & external PDFs
    */
   let externalUrlFiles: IpfsDirStructuredInput[];
   let externalUrlTotalSizeBytes: number;
   if (
-    externalUrl &&
-    externalUrl?.path?.length &&
-    externalUrl?.url?.length &&
-    componentType === ResearchObjectComponentType.CODE
+    (externalUrl &&
+      externalUrl?.path?.length &&
+      externalUrl?.url?.length &&
+      componentType === ResearchObjectComponentType.CODE) ||
+    componentType === ResearchObjectComponentType.PDF
   ) {
-    const processedUrl = await processExternalUrls(externalUrl.url, componentType);
-    const zipBuffer = await zipUrlToBuffer(processedUrl);
-    const { files, totalSize } = await zipToPinFormat(zipBuffer, externalUrl.path);
-    externalUrlFiles = files;
-    externalUrlTotalSizeBytes = totalSize;
+    try {
+      if (componentType === ResearchObjectComponentType.CODE) {
+        const processedUrl = await processExternalUrls(externalUrl.url, componentType);
+        const zipBuffer = await zipUrlToBuffer(processedUrl);
+        const { files, totalSize } = await zipToPinFormat(zipBuffer, externalUrl.path);
+        externalUrlFiles = files;
+        externalUrlTotalSizeBytes = totalSize;
+      }
+      if (componentType === ResearchObjectComponentType.PDF) {
+        const url = externalUrl.url;
+        const res = await axios.get(url, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(res.data, 'binary');
+        externalUrlFiles = [{ path: externalUrl.path, content: buffer }];
+        externalUrlTotalSizeBytes = buffer.length;
+      }
+    } catch (e) {
+      console.error(
+        `[UPDATE DAG] Error: External URL method: ${e}, url provided: ${externalUrl.url}, path: ${externalUrl.path}`,
+      );
+      return res.status(500).send('[UPDATE DAG]Error fetching content from external link.');
+    }
   }
 
   /*
