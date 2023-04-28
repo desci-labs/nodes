@@ -193,6 +193,7 @@ export interface DataBucketComponentPayload {
 export interface PdfComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.PDF;
   subtype?: ResearchObjectComponentDocumentSubtype;
+  subType?: ResearchObjectComponentDocumentSubtype;
   payload: PdfComponentPayload & CommonComponentPayload;
 }
 

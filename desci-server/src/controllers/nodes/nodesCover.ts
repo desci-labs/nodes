@@ -1,10 +1,16 @@
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import {
+  PdfComponent,
+  ResearchObjectComponentDocumentSubtype,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+} from '@desci-labs/desci-models';
 import { User } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL } from 'config';
+import { cacheNodeMetadata } from 'services/nodeManager';
 
 import { cleanupManifestUrl } from './show';
 
@@ -16,43 +22,93 @@ const parseVersion = (version: string): number | undefined => {
   if (!version) return undefined;
   return !isNaN(parseInt(version))
     ? +version
-    : version[0] === 'v' && version.length === 2
-    ? parseInt(version[1]) - 1
+    : version[0]?.toLowerCase() === 'v' && version.length > 1
+    ? parseInt(version.substring(1)) - 1
     : undefined;
 };
 
 export const getCoverImage = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const cid = req.query.cid as string;
+    // const cid = req.query.cid as string;
     const nodeUUID = req.params.uuid as string;
     const versionQuery = req.params.version as string;
     console.log('versionQuery ', versionQuery, parseVersion(versionQuery));
 
-    if (!nodeUUID) throw Error('Invalid NodeUuid query');
-    // check cid exists in data refs table
+    if (!nodeUUID) throw Error('Invalid Node uuid');
+    const uuid = nodeUUID + '.';
 
     const node = await prisma.node.findFirst({ where: { uuid: nodeUUID + '.' } });
     if (!node) throw Error('Node not found');
 
-    const version = parseVersion(versionQuery);
-    const publishedNodeVersions = await prisma.nodeVersion.findMany({
+    let version = parseVersion(versionQuery);
+
+    console.log('Version: ', version);
+
+    if (version !== undefined) {
+      // check if uuid + version is already cached
+      console.log('version query exists', version);
+      const meta = await prisma.nodeCover.findFirst({ where: { nodeUuid: uuid, version } });
+      if (meta) {
+        console.log('Return cached metadata', meta);
+        res.status(200).send({ ok: true, url: meta.url, title: meta.name || node.title });
+        return;
+      }
+    }
+
+    const cached = await cacheNodeMetadata(uuid, '', version);
+    console.log('cached from history', cached);
+    if (cached) {
+      const meta = await prisma.nodeCover.findFirst({ where: { nodeUuid: uuid, version: cached.version } });
+      if (meta) {
+        res.status(200).send({ ok: true, url: meta.url, title: meta.name || node.title });
+        return;
+      }
+    } else {
+      // res.status(400).send({ ok: false, url: '', title: node.title });
+      // return;
+    }
+
+    console.log('uuid', uuid, node);
+    const draftNodeVersions = await prisma.nodeVersion.findMany({
       where: { nodeId: node.id, transactionId: { not: null } },
     });
 
-    const defaultVersion = publishedNodeVersions.length > 0 ? publishedNodeVersions.length - 1 : 0;
-    console.log('publishedNodeVersions', version, defaultVersion, publishedNodeVersions.length);
-
+    const defaultVersion = draftNodeVersions.length > 0 ? draftNodeVersions.length - 1 : 0;
+    console.log('draftNodeVersions', version, defaultVersion, draftNodeVersions.length);
+    console.log('draft versions ====================>', draftNodeVersions);
+    version = version ?? defaultVersion;
     const exists = await prisma.nodeCover.findFirst({
-      where: { nodeUuid: nodeUUID + '.', version: version || defaultVersion },
+      where: { nodeUuid: uuid, version: version },
     });
 
     if (exists) {
-      console.log('found cover from cache', cid, nodeUUID, exists.url);
+      console.log('found cover from cache', nodeUUID, exists.url);
       res.send({ ok: true, url: exists.url, name: exists?.name || node.title });
       return;
     }
 
-    if (!cid) throw Error('Component CID required');
+    const nodeVersion = draftNodeVersions.length
+      ? draftNodeVersions[version] || draftNodeVersions[draftNodeVersions.length - 1]
+      : undefined;
+
+    if (!nodeVersion) throw Error('Node cannot be resolved');
+
+    const gatewayUrl = cleanupManifestUrl(nodeVersion.manifestUrl);
+    console.log('gatewayUrl', gatewayUrl, nodeVersion.manifestUrl);
+    const manifest: ResearchObjectV1 = (await axios.get(gatewayUrl)).data;
+    const pdfs = manifest.components.filter((c) => c.type === ResearchObjectComponentType.PDF) as PdfComponent[];
+    console.log('PDFS:::=>>>>>>>>>>>>', pdfs);
+    const cid = pdfs.find(
+      (doc) =>
+        doc.subtype === ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE ||
+        doc.subType === ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
+    )?.payload.url;
+
+    if (!cid) {
+      // TODO: return default url
+      res.send({ ok: true, url: '', name: manifest.title || node.title });
+      return;
+    }
 
     const dataRefExists = await prisma.dataReference.findFirst({ where: { cid, nodeId: node.id } });
     // console.log('dataRefExists', cid, node.id, nodeUUID);
@@ -81,26 +137,15 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
       url = data.url;
     }
 
-    const nodeVersion = publishedNodeVersions.length
-      ? publishedNodeVersions[version] || publishedNodeVersions[publishedNodeVersions.length - 1]
-      : undefined;
-
-    let manifest: ResearchObjectV1;
-    if (nodeVersion) {
-      const gatewayUrl = cleanupManifestUrl(nodeVersion.manifestUrl);
-      console.log('gatewayUrl', gatewayUrl, nodeVersion.manifestUrl);
-      manifest = (await axios.get(gatewayUrl)).data;
-    }
-
     // const prevCover = await prisma.nodeCover.findFirst
 
     await prisma.nodeCover.upsert({
-      where: { nodeUuid_version: { nodeUuid: nodeUUID + '.', version: version || defaultVersion } },
+      where: { nodeUuid_version: { nodeUuid: uuid, version } },
       create: {
         url: url,
-        nodeUuid: nodeUUID + '.',
+        nodeUuid: uuid,
         cid,
-        version: version || defaultVersion,
+        version: version,
         name: manifest?.title || node.title,
       },
       update: {

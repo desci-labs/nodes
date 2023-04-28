@@ -18,7 +18,7 @@ import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL } from 'config';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import { uploadData } from 'services/estuary';
 import { getIndexedResearchObjects } from 'theGraph';
-import { randomUUID64 } from 'utils';
+import { hexToCid, randomUUID64 } from 'utils';
 import { asyncMap } from 'utils';
 import { generateExternalCidMap } from 'utils/driveUtils';
 import { cleanManifestForSaving } from 'utils/manifestDraftUtils';
@@ -356,23 +356,46 @@ export const getBytesInXDays = async (daysAgo: number): Promise<number> => {
   return bytesInXDays._sum.size;
 };
 
-export const cacheNodeMetadata = async (uuid: string, manifestCid: string) => {
+export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versionToCache?: number) => {
   try {
-    // pull manifest data from ipfs
-    const gatewayUrl = cleanupManifestUrl(manifestCid);
-    console.log('gatewayUrl', gatewayUrl, manifestCid);
-    const manifest: ResearchObjectV1 = (await axios.get(gatewayUrl)).data;
-    console.log('cacheNodeMetadata::Manifest', manifest);
     // pull versions indexes from graph node
     const { researchObjects } = await getIndexedResearchObjects([uuid]);
     const history = researchObjects[0];
-    const version = history?.versions.length ? history.versions.length - 1 : 0;
-    console.log('Node version', history, version);
+    const version =
+      versionToCache !== undefined && versionToCache < history.versions.length
+        ? versionToCache
+        : history?.versions.length
+        ? history.versions.length - 1
+        : 0;
+
+    if (!manifestCid || manifestCid.length === 0) {
+      history.versions.reverse();
+      console.log('Node version', history, version);
+      const cidString = history.versions[version]?.cid || history.recentCid;
+      manifestCid = hexToCid(cidString); // manifest cid
+      console.log('cidString', cidString);
+    }
+
+    // pull manifest data from ipfs
+    const gatewayUrl = cleanupManifestUrl(manifestCid);
+    // console.log('gatewayUrl', gatewayUrl, manifestCid);
+    const manifest: ResearchObjectV1 = (await axios.get(gatewayUrl)).data;
+    // console.log('cacheNodeMetadata::Manifest', manifest);
+
     const pdfs = manifest.components.filter((c) => c.type === ResearchObjectComponentType.PDF) as PdfComponent[];
     console.log('PDFS:::=>>>>>>>>>>>>', pdfs);
-    const cid = pdfs.find((doc) => doc.subtype === ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE)?.payload
-      .url;
-    console.log('Component CID', cid);
+    const cid = pdfs.find(
+      (doc) =>
+        doc.subtype === ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE ||
+        doc.subType === ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
+    )?.payload.url;
+    // console.log('Component CID', cid);
+
+    // TODO: handle case where no research-article was published
+    if (!cid) {
+      console.log('No cid to parse', cid);
+      return false;
+    }
 
     let url = '';
     const existingCid = await prisma.nodeCover.findFirst({ where: { cid } });
@@ -397,7 +420,7 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string) => {
       url = data.url;
     }
 
-    // update node cover
+    // upsert node cover
     await prisma.nodeCover.upsert({
       where: { nodeUuid_version: { nodeUuid: uuid, version: version } },
       create: {
@@ -413,8 +436,9 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string) => {
         name: manifest.title,
       },
     });
+    return { version, uuid, manifestCid };
   } catch (e) {
     console.log('Error cacheNodeMetadata', e);
-    return;
+    return false;
   }
 };
