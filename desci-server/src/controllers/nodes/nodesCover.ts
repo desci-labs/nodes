@@ -98,11 +98,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     const manifest: ResearchObjectV1 = (await axios.get(gatewayUrl)).data;
     const pdfs = manifest.components.filter((c) => c.type === ResearchObjectComponentType.PDF) as PdfComponent[];
     console.log('PDFS:::=>>>>>>>>>>>>', pdfs);
-    const cid = pdfs.find(
-      (doc) =>
-        doc.subtype === ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE ||
-        doc.subType === ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
-    )?.payload.url;
+    const cid = pdfs[0].payload.url;
 
     if (!cid) {
       // TODO: return default url

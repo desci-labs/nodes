@@ -384,11 +384,7 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
 
     const pdfs = manifest.components.filter((c) => c.type === ResearchObjectComponentType.PDF) as PdfComponent[];
     console.log('PDFS:::=>>>>>>>>>>>>', pdfs);
-    const cid = pdfs.find(
-      (doc) =>
-        doc.subtype === ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE ||
-        doc.subType === ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
-    )?.payload.url;
+    const cid = pdfs[0].payload.url;
     // console.log('Component CID', cid);
 
     // TODO: handle case where no research-article was published
