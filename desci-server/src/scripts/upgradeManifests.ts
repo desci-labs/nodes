@@ -33,7 +33,7 @@ export async function upgradeManifestsScript() {
 
   const nodes = await prisma.node.findMany({
     orderBy: {
-      id: 'desc',
+      id: 'asc',
     },
   });
   console.log(`[TRANSFORMER]Nodes found: ${nodes.length}`);
