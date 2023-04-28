@@ -3,7 +3,7 @@ import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
-import { persistManifest } from 'controllers/data/utils';
+import { getLatestManifest, persistManifest } from 'controllers/data/utils';
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
 import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
@@ -14,8 +14,8 @@ IMPORTANT: Called after ensureUser and multer
 */
 export const upgradeManifestTransformer = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
-  const { uuid, manifest } = req.body;
-  let manifestObj: ResearchObjectV1 = JSON.parse(manifest);
+  const { uuid } = req.body;
+  // let manifestObj: ResearchObjectV1 = JSON.parse(manifest);
 
   // Verify node ownership
   const node = await prisma.node.findFirst({
@@ -28,6 +28,9 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
     next();
     return;
   }
+
+  let manifestObj = await getLatestManifest(node.uuid, req.query?.g as string, node);
+  debugger;
 
   const hasDataBucket =
     manifestObj?.components[0]?.type === ResearchObjectComponentType.DATA_BUCKET
@@ -50,7 +53,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
 
   const idsEncountered = [];
   const pathsEncountered = [];
-
+  debugger;
   try {
     manifestObj.components.forEach((c) => {
       const uniqueId = ensureUniqueString(c.id, idsEncountered);
@@ -111,6 +114,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
     res.status(400).send('Upgrade manifest failed, err: ' + e);
     // process.exit(404);
   }
+  debugger;
   const emptyDag = await createEmptyDag();
 
   const researchReportsDagCid = Object.entries(researchReportsDagFiles).length
