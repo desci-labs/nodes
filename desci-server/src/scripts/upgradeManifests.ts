@@ -6,8 +6,15 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
-import { persistManifest } from 'controllers/data/utils';
-import { client, createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
+import { persistManifest, PersistManifestParams } from 'controllers/data/utils';
+import {
+  client,
+  createDag,
+  createEmptyDag,
+  FilesToAddToDag,
+  getDirectoryTree,
+  updateManifestAndAddToIpfs,
+} from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
 import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
 
@@ -223,8 +230,48 @@ export async function upgradeManifestsScript() {
 
     manifestObj.version = 'desci-nodes-0.2.0';
     // Persist new manifest to db
-    const { persistedManifestCid } = await persistManifest({ manifest: manifestObj, node, userId: node.ownerId });
+    const { persistedManifestCid } = await persistManifestTimePreserved({
+      manifest: manifestObj,
+      node,
+      userId: node.ownerId,
+      updatedAt: node.updatedAt,
+    });
     if (!persistedManifestCid)
       throw Error(`Failed to persist manifest during upgrade, node: ${node}, userId: ${node.ownerId}`);
   }
+}
+
+export async function persistManifestTimePreserved({
+  manifest,
+  node,
+  userId,
+  updatedAt,
+}: PersistManifestParams & { updatedAt: Date }) {
+  if (node.ownerId !== userId) {
+    console.log(`User: ${userId} doesnt own node ${node.id}`);
+    throw Error(`User: ${userId} doesnt own node ${node.id}`);
+  }
+
+  try {
+    const {
+      cid,
+      ref: dataRef,
+      nodeVersion,
+    } = await updateManifestAndAddToIpfs(manifest, { userId: node.ownerId, nodeId: node.id });
+
+    const updated = await prisma.node.update({
+      where: {
+        id: node.id,
+      },
+      data: {
+        manifestUrl: cid,
+        updatedAt,
+      },
+    });
+
+    if (updated && nodeVersion && dataRef) return { persistedManifestCid: cid, date: dataRef.updatedAt, nodeVersion };
+  } catch (e: any) {
+    console.error(`failed persisting manifest, manifest: ${manifest}, dbnode: ${node}, userId: ${userId}, e: ${e}`);
+  }
+  return { persistedManifestCid: null, date: null };
 }

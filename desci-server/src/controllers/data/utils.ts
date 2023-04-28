@@ -32,7 +32,7 @@ function addDataToManifest({ manifest, dataFields, rootCid }: UpdatingManifestPa
   return manifest;
 }
 
-interface PersistManifestParams {
+export interface PersistManifestParams {
   manifest: ResearchObjectV1;
   node: Node;
   userId: number;
