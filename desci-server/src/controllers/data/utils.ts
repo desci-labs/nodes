@@ -78,3 +78,13 @@ export async function getLatestManifest(
 
   return manifestUrl ? await (await axios.get(manifestUrl)).data : null;
 }
+
+export function separateFileNameAndExtension(fileName: string): {
+  fileName: string;
+  extension?: string;
+} {
+  const splitName = fileName.split('.');
+  const extension = splitName.length > 1 ? splitName.pop() : '';
+  const name = splitName.join('.');
+  return { fileName: name, extension };
+}

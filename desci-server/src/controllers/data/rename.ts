@@ -8,11 +8,11 @@ import { updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils
 import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
 
 import { updateManifestDataBucket } from './update';
-import { getLatestManifest, persistManifest } from './utils';
+import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils';
 
 export const renameData = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
-  const { uuid, path, newName } = req.body;
+  const { uuid, path, newName, renameComponent } = req.body;
   console.log('[DATA::RENAME] hit, path: ', path, ' nodeUuid: ', uuid, ' user: ', owner.id, ' newName: ', newName);
   if (uuid === undefined || path === undefined)
     return res.status(400).json({ error: 'uuid, path and newName required' });
@@ -126,6 +126,12 @@ export const renameData = async (req: Request, res: Response, next: NextFunction
 
     if (Object.keys(updatedDagCidMap).length) {
       updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
+    }
+
+    if (renameComponent) {
+      const componentIndex = updatedManifest.components.findIndex((c) => c.payload.path === newPath);
+      const { fileName } = separateFileNameAndExtension(newName);
+      updatedManifest.components[componentIndex].name = fileName;
     }
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
