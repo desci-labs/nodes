@@ -268,6 +268,7 @@ export async function upgradeManifestsScript() {
     });
     if (!persistedManifestCid)
       throw Error(`Failed to persist manifest during upgrade, node: ${node}, userId: ${node.ownerId}`);
+    console.log(`[TRANSFORMER]iteration ${i} successfully completed, node uuid: ${node.uuid}, nodeId: ${node.id}`);
   }
 }
 
