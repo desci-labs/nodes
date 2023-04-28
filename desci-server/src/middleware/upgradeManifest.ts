@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { persistManifest } from 'controllers/data/utils';
-import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
+import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
 import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
 
@@ -51,42 +51,66 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   const idsEncountered = [];
   const pathsEncountered = [];
 
-  manifestObj.components.forEach((c) => {
-    const uniqueId = ensureUniqueString(c.id, idsEncountered);
-    idsEncountered.push(uniqueId);
-    if (c.id !== uniqueId) c.id = uniqueId;
-    c.starred = true;
-    let path: string;
-    let uniqueName: string;
-    switch (c.type) {
-      case ResearchObjectComponentType.PDF:
-        path = ensureUniqueString(`${rootPath}/${researchReportPath}/${c.name}`, pathsEncountered);
-        pathsEncountered.push(path);
-        uniqueName = path.split('/').pop();
-        if (uniqueName !== c.name) c.name = uniqueName;
-        researchReportsDagFiles[c.name] = { cid: c.payload.url };
-        c.payload.path = path;
-        return;
-      case ResearchObjectComponentType.CODE:
-        path = ensureUniqueString(`${rootPath}/${codeReposPath}/${c.name}`, pathsEncountered);
-        pathsEncountered.push(path);
-        uniqueName = path.split('/').pop();
-        if (uniqueName !== c.name) c.name = uniqueName;
-        codeReposDagFiles[c.name] = { cid: c.payload.url };
-        c.payload.path = path;
-        return;
-      case ResearchObjectComponentType.DATA:
-        path = ensureUniqueString(`${rootPath}/${dataPath}/${c.name}`, pathsEncountered);
-        pathsEncountered.push(path);
-        uniqueName = path.split('/').pop();
-        if (uniqueName !== c.name) c.name = uniqueName;
-        dataDagFiles[c.name] = { cid: c.payload.cid };
-        c.payload.path = path;
-        return;
-      default:
-        return;
-    }
-  });
+  try {
+    manifestObj.components.forEach((c) => {
+      const uniqueId = ensureUniqueString(c.id, idsEncountered);
+      idsEncountered.push(uniqueId);
+      if (c.id !== uniqueId) c.id = uniqueId;
+      c.starred = true;
+      let path: string;
+      let uniqueName: string;
+      switch (c.type) {
+        case ResearchObjectComponentType.PDF:
+          path = ensureUniqueString(`${rootPath}/${researchReportPath}/${c.name}`, pathsEncountered);
+          pathsEncountered.push(path);
+          uniqueName = path.split('/').pop();
+          if (uniqueName !== c.name) c.name = uniqueName;
+          if (strIsCid(c.payload.url)) {
+            researchReportsDagFiles[c.name] = { cid: c.payload.url };
+          } else if (strIsCid(c.payload.url.split('/').pop())) {
+            researchReportsDagFiles[c.name] = { cid: c.payload.url.split('/').pop() };
+          } else {
+            console.log(
+              `[TRANSFORMER]Invalid PDF cid, skipping nodeId: ${node.id}, uuid: ${node.uuid}, cid provided: ${c.payload.url}`,
+            );
+            throw 'Invalid PDF cid';
+          }
+          c.payload.path = path;
+          return;
+        case ResearchObjectComponentType.CODE:
+          path = ensureUniqueString(`${rootPath}/${codeReposPath}/${c.name}`, pathsEncountered);
+          pathsEncountered.push(path);
+          uniqueName = path.split('/').pop();
+          if (uniqueName !== c.name) c.name = uniqueName;
+          if (strIsCid(c.payload.url)) {
+            codeReposDagFiles[c.name] = { cid: c.payload.url };
+          } else if (strIsCid(c.payload.url.split('/').pop())) {
+            codeReposDagFiles[c.name] = { cid: c.payload.url.split('/').pop() };
+          } else {
+            console.log(
+              `[TRANSFORMER]Invalid Code cid, skipping nodeId: ${node.id}, uuid: ${node.uuid}, cid provided: ${c.payload.url}`,
+            );
+            throw 'Invalid Code cid';
+          }
+          c.payload.path = path;
+          return;
+        case ResearchObjectComponentType.DATA:
+          path = ensureUniqueString(`${rootPath}/${dataPath}/${c.name}`, pathsEncountered);
+          pathsEncountered.push(path);
+          uniqueName = path.split('/').pop();
+          if (uniqueName !== c.name) c.name = uniqueName;
+          dataDagFiles[c.name] = { cid: c.payload.cid };
+          c.payload.path = path;
+          return;
+        default:
+          return;
+      }
+    });
+  } catch (e) {
+    console.log(e);
+    res.status(400).send('Upgrade manifest failed, err: ' + e);
+    // process.exit(404);
+  }
   const emptyDag = await createEmptyDag();
 
   const researchReportsDagCid = Object.entries(researchReportsDagFiles).length

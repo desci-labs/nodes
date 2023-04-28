@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
 import { persistManifest, PersistManifestParams } from 'controllers/data/utils';
+import { cleanupManifestUrl } from 'controllers/nodes';
 import {
   client,
   createDag,
@@ -18,7 +19,6 @@ import {
 } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
 import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
-import { cleanupManifestUrl } from 'controllers/nodes';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
