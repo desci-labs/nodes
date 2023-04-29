@@ -109,7 +109,6 @@ export const getAllCidsRequiredForPublish = async (
   const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
     .cid; //changing the rootCid to the data bucket entry
   const externalCidMap = nodeUuid ? await generateExternalCidMap(nodeUuid) : {};
-  const dataTree = await getDirectoryTree(rootCid, externalCidMap);
 
   const manifestEntry:Prisma.PublicDataReferenceCreateManyInput = {
 cid:manifestCid,
@@ -129,6 +128,7 @@ nodeId
     type:DataType.DATA_BUCKET,
     nodeId
   }
+  const dataTree = await getDirectoryTree(rootCid, externalCidMap);
 
   const dataTreeToPubRef = dataTree.map((entry) => {
     const obj:Prisma.PublicDataReferenceCreateManyInput = {
