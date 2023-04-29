@@ -15,6 +15,7 @@ import { discordNotify } from 'utils/discordUtils';
 
 // call node publish service and add job to queue
 export const publish = async (req: Request, res: Response, next: NextFunction) => {
+  debugger;
   const { uuid, cid, manifest, transactionId } = req.body;
   const email = (req as any).user.email;
   if (!uuid || !cid || !manifest) {
@@ -69,11 +70,12 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
      * Create public data refs and data mirror jobs from the CIDs in the manifest
      */
     let cidsRequiredForPublish: Prisma.PublicDataReferenceCreateManyInput[] = [];
+    debugger;
     try {
       /***
        * Traverse the DAG structure to find all relevant CIDs and get relevant info for indexing
        */
-      cidsRequiredForPublish = await getAllCidsRequiredForPublish(cid, node.uuid, owner.id, node.id);
+      cidsRequiredForPublish = await getAllCidsRequiredForPublish(cid, node.uuid, owner.id, node.id, nodeVersion.id);
 
       /**
        * Index the DAGs from IPFS in order to avoid recurrent IPFS calls when requesting data in the future
@@ -97,6 +99,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
         result: { newPublicDataRefs, dataMirrorJobs },
       });
     } catch (error) {
+      console.error(`[publish::publish] error=${error}`);
       /**
        * Save a failure for configurable service quality tracking purposes
        */

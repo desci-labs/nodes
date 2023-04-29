@@ -59,6 +59,7 @@ export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }:
 }
 
 export const update = async (req: Request, res: Response) => {
+  debugger;
   const owner = (req as any).user as User;
   const { uuid, manifest, contextPath, componentType, componentSubType, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
@@ -100,7 +101,7 @@ export const update = async (req: Request, res: Response) => {
       externalUrl?.path?.length &&
       externalUrl?.url?.length &&
       componentType === ResearchObjectComponentType.CODE) ||
-    componentType === ResearchObjectComponentType.PDF
+    (externalUrl && externalUrl?.url?.length && componentType === ResearchObjectComponentType.PDF)
   ) {
     try {
       if (componentType === ResearchObjectComponentType.CODE) {
@@ -119,7 +120,7 @@ export const update = async (req: Request, res: Response) => {
       }
     } catch (e) {
       console.error(
-        `[UPDATE DAG] Error: External URL method: ${e}, url provided: ${externalUrl.url}, path: ${externalUrl.path}`,
+        `[UPDATE DAG] Error: External URL method: ${e}, url provided: ${externalUrl?.url}, path: ${externalUrl?.path}`,
       );
       return res.status(500).send('[UPDATE DAG]Error fetching content from external link.');
     }

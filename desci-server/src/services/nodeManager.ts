@@ -152,7 +152,9 @@ export const getAllCidsRequiredForPublish = async (
   nodeUuid: string | undefined,
   userId: number | undefined,
   nodeId: number | undefined,
+  versionId: number | undefined,
 ): Promise<Prisma.PublicDataReferenceCreateManyInput[]> => {
+  debugger;
   // ensure public data refs staged matches our data bucket cids
   const latestManifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   // const manifestString = manifestBuffer.toString('utf8');
@@ -174,6 +176,7 @@ export const getAllCidsRequiredForPublish = async (
     size: await getSizeForCid(manifestCid, false),
     type: DataType.MANIFEST,
     nodeId,
+    versionId,
   };
   const dataRootEntry: Prisma.PublicDataReferenceCreateManyInput = {
     cid: rootCid,
@@ -183,6 +186,7 @@ export const getAllCidsRequiredForPublish = async (
     size: 0,
     type: DataType.DATA_BUCKET,
     nodeId,
+    versionId,
   };
   const dataTree = await getDirectoryTree(rootCid, externalCidMap);
 
@@ -195,6 +199,7 @@ export const getAllCidsRequiredForPublish = async (
       size: entry.size,
       type: DataType.UNKNOWN,
       nodeId,
+      versionId,
     };
     return obj;
   });
@@ -325,7 +330,9 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
     const manifest: ResearchObjectV1 = (await axios.get(gatewayUrl)).data;
     // console.log('cacheNodeMetadata::Manifest', manifest);
 
-    const pdfs = manifest.components.filter((c) => c.type === ResearchObjectComponentType.PDF) as PdfComponent[];
+    const pdfs = manifest.components.filter(
+      (c) => c.type === ResearchObjectComponentType.PDF && c.starred,
+    ) as PdfComponent[];
     console.log('PDFS:::=>>>>>>>>>>>>', JSON.stringify(pdfs));
     const cid = pdfs[0].payload.url;
     // console.log('Component CID', cid);

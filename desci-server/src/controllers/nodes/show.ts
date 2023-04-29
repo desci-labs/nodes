@@ -46,6 +46,7 @@ const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node
 
 // Return ResearchObject manifest via CID or ResearchObject database ID
 export const show = async (req: Request, res: Response, next: NextFunction) => {
+  debugger;
   let ownerId = (req as any).user?.id;
   const shareId = req.query.shareId as string;
   let cid: string = null;
