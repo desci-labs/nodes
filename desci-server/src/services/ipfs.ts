@@ -84,8 +84,8 @@ export const addBufferToIpfs = (buf: Buffer, key: string) => {
   });
 };
 
-export const getSizeForCid = async (cid: string): Promise<number> => {
-  const size = await getSize(cid);
+export const getSizeForCid = async (cid: string, asDirectory: boolean | undefined): Promise<number> => {
+  const size = await getSize(client, cid, asDirectory);
   return size;
 };
 
@@ -324,7 +324,6 @@ export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
       targetValue = res.value;
     }
     console.error(`[ipfs:resolveIpfsData] SUCCESS(2/2) DAG, ipfs.dag.get cid=${cid}, bufferLen=${targetValue.length}`);
-    debugger;
     const uint8ArrayTarget = targetValue as Uint8Array;
     if (uint8ArrayTarget.buffer) {
       targetValue = (targetValue as Uint8Array).buffer;
