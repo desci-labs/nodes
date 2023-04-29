@@ -58,7 +58,7 @@ export const updateManifestAndAddToIpfs = async (
       nodeId: nodeId,
     },
   });
-  console.log('[NodeVersion]', version);
+  console.log(`[ipfs::updateManifestAndAddToIpfs] manifestCid=${result.cid} nodeVersion=${version}`);
   const ref = await prisma.dataReference.create({
     data: {
       cid: result.cid.toString(),
@@ -297,18 +297,20 @@ export const convertToCidV1 = (cid: string | multiformats.CID): string => {
 
 export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
   try {
-    console.log('[ipfs:resolveIpfsData] ipfs.cat cid=', cid);
+    console.log('[ipfs:resolveIpfsData] START ipfs.cat cid=', cid);
     const iterable = await client.cat(cid);
+    console.log('[ipfs:resolveIpfsData] SUCCESS(1/2) ipfs.cat cid=', cid);
     const dataArray = [];
 
     for await (const x of iterable) {
       dataArray.push(x);
     }
+    console.log(`[ipfs:resolveIpfsData] SUCCESS(2/2) ipfs.cat cid=${cid}, len=${dataArray.length}`);
 
     return Buffer.from(dataArray);
   } catch (err) {
     // console.error('error', err.message);
-    console.log('[ipfs:resolveIpfsData] ipfs.dag.get', cid);
+    console.error('[ipfs:resolveIpfsData] ERROR ipfs.dag.get', cid);
     const res = await client.dag.get(multiformats.CID.parse(cid));
 
     return Buffer.from((res.value.Data as Uint8Array).buffer);

@@ -14,16 +14,22 @@ import axios from 'axios';
 import * as Throttle from 'promise-parallel-throttle';
 
 import prisma from 'client';
-import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL } from 'config';
+import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from 'config';
 import { cleanupManifestUrl } from 'controllers/nodes';
-import { uploadData } from 'services/estuary';
+import { uploadDataToEstuary } from 'services/estuary';
 import { getIndexedResearchObjects } from 'theGraph';
 import { hexToCid, randomUUID64 } from 'utils';
 import { asyncMap } from 'utils';
 import { generateExternalCidMap } from 'utils/driveUtils';
 import { cleanManifestForSaving } from 'utils/manifestDraftUtils';
 
-import { addBufferToIpfs, downloadFilesAndMakeManifest, getDirectoryTreeCids, resolveIpfsData } from './ipfs';
+import {
+  addBufferToIpfs,
+  downloadFilesAndMakeManifest,
+  getDirectoryTree,
+  getDirectoryTreeCids,
+  resolveIpfsData,
+} from './ipfs';
 
 const ESTUARY_MIRROR_ID = 1;
 
@@ -67,13 +73,15 @@ export const publishCIDS = async ({
   userId,
   manifestCid,
   nodeVersionId,
+  nodeUuid,
 }: {
   nodeId: number;
   manifestCid: string;
   userId: number;
   nodeVersionId: number;
+  nodeUuid: string;
 }) => {
-  console.log('node::publishCIDS');
+  console.log(`[node::publishCIDS] start`, { nodeId, manifestCid, userId, nodeVersionId, nodeUuid });
   const dataReferences = await prisma.dataReference.findMany({
     where: {
       nodeId,
@@ -81,17 +89,47 @@ export const publishCIDS = async ({
     },
   });
 
-  // debugger
+  // start building public refs from private refs for this version
+
+  // start with the manifest ref
   const publicRefs = dataReferences
     .filter((ref) => (ref.type === 'MANIFEST' ? ref.cid === manifestCid : true))
     .map((ref) => ({ ...ref, ...(!ref?.versionId && { versionId: nodeVersionId }) }));
 
-  if (publicRefs.length === 0) return false;
+  // return if we have no local manifest ref
+  if (publicRefs.length === 0) {
+    console.error('[node::publishCIDs] ERR: Local refs NOT found for node', nodeId, 'version', nodeVersionId);
+    return false;
+  } else {
+    console.error(
+      `[node::publishCIDs] Success: Local refs found for nodeId=${nodeId} version=${nodeVersionId} cids=${publicRefs
+        .map((r) => r.cid)
+        .join(', ')}`,
+    );
+  }
+
   const activeMirrors = (await prisma.ipfsMirror.findMany()).map((mirror) => mirror.id);
   const dataOnMirrorReferences: PublicDataReferenceOnIpfsMirror[] = [];
 
   for (const dataReference of publicRefs) {
-    if (dataReference.type === 'MANIFEST' && dataReference.cid !== manifestCid) continue;
+    // do not add the manifest again
+    if (dataReference.type === 'MANIFEST' && dataReference.cid !== manifestCid) {
+      console.log(
+        '[node::publishCIDS] skipping pre-staged manifest ref',
+        dataReference.id,
+        dataReference.cid,
+        dataReference.type,
+        dataReference.versionId,
+      );
+      continue;
+    }
+    console.log(
+      '[node::publishCIDS] stage new public data ref',
+      dataReference.id,
+      dataReference.cid,
+      dataReference.type,
+      dataReference.versionId,
+    );
     for (const mirror of activeMirrors) {
       dataOnMirrorReferences.push({
         dataReferenceId: dataReference.id,
@@ -102,6 +140,22 @@ export const publishCIDS = async ({
       });
     }
   }
+
+  // ensure public data refs staged matches our data bucket cids
+  const latestManifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
+  // const manifestString = manifestBuffer.toString('utf8');
+  debugger;
+  if (!latestManifestEntry) {
+    console.error('[node::publishCIDS] ERR: Manifest not found for node', nodeId, 'version', nodeVersionId);
+  } else {
+    console.log(`[node::publishCIDS] manifestString=${latestManifestEntry} cid=${manifestCid}`);
+  }
+
+  const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
+    .cid; //changing the rootCid to the data bucket entry
+  const externalCidMap = await generateExternalCidMap(nodeUuid);
+  const dataBucketCids = await getDirectoryTree(rootCid, externalCidMap);
+  console.log('[node::publishCIDS] dataBucketCids', dataBucketCids);
 
   const [publishCIDRefs, dataOnMirrorRefsResult] = await prisma.$transaction([
     prisma.publicDataReference.createMany({ data: [...publicRefs], skipDuplicates: true }),
@@ -127,7 +181,7 @@ export const publishCIDS = async ({
 async function publishComponent(
   component: ResearchObjectV1Component & { userId: number; nodeId: number; nodeUuid: string },
 ): Promise<boolean> {
-  console.log('node::publishComponent');
+  console.log('node::publishComponent', component.id, component.name, component.type, component.nodeUuid);
   let buffer;
   let payload;
 
@@ -144,7 +198,7 @@ async function publishComponent(
       payload = (component as CodeComponent).payload;
       buffer = await resolveIpfsData(payload.url);
       break;
-    case ResearchObjectComponentType.DATA:
+    case ResearchObjectComponentType.DATA || ResearchObjectComponentType.DATA_BUCKET:
       payload = (component as DataComponent).payload as DataComponentPayload;
       const rootCid = payload.cid;
 
@@ -169,7 +223,7 @@ async function publishComponent(
                 }
                 const buffer = await resolveIpfsData(targetCid);
                 console.log('[DATA BUFFER]::', buffer);
-                const { cid, providers } = await uploadData(targetCid, buffer);
+                const { cid, providers } = await uploadDataToEstuary(targetCid, buffer);
                 // console.log('Target CID uploaded', targetCid, cid);
                 await prisma.publicDataReferenceOnIpfsMirror.update({
                   data: { status: 'SUCCESS', providerCount: providers.length },
@@ -218,7 +272,7 @@ async function publishComponent(
     // console.log(`[SKIP PUBLISHING ${dataRef.type}]::`, payload.url);
     return true;
   }
-  const { cid, providers } = await uploadData(dataRef.cid, buffer);
+  const { cid, providers } = await uploadDataToEstuary(dataRef.cid, buffer);
   // console.log('[published::DataReference]', cid);
   await prisma.publicDataReferenceOnIpfsMirror.update({
     data: { status: 'SUCCESS', providerCount: providers.length },
@@ -246,7 +300,7 @@ async function publishManifest(manifestReference: DataReference): Promise<boolea
       return true;
     }
     const manifest = await resolveIpfsData(manifestReference.cid);
-    const { cid, providers } = await uploadData(manifestReference.cid, manifest);
+    const { cid, providers } = await uploadDataToEstuary(manifestReference.cid, manifest);
     await prisma.publicDataReferenceOnIpfsMirror.update({
       data: { status: 'SUCCESS', providerCount: providers.length },
       where: {
