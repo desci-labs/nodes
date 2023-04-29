@@ -184,7 +184,7 @@ export interface FirstNestingComponent {
   path: string;
   cid: string;
   componentType?: ResearchObjectComponentType;
-  componentSubType?: ResearchObjectComponentSubtypes;
+  componentSubtype?: ResearchObjectComponentSubtypes;
   star?: boolean;
   externalUrl?: string;
 }
@@ -195,7 +195,7 @@ export function addComponentsToManifest(manifest: ResearchObjectV1, firstNesting
       id: randomUUID(),
       name: c.name,
       ...(c.componentType && { type: c.componentType }),
-      ...(c.componentSubType && { subtype: c.componentSubType }),
+      ...(c.componentSubtype && { subtype: c.componentSubtype }),
       payload: {
         ...urlOrCid(c.cid, c.componentType),
         path: c.path,
