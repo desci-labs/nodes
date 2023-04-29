@@ -4,7 +4,13 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { saveInteraction } from 'services/interactionLog';
-import { publishCIDS, publishResearchObject, cacheNodeMetadata } from 'services/nodeManager';
+import {
+  publishCIDS,
+  publishResearchObject,
+  cacheNodeMetadata,
+  getAllCidsRequiredForPublish,
+  createPublicDataRefs,
+} from 'services/nodeManager';
 import { discordNotify } from 'utils/discordUtils';
 
 // call node publish service and add job to queue
@@ -56,6 +62,10 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
       nodeUuid: node.uuid,
     };
     const researchObjectToPublish = { uuid, cid, manifest, ownerId: owner.id };
+
+    const cidsRequiredForPublish = await getAllCidsRequiredForPublish(cid, node.uuid);
+
+    const newPublicDataRefs = await createPublicDataRefs(cidsRequiredForPublish, node.id, owner.id);
 
     try {
       const publishedCidsResult = await publishCIDS(cidsPayload);

@@ -9,7 +9,7 @@ import {
 } from '@desci-labs/desci-models';
 import * as dagPb from '@ipld/dag-pb';
 import { PBNode } from '@ipld/dag-pb/src/interface';
-import { DataReference, DataType, NodeVersion } from '@prisma/client';
+import { DataReference, DataType, NodeVersion, Prisma } from '@prisma/client';
 import axios from 'axios';
 // import CID from 'cids';
 import * as ipfs from 'ipfs-http-client';
@@ -82,6 +82,11 @@ export const addBufferToIpfs = (buf: Buffer, key: string) => {
   return client.add(buf, { cidVersion: 1 }).then((res) => {
     return { cid: res.cid.toString(), size: res.size, key };
   });
+};
+
+export const getSizeForCid = async (cid: string): Promise<number> => {
+  const size = await getSize(cid);
+  return size;
 };
 
 export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf, code, researchFields }) => {
@@ -314,13 +319,18 @@ export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
     // console.error('error', err.message);
     // console.error('[ipfs:resolveIpfsData] ERROR ipfs.dag.get', cid);
     const res = await client.dag.get(multiformats.CID.parse(cid));
-    console.error(
-      `[ipfs:resolveIpfsData] SUCCESS(2/2) DAG, ipfs.dag.get cid=${cid}, bufferLen=${res.value.Data.length}`,
-    );
+    let targetValue = res.value.Data;
+    if (!targetValue) {
+      targetValue = res.value;
+    }
+    console.error(`[ipfs:resolveIpfsData] SUCCESS(2/2) DAG, ipfs.dag.get cid=${cid}, bufferLen=${targetValue.length}`);
     debugger;
-    const arrayBuffer = (res.value.Data as Uint8Array).buffer;
+    const uint8ArrayTarget = targetValue as Uint8Array;
+    if (uint8ArrayTarget.buffer) {
+      targetValue = (targetValue as Uint8Array).buffer;
+    }
 
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer = Buffer.from(targetValue);
     return buffer;
   }
 };

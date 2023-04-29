@@ -362,12 +362,12 @@ model PublicDataReference {
   size        Int
   type        DataType
   nodeId      Int
-  userId      Int
+  userId      Int?
   versionId   Int?
   external    Boolean?
   mirrors     PublicDataReferenceOnIpfsMirror[]
   node        Node                              @relation(fields: [nodeId], references: [id])
-  user        User                              @relation(fields: [userId], references: [id])
+  user        User?                             @relation(fields: [userId], references: [id])
   nodeVersion NodeVersion?                      @relation(fields: [versionId], references: [id])
 }
 

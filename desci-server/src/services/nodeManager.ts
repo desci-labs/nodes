@@ -9,7 +9,7 @@ import {
   ResearchObjectV1,
   ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
-import { DataReference, PublicDataReferenceOnIpfsMirror, User } from '@prisma/client';
+import { DataReference, DataType, Prisma, PublicDataReference, PublicDataReferenceOnIpfsMirror, User } from '@prisma/client';
 import axios from 'axios';
 import * as Throttle from 'promise-parallel-throttle';
 
@@ -28,8 +28,10 @@ import {
   downloadFilesAndMakeManifest,
   getDirectoryTree,
   getDirectoryTreeCids,
+  getSizeForCid,
   resolveIpfsData,
 } from './ipfs';
+import { isDir } from './ipfs';
 
 const ESTUARY_MIRROR_ID = 1;
 
@@ -66,6 +68,84 @@ export const createNodeDraftBlank = async (
   nodeCopy.uuid = nodeCopy.uuid.replace(/\.$/, '');
 
   return nodeCopy;
+};
+
+export const createPublicDataRefs = async (cids: string[], userId: number | undefined) => {
+  const data: Prisma.PublicDataReferenceCreateManyInput[] = [];
+  for (let i = 0; i < cids.length; i++) {
+    const cid = cids[i];
+    const directory = await isDir(cid);
+    const size = await getSizeForCid(cid);
+    const type = 
+    const obj: Prisma.PublicDataReferenceCreateManyInput = { cid, userId, root: cid == cids[1], directory, size,type };
+  }
+  const createNewPublicDataRefs = prisma.publicDataReference.createMany({
+    data,
+    skipDuplicates: true,
+  });
+};
+
+/**
+ * Given a user's manifest, gather all the cids that need to be published
+ * Success condition: return array with [manifestCid, databucketRootCid, ...dataCids]
+ * @param manifestCid
+ * @param userId
+ */
+export const getAllCidsRequiredForPublish = async (
+  manifestCid: string,
+  nodeUuid: string | undefined,
+  userId: number | undefined,
+  nodeId: number | undefined,
+): Promise<Prisma.PublicDataReferenceCreateManyInput[]> => {
+  // ensure public data refs staged matches our data bucket cids
+  const latestManifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
+  // const manifestString = manifestBuffer.toString('utf8');
+  if (!latestManifestEntry) {
+    console.error(`[node::publishCIDS] ERR: Manifest not found for cid=${manifestCid}`);
+  } else {
+    console.log(`[node::publishCIDS] manifestString=${latestManifestEntry} cid=${manifestCid}`);
+  }
+
+  const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
+    .cid; //changing the rootCid to the data bucket entry
+  const externalCidMap = nodeUuid ? await generateExternalCidMap(nodeUuid) : {};
+  const dataTree = await getDirectoryTree(rootCid, externalCidMap);
+
+  const manifestEntry:Prisma.PublicDataReferenceCreateManyInput = {
+cid:manifestCid,
+userId,
+root:false,
+directory:false,
+size:await getSizeForCid(manifestCid),
+type:DataType.MANIFEST,
+nodeId
+  }
+  const dataRootEntry:Prisma.PublicDataReferenceCreateManyInput = {
+    cid:rootCid,
+    userId,
+    root:true,
+    directory:true,
+    size:0,
+    type:DataType.DATA_BUCKET,
+    nodeId
+  }
+
+  const dataTreeToPubRef = dataTree.map((entry) => {
+    const obj:Prisma.PublicDataReferenceCreateManyInput = {
+      
+        cid: entry.cid,
+        userId,
+        root: false,
+        directory: !!entry.contains,
+        size: entry.size,
+        type: entry.type,
+        nodeId,
+      }
+      return obj;
+  });
+
+
+  return [manifestEntry, dataRootEntry, ...dataTreeToPubRef];
 };
 
 export const publishCIDS = async ({
@@ -128,7 +208,7 @@ export const publishCIDS = async ({
   const newPublicRefs = publicRefs.map((v) => {
     const newObj = { ...v };
     delete newObj.id;
-    delete newObj.versionId;
+    // delete newObj.versionId;
     return newObj;
   });
   console.log('[node::publishCIDS] publicRefs', newPublicRefs);
@@ -139,9 +219,24 @@ export const publishCIDS = async ({
     skipDuplicates: true,
   });
 
+  const updateDataRefVersionIds = prisma.dataReference.updateMany({
+    data: { versionId: nodeVersionId },
+    where: { id: { in: dataReferences.filter((ref) => ref?.versionId == null).map((ref) => ref.id) } },
+  });
+
+  const publishCIDRefs = await createNewPublicDataRefs;
+
   const dataOnMirrorReferences: PublicDataReferenceOnIpfsMirror[] = [];
 
-  for (const dataReference of publicRefs) {
+  /** Add WAIT status to newly saved PublicDataRefs */
+  const newlySavedPublicRefs = await prisma.publicDataReference.findMany({
+    where: {
+      nodeId,
+      userId,
+      cid: { in: newPublicRefs.map((ref) => ref.cid) },
+    },
+  });
+  for (const dataReference of newlySavedPublicRefs) {
     // do not add the manifest again
     if (dataReference.type === 'MANIFEST' && dataReference.cid !== manifestCid) {
       console.log(
@@ -171,26 +266,19 @@ export const publishCIDS = async ({
     }
   }
   console.log('[node::publishCIDS] dataOnMirrorReferences', dataOnMirrorReferences);
-  const createNewIpfsMirrorRefs = prisma.publicDataReferenceOnIpfsMirror.createMany({
+  const dataOnMirrorRefsResult = await prisma.publicDataReferenceOnIpfsMirror.createMany({
     data: dataOnMirrorReferences,
     skipDuplicates: true,
   });
-  const updateDataRefVersionIds = prisma.dataReference.updateMany({
-    data: { versionId: nodeVersionId },
-    where: { id: { in: dataReferences.filter((ref) => ref?.versionId == null).map((ref) => ref.id) } },
-  });
 
-  const [publishCIDRefs] = await prisma.$transaction([
-    createNewPublicDataRefs,
-    // createNewIpfsMirrorRefs,
-    // updateDataRefVersionIds,
-  ]);
+  // createNewIpfsMirrorRefs,
+  // updateDataRefVersionIds,
+  // ]);
   if (
     publishCIDRefs.count &&
-    publishCIDRefs.count === dataReferences.length
-    // &&
-    // dataOnMirrorRefsResult &&
-    // dataOnMirrorRefsResult.count === dataOnMirrorReferences.length
+    publishCIDRefs.count === dataReferences.length &&
+    dataOnMirrorRefsResult &&
+    dataOnMirrorRefsResult.count === dataOnMirrorReferences.length
   ) {
     console.log(`[node::publishCIDS] Success: Published ${publishCIDRefs.count} refs for node ${nodeId}`);
     return true;
@@ -246,8 +334,9 @@ async function publishComponent(
                   userId: component.userId,
                   nodeId: component.nodeId,
                 },
-                include: { mirrors: { where: { status: 'SUCCESS', mirrorId: ESTUARY_MIRROR_ID } } },
+                include: { mirrors: { where: { mirrorId: ESTUARY_MIRROR_ID } } },
               });
+              debugger;
               try {
                 if (dataRef?.mirrors?.length > 0) {
                   // console.log('[SKIP PUBLISHING DATA]::', targetCid);
