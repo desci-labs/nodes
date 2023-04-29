@@ -21,16 +21,21 @@ export interface ESTUARY_UPLOAD_RESPONSE {
   providers: string[];
 }
 
-export const uploadData = async (cid: string, body: Buffer): Promise<ESTUARY_UPLOAD_RESPONSE> => {
-  console.log('[estuary::uploadData]');
+export const uploadDataToEstuary = async (cid: string, body: Buffer): Promise<ESTUARY_UPLOAD_RESPONSE | null> => {
+  console.log('[estuary::uploadDataToEstuary]', cid);
   const form = new FormData();
   form.append('data', body, { filename: cid });
-  const { data } = await axios.post<any, AxiosResponse<ESTUARY_UPLOAD_RESPONSE>>(UPLOAD_ROUTE, form, {
-    headers: {
-      Authorization: `Bearer ${ESTUARY_API_KEY}`,
-      ...form.getHeaders(),
-    },
-  });
-  console.log('[estuary::uploadData] Estuary response', data);
-  return data;
+  try {
+    const { data } = await axios.post<any, AxiosResponse<ESTUARY_UPLOAD_RESPONSE>>(UPLOAD_ROUTE, form, {
+      headers: {
+        Authorization: `Bearer ${ESTUARY_API_KEY}`,
+        ...form.getHeaders(),
+      },
+    });
+    console.log('[estuary::uploadDataToEstuary] Estuary response', cid, data);
+    return data;
+  } catch (err) {
+    console.error('[estuary::uploadDataToEstuary] Estuary error', cid, err.response?.data);
+  }
+  return null;
 };

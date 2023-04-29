@@ -96,7 +96,12 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     const gatewayUrl = cleanupManifestUrl(nodeVersion.manifestUrl);
     console.log('gatewayUrl', gatewayUrl, nodeVersion.manifestUrl);
     const manifest: ResearchObjectV1 = (await axios.get(gatewayUrl)).data;
-    const pdfs = manifest.components.filter((c) => c.type === ResearchObjectComponentType.PDF) as PdfComponent[];
+    /**
+     * Note only starred pdfs are eligible for cover art
+     */
+    const pdfs = manifest.components.filter(
+      (c) => c.type === ResearchObjectComponentType.PDF && c.starred,
+    ) as PdfComponent[];
     console.log('PDFS:::=>>>>>>>>>>>>', pdfs);
     const cid = pdfs[0].payload.url;
 

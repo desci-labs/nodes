@@ -38,7 +38,7 @@ export function fillDirSizes(tree, cidInfoMap) {
   const contains = [];
   tree.forEach((fd) => {
     if (fd.type === 'dir') {
-      fd.size = cidInfoMap[fd.cid].size || 0;
+      fd.size = cidInfoMap[fd.cid]?.size || 0;
       fd.contains = fillDirSizes(fd.contains, cidInfoMap);
     }
     // debugger
@@ -61,7 +61,6 @@ export async function getTreeAndFillSizes(
   dataSrc: DataReferenceSrc,
   ownerId?: number,
 ) {
-  // debugger
   //NOTE/TODO: Adapted for priv(owner) and public (unauthed), may not work for node sharing users(authed/contributors)
   const externalCidMap = await generateExternalCidMap(nodeUuid + '.');
   const tree: RecursiveLsResult[] = await getDirectoryTree(rootCid, externalCidMap);

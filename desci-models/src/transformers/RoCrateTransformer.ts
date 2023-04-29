@@ -76,7 +76,7 @@ export class RoCrateTransformer implements BaseTransformer {
           name: nodeObject.title,
           license: nodeObject.defaultLicense,
           url: nodeObject.dpid
-            ? `https://doi.org/${nodeObject.dpid.prefix}/${nodeObject.dpid.id}`
+            ? `https://${nodeObject.dpid.prefix}.dpid.org/${nodeObject.dpid.id}`
             : undefined,
           creator: authors?.map((a) => ({ "@id": a["@id"] })),
         },

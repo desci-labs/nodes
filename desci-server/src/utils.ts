@@ -9,6 +9,10 @@ import { encode, decode } from 'url-safe-base64';
 
 import { processGithubUrl } from 'utils/githubUtils';
 
+export const hideEmail = (email: string) => {
+  return email.replace(/(.{1,1})(.*)(@.*)/, '$1...$3');
+};
+
 export const encodeBase64UrlSafe = (bytes: Buffer) => {
   return encode(Buffer.from(bytes).toString('base64'));
 };

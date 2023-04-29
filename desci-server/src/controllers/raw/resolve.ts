@@ -64,10 +64,10 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
    *                          if pdf component, send PDF
    *                          if code component, parse file tree suffix after slash and send code text for specified file
    */
-  console.log('req', req.params);
+  console.log('[resolve::resolve] allParams=', req.params);
   const uuid = req.params.query; // TODO: check if we need a dot here
   const [firstParam, secondParam, thirdParam, ...rest] = req.params[0]?.substring(1).split('/');
-  console.log('firstParam,secondParam', firstParam, secondParam);
+  console.log(`[resolve::resolve] firstParam=${firstParam} secondParam=${secondParam}`);
   const decodedUuid = '0x' + decodeBase64UrlSafeToHex(uuid);
 
   // const node = await prisma.node.findFirst({
