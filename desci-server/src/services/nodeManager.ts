@@ -424,12 +424,12 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
         nodeUuid: uuid,
         cid,
         version: version,
-        name: manifest.title,
+        name: manifest.title || '',
       },
       update: {
         url: url,
         cid,
-        name: manifest.title,
+        name: manifest.title || '',
       },
     });
     return { version, uuid, manifestCid };

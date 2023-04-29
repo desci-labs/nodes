@@ -41,7 +41,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     if (!node) throw Error('Node not found');
 
     let version = parseVersion(versionQuery);
-
+    const defaultTitle = '';
     console.log('Version: ', version);
 
     if (version !== undefined) {
@@ -50,7 +50,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
       const meta = await prisma.nodeCover.findFirst({ where: { nodeUuid: uuid, version } });
       if (meta) {
         console.log('Return cached metadata', meta);
-        res.status(200).send({ ok: true, url: meta.url, title: meta.name || node.title });
+        res.status(200).send({ ok: true, url: meta.url, title: meta.name || node.title || defaultTitle });
         return;
       }
     }
@@ -60,7 +60,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     if (cached) {
       const meta = await prisma.nodeCover.findFirst({ where: { nodeUuid: uuid, version: cached.version } });
       if (meta) {
-        res.status(200).send({ ok: true, url: meta.url, title: meta.name || node.title });
+        res.status(200).send({ ok: true, url: meta.url, title: meta.name || node.title || defaultTitle });
         return;
       }
     } else {
@@ -135,6 +135,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
 
     // const prevCover = await prisma.nodeCover.findFirst
 
+    const name = manifest?.title || node.title || defaultTitle;
     await prisma.nodeCover.upsert({
       where: { nodeUuid_version: { nodeUuid: uuid, version } },
       create: {
@@ -142,16 +143,16 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
         nodeUuid: uuid,
         cid,
         version: version,
-        name: manifest?.title || node.title,
+        name,
       },
       update: {
         url: url,
         cid,
-        name: manifest?.title || node.title,
+        name,
       },
     });
 
-    res.send({ ok: true, url: url, title: manifest?.title || node.title });
+    res.send({ ok: true, url: url, title: name });
   } catch (e) {
     console.log('error', e);
     res.status(404).send({ ok: false, message: e.message || 'Error generating cover image' });
