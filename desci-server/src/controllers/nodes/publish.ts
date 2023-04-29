@@ -10,7 +10,6 @@ import { discordNotify } from 'utils/discordUtils';
 // call node publish service and add job to queue
 export const publish = async (req: Request, res: Response, next: NextFunction) => {
   const { uuid, cid, manifest, transactionId } = req.body;
-  debugger;
   const email = (req as any).user.email;
   if (!uuid || !cid || !manifest) {
     return res.status(404).send({ message: 'uuid, cid, and manifest must be valid' });

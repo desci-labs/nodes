@@ -28,6 +28,7 @@ import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driv
 import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
+import { PUBLIC_IPFS_PATH } from 'config';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
@@ -45,6 +46,7 @@ export interface UrlWithCid {
 
 // connect to a different API
 export const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
+export const readerClient = ipfs.create({ url: PUBLIC_IPFS_PATH });
 export const publicIpfs = ipfs.create({ url: process.env.PUBLIC_IPFS_RESOLVER });
 
 export const updateManifestAndAddToIpfs = async (
@@ -298,7 +300,7 @@ export const convertToCidV1 = (cid: string | multiformats.CID): string => {
 export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
   try {
     console.log('[ipfs:resolveIpfsData] START ipfs.cat cid=', cid);
-    const iterable = await client.cat(cid);
+    const iterable = await readerClient.cat(cid);
     console.log('[ipfs:resolveIpfsData] SUCCESS(1/2) ipfs.cat cid=', cid);
     const dataArray = [];
 
@@ -310,10 +312,16 @@ export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
     return Buffer.from(dataArray);
   } catch (err) {
     // console.error('error', err.message);
-    console.error('[ipfs:resolveIpfsData] ERROR ipfs.dag.get', cid);
+    // console.error('[ipfs:resolveIpfsData] ERROR ipfs.dag.get', cid);
     const res = await client.dag.get(multiformats.CID.parse(cid));
+    console.error(
+      `[ipfs:resolveIpfsData] SUCCESS(2/2) DAG, ipfs.dag.get cid=${cid}, bufferLen=${res.value.Data.length}`,
+    );
+    debugger;
+    const arrayBuffer = (res.value.Data as Uint8Array).buffer;
 
-    return Buffer.from((res.value.Data as Uint8Array).buffer);
+    const buffer = Buffer.from(arrayBuffer);
+    return buffer;
   }
 };
 

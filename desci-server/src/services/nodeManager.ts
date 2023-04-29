@@ -109,6 +109,36 @@ export const publishCIDS = async ({
   }
 
   const activeMirrors = (await prisma.ipfsMirror.findMany()).map((mirror) => mirror.id);
+
+  // ensure public data refs staged matches our data bucket cids
+  const latestManifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
+  // const manifestString = manifestBuffer.toString('utf8');
+  if (!latestManifestEntry) {
+    console.error('[node::publishCIDS] ERR: Manifest not found for node', nodeId, 'version', nodeVersionId);
+  } else {
+    console.log(`[node::publishCIDS] manifestString=${latestManifestEntry} cid=${manifestCid}`);
+  }
+
+  const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
+    .cid; //changing the rootCid to the data bucket entry
+  const externalCidMap = await generateExternalCidMap(nodeUuid);
+  const dataBucketCids = await getDirectoryTree(rootCid, externalCidMap);
+  console.log('[node::publishCIDS] dataBucketCids', dataBucketCids);
+
+  const newPublicRefs = publicRefs.map((v) => {
+    const newObj = { ...v };
+    delete newObj.id;
+    delete newObj.versionId;
+    return newObj;
+  });
+  console.log('[node::publishCIDS] publicRefs', newPublicRefs);
+  debugger;
+
+  const createNewPublicDataRefs = prisma.publicDataReference.createMany({
+    data: [...newPublicRefs],
+    skipDuplicates: true,
+  });
+
   const dataOnMirrorReferences: PublicDataReferenceOnIpfsMirror[] = [];
 
   for (const dataReference of publicRefs) {
@@ -140,48 +170,50 @@ export const publishCIDS = async ({
       });
     }
   }
+  console.log('[node::publishCIDS] dataOnMirrorReferences', dataOnMirrorReferences);
+  const createNewIpfsMirrorRefs = prisma.publicDataReferenceOnIpfsMirror.createMany({
+    data: dataOnMirrorReferences,
+    skipDuplicates: true,
+  });
+  const updateDataRefVersionIds = prisma.dataReference.updateMany({
+    data: { versionId: nodeVersionId },
+    where: { id: { in: dataReferences.filter((ref) => ref?.versionId == null).map((ref) => ref.id) } },
+  });
 
-  // ensure public data refs staged matches our data bucket cids
-  const latestManifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
-  // const manifestString = manifestBuffer.toString('utf8');
-  debugger;
-  if (!latestManifestEntry) {
-    console.error('[node::publishCIDS] ERR: Manifest not found for node', nodeId, 'version', nodeVersionId);
-  } else {
-    console.log(`[node::publishCIDS] manifestString=${latestManifestEntry} cid=${manifestCid}`);
-  }
-
-  const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
-    .cid; //changing the rootCid to the data bucket entry
-  const externalCidMap = await generateExternalCidMap(nodeUuid);
-  const dataBucketCids = await getDirectoryTree(rootCid, externalCidMap);
-  console.log('[node::publishCIDS] dataBucketCids', dataBucketCids);
-
-  const [publishCIDRefs, dataOnMirrorRefsResult] = await prisma.$transaction([
-    prisma.publicDataReference.createMany({ data: [...publicRefs], skipDuplicates: true }),
-    prisma.publicDataReferenceOnIpfsMirror.createMany({
-      data: dataOnMirrorReferences,
-      skipDuplicates: true,
-    }),
-    prisma.dataReference.updateMany({
-      data: { versionId: nodeVersionId },
-      where: { id: { in: dataReferences.filter((ref) => ref?.versionId == null).map((ref) => ref.id) } },
-    }),
+  const [publishCIDRefs] = await prisma.$transaction([
+    createNewPublicDataRefs,
+    // createNewIpfsMirrorRefs,
+    // updateDataRefVersionIds,
   ]);
   if (
     publishCIDRefs.count &&
-    publishCIDRefs.count === dataReferences.length &&
-    dataOnMirrorRefsResult &&
-    dataOnMirrorRefsResult.count === dataOnMirrorReferences.length
-  )
+    publishCIDRefs.count === dataReferences.length
+    // &&
+    // dataOnMirrorRefsResult &&
+    // dataOnMirrorRefsResult.count === dataOnMirrorReferences.length
+  ) {
+    console.log(`[node::publishCIDS] Success: Published ${publishCIDRefs.count} refs for node ${nodeId}`);
     return true;
+  }
+  console.log(`[node::publishCIDS] FAIL: Did not publish ${publishCIDRefs.count} refs for node ${nodeId}`);
+  console.log(
+    `[node::publishCIDS] FAIL info nodeId=${nodeId}, publishCIDRefs==${publishCIDRefs.count}=${
+      dataReferences.length
+    } and dataOnMirrorsRefsResult==${0}=${dataOnMirrorReferences.length}`,
+  );
   return false;
 };
 
 async function publishComponent(
   component: ResearchObjectV1Component & { userId: number; nodeId: number; nodeUuid: string },
 ): Promise<boolean> {
-  console.log('node::publishComponent', component.id, component.name, component.type, component.nodeUuid);
+  console.log(
+    '[nodeManager::publishComponent] START',
+    component.id,
+    component.name,
+    component.type,
+    component.nodeUuid,
+  );
   let buffer;
   let payload;
 
@@ -238,7 +270,7 @@ async function publishComponent(
 
                 return cid && cid.length > 0;
               } catch (err) {
-                console.error('[publishComponent::Error]', `cid=${targetCid}`, err.message, err);
+                console.error('[nodeManager::publishComponent] ERR', `cid=${targetCid}`, err.message, err);
                 await prisma.publicDataReferenceOnIpfsMirror.update({
                   data: { status: 'PENDING', retryCount: { increment: 1 } },
                   where: {
