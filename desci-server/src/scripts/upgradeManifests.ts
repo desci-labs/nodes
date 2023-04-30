@@ -6,8 +6,17 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
-import { persistManifest } from 'controllers/data/utils';
-import { client, createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree } from 'services/ipfs';
+import { persistManifest, PersistManifestParams } from 'controllers/data/utils';
+import { cleanupManifestUrl } from 'controllers/nodes';
+import {
+  client,
+  createDag,
+  createEmptyDag,
+  FilesToAddToDag,
+  getDirectoryTree,
+  strIsCid,
+  updateManifestAndAddToIpfs,
+} from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
 import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
 
@@ -24,22 +33,26 @@ export async function upgradeManifestsScript() {
 
   const nodes = await prisma.node.findMany({
     orderBy: {
-      id: 'desc',
+      id: 'asc',
     },
   });
   console.log(`[TRANSFORMER]Nodes found: ${nodes.length}`);
 
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    console.log(`[TRANSFORMER]Transforming node ${i}, node uuid: ${node.uuid}`);
+    console.log(`[TRANSFORMER]Transforming node ${i}, node uuid: ${node.uuid}, nodeId: ${node.id}`);
     let manifestObj;
     // const uuid = node.uuid;
     try {
-      manifestObj = (await axios.get(`${PUBLIC_IPFS_PATH}/${node.manifestUrl}`)).data;
+      const manifestUrl = cleanupManifestUrl(node.manifestUrl);
+      manifestObj = (await axios.get(manifestUrl)).data;
       if (!manifestObj) throw 'Manifest not found';
     } catch (e) {
-      console.log(e);
-      process.exit(404);
+      console.log(
+        `[TRANSFORMER]Failed to fetch manifest, skipping nodeId: ${node.id}, uuid: ${node.uuid}, error: ${e}`,
+      );
+      continue;
+      // process.exit(404);
     }
     // Verify node ownership
     // const node = await prisma.node.findFirst({
@@ -76,42 +89,66 @@ export async function upgradeManifestsScript() {
     const idsEncountered = [];
     const pathsEncountered = [];
 
-    manifestObj.components.forEach((c) => {
-      const uniqueId = ensureUniqueString(c.id, idsEncountered);
-      idsEncountered.push(uniqueId);
-      if (c.id !== uniqueId) c.id = uniqueId;
-      c.starred = true;
-      let path: string;
-      let uniqueName: string;
-      switch (c.type) {
-        case ResearchObjectComponentType.PDF:
-          path = ensureUniqueString(`${rootPath}/${researchReportPath}/${c.name}`, pathsEncountered);
-          pathsEncountered.push(path);
-          uniqueName = path.split('/').pop();
-          if (uniqueName !== c.name) c.name = uniqueName;
-          researchReportsDagFiles[c.name] = { cid: c.payload.url };
-          c.payload.path = path;
-          return;
-        case ResearchObjectComponentType.CODE:
-          path = ensureUniqueString(`${rootPath}/${codeReposPath}/${c.name}`, pathsEncountered);
-          pathsEncountered.push(path);
-          uniqueName = path.split('/').pop();
-          if (uniqueName !== c.name) c.name = uniqueName;
-          codeReposDagFiles[c.name] = { cid: c.payload.url };
-          c.payload.path = path;
-          return;
-        case ResearchObjectComponentType.DATA:
-          path = ensureUniqueString(`${rootPath}/${dataPath}/${c.name}`, pathsEncountered);
-          pathsEncountered.push(path);
-          uniqueName = path.split('/').pop();
-          if (uniqueName !== c.name) c.name = uniqueName;
-          dataDagFiles[c.name] = { cid: c.payload.cid };
-          c.payload.path = path;
-          return;
-        default:
-          return;
-      }
-    });
+    try {
+      manifestObj.components.forEach((c) => {
+        const uniqueId = ensureUniqueString(c.id, idsEncountered);
+        idsEncountered.push(uniqueId);
+        if (c.id !== uniqueId) c.id = uniqueId;
+        c.starred = true;
+        let path: string;
+        let uniqueName: string;
+        switch (c.type) {
+          case ResearchObjectComponentType.PDF:
+            path = ensureUniqueString(`${rootPath}/${researchReportPath}/${c.name}`, pathsEncountered);
+            pathsEncountered.push(path);
+            uniqueName = path.split('/').pop();
+            if (uniqueName !== c.name) c.name = uniqueName;
+            if (strIsCid(c.payload.url)) {
+              researchReportsDagFiles[c.name] = { cid: c.payload.url };
+            } else if (strIsCid(c.payload.url.split('/').pop())) {
+              researchReportsDagFiles[c.name] = { cid: c.payload.url.split('/').pop() };
+            } else {
+              console.log(
+                `[TRANSFORMER]Invalid PDF cid, skipping nodeId: ${node.id}, uuid: ${node.uuid}, cid provided: ${c.payload.url}`,
+              );
+              throw 'Invalid PDF cid';
+            }
+            c.payload.path = path;
+            return;
+          case ResearchObjectComponentType.CODE:
+            path = ensureUniqueString(`${rootPath}/${codeReposPath}/${c.name}`, pathsEncountered);
+            pathsEncountered.push(path);
+            uniqueName = path.split('/').pop();
+            if (uniqueName !== c.name) c.name = uniqueName;
+            if (strIsCid(c.payload.url)) {
+              codeReposDagFiles[c.name] = { cid: c.payload.url };
+            } else if (strIsCid(c.payload.url.split('/').pop())) {
+              codeReposDagFiles[c.name] = { cid: c.payload.url.split('/').pop() };
+            } else {
+              console.log(
+                `[TRANSFORMER]Invalid Code cid, skipping nodeId: ${node.id}, uuid: ${node.uuid}, cid provided: ${c.payload.url}`,
+              );
+              throw 'Invalid Code cid';
+            }
+            c.payload.path = path;
+            return;
+          case ResearchObjectComponentType.DATA:
+            path = ensureUniqueString(`${rootPath}/${dataPath}/${c.name}`, pathsEncountered);
+            pathsEncountered.push(path);
+            uniqueName = path.split('/').pop();
+            if (uniqueName !== c.name) c.name = uniqueName;
+            dataDagFiles[c.name] = { cid: c.payload.cid };
+            c.payload.path = path;
+            return;
+          default:
+            return;
+        }
+      });
+    } catch (e) {
+      console.log(e);
+      continue;
+      // process.exit(404);
+    }
 
     const emptyDag = await createEmptyDag();
 
@@ -151,7 +188,7 @@ export async function upgradeManifestsScript() {
         cid: rootDagCidStr,
       },
     };
-    manifestObj.components.push(dataBucketComponent);
+    manifestObj.components.unshift(dataBucketComponent);
     manifestObj = addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
 
     const dagTree = await getDirectoryTree(rootDagCid, {});
@@ -223,8 +260,49 @@ export async function upgradeManifestsScript() {
 
     manifestObj.version = 'desci-nodes-0.2.0';
     // Persist new manifest to db
-    const { persistedManifestCid } = await persistManifest({ manifest: manifestObj, node, userId: node.ownerId });
+    const { persistedManifestCid } = await persistManifestTimePreserved({
+      manifest: manifestObj,
+      node,
+      userId: node.ownerId,
+      updatedAt: node.updatedAt,
+    });
     if (!persistedManifestCid)
       throw Error(`Failed to persist manifest during upgrade, node: ${node}, userId: ${node.ownerId}`);
+    console.log(`[TRANSFORMER]iteration ${i} successfully completed, node uuid: ${node.uuid}, nodeId: ${node.id}`);
   }
+}
+
+export async function persistManifestTimePreserved({
+  manifest,
+  node,
+  userId,
+  updatedAt,
+}: PersistManifestParams & { updatedAt: Date }) {
+  if (node.ownerId !== userId) {
+    console.log(`User: ${userId} doesnt own node ${node.id}`);
+    throw Error(`User: ${userId} doesnt own node ${node.id}`);
+  }
+
+  try {
+    const {
+      cid,
+      ref: dataRef,
+      nodeVersion,
+    } = await updateManifestAndAddToIpfs(manifest, { userId: node.ownerId, nodeId: node.id });
+
+    const updated = await prisma.node.update({
+      where: {
+        id: node.id,
+      },
+      data: {
+        manifestUrl: cid,
+        updatedAt,
+      },
+    });
+
+    if (updated && nodeVersion && dataRef) return { persistedManifestCid: cid, date: dataRef.updatedAt, nodeVersion };
+  } catch (e: any) {
+    console.error(`failed persisting manifest, manifest: ${manifest}, dbnode: ${node}, userId: ${userId}, e: ${e}`);
+  }
+  return { persistedManifestCid: null, date: null };
 }
