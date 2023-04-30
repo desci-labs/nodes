@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: default-http-backend
+  namespace: hardhat
+  labels:
+    app: hardhat-private-chain
+spec:
+  selector:
+    app: hardhat-private-chain
+  ports:
+    - protocol: TCP
+      port: 8545
+      targetPort: 8545
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hardhat-private-chain
+  namespace: hardhat
+  labels:
+    app: hardhat-private-chain
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hardhat-private-chain
+  template:
+    metadata:
+      labels:
+        app: hardhat-private-chain
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: beta.kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+      containers:
+      - name: hardhat-image
+        image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node
+        ports:
+        - containerPort: 8545
+          hostPort: 8545
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minimal-ingress
+  namespace: hardhat
+spec:
+  defaultBackend:
+    service:
+      name: default-http-backend
+      port:
+        number: 8545

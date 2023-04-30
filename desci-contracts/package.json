@@ -1,0 +1,61 @@
+{
+  "name": "@desci-labs/desci-contracts",
+  "description": "Smart contracts implementing DeSci Nodes on-chain state and logic",
+  "version": "0.2.0",
+  "license": "BSD-4-Clause",
+  "scripts": {
+    "test": "npx hardhat test",
+    "docker:build": "docker build -t desci-hardhat-node .",
+    "docker:push": "docker tag desci-hardhat-node:latest 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest && docker push 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest",
+    "deploy:ganache": "yarn stubHardhatAnalytics && rm -f ./.openzeppelin/unknown-1337.json ; rm -f ./.openzeppelin/unknown-research-object.json ; npx hardhat run scripts/deployResearchObject.js --network ganache && mv ./.openzeppelin/unknown-1337.json ./.openzeppelin/unknown-research-object.json",
+    "deploy:dpid:ganache": "yarn stubHardhatAnalytics && rm -f ./.openzeppelin/unknown-1337.json ; rm -f ./.openzeppelin/unknown-dpid.json ; npx hardhat run scripts/deployDpidRegistry.js --network ganache  && mv ./.openzeppelin/unknown-1337.json ./.openzeppelin/unknown-dpid.json",
+    "graph:codegen": "graph codegen subgraph/subgraph.yaml -o subgraph/generated",
+    "graph:build": "graph build subgraph/subgraph.yaml",
+    "graph:create-local": "graph create nodes --node http://127.0.0.1:8020 subgraph/subgraph.yaml",
+    "graph:deploy-local": "graph deploy nodes --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020 -l v0.0.1 subgraph/subgraph.yaml",
+    "graph:create-docker": "graph create nodes --node http://host.docker.internal:8020 subgraph/subgraph.yaml",
+    "graph:deploy-docker": "graph deploy nodes --ipfs http://host.docker.internal:5001 --node http://host.docker.internal:8020 -l v0.0.1 subgraph/subgraph.yaml",
+    "graph:create-dev-local": "cp subgraph/subgraph.local.yaml subgraph/subgraph.yaml && graph create nodes --node http://127.0.0.1:8020",
+    "graph:deploy-dev-local": "cp subgraph/subgraph.local.yaml subgraph/subgraph.yaml && graph deploy nodes --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020",
+    "upgrade:local": "npx hardhat run scripts/upgradeResearchObject.js --network ganache",
+    "stubHardhatAnalytics": "scripts/stubHardhatAnalytics.sh"
+  },
+  "files": [
+    "/.openzeppelin",
+    "/typechain-types"
+  ],
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "^0.30.2",
+    "@graphprotocol/graph-ts": "^0.27.0",
+    "@nomiclabs/hardhat-ethers": "^2.0.0",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/contracts-upgradeable": "^4.7.3",
+    "@openzeppelin/hardhat-upgrades": "^1.20.0",
+    "@typechain/ethers-v5": "^9.0.0",
+    "@typechain/hardhat": "^4.0.0",
+    "@types/chai": "^4.2.21",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^16.4.10",
+    "as-base64": "^0.2.0",
+    "chai": "^4.3.4",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.4.4",
+    "ganache-cli": "^6.12.2",
+    "hardhat": "^2.5.0",
+    "hardhat-deploy": "^0.8.11",
+    "hardhat-deploy-ethers": "^0.3.0-beta.10",
+    "hardhat-gas-reporter": "^1.0.4",
+    "mocha": "^9.0.3",
+    "ts-generator": "^0.1.1",
+    "ts-morph": "^11.0.3",
+    "ts-node": "^10.1.0",
+    "typechain": "^7.0.0",
+    "typescript": "^4.3.5"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.8.1",
+    "cids": "^1.1.9",
+    "dotenv": "^10.0.0",
+    "openzeppelin-solidity": "https://github.com/OpenZeppelin/openzeppelin-contracts#dc739dcbe34fb0c7b15c4e197c6ba3fe9b0c8946"
+  }
+}

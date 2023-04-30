@@ -1,0 +1,1054 @@
+digraph dbml {
+      rankdir=LR;
+      graph [fontname="helvetica", fontsize=32, fontcolor="#29235c", bgcolor="transparent"];
+      node [penwidth=0, margin=0, fontname="helvetica", fontsize=32, fontcolor="#29235c"];
+      edge [fontname="helvetica", fontsize=32, fontcolor="#29235c", color="#29235c"];
+
+      "ChainTransactionType" [id=ChainTransactionType;label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10">
+    <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#29235c"><font color="#ffffff"><B>       ChainTransactionType       </B></font></TD></TR>
+    <TR><TD PORT="f0" BGCOLOR="#e7e2dd"><font color="#1d71b8"><i>    DISCOVERY_MINT    </i></font></TD></TR>
+<TR><TD PORT="f1" BGCOLOR="#e7e2dd"><font color="#1d71b8"><i>    DISCOVERY_UPDATE    </i></font></TD></TR>
+<TR><TD PORT="f2" BGCOLOR="#e7e2dd"><font color="#1d71b8"><i>    DISCOVERY_VOTE    </i></font></TD></TR>
+    </TABLE>>];
+"DiscoveryState" [id=DiscoveryState;label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10">
+    <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#29235c"><font color="#ffffff"><B>       DiscoveryState       </B></font></TD></TR>
+    <TR><TD PORT="f0" BGCOLOR="#e7e2dd"><font color="#1d71b8"><i>    NEW    </i></font></TD></TR>
+<TR><TD PORT="f1" BGCOLOR="#e7e2dd"><font color="#1d71b8"><i>    PENDING_DAO_APPROVAL    </i></font></TD></TR>
+<TR><TD PORT="f2" BGCOLOR="#e7e2dd"><font color="#1d71b8"><i>    DAO_APPROVED    </i></font></TD></TR>
+<TR><TD PORT="f3" BGCOLOR="#e7e2dd"><font color="#1d71b8"><i>    PENDING_VALIDATION    </i></font></TD></TR>
+<TR><TD PORT="f4" BGCOLOR="#e7e2dd"><font color="#1d71b8"><i>    VALIDATED    </i></font></TD></TR>
+<TR><TD PORT="f5" BGCOLOR="#e7e2dd"><font color="#1d71b8"><i>    WITHDRAWN    </i></font></TD></TR>
+    </TABLE>>];
+      
+      
+      "Discovery" [id="Discovery";label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10" >
+      <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#1d71b8"><font color="#ffffff"><B>       Discovery       </B></font></TD></TR>
+<TR><TD ALIGN="left" PORT="f1" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>id</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f2" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">createdAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f3" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">updatedAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f4" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">title<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f5" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">state<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryState</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f6" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">isFeatured<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Boolean</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f7" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">isBreakthrough<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Boolean</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f8" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">manifestUrl<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f9" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">replicationFactor<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f10" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">transactions<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>ChainTransaction</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f11" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">owner<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>User</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f12" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">ownerId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f13" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">vault<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Vault</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f14" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">vaultId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f15" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">authors<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryAuthor</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f16" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">votes<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryVote</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f17" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">reviews<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryReview</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f18" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">versions<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryVersion</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f19" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">authorInvites<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>AuthorInvite</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+    </TABLE>>];
+"DiscoveryVersion" [id="DiscoveryVersion";label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10" >
+      <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#1d71b8"><font color="#ffffff"><B>       DiscoveryVersion       </B></font></TD></TR>
+<TR><TD ALIGN="left" PORT="f1" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>id</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f2" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">createdAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f3" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">updatedAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f4" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">manifestUrl<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f5" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discovery<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Discovery</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f6" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discoveryId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+    </TABLE>>];
+"User" [id="User";label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10" >
+      <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#1d71b8"><font color="#ffffff"><B>       User       </B></font></TD></TR>
+<TR><TD ALIGN="left" PORT="f1" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>id</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f2" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">createdAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f3" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">updatedAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f4" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">email<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f5" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">phoneNumber<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f6" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">name<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f7" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">walletAddress<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f8" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">isPatron<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Boolean</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f9" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">isWarden<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Boolean</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f10" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">isKeeper<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Boolean</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f11" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">ownedDiscoveries<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Discovery</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f12" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">authoredDiscoveries<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryAuthor</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f13" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discoveryVotes<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryVote</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f14" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">reviews<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryReview</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f15" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">reviewVotes<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryReviewVote</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f16" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">invitesSent<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Invite</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f17" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">invitesReceived<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Invite</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f18" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">sentTransactions<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>ChainTransaction</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f19" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">receivedTransactions<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>ChainTransaction</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f20" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">authorInvitesSent<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>AuthorInvite</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f21" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">authorInvitesReceived<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>AuthorInvite</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+    </TABLE>>];
+"Invite" [id="Invite";label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10" >
+      <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#1d71b8"><font color="#ffffff"><B>       Invite       </B></font></TD></TR>
+<TR><TD ALIGN="left" PORT="f1" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>id</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f2" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">createdAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f3" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">updatedAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f4" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">email<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f5" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">phoneNumber<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f6" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">sender<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>User</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f7" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">senderId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f8" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">receiver<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>User</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f9" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">receiverId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+    </TABLE>>];
+"AuthorInvite" [id="AuthorInvite";label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10" >
+      <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#1d71b8"><font color="#ffffff"><B>       AuthorInvite       </B></font></TD></TR>
+<TR><TD ALIGN="left" PORT="f1" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>id</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f2" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">createdAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f3" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">updatedAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f4" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">email<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f5" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">phoneNumber<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f6" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discovery<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Discovery</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f7" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discoveryId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f8" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">sender<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>User</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f9" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">senderId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f10" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">receiver<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>User</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f11" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">receiverId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+    </TABLE>>];
+"DiscoveryAuthor" [id="DiscoveryAuthor";label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10" >
+      <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#1d71b8"><font color="#ffffff"><B>       DiscoveryAuthor       </B></font></TD></TR>
+<TR><TD ALIGN="left" PORT="f1" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">createdAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f2" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">updatedAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f3" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">shares<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f4" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">user<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>User</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f5" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>userId</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f6" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discovery<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Discovery</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f7" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>discoveryId</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+    </TABLE>>];
+"DiscoveryVote" [id="DiscoveryVote";label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10" >
+      <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#1d71b8"><font color="#ffffff"><B>       DiscoveryVote       </B></font></TD></TR>
+<TR><TD ALIGN="left" PORT="f1" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>id</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f2" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">createdAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f3" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">updatedAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f4" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">voteWeight<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f5" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">transaction<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>ChainTransaction</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f6" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">user<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>User</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f7" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">userId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f8" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discovery<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Discovery</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f9" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discoveryId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+    </TABLE>>];
+"DiscoveryReview" [id="DiscoveryReview";label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10" >
+      <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#1d71b8"><font color="#ffffff"><B>       DiscoveryReview       </B></font></TD></TR>
+<TR><TD ALIGN="left" PORT="f1" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>id</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f2" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">createdAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f3" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">updatedAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f4" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">owner<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>User</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f5" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">ownerId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f6" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discovery<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Discovery</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f7" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discoveryId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f8" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">votes<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryReviewVote</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+    </TABLE>>];
+"DiscoveryReviewVote" [id="DiscoveryReviewVote";label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10" >
+      <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#1d71b8"><font color="#ffffff"><B>       DiscoveryReviewVote       </B></font></TD></TR>
+<TR><TD ALIGN="left" PORT="f1" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">createdAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f2" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">updatedAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f3" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">voteWeight<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f4" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">user<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>User</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f5" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>userId</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f6" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discoveryReview<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryReview</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f7" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>discoveryReviewId</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+    </TABLE>>];
+"Vault" [id="Vault";label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10" >
+      <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#1d71b8"><font color="#ffffff"><B>       Vault       </B></font></TD></TR>
+<TR><TD ALIGN="left" PORT="f1" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>id</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f2" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">createdAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f3" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">updatedAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f4" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">name<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f5" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">description<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f6" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">Discovery<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Discovery</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f7" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">transactions<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>ChainTransaction</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+    </TABLE>>];
+"ChainTransaction" [id="ChainTransaction";label=<<TABLE BORDER="2" COLOR="#29235c" CELLBORDER="1" CELLSPACING="0" CELLPADDING="10" >
+      <TR><TD PORT="f0" WIDTH="150" BGCOLOR="#1d71b8"><font color="#ffffff"><B>       ChainTransaction       </B></font></TD></TR>
+<TR><TD ALIGN="left" PORT="f1" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT"><b>id</b><FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f2" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">createdAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f3" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">updatedAt<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DateTime</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f4" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">hash<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>String</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f5" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">type<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>ChainTransactionType</i> <b>(!)</b></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f6" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discovery<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Discovery</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f7" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discoveryId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f8" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">user<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>User</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f9" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">userId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f10" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">targetUser<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>User</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f11" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">targetUserId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f12" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">vault<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Vault</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f13" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">vaultId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f14" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discoveryVote<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>DiscoveryVote</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+<TR><TD ALIGN="left" PORT="f15" BGCOLOR="#e7e2dd">
+      <TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TR>
+          <TD ALIGN="LEFT">discoveryVoteId<FONT>    </FONT></TD>
+          <TD ALIGN="RIGHT"><font><i>Int</i></font></TD>
+        </TR>
+      </TABLE>
+    </TD></TR>
+    </TABLE>>];
+    
+      "Discovery":f0 -> "User":f0 [style=invis, weight=100, color=red]
+    "Discovery":f12:e -> "User":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"Discovery":f0 -> "Vault":f0 [style=invis, weight=100, color=red]
+    "Discovery":f14:e -> "Vault":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"DiscoveryVersion":f0 -> "Discovery":f0 [style=invis, weight=100, color=red]
+    "DiscoveryVersion":f6:e -> "Discovery":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"Invite":f0 -> "User":f0 [style=invis, weight=100, color=red]
+    "Invite":f7:e -> "User":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"Invite":f0 -> "User":f0 [style=invis, weight=100, color=red]
+    "Invite":f9:e -> "User":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"AuthorInvite":f0 -> "Discovery":f0 [style=invis, weight=100, color=red]
+    "AuthorInvite":f7:e -> "Discovery":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"AuthorInvite":f0 -> "User":f0 [style=invis, weight=100, color=red]
+    "AuthorInvite":f9:e -> "User":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"AuthorInvite":f0 -> "User":f0 [style=invis, weight=100, color=red]
+    "AuthorInvite":f11:e -> "User":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"DiscoveryAuthor":f0 -> "User":f0 [style=invis, weight=100, color=red]
+    "DiscoveryAuthor":f5:e -> "User":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"DiscoveryAuthor":f0 -> "Discovery":f0 [style=invis, weight=100, color=red]
+    "DiscoveryAuthor":f7:e -> "Discovery":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"DiscoveryVote":f0 -> "User":f0 [style=invis, weight=100, color=red]
+    "DiscoveryVote":f7:e -> "User":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"DiscoveryVote":f0 -> "Discovery":f0 [style=invis, weight=100, color=red]
+    "DiscoveryVote":f9:e -> "Discovery":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"DiscoveryReview":f0 -> "User":f0 [style=invis, weight=100, color=red]
+    "DiscoveryReview":f5:e -> "User":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"DiscoveryReview":f0 -> "Discovery":f0 [style=invis, weight=100, color=red]
+    "DiscoveryReview":f7:e -> "Discovery":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"DiscoveryReviewVote":f0 -> "User":f0 [style=invis, weight=100, color=red]
+    "DiscoveryReviewVote":f5:e -> "User":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"DiscoveryReviewVote":f0 -> "DiscoveryReview":f0 [style=invis, weight=100, color=red]
+    "DiscoveryReviewVote":f7:e -> "DiscoveryReview":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"ChainTransaction":f0 -> "Discovery":f0 [style=invis, weight=100, color=red]
+    "ChainTransaction":f7:e -> "Discovery":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"ChainTransaction":f0 -> "User":f0 [style=invis, weight=100, color=red]
+    "ChainTransaction":f9:e -> "User":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"ChainTransaction":f0 -> "User":f0 [style=invis, weight=100, color=red]
+    "ChainTransaction":f11:e -> "User":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"ChainTransaction":f0 -> "Vault":f0 [style=invis, weight=100, color=red]
+    "ChainTransaction":f13:e -> "Vault":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="*", arrowhead="normal", arrowtail="none"]
+"ChainTransaction":f0 -> "DiscoveryVote":f0 [style=invis, weight=100, color=red]
+    "ChainTransaction":f15:e -> "DiscoveryVote":f1:w [penwidth=3, color="#29235c", headlabel="1", taillabel="1", arrowhead="normal", arrowtail="none"]
+      "Discovery":f5:e -> "DiscoveryState":f0:w [penwidth=3, color="#29235c", arrowhead="none", arrowtail="none"]
+"ChainTransaction":f5:e -> "ChainTransactionType":f0:w [penwidth=3, color="#29235c", arrowhead="none", arrowtail="none"]
+    }

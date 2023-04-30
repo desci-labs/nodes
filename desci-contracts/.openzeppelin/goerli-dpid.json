@@ -1,0 +1,167 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0x3caE39179eB8Ba9715238072B992AF3300b8783b",
+    "txHash": "0x115c37fff47c10cbc3e26309747d0537ac9dbe2510f973d917eae32df8d125ac"
+  },
+  "proxies": [
+    {
+      "address": "0xd92C9cC823926145b89263cd3A4CeD6161a8bDD5",
+      "txHash": "0x4d05473391cb5ff8a974906e9e85885ff9f13d80c99a1d6c422a2017c0713740",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "7d36eb1fb5509724c9c86e5567a213c3dc9d83c3cbe4f6b633ad300b6ccc8728": {
+      "address": "0xc5abc8947631c4b03A1924BE95F3a678eF2F2112",
+      "txHash": "0x69d7d23e8ce2f5bb6f66643ce348ec2c5b9f2f0ca6703658bf8e1d865ce1d22b",
+      "layout": {
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "organizations",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_mapping(t_bytes32,t_struct(Organization)3150_storage)",
+            "contract": "DpidRegistry",
+            "src": "contracts/DpidRegistry.sol:36"
+          },
+          {
+            "label": "_fee",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_uint256",
+            "contract": "DpidRegistry",
+            "src": "contracts/DpidRegistry.sol:39"
+          },
+          {
+            "label": "_orgFee",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_uint256",
+            "contract": "DpidRegistry",
+            "src": "contracts/DpidRegistry.sol:42"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(Organization)3150_storage)": {
+            "label": "mapping(bytes32 => struct DpidRegistry.Organization)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Organization)3150_storage": {
+            "label": "struct DpidRegistry.Organization",
+            "members": [
+              {
+                "label": "prefix",
+                "type": "t_bytes32",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "registrant",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "tokenGate",
+                "type": "t_array(t_address)dyn_storage",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "entries",
+                "type": "t_mapping(t_uint256,t_uint256)",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "count",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    }
+  }
+}

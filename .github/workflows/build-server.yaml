@@ -1,0 +1,170 @@
+# build.yml
+on:
+  # pull_request:
+  #   paths:
+  #   - desci-server/**
+  push:
+    paths:
+      - .github/workflows/**
+      - desci-server/**
+      - desci-contracts/**
+      - Dockerfile
+    branches: # array of glob patterns matching against refs/heads. Optional; defaults to all
+      - main # triggers on pushes that contain changes
+      - develop
+      - demo
+
+  # TODO: add prod env
+
+name: Build desci-server
+
+# https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
+env:
+  AWS_DEFAULT_REGION: us-east-2
+  AWS_DEFAULT_OUTPUT: json
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  CONTAINER_IMAGE: desci-server
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  build-and-push:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hashicorp/setup-terraform@v1
+      - name: Checkout
+        uses: actions/checkout@master
+
+      # Add steps here like linting, testing, minification, etc.
+      - id: install-aws-cli
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 1
+
+      - uses: prepor/action-aws-iam-authenticator@master
+      - run: aws-iam-authenticator version
+
+      - name: Install Kubectl
+        run: |
+          #$(curl -Ls https://dl.k8s.io/release/stable.txt)
+          version=v1.23.6
+          echo "using kubectl@$version"
+          curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          mkdir $HOME/.kube
+          sudo apt-get update
+          sudo apt-get install less
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+          aws sts get-caller-identity
+          kubectl describe deployments
+
+      # - name: Check Docker Version
+      #   run: docker --version
+      # - name: Install Latest Docker
+      #   run: |
+      #     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+      #     sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
+      #     sudo apt-get update
+      #     sudo apt-get install docker-ce
+      # - name: Check Docker Version
+      #   run: docker --version
+
+      - name: Stub contract
+        run: |
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
+
+      - name: Build and tag the image (DEV)
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          # Build and tag the image
+          docker build \
+            -t $CONTAINER_IMAGE-dev:latest \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev \
+             .
+
+      - name: Build and tag the image (DEMO)
+        if: github.ref == 'refs/heads/demo'
+        run: |
+          # Build and tag the image
+          docker build \
+            -t $CONTAINER_IMAGE-demo:latest \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo \
+             .
+
+      - name: Build and tag the image (PROD)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Build and tag the image
+          docker build \
+            -t $CONTAINER_IMAGE:latest \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
+             .
+
+      # Add additional steps here like scanning of image
+
+      # Only push to registry on dev
+      - name: Push (DEV)
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          # Push image to AWS ECR
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          docker tag $CONTAINER_IMAGE-dev:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE-dev:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:latest
+
+      - name: Push (DEMO)
+        if: github.ref == 'refs/heads/demo'
+        run: |
+          # Push image to AWS ECR
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          docker tag $CONTAINER_IMAGE-demo:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE-demo:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:latest
+
+      - name: Push (PROD)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Push image to AWS ECR
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
+
+      - name: Deploy to EKS (DEV)
+        # uses: steebchen/kubectl@v2.0.0
+        if: github.ref == 'refs/heads/develop'
+        run: | # defaults to latest kubectl binary version
+          kubectl set image deployment/desci-server-dev desci-server-dev=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} --record
+
+      - name: Deploy to EKS (DEMO)
+        # uses: steebchen/kubectl@v2.0.0
+        if: github.ref == 'refs/heads/demo'
+        run: | # defaults to latest kubectl binary version
+          kubectl set image deployment/desci-server-demo desci-server-demo=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }} --record
+
+      - name: Deploy to EKS (PROD)
+        if: github.ref == 'refs/heads/main'
+        run: | # defaults to latest kubectl binary version
+          kubectl set image deployment/desci-server desci-server=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} --record
+
+      - name: Verify EKS Deployment (DEV)
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          kubectl rollout status deployment/desci-server-dev
+
+      - name: Verify EKS Deployment (DEMO)
+        if: github.ref == 'refs/heads/demo'
+        run: |
+          kubectl rollout status deployment/desci-server-demo
+
+      - name: Verify EKS Deployment (PROD)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl rollout status deployment/desci-server

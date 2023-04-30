@@ -1,0 +1,38 @@
+{
+  "@context": "https://w3id.org/ro/crate/1.1/context",
+  "@graph": [
+    {
+      "@type": "CreativeWork",
+      "@id": "ro-crate-metadata.json",
+      "conformsTo": { "@id": "https://w3id.org/ro/crate/1.1" },
+      "about": { "@id": "./" }
+    },
+    {
+      "@id": "./",
+      "@type": ["Dataset"],
+      "hasPart": [
+        {
+          "@id": "survey-responses-2019.csv"
+        },
+        {
+          "@id": "https://zenodo.org/record/3541888/files/ro-crate-1.0.0.pdf"
+        }
+      ]
+    },
+    {
+      "@id": "survey-responses-2019.csv",
+      "@type": "File",
+      "name": "Survey responses",
+      "contentSize": "26452",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@id": "https://zenodo.org/record/3541888/files/ro-crate-1.0.0.pdf",
+      "@type": "File",
+      "name": "RO-Crate specification",
+      "contentSize": "310691",
+      "description": "RO-Crate specification",
+      "encodingFormat": "application/pdf"
+    }
+  ]
+}

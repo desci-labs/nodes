@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  desci_nodes_backend:
+    container_name: "desci_nodes_backend"
+    build: .
+    restart: always
+    volumes:
+      - .:/app/
+      - /app/node_modules

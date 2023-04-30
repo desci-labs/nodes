@@ -1,0 +1,26 @@
+{
+  "extends": ["config:base"],
+  "separateMinorPatch": true,
+  "assignees": ["mkosir"],
+  "assignAutomerge": true,
+  "requiredStatusChecks": null,
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "major"],
+      "enabled": false
+    },
+    {
+      "automerge": true,
+      "labels": ["automerge", "dependencies", "patch"],
+      "groupName": "group:dependencies",
+      "matchDepTypes": ["dependencies"]
+    },
+    {
+      "automerge": true,
+      "labels": ["automerge", "devDependencies", "patch"],
+      "groupName": "group:devDependencies",
+      "matchDepTypes": ["devDependencies"]
+    }
+  ]
+}

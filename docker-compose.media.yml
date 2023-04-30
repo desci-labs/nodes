@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+  nodes_media:
+    container_name: 'nodes_media'
+    build: ./nodes-media
+    restart: always
+    entrypoint: /bin/sh './scripts/nodes-media-dev.sh'
+    env_file:
+      - ./nodes-media/.env
+    ports:
+      - '5454:5454'
+      - '9230:9230'
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./nodes-media:/app/
+      - /app/node_modules
+      - ./local-data/yarn_cache:/root/.yarn

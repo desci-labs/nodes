@@ -1,0 +1,5 @@
+node_modules/
+dist/
+src/**/*-ti.ts
+.nyc_output
+coverage

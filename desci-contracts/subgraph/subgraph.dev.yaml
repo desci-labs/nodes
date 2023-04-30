@@ -1,0 +1,27 @@
+specVersion: 0.0.4
+description: DeSci Nodes
+repository: https://github.com/desci-labs/nodes-subgraph
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: DeSciNodes
+    network: goerli
+    source:
+      address: "0x47104e854aFCd127D38C4912D08b56b8Ab725007"
+      abi: ResearchObject
+      startBlock: 7430406
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.5
+      language: wasm/assemblyscript
+      entities:
+        - ResearchObject
+        - ResearchObjectVersion
+      abis:
+        - name: ResearchObject
+          file: ../artifacts/contracts/ResearchObject.sol/ResearchObject.json
+      eventHandlers:
+        - event: VersionPush(indexed address,indexed uint256,bytes)
+          handler: handleVersionPush
+      file: ./mapping.ts

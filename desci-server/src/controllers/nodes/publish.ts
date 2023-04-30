@@ -1,0 +1,164 @@
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { ActionType, Prisma } from '@prisma/client';
+import { Request, Response, NextFunction } from 'express';
+
+import prisma from 'client';
+import { saveInteraction } from 'services/interactionLog';
+import {
+  publishResearchObject,
+  cacheNodeMetadata,
+  getAllCidsRequiredForPublish,
+  createPublicDataRefs,
+  createDataMirrorJobs,
+} from 'services/nodeManager';
+import { discordNotify } from 'utils/discordUtils';
+
+// call node publish service and add job to queue
+export const publish = async (req: Request, res: Response, next: NextFunction) => {
+  debugger;
+  const { uuid, cid, manifest, transactionId } = req.body;
+  const email = (req as any).user.email;
+  if (!uuid || !cid || !manifest) {
+    return res.status(404).send({ message: 'uuid, cid, and manifest must be valid' });
+  }
+
+  try {
+    /**TODO: MOVE TO MIDDLEWARE */
+    const owner = await prisma.user.findFirst({
+      where: {
+        email,
+      },
+    });
+
+    if (!owner.id || owner.id < 1) {
+      throw Error('User ID mismatch');
+    }
+
+    const node = await prisma.node.findFirst({
+      where: {
+        ownerId: owner.id,
+        uuid: uuid + '.',
+      },
+    });
+    if (!node) {
+      console.log(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
+      return res.status(400).json({ error: 'failed' });
+    }
+    /**TODO: END MOVE TO MIDDLEWARE */
+
+    // update node version
+    const nodeVersion = await prisma.nodeVersion.create({
+      data: {
+        nodeId: node.id,
+        manifestUrl: cid,
+        transactionId,
+      },
+    });
+
+    console.log(`[publish::publish] nodeUuid=${node.uuid}, manifestCid=${cid}, transaction=${transactionId}`);
+
+    const cidsPayload = {
+      nodeId: node.id,
+      userId: owner.id,
+      manifestCid: cid,
+      nodeVersionId: nodeVersion.id,
+      nodeUuid: node.uuid,
+    };
+
+    /**
+     * Publish Step 1:
+     * Create public data refs and data mirror jobs from the CIDs in the manifest
+     */
+    let cidsRequiredForPublish: Prisma.PublicDataReferenceCreateManyInput[] = [];
+    debugger;
+    try {
+      /***
+       * Traverse the DAG structure to find all relevant CIDs and get relevant info for indexing
+       */
+      cidsRequiredForPublish = await getAllCidsRequiredForPublish(cid, node.uuid, owner.id, node.id, nodeVersion.id);
+
+      /**
+       * Index the DAGs from IPFS in order to avoid recurrent IPFS calls when requesting data in the future
+       */
+      const newPublicDataRefs = await createPublicDataRefs(cidsRequiredForPublish, owner.id, nodeVersion.id);
+
+      /**
+       * Create a job per mirror in order to track the status of the upload
+       * There can be multiple mirrors per node, right now there is just Estuary
+       */
+
+      const dataMirrorJobs = await createDataMirrorJobs(cidsRequiredForPublish, owner.id);
+
+      // TODO: update public data refs to link versionId
+
+      /**
+       * Save a success for configurable service quality tracking purposes
+       */
+      await saveInteraction(req, ActionType.PUBLISH_NODE_CID_SUCCESS, {
+        cidsPayload,
+        result: { newPublicDataRefs, dataMirrorJobs },
+      });
+    } catch (error) {
+      console.error(`[publish::publish] error=${error}`);
+      /**
+       * Save a failure for configurable service quality tracking purposes
+       */
+      await saveInteraction(req, ActionType.PUBLISH_NODE_CID_FAIL, { cidsPayload, error });
+      throw error;
+    }
+
+    /**
+     * Publish Step 2:
+     * Initiate IPFS storage upload using Estuary
+     */
+
+    const researchObjectToPublish = { uuid, cid, manifest, ownerId: owner.id };
+    const sendDiscordNotification = (error) => {
+      const manifestSource = manifest as ResearchObjectV1;
+      discordNotify(
+        `https://${manifestSource.dpid.prefix}.dpid.org/${manifestSource.dpid.id}${
+          error ? ' (note: estuary-err)' : ''
+        }`,
+      );
+    };
+
+    const handleMirrorSuccess = async (publishedResearchObjectResult) => {
+      await saveInteraction(req, ActionType.PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS, {
+        researchObjectToPublish,
+        result: publishedResearchObjectResult,
+      });
+
+      sendDiscordNotification(false);
+    };
+    const handleMirrorFail = async (error) => {
+      await saveInteraction(req, ActionType.PUBLISH_NODE_RESEARCH_OBJECT_FAIL, {
+        researchObjectToPublish,
+        error,
+      });
+
+      sendDiscordNotification(true);
+    };
+
+    const publicDataReferences = await prisma.publicDataReference.findMany({
+      where: {
+        versionId: nodeVersion.id,
+      },
+    });
+    console.log(`[publish::publish] publicDataReferences=${JSON.stringify(publicDataReferences)}`);
+
+    // trigger ipfs storage upload, but don't wait for it to finish, will happen async
+    publishResearchObject(publicDataReferences).then(handleMirrorSuccess).catch(handleMirrorFail);
+
+    /**
+     * Save the cover art for this Node for later sharing: PDF -> JPG for this version
+     */
+    cacheNodeMetadata(node.uuid, cid);
+
+    return res.send({
+      ok: true,
+    });
+  } catch (err) {
+    console.error('[publish::publish] node-publish-err', err);
+    return res.status(400).send({ ok: false, error: err.message });
+  }
+};
