@@ -18,6 +18,7 @@ import {
 } from 'services/ipfs';
 import { createNodeDraftBlank } from 'services/nodeManager';
 import { randomUUID64 } from 'utils';
+import { DRIVE_NODE_ROOT_PATH } from 'utils/driveUtils';
 
 const componentTypeToDataType = (type: ResearchObjectComponentType): DataType => {
   switch (type) {
@@ -29,6 +30,8 @@ const componentTypeToDataType = (type: ResearchObjectComponentType): DataType =>
       return 'DOCUMENT';
     case ResearchObjectComponentType.VIDEO:
       return 'VIDEOS';
+    case ResearchObjectComponentType.DATA_BUCKET:
+      return 'DATA_BUCKET';
     default:
       throw Error('Unknown component type');
   }
@@ -91,16 +94,23 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
 
     const { nodeVersion } = await updateManifestAndAddToIpfs(researchObject, { userId: owner.id, nodeId: node.id });
 
-    const uploadedFiles: Partial<DataReference>[] = researchObject.components.map((component) => ({
-      cid: component.payload.url,
-      size: files.find((f) => f.cid === component.payload.url)?.size,
-      root: false,
-      type: componentTypeToDataType(component.type),
-      userId: owner.id,
-      nodeId: node.id,
-      directory: false,
-      // versionId: nodeVersion.id,
-    }));
+    const uploadedFiles: Partial<DataReference>[] = researchObject.components.map((component) => {
+      const isDataBucket = component.type === ResearchObjectComponentType.DATA_BUCKET;
+      const size = isDataBucket ? 0 : files.find((f) => f.cid === component.payload.url)?.size;
+
+      const cid = isDataBucket ? component.payload.cid : component.payload.url;
+      return {
+        cid: cid,
+        size: size,
+        root: isDataBucket,
+        type: componentTypeToDataType(component.type),
+        userId: owner.id,
+        nodeId: node.id,
+        directory: isDataBucket,
+        path: isDataBucket ? DRIVE_NODE_ROOT_PATH : DRIVE_NODE_ROOT_PATH + '/' + component.name,
+        // versionId: nodeVersion.id,
+      };
+    });
 
     if (uploadedFiles.length > 0) {
       const ref = await prisma.dataReference.createMany({ data: [...uploadedFiles] as DataReference[] });

@@ -8,7 +8,7 @@ import { ensureUser } from 'middleware/ensureUser';
 
 import admin from './admin';
 import auth from './auth';
-import datasets from './datasets';
+import data from './data';
 import log from './log';
 import nodes from './nodes';
 import pub from './pub';
@@ -39,7 +39,7 @@ router.use('/users', users);
 router.use('/nodes', nodes);
 router.use('/waitlist', waitlist);
 router.use('/pub', pub);
-router.use('/datasets', datasets);
+router.use('/data', data);
 router.use('/log', log);
 
 router.get('/nft/:id', nft);

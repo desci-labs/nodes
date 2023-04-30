@@ -21,7 +21,7 @@ const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node
   const ro = Object.assign({}, data);
   if (!ro.history || !ro.history.length) {
     const body = JSON.parse(researchNode.restBody as string);
-    const hasMetadata = body.links.pdf[0].indexOf('data:') < 0;
+    const hasMetadata = body.links.pdf[0]?.indexOf('data:') < 0;
     const rest = Object.assign({}, body);
 
     if (!hasMetadata) {
@@ -46,14 +46,30 @@ const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node
 
 // Return ResearchObject manifest via CID or ResearchObject database ID
 export const show = async (req: Request, res: Response, next: NextFunction) => {
-  const owner = (req as any).user;
-
+  debugger;
+  let ownerId = (req as any).user?.id;
+  const shareId = req.query.shareId as string;
   let cid: string = null;
-  const pid = req.params[0];
-  console.log('show research object', req.params);
-  console.log(pid, RESEARCH_OBJECT_NODES_PREFIX);
+  let pid = req.params[0];
+
+  if (shareId) {
+    const privateShare = await prisma.privateShare.findFirst({
+      where: { shareId },
+      select: { node: true, nodeUUID: true },
+    });
+    const node = privateShare.node;
+
+    if (privateShare && node) {
+      pid = `${RESEARCH_OBJECT_NODES_PREFIX}${privateShare.nodeUUID.substring(0, privateShare.nodeUUID.length - 1)}`;
+      ownerId = node.ownerId;
+    }
+  } else if (!ownerId) {
+    res.status(401).send({ ok: false, message: 'Unauthorized user' });
+    return;
+  }
+
+  // console.log(pid, ownerId, RESEARCH_OBJECT_NODES_PREFIX);
   if (pid.substring(0, RESEARCH_OBJECT_NODES_PREFIX.length) === RESEARCH_OBJECT_NODES_PREFIX) {
-    console.log('Loading Draft / Stub ResearchObject');
     let id = 0;
     let uuid = null;
     try {
@@ -61,7 +77,6 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
         throw Error('uuid');
       }
       id = parseInt((pid.substring(RESEARCH_OBJECT_NODES_PREFIX.length) || '').toString());
-      console.log('GOT ID', id);
     } catch (e) {
       // console.log('YERROR');
       // console.error(e);
@@ -71,7 +86,7 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
       where: {
         id: uuid ? undefined : id,
         uuid: uuid + '.',
-        ownerId: owner.id,
+        ownerId,
       },
     });
 
@@ -87,8 +102,9 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
 
       delete (discovery as any).restBody;
     } catch (err) {
-      console.error('nodes/show.ts: failed to preload manifest', discovery.manifestUrl, gatewayUrl);
+      console.error('nodes/show.ts: failed to preload manifest', discovery.manifestUrl, gatewayUrl, err);
     }
+
     res.send(discovery);
     return;
   }

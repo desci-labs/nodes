@@ -1,5 +1,5 @@
 node_modules/
 dist/
-src/*-ti.ts
+src/**/*-ti.ts
 .nyc_output
 coverage

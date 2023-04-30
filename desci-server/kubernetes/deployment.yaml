@@ -61,6 +61,10 @@ spec:
           export OTEL_SERVICE_NAME={{ .Data.OTEL_SERVICE_NAME }}
           export HONEYCOMB_API_KEY={{ .Data.HONEYCOMB_API_KEY }}
           export DISCORD_NOTIFICATIONS_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}
+          export PUBLIC_IPFS_RESOLVER={{ .Data.PUBLIC_IPFS_RESOLVER }}
+          export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
+          export ESTUARY_API_KEY={{ .Data.ESTUARY_API_KEY }}
+          export ESTUARY_API_URL={{ .Data.ESTUARY_API_URL }}
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
@@ -78,8 +82,8 @@ spec:
           resources:
             limits:
               cpu: '0.5'
-              memory: 512Mi
+              memory: 2Gi
             requests:
               cpu: 250m
-              memory: 50Mi
+              memory: 1Gi
       serviceAccountName: 'vault-auth'

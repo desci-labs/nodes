@@ -20,7 +20,7 @@ export const newReferral = async (req: Request, res: Response) => {
     console.log('Referral coming from user', user);
     const body = req.body as ExpectedBody;
 
-    console.log('Creating new referral for authd user', user, body);
+    console.log('Creating new referral for authd user', user.id, body);
 
     const emails = body.emails;
 

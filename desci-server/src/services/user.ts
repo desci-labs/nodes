@@ -1,6 +1,7 @@
 import { User } from '@prisma/client';
 
 import client from '../client';
+import { hideEmail } from 'utils';
 
 export async function increaseUsersDriveLimit(userId: number, { amountGb }: { amountGb: number }): Promise<User> {
   console.log('user::increaseUsersDriveLimit');
@@ -42,7 +43,7 @@ export async function getUserByOrcId(orcid: string): Promise<User | null> {
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  console.log('user::getUserByEmail');
+  console.log('user::getUserByEmail', hideEmail(email));
   const user = await client.user.findFirst({ where: { email } });
 
   return user;

@@ -6,7 +6,7 @@ import { getReferralsByUserId as getReferralsByUserIdDb } from 'services/friendR
 export const getReferralsByUserId = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user as User;
-    console.log('Fetching referrals for authd user', user);
+    console.log('Fetching referrals for authd user', user.id);
 
     const referrals = await getReferralsByUserIdDb(user.id);
 

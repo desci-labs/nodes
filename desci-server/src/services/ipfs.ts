@@ -1,17 +1,37 @@
-import { CodeComponent, PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
-import { DataReference, DataType, NodeVersion } from '@prisma/client';
+import internal from 'stream';
+
+import {
+  CodeComponent,
+  PdfComponent,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+  ResearchObjectV1Component,
+} from '@desci-labs/desci-models';
+import * as dagPb from '@ipld/dag-pb';
+import { PBNode } from '@ipld/dag-pb/src/interface';
+import { DataReference, DataType, NodeVersion, Prisma } from '@prisma/client';
 import axios from 'axios';
-import CID from 'cids';
+// import CID from 'cids';
 import * as ipfs from 'ipfs-http-client';
+import { CID as CID2 } from 'ipfs-http-client';
+import UnixFS from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
 import flatten from 'lodash/flatten';
 import uniq from 'lodash/uniq';
 import * as multiformats from 'multiformats';
+import { code as rawCode } from 'multiformats/codecs/raw';
+import * as yauzl from 'yauzl';
 
 import prisma from 'client';
+import { bufferToStream } from 'utils';
+import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
+import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
+import { PUBLIC_IPFS_PATH } from 'config';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
 export const IPFS_PATH_TMP = '/tmp/ipfs';
 
 // key = type
@@ -25,7 +45,9 @@ export interface UrlWithCid {
 }
 
 // connect to a different API
-const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
+export const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
+export const readerClient = ipfs.create({ url: PUBLIC_IPFS_PATH });
+export const publicIpfs = ipfs.create({ url: process.env.PUBLIC_IPFS_RESOLVER });
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
@@ -38,7 +60,7 @@ export const updateManifestAndAddToIpfs = async (
       nodeId: nodeId,
     },
   });
-  console.log('[NodeVersion]', version);
+  console.log(`[ipfs::updateManifestAndAddToIpfs] manifestCid=${result.cid} nodeVersion=${version}`);
   const ref = await prisma.dataReference.create({
     data: {
       cid: result.cid.toString(),
@@ -62,6 +84,11 @@ export const addBufferToIpfs = (buf: Buffer, key: string) => {
   });
 };
 
+export const getSizeForCid = async (cid: string, asDirectory: boolean | undefined): Promise<number> => {
+  const size = await getSize(client, cid, asDirectory);
+  return size;
+};
+
 export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf, code, researchFields }) => {
   const pdfHashes = pdf ? await Promise.all(processUrls('pdf', getUrlsFromParam(pdf))) : [];
   const codeHashes = code ? await Promise.all(processUrls('code', getUrlsFromParam(code))) : [];
@@ -71,9 +98,21 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
   // make manifest
 
   const researchObject: ResearchObjectV1 = {
-    version: 'desci-nodes-0.1.0',
+    version: 'desci-nodes-0.2.0',
     components: [],
     authors: [],
+  };
+
+  const emptyDagCid = await createEmptyDag();
+
+  const dataBucketComponent: ResearchObjectV1Component = {
+    id: 'root',
+    name: 'root',
+    type: ResearchObjectComponentType.DATA_BUCKET,
+    payload: {
+      cid: emptyDagCid,
+      path: DRIVE_NODE_ROOT_PATH,
+    },
   };
 
   const pdfComponents = (await pdfHashes).map((d: UrlWithCid) => {
@@ -103,7 +142,7 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
   researchObject.title = title;
   researchObject.defaultLicense = defaultLicense;
   researchObject.researchFields = researchFields;
-  researchObject.components = researchObject.components.concat(pdfComponents, codeComponents);
+  researchObject.components = researchObject.components.concat(dataBucketComponent, pdfComponents, codeComponents);
 
   console.log('RESEARCH OBJCECT', JSON.stringify(researchObject));
 
@@ -212,24 +251,38 @@ export interface IpfsPinnedResult {
   size: number;
 }
 
-export const pinDirectory = async (files: IpfsDirStructuredInput[]): Promise<IpfsPinnedResult[]> => {
+export const pinDirectory = async (
+  files: IpfsDirStructuredInput[],
+  wrapWithDirectory = false,
+): Promise<IpfsPinnedResult[]> => {
   const isOnline = await client.isOnline();
   console.log('isOnline', isOnline);
-
   //possibly check if uploaded with a root dir, omit the wrapping if there is a root dir
   const uploaded: IpfsPinnedResult[] = [];
-  for await (const file of client.addAll(files, { wrapWithDirectory: true, cidVersion: 1 })) {
+  const addAll = await client.addAll(files, { wrapWithDirectory: wrapWithDirectory, cidVersion: 1 });
+  for await (const file of addAll) {
     uploaded.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
-
   return uploaded;
 };
+
+export async function pinExternalDags(cids: string[]) {
+  const result = [];
+  for await (const cid of cids) {
+    const cidType = multiformats.CID.parse(cid);
+    const block = await publicIpfs.block.get(cidType);
+    const res = await client.block.put(block);
+    result.push(res);
+  }
+  return result;
+}
 
 export interface RecursiveLsResult extends IpfsPinnedResult {
   name: string;
   contains?: RecursiveLsResult[];
   type: 'dir' | 'file';
   parent?: RecursiveLsResult;
+  external?: boolean;
 }
 
 export interface FileDir extends RecursiveLsResult {
@@ -237,9 +290,9 @@ export interface FileDir extends RecursiveLsResult {
   published?: boolean;
 }
 
-const convertToCidV1 = (cid: string | CID): string => {
+export const convertToCidV1 = (cid: string | multiformats.CID): string => {
   if (typeof cid === 'string') {
-    const c = new CID(cid, cid.substring(0, 1) === 'Q' ? 0 : 1);
+    const c = multiformats.CID.parse(cid);
     // console.log(`cid provided: ${cid} into ${c}`);
     return c.toV1().toString();
   } else {
@@ -251,33 +304,46 @@ const convertToCidV1 = (cid: string | CID): string => {
 
 export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
   try {
-    console.log('[ipfs:resolveIpfsData] ipfs.cat cid=', cid);
-    const iterable = await client.cat(cid);
+    console.log('[ipfs:resolveIpfsData] START ipfs.cat cid=', cid);
+    const iterable = await readerClient.cat(cid);
+    console.log('[ipfs:resolveIpfsData] SUCCESS(1/2) ipfs.cat cid=', cid);
     const dataArray = [];
 
     for await (const x of iterable) {
       dataArray.push(x);
     }
+    console.log(`[ipfs:resolveIpfsData] SUCCESS(2/2) ipfs.cat cid=${cid}, len=${dataArray.length}`);
 
     return Buffer.from(dataArray);
   } catch (err) {
     // console.error('error', err.message);
-    console.log('[ipfs:resolveIpfsData] ipfs.dag.get', cid);
+    // console.error('[ipfs:resolveIpfsData] ERROR ipfs.dag.get', cid);
     const res = await client.dag.get(multiformats.CID.parse(cid));
+    let targetValue = res.value.Data;
+    if (!targetValue) {
+      targetValue = res.value;
+    }
+    console.error(`[ipfs:resolveIpfsData] SUCCESS(2/2) DAG, ipfs.dag.get cid=${cid}, bufferLen=${targetValue.length}`);
+    const uint8ArrayTarget = targetValue as Uint8Array;
+    if (uint8ArrayTarget.buffer) {
+      targetValue = (targetValue as Uint8Array).buffer;
+    }
 
-    return Buffer.from((res.value.Data as Uint8Array).buffer);
+    const buffer = Buffer.from(targetValue);
+    return buffer;
   }
 };
 
 export const convertToCidV0 = (cid: string) => {
-  const c = new CID(cid, cid.substring(0, 1) === 'Q' ? 0 : 1);
-  console.log('convertToCidV1', c.toV0());
+  const c = multiformats.CID.parse(cid);
+  const v0 = c.toV0();
+  console.log('convertToCidV1', v0);
 
-  return c.toV0().toString();
+  return v0.toString();
 };
 
-export const getDirectoryTreeCids = async (cid: string): Promise<string[]> => {
-  const tree = await getDirectoryTree(cid);
+export const getDirectoryTreeCids = async (cid: string, externalCidMap: ExternalCidMap): Promise<string[]> => {
+  const tree = await getDirectoryTree(cid, externalCidMap);
   const recurse = (arr: RecursiveLsResult[]) => {
     return arr.flatMap((e) => {
       if (e && e.contains) {
@@ -296,32 +362,110 @@ export const getDirectoryTreeCids = async (cid: string): Promise<string[]> => {
   return flatCids;
 };
 
-export const getDirectoryTree = async (cid: string): Promise<RecursiveLsResult[]> => {
-  const isOnline = await client.isOnline();
-  console.log(`retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
+export const nodeKeepFile = '.nodeKeep';
 
-  const tree = await recursiveLs(cid);
-  // debugger;
+export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidMap): Promise<RecursiveLsResult[]> => {
+  const isOnline = await client.isOnline();
+  console.log(`[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
+  if (Object.keys(externalCidMap).length === 0) {
+    // if (true) {
+    console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
+    return await recursiveLs(cid);
+  } else {
+    console.log('[getDirectoryTree] using mixed ls, dagCid: , cid');
+    const tree = await mixedLs(cid, externalCidMap);
+    return tree;
+  }
+};
+
+export const recursiveLs = async (cid: string, carryPath?: string) => {
+  carryPath = carryPath || convertToCidV1(cid);
+  const tree = [];
+  const lsOp = client.ls(cid);
+  for await (const filedir of lsOp) {
+    const res: any = filedir;
+    // if (parent) {
+    //   res.parent = parent;
+    const pathSplit = res.path.split('/');
+    pathSplit[0] = carryPath;
+    res.path = pathSplit.join('/');
+    // }
+    const v1StrCid = convertToCidV1(res.cid);
+    if (filedir.type === 'file' && filedir.name !== nodeKeepFile) tree.push({ ...res, cid: v1StrCid });
+    if (filedir.type === 'dir') {
+      res.cid = v1StrCid;
+      res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
+      tree.push({ ...res, cid: v1StrCid });
+    }
+  }
   return tree;
 };
 
-export const recursiveLs = async (cid: string, parent?: RecursiveLsResult, carryPath?: string) => {
+//Used for recursively lsing a DAG containing both public and private cids
+export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, carryPath?: string) {
+  carryPath = carryPath || convertToCidV1(dagCid);
+  const tree = [];
+  const cidObject = multiformats.CID.parse(dagCid);
+  const block = await client.block.get(cidObject);
+  const { Data, Links } = dagPb.decode(block);
+  const unixFs = UnixFS.unmarshal(Data);
+  const isDir = dirTypes.includes(unixFs?.type);
+  if (!isDir) return null;
+  for (const link of Links) {
+    const result: RecursiveLsResult = {
+      name: link.Name,
+      path: carryPath + '/' + link.Name,
+      cid: convertToCidV1(link.Hash.toString()),
+      size: 0,
+      type: 'file',
+    };
+    const externalCidMapEntry = externalCidMap[result.cid];
+    if (externalCidMapEntry) result.external = true;
+    const isExternalFile = externalCidMapEntry && externalCidMapEntry.directory == false;
+    const linkCidObject = multiformats.CID.parse(result.cid);
+    if (linkCidObject.code === rawCode || isExternalFile) {
+      result.size = link.Tsize;
+    } else {
+      const linkBlock = await client.block.get(linkCidObject);
+      const { Data: linkData } = dagPb.decode(linkBlock);
+      const unixFsLink = UnixFS.unmarshal(linkData);
+      const isLinkDir = dirTypes.includes(unixFsLink?.type);
+
+      if (isLinkDir) {
+        result.size = 0;
+        result.type = 'dir';
+        result.contains = (await mixedLs(
+          result.cid,
+          externalCidMap,
+          carryPath + '/' + result.name,
+        )) as RecursiveLsResult[];
+      } else {
+        result.size = link.Tsize;
+      }
+    }
+    if (result.name !== nodeKeepFile) tree.push(result);
+  }
+  return tree;
+}
+
+export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
-  for await (const filedir of client.ls(cid)) {
+  const lsOp = await publicIpfs.ls(cid);
+  for await (const filedir of lsOp) {
+    // debugger;
     const res: any = filedir;
-    if (parent) {
-      res.parent = parent;
-      const pathSplit = res.path.split('/');
-      pathSplit[0] = carryPath;
-      res.path = pathSplit.join('/');
-    }
+    // if (parent) {
+    //   res.parent = parent;
+    const pathSplit = res.path.split('/');
+    pathSplit[0] = carryPath;
+    res.path = pathSplit.join('/');
+    // }
     const v1StrCid = convertToCidV1(res.cid);
-
-    if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
+    if (filedir.type === 'file' && filedir.name !== nodeKeepFile) tree.push({ ...res, cid: v1StrCid });
     if (filedir.type === 'dir') {
       res.cid = v1StrCid;
-      res.contains = await recursiveLs(res.cid, { ...res, cid: v1StrCid }, carryPath + '/' + res.name);
+      res.contains = await pubRecursiveLs(res.cid, carryPath + '/' + res.name);
       tree.push({ ...res, cid: v1StrCid });
     }
   }
@@ -363,3 +507,373 @@ export const getFilesAndPaths = async (tree: RecursiveLsResult) => {
   await Promise.all(promises);
   return filesAndPaths;
 };
+
+export const isDir = async (cid: string): Promise<boolean> => {
+  try {
+    const files = await client.ls(cid);
+
+    for await (const file of files) {
+      if (file.type === 'dir') {
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error(`Failed checking if CID is dir: ${error}`);
+    return false;
+  }
+};
+
+type FilePath = string;
+type FileInfo = { cid: string; size?: number };
+export type FilesToAddToDag = Record<FilePath, FileInfo>;
+
+export const addFilesToDag = async (rootCid: string, contextPath: string, filesToAddToDag: FilesToAddToDag) => {
+  const dagCidsToBeReset = [];
+  //                  CID(String): DAGNode     - cached to prevent duplicate calls
+  const dagsLoaded: Record<string, PBNode> = {};
+  dagCidsToBeReset.push(CID2.parse(rootCid));
+  const stagingDagNames = contextPath.split('/');
+  if (contextPath.length) {
+    for (let i = 0; i < stagingDagNames.length; i++) {
+      const dagLinkName = stagingDagNames[i];
+      const containingDagCid = dagCidsToBeReset[i];
+      //FIXME containingDag is of type PBNode
+      const containingDag: any = await client.object.get(containingDagCid);
+      if (!containingDag) {
+        throw Error('Failed updating dataset, existing DAG not found');
+      }
+      dagsLoaded[containingDagCid.toString()] = containingDag;
+      const matchingLink = containingDag.Links.find((linkNode) => linkNode.Name === dagLinkName);
+      if (!matchingLink) {
+        throw Error('Failed updating dataset, existing DAG link not found');
+      }
+      dagCidsToBeReset.push(matchingLink.Hash);
+    }
+  }
+
+  //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
+  if (!dagsLoaded.length) {
+    //FIXME rootDag is of type PBNode
+    const rootDag = await client.object.get(dagCidsToBeReset[0]);
+    dagsLoaded[rootCid] = rootDag;
+  }
+
+  //establishing the tail dag that's being updated
+  const tailNodeCid = dagCidsToBeReset.pop();
+  const tailNode = dagsLoaded[tailNodeCid.toString()]
+    ? dagsLoaded[tailNodeCid.toString()]
+    : await client.object.get(tailNodeCid);
+
+  const updatedTailNodeCid = await addToDir(client, tailNodeCid.toString(), filesToAddToDag);
+  // oldToNewCidMap[tailNodeCid.toString()] = updatedTailNodeCid.toString();
+  // const treehere = await getDirectoryTree(updatedTailNodeCid);
+
+  const updatedDagCidMap: Record<oldCid, newCid> = {};
+
+  let lastUpdatedCid = updatedTailNodeCid;
+  while (dagCidsToBeReset.length) {
+    const currentNodeCid = dagCidsToBeReset.pop();
+    //FIXME should be PBLink
+    const currentNode: any = dagsLoaded[currentNodeCid.toString()]
+      ? dagsLoaded[currentNodeCid.toString()]
+      : await client.object.get(currentNodeCid);
+    const linkName = stagingDagNames.pop();
+    const dagIdx = currentNode.Links.findIndex((dag) => dag.Name === linkName);
+    if (dagIdx === -1) throw Error(`Failed to find DAG link: ${linkName}`);
+    const oldCid = currentNode.Links[dagIdx].Hash;
+    // const oldLinkRemovedCid = await client.object.patch.rmLink(currentNodeCid, currentNode.Links[dagIdx]);
+    // lastUpdatedCid = await addToDir(client, oldLinkRemovedCid, { [linkName]: { cid: lastUpdatedCid } });
+    lastUpdatedCid = await updateDagCid(client, currentNodeCid, oldCid, lastUpdatedCid);
+    updatedDagCidMap[oldCid.toString()] = lastUpdatedCid.toString();
+    // oldToNewCidMap[oldCid] = lastUpdatedCid.toString();
+  }
+
+  return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
+};
+
+export const removeFileFromDag = async (rootCid: string, contextPath: string, fileNameToRemove: string) => {
+  const dagCidsToBeReset = [];
+  //                  CID(String): DAGNode     - cached to prevent duplicate calls
+  const dagsLoaded: Record<string, PBNode> = {};
+  dagCidsToBeReset.push(CID2.parse(rootCid));
+  const stagingDagNames = contextPath.split('/');
+  if (contextPath.length) {
+    for (let i = 0; i < stagingDagNames.length; i++) {
+      const dagLinkName = stagingDagNames[i];
+      const containingDagCid = dagCidsToBeReset[i];
+      //FIXME containingDag is of type PBNode
+      const containingDag: any = await client.object.get(containingDagCid);
+      if (!containingDag) {
+        throw Error('Failed updating dataset, existing DAG not found');
+      }
+      dagsLoaded[containingDagCid.toString()] = containingDag;
+      const matchingLink = containingDag.Links.find((linkNode) => linkNode.Name === dagLinkName);
+      if (!matchingLink) {
+        throw Error('Failed updating dataset, existing DAG link not found');
+      }
+      dagCidsToBeReset.push(matchingLink.Hash);
+    }
+  }
+
+  //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
+  if (!dagsLoaded.length) {
+    //FIXME rootDag is of type PBNode
+    const rootDag = await client.object.get(dagCidsToBeReset[0]);
+    dagsLoaded[rootCid] = rootDag;
+  }
+
+  //establishing the tail dag that's being updated
+  const tailNodeCid = dagCidsToBeReset.pop();
+  const tailNode = dagsLoaded[tailNodeCid.toString()]
+    ? dagsLoaded[tailNodeCid.toString()]
+    : await client.object.get(tailNodeCid);
+
+  const updatedTailNodeCid = await removeDagLink(tailNodeCid.toString(), fileNameToRemove);
+
+  const updatedDagCidMap: Record<oldCid, newCid> = {};
+
+  let lastUpdatedCid = updatedTailNodeCid;
+  while (dagCidsToBeReset.length) {
+    const currentNodeCid = dagCidsToBeReset.pop();
+    //FIXME should be PBLink
+    const currentNode: any = dagsLoaded[currentNodeCid.toString()]
+      ? dagsLoaded[currentNodeCid.toString()]
+      : await client.object.get(currentNodeCid);
+    const linkName = stagingDagNames.pop();
+    const dagIdx = currentNode.Links.findIndex((dag) => dag.Name === linkName);
+    if (dagIdx === -1) throw Error(`Failed to find DAG link: ${linkName}`);
+    const oldCid = currentNode.Links[dagIdx].Hash;
+    lastUpdatedCid = await updateDagCid(client, currentNodeCid, oldCid, lastUpdatedCid);
+    updatedDagCidMap[oldCid.toString()] = lastUpdatedCid.toString();
+  }
+
+  return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
+};
+
+export async function removeDagLink(dagCid: string | multiformats.CID, linkName: string) {
+  if (typeof dagCid === 'string') dagCid = multiformats.CID.parse(dagCid);
+
+  if (dagCid.code == rawCode) {
+    throw new Error('raw cid -- not a directory');
+  }
+
+  const block = await client.block.get(dagCid);
+  const { Data, Links } = dagPb.decode(block);
+
+  const node = UnixFS.unmarshal(Data);
+
+  if (!node.isDirectory()) {
+    throw new Error(`file cid -- not a directory`);
+  }
+  const newLinks = Links.filter((link) => link.Name !== linkName);
+
+  if (newLinks.length === 0) {
+    const nodeKeep = await client.add(Buffer.from(''), { cidVersion: 1 });
+    newLinks.push({ Name: '.nodeKeep', Hash: nodeKeep.cid as any, Tsize: nodeKeep.size });
+  }
+
+  return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links: newLinks })), {
+    version: 1,
+    format: 'dag-pb',
+  });
+}
+
+export const renameFileInDag = async (rootCid: string, contextPath: string, linkToRename: string, newName: string) => {
+  const dagCidsToBeReset = [];
+  //                  CID(String): DAGNode     - cached to prevent duplicate calls
+  const dagsLoaded: Record<string, PBNode> = {};
+  dagCidsToBeReset.push(CID2.parse(rootCid));
+  const stagingDagNames = contextPath.split('/');
+  if (contextPath.length) {
+    for (let i = 0; i < stagingDagNames.length; i++) {
+      const dagLinkName = stagingDagNames[i];
+      const containingDagCid = dagCidsToBeReset[i];
+      //FIXME containingDag is of type PBNode
+      const containingDag: any = await client.object.get(containingDagCid);
+      if (!containingDag) {
+        throw Error('Failed updating dataset, existing DAG not found');
+      }
+      dagsLoaded[containingDagCid.toString()] = containingDag;
+      const matchingLink = containingDag.Links.find((linkNode) => linkNode.Name === dagLinkName);
+      if (!matchingLink) {
+        throw Error('Failed updating dataset, existing DAG link not found');
+      }
+      dagCidsToBeReset.push(matchingLink.Hash);
+    }
+  }
+
+  //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
+  if (!dagsLoaded.length) {
+    //FIXME rootDag is of type PBNode
+    const rootDag = await client.object.get(dagCidsToBeReset[0]);
+    dagsLoaded[rootCid] = rootDag;
+  }
+
+  //establishing the tail dag that's being updated
+  const tailNodeCid = dagCidsToBeReset.pop();
+  const tailNode = dagsLoaded[tailNodeCid.toString()]
+    ? dagsLoaded[tailNodeCid.toString()]
+    : await client.object.get(tailNodeCid);
+
+  const updatedTailNodeCid = await renameDagLink(tailNodeCid.toString(), linkToRename, newName);
+
+  const updatedDagCidMap: Record<oldCid, newCid> = {};
+
+  let lastUpdatedCid = updatedTailNodeCid;
+  while (dagCidsToBeReset.length) {
+    const currentNodeCid = dagCidsToBeReset.pop();
+    //FIXME should be PBLink
+    const currentNode: any = dagsLoaded[currentNodeCid.toString()]
+      ? dagsLoaded[currentNodeCid.toString()]
+      : await client.object.get(currentNodeCid);
+    const linkName = stagingDagNames.pop();
+    const dagIdx = currentNode.Links.findIndex((dag) => dag.Name === linkName);
+    if (dagIdx === -1) throw Error(`Failed to find DAG link: ${linkName}`);
+    const oldCid = currentNode.Links[dagIdx].Hash;
+    lastUpdatedCid = await updateDagCid(client, currentNodeCid, oldCid, lastUpdatedCid);
+    updatedDagCidMap[oldCid.toString()] = lastUpdatedCid.toString();
+  }
+
+  return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
+};
+
+export async function renameDagLink(dagCid: string | multiformats.CID, linkName: string, newName: string) {
+  if (typeof dagCid === 'string') dagCid = multiformats.CID.parse(dagCid);
+
+  if (dagCid.code == rawCode) {
+    throw new Error('raw cid -- not a directory');
+  }
+
+  const block = await client.block.get(dagCid);
+  const { Data, Links } = dagPb.decode(block);
+
+  const node = UnixFS.unmarshal(Data);
+
+  if (!node.isDirectory()) {
+    throw new Error(`file cid -- not a directory`);
+  }
+
+  const linkIdx = Links.findIndex((link) => link.Name === linkName);
+  Links[linkIdx].Name = newName;
+
+  return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links })), {
+    version: 1,
+    format: 'dag-pb',
+  });
+}
+
+export const createDag = async (files: FilesToAddToDag): Promise<string> => {
+  return await makeDir(client, files);
+};
+
+export async function createEmptyDag() {
+  const nodeKeepCid = await client.add(Buffer.from(''));
+  const cid = await makeDir(client, { '.nodeKeep': { cid: nodeKeepCid.cid } });
+  return cid.toString();
+}
+
+export interface GetExternalSizeAndTypeResult {
+  isDirectory: boolean;
+  size: number;
+}
+
+const dirTypes = ['directory', 'hamt-sharded-directory'];
+
+export async function getExternalCidSizeAndType(cid: string) {
+  try {
+    const cidObject = multiformats.CID.parse(cid);
+    const code = cidObject.code;
+    const block = await publicIpfs.block.get(cidObject);
+    if (cidObject.code === rawCode) {
+      return { isDirectory: false, size: block.length };
+    }
+    const { Data } = dagPb.decode(block);
+
+    const unixFs = UnixFS.unmarshal(Data);
+    let isDirectory;
+    let size;
+    const isDir = dirTypes.includes(unixFs?.type);
+    if (code === 0x70 && isDir) {
+      //0x70 === dag-pb
+      isDirectory = true;
+      size = 0;
+    } else {
+      isDirectory = false;
+      const fSize = unixFs.fileSize();
+      if (fSize) {
+        size = fSize;
+      } else {
+        // eslint-disable-next-line no-array-reduce/no-reduce
+        size = unixFs.blockSizes.reduce((a, b) => a + b, 0);
+      }
+    }
+    if (isDirectory !== undefined && size !== undefined) return { isDirectory, size };
+    throw new Error(`Failed to resolve CID or determine file size/type for cid: ${cid}`);
+  } catch (error) {
+    console.error(`[getExternalCidSizeAndType]Error: ${error.message}`);
+    return null;
+  }
+}
+
+export interface ZipToDagAndPinResult {
+  files: IpfsDirStructuredInput[];
+  totalSize: number;
+}
+
+export async function zipToPinFormat(zipBuffer: Buffer, nameOverride?: string): Promise<ZipToDagAndPinResult> {
+  return new Promise((resolve, reject) => {
+    const files = [];
+    let totalSize = 0;
+
+    yauzl.fromBuffer(zipBuffer, { lazyEntries: true }, (err, zipfile) => {
+      if (err) reject(err);
+
+      zipfile.readEntry();
+
+      zipfile.on('entry', (entry) => {
+        if (!entry.isDirectory) {
+          zipfile.openReadStream(entry, async (err, readStream) => {
+            if (err) reject(err);
+            const chunks = [];
+            for await (const chunk of readStream) {
+              chunks.push(chunk);
+            }
+            const fileBuffer = Buffer.concat(chunks);
+            if (entry.uncompressedSize > 0) {
+              totalSize += entry.uncompressedSize;
+              if (nameOverride) entry.fileName = deneutralizePath(entry.fileName, nameOverride);
+              files.push({
+                path: entry.fileName,
+                content: fileBuffer,
+              });
+            }
+            zipfile.readEntry();
+          });
+        } else {
+          zipfile.readEntry();
+        }
+      });
+
+      zipfile.on('end', async () => {
+        try {
+          resolve({ files, totalSize });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+  });
+}
+
+export function strIsCid(cid: string) {
+  try {
+    const cidObj = multiformats.CID.parse(cid);
+    const validCid = multiformats.CID.asCID(cidObj);
+
+    if (!!validCid) return true;
+    return false;
+  } catch (e) {
+    return false;
+  }
+}

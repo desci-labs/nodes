@@ -19,7 +19,8 @@ model Node {
   restBody            Json                  @default("{}")
   replicationFactor   Int
   ownerId             Int
-  uuid                String?               @default(uuid())
+  uuid                String?               @unique @default(uuid())
+  privateShare        PrivateShare?
   owner               User                  @relation(fields: [ownerId], references: [id])
   authorInvites       AuthorInvite[]
   transactions        ChainTransaction[]
@@ -30,6 +31,7 @@ model Node {
   DataReference       DataReference[]
   PublicDataReference PublicDataReference[]
   CidPruneList        CidPruneList[]
+  NodeCover           NodeCover[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -307,17 +309,6 @@ model UserIdentity {
   @@index([userId])
 }
 
-// model Dataset {
-//   id            Int             @id @default(autoincrement())
-//   createdAt     DateTime        @default(now())
-//   updatedAt     DateTime        @updatedAt
-//   rootCid       String
-//   size          Int
-//   userId        Int
-//   user          User            @relation(fields: [userId], references: [id])
-//   DataReference DataReference[]
-// }
-
 model DataReference {
   id          Int          @id @default(autoincrement())
   createdAt   DateTime     @default(now())
@@ -331,6 +322,7 @@ model DataReference {
   directory   Boolean
   size        Int
   type        DataType
+  external    Boolean?
   nodeId      Int
   userId      Int
   versionId   Int?
@@ -370,11 +362,12 @@ model PublicDataReference {
   size        Int
   type        DataType
   nodeId      Int
-  userId      Int
+  userId      Int?
   versionId   Int?
+  external    Boolean?
   mirrors     PublicDataReferenceOnIpfsMirror[]
   node        Node                              @relation(fields: [nodeId], references: [id])
-  user        User                              @relation(fields: [userId], references: [id])
+  user        User?                             @relation(fields: [userId], references: [id])
   nodeVersion NodeVersion?                      @relation(fields: [versionId], references: [id])
 }
 
@@ -398,6 +391,29 @@ model PublicDataReferenceOnIpfsMirror {
   providerCount       Int                 @default(0)
 
   @@id([dataReferenceId, mirrorId])
+}
+
+model PrivateShare {
+  id        Int      @id @default(autoincrement())
+  shareId   String   @unique
+  nodeUUID  String   @unique
+  node      Node     @relation(fields: [nodeUUID], references: [uuid])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shareId])
+}
+
+model NodeCover {
+  id       Int     @id @default(autoincrement())
+  url      String
+  nodeUuid String
+  cid      String?
+  version  Int?    @default(0)
+  name     String?
+  node     Node    @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, version])
 }
 
 model FriendReferral {
@@ -462,7 +478,9 @@ enum NodeState {
 }
 
 enum DataType {
+  DATA_BUCKET
   MANIFEST
+  UNKNOWN
   DATASET
   IMAGES
   VIDEOS

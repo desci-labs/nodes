@@ -1,0 +1,25 @@
+{
+  "@context": "https://w3id.org/ro/crate/1.1/context",
+  "@graph": [
+    {
+      "@type": "Dataset",
+      "name": "Test dataset",
+      "license": "https://creativecommons.org/licenses/by/4.0/",
+      "creator": [
+        {
+          "@type": "Person",
+          "name": "John Doe",
+          "@id": "https://orcid.org/0000-0001-2345-6789"
+        }
+      ],
+      "url": "https://doi.org/10.5281/zenodo.1234567"
+    },
+    {
+      "@type": "CreativeWork",
+      "@id": "example.pdf",
+      "name": "Example PDF",
+      "encodingFormat": "application/pdf",
+      "url": "https://example.com/example.pdf"
+    }
+  ]
+}
