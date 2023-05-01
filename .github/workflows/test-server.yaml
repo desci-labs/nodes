@@ -29,7 +29,7 @@ jobs:
 
       - name: Setup docker
         run: |
-          curl -fsSL https://get.docker.com -o get-docker.sh
+          wget -O get-docker.sh https://get.docker.com
           sh get-docker.sh
 
       - name: Install dependencies
