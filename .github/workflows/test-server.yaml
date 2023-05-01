@@ -41,4 +41,4 @@ jobs:
           version: "2.15.1"
 
       - name: Run tests
-        run: cd desci-server && export DOCKER_BUILDKIT=1 && yarn && yarn test
+        run: cd desci-server && export DOCKER_BUILDKIT=1 && yarn && sudo yarn test
