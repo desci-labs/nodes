@@ -27,6 +27,11 @@ jobs:
         with:
           node-version: 16
 
+      - name: Setup docker
+        run: |
+          curl -fsSL https://get.docker.com -o get-docker.sh
+          sh get-docker.sh
+
       - name: Install dependencies
         run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn
 
