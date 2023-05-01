@@ -27,12 +27,6 @@ jobs:
         with:
           node-version: 16
 
-      - name: Setup docker
-        run: |
-          apt-get install -y wget
-          wget -O get-docker.sh https://get.docker.com
-          sh get-docker.sh
-
       - name: Install dependencies
         run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn
 
@@ -42,4 +36,4 @@ jobs:
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
 
       - name: Run tests
-        run: cd desci-server && export DOCKER_BUILDKIT=1 && yarn && yarn test
+        run: cd desci-server && export DOCKER_BUILDKIT=1 && yarn && docker compose --file desci-server/docker-compose.test.yml --compatibility run nodes_backend_test && docker-compose  --file desci-server/docker-compose.test.yml down
