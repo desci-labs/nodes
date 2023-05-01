@@ -29,6 +29,7 @@ jobs:
 
       - name: Setup docker
         run: |
+          apt-get install -y wget
           wget -O get-docker.sh https://get.docker.com
           sh get-docker.sh
 
