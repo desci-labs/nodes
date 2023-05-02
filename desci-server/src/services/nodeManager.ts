@@ -288,6 +288,20 @@ export const getCountNewNodesInXDays = async (daysAgo: number): Promise<number> 
   return newNodesInXDays;
 };
 
+// get all nodes created in specified month
+export const getCountNewNodesInMonth = async (month: number, year: number): Promise<number> => {
+  console.log('node::getCountNewNodesInMonth');
+  const sum = await prisma.node.count({
+    where: {
+      createdAt: {
+        gte: new Date(year, month, 1),
+        lt: new Date(year, month + 1, 1),
+      },
+    },
+  });
+  return sum;
+};
+
 export const getBytesInXDays = async (daysAgo: number): Promise<number> => {
   console.log('node::getBytesInXDays');
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
@@ -302,6 +316,20 @@ export const getBytesInXDays = async (daysAgo: number): Promise<number> => {
   });
 
   return bytesInXDays._sum.size;
+};
+
+export const getBytesInMonth = async (month: number, year: number): Promise<number> => {
+  console.log('node::getBytesInMonth');
+  const sum = await prisma.dataReference.aggregate({
+    _sum: { size: true },
+    where: {
+      createdAt: {
+        gte: new Date(year, month, 1),
+        lt: new Date(year, month + 1, 1),
+      },
+    },
+  });
+  return sum._sum.size || 0;
 };
 
 export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versionToCache?: number) => {
