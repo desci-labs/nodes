@@ -97,3 +97,21 @@ export const getCountNewUsersInXDays = async (daysAgo: number): Promise<number> 
 
   return newUsersInXDays;
 };
+
+// get new user count for specified month
+export const getCountNewUsersInMonth = async (month: number, year: number): Promise<number> => {
+  console.log('user::getCountNewUsersInMonth');
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 1);
+
+  const newUsersInMonth = await client.user.count({
+    where: {
+      createdAt: {
+        gte: startDate,
+        lt: endDate,
+      },
+    },
+  });
+
+  return newUsersInMonth;
+};
