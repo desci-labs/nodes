@@ -25,11 +25,37 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
   ).length;
 };
 
+export const getCountActiveUsersInMonth = async (month: number, year: number): Promise<number> => {
+  console.log('interactionLog::getCountActiveUsersInMonth');
+  const activeCount = await prisma.interactionLog.findMany({
+    distinct: ['userId'],
+    where: {
+      createdAt: {
+        gte: new Date(year, month, 1),
+        lt: new Date(year, month + 1, 1),
+      },
+    },
+  });
+  return activeCount.length;
+};
+
 export const getNodeViewsInXDays = async (daysAgo: number): Promise<number> => {
   console.log('interactionLog::getNodeViewsInXDays');
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
   const res =
     await prisma.$queryRaw`select count(1) as count from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"viewedNode"'::jsonb and "createdAt" >= ${dateXDaysAgo}`;
+  const count = (res as any[])[0].count.toString();
+  return parseInt(count);
+};
+
+export const getNodeViewsInMonth = async (month: number, year: number): Promise<number> => {
+  console.log('interactionLog::getNodeViewsInMonth');
+  const res =
+    await prisma.$queryRaw`select count(1) as count from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"viewedNode"'::jsonb and "createdAt" >= ${new Date(
+      year,
+      month,
+      1,
+    )} and "createdAt" < ${new Date(year, month + 1, 1)}`;
   const count = (res as any[])[0].count.toString();
   return parseInt(count);
 };
