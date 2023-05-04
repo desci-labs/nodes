@@ -122,6 +122,10 @@ export const createDataMirrorJobs = async (
     const dataReferenceId = cidToDataReferenceId.get(dataReference.cid);
     console.log('[nodeManager::createDataMirrorJobs] stage new public data ref', dataReferenceId, dataReference.cid);
     for (const mirror of activeMirrors) {
+      if (!dataReferenceId) {
+        console.log('[nodeManager::createDataMirrorJobs] ERR Skip public data ref', dataReferenceId, dataReference.cid);
+        continue;
+      }
       mirrorJobs.push({
         dataReferenceId,
         mirrorId: mirror,
