@@ -72,6 +72,7 @@ export interface ResearchObjectV1History {
 
 export interface ResearchObjectTransaction {
   id: string;
+  cid: string;
   chainId?: string;
 }
 
