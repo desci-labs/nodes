@@ -32,6 +32,7 @@ model Node {
   PublicDataReference PublicDataReference[]
   CidPruneList        CidPruneList[]
   NodeCover           NodeCover[]
+  NodeAccess          NodeAccess[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -159,6 +160,7 @@ model User {
   FriendReferral             FriendReferral[]
   currentDriveStorageLimitGb Int                   @default(5)
   maxDriveStorageLimitGb     Int                   @default(250)
+  NodeAccess                 NodeAccess[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -181,17 +183,19 @@ model Invite {
 }
 
 model AuthorInvite {
-  id          Int      @id @default(autoincrement())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  email       String   @unique
-  phoneNumber String   @unique
+  id          Int             @id @default(autoincrement())
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  email       String          @unique
+  phoneNumber String          @unique
   senderId    Int
-  receiverId  Int
+  receiverId  Int?
   nodeId      Int
-  node        Node     @relation(fields: [nodeId], references: [id])
-  receiver    User     @relation("ReceivedAuthorInvites", fields: [receiverId], references: [id])
-  sender      User     @relation("SentAuthorInvites", fields: [senderId], references: [id])
+  roleId      Int
+  role        NodeCreditRoles @relation(fields: [roleId], references: [id])
+  node        Node            @relation(fields: [nodeId], references: [id])
+  receiver    User?           @relation("ReceivedAuthorInvites", fields: [receiverId], references: [id])
+  sender      User            @relation("SentAuthorInvites", fields: [senderId], references: [id])
 }
 
 model NodeAuthor {
@@ -416,6 +420,28 @@ model NodeCover {
   @@unique([nodeUuid, version])
 }
 
+model NodeCreditRoles {
+  id           Int             @id @default(autoincrement())
+  credit       ResearchCredits
+  role         ResearchRoles
+  AuthorInvite AuthorInvite[]
+  NodeAccess   NodeAccess[]
+
+  @@unique([credit, role])
+}
+
+model NodeAccess {
+  id     Int             @id @default(autoincrement())
+  nodeId Int
+  userId Int
+  roleId Int
+  role   NodeCreditRoles @relation(fields: [roleId], references: [id])
+  node   Node            @relation(fields: [nodeId], references: [id])
+  user   User            @relation(fields: [userId], references: [id])
+
+  @@unique([nodeId, userId])
+}
+
 model FriendReferral {
   id                     Int                  @id @default(autoincrement())
   uuid                   String               @unique @default(uuid())
@@ -493,4 +519,18 @@ enum PublishState {
   PENDING
   SUCCESS
   FAILED
+}
+
+enum ResearchCredits {
+  AUTHOR
+  CONTRIBUTOR
+  CORRESPONDING_AUTHOR
+  NODE_STEWARD
+  PROGRAM_OFFICER
+  // None
+}
+
+enum ResearchRoles {
+  ADMIN
+  VIEWER
 }
