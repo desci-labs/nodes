@@ -4,21 +4,8 @@ import ShortUniqueId from 'short-unique-id';
 import prisma from 'client';
 import { RequestWithNodeAccess, RequestWithUser } from 'middleware/nodeGuard';
 
-export const createPrivateShare = async (req: Request, res: Response) => {
-  const owner = (req as any).user;
+export const createPrivateShare = async (req: RequestWithNodeAccess, res: Response) => {
   const uuid = req.params.uuid as string;
-
-  const discovery = await prisma.node.findFirst({
-    where: {
-      uuid: uuid + '.',
-      ownerId: owner.id, // TODO: remove this check, done at middleware level of ensureNodeAccess
-    },
-  });
-
-  if (!discovery) {
-    res.sendStatus(403);
-    return;
-  }
 
   const shareUUID = new ShortUniqueId({ length: 10 });
   const shareId = shareUUID() as string;
@@ -36,22 +23,9 @@ export const createPrivateShare = async (req: Request, res: Response) => {
 };
 
 export const getPrivateShare = async (req: RequestWithNodeAccess, res: Response) => {
-  const owner = req.user;
   const uuid = req.params.uuid as string;
-  const node = req.node;
 
   try {
-    // const discovery = await prisma.node.findFirst({
-    //   where: {
-    //     uuid: uuid + '.',
-    //     ownerId: owner.id, // TODO: remove this check, done at middleware level of ensureNodeAccess
-    //   },
-    // });
-
-    // if (!discovery) {
-    //   throw new Error('Node not found');
-    // }
-
     const privateShare = await prisma.privateShare.findFirst({ where: { nodeUUID: uuid + '.' } });
 
     if (!privateShare) {
@@ -82,22 +56,9 @@ export const checkPrivateShareId = async (req: Request, res: Response, next: Nex
 };
 
 export const revokePrivateShare = async (req: RequestWithNodeAccess, res: Response) => {
-  const owner = req.user;
   const uuid = req.params.uuid as string;
-  const node = req.node;
 
   try {
-    // const discovery = await prisma.node.findFirst({
-    //   where: {
-    //     uuid: uuid + '.',
-    //     ownerId: owner.id, // TODO: remove this check, done at middleware level of ensureNodeAccess
-    //   },
-    // });
-
-    // if (!discovery) {
-    //   throw new Error('Node not found');
-    // }
-
     await prisma.privateShare.delete({ where: { nodeUUID: uuid + '.' } });
 
     res.send({ ok: true });
