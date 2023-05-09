@@ -9,7 +9,7 @@ async function main() {
     { credit: ResearchCredits.NODE_STEWARD, role: ResearchRoles.ADMIN },
     { credit: ResearchCredits.NODE_STEWARD, role: ResearchRoles.VIEWER },
     // { credit: ResearchCredits.NODE_STEWARD, role: ResearchRoles.VIEWER },
-    // { credit: ResearchCredits.None, role: ResearchRoles.VIEWER },
+    { credit: ResearchCredits.NONE, role: ResearchRoles.VIEWER },
   ];
 
   const roles = await prisma.nodeCreditRoles.createMany({ skipDuplicates: true, data: creditRoles });
@@ -23,8 +23,8 @@ async function main() {
   const researchNodes = await prisma.node.findMany({
     where: { uuid: { not: undefined }, ownerId: { not: undefined } },
   });
-  const nodeAdminAccess: Omit<NodeAccess, 'id'>[] = researchNodes.map((node) => ({
-    nodeId: node.id,
+  const nodeAdminAccess: Omit<NodeAccess, 'id' | 'updatedAt' | 'createdAt'>[] = researchNodes.map((node) => ({
+    uuid: node.uuid,
     userId: node.ownerId,
     roleId: authorAdminRole.id,
   }));

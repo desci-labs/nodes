@@ -1,7 +1,8 @@
 import prisma from 'client';
 
+import researchFieldsData from '../../data/fields.json';
+
 const main = async () => {
-  const researchFieldsData = require('../../data/fields.json');
   const parsedFields: { name: string }[] = researchFieldsData.map((name) => ({ name }));
 
   const fields = await prisma.researchFields.createMany({ data: parsedFields, skipDuplicates: true });

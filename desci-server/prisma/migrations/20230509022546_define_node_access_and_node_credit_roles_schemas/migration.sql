@@ -5,7 +5,7 @@
 
 */
 -- CreateEnum
-CREATE TYPE "ResearchCredits" AS ENUM ('AUTHOR', 'CONTRIBUTOR', 'CORRESPONDING_AUTHOR', 'NODE_STEWARD', 'PROGRAM_OFFICER');
+CREATE TYPE "ResearchCredits" AS ENUM ('AUTHOR', 'CONTRIBUTOR', 'CORRESPONDING_AUTHOR', 'NODE_STEWARD', 'PROGRAM_OFFICER', 'NONE');
 
 -- CreateEnum
 CREATE TYPE "ResearchRoles" AS ENUM ('ADMIN', 'VIEWER');
@@ -29,9 +29,11 @@ CREATE TABLE "NodeCreditRoles" (
 -- CreateTable
 CREATE TABLE "NodeAccess" (
     "id" SERIAL NOT NULL,
-    "nodeId" INTEGER NOT NULL,
+    "uuid" TEXT NOT NULL,
     "userId" INTEGER NOT NULL,
     "roleId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "NodeAccess_pkey" PRIMARY KEY ("id")
 );
@@ -40,7 +42,7 @@ CREATE TABLE "NodeAccess" (
 CREATE UNIQUE INDEX "NodeCreditRoles_credit_role_key" ON "NodeCreditRoles"("credit", "role");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "NodeAccess_nodeId_userId_key" ON "NodeAccess"("nodeId", "userId");
+CREATE UNIQUE INDEX "NodeAccess_uuid_userId_key" ON "NodeAccess"("uuid", "userId");
 
 -- AddForeignKey
 ALTER TABLE "AuthorInvite" ADD CONSTRAINT "AuthorInvite_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "NodeCreditRoles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -52,7 +54,7 @@ ALTER TABLE "AuthorInvite" ADD CONSTRAINT "AuthorInvite_receiverId_fkey" FOREIGN
 ALTER TABLE "NodeAccess" ADD CONSTRAINT "NodeAccess_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "NodeCreditRoles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "NodeAccess" ADD CONSTRAINT "NodeAccess_nodeId_fkey" FOREIGN KEY ("nodeId") REFERENCES "Node"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "NodeAccess" ADD CONSTRAINT "NodeAccess_uuid_fkey" FOREIGN KEY ("uuid") REFERENCES "Node"("uuid") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "NodeAccess" ADD CONSTRAINT "NodeAccess_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

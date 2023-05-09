@@ -432,14 +432,16 @@ model NodeCreditRoles {
 
 model NodeAccess {
   id     Int             @id @default(autoincrement())
-  nodeId Int
+  uuid   String
   userId Int
   roleId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   role   NodeCreditRoles @relation(fields: [roleId], references: [id])
-  node   Node            @relation(fields: [nodeId], references: [id])
+  node   Node            @relation(fields: [uuid], references: [uuid])
   user   User            @relation(fields: [userId], references: [id])
 
-  @@unique([nodeId, userId])
+  @@unique([uuid, userId])
 }
 
 model FriendReferral {
@@ -527,7 +529,7 @@ enum ResearchCredits {
   CORRESPONDING_AUTHOR
   NODE_STEWARD
   PROGRAM_OFFICER
-  // None
+  NONE
 }
 
 enum ResearchRoles {
