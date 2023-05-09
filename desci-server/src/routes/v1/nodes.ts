@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { getNodeAccessRoles } from 'controllers/nodes/accessRole';
 import {
   show,
   draftUpdate,
@@ -39,6 +40,7 @@ router.post('/share/:uuid', [ensureUser, ensureNodeAccess], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser, ensureNodeAccess], revokePrivateShare);
 router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
+router.get('/roles', [ensureUser], getNodeAccessRoles);
 
 router.get('/legacy/retrieveTitle', retrieveTitle);
 

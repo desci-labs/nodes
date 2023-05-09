@@ -1,8 +1,11 @@
-import { Invite, prisma, User } from '@prisma/client';
 import { env } from 'process';
-import createRandomCode from 'utils/createRandomCode';
+
+import { Invite, prisma, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import AWS from 'aws-sdk';
+
+import createRandomCode from 'utils/createRandomCode';
+
 AWS.config.update({ region: 'us-east-2' });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 import client from '../client';
@@ -88,7 +91,7 @@ const sendMagicLinkEmail = async (email: string) => {
       html: `Welcome to DeSci Nodes, to access your account use the following code<br/><br/><a href="${url}" target="_blank">Login Now</a><br/><br/>Verification Code: ${token}`,
     };
 
-    let params = {
+    const params = {
       Destination: {
         /* required */
         ToAddresses: [msg.to],
