@@ -2,18 +2,15 @@ import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import { RequestWithNodeAccess } from 'middleware/nodeGuard';
 import { updateManifestAndAddToIpfs } from 'services/ipfs';
 import { cleanManifestForSaving } from 'utils/manifestDraftUtils';
 
-export const draftUpdate = async (req: Request, res: Response, next: NextFunction) => {
+export const draftUpdate = async (req: RequestWithNodeAccess, res: Response, next: NextFunction) => {
   const { uuid, manifest } = req.body;
+  const node = req.node;
 
   console.log('updateDraft', req.body);
-
-  if (!uuid) {
-    res.status(404).send();
-    return;
-  }
 
   try {
     const loggedInUserEmail = (req as any).user.email;
@@ -31,14 +28,7 @@ export const draftUpdate = async (req: Request, res: Response, next: NextFunctio
       throw Error('User ID mismatch');
     }
 
-    const node = await prisma.node.findFirst({
-      where: {
-        ownerId: loggedInUser,
-        uuid: uuid + '.',
-      },
-    });
-
-    const manifestParsed: ResearchObjectV1 = req.body.manifest as ResearchObjectV1;
+    const manifestParsed: ResearchObjectV1 = manifest as ResearchObjectV1;
 
     const updatedMeta: any = {};
     if (manifestParsed.title) updatedMeta.title = manifestParsed.title;

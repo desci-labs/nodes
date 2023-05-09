@@ -3,6 +3,7 @@ import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import { RequestWithNodeAccess } from 'middleware/nodeGuard';
 import { getDirectoryTree, renameFileInDag } from 'services/ipfs';
 import { updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
 import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
@@ -10,24 +11,25 @@ import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
 import { updateManifestDataBucket } from './update';
 import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils';
 
-export const renameData = async (req: Request, res: Response, next: NextFunction) => {
-  const owner = (req as any).user;
+export const renameData = async (req: RequestWithNodeAccess, res: Response, next: NextFunction) => {
+  const owner = req.user;
+  const node = req.node;
   const { uuid, path, newName, renameComponent } = req.body;
   console.log('[DATA::RENAME] hit, path: ', path, ' nodeUuid: ', uuid, ' user: ', owner.id, ' newName: ', newName);
   if (uuid === undefined || path === undefined)
     return res.status(400).json({ error: 'uuid, path and newName required' });
 
-  //validate requester owns the node
-  const node = await prisma.node.findFirst({
-    where: {
-      ownerId: owner.id,
-      uuid: uuid + '.',
-    },
-  });
-  if (!node) {
-    console.log(`[DATA::RENAME]unauthed node user: ${owner}, node uuid provided: ${uuid}`);
-    return res.status(400).json({ error: 'failed' });
-  }
+  // //validate requester owns the node
+  // const node = await prisma.node.findFirst({
+  //   where: {
+  //     ownerId: owner.id,
+  //     uuid: uuid + '.',
+  //   },
+  // });
+  // if (!node) {
+  //   console.log(`[DATA::RENAME]unauthed node user: ${owner}, node uuid provided: ${uuid}`);
+  //   return res.status(400).json({ error: 'failed' });
+  // }
 
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
   const dataBucket = latestManifest?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);

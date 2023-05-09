@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import ShortUniqueId from 'short-unique-id';
 
 import prisma from 'client';
+import { RequestWithNodeAccess, RequestWithUser } from 'middleware/nodeGuard';
 
 export const createPrivateShare = async (req: Request, res: Response) => {
   const owner = (req as any).user;
@@ -34,21 +35,22 @@ export const createPrivateShare = async (req: Request, res: Response) => {
   res.send({ ok: true, shareId: privateShare.shareId });
 };
 
-export const getPrivateShare = async (req: Request, res: Response) => {
-  const owner = (req as any).user;
+export const getPrivateShare = async (req: RequestWithNodeAccess, res: Response) => {
+  const owner = req.user;
   const uuid = req.params.uuid as string;
+  const node = req.node;
 
   try {
-    const discovery = await prisma.node.findFirst({
-      where: {
-        uuid: uuid + '.',
-        ownerId: owner.id, // TODO: remove this check, done at middleware level of ensureNodeAccess
-      },
-    });
+    // const discovery = await prisma.node.findFirst({
+    //   where: {
+    //     uuid: uuid + '.',
+    //     ownerId: owner.id, // TODO: remove this check, done at middleware level of ensureNodeAccess
+    //   },
+    // });
 
-    if (!discovery) {
-      throw new Error('Node not found');
-    }
+    // if (!discovery) {
+    //   throw new Error('Node not found');
+    // }
 
     const privateShare = await prisma.privateShare.findFirst({ where: { nodeUUID: uuid + '.' } });
 
@@ -61,6 +63,7 @@ export const getPrivateShare = async (req: Request, res: Response) => {
     res.status(403).send({ ok: false, message: e.message || 'Error querying private share link' });
   }
 };
+
 export const checkPrivateShareId = async (req: Request, res: Response, next: NextFunction) => {
   const shareId = req.params.shareId as string;
 
@@ -78,21 +81,22 @@ export const checkPrivateShareId = async (req: Request, res: Response, next: Nex
   }
 };
 
-export const revokePrivateShare = async (req: Request, res: Response) => {
-  const owner = (req as any).user;
+export const revokePrivateShare = async (req: RequestWithNodeAccess, res: Response) => {
+  const owner = req.user;
   const uuid = req.params.uuid as string;
+  const node = req.node;
 
   try {
-    const discovery = await prisma.node.findFirst({
-      where: {
-        uuid: uuid + '.',
-        ownerId: owner.id, // TODO: remove this check, done at middleware level of ensureNodeAccess
-      },
-    });
+    // const discovery = await prisma.node.findFirst({
+    //   where: {
+    //     uuid: uuid + '.',
+    //     ownerId: owner.id, // TODO: remove this check, done at middleware level of ensureNodeAccess
+    //   },
+    // });
 
-    if (!discovery) {
-      throw new Error('Node not found');
-    }
+    // if (!discovery) {
+    //   throw new Error('Node not found');
+    // }
 
     await prisma.privateShare.delete({ where: { nodeUUID: uuid + '.' } });
 

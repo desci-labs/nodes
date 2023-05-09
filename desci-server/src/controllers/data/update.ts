@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
+import { RequestWithNodeAccess } from 'middleware/nodeGuard';
 import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addFilesToDag,
@@ -58,9 +59,10 @@ export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }:
   return manifest;
 }
 
-export const update = async (req: Request, res: Response) => {
+export const update = async (req: RequestWithNodeAccess, res: Response) => {
   debugger;
-  const owner = (req as any).user as User;
+  const owner = req.user;
+  const node = req.node;
   const { uuid, manifest, contextPath, componentType, componentSubType, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl)
@@ -74,18 +76,6 @@ export const update = async (req: Request, res: Response) => {
   if (externalUrl) externalUrl = JSON.parse(externalUrl);
   if (externalCids) externalCids = JSON.parse(externalCids);
   let uploaded: IpfsPinnedResult[];
-
-  //validate requester owns the node
-  const node = await prisma.node.findFirst({
-    where: {
-      ownerId: owner.id,
-      uuid: uuid + '.',
-    },
-  });
-  if (!node) {
-    console.log(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
-    return res.status(400).json({ error: 'failed' });
-  }
 
   const files = req.files as Express.Multer.File[];
   if (!arrayXor([externalUrl, files.length, externalCids?.length, newFolderName?.length]))

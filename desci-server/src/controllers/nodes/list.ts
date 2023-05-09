@@ -3,11 +3,12 @@ import { randomBytes } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import { RequestWithUser } from 'middleware/nodeGuard';
 import { getIndexedResearchObjects } from 'theGraph';
 import { decodeBase64UrlSafeToHex, encodeBase64UrlSafe, randomUUID64 } from 'utils';
 
-export const list = async (req: Request, res: Response, next: NextFunction) => {
-  const owner = (req as any).user;
+export const list = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+  const owner = req.user;
 
   let nodes = await prisma.node.findMany({
     select: {

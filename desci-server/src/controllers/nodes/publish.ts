@@ -3,6 +3,7 @@ import { ActionType, Prisma } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import { RequestWithNodeAccess } from 'middleware/nodeGuard';
 import { saveInteraction } from 'services/interactionLog';
 import {
   publishResearchObject,
@@ -14,9 +15,11 @@ import {
 import { discordNotify } from 'utils/discordUtils';
 
 // call node publish service and add job to queue
-export const publish = async (req: Request, res: Response, next: NextFunction) => {
+export const publish = async (req: RequestWithNodeAccess, res: Response, next: NextFunction) => {
   debugger;
   const { uuid, cid, manifest, transactionId } = req.body;
+  const node = req.node;
+  const owner = req.user;
   const email = (req as any).user.email;
   if (!uuid || !cid || !manifest) {
     return res.status(404).send({ message: 'uuid, cid, and manifest must be valid' });
@@ -24,26 +27,27 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
 
   try {
     /**TODO: MOVE TO MIDDLEWARE */
-    const owner = await prisma.user.findFirst({
-      where: {
-        email,
-      },
-    });
+    // const owner = await prisma.user.findFirst({
+    //   where: {
+    //     email,
+    //   },
+    // });
 
-    if (!owner.id || owner.id < 1) {
-      throw Error('User ID mismatch');
-    }
+    // if (!owner.id || owner.id < 1) {
+    //   throw Error('User ID mismatch');
+    // }
 
-    const node = await prisma.node.findFirst({
-      where: {
-        ownerId: owner.id,
-        uuid: uuid + '.',
-      },
-    });
-    if (!node) {
-      console.log(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
-      return res.status(400).json({ error: 'failed' });
-    }
+    // TODO: remove this check, done at middleware level of [ensureNodeAdmin]
+    // const node = await prisma.node.findFirst({
+    //   where: {
+    //     ownerId: owner.id,
+    //     uuid: uuid + '.',
+    //   },
+    // });
+    // if (!node) {
+    //   console.log(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
+    //   return res.status(400).json({ error: 'failed' });
+    // }
     /**TODO: END MOVE TO MIDDLEWARE */
 
     // update node version

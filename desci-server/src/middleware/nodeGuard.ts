@@ -8,12 +8,11 @@ import { getUserByEmail, getUserByOrcId } from 'services/user';
 // import { CustomError } from '../utils/response/custom-error/CustomError';
 import { retrieveUser } from './ensureUser';
 
-interface RequestWithUser extends Request {
+export interface RequestWithUser extends Request {
   user: User;
 }
 
-export interface RequestNodeUser extends Request {
-  user: User;
+export interface RequestWithNodeAccess extends RequestWithUser {
   node: Node;
   nodeAccess: NodeAccess;
 }
@@ -25,7 +24,7 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
 
   const node = await prisma.node.findFirst({ where: { uuid: uuid + '.' } });
 
-  if (!node) {
+  if (!node || !uuid) {
     res.status(404).send({ message: 'Not found' });
     return;
   }
@@ -50,7 +49,7 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
 export const ensureNodeAdmin = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   const user = await (req.user || retrieveUser(req));
   const uuid = req.body?.uuid || req.query?.uuid || req.params?.uuid;
-  console.log('EnsureNodeAccess:: => ', user.email, uuid);
+  console.log('EnsureNodeAdmin:: => ', user.email, uuid);
 
   const node = await prisma.node.findFirst({ where: { uuid: uuid + '.' } });
 
@@ -58,13 +57,13 @@ export const ensureNodeAdmin = async (req: RequestWithUser, res: Response, next:
     res.status(404).send({ message: 'Not found' });
     return;
   }
-  console.log('EnsureNodeAccess::Node => ', node);
+  console.log('EnsureNodeAdmin::Node => ', node);
 
   const nodeAccess = await prisma.nodeAccess.findFirst({
     where: { uuid: uuid + '.', userId: user.id, role: { role: ResearchRoles.ADMIN } },
     include: { role: {} },
   });
-  console.log('EnsureNodeAccess::Access => ', nodeAccess);
+  console.log('EnsureNodeAdmin::Access => ', nodeAccess);
 
   if (!nodeAccess) {
     res.status(401).send({ message: '' });

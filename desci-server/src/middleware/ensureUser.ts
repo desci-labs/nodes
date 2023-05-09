@@ -10,7 +10,7 @@ import { CustomError } from '../utils/response/custom-error/CustomError';
 export const ensureUser = async (req: Request, res: Response, next: NextFunction) => {
   const retrievedUser = await retrieveUser(req);
 
-  if (!retrievedUser) {
+  if (!(retrievedUser && retrievedUser.id > 0)) {
     res.sendStatus(401);
     return;
   }
