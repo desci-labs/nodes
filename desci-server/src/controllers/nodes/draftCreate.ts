@@ -5,7 +5,7 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
 } from '@desci-labs/desci-models';
-import { DataReference, DataType } from '@prisma/client';
+import { DataReference, DataType, ResearchCredits } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
@@ -16,6 +16,7 @@ import {
   downloadSingleFile,
   updateManifestAndAddToIpfs,
 } from 'services/ipfs';
+import { setNodeAdmin } from 'services/nodeAccess';
 import { createNodeDraftBlank } from 'services/nodeManager';
 import { randomUUID64 } from 'utils';
 import { DRIVE_NODE_ROOT_PATH } from 'utils/driveUtils';
@@ -79,6 +80,8 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
       },
     });
 
+    // Todo: create NodeAccess (Author-Admin for owner.id)
+    await setNodeAdmin(owner.id, node.uuid, ResearchCredits.NODE_STEWARD);
     const dataConsumptionBytes = await getDataUsageForUserBytes(owner);
 
     // eslint-disable-next-line no-array-reduce/no-reduce
