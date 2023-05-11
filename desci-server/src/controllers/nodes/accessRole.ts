@@ -1,10 +1,12 @@
+import { AuthorInviteStatus, ResearchRoles } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
-import { RequestWithUser } from 'middleware/nodeGuard';
+import { RequestWithNodeAccess, RequestWithUser } from 'middleware/nodeGuard';
+import { grantNodeAccess, sendNodeAccessInvite, transferAdminAccess } from 'services/nodeAccess';
 
-export const getNodeAccessRoles = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+export const getNodeAccessRoles = async (req: RequestWithUser, res: Response) => {
   try {
     const roles = await prisma.nodeCreditRoles.findMany({});
     res.send({ roles });
@@ -12,3 +14,187 @@ export const getNodeAccessRoles = async (req: RequestWithUser, res: Response, ne
     res.status(500).send({ message: 'Unknow Error occured' });
   }
 };
+
+export const sendAccessInvite = async (req: RequestWithNodeAccess, res: Response) => {
+  try {
+    const { roleId, email } = req.body;
+    console.log('inviteNodeAuthor', roleId, email, req.node.uuid, req.user.id);
+    const role = await prisma.nodeCreditRoles.findFirst({ where: { id: roleId } });
+
+    if (!(role && email)) {
+      throw Error('Invalid role or email');
+    }
+
+    const isAdminTransfer = role.role === ResearchRoles.ADMIN;
+    const userToInvite = await prisma.user.findFirst({ where: { email } });
+    console.log('user to invite', userToInvite);
+
+    if (req.user.id === userToInvite.id) {
+      res.status(401).send({ ok: false });
+      return;
+    }
+
+    await sendNodeAccessInvite({
+      senderId: req.user.id,
+      receiverId: userToInvite?.id,
+      nodeId: req.node.id,
+      roleId,
+      email,
+      isAdminTransfer,
+    });
+
+    res.send({ ok: true });
+  } catch (error) {
+    const err = error as any;
+    console.log(err);
+    res.status(500).send({ message: err.messasge || 'Unknow Error occured' });
+  }
+};
+
+export const acceptAuthorInvite = async (req: RequestWithUser, res: Response) => {
+  try {
+    const { inviteCode } = req.body;
+
+    const invite = await prisma.authorInvite.findFirst({ where: { inviteCode: inviteCode.toString() } });
+    console.log('Invite found', invite);
+
+    const node = await prisma.node.findFirst({ where: { id: invite.nodeId } });
+
+    // check invite belongs to loggedIn user
+    const userToInvite = await prisma.user.findFirst({ where: { email: req.user.email } });
+    console.log('user to invite', userToInvite);
+
+    if (!invite) {
+      res.status(404).send({ ok: false, message: 'Invitation not found!' });
+      return;
+    }
+
+    if (!node) {
+      res.status(404).send({ ok: false, message: 'Node not found!' });
+      return;
+    }
+
+    if (!(userToInvite && userToInvite.email)) {
+      res.status(404).send({ ok: false, message: 'User or email not found, Update your email validate invitation!' });
+      return;
+    }
+
+    if (invite.email.toLowerCase() !== userToInvite.email.toLowerCase()) {
+      res.status(401).send({ ok: false, message: 'Invitation not yours!' });
+      return;
+    }
+
+    if (invite.expiresAt.getTime() < Date.now() || invite.status === AuthorInviteStatus.EXPIRED) {
+      // Expired invitation
+      await prisma.authorInvite.update({ where: { id: invite.id }, data: { expired: true, status: 'EXPIRED' } });
+      res.status(400).send({ ok: false, message: 'Invitation expired!' });
+      return;
+    }
+
+    if (invite.status !== AuthorInviteStatus.PENDING) {
+      res.status(404).send({ ok: false, message: 'Invitation invalid!' });
+      return;
+    }
+
+    const role = await prisma.nodeCreditRoles.findFirst({ where: { id: invite.roleId } });
+
+    if (!role) {
+      throw Error('Invalid Access role');
+    }
+
+    const isAdminTransfer = role.role === ResearchRoles.ADMIN;
+
+    if (isAdminTransfer) {
+      await transferAdminAccess({
+        uuid: node.uuid,
+        senderId: invite.senderId,
+        receiverId: req.user.id,
+        receiverRoleId: invite.roleId,
+      });
+    } else {
+      await grantNodeAccess({ userId: req.user.id, uuid: node.uuid, credit: role.credit, role: role.role });
+    }
+
+    await prisma.authorInvite.update({ where: { id: invite.id }, data: { status: 'ACCEPTED' } });
+    res.send({ ok: true });
+  } catch (error) {
+    const err = error as any;
+    console.log('err', err);
+    res.status(500).send({ message: err.messasge || 'Unknow Error occured' });
+  }
+};
+
+export const rejectAuthorInvite = async (req: RequestWithUser, res: Response) => {
+  try {
+    const { inviteCode } = req.body;
+
+    const invite = await prisma.authorInvite.findFirst({ where: { inviteCode } });
+    console.log('Invite found', invite);
+
+    // check invite belongs to loggedIn user
+    const userToInvite = await prisma.user.findFirst({ where: { email: req.user.email } });
+    console.log('user to invite', userToInvite);
+
+    if (!invite) {
+      res.status(404).send({ ok: false, message: 'Invitation not found!' });
+      return;
+    }
+
+    if (!(userToInvite && userToInvite.email)) {
+      res.status(404).send({ ok: false, message: 'User or email not found, Update your email validate invitation!' });
+      return;
+    }
+
+    if (invite.email.toLowerCase() !== userToInvite.email.toLowerCase()) {
+      res.status(401).send({ ok: false, message: 'Invitation not yours!' });
+      return;
+    }
+
+    if (invite.expiresAt.getTime() < Date.now()) {
+      // Expired invitation
+      await prisma.authorInvite.update({ where: { id: invite.id }, data: { expired: true } });
+      res.status(400).send({ ok: false, message: 'Invitation expired!' });
+      return;
+    }
+
+    await prisma.authorInvite.update({ where: { id: invite.id }, data: { status: 'REJECTED' } });
+
+    res.send({ ok: true });
+  } catch (error) {
+    const err = error as any;
+    res.status(500).send({ message: err.messasge || 'Unknow Error occured' });
+  }
+};
+
+// export const transferAdminAccess = async (req: RequestWithNodeAccess, res: Response, next: NextFunction) => {
+//   try {
+//     const { roleId, email } = req.body;
+
+//     const role = await prisma.nodeCreditRoles.findFirst({ where: { id: roleId } });
+
+//     if (!(role && email)) {
+//       throw Error('Invalid role or email');
+//     }
+
+//     if (role.role !== ResearchRoles.ADMIN) {
+//       throw Error('Cannot invite user as Admin');
+//     }
+
+//     const userToInvite = await prisma.user.findFirst({ where: { email } });
+//     console.log('user to invite', userToInvite);
+
+//     if (!userToInvite) {
+//       // TODO: send authorInvite email
+//     } else {
+//       // TODO: send author Invite to user
+//       // const nodeAccess = await prisma.nodeAccess.create({
+//       //   data: { roleId, userId: userToInvite.id, uuid: req.node.uuid },
+//       // });
+//     }
+
+//     res.send({ ok: true });
+//   } catch (error) {
+//     const err = error as any;
+//     res.status(500).send({ message: err.messasge || 'Unknow Error occured' });
+//   }
+// };

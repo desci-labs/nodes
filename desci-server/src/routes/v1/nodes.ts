@@ -1,6 +1,11 @@
 import { Router } from 'express';
 
-import { getNodeAccessRoles } from 'controllers/nodes/accessRole';
+import {
+  acceptAuthorInvite,
+  getNodeAccessRoles,
+  sendAccessInvite,
+  rejectAuthorInvite,
+} from 'controllers/nodes/accessRole';
 import {
   show,
   draftUpdate,
@@ -40,7 +45,16 @@ router.post('/share/:uuid', [ensureUser, ensureNodeAccess], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser, ensureNodeAccess], revokePrivateShare);
 router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
-router.get('/roles', [ensureUser], getNodeAccessRoles);
+
+// Node access control apis
+router.get('/accessRoles', [ensureUser], getNodeAccessRoles);
+router.post('/accessInvite', [ensureUser, ensureNodeAdmin], sendAccessInvite);
+router.post('/accessInvite/accept', [ensureUser], acceptAuthorInvite);
+router.post('/accessInvite/reject', [ensureUser], rejectAuthorInvite);
+// TODO: api to revoke node access
+// TODO: api to list user accessRoles
+// TODO: api to list node access
+// TODO: Api to list node author invites
 
 router.get('/legacy/retrieveTitle', retrieveTitle);
 

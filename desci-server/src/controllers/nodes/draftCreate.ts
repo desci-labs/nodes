@@ -82,6 +82,7 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
 
     // Todo: create NodeAccess (Author-Admin for owner.id)
     await setNodeAdmin(owner.id, node.uuid, ResearchCredits.NODE_STEWARD);
+
     const dataConsumptionBytes = await getDataUsageForUserBytes(owner);
 
     // eslint-disable-next-line no-array-reduce/no-reduce

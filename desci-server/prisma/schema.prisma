@@ -183,19 +183,22 @@ model Invite {
 }
 
 model AuthorInvite {
-  id          Int             @id @default(autoincrement())
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  email       String          @unique
-  phoneNumber String          @unique
-  senderId    Int
-  receiverId  Int?
-  nodeId      Int
-  roleId      Int
-  role        NodeCreditRoles @relation(fields: [roleId], references: [id])
-  node        Node            @relation(fields: [nodeId], references: [id])
-  receiver    User?           @relation("ReceivedAuthorInvites", fields: [receiverId], references: [id])
-  sender      User            @relation("SentAuthorInvites", fields: [senderId], references: [id])
+  id         Int                @id @default(autoincrement())
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  email      String
+  senderId   Int
+  receiverId Int?
+  nodeId     Int
+  roleId     Int
+  inviteCode String             @unique
+  status     AuthorInviteStatus @default(PENDING)
+  expired    Boolean            @default(false)
+  expiresAt  DateTime           @default(dbgenerated("(now() + '01:00:00'::interval)"))
+  role       NodeCreditRoles    @relation(fields: [roleId], references: [id])
+  node       Node               @relation(fields: [nodeId], references: [id])
+  receiver   User?              @relation("ReceivedAuthorInvites", fields: [receiverId], references: [id])
+  sender     User               @relation("SentAuthorInvites", fields: [senderId], references: [id])
 }
 
 model NodeAuthor {
@@ -431,15 +434,15 @@ model NodeCreditRoles {
 }
 
 model NodeAccess {
-  id     Int             @id @default(autoincrement())
-  uuid   String
-  userId Int
-  roleId Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  role   NodeCreditRoles @relation(fields: [roleId], references: [id])
-  node   Node            @relation(fields: [uuid], references: [uuid])
-  user   User            @relation(fields: [userId], references: [id])
+  id        Int             @id @default(autoincrement())
+  uuid      String
+  userId    Int
+  roleId    Int
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  role      NodeCreditRoles @relation(fields: [roleId], references: [id])
+  node      Node            @relation(fields: [uuid], references: [uuid])
+  user      User            @relation(fields: [userId], references: [id])
 
   @@unique([uuid, userId])
 }
@@ -535,4 +538,11 @@ enum ResearchCredits {
 enum ResearchRoles {
   ADMIN
   VIEWER
+}
+
+enum AuthorInviteStatus {
+  ACCEPTED
+  REJECTED
+  PENDING
+  EXPIRED
 }
