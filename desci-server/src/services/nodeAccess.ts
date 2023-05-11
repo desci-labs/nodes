@@ -55,8 +55,7 @@ export const revokeNodeAccess = async ({ userId, uuid, credit, role }: GrandAcce
 
   if (!nodeAccess) return true;
 
-  const result = await prisma.nodeAccess.delete({ where: { id: nodeAccess.id } });
-  return result;
+  return await prisma.nodeAccess.delete({ where: { id: nodeAccess.id } });
 };
 
 export const transferAdminAccess = async ({ senderId, receiverId, uuid, receiverRoleId }: TransferAccessParams) => {
