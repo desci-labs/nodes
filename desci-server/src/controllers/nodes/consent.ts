@@ -2,7 +2,7 @@ import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
-import { saveInteraction } from 'services/interactionLog';
+import { getUserConsent, saveInteraction } from 'services/interactionLog';
 
 export const consent = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;
@@ -15,4 +15,10 @@ export const consent = async (req: Request, res: Response, next: NextFunction) =
     user.id,
   );
   res.send({ ok: true });
+};
+
+export const checkUserConsent = async (req: Request, res: Response, next: NextFunction) => {
+  const user = (req as any).user;
+  const consent = await getUserConsent(user.id);
+  res.send({ ok: true, consent });
 };

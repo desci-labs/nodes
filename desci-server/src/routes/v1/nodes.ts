@@ -16,6 +16,7 @@ import {
   getPrivateShare,
   checkPrivateShareId,
   getCoverImage,
+  checkUserConsent,
 } from 'controllers/nodes/index';
 import { retrieveTitle } from 'controllers/nodes/legacyManifestApi';
 import { versionDetails } from 'controllers/nodes/versionDetails';
@@ -31,6 +32,7 @@ router.get('/versionDetails', [], versionDetails);
 router.get('/', [ensureUser], list);
 router.post('/doi', [ensureUser], retrieveDoi);
 router.get('/pdf', proxyPdf);
+router.get('/consent', [ensureUser], checkUserConsent);
 router.post('/consent', [ensureUser], consent);
 router.get('/share/verify/:shareId', checkPrivateShareId);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);
