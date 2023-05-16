@@ -132,6 +132,8 @@ model User {
   isKeeper                   Boolean               @default(false)
   pseudonym                  String?               @unique
   orcid                      String?               @unique
+  rorpid                     String?               @default("")
+  organization           String?               @default("")
   isAdmin                    Boolean               @default(false)
   isVerified                 Boolean               @default(false)
   verificationCode           String                @default("")

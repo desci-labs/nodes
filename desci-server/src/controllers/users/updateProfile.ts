@@ -11,6 +11,8 @@ interface ExpectedBody {
     email?: string;
     name?: string;
     googleScholarUrl?: string;
+    rorpid?: string;
+    organization?: string;
     orcid?: string;
   };
 }
@@ -29,13 +31,30 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
      * Note: We don't want to overwrite values with undefined
      * if they weren't included in the payload
      */
-    const updatedProfile = {} as { name?: string; googleScholarUrl?: string; orcid?: string; email?: string };
+    const updatedProfile = {} as {
+      name?: string;
+      googleScholarUrl?: string;
+      orcid?: string;
+      rorpid?: string;
+      organization?: string;
+      email?: string;
+    };
 
     updatedProfile.name = profile.name;
 
     if (profile?.orcid) {
       updatedProfile.orcid = profile.orcid;
     }
+
+    // TODO: validate rorpid again
+    if (profile?.rorpid) {
+      updatedProfile.rorpid = profile.rorpid;
+    }
+
+    if (profile?.organization) {
+      updatedProfile.organization = profile.organization;
+    }
+
     if (profile?.googleScholarUrl) {
       updatedProfile.googleScholarUrl = profile.googleScholarUrl;
     }
