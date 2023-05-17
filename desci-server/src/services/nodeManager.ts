@@ -27,7 +27,7 @@ import { uploadDataToEstuary } from 'services/estuary';
 import { getIndexedResearchObjects } from 'theGraph';
 import { hexToCid, randomUUID64 } from 'utils';
 import { asyncMap } from 'utils';
-import { generateExternalCidMap } from 'utils/driveUtils';
+import { generateExternalCidMap, recursiveFlattenTree } from 'utils/driveUtils';
 import { cleanManifestForSaving } from 'utils/manifestDraftUtils';
 
 import {
@@ -158,7 +158,6 @@ export const getAllCidsRequiredForPublish = async (
   nodeId: number | undefined,
   versionId: number | undefined,
 ): Promise<Prisma.PublicDataReferenceCreateManyInput[]> => {
-  debugger;
   // ensure public data refs staged matches our data bucket cids
   const latestManifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   // const manifestString = manifestBuffer.toString('utf8');
@@ -192,14 +191,14 @@ export const getAllCidsRequiredForPublish = async (
     nodeId,
     versionId,
   };
-  const dataTree = await getDirectoryTree(rootCid, externalCidMap);
+  const dataTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap));
 
   const dataTreeToPubRef = dataTree.map((entry) => {
     const obj: Prisma.PublicDataReferenceCreateManyInput = {
       cid: entry.cid,
       userId,
       root: false,
-      directory: !!entry.contains,
+      directory: entry.type === 'dir',
       size: entry.size,
       type: DataType.UNKNOWN,
       nodeId,
