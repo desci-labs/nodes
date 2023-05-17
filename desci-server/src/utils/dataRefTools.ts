@@ -61,16 +61,35 @@ export async function generateDataReferences(
   return [dataRootEntry, ...dataTreeToPubRef];
 }
 
-// export function validateDataReferences(dataBucketCid: string, nodeUuid: string, publicRefs: boolean) {
+export async function validateDataReferences(dataBucketCid: string, nodeUuid: string, publicRefs: boolean) {
+  const node = await prisma.node.findFirst({
+    where: {
+      uuid: nodeUuid + '.',
+    },
+  });
 
-//     const node = await prisma.node.findFirst({
-//         where: {
-//           ownerId: owner.id,
-//           uuid: uuid + '.',
-//         },
-//       });
+  const currentRefs = publicRefs
+    ? await prisma.publicDataReference.findMany({ where: { nodeId: node.id } })
+    : await prisma.dataReference.findMany({ where: { nodeId: node.id } });
 
-//     const currentRefs = publicRefs ? createPublicDataRefs.findMany({where: {nodeUuid}})
+  const requiredRefs = await generateDataReferences(nodeUuid, node.manifestUrl);
 
-//   const requiredRefs = getAllCidsRequiredForPublish(dataBucketCid, nodeUuid, undefined, undefined, undefined);
-// }
+  const missingRefs = [];
+
+  requiredRefs.forEach((requiredRef) => {
+    const exists = currentRefs.find(
+      (currentRef) => currentRef.cid === requiredRef.cid && currentRef.path === requiredRef.path,
+    );
+    if (!exists) missingRefs.push(requiredRef);
+  });
+
+  if (missingRefs.length) {
+    console.log(
+      `[validateDataReferences] node id: ${node} is missing ${missingRefs.length} data refs for the dataBucketCid: ${dataBucketCid}, missingRefs: ${missingRefs}`,
+    );
+    // await prisma.dataReference.createMany({
+    //   data: missingRefs,
+    //   skipDuplicates: true,
+    // });
+  }
+}
