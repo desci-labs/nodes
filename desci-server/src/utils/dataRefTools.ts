@@ -61,12 +61,16 @@ export async function generateDataReferences(
   return [dataRootEntry, ...dataTreeToPubRef];
 }
 
-export async function validateDataReferences(dataBucketCid: string, nodeUuid: string, publicRefs: boolean) {
+export async function validateDataReferences(nodeUuid: string, manifestCid: string, publicRefs: boolean) {
   const node = await prisma.node.findFirst({
     where: {
       uuid: nodeUuid + '.',
     },
   });
+
+  const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
+  const dataBucketCid = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
+    .cid;
 
   const currentRefs = publicRefs
     ? await prisma.publicDataReference.findMany({ where: { nodeId: node.id } })
@@ -87,9 +91,22 @@ export async function validateDataReferences(dataBucketCid: string, nodeUuid: st
     console.log(
       `[validateDataReferences] node id: ${node} is missing ${missingRefs.length} data refs for the dataBucketCid: ${dataBucketCid}, missingRefs: ${missingRefs}`,
     );
-    // await prisma.dataReference.createMany({
-    //   data: missingRefs,
-    //   skipDuplicates: true,
-    // });
+  }
+  return missingRefs;
+}
+
+export async function validateAndFixDataRefs(nodeUuid: string, manifestCid: string, publicRefs: boolean) {
+  const missingRefs = await validateDataReferences(nodeUuid, manifestCid, publicRefs);
+  if (missingRefs.length) {
+    const addedRefs = publicRefs
+      ? await prisma.publicDataReference.createMany({
+          data: missingRefs,
+          skipDuplicates: true,
+        })
+      : await prisma.dataReference.createMany({
+          data: missingRefs,
+          skipDuplicates: true,
+        });
+    console.log(`[validateAndFixDataRefs] node id: ${nodeUuid}, added ${addedRefs} missing data refs`);
   }
 }
