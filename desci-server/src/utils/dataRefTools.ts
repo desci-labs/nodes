@@ -14,7 +14,7 @@ import {
   neutralizePath,
 } from './driveUtils';
 
-// generates data references for the contents of a manifest|
+// generates data references for the contents of a manifest
 export async function generateDataReferences(
   nodeUuid: string,
   manifestCid: string,
@@ -179,11 +179,11 @@ export async function validateDataReferences(nodeUuid: string, manifestCid: stri
     );
     console.log('_______________________________________________________________________________________');
   }
-  return { missingRefs, unusedRefs };
+  return { missingRefs, unusedRefs, diffRefs };
 }
 
 export async function validateAndHealDataRefs(nodeUuid: string, manifestCid: string, publicRefs: boolean) {
-  const { missingRefs, unusedRefs } = await validateDataReferences(nodeUuid, manifestCid, publicRefs);
+  const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(nodeUuid, manifestCid, publicRefs);
   if (missingRefs.length) {
     const addedRefs = publicRefs
       ? await prisma.publicDataReference.createMany({
@@ -194,17 +194,29 @@ export async function validateAndHealDataRefs(nodeUuid: string, manifestCid: str
           data: missingRefs,
           skipDuplicates: true,
         });
-    console.log(`[validateAndFixDataRefs] node id: ${nodeUuid}, added ${addedRefs} missing data refs`);
+    console.log(`[validateAndFixDataRefs (MISSING)] node id: ${nodeUuid}, added ${addedRefs.count} missing data refs`);
   }
   if (unusedRefs.length) {
     const unusedRefIds = unusedRefs.map((ref) => ref.id);
-    const addedRefs = publicRefs
+    const deletedRefs = publicRefs
       ? await prisma.publicDataReference.deleteMany({
           where: { id: { in: unusedRefIds } },
         })
       : await prisma.dataReference.deleteMany({
           where: { id: { in: unusedRefIds } },
         });
-    console.log(`[validateAndFixDataRefs] node id: ${nodeUuid}, added ${addedRefs} missing data refs`);
+    console.log(
+      `[validateAndFixDataRefs (UNUSED)] node id: ${nodeUuid}, deleted ${deletedRefs.count} unused data refs`,
+    );
+  }
+
+  if (Object.keys(diffRefs).length) {
+    const updatedRefs = Object.keys(diffRefs).map(async (refId) => {
+      const updateOp = { where: { id: parseInt(refId) }, data: diffRefs[refId].requiredRef };
+      return publicRefs
+        ? await prisma.publicDataReference.update(updateOp)
+        : await prisma.dataReference.update(updateOp);
+    });
+    console.log(`[validateAndFixDataRefs (DIFF)] node id: ${nodeUuid}, healed ${updatedRefs.length} diff data refs`);
   }
 }
