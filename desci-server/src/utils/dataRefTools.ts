@@ -138,4 +138,15 @@ export async function validateAndHealDataRefs(nodeUuid: string, manifestCid: str
         });
     console.log(`[validateAndFixDataRefs] node id: ${nodeUuid}, added ${addedRefs} missing data refs`);
   }
+  if (unusedRefs.length) {
+    const unusedRefIds = unusedRefs.map((ref) => ref.id);
+    const addedRefs = publicRefs
+      ? await prisma.publicDataReference.deleteMany({
+          where: { id: { in: unusedRefIds } },
+        })
+      : await prisma.dataReference.deleteMany({
+          where: { id: { in: unusedRefIds } },
+        });
+    console.log(`[validateAndFixDataRefs] node id: ${nodeUuid}, added ${addedRefs} missing data refs`);
+  }
 }

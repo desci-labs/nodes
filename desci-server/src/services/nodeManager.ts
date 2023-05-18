@@ -27,6 +27,7 @@ import { uploadDataToEstuary } from 'services/estuary';
 import { getIndexedResearchObjects } from 'theGraph';
 import { hexToCid, randomUUID64 } from 'utils';
 import { asyncMap } from 'utils';
+import { generateDataReferences } from 'utils/dataRefTools';
 import { generateExternalCidMap, recursiveFlattenTree } from 'utils/driveUtils';
 import { cleanManifestForSaving } from 'utils/manifestDraftUtils';
 
@@ -40,8 +41,6 @@ import {
   getSizeForCid,
   resolveIpfsData,
 } from './ipfs';
-import { isDir } from './ipfs';
-import { generateDataReferences } from 'utils/dataRefTools';
 
 const ESTUARY_MIRROR_ID = 1;
 
@@ -85,7 +84,7 @@ export const createPublicDataRefs = async (
   userId: number | undefined,
   versionId: number | undefined,
 ) => {
-  let dataWithVersions = data.map((d) => ({ ...d, versionId }));
+  const dataWithVersions = data.map((d) => ({ ...d, versionId }));
   const publicDataRefRes = await prisma.publicDataReference.createMany({
     data: dataWithVersions,
     skipDuplicates: true,
