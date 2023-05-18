@@ -5,6 +5,7 @@ import axios from 'axios';
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
 import { getDirectoryTree } from 'services/ipfs';
+import { objectPropertyXor, omitKeys } from 'utils';
 
 import {
   generateExternalCidMap,
@@ -34,6 +35,7 @@ export async function generateDataReferences(
     path: dataBucketCid,
     userId: node.ownerId,
     root: true,
+    rootCid: dataBucketCid,
     directory: true,
     size: 0,
     type: DataType.DATA_BUCKET,
@@ -51,6 +53,7 @@ export async function generateDataReferences(
       cid: entry.cid,
       path: entry.path,
       userId: node.ownerId,
+      rootCid: dataBucketCid,
       root: false,
       directory: entry.type === 'dir',
       size: entry.size,
@@ -63,6 +66,18 @@ export async function generateDataReferences(
   return [dataRootEntry, ...dataTreeToPubRef];
 }
 
+interface DataReferenceDiff {
+  currentRef: Partial<DataReference>;
+  requiredRef: Partial<DataReference>;
+}
+
+interface DiffObject {
+  [refDbId: string]: DataReferenceDiff;
+}
+
+// generateDataReferences() refs won't contain these keys, they will be omitted from the diff.
+const DIFF_EXCLUSION_KEYS = ['id', 'createdAt', 'updatedAt', 'name', 'description', 'external', 'versionId'];
+// note: won't work well for missing external cid references, versionId to be added and removed from exclusion list.
 export async function validateDataReferences(nodeUuid: string, manifestCid: string, publicRefs: boolean) {
   if (nodeUuid.endsWith('.')) nodeUuid = nodeUuid.slice(0, -1);
   const node = await prisma.node.findFirst({
@@ -83,6 +98,7 @@ export async function validateDataReferences(nodeUuid: string, manifestCid: stri
   const requiredRefs = await generateDataReferences(nodeUuid, node.manifestUrl);
 
   const missingRefs = [];
+  const diffRefs = {};
 
   // keep track of used dref ids, to filter out unnecessary data refs
   const usedRefIds = {};
@@ -91,7 +107,31 @@ export async function validateDataReferences(nodeUuid: string, manifestCid: stri
     const exists = currentRefs.find(
       (currentRef) => currentRef.cid === requiredRef.cid && currentRef.path === requiredRef.path,
     );
-    if (exists) usedRefIds[exists.id] = true;
+
+    if (exists) {
+      // checks if theres a diff between the two refs
+      const filteredCurrentRef = omitKeys(exists, DIFF_EXCLUSION_KEYS);
+      const diffKeys = objectPropertyXor(requiredRef, filteredCurrentRef);
+      const currentRefProps = {};
+      const requiredRefProps = {};
+      Object.keys(diffKeys).forEach((key) => {
+        if (key in filteredCurrentRef) {
+          currentRefProps[key] = filteredCurrentRef[key];
+        } else {
+          currentRefProps[key] = undefined;
+        }
+        if (key in requiredRef) {
+          requiredRefProps[key] = requiredRef[key];
+        } else {
+          requiredRefProps[key] = undefined;
+        }
+      });
+      if (Object.keys(diffKeys).length) {
+        diffRefs[exists.id] = { currentRef: currentRefProps, requiredRef: requiredRefProps };
+      }
+      // ref consumed, don't add to unused refs
+      usedRefIds[exists.id] = true;
+    }
     if (!exists) missingRefs.push(requiredRef);
   });
 
@@ -99,10 +139,13 @@ export async function validateDataReferences(nodeUuid: string, manifestCid: stri
 
   const totalMissingRefs = missingRefs.length;
   const totalUnusedRefs = unusedRefs.length;
+  const totalDiffRefs = Object.keys(diffRefs).length;
 
   if (totalMissingRefs) {
     console.log(
-      `[validateDataReferences] node id: ${node} is missing ${totalMissingRefs} data refs for the dataBucketCid: ${dataBucketCid}, missingRefs: ${JSON.stringify(
+      `[validateDataReferences (MISSING)] node id: ${
+        node.id
+      } is missing ${totalMissingRefs} data refs for dataBucketCid: ${dataBucketCid}, missingRefs: ${JSON.stringify(
         missingRefs,
         null,
         2,
@@ -113,8 +156,23 @@ export async function validateDataReferences(nodeUuid: string, manifestCid: stri
 
   if (totalUnusedRefs) {
     console.log(
-      `[validateDataReferences] node id: ${node} has ${totalUnusedRefs} unused data refs for the dataBucketCid: ${dataBucketCid}, unusedRefs: ${JSON.stringify(
+      `[validateDataReferences (UNUSED)] node id: ${
+        node.id
+      } has ${totalUnusedRefs} unused data refs for dataBucketCid: ${dataBucketCid}, unusedRefs: ${JSON.stringify(
         unusedRefs,
+        null,
+        2,
+      )}`,
+    );
+    console.log('_______________________________________________________________________________________');
+  }
+
+  if (totalDiffRefs) {
+    console.log(
+      `[validateDataReferences (DIFF)] node id: ${
+        node.id
+      } has ${totalDiffRefs} refs with non matching props for dataBucketCid: ${dataBucketCid}, diffRefs: ${JSON.stringify(
+        diffRefs,
         null,
         2,
       )}`,
