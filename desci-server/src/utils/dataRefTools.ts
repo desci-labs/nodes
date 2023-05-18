@@ -1,5 +1,5 @@
 import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
-import { DataType, Prisma } from '@prisma/client';
+import { DataReference, DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
 
 import prisma from 'client';
@@ -24,13 +24,14 @@ export async function generateDataReferences(
       uuid: nodeUuid + '.',
     },
   });
-
+  if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   const dataBucketCid = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
     .cid;
 
   const dataRootEntry: Prisma.DataReferenceCreateManyInput = {
     cid: dataBucketCid,
+    path: dataBucketCid,
     userId: node.ownerId,
     root: true,
     directory: true,
@@ -48,6 +49,7 @@ export async function generateDataReferences(
     const neutralPath = neutralizePath(entry.path);
     return {
       cid: entry.cid,
+      path: entry.path,
       userId: node.ownerId,
       root: false,
       directory: entry.type === 'dir',
@@ -62,41 +64,68 @@ export async function generateDataReferences(
 }
 
 export async function validateDataReferences(nodeUuid: string, manifestCid: string, publicRefs: boolean) {
+  if (nodeUuid.endsWith('.')) nodeUuid = nodeUuid.slice(0, -1);
   const node = await prisma.node.findFirst({
     where: {
       uuid: nodeUuid + '.',
     },
   });
+  if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
 
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   const dataBucketCid = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
     .cid;
 
   const currentRefs = publicRefs
-    ? await prisma.publicDataReference.findMany({ where: { nodeId: node.id } })
-    : await prisma.dataReference.findMany({ where: { nodeId: node.id } });
+    ? await prisma.publicDataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } })
+    : await prisma.dataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } });
 
   const requiredRefs = await generateDataReferences(nodeUuid, node.manifestUrl);
 
   const missingRefs = [];
 
+  // keep track of used dref ids, to filter out unnecessary data refs
+  const usedRefIds = {};
+
   requiredRefs.forEach((requiredRef) => {
     const exists = currentRefs.find(
       (currentRef) => currentRef.cid === requiredRef.cid && currentRef.path === requiredRef.path,
     );
+    if (exists) usedRefIds[exists.id] = true;
     if (!exists) missingRefs.push(requiredRef);
   });
 
-  if (missingRefs.length) {
+  const unusedRefs = currentRefs.filter((currentRef) => !(currentRef.id in usedRefIds));
+
+  const totalMissingRefs = missingRefs.length;
+  const totalUnusedRefs = unusedRefs.length;
+
+  if (totalMissingRefs) {
     console.log(
-      `[validateDataReferences] node id: ${node} is missing ${missingRefs.length} data refs for the dataBucketCid: ${dataBucketCid}, missingRefs: ${missingRefs}`,
+      `[validateDataReferences] node id: ${node} is missing ${totalMissingRefs} data refs for the dataBucketCid: ${dataBucketCid}, missingRefs: ${JSON.stringify(
+        missingRefs,
+        null,
+        2,
+      )}`,
     );
+    console.log('_______________________________________________________________________________________');
   }
-  return missingRefs;
+
+  if (totalUnusedRefs) {
+    console.log(
+      `[validateDataReferences] node id: ${node} has ${totalUnusedRefs} unused data refs for the dataBucketCid: ${dataBucketCid}, unusedRefs: ${JSON.stringify(
+        unusedRefs,
+        null,
+        2,
+      )}`,
+    );
+    console.log('_______________________________________________________________________________________');
+  }
+  return { missingRefs, unusedRefs };
 }
 
-export async function validateAndFixDataRefs(nodeUuid: string, manifestCid: string, publicRefs: boolean) {
-  const missingRefs = await validateDataReferences(nodeUuid, manifestCid, publicRefs);
+export async function validateAndHealDataRefs(nodeUuid: string, manifestCid: string, publicRefs: boolean) {
+  const { missingRefs, unusedRefs } = await validateDataReferences(nodeUuid, manifestCid, publicRefs);
   if (missingRefs.length) {
     const addedRefs = publicRefs
       ? await prisma.publicDataReference.createMany({
