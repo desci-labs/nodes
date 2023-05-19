@@ -149,6 +149,8 @@ export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
 }
 
 export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataType>) {
+  const naturalType = pathToDbTypeMap[path];
+  if (naturalType && naturalType !== DataType.UNKNOWN) return naturalType;
   const pathSplit = path.split('/');
   if (pathSplit.length < 3) return DataType.UNKNOWN;
   while (pathSplit.length > 1) {
