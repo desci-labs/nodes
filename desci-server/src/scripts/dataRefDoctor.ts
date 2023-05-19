@@ -23,7 +23,7 @@ main();
 function main() {
   const { operation, nodeUuid, manifestCid, publicRefs, start, end } = getOperationEnvs();
   const startIterator = isNaN(start as any) ? undefined : parseInt(start);
-  const endIterator = isNaN(end as any) ? undefined : parseInt(end) + 1;
+  const endIterator = isNaN(end as any) ? undefined : parseInt(end);
 
   switch (operation) {
     case 'validate':
