@@ -78,7 +78,7 @@ interface DiffObject {
 }
 
 // generateDataReferences() refs won't contain these keys, they will be omitted from the diff.
-const DIFF_EXCLUSION_KEYS = ['id', 'createdAt', 'updatedAt', 'name', 'description', 'external', 'versionId'];
+const DIFF_EXCLUSION_KEYS = ['id', 'createdAt', 'updatedAt', 'name', 'description', 'external'];
 // note: won't work well for missing external cid references, versionId to be added and removed from exclusion list.
 export async function validateDataReferences(nodeUuid: string, manifestCid: string, publicRefs: boolean) {
   if (nodeUuid.endsWith('.')) nodeUuid = nodeUuid.slice(0, -1);
@@ -97,13 +97,19 @@ export async function validateDataReferences(nodeUuid: string, manifestCid: stri
     ? await prisma.publicDataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } })
     : await prisma.dataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } });
 
-  const requiredRefs = await generateDataReferences(nodeUuid, node.manifestUrl);
+  const versionId = publicRefs
+    ? (await prisma.nodeVersion.findFirst({ where: { nodeId: node.id, manifestUrl: manifestCid } })).id
+    : undefined;
+
+  const requiredRefs = await generateDataReferences(nodeUuid, node.manifestUrl, versionId);
 
   const missingRefs = [];
   const diffRefs: DiffObject = {};
 
   // keep track of used dref ids, to filter out unnecessary data refs
   const usedRefIds = {};
+
+  const diffExclusionKeys = [...DIFF_EXCLUSION_KEYS, ...(publicRefs ? [] : ['versionId'])];
 
   requiredRefs.forEach((requiredRef) => {
     const exists = currentRefs.find(
@@ -112,7 +118,7 @@ export async function validateDataReferences(nodeUuid: string, manifestCid: stri
 
     if (exists) {
       // checks if theres a diff between the two refs
-      const filteredCurrentRef = omitKeys(exists, DIFF_EXCLUSION_KEYS);
+      const filteredCurrentRef = omitKeys(exists, diffExclusionKeys);
       const diffKeys = objectPropertyXor(requiredRef, filteredCurrentRef);
       const currentRefProps = {};
       const requiredRefProps = {};
