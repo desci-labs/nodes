@@ -12,6 +12,7 @@ import {
   recursiveFlattenTree,
   generateManifestPathsToDbTypeMap,
   neutralizePath,
+  inheritComponentType,
 } from './driveUtils';
 
 // generates data references for the contents of a manifest
@@ -49,6 +50,7 @@ export async function generateDataReferences(
 
   const dataTreeToPubRef: Prisma.DataReferenceCreateManyInput[] = dataTree.map((entry) => {
     const neutralPath = neutralizePath(entry.path);
+    const dbType = inheritComponentType(neutralPath, manifestPathsToDbTypes);
     return {
       cid: entry.cid,
       path: entry.path,
@@ -57,7 +59,7 @@ export async function generateDataReferences(
       root: false,
       directory: entry.type === 'dir',
       size: entry.size,
-      type: manifestPathsToDbTypes[neutralPath] || DataType.UNKNOWN,
+      type: dbType,
       nodeId: node.id,
       ...(versionId ? { versionId } : {}),
     };
@@ -98,7 +100,7 @@ export async function validateDataReferences(nodeUuid: string, manifestCid: stri
   const requiredRefs = await generateDataReferences(nodeUuid, node.manifestUrl);
 
   const missingRefs = [];
-  const diffRefs = {};
+  const diffRefs: DiffObject = {};
 
   // keep track of used dref ids, to filter out unnecessary data refs
   const usedRefIds = {};
