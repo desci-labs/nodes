@@ -1,4 +1,6 @@
 import prisma from 'client';
+import { getIndexedResearchObjects } from 'theGraph';
+import { hexToCid } from 'utils';
 import { validateAndHealDataRefs, validateDataReferences } from 'utils/dataRefTools';
 
 /* 
@@ -10,10 +12,10 @@ Usage Guidelines:
 Operation Types [validate, heal, validateAll, healAll]
 
 Usage Examples:
-validate:     OPERATION=validate NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_REFS=true npm run scripts:fix-data-refs
-heal:         OPERATION=healAll NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_REFS=true npm run scripts:fix-data-refs
-validateAll:  OPERATION=validateAll PUBLIC_REFS=true npm run scripts:fix-data-refs
-healAll:      OPERATION=healAll PUBLIC_REFS=true npm run scripts:fix-data-refs
+validate:     OPERATION=validate NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_REFS=true npm run script:fix-data-refs
+heal:         OPERATION=healAll NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_REFS=true npm run script:fix-data-refs
+validateAll:  OPERATION=validateAll PUBLIC_REFS=true npm run script:fix-data-refs
+healAll:      OPERATION=healAll PUBLIC_REFS=true npm run script:fix-data-refs
  */
 
 main();
@@ -46,7 +48,7 @@ function getOperationEnvs() {
     operation: process.env.OPERATION || null,
     nodeUuid: process.env.NODE_UUID || null,
     manifestCid: process.env.MANIFEST_CID || null,
-    publicRefs: process.env.PUBLIC_REFS.toLowerCase() === 'true' ? true : false,
+    publicRefs: process.env.PUBLIC_REFS?.toLowerCase() === 'true' ? true : false,
   };
 }
 
@@ -63,10 +65,29 @@ async function dataRefDoctor(heal: boolean, publicRefs: boolean) {
     try {
       console.log(`[DataRefDoctor]Processing node: ${nodes[i].id}`);
       const node = nodes[i];
-      if (heal) {
-        await validateAndHealDataRefs(node.uuid, node.manifestUrl, publicRefs);
-      } else {
-        await validateDataReferences(node.uuid, node.manifestUrl, publicRefs);
+
+      if (publicRefs) {
+        const { researchObjects } = await getIndexedResearchObjects([node.uuid]);
+        if (!researchObjects.length) continue;
+        const indexedNode = researchObjects[0];
+        const totalVersionsIndexed = indexedNode.versions.length || 0;
+        if (!totalVersionsIndexed) continue;
+        for (let nodeVersIdx = 0; nodeVersIdx < totalVersionsIndexed; nodeVersIdx++) {
+          const hexCid = indexedNode.versions[nodeVersIdx]?.cid || indexedNode.recentCid;
+          const manifestCid = hexToCid(hexCid);
+          if (heal) {
+            await validateAndHealDataRefs(node.uuid, manifestCid, true);
+          } else {
+            validateDataReferences(node.uuid, manifestCid, true);
+          }
+        }
+      }
+      if (!publicRefs) {
+        if (heal) {
+          await validateAndHealDataRefs(node.uuid, node.manifestUrl, false);
+        } else {
+          await validateDataReferences(node.uuid, node.manifestUrl, false);
+        }
       }
     } catch (e) {
       console.log(`[DataRefDoctor]Error processing node: ${nodes[i].id}, error: ${e}`);
