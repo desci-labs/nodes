@@ -8,6 +8,7 @@ Usage Guidelines:
 - validate makes no changes, just outputs the validation results.
 - heal will add missing refs, remove unused refs, and fix refs with a diff discrepancy.
 - PUBLIC_REFS is an optional flag, if true, it will fix public refs.
+- START and END are optional flags, if set, it will only process nodes within the range.
 
 Operation Types [validate, heal, validateAll, healAll]
 
@@ -20,7 +21,9 @@ healAll:      OPERATION=healAll PUBLIC_REFS=true npm run script:fix-data-refs
 
 main();
 function main() {
-  const { operation, nodeUuid, manifestCid, publicRefs } = getOperationEnvs();
+  const { operation, nodeUuid, manifestCid, publicRefs, start, end } = getOperationEnvs();
+  const startIterator = isNaN(start as any) ? undefined : parseInt(start);
+  const endIterator = isNaN(end as any) ? undefined : parseInt(end) + 1;
 
   switch (operation) {
     case 'validate':
@@ -32,10 +35,10 @@ function main() {
       validateAndHealDataRefs(nodeUuid, manifestCid, publicRefs);
       break;
     case 'validateAll':
-      dataRefDoctor(false, publicRefs);
+      dataRefDoctor(false, publicRefs, startIterator, endIterator);
       break;
     case 'healAll':
-      dataRefDoctor(true, publicRefs);
+      dataRefDoctor(true, publicRefs, startIterator, endIterator);
       break;
     default:
       console.log('Invalid operation, valid operations include: validate, heal, validateAll, healAll');
@@ -49,11 +52,13 @@ function getOperationEnvs() {
     nodeUuid: process.env.NODE_UUID || null,
     manifestCid: process.env.MANIFEST_CID || null,
     publicRefs: process.env.PUBLIC_REFS?.toLowerCase() === 'true' ? true : false,
+    start: process.env.START,
+    end: process.env.END,
   };
 }
 
 //todo: add public handling
-async function dataRefDoctor(heal: boolean, publicRefs: boolean) {
+async function dataRefDoctor(heal: boolean, publicRefs: boolean, start?: number, end?: number) {
   const nodes = await prisma.node.findMany({
     orderBy: {
       id: 'asc',
@@ -61,7 +66,10 @@ async function dataRefDoctor(heal: boolean, publicRefs: boolean) {
   });
   console.log(`[DataRefDoctor]Nodes found: ${nodes.length}`);
 
-  for (let i = 0; i < nodes.length; i++) {
+  const startIdx = start || 0;
+  const endIdx = end || nodes.length;
+
+  for (let i = startIdx; i < endIdx; i++) {
     try {
       console.log(`[DataRefDoctor]Processing node: ${nodes[i].id}`);
       const node = nodes[i];
