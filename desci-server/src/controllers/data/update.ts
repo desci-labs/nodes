@@ -61,7 +61,7 @@ export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }:
 export const update = async (req: Request, res: Response) => {
   debugger;
   const owner = (req as any).user as User;
-  const { uuid, manifest, contextPath, componentType, componentSubType, newFolderName } = req.body;
+  const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl)
   //ExternalURL - url + type, code (github) & external pdfs for now
@@ -332,7 +332,7 @@ export const update = async (req: Request, res: Response) => {
         path: neutralFullPath,
         cid: file.cid,
         componentType,
-        componentSubType,
+        componentSubtype,
         star: true,
         ...(externalUrl && { externalUrl: externalUrl.url }),
       };
