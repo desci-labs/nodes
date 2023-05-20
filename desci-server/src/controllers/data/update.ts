@@ -59,7 +59,7 @@ export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }:
 }
 
 export const update = async (req: Request, res: Response) => {
-  debugger;
+  // debugger;
   const owner = (req as any).user as User;
   const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
@@ -196,11 +196,13 @@ export const update = async (req: Request, res: Response) => {
   console.log('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
 
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
+  // debugger;
   const OldTreePaths = oldFlatTree.map((e) => e.path);
   let newPathsFormatted: string[] = [];
   const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
   if (files.length) {
     newPathsFormatted = files.map((f) => {
+      if (f.originalname[0] !== '/') f.originalname = '/' + f.originalname;
       return header + f.originalname;
     });
   }
