@@ -9,7 +9,7 @@ Usage Guidelines:
 - heal will add missing refs, remove unused refs, and fix refs with a diff discrepancy.
 - PUBLIC_REFS is an optional flag, if true, it will fix public refs.
 - START and END are optional flags, if set, it will only process nodes within the range.
-- MARK_EXTERNALS is an optional flag, if true, it will mark external refs as external, downside is that it can take significantly longer to process.
+- MARK_EXTERNALS is an optional flag, if true, it will mark external refs as external, downside is that it can take significantly longer to process, also size diff checking disabled when marking externals.
 - TX_HASH is an optional param, used for fixing node version of a specific published node version. (Edgecase of multiple publishes with same manifestCid)
 
 Operation Types [validate, heal, validateAll, healAll]

@@ -132,10 +132,11 @@ export async function validateDataReferences(
   // keep track of used dref ids, to filter out unnecessary data refs
   const usedRefIds = {};
 
+  // NOTE: size diff checking disabled if marking externals
   const diffExclusionKeys = [
     ...DIFF_EXCLUSION_KEYS,
     ...(publicRefs ? [] : ['versionId']),
-    ...(markExternals ? [] : ['external']),
+    ...(markExternals ? ['size'] : ['external']),
   ];
 
   requiredRefs.forEach((requiredRef) => {
@@ -147,6 +148,9 @@ export async function validateDataReferences(
       // checks if theres a diff between the two refs
       const filteredCurrentRef = omitKeys(exists, diffExclusionKeys);
       const diffKeys = objectPropertyXor(requiredRef, filteredCurrentRef);
+      Object.keys(diffKeys).forEach((key) => {
+        if (diffExclusionKeys.includes(key)) delete diffKeys[key];
+      });
       const currentRefProps = {};
       const requiredRefProps = {};
       Object.keys(diffKeys).forEach((key) => {
