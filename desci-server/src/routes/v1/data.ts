@@ -8,7 +8,7 @@ import { upgradeManifestTransformer } from 'middleware/upgradeManifest';
 const router = Router();
 const upload = multer({ preservePath: true });
 
-router.post('/update', [ensureUser, upload.array('files'), upgradeManifestTransformer], update);
+router.post('/update', [ensureUser, upload.array('files')], update);
 router.post('/delete', [ensureUser], deleteData);
 router.post('/rename', [ensureUser], renameData);
 router.get('/retrieveTree/:nodeUuid/:cid', [ensureUser], retrieveTree);

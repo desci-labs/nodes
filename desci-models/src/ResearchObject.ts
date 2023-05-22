@@ -72,6 +72,7 @@ export interface ResearchObjectV1History {
 
 export interface ResearchObjectTransaction {
   id: string;
+  cid: string;
   chainId?: string;
 }
 
@@ -106,6 +107,8 @@ export enum ResearchObjectAttributeKey {
   ACM_REUSABLE = "reusable",
   ACM_REPRODUCED = "reproduced",
   ACM_REPLICATED = "replicated",
+  AUTHORSHIP_VERIFIED = "authorship-verified",
+  COMPUTATIONAL_REPRODUCIBILITY = "computational-reproducibility",
 }
 
 export interface ResearchObjectV1Attributes {
