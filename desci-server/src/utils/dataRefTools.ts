@@ -20,6 +20,7 @@ export async function generateDataReferences(
   nodeUuid: string,
   manifestCid: string,
   versionId?: number,
+  txHash?: string,
 ): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
   nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
   const node = await prisma.node.findFirst({
@@ -81,7 +82,12 @@ interface DiffObject {
 // generateDataReferences() refs won't contain these keys, they will be omitted from the diff.
 const DIFF_EXCLUSION_KEYS = ['id', 'createdAt', 'updatedAt', 'name', 'description', 'external'];
 // note: won't work well for missing external cid references, versionId to be added and removed from exclusion list.
-export async function validateDataReferences(nodeUuid: string, manifestCid: string, publicRefs: boolean) {
+export async function validateDataReferences(
+  nodeUuid: string,
+  manifestCid: string,
+  publicRefs: boolean,
+  txHash?: string,
+) {
   if (nodeUuid.endsWith('.')) nodeUuid = nodeUuid.slice(0, -1);
   const node = await prisma.node.findFirst({
     where: {
@@ -99,7 +105,11 @@ export async function validateDataReferences(nodeUuid: string, manifestCid: stri
     : await prisma.dataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } });
 
   const versionId = publicRefs
-    ? (await prisma.nodeVersion.findFirst({ where: { nodeId: node.id, manifestUrl: manifestCid } })).id
+    ? (
+        await prisma.nodeVersion.findFirst({
+          where: { nodeId: node.id, manifestUrl: manifestCid, transactionId: txHash },
+        })
+      ).id
     : undefined;
 
   const requiredRefs = await generateDataReferences(nodeUuid, node.manifestUrl, versionId);
@@ -191,8 +201,13 @@ export async function validateDataReferences(nodeUuid: string, manifestCid: stri
   return { missingRefs, unusedRefs, diffRefs };
 }
 
-export async function validateAndHealDataRefs(nodeUuid: string, manifestCid: string, publicRefs: boolean) {
-  const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(nodeUuid, manifestCid, publicRefs);
+export async function validateAndHealDataRefs(
+  nodeUuid: string,
+  manifestCid: string,
+  publicRefs: boolean,
+  txHash?: string,
+) {
+  const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(nodeUuid, manifestCid, publicRefs, txHash);
   if (missingRefs.length) {
     const addedRefs = publicRefs
       ? await prisma.publicDataReference.createMany({

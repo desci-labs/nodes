@@ -82,11 +82,12 @@ async function dataRefDoctor(heal: boolean, publicRefs: boolean, start?: number,
         if (!totalVersionsIndexed) continue;
         for (let nodeVersIdx = 0; nodeVersIdx < totalVersionsIndexed; nodeVersIdx++) {
           const hexCid = indexedNode.versions[nodeVersIdx]?.cid || indexedNode.recentCid;
+          const txHash = indexedNode.versions[nodeVersIdx]?.id;
           const manifestCid = hexToCid(hexCid);
           if (heal) {
-            await validateAndHealDataRefs(node.uuid, manifestCid, true);
+            await validateAndHealDataRefs(node.uuid, manifestCid, true, txHash);
           } else {
-            validateDataReferences(node.uuid, manifestCid, true);
+            validateDataReferences(node.uuid, manifestCid, true, txHash);
           }
         }
       }
