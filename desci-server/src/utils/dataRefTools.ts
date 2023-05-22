@@ -4,7 +4,7 @@ import axios from 'axios';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
-import { getDirectoryTree } from 'services/ipfs';
+import { CidSource, discoveryLs, getDirectoryTree } from 'services/ipfs';
 import { objectPropertyXor, omitKeys } from 'utils';
 
 import {
@@ -20,7 +20,7 @@ export async function generateDataReferences(
   nodeUuid: string,
   manifestCid: string,
   versionId?: number,
-  txHash?: string,
+  markExternals = false,
 ): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
   nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
   const node = await prisma.node.findFirst({
@@ -44,10 +44,14 @@ export async function generateDataReferences(
     type: DataType.DATA_BUCKET,
     nodeId: node.id,
     ...(versionId ? { versionId } : {}),
+    ...(markExternals ? { external: null } : {}),
   };
 
   const externalCidMap = await generateExternalCidMap(node.uuid);
-  const dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap));
+  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap));
+  if (markExternals) {
+    dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
+  }
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
 
   const dataTreeToPubRef: Prisma.DataReferenceCreateManyInput[] = dataTree.map((entry) => {
@@ -64,6 +68,7 @@ export async function generateDataReferences(
       type: dbType,
       nodeId: node.id,
       ...(versionId ? { versionId } : {}),
+      ...(!markExternals ? {} : entry.external ? { external: true } : { external: null }),
     };
   });
 
@@ -80,12 +85,13 @@ interface DiffObject {
 }
 
 // generateDataReferences() refs won't contain these keys, they will be omitted from the diff.
-const DIFF_EXCLUSION_KEYS = ['id', 'createdAt', 'updatedAt', 'name', 'description', 'external'];
-// note: won't work well for missing external cid references, versionId to be added and removed from exclusion list.
+const DIFF_EXCLUSION_KEYS = ['id', 'createdAt', 'updatedAt', 'name', 'description'];
+
 export async function validateDataReferences(
   nodeUuid: string,
   manifestCid: string,
   publicRefs: boolean,
+  markExternals = false,
   txHash?: string,
 ) {
   if (nodeUuid.endsWith('.')) nodeUuid = nodeUuid.slice(0, -1);
@@ -103,7 +109,11 @@ export async function validateDataReferences(
   const versionId = publicRefs
     ? (
         await prisma.nodeVersion.findFirst({
-          where: { nodeId: node.id, transactionId: txHash, manifestUrl: manifestCid },
+          where: {
+            nodeId: node.id,
+            manifestUrl: manifestCid,
+            ...(txHash && { transactionId: txHash }),
+          },
         })
       ).id
     : undefined;
@@ -114,7 +124,7 @@ export async function validateDataReferences(
       })
     : await prisma.dataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } });
 
-  const requiredRefs = await generateDataReferences(nodeUuid, node.manifestUrl, versionId);
+  const requiredRefs = await generateDataReferences(nodeUuid, node.manifestUrl, versionId, markExternals);
 
   const missingRefs = [];
   const diffRefs: DiffObject = {};
@@ -122,7 +132,11 @@ export async function validateDataReferences(
   // keep track of used dref ids, to filter out unnecessary data refs
   const usedRefIds = {};
 
-  const diffExclusionKeys = [...DIFF_EXCLUSION_KEYS, ...(publicRefs ? [] : ['versionId'])];
+  const diffExclusionKeys = [
+    ...DIFF_EXCLUSION_KEYS,
+    ...(publicRefs ? [] : ['versionId']),
+    ...(markExternals ? [] : ['external']),
+  ];
 
   requiredRefs.forEach((requiredRef) => {
     const exists = currentRefs.find(
@@ -207,9 +221,16 @@ export async function validateAndHealDataRefs(
   nodeUuid: string,
   manifestCid: string,
   publicRefs: boolean,
+  markExternals = false,
   txHash?: string,
 ) {
-  const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(nodeUuid, manifestCid, publicRefs, txHash);
+  const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(
+    nodeUuid,
+    manifestCid,
+    publicRefs,
+    markExternals,
+    txHash,
+  );
   if (missingRefs.length) {
     const addedRefs = publicRefs
       ? await prisma.publicDataReference.createMany({

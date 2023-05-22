@@ -9,6 +9,8 @@ Usage Guidelines:
 - heal will add missing refs, remove unused refs, and fix refs with a diff discrepancy.
 - PUBLIC_REFS is an optional flag, if true, it will fix public refs.
 - START and END are optional flags, if set, it will only process nodes within the range.
+- MARK_EXTERNALS is an optional flag, if true, it will mark external refs as external, downside is that it can take significantly longer to process.
+- TX_HASH is an optional param, used for fixing node version of a specific published node version. (Edgecase of multiple publishes with same manifestCid)
 
 Operation Types [validate, heal, validateAll, healAll]
 
@@ -17,28 +19,31 @@ validate:     OPERATION=validate NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUB
 heal:         OPERATION=healAll NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_REFS=true npm run script:fix-data-refs
 validateAll:  OPERATION=validateAll PUBLIC_REFS=true npm run script:fix-data-refs
 healAll:      OPERATION=healAll PUBLIC_REFS=true npm run script:fix-data-refs
+
+Heal external flag in refs:
+healAll:      OPERATION=healAll PUBLIC_REFS=true MARK_EXTERNALS=true npm run script:fix-data-refs
  */
 
 main();
 function main() {
-  const { operation, nodeUuid, manifestCid, publicRefs, start, end } = getOperationEnvs();
+  const { operation, nodeUuid, manifestCid, publicRefs, start, end, markExternals, txHash } = getOperationEnvs();
   const startIterator = isNaN(start as any) ? undefined : parseInt(start);
   const endIterator = isNaN(end as any) ? undefined : parseInt(end);
 
   switch (operation) {
     case 'validate':
       if (!nodeUuid && !manifestCid) return console.log('Missing NODE_UUID or MANIFEST_CID');
-      validateDataReferences(nodeUuid, manifestCid, publicRefs);
+      validateDataReferences(nodeUuid, manifestCid, publicRefs, markExternals, txHash);
       break;
     case 'heal':
       if (!nodeUuid && !manifestCid) return console.log('Missing NODE_UUID or MANIFEST_CID');
-      validateAndHealDataRefs(nodeUuid, manifestCid, publicRefs);
+      validateAndHealDataRefs(nodeUuid, manifestCid, publicRefs, markExternals, txHash);
       break;
     case 'validateAll':
-      dataRefDoctor(false, publicRefs, startIterator, endIterator);
+      dataRefDoctor(false, publicRefs, startIterator, endIterator, markExternals);
       break;
     case 'healAll':
-      dataRefDoctor(true, publicRefs, startIterator, endIterator);
+      dataRefDoctor(true, publicRefs, startIterator, endIterator, markExternals);
       break;
     default:
       console.log('Invalid operation, valid operations include: validate, heal, validateAll, healAll');
@@ -54,11 +59,19 @@ function getOperationEnvs() {
     publicRefs: process.env.PUBLIC_REFS?.toLowerCase() === 'true' ? true : false,
     start: process.env.START,
     end: process.env.END,
+    markExternals: process.env.MARK_EXTERNALS?.toLowerCase() === 'true' ? true : false,
+    txHash: process.env.TX_HASH || null,
   };
 }
 
 //todo: add public handling
-async function dataRefDoctor(heal: boolean, publicRefs: boolean, start?: number, end?: number) {
+async function dataRefDoctor(
+  heal: boolean,
+  publicRefs: boolean,
+  start?: number,
+  end?: number,
+  markExternals?: boolean,
+) {
   const nodes = await prisma.node.findMany({
     orderBy: {
       id: 'asc',
@@ -91,17 +104,17 @@ async function dataRefDoctor(heal: boolean, publicRefs: boolean, start?: number,
           const txHash = indexedNode.versions[nodeVersIdx]?.id;
           const manifestCid = hexToCid(hexCid);
           if (heal) {
-            await validateAndHealDataRefs(node.uuid, manifestCid, true, txHash);
+            await validateAndHealDataRefs(node.uuid, manifestCid, true, markExternals, txHash);
           } else {
-            validateDataReferences(node.uuid, manifestCid, true, txHash);
+            validateDataReferences(node.uuid, manifestCid, true, markExternals, txHash);
           }
         }
       }
       if (!publicRefs) {
         if (heal) {
-          await validateAndHealDataRefs(node.uuid, node.manifestUrl, false);
+          await validateAndHealDataRefs(node.uuid, node.manifestUrl, false, markExternals);
         } else {
-          await validateDataReferences(node.uuid, node.manifestUrl, false);
+          await validateDataReferences(node.uuid, node.manifestUrl, false, markExternals);
         }
       }
     } catch (e) {
