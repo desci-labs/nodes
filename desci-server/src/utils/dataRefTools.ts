@@ -100,17 +100,19 @@ export async function validateDataReferences(
   const dataBucketCid = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
     .cid;
 
-  const currentRefs = publicRefs
-    ? await prisma.publicDataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } })
-    : await prisma.dataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } });
-
   const versionId = publicRefs
     ? (
         await prisma.nodeVersion.findFirst({
-          where: { nodeId: node.id, manifestUrl: manifestCid, transactionId: txHash },
+          where: { nodeId: node.id, transactionId: txHash, manifestUrl: manifestCid },
         })
       ).id
     : undefined;
+
+  const currentRefs = publicRefs
+    ? await prisma.publicDataReference.findMany({
+        where: { nodeId: node.id, type: { not: DataType.MANIFEST }, versionId },
+      })
+    : await prisma.dataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } });
 
   const requiredRefs = await generateDataReferences(nodeUuid, node.manifestUrl, versionId);
 

@@ -80,7 +80,13 @@ async function dataRefDoctor(heal: boolean, publicRefs: boolean, start?: number,
         const indexedNode = researchObjects[0];
         const totalVersionsIndexed = indexedNode.versions.length || 0;
         if (!totalVersionsIndexed) continue;
+        console.log(
+          `[DataRefDoctor]Processing node: ${nodes[i].id}, found versions indexed: ${totalVersionsIndexed}, for nodeUuid: ${node.uuid}`,
+        );
         for (let nodeVersIdx = 0; nodeVersIdx < totalVersionsIndexed; nodeVersIdx++) {
+          console.log(
+            `[DataRefDoctor]Processing indexed version: ${nodeVersIdx}, with txHash: ${indexedNode.versions[nodeVersIdx]?.id}`,
+          );
           const hexCid = indexedNode.versions[nodeVersIdx]?.cid || indexedNode.recentCid;
           const txHash = indexedNode.versions[nodeVersIdx]?.id;
           const manifestCid = hexToCid(hexCid);
