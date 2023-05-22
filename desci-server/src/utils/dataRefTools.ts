@@ -21,9 +21,10 @@ export async function generateDataReferences(
   manifestCid: string,
   versionId?: number,
 ): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
+  nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
   const node = await prisma.node.findFirst({
     where: {
-      uuid: nodeUuid + '.',
+      uuid: nodeUuid,
     },
   });
   if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
