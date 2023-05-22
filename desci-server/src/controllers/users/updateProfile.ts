@@ -1,4 +1,4 @@
-import { User } from '@prisma/client';
+import { Organization, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
@@ -11,8 +11,8 @@ interface ExpectedBody {
     email?: string;
     name?: string;
     googleScholarUrl?: string;
-    rorpid?: string;
-    organization?: string;
+    rorPid?: string[];
+    organization: Organization[];
     orcid?: string;
   };
 }
@@ -35,7 +35,7 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       name?: string;
       googleScholarUrl?: string;
       orcid?: string;
-      rorpid?: string;
+      rorPid?: string[];
       organization?: string;
       email?: string;
     };
@@ -47,12 +47,21 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
     }
 
     // TODO: validate rorpid again
-    if (profile?.rorpid) {
-      updatedProfile.rorpid = profile.rorpid;
-    }
+    // if (profile?.rorPid.length > 0) {
+    //   updatedProfile.rorPid = profile.rorPid;
+    // }
 
     if (profile?.organization) {
-      updatedProfile.organization = profile.organization;
+      // updatedProfile.organization = profile.organization;
+      // update user organizations
+      console.log('update orgs', profile.organization);
+      await prisma.organization.createMany({ data: profile.organization, skipDuplicates: true });
+      const updates = profile.organization.map((org) => ({ userId: user.id, organizationId: org.id })) as unknown as {
+        organizationId: string;
+        userId: number;
+      }[];
+      const inserted = await prisma.userOrganizations.createMany({ data: updates, skipDuplicates: true });
+      console.log('inserted', inserted.count);
     }
 
     if (profile?.googleScholarUrl) {

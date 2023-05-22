@@ -11,7 +11,7 @@ export const ensureUser = async (req: Request, res: Response, next: NextFunction
   const retrievedUser = await retrieveUser(req);
 
   if (!retrievedUser) {
-    res.status(401).send({ ok: false, message: 'UnAuthorized' });
+    res.status(401).send({ ok: false, message: 'Unauthorized' });
     return;
   }
   (req as any).user = retrievedUser;
