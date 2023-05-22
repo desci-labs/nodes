@@ -5,14 +5,14 @@ import prisma from 'client';
 import { saveInteraction } from 'services/interactionLog';
 
 export const consent = async (req: Request, res: Response, next: NextFunction) => {
-  const user = (req as any).user;
+  let user = (req as any).user;
   await saveInteraction(
     req,
     ActionType.USER_TERMS_CONSENT,
     {
       ...req.body,
     },
-    user.id,
+    user?.id,
   );
   res.send({ ok: true });
 };
