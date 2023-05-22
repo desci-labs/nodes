@@ -476,6 +476,62 @@ export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
   return tree;
 };
 
+// Used for recursively lsing a DAG without knowing if it contains public or private cids, slow and INEFFICIENT!
+export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap, carryPath?: string) {
+  try {
+    carryPath = carryPath || convertToCidV1(dagCid);
+    const tree = [];
+    const cidObject = multiformats.CID.parse(dagCid);
+    let block = await client.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+    if (!block) block = await publicIpfs.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+    if (!block) throw new Error('Could not find block for cid: ' + dagCid);
+    const { Data, Links } = dagPb.decode(block);
+    const unixFs = UnixFS.unmarshal(Data);
+    const isDir = dirTypes.includes(unixFs?.type);
+    if (!isDir) return null;
+    for (const link of Links) {
+      const result: RecursiveLsResult = {
+        name: link.Name,
+        path: carryPath + '/' + link.Name,
+        cid: convertToCidV1(link.Hash.toString()),
+        size: 0,
+        type: 'file',
+      };
+      const externalCidMapEntry = externalCidMap[result.cid];
+      if (externalCidMapEntry) result.external = true;
+      const isExternalFile = externalCidMapEntry && externalCidMapEntry.directory == false;
+      const linkCidObject = multiformats.CID.parse(result.cid);
+      if (linkCidObject.code === rawCode || isExternalFile) {
+        result.size = link.Tsize;
+      } else {
+        let linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+        if (!linkBlock) linkBlock = await publicIpfs.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+        if (!linkBlock) throw new Error('Could not find block for cid: ' + dagCid);
+        const { Data: linkData } = dagPb.decode(linkBlock);
+        const unixFsLink = UnixFS.unmarshal(linkData);
+        const isLinkDir = dirTypes.includes(unixFsLink?.type);
+
+        if (isLinkDir) {
+          result.size = 0;
+          result.type = 'dir';
+          result.contains = (await mixedLs(
+            result.cid,
+            externalCidMap,
+            carryPath + '/' + result.name,
+          )) as RecursiveLsResult[];
+        } else {
+          result.size = link.Tsize;
+        }
+      }
+      tree.push(result);
+    }
+    return tree;
+  } catch (err) {
+    console.error(`Failed to resolve CID, err: `, err);
+    return null;
+  }
+}
+
 export const getDag = async (cid: ipfs.CID) => {
   const dag = await client.dag.get(cid);
   return dag;
@@ -882,7 +938,7 @@ export function strIsCid(cid: string) {
   }
 }
 
-enum CidSource {
+export enum CidSource {
   INTERNAL = 'internal',
   EXTERNAL = 'external',
 }
