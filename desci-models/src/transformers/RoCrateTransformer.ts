@@ -9,6 +9,10 @@ import {
 import { RoCrateGraph } from "../RoCrate";
 import { BaseTransformer } from "./BaseTransformer";
 
+const IPFS_RESOLVER_HTTP = "https://ipfs.io/ipfs/";
+const cleanupUrlOrCid = (str: string) => {
+  return str.replace(new RegExp(`^${IPFS_RESOLVER_HTTP}`), "");
+};
 export class RoCrateTransformer implements BaseTransformer {
   importObject(obj: any): ResearchObject {
     const crate = obj;
@@ -109,7 +113,7 @@ export class RoCrateTransformer implements BaseTransformer {
         ...(crateComponent as CreativeWork),
       };
       creativeWork.encodingFormat = "application/pdf";
-      creativeWork.url = (component.payload as any).url;
+      creativeWork.url = cleanupUrlOrCid((component.payload as any).url);
       creativeWork["@type"] = "CreativeWork";
       crateComponent = creativeWork;
     } else if (component.type === ResearchObjectComponentType.CODE) {
@@ -117,7 +121,11 @@ export class RoCrateTransformer implements BaseTransformer {
         ...(crateComponent as SoftwareSourceCode),
       };
       softwareSourceCode.encodingFormat = "text/plain";
-      softwareSourceCode.url = (component.payload as any).url;
+
+      (softwareSourceCode as any)["/"] = cleanupUrlOrCid(component.payload.url);
+      softwareSourceCode.url = `https://ipfs.io/ipfs/${cleanupUrlOrCid(
+        component.payload.url
+      )}`;
       softwareSourceCode["@type"] = "SoftwareSourceCode";
       crateComponent = softwareSourceCode;
     } else if (component.type === ResearchObjectComponentType.DATA) {
@@ -125,8 +133,12 @@ export class RoCrateTransformer implements BaseTransformer {
         ...(crateComponent as Dataset),
       };
       dataset.encodingFormat = "application/octet-stream";
-      dataset.url =
-        (component.payload as any).url || (component.payload as any).cid;
+      (dataset as any)["/"] = cleanupUrlOrCid(
+        (component.payload as any).url || (component.payload as any).cid
+      );
+      dataset.url = `https://ipfs.io/ipfs/${cleanupUrlOrCid(
+        (component.payload as any).url || (component.payload as any).cid
+      )}`;
       dataset["@type"] = "Dataset";
       crateComponent = dataset;
     }
@@ -166,13 +178,16 @@ export class RoCrateTransformer implements BaseTransformer {
 
     if (encodingFormat === "application/pdf") {
       nodeComponent.type = ResearchObjectComponentType.PDF;
+      (nodeComponent.payload as any)["/"] = crateComponent.url;
       (nodeComponent.payload as any).url = crateComponent.url;
     } else if (encodingFormat === "text/plain") {
       nodeComponent.type = ResearchObjectComponentType.CODE;
+      (nodeComponent.payload as any)["/"] = crateComponent.url;
       (nodeComponent.payload as any).url = crateComponent.url;
     } else if (encodingFormat === "application/octet-stream") {
       nodeComponent.type = ResearchObjectComponentType.DATA;
       (nodeComponent.payload as any).cid = crateComponent.url;
+      (nodeComponent.payload as any)["/"] = crateComponent.url;
     } else {
       nodeComponent.type = ResearchObjectComponentType.UNKNOWN;
     }
