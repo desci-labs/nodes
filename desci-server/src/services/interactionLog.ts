@@ -39,6 +39,24 @@ export const getCountActiveUsersInMonth = async (month: number, year: number): P
   return activeCount.length;
 };
 
+export const getEmailsActiveUsersInXDays = async (daysAgo: number): Promise<string[]> => {
+  console.log('interactionLog::getEmailsActiveUsersInMonth');
+  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+
+  const activeUsers = await prisma.interactionLog.findMany({
+    distinct: ['userId'],
+    include: {
+      user: true,
+    },
+    where: {
+      createdAt: {
+        gte: dateXDaysAgo,
+      },
+    },
+  });
+  return activeUsers.filter((a) => a.user).map((a) => a.user.email);
+};
+
 export const getNodeViewsInXDays = async (daysAgo: number): Promise<number> => {
   console.log('interactionLog::getNodeViewsInXDays');
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
