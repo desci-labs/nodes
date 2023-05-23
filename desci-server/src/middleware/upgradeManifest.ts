@@ -30,7 +30,6 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   }
 
   let manifestObj = await getLatestManifest(node.uuid, req.query?.g as string, node);
-  debugger;
 
   const hasDataBucket =
     manifestObj?.components[0]?.type === ResearchObjectComponentType.DATA_BUCKET

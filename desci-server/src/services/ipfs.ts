@@ -391,7 +391,7 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
     res.path = pathSplit.join('/');
     // }
     const v1StrCid = convertToCidV1(res.cid);
-    if (filedir.type === 'file' && filedir.name !== nodeKeepFile) tree.push({ ...res, cid: v1StrCid });
+    if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
     if (filedir.type === 'dir') {
       res.cid = v1StrCid;
       res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
@@ -443,7 +443,7 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, ca
         result.size = link.Tsize;
       }
     }
-    if (result.name !== nodeKeepFile) tree.push(result);
+    tree.push(result);
   }
   return tree;
 }
@@ -462,7 +462,7 @@ export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
     res.path = pathSplit.join('/');
     // }
     const v1StrCid = convertToCidV1(res.cid);
-    if (filedir.type === 'file' && filedir.name !== nodeKeepFile) tree.push({ ...res, cid: v1StrCid });
+    if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
     if (filedir.type === 'dir') {
       res.cid = v1StrCid;
       res.contains = await pubRecursiveLs(res.cid, carryPath + '/' + res.name);
