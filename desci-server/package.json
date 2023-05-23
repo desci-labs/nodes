@@ -11,6 +11,7 @@
     "script:upgrade-manifests": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/upgradeManifests.ts",
     "script:test-upgrade-manifests": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/testUpgradeManifests.ts",
     "script:fill-research-fields": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/fill-research-fields.ts",
+    "script:active-users": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/activeUsers.ts",
     "build": "rimraf dist && tsc && yarn copy-files",
     "copy-files": "copyfiles -u 1 src/**/*.cjs dist/",
     "generate": "npx prisma generate",
