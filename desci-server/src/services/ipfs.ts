@@ -813,7 +813,7 @@ export const moveFileInDag = async (rootCid: string, contextPath: string, fileTo
   const formattedLink = {
     [fileName]: { cid: removedLink[fileToMove].Hash.toString(), size: removedLink[fileToMove].Tsize },
   };
-  const { updatedRootCid, updatedDagCidMap } = await addFilesToDag(rootCid, newContextPath, formattedLink);
+  const { updatedRootCid, updatedDagCidMap } = await addFilesToDag(removedDagCid, newContextPath, formattedLink);
 
   // roll over the updatedDagCids
   for (const [key, val] of Object.entries(removedDagCidMap)) {
