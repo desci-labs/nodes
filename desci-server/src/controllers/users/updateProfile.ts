@@ -3,8 +3,6 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 
-// import { PassportReader } from '@gitcoinco/passport-sdk-reader';
-
 interface ExpectedBody {
   username: string;
   profile: {
@@ -46,22 +44,24 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       updatedProfile.orcid = profile.orcid;
     }
 
-    // TODO: validate rorpid again
-    // if (profile?.rorPid.length > 0) {
-    //   updatedProfile.rorPid = profile.rorPid;
-    // }
-
     if (profile?.organization) {
-      // updatedProfile.organization = profile.organization;
-      // update user organizations
-      console.log('update orgs', profile.organization);
+      const userOrgs = await prisma.userOrganizations.findMany({ where: { userId: user.id } });
+      const skipped = userOrgs.filter(
+        (userOrg) => profile.organization.findIndex((org) => org.id === userOrg.organizationId) === -1,
+      );
+
+      // remove skipped affliations
+      await prisma.userOrganizations.deleteMany({
+        where: { organizationId: { in: skipped.map((org) => org.organizationId) } },
+      });
+
       await prisma.organization.createMany({ data: profile.organization, skipDuplicates: true });
       const updates = profile.organization.map((org) => ({ userId: user.id, organizationId: org.id })) as unknown as {
         organizationId: string;
         userId: number;
       }[];
-      const inserted = await prisma.userOrganizations.createMany({ data: updates, skipDuplicates: true });
-      console.log('inserted', inserted.count);
+
+      await prisma.userOrganizations.createMany({ data: updates, skipDuplicates: true });
     }
 
     if (profile?.googleScholarUrl) {
