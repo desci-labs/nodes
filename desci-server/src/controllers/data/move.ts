@@ -4,6 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { getDirectoryTree, moveFileInDag } from 'services/ipfs';
+import { prepareDataRefs } from 'utils/dataRefTools';
 import { updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
 import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
 
@@ -64,56 +65,6 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
     );
 
     /*
-     ** Prepare updated refs
-     */
-    const existingDataRefs = await prisma.dataReference.findMany({
-      where: {
-        nodeId: node.id,
-        userId: owner.id,
-        type: { not: DataType.MANIFEST },
-      },
-    });
-
-    const tree = await getDirectoryTree(updatedRootCid, externalCidMap);
-    const flatTree = recursiveFlattenTree(tree);
-    flatTree.push({
-      cid: updatedRootCid,
-      path: updatedRootCid,
-      rootCid: updatedRootCid,
-    });
-
-    const dataRefsToUpdate: Partial<DataReference>[] = flatTree.map((f) => {
-      if (typeof f.cid !== 'string') f.cid = f.cid.toString();
-      return {
-        cid: f.cid,
-        rootCid: updatedRootCid,
-        path: f.path,
-      };
-    });
-
-    const dataRefUpdates = dataRefsToUpdate.map((newRef) => {
-      const neutralPath = newRef.path.replace(updatedRootCid, 'root');
-      const match = existingDataRefs.find((oldRef) => {
-        const neutralRefPath = neutralizePath(oldRef.path);
-        if (neutralRefPath === neutralPath) return true;
-        if (neutralRefPath.startsWith(oldPath)) {
-          const updatedPath = neutralRefPath.replace(oldPath, newPath);
-          return updatedPath === neutralPath;
-        }
-        return false;
-      });
-      newRef.id = match?.id;
-      return newRef;
-    });
-
-    const [...updates] = await prisma.$transaction([
-      ...(dataRefUpdates as any).map((fd) => {
-        return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
-      }),
-    ]);
-    console.log(`[DATA::MOVE] ${updates.length} dataReferences updated`);
-
-    /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
     let updatedManifest = updateComponentPathsInManifest({
@@ -131,6 +82,49 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
     if (Object.keys(updatedDagCidMap).length) {
       updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
     }
+
+    /*
+     ** Prepare updated refs
+     */
+    const existingDataRefs = await prisma.dataReference.findMany({
+      where: {
+        nodeId: node.id,
+        userId: owner.id,
+        type: { not: DataType.MANIFEST },
+      },
+    });
+
+    const newRefs = await prepareDataRefs(node.uuid, updatedManifest, updatedRootCid);
+
+    const dataRefsToUpdate = newRefs.map((newRef) => {
+      const neutralizedNewRefPath = neutralizePath(newRef.path);
+      const match = existingDataRefs.find((oldRef) => {
+        const neutralizedOldRefPath = neutralizePath(oldRef.path);
+        if (neutralizedOldRefPath.startsWith(oldPath)) {
+          const replacedPath = neutralizePath(newRef.path).replace(newPath, oldPath);
+          return neutralizedOldRefPath === replacedPath;
+        } else {
+          return neutralizedOldRefPath === neutralizedNewRefPath;
+        }
+      });
+      if (match?.id) {
+        newRef.id = match?.id;
+      } else {
+        console.error(
+          '[DATA::MOVE] Failed to find match for data ref: ',
+          newRef,
+          ` node ${node.uuid} may need its data references healed.`,
+        );
+      }
+      return newRef;
+    });
+
+    const [...updates] = await prisma.$transaction([
+      ...(dataRefsToUpdate as any).map((fd) => {
+        return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
+      }),
+    ]);
+    console.log(`[DATA::MOVE] ${updates.length} dataReferences updated`);
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
