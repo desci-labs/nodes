@@ -16,7 +16,7 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
   console.log(`[DATA::MOVE] oldPath: ${oldPath}, newPath: ${newPath} nodeUuid: ${uuid},  user: ${owner.id}`);
   if (uuid === undefined || oldPath === undefined || newPath === undefined)
     return res.status(400).json({ error: 'uuid, oldPath and newPath required' });
-
+  // debugger;
   //validate requester owns the node
   const node = await prisma.node.findFirst({
     where: {
