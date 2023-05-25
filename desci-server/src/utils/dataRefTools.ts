@@ -32,7 +32,7 @@ export async function generateDataReferences(
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   const dataBucketCid = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
     .cid;
-
+  console.log('DATA BUCKET CID: ', dataBucketCid);
   const dataRootEntry: Prisma.DataReferenceCreateManyInput = {
     cid: dataBucketCid,
     path: dataBucketCid,
@@ -181,7 +181,7 @@ export async function validateDataReferences(
       })
     : await prisma.dataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } });
 
-  const requiredRefs = await generateDataReferences(nodeUuid, node.manifestUrl, versionId, markExternals);
+  const requiredRefs = await generateDataReferences(nodeUuid, manifestCid, versionId, markExternals);
 
   const missingRefs = [];
   const diffRefs: DiffObject = {};
