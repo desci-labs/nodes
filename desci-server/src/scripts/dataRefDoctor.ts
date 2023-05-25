@@ -17,6 +17,7 @@ Usage Guidelines:
 - START and END are optional flags, if set, it will only process nodes within the range.
 - MARK_EXTERNALS is an optional flag, if true, it will mark external refs as external, downside is that it can take significantly longer to process, also size diff checking disabled when marking externals.
 - TX_HASH is an optional param, used for fixing node version of a specific published node version. (Edgecase of multiple publishes with same manifestCid)
+- USER_EMAIL is only required for the fillPublic operation
 
 Operation Types [validate, heal, validateAll, healAll]
 
