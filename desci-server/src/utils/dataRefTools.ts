@@ -101,6 +101,7 @@ export async function validateDataReferences(
     },
   });
   if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
+  if (!publicRefs) manifestCid = node.manifestUrl;
 
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   const dataBucketCid = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
