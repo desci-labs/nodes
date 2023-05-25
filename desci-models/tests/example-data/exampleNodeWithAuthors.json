@@ -1,0 +1,350 @@
+{
+  "version": "desci-nodes-0.2.0",
+  "components": [
+    {
+      "id": "root",
+      "name": "root",
+      "type": "data-bucket",
+      "payload": {
+        "cid": "bafybeidmian2ksjtidvpghzy6iesvcjs5pd647q3rtj6znu26vr5g6axy4",
+        "path": "root"
+      }
+    },
+    {
+      "id": "d3b27a16-8118-403d-b4a3-367c56c11e08",
+      "name": "Read the Paper",
+      "type": "pdf",
+      "payload": {
+        "url": "bafybeiamslevhsvjlnfejg7p2rzk6bncioaapwb3oauu7zqwmfpwko5ho4",
+        "path": "root/exploring-lupus-report.pdf",
+        "annotations": [
+          {
+            "id": "c78d477d-5296-4cab-9e7a-2b132faa9cba",
+            "startX": 0.5109826589595375,
+            "startY": 0.07327971403038427,
+            "endX": 0.930635838150289,
+            "endY": 0.4253798033958892,
+            "pageIndex": 2,
+            "text": "Reproduce Figure 1 [Fig 1](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/plot_figure_01.ipynb&line=31)\n"
+          },
+          {
+            "id": "4efe515f-fa70-4297-8a58-f35d05c01ea2",
+            "startX": 0.07283236994219654,
+            "startY": 0.07864164432529044,
+            "endX": 0.48554913294797686,
+            "endY": 0.30473637176050045,
+            "pageIndex": 2,
+            "text": "Reproduce Table 1 [Tab 1](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/make_table_01.ipynb&line=8)\n"
+          },
+          {
+            "id": "a97ed516-c55e-4387-8e72-6278ed0f27e2",
+            "startX": 0.08208092485549133,
+            "startY": 0.0840035746201966,
+            "endX": 0.9248554913294798,
+            "endY": 0.28507596067917784,
+            "pageIndex": 3,
+            "text": "Reproduce Table 2 [Tab 2](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/make_table_02.ipynb&line=38)\n"
+          },
+          {
+            "id": "d23db2b0-2485-47b2-9a45-9554bae49ebd",
+            "startX": 0.07861271676300578,
+            "startY": 0.08310991957104558,
+            "endX": 0.9213872832369943,
+            "endY": 0.28507596067917784,
+            "pageIndex": 4,
+            "text": "Reproduce Table 3 [Tab 3](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/make_table_03.ipynb&line=7)\n"
+          },
+          {
+            "id": "a70e3ea4-fb12-429a-85d6-d38e0eb8c045",
+            "startX": 0.07630057803468208,
+            "startY": 0.06881143878462913,
+            "endX": 0.922543352601156,
+            "endY": 0.9526362823949955,
+            "pageIndex": 5,
+            "text": "Reproduce Figure 2 [Fig 2](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/plot_figure_02.ipynb&line=24)\n"
+          },
+          {
+            "id": "a1cf044b-a820-430b-9c20-4e90761e47c7",
+            "startX": 0.07745664739884393,
+            "startY": 0.06613047363717604,
+            "endX": 0.9260115606936417,
+            "endY": 0.710455764075067,
+            "pageIndex": 6,
+            "text": "Reproduce Figure 3 [Fig 3](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/plot_figure_03.ipynb&line=24)\n"
+          },
+          {
+            "id": "51436b93-ed42-4c41-8889-6e1b52685859",
+            "startX": 0.07745664739884393,
+            "startY": 0.06523681858802502,
+            "endX": 0.923699421965318,
+            "endY": 0.5102770330652369,
+            "pageIndex": 7,
+            "text": "Reproduce Figure 4 [Fig 4](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/plot_figure_04.ipynb&line=24)\n"
+          },
+          {
+            "id": "62a5343c-fd7d-4bf3-b036-a6567b0bdbd5",
+            "startX": 0.07283236994219654,
+            "startY": 0.06881143878462913,
+            "endX": 0.930635838150289,
+            "endY": 0.5656836461126006,
+            "pageIndex": 8,
+            "text": "Reproduce Figure 5 [Fig 5](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/plot_figure_05.ipynb&line=14)\n"
+          },
+          {
+            "id": "1c3be573-53c5-4d57-94b8-489996e57988",
+            "startX": 0.5109826589595375,
+            "startY": 0.0741733690795353,
+            "endX": 0.9248554913294798,
+            "endY": 0.4387846291331546,
+            "pageIndex": 9,
+            "text": "Reproduce Figure 6 [Fig 6](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/plot_figure_06.ipynb&line=14)\n"
+          },
+          {
+            "id": "bd04fcb1-ae93-41b6-acb1-4fb66f3e5c28",
+            "startX": 0.5144508670520231,
+            "startY": 0.07685433422698838,
+            "endX": 0.9271676300578034,
+            "endY": 0.4110813226094727,
+            "pageIndex": 10,
+            "text": "Reproduce Figure 8 [Fig 8](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/plot_figure_08.ipynb&line=10)\n"
+          },
+          {
+            "id": "1a1422f0-8ca6-47a9-9e62-44d9e5cd5a40",
+            "startX": 0.07630057803468208,
+            "startY": 0.07864164432529044,
+            "endX": 0.4913294797687861,
+            "endY": 0.44146559428060766,
+            "pageIndex": 10,
+            "text": "Reproduce Figure 7 [Fig 7](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/plot_figure_07.ipynb&line=8)\n"
+          },
+          {
+            "id": "837f826f-8f7a-4b1e-8c57-7eb4eaaa8225",
+            "startX": 0.07283236994219654,
+            "startY": 0.05987488829311886,
+            "endX": 0.4913294797687861,
+            "endY": 0.48882931188561213,
+            "pageIndex": 11,
+            "text": "Reproduce Figure 9 [Fig 9](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/plot_figure_09.ipynb&line=9)\n"
+          },
+          {
+            "id": "125b47d2-efbd-46ec-8dc2-50bec47fc25e",
+            "startX": 0.1815028901734104,
+            "startY": 0.2448614834673816,
+            "endX": 0.8196531791907514,
+            "endY": 0.4307417336907953,
+            "pageIndex": 15,
+            "text": "Reproduce Table A1 [Tab A1](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/make_table_04.ipynb&line=5)\n"
+          },
+          {
+            "id": "e4bf2744-ed08-47c9-953c-580faeff673c",
+            "startX": 0.07167630057803469,
+            "startY": 0.07059874888293119,
+            "endX": 0.9294797687861271,
+            "endY": 0.9204647006255585,
+            "pageIndex": 16,
+            "text": "Reproduce Figure B1 [Fig B1](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/plot_figure_10.ipynb&line=14)\n"
+          }
+        ],
+        "keywords": [
+          "alma",
+          "lupus",
+          "protoplanetary disks",
+          "dust",
+          "gas",
+          "astronomy",
+          "astrophysics"
+        ],
+        "description": "This is the research report associated with the Node \"Exploring Lupus\". The PDF has previously been published at https://arxiv.org/abs/1604.05719 and was visually altered slightly for the purpose of re-publishing on DeSci Nodes."
+      },
+      "starred": true,
+      "subtype": "research-article"
+    },
+    {
+      "id": "303046a7-47e1-4e36-8541-ab5ede4d86c5",
+      "name": "Explore the Code",
+      "type": "code",
+      "payload": {
+        "url": "bafybeiagujmc6ls5yyutun45bygejlwbucbteqposqnurzvbzgxlogr4f4",
+        "path": "root/exploring-lupus",
+        "externalUrl": "https://github.com/carlaost/exploring-lupus",
+        "keywords": ["python", "jupyter", "protoplanetary disks", "alma"],
+        "description": "This is the code repository with all data and code necessary to fully reproduce all findings of the Node \"Exploring Lupus\"",
+        "licenseType": "MIT License"
+      },
+      "starred": true
+    },
+    {
+      "id": "c08e36b5-921e-40f2-afdf-349c4e60e190",
+      "name": "OA Data",
+      "type": "data",
+      "payload": {
+        "cid": "bafybeiangppwtwarwobgcpnjzhjtzj2rtllc5nbdsyesr45voceb6hxgsu",
+        "path": "root/data",
+        "title": "Preprocessed Data for Node \"Exploring Lupus\"",
+        "ontologyPurl": "https://www.ebi.ac.uk/ols/ontologies/srao/terms?iri=http%3A%2F%2Fwww.fairsharing.org%2Fontology%2Fsubject%2FSRAO_0000189&lang=en&viewMode=All&siblings=false",
+        "controlledVocabTerms": [],
+        "keywords": [
+          "atronomy",
+          "astophysics",
+          "alma telescope",
+          "lupus",
+          "protoplanetary disks",
+          "gas",
+          "dust"
+        ],
+        "description": "This data is processed data from the ALMA Telescope as well as literature data as cited in the paper that has been used to analyze the dust and gas massess of Lupus protoplanetary disks."
+      },
+      "starred": false
+    },
+    {
+      "id": "dd562a70-0bb9-4a07-8b00-c414bc8b9ad9",
+      "name": "Browse the Data",
+      "type": "data",
+      "payload": {
+        "path": "root/exploring-lupus/data",
+        "cid": "bafybeiff4ktzhrajxp37sbmr4mpgrly5gsw5inibilm63fxrgdncawyhqa"
+      },
+      "starred": true
+    },
+    {
+      "id": "c617144c-7c41-4ad0-a193-03b939e687d6",
+      "name": "casa",
+      "type": "unknown",
+      "payload": {
+        "path": "root/exploring-lupus/casa",
+        "cid": "bafybeiafudomfmhwcx7vuugpe4svfgweabq6wzknq6nkvkijc5f6jbo37q"
+      },
+      "starred": false
+    },
+    {
+      "id": "49a99b36-5333-4e13-9839-47b40c030f31",
+      "name": "Go to Publisher Site",
+      "type": "link",
+      "subtype": "other",
+      "payload": {
+        "url": "https://doi.org/10.3847/0004-637X/828/1/46",
+        "path": "root/External Links/Go to Publisher Site"
+      },
+      "starred": true
+    },
+    {
+      "id": "e53c99ba-93b5-4d87-8bd2-86aae1596c8f",
+      "name": "Read the Twitter Thread",
+      "type": "link",
+      "subtype": "community-discussion",
+      "payload": {
+        "url": "https://twitter.com/DeSciLabs/status/1654505177485910016?s=20",
+        "path": "root/External Links/Read the Twitter Thread"
+      },
+      "starred": true
+    }
+  ],
+  "authors": [
+    {
+      "name": "Megan Ansdell",
+      "role": "Author",
+      "googleScholar": "https://scholar.google.com/citations?user=OKY0EkEAAAAJ&hl=en&oi=ao",
+      "orcid": "0000-0003-4142-9842"
+    },
+    {
+      "name": "Jonathan Williams",
+      "role": "Author",
+      "googleScholar": "https://scholar.google.com/citations?user=hTiBRIkAAAAJ&hl=en&oi=ao",
+      "orcid": ""
+    },
+    {
+      "name": "Nienke van der Marel",
+      "role": "Author",
+      "googleScholar": "https://scholar.google.com/citations?user=A6i1CQYAAAAJ&hl=en&oi=ao",
+      "orcid": "0000-0003-2458-9756"
+    },
+    {
+      "name": "James Carpenter",
+      "role": "Author",
+      "googleScholar": "https://scholar.google.com/citations?user=_gBx6QMAAAAJ&hl=en&oi=ao",
+      "orcid": ""
+    },
+    {
+      "name": "Greta Guidi",
+      "role": "Author",
+      "googleScholar": "",
+      "orcid": ""
+    },
+    {
+      "name": "Michiel Hogerheijde",
+      "role": "Author",
+      "googleScholar": "",
+      "orcid": ""
+    },
+    {
+      "name": "Geoff Mathews",
+      "role": "Author",
+      "googleScholar": "",
+      "orcid": ""
+    },
+    {
+      "name": "Carlo F. Manara",
+      "role": "Author",
+      "googleScholar": "",
+      "orcid": ""
+    },
+    {
+      "name": "Anna Miotello",
+      "role": "Author",
+      "googleScholar": "",
+      "orcid": "0000-0002-7997-2528"
+    },
+    {
+      "name": "Antonella Natta",
+      "role": "Author",
+      "googleScholar": "",
+      "orcid": ""
+    },
+    {
+      "name": "Isa Oliviera",
+      "role": "Author",
+      "googleScholar": "",
+      "orcid": ""
+    },
+    {
+      "name": "Marco Tazzari",
+      "role": "Author",
+      "googleScholar": "https://scholar.google.com/citations?hl=en&user=X2P8Vv8AAAAJ",
+      "orcid": "0000-0003-3590-5814"
+    },
+    {
+      "name": "Leonardo Testi",
+      "role": "Author",
+      "googleScholar": "https://scholar.google.com/citations?hl=en&user=Pzni2ZwAAAAJ",
+      "orcid": "0000-0003-1859-3070"
+    },
+    {
+      "name": "Ewine van Dishoeck",
+      "role": "Author",
+      "googleScholar": "",
+      "orcid": "0000-0001-7591-1907"
+    },
+    {
+      "name": "Sierk E. van Terwisga",
+      "role": "Author",
+      "googleScholar": "",
+      "orcid": "0000-0002-1284-5831"
+    },
+    {
+      "name": "Carla Ostmann",
+      "role": "Node Steward",
+      "googleScholar": "",
+      "orcid": ""
+    },
+    {
+      "name": "Sina Iman",
+      "role": "Node Steward",
+      "googleScholar": "",
+      "orcid": ""
+    }
+  ],
+  "title": "Exploring Lupus Clouds",
+  "defaultLicense": "CC BY",
+  "researchFields": ["Astrophysics and Astronomy"],
+  "dpid": { "prefix": "beta", "id": "46" }
+}
