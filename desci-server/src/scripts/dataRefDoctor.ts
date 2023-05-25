@@ -3,6 +3,7 @@ import { DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
 
 import prisma from 'client';
+import { cleanupManifestUrl } from 'controllers/nodes';
 import { getSizeForCid } from 'services/ipfs';
 import { getIndexedResearchObjects } from 'theGraph';
 import { hexToCid } from 'utils';
@@ -149,7 +150,8 @@ async function fillPublic(nodeUuid: string, userEmail: string) {
   const indexedNode = researchObjects[0];
   const latestHexCid = indexedNode.recentCid;
   const latestManifestCid = hexToCid(latestHexCid);
-  const latestManifest = await (await axios.get(latestManifestCid)).data;
+  const manifestUrl = cleanupManifestUrl(latestManifestCid);
+  const latestManifest = await (await axios.get(manifestUrl)).data;
 
   if (!latestManifest)
     return console.log(`[FillPublic] Failed to retrieve manifest from ipfs cid: ${latestManifestCid}`);

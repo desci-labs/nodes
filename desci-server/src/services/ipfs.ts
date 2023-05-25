@@ -1,5 +1,3 @@
-import internal from 'stream';
-
 import {
   CodeComponent,
   PdfComponent,
@@ -24,7 +22,6 @@ import * as yauzl from 'yauzl';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
-import { bufferToStream } from 'utils';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
