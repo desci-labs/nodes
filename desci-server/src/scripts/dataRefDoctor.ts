@@ -1,4 +1,9 @@
+import { ResearchObjectComponentType } from '@desci-labs/desci-models';
+import { DataType, Prisma } from '@prisma/client';
+import axios from 'axios';
+
 import prisma from 'client';
+import { getSizeForCid } from 'services/ipfs';
 import { getIndexedResearchObjects } from 'theGraph';
 import { hexToCid } from 'utils';
 import { validateAndHealDataRefs, validateDataReferences } from 'utils/dataRefTools';
@@ -7,6 +12,7 @@ import { validateAndHealDataRefs, validateDataReferences } from 'utils/dataRefTo
 Usage Guidelines:
 - validate makes no changes, just outputs the validation results.
 - heal will add missing refs, remove unused refs, and fix refs with a diff discrepancy.
+- fillPublic will fill a nodes public data refs that is published on another nodes environment, under the USER_EMAIL provided.
 - PUBLIC_REFS is an optional flag, if true, it will fix public refs.
 - START and END are optional flags, if set, it will only process nodes within the range.
 - MARK_EXTERNALS is an optional flag, if true, it will mark external refs as external, downside is that it can take significantly longer to process, also size diff checking disabled when marking externals.
@@ -19,6 +25,7 @@ validate:     OPERATION=validate NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUB
 heal:         OPERATION=healAll NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_REFS=true npm run script:fix-data-refs
 validateAll:  OPERATION=validateAll PUBLIC_REFS=true npm run script:fix-data-refs
 healAll:      OPERATION=healAll PUBLIC_REFS=true npm run script:fix-data-refs
+fillPublic:   OPERATION=fillPublic USER_EMAIL=noreply@desci.com NODE_UUID=noDeUuiD. npm run script:fix-data-refs
 
 Heal external flag in refs:
 healAll:      OPERATION=healAll PUBLIC_REFS=true MARK_EXTERNALS=true npm run script:fix-data-refs
@@ -26,7 +33,8 @@ healAll:      OPERATION=healAll PUBLIC_REFS=true MARK_EXTERNALS=true npm run scr
 
 main();
 function main() {
-  const { operation, nodeUuid, manifestCid, publicRefs, start, end, markExternals, txHash } = getOperationEnvs();
+  const { operation, nodeUuid, manifestCid, publicRefs, start, end, markExternals, txHash, userEmail } =
+    getOperationEnvs();
   const startIterator = isNaN(start as any) ? undefined : parseInt(start);
   const endIterator = isNaN(end as any) ? undefined : parseInt(end);
 
@@ -45,6 +53,10 @@ function main() {
     case 'healAll':
       dataRefDoctor(true, publicRefs, startIterator, endIterator, markExternals);
       break;
+    case 'fillPublic':
+      if (!nodeUuid && !userEmail) return console.log('Missing NODE_UUID or USER_EMAIL');
+      fillPublic(nodeUuid, userEmail);
+      break;
     default:
       console.log('Invalid operation, valid operations include: validate, heal, validateAll, healAll');
       return;
@@ -61,6 +73,7 @@ function getOperationEnvs() {
     end: process.env.END,
     markExternals: process.env.MARK_EXTERNALS?.toLowerCase() === 'true' ? true : false,
     txHash: process.env.TX_HASH || null,
+    userEmail: process.env.USER_EMAIL || null,
   };
 }
 
@@ -120,5 +133,80 @@ async function dataRefDoctor(
     } catch (e) {
       console.log(`[DataRefDoctor]Error processing node: ${nodes[i].id}, error: ${e}`);
     }
+  }
+}
+
+async function fillPublic(nodeUuid: string, userEmail: string) {
+  const user = await prisma.user.findUnique({ where: { email: userEmail } });
+  if (!user) return console.log(`[FillPublic] Failed to find user with email: ${userEmail}`);
+
+  if (!nodeUuid.endsWith('.')) nodeUuid += '.';
+  const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
+  if (!researchObjects.length)
+    console.log(`[FillPublic] Failed to resolve any public nodes with the uuid: ${nodeUuid}`);
+
+  const indexedNode = researchObjects[0];
+  const latestHexCid = indexedNode.recentCid;
+  const latestManifestCid = hexToCid(latestHexCid);
+  const latestManifest = await (await axios.get(latestManifestCid)).data;
+
+  if (!latestManifest)
+    return console.log(`[FillPublic] Failed to retrieve manifest from ipfs cid: ${latestManifestCid}`);
+
+  const title = '[IMPORTED NODE]' + latestManifest.title || 'Imported Node';
+  let node = await prisma.node.findUnique({ where: { uuid: nodeUuid } });
+  if (!node) {
+    node = await prisma.node.create({
+      data: {
+        title,
+        uuid: nodeUuid,
+        manifestUrl: latestManifestCid,
+        replicationFactor: 0,
+        restBody: {},
+        ownerId: user.id,
+      },
+    });
+  }
+
+  const totalVersionsIndexed = indexedNode.versions.length || 0;
+  try {
+    for (let nodeVersIdx = 0; nodeVersIdx < totalVersionsIndexed; nodeVersIdx++) {
+      console.log(
+        `[DataRefDoctor]Processing indexed version: ${nodeVersIdx}, with txHash: ${indexedNode.versions[nodeVersIdx]?.id}`,
+      );
+      const hexCid = indexedNode.versions[nodeVersIdx]?.cid || indexedNode.recentCid;
+      const txHash = indexedNode.versions[nodeVersIdx]?.id;
+      const manifestCid = hexToCid(hexCid);
+
+      const nodeVersion = await prisma.nodeVersion.create({
+        data: {
+          nodeId: node.id,
+          manifestUrl: manifestCid,
+          transactionId: txHash,
+        },
+      });
+
+      //create pub dref entry for the manifest
+      const manifestEntry: Prisma.PublicDataReferenceCreateManyInput = {
+        cid: manifestCid,
+        userId: node.ownerId,
+        root: false,
+        directory: false,
+        size: await getSizeForCid(manifestCid, false),
+        type: DataType.MANIFEST,
+        nodeId: node.id,
+        versionId: nodeVersion.id,
+      };
+      await prisma.publicDataReference.create({ data: manifestEntry });
+
+      //generate pub drefs for the bucket
+      await validateAndHealDataRefs(node.uuid, manifestCid, true, true, txHash);
+      console.log(
+        `[DataRefDoctor]Successfully processed indexed node v: ${nodeVersIdx}, with txHash: ${indexedNode.versions[nodeVersIdx]?.id}, under user: ${user.email}`,
+      );
+    }
+    console.log(`[FillPublic] Successfully backfilled data refs for public node: ${nodeUuid}`);
+  } catch (e) {
+    console.log(`[FillPublic] Failed to backfill data refs for public node: ${nodeUuid}, error: ${e}`);
   }
 }
