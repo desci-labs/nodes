@@ -2,14 +2,14 @@
   "@context": "https://w3id.org/ro/crate/1.1/context",
   "@graph": [
     {
-      "@id": "ro-crate-metadata.jsonld",
+      "@id": "ro-crate-metadata.json",
       "@type": "CreativeWork",
       "about": { "@id": "./" },
       "conformsTo": { "@id": "https://w3id.org/ro/crate/1.1" }
     },
     {
       "@id": "./",
-      "@type": "Thing",
+      "@type": "CreativeWork",
       "creator": [{ "@id": "https://orcid.org/0000-0001-2345-6789" }],
       "license": "https://creativecommons.org/licenses/by/4.0/",
       "name": "Test dataset",
@@ -32,6 +32,7 @@
       "/": "bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i",
       "@id": "example.zip",
       "@type": "SoftwareSourceCode",
+      "discussionUrl": "https://github.com/hubsmoke/rhapsody-in-blue",
       "encodingFormat": "text/plain",
       "name": "Example Code",
       "url": "https://ipfs.io/ipfs/bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i"

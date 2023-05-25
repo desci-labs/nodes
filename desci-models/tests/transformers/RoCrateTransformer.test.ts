@@ -35,7 +35,6 @@ describe("RoCrateTransformer", () => {
     const researchObject = exampleNode;
 
     const roCrate = transformer.exportObject(researchObject);
-    console.log("EXPORTED RO-CRATE", roCrate);
     // Validate the output as JSON-LD
 
     // res = await compact(roCrate["@graph"], roCrate["@context"]);
@@ -168,6 +167,7 @@ describe("RoCrateTransformer", () => {
     const researchObject = exampleNodeWithAuthors;
     const roCrate = transformer.exportObject(researchObject);
     // console.log("RO", roCrate);
+    console.log("EXPORTED RO-CRATE", JSON.stringify(roCrate));
     const authors = roCrate["@graph"].filter(
       (item: RoCrateGraph) =>
         typeof item !== "string" && item["@type"] === "Person"
