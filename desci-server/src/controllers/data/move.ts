@@ -35,7 +35,7 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
 
   try {
     /*
-     ** New name collision check
+     ** New path collision check
      */
     const externalCidMap = await generateExternalCidMap(node.uuid);
     const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(dataBucket.payload.cid, externalCidMap));

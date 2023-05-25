@@ -368,6 +368,8 @@ export const nodeKeepFile = '.nodeKeep';
 export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidMap): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
   console.log(`[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
+  // const tree = await mixedLs(cid, externalCidMap);
+  // return tree;
   if (Object.keys(externalCidMap).length === 0) {
     // if (true) {
     console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
@@ -382,23 +384,30 @@ export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidM
 export const recursiveLs = async (cid: string, carryPath?: string) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
-  const lsOp = client.ls(cid, { timeout: INTERNAL_IPFS_TIMEOUT });
+  const lsOp = client.ls(cid);
+  const promises = [];
+
   for await (const filedir of lsOp) {
-    const res: any = filedir;
-    // if (parent) {
-    //   res.parent = parent;
-    const pathSplit = res.path.split('/');
-    pathSplit[0] = carryPath;
-    res.path = pathSplit.join('/');
-    // }
-    const v1StrCid = convertToCidV1(res.cid);
-    if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
-    if (filedir.type === 'dir') {
-      res.cid = v1StrCid;
-      res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
-      tree.push({ ...res, cid: v1StrCid });
-    }
+    const promise = new Promise<void>(async (resolve, reject) => {
+      const res: any = filedir;
+      // if (parent) {
+      //   res.parent = parent;
+      const pathSplit = res.path.split('/');
+      pathSplit[0] = carryPath;
+      res.path = pathSplit.join('/');
+      // }
+      const v1StrCid = convertToCidV1(res.cid);
+      if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
+      if (filedir.type === 'dir') {
+        res.cid = v1StrCid;
+        res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
+        tree.push({ ...res, cid: v1StrCid });
+      }
+      resolve();
+    });
+    promises.push(promise);
   }
+  await Promise.allSettled(promises);
   return tree;
 };
 
@@ -412,40 +421,46 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, ca
   const unixFs = UnixFS.unmarshal(Data);
   const isDir = dirTypes.includes(unixFs?.type);
   if (!isDir) return null;
+  const promises = [];
   for (const link of Links) {
-    const result: RecursiveLsResult = {
-      name: link.Name,
-      path: carryPath + '/' + link.Name,
-      cid: convertToCidV1(link.Hash.toString()),
-      size: 0,
-      type: 'file',
-    };
-    const externalCidMapEntry = externalCidMap[result.cid];
-    if (externalCidMapEntry) result.external = true;
-    const isExternalFile = externalCidMapEntry && externalCidMapEntry.directory == false;
-    const linkCidObject = multiformats.CID.parse(result.cid);
-    if (linkCidObject.code === rawCode || isExternalFile) {
-      result.size = link.Tsize;
-    } else {
-      const linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
-      const { Data: linkData } = dagPb.decode(linkBlock);
-      const unixFsLink = UnixFS.unmarshal(linkData);
-      const isLinkDir = dirTypes.includes(unixFsLink?.type);
-
-      if (isLinkDir) {
-        result.size = 0;
-        result.type = 'dir';
-        result.contains = (await mixedLs(
-          result.cid,
-          externalCidMap,
-          carryPath + '/' + result.name,
-        )) as RecursiveLsResult[];
-      } else {
+    const promise = new Promise<void>(async (resolve, reject) => {
+      const result: RecursiveLsResult = {
+        name: link.Name,
+        path: carryPath + '/' + link.Name,
+        cid: convertToCidV1(link.Hash.toString()),
+        size: 0,
+        type: 'file',
+      };
+      const externalCidMapEntry = externalCidMap[result.cid];
+      if (externalCidMapEntry) result.external = true;
+      const isExternalFile = externalCidMapEntry && externalCidMapEntry.directory == false;
+      const linkCidObject = multiformats.CID.parse(result.cid);
+      if (linkCidObject.code === rawCode || isExternalFile) {
         result.size = link.Tsize;
+      } else {
+        const linkBlock = await client.block.get(linkCidObject);
+        const { Data: linkData } = dagPb.decode(linkBlock);
+        const unixFsLink = UnixFS.unmarshal(linkData);
+        const isLinkDir = dirTypes.includes(unixFsLink?.type);
+
+        if (isLinkDir) {
+          result.size = 0;
+          result.type = 'dir';
+          result.contains = (await mixedLs(
+            result.cid,
+            externalCidMap,
+            carryPath + '/' + result.name,
+          )) as RecursiveLsResult[];
+        } else {
+          result.size = link.Tsize;
+        }
       }
-    }
-    tree.push(result);
+      tree.push(result);
+      resolve();
+    });
+    promises.push(promise);
   }
+  await Promise.allSettled(promises);
   return tree;
 }
 

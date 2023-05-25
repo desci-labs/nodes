@@ -176,6 +176,7 @@ export type Path = string;
 
 export interface DataComponentMetadata extends CommonComponentPayload {
   ontologyPurl?: string;
+  cedarLink?: string;
   controlledVocabTerms?: string[];
 }
 export interface DataComponentPayload {
