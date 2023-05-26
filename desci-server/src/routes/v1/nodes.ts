@@ -16,6 +16,7 @@ import {
   getPrivateShare,
   checkPrivateShareId,
   getCoverImage,
+  checkUserConsent,
 } from 'controllers/nodes/index';
 import { retrieveTitle } from 'controllers/nodes/legacyManifestApi';
 import { versionDetails } from 'controllers/nodes/versionDetails';

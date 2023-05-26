@@ -3,6 +3,7 @@ import { generateNonce, ErrorTypes, SiweMessage } from 'siwe';
 
 import prisma from 'client';
 import { queryResearchFields } from 'controllers/data';
+import { queryRor } from 'controllers/proxy';
 import { nft } from 'controllers/raw';
 import { ensureUser } from 'middleware/ensureUser';
 
@@ -45,5 +46,6 @@ router.use('/log', log);
 router.get('/nft/:id', nft);
 router.use('/referral', referral);
 router.get('/researchFields', [ensureUser], queryResearchFields);
+router.get('/ror', [ensureUser], queryRor);
 
 export default router;

@@ -10,6 +10,17 @@ export const saveInteraction = async (req: Request, action: ActionType, data: an
   });
 };
 
+export const getUserConsent = async (userId?: number) => {
+  console.log('interactionLog::saveInteraction');
+  return await prisma.interactionLog.findFirst({
+    where: {
+      userId,
+      action: ActionType.USER_TERMS_CONSENT,
+    },
+    // data: { userId, ip: req.ip, userAgent: req.headers['user-agent'], rep: 0, action, extra: JSON.stringify(data) },
+  });
+};
+
 export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<number> => {
   console.log('interactionLog::getCountActiveUsersInXDays');
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
