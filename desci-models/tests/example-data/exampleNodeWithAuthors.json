@@ -202,7 +202,8 @@
       "type": "data",
       "payload": {
         "path": "root/exploring-lupus/data",
-        "cid": "bafybeiff4ktzhrajxp37sbmr4mpgrly5gsw5inibilm63fxrgdncawyhqa"
+        "cid": "bafybeiff4ktzhrajxp37sbmr4mpgrly5gsw5inibilm63fxrgdncawyhqa",
+        "cedarLink": "https://open.metadatacenter.org/template-instances/https:%2F%2Frepo.metadatacenter.org%2Ftemplate-instances%2Faff0c178-b46e-43cd-aabe-2a5bab4b0819"
       },
       "starred": true
     },

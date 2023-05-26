@@ -231,6 +231,9 @@ export class RoCrateTransformer implements BaseTransformer {
         if (dataPayload.title) {
           dataset.alternateName = dataPayload.title;
         }
+        if (dataPayload.cedarLink) {
+          dataset.schemaVersion = dataPayload.cedarLink;
+        }
       }
       dataset.encodingFormat = "application/octet-stream";
       (dataset as any)["/"] = cleanupUrlOrCid(

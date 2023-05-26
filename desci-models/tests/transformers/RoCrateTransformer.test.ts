@@ -163,6 +163,21 @@ describe("RoCrateTransformer", () => {
     expect(authors).to.not.be.undefined;
     expect(authors.length).to.equal(17);
   });
+  it("Properly handles CEDAR link", () => {
+    const researchObject = exampleNodeWithAuthors;
+    const roCrate = transformer.exportObject(researchObject);
+    // console.log("RO", roCrate);
+    const cedar = roCrate["@graph"].find(
+      (item: RoCrateGraph) =>
+        typeof item !== "string" &&
+        item["@type"] === "Dataset" &&
+        item["@id"] == "dd562a70-0bb9-4a07-8b00-c414bc8b9ad9" &&
+        item["schemaVersion"] &&
+        item["schemaVersion"].toString().length > 0
+    );
+
+    expect(cedar).to.not.be.undefined;
+  });
   it("Adds orcid.org prefix to author ids", () => {
     const researchObject = exampleNodeWithAuthors;
     const roCrate = transformer.exportObject(researchObject);
