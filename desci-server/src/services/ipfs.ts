@@ -23,12 +23,12 @@ import { code as rawCode } from 'multiformats/codecs/raw';
 import * as yauzl from 'yauzl';
 
 import prisma from 'client';
+import { PUBLIC_IPFS_PATH } from 'config';
 import { bufferToStream } from 'utils';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
-import { PUBLIC_IPFS_PATH } from 'config';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
@@ -891,4 +891,26 @@ export function strIsCid(cid: string) {
   } catch (e) {
     return false;
   }
+}
+
+export async function spawnEmptyManifest() {
+  const emptyDagCid = await createEmptyDag();
+
+  const dataBucketComponent: ResearchObjectV1Component = {
+    id: 'root',
+    name: 'root',
+    type: ResearchObjectComponentType.DATA_BUCKET,
+    payload: {
+      cid: emptyDagCid,
+      path: DRIVE_NODE_ROOT_PATH,
+    },
+  };
+
+  const researchObject: ResearchObjectV1 = {
+    version: 'desci-nodes-0.2.0',
+    components: [dataBucketComponent],
+    authors: [],
+  };
+
+  return researchObject;
 }
