@@ -299,7 +299,7 @@ export const update = async (req: Request, res: Response) => {
   const ltsNode = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid + '.',
+      uuid: node.uuid,
     },
   });
 

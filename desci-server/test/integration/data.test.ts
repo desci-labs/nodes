@@ -26,20 +26,21 @@ describe('Data Controllers', () => {
 
     const BASE_MANIFEST = await spawnEmptyManifest();
     manifest = BASE_MANIFEST;
-    const BASE_MANIFEST_CID = await ipfs.add(JSON.stringify(BASE_MANIFEST), { cidVersion: 1, pin: true });
+    const BASE_MANIFEST_CID = (await ipfs.add(JSON.stringify(BASE_MANIFEST), { cidVersion: 1, pin: true })).cid;
 
     user = await prisma.user.create({
       data: {
         email: 'noreply@desci.com',
       },
     });
+    const cidString = BASE_MANIFEST_CID.toString();
 
     node = await prisma.node.create({
       data: {
         ownerId: user.id,
         uuid: randomUUID64(),
         title: '',
-        manifestUrl: BASE_MANIFEST_CID.toString(),
+        manifestUrl: cidString,
         replicationFactor: 0,
       },
     });
