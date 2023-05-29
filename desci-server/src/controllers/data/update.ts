@@ -75,6 +75,7 @@ export const update = async (req: Request, res: Response) => {
   if (externalCids) externalCids = JSON.parse(externalCids);
   let uploaded: IpfsPinnedResult[];
 
+  debugger;
   //validate requester owns the node
   const node = await prisma.node.findFirst({
     where: {

@@ -8,8 +8,8 @@ import request from 'supertest';
 
 import prisma from '../../src/client';
 import { app } from '../../src/index';
-import { randomUUID64 } from '../../src/utils';
 import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs';
+import { randomUUID64 } from '../../src/utils';
 
 describe('Data Controllers', () => {
   let user: User;
