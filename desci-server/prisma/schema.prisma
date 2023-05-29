@@ -133,6 +133,8 @@ model User {
   isKeeper                   Boolean               @default(false)
   pseudonym                  String?               @unique
   orcid                      String?               @unique
+  // rorPid                     String[]              @default([])
+  // organization               String[]              @default([])
   isAdmin                    Boolean               @default(false)
   isVerified                 Boolean               @default(false)
   verificationCode           String                @default("")
@@ -161,6 +163,7 @@ model User {
   currentDriveStorageLimitGb Int                   @default(5)
   maxDriveStorageLimitGb     Int                   @default(250)
   NodeAccess                 NodeAccess[]
+  userOrganizations          UserOrganizations[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -463,6 +466,23 @@ model FriendReferral {
 model ResearchFields {
   id   Int    @id @default(autoincrement())
   name String @unique
+}
+
+model Organization {
+  id                String              @unique
+  name              String
+  userOrganizations UserOrganizations[]
+
+  @@id([id])
+}
+
+model UserOrganizations {
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         Int
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@id([userId, organizationId])
 }
 
 enum FriendReferralStatus {

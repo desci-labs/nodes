@@ -84,7 +84,7 @@ export const createPublicDataRefs = async (
   userId: number | undefined,
   versionId: number | undefined,
 ) => {
-  let dataWithVersions = data.map((d) => ({ ...d, versionId }));
+  const dataWithVersions = data.map((d) => ({ ...d, versionId }));
   const publicDataRefRes = await prisma.publicDataReference.createMany({
     data: dataWithVersions,
     skipDuplicates: true,

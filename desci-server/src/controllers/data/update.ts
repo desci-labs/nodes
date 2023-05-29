@@ -63,7 +63,7 @@ export const update = async (req: RequestWithNodeAccess, res: Response) => {
   debugger;
   const owner = req.user;
   const node = req.node;
-  const { uuid, manifest, contextPath, componentType, componentSubType, newFolderName } = req.body;
+  const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl)
   //ExternalURL - url + type, code (github) & external pdfs for now
@@ -186,11 +186,13 @@ export const update = async (req: RequestWithNodeAccess, res: Response) => {
   console.log('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
 
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
+  // debugger;
   const OldTreePaths = oldFlatTree.map((e) => e.path);
   let newPathsFormatted: string[] = [];
   const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
   if (files.length) {
     newPathsFormatted = files.map((f) => {
+      if (f.originalname[0] !== '/') f.originalname = '/' + f.originalname;
       return header + f.originalname;
     });
   }
@@ -322,7 +324,7 @@ export const update = async (req: RequestWithNodeAccess, res: Response) => {
         path: neutralFullPath,
         cid: file.cid,
         componentType,
-        componentSubType,
+        componentSubtype,
         star: true,
         ...(externalUrl && { externalUrl: externalUrl.url }),
       };

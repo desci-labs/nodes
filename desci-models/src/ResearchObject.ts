@@ -37,9 +37,9 @@ export interface ResearchObjectV1Dpid {
 }
 
 export interface ResearchObjectV1Organization {
+  id: string;
   name: string;
-  subtext: string;
-  url: string;
+  subtext?: string;
 }
 export interface ResearchObjectV1Tags {
   name: string;
@@ -60,6 +60,8 @@ export interface ResearchObjectV1Author {
   orcid?: string;
   googleScholar?: string;
   role: ResearchObjectV1AuthorRole;
+  organizations?: ResearchObjectV1Organization[];
+  github?: string;
 }
 
 export interface ResearchObjectV1History {
@@ -176,6 +178,7 @@ export type Path = string;
 
 export interface DataComponentMetadata extends CommonComponentPayload {
   ontologyPurl?: string;
+  cedarLink?: string;
   controlledVocabTerms?: string[];
 }
 export interface DataComponentPayload {

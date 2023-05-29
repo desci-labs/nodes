@@ -1,5 +1,8 @@
+import dotenv from 'dotenv';
+
 import prisma from 'client';
 
+dotenv.config({ path: '../.env' });
 import researchFieldsData from '../../data/fields.json';
 
 const main = async () => {

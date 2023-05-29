@@ -149,5 +149,5 @@ app.use(errorHandler);
 
 const port = process.env.PORT || 5420;
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`Server running on port ${port} ${process.env.DATABASE_URL}`);
 });

@@ -18,7 +18,14 @@ export interface RequestWithNodeAccess extends RequestWithUser {
 }
 
 export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next: NextFunction) => {
-  const user = await (req.user || retrieveUser(req));
+  const user = await retrieveUser(req);
+
+  if (!(user && user.id > 0)) {
+    res.status(401).send({ ok: false, message: 'Unauthorized' });
+    return;
+  }
+  req.user = user;
+
   const uuid = req.body?.uuid || req.query?.uuid || req.params?.uuid;
   console.log('EnsureNodeAccess:: => ', user.email, uuid);
 
@@ -47,7 +54,14 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
 };
 
 export const ensureNodeAdmin = async (req: RequestWithUser, res: Response, next: NextFunction) => {
-  const user = await (req.user || retrieveUser(req));
+  const user = await retrieveUser(req);
+
+  if (!(user && user.id > 0)) {
+    res.status(401).send({ ok: false, message: 'Unauthorized' });
+    return;
+  }
+  req.user = user;
+
   const uuid = req.body?.uuid || req.query?.uuid || req.params?.uuid;
   console.log('EnsureNodeAdmin:: => ', user.email, uuid);
 
