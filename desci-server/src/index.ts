@@ -22,7 +22,7 @@ import routes from './routes';
 
 export const app = express();
 
-const ENABLE_TELEMETRY = process.env.NODE_ENV != 'dev';
+const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
 if (ENABLE_TELEMETRY) {
   console.log('[DeSci Nodes] Telemetry enabled');
   require('./tracing');
