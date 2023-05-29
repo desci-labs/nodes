@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '../.env' });
 
 import prisma from 'client';
-console.log('DATABASE_URL', process.env.DATABASE_URL, process.cwd());
+
 async function main() {
   const creditRoles: Omit<NodeCreditRoles, 'id'>[] = [
     { credit: ResearchCredits.AUTHOR, role: ResearchRoles.ADMIN },
