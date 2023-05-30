@@ -1,16 +1,17 @@
 import 'mocha';
 import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
-import { Node, User } from '@prisma/client';
+import { DataType, Node, User, Prisma } from '@prisma/client';
 import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 import prisma from '../../src/client';
 import { app } from '../../src/index';
-import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs';
+import { addFilesToDag, getSizeForCid, client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs';
 import { randomUUID64 } from '../../src/utils';
-import { validateDataReferences } from '../../src/utils/dataRefTools';
+import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools';
 import { neutralizePath, recursiveFlattenTree } from '../../src/utils/driveUtils';
+import { spawnExampleDirDag } from '../util';
 
 describe('Data Controllers', () => {
   let user: User;
@@ -246,8 +247,81 @@ describe('Data Controllers', () => {
       });
     });
   });
+
+  describe('Retrieve', () => {
+    before(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
+    });
+
+    describe('Retrieves a tree for a draft node without any external CIDs', () => {
+      let node: Node;
+      const privShareUuid = 'abcdef';
+      let res: request.Response;
+      let unauthedRes: request.Response;
+      let privShareRes: request.Response;
+      let incorrectPrivShareRes: request.Response;
+
+      before(async () => {
+        const manifest = { ...baseManifest };
+        const exampleDagCid = await spawnExampleDirDag();
+        manifest.components[0].payload.cid = exampleDagCid;
+        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
+
+        node = await prisma.node.create({
+          data: {
+            ownerId: user.id,
+            uuid: randomUUID64(),
+            title: '',
+            manifestUrl: manifestCid,
+            replicationFactor: 0,
+          },
+        });
+        const manifestEntry: Prisma.DataReferenceCreateManyInput = {
+          cid: manifestCid,
+          userId: user.id,
+          root: false,
+          directory: false,
+          size: await getSizeForCid(manifestCid, false),
+          type: DataType.MANIFEST,
+          nodeId: node.id,
+        };
+
+        await prisma.dataReference.create({ data: manifestEntry });
+        await prisma.privateShare.create({ data: { shareId: privShareUuid, nodeUUID: node.uuid! } });
+        await validateAndHealDataRefs(node.uuid!, manifestCid, false);
+
+        const dotlessUuid = node.uuid!.substring(0, node.uuid!.length - 1);
+        res = await request(app)
+          .get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}`)
+          .set('authorization', authHeaderVal);
+        unauthedRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}`);
+        privShareRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}/${privShareUuid}`);
+        incorrectPrivShareRes = await request(app).get(
+          `/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}/wrongShareId`,
+        );
+      });
+
+      it('should return status 200', () => {
+        expect(res.statusCode).to.equal(200);
+      });
+      it('should return a tree if authed', () => {
+        expect(res.body).to.have.property('tree');
+      });
+      it('should return a tree if correct shareId', () => {
+        expect(privShareRes.body).to.have.property('tree');
+        expect(privShareRes.statusCode).to.equal(200);
+      });
+      it('should reject if unauthed', () => {
+        expect(unauthedRes.statusCode).to.not.equal(200);
+      });
+      it('should reject if incorrect shareId', () => {
+        expect(incorrectPrivShareRes.statusCode).to.not.equal(200);
+      });
+    });
+  });
+
   describe('Move', () => {});
-  describe('Retrieve', () => {});
   describe('Rename', () => {});
   describe('Delete', () => {});
 });
