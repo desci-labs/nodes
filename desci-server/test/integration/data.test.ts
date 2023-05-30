@@ -10,17 +10,20 @@ import { app } from '../../src/index';
 import { addFilesToDag, getSizeForCid, client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs';
 import { randomUUID64 } from '../../src/utils';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools';
-import { neutralizePath, recursiveFlattenTree } from '../../src/utils/driveUtils';
+import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from '../../src/utils/driveUtils';
 import { spawnExampleDirDag } from '../util';
 
 describe('Data Controllers', () => {
   let user: User;
+  let unauthedUser: User;
   // let node: Node;
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
 
-  const jwtToken = jwt.sign({ email: 'noreply@desci.com' }, process.env.JWT_SECRET!, { expiresIn: '1y' });
-  const authHeaderVal = `Bearer ${jwtToken}`;
+  const aliceJwtToken = jwt.sign({ email: 'alice@desci.com' }, process.env.JWT_SECRET!, { expiresIn: '1y' });
+  const authHeaderVal = `Bearer ${aliceJwtToken}`;
+  const bobJwtToken = jwt.sign({ email: 'bob@desci.com' }, process.env.JWT_SECRET!, { expiresIn: '1y' });
+  const bobHeaderVal = `Bearer ${bobJwtToken}`;
 
   before(async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
@@ -34,7 +37,12 @@ describe('Data Controllers', () => {
 
     user = await prisma.user.create({
       data: {
-        email: 'noreply@desci.com',
+        email: 'alice@desci.com',
+      },
+    });
+    unauthedUser = await prisma.user.create({
+      data: {
+        email: 'bob@desci.com',
       },
     });
   });
@@ -95,6 +103,25 @@ describe('Data Controllers', () => {
         const oldDataBucketCid = baseManifest.components[0].payload.cid;
         const newDataBucketCid = res.body.manifest.components[0].payload.cid;
         expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      });
+      it('should reject if unauthed', async () => {
+        const newRes = await request(app)
+          .post('/v1/data/update')
+          .field('uuid', node.uuid!)
+          .field('manifest', JSON.stringify(res.body.manifest))
+          .field('contextPath', 'root')
+          .attach('files', Buffer.from('test'), 'test2.txt');
+        expect(newRes.statusCode).to.equal(400);
+      });
+      it('should reject if wrong user tries to update', async () => {
+        const newRes = await request(app)
+          .post('/v1/data/update')
+          .set('authorization', bobHeaderVal)
+          .field('uuid', node.uuid!)
+          .field('manifest', JSON.stringify(res.body.manifest))
+          .field('contextPath', 'root')
+          .attach('files', Buffer.from('test'), 'test2.txt');
+        expect(newRes.statusCode).to.equal(400);
       });
       it('should reject an update with a file name that already exists in the same directory', async () => {
         const newRes = await request(app)
@@ -259,6 +286,7 @@ describe('Data Controllers', () => {
       const privShareUuid = 'abcdef';
       let res: request.Response;
       let unauthedRes: request.Response;
+      let wrongAuthRes: request.Response;
       let privShareRes: request.Response;
       let incorrectPrivShareRes: request.Response;
 
@@ -295,6 +323,9 @@ describe('Data Controllers', () => {
         res = await request(app)
           .get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}`)
           .set('authorization', authHeaderVal);
+        wrongAuthRes = await request(app)
+          .get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}`)
+          .set('authorization', authHeaderVal);
         unauthedRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}`);
         privShareRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}/${privShareUuid}`);
         incorrectPrivShareRes = await request(app).get(
@@ -315,13 +346,78 @@ describe('Data Controllers', () => {
       it('should reject if unauthed', () => {
         expect(unauthedRes.statusCode).to.not.equal(200);
       });
+      it('should reject if wrong user', () => {
+        expect(wrongAuthRes.statusCode).to.not.equal(200);
+      });
       it('should reject if incorrect shareId', () => {
         expect(incorrectPrivShareRes.statusCode).to.not.equal(200);
       });
     });
   });
 
-  describe('Move', () => {});
+  describe('Delete', () => {
+    before(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CidPruneList" CASCADE;`;
+    });
+
+    describe('Deletes a directory from a node', () => {
+      let node: Node;
+      const privShareUuid = 'abcdef';
+      let res: request.Response;
+      let unauthedRes: request.Response;
+
+      before(async () => {
+        let manifest = { ...baseManifest };
+        const exampleDagCid = await spawnExampleDirDag();
+        manifest.components[0].payload.cid = exampleDagCid;
+        const componentsToAdd = ['dir/subdir', 'dir/subdir/b.txt'].map((path) => ({
+          name: 'component for ' + path,
+          path: 'root/' + path,
+          cid: 'anycid',
+          componentType: ResearchObjectComponentType.CODE,
+          star: true,
+        }));
+        manifest = addComponentsToManifest(manifest, componentsToAdd);
+        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
+
+        node = await prisma.node.create({
+          data: {
+            ownerId: user.id,
+            uuid: randomUUID64(),
+            title: '',
+            manifestUrl: manifestCid,
+            replicationFactor: 0,
+          },
+        });
+        const manifestEntry: Prisma.DataReferenceCreateManyInput = {
+          cid: manifestCid,
+          userId: user.id,
+          root: false,
+          directory: false,
+          size: await getSizeForCid(manifestCid, false),
+          type: DataType.MANIFEST,
+          nodeId: node.id,
+        };
+
+        await prisma.dataReference.create({ data: manifestEntry });
+        await validateAndHealDataRefs(node.uuid!, manifestCid, false);
+        res = await request(app)
+          .post(`/v1/data/delete`)
+          .set('authorization', authHeaderVal)
+          .send({ uuid: node.uuid, path: 'root/dir/subdir' });
+        unauthedRes = await request(app)
+          .post(`/v1/data/delete`)
+          .set('authorization', 'Bearer buller')
+          .send({ uuid: node.uuid, path: 'root/dir/subdir' });
+      });
+
+      it('should return status 200', () => {
+        expect(res.statusCode).to.equal(200);
+      });
+    });
+  });
   describe('Rename', () => {});
-  describe('Delete', () => {});
+  describe('Move', () => {});
 });
