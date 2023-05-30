@@ -148,6 +148,22 @@ export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
   return manifestPathsToTypes;
 }
 
+export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataType>) {
+  const naturalType = pathToDbTypeMap[path];
+  if (naturalType && naturalType !== DataType.UNKNOWN) return naturalType;
+  const pathSplit = path.split('/');
+  if (pathSplit.length < 3) return DataType.UNKNOWN;
+  while (pathSplit.length > 1) {
+    pathSplit.pop();
+    const parentPath = pathSplit.join('/');
+    const parent = pathToDbTypeMap[parentPath];
+    if (parent && parent !== DataType.UNKNOWN) {
+      return parent;
+    }
+  }
+  return DataType.UNKNOWN;
+}
+
 /* 
 Inconsistent use of URL and CID within the manifest payloads, PDFs and Code Repos use .url,
  others generally use .cid, this helper function fetches the appropriate property
