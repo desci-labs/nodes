@@ -22,10 +22,6 @@ import * as yauzl from 'yauzl';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
-<<<<<<< HEAD
-import { bufferToStream } from 'utils';
-=======
->>>>>>> 0fdbc0617fcfc2abb241e670ba4bf51186837f12
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
@@ -974,6 +970,7 @@ export async function spawnEmptyManifest() {
   };
 
   return researchObject;
+}
 export enum CidSource {
   INTERNAL = 'internal',
   EXTERNAL = 'external',
