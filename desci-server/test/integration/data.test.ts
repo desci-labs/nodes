@@ -7,7 +7,7 @@ import request from 'supertest';
 
 import prisma from '../../src/client';
 import { app } from '../../src/index';
-import { addFilesToDag, getSizeForCid, client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs';
+import { getDirectoryTree, getSizeForCid, client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs';
 import { randomUUID64 } from '../../src/utils';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools';
 import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from '../../src/utils/driveUtils';
@@ -364,7 +364,6 @@ describe('Data Controllers', () => {
 
     describe('Deletes a directory from a node', () => {
       let node: Node;
-      const privShareUuid = 'abcdef';
       let res: request.Response;
 
       const deleteDirPath = 'root/dir/subdir';
@@ -419,6 +418,11 @@ describe('Data Controllers', () => {
       it('should return new manifestCid', () => {
         expect(res.body).to.have.property('manifestCid');
       });
+      it('should have an updated manifest data bucket cid', () => {
+        const oldDataBucketCid = baseManifest.components[0].payload.cid;
+        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      });
       it('should reject if unauthed', async () => {
         const res = await request(app).post(`/v1/data/delete`).send({ uuid: node.uuid, path: 'root/dir' });
         expect(res.statusCode).to.not.equal(200);
@@ -460,6 +464,136 @@ describe('Data Controllers', () => {
       });
     });
   });
-  describe('Rename', () => {});
+
+  describe('Rename', () => {
+    before(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CidPruneList" CASCADE;`;
+    });
+
+    describe('Renames a directory in a node', () => {
+      let node: Node;
+      let res: request.Response;
+
+      const renameDirPath = 'root/dir/subdir';
+      const newPath = renameDirPath.replace('subdir', 'dubdir');
+
+      before(async () => {
+        let manifest = { ...baseManifest };
+        const exampleDagCid = await spawnExampleDirDag();
+        manifest.components[0].payload.cid = exampleDagCid;
+        const componentsToAdd = ['dir', 'dir/subdir', 'dir/subdir/b.txt'].map((path) => ({
+          name: 'component for ' + path,
+          path: 'root/' + path,
+          cid: 'anycid',
+          componentType: ResearchObjectComponentType.CODE,
+          star: true,
+        }));
+        manifest = addComponentsToManifest(manifest, componentsToAdd);
+        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
+
+        node = await prisma.node.create({
+          data: {
+            ownerId: user.id,
+            uuid: randomUUID64(),
+            title: '',
+            manifestUrl: manifestCid,
+            replicationFactor: 0,
+          },
+        });
+        const manifestEntry: Prisma.DataReferenceCreateManyInput = {
+          cid: manifestCid,
+          userId: user.id,
+          root: false,
+          directory: false,
+          size: await getSizeForCid(manifestCid, false),
+          type: DataType.MANIFEST,
+          nodeId: node.id,
+        };
+
+        await prisma.dataReference.create({ data: manifestEntry });
+        await validateAndHealDataRefs(node.uuid!, manifestCid, false);
+        res = await request(app)
+          .post(`/v1/data/rename`)
+          .set('authorization', authHeaderVal)
+          .send({ uuid: node.uuid!, path: renameDirPath, newName: 'dubdir', renameComponent: true });
+      });
+
+      it('should return status 200', () => {
+        expect(res.statusCode).to.equal(200);
+      });
+      it('should return new manifest', () => {
+        expect(res.body).to.have.property('manifest');
+      });
+      it('should return new manifestCid', () => {
+        expect(res.body).to.have.property('manifestCid');
+      });
+      it('databucket dag should contain renamed directory and nested files', async () => {
+        const databucketCid = res.body.manifest.components[0].payload.cid;
+        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {}));
+        const renamedDir = flatTree.find((f) => neutralizePath(f.path) === newPath);
+        const nestedFile = flatTree.find((f) => neutralizePath(f.path) === newPath + '/b.txt');
+        expect(!!renamedDir).to.equal(true);
+        expect(!!nestedFile).to.equal(true);
+        expect(renamedDir.type).to.equal('dir');
+        expect(nestedFile.type).to.equal('file');
+      });
+      it('should have an updated manifest data bucket cid', () => {
+        const oldDataBucketCid = baseManifest.components[0].payload.cid;
+        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      });
+      it('should reject if unauthed', async () => {
+        const res = await request(app)
+          .post(`/v1/data/rename`)
+          .send({ uuid: node.uuid!, path: renameDirPath, newName: 'dubdir', renameComponent: true });
+        expect(res.statusCode).to.not.equal(200);
+      });
+      it('should reject if wrong user', async () => {
+        const res = await request(app)
+          .post(`/v1/data/rename`)
+          .set('authorization', bobHeaderVal)
+          .send({ uuid: node.uuid!, path: renameDirPath, newName: 'dubdir', renameComponent: true });
+        expect(res.statusCode).to.not.equal(200);
+      });
+      it('should rename all appropriate data references', async () => {
+        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(
+          node.uuid!,
+          res.body.manifestCid,
+          false,
+        );
+        const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
+        expect(correctRefs).to.equal(true);
+      });
+      it('should update component path in manifest', () => {
+        const oldPathFound = res.body.manifest.components.find((c) => c.payload.path === renameDirPath);
+        const newPath = renameDirPath.replace('subdir', 'dubdir');
+        const newPathFound = res.body.manifest.components.find((c) => c.payload.path === newPath);
+        expect(!!oldPathFound).to.not.equal(true);
+        expect(!!newPathFound).to.equal(true);
+      });
+      it('should cascade update all manifest component paths that were dependent on the renamed directory', () => {
+        const oldPathContainedComponentFound = res.body.manifest.components.some((c) =>
+          c.payload.path.includes(renameDirPath),
+        );
+        const containedNewPathFound = res.body.manifest.components.find((c) => c.payload.path === newPath + '/b.txt');
+        expect(!!oldPathContainedComponentFound).to.not.equal(true);
+        expect(!!containedNewPathFound).to.equal(true);
+      });
+      it('should rename component card if renameComponent flag is true', () => {
+        const componentCard = res.body.manifest.components.find((c) => c.payload.path === newPath);
+        expect(componentCard.name).to.equal('dubdir');
+      });
+      it('should reject if new name already exists within the same directory', async () => {
+        const res = await request(app)
+          .post(`/v1/data/rename`)
+          .set('authorization', authHeaderVal)
+          .send({ uuid: node.uuid!, path: 'dir/a.txt', newName: 'c.txt' });
+        expect(res.statusCode).to.not.equal(200);
+      });
+    });
+  });
+
   describe('Move', () => {});
 });
