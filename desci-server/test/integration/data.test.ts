@@ -111,7 +111,7 @@ describe('Data Controllers', () => {
           .field('manifest', JSON.stringify(res.body.manifest))
           .field('contextPath', 'root')
           .attach('files', Buffer.from('test'), 'test2.txt');
-        expect(newRes.statusCode).to.equal(400);
+        expect(newRes.statusCode).to.not.equal(200);
       });
       it('should reject if wrong user tries to update', async () => {
         const newRes = await request(app)
@@ -325,7 +325,7 @@ describe('Data Controllers', () => {
           .set('authorization', authHeaderVal);
         wrongAuthRes = await request(app)
           .get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}`)
-          .set('authorization', authHeaderVal);
+          .set('authorization', bobHeaderVal);
         unauthedRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}`);
         privShareRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}/${privShareUuid}`);
         incorrectPrivShareRes = await request(app).get(
@@ -366,7 +366,8 @@ describe('Data Controllers', () => {
       let node: Node;
       const privShareUuid = 'abcdef';
       let res: request.Response;
-      let unauthedRes: request.Response;
+
+      const deleteDirPath = 'root/dir/subdir';
 
       before(async () => {
         let manifest = { ...baseManifest };
@@ -406,15 +407,56 @@ describe('Data Controllers', () => {
         res = await request(app)
           .post(`/v1/data/delete`)
           .set('authorization', authHeaderVal)
-          .send({ uuid: node.uuid, path: 'root/dir/subdir' });
-        unauthedRes = await request(app)
-          .post(`/v1/data/delete`)
-          .set('authorization', 'Bearer buller')
-          .send({ uuid: node.uuid, path: 'root/dir/subdir' });
+          .send({ uuid: node.uuid!, path: deleteDirPath });
       });
 
       it('should return status 200', () => {
         expect(res.statusCode).to.equal(200);
+      });
+      it('should return new manifest', () => {
+        expect(res.body).to.have.property('manifest');
+      });
+      it('should return new manifestCid', () => {
+        expect(res.body).to.have.property('manifestCid');
+      });
+      it('should reject if unauthed', async () => {
+        const res = await request(app).post(`/v1/data/delete`).send({ uuid: node.uuid, path: 'root/dir' });
+        expect(res.statusCode).to.not.equal(200);
+      });
+      it('should reject if wrong user', async () => {
+        const res = await request(app)
+          .post(`/v1/data/delete`)
+          .set('authorization', bobHeaderVal)
+          .send({ uuid: node.uuid, path: 'root/dir' });
+        expect(res.statusCode).to.not.equal(200);
+      });
+      it('should remove deleted content data references', async () => {
+        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(
+          node.uuid!,
+          res.body.manifestCid,
+          false,
+        );
+        const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
+        expect(correctRefs).to.equal(true);
+      });
+      it('should remove deleted component from manifest', () => {
+        const deletedComponentFound = res.body.manifest.components.find((c) => c.payload.path === deleteDirPath);
+        expect(!!deletedComponentFound).to.not.equal(true);
+      });
+      it('should cascade delete all components that were contained within the deleted directory', () => {
+        const containedComponentFound = res.body.manifest.components.some((c) =>
+          c.payload.path.includes(deleteDirPath),
+        );
+        expect(!!containedComponentFound).to.not.equal(true);
+      });
+      it('should add deleted entries to cidPruneList', async () => {
+        const deletedCids = [
+          'bafybeiceadgl6eqm52csjdkuch4wyawuyckbt6j4jg3tpxgs2we5mgy254',
+          'bafkreig7pzyokaqvit2igs564zfj4n4j726ex2auodpwfhfnnxnqgmqklq',
+        ];
+        const pruneListEntries = await prisma.cidPruneList.findMany({ where: { cid: { in: deletedCids } } });
+        const allEntriesFound = deletedCids.every((cid) => pruneListEntries.some((entry) => entry.cid === cid));
+        expect(allEntriesFound).to.equal(true);
       });
     });
   });

@@ -16,12 +16,11 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
   const { uuid, path } = req.body;
   console.log('[DATA::DELETE] hit, path: ', path, ' nodeUuid: ', uuid, ' user: ', owner.id);
   if (uuid === undefined || path === undefined) return res.status(400).json({ error: 'uuid and path required' });
-
   //validate requester owns the node
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid + '.',
+      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
     },
   });
   if (!node) {
@@ -96,7 +95,7 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
     const dataRefDeletionIds = dataRefsToDelete.map((e) => e.id);
     const formattedPruneList = dataRefsToDelete.map((e) => {
       return {
-        description: '[DATA::DELETE]path: ' + path,
+        description: '[DATA::DELETE]path: ' + neutralizePath(e.path),
         cid: e.cid,
         type: e.type,
         size: e.size,
