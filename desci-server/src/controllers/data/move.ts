@@ -79,8 +79,24 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
       newRootCid: updatedRootCid,
     });
 
+    // note: updatedDagCidMap here unreliable
     if (Object.keys(updatedDagCidMap).length) {
       updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
+    }
+
+    /*
+     ** Workaround for keeping manifest cids in sync
+     */
+    const flatTree = recursiveFlattenTree(await getDirectoryTree(updatedRootCid, externalCidMap));
+    for (let i = 0; i < updatedManifest.components.length; i++) {
+      const currentComponent = updatedManifest.components[i];
+      if (currentComponent.payload.path === 'root' || currentComponent.type === ResearchObjectComponentType.LINK)
+        continue; //skip data bucket and ext-links
+      const match = flatTree.find((branch) => branch.path === currentComponent.payload.path);
+      if (match) {
+        updatedManifest.components[i].payload.cid = match?.cid;
+        updatedManifest.components[i].payload.url = match?.cid;
+      }
     }
 
     /*
