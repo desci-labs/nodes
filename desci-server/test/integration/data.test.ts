@@ -634,7 +634,7 @@ describe('Data Controllers', () => {
           const match = tree.find((fd) => neutralizePath(fd.path) === path);
           return {
             name: match.name,
-            path: match.path,
+            path: neutralizePath(match.path),
             cid: match.cid,
             componentType: ResearchObjectComponentType.CODE,
             star: true,
@@ -738,7 +738,6 @@ describe('Data Controllers', () => {
       });
       it('manifest component payloads should only contain cids that exist within the DAG', async () => {
         const manifestComponentCids: string[] = [];
-        debugger;
         res.body.manifest.components.forEach((c: ResearchObjectV1Component, index) => {
           if (index === 0) return;
           if (c.payload.cid) {
