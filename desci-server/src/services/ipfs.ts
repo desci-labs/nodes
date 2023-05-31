@@ -29,6 +29,7 @@ import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
 import { PUBLIC_IPFS_PATH } from 'config';
+import { getOrCache } from 'redis';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
@@ -367,17 +368,17 @@ export const nodeKeepFile = '.nodeKeep';
 export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidMap): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
   console.log(`[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
-  // const tree = await mixedLs(cid, externalCidMap);
-  // return tree;
-  if (Object.keys(externalCidMap).length === 0) {
-    // if (true) {
-    console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
-    return await recursiveLs(cid);
-  } else {
-    console.log('[getDirectoryTree] using mixed ls, dagCid: , cid');
-    const tree = await mixedLs(cid, externalCidMap);
-    return tree;
-  }
+  const tree = getOrCache(`tree-${cid}`, async () => {
+    if (Object.keys(externalCidMap).length === 0) {
+      console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
+      return await recursiveLs(cid);
+    } else {
+      console.log('[getDirectoryTree] using mixed ls, dagCid: , cid');
+      const tree = await mixedLs(cid, externalCidMap);
+      return tree;
+    }
+  });
+  return tree;
 };
 
 export const recursiveLs = async (cid: string, carryPath?: string) => {

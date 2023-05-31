@@ -19,7 +19,10 @@ export function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEFAULT_T
   return new Promise<T>((resolve, reject) => {
     redisClient.get(key, async (err, result) => {
       if (err) return reject(err);
-      if (result !== null) return resolve(JSON.parse(result));
+      if (result !== null) {
+        console.log(`[REDIS CACHE]${key} retrieved from cache`);
+        return resolve(JSON.parse(result));
+      }
       const value = await fn();
       redisClient.setex(key, ttl, JSON.stringify(value));
       resolve(value);
