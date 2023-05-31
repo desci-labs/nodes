@@ -1,5 +1,5 @@
 import 'mocha';
-import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import { ResearchObjectComponentType, ResearchObjectV1, ResearchObjectV1Component } from '@desci-labs/desci-models';
 import { DataType, Node, User, Prisma } from '@prisma/client';
 import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
@@ -7,7 +7,13 @@ import request from 'supertest';
 
 import prisma from '../../src/client';
 import { app } from '../../src/index';
-import { getDirectoryTree, getSizeForCid, client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs';
+import {
+  addFilesToDag,
+  getDirectoryTree,
+  getSizeForCid,
+  client as ipfs,
+  spawnEmptyManifest,
+} from '../../src/services/ipfs';
 import { randomUUID64 } from '../../src/utils';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools';
 import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from '../../src/utils/driveUtils';
@@ -595,5 +601,160 @@ describe('Data Controllers', () => {
     });
   });
 
-  describe('Move', () => {});
+  describe('Move', () => {
+    before(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
+    });
+
+    describe('Moves a directory in a node to another location', () => {
+      let node: Node;
+      let res: request.Response;
+
+      const moveDirPath = 'root/dir/subdir';
+      const moveToPath = 'root/subdir';
+
+      before(async () => {
+        let manifest = await spawnEmptyManifest();
+        // debugger;
+        const exampleDagCid = await spawnExampleDirDag();
+        const newFileCid = (await ipfs.add(Buffer.from('a'), { cidVersion: 1, pin: true })).cid.toString();
+        const { updatedRootCid } = await addFilesToDag(exampleDagCid, 'dir', {
+          'd.txt': { cid: newFileCid, size: 1 },
+        });
+        const { updatedRootCid: newDagCid } = await addFilesToDag(updatedRootCid, 'dir/subdir', {
+          'a.txt': { cid: newFileCid, size: 1 },
+        });
+
+        manifest.components[0].payload.cid = newDagCid;
+
+        const tree = recursiveFlattenTree(await getDirectoryTree(newDagCid, {}));
+        // debugger;
+        const componentsToAdd = ['root/dir', 'root/dir/subdir', 'root/dir/subdir/b.txt'].map((path) => {
+          const match = tree.find((fd) => neutralizePath(fd.path) === path);
+          return {
+            name: match.name,
+            path: match.path,
+            cid: match.cid,
+            componentType: ResearchObjectComponentType.CODE,
+            star: true,
+          };
+        });
+        manifest = addComponentsToManifest(manifest, componentsToAdd);
+        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
+
+        node = await prisma.node.create({
+          data: {
+            ownerId: user.id,
+            uuid: randomUUID64(),
+            title: '',
+            manifestUrl: manifestCid,
+            replicationFactor: 0,
+          },
+        });
+        const manifestEntry: Prisma.DataReferenceCreateManyInput = {
+          cid: manifestCid,
+          userId: user.id,
+          root: false,
+          directory: false,
+          size: await getSizeForCid(manifestCid, false),
+          type: DataType.MANIFEST,
+          nodeId: node.id,
+        };
+
+        await prisma.dataReference.create({ data: manifestEntry });
+        await validateAndHealDataRefs(node.uuid!, manifestCid, false);
+        res = await request(app)
+          .post(`/v1/data/move`)
+          .set('authorization', authHeaderVal)
+          .send({ uuid: node.uuid!, oldPath: moveDirPath, newPath: moveToPath });
+      });
+
+      it('should return status 200', () => {
+        expect(res.statusCode).to.equal(200);
+      });
+      it('should return new manifest', () => {
+        expect(res.body).to.have.property('manifest');
+      });
+      it('should return new manifestCid', () => {
+        expect(res.body).to.have.property('manifestCid');
+      });
+      it('databucket dag should contain moved directory', async () => {
+        const databucketCid = res.body.manifest.components[0].payload.cid;
+        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {}));
+        const movedDir = flatTree.find((f) => neutralizePath(f.path) === moveToPath);
+        expect(!!movedDir).to.equal(true);
+        expect(movedDir.type).to.equal('dir');
+      });
+      it('should have an updated manifest data bucket cid', () => {
+        const oldDataBucketCid = baseManifest.components[0].payload.cid;
+        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      });
+      it('should reject if unauthed', async () => {
+        const res = await request(app)
+          .post(`/v1/data/move`)
+          .send({ uuid: node.uuid!, oldPath: 'root/d.txt', newPath: 'root/dir/d.txt' });
+        expect(res.statusCode).to.not.equal(200);
+      });
+      it('should reject if wrong user', async () => {
+        const res = await request(app)
+          .post(`/v1/data/move`)
+          .set('authorization', bobHeaderVal)
+          .send({ uuid: node.uuid!, oldPath: 'root/d.txt', newPath: 'root/dir/d.txt' });
+        expect(res.statusCode).to.not.equal(200);
+      });
+      it('should modify all appropriate data references', async () => {
+        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(
+          node.uuid!,
+          res.body.manifestCid,
+          false,
+        );
+        const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
+        expect(correctRefs).to.equal(true);
+      });
+      it('should update component path in manifest', () => {
+        const oldPathFound = res.body.manifest.components.find((c) => c.payload.path === moveDirPath);
+        const newPathFound = res.body.manifest.components.find((c) => c.payload.path === moveToPath);
+        expect(!!oldPathFound).to.not.equal(true);
+        expect(!!newPathFound).to.equal(true);
+      });
+      it('should cascade update all manifest component paths that were dependent on the moved directory', () => {
+        const oldPathContainedComponentFound = res.body.manifest.components.some((c) =>
+          c.payload.path.includes(moveDirPath),
+        );
+        const containedNewPathFound = res.body.manifest.components.find(
+          (c) => c.payload.path === moveToPath + '/b.txt',
+        );
+        expect(!!oldPathContainedComponentFound).to.not.equal(true);
+        expect(!!containedNewPathFound).to.equal(true);
+      });
+      it('should reject if new path already contains file with the same name', async () => {
+        const res = await request(app)
+          .post(`/v1/data/move`)
+          .set('authorization', authHeaderVal)
+          .send({ uuid: node.uuid!, oldPath: 'root/d.txt', newPath: 'root/dir/d.txt' });
+        expect(res.statusCode).to.not.equal(200);
+      });
+      it('manifest component payloads should only contain cids that exist within the DAG', async () => {
+        const manifestComponentCids: string[] = [];
+        debugger;
+        res.body.manifest.components.forEach((c: ResearchObjectV1Component, index) => {
+          if (index === 0) return;
+          if (c.payload.cid) {
+            manifestComponentCids.push(c.payload.cid);
+          }
+          if (c.payload.url) {
+            manifestComponentCids.push(c.payload.url);
+          }
+        });
+        const tree = recursiveFlattenTree(await getDirectoryTree(res.body.manifest.components[0].payload.cid, {}));
+        const allCidsExist = manifestComponentCids.every((cid) => {
+          const found = tree.find((f) => f.cid === cid);
+          return !!found;
+        });
+        expect(allCidsExist).to.equal(true);
+      });
+    });
+  });
 });
