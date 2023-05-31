@@ -23,13 +23,13 @@ import { code as rawCode } from 'multiformats/codecs/raw';
 import * as yauzl from 'yauzl';
 
 import prisma from 'client';
+import { PUBLIC_IPFS_PATH } from 'config';
 import { bufferToStream } from 'utils';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
-import { PUBLIC_IPFS_PATH } from 'config';
-import { getOrCache } from 'redis';
+import { getOrCache } from 'redisClient';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
