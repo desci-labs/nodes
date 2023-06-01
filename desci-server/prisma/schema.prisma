@@ -33,6 +33,8 @@ model Node {
   CidPruneList        CidPruneList[]
   NodeCover           NodeCover[]
   NodeAccess          NodeAccess[]
+  isDeleted           Boolean               @default(false)
+  deletedAt           DateTime?
 
   @@index([ownerId])
   @@index([uuid])

@@ -26,7 +26,7 @@ import {
   getPrivateShare,
   checkPrivateShareId,
   getCoverImage,
-  checkUserConsent,
+  deleteNode,
 } from 'controllers/nodes/index';
 import { retrieveTitle } from 'controllers/nodes/legacyManifestApi';
 import { versionDetails } from 'controllers/nodes/versionDetails';
@@ -62,6 +62,8 @@ router.post('/accessInvite/accept', [ensureUser], acceptAuthorInvite);
 router.post('/accessInvite/reject', [ensureUser], rejectAuthorInvite);
 
 // legacy api
+router.delete('/:uuid', [ensureUser], deleteNode);
+
 router.get('/legacy/retrieveTitle', retrieveTitle);
 
 router.post('/api/*', [], api);
