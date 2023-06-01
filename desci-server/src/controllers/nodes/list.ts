@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+// import { randomBytes } from 'crypto';
 
 import { Request, Response, NextFunction } from 'express';
 
@@ -22,6 +22,7 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
     },
     where: {
       ownerId: owner.id,
+      isDeleted: false,
     },
     orderBy: { updatedAt: 'desc' },
   });
@@ -55,6 +56,7 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
       },
       where: {
         ownerId: owner.id,
+        // isDeleted: false,
       },
       orderBy: { updatedAt: 'desc' },
     });

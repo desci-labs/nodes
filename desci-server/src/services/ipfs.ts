@@ -1,5 +1,3 @@
-import internal from 'stream';
-
 import {
   CodeComponent,
   PdfComponent,
@@ -24,12 +22,11 @@ import * as yauzl from 'yauzl';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
-import { bufferToStream } from 'utils';
+import { getOrCache } from 'redisClient';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
-import { getOrCache } from 'redisClient';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
@@ -49,6 +46,10 @@ export interface UrlWithCid {
 export const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
 export const readerClient = ipfs.create({ url: PUBLIC_IPFS_PATH });
 export const publicIpfs = ipfs.create({ url: process.env.PUBLIC_IPFS_RESOLVER });
+
+// Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
+const INTERNAL_IPFS_TIMEOUT = 5000;
+const EXTERNAL_IPFS_TIMEOUT = 15000;
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
@@ -425,7 +426,7 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, ca
   carryPath = carryPath || convertToCidV1(dagCid);
   const tree = [];
   const cidObject = multiformats.CID.parse(dagCid);
-  const block = await client.block.get(cidObject);
+  const block = await client.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
   const { Data, Links } = dagPb.decode(block);
   const unixFs = UnixFS.unmarshal(Data);
   const isDir = dirTypes.includes(unixFs?.type);
@@ -496,6 +497,62 @@ export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
   }
   return tree;
 };
+
+// Used for recursively lsing a DAG without knowing if it contains public or private cids, slow and INEFFICIENT!
+export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap, carryPath?: string) {
+  try {
+    carryPath = carryPath || convertToCidV1(dagCid);
+    const tree = [];
+    const cidObject = multiformats.CID.parse(dagCid);
+    let block = await client.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+    if (!block) block = await publicIpfs.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+    if (!block) throw new Error('Could not find block for cid: ' + dagCid);
+    const { Data, Links } = dagPb.decode(block);
+    const unixFs = UnixFS.unmarshal(Data);
+    const isDir = dirTypes.includes(unixFs?.type);
+    if (!isDir) return null;
+    for (const link of Links) {
+      const result: RecursiveLsResult = {
+        name: link.Name,
+        path: carryPath + '/' + link.Name,
+        cid: convertToCidV1(link.Hash.toString()),
+        size: 0,
+        type: 'file',
+      };
+      const externalCidMapEntry = externalCidMap[result.cid];
+      if (externalCidMapEntry) result.external = true;
+      const isExternalFile = externalCidMapEntry && externalCidMapEntry.directory == false;
+      const linkCidObject = multiformats.CID.parse(result.cid);
+      if (linkCidObject.code === rawCode || isExternalFile) {
+        result.size = link.Tsize;
+      } else {
+        let linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+        if (!linkBlock) linkBlock = await publicIpfs.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+        if (!linkBlock) throw new Error('Could not find block for cid: ' + dagCid);
+        const { Data: linkData } = dagPb.decode(linkBlock);
+        const unixFsLink = UnixFS.unmarshal(linkData);
+        const isLinkDir = dirTypes.includes(unixFsLink?.type);
+
+        if (isLinkDir) {
+          result.size = 0;
+          result.type = 'dir';
+          result.contains = (await mixedLs(
+            result.cid,
+            externalCidMap,
+            carryPath + '/' + result.name,
+          )) as RecursiveLsResult[];
+        } else {
+          result.size = link.Tsize;
+        }
+      }
+      tree.push(result);
+    }
+    return tree;
+  } catch (err) {
+    console.error(`Failed to resolve CID, err: `, err);
+    return null;
+  }
+}
 
 export const getDag = async (cid: ipfs.CID) => {
   const dag = await client.dag.get(cid);
@@ -654,7 +711,7 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
     ? dagsLoaded[tailNodeCid.toString()]
     : await client.object.get(tailNodeCid);
 
-  const updatedTailNodeCid = await removeDagLink(tailNodeCid.toString(), fileNameToRemove);
+  const { newDagCid: updatedTailNodeCid, removedLink } = await removeDagLink(tailNodeCid.toString(), fileNameToRemove);
 
   const updatedDagCidMap: Record<oldCid, newCid> = {};
 
@@ -673,7 +730,7 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
     updatedDagCidMap[oldCid.toString()] = lastUpdatedCid.toString();
   }
 
-  return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
+  return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap, removedLink };
 };
 
 export async function removeDagLink(dagCid: string | multiformats.CID, linkName: string) {
@@ -691,6 +748,7 @@ export async function removeDagLink(dagCid: string | multiformats.CID, linkName:
   if (!node.isDirectory()) {
     throw new Error(`file cid -- not a directory`);
   }
+  const removedLink = Links.find((link) => link.Name === linkName);
   const newLinks = Links.filter((link) => link.Name !== linkName);
 
   if (newLinks.length === 0) {
@@ -698,10 +756,11 @@ export async function removeDagLink(dagCid: string | multiformats.CID, linkName:
     newLinks.push({ Name: '.nodeKeep', Hash: nodeKeep.cid as any, Tsize: nodeKeep.size });
   }
 
-  return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links: newLinks })), {
+  const newDagCid = await client.block.put(dagPb.encode(dagPb.prepare({ Data, Links: newLinks })), {
     version: 1,
     format: 'dag-pb',
   });
+  return { newDagCid, removedLink: { [linkName]: removedLink } };
 }
 
 export const renameFileInDag = async (rootCid: string, contextPath: string, linkToRename: string, newName: string) => {
@@ -761,6 +820,33 @@ export const renameFileInDag = async (rootCid: string, contextPath: string, link
   }
 
   return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
+};
+
+export const moveFileInDag = async (rootCid: string, contextPath: string, fileToMove: string, newPath: string) => {
+  const {
+    updatedRootCid: removedDagCid,
+    updatedDagCidMap: removedDagCidMap,
+    removedLink,
+  } = await removeFileFromDag(rootCid, contextPath, fileToMove);
+
+  const newPathSplit = newPath.split('/');
+  const fileName = newPathSplit.pop();
+  const newContextPath = newPathSplit.join('/');
+  const formattedLink = {
+    [fileName]: { cid: removedLink[fileToMove].Hash.toString(), size: removedLink[fileToMove].Tsize },
+  };
+  const { updatedRootCid, updatedDagCidMap } = await addFilesToDag(removedDagCid, newContextPath, formattedLink);
+
+  for (const [key, val] of Object.entries(removedDagCidMap)) {
+    // add updatedDagCids in remove step
+    updatedDagCidMap[key] = val;
+    // roll over the updatedDagCids
+    if (val in updatedDagCidMap) {
+      updatedDagCidMap[key] = updatedDagCidMap[val];
+    }
+  }
+
+  return { updatedRootCid, updatedDagCidMap };
 };
 
 export async function renameDagLink(dagCid: string | multiformats.CID, linkName: string, newName: string) {
@@ -901,4 +987,29 @@ export function strIsCid(cid: string) {
   } catch (e) {
     return false;
   }
+}
+
+export enum CidSource {
+  INTERNAL = 'internal',
+  EXTERNAL = 'external',
+}
+
+// assumeExternal is quicker, because it doesn't attempt to check if the CID is available via public resolution
+// Note: when using this function the result can be impacted by the resolvers uptime
+export async function checkCidSrc(cid: string, assumeExternal = false) {
+  try {
+    const internalStat = await client.block.stat(CID2.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
+    if (internalStat) return CidSource.INTERNAL;
+  } catch (err) {
+    if (assumeExternal) return CidSource.EXTERNAL;
+  }
+
+  try {
+    const externalStat = await publicIpfs.block.stat(CID2.parse(cid), { timeout: EXTERNAL_IPFS_TIMEOUT });
+    if (externalStat) return CidSource.EXTERNAL;
+  } catch (err) {
+    console.log('CID not found in either internal or public IPFS, or resolution timed out. e: ', err);
+    return false;
+  }
+  return false;
 }

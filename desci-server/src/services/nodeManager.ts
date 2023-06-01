@@ -27,7 +27,8 @@ import { uploadDataToEstuary } from 'services/estuary';
 import { getIndexedResearchObjects } from 'theGraph';
 import { hexToCid, randomUUID64 } from 'utils';
 import { asyncMap } from 'utils';
-import { generateExternalCidMap } from 'utils/driveUtils';
+import { generateDataReferences } from 'utils/dataRefTools';
+import { generateExternalCidMap, recursiveFlattenTree } from 'utils/driveUtils';
 import { cleanManifestForSaving } from 'utils/manifestDraftUtils';
 
 import {
@@ -40,7 +41,6 @@ import {
   getSizeForCid,
   resolveIpfsData,
 } from './ipfs';
-import { isDir } from './ipfs';
 
 const ESTUARY_MIRROR_ID = 1;
 
@@ -158,7 +158,6 @@ export const getAllCidsRequiredForPublish = async (
   nodeId: number | undefined,
   versionId: number | undefined,
 ): Promise<Prisma.PublicDataReferenceCreateManyInput[]> => {
-  debugger;
   // ensure public data refs staged matches our data bucket cids
   const latestManifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   // const manifestString = manifestBuffer.toString('utf8');
@@ -167,10 +166,6 @@ export const getAllCidsRequiredForPublish = async (
   } else {
     console.log(`[nodeManager::getAllCidsRequiredForPublish] manifestString=${latestManifestEntry} cid=${manifestCid}`);
   }
-
-  const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
-    .cid; //changing the rootCid to the data bucket entry
-  const externalCidMap = nodeUuid ? await generateExternalCidMap(nodeUuid) : {};
 
   const manifestEntry: Prisma.PublicDataReferenceCreateManyInput = {
     cid: manifestCid,
@@ -182,33 +177,9 @@ export const getAllCidsRequiredForPublish = async (
     nodeId,
     versionId,
   };
-  const dataRootEntry: Prisma.PublicDataReferenceCreateManyInput = {
-    cid: rootCid,
-    userId,
-    root: true,
-    directory: true,
-    size: 0,
-    type: DataType.DATA_BUCKET,
-    nodeId,
-    versionId,
-  };
-  const dataTree = await getDirectoryTree(rootCid, externalCidMap);
+  const dataBucketEntries = await generateDataReferences(nodeUuid, manifestCid, versionId);
 
-  const dataTreeToPubRef = dataTree.map((entry) => {
-    const obj: Prisma.PublicDataReferenceCreateManyInput = {
-      cid: entry.cid,
-      userId,
-      root: false,
-      directory: !!entry.contains,
-      size: entry.size,
-      type: DataType.UNKNOWN,
-      nodeId,
-      versionId,
-    };
-    return obj;
-  });
-
-  return [manifestEntry, dataRootEntry, ...dataTreeToPubRef];
+  return [manifestEntry, ...dataBucketEntries];
 };
 
 async function publishCid(job: Prisma.PublicDataReferenceCreateManyInput): Promise<boolean> {

@@ -9,9 +9,9 @@ const rawCode = code;
 // ===========================================================================
 async function getSize(ipfs, cid, allowDir = false) {
   const block = await ipfs.block.get(cid);
-  console.log('cid: ', cid);
+  // console.log('cid: ', cid);
   if (typeof cid === 'string') cid = multiformats.CID.parse(cid);
-  console.log('cid.code: ', cid.code);
+  // console.log('cid.code: ', cid.code);
   // if raw, use length of block
   if (cid.code == rawCode) {
     return block.length;
