@@ -372,7 +372,7 @@ export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidM
     debugger;
     const tree = await getOrCache(`tree-${cid}`, getTree);
     if (tree) return tree;
-    throw new Error('no tree');
+    throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
   } catch (err) {
     console.log('[getDirectoryTree] error', err);
     console.log('[getDirectoryTree] Falling back on uncached tree retrieval');

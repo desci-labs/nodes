@@ -3,8 +3,8 @@ import { createClient } from 'redis';
 const redisClient = createClient({
   // url: process.env.REDIS_URL,
   socket: {
-    host: process.env.REDIS_HOST,
-    port: parseInt(process.env.REDIS_PORT),
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT) || 6379,
     connectTimeout: 5000,
     reconnectStrategy: (times) => {
       // Try reconnect 3 times, then stop trying
@@ -18,7 +18,10 @@ const redisClient = createClient({
 });
 
 async function initRedisClient() {
-  if (process.env.REDIS_URL === undefined) return;
+  if (process.env.REDIS_HOST === undefined || process.env.REDIS_PORT) {
+    console.error('Redis host or port is not defined');
+    return;
+  }
   if (!redisClient.isOpen) await redisClient.connect();
 }
 initRedisClient();
