@@ -100,3 +100,29 @@ export function arrayXor(arr: any[]): boolean {
   // eslint-disable-next-line no-array-reduce/no-reduce
   return arr.reduce((acc, val) => acc !== !!val, false);
 }
+
+export function objectPropertyXor(obj1: any, obj2: any): any {
+  const result: any = {};
+
+  for (const key in obj1) {
+    if (!(key in obj2) || !(key in obj1) || obj1[key] !== obj2[key]) {
+      result[key] = 1;
+    }
+  }
+
+  for (const key in obj2) {
+    if (!(key in obj1)) {
+      result[key] = 1;
+    }
+  }
+
+  return result;
+}
+
+// returns a new object omitting the specified keys in the filter list
+export function omitKeys(obj: Record<string, any>, filterList: string[]): Record<string, any> {
+  // eslint-disable-next-line no-array-reduce/no-reduce
+  return Object.keys(obj)
+    .filter((key) => !filterList.includes(key))
+    .reduce((newObj, key) => ({ ...newObj, [key]: obj[key] }), {});
+}
