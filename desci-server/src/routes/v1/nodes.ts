@@ -6,6 +6,9 @@ import {
   sendAccessInvite,
   rejectAuthorInvite,
   revokeAccess,
+  getNodeContributors,
+  getAllAccessInvites,
+  getAuthorNodeInvites,
 } from 'controllers/nodes/accessRole';
 import {
   show,
@@ -50,14 +53,15 @@ router.get('/cover/:uuid/:version', [], getCoverImage);
 
 // Node access control apis
 router.get('/accessRoles', [ensureUser], getNodeAccessRoles);
+router.get('/:uuid/contributors', [ensureNodeAccess], getNodeContributors);
+router.get('/:uuid/allInvites', [ensureNodeAdmin], getAllAccessInvites);
+router.get('/:uuid/accessInvites', [ensureNodeAccess], getAuthorNodeInvites);
 router.post('/:uuid/accessInvite', [ensureUser, ensureNodeAdmin], sendAccessInvite);
 router.post('/:uuid/revokeAccess', [ensureUser, ensureNodeAdmin], revokeAccess);
 router.post('/accessInvite/accept', [ensureUser], acceptAuthorInvite);
 router.post('/accessInvite/reject', [ensureUser], rejectAuthorInvite);
-// TODO: api to list user accessRoles
-// TODO: api to list node access
-// TODO: Api to list node author invites
 
+// legacy api
 router.get('/legacy/retrieveTitle', retrieveTitle);
 
 router.post('/api/*', [], api);

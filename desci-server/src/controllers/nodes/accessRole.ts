@@ -16,6 +16,54 @@ export const getNodeAccessRoles = async (req: RequestWithUser, res: Response) =>
   }
 };
 
+export const getNodeContributors = async (req: RequestWithNodeAccess, res: Response) => {
+  try {
+    const contributors = await prisma.nodeAccess.findMany({
+      where: { uuid: req.node.uuid },
+      include: {
+        user: { select: { id: true, email: true, name: true } },
+        role: { select: { id: true, credit: true, role: true } },
+      },
+    });
+    res.send({ ok: true, data: { contributors } });
+  } catch (e) {
+    console.log('GetNodeContributors::Error=======>', e);
+    res.status(500).send({ message: 'Unknow Error occured' });
+  }
+};
+
+export const getAuthorNodeInvites = async (req: RequestWithNodeAccess, res: Response) => {
+  try {
+    const invites = await prisma.authorInvite.findMany({
+      where: { senderId: req.user.id, nodeId: req.node.id },
+      include: {
+        sender: { select: { id: true, email: true, name: true } },
+        receiver: { select: { id: true, email: true, name: true } },
+        role: { select: { id: true, credit: true, role: true } },
+      },
+    });
+    res.send({ ok: true, data: { invites } });
+  } catch (e) {
+    res.status(500).send({ message: 'Unknow Error occured' });
+  }
+};
+
+export const getAllAccessInvites = async (req: RequestWithNodeAccess, res: Response) => {
+  try {
+    const invites = await prisma.authorInvite.findMany({
+      where: { nodeId: req.node.id },
+      include: {
+        sender: { select: { id: true, email: true, name: true } },
+        receiver: { select: { id: true, email: true, name: true } },
+        role: { select: { id: true, credit: true, role: true } },
+      },
+    });
+    res.send({ ok: true, data: { invites } });
+  } catch (e) {
+    res.status(500).send({ message: 'Unknow Error occured' });
+  }
+};
+
 export const sendAccessInvite = async (req: RequestWithNodeAccess, res: Response) => {
   try {
     const { roleId, email } = req.body;
