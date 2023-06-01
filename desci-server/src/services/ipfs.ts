@@ -368,7 +368,15 @@ export const nodeKeepFile = '.nodeKeep';
 export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidMap): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
   console.log(`[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
-  const tree = getOrCache(`tree-${cid}`, async () => {
+  try {
+    const tree = await getOrCache(`tree-${cid}`, getTree);
+    return tree;
+  } catch (err) {
+    console.log('[getDirectoryTree] error', err);
+    console.log('[getDirectoryTree] Falling back on uncached tree retrieval');
+    return getTree();
+  }
+  async function getTree() {
     if (Object.keys(externalCidMap).length === 0) {
       console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
       return await recursiveLs(cid);
@@ -377,8 +385,7 @@ export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidM
       const tree = await mixedLs(cid, externalCidMap);
       return tree;
     }
-  });
-  return tree;
+  }
 };
 
 export const recursiveLs = async (cid: string, carryPath?: string) => {
