@@ -50,6 +50,10 @@ export function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEFAULT_T
       const result = await redisClient.get(key);
       if (result !== null) {
         console.log(`[REDIS CACHE]${key} retrieved from cache`);
+
+        // bump ttl for active cached items
+        redisClient.expire(key, ttl);
+
         return resolve(JSON.parse(result));
       }
       console.log(`[REDIS CACHE]${key} cached`);
