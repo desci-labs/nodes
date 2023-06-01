@@ -32,6 +32,8 @@ model Node {
   PublicDataReference PublicDataReference[]
   CidPruneList        CidPruneList[]
   NodeCover           NodeCover[]
+  isDeleted           Boolean               @default(false)
+  deletedAt           DateTime?
 
   @@index([ownerId])
   @@index([uuid])
