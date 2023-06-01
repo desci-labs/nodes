@@ -369,8 +369,10 @@ export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidM
   const isOnline = await client.isOnline();
   console.log(`[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
   try {
+    debugger;
     const tree = await getOrCache(`tree-${cid}`, getTree);
-    return tree;
+    if (tree) return tree;
+    throw new Error('no tree');
   } catch (err) {
     console.log('[getDirectoryTree] error', err);
     console.log('[getDirectoryTree] Falling back on uncached tree retrieval');
