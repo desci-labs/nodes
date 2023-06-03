@@ -22,7 +22,7 @@ import {
   RecursiveLsResult,
   zipToPinFormat,
 } from 'services/ipfs';
-import { arrayXor, processExternalUrls, zipUrlToBuffer } from 'utils';
+import { arrayXor, getMemoryUsage, processExternalUrls, zipUrlToBuffer } from 'utils';
 import {
   FirstNestingComponent,
   ROTypesToPrismaTypes,
@@ -106,9 +106,13 @@ export const update = async (req: Request, res: Response) => {
   ) {
     try {
       if (componentType === ResearchObjectComponentType.CODE) {
+        console.log('[UPDATE DAG] 1) Processing external URL', getMemoryUsage());
         const processedUrl = await processExternalUrls(externalUrl.url, componentType);
+        console.log('[UPDATE DAG] 2) external URL', getMemoryUsage());
         const zipBuffer = await zipUrlToBuffer(processedUrl);
+        console.log('[UPDATE DAG] 3) external URL', getMemoryUsage());
         const { files, totalSize } = await zipToPinFormat(zipBuffer, externalUrl.path);
+        console.log('[UPDATE DAG] 4) external URL', getMemoryUsage());
         externalUrlFiles = files;
         externalUrlTotalSizeBytes = totalSize;
       }
