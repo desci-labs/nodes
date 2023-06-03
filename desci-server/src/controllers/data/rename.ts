@@ -3,6 +3,7 @@ import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 import { getDirectoryTree, renameFileInDag } from 'services/ipfs';
 import { updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
 import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
@@ -13,7 +14,17 @@ import { getLatestManifest, persistManifest, separateFileNameAndExtension } from
 export const renameData = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
   const { uuid, path, newName, renameComponent } = req.body;
-  console.log('[DATA::RENAME] hit, path: ', path, ' nodeUuid: ', uuid, ' user: ', owner.id, ' newName: ', newName);
+  const logger = parentLogger.child({
+    id: req.id,
+    module: 'DATA::RenameController',
+    uuid: uuid,
+    path: path,
+    user: owner.id,
+    newName: newName,
+    renameComponent: renameComponent,
+  });
+  logger.trace('Entered DATA::Rename');
+
   if (uuid === undefined || path === undefined)
     return res.status(400).json({ error: 'uuid, path and newName required' });
 
@@ -25,7 +36,7 @@ export const renameData = async (req: Request, res: Response, next: NextFunction
     },
   });
   if (!node) {
-    console.log(`[DATA::RENAME]unauthed node user: ${owner}, node uuid provided: ${uuid}`);
+    logger.warn(`DATA::Rename: auth failed, user id: ${owner.id} does not own node: ${uuid}`);
     return res.status(400).json({ error: 'failed' });
   }
 
@@ -44,7 +55,7 @@ export const renameData = async (req: Request, res: Response, next: NextFunction
     const newPath = oldPathSplit.join('/');
     const hasDuplicates = oldFlatTree.some((oldBranch) => oldBranch.path.includes(newPath));
     if (hasDuplicates) {
-      console.log('[DATA::RENAME] Rejected as duplicate paths were found');
+      logger.info('[DATA::Rename] Rejected as duplicate paths were found');
       return res.status(400).json({ error: 'Name collision' });
     }
 
@@ -55,7 +66,7 @@ export const renameData = async (req: Request, res: Response, next: NextFunction
     splitContextPath.shift(); //remove root
     const linkToRename = splitContextPath.pop();
     const cleanContextPath = splitContextPath.join('/');
-    console.log('[DATA::RENAME] cleanContextPath: ', cleanContextPath, ' Renaming: ', linkToRename, ' to : ', newName);
+    logger.debug(`DATA::Rename cleanContextPath: ${cleanContextPath},  Renaming: ${linkToRename},  to : ${newName}`);
     const { updatedDagCidMap, updatedRootCid } = await renameFileInDag(
       dataBucket.payload.cid,
       cleanContextPath,
@@ -111,7 +122,7 @@ export const renameData = async (req: Request, res: Response, next: NextFunction
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
       }),
     ]);
-    console.log(`[DATA::RENAME] ${updates.length} dataReferences updated`);
+    logger.info(`[DATA::Rename] ${updates.length} dataReferences updated`);
 
     /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
@@ -138,14 +149,14 @@ export const renameData = async (req: Request, res: Response, next: NextFunction
     if (!persistedManifestCid)
       throw Error(`[DATA::RENAME]Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
-    console.log(`[DATA::RENAME] Success, path: `, path, ' changed to: ', newPath);
+    logger.info(`[DATA::Rename] Success, path: ${path} changed to: ${newPath}`);
 
     return res.status(200).json({
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    console.log(`[DATA::RENAME] error: ${e}`);
+    logger.error(`[DATA::Rename] error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };
