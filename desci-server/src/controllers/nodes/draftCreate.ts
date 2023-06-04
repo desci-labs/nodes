@@ -9,6 +9,7 @@ import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 import { getDataUsageForUserBytes, hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addBufferToIpfs,
@@ -44,7 +45,16 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
     researchFields,
     defaultLicense,
   } = req.body;
-  console.log('MINT', req.body);
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::DraftCreateController',
+    body: req.body,
+    title,
+    links: { pdf, code },
+    researchFields,
+    defaultLicense,
+  });
+  logger.trace('MINT');
 
   try {
     const loggedInUserEmail = (req as any).user.email;
@@ -114,7 +124,7 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
 
     if (uploadedFiles.length > 0) {
       const ref = await prisma.dataReference.createMany({ data: [...uploadedFiles] as DataReference[] });
-      if (ref) console.log(`${ref.count} data references added`);
+      if (ref) logger.info(`${ref.count} data references added`);
     }
 
     const nodeCopy = Object.assign({}, node);
@@ -129,7 +139,7 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
     });
     return;
   } catch (err) {
-    console.error('mint-err', err);
+    logger.error({ err }, 'mint-err');
     res.status(400).send({ ok: false, error: err });
     return;
   }
@@ -138,7 +148,19 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
 export const draftAddComponent = async (req: Request, res: Response, next: NextFunction) => {
   const { uuid: bodyUuid, componentUrl, title, componentType, componentSubtype, manifest } = req.body;
   let uuid = bodyUuid;
-  console.log('addComponentToDraft', req.body.manifest);
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::draftAddComponent',
+    body: req.body,
+    title,
+    uuid,
+    componentUrl,
+    componentType,
+    componentSubtype,
+    manifest,
+    user: (req as any).user,
+  });
+  logger.trace('addComponentToDraft', req.body.manifest);
 
   try {
     const loggedInUserEmail = (req as any).user.email;
@@ -158,7 +180,7 @@ export const draftAddComponent = async (req: Request, res: Response, next: NextF
     if (!uuid) {
       // res.status(400).send({ err: 'uuid required' });
       // return;
-      console.log('creating node upon adding component', manifest);
+      logger.info({ manifest }, 'creating node upon adding component');
       const nodeTitle = (manifest as ResearchObjectV1).title;
       const nodeLicense = (manifest as ResearchObjectV1).defaultLicense;
       const researchFields = (manifest as ResearchObjectV1).researchFields;
@@ -274,7 +296,7 @@ export const draftAddComponent = async (req: Request, res: Response, next: NextF
     });
     return;
   } catch (err) {
-    console.error('mint-err', err);
+    logger.error({ err }, 'mint-err');
     res.status(400).send({ ok: false, error: err.message });
     return;
   }

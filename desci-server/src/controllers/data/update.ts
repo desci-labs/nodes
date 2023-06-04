@@ -68,7 +68,7 @@ export const update = async (req: Request, res: Response) => {
   //ExternalURL - url + type, code (github) & external pdfs for now
   //v0 ExternalCids - cids + type (data for now), no pinning
   const logger = parentLogger.child({
-    id: req.id,
+    // id: req.id,
     module: 'DATA::UpdateController',
     uuid: uuid,
     manifest: manifest,
@@ -80,7 +80,7 @@ export const update = async (req: Request, res: Response) => {
     externalCids,
     files: req.files,
   });
-  logger.trace('[UPDATE DATASET] Updating in context: ', contextPath);
+  logger.trace(`[UPDATE DATASET] Updating in context: ${contextPath}`);
   if (uuid === undefined || manifest === undefined || contextPath === undefined)
     return res.status(400).json({ error: 'uuid, manifest, contextPath required' });
   const manifestObj: ResearchObjectV1 = JSON.parse(manifest);

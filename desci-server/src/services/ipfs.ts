@@ -22,6 +22,7 @@ import * as yauzl from 'yauzl';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
+import parentLogger from 'logger';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
@@ -30,6 +31,10 @@ import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraf
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
 export const IPFS_PATH_TMP = '/tmp/ipfs';
+
+const logger = parentLogger.child({
+  module: 'Services::Ipfs',
+});
 
 // key = type
 // data = array of string URLs
@@ -61,7 +66,10 @@ export const updateManifestAndAddToIpfs = async (
       nodeId: nodeId,
     },
   });
-  console.log(`[ipfs::updateManifestAndAddToIpfs] manifestCid=${result.cid} nodeVersion=${version}`);
+  logger.trace(
+    { fn: 'updateManifestAndAddToIpfs' },
+    `[ipfs::updateManifestAndAddToIpfs] manifestCid=${result.cid} nodeVersion=${version}`,
+  );
   const ref = await prisma.dataReference.create({
     data: {
       cid: result.cid.toString(),
@@ -74,7 +82,7 @@ export const updateManifestAndAddToIpfs = async (
       directory: false,
     },
   });
-  console.log('[dataReference Created]', ref);
+  logger.info({ fn: 'updateManifestAndAddToIpfs' }, '[dataReference Created]', ref);
 
   return { cid: result.cid.toString(), size: result.size, ref, nodeVersion: version };
 };
@@ -94,7 +102,7 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
   const pdfHashes = pdf ? await Promise.all(processUrls('pdf', getUrlsFromParam(pdf))) : [];
   const codeHashes = code ? await Promise.all(processUrls('code', getUrlsFromParam(code))) : [];
   const files = (await Promise.all([pdfHashes, codeHashes].flat())).flat();
-  console.log('downloadFilesAndMakeManifest', files);
+  logger.trace({ fn: 'downloadFilesAndMakeManifest' }, `downloadFilesAndMakeManifest ${files}`);
 
   // make manifest
 
@@ -145,7 +153,7 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
   researchObject.researchFields = researchFields;
   researchObject.components = researchObject.components.concat(dataBucketComponent, pdfComponents, codeComponents);
 
-  console.log('RESEARCH OBJCECT', JSON.stringify(researchObject));
+  logger.debug({ fn: 'downloadFilesAndMakeManifest' }, 'RESEARCH OBJECT', JSON.stringify(researchObject));
 
   const manifest = createManifest(researchObject);
 
@@ -162,7 +170,7 @@ interface CodeComponentSingle {
 }
 
 const processUrls = (key: string, data: Array<string>): Array<Promise<UrlWithCid>> => {
-  console.log('processUrls', key, data);
+  logger.trace({ fn: 'processUrls' }, `processUrls key: ${key}, data: ${data}`);
 
   return data.map(async (e, i) => {
     // if our payload points to github, download a zip of the main branch
@@ -171,7 +179,7 @@ const processUrls = (key: string, data: Array<string>): Array<Promise<UrlWithCid
         const { branch, author, repo } = await processGithubUrl(e);
 
         const newUrl = `https://github.com/${author}/${repo}/archive/refs/heads/${branch}.zip`;
-        console.log('NEW URL', newUrl);
+        logger.debug({ fn: 'processUrls' }, `NEW URL ${newUrl}`);
         e = newUrl;
       }
     }
@@ -180,7 +188,7 @@ const processUrls = (key: string, data: Array<string>): Array<Promise<UrlWithCid
 };
 
 export const downloadFile = async (url: string, key: string): Promise<UrlWithCid> => {
-  console.log('createDraft::downloadFile', url.substring(0, 256), key);
+  logger.trace({ fn: 'downloadFile' }, 'createDraft::downloadFile', url.substring(0, 256), key);
 
   if (url.indexOf('data:') === 0) {
     const buf = Buffer.from(url.split(',')[1], 'base64');
@@ -189,7 +197,7 @@ export const downloadFile = async (url: string, key: string): Promise<UrlWithCid
 
   return new Promise(async (resolve, reject) => {
     try {
-      console.log('start download', url.substring(0, 256));
+      logger.info({ fn: 'downloadFile' }, `start download ${url.substring(0, 256)}`);
       const { data, headers } = await axios({
         method: 'get',
         url: url,
@@ -200,12 +208,12 @@ export const downloadFile = async (url: string, key: string): Promise<UrlWithCid
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.41 Safari/537.36',
         },
       });
-      console.log('finish download', url.substring(0, 256));
+      logger.info({ fn: 'downloadFile' }, `finish download ${url.substring(0, 256)}`);
 
       resolve(addBufferToIpfs(data, key));
     } catch (err) {
-      console.error('got error', err);
-      console.log('try with playwright', url.substring(0, 256));
+      logger.error({ fn: 'downloadFile', err }, 'got error');
+      logger.info({ fn: 'downloadFile' }, `try with playwright ${url.substring(0, 256)}`);
     }
   });
 };
@@ -257,7 +265,7 @@ export const pinDirectory = async (
   wrapWithDirectory = false,
 ): Promise<IpfsPinnedResult[]> => {
   const isOnline = await client.isOnline();
-  console.log('isOnline', isOnline);
+  logger.debug({ fn: 'pinDirectory' }, `isOnline: ${isOnline}`);
   //possibly check if uploaded with a root dir, omit the wrapping if there is a root dir
   const uploaded: IpfsPinnedResult[] = [];
   const addAll = await client.addAll(files, { wrapWithDirectory: wrapWithDirectory, cidVersion: 1 });
@@ -294,37 +302,39 @@ export interface FileDir extends RecursiveLsResult {
 export const convertToCidV1 = (cid: string | multiformats.CID): string => {
   if (typeof cid === 'string') {
     const c = multiformats.CID.parse(cid);
-    // console.log(`cid provided: ${cid} into ${c}`);
     return c.toV1().toString();
   } else {
     const cV1 = cid.toV1().toString();
-    // console.log(`cid provided: ${cid} into ${cV1}`);
     return cV1;
   }
 };
 
 export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
   try {
-    console.log('[ipfs:resolveIpfsData] START ipfs.cat cid=', cid);
+    logger.info({ fn: 'resolveIpfsData' }, `[ipfs:resolveIpfsData] START ipfs.cat cid= ${cid}`);
     const iterable = await readerClient.cat(cid);
-    console.log('[ipfs:resolveIpfsData] SUCCESS(1/2) ipfs.cat cid=', cid);
+    logger.info({ fn: 'resolveIpfsData' }, `[ipfs:resolveIpfsData] SUCCESS(1/2) ipfs.cat cid= ${cid}`);
     const dataArray = [];
 
     for await (const x of iterable) {
       dataArray.push(x);
     }
-    console.log(`[ipfs:resolveIpfsData] SUCCESS(2/2) ipfs.cat cid=${cid}, len=${dataArray.length}`);
+    logger.info(
+      { fn: 'resolveIpfsData' },
+      `[ipfs:resolveIpfsData] SUCCESS(2/2) ipfs.cat cid=${cid}, len=${dataArray.length}`,
+    );
 
     return Buffer.from(dataArray);
   } catch (err) {
-    // console.error('error', err.message);
-    // console.error('[ipfs:resolveIpfsData] ERROR ipfs.dag.get', cid);
     const res = await client.dag.get(multiformats.CID.parse(cid));
     let targetValue = res.value.Data;
     if (!targetValue) {
       targetValue = res.value;
     }
-    console.error(`[ipfs:resolveIpfsData] SUCCESS(2/2) DAG, ipfs.dag.get cid=${cid}, bufferLen=${targetValue.length}`);
+    logger.error(
+      { fn: 'resolveIpfsData', err },
+      `[ipfs:resolveIpfsData] SUCCESS(2/2) DAG, ipfs.dag.get cid=${cid}, bufferLen=${targetValue.length}`,
+    );
     const uint8ArrayTarget = targetValue as Uint8Array;
     if (uint8ArrayTarget.buffer) {
       targetValue = (targetValue as Uint8Array).buffer;
@@ -338,7 +348,7 @@ export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
 export const convertToCidV0 = (cid: string) => {
   const c = multiformats.CID.parse(cid);
   const v0 = c.toV0();
-  console.log('convertToCidV1', v0);
+  logger.debug({ fn: 'convertToCidV0' }, `convertToCidV1' ${v0}`);
 
   return v0.toString();
 };
@@ -367,15 +377,18 @@ export const nodeKeepFile = '.nodeKeep';
 
 export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidMap): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
-  console.log(`[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
+  logger.info(
+    { fn: 'getDirectoryTree' },
+    `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
+  );
   // const tree = await mixedLs(cid, externalCidMap);
   // return tree;
   if (Object.keys(externalCidMap).length === 0) {
     // if (true) {
-    console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
+    logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using standard ls, dagCid: ${cid}`);
     return await recursiveLs(cid);
   } else {
-    console.log('[getDirectoryTree] using mixed ls, dagCid: , cid');
+    logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using mixed ls, dagCid: ${cid}`);
     const tree = await mixedLs(cid, externalCidMap);
     return tree;
   }
@@ -539,7 +552,7 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
     }
     return tree;
   } catch (err) {
-    console.error(`Failed to resolve CID, err: `, err);
+    logger.warn({ fn: 'discoveryLs', err }, `Failed to resolve CID`);
     return null;
   }
 }
@@ -569,13 +582,11 @@ export const getFilesAndPaths = async (tree: RecursiveLsResult) => {
     if (fd.type === 'file') {
       const buffer = Buffer.from(await toBuffer(client.cat(fd.cid)));
       filesAndPaths.push({ path: fd.path, content: buffer });
-      // console.log('f&p here: ', filesAndPaths);
     }
     if (fd.type === 'dir') {
       filesAndPaths.push(await getFilesAndPaths(fd));
     }
   });
-  // console.log('f&p mid: ', filesAndPaths);
   await Promise.all(promises);
   return filesAndPaths;
 };
@@ -591,7 +602,7 @@ export const isDir = async (cid: string): Promise<boolean> => {
     }
     return false;
   } catch (error) {
-    console.error(`Failed checking if CID is dir: ${error}`);
+    logger.error({ fn: 'isDir', error }, `Failed checking if CID is dir`);
     return false;
   }
 };
@@ -912,7 +923,7 @@ export async function getExternalCidSizeAndType(cid: string) {
     if (isDirectory !== undefined && size !== undefined) return { isDirectory, size };
     throw new Error(`Failed to resolve CID or determine file size/type for cid: ${cid}`);
   } catch (error) {
-    console.error(`[getExternalCidSizeAndType]Error: ${error.message}`);
+    logger.error({ fn: 'getExternalCidSizeAndType', error }, `[getExternalCidSizeAndType]Error: ${error.message}`);
     return null;
   }
 }
@@ -998,7 +1009,10 @@ export async function checkCidSrc(cid: string, assumeExternal = false) {
     const externalStat = await publicIpfs.block.stat(CID2.parse(cid), { timeout: EXTERNAL_IPFS_TIMEOUT });
     if (externalStat) return CidSource.EXTERNAL;
   } catch (err) {
-    console.log('CID not found in either internal or public IPFS, or resolution timed out. e: ', err);
+    logger.warn(
+      { fn: 'checkCidSrc', err },
+      'CID not found in either internal or public IPFS, or resolution timed out.',
+    );
     return false;
   }
   return false;
