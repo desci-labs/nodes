@@ -150,7 +150,7 @@ export const draftAddComponent = async (req: Request, res: Response, next: NextF
   let uuid = bodyUuid;
   const logger = parentLogger.child({
     // id: req.id,
-    module: 'NODE::draftAddComponent',
+    module: 'NODE::draftAddComponentController',
     body: req.body,
     title,
     uuid,

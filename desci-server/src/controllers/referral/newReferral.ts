@@ -2,6 +2,7 @@ import { ActionType, FriendReferral, User } from '@prisma/client';
 import { SES } from 'aws-sdk';
 import { Request, Response } from 'express';
 
+import parentLogger from 'logger';
 import { saveFriendReferral } from 'services/friendReferral';
 import { saveInteraction } from 'services/interactionLog';
 
@@ -9,18 +10,23 @@ interface ExpectedBody {
   emails: string[];
 }
 export const newReferral = async (req: Request, res: Response) => {
+  /**
+   * TODO: Validate email addresses with a simple regex?
+   * Slightly torn on this, it's a complex issue
+   * https://stackoverflow.com/questions/46155/how-can-i-validate-an-email-address-in-javascript
+   * I think most importantly SES will throw if the email is invalid, so perhaps we should leave it there?
+   */
+  const user = (req as any).user as User;
+  const body = req.body as ExpectedBody;
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'REFERRAL::newReferralController',
+    body: req.body,
+    user: (req as any).user,
+  });
+  logger.trace(`Referral coming from user ${user.id}`);
   try {
-    /**
-     * TODO: Validate email addresses with a simple regex?
-     * Slightly torn on this, it's a complex issue
-     * https://stackoverflow.com/questions/46155/how-can-i-validate-an-email-address-in-javascript
-     * I think most importantly SES will throw if the email is invalid, so perhaps we should leave it there?
-     */
-    const user = (req as any).user as User;
-    console.log('Referral coming from user', user);
-    const body = req.body as ExpectedBody;
-
-    console.log('Creating new referral for authd user', user.id, body);
+    logger.info('Creating new referral for authd user');
 
     const emails = body.emails;
 
@@ -47,7 +53,7 @@ export const newReferral = async (req: Request, res: Response) => {
 
     return;
   } catch (err) {
-    console.error('err', err);
+    logger.error({ err }, 'err');
     res.status(500).send({ err });
     return;
   }
@@ -64,13 +70,27 @@ async function saveReferralsInDbHelper(user, emails: string[]) {
     const savedReferrals = await Promise.all(emails.map(async (email) => saveFriendReferral(user.id, email)));
     return savedReferrals;
   } catch (err) {
-    console.log('Failed to save referrals in DB');
+    parentLogger.error(
+      {
+        module: 'REFERRAL',
+        fn: 'saveReferralsInDbHelper',
+        err,
+      },
+      'Failed to save referrals in DB',
+    );
     throw err;
   }
 }
 
 async function sendReferralEmailsHelper(user: User, referrals: FriendReferral[]) {
   const fromUserName = user.name || user.email;
+  const logger = parentLogger.child({
+    module: 'REFERRAL',
+    fn: 'sendReferralEmailsHelper',
+    user,
+    referrals,
+    fromUserName,
+  });
 
   const sentReferralEmails = await Promise.all(
     referrals.map(async (referral) => {
@@ -85,12 +105,12 @@ async function sendReferralEmailsHelper(user: User, referrals: FriendReferral[])
       };
 
       if (!process.env.SHOULD_SEND_EMAIL) {
-        console.log('Fake referral email', msg);
+        logger.warn({ msg }, 'Fake referral email');
         return msg;
       }
 
       try {
-        console.log(`Sending invite email to ${toEmail}`);
+        logger.info(`Sending invite email to ${toEmail}`);
 
         const params = {
           Destination: {
@@ -121,10 +141,10 @@ async function sendReferralEmailsHelper(user: User, referrals: FriendReferral[])
           .sendEmail(params)
           .promise();
         const data = await sendPromise;
-        console.log('Email sent', data);
+        logger.info({ data }, 'Email sent');
         return data;
       } catch (err) {
-        console.error('Failed to send email', err);
+        logger.error({ err }, 'Failed to send email');
         throw err;
       }
     }),

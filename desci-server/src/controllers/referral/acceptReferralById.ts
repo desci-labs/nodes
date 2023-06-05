@@ -1,24 +1,31 @@
 import { ActionType, FriendReferralStatus, User } from '@prisma/client';
 import { Request, Response } from 'express';
 
+import parentLogger from 'logger';
 import { getReferralByUuid, updateReferralAwardedStorage, updateReferralStatus } from 'services/friendReferral';
 import { saveInteraction } from 'services/interactionLog';
 import { increaseUsersDriveLimit } from 'services/user';
-
 export const DRIVE_STORAGE_LIMIT_INCREASE_GB = 5;
 
 export const acceptReferralById = async (req: Request, res: Response) => {
+  const user = (req as any).user as User;
+  const referralUuid = req.params.referralUuid;
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'REFERRAL::acceptReferralByIdController',
+    body: req.body,
+    params: req.params,
+    referralUuid,
+    user: (req as any).user,
+  });
   try {
-    console.log('Incoming params', req.params);
-    const user = (req as any).user as User;
-    const referralUuid = req.params.referralUuid;
-
+    logger.trace(`Incoming params ${req.params}`);
     if (!referralUuid) {
       res.status(400).send({ message: 'No referralUuid passed in', param: req.params.referralUuid });
       return;
     }
 
-    console.log('Accepting referral for authd user', user.id, referralUuid);
+    logger.info(`Accepting referral for authd user ${user.id} ${referralUuid}`);
     const referralToUpdate = await getReferralByUuid(referralUuid);
     const isReferralForAcceptingUser = referralToUpdate.receiverEmail === user.email;
 
@@ -38,9 +45,9 @@ export const acceptReferralById = async (req: Request, res: Response) => {
     let updatedReferral = await updateReferralStatus(referralUuid, FriendReferralStatus.ACCEPTED);
 
     try {
-      console.log('Updating users drive limit');
+      logger.trace('Updating users drive limit');
       await increaseUsersDriveLimit(user.id, { amountGb: DRIVE_STORAGE_LIMIT_INCREASE_GB });
-      console.log('Setting referral awarded status to true');
+      logger.trace('Setting referral awarded status to true');
       updatedReferral = await updateReferralAwardedStorage(updatedReferral.uuid, true, {
         amountGb: DRIVE_STORAGE_LIMIT_INCREASE_GB,
       });
@@ -48,7 +55,7 @@ export const acceptReferralById = async (req: Request, res: Response) => {
       /**
        * Move on, we don't want to fail the whole request if we can't update the users drive limit
        */
-      console.log(error);
+      logger.error({ error }, 'Error updating users drive limit');
     }
 
     await saveInteraction(req, ActionType.ACCEPTED_REFERRAL, { referralUuid });
@@ -60,7 +67,7 @@ export const acceptReferralById = async (req: Request, res: Response) => {
 
     return;
   } catch (err) {
-    console.error('err', err);
+    logger.error({ err }, 'err');
     res.status(500).send({ err });
     return;
   }

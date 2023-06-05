@@ -15,7 +15,7 @@ export const renameData = async (req: Request, res: Response, next: NextFunction
   const owner = (req as any).user;
   const { uuid, path, newName, renameComponent } = req.body;
   const logger = parentLogger.child({
-    id: req.id,
+    // id: req.id,
     module: 'DATA::RenameController',
     uuid: uuid,
     path: path,

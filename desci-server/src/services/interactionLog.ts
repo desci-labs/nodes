@@ -1,17 +1,20 @@
-import { ActionType, User } from '@prisma/client';
+import { ActionType } from '@prisma/client';
 import { Request } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
+
+const logger = parentLogger.child({ module: 'Services::InteractionLog' });
 
 export const saveInteraction = async (req: Request, action: ActionType, data: any, userId?: number) => {
-  console.log('interactionLog::saveInteraction');
+  logger.info({ fn: 'saveInteractionController' }, 'interactionLog::saveInteraction');
   return await prisma.interactionLog.create({
     data: { userId, ip: req.ip, userAgent: req.headers['user-agent'], rep: 0, action, extra: JSON.stringify(data) },
   });
 };
 
 export const getUserConsent = async (userId?: number) => {
-  console.log('interactionLog::saveInteraction');
+  logger.info({ fn: 'getUserConsent', userId }, 'interactionLog::getUserConsent');
   return await prisma.interactionLog.findFirst({
     where: {
       userId,
@@ -22,7 +25,8 @@ export const getUserConsent = async (userId?: number) => {
 };
 
 export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<number> => {
-  console.log('interactionLog::getCountActiveUsersInXDays');
+  logger.info({ fn: 'getCountActiveUsersInXDays' }, 'interactionLog::getCountActiveUsersInXDays');
+
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
   return (
     await prisma.interactionLog.findMany({
@@ -37,7 +41,8 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
 };
 
 export const getCountActiveUsersInMonth = async (month: number, year: number): Promise<number> => {
-  console.log('interactionLog::getCountActiveUsersInMonth');
+  logger.info({ fn: 'getCountActiveUsersInMonth' }, 'interactionLog::getCountActiveUsersInMonth');
+
   const activeCount = await prisma.interactionLog.findMany({
     distinct: ['userId'],
     where: {
@@ -51,7 +56,8 @@ export const getCountActiveUsersInMonth = async (month: number, year: number): P
 };
 
 export const getEmailsActiveUsersInXDays = async (daysAgo: number): Promise<string[]> => {
-  console.log('interactionLog::getEmailsActiveUsersInMonth');
+  logger.info({ fn: 'getEmailsActiveUsersInXDays' }, 'interactionLog::getEmailsActiveUsersInXDays');
+
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
 
   const activeUsers = await prisma.interactionLog.findMany({
@@ -69,7 +75,7 @@ export const getEmailsActiveUsersInXDays = async (daysAgo: number): Promise<stri
 };
 
 export const getNodeViewsInXDays = async (daysAgo: number): Promise<number> => {
-  console.log('interactionLog::getNodeViewsInXDays');
+  logger.info({ fn: 'getNodeViewsInXDays' }, 'interactionLog::getNodeViewsInXDays');
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
   const res =
     await prisma.$queryRaw`select count(1) as count from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"viewedNode"'::jsonb and "createdAt" >= ${dateXDaysAgo}`;
@@ -78,7 +84,7 @@ export const getNodeViewsInXDays = async (daysAgo: number): Promise<number> => {
 };
 
 export const getNodeViewsInMonth = async (month: number, year: number): Promise<number> => {
-  console.log('interactionLog::getNodeViewsInMonth');
+  logger.info({ fn: 'getNodeViewsInMonth' }, 'interactionLog::getNodeViewsInMonth');
   const res =
     await prisma.$queryRaw`select count(1) as count from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"viewedNode"'::jsonb and "createdAt" >= ${new Date(
       year,

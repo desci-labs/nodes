@@ -22,7 +22,7 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
   const uuid: string = req.params.nodeUuid;
   const shareId: string = req.params.shareId;
   const logger = parentLogger.child({
-    id: req.id,
+    // id: req.id,
     module: 'DATA::RetrieveController',
     uuid: uuid,
     cid: cid,
@@ -104,7 +104,7 @@ export const pubTree = async (req: Request, res: Response, next: NextFunction) =
   const cid: string = req.params.cid;
   const uuid: string = req.params.nodeUuid;
   const logger = parentLogger.child({
-    id: req.id,
+    // id: req.id,
     module: 'DATA::RetrievePubTreeController',
     uuid: uuid,
     cid: cid,
@@ -143,7 +143,7 @@ export const downloadDataset = async (req: Request, res: Response, next: NextFun
   const cid: string = req.params.cid;
   const uuid: string = req.params.nodeUuid;
   const logger = parentLogger.child({
-    id: req.id,
+    // id: req.id,
     module: 'DATA::RetrieveDownloadController',
     uuid: uuid,
     cid: cid,

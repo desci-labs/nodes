@@ -16,7 +16,7 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
   const owner = (req as any).user;
   const { uuid, oldPath, newPath } = req.body;
   const logger = parentLogger.child({
-    id: req.id,
+    // id: req.id,
     module: 'DATA::MoveController',
     uuid: uuid,
     user: owner.id,

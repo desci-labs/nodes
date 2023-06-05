@@ -1,3 +1,4 @@
+import logger from 'logger';
 import { getEmailsActiveUsersInXDays } from 'services/interactionLog';
 
 (async () => {
@@ -7,7 +8,7 @@ import { getEmailsActiveUsersInXDays } from 'services/interactionLog';
     getEmailsActiveUsersInXDays(90),
   ]);
 
-  console.log('users7', users7);
-  console.log('users30', users30);
-  console.log('users90', users90);
+  logger.info('users7', users7);
+  logger.info('users30', users30);
+  logger.info('users90', users90);
 })();

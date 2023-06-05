@@ -16,7 +16,7 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
   const owner = (req as any).user;
   const { uuid, path } = req.body;
   const logger = parentLogger.child({
-    id: req.id,
+    // id: req.id,
     module: 'DATA::DeleteController',
     uuid: uuid,
     path: path,
