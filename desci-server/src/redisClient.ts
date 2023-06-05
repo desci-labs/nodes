@@ -18,7 +18,7 @@ const redisClient = createClient({
 });
 
 async function initRedisClient() {
-  if (process.env.REDIS_HOST === undefined || process.env.REDIS_PORT) {
+  if (process.env.REDIS_HOST === undefined || process.env.REDIS_PORT === undefined) {
     console.error('Redis host or port is not defined');
     return;
   }
