@@ -19,6 +19,10 @@ assert_command_available "docker-compose"
 assert_command_available "lsof"
 
 [ ! -f ".env" ] && cp .env.example .env
+if ! grep MNEMONIC .env &> /dev/null; then
+  echo "ERROR: set MNEMONIC in .env"
+  exit 1
+fi
 MNEMONIC=$(grep MNEMONIC .env)
 
 [ ! -f "./nodes-media/.env" ] && cp ./nodes-media/.env.example ./nodes-media/.env
