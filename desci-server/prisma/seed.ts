@@ -1,3 +1,5 @@
+import { NodeCreditRoles, ResearchCredits, ResearchRoles } from '@prisma/client';
+
 import researchFieldsData from '../data/fields.json';
 import prisma from '../src/client';
 
@@ -66,6 +68,18 @@ async function main() {
   // });
 
   // console.log({ metascienceVault, genomicsVault, owner });
+
+  const creditRoles: Omit<NodeCreditRoles, 'id'>[] = [
+    { credit: ResearchCredits.AUTHOR, role: ResearchRoles.ADMIN },
+    { credit: ResearchCredits.AUTHOR, role: ResearchRoles.VIEWER },
+    { credit: ResearchCredits.NODE_STEWARD, role: ResearchRoles.ADMIN },
+    { credit: ResearchCredits.NODE_STEWARD, role: ResearchRoles.VIEWER },
+    // { credit: ResearchCredits.NODE_STEWARD, role: ResearchRoles.VIEWER },
+    { credit: ResearchCredits.NONE, role: ResearchRoles.VIEWER },
+  ];
+
+  const roles = await prisma.nodeCreditRoles.createMany({ skipDuplicates: true, data: creditRoles });
+  console.log(roles.count, ' CreditRoles created');
 }
 
 main()
