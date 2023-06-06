@@ -10,13 +10,22 @@ const devTransport = {
   },
 };
 
+const fileTransport = {
+  target: 'pino/file',
+  options: { destination: `${__dirname}/server.log` },
+  level: 'trace',
+};
+
 const logger = pino({
   level: logLevel,
   serializers: {
     files: omitBuffer,
   },
   transport: {
-    targets: [devTransport],
+    targets: [
+      devTransport,
+      // fileTransport
+    ],
   },
   redact: {
     paths: [

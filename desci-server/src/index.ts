@@ -12,7 +12,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import morgan from 'morgan';
-// import pino from 'pino-http';
+import pinoHTTP from 'pino-http';
 
 import prismaClient from 'client';
 import './utils/response/customSuccess';
@@ -39,10 +39,11 @@ if (ENABLE_TELEMETRY) {
   });
   app.use(Sentry.Handlers.requestHandler());
   app.use(Sentry.Handlers.tracingHandler());
-  // app.use(pino());
 } else {
   logger.info('[DeSci Nodes] Telemetry disabled');
 }
+
+// app.use(pinoHTTP({ logger }));
 
 const allowlist = [
   'http://localhost:3000',
