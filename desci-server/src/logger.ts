@@ -22,3 +22,7 @@ function omitBuffer(array) {
     return rest;
   });
 }
+
+process.on('uncaughtException', (err) => {
+  logger.fatal(err, 'uncaught exception');
+});
