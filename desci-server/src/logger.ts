@@ -43,6 +43,8 @@ const logger = pino({
       '*.user.siweNonce',
       'user.orcid',
       '*.user.orcid',
+      'authorization',
+      '*.authorization',
     ],
   },
 });
