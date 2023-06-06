@@ -2,16 +2,39 @@ import pino from 'pino';
 
 const logLevel = process.env.PINO_LOG_LEVEL || 'trace';
 
+const devTransport = {
+  target: 'pino-pretty',
+  level: logLevel,
+  options: {
+    colorize: true,
+  },
+};
+
 const logger = pino({
+  level: logLevel,
   serializers: {
     files: omitBuffer,
   },
   transport: {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-      level: logLevel,
-    },
+    targets: [devTransport],
+  },
+  redact: {
+    paths: [
+      'user.email',
+      '*.user.email',
+      'user.name',
+      '*.user.name',
+      'user.website',
+      '*.user.website',
+      'user.googleScholarUrl',
+      '*.user.googleScholarUrl',
+      'user.walletAddress',
+      '*.user.walletAddress',
+      'user.siweNonce',
+      '*.user.siweNonce',
+      'user.orcid',
+      '*.user.orcid',
+    ],
   },
 });
 export default logger;
