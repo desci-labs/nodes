@@ -3,6 +3,9 @@ import pino from 'pino';
 const logLevel = process.env.PINO_LOG_LEVEL || 'trace';
 
 const logger = pino({
+  serializers: {
+    files: omitBuffer,
+  },
   transport: {
     target: 'pino-pretty',
     options: {
@@ -12,3 +15,10 @@ const logger = pino({
   },
 });
 export default logger;
+
+function omitBuffer(array) {
+  return array.map((obj) => {
+    const { buffer, ...rest } = obj;
+    return rest;
+  });
+}
