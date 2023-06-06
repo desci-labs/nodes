@@ -31,7 +31,7 @@ export const retrieveUser = async (req: Request): Promise<User> => {
     jwt.verify(token, process.env.JWT_SECRET as string, async (err: any, user: any) => {
       if (err) {
         // anonymous user
-        logger.info({ module: 'retrieveUserMiddleware', req, authHeader, token }, 'anon request');
+        logger.info({ module: 'retrieveUserMiddleware', authHeader, token }, 'anon request');
         // console.log(err);
       }
 

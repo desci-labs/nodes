@@ -3,7 +3,11 @@ import { ReadStream } from 'fs';
 import axios, { AxiosResponse } from 'axios';
 import FormData from 'form-data';
 
+import parentLogger from 'logger';
+
 type ACTIONS = 'PIN' | 'UPLOAD';
+
+const logger = parentLogger.child({ module: 'Services::Estuary' });
 
 const API_ROUTES: Record<ACTIONS, string> = {
   PIN: 'pinning/pins',
@@ -22,7 +26,7 @@ export interface ESTUARY_UPLOAD_RESPONSE {
 }
 
 export const uploadDataToEstuary = async (cid: string, body: Buffer): Promise<ESTUARY_UPLOAD_RESPONSE | null> => {
-  console.log('[estuary::uploadDataToEstuary]', cid);
+  logger.trace({ fn: 'uploadDataToEstuary', cid }, '[estuary::uploadDataToEstuary]');
   const form = new FormData();
   form.append('data', body, { filename: cid });
   try {
@@ -32,10 +36,10 @@ export const uploadDataToEstuary = async (cid: string, body: Buffer): Promise<ES
         ...form.getHeaders(),
       },
     });
-    console.log('[estuary::uploadDataToEstuary] Estuary response', cid, data);
+    logger.info({ fn: 'uploadDataToEstuary', cid, data }, '[estuary::uploadDataToEstuary] Estuary response', cid, data);
     return data;
   } catch (err) {
-    console.error('[estuary::uploadDataToEstuary] Estuary error', cid, err.response?.data);
+    logger.error({ cid, err, errResponse: err.response?.data }, '[estuary::uploadDataToEstuary] Estuary error');
   }
   return null;
 };
