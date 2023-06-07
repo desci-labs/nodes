@@ -39,6 +39,7 @@ import {
 
 import { DataReferenceSrc } from './retrieve';
 import { persistManifest } from './utils';
+import { prepareDataRefs } from 'utils/dataRefTools';
 
 interface UpdatingManifestParams {
   manifest: ResearchObjectV1;
@@ -355,7 +356,8 @@ export const update = async (req: Request, res: Response) => {
 
   try {
     //Update refs
-    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString, externalCidMap));
+    const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString);
+    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString, externalCidMap)); // try remove, still used for pruneList
     flatTree.push({
       cid: newRootCidString,
       type: 'dir',
@@ -372,60 +374,83 @@ export const update = async (req: Request, res: Response) => {
       },
     });
 
-    const dataRefsToUpsert: Partial<DataReference>[] = flatTree.map((f) => {
-      if (typeof f.cid !== 'string') f.cid = f.cid.toString();
-      const neutralPath = neutralizePath(f.path);
-      const extTypeAndSize = externalCidMap[f.cid];
-      if (extTypeAndSize) f.directory = extTypeAndSize.directory;
-      return {
-        cid: f.cid,
-        root: f.cid === newRootCidString,
-        rootCid: newRootCidString,
-        path: f.path,
-        type: DataType.UNKNOWN,
-        userId: owner.id,
-        nodeId: node.id,
-        directory: f.directory || f.type === 'dir' ? true : false,
-        size: f.size || 0,
-      };
+    // setup refs, finding existing ones, and marking external ones
+    const refs = newRefs.map((ref) => {
+      // add id's if exists
+      const existingRef = existingRefs.find((r) => neutralizePath(r.path) === neutralizePath(ref.path));
+      if (existingRef) ref.id = existingRef.id;
+
+      // handle externals (may be needed)
+      const extTypeAndSize = externalCidMap[ref.cid];
+      const isExternal = externalPathsAdded[ref.path]; // check if externalPathsAdded neutral/unneutral
+      if (extTypeAndSize) {
+        ref.directory = extTypeAndSize.directory;
+        ref.external = true;
+      }
+      return ref;
     });
 
-    const manifestPathsToTypes = generateManifestPathsToDbTypeMap(updatedManifest);
+    const dataRefCreates = [];
+    const dataRefUpdates = refs.filter((ref) => {
+      const isUpdate = 'id' in ref;
+      if (!isUpdate) dataRefCreates.push(ref);
+      return isUpdate;
+    });
+
+    // const dataRefsToUpsert: Partial<DataReference>[] = flatTree.map((f) => {
+    //   if (typeof f.cid !== 'string') f.cid = f.cid.toString();
+    //   const neutralPath = neutralizePath(f.path);
+    //   const extTypeAndSize = externalCidMap[f.cid];
+    //   if (extTypeAndSize) f.directory = extTypeAndSize.directory;
+    //   return {
+    //     cid: f.cid,
+    //     root: f.cid === newRootCidString,
+    //     rootCid: newRootCidString,
+    //     path: f.path,
+    //     type: DataType.UNKNOWN,
+    //     userId: owner.id,
+    //     nodeId: node.id,
+    //     directory: f.directory || f.type === 'dir' ? true : false,
+    //     size: f.size || 0,
+    //   };
+    // });
+
+    // const manifestPathsToTypes = generateManifestPathsToDbTypeMap(updatedManifest);
     //Manual upsert
-    const dataRefUpdates = dataRefsToUpsert
-      .filter((dref) => {
-        const neutralPath = dref.path.replace(newRootCidString, 'root');
-        const match = existingRefs.find((ref) => neutralizePath(ref.path) === neutralPath);
-        return match;
-      })
-      .map((dref) => {
-        const neutralPath = dref.path.replace(newRootCidString, 'root');
-        const match = existingRefs.find((ref) => neutralizePath(ref.path) === neutralPath);
-        dref.id = match.id;
-        const newFileType = newFilePathDbTypeMap[dref.path];
-        dref.type =
-          newFileType && newFileType !== DataType.UNKNOWN
-            ? newFileType
-            : inheritComponentType(neutralPath, manifestPathsToTypes) || DataType.UNKNOWN;
-        return dref;
-      });
-    const dataRefCreates = dataRefsToUpsert
-      .filter((dref) => {
-        const neutralPath = dref.path.replace(newRootCidString, 'root');
-        const inUpdates = dataRefUpdates.find((ref) => neutralizePath(ref.path) === neutralPath);
-        return !inUpdates;
-      })
-      .map((dref) => {
-        const neutralPath = dref.path.replace(newRootCidString, 'root');
-        const newFileType = newFilePathDbTypeMap[dref.path];
-        const external = externalPathsAdded[dref.path];
-        dref.type =
-          newFileType && newFileType !== DataType.UNKNOWN
-            ? newFileType
-            : inheritComponentType(neutralPath, manifestPathsToTypes) || DataType.UNKNOWN;
-        if (external) dref.external = true;
-        return dref;
-      }) as DataReference[];
+    // const dataRefUpdates = dataRefsToUpsert
+    //   .filter((dref) => {
+    //     const neutralPath = dref.path.replace(newRootCidString, 'root');
+    //     const match = existingRefs.find((ref) => neutralizePath(ref.path) === neutralPath);
+    //     return match;
+    //   })
+    //   .map((dref) => {
+    //     const neutralPath = dref.path.replace(newRootCidString, 'root');
+    //     const match = existingRefs.find((ref) => neutralizePath(ref.path) === neutralPath);
+    //     dref.id = match.id;
+    //     const newFileType = newFilePathDbTypeMap[dref.path];
+    //     dref.type =
+    //       newFileType && newFileType !== DataType.UNKNOWN
+    //         ? newFileType
+    //         : inheritComponentType(neutralPath, manifestPathsToTypes) || DataType.UNKNOWN;
+    //     return dref;
+    //   });
+    // const dataRefCreates = dataRefsToUpsert
+    //   .filter((dref) => {
+    //     const neutralPath = dref.path.replace(newRootCidString, 'root');
+    //     const inUpdates = dataRefUpdates.find((ref) => neutralizePath(ref.path) === neutralPath);
+    //     return !inUpdates;
+    //   })
+    //   .map((dref) => {
+    //     const neutralPath = dref.path.replace(newRootCidString, 'root');
+    //     const newFileType = newFilePathDbTypeMap[dref.path];
+    //     const external = externalPathsAdded[dref.path];
+    //     dref.type =
+    //       newFileType && newFileType !== DataType.UNKNOWN
+    //         ? newFileType
+    //         : inheritComponentType(neutralPath, manifestPathsToTypes) || DataType.UNKNOWN;
+    //     if (external) dref.external = true;
+    //     return dref;
+    //   }) as DataReference[];
 
     const upserts = await prisma.$transaction([
       ...(dataRefUpdates as any).map((fd) => {
