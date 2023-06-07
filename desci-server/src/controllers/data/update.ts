@@ -31,6 +31,7 @@ import {
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
   getTreeAndFillSizes,
+  inheritComponentType,
   neutralizePath,
   recursiveFlattenTree,
   updateManifestComponentDagCids,
@@ -405,7 +406,7 @@ export const update = async (req: Request, res: Response) => {
         dref.type =
           newFileType && newFileType !== DataType.UNKNOWN
             ? newFileType
-            : manifestPathsToTypes[neutralPath] || DataType.UNKNOWN;
+            : inheritComponentType(neutralPath, manifestPathsToTypes) || DataType.UNKNOWN;
         return dref;
       });
     const dataRefCreates = dataRefsToUpsert
@@ -421,7 +422,7 @@ export const update = async (req: Request, res: Response) => {
         dref.type =
           newFileType && newFileType !== DataType.UNKNOWN
             ? newFileType
-            : manifestPathsToTypes[neutralPath] || DataType.UNKNOWN;
+            : inheritComponentType(neutralPath, manifestPathsToTypes) || DataType.UNKNOWN;
         if (external) dref.external = true;
         return dref;
       }) as DataReference[];
@@ -454,7 +455,7 @@ export const update = async (req: Request, res: Response) => {
       return {
         description: 'DANGLING DAG, UPDATED DATASET (update v2)',
         cid: e.cid,
-        type: manifestPathsToTypesPrune[neutralPath] || DataType.UNKNOWN,
+        type: inheritComponentType(neutralPath, manifestPathsToTypesPrune) || DataType.UNKNOWN,
         size: 0, //only dags being removed in an update op
         nodeId: node.id,
         userId: owner.id,
@@ -488,7 +489,7 @@ export const update = async (req: Request, res: Response) => {
         return {
           description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE (update v2)',
           cid: e.cid,
-          type: manifestPathsToTypesPrune[neutralPath] || DataType.UNKNOWN,
+          type: inheritComponentType(neutralPath, manifestPathsToTypesPrune) || DataType.UNKNOWN,
           size: e.size || 0,
           nodeId: node.id,
           userId: owner.id,

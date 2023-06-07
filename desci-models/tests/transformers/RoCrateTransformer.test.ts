@@ -6,6 +6,7 @@ import { RoCrate, RoCrateGraph } from "../../src/RoCrate";
 import { createCheckers } from "ts-interface-checker";
 import exampleNode from "../example-data/exampleNode.json";
 import exampleRoCrate from "../example-data/exampleRoCrate.json";
+import exampleNodeWithAuthors from "../example-data/exampleNodeWithAuthors.json";
 import expectedJsonLd from "../example-data/exampleNodeToRoCrate.json";
 import exampleRoCrateWithWorkflow from "../example-data/roCrateWithWorkflow.json";
 import {
@@ -34,7 +35,6 @@ describe("RoCrateTransformer", () => {
     const researchObject = exampleNode;
 
     const roCrate = transformer.exportObject(researchObject);
-    console.log("EXPORTED RO-CRATE", roCrate);
     // Validate the output as JSON-LD
 
     // res = await compact(roCrate["@graph"], roCrate["@context"]);
@@ -106,6 +106,9 @@ describe("RoCrateTransformer", () => {
     expect(pdfComponent.url).to.equal(
       "https://ipfs.io/ipfs/bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy"
     );
+    expect((pdfComponent as any)["/"]).to.equal(
+      "bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy"
+    );
   });
 
   it("Properly exports code components", () => {
@@ -121,6 +124,9 @@ describe("RoCrateTransformer", () => {
     );
 
     expect(codeComponent).to.not.be.undefined;
+    expect(codeComponent["/"]).to.equal(
+      "bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i"
+    );
     expect(codeComponent.url).to.equal(
       "https://ipfs.io/ipfs/bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i"
     );
@@ -139,6 +145,52 @@ describe("RoCrateTransformer", () => {
     expect(dataComponent).to.not.be.undefined;
     expect(dataComponent.url).to.equal(
       "https://ipfs.io/ipfs/bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m"
+    );
+    expect(dataComponent["/"]).to.equal(
+      "bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m"
+    );
+  });
+
+  it("Properly exports authors", () => {
+    const researchObject = exampleNodeWithAuthors;
+    const roCrate = transformer.exportObject(researchObject);
+    // console.log("RO", roCrate);
+    const authors = roCrate["@graph"].filter(
+      (item: RoCrateGraph) =>
+        typeof item !== "string" && item["@type"] === "Person"
+    );
+
+    expect(authors).to.not.be.undefined;
+    expect(authors.length).to.equal(17);
+  });
+  it("Properly handles CEDAR link", () => {
+    const researchObject = exampleNodeWithAuthors;
+    const roCrate = transformer.exportObject(researchObject);
+    // console.log("RO", roCrate);
+    const cedar = roCrate["@graph"].find(
+      (item: RoCrateGraph) =>
+        typeof item !== "string" &&
+        item["@type"] === "Dataset" &&
+        item["@id"] == "dd562a70-0bb9-4a07-8b00-c414bc8b9ad9" &&
+        item["schemaVersion"] &&
+        item["schemaVersion"].toString().length > 0
+    );
+
+    expect(cedar).to.not.be.undefined;
+  });
+  it("Adds orcid.org prefix to author ids", () => {
+    const researchObject = exampleNodeWithAuthors;
+    const roCrate = transformer.exportObject(researchObject);
+    // console.log("RO", roCrate);
+    console.log("EXPORTED RO-CRATE", JSON.stringify(roCrate));
+    const authors = roCrate["@graph"].filter(
+      (item: RoCrateGraph) =>
+        typeof item !== "string" && item["@type"] === "Person"
+    );
+
+    expect(authors).to.not.be.undefined;
+    expect(authors[0]["@id"]).to.equal(
+      `https://orcid.org/${researchObject.authors[0].orcid}`
     );
   });
 });

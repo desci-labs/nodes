@@ -11,12 +11,17 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
     where: { userId: user.id },
   });
 
+  const organization = await prisma.userOrganizations.findMany({
+    where: { userId: user.id },
+    include: { organization: true },
+  });
   // walletAddress: user.walletAddress, orcid: user.orcid
   const extra = {
     profile: {
       name: user.name,
       googleScholarUrl: user.googleScholarUrl,
       orcid: user.orcid,
+      userOrganization: organization.map((org) => org.organization),
     },
   };
   try {

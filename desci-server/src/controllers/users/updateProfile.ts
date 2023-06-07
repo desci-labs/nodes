@@ -1,9 +1,7 @@
-import { User } from '@prisma/client';
+import { Organization, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
-
-// import { PassportReader } from '@gitcoinco/passport-sdk-reader';
 
 interface ExpectedBody {
   username: string;
@@ -11,6 +9,8 @@ interface ExpectedBody {
     email?: string;
     name?: string;
     googleScholarUrl?: string;
+    rorPid?: string[];
+    organization: Organization[];
     orcid?: string;
   };
 }
@@ -29,13 +29,41 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
      * Note: We don't want to overwrite values with undefined
      * if they weren't included in the payload
      */
-    const updatedProfile = {} as { name?: string; googleScholarUrl?: string; orcid?: string; email?: string };
+    const updatedProfile = {} as {
+      name?: string;
+      googleScholarUrl?: string;
+      orcid?: string;
+      rorPid?: string[];
+      organization?: string;
+      email?: string;
+    };
 
     updatedProfile.name = profile.name;
 
     if (profile?.orcid) {
       updatedProfile.orcid = profile.orcid;
     }
+
+    if (profile?.organization) {
+      const userOrgs = await prisma.userOrganizations.findMany({ where: { userId: user.id } });
+      const skipped = userOrgs.filter(
+        (userOrg) => profile.organization.findIndex((org) => org.id === userOrg.organizationId) === -1,
+      );
+
+      // remove skipped affliations
+      await prisma.userOrganizations.deleteMany({
+        where: { organizationId: { in: skipped.map((org) => org.organizationId) } },
+      });
+
+      await prisma.organization.createMany({ data: profile.organization, skipDuplicates: true });
+      const updates = profile.organization.map((org) => ({ userId: user.id, organizationId: org.id })) as unknown as {
+        organizationId: string;
+        userId: number;
+      }[];
+
+      await prisma.userOrganizations.createMany({ data: updates, skipDuplicates: true });
+    }
+
     if (profile?.googleScholarUrl) {
       updatedProfile.googleScholarUrl = profile.googleScholarUrl;
     }
