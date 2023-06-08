@@ -47,6 +47,9 @@ spec:
           export ARWEAVE_PROTOCOL=http
           export ARWEAVE_PUBKEY=
           export ARWAVE_SECRET_PRIVATE_KEY_SECRET=
+          export REDIS_HOST={{ .Data.REDIS_HOST }}
+          export REDIS_PORT={{ .Data.REDIS_PORT }}
+          export REDIS_URL={{ .Data.REDIS_URL }}
           export SERVER_URL={{ .Data.SERVER_URL }}
           export DAPP_URL={{ .Data.DAPP_URL }}
           export SENDGRID_API_KEY={{ .Data.SENDGRID_API_KEY }}

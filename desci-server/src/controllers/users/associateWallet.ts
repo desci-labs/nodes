@@ -1,4 +1,4 @@
-import { ActionType, User } from '@prisma/client';
+import { ActionType, Prisma, User } from '@prisma/client';
 import { ethers } from 'ethers';
 import { NextFunction, Request, Response } from 'express';
 import { ErrorTypes, SiweMessage } from 'siwe';
@@ -6,7 +6,7 @@ import { ErrorTypes, SiweMessage } from 'siwe';
 import prisma from 'client';
 import { saveInteraction } from 'services/interactionLog';
 
-const createWalletNickname = async (user: User) => {
+const createWalletNickname = async (user: Prisma.UserWhereInput) => {
   const count = await prisma.wallet.count({
     where: {
       user,
