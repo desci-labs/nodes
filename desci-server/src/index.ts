@@ -127,15 +127,17 @@ const oneYear = 1000 * 60 * 60 * 24 * 365;
 app.use(cookieParser());
 app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
-try {
-  const accessLogStream = fs.createWriteStream(path.join(__dirname, '../log/access.log'), {
-    flags: 'a',
-  });
-  app.use(morgan('combined', { stream: accessLogStream }));
-} catch (err) {
-  logger.fatal({ err }, 'Failed to create access log stream');
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    const accessLogStream = fs.createWriteStream(path.join(__dirname, '../log/access.log'), {
+      flags: 'a',
+    });
+    app.use(morgan('combined', { stream: accessLogStream }));
+  } catch (err) {
+    logger.fatal({ err }, 'Failed to create access log stream');
+  }
+  app.use(morgan('combined'));
 }
-app.use(morgan('combined'));
 
 app.get('/readyz', (req, res) => {
   res.status(200).json({ status: 'ok' });

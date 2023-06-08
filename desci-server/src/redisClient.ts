@@ -22,6 +22,7 @@ const redisClient = createClient({
 });
 
 async function initRedisClient() {
+  if (process.env.NODE_ENV === 'test') return logger.warn('Redis client not being used in test environment');
   if (process.env.REDIS_HOST === undefined || process.env.REDIS_PORT === undefined) {
     logger.error(
       { fn: 'initRedisClient', redisHostEnv: process.env.REDIS_HOST, redisPortEnv: process.env.REDIS_PORT },
