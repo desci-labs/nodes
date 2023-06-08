@@ -372,7 +372,7 @@ export const update = async (req: Request, res: Response) => {
 
   try {
     //Update refs
-    const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString);
+    const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString, false, externalCidMap);
     const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString, externalCidMap)); // try remove, still used for pruneList
     flatTree.push({
       name: 'root',

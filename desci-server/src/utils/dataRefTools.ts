@@ -14,6 +14,7 @@ import {
   generateManifestPathsToDbTypeMap,
   neutralizePath,
   inheritComponentType,
+  ExternalCidMap,
 } from './driveUtils';
 
 const logger = parentLogger.child({ module: 'Utils::DataRefTools' });
@@ -84,6 +85,7 @@ export async function prepareDataRefs(
   manifest: ResearchObjectV1,
   rootDagCid: string,
   markExternals = false,
+  externalCidMapConcat?: ExternalCidMap, // adds externalCidMapConcat to the externalCidMap generated from the nodeUuid
 ): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
   nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
   const node = await prisma.node.findFirst({
@@ -108,7 +110,7 @@ export async function prepareDataRefs(
     ...(markExternals ? { external: null } : {}),
   };
 
-  const externalCidMap = await generateExternalCidMap(node.uuid);
+  const externalCidMap = { ...(await generateExternalCidMap(node.uuid)), ...externalCidMapConcat };
   let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap));
   if (markExternals) {
     dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
