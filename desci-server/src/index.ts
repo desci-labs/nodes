@@ -137,7 +137,7 @@ app.get('/readyz', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-app.get('/', orcidConnect);
+app.get('/orcid', orcidConnect);
 
 app.use('/', routes);
 

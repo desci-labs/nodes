@@ -43,6 +43,7 @@ services:
       - db_postgres
       - desci_blockchain_ganache
       - graph_node
+      - redis
       # - nodes_media # UNCOMMENT FOR LOCAL DEV OF nodes-media
     links:
       - db_postgres
@@ -105,6 +106,15 @@ services:
       retries: 5
       start_period: 10s
       timeout: 2s
+
+  redis:
+    image: "redis:7-alpine"
+    container_name: "redis_cache"
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./local-data/redis:/data
+
 
   # desci_nodes_backend_test:
   #   container_name: 'be_test_boilerplate'

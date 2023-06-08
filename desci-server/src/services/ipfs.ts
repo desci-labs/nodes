@@ -22,6 +22,7 @@ import * as yauzl from 'yauzl';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
+import { getOrCache } from 'redisClient';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
@@ -368,16 +369,25 @@ export const nodeKeepFile = '.nodeKeep';
 export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidMap): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
   console.log(`[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
-  // const tree = await mixedLs(cid, externalCidMap);
-  // return tree;
-  if (Object.keys(externalCidMap).length === 0) {
-    // if (true) {
-    console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
-    return await recursiveLs(cid);
-  } else {
-    console.log('[getDirectoryTree] using mixed ls, dagCid: , cid');
-    const tree = await mixedLs(cid, externalCidMap);
-    return tree;
+  try {
+    debugger;
+    const tree = await getOrCache(`tree-${cid}`, getTree);
+    if (tree) return tree;
+    throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
+  } catch (err) {
+    console.log('[getDirectoryTree] error', err);
+    console.log('[getDirectoryTree] Falling back on uncached tree retrieval');
+    return getTree();
+  }
+  async function getTree() {
+    if (Object.keys(externalCidMap).length === 0) {
+      console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
+      return await recursiveLs(cid);
+    } else {
+      console.log('[getDirectoryTree] using mixed ls, dagCid: , cid');
+      const tree = await mixedLs(cid, externalCidMap);
+      return tree;
+    }
   }
 };
 
@@ -701,7 +711,7 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
     ? dagsLoaded[tailNodeCid.toString()]
     : await client.object.get(tailNodeCid);
 
-  const updatedTailNodeCid = await removeDagLink(tailNodeCid.toString(), fileNameToRemove);
+  const { newDagCid: updatedTailNodeCid, removedLink } = await removeDagLink(tailNodeCid.toString(), fileNameToRemove);
 
   const updatedDagCidMap: Record<oldCid, newCid> = {};
 
@@ -720,7 +730,7 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
     updatedDagCidMap[oldCid.toString()] = lastUpdatedCid.toString();
   }
 
-  return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
+  return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap, removedLink };
 };
 
 export async function removeDagLink(dagCid: string | multiformats.CID, linkName: string) {
@@ -738,6 +748,7 @@ export async function removeDagLink(dagCid: string | multiformats.CID, linkName:
   if (!node.isDirectory()) {
     throw new Error(`file cid -- not a directory`);
   }
+  const removedLink = Links.find((link) => link.Name === linkName);
   const newLinks = Links.filter((link) => link.Name !== linkName);
 
   if (newLinks.length === 0) {
@@ -745,10 +756,11 @@ export async function removeDagLink(dagCid: string | multiformats.CID, linkName:
     newLinks.push({ Name: '.nodeKeep', Hash: nodeKeep.cid as any, Tsize: nodeKeep.size });
   }
 
-  return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links: newLinks })), {
+  const newDagCid = await client.block.put(dagPb.encode(dagPb.prepare({ Data, Links: newLinks })), {
     version: 1,
     format: 'dag-pb',
   });
+  return { newDagCid, removedLink: { [linkName]: removedLink } };
 }
 
 export const renameFileInDag = async (rootCid: string, contextPath: string, linkToRename: string, newName: string) => {
@@ -808,6 +820,33 @@ export const renameFileInDag = async (rootCid: string, contextPath: string, link
   }
 
   return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
+};
+
+export const moveFileInDag = async (rootCid: string, contextPath: string, fileToMove: string, newPath: string) => {
+  const {
+    updatedRootCid: removedDagCid,
+    updatedDagCidMap: removedDagCidMap,
+    removedLink,
+  } = await removeFileFromDag(rootCid, contextPath, fileToMove);
+
+  const newPathSplit = newPath.split('/');
+  const fileName = newPathSplit.pop();
+  const newContextPath = newPathSplit.join('/');
+  const formattedLink = {
+    [fileName]: { cid: removedLink[fileToMove].Hash.toString(), size: removedLink[fileToMove].Tsize },
+  };
+  const { updatedRootCid, updatedDagCidMap } = await addFilesToDag(removedDagCid, newContextPath, formattedLink);
+
+  for (const [key, val] of Object.entries(removedDagCidMap)) {
+    // add updatedDagCids in remove step
+    updatedDagCidMap[key] = val;
+    // roll over the updatedDagCids
+    if (val in updatedDagCidMap) {
+      updatedDagCidMap[key] = updatedDagCidMap[val];
+    }
+  }
+
+  return { updatedRootCid, updatedDagCidMap };
 };
 
 export async function renameDagLink(dagCid: string | multiformats.CID, linkName: string, newName: string) {
