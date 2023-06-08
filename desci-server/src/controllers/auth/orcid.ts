@@ -4,8 +4,11 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import qs from 'qs';
 
+import parentLogger from 'logger';
 import { saveInteraction } from 'services/interactionLog';
 import { createUser, getUserByOrcId } from 'services/user';
+
+const logger = parentLogger.child({ module: 'AUTH::OrcidController' });
 
 export const orcidConnect = async (req: Request, res: Response) => {
   processOrcidConnect(req, res, false);
@@ -32,7 +35,7 @@ export const validateOrcid = async (req: Request, res: Response) => {
     });
     res.send({ data, ok: true });
   } catch (err) {
-    console.error(err);
+    logger.error({ err, fn: 'validateOrcid', req });
     res.status(400).send({ ok: false, err });
   }
 };
@@ -63,9 +66,9 @@ const getOrcidRecord = async (orcid: string, accessToken: string) => {
       Authorization: `Bearer ${accessToken}`,
     },
   };
-  console.log('Fetching OrcId Record for', orcid);
+  logger.info({ fn: 'getOrcidRecord', orcid }, `Fetching OrcId Record for ${orcid}`);
   const { data } = await axios(config);
-  console.log('Received OrcId Record data', data);
+  logger.info({ fn: 'getOrcidRecord', orcid, data }, `Received OrcId Record data`);
 
   return data as OrcIdRecordData;
 };
@@ -80,7 +83,7 @@ const getAllOrcData = async ({ queryCode, redirectUri }: { queryCode: string; re
     redirect_uri: redirectUri,
   });
 
-  console.log('Sending ORCID request');
+  logger.trace({ fn: 'getAllOrcData', data, redirectUri, queryCode }, 'Sending ORCID request');
   const orcAuthResponse = await axios.post<{
     access_token: string;
     refresh_token: string;
@@ -90,11 +93,11 @@ const getAllOrcData = async ({ queryCode, redirectUri }: { queryCode: string; re
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   });
-  console.log('ORCID RESPONSE', orcAuthResponse.data);
+  logger.trace({ fn: 'getAllOrcData', orcidRes: orcAuthResponse.data }, `ORCID RESPONSE`);
 
   // retrieve additional fields from orcid with auth token
   const orcRecord = await getOrcidRecord(orcAuthResponse.data['orcid'], orcAuthResponse.data['access_token']);
-  console.log('Received OrcId Data', orcRecord);
+  logger.info({ fn: 'getAllOrcData', orcRecord }, 'Received OrcId Data');
 
   const orcAuthData = {
     orcid: orcAuthResponse.data['orcid'],
@@ -107,9 +110,9 @@ const getAllOrcData = async ({ queryCode, redirectUri }: { queryCode: string; re
 };
 
 const processOrcidConnect = async (req: Request, res: Response, closing: boolean) => {
-  console.log('CODE', req.query, closing);
+  logger.trace({ fn: 'processOrcidConnect', reqQuery: req.query, closing }, `CODE ${req.query} ${closing}`);
   const user = (req as any).user;
-  console.log('Requesting user', user);
+  logger.info({ fn: 'processOrcidConnect', user }, `Requesting user ${user}`);
 
   const redirectUri = `${process.env.SERVER_URL}/v1/auth/orcid/connect` + (closing ? '/close' : '');
 
@@ -133,7 +136,7 @@ const processOrcidConnect = async (req: Request, res: Response, closing: boolean
     res.status(500).send();
     return;
   } catch (err) {
-    console.error('err', err);
+    logger.error({ fn: 'processOrcidConnect', err }, 'error processing orcid connect');
     res.status(400).send({ err });
   }
 };
@@ -173,7 +176,7 @@ const processOrcidAuth = async (req: Request, res: Response, closing: boolean) =
       user = await createUser({ name, email, orcid });
     }
 
-    console.log('User logging in with OrcId', user);
+    logger.info({ fn: 'processOrcidAuth', user }, `User logging in with OrcId ${user}`);
 
     const jwtToken = jwt.sign({ email: user.email, orcid }, process.env.JWT_SECRET, { expiresIn: '1y' });
     const cookieObj = {
@@ -192,7 +195,7 @@ const processOrcidAuth = async (req: Request, res: Response, closing: boolean) =
     res.status(500).send();
     return;
   } catch (err) {
-    console.error('err', err);
+    logger.error({ fn: 'processOrcidAuth', err }, 'error processing orcid auth');
     res.status(400).send({ err });
   }
 };

@@ -1,11 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 
 // call node publish service and add job to queue
 export const versionDetails = async (req: Request, res: Response, next: NextFunction) => {
   const transactionId = req.query.transactionId as string;
   // const email = (req as any).user.email;
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::versionDetailsController',
+    body: req.body,
+    transactionId,
+    user: (req as any).user,
+  });
 
   if (!transactionId) {
     return res.status(404).send({ message: 'transactionId must be valid' });
@@ -61,7 +69,7 @@ export const versionDetails = async (req: Request, res: Response, next: NextFunc
       publicDataReferences,
     });
   } catch (err) {
-    console.error('node-publish-err', err);
+    logger.error({ err }, 'node-publish-err');
     return res.status(400).send({ ok: false, error: err.message });
   }
 };

@@ -12,10 +12,12 @@ import express from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import morgan from 'morgan';
+import pinoHTTP from 'pino-http';
 
 import prismaClient from 'client';
 import './utils/response/customSuccess';
 import { orcidConnect } from 'controllers/auth';
+import logger from 'logger';
 
 import { errorHandler } from './middleware/errorHandler';
 import routes from './routes';
@@ -24,7 +26,7 @@ export const app = express();
 
 const ENABLE_TELEMETRY = process.env.NODE_ENV != 'dev';
 if (ENABLE_TELEMETRY) {
-  console.log('[DeSci Nodes] Telemetry enabled');
+  logger.info('[DeSci Nodes] Telemetry enabled');
   require('./tracing');
   Sentry.init({
     dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
@@ -38,8 +40,10 @@ if (ENABLE_TELEMETRY) {
   app.use(Sentry.Handlers.requestHandler());
   app.use(Sentry.Handlers.tracingHandler());
 } else {
-  console.log('[DeSci Nodes] Telemetry disabled');
+  logger.info('[DeSci Nodes] Telemetry disabled');
 }
+
+// app.use(pinoHTTP({ logger }));
 
 const allowlist = [
   'http://localhost:3000',
@@ -67,7 +71,7 @@ const corsOptionsDelegate = function (req, callback) {
   let corsOptions;
   const origin = req.header('Origin');
   const allowed = allowlist.indexOf(origin) !== -1;
-  console.log('in cors', origin, allowed);
+  logger.info({ fn: 'corsOptionsDelegate', origin, allowed }, `in cors ${origin} ${allowed}`);
   if (allowed) {
     corsOptions = { origin: true, credentials: true }; // reflect (enable) the requested origin in the CORS response
   } else {
@@ -129,7 +133,7 @@ try {
   });
   app.use(morgan('combined', { stream: accessLogStream }));
 } catch (err) {
-  console.log(err);
+  logger.fatal({ err }, 'Failed to create access log stream');
 }
 app.use(morgan('combined'));
 
@@ -149,5 +153,5 @@ app.use(errorHandler);
 
 const port = process.env.PORT || 5420;
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  logger.info(`Server running on port ${port}`);
 });

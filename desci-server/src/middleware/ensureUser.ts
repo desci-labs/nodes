@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 import prisma from 'client';
+import logger from 'logger';
 import { getUserByEmail, getUserByOrcId } from 'services/user';
 
 import { CustomError } from '../utils/response/custom-error/CustomError';
@@ -30,7 +31,7 @@ export const retrieveUser = async (req: Request): Promise<User> => {
     jwt.verify(token, process.env.JWT_SECRET as string, async (err: any, user: any) => {
       if (err) {
         // anonymous user
-        console.log('anon request');
+        logger.info({ module: 'retrieveUserMiddleware', authHeader, token }, 'anon request');
         // console.log(err);
       }
 

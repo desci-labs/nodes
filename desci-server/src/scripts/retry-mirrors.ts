@@ -1,6 +1,7 @@
 import { PublicDataReferenceOnIpfsMirror } from '@prisma/client';
 
 import prisma from 'client';
+import logger from 'logger';
 
 async function main() {
   const publicDataReferences = await prisma.publicDataReference.findMany({
@@ -29,11 +30,16 @@ async function main() {
     data: dataOnMirrorReferences,
     skipDuplicates: true,
   });
-  console.log('Mirrors', mirrors.count);
-  console.log('Refs', dataOnMirrorReferences.length, publicDataReferences.length);
+  logger.info({ mirrors: mirrors.count }, 'Mirrors');
+  logger.info(
+    { dataOnMirrorReferences: dataOnMirrorReferences.length, publicDataReferences: publicDataReferences.length },
+    'Refs',
+    dataOnMirrorReferences.length,
+    publicDataReferences.length,
+  );
   return mirrors;
 }
 
 main()
-  .then((result) => console.log('Mirrors fixed', result))
-  .catch((err) => console.log('Error running script ', err));
+  .then((result) => logger.info({ result }, 'Mirrors fixed', result))
+  .catch((err) => logger.info({ err }, 'Error running script ', err));

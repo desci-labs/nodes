@@ -5,8 +5,12 @@ import { v4 as uuid } from 'uuid';
 
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
+import parentLogger from 'logger';
 import { updateManifestAndAddToIpfs } from 'services/ipfs';
 
+const logger = parentLogger.child({
+  module: 'DATA::Utils',
+});
 interface UpdatingManifestParams {
   manifest: ResearchObjectV1;
   rootCid: string;
@@ -40,7 +44,7 @@ export interface PersistManifestParams {
 
 export async function persistManifest({ manifest, node, userId }: PersistManifestParams) {
   if (node.ownerId !== userId) {
-    console.log(`User: ${userId} doesnt own node ${node.id}`);
+    logger.warn({ fn: 'persistManifest', node, userId }, `User: ${userId} doesnt own node ${node.id}`);
     throw Error(`User: ${userId} doesnt own node ${node.id}`);
   }
 
@@ -62,7 +66,10 @@ export async function persistManifest({ manifest, node, userId }: PersistManifes
 
     if (updated && nodeVersion && dataRef) return { persistedManifestCid: cid, date: dataRef.updatedAt, nodeVersion };
   } catch (e: any) {
-    console.error(`failed persisting manifest, manifest: ${manifest}, dbnode: ${node}, userId: ${userId}, e: ${e}`);
+    logger.error(
+      { fn: 'persistManifest', manifest, node, userId, error: e },
+      `failed persisting manifest, manifest: ${manifest}, dbnode: ${node}, userId: ${userId}, e: ${e}`,
+    );
   }
   return { persistedManifestCid: null, date: null };
 }

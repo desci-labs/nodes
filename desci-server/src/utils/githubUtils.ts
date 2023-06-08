@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+import logger from 'logger';
+
 interface GithubUrlInfo {
   branch: string;
   author: string;
@@ -15,7 +17,10 @@ export const processGithubUrl = async (e: string): Promise<GithubUrlInfo> => {
   } else {
     branch = await retrieveDefaultBranch(author, repo);
   }
-  console.log('SCAN: author,repo', author, repo);
+  logger.debug(
+    { module: 'Utils::GithubUtils', fn: 'processGithubUrl', author, repo, queryString: e },
+    'SCAN: author,repo',
+  );
   return { branch, author, repo };
 };
 

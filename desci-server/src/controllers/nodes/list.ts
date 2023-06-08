@@ -3,11 +3,18 @@
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 import { getIndexedResearchObjects } from 'theGraph';
 import { decodeBase64UrlSafeToHex, encodeBase64UrlSafe, randomUUID64 } from 'utils';
 
 export const list = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::listController',
+    body: req.body,
+    user: (req as any).user,
+  });
 
   let nodes = await prisma.node.findMany({
     select: {
@@ -69,7 +76,7 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
       indexMap[e.id] = e;
     });
   } catch (err) {
-    console.error('[ERROR] graph index lookup fail', err.message);
+    logger.error({ err: err.message }, '[ERROR] graph index lookup fail');
     // todo: try on chain direct (current method doesnt support batch, so fix that and add here)
   }
 

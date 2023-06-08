@@ -1,15 +1,10 @@
-import {
-  PdfComponent,
-  ResearchObjectComponentDocumentSubtype,
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-} from '@desci-labs/desci-models';
-import { User } from '@prisma/client';
+import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL } from 'config';
+import parentLogger from 'logger';
 import { cacheNodeMetadata } from 'services/nodeManager';
 
 import { cleanupManifestUrl } from './show';
@@ -28,11 +23,20 @@ const parseVersion = (version: string): number | undefined => {
 };
 
 export const getCoverImage = async (req: Request, res: Response, next: NextFunction) => {
+  const nodeUUID = req.params.uuid as string;
+  const versionQuery = req.params.version as string;
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::getCoverImageController',
+    body: req.body,
+    uuid: nodeUUID,
+    versionQuery,
+    user: (req as any).user,
+  });
+  // const cid = req.query.cid as string;
   try {
-    // const cid = req.query.cid as string;
-    const nodeUUID = req.params.uuid as string;
-    const versionQuery = req.params.version as string;
-    console.log('versionQuery ', versionQuery, parseVersion(versionQuery));
+    let version = parseVersion(versionQuery);
+    logger.info({ version: version }, 'version');
 
     if (!nodeUUID) throw Error('Invalid Node uuid');
     const uuid = nodeUUID + '.';
@@ -40,23 +44,21 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     const node = await prisma.node.findFirst({ where: { uuid: nodeUUID + '.' } });
     if (!node) throw Error('Node not found');
 
-    let version = parseVersion(versionQuery);
-
-    console.log('Version: ', version);
+    logger.trace({ version }, `Version: ${version}`);
 
     if (version !== undefined) {
       // check if uuid + version is already cached
-      console.log('version query exists', version);
+      logger.info(`version query exists ${version}`);
       const meta = await prisma.nodeCover.findFirst({ where: { nodeUuid: uuid, version } });
       if (meta) {
-        console.log('Return cached metadata', meta);
+        logger.info({ meta }, 'Return cached metadata');
         res.status(200).send({ ok: true, url: meta.url, title: meta.name || node.title });
         return;
       }
     }
 
     const cached = await cacheNodeMetadata(uuid, '', version);
-    console.log('cached from history', cached);
+    logger.info({ cached }, 'cached from history');
     if (cached) {
       const meta = await prisma.nodeCover.findFirst({ where: { nodeUuid: uuid, version: cached.version } });
       if (meta) {
@@ -68,21 +70,21 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
       // return;
     }
 
-    console.log('uuid', uuid, node);
+    logger.info({ node }, 'node uuid found');
     const draftNodeVersions = await prisma.nodeVersion.findMany({
       where: { nodeId: node.id, transactionId: { not: null } },
     });
 
     const defaultVersion = draftNodeVersions.length > 0 ? draftNodeVersions.length - 1 : 0;
-    console.log('draftNodeVersions', version, defaultVersion, draftNodeVersions.length);
-    console.log('draft versions ====================>', draftNodeVersions);
+    logger.info({ version, defaultVersion, draftNodeVersionsFound: draftNodeVersions.length }, 'draftNodeVersions');
+    logger.info({ draftNodeVersions }, 'draft versions ====================>');
     version = version ?? defaultVersion;
     const exists = await prisma.nodeCover.findFirst({
       where: { nodeUuid: uuid, version: version },
     });
 
     if (exists) {
-      console.log('found cover from cache', nodeUUID, exists.url);
+      logger.info({ existsUrl: exists.url }, 'found cover from cache');
       res.send({ ok: true, url: exists.url, name: exists?.name || node.title });
       return;
     }
@@ -94,7 +96,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     if (!nodeVersion) throw Error('Node cannot be resolved');
 
     const gatewayUrl = cleanupManifestUrl(nodeVersion.manifestUrl);
-    console.log('gatewayUrl', gatewayUrl, nodeVersion.manifestUrl);
+    logger.debug({ gatewayUrl, manifestUrl: nodeVersion.manifestUrl }, 'gatewayUrl');
     const manifest: ResearchObjectV1 = (await axios.get(gatewayUrl)).data;
     /**
      * Note only starred pdfs are eligible for cover art
@@ -102,7 +104,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     const pdfs = manifest.components.filter(
       (c) => c.type === ResearchObjectComponentType.PDF && c.starred,
     ) as PdfComponent[];
-    console.log('PDFS:::=>>>>>>>>>>>>', pdfs);
+    logger.info({ pdfs }, 'PDFS:::=>>>>>>>>>>>>');
     const cid = pdfs[0].payload.url;
 
     if (!cid) {
@@ -117,15 +119,15 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
 
     let url = '';
     const existingCid = await prisma.nodeCover.findFirst({ where: { cid } });
-    console.log('existingCid', existingCid);
+    logger.debug({ existingCid }, 'existingCid');
 
     if (existingCid) {
       // use cached cid cover url;
-      console.log('Use existing url', url, cid);
+      logger.debug({ url, cid }, 'Use existing url');
       url = existingCid.url;
     } else {
       // create cover
-      console.log('create cover url', cid);
+      logger.info({ cid }, 'create cover url');
       const data = await (
         await axios.post(
           `${MEDIA_SERVER_API_URL}/v1/nodes/cover/${cid}`,
@@ -158,7 +160,7 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
 
     res.send({ ok: true, url: url, title: manifest?.title || node.title });
   } catch (e) {
-    console.log('error', e);
+    logger.error({ error: e }, 'error');
     res.status(404).send({ ok: false, message: e.message || 'Error generating cover image' });
   }
 };
