@@ -29,6 +29,7 @@ export interface ResearchObjectV1 extends ResearchObject {
   dpid?: ResearchObjectV1Dpid;
   researchFields?: string[];
   authors?: ResearchObjectV1Author[];
+  contributors?: ResearchObjectV1Contributor[];
 }
 
 export interface ResearchObjectV1Dpid {
@@ -59,7 +60,17 @@ export interface ResearchObjectV1Author {
   name: string;
   orcid?: string;
   googleScholar?: string;
+  credit?: ResearchObjectCredits;
   role: ResearchObjectV1AuthorRole;
+  organizations?: ResearchObjectV1Organization[];
+  github?: string;
+}
+export interface ResearchObjectV1Contributor {
+  name: string;
+  orcid?: string;
+  googleScholar?: string;
+  credit?: ResearchObjectCredits;
+  role: ResearchObjectContributorRole;
   organizations?: ResearchObjectV1Organization[];
   github?: string;
 }
@@ -86,6 +97,7 @@ export enum ResearchObjectValidationType {
   CERTIFICATION = "certification",
   CERTIFICATION_ARC = "certification-arc",
 }
+
 export interface ResearchObjectValidationDeposit {
   token: string;
   address: string;
@@ -256,4 +268,18 @@ export type ResearchObjectComponentAnnotation = {
 export enum ResearchObjectV1AuthorRole {
   AUTHOR = "Author",
   NODE_STEWARD = "Node Steward",
+}
+
+export enum ResearchObjectCredits {
+  AUTHOR = "Author",
+  NODE_STEWARD = "Node Steward",
+  CONTRIBUTOR = "Contributor",
+  CORRESPONDING_AUTHOR = "Corresponding Author",
+  PROGRAM_OFFICER = "Program Officer",
+  NONE = "None",
+}
+
+export enum ResearchObjectContributorRole {
+  ADMIN = "Admin",
+  VIEWER = "Viewer",
 }
