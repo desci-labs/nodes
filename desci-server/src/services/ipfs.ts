@@ -23,6 +23,7 @@ import * as yauzl from 'yauzl';
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
 import parentLogger from 'logger';
+import { getOrCache } from 'redisClient';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
@@ -377,20 +378,34 @@ export const nodeKeepFile = '.nodeKeep';
 
 export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidMap): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
+  console.log(`[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
   logger.info(
     { fn: 'getDirectoryTree' },
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
   );
-  // const tree = await mixedLs(cid, externalCidMap);
-  // return tree;
-  if (Object.keys(externalCidMap).length === 0) {
-    // if (true) {
-    logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using standard ls, dagCid: ${cid}`);
-    return await recursiveLs(cid);
-  } else {
-    logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using mixed ls, dagCid: ${cid}`);
-    const tree = await mixedLs(cid, externalCidMap);
-    return tree;
+  try {
+    debugger;
+    const tree = await getOrCache(`tree-${cid}`, getTree);
+    if (tree) return tree;
+    throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
+  } catch (err) {
+    console.log('[getDirectoryTree] error', err);
+    console.log('[getDirectoryTree] Falling back on uncached tree retrieval');
+    logger.warn({ fn: 'getDirectoryTree', err }, '[getDirectoryTree] error');
+    logger.info('[getDirectoryTree] Falling back on uncached tree retrieval');
+    return getTree();
+  }
+  async function getTree() {
+    if (Object.keys(externalCidMap).length === 0) {
+      console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
+      logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using standard ls, dagCid: ${cid}`);
+      return await recursiveLs(cid);
+    } else {
+      console.log('[getDirectoryTree] using mixed ls, dagCid: , cid');
+      logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using mixed ls, dagCid: ${cid}`);
+      const tree = await mixedLs(cid, externalCidMap);
+      return tree;
+    }
   }
 };
 
