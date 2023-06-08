@@ -86,7 +86,7 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
           let provider;
           try {
             provider = new ethers.providers.JsonRpcProvider(
-              process.env.NODE_ENV != 'dev'
+              process.env.NODE_ENV === 'production'
                 ? 'https://eth-goerli.g.alchemy.com/v2/ZeIzCAJyPpRnTtPNSmddHGF-q2yp-2Uy'
                 : 'http://host.docker.internal:8545',
             );

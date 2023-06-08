@@ -13,4 +13,5 @@ apt-get add --update bash
 cd desci-server
 yarn run migrate
 npx prisma db seed
+(npx prisma studio&)
 npm run coverage:destructive

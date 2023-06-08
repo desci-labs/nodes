@@ -23,7 +23,7 @@ export function recursiveFlattenTreeFilterDirs(tree) {
   return flat;
 }
 
-export const recursiveFlattenTree = (tree: RecursiveLsResult[]) => {
+export const recursiveFlattenTree = (tree: RecursiveLsResult[]): RecursiveLsResult[] => {
   const contents = [];
   tree.forEach((fd) => {
     contents.push(fd);

@@ -21,7 +21,7 @@ export const directChainCall = async (decodedUuid: string) => {
   let provider;
   try {
     provider = new ethers.providers.JsonRpcProvider(
-      process.env.NODE_ENV != 'dev'
+      process.env.NODE_ENV === 'production'
         ? 'https://eth-goerli.g.alchemy.com/v2/ZeIzCAJyPpRnTtPNSmddHGF-q2yp-2Uy'
         : 'http://host.docker.internal:8545',
     );
@@ -30,8 +30,8 @@ export const directChainCall = async (decodedUuid: string) => {
     throw Error('failed to connect to blockchain RPC');
   }
 
-  const compiled = process.env.NODE_ENV != 'dev' ? goerli : localhost;
-  const deployed = process.env.NODE_ENV != 'dev' ? goerliInfo : localhostInfo;
+  const compiled = process.env.NODE_ENV === 'production' ? goerli : localhost;
+  const deployed = process.env.NODE_ENV === 'production' ? goerliInfo : localhostInfo;
   const deployedAddress = deployed.proxies[deployed.proxies.length - 1].address;
 
   const researchObjectContract = new ethers.Contract(deployedAddress, compiled.abi, provider);
@@ -92,7 +92,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
   //     },
   //   },
   // });
-  const deployed = process.env.NODE_ENV != 'dev' ? goerliInfo : localhostInfo;
+  const deployed = process.env.NODE_ENV === 'production' ? goerliInfo : localhostInfo;
   const deployedAddress = deployed.proxies[0].address;
   let graphOk = false;
   let result;
