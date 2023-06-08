@@ -407,7 +407,7 @@ export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidM
 export const recursiveLs = async (cid: string, carryPath?: string) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
-  const lsOp = client.ls(cid);
+  const lsOp = client.ls(cid, { timeout: INTERNAL_IPFS_TIMEOUT });
   const promises = [];
 
   for await (const filedir of lsOp) {
