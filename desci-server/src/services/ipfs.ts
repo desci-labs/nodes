@@ -276,13 +276,13 @@ export const pinDirectory = async (
   return uploaded;
 };
 
-export async function pinExternalDags(cids: string[]) {
+export async function pinExternalDags(cids: string[]): Promise<string[]> {
   const result = [];
   for await (const cid of cids) {
     const cidType = multiformats.CID.parse(cid);
     const block = await publicIpfs.block.get(cidType);
     const res = await client.block.put(block);
-    result.push(res);
+    result.push(res.toString());
   }
   return result;
 }
