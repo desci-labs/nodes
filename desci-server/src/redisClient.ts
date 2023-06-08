@@ -1,5 +1,9 @@
 import { createClient } from 'redis';
 
+import parentLogger from 'logger';
+
+const logger = parentLogger.child({ module: 'redisClient' });
+
 const redisClient = createClient({
   // url: process.env.REDIS_URL,
   socket: {
@@ -19,7 +23,10 @@ const redisClient = createClient({
 
 async function initRedisClient() {
   if (process.env.REDIS_HOST === undefined || process.env.REDIS_PORT === undefined) {
-    console.error('Redis host or port is not defined');
+    logger.error(
+      { fn: 'initRedisClient', redisHostEnv: process.env.REDIS_HOST, redisPortEnv: process.env.REDIS_PORT },
+      'Redis host or port is not defined',
+    );
     return;
   }
   if (!redisClient.isOpen) await redisClient.connect();
@@ -27,11 +34,11 @@ async function initRedisClient() {
 initRedisClient();
 
 redisClient.on('connect', () => {
-  console.log('Redis Client successfully connected on port', process.env.REDIS_PORT);
+  logger.info('Redis Client successfully connected on port', process.env.REDIS_PORT);
 });
 
 redisClient.on('error', (err) => {
-  console.log('Redis Client Error', err);
+  logger.error({ err }, 'Redis Client Error');
 });
 
 // gracefully shutdown
@@ -49,14 +56,14 @@ export function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEFAULT_T
       if (!redisClient.isOpen) return reject(new Error('Redis client is not connected'));
       const result = await redisClient.get(key);
       if (result !== null) {
-        console.log(`[REDIS CACHE]${key} retrieved from cache`);
+        logger.info(`[REDIS CACHE]${key} retrieved from cache`);
 
         // bump ttl for active cached items
         redisClient.expire(key, ttl);
 
         return resolve(JSON.parse(result));
       }
-      console.log(`[REDIS CACHE]${key} cached`);
+      logger.info(`[REDIS CACHE]${key} cached`);
       const value = await fn();
       await redisClient.set(key, JSON.stringify(value), { EX: ttl });
       resolve(value);
