@@ -1,5 +1,5 @@
 import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
-import { CidPruneList, DataType, User } from '@prisma/client';
+import { DataType, User } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response } from 'express';
 
