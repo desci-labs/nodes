@@ -14,7 +14,7 @@ describe('Invites', () => {
   after(async () => {});
 
   beforeEach(async () => {
-    console.log('TRUNCATE');
+    // console.log('TRUNCATE');
     await prisma.$queryRaw`TRUNCATE TABLE "Invite" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
     admin = await prisma.user.create({

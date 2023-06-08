@@ -58,7 +58,7 @@ describe('IPFS', () => {
       expect(res.cid).to.eq('bafkreidf26rt63gbrwz4inlosn74hgb245tmkj7tbazrkdrchfqdfbn3u4');
       expect(res.ref).to.not.be.undefined;
       expect(res.ref.size).to.eq(42);
-      console.log('RES', res);
+      // console.log('RES', res);
     });
     it('supports directories', async () => {
       const tmp = '/tmp';
