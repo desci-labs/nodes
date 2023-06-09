@@ -14,8 +14,6 @@ on:
       - develop
       - demo
 
-  # TODO: add prod env
-
 name: Build desci-server
 
 # https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
