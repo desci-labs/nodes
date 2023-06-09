@@ -13,7 +13,7 @@ import routes from './routes';
 
 export const app = express();
 
-const ENABLE_SENTRY = process.env.NODE_ENV != 'dev' || process.env.NODE_ENV !== 'test';
+const ENABLE_SENTRY = process.env.NODE_ENV != 'dev' && process.env.NODE_ENV !== 'test';
 
 const allowlist = [
   'http://localhost:3000',
