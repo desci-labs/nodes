@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-import { AuthorInviteStatus, ResearchRoles } from '@prisma/client';
+import { AuthorInviteStatus, ResearchCredits, ResearchRoles } from '@prisma/client';
 import { Response } from 'express';
 
 import prisma from 'client';
@@ -10,7 +10,13 @@ import { grantNodeAccess, sendNodeAccessInvite, transferAdminAccess } from 'serv
 export const getNodeAccessRoles = async (req: RequestWithUser, res: Response) => {
   try {
     const roles = await prisma.nodeCreditRoles.findMany({});
-    res.send({ roles });
+    const formattedRoles = roles.map((role) => ({
+      ...role,
+      name: `${role.credit === ResearchCredits.NONE ? '' : role.credit.replaceAll('_', ' ') + ' - '}${
+        role.role
+      }`.toLowerCase(),
+    }));
+    res.send({ roles: formattedRoles });
   } catch (e) {
     res.status(500).send({ message: 'Unknow Error occured' });
   }
