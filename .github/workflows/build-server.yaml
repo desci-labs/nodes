@@ -32,7 +32,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     container:
-      image: ubuntu:latest
+      image: lucasalt/act_base:latest
       options: --user 1001
 
     steps:
