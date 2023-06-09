@@ -13,7 +13,7 @@ import routes from './routes';
 
 export const app = express();
 
-const ENABLE_SENTRY = process.env.NODE_ENV != 'dev' && process.env.NODE_ENV !== 'test';
+const ENABLE_SENTRY = process.env.NODE_ENV === 'production';
 
 const allowlist = [
   'http://localhost:3000',
@@ -51,19 +51,19 @@ app.use(function (req, res, next) {
   next();
 });
 
-// if (ENABLE_SENTRY) {
-//   Sentry.init({
-//     dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
-//     release: 'desci-nodes-media@' + process.env.npm_package_version,
-//     integrations: [],
-//     // Set tracesSampleRate to 1.0 to capture 100%
-//     // of transactions for performance monitoring.
-//     // We recommend adjusting this value in production
-//     tracesSampleRate: 1.0,
-//   });
-//   app.use(Sentry.Handlers.requestHandler());
-//   app.use(Sentry.Handlers.tracingHandler());
-// }
+if (ENABLE_SENTRY) {
+  Sentry.init({
+    dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
+    release: 'desci-nodes-media@' + process.env.npm_package_version,
+    integrations: [],
+    // Set tracesSampleRate to 1.0 to capture 100%
+    // of transactions for performance monitoring.
+    // We recommend adjusting this value in production
+    tracesSampleRate: 1.0,
+  });
+  app.use(Sentry.Handlers.requestHandler());
+  app.use(Sentry.Handlers.tracingHandler());
+}
 
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ extended: false }));
