@@ -276,13 +276,13 @@ export const pinDirectory = async (
   return uploaded;
 };
 
-export async function pinExternalDags(cids: string[]) {
+export async function pinExternalDags(cids: string[]): Promise<string[]> {
   const result = [];
   for await (const cid of cids) {
     const cidType = multiformats.CID.parse(cid);
     const block = await publicIpfs.block.get(cidType);
     const res = await client.block.put(block);
-    result.push(res);
+    result.push(res.toString());
   }
   return result;
 }
@@ -378,7 +378,6 @@ export const nodeKeepFile = '.nodeKeep';
 
 export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidMap): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
-  console.log(`[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`);
   logger.info(
     { fn: 'getDirectoryTree' },
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
@@ -389,19 +388,15 @@ export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidM
     if (tree) return tree;
     throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
   } catch (err) {
-    console.log('[getDirectoryTree] error', err);
-    console.log('[getDirectoryTree] Falling back on uncached tree retrieval');
     logger.warn({ fn: 'getDirectoryTree', err }, '[getDirectoryTree] error');
     logger.info('[getDirectoryTree] Falling back on uncached tree retrieval');
     return getTree();
   }
   async function getTree() {
     if (Object.keys(externalCidMap).length === 0) {
-      console.log('[getDirectoryTree] using standard ls, dagCid: , cid');
       logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using standard ls, dagCid: ${cid}`);
       return await recursiveLs(cid);
     } else {
-      console.log('[getDirectoryTree] using mixed ls, dagCid: , cid');
       logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using mixed ls, dagCid: ${cid}`);
       const tree = await mixedLs(cid, externalCidMap);
       return tree;
@@ -412,28 +407,35 @@ export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidM
 export const recursiveLs = async (cid: string, carryPath?: string) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
-  const lsOp = client.ls(cid);
   const promises = [];
+  try {
+    const lsOp = client.ls(cid, { timeout: INTERNAL_IPFS_TIMEOUT });
 
-  for await (const filedir of lsOp) {
-    const promise = new Promise<void>(async (resolve, reject) => {
-      const res: any = filedir;
-      // if (parent) {
-      //   res.parent = parent;
-      const pathSplit = res.path.split('/');
-      pathSplit[0] = carryPath;
-      res.path = pathSplit.join('/');
-      // }
-      const v1StrCid = convertToCidV1(res.cid);
-      if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
-      if (filedir.type === 'dir') {
-        res.cid = v1StrCid;
-        res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
-        tree.push({ ...res, cid: v1StrCid });
-      }
-      resolve();
-    });
-    promises.push(promise);
+    for await (const filedir of lsOp) {
+      const promise = new Promise<void>(async (resolve, reject) => {
+        const res: any = filedir;
+        // if (parent) {
+        //   res.parent = parent;
+        const pathSplit = res.path.split('/');
+        pathSplit[0] = carryPath;
+        res.path = pathSplit.join('/');
+        // }
+        const v1StrCid = convertToCidV1(res.cid);
+        if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
+        if (filedir.type === 'dir') {
+          res.cid = v1StrCid;
+          res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
+          tree.push({ ...res, cid: v1StrCid });
+        }
+        resolve();
+      });
+      promises.push(promise);
+    }
+  } catch (err) {
+    logger.error(
+      { fn: 'recursiveLs', cid, carryPath, err },
+      `[recursiveLs] error, cid may not exist in priv swarm or unmarked external cid`,
+    );
   }
   await Promise.allSettled(promises);
   return tree;

@@ -29,7 +29,36 @@ env:
   DOCKER_BUILDKIT: 1
 
 jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:latest
+      options: --user 1001
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Set up the environment
+        # Replace this line with the appropriate setup for your project
+        # Examples:
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+
+      - name: Install dependencies
+        run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn
+
+      - name: Stub contract
+        run: |
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
+
+      - name: Run tests
+        run: cd desci-server && export DOCKER_BUILDKIT=1 && yarn && yarn test
+
   build-and-push:
+    needs: build-and-test
     name: Build and deploy
     runs-on: ubuntu-latest
     steps:
