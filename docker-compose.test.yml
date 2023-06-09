@@ -17,6 +17,7 @@ services:
     entrypoint: /bin/sh './desci-server/scripts/be-node-test.sh'
     env_file:
       - .env.test
+    user: node
     ports:
       - '5421:5420'
       - '9227:9227'
