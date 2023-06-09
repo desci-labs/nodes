@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
+import parentLogger from 'logger';
 import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addFilesToDag,
@@ -60,15 +61,26 @@ export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }:
 }
 
 export const update = async (req: Request, res: Response) => {
-  // debugger;
   const owner = (req as any).user as User;
   const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl)
   //ExternalURL - url + type, code (github) & external pdfs for now
   //v0 ExternalCids - cids + type (data for now), no pinning
-  console.log('files rcvd: ', req.files);
-  console.log('[UPDATE DATASET] Updating in context: ', contextPath);
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'DATA::UpdateController',
+    uuid: uuid,
+    manifest: manifest,
+    contextPath: contextPath,
+    componentType: componentType,
+    componentSubtype,
+    newFolderName,
+    externalUrl,
+    externalCids,
+    files: req.files,
+  });
+  logger.trace(`[UPDATE DATASET] Updating in context: ${contextPath}`);
   if (uuid === undefined || manifest === undefined || contextPath === undefined)
     return res.status(400).json({ error: 'uuid, manifest, contextPath required' });
   const manifestObj: ResearchObjectV1 = JSON.parse(manifest);
@@ -84,7 +96,7 @@ export const update = async (req: Request, res: Response) => {
     },
   });
   if (!node) {
-    console.log(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
+    logger.warn(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
     return res.status(400).json({ error: 'failed' });
   }
 
@@ -124,7 +136,7 @@ export const update = async (req: Request, res: Response) => {
         externalUrlTotalSizeBytes = buffer.length;
       }
     } catch (e) {
-      console.error(
+      logger.warn(
         `[UPDATE DAG] Error: External URL method: ${e}, url provided: ${externalUrl?.url}, path: ${externalUrl?.path}`,
       );
       return res.status(500).send('[UPDATE DAG]Error fetching content from external link.');
@@ -147,7 +159,7 @@ export const update = async (req: Request, res: Response) => {
         }
       }
     } catch (e: any) {
-      console.error(`[UPDATE DAG] External CID Method: ${e}`);
+      logger.warn(`[UPDATE DAG] External CID Method: ${e}`);
       return res.status(400).json({ error: 'Failed to resolve external CID' });
     }
   }
@@ -198,7 +210,7 @@ export const update = async (req: Request, res: Response) => {
   splitContextPath.shift();
   //cleanContextPath = how many dags need to be reset, n + 1
   const cleanContextPath = splitContextPath.join('/');
-  console.log('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
+  logger.debug('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
 
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
   // debugger;
@@ -227,7 +239,7 @@ export const update = async (req: Request, res: Response) => {
 
   const hasDuplicates = OldTreePaths.some((oldPath) => newPathsFormatted.includes(oldPath));
   if (hasDuplicates) {
-    console.log('[UPDATE DATASET] Rejected as duplicate paths were found');
+    logger.info('[UPDATE DATASET] Rejected as duplicate paths were found');
     return res.status(400).json({ error: 'Duplicate files rejected' });
   }
 
@@ -272,7 +284,7 @@ export const update = async (req: Request, res: Response) => {
     const filesToPin = structuredFilesForPinning.length ? structuredFilesForPinning : externalUrlFiles;
     if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
     if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
-    console.log('[UPDATE DATASET] Pinned files: ', uploaded);
+    logger.info('[UPDATE DATASET] Pinned files: ', uploaded);
   }
 
   //New folder creation, add to uploaded
@@ -438,7 +450,7 @@ export const update = async (req: Request, res: Response) => {
       }),
       prisma.dataReference.createMany({ data: dataRefCreates }),
     ]);
-    if (upserts) console.log(`${upserts.length} new data references added/modified`);
+    if (upserts) logger.info(`${upserts.length} new data references added/modified`);
 
     // //CLEANUP DANGLING REFERENCES//
     oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
@@ -469,7 +481,7 @@ export const update = async (req: Request, res: Response) => {
     });
 
     const pruneRes = await prisma.cidPruneList.createMany({ data: formattedPruneList });
-    console.log(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
+    logger.info(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
     //END OF CLEAN UP//
     const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
@@ -484,9 +496,9 @@ export const update = async (req: Request, res: Response) => {
       date: date,
     });
   } catch (e: any) {
-    console.log(`[UPDATE DATASET] error: ${e}`);
+    logger.error(`[UPDATE DATASET] error: ${e}`);
     if (uploaded.length) {
-      console.log(`[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED, FILES: ${uploaded}`);
+      logger.error(`[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED, FILES: ${uploaded}`);
       const formattedPruneList = uploaded.map(async (e) => {
         const pathSplit = e.path.split('/');
         pathSplit[0] = 'root';
@@ -503,9 +515,9 @@ export const update = async (req: Request, res: Response) => {
       });
       const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });
       if (prunedEntries.count) {
-        console.log(`[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`);
+        logger.info(`[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`);
       } else {
-        console.log(`[UPDATE DATASET E:2] failed adding files to prunelist, db may be down`);
+        logger.error(`[UPDATE DATASET E:2] failed adding files to prunelist, db may be down`);
       }
     }
     return res.status(400).json({ error: 'failed #1' });

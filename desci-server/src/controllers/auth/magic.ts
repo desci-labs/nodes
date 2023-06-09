@@ -2,6 +2,7 @@ import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+import logger from 'logger';
 import { magicLinkRedeem, sendMagicLink } from 'services/auth';
 import { saveInteraction } from 'services/interactionLog';
 
@@ -10,7 +11,7 @@ const generateAccessToken = (payload) => {
 };
 const oneYear = 1000 * 60 * 60 * 24 * 365;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
-  console.log('magic link', req.body);
+  logger.info({ fn: 'magic', reqBody: req.body }, `magic link ${req.body}`);
   const { email, code } = req.body;
   if (!code) {
     try {

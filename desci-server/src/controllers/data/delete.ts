@@ -3,6 +3,7 @@ import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 import { RecursiveLsResult, getDirectoryTree, removeFileFromDag } from 'services/ipfs';
 import { deneutralizePath, updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
 import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
@@ -14,7 +15,14 @@ import { getLatestManifest, persistManifest } from './utils';
 export const deleteData = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
   const { uuid, path } = req.body;
-  console.log('[DATA::DELETE] hit, path: ', path, ' nodeUuid: ', uuid, ' user: ', owner.id);
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'DATA::DeleteController',
+    uuid: uuid,
+    path: path,
+    user: owner.id,
+  });
+  logger.trace('Entered DATA::Delete');
   if (uuid === undefined || path === undefined) return res.status(400).json({ error: 'uuid and path required' });
   //validate requester owns the node
   const node = await prisma.node.findFirst({
@@ -24,7 +32,7 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
     },
   });
   if (!node) {
-    console.log(`[DATA::DELETE]unauthed node user: ${owner}, node uuid provided: ${uuid}`);
+    logger.warn(`DATA::Delete: auth failed, user id: ${owner.id} does not own node: ${uuid}`);
     return res.status(400).json({ error: 'failed' });
   }
 
@@ -39,7 +47,7 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
     splitContextPath.shift(); //remove root
     const pathToDelete = splitContextPath.pop();
     const cleanContextPath = splitContextPath.join('/');
-    console.log('[DATA::DELETE] cleanContextPath: ', cleanContextPath, ' Deleting: ', pathToDelete);
+    logger.debug('DATA::Delete cleanContextPath: ', cleanContextPath, ' Deleting: ', pathToDelete);
     const { updatedDagCidMap, updatedRootCid } = await removeFileFromDag(
       dataBucket.payload.cid,
       cleanContextPath,
@@ -112,8 +120,8 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
       }),
     ]);
-    console.log(
-      `[DATA::DELETE] ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added, ${updates.length} dataReferences updated`,
+    logger.info(
+      `DATA::Delete ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added, ${updates.length} dataReferences updated`,
     );
 
     /*
@@ -142,14 +150,14 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
     if (!persistedManifestCid)
       throw Error(`[DATA::DELETE]Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
-    console.log(`[DATA::DELETE] Success, path: `, path, ' deleted');
+    logger.info(`DATA::Delete Success, path: `, path, ' deleted');
 
     return res.status(200).json({
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    console.log(`[DATA::DELETE] error: ${e}`);
+    logger.error(`DATA::Delete error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };

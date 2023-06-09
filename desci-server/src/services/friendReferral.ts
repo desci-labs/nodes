@@ -1,9 +1,12 @@
 import { FriendReferralStatus } from '@prisma/client';
 
 import client from '../client';
+import parentLogger from '../logger';
+
+const logger = parentLogger.child({ module: 'Services::FriendReferral' });
 
 export const getReferralByUuid = async (referralUuid: string) => {
-  console.log('friendReferral::getReferralByUuid');
+  logger.trace({ fn: 'getReferralByUuid', referralUuid }, 'friendReferral::getReferralByUuid');
 
   const referral = await client.friendReferral.findFirst({ where: { uuid: referralUuid } });
 
@@ -11,7 +14,7 @@ export const getReferralByUuid = async (referralUuid: string) => {
 };
 
 export const getReferralsByUserId = async (userId: number) => {
-  console.log('friendReferral::getReferralsByUserId');
+  logger.trace({ fn: 'getReferralByUuid', userId }, 'friendReferral::getReferralsByUserId');
 
   const referrals = await client.friendReferral.findMany({ where: { senderUserId: userId } });
 
@@ -19,7 +22,7 @@ export const getReferralsByUserId = async (userId: number) => {
 };
 
 export const saveFriendReferral = async (senderUserId: number, receiverEmail: string) => {
-  console.log('friendReferral::saveFriendReferral');
+  logger.trace({ fn: 'saveFriendReferral', senderUserId, receiverEmail }, 'friendReferral::saveFriendReferral');
 
   const existingReferral = await client.friendReferral.findFirst({ where: { senderUserId, receiverEmail } });
 
@@ -39,7 +42,7 @@ export const saveFriendReferral = async (senderUserId: number, receiverEmail: st
 };
 
 export const updateReferralStatus = async (referralUuid: string, status: FriendReferralStatus) => {
-  console.log('friendReferral::updateReferralStatus');
+  logger.trace({ fn: 'updateReferralStatus', referralUuid, status }, 'friendReferral::updateReferralStatus');
   return await client.friendReferral.update({
     where: {
       uuid: referralUuid,
@@ -55,7 +58,10 @@ export const updateReferralAwardedStorage = async (
   awardedStorage: boolean,
   { amountGb }: { amountGb: number },
 ) => {
-  console.log('friendReferral::updateReferralAwardedStorage');
+  logger.trace(
+    { fn: 'updateReferralAwardedStorage', referralUuid, awardedStorage, amountGb },
+    'friendReferral::updateReferralAwardedStorage',
+  );
   return await client.friendReferral.update({
     where: {
       uuid: referralUuid,

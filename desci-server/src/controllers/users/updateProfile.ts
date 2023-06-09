@@ -2,6 +2,7 @@ import { Organization, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 
 interface ExpectedBody {
   username: string;
@@ -16,11 +17,16 @@ interface ExpectedBody {
 }
 
 export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+  const user = (req as any).user as User;
+  const body = req.body as ExpectedBody;
+  const { profile } = body;
+  const logger = parentLogger.child({
+    module: 'USERS::updateProfileController',
+    body: req.body,
+    user: (req as any).user,
+    profile,
+  });
   try {
-    const user = (req as any).user as User;
-    const body = req.body as ExpectedBody;
-    const { profile } = body;
-
     if (!profile) {
       return res.send({ ok: false, error: 'Missing profile from body' });
     }
@@ -94,13 +100,13 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
         },
       });
     } catch (error) {
-      console.log('Failed to update user in DB', error);
+      logger.error({ error }, 'Failed to update user in DB');
       throw error;
     }
 
     return res.send({ ok: true });
   } catch (error) {
-    console.error('Failed to update profile', error);
+    logger.error({ error }, 'Failed to update profile');
     return res.status(500).send({ ok: false, error });
   }
 };

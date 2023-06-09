@@ -4,6 +4,7 @@ import { NextFunction, Request, Response } from 'express';
 import { ErrorTypes, SiweMessage } from 'siwe';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 import { saveInteraction } from 'services/interactionLog';
 
 const createWalletNickname = async (user: Prisma.UserWhereInput) => {
@@ -19,6 +20,11 @@ const createWalletNickname = async (user: Prisma.UserWhereInput) => {
 };
 
 export const associateWallet = async (req: Request, res: Response, next: NextFunction) => {
+  const logger = parentLogger.child({
+    module: 'USERS::associateWalletController',
+    user: (req as any).user,
+    body: req.body,
+  });
   try {
     if (!req.body.message) {
       res.status(422).json({ message: 'Expected prepareMessage object as body.' });
@@ -110,18 +116,18 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
                 usedFaucet: true,
               },
             });
-            console.log(`gifted user id ${user.id} txHash`, txObj.hash);
+            logger.info(`gifted user id ${user.id} txHash ${txObj.hash}`);
             res.send({ ok: true, gift: txObj.hash });
             return;
           } catch (err) {
-            console.error('failed to connect to blockchain RPC, sending funds failed');
+            logger.error({ err }, 'failed to connect to blockchain RPC, sending funds failed');
           }
         }
       }
       res.send({ ok: true });
       // req.session.save(() => res.status(200).send({ ok: true }));
     } catch (err) {
-      console.error('Error associating wallet to user', err);
+      logger.error({ err }, 'Error associating wallet to user');
       res.status(500).send({ err });
     }
   } catch (e) {
@@ -133,7 +139,7 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
         siweNonce: '',
       },
     });
-    console.error(e);
+    logger.error({ err: e }, 'Error associating wallet to user');
     switch (e) {
       case ErrorTypes.EXPIRED_MESSAGE: {
         res.status(440).json({ message: e.message });

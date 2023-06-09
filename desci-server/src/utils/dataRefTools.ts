@@ -4,6 +4,7 @@ import axios from 'axios';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
+import parentLogger from 'logger';
 import { CidSource, discoveryLs, getDirectoryTree } from 'services/ipfs';
 import { objectPropertyXor, omitKeys } from 'utils';
 
@@ -14,6 +15,8 @@ import {
   neutralizePath,
   inheritComponentType,
 } from './driveUtils';
+
+const logger = parentLogger.child({ module: 'Utils::DataRefTools' });
 
 // generates data references for the contents of a manifest
 export async function generateDataReferences(
@@ -32,7 +35,7 @@ export async function generateDataReferences(
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   const dataBucketCid = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
     .cid;
-  console.log('DATA BUCKET CID: ', dataBucketCid);
+  logger.info({ fn: 'generateDataReferences' }, `DATA BUCKET CID: ${dataBucketCid}`);
   const dataRootEntry: Prisma.DataReferenceCreateManyInput = {
     cid: dataBucketCid,
     path: dataBucketCid,
@@ -239,7 +242,8 @@ export async function validateDataReferences(
   const totalDiffRefs = Object.keys(diffRefs).length;
 
   if (totalMissingRefs) {
-    console.log(
+    logger.info(
+      { fn: 'validateDataReferences' },
       `[validateDataReferences (MISSING)] node id: ${
         node.id
       } is missing ${totalMissingRefs} data refs for dataBucketCid: ${dataBucketCid}, missingRefs: ${JSON.stringify(
@@ -248,11 +252,12 @@ export async function validateDataReferences(
         2,
       )}`,
     );
-    console.log('_______________________________________________________________________________________');
+    logger.debug('_______________________________________________________________________________________');
   }
 
   if (totalUnusedRefs) {
-    console.log(
+    logger.info(
+      { fn: 'validateDataReferences' },
       `[validateDataReferences (UNUSED)] node id: ${
         node.id
       } has ${totalUnusedRefs} unused data refs for dataBucketCid: ${dataBucketCid}, unusedRefs: ${JSON.stringify(
@@ -261,11 +266,12 @@ export async function validateDataReferences(
         2,
       )}`,
     );
-    console.log('_______________________________________________________________________________________');
+    logger.debug('_______________________________________________________________________________________');
   }
 
   if (totalDiffRefs) {
-    console.log(
+    logger.info(
+      { fn: 'validateDataReferences' },
       `[validateDataReferences (DIFF)] node id: ${
         node.id
       } has ${totalDiffRefs} refs with non matching props for dataBucketCid: ${dataBucketCid}, diffRefs: ${JSON.stringify(
@@ -274,7 +280,7 @@ export async function validateDataReferences(
         2,
       )}`,
     );
-    console.log('_______________________________________________________________________________________');
+    logger.debug('_______________________________________________________________________________________');
   }
   return { missingRefs, unusedRefs, diffRefs };
 }
@@ -303,7 +309,10 @@ export async function validateAndHealDataRefs(
           data: missingRefs,
           skipDuplicates: true,
         });
-    console.log(`[validateAndFixDataRefs (MISSING)] node id: ${nodeUuid}, added ${addedRefs.count} missing data refs`);
+    logger.info(
+      { fn: 'validateAndHealDataRefs' },
+      `[validateAndFixDataRefs (MISSING)] node id: ${nodeUuid}, added ${addedRefs.count} missing data refs`,
+    );
   }
   if (unusedRefs.length) {
     const unusedRefIds = unusedRefs.map((ref) => ref.id);
@@ -314,7 +323,8 @@ export async function validateAndHealDataRefs(
       : await prisma.dataReference.deleteMany({
           where: { id: { in: unusedRefIds } },
         });
-    console.log(
+    logger.info(
+      { fn: 'validateAndHealDataRefs' },
       `[validateAndFixDataRefs (UNUSED)] node id: ${nodeUuid}, deleted ${deletedRefs.count} unused data refs`,
     );
   }
@@ -326,6 +336,9 @@ export async function validateAndHealDataRefs(
         ? await prisma.publicDataReference.update(updateOp)
         : await prisma.dataReference.update(updateOp);
     });
-    console.log(`[validateAndFixDataRefs (DIFF)] node id: ${nodeUuid}, healed ${updatedRefs.length} diff data refs`);
+    logger.info(
+      { fn: 'validateAndHealDataRefs' },
+      `[validateAndFixDataRefs (DIFF)] node id: ${nodeUuid}, healed ${updatedRefs.length} diff data refs`,
+    );
   }
 }
