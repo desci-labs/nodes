@@ -31,6 +31,9 @@ env:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    container:
+      image: ubuntu:latest
+      options: --user 1001
 
     steps:
       - name: Check out repository
