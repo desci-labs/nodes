@@ -1,10 +1,9 @@
 import { User } from '@prisma/client';
-
-import parentLogger from 'logger';
 import { hideEmail } from 'utils';
 
 import client from '../client';
 
+import parentLogger from 'logger';
 const logger = parentLogger.child({
   module: 'Services::User',
 });

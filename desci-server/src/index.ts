@@ -11,8 +11,7 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import morgan from 'morgan';
-import pinoHTTP from 'pino-http';
+import pinoHttp from 'pino-http';
 
 import prismaClient from 'client';
 import './utils/response/customSuccess';
@@ -43,7 +42,7 @@ if (ENABLE_TELEMETRY) {
   logger.info('[DeSci Nodes] Telemetry disabled');
 }
 
-// app.use(pinoHTTP({ logger }));
+app.use(pinoHttp({ logger }));
 
 const allowlist = [
   'http://localhost:3000',
@@ -126,18 +125,6 @@ const oneYear = 1000 * 60 * 60 * 24 * 365;
 // );
 app.use(cookieParser());
 app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
-
-if (process.env.NODE_ENV !== 'test') {
-  try {
-    const accessLogStream = fs.createWriteStream(path.join(__dirname, '../log/access.log'), {
-      flags: 'a',
-    });
-    app.use(morgan('combined', { stream: accessLogStream }));
-  } catch (err) {
-    logger.fatal({ err }, 'Failed to create access log stream');
-  }
-  app.use(morgan('combined'));
-}
 
 app.get('/readyz', (req, res) => {
   res.status(200).json({ status: 'ok' });
