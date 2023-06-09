@@ -37,6 +37,10 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
       where: { shareId },
       select: { node: true, nodeUUID: true },
     });
+    if (!privateShare) {
+      res.status(404).send({ ok: false, message: 'Invalid shareId' });
+      return;
+    }
     const node = privateShare.node;
 
     if (privateShare && node) {
