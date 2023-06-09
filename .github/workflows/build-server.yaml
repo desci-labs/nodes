@@ -58,7 +58,12 @@ jobs:
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
 
       - name: Run tests
-        run: cd desci-server && export DOCKER_BUILDKIT=1 && yarn && yarn test
+        run: |
+          cd desci-server && export DOCKER_BUILDKIT=1 && yarn && yarn test
+          echo "exit code $?"
+          if [ $? -ne 0 ]; then
+            exit 1
+          fi
 
   build-and-push:
     needs: build-and-test
