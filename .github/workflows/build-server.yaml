@@ -32,7 +32,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     container:
-      image: ubuntu-20.04
+      image: ubuntu-latest
       options: --user 1001
 
     steps:
@@ -46,9 +46,10 @@ jobs:
         with:
           node-version: 16
 
-      - name: Set up docker
+      - name: Set up docker-compose
         run: |
-          sudo chmod 666 /var/run/docker.sock
+          sudo apt-get install -y docker-compose-plugin
+          docker info
 
       - name: Install dependencies
         run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn
