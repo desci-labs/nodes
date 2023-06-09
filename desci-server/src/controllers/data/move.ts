@@ -22,7 +22,7 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid + '.',
+      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
     },
   });
   if (!node) {

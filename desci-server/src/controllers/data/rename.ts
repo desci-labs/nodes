@@ -21,7 +21,7 @@ export const renameData = async (req: Request, res: Response, next: NextFunction
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid + '.',
+      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
     },
   });
   if (!node) {
@@ -77,13 +77,15 @@ export const renameData = async (req: Request, res: Response, next: NextFunction
     const tree = await getDirectoryTree(updatedRootCid, externalCidMap);
     const flatTree = recursiveFlattenTree(tree);
     flatTree.push({
+      name: 'root',
+      type: 'dir',
+      size: 0,
       cid: updatedRootCid,
       path: updatedRootCid,
-      rootCid: updatedRootCid,
     });
 
     const dataRefsToUpdate: Partial<DataReference>[] = flatTree.map((f) => {
-      if (typeof f.cid !== 'string') f.cid = f.cid.toString();
+      if (typeof f.cid !== 'string') f.cid = (f as any).cid.toString();
       return {
         cid: f.cid,
         rootCid: updatedRootCid,

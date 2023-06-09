@@ -989,6 +989,27 @@ export function strIsCid(cid: string) {
   }
 }
 
+export async function spawnEmptyManifest() {
+  const emptyDagCid = await createEmptyDag();
+
+  const dataBucketComponent: ResearchObjectV1Component = {
+    id: 'root',
+    name: 'root',
+    type: ResearchObjectComponentType.DATA_BUCKET,
+    payload: {
+      cid: emptyDagCid,
+      path: DRIVE_NODE_ROOT_PATH,
+    },
+  };
+
+  const researchObject: ResearchObjectV1 = {
+    version: 'desci-nodes-0.2.0',
+    components: [dataBucketComponent],
+    authors: [],
+  };
+
+  return researchObject;
+}
 export enum CidSource {
   INTERNAL = 'internal',
   EXTERNAL = 'external',

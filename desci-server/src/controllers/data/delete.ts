@@ -3,7 +3,7 @@ import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
-import { getDirectoryTree, removeFileFromDag } from 'services/ipfs';
+import { RecursiveLsResult, getDirectoryTree, removeFileFromDag } from 'services/ipfs';
 import { deneutralizePath, updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
 import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
 
@@ -16,12 +16,11 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
   const { uuid, path } = req.body;
   console.log('[DATA::DELETE] hit, path: ', path, ' nodeUuid: ', uuid, ' user: ', owner.id);
   if (uuid === undefined || path === undefined) return res.status(400).json({ error: 'uuid and path required' });
-
   //validate requester owns the node
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid + '.',
+      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
     },
   });
   if (!node) {
@@ -60,15 +59,14 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
 
     const externalCidMap = await generateExternalCidMap(node.uuid);
     const tree = await getDirectoryTree(updatedRootCid, externalCidMap);
-    const flatTree = recursiveFlattenTree(tree);
+    const flatTree: Partial<RecursiveLsResult>[] = recursiveFlattenTree(tree);
     flatTree.push({
       cid: updatedRootCid,
       path: updatedRootCid,
-      rootCid: updatedRootCid,
     });
 
     const dataRefsToUpdate: Partial<DataReference>[] = flatTree.map((f) => {
-      if (typeof f.cid !== 'string') f.cid = f.cid.toString();
+      if (typeof f.cid !== 'string') f.cid = (f as any).cid.toString();
       return {
         cid: f.cid,
         rootCid: updatedRootCid,
@@ -97,7 +95,7 @@ export const deleteData = async (req: Request, res: Response, next: NextFunction
     const dataRefDeletionIds = dataRefsToDelete.map((e) => e.id);
     const formattedPruneList = dataRefsToDelete.map((e) => {
       return {
-        description: '[DATA::DELETE]path: ' + path,
+        description: '[DATA::DELETE]path: ' + neutralizePath(e.path),
         cid: e.cid,
         type: e.type,
         size: e.size,

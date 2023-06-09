@@ -80,7 +80,7 @@ export const update = async (req: Request, res: Response) => {
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid + '.',
+      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
     },
   });
   if (!node) {
@@ -90,7 +90,9 @@ export const update = async (req: Request, res: Response) => {
 
   const files = req.files as Express.Multer.File[];
   if (!arrayXor([externalUrl, files.length, externalCids?.length, newFolderName?.length]))
-    return res.status(400).json({ error: 'Choose between one of the following; files, externalUrl or externalCids' });
+    return res
+      .status(400)
+      .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
 
   /*
    ** External URL setup, currnetly used for Github Code Repositories & external PDFs
@@ -105,6 +107,7 @@ export const update = async (req: Request, res: Response) => {
     (externalUrl && externalUrl?.url?.length && componentType === ResearchObjectComponentType.PDF)
   ) {
     try {
+      // External URL code, only supports github for now
       if (componentType === ResearchObjectComponentType.CODE) {
         const processedUrl = await processExternalUrls(externalUrl.url, componentType);
         const zipBuffer = await zipUrlToBuffer(processedUrl);
@@ -112,6 +115,7 @@ export const update = async (req: Request, res: Response) => {
         externalUrlFiles = files;
         externalUrlTotalSizeBytes = totalSize;
       }
+      // External URL pdf
       if (componentType === ResearchObjectComponentType.PDF) {
         const url = externalUrl.url;
         const res = await axios.get(url, { responseType: 'arraybuffer' });
@@ -299,7 +303,7 @@ export const update = async (req: Request, res: Response) => {
   const ltsNode = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid + '.',
+      uuid: node.uuid,
     },
   });
 
@@ -357,6 +361,7 @@ export const update = async (req: Request, res: Response) => {
     //Update refs
     const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString, externalCidMap));
     flatTree.push({
+      name: 'root',
       cid: newRootCidString,
       type: 'dir',
       path: newRootCidString,
@@ -373,10 +378,10 @@ export const update = async (req: Request, res: Response) => {
     });
 
     const dataRefsToUpsert: Partial<DataReference>[] = flatTree.map((f) => {
-      if (typeof f.cid !== 'string') f.cid = f.cid.toString();
+      if (typeof f.cid !== 'string') f.cid = (f as any).cid.toString();
       const neutralPath = neutralizePath(f.path);
       const extTypeAndSize = externalCidMap[f.cid];
-      if (extTypeAndSize) f.directory = extTypeAndSize.directory;
+      if (extTypeAndSize) f.type = extTypeAndSize.directory ? 'dir' : 'file';
       return {
         cid: f.cid,
         root: f.cid === newRootCidString,
@@ -385,7 +390,7 @@ export const update = async (req: Request, res: Response) => {
         type: DataType.UNKNOWN,
         userId: owner.id,
         nodeId: node.id,
-        directory: f.directory || f.type === 'dir' ? true : false,
+        directory: f.type === 'dir' ? true : false,
         size: f.size || 0,
       };
     });
@@ -439,13 +444,13 @@ export const update = async (req: Request, res: Response) => {
     oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
 
     const newFilesPathAdjusted = flatTree.map((f) => {
-      f.path = f.path.replace(newRootCidString, '', 0);
+      f.path = f.path.replace(newRootCidString, '');
       return f;
     });
 
     //length should be n + 1, n being nested dirs + rootCid
     const pruneList = oldFlatTree.filter((oldF) => {
-      const oldPathAdjusted = oldF.path.replace(rootCid, '', 0);
+      const oldPathAdjusted = oldF.path.replace(rootCid, '');
       //a path match && a CID difference = prune
       return newFilesPathAdjusted.some((newF) => oldPathAdjusted === newF.path && oldF.cid !== newF.cid);
     });
