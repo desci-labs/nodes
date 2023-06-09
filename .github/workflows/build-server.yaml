@@ -32,7 +32,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     container:
-      image: lucasalt/act_base:latest
+      image: ubuntu-20.04
       options: --user 1001
 
     steps:
@@ -45,6 +45,10 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: 16
+
+      - name: Set up docker
+        run: |
+          sudo chmod 666 /var/run/docker.sock
 
       - name: Install dependencies
         run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn
