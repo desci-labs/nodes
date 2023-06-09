@@ -12,7 +12,7 @@ const devTransport = {
 
 const fileTransport = {
   target: 'pino/file',
-  options: { destination: `${__dirname}/server.log` },
+  options: { destination: `${__dirname}/../log/server.log` },
   level: 'trace',
 };
 
@@ -21,14 +21,16 @@ const logger = pino({
   serializers: {
     files: omitBuffer,
   },
-  transport: {
-    targets: [
-      devTransport,
-      // fileTransport
-    ],
-  },
+  transport:
+    process.env.NODE_ENV === 'production'
+      ? undefined
+      : {
+          targets: [devTransport, fileTransport],
+        },
   redact: {
     paths: [
+      'req.headers.cookie',
+      'req.headers.authorization',
       'user.email',
       '*.user.email',
       'user.name',

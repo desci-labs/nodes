@@ -1,8 +1,9 @@
 import { createClient } from 'redis';
 
 import parentLogger from 'logger';
-
-const logger = parentLogger.child({ module: 'redisClient' });
+const logger = parentLogger.child({
+  module: 'RedisClient',
+});
 
 const redisClient = createClient({
   // url: process.env.REDIS_URL,
@@ -35,7 +36,7 @@ async function initRedisClient() {
 initRedisClient();
 
 redisClient.on('connect', () => {
-  logger.info('Redis Client successfully connected on port', process.env.REDIS_PORT);
+  logger.info({ port: process.env.REDIS_PORT }, 'Redis Client successfully connected on port');
 });
 
 redisClient.on('error', (err) => {
