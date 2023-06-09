@@ -32,7 +32,7 @@ import {
   deneutralizePath,
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
-  getTreeAndFillSizes,
+  getTreeAndFill,
   inheritComponentType,
   neutralizePath,
   recursiveFlattenTree,
@@ -455,7 +455,7 @@ export const update = async (req: Request, res: Response) => {
     if (!persistedManifestCid)
       throw Error(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
-    const tree = await getTreeAndFillSizes(newRootCidString, uuid, DataReferenceSrc.PRIVATE, owner.id);
+    const tree = await getTreeAndFill(newRootCidString, uuid, DataReferenceSrc.PRIVATE, owner.id);
     return res.status(200).json({
       rootDataCid: newRootCidString,
       manifest: updatedManifest,

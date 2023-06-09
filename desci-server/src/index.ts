@@ -12,7 +12,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import morgan from 'morgan';
-import pinoHTTP from 'pino-http';
+// import pinoHTTP from 'pino-http';
 
 import prismaClient from 'client';
 import './utils/response/customSuccess';

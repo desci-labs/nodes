@@ -9,7 +9,7 @@ import tar from 'tar';
 import prisma from 'client';
 import parentLogger from 'logger';
 import { getDatasetTar } from 'services/ipfs';
-import { getTreeAndFillSizes } from 'utils/driveUtils';
+import { getTreeAndFill } from 'utils/driveUtils';
 
 export enum DataReferenceSrc {
   PRIVATE = 'private',
@@ -98,7 +98,7 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
     return;
   }
 
-  const filledTree = await getTreeAndFillSizes(cid, uuid, dataSource, ownerId);
+  const filledTree = await getTreeAndFill(cid, uuid, dataSource, ownerId);
 
   res.status(200).json({ tree: filledTree, date: dataset?.updatedAt });
 };
@@ -137,7 +137,7 @@ export const pubTree = async (req: Request, res: Response, next: NextFunction) =
     return res.status(400).json({ error: 'Failed to retrieve' });
   }
 
-  const filledTree = await getTreeAndFillSizes(cid, uuid, dataSource);
+  const filledTree = await getTreeAndFill(cid, uuid, dataSource);
 
   return res.status(200).json({ tree: filledTree, date: publicDataset.updatedAt });
 };
