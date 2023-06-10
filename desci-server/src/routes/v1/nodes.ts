@@ -55,9 +55,9 @@ router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/accessRoles', [ensureUser], getNodeAccessRoles);
 router.get('/:uuid/contributors', [ensureNodeAccess], getNodeContributors);
 router.get('/:uuid/allInvites', [ensureNodeAdmin], getAllAccessInvites);
-router.get('/:uuid/accessInvites', [ensureNodeAccess], getAuthorNodeInvites);
-router.post('/:uuid/accessInvite', [ensureUser, ensureNodeAdmin], sendAccessInvite);
-router.post('/:uuid/revokeAccess', [ensureUser, ensureNodeAdmin], revokeAccess);
+router.get('/:uuid/invites', [ensureNodeAccess], getAuthorNodeInvites);
+router.post('/:uuid/accessInvite', [ensureNodeAdmin], sendAccessInvite);
+router.post('/:uuid/revokeAccess', [ensureNodeAdmin], revokeAccess);
 router.post('/accessInvite/accept', [ensureUser], acceptAuthorInvite);
 router.post('/accessInvite/reject', [ensureUser], rejectAuthorInvite);
 

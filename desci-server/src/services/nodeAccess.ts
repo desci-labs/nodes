@@ -62,7 +62,7 @@ export const transferAdminAccess = async ({ senderId, receiverId, uuid, receiver
   const creditRole = await prisma.nodeCreditRoles.findFirst({ where: { id: receiverRoleId } });
 
   if (!creditRole) {
-    throw Error('setNodeAdmin:: credit role not found');
+    throw Error('credit role not found');
   }
 
   // revoke current admin access
@@ -70,20 +70,22 @@ export const transferAdminAccess = async ({ senderId, receiverId, uuid, receiver
     where: { userId: senderId, uuid, role: { role: ResearchRoles.ADMIN } },
   });
 
+  if (!senderAccess) throw Error('Sender has no admin access');
+
   const receiverAccess = await prisma.nodeAccess.findFirst({
     where: { userId: receiverId, uuid },
   });
 
-  const [deletedAdmin, deletedReceiver, createResult] = await prisma.$transaction([
-    prisma.nodeAccess.delete({ where: { id: senderAccess.id } }),
-    prisma.nodeAccess.delete({ where: { id: receiverAccess.id } }),
+  const [deletedAdmin, createResult] = await prisma.$transaction([
+    prisma.nodeAccess.deleteMany({
+      where: { id: { in: [senderAccess.id, receiverAccess && receiverAccess?.id].filter(Boolean) } },
+    }),
     prisma.nodeAccess.createMany({
       data: [{ userId: receiverId, uuid, roleId: receiverRoleId }],
     }),
   ]);
-
-  assert(deletedAdmin.id === senderAccess.id);
-  assert(deletedReceiver.id === receiverAccess.id);
+  console.log('result', deletedAdmin, createResult);
+  assert(deletedAdmin.count === receiverAccess?.id ? 2 : 1);
   assert(createResult.count === 1);
   return createResult;
 };
@@ -100,7 +102,7 @@ export const grantNodeAccessByRoleId = async (userId: number, uuid: string, role
 };
 
 const sendAuthorInviteEmail = async (msg: MailDataRequired, data: AuthorInviteOptions & { token: string }) => {
-  const { senderId, roleId, nodeId, token } = data;
+  const { senderId, receiverId, roleId, nodeId, token } = data;
 
   const email = data.email.toLowerCase();
   // const token = createRandomCode();
@@ -126,6 +128,7 @@ const sendAuthorInviteEmail = async (msg: MailDataRequired, data: AuthorInviteOp
       email,
       inviteCode: token,
       senderId,
+      receiverId,
       roleId,
       nodeId,
       expiresAt: In7Days,

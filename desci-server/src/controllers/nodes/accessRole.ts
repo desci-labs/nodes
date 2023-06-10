@@ -40,8 +40,9 @@ export const getNodeContributors = async (req: RequestWithNodeAccess, res: Respo
 
 export const getAuthorNodeInvites = async (req: RequestWithNodeAccess, res: Response) => {
   try {
+    console.log('getAuthorNodeInvites', req.user, req.nodeAccess);
     const invites = await prisma.authorInvite.findMany({
-      where: { senderId: req.user.id, nodeId: req.node.id },
+      where: { senderId: req.user.id, nodeId: req.node.id, expired: false },
       include: {
         sender: { select: { id: true, email: true, name: true } },
         receiver: { select: { id: true, email: true, name: true } },
@@ -76,20 +77,36 @@ export const sendAccessInvite = async (req: RequestWithNodeAccess, res: Response
     const role = await prisma.nodeCreditRoles.findFirst({ where: { id: roleId } });
 
     if (!(role && email)) {
-      throw Error('Invalid role or email');
-    }
-
-    const isAdminTransfer = role.role === ResearchRoles.ADMIN;
-    const userToInvite = await prisma.user.findFirst({ where: { email } });
-
-    if (req.user.id === userToInvite?.id) {
-      res.status(401).send({ ok: false });
+      res.status(403).send({ ok: false, message: 'Invalid collaborator role or email' });
       return;
     }
 
+    const isAdminTransfer = role.role === ResearchRoles.ADMIN;
+    const userToInvite = await prisma.user.findUnique({ where: { email } });
+
+    if (req.user.id === userToInvite?.id) {
+      res.status(403).send({ ok: false, message: 'Invalid invitation' });
+      return;
+    }
+
+    // todo: check if email has active access to this node (nodeAccess table)
+    const receiverAccess = await prisma.nodeAccess.findUnique({
+      where: { uuid_userId: { userId: userToInvite?.id || 0, uuid: req.node.uuid } },
+      include: { role: true },
+    });
+
+    console.log('receiverAccess', receiverAccess);
+
     if (isAdminTransfer) {
-      // TODO: grant admin access to user if exists or throw error (remember to initiate blockchain write on frontend)
-      // todo: send invite email to new admin
+      if (receiverAccess) {
+        res.status(403).send({ ok: false, message: 'User already a node admin' });
+        return;
+      }
+
+      if (!userToInvite) {
+        res.status(403).send({ ok: false, message: 'Email not linked to a registered user' });
+        return;
+      }
     }
 
     await sendNodeAccessInvite({
