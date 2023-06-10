@@ -31,7 +31,7 @@ export const getNodeContributors = async (req: RequestWithNodeAccess, res: Respo
         role: { select: { id: true, credit: true, role: true } },
       },
     });
-    res.send({ ok: true, data: { contributors } });
+    res.send({ ok: true, data: contributors });
   } catch (e) {
     console.log('GetNodeContributors::Error=======>', e);
     res.status(500).send({ message: 'Unknow Error occured' });
@@ -49,7 +49,7 @@ export const getAuthorNodeInvites = async (req: RequestWithNodeAccess, res: Resp
         role: { select: { id: true, credit: true, role: true } },
       },
     });
-    res.send({ ok: true, data: { invites } });
+    res.send({ ok: true, data: invites });
   } catch (e) {
     res.status(500).send({ message: 'Unknow Error occured' });
   }

@@ -9,7 +9,7 @@ import { AuthorInviteStatus, ResearchCredits, ResearchRoles } from '@prisma/clie
 import sgMail, { MailDataRequired } from '@sendgrid/mail';
 
 import prisma from 'client';
-import { AuthorInviteOptions, GrandAccessParams, TransferAccessParams } from 'controllers/nodes/types';
+import { AuthorInviteOptions, GrantAccessParams, TransferAccessParams } from 'controllers/nodes/types';
 import createRandomCode from 'utils/createRandomCode';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -26,7 +26,7 @@ export const setNodeAdmin = async (userId: number, uuid: string, credit: Researc
 };
 
 //* if user has access already, update roleId to new access role
-export const grantNodeAccess = async ({ userId, uuid, credit, role }: GrandAccessParams) => {
+export const grantNodeAccess = async ({ userId, uuid, credit, role }: GrantAccessParams) => {
   const prevAccess = await prisma.nodeAccess.findFirst({ where: { userId, uuid } });
 
   const creditRole = await prisma.nodeCreditRoles.findFirst({ where: { role, credit } });
@@ -44,7 +44,7 @@ export const grantNodeAccess = async ({ userId, uuid, credit, role }: GrandAcces
   return await prisma.nodeAccess.create({ data: { uuid, userId, roleId: creditRole.id } });
 };
 
-export const revokeNodeAccess = async ({ userId, uuid, credit, role }: GrandAccessParams) => {
+export const revokeNodeAccess = async ({ userId, uuid, credit, role }: GrantAccessParams) => {
   const creditRole = await prisma.nodeCreditRoles.findFirst({ where: { role, credit } });
 
   if (!creditRole) {
@@ -84,7 +84,7 @@ export const transferAdminAccess = async ({ senderId, receiverId, uuid, receiver
       data: [{ userId: receiverId, uuid, roleId: receiverRoleId }],
     }),
   ]);
-  console.log('result', deletedAdmin, createResult);
+
   assert(deletedAdmin.count === receiverAccess?.id ? 2 : 1);
   assert(createResult.count === 1);
   return createResult;

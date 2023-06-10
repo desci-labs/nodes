@@ -15,7 +15,7 @@ export interface AuthorInviteOptions {
   email: string;
 }
 
-export interface GrandAccessParams {
+export interface GrantAccessParams {
   userId: number;
   uuid: string;
   credit: ResearchCredits;
