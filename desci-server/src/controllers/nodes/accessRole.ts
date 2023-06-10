@@ -87,6 +87,11 @@ export const sendAccessInvite = async (req: RequestWithNodeAccess, res: Response
       return;
     }
 
+    if (isAdminTransfer) {
+      // TODO: grant admin access to user if exists or throw error (remember to initiate blockchain write on frontend)
+      // todo: send invite email to new admin
+    }
+
     await sendNodeAccessInvite({
       senderId: req.user.id,
       receiverId: userToInvite?.id,
@@ -194,8 +199,10 @@ export const acceptAuthorInvite = async (req: RequestWithUser, res: Response) =>
         receiverId: req.user.id,
         receiverRoleId: invite.roleId,
       });
+      // todo: send admin invite accepted email to sender and receiver
     } else {
       await grantNodeAccess({ userId: req.user.id, uuid: node.uuid, credit: role.credit, role: role.role });
+      // todo: send access invite accepted email to sender and receiver
     }
 
     await prisma.authorInvite.update({ where: { id: invite.id }, data: { status: 'ACCEPTED' } });
