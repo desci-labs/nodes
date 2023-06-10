@@ -3,9 +3,11 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 import prisma from 'client';
+import logger from 'logger';
 import { getUserByEmail, getUserByOrcId } from 'services/user';
+import { CustomError } from 'utils/response/custom-error/CustomError';
 
-import { CustomError } from '../utils/response/custom-error/CustomError';
+import { RequestWithUser } from './nodeGuard';
 
 export const ensureUser = async (req: Request, res: Response, next: NextFunction) => {
   const retrievedUser = await retrieveUser(req);
@@ -14,7 +16,7 @@ export const ensureUser = async (req: Request, res: Response, next: NextFunction
     res.status(401).send({ ok: false, message: 'Unauthorized' });
     return;
   }
-  (req as any).user = retrievedUser;
+  (req as RequestWithUser).user = retrievedUser;
   next();
 };
 
@@ -30,7 +32,7 @@ export const retrieveUser = async (req: Request): Promise<User> => {
     jwt.verify(token, process.env.JWT_SECRET as string, async (err: any, user: any) => {
       if (err) {
         // anonymous user
-        console.log('anon request');
+        logger.info({ module: 'retrieveUserMiddleware', authHeader, token }, 'anon request');
         // console.log(err);
       }
 

@@ -9,7 +9,7 @@ import { ethers } from 'ethers';
 import { NextFunction, Request, Response } from 'express';
 
 import { decodeBase64UrlSafeToHex, hexToCid } from '@/../utils';
-import prisma from 'client';
+import parentLogger from 'logger';
 import { getIndexedResearchObjects } from 'theGraph';
 
 import goerli from '../../desci-contracts-artifacts/contracts/ResearchObject.sol/ResearchObject.json';
@@ -21,7 +21,7 @@ export const directChainCall = async (decodedUuid: string) => {
   let provider;
   try {
     provider = new ethers.providers.JsonRpcProvider(
-      process.env.NODE_ENV != 'dev'
+      process.env.NODE_ENV === 'production'
         ? 'https://eth-goerli.g.alchemy.com/v2/ZeIzCAJyPpRnTtPNSmddHGF-q2yp-2Uy'
         : 'http://host.docker.internal:8545',
     );
@@ -30,8 +30,8 @@ export const directChainCall = async (decodedUuid: string) => {
     throw Error('failed to connect to blockchain RPC');
   }
 
-  const compiled = process.env.NODE_ENV != 'dev' ? goerli : localhost;
-  const deployed = process.env.NODE_ENV != 'dev' ? goerliInfo : localhostInfo;
+  const compiled = process.env.NODE_ENV === 'production' ? goerli : localhost;
+  const deployed = process.env.NODE_ENV === 'production' ? goerliInfo : localhostInfo;
   const deployedAddress = deployed.proxies[deployed.proxies.length - 1].address;
 
   const researchObjectContract = new ethers.Contract(deployedAddress, compiled.abi, provider);
@@ -64,11 +64,22 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
    *                          if pdf component, send PDF
    *                          if code component, parse file tree suffix after slash and send code text for specified file
    */
-  console.log('[resolve::resolve] allParams=', req.params);
   const uuid = req.params.query; // TODO: check if we need a dot here
-  const [firstParam, secondParam, thirdParam, ...rest] = req.params[0]?.substring(1).split('/');
-  console.log(`[resolve::resolve] firstParam=${firstParam} secondParam=${secondParam}`);
   const decodedUuid = '0x' + decodeBase64UrlSafeToHex(uuid);
+  const [firstParam, secondParam, thirdParam, ...rest] = req.params[0]?.substring(1).split('/');
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'RAW::resolveController',
+    body: req.body,
+    uuid,
+    params: req.params,
+    firstParam,
+    secondParam,
+    thirdParam,
+    remainderParams: rest,
+    user: (req as any).user,
+  });
+  logger.debug(`[resolve::resolve] firstParam=${firstParam} secondParam=${secondParam}`);
 
   // const node = await prisma.node.findFirst({
   //   where: { uuid },
@@ -81,7 +92,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
   //     },
   //   },
   // });
-  const deployed = process.env.NODE_ENV != 'dev' ? goerliInfo : localhostInfo;
+  const deployed = process.env.NODE_ENV === 'production' ? goerliInfo : localhostInfo;
   const deployedAddress = deployed.proxies[0].address;
   let graphOk = false;
   let result;
@@ -91,13 +102,13 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
     result.versions.reverse();
     graphOk = true;
   } catch (err) {
-    console.error('[ERROR] graph lookup fail', err.message);
+    logger.warn({ err }, `[ERROR] graph lookup fail ${err.message}`);
   }
 
   if (!result) {
     // indexer down
     // attempt to read off chain directly
-    console.error('resolver: empty result or indexer down');
+    logger.warn({ result }, 'resolver: empty result or indexer down');
     // try {
     //   const chainData = await directChainCall(decodedUuid);
     //   result = chainData;
@@ -125,7 +136,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
     const targetCid = result.recentCid;
     const cidString = hexToCid(targetCid);
     try {
-      console.log(`Calling IPFS Resolver ${ipfsResolver} for CID ${cidString}`);
+      logger.info(`Calling IPFS Resolver ${ipfsResolver} for CID ${cidString}`);
       const { data } = await axios.get(`${ipfsResolver}/${cidString}`);
       res.send(data);
     } catch (err) {
@@ -140,7 +151,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
 
   if (firstParam.length < 10) {
     // assume version by index
-    console.log(`parsing ${firstParam} as index`);
+    logger.info(`parsing ${firstParam} as index`);
     const index = parseInt(firstParam);
     cidString = result.versions[index]?.cid;
     if (!cidString) {
@@ -200,13 +211,13 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
         return;
       case ResearchObjectComponentType.CODE:
         const codeComponent = component as CodeComponent;
-        console.log('is code component');
+        logger.debug('is code component');
         if (!thirdParam) {
           res.send(component);
           return;
         }
         if (thirdParam == '!') {
-          console.log('recognize zip');
+          logger.debug('recognize zip');
           //send the zip
           axios.get(`${ipfsResolver}/${codeComponent.payload.url}`, { responseType: 'stream' }).then((response) => {
             // The response will give you the zip file

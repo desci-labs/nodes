@@ -1,6 +1,28 @@
 #!/bin/bash
 
+# Sane error handling
+# add -x to debug command flow
+set -euo pipefail
+
+function assert_command_available {
+  cmd_to_check=$1
+  if ! command -v "$cmd_to_check" &> /dev/null
+  then
+    echo "Script dependency '$cmd_to_check' is not installed, aborting"
+    exit 1
+  fi
+}
+
+# Make sure implicit dependencies are available
+assert_command_available "docker"
+assert_command_available "docker-compose"
+assert_command_available "lsof"
+
 [ ! -f ".env" ] && cp .env.example .env
+if ! grep MNEMONIC .env &> /dev/null; then
+  echo "ERROR: set MNEMONIC in .env"
+  exit 1
+fi
 MNEMONIC=$(grep MNEMONIC .env)
 
 [ ! -f "./nodes-media/.env" ] && cp ./nodes-media/.env.example ./nodes-media/.env
@@ -14,9 +36,20 @@ fi
 if [ -z $NVM_DIR ]; then
     echo "NVM_DIR not set, please install NVM"
     echo "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash"
+    exit 1
 fi
-export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+
+# Since nvm is loaded through shell config, it's not available
+# in scripts unless we source it manually
+NVM_SCRIPT="$NVM_DIR/nvm.sh"
+if [[ -s "$NVM_SCRIPT" ]]
+then
+  source "$NVM_SCRIPT"
+else
+  echo "Could not find $NVM_SCRIPT, aborting"
+  exit 1
+fi
+
 nvm install $(cat .nvmrc)
 nvm use
 npm i -g hardhat
@@ -41,11 +74,15 @@ if [ -d "desci-server" ]; then
     cd ..
 fi
 
+set +o pipefail
 GANACHE_PID=$(lsof -i:8545 | grep '*:8545' | awk '{print $2}' | tail -n 1)
+set -o pipefail
 if [ $GANACHE_PID ]; then
     echo "killing ganache, pid=$GANACHE_PID"
     kill -9 $GANACHE_PID
 fi
 
+# Use ADDITIONAL_FLAGS if provided, otherwise default empty
+ADDITIONAL_FLAGS=${ADDITIONAL_FLAGS:-""}
 echo $PWD
 COMPOSE_HTTP_TIMEOUT=120 docker-compose --file docker-compose.yml --file docker-compose.dev.yml $ADDITIONAL_FLAGS --compatibility up --build

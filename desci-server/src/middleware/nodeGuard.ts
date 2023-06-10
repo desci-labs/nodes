@@ -48,8 +48,8 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
     return;
   }
 
-  (req as any).node = node;
-  (req as any).nodeAccess = nodeAccess;
+  (req as RequestWithNodeAccess).node = node;
+  (req as RequestWithNodeAccess).nodeAccess = nodeAccess;
   next();
 };
 
@@ -84,8 +84,8 @@ export const ensureNodeAdmin = async (req: RequestWithUser, res: Response, next:
     return;
   }
 
-  (req as any).node = node;
-  (req as any).nodeAccess = nodeAccess;
+  (req as RequestWithNodeAccess).node = node;
+  (req as RequestWithNodeAccess).nodeAccess = nodeAccess;
   next();
 };
 

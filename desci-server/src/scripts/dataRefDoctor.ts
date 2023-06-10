@@ -1,9 +1,9 @@
-import { ResearchObjectComponentType } from '@desci-labs/desci-models';
 import { DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
 
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
+import parentLogger from 'logger';
 import { getSizeForCid } from 'services/ipfs';
 import { getIndexedResearchObjects } from 'theGraph';
 import { hexToCid } from 'utils';
@@ -33,6 +33,8 @@ Heal external flag in refs:
 healAll:      OPERATION=healAll PUBLIC_REFS=true MARK_EXTERNALS=true npm run script:fix-data-refs
  */
 
+const logger = parentLogger.child({ module: 'SCRIPTS::dataRefDoctor' });
+
 main();
 function main() {
   const { operation, nodeUuid, manifestCid, publicRefs, start, end, markExternals, txHash, userEmail } =
@@ -42,11 +44,11 @@ function main() {
 
   switch (operation) {
     case 'validate':
-      if (!nodeUuid && !manifestCid) return console.log('Missing NODE_UUID or MANIFEST_CID');
+      if (!nodeUuid && !manifestCid) return logger.error('Missing NODE_UUID or MANIFEST_CID');
       validateDataReferences(nodeUuid, manifestCid, publicRefs, markExternals, txHash);
       break;
     case 'heal':
-      if (!nodeUuid && !manifestCid) return console.log('Missing NODE_UUID or MANIFEST_CID');
+      if (!nodeUuid && !manifestCid) return logger.error('Missing NODE_UUID or MANIFEST_CID');
       validateAndHealDataRefs(nodeUuid, manifestCid, publicRefs, markExternals, txHash);
       break;
     case 'validateAll':
@@ -56,11 +58,11 @@ function main() {
       dataRefDoctor(true, publicRefs, startIterator, endIterator, markExternals);
       break;
     case 'fillPublic':
-      if (!nodeUuid && !userEmail) return console.log('Missing NODE_UUID or USER_EMAIL');
+      if (!nodeUuid && !userEmail) return logger.error('Missing NODE_UUID or USER_EMAIL');
       fillPublic(nodeUuid, userEmail);
       break;
     default:
-      console.log('Invalid operation, valid operations include: validate, heal, validateAll, healAll');
+      logger.error('Invalid operation, valid operations include: validate, heal, validateAll, healAll');
       return;
   }
 }
@@ -92,14 +94,14 @@ async function dataRefDoctor(
       id: 'asc',
     },
   });
-  console.log(`[DataRefDoctor]Nodes found: ${nodes.length}`);
+  logger.info(`[DataRefDoctor]Nodes found: ${nodes.length}`);
 
   const startIdx = start || 0;
   const endIdx = end || nodes.length;
 
   for (let i = startIdx; i < endIdx; i++) {
     try {
-      console.log(`[DataRefDoctor]Processing node: ${nodes[i].id}`);
+      logger.info(`[DataRefDoctor]Processing node: ${nodes[i].id}`);
       const node = nodes[i];
 
       if (publicRefs) {
@@ -108,11 +110,11 @@ async function dataRefDoctor(
         const indexedNode = researchObjects[0];
         const totalVersionsIndexed = indexedNode.versions.length || 0;
         if (!totalVersionsIndexed) continue;
-        console.log(
+        logger.info(
           `[DataRefDoctor]Processing node: ${nodes[i].id}, found versions indexed: ${totalVersionsIndexed}, for nodeUuid: ${node.uuid}`,
         );
         for (let nodeVersIdx = 0; nodeVersIdx < totalVersionsIndexed; nodeVersIdx++) {
-          console.log(
+          logger.info(
             `[DataRefDoctor]Processing indexed version: ${nodeVersIdx}, with txHash: ${indexedNode.versions[nodeVersIdx]?.id}`,
           );
           const hexCid = indexedNode.versions[nodeVersIdx]?.cid || indexedNode.recentCid;
@@ -133,19 +135,19 @@ async function dataRefDoctor(
         }
       }
     } catch (e) {
-      console.log(`[DataRefDoctor]Error processing node: ${nodes[i].id}, error: ${e}`);
+      logger.error({ error: e, node: nodes[i] }, `[DataRefDoctor]Error processing node: ${nodes[i].id}`);
     }
   }
 }
 
 async function fillPublic(nodeUuid: string, userEmail: string) {
   const user = await prisma.user.findUnique({ where: { email: userEmail } });
-  if (!user) return console.log(`[FillPublic] Failed to find user with email: ${userEmail}`);
+  if (!user) return logger.error(`[FillPublic] Failed to find user with email: ${userEmail}`);
 
   if (!nodeUuid.endsWith('.')) nodeUuid += '.';
   const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
   if (!researchObjects.length)
-    console.log(`[FillPublic] Failed to resolve any public nodes with the uuid: ${nodeUuid}`);
+    logger.error(`[FillPublic] Failed to resolve any public nodes with the uuid: ${nodeUuid}`);
 
   const indexedNode = researchObjects[0];
   const latestHexCid = indexedNode.recentCid;
@@ -154,7 +156,10 @@ async function fillPublic(nodeUuid: string, userEmail: string) {
   const latestManifest = await (await axios.get(manifestUrl)).data;
 
   if (!latestManifest)
-    return console.log(`[FillPublic] Failed to retrieve manifest from ipfs cid: ${latestManifestCid}`);
+    return logger.error(
+      { manifestUrl, latestManifestCid },
+      `[FillPublic] Failed to retrieve manifest from ipfs cid: ${latestManifestCid}`,
+    );
 
   const title = '[IMPORTED NODE]' + latestManifest.title || 'Imported Node';
   let node = await prisma.node.findUnique({ where: { uuid: nodeUuid } });
@@ -174,7 +179,7 @@ async function fillPublic(nodeUuid: string, userEmail: string) {
   const totalVersionsIndexed = indexedNode.versions.length || 0;
   try {
     for (let nodeVersIdx = 0; nodeVersIdx < totalVersionsIndexed; nodeVersIdx++) {
-      console.log(
+      logger.info(
         `[DataRefDoctor]Processing indexed version: ${nodeVersIdx}, with txHash: ${indexedNode.versions[nodeVersIdx]?.id}`,
       );
       const hexCid = indexedNode.versions[nodeVersIdx]?.cid || indexedNode.recentCid;
@@ -204,12 +209,25 @@ async function fillPublic(nodeUuid: string, userEmail: string) {
 
       //generate pub drefs for the bucket
       await validateAndHealDataRefs(node.uuid, manifestCid, true, true, txHash);
-      console.log(
+      logger.info(
         `[DataRefDoctor]Successfully processed indexed node v: ${nodeVersIdx}, with txHash: ${indexedNode.versions[nodeVersIdx]?.id}, under user: ${user.email}`,
       );
     }
-    console.log(`[FillPublic] Successfully backfilled data refs for public node: ${nodeUuid}`);
+    logger.info(`[FillPublic] Successfully backfilled data refs for public node: ${nodeUuid}`);
   } catch (e) {
-    console.log(`[FillPublic] Failed to backfill data refs for public node: ${nodeUuid}, error: ${e}`);
+    logger.error(
+      {
+        err: e,
+        nodeUuid,
+        latestHexCid,
+        latestManifestCid,
+        userEmail,
+        manifestUrl,
+        latestManifest,
+        totalVersionsIndexed,
+        indexedNode,
+      },
+      `[FillPublic] Failed to backfill data refs for public node: ${nodeUuid}, error`,
+    );
   }
 }

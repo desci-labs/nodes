@@ -4,11 +4,14 @@ import { Invite, prisma, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import AWS from 'aws-sdk';
 
+import parentLogger from 'logger';
 import createRandomCode from 'utils/createRandomCode';
 
 AWS.config.update({ region: 'us-east-2' });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 import client from '../client';
+
+const logger = parentLogger.child({ module: 'Services::Auth' });
 
 const registerUser = async (email: string) => {
   email = email.toLowerCase();
@@ -24,7 +27,7 @@ const registerUser = async (email: string) => {
 
 const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
   email = email.toLowerCase();
-  console.log('auth::magicLinkRedeem', email, token);
+  logger.trace({ fn: 'magicLinkRedeem', email, token }, 'auth::magicLinkRedeem');
   const link = await client.magicLink.findFirst({
     where: {
       email,
@@ -80,7 +83,7 @@ const sendMagicLinkEmail = async (email: string) => {
   });
 
   if (env.SHOULD_SEND_EMAIL) {
-    console.log(`Sending actual email to ${email} token: ${token}`);
+    logger.info({ fn: 'sendMagicLinkEmail', email, token }, `Sending actual email to ${email} token: ${token}`);
 
     const url = `${env.DAPP_URL}/web/login?e=${email}&c=${token}`;
     const msg = {
@@ -126,9 +129,9 @@ const sendMagicLinkEmail = async (email: string) => {
       //   .sendEmail(params)
       //   .promise();
       // const data = await sendPromise;
-      console.log('Email sent', msg);
+      logger.info({ fn: 'sendMagicLinkEmail', email, msg }, 'Email sent');
     } catch (err) {
-      console.error('Mail error', err);
+      logger.error({ fn: 'sendMagicLinkEmail', err, email, token }, 'Mail error');
     }
     return true;
   } else {
@@ -136,7 +139,7 @@ const sendMagicLinkEmail = async (email: string) => {
     const BgGreen = '\x1b[42m';
     const BgYellow = '\x1b[43m';
     const BIG_SIGNAL = `\n\n${BgYellow}$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$${Reset}\n\n`;
-    console.log(`${BIG_SIGNAL}Simulating email to ${email}\n\nToken: ${BgGreen}${token}${Reset}${BIG_SIGNAL}`);
+    logger.info(`${BIG_SIGNAL}Simulating email to ${email}\n\nToken: ${BgGreen}${token}${Reset}${BIG_SIGNAL}`);
     return true;
   }
 };

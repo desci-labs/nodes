@@ -1,10 +1,15 @@
 import { User } from '@prisma/client';
-
-import client from '../client';
 import { hideEmail } from 'utils';
 
+import client from '../client';
+
+import parentLogger from 'logger';
+const logger = parentLogger.child({
+  module: 'Services::User',
+});
+
 export async function increaseUsersDriveLimit(userId: number, { amountGb }: { amountGb: number }): Promise<User> {
-  console.log('user::increaseUsersDriveLimit');
+  logger.trace({ fn: 'increaseUsersDriveLimit' }, 'user::increaseUsersDriveLimit');
   const user = await client.user.findFirst({ where: { id: userId } });
 
   if (!user) {
@@ -21,7 +26,10 @@ export async function increaseUsersDriveLimit(userId: number, { amountGb }: { am
     throw new Error('User exceeded storage limit');
   }
 
-  console.log('Updating users drive limit to', newDriveStorageLimitGb);
+  logger.info(
+    { fn: 'increaseUsersDriveLimit', oldStorageLimitGb: currentDriveStorageLimitGb, newDriveStorageLimitGb },
+    `Updating users drive limit to ${newDriveStorageLimitGb}`,
+  );
 
   const updatedUser = await client.user.update({
     where: {
@@ -36,14 +44,14 @@ export async function increaseUsersDriveLimit(userId: number, { amountGb }: { am
 }
 
 export async function getUserByOrcId(orcid: string): Promise<User | null> {
-  console.log('user::getUserByOrcId');
+  logger.trace({ fn: 'getUserByOrcId' }, 'user::getUserByOrcId');
   const user = await client.user.findFirst({ where: { orcid } });
 
   return user;
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  console.log('user::getUserByEmail', hideEmail(email));
+  logger.trace({ fn: 'getUserByEmail' }, `user::getUserByEmail ${hideEmail(email)}`);
   const user = await client.user.findFirst({ where: { email } });
 
   return user;
@@ -64,7 +72,7 @@ export async function createUser({
   isWarden?: boolean;
   isKeeper?: boolean;
 }): Promise<User> {
-  console.log('user::createUser');
+  logger.trace({ fn: 'createUser' }, 'user::createUser');
   const user = await client.user.upsert({
     where: {
       email,
@@ -84,7 +92,7 @@ export async function createUser({
 }
 
 export const getCountNewUsersInXDays = async (daysAgo: number): Promise<number> => {
-  console.log('user::getCountNewUsersInXDays');
+  logger.trace({ fn: 'getCountNewUsersInXDays' }, 'user::getCountNewUsersInXDays');
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
 
   const newUsersInXDays = await client.user.count({
@@ -100,7 +108,7 @@ export const getCountNewUsersInXDays = async (daysAgo: number): Promise<number> 
 
 // get new user count for specified month
 export const getCountNewUsersInMonth = async (month: number, year: number): Promise<number> => {
-  console.log('user::getCountNewUsersInMonth');
+  logger.trace({ fn: 'getCountNewUsersInMonth' }, 'user::getCountNewUsersInMonth');
   const startDate = new Date(year, month, 1);
   const endDate = new Date(year, month + 1, 1);
 

@@ -16,7 +16,7 @@ import { BaseTransformer } from "./BaseTransformer";
 
 const IPFS_RESOLVER_HTTP = "https://ipfs.io/ipfs/";
 const cleanupUrlOrCid = (str: string) => {
-  return str.replace(new RegExp(`^${IPFS_RESOLVER_HTTP}`), "");
+  return str?.replace(new RegExp(`^${IPFS_RESOLVER_HTTP}`), "");
 };
 
 const formatOrcid = (str: string | undefined) => {

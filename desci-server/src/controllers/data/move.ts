@@ -3,6 +3,7 @@ import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 import { getDirectoryTree, moveFileInDag } from 'services/ipfs';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import { updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
@@ -14,7 +15,15 @@ import { getLatestManifest, persistManifest } from './utils';
 export const moveData = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
   const { uuid, oldPath, newPath } = req.body;
-  console.log(`[DATA::MOVE] oldPath: ${oldPath}, newPath: ${newPath} nodeUuid: ${uuid},  user: ${owner.id}`);
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'DATA::MoveController',
+    uuid: uuid,
+    user: owner.id,
+    oldPath: oldPath,
+    newPath: newPath,
+  });
+  logger.trace(`DATA::Move entered`);
   if (uuid === undefined || oldPath === undefined || newPath === undefined)
     return res.status(400).json({ error: 'uuid, oldPath and newPath required' });
   // debugger;
@@ -22,11 +31,11 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid + '.',
+      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
     },
   });
   if (!node) {
-    console.log(`[DATA::MOVE]unauthed node user: ${owner}, node uuid provided: ${uuid}`);
+    logger.warn(`DATA::Move: auth failed, user id: ${owner.id} does not own node: ${uuid}`);
     return res.status(400).json({ error: 'failed' });
   }
 
@@ -41,7 +50,7 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
     const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(dataBucket.payload.cid, externalCidMap));
     const hasDuplicates = oldFlatTree.some((oldBranch) => neutralizePath(oldBranch.path).includes(newPath));
     if (hasDuplicates) {
-      console.log('[DATA::MOVE] Rejected as duplicate paths were found');
+      logger.info('[DATA::Move] Rejected as duplicate paths were found');
       return res.status(400).json({ error: 'Name collision' });
     }
 
@@ -56,7 +65,7 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
     const splitNewPath = newPath.split('/');
     splitNewPath.shift(); //remove root
     const cleanNewPath = splitNewPath.join('/');
-    console.log('[DATA::MOVE] cleanContextPath: ', cleanContextPath, ' Moving: ', fileToMove, ' to : ', newPath);
+    logger.debug(`[DATA::Move] cleanContextPath: ${cleanContextPath}, Moving: ${fileToMove} to: ${newPath}`);
     const { updatedDagCidMap, updatedRootCid } = await moveFileInDag(
       dataBucket.payload.cid,
       cleanContextPath,
@@ -126,10 +135,10 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
       if (match?.id) {
         newRef.id = match?.id;
       } else {
-        console.error(
-          '[DATA::MOVE] Failed to find match for data ref: ',
-          newRef,
-          ` node ${node.uuid} may need its data references healed.`,
+        logger.warn(
+          `[DATA::Move] Failed to find match for data ref:
+          ${newRef}
+          node ${node.uuid} may need its data references healed.`,
         );
       }
       return newRef;
@@ -140,20 +149,20 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
       }),
     ]);
-    console.log(`[DATA::MOVE] ${updates.length} dataReferences updated`);
+    logger.info(`[DATA::Move] ${updates.length} dataReferences updated`);
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
       throw Error(`[DATA::MOVE]Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
-    console.log(`[DATA::MOVE] Success, path: `, oldPath, ' changed to: ', newPath);
+    logger.info(`[DATA::Move] Success, path: ${oldPath} changed to: ${newPath}`);
 
     return res.status(200).json({
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    console.log(`[DATA::MOVE] error: ${e}`);
+    logger.error(`[DATA::Move] error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };

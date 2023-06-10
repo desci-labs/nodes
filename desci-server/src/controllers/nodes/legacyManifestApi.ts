@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import logger from 'logger';
 import { getIndexedResearchObjects } from 'theGraph';
 import { encodeBase64UrlSafe } from 'utils';
 
@@ -47,7 +48,7 @@ export const retrieveTitle = async (req: Request, res: Response, next: NextFunct
     });
     return res.status(200).send({ titles });
   } catch (e) {
-    console.log(e);
+    logger.error({ err: e }, 'error');
     return res.status(404).send({ ok: false, message: 'Not Found' });
   }
 };

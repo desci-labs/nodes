@@ -3,8 +3,9 @@ import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 import { RequestWithNodeAccess } from 'middleware/nodeGuard';
-import { getDirectoryTree, removeFileFromDag } from 'services/ipfs';
+import { RecursiveLsResult, getDirectoryTree, removeFileFromDag } from 'services/ipfs';
 import { deneutralizePath, updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
 import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
 
@@ -16,8 +17,26 @@ export const deleteData = async (req: RequestWithNodeAccess, res: Response, next
   const owner = req.user;
   const node = req.node;
   const { uuid, path } = req.body;
-  console.log('[DATA::DELETE] hit, path: ', path, ' nodeUuid: ', uuid, ' user: ', owner.id);
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'DATA::DeleteController',
+    uuid: uuid,
+    path: path,
+    user: owner.id,
+  });
+  logger.trace('Entered DATA::Delete');
   if (uuid === undefined || path === undefined) return res.status(400).json({ error: 'uuid and path required' });
+  //validate requester owns the node
+  // const node = await prisma.node.findFirst({
+  //   where: {
+  //     ownerId: owner.id,
+  //     uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+  //   },
+  // });
+  if (!node) {
+    logger.warn(`DATA::Delete: auth failed, user id: ${owner.id} does not own node: ${uuid}`);
+    return res.status(400).json({ error: 'failed' });
+  }
 
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
   const dataBucket = latestManifest?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
@@ -30,7 +49,7 @@ export const deleteData = async (req: RequestWithNodeAccess, res: Response, next
     splitContextPath.shift(); //remove root
     const pathToDelete = splitContextPath.pop();
     const cleanContextPath = splitContextPath.join('/');
-    console.log('[DATA::DELETE] cleanContextPath: ', cleanContextPath, ' Deleting: ', pathToDelete);
+    logger.debug('DATA::Delete cleanContextPath: ', cleanContextPath, ' Deleting: ', pathToDelete);
     const { updatedDagCidMap, updatedRootCid } = await removeFileFromDag(
       dataBucket.payload.cid,
       cleanContextPath,
@@ -50,15 +69,14 @@ export const deleteData = async (req: RequestWithNodeAccess, res: Response, next
 
     const externalCidMap = await generateExternalCidMap(node.uuid);
     const tree = await getDirectoryTree(updatedRootCid, externalCidMap);
-    const flatTree = recursiveFlattenTree(tree);
+    const flatTree: Partial<RecursiveLsResult>[] = recursiveFlattenTree(tree);
     flatTree.push({
       cid: updatedRootCid,
       path: updatedRootCid,
-      rootCid: updatedRootCid,
     });
 
     const dataRefsToUpdate: Partial<DataReference>[] = flatTree.map((f) => {
-      if (typeof f.cid !== 'string') f.cid = f.cid.toString();
+      if (typeof f.cid !== 'string') f.cid = (f as any).cid.toString();
       return {
         cid: f.cid,
         rootCid: updatedRootCid,
@@ -87,7 +105,7 @@ export const deleteData = async (req: RequestWithNodeAccess, res: Response, next
     const dataRefDeletionIds = dataRefsToDelete.map((e) => e.id);
     const formattedPruneList = dataRefsToDelete.map((e) => {
       return {
-        description: '[DATA::DELETE]path: ' + path,
+        description: '[DATA::DELETE]path: ' + neutralizePath(e.path),
         cid: e.cid,
         type: e.type,
         size: e.size,
@@ -104,8 +122,8 @@ export const deleteData = async (req: RequestWithNodeAccess, res: Response, next
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
       }),
     ]);
-    console.log(
-      `[DATA::DELETE] ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added, ${updates.length} dataReferences updated`,
+    logger.info(
+      `DATA::Delete ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added, ${updates.length} dataReferences updated`,
     );
 
     /*
@@ -134,14 +152,14 @@ export const deleteData = async (req: RequestWithNodeAccess, res: Response, next
     if (!persistedManifestCid)
       throw Error(`[DATA::DELETE]Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
-    console.log(`[DATA::DELETE] Success, path: `, path, ' deleted');
+    logger.info(`DATA::Delete Success, path: `, path, ' deleted');
 
     return res.status(200).json({
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    console.log(`[DATA::DELETE] error: ${e}`);
+    logger.error(`DATA::Delete error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };

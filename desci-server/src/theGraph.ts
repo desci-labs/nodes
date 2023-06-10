@@ -4,6 +4,7 @@
 
 import axios from 'axios';
 
+import logger from 'logger';
 import { decodeBase64UrlSafeToHex } from 'utils';
 
 export const getIndexedResearchObjects = async (urlSafe64s: string[]) => {
@@ -24,7 +25,7 @@ export const query = async (query: string) => {
   });
   const { data } = await axios.post(process.env.THEGRAPH_API_URL, payload);
   if (data.errors) {
-    console.error(`graph index query err ${query}`, JSON.stringify(data.errors));
+    logger.error({ fn: 'query', err: data.errors, query, dataRes: data }, `graph index query err ${query}`);
     throw Error(JSON.stringify(data.errors));
   }
   return data.data;

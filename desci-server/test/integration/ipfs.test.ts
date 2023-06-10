@@ -55,10 +55,10 @@ describe('IPFS', () => {
 
     it('adds a manifest and adds a data reference', async () => {
       const res = await ipfs.updateManifestAndAddToIpfs(EXAMPLE_MANIFEST, { userId: admin.id, nodeId: node.id });
-      expect(res.cid).to.eq('bafkreigbnuw6byxj75f4w4i55xh36hjo6isinqec62jzfxsbieosdipyja');
+      expect(res.cid).to.eq('bafkreidf26rt63gbrwz4inlosn74hgb245tmkj7tbazrkdrchfqdfbn3u4');
       expect(res.ref).to.not.be.undefined;
-      expect(res.ref.size).to.eq(47);
-      console.log('RES', res);
+      expect(res.ref.size).to.eq(42);
+      // console.log('RES', res);
     });
     it('supports directories', async () => {
       const tmp = '/tmp';

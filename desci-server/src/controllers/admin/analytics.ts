@@ -1,6 +1,7 @@
 import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
+import parentLogger from 'logger';
 import {
   getCountActiveUsersInMonth,
   getCountActiveUsersInXDays,
@@ -15,12 +16,14 @@ import {
 } from 'services/nodeManager';
 import { getCountNewUsersInMonth, getCountNewUsersInXDays } from 'services/user';
 
+const logger = parentLogger.child({ module: 'ADMIN::AnalyticsController' });
+
 // create a csv with the following fields for each month
 // - new users, new nodes, active users, node views, bytes uploaded
 export const createCsv = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user as User;
-    console.log('GET createCsv called by', user.email);
+    logger.info({ fn: 'createCsv' }, `GET createCsv called by ${user.email}`);
 
     // start month is 12 months ago
     const endYear = new Date().getFullYear();
@@ -75,7 +78,7 @@ export const createCsv = async (req: Request, res: Response) => {
     res.set('Content-Type', 'text/csv');
     res.status(200).send(csv);
   } catch (error) {
-    console.error('Failed to GET createCsv', error);
+    logger.error({ fn: 'createCsv', error }, 'Failed to GET createCsv');
     res.sendStatus(500);
   }
 };
@@ -83,29 +86,29 @@ export const createCsv = async (req: Request, res: Response) => {
 export const getAnalytics = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user as User;
-    console.log('GET getAnalytics called by', user.email);
+    logger.info({ fn: 'getAnalytics' }, `GET getAnalytics called by ${user.email}`);
 
-    console.log('Fetching new users');
+    logger.trace({ fn: 'getAnalytics' }, 'Fetching new users');
     const newUsersInLast30Days = await getCountNewUsersInXDays(30);
     const newUsersInLast7Days = await getCountNewUsersInXDays(7);
     const newUsersToday = await getCountNewUsersInXDays(1);
 
-    console.log('Fetching new nodes');
+    logger.trace({ fn: 'getAnalytics' }, 'Fetching new nodes');
     const newNodesInLast30Days = await getCountNewNodesInXDays(30);
     const newNodesInLast7Days = await getCountNewNodesInXDays(7);
     const newNodesToday = await getCountNewNodesInXDays(1);
 
-    console.log('Fetching active users');
+    logger.trace({ fn: 'getAnalytics' }, 'Fetching active users');
     const activeUsersToday = await getCountActiveUsersInXDays(1);
     const activeUsersInLast7Days = await getCountActiveUsersInXDays(7);
     const activeUsersInLast30Days = await getCountActiveUsersInXDays(30);
 
-    console.log('Fetching views');
+    logger.trace({ fn: 'getAnalytics' }, 'Fetching views');
     const nodeViewsToday = await getNodeViewsInXDays(1);
     const nodeViewsInLast7Days = await getNodeViewsInXDays(7);
     const nodeViewsInLast30Days = await getNodeViewsInXDays(30);
 
-    console.log('Fetching bytes');
+    logger.trace({ fn: 'getAnalytics' }, 'Fetching bytes');
     const bytesToday = await getBytesInXDays(1);
     const bytesInLast7Days = await getBytesInXDays(7);
     const bytesInLast30Days = await getBytesInXDays(30);
@@ -128,11 +131,11 @@ export const getAnalytics = async (req: Request, res: Response) => {
       bytesInLast30Days,
     };
 
-    console.log('getAnalytics returning', analytics);
+    logger.info({ fn: 'getAnalytics', analytics }, 'getAnalytics returning');
 
     return res.status(200).send(analytics);
   } catch (error) {
-    console.error('Failed to GET getAnalytics', error);
+    logger.error({ fn: 'getAnalytics', error }, 'Failed to GET getAnalytics');
     return res.status(500).send();
   }
 };

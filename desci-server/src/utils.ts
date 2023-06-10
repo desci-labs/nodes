@@ -7,7 +7,12 @@ import { base16 } from 'multiformats/bases/base16';
 import { CID } from 'multiformats/cid';
 import { encode, decode } from 'url-safe-base64';
 
+import parentLogger from 'logger';
 import { processGithubUrl } from 'utils/githubUtils';
+
+const logger = parentLogger.child({
+  module: 'utils',
+});
 
 export const hideEmail = (email: string) => {
   return email.replace(/(.{1,1})(.*)(@.*)/, '$1...$3');
@@ -26,7 +31,7 @@ export const randomUUID64 = () => {
   const bytes = randomBytes(32);
 
   const encoded = encodeBase64UrlSafe(bytes);
-  console.log('GOT BYTES', Buffer.from(bytes).toString('hex'), encoded);
+  logger.debug({ fn: 'randomUUID64' }, `GOT BYTES ${Buffer.from(bytes).toString('hex')} ${encoded}`);
   return encoded;
 };
 

@@ -4,7 +4,7 @@ VOLUME /root/.yarn
 
 RUN apt-get -qy update && apt-get -qy install openssl
 
-RUN npm install -g npm@8.10.0
+RUN npm install -g npm@latest
 
 RUN mkdir /app
 RUN chown -R node:node /app

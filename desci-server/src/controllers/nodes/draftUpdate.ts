@@ -2,6 +2,7 @@ import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 import { RequestWithNodeAccess } from 'middleware/nodeGuard';
 import { updateManifestAndAddToIpfs } from 'services/ipfs';
 import { cleanManifestForSaving } from 'utils/manifestDraftUtils';
@@ -11,6 +12,15 @@ export const draftUpdate = async (req: RequestWithNodeAccess, res: Response, nex
   const node = req.node;
 
   console.log('updateDraft', req.body);
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::draftUpdateController',
+    body: req.body,
+    uuid,
+    manifest,
+    user: (req as any).user,
+  });
+  logger.trace('updateDraft');
 
   try {
     const loggedInUserEmail = (req as any).user.email;
@@ -21,7 +31,7 @@ export const draftUpdate = async (req: RequestWithNodeAccess, res: Response, nex
       },
     });
 
-    console.log('[draftUpdate] for user id', loggedIn.id);
+    logger.info(`[draftUpdate] for user id ${loggedIn.id}`);
     const loggedInUser = loggedIn.id;
 
     if (!loggedInUser || loggedInUser < 1) {
@@ -63,7 +73,7 @@ export const draftUpdate = async (req: RequestWithNodeAccess, res: Response, nex
       version: nodeVersion,
     });
   } catch (err) {
-    console.error('node-update-err', err);
+    logger.error({ err }, 'node-update-err', err);
     res.status(400).send({ ok: false, error: err.message });
   }
 };

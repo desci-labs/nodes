@@ -7,6 +7,7 @@ import mkdirp from 'mkdirp';
 import tar from 'tar';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 import { getDatasetTar } from 'services/ipfs';
 import { getTreeAndFillSizes } from 'utils/driveUtils';
 
@@ -20,12 +21,26 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
   const cid: string = req.params.cid;
   const uuid: string = req.params.nodeUuid;
   const shareId: string = req.params.shareId;
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'DATA::RetrieveController',
+    uuid: uuid,
+    cid: cid,
+    user: ownerId,
+    shareId: shareId,
+  });
+
+  logger.trace(`retrieveTree called, cid received: ${cid} uuid provided: ${uuid}`);
 
   if (shareId) {
     const privateShare = await prisma.privateShare.findFirst({
       where: { shareId },
       select: { node: true, nodeUUID: true },
     });
+    if (!privateShare) {
+      res.status(404).send({ ok: false, message: 'Invalid shareId' });
+      return;
+    }
     const node = privateShare.node;
 
     if (privateShare && node) {
@@ -43,7 +58,6 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
     return;
   }
 
-  console.log(`retrieveTree called, cid received: ${cid} uuid provided: ${uuid}`);
   if (!cid) {
     res.status(400).json({ error: 'no CID provided' });
     return;
@@ -79,7 +93,7 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
   if (publicDataset) dataSource = DataReferenceSrc.PUBLIC;
 
   if (!dataset && dataSource === DataReferenceSrc.PRIVATE) {
-    console.log(`unauthed access user: ${ownerId}, cid provided: ${cid}, nodeUuid provided: ${uuid}`);
+    logger.warn(`unauthed access user: ${ownerId}, cid provided: ${cid}, nodeUuid provided: ${uuid}`);
     res.status(400).json({ error: 'failed' });
     return;
   }
@@ -90,10 +104,17 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
 };
 
 export const pubTree = async (req: Request, res: Response, next: NextFunction) => {
-  // const owner = (req as any).user;
+  const owner = (req as any).user;
   const cid: string = req.params.cid;
   const uuid: string = req.params.nodeUuid;
-  console.log(`pubTree called, cid received: ${cid} uuid provided: ${uuid}`);
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'DATA::RetrievePubTreeController',
+    uuid: uuid,
+    cid: cid,
+    user: owner.id,
+  });
+  logger.trace(`pubTree called, cid received: ${cid} uuid provided: ${uuid}`);
   if (!cid) return res.status(400).json({ error: 'no CID provided' });
   if (!uuid) return res.status(400).json({ error: 'no UUID provided' });
 
@@ -112,8 +133,8 @@ export const pubTree = async (req: Request, res: Response, next: NextFunction) =
   if (publicDataset) dataSource = DataReferenceSrc.PUBLIC;
 
   if (!publicDataset) {
-    console.log(`Dataset not found, cid provided: ${cid}, nodeUuid provided: ${uuid}`);
-    return res.status(400).json({ error: 'Dataset not found' });
+    logger.info(`Databucket public data reference not found, cid provided: ${cid}, nodeUuid provided: ${uuid}`);
+    return res.status(400).json({ error: 'Failed to retrieve' });
   }
 
   const filledTree = await getTreeAndFillSizes(cid, uuid, dataSource);
@@ -125,7 +146,14 @@ export const downloadDataset = async (req: Request, res: Response, next: NextFun
   const owner = (req as any).user;
   const cid: string = req.params.cid;
   const uuid: string = req.params.nodeUuid;
-  console.log(`downloadDataset called, cid received: ${cid} uuid provided: ${uuid}`);
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'DATA::RetrieveDownloadController',
+    uuid: uuid,
+    cid: cid,
+    user: owner.id,
+  });
+  logger.trace(`downloadDataset called, cid received: ${cid} uuid provided: ${uuid}`);
 
   if (!uuid) {
     res.status(400).json({ error: 'no UUID provided' });
@@ -149,7 +177,7 @@ export const downloadDataset = async (req: Request, res: Response, next: NextFun
   });
 
   if (!dataset) {
-    console.log(`unauthed access user: ${owner}, cid provided: ${cid}, nodeUuid provided: ${uuid}`);
+    logger.warn(`unauthed access user: ${owner}, cid provided: ${cid}, nodeUuid provided: ${uuid}`);
     res.status(400).json({ error: 'failed' });
     return;
   }
@@ -188,7 +216,7 @@ export const downloadDataset = async (req: Request, res: Response, next: NextFun
   });
 
   zipped.on('error', (e) => {
-    console.log(e);
+    logger.error(e);
     res.status(500).send({ ok: false });
   });
 };
@@ -198,7 +226,7 @@ async function tarToZip(tarPath: string, zipPath: string): Promise<void> {
 
   //creates the dirs to prevent permission errors
   await mkdirp(dirPath);
-  console.log(dirPath);
+  parentLogger.debug({ fn: tarToZip }, `dirPath: ${dirPath}`);
 
   try {
     await tar.extract({
@@ -210,12 +238,12 @@ async function tarToZip(tarPath: string, zipPath: string): Promise<void> {
     const archive = archiver('zip', { zlib: { level: 9 } });
     return new Promise((success, fail) => {
       output.on('close', () => {
-        console.log(`Zipped ${tarPath}, ${archive.pointer()} bytes`);
+        parentLogger.info({ fn: tarToZip }, `Zipped ${tarPath}, ${archive.pointer()} bytes`);
         success();
       });
       archive.on('warning', (err) => {
         if (err.code === 'ENOENT') {
-          console.warn(err);
+          parentLogger.error({ fn: tarToZip }, `error: ${err}`);
         } else {
           throw err;
         }
@@ -231,6 +259,6 @@ async function tarToZip(tarPath: string, zipPath: string): Promise<void> {
     });
     // return archive;
   } catch (err) {
-    console.error(err);
+    parentLogger.error({ fn: tarToZip }, `error: ${err}`);
   }
 }
