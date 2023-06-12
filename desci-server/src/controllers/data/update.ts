@@ -10,6 +10,7 @@ import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addFilesToDag,
   convertToCidV1,
+  FileDir,
   FilesToAddToDag,
   getDirectoryTree,
   getExternalCidSizeAndType,
@@ -26,6 +27,7 @@ import {
 import { arrayXor, processExternalUrls, zipUrlToBuffer } from 'utils';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import {
+  DriveObject,
   FirstNestingComponent,
   ROTypesToPrismaTypes,
   addComponentsToManifest,
@@ -193,12 +195,12 @@ export const update = async (req: Request, res: Response) => {
 
   //Pull old tree
   const externalCidMap = await generateExternalCidMap(node.uuid);
-  const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap));
+  const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
 
   /*
    ** Check if update path contains externals, temporarily disable adding to external DAGs
    */
-  const pathMatch = oldFlatTree.find((c) => {
+  const pathMatch = (oldFlatTree as RecursiveLsResult[]).find((c) => {
     const neutralPath = neutralizePath(c.path);
     return neutralPath === contextPath;
   });
@@ -256,7 +258,7 @@ export const update = async (req: Request, res: Response) => {
         const tree: RecursiveLsResult[] = await pubRecursiveLs(extCid.cid, extCid.name);
         if (!tree) res.status(400).json({ error: 'Failed resolving external dag tree' });
         const flatTree = recursiveFlattenTree(tree);
-        flatTree.forEach((file: RecursiveLsResult) => {
+        (flatTree as RecursiveLsResult[]).forEach((file: RecursiveLsResult) => {
           cidTypesSizes[file.cid] = { size: file.size, isDirectory: file.type === 'dir' };
           if (file.type === 'dir') externalDagsToPin.push(file.cid);
           uploaded.push({ path: file.path, cid: file.cid, size: file.size });
@@ -420,7 +422,9 @@ export const update = async (req: Request, res: Response) => {
     // //CLEANUP DANGLING REFERENCES//
     oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
 
-    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString, externalCidMap));
+    const flatTree = recursiveFlattenTree(
+      await getDirectoryTree(newRootCidString, externalCidMap),
+    ) as RecursiveLsResult[];
     flatTree.push({
       name: 'root',
       cid: newRootCidString,
@@ -430,7 +434,7 @@ export const update = async (req: Request, res: Response) => {
     });
 
     //length should be n + 1, n being nested dirs modified + rootCid
-    const pruneList = oldFlatTree.filter((oldF) => {
+    const pruneList = (oldFlatTree as RecursiveLsResult[]).filter((oldF) => {
       //a path match && a CID difference = prune
       return flatTree.some((newF) => neutralizePath(oldF.path) === neutralizePath(newF.path) && oldF.cid !== newF.cid);
     });

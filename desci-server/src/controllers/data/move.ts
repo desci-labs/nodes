@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import parentLogger from 'logger';
-import { getDirectoryTree, moveFileInDag } from 'services/ipfs';
+import { RecursiveLsResult, getDirectoryTree, moveFileInDag } from 'services/ipfs';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import { updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
 import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
@@ -96,7 +96,9 @@ export const moveData = async (req: Request, res: Response, next: NextFunction) 
     /*
      ** Workaround for keeping manifest cids in sync
      */
-    const flatTree = recursiveFlattenTree(await getDirectoryTree(updatedRootCid, externalCidMap));
+    const flatTree = recursiveFlattenTree(
+      await getDirectoryTree(updatedRootCid, externalCidMap),
+    ) as RecursiveLsResult[];
     for (let i = 0; i < updatedManifest.components.length; i++) {
       const currentComponent = updatedManifest.components[i];
       if (currentComponent.payload.path === 'root' || currentComponent.type === ResearchObjectComponentType.LINK)
