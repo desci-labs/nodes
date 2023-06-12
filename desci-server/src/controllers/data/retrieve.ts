@@ -1,15 +1,20 @@
 import * as fs from 'fs';
 
+import { ResearchObjectComponentType } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import archiver from 'archiver';
+import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 import mkdirp from 'mkdirp';
 import tar from 'tar';
 
 import prisma from 'client';
+import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { getDatasetTar } from 'services/ipfs';
-import { getTreeAndFill } from 'utils/driveUtils';
+import { getTreeAndFillDeprecated, getTreeAndFillV2 } from 'utils/driveUtils';
+
+import { getLatestManifest } from './utils';
 
 export enum DataReferenceSrc {
   PRIVATE = 'private',
@@ -32,6 +37,13 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
 
   logger.trace(`retrieveTree called, cid received: ${cid} uuid provided: ${uuid}`);
 
+  let node = await prisma.node.findFirst({
+    where: {
+      ownerId: ownerId,
+      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+    },
+  });
+
   if (shareId) {
     const privateShare = await prisma.privateShare.findFirst({
       where: { shareId },
@@ -41,7 +53,7 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
       res.status(404).send({ ok: false, message: 'Invalid shareId' });
       return;
     }
-    const node = privateShare.node;
+    node = privateShare.node;
 
     if (privateShare && node) {
       ownerId = node.ownerId;
@@ -55,6 +67,11 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
   }
   if (!ownerId) {
     res.status(401).send({ ok: false, message: 'Unauthorized user' });
+    return;
+  }
+
+  if (!node) {
+    res.status(400).send({ ok: false, message: 'Node not found' });
     return;
   }
 
@@ -98,32 +115,40 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
     return;
   }
 
-  const filledTree = await getTreeAndFill(cid, uuid, dataSource, ownerId);
+  const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
+
+  const hasDataBucket = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+
+  const filledTree = hasDataBucket
+    ? await getTreeAndFillV2(manifest, uuid, ownerId)
+    : await getTreeAndFillDeprecated(cid, uuid, dataSource);
 
   res.status(200).json({ tree: filledTree, date: dataset?.updatedAt });
 };
 
 export const pubTree = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
-  const cid: string = req.params.cid;
+  const manifestCid: string = req.params.manifestCid;
+  const rootCid: string = req.params.manifestCid;
   const uuid: string = req.params.nodeUuid;
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::RetrievePubTreeController',
     uuid: uuid,
-    cid: cid,
+    manifestCid,
+    rootCid,
     user: owner.id,
   });
-  logger.trace(`pubTree called, cid received: ${cid} uuid provided: ${uuid}`);
-  if (!cid) return res.status(400).json({ error: 'no CID provided' });
+  logger.trace(`pubTree called, cid received: ${manifestCid} uuid provided: ${uuid}`);
+  if (!manifestCid) return res.status(400).json({ error: 'no manifest CID provided' });
   if (!uuid) return res.status(400).json({ error: 'no UUID provided' });
 
   // TODO: Later expand to datasets that aren't originated locally, currently the fn will fail if we don't store a pubDataRef to the dataset
   let dataSource = DataReferenceSrc.PRIVATE;
   const publicDataset = await prisma.publicDataReference.findFirst({
     where: {
-      type: { not: DataType.MANIFEST },
-      cid: cid,
+      type: DataType.MANIFEST,
+      cid: manifestCid,
       node: {
         uuid: uuid + '.',
       },
@@ -137,7 +162,17 @@ export const pubTree = async (req: Request, res: Response, next: NextFunction) =
     return res.status(400).json({ error: 'Failed to retrieve' });
   }
 
-  const filledTree = await getTreeAndFill(cid, uuid, dataSource);
+  const manifestUrl = cleanupManifestUrl(manifestCid as string, req.query?.g as string);
+
+  const manifest = await (await axios.get(manifestUrl)).data;
+
+  if (!uuid) return res.status(400).json({ error: 'Manifest not found' });
+
+  const hasDataBucket = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+
+  const filledTree = hasDataBucket
+    ? await getTreeAndFillV2(manifest, uuid)
+    : await getTreeAndFillDeprecated(rootCid, uuid, dataSource);
 
   return res.status(200).json({ tree: filledTree, date: publicDataset.updatedAt });
 };

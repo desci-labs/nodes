@@ -73,7 +73,12 @@ interface CidEntryDetails {
 }
 
 //deprecate this, use for old tree
-export async function getTreeAndFill(rootCid: string, nodeUuid: string, dataSrc: DataReferenceSrc, ownerId?: number) {
+export async function getTreeAndFillDeprecated(
+  rootCid: string,
+  nodeUuid: string,
+  dataSrc: DataReferenceSrc,
+  ownerId?: number,
+) {
   //NOTE/TODO: Adapted for priv(owner) and public (unauthed), may not work for node sharing users(authed/contributors)
   const externalCidMap = await generateExternalCidMap(nodeUuid + '.');
   const tree: RecursiveLsResult[] = await getDirectoryTree(rootCid, externalCidMap);
