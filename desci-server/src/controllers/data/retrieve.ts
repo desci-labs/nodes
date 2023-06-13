@@ -11,6 +11,7 @@ import tar from 'tar';
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
+import { getOrCache } from 'redisClient';
 import { getDatasetTar } from 'services/ipfs';
 import { getTreeAndFill, getTreeAndFillDeprecated } from 'utils/driveUtils';
 
@@ -116,8 +117,20 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
   }
 
   const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
+  let filledTree;
+  try {
+    filledTree = await getOrCache(
+      `filled-tree-${manifestCid}`,
+      async () => await getTreeAndFill(manifest, uuid, ownerId),
+    );
+    if (!filledTree) throw new Error('[retrieveTree] Failed to retrieve tree from cache');
+  } catch (err) {
+    logger.warn({ fn: 'retrieveTree', err }, '[retrieveTree] error');
+    logger.info('[retrieveTree] Falling back on uncached tree retrieval');
+    return await getTreeAndFill(manifest, uuid, ownerId);
+  }
 
-  const filledTree = await getTreeAndFill(manifest, uuid, ownerId);
+  // const filledTree = await getTreeAndFill(manifest, uuid, ownerId);
 
   res.status(200).json({ tree: filledTree, date: dataset?.updatedAt });
 };
@@ -168,9 +181,21 @@ export const pubTree = async (req: Request, res: Response, next: NextFunction) =
 
   const hasDataBucket = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
 
-  const filledTree = hasDataBucket
-    ? await getTreeAndFill(manifest, uuid)
-    : await getTreeAndFillDeprecated(rootCid, uuid, dataSource);
+  const fetchCb = hasDataBucket
+    ? async () => await getTreeAndFill(manifest, uuid)
+    : async () => await getTreeAndFillDeprecated(rootCid, uuid, dataSource);
+
+  const cacheKey = hasDataBucket ? `filled-tree-${manifestCid}` : `deprecated-filled-tree-${rootCid}`;
+
+  let filledTree;
+  try {
+    filledTree = await getOrCache(cacheKey, fetchCb);
+    if (!filledTree) throw new Error('[pubTree] Failed to retrieve tree from cache');
+  } catch (err) {
+    logger.warn({ fn: 'pubTree', err }, '[pubTree] error');
+    logger.info('[pubTree] Falling back on uncached tree retrieval');
+    return await fetchCb();
+  }
 
   return res.status(200).json({ tree: filledTree, date: publicDataset.updatedAt });
 };
