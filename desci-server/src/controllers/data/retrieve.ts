@@ -12,7 +12,7 @@ import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { getDatasetTar } from 'services/ipfs';
-import { getTreeAndFillDeprecated, getTreeAndFillV2 } from 'utils/driveUtils';
+import { getTreeAndFill, getTreeAndFillDeprecated } from 'utils/driveUtils';
 
 import { getLatestManifest } from './utils';
 
@@ -117,7 +117,7 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
 
   const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
 
-  const filledTree = await getTreeAndFillV2(manifest, uuid, ownerId);
+  const filledTree = await getTreeAndFill(manifest, uuid, ownerId);
 
   res.status(200).json({ tree: filledTree, date: dataset?.updatedAt });
 };
@@ -169,7 +169,7 @@ export const pubTree = async (req: Request, res: Response, next: NextFunction) =
   const hasDataBucket = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
 
   const filledTree = hasDataBucket
-    ? await getTreeAndFillV2(manifest, uuid)
+    ? await getTreeAndFill(manifest, uuid)
     : await getTreeAndFillDeprecated(rootCid, uuid, dataSource);
 
   return res.status(200).json({ tree: filledTree, date: publicDataset.updatedAt });

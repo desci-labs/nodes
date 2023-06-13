@@ -10,7 +10,6 @@ import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addFilesToDag,
   convertToCidV1,
-  FileDir,
   FilesToAddToDag,
   getDirectoryTree,
   getExternalCidSizeAndType,
@@ -27,21 +26,19 @@ import {
 import { arrayXor, processExternalUrls, zipUrlToBuffer } from 'utils';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import {
-  DriveObject,
   FirstNestingComponent,
   ROTypesToPrismaTypes,
   addComponentsToManifest,
   deneutralizePath,
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
-  getTreeAndFillV2,
+  getTreeAndFill,
   inheritComponentType,
   neutralizePath,
   recursiveFlattenTree,
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
 
-import { DataReferenceSrc } from './retrieve';
 import { persistManifest } from './utils';
 
 interface UpdatingManifestParams {
@@ -459,7 +456,7 @@ export const update = async (req: Request, res: Response) => {
     if (!persistedManifestCid)
       throw Error(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
-    const tree = await getTreeAndFillV2(updatedManifest, uuid, owner.id);
+    const tree = await getTreeAndFill(updatedManifest, uuid, owner.id);
     return res.status(200).json({
       rootDataCid: newRootCidString,
       manifest: updatedManifest,
