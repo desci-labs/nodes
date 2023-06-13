@@ -336,13 +336,13 @@ describe('Data Controllers', () => {
 
         const dotlessUuid = node.uuid!.substring(0, node.uuid!.length - 1);
         res = await request(app)
-          .get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}`)
+          .get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}`)
           .set('authorization', authHeaderVal);
         wrongAuthRes = await request(app)
-          .get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}`)
+          .get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}`)
           .set('authorization', bobHeaderVal);
-        unauthedRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}`);
-        privShareRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}/${privShareUuid}`);
+        unauthedRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}`);
+        privShareRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}/${privShareUuid}`);
         incorrectPrivShareRes = await request(app).get(
           `/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}/wrongShareId`,
         );
