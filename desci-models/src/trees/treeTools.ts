@@ -1,33 +1,20 @@
-import { randomUUID } from "crypto";
 import {
-  CommonComponentPayload,
-  DataComponentMetadata,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
   ResearchObjectV1,
   ResearchObjectV1Component,
-} from "./ResearchObject";
+} from "../ResearchObject";
+import {
+  AccessStatus,
+  DriveMetadata,
+  DriveObject,
+  DrivePath,
+  FileDir,
+  FileType,
+  RecursiveLsResult,
+  VirtualDriveArgs,
+} from "./treeTypes";
 
-export interface IpfsPinnedResult {
-  path: string;
-  cid: string;
-  size: number;
-}
-
-export interface RecursiveLsResult extends IpfsPinnedResult {
-  name: string;
-  contains?: RecursiveLsResult[];
-  type: "dir" | "file";
-  parent?: RecursiveLsResult;
-  external?: boolean;
-}
-
-export interface FileDir extends RecursiveLsResult {
-  date?: string;
-  published?: boolean;
-}
-
-export type DrivePath = string;
 export const DRIVE_NODE_ROOT_PATH = "root";
 
 export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
@@ -184,15 +171,6 @@ export function extractComponentMetadata(
   return metadata;
 }
 
-export enum AccessStatus {
-  PUBLIC = "Public",
-  PRIVATE = "Private",
-  PARTIAL = "Partial",
-  EXTERNAL = "External",
-  // UPLOADING = "Uploading",
-  // FAILED = "Failed",
-}
-
 export function generatePathCompMap(
   manifest: ResearchObjectV1
 ): Record<DrivePath, ResearchObjectV1Component> {
@@ -210,35 +188,6 @@ export function generatePathCompMap(
     }
   });
   return componentsMap;
-}
-export type DriveMetadata = CommonComponentPayload & DataComponentMetadata;
-
-export enum FileType {
-  DIR = "dir",
-  FILE = "file",
-}
-
-export enum DriveNonComponentTypes {
-  MANIFEST = "manifest",
-  UNKNOWN = "unknown",
-}
-export interface DriveObject {
-  uid?: string;
-  name: string;
-  lastModified: string; //date later
-  componentType: ResearchObjectComponentType | DriveNonComponentTypes;
-  componentSubtype?: ResearchObjectComponentSubtypes;
-  componentId?: string | undefined;
-  accessStatus: AccessStatus;
-  size: number;
-  metadata: DriveMetadata;
-  cid: string;
-  type: FileType;
-  contains?: Array<DriveObject> | null;
-  parent?: DriveObject | FileDir | null;
-  path?: string;
-  starred?: boolean;
-  external?: boolean;
 }
 
 export function generateFlatPathDriveMap(
@@ -281,23 +230,6 @@ export function generatePathSizeMap(
   return { ...pathSizeMap, ...dirSizeMap };
 }
 
-interface VirtualDriveArgs {
-  name: string;
-  componentType?: ResearchObjectComponentType | DriveNonComponentTypes;
-  componentSubtype?: ResearchObjectComponentSubtypes;
-  componentId?: string;
-  size?: number;
-  contains?: Array<DriveObject>;
-  lastModified?: string;
-  accessStatus?: AccessStatus;
-  metadata?: DriveMetadata;
-  cid?: string;
-  parent?: DriveObject | FileDir | null;
-  path?: string;
-  uid?: string;
-  starred?: boolean;
-  type?: FileType;
-}
 export function createVirtualDrive({
   name,
   componentType,
@@ -329,8 +261,8 @@ export function createVirtualDrive({
     type: type || FileType.DIR,
     parent: parent || null,
     path: path || undefined,
-    uid: uid || randomUUID(),
     starred: starred || false,
+    ...(uid && { uid: uid }),
   };
 }
 export const tempDate = "12/02/2022 7:00PM";
