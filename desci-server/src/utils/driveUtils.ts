@@ -202,13 +202,6 @@ export async function getTreeAndFillV2(manifest: ResearchObjectV1, nodeUuid: str
     });
   }
 
-  const treeRoot = createVirtualDrive({
-    name: 'Node Root',
-    componentType: ResearchObjectComponentType.DATA_BUCKET,
-    path: DRIVE_NODE_ROOT_PATH,
-    contains: [],
-  });
-
   tree = fillCidInfo(tree, cidInfoMap);
 
   //Generate a map of existing components
@@ -217,8 +210,17 @@ export async function getTreeAndFillV2(manifest: ResearchObjectV1, nodeUuid: str
   const pathToSizeMap = generatePathSizeMap(pathToDriveMap); //Sources dir sizes
 
   const driveObjectTree = convertIpfsTreeToDriveObjectTree(tree as DriveObject[], pathToCompMap, pathToSizeMap);
+  // eslint-disable-next-line no-array-reduce/no-reduce
+  const rootSize = driveObjectTree.reduce((acc, curr) => acc + curr.size, 0);
+  const treeRoot = createVirtualDrive({
+    name: 'Node Root',
+    componentType: ResearchObjectComponentType.DATA_BUCKET,
+    path: DRIVE_NODE_ROOT_PATH,
+    contains: driveObjectTree,
+    size: rootSize,
+  });
 
-  return driveObjectTree;
+  return treeRoot;
 }
 
 export function getAncestorComponent(
