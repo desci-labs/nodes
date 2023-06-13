@@ -23,7 +23,7 @@ export enum DataReferenceSrc {
 
 export const retrieveTree = async (req: Request, res: Response, next: NextFunction) => {
   let ownerId = (req as any).user?.id;
-  const manifestCid: string = req.params.cid;
+  const manifestCid: string = req.params.manifestCid;
   const uuid: string = req.params.nodeUuid;
   const shareId: string = req.params.shareId;
   const logger = parentLogger.child({
@@ -125,7 +125,7 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
 export const pubTree = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
   const manifestCid: string = req.params.manifestCid;
-  const rootCid: string = req.params.manifestCid;
+  const rootCid: string = req.params.rootCid;
   const uuid: string = req.params.nodeUuid;
   const logger = parentLogger.child({
     // id: req.id,
