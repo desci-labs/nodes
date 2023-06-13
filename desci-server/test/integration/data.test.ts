@@ -1,5 +1,8 @@
 import 'mocha';
 import {
+  DriveObject,
+  FileDir,
+  RecursiveLsResult,
   ResearchObjectComponentType,
   ResearchObjectV1,
   ResearchObjectV1Component,
@@ -91,10 +94,10 @@ describe('Data Controllers', () => {
         expect(res.body).to.have.property('tree');
       });
       it('should contain newly added file', () => {
-        const flatTree = recursiveFlattenTree(res.body.tree);
-        const newFile = flatTree.find((f) => neutralizePath(f.path) === 'root/test.txt');
+        const flatTree = recursiveFlattenTree(res.body.tree) as DriveObject[];
+        const newFile = flatTree.find((f) => neutralizePath(f.path!) === 'root/test.txt');
         expect(!!newFile).to.equal(true);
-        expect(newFile.type).to.equal('file');
+        expect(newFile?.type).to.equal('file');
       });
       it('should return a manifest', () => {
         expect(res.body).to.have.property('manifest');
@@ -188,10 +191,10 @@ describe('Data Controllers', () => {
         expect(res.body).to.have.property('tree');
       });
       it('should contain newly added folder', () => {
-        const flatTree = recursiveFlattenTree(res.body.tree);
-        const newFolder = flatTree.find((f) => neutralizePath(f.path) === 'root/My New Folder');
+        const flatTree = recursiveFlattenTree(res.body.tree) as DriveObject[];
+        const newFolder = flatTree.find((f) => neutralizePath(f.path!) === 'root/My New Folder');
         expect(!!newFolder).to.equal(true);
-        expect(newFolder.type).to.equal('dir');
+        expect(newFolder?.type).to.equal('dir');
       });
       it('should return a manifest', () => {
         expect(res.body).to.have.property('manifest');
@@ -246,10 +249,10 @@ describe('Data Controllers', () => {
         expect(res.body).to.have.property('tree');
       });
       it('should contain newly added external repo', () => {
-        const flatTree = recursiveFlattenTree(res.body.tree);
-        const newFolder = flatTree.find((f) => neutralizePath(f.path) === 'root/' + externalRepoPath);
+        const flatTree = recursiveFlattenTree(res.body.tree) as DriveObject[];
+        const newFolder = flatTree.find((f) => neutralizePath(f.path!) === 'root/' + externalRepoPath);
         expect(!!newFolder).to.equal(true);
-        expect(newFolder.type).to.equal('dir');
+        expect(newFolder?.type).to.equal('dir');
       });
       it('should return a manifest', () => {
         expect(res.body).to.have.property('manifest');
@@ -543,13 +546,13 @@ describe('Data Controllers', () => {
       });
       it('databucket dag should contain renamed directory and nested files', async () => {
         const databucketCid = res.body.manifest.components[0].payload.cid;
-        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {}));
+        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {})) as FileDir[];
         const renamedDir = flatTree.find((f) => neutralizePath(f.path) === newPath);
         const nestedFile = flatTree.find((f) => neutralizePath(f.path) === newPath + '/b.txt');
         expect(!!renamedDir).to.equal(true);
         expect(!!nestedFile).to.equal(true);
-        expect(renamedDir.type).to.equal('dir');
-        expect(nestedFile.type).to.equal('file');
+        expect(renamedDir?.type).to.equal('dir');
+        expect(nestedFile?.type).to.equal('file');
       });
       it('should have an updated manifest data bucket cid', () => {
         const oldDataBucketCid = baseManifest.components[0].payload.cid;
@@ -634,14 +637,14 @@ describe('Data Controllers', () => {
 
         manifest.components[0].payload.cid = newDagCid;
 
-        const tree = recursiveFlattenTree(await getDirectoryTree(newDagCid, {}));
+        const tree = recursiveFlattenTree(await getDirectoryTree(newDagCid, {})) as RecursiveLsResult[];
         // debugger;
         const componentsToAdd = ['root/dir', 'root/dir/subdir', 'root/dir/subdir/b.txt'].map((path) => {
           const match = tree.find((fd) => neutralizePath(fd.path) === path);
           return {
-            name: match.name,
-            path: neutralizePath(match.path),
-            cid: match.cid,
+            name: match!.name!,
+            path: neutralizePath(match!.path!),
+            cid: match!.cid!,
             componentType: ResearchObjectComponentType.CODE,
             star: true,
           };
@@ -687,10 +690,10 @@ describe('Data Controllers', () => {
       });
       it('databucket dag should contain moved directory', async () => {
         const databucketCid = res.body.manifest.components[0].payload.cid;
-        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {}));
+        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {})) as RecursiveLsResult[];
         const movedDir = flatTree.find((f) => neutralizePath(f.path) === moveToPath);
         expect(!!movedDir).to.equal(true);
-        expect(movedDir.type).to.equal('dir');
+        expect(movedDir?.type).to.equal('dir');
       });
       it('should have an updated manifest data bucket cid', () => {
         const oldDataBucketCid = baseManifest.components[0].payload.cid;
@@ -753,7 +756,9 @@ describe('Data Controllers', () => {
             manifestComponentCids.push(c.payload.url);
           }
         });
-        const tree = recursiveFlattenTree(await getDirectoryTree(res.body.manifest.components[0].payload.cid, {}));
+        const tree = recursiveFlattenTree(
+          await getDirectoryTree(res.body.manifest.components[0].payload.cid, {}),
+        ) as FileDir[];
         const allCidsExist = manifestComponentCids.every((cid) => {
           const found = tree.find((f) => f.cid === cid);
           return !!found;

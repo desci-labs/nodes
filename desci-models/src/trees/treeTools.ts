@@ -37,7 +37,7 @@ export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
     size: rootSize,
   });
 
-  return treeRoot;
+  return [treeRoot];
 }
 
 export function getAncestorComponent(
@@ -267,11 +267,6 @@ export function createVirtualDrive({
 }
 export const tempDate = "12/02/2022 7:00PM";
 
-export function neutralizePath(path: DrivePath) {
-  if (!path.includes("/") && path.length) return "root";
-  return path.replace(/^[^/]+/, DRIVE_NODE_ROOT_PATH);
-}
-
 export const recursiveFlattenTree = (
   tree: RecursiveLsResult[] | DriveObject[]
 ): RecursiveLsResult[] | DriveObject[] => {
@@ -284,3 +279,12 @@ export const recursiveFlattenTree = (
   });
   return contents;
 };
+
+export function neutralizePath(path: DrivePath) {
+  if (!path.includes("/") && path.length) return "root";
+  return path.replace(/^[^/]+/, DRIVE_NODE_ROOT_PATH);
+}
+export function deneutralizePath(path: DrivePath, rootCid: string) {
+  if (!path.includes("/") && path.length) return rootCid;
+  return path.replace(/^[^/]+/, rootCid);
+}

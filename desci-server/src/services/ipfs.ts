@@ -295,11 +295,6 @@ export interface RecursiveLsResult extends IpfsPinnedResult {
   external?: boolean;
 }
 
-export interface FileDir extends RecursiveLsResult {
-  date?: string;
-  published?: boolean;
-}
-
 export const convertToCidV1 = (cid: string | multiformats.CID): string => {
   if (typeof cid === 'string') {
     const c = multiformats.CID.parse(cid);
