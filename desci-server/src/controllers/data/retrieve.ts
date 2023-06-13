@@ -22,7 +22,7 @@ export enum DataReferenceSrc {
   PUBLIC = 'public',
 }
 
-export const retrieveTree = async (req: Request, res: Response, next: NextFunction) => {
+export const retrieveTree = async (req: Request, res: Response) => {
   let ownerId = (req as any).user?.id;
   const manifestCid: string = req.params.manifestCid;
   const uuid: string = req.params.nodeUuid;
@@ -51,8 +51,7 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
       select: { node: true, nodeUUID: true },
     });
     if (!privateShare) {
-      res.status(404).send({ ok: false, message: 'Invalid shareId' });
-      return;
+      return res.status(404).send({ ok: false, message: 'Invalid shareId' });
     }
     node = privateShare.node;
 
@@ -62,27 +61,22 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
 
     const verifiedOwner = await prisma.user.findFirst({ where: { id: ownerId } });
     if (!verifiedOwner || (verifiedOwner.id !== ownerId && verifiedOwner.id > 0)) {
-      res.status(400).send({ ok: false, message: 'Invalid node owner' });
-      return;
+      return res.status(400).send({ ok: false, message: 'Invalid node owner' });
     }
   }
   if (!ownerId) {
-    res.status(401).send({ ok: false, message: 'Unauthorized user' });
-    return;
+    return res.status(401).send({ ok: false, message: 'Unauthorized user' });
   }
 
   if (!node) {
-    res.status(400).send({ ok: false, message: 'Node not found' });
-    return;
+    return res.status(400).send({ ok: false, message: 'Node not found' });
   }
 
   if (!manifestCid) {
-    res.status(400).json({ error: 'no manifest CID provided' });
-    return;
+    return res.status(400).json({ error: 'no manifest CID provided' });
   }
   if (!uuid) {
-    res.status(400).json({ error: 'no UUID provided' });
-    return;
+    return res.status(400).json({ error: 'no UUID provided' });
   }
 
   // TODOD: Pull data references from publishDataReferences table
@@ -112,8 +106,7 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
 
   if (!dataset && dataSource === DataReferenceSrc.PRIVATE) {
     logger.warn(`unauthed access user: ${ownerId}, cid provided: ${manifestCid}, nodeUuid provided: ${uuid}`);
-    res.status(400).json({ error: 'failed' });
-    return;
+    return res.status(400).json({ error: 'failed' });
   }
 
   const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
@@ -132,7 +125,7 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
 
   // const filledTree = await getTreeAndFill(manifest, uuid, ownerId);
 
-  res.status(200).json({ tree: filledTree, date: dataset?.updatedAt });
+  return res.status(200).json({ tree: filledTree, date: dataset?.updatedAt });
 };
 
 export const pubTree = async (req: Request, res: Response, next: NextFunction) => {
