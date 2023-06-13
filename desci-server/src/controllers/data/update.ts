@@ -1,4 +1,10 @@
-import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import {
+  neutralizePath,
+  deneutralizePath,
+  recursiveFlattenTree,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+} from '@desci-labs/desci-models';
 import { DataType, User } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response } from 'express';
@@ -29,13 +35,10 @@ import {
   FirstNestingComponent,
   ROTypesToPrismaTypes,
   addComponentsToManifest,
-  deneutralizePath,
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
   inheritComponentType,
-  neutralizePath,
-  recursiveFlattenTree,
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
 

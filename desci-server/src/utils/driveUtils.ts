@@ -13,31 +13,6 @@ import prisma from 'client';
 import { DataReferenceSrc } from 'controllers/data';
 import { getDirectoryTree, RecursiveLsResult } from 'services/ipfs';
 
-export function recursiveFlattenTreeFilterDirs(tree) {
-  const flat = [];
-  tree.forEach((branch) => {
-    if ('contains' in branch) {
-      flat.push(branch);
-      flat.push(...recursiveFlattenTreeFilterDirs(branch.contains));
-    }
-  });
-
-  return flat;
-}
-
-export const recursiveFlattenTree = (
-  tree: RecursiveLsResult[] | DriveObject[],
-): RecursiveLsResult[] | DriveObject[] => {
-  const contents = [];
-  tree.forEach((fd) => {
-    contents.push(fd);
-    if (fd.type === 'dir' && fd.contains) {
-      contents.push(...recursiveFlattenTree(fd.contains));
-    }
-  });
-  return contents;
-};
-
 export function fillDirSizes(tree, cidInfoMap) {
   const contains = [];
   tree.forEach((fd) => {
@@ -71,7 +46,7 @@ interface CidEntryDetails {
   date?: string;
 }
 
-//deprecate this, use for old tree
+//deprecated tree filling function, used for old datasets, pre unopinionated data model
 export async function getTreeAndFillDeprecated(
   rootCid: string,
   nodeUuid: string,
@@ -262,17 +237,7 @@ export function urlOrCid(cid: string, type: ResearchObjectComponentType) {
   }
 }
 
-export type DrivePath = string;
 export const DRIVE_NODE_ROOT_PATH = 'root';
-
-export function neutralizePath(path: DrivePath) {
-  if (!path.includes('/') && path.length) return 'root';
-  return path.replace(/^[^/]+/, DRIVE_NODE_ROOT_PATH);
-}
-export function deneutralizePath(path: DrivePath, rootCid: string) {
-  if (!path.includes('/') && path.length) return rootCid;
-  return path.replace(/^[^/]+/, rootCid);
-}
 
 export interface FirstNestingComponent {
   name: string;

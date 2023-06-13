@@ -1,5 +1,11 @@
 import 'mocha';
-import { ResearchObjectComponentType, ResearchObjectV1, ResearchObjectV1Component } from '@desci-labs/desci-models';
+import {
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+  ResearchObjectV1Component,
+  neutralizePath,
+  recursiveFlattenTree,
+} from '@desci-labs/desci-models';
 import { DataType, Node, User, Prisma } from '@prisma/client';
 import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
@@ -16,7 +22,7 @@ import {
 } from '../../src/services/ipfs';
 import { randomUUID64 } from '../../src/utils';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools';
-import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from '../../src/utils/driveUtils';
+import { addComponentsToManifest } from '../../src/utils/driveUtils';
 import { spawnExampleDirDag } from '../util';
 
 describe('Data Controllers', () => {

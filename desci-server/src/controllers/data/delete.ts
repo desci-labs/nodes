@@ -1,12 +1,17 @@
-import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import {
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+  deneutralizePath,
+  neutralizePath,
+  recursiveFlattenTree,
+} from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import parentLogger from 'logger';
 import { RecursiveLsResult, getDirectoryTree, removeFileFromDag } from 'services/ipfs';
-import { deneutralizePath, updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
-import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
+import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
 
 import { updateManifestDataBucket } from './update';
 import { getLatestManifest, persistManifest } from './utils';

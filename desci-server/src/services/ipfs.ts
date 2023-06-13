@@ -4,6 +4,7 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   ResearchObjectV1Component,
+  deneutralizePath,
 } from '@desci-labs/desci-models';
 import * as dagPb from '@ipld/dag-pb';
 import { PBNode } from '@ipld/dag-pb/src/interface';
@@ -25,7 +26,6 @@ import { PUBLIC_IPFS_PATH } from 'config';
 import parentLogger from 'logger';
 import { getOrCache } from 'redisClient';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
-import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
 

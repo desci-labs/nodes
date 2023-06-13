@@ -1,12 +1,9 @@
-import { ResearchObjectComponentType, ResearchObjectV1, ResearchObjectV1Component } from '@desci-labs/desci-models';
-import { DataReference, DataType } from '@prisma/client';
-import { addExtensionMethods } from '@sentry/tracing';
+import { recursiveFlattenTree, ResearchObjectComponentType, ResearchObjectV1Component } from '@desci-labs/desci-models';
+import { DataType } from '@prisma/client';
 import axios from 'axios';
-import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
-import { PUBLIC_IPFS_PATH } from 'config';
-import { persistManifest, PersistManifestParams } from 'controllers/data/utils';
+import { PersistManifestParams } from 'controllers/data/utils';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import {
   client,
@@ -18,7 +15,7 @@ import {
   updateManifestAndAddToIpfs,
 } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
-import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
+import { addComponentsToManifest } from 'utils/driveUtils';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
