@@ -167,7 +167,7 @@ export async function getTreeAndFill(manifest: ResearchObjectV1, nodeUuid: strin
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
-    pubEntries.forEach(async (ref) => {
+    const promises = pubEntries.map(async (ref) => {
       const blockTime = await getBlockTime(nodeUuid, ref.nodeVersion.transactionId);
       const date = !!blockTime && blockTime !== '-1' ? blockTime : ref.createdAt?.toString();
       const entryDetails = {
@@ -178,6 +178,8 @@ export async function getTreeAndFill(manifest: ResearchObjectV1, nodeUuid: strin
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
+
+    await Promise.all(promises);
   }
 
   tree = fillCidInfo(tree, cidInfoMap);
