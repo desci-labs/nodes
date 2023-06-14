@@ -169,7 +169,7 @@ export async function getTreeAndFill(manifest: ResearchObjectV1, nodeUuid: strin
     });
     const promises = pubEntries.map(async (ref) => {
       const blockTime = await getBlockTime(nodeUuid, ref.nodeVersion.transactionId);
-      const date = !!blockTime && blockTime !== '-1' ? blockTime : ref.createdAt?.toString();
+      const date = !!blockTime && blockTime !== '-1' ? blockTime : ref.createdAt?.getTime().toString();
       const entryDetails = {
         size: ref.size || 0,
         published: true,
