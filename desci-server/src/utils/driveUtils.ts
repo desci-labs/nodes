@@ -162,7 +162,7 @@ export async function getTreeAndFill(manifest: ResearchObjectV1, nodeUuid: strin
       const entryDetails = {
         size: ref.size || 0,
         published: false,
-        date: ref.createdAt?.toString(),
+        date: ref.createdAt?.getTime().toString(),
         external: ref.external ? true : false,
       };
       cidInfoMap[ref.cid] = entryDetails;
