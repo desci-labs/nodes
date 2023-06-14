@@ -378,7 +378,6 @@ export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidM
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
   );
   try {
-    debugger;
     const tree = await getOrCache(`tree-${cid}`, getTree);
     if (tree) return tree;
     throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
