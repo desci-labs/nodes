@@ -7,6 +7,8 @@ import {
   Contract,
   ContractFactory,
   Signer,
+  Wallet,
+  utils,
 } from "ethers";
 import "@nomiclabs/hardhat-waffle";
 import {
@@ -18,10 +20,16 @@ import {
   TestERC721,
   ERC721,
   ERC721__factory,
+  Paymaster,
 } from "../typechain-types";
 import { randomBytes } from "crypto";
 import { formatBytes32String } from "ethers/lib/utils";
 import CID from "cids";
+import { GsnTestEnvironment } from "@opengsn/dev";
+import { wrapContract } from "@opengsn/provider/dist/WrapContract";
+import { GSNConfig, ether } from "@opengsn/provider";
+const ResearchObjectAbi = require("../artifacts/contracts/ResearchObject.sol/ResearchObject.json");
+const IRelayHub = require("../artifacts/@opengsn/contracts/src/interfaces/IRelayHub.sol/IRelayHub.json");
 
 describe("ResearchObjectProxy", function () {
   let accounts: Signer[];
@@ -30,9 +38,66 @@ describe("ResearchObjectProxy", function () {
 
   let DpidRegistryFactory: DpidRegistry__factory;
   let dpidRegistry: DpidRegistry;
+  let pm: Paymaster,
+    user: Signer,
+    contract: ResearchObject,
+    forwarderAddress: string | undefined,
+    paymasterAddress: string | undefined,
+    relayHubAddress: string | undefined,
+    gnsConfig: Partial<GSNConfig>;
 
   beforeEach(async function () {
     accounts = await ethers.getSigners();
+    // const env = await GsnTestEnvironment.startGsn("localhost");
+    // const deployment = env.contractsDeployment; 
+    const deployment = await GsnTestEnvironment.loadDeployment(
+      "http://localhost:8545"
+    );
+    console.log("ethers provider")
+    console.log("GsnTestEnvironment.startGsn(", deployment, ")");
+    forwarderAddress = (await deployment).forwarderAddress;
+    relayHubAddress = (await deployment).relayHubAddress;
+    paymasterAddress = (await deployment).paymasterAddress;
+
+    // deploy and initialize paymaster
+    gnsConfig = {
+      paymasterAddress: "",
+      performDryRunViewRelayCall: false,
+      jsonStringifyRequest: false,
+      loggerConfiguration: {
+        logLevel: "debug",
+      },
+      
+    };
+    // const Paymaster = await ethers.getContractFactory("Paymaster");
+    // const paymaster = (await Paymaster.deploy()) as Paymaster;
+    // await paymaster.deployed();
+    let paymaster = new ethers.Contract(
+      relayHubAddress!,
+      IRelayHub.abi,
+      new ethers.providers.StaticJsonRpcProvider("http://127.0.0.1:8545/")
+    ) as Paymaster;
+    console.log("Version paymaster", await paymaster.versionPaymaster());
+
+    const relayHub = new ethers.Contract(
+      relayHubAddress!,
+      IRelayHub.abi,
+      new ethers.providers.StaticJsonRpcProvider("http://127.0.0.1:8545/")
+    );
+    console.log("paymasterAddress", paymasterAddress);
+    console.log("forwarderAddress", forwarderAddress);
+    console.log("relay hub", relayHub?.address);
+    console.log("relayHub version", await relayHub.versionHub());
+    await paymaster.setRelayHub(relayHubAddress!);
+    await paymaster.setTrustedForwarder(forwarderAddress!);
+    pm = paymaster;
+    gnsConfig.paymasterAddress = paymaster.address;
+    // Fund paymaster
+    const tx = await accounts[1].sendTransaction({
+      to: paymaster.address,
+      value: utils.parseEther("1"),
+    });
+    await tx.wait();
 
     DpidRegistryFactory = (await ethers.getContractFactory(
       "DpidRegistry"
@@ -50,8 +115,30 @@ describe("ResearchObjectProxy", function () {
 
     researchObject = (await upgrades.deployProxy(ResearchObjectFactory, [
       dpidRegistry.address,
+      forwarderAddress,
     ])) as ResearchObject;
     await researchObject.deployed();
+
+    user = Wallet.createRandom();
+    user = user.connect(ethers.provider);
+    console.log("provider", await user.getAddress());
+    contract = (await new ethers.Contract(
+      researchObject.address,
+      ResearchObjectAbi.abi,
+      user
+    )) as ResearchObject;
+    contract = (await wrapContract(
+      contract as any,
+      gnsConfig
+    )) as unknown as ResearchObject;
+
+    const owner = await contract.owner();
+    console.log("contract owner", owner);
+    console.log(
+      "before::: ResearchObject contract",
+      researchObject.address,
+      contract.address
+    );
   });
 
   describe("Gas", () => {
@@ -64,6 +151,27 @@ describe("ResearchObjectProxy", function () {
         BigNumber.from(res.cumulativeGasUsed).lte(32000000),
         `Gas limit exceeded`
       ).to.be.true;
+    });
+  });
+
+  describe.only("Gasless transaction", () => {
+    // let contract, user: Signer;
+
+    describe("Minting", () => {
+      it("Cost no amount of gas to mint", async () => {
+        let uuid = randomBytes(32);
+        const mintTx = await contract.mint(uuid, getBytes());
+
+        // wait until the transaction is mined
+        const res = await mintTx.wait();
+        console.log(`Mint cost ${res.cumulativeGasUsed} gas units`);
+        expect(
+          BigNumber.from(res.cumulativeGasUsed).lte(300000),
+          "Gas limit exceeded"
+        ).to.be.true;
+
+        // emit VersionPush(_msgSender(), tokenId, cid);
+      });
     });
   });
 

@@ -18,5 +18,7 @@
         "tw`([^`]*)", // tw`...`
         "tw\\.[^`]+`([^`]*)`", // tw.xxx<xxx>`...`
         "tw\\(.*?\\).*?`([^`]*)" // tw(Component)<xxx>`...`
-    ]
+    ],
+    "solidity.packageDefaultDependenciesContractsDirectory": "",
+    "solidity.packageDefaultDependenciesDirectory": "node_modules",
 }

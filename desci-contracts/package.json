@@ -4,7 +4,7 @@
   "version": "0.2.0",
   "license": "BSD-4-Clause",
   "scripts": {
-    "test": "npx hardhat test",
+    "test": "./test.sh",
     "docker:build": "docker build -t desci-hardhat-node .",
     "docker:push": "docker tag desci-hardhat-node:latest 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest && docker push 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest",
     "deploy:ganache": "yarn stubHardhatAnalytics && rm -f ./.openzeppelin/unknown-1337.json ; rm -f ./.openzeppelin/unknown-research-object.json ; npx hardhat run scripts/deployResearchObject.js --network ganache && mv ./.openzeppelin/unknown-1337.json ./.openzeppelin/unknown-research-object.json",
@@ -39,7 +39,7 @@
     "as-base64": "^0.2.0",
     "chai": "^4.3.4",
     "ethereum-waffle": "^3.4.0",
-    "ethers": "^5.4.4",
+    "ethers": "5.5.1",
     "ganache-cli": "^6.12.2",
     "hardhat": "^2.5.0",
     "hardhat-deploy": "^0.8.11",
@@ -53,6 +53,13 @@
     "typescript": "^4.3.5"
   },
   "dependencies": {
+    "@opengsn/cli": "^3.0.0-beta.6",
+    "@opengsn/common": "^3.0.0-beta.6",
+    "@opengsn/contracts": "^3.0.0-beta.6",
+    "@opengsn/dev": "^3.0.0-beta.6",
+    "@opengsn/paymasters": "^3.0.0-beta.6",
+    "@opengsn/provider": "^3.0.0-beta.6",
+    "@opengsn/relay": "^3.0.0-beta.6",
     "@openzeppelin/contracts": "^4.8.1",
     "cids": "^1.1.9",
     "dotenv": "^10.0.0",

@@ -1,11 +1,16 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./VersionedERC721.sol";
 import "./IDpidRegistry.sol";
+import "./metatx/ERC2771RecipientUpgradeable.sol";
 
-contract ResearchObject is VersionedERC721, OwnableUpgradeable {
+contract ResearchObject is
+    VersionedERC721,
+    OwnableUpgradeable,
+    ERC2771RecipientUpgradeable
+{
     string private _uri;
 
     address public _dpidRegistry;
@@ -15,13 +20,17 @@ contract ResearchObject is VersionedERC721, OwnableUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(address dpidRegistry) public initializer {
+    function initialize(
+        address dpidRegistry,
+        address forwarder
+    ) public initializer {
         VersionedERC721.__VersionedERC721_init(
             "DeSci Research Object",
             "DeSci-Node"
         );
         OwnableUpgradeable.__Ownable_init();
         _dpidRegistry = dpidRegistry;
+        _setTrustedForwarder(forwarder);
     }
 
     function _beforeTokenTransfer(
@@ -63,5 +72,38 @@ contract ResearchObject is VersionedERC721, OwnableUpgradeable {
 
     function setRegistry(address dpidRegistry) public onlyOwner {
         _dpidRegistry = dpidRegistry;
+    }
+
+    /// @inheritdoc IERC2771RecipientUpgradeable
+    function _msgSender()
+        internal
+        view
+        override(ContextUpgradeable, ERC2771RecipientUpgradeable)
+        returns (address ret)
+    {
+        if (msg.data.length >= 20 && isTrustedForwarder(msg.sender)) {
+            // At this point we know that the sender is a trusted forwarder,
+            // so we trust that the last bytes of msg.data are the verified sender address.
+            // extract sender address from the end of msg.data
+            assembly {
+                ret := shr(96, calldataload(sub(calldatasize(), 20)))
+            }
+        } else {
+            ret = msg.sender;
+        }
+    }
+
+    /// @inheritdoc IERC2771RecipientUpgradeable
+    function _msgData()
+        internal
+        view
+        override(ContextUpgradeable, ERC2771RecipientUpgradeable)
+        returns (bytes calldata ret)
+    {
+        if (msg.data.length >= 20 && isTrustedForwarder(msg.sender)) {
+            return msg.data[0:msg.data.length - 20];
+        } else {
+            return msg.data;
+        }
     }
 }

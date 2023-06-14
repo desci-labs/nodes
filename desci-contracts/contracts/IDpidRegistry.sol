@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.17;
 
 interface IDpidRegistry {
     function put(bytes32 prefix, uint256 entry)

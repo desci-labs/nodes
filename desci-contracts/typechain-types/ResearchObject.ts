@@ -28,8 +28,10 @@ export interface ResearchObjectInterface extends utils.Interface {
     "balanceOf(address)": FunctionFragment;
     "exists(uint256)": FunctionFragment;
     "getApproved(uint256)": FunctionFragment;
-    "initialize(address)": FunctionFragment;
+    "getTrustedForwarder()": FunctionFragment;
+    "initialize(address,address)": FunctionFragment;
     "isApprovedForAll(address,address)": FunctionFragment;
+    "isTrustedForwarder(address)": FunctionFragment;
     "mint(uint256,bytes)": FunctionFragment;
     "mintWithDpid(uint256,bytes,bytes32,uint256)": FunctionFragment;
     "name()": FunctionFragment;
@@ -73,10 +75,21 @@ export interface ResearchObjectInterface extends utils.Interface {
     functionFragment: "getApproved",
     values: [BigNumberish]
   ): string;
-  encodeFunctionData(functionFragment: "initialize", values: [string]): string;
+  encodeFunctionData(
+    functionFragment: "getTrustedForwarder",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "initialize",
+    values: [string, string]
+  ): string;
   encodeFunctionData(
     functionFragment: "isApprovedForAll",
     values: [string, string]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "isTrustedForwarder",
+    values: [string]
   ): string;
   encodeFunctionData(
     functionFragment: "mint",
@@ -144,9 +157,17 @@ export interface ResearchObjectInterface extends utils.Interface {
     functionFragment: "getApproved",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "getTrustedForwarder",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "initialize", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "isApprovedForAll",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "isTrustedForwarder",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "mint", data: BytesLike): Result;
@@ -306,14 +327,24 @@ export interface ResearchObject extends BaseContract {
       overrides?: CallOverrides
     ): Promise<[string]>;
 
+    getTrustedForwarder(
+      overrides?: CallOverrides
+    ): Promise<[string] & { forwarder: string }>;
+
     initialize(
       dpidRegistry: string,
+      forwarder: string,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<ContractTransaction>;
 
     isApprovedForAll(
       owner: string,
       operator: string,
+      overrides?: CallOverrides
+    ): Promise<[boolean]>;
+
+    isTrustedForwarder(
+      forwarder: string,
       overrides?: CallOverrides
     ): Promise<[boolean]>;
 
@@ -431,14 +462,22 @@ export interface ResearchObject extends BaseContract {
     overrides?: CallOverrides
   ): Promise<string>;
 
+  getTrustedForwarder(overrides?: CallOverrides): Promise<string>;
+
   initialize(
     dpidRegistry: string,
+    forwarder: string,
     overrides?: Overrides & { from?: string | Promise<string> }
   ): Promise<ContractTransaction>;
 
   isApprovedForAll(
     owner: string,
     operator: string,
+    overrides?: CallOverrides
+  ): Promise<boolean>;
+
+  isTrustedForwarder(
+    forwarder: string,
     overrides?: CallOverrides
   ): Promise<boolean>;
 
@@ -550,11 +589,22 @@ export interface ResearchObject extends BaseContract {
       overrides?: CallOverrides
     ): Promise<string>;
 
-    initialize(dpidRegistry: string, overrides?: CallOverrides): Promise<void>;
+    getTrustedForwarder(overrides?: CallOverrides): Promise<string>;
+
+    initialize(
+      dpidRegistry: string,
+      forwarder: string,
+      overrides?: CallOverrides
+    ): Promise<void>;
 
     isApprovedForAll(
       owner: string,
       operator: string,
+      overrides?: CallOverrides
+    ): Promise<boolean>;
+
+    isTrustedForwarder(
+      forwarder: string,
       overrides?: CallOverrides
     ): Promise<boolean>;
 
@@ -723,14 +773,22 @@ export interface ResearchObject extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
+    getTrustedForwarder(overrides?: CallOverrides): Promise<BigNumber>;
+
     initialize(
       dpidRegistry: string,
+      forwarder: string,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<BigNumber>;
 
     isApprovedForAll(
       owner: string,
       operator: string,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    isTrustedForwarder(
+      forwarder: string,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
@@ -858,14 +916,24 @@ export interface ResearchObject extends BaseContract {
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
+    getTrustedForwarder(
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
     initialize(
       dpidRegistry: string,
+      forwarder: string,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<PopulatedTransaction>;
 
     isApprovedForAll(
       owner: string,
       operator: string,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    isTrustedForwarder(
+      forwarder: string,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 

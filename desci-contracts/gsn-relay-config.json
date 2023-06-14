@@ -1,0 +1,7 @@
+{
+  "relayHubAddress": "0x40bE32219F0F106067ba95145e8F2b3e7930b201",
+  "managerStakeTokenAddress": "0xE8172A9bf53001d2796825AeC32B68e21FDBb869",
+  "ownerAddress": "0x114EA4c82a0B5d54Ce5697272a2De2e4a14D654C",
+  "gasPriceFactor": 1,
+  "ethereumNodeUrl": "https: //eth-goerli.g.alchemy.com/v2/ZeIzCAJyPpRnTtPNSmddHGF-q2yp-2Uy"
+}
