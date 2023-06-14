@@ -27,6 +27,8 @@ export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
     pathToCompMap,
     pathToSizeMap
   );
+
+  // Potentially keep if we want to return the root node
   // eslint-disable-next-line no-array-reduce/no-reduce
   // const rootSize = driveObjectTree.reduce((acc, curr) => acc + curr.size, 0);
   // const treeRoot = createVirtualDrive({
@@ -46,6 +48,7 @@ export function getAncestorComponent(
   pathToCompMap: Record<DrivePath, ResearchObjectV1Component>
 ): ResearchObjectV1Component | null {
   const pathSplit = drive.path!.split("/");
+  // < 3 === don't inherit from root
   if (pathSplit.length < 3) return null;
   while (pathSplit.length > 1) {
     pathSplit.pop();
@@ -137,6 +140,7 @@ export function inheritMetadata(
   }
 
   const pathSplit = path.split("/");
+  // < 3 === don't inherit from root
   if (pathSplit.length < 3) return {};
   while (pathSplit.length > 1) {
     pathSplit.pop();
