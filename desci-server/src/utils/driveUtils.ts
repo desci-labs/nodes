@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
 
 import {
-  DriveObject,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
   ResearchObjectV1,
@@ -11,7 +10,10 @@ import { DataReference, DataType } from '@prisma/client';
 
 import prisma from 'client';
 import { DataReferenceSrc } from 'controllers/data';
+import logger from 'logger';
+import { getOrCache } from 'redisClient';
 import { getDirectoryTree, RecursiveLsResult } from 'services/ipfs';
+import { getIndexedResearchObjects } from 'theGraph';
 
 export function fillDirSizes(tree, cidInfoMap) {
   const contains = [];
@@ -144,6 +146,9 @@ export async function getTreeAndFill(manifest: ResearchObjectV1, nodeUuid: strin
         uuid: nodeUuid + '.',
       },
     },
+    include: {
+      nodeVersion: true,
+    },
   });
 
   const cidInfoMap: Record<string, CidEntryDetails> = {};
@@ -162,11 +167,13 @@ export async function getTreeAndFill(manifest: ResearchObjectV1, nodeUuid: strin
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
-    pubEntries.forEach((ref) => {
+    pubEntries.forEach(async (ref) => {
+      const blockTime = await getBlockTime(nodeUuid, ref.nodeVersion.transactionId);
+      const date = !!blockTime && blockTime !== '-1' ? blockTime : ref.createdAt?.toString();
       const entryDetails = {
         size: ref.size || 0,
         published: true,
-        date: ref.createdAt?.toString(),
+        date: date,
         external: ref.external ? true : false,
       };
       cidInfoMap[ref.cid] = entryDetails;
@@ -178,6 +185,32 @@ export async function getTreeAndFill(manifest: ResearchObjectV1, nodeUuid: strin
   const treeRoot = await fillIpfsTree(manifest, tree);
 
   return treeRoot;
+}
+
+export async function getBlockTime(nodeUuid: string, txHash: string) {
+  let blockTime;
+  try {
+    blockTime = await getOrCache(`txHash-blockTime-${txHash}`, retrieveBlockTime);
+    if (blockTime !== '-1' && !blockTime) throw new Error('[getBlockTime] Failed to retrieve blocktime from cache');
+  } catch (err) {
+    logger.warn({ fn: 'getBlockTime', err, nodeUuid, txHash }, '[getBlockTime] error');
+    logger.info('[getBlockTime] Falling back on uncached tree retrieval');
+    return await retrieveBlockTime();
+  }
+  return blockTime === '-1' ? null : blockTime;
+
+  async function retrieveBlockTime() {
+    const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
+    if (!researchObjects.length)
+      logger.warn({ fn: 'getBlockTime' }, `No research objects found for nodeUuid ${nodeUuid}`);
+    const indexedNode = researchObjects[0];
+    const correctVersion = indexedNode.versions.find((v) => v.id === txHash);
+    if (!correctVersion) {
+      logger.warn({ fn: 'getBlockTime', nodeUuid, txHash }, `No version match was found for nodeUuid/txHash`);
+      return '-1';
+    }
+    return correctVersion.time;
+  }
 }
 
 export const gbToBytes = (gb: number) => gb * 1000000000;
