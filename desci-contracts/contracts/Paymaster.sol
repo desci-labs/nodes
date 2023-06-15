@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "@opengsn/contracts/src/BasePaymaster.sol";
 
-// desoc paymaster
+// desci paymaster
 // this paymaster accepts only request to authorized targets.
 //
 
@@ -17,10 +17,6 @@ contract Paymaster is BasePaymaster {
         return "3.0.0-beta.3+opengsn.desci.ipaymaster";
     }
     
-    function relayTypeId() external view returns (bytes4){
-        return type(IRelayHub).interfaceId;
-    }
-
     function addTargets(address[] memory _targets) external onlyOwner {
         for (uint i = 0; i < _targets.length;) {
             require(_targets[i] != address(0));
@@ -68,7 +64,7 @@ contract Paymaster is BasePaymaster {
     }
 
     function deposit() public payable {
-        require(address(relayHub) != address(0), "relay hub address not set");
+        require(address(relayHub) != address(0), "Invalid RelayHub address");
         relayHub.depositFor{value:msg.value}(address(this));
     }
 

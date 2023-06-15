@@ -2,15 +2,11 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import {
   BigNumber,
-  BigNumberish,
-  Contract,
-  ContractFactory,
   Signer,
 } from "ethers";
-import "@nomiclabs/hardhat-waffle";
+// import "@nomiclabs/hardhat-waffle";
 import { ResearchObject__factory, ResearchObject } from "../typechain-types";
 import { randomBytes } from "crypto";
-import { formatBytes32String } from "ethers/lib/utils";
 import CID from "cids";
 
 describe("ResearchObject", function () {

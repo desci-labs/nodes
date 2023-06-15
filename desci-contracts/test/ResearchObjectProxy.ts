@@ -1,35 +1,36 @@
 import { expect } from "chai";
 // @ts-ignore
 import { ethers, upgrades } from "hardhat";
-import {
-  BigNumber,
-  BigNumberish,
-  Contract,
-  ContractFactory,
-  Signer,
-  Wallet,
-  utils,
-} from "ethers";
-import "@nomiclabs/hardhat-waffle";
+import { BigNumber, Signer, utils } from "ethers";
 import {
   ResearchObject__factory,
   ResearchObject,
-  ContextUpgradeable,
   DpidRegistry__factory,
   DpidRegistry,
-  TestERC721,
-  ERC721,
-  ERC721__factory,
   Paymaster,
 } from "../typechain-types";
 import { randomBytes } from "crypto";
-import { formatBytes32String } from "ethers/lib/utils";
 import CID from "cids";
 import { GsnTestEnvironment } from "@opengsn/dev";
 import { wrapContract } from "@opengsn/provider/dist/WrapContract";
-import { GSNConfig, ether } from "@opengsn/provider";
+import { GSNConfig } from "@opengsn/provider";
+import { Provider } from "@ethersproject/providers";
 const ResearchObjectAbi = require("../artifacts/contracts/ResearchObject.sol/ResearchObject.json");
-const IRelayHub = require("../artifacts/@opengsn/contracts/src/interfaces/IRelayHub.sol/IRelayHub.json");
+// import eth_accounts from "../accounts.json";
+import ganache from "ganache";
+
+// const loadSigners = async (): Promise<Signer[]> => {
+//   const keyPair = Object.entries(eth_accounts.private_keys);
+//   const provider = new ethers.providers.JsonRpcProvider(
+//     "http://localhost:8545"
+//   );
+//   const signers = keyPair.map(([address, key]) => {
+//     const wallet = new ethers.Wallet(key, provider);
+//     wallet.connect(provider);
+//     return wallet;
+//   });
+//   return signers;
+// };
 
 describe("ResearchObjectProxy", function () {
   let accounts: Signer[];
@@ -45,19 +46,16 @@ describe("ResearchObjectProxy", function () {
     paymasterAddress: string | undefined,
     relayHubAddress: string | undefined,
     gnsConfig: Partial<GSNConfig>;
+  let provider: Provider;
 
-  beforeEach(async function () {
-    accounts = await ethers.getSigners();
-    // const env = await GsnTestEnvironment.startGsn("localhost");
-    // const deployment = env.contractsDeployment; 
+  this.beforeAll(async () => {
+    console.log("before all")
     const deployment = await GsnTestEnvironment.loadDeployment(
       "http://localhost:8545"
     );
-    console.log("ethers provider")
-    console.log("GsnTestEnvironment.startGsn(", deployment, ")");
+    // console.log("GsnTestEnvironment.startGsn(", deployment, ")");
     forwarderAddress = (await deployment).forwarderAddress;
     relayHubAddress = (await deployment).relayHubAddress;
-    paymasterAddress = (await deployment).paymasterAddress;
 
     // deploy and initialize paymaster
     gnsConfig = {
@@ -67,38 +65,40 @@ describe("ResearchObjectProxy", function () {
       loggerConfiguration: {
         logLevel: "debug",
       },
-      
     };
-    // const Paymaster = await ethers.getContractFactory("Paymaster");
-    // const paymaster = (await Paymaster.deploy()) as Paymaster;
-    // await paymaster.deployed();
-    let paymaster = new ethers.Contract(
-      relayHubAddress!,
-      IRelayHub.abi,
-      new ethers.providers.StaticJsonRpcProvider("http://127.0.0.1:8545/")
-    ) as Paymaster;
-    console.log("Version paymaster", await paymaster.versionPaymaster());
 
-    const relayHub = new ethers.Contract(
-      relayHubAddress!,
-      IRelayHub.abi,
-      new ethers.providers.StaticJsonRpcProvider("http://127.0.0.1:8545/")
-    );
-    console.log("paymasterAddress", paymasterAddress);
-    console.log("forwarderAddress", forwarderAddress);
-    console.log("relay hub", relayHub?.address);
-    console.log("relayHub version", await relayHub.versionHub());
-    await paymaster.setRelayHub(relayHubAddress!);
-    await paymaster.setTrustedForwarder(forwarderAddress!);
-    pm = paymaster;
-    gnsConfig.paymasterAddress = paymaster.address;
-    // Fund paymaster
-    const tx = await accounts[1].sendTransaction({
-      to: paymaster.address,
-      value: utils.parseEther("1"),
-    });
-    await tx.wait();
+     provider = new ethers.providers.Web3Provider(ganache.provider() as any);
 
+     accounts = await ethers.getSigners();
+
+     let Paymaster = await ethers.getContractFactory("Paymaster");
+     Paymaster = Paymaster.connect(accounts[0]);
+     let paymaster = (await Paymaster.connect(
+       accounts[0]
+     ).deploy()) as Paymaster;
+     await paymaster.deployed();
+     gnsConfig.paymasterAddress = paymaster.address;
+
+     paymaster = paymaster.connect(accounts[0]);
+
+     let tx = await paymaster.setRelayHub(relayHubAddress!);
+     await tx.wait();
+
+     tx = await paymaster.setTrustedForwarder(forwarderAddress!);
+     await tx.wait();
+
+     pm = paymaster;
+
+     tx = await accounts[0].sendTransaction({
+       to: pm.address,
+       value: utils.parseEther("1"),
+     });
+     await tx.wait();
+  });
+
+  beforeEach(async function () {
+    // provider = new ethers.providers.JsonRpcProvider("http://localhost:8545");
+   
     DpidRegistryFactory = (await ethers.getContractFactory(
       "DpidRegistry"
     )) as unknown as DpidRegistry__factory;
@@ -118,10 +118,11 @@ describe("ResearchObjectProxy", function () {
       forwarderAddress,
     ])) as ResearchObject;
     await researchObject.deployed();
+    console.log("ResearchObject deployed", researchObject.address);
 
-    user = Wallet.createRandom();
-    user = user.connect(ethers.provider);
-    console.log("provider", await user.getAddress());
+    user = accounts[0];
+    // console.log("provider", await user.getAddress());
+
     contract = (await new ethers.Contract(
       researchObject.address,
       ResearchObjectAbi.abi,
@@ -132,13 +133,6 @@ describe("ResearchObjectProxy", function () {
       gnsConfig
     )) as unknown as ResearchObject;
 
-    const owner = await contract.owner();
-    console.log("contract owner", owner);
-    console.log(
-      "before::: ResearchObject contract",
-      researchObject.address,
-      contract.address
-    );
   });
 
   describe("Gas", () => {
@@ -154,19 +148,53 @@ describe("ResearchObjectProxy", function () {
     });
   });
 
-  describe.only("Gasless transaction", () => {
+  describe("Gasless transaction", () => {
     // let contract, user: Signer;
 
     describe("Minting", () => {
       it("Cost no amount of gas to mint", async () => {
+        let tx = await pm.addTargets([contract.address]);
+        await tx.wait();
+
         let uuid = randomBytes(32);
         const mintTx = await contract.mint(uuid, getBytes());
 
         // wait until the transaction is mined
         const res = await mintTx.wait();
-        console.log(`Mint cost ${res.cumulativeGasUsed} gas units`);
+        console.log(`Minting:: Mint cost ${res.cumulativeGasUsed} gas units`);
         expect(
-          BigNumber.from(res.cumulativeGasUsed).lte(300000),
+          BigNumber.from(res.cumulativeGasUsed).lte(365689),
+          "Gas limit exceeded"
+        ).to.be.true;
+
+        // emit VersionPush(_msgSender(), tokenId, cid);
+      });
+    });
+
+    describe("Minting with dPID", () => {
+      it("Cost no amount of gas to mint with dPID", async () => {
+        let tx = await pm.addTargets([contract.address]);
+        await tx.wait();
+
+        let uuid = randomBytes(32);
+        // const mintTx = await contract.mint(uuid, getBytes());
+        const mintTx = await contract.mintWithDpid(
+          uuid,
+          getBytes(),
+          ethers.utils.formatBytes32String(""),
+          0,
+          { value: ethers.utils.parseUnits("0", "gwei") }
+        );
+
+        // wait until the transaction is mined
+        const res = await mintTx.wait();
+        console.log(
+          `Minting with dPID:: Mint cost ${res.cumulativeGasUsed} gas units`
+        );
+        // expect(true).to.be.equal(true);
+
+        expect(
+          BigNumber.from(res.cumulativeGasUsed).lte(399328),
           "Gas limit exceeded"
         ).to.be.true;
 

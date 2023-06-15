@@ -131,7 +131,6 @@ export interface PaymasterInterface extends utils.Interface {
     "owner()": FunctionFragment;
     "postRelayedCall(bytes,bool,uint256,(uint256,uint256,uint256,address,address,address,bytes,uint256))": FunctionFragment;
     "preRelayedCall(((address,address,uint256,uint256,uint256,bytes,uint256),(uint256,uint256,uint256,address,address,address,bytes,uint256)),bytes,bytes,uint256)": FunctionFragment;
-    "relayTypeId()": FunctionFragment;
     "removeTargets(address[])": FunctionFragment;
     "renounceOwnership()": FunctionFragment;
     "setRelayHub(address)": FunctionFragment;
@@ -189,10 +188,6 @@ export interface PaymasterInterface extends utils.Interface {
   encodeFunctionData(
     functionFragment: "preRelayedCall",
     values: [GsnTypes.RelayRequestStruct, BytesLike, BytesLike, BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "relayTypeId",
-    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "removeTargets",
@@ -267,10 +262,6 @@ export interface PaymasterInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "preRelayedCall",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "relayTypeId",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -413,8 +404,6 @@ export interface Paymaster extends BaseContract {
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<ContractTransaction>;
 
-    relayTypeId(overrides?: CallOverrides): Promise<[string]>;
-
     removeTargets(
       _targets: string[],
       overrides?: Overrides & { from?: string | Promise<string> }
@@ -505,8 +494,6 @@ export interface Paymaster extends BaseContract {
     overrides?: Overrides & { from?: string | Promise<string> }
   ): Promise<ContractTransaction>;
 
-  relayTypeId(overrides?: CallOverrides): Promise<string>;
-
   removeTargets(
     _targets: string[],
     overrides?: Overrides & { from?: string | Promise<string> }
@@ -591,8 +578,6 @@ export interface Paymaster extends BaseContract {
       maxPossibleGas: BigNumberish,
       overrides?: CallOverrides
     ): Promise<[string, boolean]>;
-
-    relayTypeId(overrides?: CallOverrides): Promise<string>;
 
     removeTargets(_targets: string[], overrides?: CallOverrides): Promise<void>;
 
@@ -685,8 +670,6 @@ export interface Paymaster extends BaseContract {
       maxPossibleGas: BigNumberish,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<BigNumber>;
-
-    relayTypeId(overrides?: CallOverrides): Promise<BigNumber>;
 
     removeTargets(
       _targets: string[],
@@ -790,8 +773,6 @@ export interface Paymaster extends BaseContract {
       maxPossibleGas: BigNumberish,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<PopulatedTransaction>;
-
-    relayTypeId(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     removeTargets(
       _targets: string[],

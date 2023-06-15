@@ -4,12 +4,13 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./VersionedERC721.sol";
 import "./IDpidRegistry.sol";
-import "./metatx/ERC2771RecipientUpgradeable.sol";
+// import "./metatx/ERC2771RecipientUpgradeable.sol";
+import "@opengsn/contracts/src/ERC2771Recipient.sol";
 
 contract ResearchObject is
     VersionedERC721,
     OwnableUpgradeable,
-    ERC2771RecipientUpgradeable
+    ERC2771Recipient
 {
     string private _uri;
 
@@ -74,11 +75,11 @@ contract ResearchObject is
         _dpidRegistry = dpidRegistry;
     }
 
-    /// @inheritdoc IERC2771RecipientUpgradeable
+    /// @inheritdoc ERC2771Recipient
     function _msgSender()
         internal
         view
-        override(ContextUpgradeable, ERC2771RecipientUpgradeable)
+        override(ContextUpgradeable, ERC2771Recipient)
         returns (address ret)
     {
         if (msg.data.length >= 20 && isTrustedForwarder(msg.sender)) {
@@ -93,11 +94,11 @@ contract ResearchObject is
         }
     }
 
-    /// @inheritdoc IERC2771RecipientUpgradeable
+    /// @inheritdoc ERC2771Recipient
     function _msgData()
         internal
         view
-        override(ContextUpgradeable, ERC2771RecipientUpgradeable)
+        override(ContextUpgradeable, ERC2771Recipient)
         returns (bytes calldata ret)
     {
         if (msg.data.length >= 20 && isTrustedForwarder(msg.sender)) {

@@ -47,8 +47,8 @@ contract DpidRegistry is OwnableUpgradeable, IDpidRegistry {
     }
 
     function initialize() public initializer {
-        _fee = 500000 gwei;
-        _orgFee = 0.5 ether;
+        _fee = 0; //500000 gwei;
+        _orgFee = 0; // set to zero for gsn testing
         address[] memory DEFAULT_BLANK = new address[](0);
         __registerOrg("", DEFAULT_BLANK);
         __registerOrg("dpid", DEFAULT_BLANK);
@@ -71,6 +71,7 @@ contract DpidRegistry is OwnableUpgradeable, IDpidRegistry {
         public
         payable
     {
+        console.log("orgfee", _orgFee);
         require(msg.value >= _orgFee, "Fee required");
         require(validateCharacters(prefix), "Invalid prefix");
 

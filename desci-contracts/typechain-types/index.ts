@@ -2,13 +2,13 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BasePaymaster } from "./BasePaymaster";
+export type { ERC2771Recipient } from "./ERC2771Recipient";
 export type { IForwarder } from "./IForwarder";
 export type { IERC2771Recipient } from "./IERC2771Recipient";
 export type { IPaymaster } from "./IPaymaster";
 export type { IRelayHub } from "./IRelayHub";
 export type { IStakeManager } from "./IStakeManager";
 export type { GsnEip712Library } from "./GsnEip712Library";
-export type { AcceptEverythingPaymaster } from "./AcceptEverythingPaymaster";
 export type { OwnableUpgradeable } from "./OwnableUpgradeable";
 export type { Initializable } from "./Initializable";
 export type { ERC721Upgradeable } from "./ERC721Upgradeable";
@@ -31,19 +31,18 @@ export type { IDpidRegistry } from "./IDpidRegistry";
 export type { ERC2771RecipientUpgradeable } from "./ERC2771RecipientUpgradeable";
 export type { IERC2771RecipientUpgradeable } from "./IERC2771RecipientUpgradeable";
 export type { Paymaster } from "./Paymaster";
-export type { Paymaster2 } from "./Paymaster2";
 export type { ResearchObject } from "./ResearchObject";
 export type { TestERC721 } from "./TestERC721";
 export type { VersionedERC721 } from "./VersionedERC721";
 
 export { BasePaymaster__factory } from "./factories/BasePaymaster__factory";
+export { ERC2771Recipient__factory } from "./factories/ERC2771Recipient__factory";
 export { IForwarder__factory } from "./factories/IForwarder__factory";
 export { IERC2771Recipient__factory } from "./factories/IERC2771Recipient__factory";
 export { IPaymaster__factory } from "./factories/IPaymaster__factory";
 export { IRelayHub__factory } from "./factories/IRelayHub__factory";
 export { IStakeManager__factory } from "./factories/IStakeManager__factory";
 export { GsnEip712Library__factory } from "./factories/GsnEip712Library__factory";
-export { AcceptEverythingPaymaster__factory } from "./factories/AcceptEverythingPaymaster__factory";
 export { OwnableUpgradeable__factory } from "./factories/OwnableUpgradeable__factory";
 export { Initializable__factory } from "./factories/Initializable__factory";
 export { ERC721Upgradeable__factory } from "./factories/ERC721Upgradeable__factory";
@@ -66,7 +65,6 @@ export { IDpidRegistry__factory } from "./factories/IDpidRegistry__factory";
 export { ERC2771RecipientUpgradeable__factory } from "./factories/ERC2771RecipientUpgradeable__factory";
 export { IERC2771RecipientUpgradeable__factory } from "./factories/IERC2771RecipientUpgradeable__factory";
 export { Paymaster__factory } from "./factories/Paymaster__factory";
-export { Paymaster2__factory } from "./factories/Paymaster2__factory";
 export { ResearchObject__factory } from "./factories/ResearchObject__factory";
 export { TestERC721__factory } from "./factories/TestERC721__factory";
 export { VersionedERC721__factory } from "./factories/VersionedERC721__factory";
