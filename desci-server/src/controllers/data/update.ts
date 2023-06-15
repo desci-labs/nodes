@@ -4,6 +4,8 @@ import {
   recursiveFlattenTree,
   ResearchObjectComponentType,
   ResearchObjectV1,
+  DriveObject,
+  FileDir,
 } from '@desci-labs/desci-models';
 import { DataType, User } from '@prisma/client';
 import axios from 'axios';
@@ -63,7 +65,21 @@ export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }:
   return manifest;
 }
 
-export const update = async (req: Request, res: Response) => {
+interface UpdateResponse {
+  status?: number;
+  rootDataCid: string;
+  manifest: ResearchObjectV1;
+  manifestCid: string;
+  tree: DriveObject[];
+  date: string;
+}
+
+interface ErrorResponse {
+  error: string;
+  status?: number;
+}
+
+export const update = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = (req as any).user as User;
   const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
@@ -189,7 +205,7 @@ export const update = async (req: Request, res: Response) => {
   if (externalUrl) uploadSizeBytes += externalUrlTotalSizeBytes;
   const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(owner, { fileSizeBytes: uploadSizeBytes });
   if (!hasStorageSpaceToUpload)
-    return res.send(400).json({
+    return res.status(400).json({
       error: `upload size of ${uploadSizeBytes} exceeds users data budget of ${owner.currentDriveStorageLimitGb} GB`,
     });
 
