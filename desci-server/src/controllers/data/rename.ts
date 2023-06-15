@@ -6,7 +6,7 @@ import {
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 
 import prisma from 'client';
 import parentLogger from 'logger';
@@ -14,10 +14,16 @@ import { getDirectoryTree, renameFileInDag } from 'services/ipfs';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
 
-import { updateManifestDataBucket } from './update';
+import { ErrorResponse, updateManifestDataBucket } from './update';
 import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils';
 
-export const renameData = async (req: Request, res: Response, next: NextFunction) => {
+interface RenameResponse {
+  status?: number;
+  manifest: ResearchObjectV1;
+  manifestCid: string;
+}
+
+export const renameData = async (req: Request, res: Response<RenameResponse | ErrorResponse | string>) => {
   const owner = (req as any).user;
   const { uuid, path, newName, renameComponent } = req.body;
   const logger = parentLogger.child({

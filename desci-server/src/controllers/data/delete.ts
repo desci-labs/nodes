@@ -13,11 +13,17 @@ import parentLogger from 'logger';
 import { RecursiveLsResult, getDirectoryTree, removeFileFromDag } from 'services/ipfs';
 import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
 
-import { updateManifestDataBucket } from './update';
+import { ErrorResponse, updateManifestDataBucket } from './update';
 import { getLatestManifest, persistManifest } from './utils';
 
+interface DeleteResponse {
+  status?: number;
+  manifest: ResearchObjectV1;
+  manifestCid: string;
+}
+
 //Delete Dataset
-export const deleteData = async (req: Request, res: Response, next: NextFunction) => {
+export const deleteData = async (req: Request, res: Response<DeleteResponse | ErrorResponse | string>) => {
   const owner = (req as any).user;
   const { uuid, path } = req.body;
   const logger = parentLogger.child({

@@ -14,10 +14,16 @@ import { RecursiveLsResult, getDirectoryTree, moveFileInDag } from 'services/ipf
 import { prepareDataRefs } from 'utils/dataRefTools';
 import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
 
-import { updateManifestDataBucket } from './update';
+import { ErrorResponse, updateManifestDataBucket } from './update';
 import { getLatestManifest, persistManifest } from './utils';
 
-export const moveData = async (req: Request, res: Response, next: NextFunction) => {
+interface MoveResponse {
+  status?: number;
+  manifest: ResearchObjectV1;
+  manifestCid: string;
+}
+
+export const moveData = async (req: Request, res: Response<MoveResponse | ErrorResponse | string>) => {
   const owner = (req as any).user;
   const { uuid, oldPath, newPath } = req.body;
   const logger = parentLogger.child({

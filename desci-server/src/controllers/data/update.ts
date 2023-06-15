@@ -74,7 +74,7 @@ interface UpdateResponse {
   date: string;
 }
 
-interface ErrorResponse {
+export interface ErrorResponse {
   error: string;
   status?: number;
 }

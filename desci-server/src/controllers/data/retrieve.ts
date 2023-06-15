@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 
-import { ResearchObjectComponentType } from '@desci-labs/desci-models';
+import { DriveObject, FileDir, ResearchObjectComponentType } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import archiver from 'archiver';
 import axios from 'axios';
@@ -15,6 +15,7 @@ import { getOrCache } from 'redisClient';
 import { getDatasetTar } from 'services/ipfs';
 import { getTreeAndFill, getTreeAndFillDeprecated } from 'utils/driveUtils';
 
+import { ErrorResponse } from './update';
 import { getLatestManifest } from './utils';
 
 export enum DataReferenceSrc {
@@ -22,7 +23,13 @@ export enum DataReferenceSrc {
   PUBLIC = 'public',
 }
 
-export const retrieveTree = async (req: Request, res: Response) => {
+interface RetrieveResponse {
+  status?: number;
+  tree: DriveObject[];
+  date: string;
+}
+
+export const retrieveTree = async (req: Request, res: Response<RetrieveResponse | ErrorResponse | string>) => {
   let ownerId = (req as any).user?.id;
   const manifestCid: string = req.params.manifestCid;
   const uuid: string = req.params.nodeUuid;
@@ -51,7 +58,7 @@ export const retrieveTree = async (req: Request, res: Response) => {
       select: { node: true, nodeUUID: true },
     });
     if (!privateShare) {
-      return res.status(404).send({ ok: false, message: 'Invalid shareId' });
+      return res.status(404).send({ error: 'Invalid shareId' });
     }
     node = privateShare.node;
 
@@ -61,15 +68,15 @@ export const retrieveTree = async (req: Request, res: Response) => {
 
     const verifiedOwner = await prisma.user.findFirst({ where: { id: ownerId } });
     if (!verifiedOwner || (verifiedOwner.id !== ownerId && verifiedOwner.id > 0)) {
-      return res.status(400).send({ ok: false, message: 'Invalid node owner' });
+      return res.status(400).send({ error: 'Invalid node owner' });
     }
   }
   if (!ownerId) {
-    return res.status(401).send({ ok: false, message: 'Unauthorized user' });
+    return res.status(401).send({ error: 'Unauthorized user' });
   }
 
   if (!node) {
-    return res.status(400).send({ ok: false, message: 'Node not found' });
+    return res.status(400).send({ error: 'Node not found' });
   }
 
   if (!manifestCid) {
@@ -123,10 +130,15 @@ export const retrieveTree = async (req: Request, res: Response) => {
     return await getTreeAndFill(manifest, uuid, ownerId);
   }
 
-  return res.status(200).json({ tree: filledTree, date: dataset?.updatedAt });
+  return res.status(200).json({ tree: filledTree, date: dataset?.updatedAt.toString() });
 };
 
-export const pubTree = async (req: Request, res: Response, next: NextFunction) => {
+interface PubTreeResponse {
+  tree: DriveObject[] | FileDir[];
+  date: string;
+}
+
+export const pubTree = async (req: Request, res: Response<PubTreeResponse | ErrorResponse | string>) => {
   const owner = (req as any).user;
   const manifestCid: string = req.params.manifestCid;
   const rootCid: string = req.params.rootCid;
@@ -188,7 +200,7 @@ export const pubTree = async (req: Request, res: Response, next: NextFunction) =
     return await fetchCb();
   }
 
-  return res.status(200).json({ tree: filledTree, date: publicDataset.updatedAt });
+  return res.status(200).json({ tree: filledTree, date: publicDataset.updatedAt.toString() });
 };
 
 export const downloadDataset = async (req: Request, res: Response, next: NextFunction) => {
