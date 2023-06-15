@@ -272,18 +272,18 @@ export function createVirtualDrive({
 }
 export const tempDate = "12/02/2022 7:00PM";
 
-export const recursiveFlattenTree = (
-  tree: RecursiveLsResult[] | DriveObject[]
-): RecursiveLsResult[] | DriveObject[] => {
-  const contents: RecursiveLsResult | DriveObject[] = [];
-  (tree as DriveObject[]).forEach((fd: DriveObject) => {
+export function recursiveFlattenTree<T extends RecursiveLsResult | DriveObject>(
+  tree: T[]
+): T[] {
+  const contents: T[] = [];
+  tree.forEach((fd) => {
     contents.push(fd);
     if (fd.type === "dir" && fd.contains) {
-      contents.push(...(recursiveFlattenTree(fd.contains) as DriveObject[]));
+      contents.push(...recursiveFlattenTree(fd.contains as T[]));
     }
   });
   return contents;
-};
+}
 
 export function neutralizePath(path: DrivePath) {
   if (!path.includes("/") && path.length) return "root";

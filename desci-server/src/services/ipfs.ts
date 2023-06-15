@@ -493,14 +493,10 @@ export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
   const tree = [];
   const lsOp = await publicIpfs.ls(cid);
   for await (const filedir of lsOp) {
-    // debugger;
     const res: any = filedir;
-    // if (parent) {
-    //   res.parent = parent;
     const pathSplit = res.path.split('/');
     pathSplit[0] = carryPath;
     res.path = pathSplit.join('/');
-    // }
     const v1StrCid = convertToCidV1(res.cid);
     if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
     if (filedir.type === 'dir') {

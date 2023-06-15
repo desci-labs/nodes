@@ -123,7 +123,6 @@ export const retrieveTree = async (req: Request, res: Response) => {
     return await getTreeAndFill(manifest, uuid, ownerId);
   }
 
-
   return res.status(200).json({ tree: filledTree, date: dataset?.updatedAt });
 };
 
