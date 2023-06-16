@@ -82,9 +82,9 @@ export function bufferToStream(buffer: Buffer): Readable {
   return stream;
 }
 
-export async function zipUrlToBuffer(url: string): Promise<Buffer> {
-  const response = await axios.get(url, { responseType: 'arraybuffer' });
-  return Buffer.from(response.data);
+export async function zipUrlToStream(url: string): Promise<Readable> {
+  const response = await axios.get(url, { responseType: 'stream' });
+  return response.data;
 }
 
 export const processExternalUrls = async (

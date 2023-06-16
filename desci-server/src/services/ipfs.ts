@@ -1,3 +1,5 @@
+import { Readable } from 'stream';
+
 import {
   CodeComponent,
   PdfComponent,
@@ -252,7 +254,7 @@ export const downloadSingleFile = async (url: string): Promise<PdfComponentSingl
 
 export interface IpfsDirStructuredInput {
   path: string;
-  content: Buffer;
+  content: Buffer | Readable;
 }
 
 export interface IpfsPinnedResult {
@@ -950,12 +952,15 @@ export interface ZipToDagAndPinResult {
   totalSize: number;
 }
 
-export async function zipToPinFormat(zipBuffer: Buffer, nameOverride?: string): Promise<ZipToDagAndPinResult> {
+export async function zipToPinFormat(
+  zipStream: NodeJS.ReadableStream,
+  nameOverride?: string,
+): Promise<ZipToDagAndPinResult> {
   return new Promise((resolve, reject) => {
     const files = [];
     let totalSize = 0;
 
-    yauzl.fromBuffer(zipBuffer, { lazyEntries: true }, (err, zipfile) => {
+    yauzl.fromStream(zipStream, { lazyEntries: true }, (err, zipfile) => {
       if (err) reject(err);
 
       zipfile.readEntry();
@@ -964,17 +969,13 @@ export async function zipToPinFormat(zipBuffer: Buffer, nameOverride?: string): 
         if (!entry.isDirectory) {
           zipfile.openReadStream(entry, async (err, readStream) => {
             if (err) reject(err);
-            const chunks = [];
-            for await (const chunk of readStream) {
-              chunks.push(chunk);
-            }
-            const fileBuffer = Buffer.concat(chunks);
+
             if (entry.uncompressedSize > 0) {
               totalSize += entry.uncompressedSize;
               if (nameOverride) entry.fileName = deneutralizePath(entry.fileName, nameOverride);
               files.push({
                 path: entry.fileName,
-                content: fileBuffer,
+                content: readStream,
               });
             }
             zipfile.readEntry();

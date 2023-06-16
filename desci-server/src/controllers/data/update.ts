@@ -23,7 +23,7 @@ import {
   RecursiveLsResult,
   zipToPinFormat,
 } from 'services/ipfs';
-import { arrayXor, processExternalUrls, zipUrlToBuffer } from 'utils';
+import { arrayXor, processExternalUrls, zipUrlToStream } from 'utils';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import {
   FirstNestingComponent,
@@ -124,8 +124,8 @@ export const update = async (req: Request, res: Response) => {
       // External URL code, only supports github for now
       if (componentType === ResearchObjectComponentType.CODE) {
         const processedUrl = await processExternalUrls(externalUrl.url, componentType);
-        const zipBuffer = await zipUrlToBuffer(processedUrl);
-        const { files, totalSize } = await zipToPinFormat(zipBuffer, externalUrl.path);
+        const zipStream = await zipUrlToStream(processedUrl);
+        const { files, totalSize } = await zipToPinFormat(zipStream, externalUrl.path);
         externalUrlFiles = files;
         externalUrlTotalSizeBytes = totalSize;
       }
