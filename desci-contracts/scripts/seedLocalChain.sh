@@ -11,8 +11,8 @@ function check() {
         # if deployment file doesnt exist, we need to deploy
         if [ -f "$FILE" ]; then
             echo "killing"
-            killall "npm exec ganache-cli" || ((ps aux | grep  "npm exec ganache-cli" | grep -v grep | awk '{print $2}' | xargs kill) && echo "done")
-            exit 1
+            killall "npm exec ganache" || ((ps aux | grep  "npm exec ganache" | grep -v grep | awk '{print $2}' | xargs kill) && echo "done")
+            exit
         fi
         sleep 5
     done
@@ -39,7 +39,7 @@ else
     sudo chown -R $(whoami) ../local-data/ganache
     (echo "sleeping until contract deployed" && check ) &
     child=$!
-    npx ganache-cli -i 1111 --quiet -h 0.0.0.0 --mnemonic "${MNEMONIC}" --db ../local-data/ganache
+    npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="111" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
     wait "$child"
 fi
 
