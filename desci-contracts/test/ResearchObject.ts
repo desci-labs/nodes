@@ -10,8 +10,8 @@ import {
 import "@nomiclabs/hardhat-waffle";
 import { ResearchObject__factory, ResearchObject } from "../typechain-types";
 import { randomBytes } from "crypto";
-import { formatBytes32String } from "ethers/lib/utils";
-import CID from "cids";
+// import { formatBytes32String } from "ethers/lib/utils";
+import * as CID from "cids";
 
 describe("ResearchObject", function () {
   let accounts: Signer[];
