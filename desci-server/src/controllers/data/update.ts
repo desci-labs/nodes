@@ -21,7 +21,6 @@ import {
   pinExternalDags,
   pubRecursiveLs,
   RecursiveLsResult,
-  zipToPinFormat,
 } from 'services/ipfs';
 import { arrayXor, processExternalUrls, zipUrlToStream } from 'utils';
 import { prepareDataRefs } from 'utils/dataRefTools';

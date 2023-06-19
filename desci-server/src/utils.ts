@@ -1,4 +1,6 @@
 import { randomBytes } from 'crypto';
+import fs, { promises as fsPromises } from 'fs';
+import * as path from 'path';
 import { Readable } from 'stream';
 
 import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
@@ -6,6 +8,7 @@ import axios from 'axios';
 import { base16 } from 'multiformats/bases/base16';
 import { CID } from 'multiformats/cid';
 import { encode, decode } from 'url-safe-base64';
+import * as yauzl from 'yauzl';
 
 import parentLogger from 'logger';
 import { processGithubUrl } from 'utils/githubUtils';
@@ -85,6 +88,67 @@ export function bufferToStream(buffer: Buffer): Readable {
 export async function zipUrlToStream(url: string): Promise<Readable> {
   const response = await axios.get(url, { responseType: 'stream' });
   return response.data;
+}
+
+export async function calculateTotalZipUncompressedSize(zipPath: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let totalSize = 0;
+
+    yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
+      if (err) reject(err);
+
+      zipfile.readEntry();
+
+      zipfile.on('entry', (entry) => {
+        if (!entry.isDirectory) {
+          totalSize += entry.uncompressedSize;
+        }
+        zipfile.readEntry();
+      });
+
+      zipfile.on('end', () => {
+        resolve(totalSize);
+      });
+    });
+  });
+}
+
+// Extracts a zip file to a given path, deletes the zip, and returns the extracted path.
+export async function extractZipFileAndCleanup(zipFilePath: string, outputDirectory: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    yauzl.open(zipFilePath, { lazyEntries: true }, (err, zipfile) => {
+      if (err) reject(err);
+
+      zipfile.readEntry();
+
+      zipfile.on('entry', (entry) => {
+        if (/\/$/.test(entry.fileName)) {
+          // Directory file names end with '/'.
+          // Note that entries for directories themselves are optional.
+          // An entry's fileName implicitly requires its parent directories to exist.
+          zipfile.readEntry();
+          return;
+        }
+
+        zipfile.openReadStream(entry, (err, readStream) => {
+          if (err) throw err;
+          const filePath = path.join(outputDirectory, entry.fileName);
+          const writeStream = fs.createWriteStream(filePath);
+
+          readStream.once('end', () => {
+            zipfile.readEntry();
+          });
+          readStream.pipe(writeStream);
+        });
+      });
+
+      zipfile.on('end', async () => {
+        // Delete the original zip file
+        await fsPromises.unlink(zipFilePath);
+        resolve();
+      });
+    });
+  });
 }
 
 export const processExternalUrls = async (

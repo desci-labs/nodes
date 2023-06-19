@@ -13,21 +13,20 @@ import { DataReference, DataType, NodeVersion, Prisma } from '@prisma/client';
 import axios from 'axios';
 // import CID from 'cids';
 import * as ipfs from 'ipfs-http-client';
-import { CID as CID2 } from 'ipfs-http-client';
+import { CID as CID2, globSource } from 'ipfs-http-client';
 import UnixFS from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
 import flatten from 'lodash/flatten';
 import uniq from 'lodash/uniq';
 import * as multiformats from 'multiformats';
 import { code as rawCode } from 'multiformats/codecs/raw';
-import * as yauzl from 'yauzl';
+import { rimraf } from 'rimraf';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
 import parentLogger from 'logger';
 import { getOrCache } from 'redisClient';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
-import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
 
@@ -952,49 +951,64 @@ export interface ZipToDagAndPinResult {
   totalSize: number;
 }
 
-export async function zipToPinFormat(
-  zipStream: NodeJS.ReadableStream,
-  nameOverride?: string,
-): Promise<ZipToDagAndPinResult> {
-  return new Promise((resolve, reject) => {
-    const files = [];
-    let totalSize = 0;
+// Adds a directory to IPFS and deletes the directory after, returning the root CID
+export async function addFilesToIpfsAndCleanup(directoryPath: string): Promise<string> {
+  // Add all files in the directory to IPFS using globSource
+  const files = [];
+  for await (const file of client.addAll(globSource(directoryPath, '**/*'))) {
+    files.push(file);
+  }
+  logger.info({ fn: 'addFilesToIpfsAndCleanup', files }, 'Files added to IPFS:');
 
-    yauzl.fromStream(zipStream, { lazyEntries: true }, (err, zipfile) => {
-      if (err) reject(err);
-
-      zipfile.readEntry();
-
-      zipfile.on('entry', (entry) => {
-        if (!entry.isDirectory) {
-          zipfile.openReadStream(entry, async (err, readStream) => {
-            if (err) reject(err);
-
-            if (entry.uncompressedSize > 0) {
-              totalSize += entry.uncompressedSize;
-              if (nameOverride) entry.fileName = deneutralizePath(entry.fileName, nameOverride);
-              files.push({
-                path: entry.fileName,
-                content: readStream,
-              });
-            }
-            zipfile.readEntry();
-          });
-        } else {
-          zipfile.readEntry();
-        }
-      });
-
-      zipfile.on('end', async () => {
-        try {
-          resolve({ files, totalSize });
-        } catch (error) {
-          reject(error);
-        }
-      });
-    });
-  });
+  // Cleanup extracted files
+  await rimraf(directoryPath);
+  const rootCid = files[files.length - 1].cid.toString();
+  return rootCid;
 }
+
+// export async function zipToPinFormat(
+//   zipStream: NodeJS.ReadableStream,
+//   nameOverride?: string,
+// ): Promise<ZipToDagAndPinResult> {
+//   return new Promise((resolve, reject) => {
+//     const files = [];
+//     let totalSize = 0;
+
+//     yauzl.fromStream(zipStream, { lazyEntries: true }, (err, zipfile) => {
+//       if (err) reject(err);
+
+//       zipfile.readEntry();
+
+//       zipfile.on('entry', (entry) => {
+//         if (!entry.isDirectory) {
+//           zipfile.openReadStream(entry, async (err, readStream) => {
+//             if (err) reject(err);
+
+//             if (entry.uncompressedSize > 0) {
+//               totalSize += entry.uncompressedSize;
+//               if (nameOverride) entry.fileName = deneutralizePath(entry.fileName, nameOverride);
+//               files.push({
+//                 path: entry.fileName,
+//                 content: readStream,
+//               });
+//             }
+//             zipfile.readEntry();
+//           });
+//         } else {
+//           zipfile.readEntry();
+//         }
+//       });
+
+//       zipfile.on('end', async () => {
+//         try {
+//           resolve({ files, totalSize });
+//         } catch (error) {
+//           reject(error);
+//         }
+//       });
+//     });
+//   });
+// }
 
 export function strIsCid(cid: string) {
   try {
