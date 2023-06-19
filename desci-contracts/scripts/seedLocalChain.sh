@@ -1,17 +1,17 @@
 FILE=.openzeppelin/unknown-research-object.json
 MNEMONIC=$(grep MNEMONIC .env | cut -d '=' -f 2-)
-echo "GOT MNEMONIC $MNEMONIC"
+echo "[seedLocalChain] GOT MNEMONIC $MNEMONIC"
 RUNNING=true
 function check() {
     FILE=.openzeppelin/unknown-research-object.json
 
     while $RUNNING; do
         test $? -gt 128 && break;
-        echo "checking"
+        echo "[seedLocalChain] checking"
         # if deployment file doesnt exist, we need to deploy
         if [ -f "$FILE" ]; then
-            echo "killing"
-            killall "npm exec ganache" || ((ps aux | grep  "npm exec ganache" | grep -v grep | awk '{print $2}' | xargs kill) && echo "done")
+            echo "[seedLocalChain] killing"
+            killall "npm exec ganache" || ((ps aux | grep  "npm exec ganache" | grep -v grep | awk '{print $2}' | xargs kill) && echo "done") || echo "[seedLocalChain] ganache wasn't running when we tried to stop the process"
             exit
         fi
         sleep 5
@@ -27,19 +27,23 @@ _term() {
 
 trap _term SIGTERM SIGINT 
 
-echo "checking if ResearchObject ABI seed needed"
+echo "[seedLocalChain] checking if ResearchObject ABI seed needed"
 # if deployment file doesnt exist, we need to deploy
 if [ -f "$FILE" ]; then
-    echo "found ResearchObject deployment file"
+    echo "[seedLocalChain] found ResearchObject deployment file"
 else
-    echo "no ResearchObject deployment file, running local ganache and deploying"
-    (echo "waiting for ganache..." && sleep 10 && MNEMONIC="$MNEMONIC" yarn deploy:ganache ) &
+    echo "[seedLocalChain] no ResearchObject deployment file, running local ganache and deploying"
+    (echo "[seedLocalChain] waiting for ganache..." && sleep 10 && MNEMONIC="$MNEMONIC" yarn deploy:ganache ) &
     mkdir -p ../local-data/ganache
-    echo "sudo needed only first time to deploy contract"
+    echo "[seedLocalChain] sudo needed only first time to deploy contract"
     sudo chown -R $(whoami) ../local-data/ganache
-    (echo "sleeping until contract deployed" && check ) &
+    (echo "[seedLocalChain] sleeping until contract deployed" && check ) &
     child=$!
-    npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="111" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
+    if [[ -z $NO_GANACHE ]]; then
+        npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="111" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
+    else
+        echo "[seedLocalChain] skipping ganache"
+    fi
     wait "$child"
 fi
 

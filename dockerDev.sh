@@ -8,7 +8,7 @@ function assert_command_available {
   cmd_to_check=$1
   if ! command -v "$cmd_to_check" &> /dev/null
   then
-    echo "Script dependency '$cmd_to_check' is not installed, aborting"
+    echo "[dockerDev] Script dependency '$cmd_to_check' is not installed, aborting"
     exit 1
   fi
 }
@@ -20,7 +20,7 @@ assert_command_available "lsof"
 
 [ ! -f ".env" ] && cp .env.example .env
 if ! grep MNEMONIC .env &> /dev/null; then
-  echo "ERROR: set MNEMONIC in .env"
+  echo "[dockerDev] ERROR: set MNEMONIC in .env"
   exit 1
 fi
 MNEMONIC=$(grep MNEMONIC .env)
@@ -34,8 +34,8 @@ if [ ! -f "./desci-contracts/.env" ]; then
 fi
 
 if [ -z $NVM_DIR ]; then
-    echo "NVM_DIR not set, please install NVM"
-    echo "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash"
+    echo "[dockerDev] NVM_DIR not set, please install NVM"
+    echo "[dockerDev] curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash"
     exit 1
 fi
 
@@ -46,7 +46,7 @@ if [[ -s "$NVM_SCRIPT" ]]
 then
   source "$NVM_SCRIPT"
 else
-  echo "Could not find $NVM_SCRIPT, aborting"
+  echo "[dockerDev] Could not find $NVM_SCRIPT, aborting"
   exit 1
 fi
 
@@ -78,7 +78,7 @@ set +o pipefail
 GANACHE_PID=$(lsof -i:8545 | grep '*:8545' | awk '{print $2}' | tail -n 1)
 set -o pipefail
 if [ $GANACHE_PID ]; then
-    echo "killing ganache, pid=$GANACHE_PID"
+    echo "[dockerDev] killing ganache, pid=$GANACHE_PID"
     kill -9 $GANACHE_PID
 fi
 
