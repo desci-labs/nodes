@@ -10,7 +10,7 @@ function check() {
         # if deployment file doesnt exist, we need to deploy
         if [ -f "$FILE" ]; then
             echo "killing"
-            killall "npm exec ganache" || ((ps aux | grep  "npm exec ganache" | grep -v grep | awk '{print $2}' | xargs kill) && echo "done")
+            killall "npx ganache" || ((ps aux | grep  "npm exec ganache" | grep -v grep | awk '{print $2}' | xargs kill) && echo "done")
             exit
         fi
         sleep 5
