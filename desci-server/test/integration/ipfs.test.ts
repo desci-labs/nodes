@@ -1,13 +1,13 @@
 import 'mocha';
 import fs from 'fs';
 
-import { ResearchObjectV1, recursiveFlattenTree } from '@desci-labs/desci-models';
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { User, Node } from '@prisma/client';
 import { expect } from 'chai';
 
 import prisma from '../../src/client';
 import * as ipfs from '../../src/services/ipfs';
-import { generateExternalCidMap } from '../../src/utils/driveUtils';
+import { generateExternalCidMap, recursiveFlattenTree } from '../../src/utils/driveUtils';
 import { expectThrowsAsync } from '../util';
 
 describe('IPFS', () => {

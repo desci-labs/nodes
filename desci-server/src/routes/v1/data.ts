@@ -13,9 +13,9 @@ router.post('/update', [ensureUser, upload.array('files')], update);
 router.post('/delete', [ensureUser], deleteData);
 router.post('/rename', [ensureUser], renameData);
 router.post('/move', [ensureUser], moveData);
-router.get('/retrieveTree/:nodeUuid/:manifestCid', [ensureUser], retrieveTree);
-router.get('/retrieveTree/:nodeUuid/:manifestCid/:shareId?', retrieveTree);
-router.get('/pubTree/:nodeUuid/:manifestCid/:rootCid?', pubTree);
+router.get('/retrieveTree/:nodeUuid/:cid', [ensureUser], retrieveTree);
+router.get('/retrieveTree/:nodeUuid/:cid/:shareId', retrieveTree);
+router.get('/pubTree/:nodeUuid/:cid', pubTree);
 router.get('/downloadDataset/:nodeUuid/:cid', [ensureUser], downloadDataset);
 
 // must be last

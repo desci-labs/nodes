@@ -1,12 +1,4 @@
-import {
-  neutralizePath,
-  deneutralizePath,
-  recursiveFlattenTree,
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  DriveObject,
-  FileDir,
-} from '@desci-labs/desci-models';
+import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DataType, User } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response } from 'express';
@@ -37,13 +29,17 @@ import {
   FirstNestingComponent,
   ROTypesToPrismaTypes,
   addComponentsToManifest,
+  deneutralizePath,
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
-  getTreeAndFill,
+  getTreeAndFillSizes,
   inheritComponentType,
+  neutralizePath,
+  recursiveFlattenTree,
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
 
+import { DataReferenceSrc } from './retrieve';
 import { persistManifest } from './utils';
 
 interface UpdatingManifestParams {
@@ -65,21 +61,7 @@ export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }:
   return manifest;
 }
 
-interface UpdateResponse {
-  status?: number;
-  rootDataCid: string;
-  manifest: ResearchObjectV1;
-  manifestCid: string;
-  tree: DriveObject[];
-  date: string;
-}
-
-export interface ErrorResponse {
-  error: string;
-  status?: number;
-}
-
-export const update = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
+export const update = async (req: Request, res: Response) => {
   const owner = (req as any).user as User;
   const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
@@ -205,18 +187,18 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   if (externalUrl) uploadSizeBytes += externalUrlTotalSizeBytes;
   const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(owner, { fileSizeBytes: uploadSizeBytes });
   if (!hasStorageSpaceToUpload)
-    return res.status(400).json({
+    return res.send(400).json({
       error: `upload size of ${uploadSizeBytes} exceeds users data budget of ${owner.currentDriveStorageLimitGb} GB`,
     });
 
   //Pull old tree
   const externalCidMap = await generateExternalCidMap(node.uuid);
-  const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
+  const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap));
 
   /*
    ** Check if update path contains externals, temporarily disable adding to external DAGs
    */
-  const pathMatch = (oldFlatTree as RecursiveLsResult[]).find((c) => {
+  const pathMatch = oldFlatTree.find((c) => {
     const neutralPath = neutralizePath(c.path);
     return neutralPath === contextPath;
   });
@@ -274,7 +256,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
         const tree: RecursiveLsResult[] = await pubRecursiveLs(extCid.cid, extCid.name);
         if (!tree) res.status(400).json({ error: 'Failed resolving external dag tree' });
         const flatTree = recursiveFlattenTree(tree);
-        (flatTree as RecursiveLsResult[]).forEach((file: RecursiveLsResult) => {
+        flatTree.forEach((file: RecursiveLsResult) => {
           cidTypesSizes[file.cid] = { size: file.size, isDirectory: file.type === 'dir' };
           if (file.type === 'dir') externalDagsToPin.push(file.cid);
           uploaded.push({ path: file.path, cid: file.cid, size: file.size });
@@ -438,9 +420,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     // //CLEANUP DANGLING REFERENCES//
     oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
 
-    const flatTree = recursiveFlattenTree(
-      await getDirectoryTree(newRootCidString, externalCidMap),
-    ) as RecursiveLsResult[];
+    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString, externalCidMap));
     flatTree.push({
       name: 'root',
       cid: newRootCidString,
@@ -450,7 +430,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     });
 
     //length should be n + 1, n being nested dirs modified + rootCid
-    const pruneList = (oldFlatTree as RecursiveLsResult[]).filter((oldF) => {
+    const pruneList = oldFlatTree.filter((oldF) => {
       //a path match && a CID difference = prune
       return flatTree.some((newF) => neutralizePath(oldF.path) === neutralizePath(newF.path) && oldF.cid !== newF.cid);
     });
@@ -475,7 +455,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     if (!persistedManifestCid)
       throw Error(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
-    const tree = await getTreeAndFill(updatedManifest, uuid, owner.id);
+    const tree = await getTreeAndFillSizes(newRootCidString, uuid, DataReferenceSrc.PRIVATE, owner.id);
     return res.status(200).json({
       rootDataCid: newRootCidString,
       manifest: updatedManifest,

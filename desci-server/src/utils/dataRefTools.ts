@@ -1,21 +1,18 @@
-import {
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  neutralizePath,
-  recursiveFlattenTree,
-} from '@desci-labs/desci-models';
+import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DataReference, DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
 import parentLogger from 'logger';
-import { discoveryLs, getDirectoryTree } from 'services/ipfs';
+import { CidSource, discoveryLs, getDirectoryTree } from 'services/ipfs';
 import { objectPropertyXor, omitKeys } from 'utils';
 
 import {
   generateExternalCidMap,
+  recursiveFlattenTree,
   generateManifestPathsToDbTypeMap,
+  neutralizePath,
   inheritComponentType,
   ExternalCidMap,
 } from './driveUtils';

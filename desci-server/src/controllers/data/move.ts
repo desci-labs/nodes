@@ -1,29 +1,18 @@
-import {
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  ResearchObjectV1Component,
-  neutralizePath,
-  recursiveFlattenTree,
-} from '@desci-labs/desci-models';
-import { DataType } from '@prisma/client';
+import { ResearchObjectComponentType, ResearchObjectV1, ResearchObjectV1Component } from '@desci-labs/desci-models';
+import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import parentLogger from 'logger';
-import { RecursiveLsResult, getDirectoryTree, moveFileInDag } from 'services/ipfs';
+import { getDirectoryTree, moveFileInDag } from 'services/ipfs';
 import { prepareDataRefs } from 'utils/dataRefTools';
-import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
+import { updateManifestComponentDagCids, neutralizePath } from 'utils/driveUtils';
+import { recursiveFlattenTree, generateExternalCidMap } from 'utils/driveUtils';
 
-import { ErrorResponse, updateManifestDataBucket } from './update';
+import { updateManifestDataBucket } from './update';
 import { getLatestManifest, persistManifest } from './utils';
 
-interface MoveResponse {
-  status?: number;
-  manifest: ResearchObjectV1;
-  manifestCid: string;
-}
-
-export const moveData = async (req: Request, res: Response<MoveResponse | ErrorResponse | string>) => {
+export const moveData = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
   const { uuid, oldPath, newPath } = req.body;
   const logger = parentLogger.child({
@@ -107,9 +96,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     /*
      ** Workaround for keeping manifest cids in sync
      */
-    const flatTree = recursiveFlattenTree(
-      await getDirectoryTree(updatedRootCid, externalCidMap),
-    ) as RecursiveLsResult[];
+    const flatTree = recursiveFlattenTree(await getDirectoryTree(updatedRootCid, externalCidMap));
     for (let i = 0; i < updatedManifest.components.length; i++) {
       const currentComponent = updatedManifest.components[i];
       if (currentComponent.payload.path === 'root' || currentComponent.type === ResearchObjectComponentType.LINK)

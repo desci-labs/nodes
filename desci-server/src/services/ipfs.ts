@@ -4,7 +4,6 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   ResearchObjectV1Component,
-  deneutralizePath,
 } from '@desci-labs/desci-models';
 import * as dagPb from '@ipld/dag-pb';
 import { PBNode } from '@ipld/dag-pb/src/interface';
@@ -26,6 +25,7 @@ import { PUBLIC_IPFS_PATH } from 'config';
 import parentLogger from 'logger';
 import { getOrCache } from 'redisClient';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
+import { deneutralizePath } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
 
@@ -295,6 +295,11 @@ export interface RecursiveLsResult extends IpfsPinnedResult {
   external?: boolean;
 }
 
+export interface FileDir extends RecursiveLsResult {
+  date?: string;
+  published?: boolean;
+}
+
 export const convertToCidV1 = (cid: string | multiformats.CID): string => {
   if (typeof cid === 'string') {
     const c = multiformats.CID.parse(cid);
@@ -378,6 +383,7 @@ export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidM
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
   );
   try {
+    debugger;
     const tree = await getOrCache(`tree-${cid}`, getTree);
     if (tree) return tree;
     throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
@@ -493,10 +499,14 @@ export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
   const tree = [];
   const lsOp = await publicIpfs.ls(cid);
   for await (const filedir of lsOp) {
+    // debugger;
     const res: any = filedir;
+    // if (parent) {
+    //   res.parent = parent;
     const pathSplit = res.path.split('/');
     pathSplit[0] = carryPath;
     res.path = pathSplit.join('/');
+    // }
     const v1StrCid = convertToCidV1(res.cid);
     if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
     if (filedir.type === 'dir') {

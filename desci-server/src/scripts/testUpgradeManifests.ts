@@ -3,16 +3,11 @@
 import fs from 'fs';
 import path from 'path';
 
-import {
-  recursiveFlattenTree,
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  ResearchObjectV1Component,
-} from '@desci-labs/desci-models';
+import { ResearchObjectComponentType, ResearchObjectV1, ResearchObjectV1Component } from '@desci-labs/desci-models';
 
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
-import { addComponentsToManifest } from 'utils/driveUtils';
+import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
 
 /* 
 This script only tests the DAG step, and only a manifest is required, no DB entries are required
