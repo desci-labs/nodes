@@ -279,7 +279,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
             { extCid },
             '[UPDATE DATASET] External DAG tree resolution failed, the contents within the DAG were unable to be retrieved, rejecting update.',
           );
-          res
+          return res
             .status(400)
             .json({ error: 'Failed resolving external dag tree, the DAG or its contents were unable to be retrieved' });
         }
