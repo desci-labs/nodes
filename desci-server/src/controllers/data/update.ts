@@ -1,3 +1,5 @@
+import fs from 'fs';
+
 import {
   neutralizePath,
   deneutralizePath,
@@ -5,7 +7,6 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   DriveObject,
-  FileDir,
 } from '@desci-labs/desci-models';
 import { DataType, User } from '@prisma/client';
 import axios from 'axios';
@@ -140,7 +141,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
    */
   let externalUrlFiles: IpfsDirStructuredInput[];
   let externalUrlTotalSizeBytes: number;
-  let zipPath: string;
+  let zipPath = '';
   if (
     (externalUrl &&
       externalUrl?.path?.length &&
@@ -154,6 +155,8 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
         const processedUrl = await processExternalUrls(externalUrl.url, componentType);
         const zipStream = await zipUrlToStream(processedUrl);
         zipPath = TEMP_REPO_ZIP_PATH + '/' + owner.id + '_' + Date.now() + '.zip';
+
+        fs.mkdirSync(zipPath.replace('.zip', ''), { recursive: true });
         await saveZipStreamToDisk(zipStream, zipPath);
         const totalSize = await calculateTotalZipUncompressedSize(zipPath);
 
@@ -257,13 +260,16 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     });
   }
   if (externalUrl) {
-    newPathsFormatted = externalUrlFiles.map((f) => {
-      return header + '/' + f.path;
-    });
+    if (externalUrlFiles?.length > 0) {
+      newPathsFormatted = externalUrlFiles.map((f) => {
+        return header + '/' + f.path;
+      });
+    }
 
     // Code repo, add repo dir path
     if (zipPath.length > 0) {
       newPathsFormatted = [header + '/' + externalUrl.path];
+    } else {
     }
   }
 

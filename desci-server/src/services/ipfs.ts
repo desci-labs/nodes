@@ -21,7 +21,6 @@ import flatten from 'lodash/flatten';
 import uniq from 'lodash/uniq';
 import * as multiformats from 'multiformats';
 import { code as rawCode } from 'multiformats/codecs/raw';
-import { rimraf } from 'rimraf';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
