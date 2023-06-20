@@ -1,13 +1,10 @@
 import 'dotenv/config';
 import 'reflect-metadata';
-import fs from 'fs';
-import path from 'path';
 
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
-import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
