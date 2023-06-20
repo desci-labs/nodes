@@ -44,7 +44,6 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   });
 
   logger.trace(`retrieveTree called, manifest cid received: ${manifestCid} uuid provided: ${uuid}`);
-
   let node = await prisma.node.findFirst({
     where: {
       ownerId: ownerId,
@@ -127,7 +126,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   } catch (err) {
     logger.warn({ fn: 'retrieveTree', err }, '[retrieveTree] error');
     logger.info('[retrieveTree] Falling back on uncached tree retrieval');
-    return await getTreeAndFill(manifest, uuid, ownerId);
+    filledTree = await getTreeAndFill(manifest, uuid, ownerId);
   }
 
   return res.status(200).json({ tree: filledTree, date: dataset?.updatedAt.toString() });

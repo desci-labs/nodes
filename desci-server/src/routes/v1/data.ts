@@ -4,7 +4,6 @@ import multer = require('multer');
 import { downloadDataset, pubTree, retrieveTree, deleteData, update, renameData } from 'controllers/data';
 import { moveData } from 'controllers/data/move';
 import { ensureUser } from 'middleware/ensureUser';
-import { upgradeManifestTransformer } from 'middleware/upgradeManifest';
 
 const router = Router();
 const upload = multer({ preservePath: true });
