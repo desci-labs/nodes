@@ -151,6 +151,19 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
   });
 }
 
+export async function saveZipStreamToDisk(zipStream: Readable, outputPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Create a writable stream to the output file
+    const fileStream = fs.createWriteStream(outputPath);
+
+    // Pipe the ZIP stream into the file stream
+    zipStream.pipe(fileStream);
+
+    fileStream.on('finish', resolve);
+    fileStream.on('error', reject);
+  });
+}
+
 export const processExternalUrls = async (
   url: string,
   type: ResearchObjectComponentType | undefined,

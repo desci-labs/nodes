@@ -952,7 +952,7 @@ export interface ZipToDagAndPinResult {
 }
 
 // Adds a directory to IPFS and deletes the directory after, returning the root CID
-export async function addFilesToIpfsAndCleanup(directoryPath: string): Promise<string> {
+export async function addDirToIpfs(directoryPath: string): Promise<IpfsPinnedResult[]> {
   // Add all files in the directory to IPFS using globSource
   const files = [];
   for await (const file of client.addAll(globSource(directoryPath, '**/*'))) {
@@ -961,9 +961,10 @@ export async function addFilesToIpfsAndCleanup(directoryPath: string): Promise<s
   logger.info({ fn: 'addFilesToIpfsAndCleanup', files }, 'Files added to IPFS:');
 
   // Cleanup extracted files
-  await rimraf(directoryPath);
-  const rootCid = files[files.length - 1].cid.toString();
-  return rootCid;
+  // await rimraf(directoryPath);
+
+  // const rootCid = files[files.length - 1].cid.toString();
+  return files;
 }
 
 // export async function zipToPinFormat(
