@@ -1,4 +1,4 @@
-import { ResearchObjectComponentType, ResearchObjectV1, ResearchObjectV1Component } from '@desci-labs/desci-models';
+import { ResearchObjectComponentType, ResearchObjectV1Component, recursiveFlattenTree } from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
@@ -6,7 +6,7 @@ import prisma from 'client';
 import { getLatestManifest, persistManifest } from 'controllers/data/utils';
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
-import { addComponentsToManifest, neutralizePath, recursiveFlattenTree } from 'utils/driveUtils';
+import { addComponentsToManifest } from 'utils/driveUtils';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 

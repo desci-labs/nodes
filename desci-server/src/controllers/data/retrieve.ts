@@ -1,36 +1,55 @@
 import * as fs from 'fs';
 
+import { DriveObject, FileDir, ResearchObjectComponentType } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import archiver from 'archiver';
+import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 import mkdirp from 'mkdirp';
 import tar from 'tar';
 
 import prisma from 'client';
+import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
+import { getOrCache } from 'redisClient';
 import { getDatasetTar } from 'services/ipfs';
-import { getTreeAndFillSizes } from 'utils/driveUtils';
+import { getTreeAndFill, getTreeAndFillDeprecated } from 'utils/driveUtils';
+
+import { ErrorResponse } from './update';
+import { getLatestManifest } from './utils';
 
 export enum DataReferenceSrc {
   PRIVATE = 'private',
   PUBLIC = 'public',
 }
 
-export const retrieveTree = async (req: Request, res: Response, next: NextFunction) => {
+interface RetrieveResponse {
+  status?: number;
+  tree: DriveObject[];
+  date: string;
+}
+
+export const retrieveTree = async (req: Request, res: Response<RetrieveResponse | ErrorResponse | string>) => {
   let ownerId = (req as any).user?.id;
-  const cid: string = req.params.cid;
+  const manifestCid: string = req.params.manifestCid;
   const uuid: string = req.params.nodeUuid;
   const shareId: string = req.params.shareId;
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::RetrieveController',
     uuid: uuid,
-    cid: cid,
+    manifestCid,
     user: ownerId,
     shareId: shareId,
   });
 
-  logger.trace(`retrieveTree called, cid received: ${cid} uuid provided: ${uuid}`);
+  logger.trace(`retrieveTree called, manifest cid received: ${manifestCid} uuid provided: ${uuid}`);
+  let node = await prisma.node.findFirst({
+    where: {
+      ownerId: ownerId,
+      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+    },
+  });
 
   if (shareId) {
     const privateShare = await prisma.privateShare.findFirst({
@@ -38,10 +57,9 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
       select: { node: true, nodeUUID: true },
     });
     if (!privateShare) {
-      res.status(404).send({ ok: false, message: 'Invalid shareId' });
-      return;
+      return res.status(404).send({ error: 'Invalid shareId' });
     }
-    const node = privateShare.node;
+    node = privateShare.node;
 
     if (privateShare && node) {
       ownerId = node.ownerId;
@@ -49,22 +67,22 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
 
     const verifiedOwner = await prisma.user.findFirst({ where: { id: ownerId } });
     if (!verifiedOwner || (verifiedOwner.id !== ownerId && verifiedOwner.id > 0)) {
-      res.status(400).send({ ok: false, message: 'Invalid node owner' });
-      return;
+      return res.status(400).send({ error: 'Invalid node owner' });
     }
   }
   if (!ownerId) {
-    res.status(401).send({ ok: false, message: 'Unauthorized user' });
-    return;
+    return res.status(401).send({ error: 'Unauthorized user' });
   }
 
-  if (!cid) {
-    res.status(400).json({ error: 'no CID provided' });
-    return;
+  if (!node) {
+    return res.status(400).send({ error: 'Node not found' });
+  }
+
+  if (!manifestCid) {
+    return res.status(400).json({ error: 'no manifest CID provided' });
   }
   if (!uuid) {
-    res.status(400).json({ error: 'no UUID provided' });
-    return;
+    return res.status(400).json({ error: 'no UUID provided' });
   }
 
   // TODOD: Pull data references from publishDataReferences table
@@ -72,9 +90,9 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
   let dataSource = DataReferenceSrc.PRIVATE;
   const dataset = await prisma.dataReference.findFirst({
     where: {
-      type: { not: DataType.MANIFEST },
+      type: DataType.MANIFEST,
       userId: ownerId,
-      cid: cid,
+      cid: manifestCid,
       node: {
         uuid: uuid + '.',
       },
@@ -82,8 +100,8 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
   });
   const publicDataset = await prisma.publicDataReference.findFirst({
     where: {
-      cid: cid,
-      type: { not: DataType.MANIFEST },
+      cid: manifestCid,
+      type: DataType.MANIFEST,
       node: {
         uuid: uuid + '.',
       },
@@ -93,37 +111,55 @@ export const retrieveTree = async (req: Request, res: Response, next: NextFuncti
   if (publicDataset) dataSource = DataReferenceSrc.PUBLIC;
 
   if (!dataset && dataSource === DataReferenceSrc.PRIVATE) {
-    logger.warn(`unauthed access user: ${ownerId}, cid provided: ${cid}, nodeUuid provided: ${uuid}`);
-    res.status(400).json({ error: 'failed' });
-    return;
+    logger.warn(`unauthed access user: ${ownerId}, cid provided: ${manifestCid}, nodeUuid provided: ${uuid}`);
+    return res.status(400).json({ error: 'failed' });
   }
 
-  const filledTree = await getTreeAndFillSizes(cid, uuid, dataSource, ownerId);
+  const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
+  let filledTree;
+  try {
+    filledTree = await getOrCache(
+      `filled-tree-${manifestCid}`,
+      async () => await getTreeAndFill(manifest, uuid, ownerId),
+    );
+    if (!filledTree) throw new Error('[retrieveTree] Failed to retrieve tree from cache');
+  } catch (err) {
+    logger.warn({ fn: 'retrieveTree', err }, '[retrieveTree] error');
+    logger.info('[retrieveTree] Falling back on uncached tree retrieval');
+    filledTree = await getTreeAndFill(manifest, uuid, ownerId);
+  }
 
-  res.status(200).json({ tree: filledTree, date: dataset?.updatedAt });
+  return res.status(200).json({ tree: filledTree, date: dataset?.updatedAt.toString() });
 };
 
-export const pubTree = async (req: Request, res: Response, next: NextFunction) => {
+interface PubTreeResponse {
+  tree: DriveObject[] | FileDir[];
+  date: string;
+}
+
+export const pubTree = async (req: Request, res: Response<PubTreeResponse | ErrorResponse | string>) => {
   const owner = (req as any).user;
-  const cid: string = req.params.cid;
+  const manifestCid: string = req.params.manifestCid;
+  const rootCid: string = req.params.rootCid;
   const uuid: string = req.params.nodeUuid;
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::RetrievePubTreeController',
     uuid: uuid,
-    cid: cid,
+    manifestCid,
+    rootCid,
     user: owner.id,
   });
-  logger.trace(`pubTree called, cid received: ${cid} uuid provided: ${uuid}`);
-  if (!cid) return res.status(400).json({ error: 'no CID provided' });
+  logger.trace(`pubTree called, cid received: ${manifestCid} uuid provided: ${uuid}`);
+  if (!manifestCid) return res.status(400).json({ error: 'no manifest CID provided' });
   if (!uuid) return res.status(400).json({ error: 'no UUID provided' });
 
   // TODO: Later expand to datasets that aren't originated locally, currently the fn will fail if we don't store a pubDataRef to the dataset
   let dataSource = DataReferenceSrc.PRIVATE;
   const publicDataset = await prisma.publicDataReference.findFirst({
     where: {
-      type: { not: DataType.MANIFEST },
-      cid: cid,
+      type: DataType.MANIFEST,
+      cid: manifestCid,
       node: {
         uuid: uuid + '.',
       },
@@ -133,13 +169,37 @@ export const pubTree = async (req: Request, res: Response, next: NextFunction) =
   if (publicDataset) dataSource = DataReferenceSrc.PUBLIC;
 
   if (!publicDataset) {
-    logger.info(`Databucket public data reference not found, cid provided: ${cid}, nodeUuid provided: ${uuid}`);
+    logger.info(
+      `Databucket public data reference not found, manifest cid provided: ${manifestCid}, nodeUuid provided: ${uuid}`,
+    );
     return res.status(400).json({ error: 'Failed to retrieve' });
   }
 
-  const filledTree = await getTreeAndFillSizes(cid, uuid, dataSource);
+  const manifestUrl = cleanupManifestUrl(manifestCid as string, req.query?.g as string);
 
-  return res.status(200).json({ tree: filledTree, date: publicDataset.updatedAt });
+  const manifest = await (await axios.get(manifestUrl)).data;
+
+  if (!uuid) return res.status(400).json({ error: 'Manifest not found' });
+
+  const hasDataBucket = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+
+  const fetchCb = hasDataBucket
+    ? async () => await getTreeAndFill(manifest, uuid)
+    : async () => await getTreeAndFillDeprecated(rootCid, uuid, dataSource);
+
+  const cacheKey = hasDataBucket ? `filled-tree-${manifestCid}` : `deprecated-filled-tree-${rootCid}`;
+
+  let filledTree;
+  try {
+    filledTree = await getOrCache(cacheKey, fetchCb);
+    if (!filledTree) throw new Error('[pubTree] Failed to retrieve tree from cache');
+  } catch (err) {
+    logger.warn({ fn: 'pubTree', err }, '[pubTree] error');
+    logger.info('[pubTree] Falling back on uncached tree retrieval');
+    return await fetchCb();
+  }
+
+  return res.status(200).json({ tree: filledTree, date: publicDataset.updatedAt.toString() });
 };
 
 export const downloadDataset = async (req: Request, res: Response, next: NextFunction) => {
