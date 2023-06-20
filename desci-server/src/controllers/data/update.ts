@@ -271,8 +271,18 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
       externalCidMap[extCid.cid] = { size, directory: isDirectory, path: extCid.name };
       if (isDirectory) {
         //Get external dag tree, add to external dag pin list
-        const tree: RecursiveLsResult[] = await pubRecursiveLs(extCid.cid, extCid.name);
-        if (!tree) res.status(400).json({ error: 'Failed resolving external dag tree' });
+        let tree: RecursiveLsResult[];
+        try {
+          tree = await pubRecursiveLs(extCid.cid, extCid.name);
+        } catch (e) {
+          logger.info(
+            { extCid },
+            '[UPDATE DATASET] External DAG tree resolution failed, the contents within the DAG were unable to be retrieved, rejecting update.',
+          );
+          res
+            .status(400)
+            .json({ error: 'Failed resolving external dag tree, the DAG or its contents were unable to be retrieved' });
+        }
         const flatTree = recursiveFlattenTree(tree);
         (flatTree as RecursiveLsResult[]).forEach((file: RecursiveLsResult) => {
           cidTypesSizes[file.cid] = { size: file.size, isDirectory: file.type === 'dir' };
