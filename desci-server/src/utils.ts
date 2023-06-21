@@ -117,36 +117,48 @@ export async function calculateTotalZipUncompressedSize(zipPath: string): Promis
 export async function extractZipFileAndCleanup(zipFilePath: string, outputDirectory: string): Promise<void> {
   return new Promise((resolve, reject) => {
     yauzl.open(zipFilePath, { lazyEntries: true }, (err, zipfile) => {
-      if (err) reject(err);
+      if (err) return reject(err);
 
       zipfile.readEntry();
 
       zipfile.on('entry', (entry) => {
+        // Skip directories
         if (/\/$/.test(entry.fileName)) {
-          // Directory file names end with '/'.
-          // Note that entries for directories themselves are optional.
-          // An entry's fileName implicitly requires its parent directories to exist.
           zipfile.readEntry();
           return;
         }
 
         zipfile.openReadStream(entry, (err, readStream) => {
-          if (err) throw err;
+          if (err) return reject(err);
+
+          // Ensure parent directory exists.
           const filePath = path.join(outputDirectory, entry.fileName);
+          const directoryName = path.dirname(filePath);
+          fs.mkdirSync(directoryName, { recursive: true });
+
+          // Create write stream.
           const writeStream = fs.createWriteStream(filePath);
 
-          readStream.once('end', () => {
-            zipfile.readEntry();
-          });
+          // Pipe readStream to writeStream.
+          readStream.on('error', reject);
+          writeStream.on('error', reject);
+          writeStream.on('finish', () => zipfile.readEntry());
+
           readStream.pipe(writeStream);
         });
       });
 
       zipfile.on('end', async () => {
-        // Delete the original zip file
-        await fsPromises.unlink(zipFilePath);
-        resolve();
+        try {
+          // Delete the original zip file.
+          await fs.promises.unlink(zipFilePath);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
       });
+
+      zipfile.on('error', reject);
     });
   });
 }

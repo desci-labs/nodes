@@ -337,6 +337,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     const outputPath = zipPath.replace('.zip', '');
     await extractZipFileAndCleanup(zipPath, outputPath);
     uploaded = await addDirToIpfs(outputPath);
+
     // Cleanup
     await rimraf(outputPath);
   }

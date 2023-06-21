@@ -946,60 +946,12 @@ export async function addDirToIpfs(directoryPath: string): Promise<IpfsPinnedRes
   // Add all files in the directory to IPFS using globSource
   const files = [];
   for await (const file of client.addAll(globSource(directoryPath, '**/*'))) {
-    files.push(file);
+    files.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
   logger.info({ fn: 'addFilesToIpfsAndCleanup', files }, 'Files added to IPFS:');
 
-  // Cleanup extracted files
-  // await rimraf(directoryPath);
-
-  // const rootCid = files[files.length - 1].cid.toString();
   return files;
 }
-
-// export async function zipToPinFormat(
-//   zipStream: NodeJS.ReadableStream,
-//   nameOverride?: string,
-// ): Promise<ZipToDagAndPinResult> {
-//   return new Promise((resolve, reject) => {
-//     const files = [];
-//     let totalSize = 0;
-
-//     yauzl.fromStream(zipStream, { lazyEntries: true }, (err, zipfile) => {
-//       if (err) reject(err);
-
-//       zipfile.readEntry();
-
-//       zipfile.on('entry', (entry) => {
-//         if (!entry.isDirectory) {
-//           zipfile.openReadStream(entry, async (err, readStream) => {
-//             if (err) reject(err);
-
-//             if (entry.uncompressedSize > 0) {
-//               totalSize += entry.uncompressedSize;
-//               if (nameOverride) entry.fileName = deneutralizePath(entry.fileName, nameOverride);
-//               files.push({
-//                 path: entry.fileName,
-//                 content: readStream,
-//               });
-//             }
-//             zipfile.readEntry();
-//           });
-//         } else {
-//           zipfile.readEntry();
-//         }
-//       });
-
-//       zipfile.on('end', async () => {
-//         try {
-//           resolve({ files, totalSize });
-//         } catch (error) {
-//           reject(error);
-//         }
-//       });
-//     });
-//   });
-// }
 
 export function strIsCid(cid: string) {
   try {
