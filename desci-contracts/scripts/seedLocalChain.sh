@@ -10,8 +10,12 @@ function check() {
         echo "[seedLocalChain] checking"
         # if deployment file doesnt exist, we need to deploy
         if [ -f "$FILE" ]; then
-            echo "[seedLocalChain] killing"
-            killall "npm exec ganache" || ((ps aux | grep  "npm exec ganache" | grep -v grep | awk '{print $2}' | xargs kill) && echo "done") || echo "[seedLocalChain] ganache wasn't running when we tried to stop the process"
+            echo "[seedLocalChain] killing ganache..."
+            (
+              (
+                ps aux | grep  "npm exec ganache" | grep -v grep | awk '{print $2}' | xargs kill
+              ) && echo "done"
+            ) || echo "[seedLocalChain] ganache wasn't running when we tried to stop the process"
             exit
         fi
         sleep 5
