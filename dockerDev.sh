@@ -4,6 +4,9 @@
 # add -x to debug command flow
 set -euo pipefail
 
+# Overridable path assumption for the nodes-web repo
+NODES_WEB_DIR=${NODES_WEB_DIR:-"../nodes-web"}
+
 function assert_command_available {
   cmd_to_check=$1
   if ! command -v "$cmd_to_check" &> /dev/null
@@ -26,7 +29,7 @@ fi
 MNEMONIC=$(grep MNEMONIC .env)
 
 [ ! -f "./nodes-media/.env" ] && cp ./nodes-media/.env.example ./nodes-media/.env
-[ ! -f "../nodes-web/.env" ] && cp ../nodes-web/.env.example ../nodes-web/.env
+[ ! -f "$NODES_WEB_DIR/.env" ] && cp "$NODES_WEB_DIR/.env.example" "$NODES_WEB_DIR/.env"
 
 if [ ! -f "./desci-contracts/.env" ]; then
   touch ./desci-contracts/.env
@@ -55,24 +58,27 @@ nvm use
 npm i -g hardhat
 npm i -g yarn
 
-if [ -d "desci-contracts" ]; then
-    cd desci-contracts
-    yarn
-    scripts/seedLocalDpid.sh
-    scripts/seedLocalChain.sh
-fi
-if [ -d "../desci-contracts" ]; then
-    cd ../desci-contracts
-    yarn
-    scripts/seedLocalDpid.sh
-    scripts/seedLocalChain.sh
-    cd ..
-fi
+# Init models
+echo "[dockerDev] Setting up desci-models..."
+cd desci-models
+yarn
+cd -
 
-if [ -d "desci-server" ]; then
-    cd desci-server
-    cd ..
-fi
+# Init contracts
+echo "[dockerDev] Setting up desci-contracts..."
+cd desci-contracts
+yarn
+echo "[dockerDev:desci-contracts] executing seedLocalDpid..."
+scripts/seedLocalDpid.sh
+echo "[dockerDev:desci-contracts] executing seedLocalChain..."
+scripts/seedLocalChain.sh
+cd -
+
+# Init backend
+echo "[dockerDev] Setting up desci-server..."
+cd desci-server
+yarn
+cd -
 
 set +o pipefail
 GANACHE_PID=$(lsof -i:8545 | grep '*:8545' | awk '{print $2}' | tail -n 1)
