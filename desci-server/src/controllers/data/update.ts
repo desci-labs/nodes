@@ -336,7 +336,11 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   if (zipPath.length > 0) {
     const outputPath = zipPath.replace('.zip', '');
     await extractZipFileAndCleanup(zipPath, outputPath);
-    uploaded = await addDirToIpfs(outputPath);
+    const pinResult = await addDirToIpfs(outputPath);
+
+    // Overrides the path name of the root directory
+    pinResult[pinResult.length - 1].path = externalUrl.path;
+    uploaded = pinResult;
 
     // Cleanup
     await rimraf(outputPath);
