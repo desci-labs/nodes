@@ -55,7 +55,7 @@ export const publicIpfs = ipfs.create({ url: process.env.PUBLIC_IPFS_RESOLVER })
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
 const INTERNAL_IPFS_TIMEOUT = 5000;
-const EXTERNAL_IPFS_TIMEOUT = 15000;
+const EXTERNAL_IPFS_TIMEOUT = 30000;
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
@@ -492,7 +492,7 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, ca
 export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
-  const lsOp = await publicIpfs.ls(cid);
+  const lsOp = await publicIpfs.ls(cid, { timeout: EXTERNAL_IPFS_TIMEOUT });
   for await (const filedir of lsOp) {
     const res: any = filedir;
     const pathSplit = res.path.split('/');
