@@ -1,3 +1,5 @@
+import fs from 'fs';
+
 import {
   neutralizePath,
   deneutralizePath,
@@ -5,17 +7,18 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   DriveObject,
-  FileDir,
 } from '@desci-labs/desci-models';
 import { DataType, User } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response } from 'express';
+import { rimraf } from 'rimraf';
 
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
+  addDirToIpfs,
   addFilesToDag,
   convertToCidV1,
   FilesToAddToDag,
@@ -29,9 +32,15 @@ import {
   pinExternalDags,
   pubRecursiveLs,
   RecursiveLsResult,
-  zipToPinFormat,
 } from 'services/ipfs';
-import { arrayXor, processExternalUrls, zipUrlToBuffer } from 'utils';
+import {
+  arrayXor,
+  calculateTotalZipUncompressedSize,
+  extractZipFileAndCleanup,
+  processExternalUrls,
+  saveZipStreamToDisk,
+  zipUrlToStream,
+} from 'utils';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import {
   FirstNestingComponent,
@@ -65,6 +74,7 @@ export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }:
   return manifest;
 }
 
+const TEMP_REPO_ZIP_PATH = './repo-tmp';
 interface UpdateResponse {
   status?: number;
   rootDataCid: string;
@@ -131,6 +141,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
    */
   let externalUrlFiles: IpfsDirStructuredInput[];
   let externalUrlTotalSizeBytes: number;
+  let zipPath = '';
   if (
     (externalUrl &&
       externalUrl?.path?.length &&
@@ -142,9 +153,15 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
       // External URL code, only supports github for now
       if (componentType === ResearchObjectComponentType.CODE) {
         const processedUrl = await processExternalUrls(externalUrl.url, componentType);
-        const zipBuffer = await zipUrlToBuffer(processedUrl);
-        const { files, totalSize } = await zipToPinFormat(zipBuffer, externalUrl.path);
-        externalUrlFiles = files;
+        const zipStream = await zipUrlToStream(processedUrl);
+        zipPath = TEMP_REPO_ZIP_PATH + '/' + owner.id + '_' + Date.now() + '.zip';
+
+        fs.mkdirSync(zipPath.replace('.zip', ''), { recursive: true });
+        await saveZipStreamToDisk(zipStream, zipPath);
+        const totalSize = await calculateTotalZipUncompressedSize(zipPath);
+
+        // const { files, totalSize } = await zipToPinFormat(zipStream, externalUrl.path);
+        // externalUrlFiles = files;
         externalUrlTotalSizeBytes = totalSize;
       }
       // External URL pdf
@@ -243,9 +260,17 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     });
   }
   if (externalUrl) {
-    newPathsFormatted = externalUrlFiles.map((f) => {
-      return header + '/' + f.path;
-    });
+    if (externalUrlFiles?.length > 0) {
+      newPathsFormatted = externalUrlFiles.map((f) => {
+        return header + '/' + f.path;
+      });
+    }
+
+    // Code repo, add repo dir path
+    if (zipPath.length > 0) {
+      newPathsFormatted = [header + '/' + externalUrl.path];
+    } else {
+    }
   }
 
   if (newFolderName) {
@@ -305,6 +330,20 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
     if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
     logger.info('[UPDATE DATASET] Pinned files: ', uploaded);
+  }
+
+  // Pin the zip file
+  if (zipPath.length > 0) {
+    const outputPath = zipPath.replace('.zip', '');
+    await extractZipFileAndCleanup(zipPath, outputPath);
+    const pinResult = await addDirToIpfs(outputPath);
+
+    // Overrides the path name of the root directory
+    pinResult[pinResult.length - 1].path = externalUrl.path;
+    uploaded = pinResult;
+
+    // Cleanup
+    await rimraf(outputPath);
   }
 
   //New folder creation, add to uploaded
