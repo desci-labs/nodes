@@ -1,5 +1,6 @@
 import {
-  ResearchObjectComponentSubtypes,
+  ExternalLinkComponent,
+  PdfComponent,
   ResearchObjectComponentType,
   ResearchObjectV1,
   ResearchObjectV1Component,
@@ -80,12 +81,16 @@ export function convertIpfsTreeToDriveObjectTree(
       ancestorComponent?.type ||
       ResearchObjectComponentType.UNKNOWN;
 
-    if (component) {
-      const subtype =
-        "subtype" in component
-          ? (component["subtype"] as ResearchObjectComponentSubtypes)
-          : undefined;
-      if (subtype) branch.componentSubtype = subtype;
+    if (
+      component &&
+      [
+        ResearchObjectComponentType.PDF,
+        ResearchObjectComponentType.LINK,
+      ].includes(component.type)
+    ) {
+      branch.componentSubtype = (
+        component as PdfComponent | ExternalLinkComponent
+      ).subtype;
     }
     // useful for annotation insert on file tree under a code component for example (refer to component id later)
     branch.componentId = component?.id || ancestorComponent?.id;
