@@ -7,5 +7,6 @@
   },
   "module": {
     "type": "commonjs"
-  }
+  },
+  "sourceMaps": true
 }
