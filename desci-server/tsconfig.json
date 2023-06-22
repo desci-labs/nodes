@@ -20,5 +20,8 @@
   },
   "include": ["./src/**/*.tsx", "./src/**/*.ts", "./src/**/*.cjs"],
   "exclude": ["node_modules", "test/**/*.ts"],
-  "compileOnSave": true
+  "compileOnSave": true,
+  "ts-node": {
+    "swc": true
+  }
 }

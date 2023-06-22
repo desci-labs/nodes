@@ -29,6 +29,8 @@ import { getOrCache } from 'redisClient';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
+import https from 'https'
+import fs from 'fs';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
@@ -51,11 +53,16 @@ export interface UrlWithCid {
 // connect to a different API
 export const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
 export const readerClient = ipfs.create({ url: PUBLIC_IPFS_PATH });
-export const publicIpfs = ipfs.create({ url: process.env.PUBLIC_IPFS_RESOLVER });
+
+const caBundle = fs.readFileSync('ssl/sealstorage-bundle.crt');
+const agent = new https.Agent({ ca: caBundle });
+// const PUBLIC_IPFS_RESOLVER = process.env.PUBLIC_IPFS_RESOLVER;
+const PUBLIC_IPFS_RESOLVER = "https://maritime.sealstorage.io";
+export const publicIpfs = ipfs.create({ url: PUBLIC_IPFS_RESOLVER, agent, apiPath: '/ipfs/api/v0' });
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
 const INTERNAL_IPFS_TIMEOUT = 5000;
-const EXTERNAL_IPFS_TIMEOUT = 30000;
+const EXTERNAL_IPFS_TIMEOUT = 120000;
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,

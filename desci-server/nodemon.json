@@ -1,0 +1,8 @@
+{
+    "watch": ["."],
+    "ext": ".ts,.js",
+    "ignore": ["log/server.log"],
+    "verbose": true,
+    "exec": "node -r @swc/register --inspect=0.0.0.0:9229",
+    "delay": 2500
+  }
