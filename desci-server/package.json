@@ -6,7 +6,7 @@
     "node": ">=16"
   },
   "scripts": {
-    "dev": "debug=* NODE_PATH=./src ts-node-dev --inspect=0.0.0.0:9229 --respawn --exit-child ./src/index.ts",
+    "dev": "debug=* NODE_PATH=./src ts-node-dev --inspect=0.0.0.0:9229 --respawn --watch --exit-child ./src/index.ts",
     "script:fix-mirrors": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/retry-mirrors.ts",
     "script:upgrade-manifests": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/upgradeManifests.ts",
     "script:test-upgrade-manifests": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/testUpgradeManifests.ts",
