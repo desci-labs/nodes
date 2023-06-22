@@ -21,6 +21,7 @@ import routes from './routes';
 export const app = express();
 
 const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
+const IS_DEV = !ENABLE_TELEMETRY;
 if (ENABLE_TELEMETRY) {
   logger.info('[DeSci Nodes] Telemetry enabled');
   require('./tracing');
@@ -39,7 +40,30 @@ if (ENABLE_TELEMETRY) {
   logger.info('[DeSci Nodes] Telemetry disabled');
 }
 
-app.use(pinoHttp({ logger }));
+app.use(pinoHttp({ logger, serializers: {
+  res: (res) => {
+    if (IS_DEV) {
+      return {
+        responseTime: res.responseTime,
+        status: res.statusCode,
+      };
+    } else {
+      return res;
+    }
+  },
+  req: (req) => {
+    if (IS_DEV) {
+      return {
+        query: req.query,
+        params: req.params,
+        method: req.method,
+        url: req.url,
+      };
+    } else {
+      return req;
+    }
+  },
+}, }));
 
 const allowlist = [
   'http://localhost:3000',

@@ -87,6 +87,7 @@
     "promise-parallel-throttle": "^3.3.0",
     "redis": "^4.6.7",
     "reflect-metadata": "^0.1.13",
+    "rimraf": "^5.0.1",
     "short-unique-id": "^4.4.4",
     "siwe": "^1.1.6",
     "tar-stream": "^3.0.0",

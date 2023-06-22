@@ -148,7 +148,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     uuid: uuid,
     manifestCid,
     rootCid,
-    user: owner.id,
+    user: owner?.id,
   });
   logger.trace(`pubTree called, cid received: ${manifestCid} uuid provided: ${uuid}`);
   if (!manifestCid) return res.status(400).json({ error: 'no manifest CID provided' });

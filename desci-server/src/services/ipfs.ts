@@ -1,3 +1,5 @@
+import { Readable } from 'stream';
+
 import {
   CodeComponent,
   PdfComponent,
@@ -12,14 +14,13 @@ import { DataReference, DataType, NodeVersion, Prisma } from '@prisma/client';
 import axios from 'axios';
 // import CID from 'cids';
 import * as ipfs from 'ipfs-http-client';
-import { CID as CID2 } from 'ipfs-http-client';
+import { CID as CID2, globSource } from 'ipfs-http-client';
 import UnixFS from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
 import flatten from 'lodash/flatten';
 import uniq from 'lodash/uniq';
 import * as multiformats from 'multiformats';
 import { code as rawCode } from 'multiformats/codecs/raw';
-import * as yauzl from 'yauzl';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
@@ -54,7 +55,7 @@ export const publicIpfs = ipfs.create({ url: process.env.PUBLIC_IPFS_RESOLVER })
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
 const INTERNAL_IPFS_TIMEOUT = 5000;
-const EXTERNAL_IPFS_TIMEOUT = 15000;
+const EXTERNAL_IPFS_TIMEOUT = 30000;
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
@@ -252,7 +253,7 @@ export const downloadSingleFile = async (url: string): Promise<PdfComponentSingl
 
 export interface IpfsDirStructuredInput {
   path: string;
-  content: Buffer;
+  content: Buffer | Readable;
 }
 
 export interface IpfsPinnedResult {
@@ -491,7 +492,7 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, ca
 export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
-  const lsOp = await publicIpfs.ls(cid);
+  const lsOp = await publicIpfs.ls(cid, { timeout: EXTERNAL_IPFS_TIMEOUT });
   for await (const filedir of lsOp) {
     const res: any = filedir;
     const pathSplit = res.path.split('/');
@@ -940,49 +941,16 @@ export interface ZipToDagAndPinResult {
   totalSize: number;
 }
 
-export async function zipToPinFormat(zipBuffer: Buffer, nameOverride?: string): Promise<ZipToDagAndPinResult> {
-  return new Promise((resolve, reject) => {
-    const files = [];
-    let totalSize = 0;
+// Adds a directory to IPFS and deletes the directory after, returning the root CID
+export async function addDirToIpfs(directoryPath: string): Promise<IpfsPinnedResult[]> {
+  // Add all files in the directory to IPFS using globSource
+  const files = [];
+  for await (const file of client.addAll(globSource(directoryPath, '**/*'))) {
+    files.push({ path: file.path, cid: file.cid.toString(), size: file.size });
+  }
+  logger.info({ fn: 'addFilesToIpfsAndCleanup', files }, 'Files added to IPFS:');
 
-    yauzl.fromBuffer(zipBuffer, { lazyEntries: true }, (err, zipfile) => {
-      if (err) reject(err);
-
-      zipfile.readEntry();
-
-      zipfile.on('entry', (entry) => {
-        if (!entry.isDirectory) {
-          zipfile.openReadStream(entry, async (err, readStream) => {
-            if (err) reject(err);
-            const chunks = [];
-            for await (const chunk of readStream) {
-              chunks.push(chunk);
-            }
-            const fileBuffer = Buffer.concat(chunks);
-            if (entry.uncompressedSize > 0) {
-              totalSize += entry.uncompressedSize;
-              if (nameOverride) entry.fileName = deneutralizePath(entry.fileName, nameOverride);
-              files.push({
-                path: entry.fileName,
-                content: fileBuffer,
-              });
-            }
-            zipfile.readEntry();
-          });
-        } else {
-          zipfile.readEntry();
-        }
-      });
-
-      zipfile.on('end', async () => {
-        try {
-          resolve({ files, totalSize });
-        } catch (error) {
-          reject(error);
-        }
-      });
-    });
-  });
+  return files;
 }
 
 export function strIsCid(cid: string) {

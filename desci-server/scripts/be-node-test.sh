@@ -10,6 +10,7 @@ apt-get add --update bash
 # chmod -R 777 /app/node_modules/.prisma
 # chmod -R 777 /app/node_modules/prisma
 # chmod -R 777 /root/ && chown node:node /root/.cache/prisma/master/2920a97877e12e055c1333079b8d19cee7f33826/debian-openssl-1.1.x/libquery-engine # for prisma studio
+chmod -R 777 /app/desci-server/repo-tmp
 cd desci-server
 yarn run migrate
 npx prisma db seed
