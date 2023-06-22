@@ -65,9 +65,9 @@ export function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEFAULT_T
 
         return resolve(JSON.parse(result));
       }
-      logger.info(`[REDIS CACHE]${key} cached`);
       const value = await fn();
       await redisClient.set(key, JSON.stringify(value), { EX: ttl });
+      logger.info(`[REDIS CACHE]${key} cached`);
       resolve(value);
     } catch (e) {
       return reject(e);

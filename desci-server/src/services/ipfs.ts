@@ -1,3 +1,5 @@
+import fs from 'fs';
+import https from 'https';
 import { Readable } from 'stream';
 
 import {
@@ -29,8 +31,6 @@ import { getOrCache } from 'redisClient';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
-import https from 'https'
-import fs from 'fs';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
@@ -57,7 +57,7 @@ export const readerClient = ipfs.create({ url: PUBLIC_IPFS_PATH });
 const caBundle = fs.readFileSync('ssl/sealstorage-bundle.crt');
 const agent = new https.Agent({ ca: caBundle });
 // const PUBLIC_IPFS_RESOLVER = process.env.PUBLIC_IPFS_RESOLVER;
-const PUBLIC_IPFS_RESOLVER = "https://maritime.sealstorage.io";
+const PUBLIC_IPFS_RESOLVER = 'https://maritime.sealstorage.io';
 export const publicIpfs = ipfs.create({ url: PUBLIC_IPFS_RESOLVER, agent, apiPath: '/ipfs/api/v0' });
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
@@ -497,23 +497,26 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, ca
 }
 
 export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
-  carryPath = carryPath || convertToCidV1(cid);
-  const tree = [];
-  const lsOp = await publicIpfs.ls(cid, { timeout: EXTERNAL_IPFS_TIMEOUT });
-  for await (const filedir of lsOp) {
-    const res: any = filedir;
-    const pathSplit = res.path.split('/');
-    pathSplit[0] = carryPath;
-    res.path = pathSplit.join('/');
-    const v1StrCid = convertToCidV1(res.cid);
-    if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
-    if (filedir.type === 'dir') {
-      res.cid = v1StrCid;
-      res.contains = await pubRecursiveLs(res.cid, carryPath + '/' + res.name);
-      tree.push({ ...res, cid: v1StrCid });
+  return await getOrCache(`tree-chunk-${cid}-${carryPath}`, async () => {
+    logger.info({ fn: 'pubRecursiveLs', cid, carryPath }, 'Tree chunk not cached, retrieving from IPFS');
+    carryPath = carryPath || convertToCidV1(cid);
+    const tree = [];
+    const lsOp = await publicIpfs.ls(cid, { timeout: EXTERNAL_IPFS_TIMEOUT });
+    for await (const filedir of lsOp) {
+      const res: any = filedir;
+      const pathSplit = res.path.split('/');
+      pathSplit[0] = carryPath;
+      res.path = pathSplit.join('/');
+      const v1StrCid = convertToCidV1(res.cid);
+      if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
+      if (filedir.type === 'dir') {
+        res.cid = v1StrCid;
+        res.contains = await pubRecursiveLs(res.cid, carryPath + '/' + res.name);
+        tree.push({ ...res, cid: v1StrCid });
+      }
     }
-  }
-  return tree;
+    return tree;
+  });
 };
 
 // Used for recursively lsing a DAG without knowing if it contains public or private cids, slow and INEFFICIENT!
