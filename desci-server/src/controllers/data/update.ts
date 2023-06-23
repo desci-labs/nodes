@@ -1,13 +1,24 @@
-import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import fs from 'fs';
+
+import {
+  neutralizePath,
+  deneutralizePath,
+  recursiveFlattenTree,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+  DriveObject,
+} from '@desci-labs/desci-models';
 import { DataType, User } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response } from 'express';
+import { rimraf } from 'rimraf';
 
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
+  addDirToIpfs,
   addFilesToDag,
   convertToCidV1,
   FilesToAddToDag,
@@ -21,25 +32,27 @@ import {
   pinExternalDags,
   pubRecursiveLs,
   RecursiveLsResult,
-  zipToPinFormat,
 } from 'services/ipfs';
-import { arrayXor, processExternalUrls, zipUrlToBuffer } from 'utils';
+import {
+  arrayXor,
+  calculateTotalZipUncompressedSize,
+  extractZipFileAndCleanup,
+  processExternalUrls,
+  saveZipStreamToDisk,
+  zipUrlToStream,
+} from 'utils';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import {
   FirstNestingComponent,
   ROTypesToPrismaTypes,
   addComponentsToManifest,
-  deneutralizePath,
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
-  getTreeAndFillSizes,
+  getTreeAndFill,
   inheritComponentType,
-  neutralizePath,
-  recursiveFlattenTree,
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
 
-import { DataReferenceSrc } from './retrieve';
 import { persistManifest } from './utils';
 
 interface UpdatingManifestParams {
@@ -61,7 +74,22 @@ export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }:
   return manifest;
 }
 
-export const update = async (req: Request, res: Response) => {
+const TEMP_REPO_ZIP_PATH = './repo-tmp';
+interface UpdateResponse {
+  status?: number;
+  rootDataCid: string;
+  manifest: ResearchObjectV1;
+  manifestCid: string;
+  tree: DriveObject[];
+  date: string;
+}
+
+export interface ErrorResponse {
+  error: string;
+  status?: number;
+}
+
+export const update = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = (req as any).user as User;
   const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
@@ -113,6 +141,7 @@ export const update = async (req: Request, res: Response) => {
    */
   let externalUrlFiles: IpfsDirStructuredInput[];
   let externalUrlTotalSizeBytes: number;
+  let zipPath = '';
   if (
     (externalUrl &&
       externalUrl?.path?.length &&
@@ -124,9 +153,15 @@ export const update = async (req: Request, res: Response) => {
       // External URL code, only supports github for now
       if (componentType === ResearchObjectComponentType.CODE) {
         const processedUrl = await processExternalUrls(externalUrl.url, componentType);
-        const zipBuffer = await zipUrlToBuffer(processedUrl);
-        const { files, totalSize } = await zipToPinFormat(zipBuffer, externalUrl.path);
-        externalUrlFiles = files;
+        const zipStream = await zipUrlToStream(processedUrl);
+        zipPath = TEMP_REPO_ZIP_PATH + '/' + owner.id + '_' + Date.now() + '.zip';
+
+        fs.mkdirSync(zipPath.replace('.zip', ''), { recursive: true });
+        await saveZipStreamToDisk(zipStream, zipPath);
+        const totalSize = await calculateTotalZipUncompressedSize(zipPath);
+
+        // const { files, totalSize } = await zipToPinFormat(zipStream, externalUrl.path);
+        // externalUrlFiles = files;
         externalUrlTotalSizeBytes = totalSize;
       }
       // External URL pdf
@@ -187,18 +222,18 @@ export const update = async (req: Request, res: Response) => {
   if (externalUrl) uploadSizeBytes += externalUrlTotalSizeBytes;
   const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(owner, { fileSizeBytes: uploadSizeBytes });
   if (!hasStorageSpaceToUpload)
-    return res.send(400).json({
+    return res.status(400).json({
       error: `upload size of ${uploadSizeBytes} exceeds users data budget of ${owner.currentDriveStorageLimitGb} GB`,
     });
 
   //Pull old tree
   const externalCidMap = await generateExternalCidMap(node.uuid);
-  const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap));
+  const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
 
   /*
    ** Check if update path contains externals, temporarily disable adding to external DAGs
    */
-  const pathMatch = oldFlatTree.find((c) => {
+  const pathMatch = (oldFlatTree as RecursiveLsResult[]).find((c) => {
     const neutralPath = neutralizePath(c.path);
     return neutralPath === contextPath;
   });
@@ -225,9 +260,17 @@ export const update = async (req: Request, res: Response) => {
     });
   }
   if (externalUrl) {
-    newPathsFormatted = externalUrlFiles.map((f) => {
-      return header + '/' + f.path;
-    });
+    if (externalUrlFiles?.length > 0) {
+      newPathsFormatted = externalUrlFiles.map((f) => {
+        return header + '/' + f.path;
+      });
+    }
+
+    // Code repo, add repo dir path
+    if (zipPath.length > 0) {
+      newPathsFormatted = [header + '/' + externalUrl.path];
+    } else {
+    }
   }
 
   if (newFolderName) {
@@ -253,10 +296,20 @@ export const update = async (req: Request, res: Response) => {
       externalCidMap[extCid.cid] = { size, directory: isDirectory, path: extCid.name };
       if (isDirectory) {
         //Get external dag tree, add to external dag pin list
-        const tree: RecursiveLsResult[] = await pubRecursiveLs(extCid.cid, extCid.name);
-        if (!tree) res.status(400).json({ error: 'Failed resolving external dag tree' });
+        let tree: RecursiveLsResult[];
+        try {
+          tree = await pubRecursiveLs(extCid.cid, extCid.name);
+        } catch (e) {
+          logger.info(
+            { extCid },
+            '[UPDATE DATASET] External DAG tree resolution failed, the contents within the DAG were unable to be retrieved, rejecting update.',
+          );
+          return res
+            .status(400)
+            .json({ error: 'Failed resolving external dag tree, the DAG or its contents were unable to be retrieved' });
+        }
         const flatTree = recursiveFlattenTree(tree);
-        flatTree.forEach((file: RecursiveLsResult) => {
+        (flatTree as RecursiveLsResult[]).forEach((file: RecursiveLsResult) => {
           cidTypesSizes[file.cid] = { size: file.size, isDirectory: file.type === 'dir' };
           if (file.type === 'dir') externalDagsToPin.push(file.cid);
           uploaded.push({ path: file.path, cid: file.cid, size: file.size });
@@ -287,6 +340,20 @@ export const update = async (req: Request, res: Response) => {
     if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
     if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
     logger.info('[UPDATE DATASET] Pinned files: ', uploaded);
+  }
+
+  // Pin the zip file
+  if (zipPath.length > 0) {
+    const outputPath = zipPath.replace('.zip', '');
+    await extractZipFileAndCleanup(zipPath, outputPath);
+    const pinResult = await addDirToIpfs(outputPath);
+
+    // Overrides the path name of the root directory
+    pinResult[pinResult.length - 1].path = externalUrl.path;
+    uploaded = pinResult;
+
+    // Cleanup
+    await rimraf(outputPath);
   }
 
   //New folder creation, add to uploaded
@@ -420,7 +487,9 @@ export const update = async (req: Request, res: Response) => {
     // //CLEANUP DANGLING REFERENCES//
     oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
 
-    const flatTree = recursiveFlattenTree(await getDirectoryTree(newRootCidString, externalCidMap));
+    const flatTree = recursiveFlattenTree(
+      await getDirectoryTree(newRootCidString, externalCidMap),
+    ) as RecursiveLsResult[];
     flatTree.push({
       name: 'root',
       cid: newRootCidString,
@@ -430,7 +499,7 @@ export const update = async (req: Request, res: Response) => {
     });
 
     //length should be n + 1, n being nested dirs modified + rootCid
-    const pruneList = oldFlatTree.filter((oldF) => {
+    const pruneList = (oldFlatTree as RecursiveLsResult[]).filter((oldF) => {
       //a path match && a CID difference = prune
       return flatTree.some((newF) => neutralizePath(oldF.path) === neutralizePath(newF.path) && oldF.cid !== newF.cid);
     });
@@ -455,7 +524,7 @@ export const update = async (req: Request, res: Response) => {
     if (!persistedManifestCid)
       throw Error(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
-    const tree = await getTreeAndFillSizes(newRootCidString, uuid, DataReferenceSrc.PRIVATE, owner.id);
+    const tree = await getTreeAndFill(updatedManifest, uuid, owner.id);
     return res.status(200).json({
       rootDataCid: newRootCidString,
       manifest: updatedManifest,
