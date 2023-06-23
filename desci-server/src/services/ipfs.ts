@@ -286,9 +286,12 @@ export const pinDirectory = async (
 
 export async function pinExternalDags(cids: string[]): Promise<string[]> {
   const result = [];
+  let iterationCount = 0;
   for await (const cid of cids) {
+    iterationCount++;
+    logger.debug({ cid, fn: 'pinExternalDags', iterationCount }, `Pinning external dag ${cid}`);
     const cidType = multiformats.CID.parse(cid);
-    const block = await publicIpfs.block.get(cidType);
+    const block = await getOrCache(`block-${cid}`, async () => await publicIpfs.block.get(cidType));
     const res = await client.block.put(block);
     result.push(res.toString());
   }

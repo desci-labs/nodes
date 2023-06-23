@@ -159,7 +159,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
         fs.mkdirSync(zipPath.replace('.zip', ''), { recursive: true });
         await saveZipStreamToDisk(zipStream, zipPath);
         const totalSize = await calculateTotalZipUncompressedSize(zipPath);
-
         // const { files, totalSize } = await zipToPinFormat(zipStream, externalUrl.path);
         // externalUrlFiles = files;
         externalUrlTotalSizeBytes = totalSize;
@@ -200,7 +199,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
       return res.status(400).json({ error: 'Failed to resolve external CID' });
     }
   }
-
   //finding rootCid
   const manifestCidEntry = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCidEntry
@@ -315,6 +313,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
           uploaded.push({ path: file.path, cid: file.cid, size: file.size });
           externalCidMap[file.cid] = { size: file.size, directory: file.type === 'dir', path: file.path };
         });
+        debugger;
         externalDagsToPin.push(extCid.cid);
       }
       uploaded.push({
@@ -330,6 +329,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   if (externalDagsToPin.length) {
     externalDagsPinned = await pinExternalDags(externalDagsToPin);
   }
+  debugger;
   //Pin the new files
   const structuredFilesForPinning: IpfsDirStructuredInput[] = files.map((f: any) => {
     return { path: f.originalname, content: f.buffer };
