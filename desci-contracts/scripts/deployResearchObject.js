@@ -1,14 +1,18 @@
-const { ethers, upgrades } = require("hardhat");
+const { ethers, upgrades, network } = require("hardhat");
 
 const dpidRegistry = require("../.openzeppelin/unknown-dpid.json");
-import localForwarder from "../build/gsn/Forwarder.json";
-import deployedNetworks from "../config/gsn-networks.json";
+const localForwarder = require("../build/gsn/Forwarder.json");
+const deployedNetworks = require("../config/gsn-networks.json");
 
 async function main() {
+  const net = await ethers.provider.getNetwork();
+  const chainId = (await net).chainId;
   const ResearchObject = await ethers.getContractFactory("ResearchObject");
-  console.log("Deploying ResearchObject...");
+
+  console.log("Deploying ResearchObject...", chainId, network);
   let forwarder;
-  if (network.name !== "localhost" || !chainId.toString().match(/1337/)) {
+  const deployedNetwork = (deployedNetworks[chainId] || [])[0];
+  if (network.name !== "ganache" && !chainId.toString().match(/1337/)) {
     if (!deployedNetwork) {
       throw new Error(`GSN not deployed on network ${chainId}`);
     }
