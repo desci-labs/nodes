@@ -10,7 +10,7 @@ function check() {
         # if deployment file doesnt exist, we need to deploy
         if [ -f "$FILE" ]; then
             echo "[seedLocalDpid] killing"
-            killall "npm exec ganache" || ((ps aux | grep  "npm exec ganache" | grep -v grep | awk '{print $2}' | xargs kill) && echo "done") || echo "[seedLocalDpid]  ganache wasn't running when we tried to stop the process"
+            ((ps aux | grep  "npm exec ganache" | grep -v grep | awk '{print $2}' | xargs kill) && echo "done") || echo "[seedLocalDpid]  ganache wasn't running when we tried to stop the process"
             exit
         fi
         sleep 5
