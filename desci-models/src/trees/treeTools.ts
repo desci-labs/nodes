@@ -275,14 +275,14 @@ export const tempDate = "12/02/2022 7:00PM";
 export function recursiveFlattenTree<T extends RecursiveLsResult | DriveObject>(
   tree: T[]
 ): T[] {
-  const contents: T[] = [];
-  tree.forEach((fd) => {
-    contents.push(fd);
-    if (fd.type === "dir" && fd.contains) {
-      contents.push(...recursiveFlattenTree(fd.contains as T[]));
+  // eslint-disable-next-line no-array-reduce/no-reduce
+  return tree.reduce((acc: T[], node: T) => {
+    if (node.type === "dir" && node.contains) {
+      return acc.concat(node, recursiveFlattenTree(node.contains as T[]));
+    } else {
+      return acc.concat(node);
     }
-  });
-  return contents;
+  }, []);
 }
 
 export function neutralizePath(path: DrivePath) {
