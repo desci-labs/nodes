@@ -1,9 +1,9 @@
 # build.yml
 on:
-  pull_request:
-    paths:
-    - .github/workflows/**
-    - desci-models/**
+  # pull_request:
+  #   paths:
+  #   - .github/workflows/**
+  #   - desci-models/**
   push:
     paths:
       - .github/workflows/**
@@ -40,4 +40,4 @@ jobs:
 
       - name: Run tests
         run: |
-          yarn test
+          cd desci-models && yarn test
