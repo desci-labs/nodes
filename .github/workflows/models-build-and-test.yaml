@@ -1,0 +1,43 @@
+# build.yml
+on:
+  pull_request:
+    paths:
+    - .github/workflows/**
+    - desci-models/**
+  push:
+    paths:
+      - .github/workflows/**
+      - desci-models/**
+
+name: Test desci-models
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    # container:
+    #   image: ubuntu:latest
+    #   options: --user 1001
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Set up the environment
+        # Replace this line with the appropriate setup for your project
+        # Examples:
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+
+      - name: Set up docker-compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.18.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo docker-compose --version
+          docker info
+
+      - name: Install dependencies
+        run: cd desci-models && npm i -g yarn && yarn && yarn build
+
+      - name: Run tests
+        run: |
+          yarn test
