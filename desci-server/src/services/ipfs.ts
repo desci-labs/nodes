@@ -482,7 +482,8 @@ export async function mixedLs(
       const externalCidMapEntry = externalCidMap[result.cid];
       const toggleExternalMode = !!externalCidMapEntry || externalMode;
       if (toggleExternalMode) result.external = true;
-      const isFile = !externalCidMapEntry || (externalCidMapEntry && externalCidMapEntry.directory == false);
+      const isFile =
+        (externalMode && !externalCidMapEntry) || (externalCidMapEntry && externalCidMapEntry.directory == false);
       const linkCidObject = multiformats.CID.parse(result.cid);
       if (linkCidObject.code === rawCode || isFile) {
         result.size = link.Tsize;
