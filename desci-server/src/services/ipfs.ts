@@ -396,7 +396,7 @@ export const getDirectoryTree = async (
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
   );
   try {
-    const tree = await getOrCache(`full-tree-${cid}`, getTree);
+    const tree = await getOrCache(`full-tree-${cid}${!returnFiles ? '-no-files' : ''}`, getTree);
     if (tree) return tree;
     throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
   } catch (err) {
