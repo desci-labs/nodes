@@ -1,3 +1,4 @@
+import path from "path";
 import {
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
@@ -211,28 +212,26 @@ export function generatePathSizeMap(
   flatPathDriveMap: Record<DrivePath, DriveObject>
 ): Record<DrivePath, number> {
   const pathSizeMap: Record<DrivePath, number> = {};
+  const dirSizeMap: Record<DrivePath, number> = {};
+
   const dirKeys: DrivePath[] = [];
   Object.entries(flatPathDriveMap).forEach(([path, drive]) => {
     if (drive.type === FileType.DIR) {
       dirKeys.push(path);
+      dirSizeMap[path] = 0;
     } else {
       pathSizeMap[path] = drive.size;
     }
   });
 
-  const dirSizeMap: Record<DrivePath, number> = {};
-  const pathSizeMapEntries = Object.entries(pathSizeMap)
-  dirKeys.forEach((dirPath) => {
-    // eslint-disable-next-line no-array-reduce/no-reduce
-    const dirSize = pathSizeMapEntries.reduce(
-      (acc: number, [path, size]) => {
-        if (path.startsWith(dirPath)) return acc + size;
-        return acc;
-      },
-      0
-    );
-    dirSizeMap[dirPath] = dirSize || 0;
+  const pathSizeMapEntries = Object.entries(pathSizeMap);
+  pathSizeMapEntries.forEach(([path, size]) => {
+    const parentDir = path.substring(0, path.lastIndexOf("/"));
+    if (!isNaN(dirSizeMap[parentDir])) {
+      dirSizeMap[parentDir] = dirSizeMap[parentDir] + size;
+    }
   });
+
   return { ...pathSizeMap, ...dirSizeMap };
 }
 
