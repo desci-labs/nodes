@@ -454,7 +454,13 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
 };
 
 //Used for recursively lsing a DAG containing both public and private cids
-export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, returnFiles = true, carryPath?: string) {
+export async function mixedLs(
+  dagCid: string,
+  externalCidMap: ExternalCidMap,
+  returnFiles = true,
+  externalMode = false,
+  carryPath?: string,
+) {
   carryPath = carryPath || convertToCidV1(dagCid);
   const tree = [];
   const cidObject = multiformats.CID.parse(dagCid);
@@ -474,7 +480,8 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, re
         type: 'file',
       };
       const externalCidMapEntry = externalCidMap[result.cid];
-      if (externalCidMapEntry) result.external = true;
+      if (externalCidMapEntry) externalMode = true;
+      if (externalMode) result.external = true;
       const isFile = !externalCidMapEntry || (externalCidMapEntry && externalCidMapEntry.directory == false);
       const linkCidObject = multiformats.CID.parse(result.cid);
       if (linkCidObject.code === rawCode || isFile) {
@@ -492,6 +499,7 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, re
             result.cid,
             externalCidMap,
             returnFiles,
+            externalMode,
             carryPath + '/' + result.name,
           )) as RecursiveLsResult[];
         } else {
