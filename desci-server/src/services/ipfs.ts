@@ -480,8 +480,8 @@ export async function mixedLs(
         type: 'file',
       };
       const externalCidMapEntry = externalCidMap[result.cid];
-      if (externalCidMapEntry) externalMode = true;
-      if (externalMode) result.external = true;
+      const toggleExternalMode = !!externalCidMapEntry || externalMode;
+      if (toggleExternalMode) result.external = true;
       const isFile = !externalCidMapEntry || (externalCidMapEntry && externalCidMapEntry.directory == false);
       const linkCidObject = multiformats.CID.parse(result.cid);
       if (linkCidObject.code === rawCode || isFile) {
@@ -499,7 +499,7 @@ export async function mixedLs(
             result.cid,
             externalCidMap,
             returnFiles,
-            externalMode,
+            toggleExternalMode,
             carryPath + '/' + result.name,
           )) as RecursiveLsResult[];
         } else {
