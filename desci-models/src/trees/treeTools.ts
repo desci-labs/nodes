@@ -214,23 +214,28 @@ export function generatePathSizeMap(
   const pathSizeMap: Record<DrivePath, number> = {};
   const dirSizeMap: Record<DrivePath, number> = {};
 
-  const dirKeys: DrivePath[] = [];
-  Object.entries(flatPathDriveMap).forEach(([path, drive]) => {
+  // Sorting paths ensures that parent directories are processed before their children
+  const pathsSorted = Object.keys(flatPathDriveMap).sort();
+
+  for (const path of pathsSorted) {
+    const drive = flatPathDriveMap[path];
     if (drive.type === FileType.DIR) {
-      dirKeys.push(path);
       dirSizeMap[path] = 0;
     } else {
       pathSizeMap[path] = drive.size;
     }
-  });
 
-  const pathSizeMapEntries = Object.entries(pathSizeMap);
-  pathSizeMapEntries.forEach(([path, size]) => {
-    const parentDir = path.substring(0, path.lastIndexOf("/"));
-    if (!isNaN(dirSizeMap[parentDir])) {
-      dirSizeMap[parentDir] = dirSizeMap[parentDir] + size;
+    // Update the size of parent directories
+    let parentPath = path;
+    while (parentPath) {
+      const lastSlashIndex = parentPath.lastIndexOf("/");
+      parentPath =
+        lastSlashIndex >= 0 ? parentPath.substring(0, lastSlashIndex) : "";
+      if (parentPath in dirSizeMap) {
+        dirSizeMap[parentPath] += pathSizeMap[path];
+      }
     }
-  });
+  }
 
   return { ...pathSizeMap, ...dirSizeMap };
 }
