@@ -214,25 +214,21 @@ export function generatePathSizeMap(
   const pathSizeMap: Record<DrivePath, number> = {};
   const dirSizeMap: Record<DrivePath, number> = {};
 
-  // Sorting paths ensures that parent directories are processed before their children
-  const pathsSorted = Object.keys(flatPathDriveMap).sort();
-
-  for (const path of pathsSorted) {
+  for (const path in flatPathDriveMap) {
     const drive = flatPathDriveMap[path];
     if (drive.type === FileType.DIR) {
       dirSizeMap[path] = 0;
     } else {
       pathSizeMap[path] = drive.size;
-    }
 
-    // Update the size of parent directories
-    let parentPath = path;
-    while (parentPath) {
-      const lastSlashIndex = parentPath.lastIndexOf("/");
-      parentPath =
-        lastSlashIndex >= 0 ? parentPath.substring(0, lastSlashIndex) : "";
-      if (parentPath in dirSizeMap) {
-        dirSizeMap[parentPath] += pathSizeMap[path];
+      let parentPath = path;
+      while (parentPath) {
+        const lastSlashIndex = parentPath.lastIndexOf("/");
+        parentPath =
+          lastSlashIndex >= 0 ? parentPath.substring(0, lastSlashIndex) : "";
+        if (parentPath in dirSizeMap) {
+          dirSizeMap[parentPath] += drive.size;
+        }
       }
     }
   }
