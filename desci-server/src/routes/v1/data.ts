@@ -3,12 +3,14 @@ import multer = require('multer');
 
 import { downloadDataset, pubTree, retrieveTree, deleteData, update, renameData } from 'controllers/data';
 import { moveData } from 'controllers/data/move';
+import { updateExternalCid } from 'controllers/data/updateExternalCid';
 import { ensureUser } from 'middleware/ensureUser';
 
 const router = Router();
 const upload = multer({ preservePath: true });
 
 router.post('/update', [ensureUser, upload.array('files')], update);
+router.post('/updateExternalCid', [ensureUser], updateExternalCid);
 router.post('/delete', [ensureUser], deleteData);
 router.post('/rename', [ensureUser], renameData);
 router.post('/move', [ensureUser], moveData);

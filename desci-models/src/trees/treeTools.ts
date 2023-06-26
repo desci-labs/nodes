@@ -221,9 +221,10 @@ export function generatePathSizeMap(
   });
 
   const dirSizeMap: Record<DrivePath, number> = {};
+  const pathSizeMapEntries = Object.entries(pathSizeMap)
   dirKeys.forEach((dirPath) => {
     // eslint-disable-next-line no-array-reduce/no-reduce
-    const dirSize = Object.entries(pathSizeMap).reduce(
+    const dirSize = pathSizeMapEntries.reduce(
       (acc: number, [path, size]) => {
         if (path.startsWith(dirPath)) return acc + size;
         return acc;

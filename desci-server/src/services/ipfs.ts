@@ -291,9 +291,12 @@ export async function pinExternalDags(cids: string[]): Promise<string[]> {
     iterationCount++;
     logger.debug({ cid, fn: 'pinExternalDags', iterationCount }, `Pinning external dag ${cid}`);
     const cidType = multiformats.CID.parse(cid);
-    const block = await getOrCache(`block-${cid}`, async () => await publicIpfs.block.get(cidType));
-    const res = await client.block.put(block);
-    result.push(res.toString());
+    const res = await getOrCache(`pin-block-${cid}`, async () => {
+      const block = await publicIpfs.block.get(cidType);
+      const blockRes = await client.block.put(block);
+      return blockRes.toString();
+    });
+    result.push(res);
   }
   return result;
 }
@@ -382,14 +385,18 @@ export const getDirectoryTreeCids = async (cid: string, externalCidMap: External
 
 export const nodeKeepFile = '.nodeKeep';
 
-export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidMap): Promise<RecursiveLsResult[]> => {
+export const getDirectoryTree = async (
+  cid: string,
+  externalCidMap: ExternalCidMap,
+  returnFiles = true,
+): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
   logger.info(
     { fn: 'getDirectoryTree' },
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
   );
   try {
-    const tree = await getOrCache(`tree-${cid}`, getTree);
+    const tree = await getOrCache(`full-tree-${cid}`, getTree);
     if (tree) return tree;
     throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
   } catch (err) {
@@ -403,7 +410,7 @@ export const getDirectoryTree = async (cid: string, externalCidMap: ExternalCidM
       return await recursiveLs(cid);
     } else {
       logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using mixed ls, dagCid: ${cid}`);
-      const tree = await mixedLs(cid, externalCidMap);
+      const tree = await mixedLs(cid, externalCidMap, returnFiles);
       return tree;
     }
   }
@@ -447,7 +454,7 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
 };
 
 //Used for recursively lsing a DAG containing both public and private cids
-export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, carryPath?: string) {
+export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, returnFiles = true, carryPath?: string) {
   carryPath = carryPath || convertToCidV1(dagCid);
   const tree = [];
   const cidObject = multiformats.CID.parse(dagCid);
@@ -468,12 +475,12 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, ca
       };
       const externalCidMapEntry = externalCidMap[result.cid];
       if (externalCidMapEntry) result.external = true;
-      const isExternalFile = externalCidMapEntry && externalCidMapEntry.directory == false;
+      const isFile = !externalCidMapEntry || (externalCidMapEntry && externalCidMapEntry.directory == false);
       const linkCidObject = multiformats.CID.parse(result.cid);
-      if (linkCidObject.code === rawCode || isExternalFile) {
+      if (linkCidObject.code === rawCode || isFile) {
         result.size = link.Tsize;
       } else {
-        const linkBlock = await client.block.get(linkCidObject);
+        const linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
         const { Data: linkData } = dagPb.decode(linkBlock);
         const unixFsLink = UnixFS.unmarshal(linkData);
         const isLinkDir = dirTypes.includes(unixFsLink?.type);
@@ -484,13 +491,18 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, ca
           result.contains = (await mixedLs(
             result.cid,
             externalCidMap,
+            returnFiles,
             carryPath + '/' + result.name,
           )) as RecursiveLsResult[];
         } else {
           result.size = link.Tsize;
         }
       }
-      tree.push(result);
+      if (returnFiles) {
+        tree.push(result);
+      } else if (!returnFiles && result.type === 'dir') {
+        tree.push(result);
+      }
       resolve();
     });
     promises.push(promise);
@@ -560,7 +572,7 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
         if (isLinkDir) {
           result.size = 0;
           result.type = 'dir';
-          result.contains = (await mixedLs(
+          result.contains = (await discoveryLs(
             result.cid,
             externalCidMap,
             carryPath + '/' + result.name,
