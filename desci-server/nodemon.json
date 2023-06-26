@@ -3,6 +3,6 @@
   "ext": ".ts,.js",
   "ignore": ["log/server.log"],
   "verbose": true,
-  "exec": "node -r ts-node/register --inspect=0.0.0.0:9229",
+  "exec": "npx kill-port 5420 9229 ; node -r ts-node/register --inspect=0.0.0.0:9229",
   "delay": 2500
 }
