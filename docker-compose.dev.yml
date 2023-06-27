@@ -54,7 +54,6 @@ services:
       - db_postgres
     volumes:
       - ./local-data/yarn_cache:/root/.yarn
-
   block_explorer_dev:
     image: sinaiman/expedition-dev:latest
     ports:
