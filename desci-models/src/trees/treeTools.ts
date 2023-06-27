@@ -31,17 +31,17 @@ export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
 
   // Potentially keep if we want to return the root node
   // eslint-disable-next-line no-array-reduce/no-reduce
-  // const rootSize = driveObjectTree.reduce((acc, curr) => acc + curr.size, 0);
-  // const treeRoot = createVirtualDrive({
-  //   name: "Node Root",
-  //   componentType: ResearchObjectComponentType.DATA_BUCKET,
-  //   path: DRIVE_NODE_ROOT_PATH,
-  //   contains: driveObjectTree,
-  //   size: rootSize,
-  // });
+  const rootSize = driveObjectTree.reduce((acc, curr) => acc + curr.size, 0);
+  const treeRoot = createVirtualDrive({
+    name: "Node Root",
+    componentType: ResearchObjectComponentType.DATA_BUCKET,
+    path: DRIVE_NODE_ROOT_PATH,
+    contains: driveObjectTree,
+    size: rootSize,
+  });
 
-  // return [treeRoot];
-  return driveObjectTree;
+  return [treeRoot];
+  // return driveObjectTree;
 }
 
 export function getAncestorComponent(
@@ -293,4 +293,48 @@ export function neutralizePath(path: DrivePath) {
 export function deneutralizePath(path: DrivePath, rootCid: string) {
   if (!path.includes("/") && path.length) return rootCid;
   return path.replace(/^[^/]+/, rootCid);
+}
+
+// Clones a node removing its children to a specified depth
+export function pruneNode(
+  node: DriveObject,
+  depth: number
+): DriveObject | null {
+  if (depth < 0) {
+    return null;
+  }
+
+  const cloned: DriveObject = { ...node };
+
+  if (node.type === "dir" && node.contains && depth > 0) {
+    cloned.contains = node.contains
+      .map((child) => pruneNode(child, depth - 1))
+      .filter((n) => n !== null) as DriveObject[];
+  } else {
+    cloned.contains = [];
+  }
+
+  return cloned;
+}
+
+export function findAndPruneNode(
+  root: DriveObject,
+  path: string,
+  depth?: number
+): DriveObject | null {
+  if (root.path === path) {
+    // If depth is undefined, return the node directly without cloning or pruning
+    return depth !== undefined ? pruneNode(root, depth) : root;
+  }
+
+  if (root.type === "dir" && root.contains) {
+    for (const child of root.contains) {
+      const foundNode = findAndPruneNode(child, path, depth);
+      if (foundNode) {
+        return foundNode;
+      }
+    }
+  }
+
+  return null;
 }

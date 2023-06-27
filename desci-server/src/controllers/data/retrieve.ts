@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 
-import { DriveObject, FileDir, ResearchObjectComponentType } from '@desci-labs/desci-models';
+import { DriveObject, FileDir, ResearchObjectComponentType, findAndPruneNode } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import archiver from 'archiver';
 import axios from 'axios';
@@ -34,6 +34,15 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   const manifestCid: string = req.params.manifestCid;
   const uuid: string = req.params.nodeUuid;
   const shareId: string = req.params.shareId;
+
+  // Extract the query params
+  const dataPath: string = (req.query.dataPath as string) || 'root';
+  const depth: number = req.query.depth ? parseInt(req.query.depth as string) : undefined;
+
+  if (isNaN(depth) && depth !== undefined) {
+    return res.status(400).json({ error: 'Invalid depth' });
+  }
+
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::RetrieveController',
@@ -129,7 +138,9 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     filledTree = await getTreeAndFill(manifest, uuid, ownerId);
   }
 
-  return res.status(200).json({ tree: filledTree, date: dataset?.updatedAt.toString() });
+  const depthTree = findAndPruneNode(filledTree[0], dataPath, depth);
+
+  return res.status(200).json({ tree: [depthTree], date: dataset?.updatedAt.toString() });
 };
 
 interface PubTreeResponse {
@@ -142,6 +153,15 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   const manifestCid: string = req.params.manifestCid;
   const rootCid: string = req.params.rootCid;
   const uuid: string = req.params.nodeUuid;
+
+  // Extract the query params
+  const dataPath: string = (req.query.dataPath as string) || 'root';
+  const depth: number = req.query.depth ? parseInt(req.query.depth as string) : undefined;
+
+  if (isNaN(depth) && depth !== undefined) {
+    return res.status(400).json({ error: 'Invalid depth' });
+  }
+
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::RetrievePubTreeController',
@@ -149,6 +169,8 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     manifestCid,
     rootCid,
     user: owner?.id,
+    dataPath,
+    depth,
   });
   logger.trace(`pubTree called, cid received: ${manifestCid} uuid provided: ${uuid}`);
   if (!manifestCid) return res.status(400).json({ error: 'no manifest CID provided' });
@@ -191,7 +213,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
 
   let filledTree;
   try {
-    filledTree = await getOrCache(cacheKey, fetchCb);
+    filledTree = await getOrCache(cacheKey, fetchCb as any);
     if (!filledTree) throw new Error('[pubTree] Failed to retrieve tree from cache');
   } catch (err) {
     logger.warn({ fn: 'pubTree', err }, '[pubTree] error');
@@ -199,7 +221,9 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     return await fetchCb();
   }
 
-  return res.status(200).json({ tree: filledTree, date: publicDataset.updatedAt.toString() });
+  const depthTree = hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree;
+
+  return res.status(200).json({ tree: depthTree, date: publicDataset.updatedAt.toString() });
 };
 
 export const downloadDataset = async (req: Request, res: Response, next: NextFunction) => {
