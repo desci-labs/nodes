@@ -5,6 +5,11 @@ services:
     container_name: "db_boilerplate"
     image: "postgres:12.6-alpine"
     restart: always
+    # healthcheck:
+    #   test: "pg_isready -h host.docker.internal -p 5433 -U walter"
+    #   interval: 5s
+    #   timeout: 15s
+    #   retries: 5
     env_file:
       - .env
     ports:
@@ -56,6 +61,7 @@ services:
       - "3001:80"
   graph_node:
     image: graphprotocol/graph-node
+    restart: always
     ports:
       - "8000:8000"
       - "8001:8001"
@@ -65,12 +71,8 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
-      ipfs:
-        condition: service_healthy
-      db_postgres:
-        condition: service_started
-    #extra_hosts:
-    #  - host.docker.internal:host-gateway
+      - ipfs
+      - db_postgres
     environment:
       # https://github.com/graphprotocol/graph-node/blob/master/docs/environment-variables.md
       postgres_host: db_postgres

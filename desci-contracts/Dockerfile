@@ -7,7 +7,8 @@ VOLUME /app/.openzeppelin
 COPY ["package.json", "yarn.lock*", "./"]
 RUN yarn --production false
 RUN echo "Checking libc version: $(ldd --version | head -n1)"
-RUN apt-get update && apt-get -qy install jq
+RUN apt-get update && apt-get -qy install jq postgresql-client
+
 COPY . .
 EXPOSE 8545
 

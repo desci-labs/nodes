@@ -19,9 +19,8 @@ checkTestDeployments() {
     echo "[startTestChain] checking test deployments..."
     echo "[startTestChain] waiting for ganache..."
     sleep 10
-    
-    if ! scripts/checkTestDeployments.sh ".openzeppelin/unknown-dpid.json";
-    then
+
+    if ! scripts/checkTestDeployments.sh ".openzeppelin/unknown-dpid.json"; then
         echo "[startTestChain] deploying dpid contract..."
         yarn deploy:dpid:ganache
     fi
@@ -29,24 +28,34 @@ checkTestDeployments() {
     echo "[startTestChain] waiting for ganache..."
     sleep 10
 
-    if ! scripts/checkTestDeployments.sh ".openzeppelin/unknown-research-object.json";
-    then
+    if ! scripts/checkTestDeployments.sh ".openzeppelin/unknown-research-object.json"; then
         echo "[startTestChain] deploying RO contract..."
         yarn deploy:ganache
     fi
 }
 
+waitForPostgres() {
+    pg_uri="postgres://walter:white@host.docker.internal:5433/postgres"
+    # make sure pg is ready to accept connections
+    until pg_isready -h host.docker.internal -p 5433 -U walter; do
+        echo "Waiting for postgres at: $pg_uri"
+        sleep 2
+    done
+    # Now able to connect to postgres
+}
+
 deploySubgraph() {
     echo "[startTestChain] deploying subgraph..."
+    waitForPostgres
     scripts/deployLocalSubgraph.sh
 }
 
 makeDeployments() {
-  checkTestDeployments
-  deploySubgraph
+    checkTestDeployments
+    deploySubgraph
 }
 
 makeDeployments &
 
 echo "[startTestChain] starting ganache..."
-npx ganache --server.host="0.0.0.0"  --chain.networkId="111" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true" --database.dbPath="/data"
+npx ganache --server.host="0.0.0.0" --chain.networkId="111" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true" --database.dbPath="/data"

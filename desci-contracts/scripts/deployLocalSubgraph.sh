@@ -3,8 +3,8 @@
 set -euo pipefail
 trap "catch" ERR
 catch() {
-  echo "deployLocalSubgraph: script failed!"
-  exit 1
+    echo "deployLocalSubgraph: script failed!"
+    exit 1
 }
 
 FILE=.openzeppelin/unknown-research-object.json
@@ -23,11 +23,26 @@ TARGET_ADDRESS=$(jq -r '.proxies[-1].address' "$FILE" || echo "")
 # File doesn't exist when running outside of docker, empty is fine then
 FOUND_ADDRESS=$(grep 0x subgraph/subgraph.yaml | awk '{print $2}' | tr -d '"' || echo "[NONE]")
 
+waitForNodeAdminServer() {
+    until [ \
+        "$(curl -s -w '%{http_code}' -o /dev/null "http://host.docker.internal:8020")" \
+        -eq 405 ]; 
+    do
+        echo "[waitForNodeAdminServer]: Waiting for http://host.docker.internal:8020"
+        sleep 5
+    done
+
+    # until $(curl --output /dev/null --silent --fail http://host.docker.internal:8020); do
+    #     echo "[deployLocalSubgraph] waiting for http://host.docker.internal:8020 to start"
+    #     sleep 5
+    # done
+}
+
 if [ "$TARGET_ADDRESS" ]; then
     echo "[graph-index] found $TARGET_ADDRESS"
     echo "[graph-index] SUBGRAPH points to $FOUND_ADDRESS"
     echo "[graph-index] make sure the above address points to the expected contract"
-    sed "s/0x0/$TARGET_ADDRESS/" subgraph/subgraph.local.yaml > subgraph/subgraph.yaml
+    sed "s/0x0/$TARGET_ADDRESS/" subgraph/subgraph.local.yaml >subgraph/subgraph.yaml
 
     echo "[graph-index] printing subgraph..."
     cat subgraph/subgraph.yaml
@@ -36,6 +51,8 @@ if [ "$TARGET_ADDRESS" ]; then
     npx hardhat clean
     npx hardhat compile
     yarn graph:build
+
+    waitForNodeAdminServer
 
     echo "[graph-index] graph:create-docker"
     npm run graph:create-docker
