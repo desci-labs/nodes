@@ -11,7 +11,7 @@ import tar from 'tar';
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
-import { getOrCache } from 'redisClient';
+import redisClient, { getOrCache } from 'redisClient';
 import { getDatasetTar } from 'services/ipfs';
 import { getTreeAndFill, getTreeAndFillDeprecated } from 'utils/driveUtils';
 
@@ -124,6 +124,20 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     return res.status(400).json({ error: 'failed' });
   }
 
+  // Try early return if depth chunk cached
+  const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}`;
+  try {
+    if (redisClient.isOpen) {
+      const cached = await redisClient.get(depthCacheKey);
+      if (cached) {
+        const tree = JSON.parse(cached);
+        return res.status(200).json({ tree: [tree], date: dataset?.updatedAt.toString() });
+      }
+    }
+  } catch (err) {
+    logger.debug({ err, depthCacheKey }, 'Failed to retrieve from cache, continuing');
+  }
+
   const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
   let filledTree;
   try {
@@ -138,7 +152,9 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     filledTree = await getTreeAndFill(manifest, uuid, ownerId);
   }
 
-  const depthTree = findAndPruneNode(filledTree[0], dataPath, depth);
+  const depthTree = await getOrCache(`depth-${depth}-${manifestCid}-${dataPath}`, async () =>
+    findAndPruneNode(filledTree[0], dataPath, depth),
+  );
 
   return res.status(200).json({ tree: [depthTree], date: dataset?.updatedAt.toString() });
 };
@@ -195,6 +211,20 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
       `Databucket public data reference not found, manifest cid provided: ${manifestCid}, nodeUuid provided: ${uuid}`,
     );
     return res.status(400).json({ error: 'Failed to retrieve' });
+  }
+
+  // Try early return if depth chunk cached
+  const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}`;
+  try {
+    if (redisClient.isOpen) {
+      const cached = await redisClient.get(depthCacheKey);
+      if (cached) {
+        const tree = JSON.parse(cached);
+        return res.status(200).json({ tree: [tree], date: publicDataset?.updatedAt.toString() });
+      }
+    }
+  } catch (err) {
+    logger.debug({ err, depthCacheKey }, 'Failed to retrieve from cache, continuing');
   }
 
   const manifestUrl = cleanupManifestUrl(manifestCid as string, req.query?.g as string);
