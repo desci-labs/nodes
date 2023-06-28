@@ -251,7 +251,9 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     return await fetchCb();
   }
 
-  const depthTree = hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree;
+  const depthTree = await getOrCache(`depth-${depth}-${manifestCid}-${dataPath}`, async () =>
+    hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree,
+  );
 
   return res.status(200).json({ tree: depthTree, date: publicDataset.updatedAt.toString() });
 };
