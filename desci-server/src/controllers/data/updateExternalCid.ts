@@ -176,12 +176,11 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
       });
     }
   }
-  //pin exteralDagsToPin NOTE:: UNCOMMENT
-  const externalDagsPinned = [];
-  //   let externalDagsPinned = [];
-  //   if (externalDagsToPin.length) {
-  //     externalDagsPinned = await pinExternalDags(externalDagsToPin);
-  //   }
+  //pin exteralDagsToPin
+  let externalDagsPinned = [];
+  if (externalDagsToPin.length) {
+    externalDagsPinned = await pinExternalDags(externalDagsToPin);
+  }
 
   /*
    ** Add files to dag, get new root cid
