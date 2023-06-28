@@ -6,19 +6,19 @@ function check() {
 
     while $RUNNING; do
         test $? -gt 128 && break;
-        echo "checking"
+        echo "[seedLocalDpid] checking"
         # if deployment file doesnt exist, we need to deploy
         if [ -f "$FILE" ]; then
-            echo "killing"
-            killall "npm exec ganache-cli" || ((ps aux | grep  "npm exec ganache-cli" | grep -v grep | awk '{print $2}' | xargs kill) && echo "done")
-            exit 1
+            echo "[seedLocalDpid] killing"
+            ((ps aux | grep  "npm exec ganache" | grep -v grep | awk '{print $2}' | xargs kill) && echo "done") || echo "[seedLocalDpid]  ganache wasn't running when we tried to stop the process"
+            exit
         fi
         sleep 5
     done
 }
 
 _term() { 
-  echo "Caught signal!"
+  echo "[seedLocalDpid] Caught signal!"
   RUNNING=false
   kill -s SIGTERM $child
   exit 130
@@ -26,19 +26,22 @@ _term() {
 
 trap _term SIGTERM SIGINT 
 
-echo "checking if ABI seed needed for DPID Registry"
+echo "[seedLocalDpid] checking if ABI seed needed for DPID Registry"
 # if deployment file doesnt exist, we need to deploy
 if [ -f "$FILE" ]; then
-    echo "found DPID Registry deployment file"
+    echo "[seedLocalDpid] found DPID Registry deployment file"
 else
-    echo "no DPID Registry deployment file, running local ganache and deploying"
-    (echo "waiting for ganache..." && sleep 10 && MNEMONIC="$MNEMONIC" yarn deploy:dpid:ganache ) &
+    echo "[seedLocalDpid] no DPID Registry deployment file, running local ganache and deploying"
+    (echo "[seedLocalDpid] waiting for ganache..." && sleep 10 && MNEMONIC="$MNEMONIC" yarn deploy:dpid:ganache ) &
     mkdir -p ../local-data/ganache
-    echo "sudo needed only first time to deploy contract"
+    echo "[seedLocalDpid] sudo needed only first time to deploy contract"
     sudo chown -R $(whoami) ../local-data/ganache
-    (echo "sleeping until contract deployed" && check ) &
+    (echo "[seedLocalDpid] sleeping until contract deployed" && check ) &
     child=$!
-    npx ganache-cli -i 1111 --quiet -h 0.0.0.0 --mnemonic "$MNEMONIC" --db ../local-data/ganache
+    if [[ -z $NO_GANACHE ]]; then
+        npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="111" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
+    else
+        echo "[seedLocalDpid] skipping ganache"
+    fi
     wait "$child"
 fi
-
