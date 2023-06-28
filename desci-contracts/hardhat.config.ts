@@ -21,8 +21,6 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 const DEFAULT_MNEMONIC =
   "test test test test test test test test test test test junk";
 
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -41,11 +39,7 @@ module.exports = {
     // NOTE: hardhat node has a bug with websockets: https://github.com/nomiclabs/hardhat/issues/588
     // alternative is to use ganache for more than running contract tests
     hardhat: {
-      chainId: 13370,
-      saveDeployments: true,
-      providerType: "WebSocketProvider",
-      // live: true,
-      // url: "http://127.0.0.1:8545"
+      chainId: 1337,
     },
     optimism: {
       url: "http://127.0.0.1:8545",

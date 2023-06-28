@@ -4,11 +4,14 @@
 # add -x to debug command flow
 set -euo pipefail
 
+# Overridable path assumption for the nodes-web repo
+NODES_WEB_DIR=${NODES_WEB_DIR:-"../nodes-web"}
+
 function assert_command_available {
   cmd_to_check=$1
   if ! command -v "$cmd_to_check" &> /dev/null
   then
-    echo "Script dependency '$cmd_to_check' is not installed, aborting"
+    echo "[dockerDev] Script dependency '$cmd_to_check' is not installed, aborting"
     exit 1
   fi
 }
@@ -20,13 +23,13 @@ assert_command_available "lsof"
 
 [ ! -f ".env" ] && cp .env.example .env
 if ! grep MNEMONIC .env &> /dev/null; then
-  echo "ERROR: set MNEMONIC in .env"
+  echo "[dockerDev] ERROR: set MNEMONIC in .env"
   exit 1
 fi
 MNEMONIC=$(grep MNEMONIC .env)
 
 [ ! -f "./nodes-media/.env" ] && cp ./nodes-media/.env.example ./nodes-media/.env
-[ ! -f "../nodes-web/.env" ] && cp ../nodes-web/.env.example ../nodes-web/.env
+[ ! -f "$NODES_WEB_DIR/.env" ] && cp "$NODES_WEB_DIR/.env.example" "$NODES_WEB_DIR/.env"
 
 if [ ! -f "./desci-contracts/.env" ]; then
   touch ./desci-contracts/.env
@@ -34,8 +37,8 @@ if [ ! -f "./desci-contracts/.env" ]; then
 fi
 
 if [ -z $NVM_DIR ]; then
-    echo "NVM_DIR not set, please install NVM"
-    echo "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash"
+    echo "[dockerDev] NVM_DIR not set, please install NVM"
+    echo "[dockerDev] curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash"
     exit 1
 fi
 
@@ -46,7 +49,7 @@ if [[ -s "$NVM_SCRIPT" ]]
 then
   source "$NVM_SCRIPT"
 else
-  echo "Could not find $NVM_SCRIPT, aborting"
+  echo "[dockerDev] Could not find $NVM_SCRIPT, aborting"
   exit 1
 fi
 
@@ -55,30 +58,33 @@ nvm use
 npm i -g hardhat
 npm i -g yarn
 
-if [ -d "desci-contracts" ]; then
-    cd desci-contracts
-    yarn
-    scripts/seedLocalDpid.sh
-    scripts/seedLocalChain.sh
-fi
-if [ -d "../desci-contracts" ]; then
-    cd ../desci-contracts
-    yarn
-    scripts/seedLocalDpid.sh
-    scripts/seedLocalChain.sh
-    cd ..
-fi
+# Init models
+echo "[dockerDev] Setting up desci-models..."
+cd desci-models
+yarn
+cd -
 
-if [ -d "desci-server" ]; then
-    cd desci-server
-    cd ..
-fi
+# Init contracts
+echo "[dockerDev] Setting up desci-contracts..."
+cd desci-contracts
+yarn
+echo "[dockerDev:desci-contracts] executing seedLocalDpid..."
+scripts/seedLocalDpid.sh
+echo "[dockerDev:desci-contracts] executing seedLocalChain..."
+scripts/seedLocalChain.sh
+cd -
+
+# Init backend
+echo "[dockerDev] Setting up desci-server..."
+cd desci-server
+yarn
+cd -
 
 set +o pipefail
 GANACHE_PID=$(lsof -i:8545 | grep '*:8545' | awk '{print $2}' | tail -n 1)
 set -o pipefail
 if [ $GANACHE_PID ]; then
-    echo "killing ganache, pid=$GANACHE_PID"
+    echo "[dockerDev] killing ganache, pid=$GANACHE_PID"
     kill -9 $GANACHE_PID
 fi
 
