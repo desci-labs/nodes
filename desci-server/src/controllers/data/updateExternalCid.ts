@@ -71,6 +71,9 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
     return res.status(400).json({ error: 'failed' });
   }
 
+  // Uncomment if external CID dags become expandable
+  // const isContextExternal = Object.values(externalCidMap).some((extDag) => neutralizePath(extDag.path) === contextPath);
+
   const cidTypesSizes: Record<string, GetExternalSizeAndTypeResult> = {};
   if (externalCids && externalCids.length && componentType === ResearchObjectComponentType.DATA) {
     try {
@@ -142,6 +145,8 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
     uploaded = [];
     for await (const extCid of externalCids) {
       const { size, isDirectory } = cidTypesSizes[extCid.cid];
+
+      // if file, may need to omit from being added to extCidMap
       externalCidMap[extCid.cid] = { size, directory: isDirectory, path: extCid.name };
       if (isDirectory) {
         //Get external dag tree, add to external dag pin list

@@ -396,7 +396,7 @@ export const getDirectoryTree = async (
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
   );
   try {
-    const tree = await getOrCache(`full-tree-${cid}`, getTree);
+    const tree = await getOrCache(`full-tree-${cid}${!returnFiles ? '-no-files' : ''}`, getTree);
     if (tree) return tree;
     throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
   } catch (err) {
@@ -454,7 +454,13 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
 };
 
 //Used for recursively lsing a DAG containing both public and private cids
-export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, returnFiles = true, carryPath?: string) {
+export async function mixedLs(
+  dagCid: string,
+  externalCidMap: ExternalCidMap,
+  returnFiles = true,
+  externalMode = false,
+  carryPath?: string,
+) {
   carryPath = carryPath || convertToCidV1(dagCid);
   const tree = [];
   const cidObject = multiformats.CID.parse(dagCid);
@@ -474,8 +480,10 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, re
         type: 'file',
       };
       const externalCidMapEntry = externalCidMap[result.cid];
-      if (externalCidMapEntry) result.external = true;
-      const isFile = !externalCidMapEntry || (externalCidMapEntry && externalCidMapEntry.directory == false);
+      const toggleExternalMode = !!externalCidMapEntry || externalMode;
+      if (toggleExternalMode) result.external = true;
+      const isFile =
+        (externalMode && !externalCidMapEntry) || (externalCidMapEntry && externalCidMapEntry.directory == false);
       const linkCidObject = multiformats.CID.parse(result.cid);
       if (linkCidObject.code === rawCode || isFile) {
         result.size = link.Tsize;
@@ -492,6 +500,7 @@ export async function mixedLs(dagCid: string, externalCidMap: ExternalCidMap, re
             result.cid,
             externalCidMap,
             returnFiles,
+            toggleExternalMode,
             carryPath + '/' + result.name,
           )) as RecursiveLsResult[];
         } else {
