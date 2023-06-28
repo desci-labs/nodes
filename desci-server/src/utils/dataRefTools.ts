@@ -114,7 +114,7 @@ export async function prepareDataRefs(
   };
 
   const externalCidMap = { ...(await generateExternalCidMap(node.uuid)), ...externalCidMapConcat };
-  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap));
+  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
   if (markExternals) {
     dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
   }

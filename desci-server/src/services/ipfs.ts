@@ -389,6 +389,7 @@ export const getDirectoryTree = async (
   cid: string,
   externalCidMap: ExternalCidMap,
   returnFiles = true,
+  returnExternalFiles = true,
 ): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
   logger.info(
@@ -396,7 +397,10 @@ export const getDirectoryTree = async (
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
   );
   try {
-    const tree = await getOrCache(`full-tree-${cid}${!returnFiles ? '-no-files' : ''}`, getTree);
+    const tree = await getOrCache(
+      `full-tree-${cid}${!returnFiles ? '-no-files' : ''}${cid}${!returnExternalFiles ? '-no-ext-files' : ''}`,
+      getTree,
+    );
     if (tree) return tree;
     throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
   } catch (err) {
@@ -410,7 +414,7 @@ export const getDirectoryTree = async (
       return await recursiveLs(cid);
     } else {
       logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using mixed ls, dagCid: ${cid}`);
-      const tree = await mixedLs(cid, externalCidMap, returnFiles);
+      const tree = await mixedLs(cid, externalCidMap, returnFiles, returnExternalFiles);
       return tree;
     }
   }
@@ -458,6 +462,7 @@ export async function mixedLs(
   dagCid: string,
   externalCidMap: ExternalCidMap,
   returnFiles = true,
+  returnExternalFiles = true,
   externalMode = false,
   carryPath?: string,
 ) {
@@ -500,6 +505,7 @@ export async function mixedLs(
             result.cid,
             externalCidMap,
             returnFiles,
+            returnExternalFiles,
             toggleExternalMode,
             carryPath + '/' + result.name,
           )) as RecursiveLsResult[];
@@ -507,9 +513,15 @@ export async function mixedLs(
           result.size = link.Tsize;
         }
       }
-      if (returnFiles) {
+      if (returnFiles && returnExternalFiles) {
+        // if return files and return external files are both true, push files+dirs
         tree.push(result);
+      } else if (returnFiles && !returnExternalFiles) {
+        // if return files is true and return external files is false, push files+dirs except external files
+        if (result.type === 'file' && result.external !== true) tree.push(result);
+        if (result.type === 'dir') tree.push(result);
       } else if (!returnFiles && result.type === 'dir') {
+        // only return dirs if return files is false
         tree.push(result);
       }
       resolve();
