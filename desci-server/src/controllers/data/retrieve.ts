@@ -152,9 +152,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     filledTree = await getTreeAndFill(manifest, uuid, ownerId);
   }
 
-  const depthTree = await getOrCache(`depth-${depth}-${manifestCid}-${dataPath}`, async () =>
-    findAndPruneNode(filledTree[0], dataPath, depth),
-  );
+  const depthTree = await getOrCache(depthCacheKey, async () => findAndPruneNode(filledTree[0], dataPath, depth));
 
   return res.status(200).json({ tree: [depthTree], date: dataset?.updatedAt.toString() });
 };
@@ -251,7 +249,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     return await fetchCb();
   }
 
-  const depthTree = await getOrCache(`depth-${depth}-${manifestCid}-${dataPath}`, async () =>
+  const depthTree = await getOrCache(depthCacheKey, async () =>
     hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree,
   );
 
