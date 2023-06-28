@@ -212,7 +212,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   }
 
   // Try early return if depth chunk cached
-  const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}`;
+  const depthCacheKey = `pub-depth-${depth}-${manifestCid}-${dataPath}`;
   try {
     if (redisClient.isOpen) {
       const cached = await redisClient.get(depthCacheKey);
@@ -237,7 +237,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     ? async () => await getTreeAndFill(manifest, uuid)
     : async () => await getTreeAndFillDeprecated(rootCid, uuid, dataSource);
 
-  const cacheKey = hasDataBucket ? `filled-tree-${manifestCid}` : `deprecated-filled-tree-${rootCid}`;
+  const cacheKey = hasDataBucket ? `pub-filled-tree-${manifestCid}` : `deprecated-filled-tree-${rootCid}`;
 
   let filledTree;
   try {
