@@ -1,8 +1,7 @@
 #!/bin/sh
-ls -ltr /app/node_modules/@desci-labs/desci-models/dist
-
 echo "Install bash and execute 'wait-for-it.sh' script"
 apt-get add --update bash
+apt-get update
 apt-get install -y postgresql-client
 
 ./desci-server/scripts/wait-for-it.sh $PG_HOST:5432 --timeout=5 --strict -- echo "postgres up and running"
