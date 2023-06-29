@@ -152,7 +152,15 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     filledTree = await getTreeAndFill(manifest, uuid, ownerId);
   }
 
-  const depthTree = await getOrCache(depthCacheKey, async () => findAndPruneNode(filledTree[0], dataPath, depth));
+  const depthTree = await getOrCache(depthCacheKey, async () => {
+    const tree = findAndPruneNode(filledTree[0], dataPath, depth);
+    if (tree.type === 'file') {
+      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
+      return findAndPruneNode(filledTree[0], poppedDataPath, depth);
+    } else {
+      return tree;
+    }
+  });
 
   return res.status(200).json({ tree: [depthTree], date: dataset?.updatedAt.toString() });
 };
@@ -249,9 +257,15 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     return await fetchCb();
   }
 
-  const depthTree = await getOrCache(depthCacheKey, async () =>
-    hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree,
-  );
+  const depthTree = await getOrCache(depthCacheKey, async () => {
+    const tree = hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree;
+    if (tree[0].type === 'file' && hasDataBucket) {
+      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
+      return hasDataBucket ? [findAndPruneNode(filledTree[0], poppedDataPath, depth)] : filledTree;
+    } else {
+      return tree;
+    }
+  });
 
   return res.status(200).json({ tree: depthTree, date: publicDataset.updatedAt.toString() });
 };
