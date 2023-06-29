@@ -1,6 +1,17 @@
+#! /usr/bin/env bash
+set -euo pipefail
+
+trap catch ERR
+catch() {
+  echo "[seedLocalChain] Script failed!"
+  exit 1
+}
+
 FILE=.openzeppelin/unknown-research-object.json
 MNEMONIC=$(grep MNEMONIC .env | cut -d '=' -f 2-)
 echo "[seedLocalChain] GOT MNEMONIC $MNEMONIC"
+# Empty by default
+NO_GANACHE=${NO_GANACHE:-""}
 RUNNING=true
 function check() {
     FILE=.openzeppelin/unknown-research-object.json
@@ -39,12 +50,11 @@ else
     echo "[seedLocalChain] no ResearchObject deployment file, running local ganache and deploying"
     (echo "[seedLocalChain] waiting for ganache..." && sleep 10 && MNEMONIC="$MNEMONIC" yarn deploy:ganache ) &
     mkdir -p ../local-data/ganache
-    echo "[seedLocalChain] sudo needed only first time to deploy contract"
     sudo chown -R $(whoami) ../local-data/ganache
     (echo "[seedLocalChain] sleeping until contract deployed" && check ) &
     child=$!
     if [[ -z $NO_GANACHE ]]; then
-        npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="111" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
+        npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="1337" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
     else
         echo "[seedLocalChain] skipping ganache"
     fi

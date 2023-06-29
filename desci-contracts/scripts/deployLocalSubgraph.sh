@@ -3,7 +3,7 @@
 set -euo pipefail
 trap "catch" ERR
 catch() {
-    echo "deployLocalSubgraph: script failed!"
+    echo "[graph-index] script failed!"
     exit 1
 }
 
@@ -14,7 +14,7 @@ echo "[graph-index] checking if subgraph available at $FILE"
 if [ -f "$FILE" ]; then
     echo "[graph-index] found deployment file"
 else
-    echo "[graph-index] no deployment file"
+    echo "[graph-index] no deployment file found, fatal"
     exit 1
 fi
 
@@ -53,15 +53,14 @@ if [ "$TARGET_ADDRESS" ]; then
     yarn graph:build
 
     waitForNodeAdminServer
-
-    echo "[graph-index] graph:create-docker"
+    echo "[graph-index] running graph:create-docker"
     npm run graph:create-docker
 
-    echo "[graph-index] graph:deploy-docker"
+    echo "[graph-index] running graph:deploy-docker"
     npm run graph:deploy-docker
 
-    echo "[graph-index] done"
+    echo "[graph-index] done!"
 else
-    echo "[graph-index] no target contract found"
+    echo "[graph-index] no target contract found, fatal"
     exit 1
 fi

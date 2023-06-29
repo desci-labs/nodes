@@ -1,5 +1,16 @@
+#! /usr/bin/env bash
+set -euo pipefail
+
+trap catch ERR
+catch() {
+  echo "[seedLocalDpid] Script failed!"
+  exit 1
+}
+
 FILE=.openzeppelin/unknown-dpid.json
 MNEMONIC=$(grep MNEMONIC .env | cut -d '=' -f 2-)
+# Empty by default
+NO_GANACHE=${NO_GANACHE:-""}
 RUNNING=true
 function check() {
     FILE=.openzeppelin/unknown-dpid.json
@@ -34,12 +45,11 @@ else
     echo "[seedLocalDpid] no DPID Registry deployment file, running local ganache and deploying"
     (echo "[seedLocalDpid] waiting for ganache..." && sleep 10 && MNEMONIC="$MNEMONIC" yarn deploy:dpid:ganache ) &
     mkdir -p ../local-data/ganache
-    echo "[seedLocalDpid] sudo needed only first time to deploy contract"
     sudo chown -R $(whoami) ../local-data/ganache
     (echo "[seedLocalDpid] sleeping until contract deployed" && check ) &
     child=$!
     if [[ -z $NO_GANACHE ]]; then
-        npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="111" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
+        npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="1337" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
     else
         echo "[seedLocalDpid] skipping ganache"
     fi
