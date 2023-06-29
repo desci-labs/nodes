@@ -17,7 +17,7 @@
     "coverage": "nyc -r lcov -e .ts -x \"*.test.ts\" npm run test",
     "build": "tsc",
     "publish": "npm publish --access public",
-    "generate": "npx ts-interface-builder src/ResearchObject.ts src/RoCrate.ts --ignore-generics"
+    "generate": "ts-interface-builder src/ResearchObject.ts src/RoCrate.ts --ignore-generics"
   },
   "author": "",
   "license": "MIT",

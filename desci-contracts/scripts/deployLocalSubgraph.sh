@@ -23,21 +23,6 @@ TARGET_ADDRESS=$(jq -r '.proxies[-1].address' "$FILE" || echo "")
 # File doesn't exist when running outside of docker, empty is fine then
 FOUND_ADDRESS=$(grep 0x subgraph/subgraph.yaml | awk '{print $2}' | tr -d '"' || echo "[NONE]")
 
-waitForNodeAdminServer() {
-    until [ \
-        "$(curl -s -w '%{http_code}' -o /dev/null "http://host.docker.internal:8020")" \
-        -eq 405 ]; 
-    do
-        echo "[waitForNodeAdminServer]: Waiting for http://host.docker.internal:8020"
-        sleep 5
-    done
-
-    # until $(curl --output /dev/null --silent --fail http://host.docker.internal:8020); do
-    #     echo "[deployLocalSubgraph] waiting for http://host.docker.internal:8020 to start"
-    #     sleep 5
-    # done
-}
-
 if [ "$TARGET_ADDRESS" ]; then
     echo "[graph-index] found $TARGET_ADDRESS"
     echo "[graph-index] SUBGRAPH points to $FOUND_ADDRESS"
@@ -52,7 +37,6 @@ if [ "$TARGET_ADDRESS" ]; then
     npx hardhat compile
     yarn graph:build
 
-    waitForNodeAdminServer
     echo "[graph-index] running graph:create-docker"
     npm run graph:create-docker
 

@@ -5,11 +5,11 @@ services:
     container_name: "db_boilerplate"
     image: "postgres:12.6-alpine"
     restart: always
-    # healthcheck:
-    #   test: "pg_isready -h host.docker.internal -p 5433 -U walter"
-    #   interval: 5s
-    #   timeout: 15s
-    #   retries: 5
+    healthcheck:
+      test: "pg_isready -U walter -d postgres"
+      interval: 5s
+      timeout: 15s
+      retries: 5
     env_file:
       - .env
     ports:
@@ -19,10 +19,17 @@ services:
       - ./local-data/database/boilerplate:/var/lib/postgresql/data/
     environment:
       POSTGRES_INITDB_ARGS: '--encoding=UTF-8 --lc-collate=C --lc-ctype=C'
+      POSTGRES_PASSWORD: 'white'
+
   desci_blockchain_ganache:
     container_name: "desci_blockchain_ganache"
     build: ./desci-contracts
     restart: always
+    healthcheck:
+      test: curl -sf -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' localhost:8545
+      interval: 10s
+      timeout: 15s
+      retries: 10
     ports:
       - "8545:8545"
     env_file:
@@ -33,8 +40,15 @@ services:
       - ./local-data/ganache:/data
       - ./desci-contracts/.openzeppelin:/app/.openzeppelin
     depends_on:
-      - graph_node
+      graph_node:
+        condition:
+          service_started
+      db_postgres:
+        condition:
+          service_healthy
+
   desci_nodes_backend:
+    container_name: "desci_nodes_backend"
     entrypoint: /bin/sh './desci-server/scripts/be-node-dev.sh'
     env_file:
       - .env
@@ -45,22 +59,39 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
-      - db_postgres
-      - desci_blockchain_ganache
-      - graph_node
-      - redis
+      db_postgres:
+        condition:
+          service_healthy
+      desci_blockchain_ganache:
+        condition:
+          service_healthy
+      graph_node:
+        condition:
+          service_started
+      redis:
+        condition:
+          service_started
       # - nodes_media # UNCOMMENT FOR LOCAL DEV OF nodes-media
     links:
       - db_postgres
     volumes:
       - ./local-data/yarn_cache:/root/.yarn
+
   block_explorer_dev:
     image: sinaiman/expedition-dev:latest
+    container_name: "block_explorer"
     ports:
       - "3001:80"
+
   graph_node:
     image: graphprotocol/graph-node
+    container_name: "graph_node"
     restart: always
+    # healthcheck:
+    #   test: "pg_isready -U walter -d postgres"
+    #   interval: 5s
+    #   timeout: 15s
+    #   retries: 5
     ports:
       - "8000:8000"
       - "8001:8001"
@@ -70,8 +101,12 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
-      - ipfs
-      - db_postgres
+      ipfs:
+        condition:
+          service_healthy
+      db_postgres:
+        condition:
+          service_healthy
     environment:
       # https://github.com/graphprotocol/graph-node/blob/master/docs/environment-variables.md
       postgres_host: db_postgres
@@ -92,8 +127,10 @@ services:
       # GRAPH_LOG_POI_EVENTS: true
       # GRAPH_LOAD_THRESHOLD: 250
       # EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE: synced
+
   ipfs:
     image: ipfs/go-ipfs:v0.13.0
+    container_name: "ipfs"
     environment:
       IPFS_SWARM_KEY: "/key/swarm/psk/1.0.0/\n/base16/\n9d002c50635a479d29dcc0ccb49d862952a0dcc52baddd253167adcd496c8d04"
     ports:
