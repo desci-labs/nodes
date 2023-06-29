@@ -1,6 +1,6 @@
 specVersion: 0.0.4
-description: Gravatar for Ethereum
-repository: https://github.com/graphprotocol/example-subgraph
+description: Graph node for DeSci Nodes
+repository: https://github.com/desci-labs/nodes
 schema:
   file: ./schema.graphql
 dataSources:
