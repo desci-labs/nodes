@@ -8,10 +8,9 @@ catch() {
 }
 
 FILE=.openzeppelin/unknown-research-object.json
-MNEMONIC=$(grep MNEMONIC .env | cut -d '=' -f 2-)
+ROOT=$(git rev-parse --show-toplevel)
+MNEMONIC=$(grep MNEMONIC "$ROOT/.env" | cut -d '=' -f 2-)
 echo "[seedLocalChain] GOT MNEMONIC $MNEMONIC"
-# Empty by default
-NO_GANACHE=${NO_GANACHE:-""}
 RUNNING=true
 function check() {
     FILE=.openzeppelin/unknown-research-object.json
@@ -53,11 +52,7 @@ else
     sudo chown -R $(whoami) ../local-data/ganache
     (echo "[seedLocalChain] sleeping until contract deployed" && check ) &
     child=$!
-    if [[ -z $NO_GANACHE ]]; then
-        npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="1337" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
-    else
-        echo "[seedLocalChain] skipping ganache"
-    fi
+    npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="1337" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
     wait "$child"
 fi
 

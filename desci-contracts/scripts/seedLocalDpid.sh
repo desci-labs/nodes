@@ -8,9 +8,9 @@ catch() {
 }
 
 FILE=.openzeppelin/unknown-dpid.json
-MNEMONIC=$(grep MNEMONIC .env | cut -d '=' -f 2-)
-# Empty by default
-NO_GANACHE=${NO_GANACHE:-""}
+ROOT=$(git rev-parse --show-toplevel)
+MNEMONIC=$(grep MNEMONIC "$ROOT/.env" | cut -d '=' -f 2-)
+echo "[seedLocalDpid] GOT MNEMONIC $MNEMONIC"
 RUNNING=true
 function check() {
     FILE=.openzeppelin/unknown-dpid.json
@@ -48,10 +48,6 @@ else
     sudo chown -R $(whoami) ../local-data/ganache
     (echo "[seedLocalDpid] sleeping until contract deployed" && check ) &
     child=$!
-    if [[ -z $NO_GANACHE ]]; then
-        npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="1337" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
-    else
-        echo "[seedLocalDpid] skipping ganache"
-    fi
+    npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="1337" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
     wait "$child"
 fi
