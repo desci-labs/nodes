@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 
-import { DriveObject, FileDir, ResearchObjectComponentType } from '@desci-labs/desci-models';
+import { DriveObject, FileDir, ResearchObjectComponentType, findAndPruneNode } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import archiver from 'archiver';
 import axios from 'axios';
@@ -11,7 +11,7 @@ import tar from 'tar';
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
-import { getOrCache } from 'redisClient';
+import redisClient, { getOrCache } from 'redisClient';
 import { getDatasetTar } from 'services/ipfs';
 import { getTreeAndFill, getTreeAndFillDeprecated } from 'utils/driveUtils';
 
@@ -34,6 +34,15 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   const manifestCid: string = req.params.manifestCid;
   const uuid: string = req.params.nodeUuid;
   const shareId: string = req.params.shareId;
+
+  // Extract the query params
+  const dataPath: string = (req.query.dataPath as string) || 'root';
+  const depth: number = req.query.depth ? parseInt(req.query.depth as string) : undefined;
+
+  if (isNaN(depth) && depth !== undefined) {
+    return res.status(400).json({ error: 'Invalid depth' });
+  }
+
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::RetrieveController',
@@ -115,6 +124,20 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     return res.status(400).json({ error: 'failed' });
   }
 
+  // Try early return if depth chunk cached
+  const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}`;
+  try {
+    if (redisClient.isOpen) {
+      const cached = await redisClient.get(depthCacheKey);
+      if (cached) {
+        const tree = JSON.parse(cached);
+        return res.status(200).json({ tree: [tree], date: dataset?.updatedAt.toString() });
+      }
+    }
+  } catch (err) {
+    logger.debug({ err, depthCacheKey }, 'Failed to retrieve from cache, continuing');
+  }
+
   const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
   let filledTree;
   try {
@@ -129,7 +152,17 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     filledTree = await getTreeAndFill(manifest, uuid, ownerId);
   }
 
-  return res.status(200).json({ tree: filledTree, date: dataset?.updatedAt.toString() });
+  const depthTree = await getOrCache(depthCacheKey, async () => {
+    const tree = findAndPruneNode(filledTree[0], dataPath, depth);
+    if (tree.type === 'file') {
+      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
+      return findAndPruneNode(filledTree[0], poppedDataPath, depth);
+    } else {
+      return tree;
+    }
+  });
+
+  return res.status(200).json({ tree: [depthTree], date: dataset?.updatedAt.toString() });
 };
 
 interface PubTreeResponse {
@@ -142,6 +175,15 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   const manifestCid: string = req.params.manifestCid;
   const rootCid: string = req.params.rootCid;
   const uuid: string = req.params.nodeUuid;
+
+  // Extract the query params
+  const dataPath: string = (req.query.dataPath as string) || 'root';
+  const depth: number = req.query.depth ? parseInt(req.query.depth as string) : undefined;
+
+  if (isNaN(depth) && depth !== undefined) {
+    return res.status(400).json({ error: 'Invalid depth' });
+  }
+
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::RetrievePubTreeController',
@@ -149,6 +191,8 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     manifestCid,
     rootCid,
     user: owner?.id,
+    dataPath,
+    depth,
   });
   logger.trace(`pubTree called, cid received: ${manifestCid} uuid provided: ${uuid}`);
   if (!manifestCid) return res.status(400).json({ error: 'no manifest CID provided' });
@@ -175,6 +219,20 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     return res.status(400).json({ error: 'Failed to retrieve' });
   }
 
+  // Try early return if depth chunk cached
+  const depthCacheKey = `pub-depth-${depth}-${manifestCid}-${dataPath}`;
+  try {
+    if (redisClient.isOpen) {
+      const cached = await redisClient.get(depthCacheKey);
+      if (cached) {
+        const tree = JSON.parse(cached);
+        return res.status(200).json({ tree: [tree], date: publicDataset?.updatedAt.toString() });
+      }
+    }
+  } catch (err) {
+    logger.debug({ err, depthCacheKey }, 'Failed to retrieve from cache, continuing');
+  }
+
   const manifestUrl = cleanupManifestUrl(manifestCid as string, req.query?.g as string);
 
   const manifest = await (await axios.get(manifestUrl)).data;
@@ -187,11 +245,11 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     ? async () => await getTreeAndFill(manifest, uuid)
     : async () => await getTreeAndFillDeprecated(rootCid, uuid, dataSource);
 
-  const cacheKey = hasDataBucket ? `filled-tree-${manifestCid}` : `deprecated-filled-tree-${rootCid}`;
+  const cacheKey = hasDataBucket ? `pub-filled-tree-${manifestCid}` : `deprecated-filled-tree-${rootCid}`;
 
   let filledTree;
   try {
-    filledTree = await getOrCache(cacheKey, fetchCb);
+    filledTree = await getOrCache(cacheKey, fetchCb as any);
     if (!filledTree) throw new Error('[pubTree] Failed to retrieve tree from cache');
   } catch (err) {
     logger.warn({ fn: 'pubTree', err }, '[pubTree] error');
@@ -199,7 +257,17 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
     return await fetchCb();
   }
 
-  return res.status(200).json({ tree: filledTree, date: publicDataset.updatedAt.toString() });
+  const depthTree = await getOrCache(depthCacheKey, async () => {
+    const tree = hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree;
+    if (tree[0].type === 'file' && hasDataBucket) {
+      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
+      return hasDataBucket ? [findAndPruneNode(filledTree[0], poppedDataPath, depth)] : filledTree;
+    } else {
+      return tree;
+    }
+  });
+
+  return res.status(200).json({ tree: depthTree, date: publicDataset.updatedAt.toString() });
 };
 
 export const downloadDataset = async (req: Request, res: Response, next: NextFunction) => {

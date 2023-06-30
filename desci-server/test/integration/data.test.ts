@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import 'mocha';
 import {
   DriveObject,
@@ -299,17 +300,16 @@ describe('Data Controllers', () => {
     describe('Retrieves a tree for a draft node without any external CIDs', () => {
       let node: Node;
       const privShareUuid = 'abcdef';
-      let res: request.Response;
-      let unauthedRes: request.Response;
-      let wrongAuthRes: request.Response;
-      let privShareRes: request.Response;
-      let incorrectPrivShareRes: request.Response;
+
+      let dotlessUuid: string;
+      let manifestCid: string;
+      let exampleDagCid: string;
 
       before(async () => {
         const manifest = { ...baseManifest };
-        const exampleDagCid = await spawnExampleDirDag();
+        exampleDagCid = await spawnExampleDirDag();
         manifest.components[0].payload.cid = exampleDagCid;
-        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
+        manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
 
         node = await prisma.node.create({
           data: {
@@ -334,37 +334,43 @@ describe('Data Controllers', () => {
         await prisma.privateShare.create({ data: { shareId: privShareUuid, nodeUUID: node.uuid! } });
         await validateAndHealDataRefs(node.uuid!, manifestCid, false);
 
-        const dotlessUuid = node.uuid!.substring(0, node.uuid!.length - 1);
-        res = await request(app)
-          .get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}`)
-          .set('authorization', authHeaderVal);
-        wrongAuthRes = await request(app)
-          .get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}`)
-          .set('authorization', bobHeaderVal);
-        unauthedRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}`);
-        privShareRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}/${privShareUuid}`);
-        incorrectPrivShareRes = await request(app).get(
-          `/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}/wrongShareId`,
-        );
+        dotlessUuid = node.uuid!.substring(0, node.uuid!.length - 1);
       });
 
-      it('should return status 200', () => {
+      it('should return a tree if authed', async () => {
+        const res = await request(app)
+          .get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}`)
+          .set('authorization', authHeaderVal);
         expect(res.statusCode).to.equal(200);
-      });
-      it('should return a tree if authed', () => {
         expect(res.body).to.have.property('tree');
       });
-      it('should return a tree if correct shareId', () => {
+      it('should return a depth 1 tree if authed', async () => {
+        const res = await request(app)
+          .get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}?depth=1`)
+          .set('authorization', authHeaderVal);
+        expect(res.statusCode).to.equal(200);
+        expect(res.body).to.have.property('tree');
+      });
+      it('should return a tree if correct shareId', async () => {
+        const url = `/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}/${privShareUuid}`;
+        const privShareRes = await request(app).get(url);
         expect(privShareRes.body).to.have.property('tree');
         expect(privShareRes.statusCode).to.equal(200);
       });
-      it('should reject if unauthed', () => {
+      it('should reject if unauthed', async () => {
+        const unauthedRes = await request(app).get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}`);
         expect(unauthedRes.statusCode).to.not.equal(200);
       });
-      it('should reject if wrong user', () => {
+      it('should reject if wrong user', async () => {
+        const wrongAuthRes = await request(app)
+          .get(`/v1/data/retrieveTree/${dotlessUuid}/${manifestCid}`)
+          .set('authorization', bobHeaderVal);
         expect(wrongAuthRes.statusCode).to.not.equal(200);
       });
-      it('should reject if incorrect shareId', () => {
+      it('should reject if incorrect shareId', async () => {
+        const incorrectPrivShareRes = await request(app).get(
+          `/v1/data/retrieveTree/${dotlessUuid}/${exampleDagCid}/wrongShareId`,
+        );
         expect(incorrectPrivShareRes.statusCode).to.not.equal(200);
       });
     });
