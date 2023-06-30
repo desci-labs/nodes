@@ -1,29 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: desci-server
+  name: dev-descerver-inspector
   labels:
-    App: DesciServer
+    App: DevDescerverInspector
 spec:
-  replicas: 2
+  replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      App: DesciServer
-  strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
+      App: DevDescerverInspector
   template:
     metadata:
       annotations:
         vault.hashicorp.com/agent-inject: 'true'
         vault.hashicorp.com/agent-inject-status: 'update'
         vault.hashicorp.com/role: app-vault-reader
-        vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/staging/db
+        vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/dev/db
         vault.hashicorp.com/agent-inject-template-config: |
-          {{- with secret "secrets/desci-server/staging/db" -}}
+          {{- with secret "secrets/desci-server/dev/db" -}}
           export PG_HOST={{ .Data.host }}
           export PG_PORT={{ .Data.port }}
           export POSTGRES_USER={{ .Data.user }}
@@ -34,7 +29,7 @@ spec:
           export NODE_ENV=production
           echo "dbset"; 
           {{- end -}}
-          {{- with secret "secrets/desci-server/staging/app" -}}
+          {{- with secret "secrets/desci-server/dev/app" -}}
           echo "appstart"; 
           export JWT_SECRET={{ .Data.JWT_SECRET }}
           export JWT_EXPIRATION=15m
@@ -72,21 +67,22 @@ spec:
           echo "appfinish";
           {{- end -}}
       labels:
-        App: DesciServer
+        App: DevDescerverInspector
     spec:
       containers:
-        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-server:latest
-          name: desci-server
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-server-dev:latest
+          name: desci-server-dev
           command: ['/bin/bash', '-c']
           args:
-            - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
+            - echo "SOURCING ENV"; source /vault/secrets/config; npx prisma studio;
           ports:
-            - containerPort: 5420
+            - containerPort: 5555
+              name: prisma-studio
           resources:
             limits:
-              cpu: '1.0'
-              memory: 8Gi
-            requests:
-              cpu: 250m
+              cpu: '2.0'
               memory: 4Gi
+            requests:
+              cpu: '1.0'
+              memory: 2Gi
       serviceAccountName: 'vault-auth'

@@ -85,8 +85,8 @@ spec:
           resources:
             limits:
               cpu: '0.5'
-              memory: 2Gi
+              memory: 8Gi
             requests:
               cpu: 250m
-              memory: 1Gi
+              memory: 4Gi
       serviceAccountName: 'vault-auth'

@@ -1,20 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: desci-server
+  name: prod-temp-please-kill-descerver-inspector
   labels:
-    App: DesciServer
+    App: ProdPleaseKillDescerverInspector
 spec:
-  replicas: 2
+  replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      App: DesciServer
-  strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
+      App: ProdPleaseKillDescerverInspector
   template:
     metadata:
       annotations:
@@ -72,21 +67,22 @@ spec:
           echo "appfinish";
           {{- end -}}
       labels:
-        App: DesciServer
+        App: ProdPleaseKillDescerverInspector
     spec:
       containers:
-        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-server:latest
-          name: desci-server
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-server-dev:latest
+          name: desci-server-dev
           command: ['/bin/bash', '-c']
           args:
-            - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
+            - echo "SOURCING ENV"; source /vault/secrets/config; npx prisma studio;
           ports:
-            - containerPort: 5420
+            - containerPort: 5555
+              name: prisma-studio
           resources:
             limits:
-              cpu: '1.0'
+              cpu: '4.0'
               memory: 8Gi
             requests:
-              cpu: 250m
+              cpu: '1.0'
               memory: 4Gi
       serviceAccountName: 'vault-auth'
