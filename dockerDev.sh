@@ -5,7 +5,7 @@
 set -euo pipefail
 trap catch ERR
 catch() {
-  echo "[dockerDev] script failed! Containers may still be running."
+  echo "[dockerDev] script exited"
   exit 1
 }
 
@@ -54,17 +54,6 @@ make
 
 echo "[dockerDev:desci-contracts] starting seed of local chain..."
 make -C desci-contracts seed
-
-# Quite sure this never happens, delete? :thinking:
-set +o pipefail
-GANACHE_PID=$(lsof -i:8545 | grep '*:8545' | awk '{print $2}' | tail -n 1)
-set -o pipefail
-if [ "$GANACHE_PID" ]; then
-    echo "[dockerDev] killing ganache, pid=$GANACHE_PID"
-    kill -9 "$GANACHE_PID"
-else
-  echo "[dockerDev] couldn't find ganache PID to kill, skipping"
-fi
 
 # Default to empty if unset
 ADDITIONAL_FLAGS=${ADDITIONAL_FLAGS:-""}

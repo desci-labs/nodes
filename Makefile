@@ -6,8 +6,6 @@ build: .env
 .PHONY: sterile
 sterile: clean
 	sudo rm -rf local-data
-	# Too aggro?
-  # docker system prune --all --force
 
 .PHONY: clean
 clean:
@@ -16,9 +14,6 @@ clean:
 	./resetTables.sh
 
 	# Down stops and removes containers
-	# Remove volumes for ganache and graph node
-	#docker compose -p desci down --volumes desci_blockchain_ganache graph_node
-	# Bring down the rest
 	docker compose -p desci down
 	docker container prune --force
 

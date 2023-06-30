@@ -1,8 +1,8 @@
 .PHONY: install build clean seed
 
 seed:
-	scripts/seedLocalDpid.sh
-	scripts/seedLocalChain.sh
+	scripts/seed.sh "dpid registry" "unknown-dpid.json" "deploy:dpid:ganache"
+	scripts/seed.sh "research object" "unknown-research-object.json" "deploy:ganache"
 
 build: install
 	yarn build
