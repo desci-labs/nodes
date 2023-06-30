@@ -65,9 +65,10 @@ export const createPublicDataRefs = async (
     data: dataWithVersions,
     skipDuplicates: true,
   });
+
   logger.debug(
-    { fn: 'createPublicDataRefs', data, userId, versionId, publicDataRefRes },
-    '[nodeManager::createPublicDataRefs] publicDataRefRes',
+    { fn: 'createPublicDataRefs', data, userId, versionId },
+    `[nodeManager::createPublicDataRefs] public data refs added: ${publicDataRefRes.count}`,
   );
   return publicDataRefRes;
 };
@@ -81,7 +82,12 @@ export const createDataMirrorJobs = async (
   data: Prisma.PublicDataReferenceCreateManyInput[],
   userId: number | undefined,
 ) => {
-  const logger = parentLogger.child({ module: 'Services::NodeManager', fn: 'createDataMirrorJobs', data, userId });
+  const logger = parentLogger.child({
+    module: 'Services::NodeManager',
+    fn: 'createDataMirrorJobs',
+    dataEntriesLength: data.length,
+    userId,
+  });
   const activeMirrors = (await prisma.ipfsMirror.findMany()).map((mirror) => mirror.id);
   const mirrorJobs: Prisma.PublicDataReferenceOnIpfsMirrorCreateManyInput[] = [];
 
@@ -100,10 +106,10 @@ export const createDataMirrorJobs = async (
 
   for (const dataReference of data) {
     const dataReferenceId = cidToDataReferenceId.get(dataReference.cid);
-    logger.debug(
-      { dataReferenceId, dataReferenceCid: dataReference.cid },
-      '[nodeManager::createDataMirrorJobs] stage new public data ref',
-    );
+    // logger.debug(
+    //   { dataReferenceId, dataReferenceCid: dataReference.cid },
+    //   '[nodeManager::createDataMirrorJobs] stage new public data ref',
+    // );
     for (const mirror of activeMirrors) {
       if (!dataReferenceId) {
         logger.warn(
@@ -121,13 +127,13 @@ export const createDataMirrorJobs = async (
       });
     }
   }
-  logger.info({ mirrorJobs }, '[nodeManager::createDataMirrorJobs] ADDING mirrorJobs');
+  logger.info({ mirrorJobsTotal: mirrorJobs.length }, '[nodeManager::createDataMirrorJobs] ADDING mirrorJobs');
   const mirrorJobsResult = await prisma.publicDataReferenceOnIpfsMirror.createMany({
     data: mirrorJobs,
     skipDuplicates: true,
   });
 
-  logger.info({ mirrorJobsResult }, '[nodeManager::createDataMirrorJobs] DONE mirrorJobs');
+  logger.info({ mirrorJobsResultCount: mirrorJobsResult.count }, '[nodeManager::createDataMirrorJobs] DONE mirrorJobs');
   return mirrorJobsResult;
 };
 
@@ -183,7 +189,7 @@ export const getAllCidsRequiredForPublish = async (
 };
 
 async function publishCid(job: Prisma.PublicDataReferenceCreateManyInput): Promise<boolean> {
-  logger.info({ fn: 'publishCid', job }, `[nodeManager::publishCid] START cid= ${job.cid}`);
+  logger.info({ fn: 'publishCid', jobId: job.id }, `[nodeManager::publishCid] START cid= ${job.cid}`);
   const dataRef = await prisma.publicDataReference.findFirst({
     where: {
       cid: job.cid,

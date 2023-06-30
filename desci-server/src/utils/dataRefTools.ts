@@ -55,7 +55,7 @@ export async function generateDataReferences(
   };
 
   const externalCidMap = await generateExternalCidMap(node.uuid);
-  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap));
+  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
   if (markExternals) {
     dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
   }
@@ -114,9 +114,71 @@ export async function prepareDataRefs(
   };
 
   const externalCidMap = { ...(await generateExternalCidMap(node.uuid)), ...externalCidMapConcat };
-  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap));
+  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
   if (markExternals) {
     dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
+  }
+  const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
+
+  const dataTreeToPubRef: Prisma.DataReferenceCreateManyInput[] = dataTree.map((entry) => {
+    const neutralPath = neutralizePath(entry.path);
+    const dbType = inheritComponentType(neutralPath, manifestPathsToDbTypes);
+    return {
+      cid: entry.cid,
+      path: entry.path,
+      userId: node.ownerId,
+      rootCid: dataBucketCid,
+      root: false,
+      directory: entry.type === 'dir',
+      size: entry.size,
+      type: dbType,
+      nodeId: node.id,
+      ...(!markExternals ? {} : entry.external ? { external: true } : { external: null }),
+    };
+  });
+
+  return [dataRootEntry, ...dataTreeToPubRef];
+}
+
+// used to prepare data refs for a given dag and manifest (differs from generateDataReferences in that you don't need the updated manifestCid ahead of time)
+export async function prepareDataRefsExternalCids(
+  nodeUuid: string,
+  manifest: ResearchObjectV1,
+  rootDagCid: string,
+  markExternals = false,
+  externalCidMapConcat?: ExternalCidMap, // adds externalCidMapConcat to the externalCidMap generated from the nodeUuid
+): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
+  nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
+  const node = await prisma.node.findFirst({
+    where: {
+      uuid: nodeUuid,
+    },
+  });
+  if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
+  const manifestEntry: ResearchObjectV1 = manifest;
+  const dataBucketCid = rootDagCid;
+
+  const dataRootEntry: Prisma.DataReferenceCreateManyInput = {
+    cid: dataBucketCid,
+    path: dataBucketCid,
+    userId: node.ownerId,
+    root: true,
+    rootCid: dataBucketCid,
+    directory: true,
+    size: 0,
+    type: DataType.DATA_BUCKET,
+    nodeId: node.id,
+    ...(markExternals ? { external: null } : {}),
+  };
+
+  const externalCidMap = { ...(await generateExternalCidMap(node.uuid)), ...externalCidMapConcat };
+  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, false);
+  let dataTree;
+
+  if (markExternals) {
+    dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
+  } else {
+    dataTree = recursiveFlattenTree(tree);
   }
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
 

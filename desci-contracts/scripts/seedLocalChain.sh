@@ -44,7 +44,7 @@ else
     (echo "[seedLocalChain] sleeping until contract deployed" && check ) &
     child=$!
     if [[ -z $NO_GANACHE ]]; then
-        npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="111" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
+        npx ganache --server.host="0.0.0.0" --database.dbPath="../local-data/ganache" --chain.networkId="1337" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true"
     else
         echo "[seedLocalChain] skipping ganache"
     fi

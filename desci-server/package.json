@@ -3,10 +3,12 @@
   "version": "0.3.3",
   "description": "Manage DeSci Nodes state: users, nodes orchestration, decentralized storage, blockchain resolvers",
   "engines": {
-    "node": ">=16"
+    "node": ">=16.14"
   },
   "scripts": {
-    "dev": "debug=* NODE_PATH=./src ts-node-dev --inspect=0.0.0.0:9229 --respawn --watch --exit-child ./src/index.ts",
+    "dev": "concurrently \"npm run watch-compile\" \"npm run watch-dev\"",
+    "watch-compile": "debug=* NODE_PATH=./src swc src -w --log-watch-compilation --out-dir dist",
+    "watch-dev": "debug=* NODE_PATH=./src nodemon --watch \"dist/**/*\" -e js ./dist/index.js",
     "script:fix-mirrors": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/retry-mirrors.ts",
     "script:upgrade-manifests": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/upgradeManifests.ts",
     "script:test-upgrade-manifests": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/testUpgradeManifests.ts",
@@ -28,6 +30,7 @@
     "test:destructive:debug": "yarn test:destructive --inspect=0.0.0.0:9227",
     "test": "yarn docker:test && docker-compose  --file ../docker-compose.test.yml down",
     "coverage:destructive": "nyc --all -r lcov -e .ts -x \"*.test.ts\" npm run test:destructive",
+    "coverage:destructive:debug": "nyc --all -r lcov -e .ts -x \"*.test.ts\" npm run test:destructive:debug",
     "commit": "git-cz",
     "db:forward": "kubectl run --env REMOTE_HOST=$REMOTE_HOST --env REMOTE_PORT=5432 --env LOCAL_PORT=8080 --port 8080 --image marcnuri/port-forward test-port-forward ;  kubectl port-forward test-port-forward 8080:8080",
     "docker:dev": "../dockerDev.sh",
@@ -103,6 +106,10 @@
   "devDependencies": {
     "@commitlint/cli": "^13.1.0",
     "@commitlint/config-conventional": "^13.1.0",
+    "@swc/cli": "^0.1.62",
+    "@swc/core": "^1.3.66",
+    "@swc/register": "^0.1.10",
+    "@swc/wasm": "^1.3.66",
     "@types/bcryptjs": "^2.4.2",
     "@types/body-parser": "^1.19.1",
     "@types/chai": "^4.2.21",
@@ -120,7 +127,9 @@
     "@typescript-eslint/eslint-plugin": "^4.29.1",
     "@typescript-eslint/parser": "^4.29.1",
     "chai": "^4.3.4",
+    "chokidar": "^3.5.3",
     "commitizen": "^4.2.4",
+    "concurrently": "^8.2.0",
     "copyfiles": "^2.4.1",
     "dotenv": "^10.0.0",
     "dotenv-cli": "^4.0.0",
@@ -132,6 +141,7 @@
     "ipfs-core": "^0.15.4",
     "lint-staged": "^11.1.2",
     "mocha": "^9.0.3",
+    "nodemon": "^2.0.22",
     "nyc": "^15.1.0",
     "prettier": "^2.3.2",
     "pretty-quick": "^3.1.1",
