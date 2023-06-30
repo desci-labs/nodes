@@ -220,7 +220,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   }
 
   // Try early return if depth chunk cached
-  const depthCacheKey = `pub-depth-${depth}-${manifestCid}-${dataPath}`;
+  const depthCacheKey = `pubTree-depth-${depth}-${manifestCid}-${dataPath}`;
   try {
     if (redisClient.isOpen) {
       const cached = await redisClient.get(depthCacheKey);
@@ -258,10 +258,10 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   }
 
   const depthTree = await getOrCache(depthCacheKey, async () => {
-    const tree = hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree;
+    const tree = hasDataBucket ? findAndPruneNode(filledTree[0], dataPath, depth) : filledTree;
     if (tree[0].type === 'file' && hasDataBucket) {
       const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
-      return hasDataBucket ? [findAndPruneNode(filledTree[0], poppedDataPath, depth)] : filledTree;
+      return hasDataBucket ? findAndPruneNode(filledTree[0], poppedDataPath, depth) : filledTree;
     } else {
       return tree;
     }
