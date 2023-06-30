@@ -320,7 +320,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
           uploaded.push({ path: file.path, cid: file.cid, size: file.size });
           externalCidMap[file.cid] = { size: file.size, directory: file.type === 'dir', path: file.path };
         });
-        debugger;
         externalDagsToPin.push(extCid.cid);
       }
       uploaded.push({
@@ -336,7 +335,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   if (externalDagsToPin.length) {
     externalDagsPinned = await pinExternalDags(externalDagsToPin);
   }
-  debugger;
   //Pin the new files
   const structuredFilesForPinning: IpfsDirStructuredInput[] = files.map((f: any) => {
     return { path: f.originalname, content: f.buffer };

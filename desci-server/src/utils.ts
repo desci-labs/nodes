@@ -171,7 +171,6 @@ export async function saveZipStreamToDisk(zipStream: Readable, outputPath: strin
     // Pipe the ZIP stream into the file stream
     zipStream.pipe(fileStream);
 
-    debugger;
     fileStream.on('finish', resolve);
     fileStream.on('error', reject);
   });

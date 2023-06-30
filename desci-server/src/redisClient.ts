@@ -55,8 +55,15 @@ const DEFAULT_TTL = 60 * 60 * 24 * 7; // 1 week
 export function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEFAULT_TTL) {
   return new Promise<T>(async (resolve, reject) => {
     try {
-      if (!redisClient.isOpen) return reject(new Error('Redis client is not connected'));
-      const result = await redisClient.get(key);
+      let clientAvailable = true;
+      if (!redisClient.isOpen) {
+        logger.warn({ key }, 'Redis client is not connected');
+        clientAvailable = false;
+      }
+      let result = null;
+      if (clientAvailable) {
+        result = await redisClient.get(key);
+      }
       if (result !== null) {
         logger.info(`[REDIS CACHE]${key} retrieved from cache`);
 
@@ -66,8 +73,12 @@ export function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEFAULT_T
         return resolve(JSON.parse(result));
       }
       const value = await fn();
-      await redisClient.set(key, JSON.stringify(value), { EX: ttl });
-      logger.info(`[REDIS CACHE]${key} cached`);
+      if (clientAvailable) {
+        await redisClient.set(key, JSON.stringify(value), { EX: ttl });
+        logger.info(`[REDIS CACHE]${key} cached`);
+      } else {
+        logger.info(`[REDIS CACHE] skipped-no-conn ${key}`);
+      }
       resolve(value);
     } catch (e) {
       return reject(e);
