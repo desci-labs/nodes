@@ -20,17 +20,12 @@ import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addDirToIpfs,
   addFilesToDag,
-  convertToCidV1,
   FilesToAddToDag,
   getDirectoryTree,
-  getExternalCidSizeAndType,
-  GetExternalSizeAndTypeResult,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
   isDir,
   pinDirectory,
-  pinExternalDags,
-  pubRecursiveLs,
   RecursiveLsResult,
 } from 'services/ipfs';
 import {
@@ -95,7 +90,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl, newFolder)
   //ExternalURL - url + type, code (github) & external pdfs for now
-  //v0 ExternalCids - cids + type (data for now), no pinning
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::UpdateController',
@@ -134,7 +128,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   }
 
   const files = req.files as Express.Multer.File[];
-  if (!arrayXor([externalUrl, files.length, externalCids?.length, newFolderName?.length]))
+  if (!arrayXor([externalUrl, files.length, newFolderName?.length]))
     return res
       .status(400)
       .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
@@ -212,7 +206,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
 
   /*
-   ** Check if update path contains externals, temporarily disable adding to external DAGs NOTE: TO BE REMOVED
+   ** Check if update path contains externals, disable adding to external DAGs
    */
   const pathMatch = (oldFlatTree as RecursiveLsResult[]).find((c) => {
     const neutralPath = neutralizePath(c.path);
@@ -230,8 +224,11 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   logger.debug('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
 
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
-  // debugger;
-  const OldTreePaths = oldFlatTree.map((e) => e.path);
+  const OldTreePathsMap = oldFlatTree.reduce((map, branch) => {
+    map[branch.path] = true;
+    return map;
+  });
+
   let newPathsFormatted: string[] = [];
   const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
   if (files.length) {
@@ -258,7 +255,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     newPathsFormatted = [header + '/' + newFolderName];
   }
 
-  const hasDuplicates = OldTreePaths.some((oldPath) => newPathsFormatted.includes(oldPath));
+  const hasDuplicates = newPathsFormatted.some((newPath) => newPath in OldTreePathsMap);
   if (hasDuplicates) {
     logger.info('[UPDATE DATASET] Rejected as duplicate paths were found');
     return res.status(400).json({ error: 'Duplicate files rejected' });
@@ -386,18 +383,23 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
       },
     });
 
-    // setup refs, matching existing ones with their id
-    const refs = newRefs.map((ref) => {
-      const existingRef = existingRefs.find((r) => neutralizePath(r.path) === neutralizePath(ref.path));
-      if (existingRef) ref.id = existingRef.id;
-      return ref;
+    //map existing ref neutral paths to the ref
+    const existingRefMap = existingRefs.reduce((map, ref) => {
+      map[neutralizePath(ref.path)] = ref;
+      return map;
     });
 
     const dataRefCreates = [];
-    const dataRefUpdates = refs.filter((ref) => {
-      const isUpdate = 'id' in ref;
-      if (!isUpdate) dataRefCreates.push(ref);
-      return isUpdate;
+    const dataRefUpdates = [];
+    // setup refs, matching existing ones with their id, distinguish between update ops and create ops
+    newRefs.forEach((ref) => {
+      const newRefNeutralPath = neutralizePath(ref.path);
+      const matchingExistingRef = existingRefMap[newRefNeutralPath];
+      if (matchingExistingRef) {
+        dataRefUpdates.push({ ...matchingExistingRef, ...ref });
+      } else {
+        dataRefCreates.push(ref);
+      }
     });
 
     const upserts = await prisma.$transaction([
