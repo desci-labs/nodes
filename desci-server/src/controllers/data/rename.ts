@@ -121,13 +121,13 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     const newRefs = await prepareDataRefs(node.uuid, updatedManifest, updatedRootCid, false);
 
     const dataRefUpdates = newRefs.map((newRef) => {
-      const neutralPath = newRef.path.replace(updatedRootCid, 'root');
+      const neutralNewPath = newRef.path.replace(updatedRootCid, 'root');
       const match = existingDataRefs.find((oldRef) => {
         const neutralRefPath = neutralizePath(oldRef.path);
-        if (neutralRefPath === neutralPath) return true;
-        if (neutralRefPath.startsWith(path)) {
+        if (neutralRefPath === neutralNewPath) return true;
+        if (neutralRefPath.startsWith(path + '/')) {
           const updatedPath = neutralRefPath.replace(path, newPath);
-          return updatedPath === neutralPath;
+          return updatedPath === neutralNewPath;
         }
         return false;
       });
