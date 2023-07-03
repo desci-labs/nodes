@@ -182,26 +182,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     }
   }
 
-  /*
-   ** External CID setup
-   */
-  const cidTypesSizes: Record<string, GetExternalSizeAndTypeResult> = {};
-  if (externalCids && externalCids.length && componentType === ResearchObjectComponentType.DATA) {
-    try {
-      externalCids = externalCids.map((extCid) => ({ ...extCid, cid: convertToCidV1(extCid.cid) }));
-      for (const extCid of externalCids) {
-        const { isDirectory, size } = await getExternalCidSizeAndType(extCid.cid);
-        if (size !== undefined && isDirectory !== undefined) {
-          cidTypesSizes[extCid.cid] = { size, isDirectory };
-        } else {
-          throw new Error(`Failed to get size and type of external CID: ${extCid}`);
-        }
-      }
-    } catch (e: any) {
-      logger.warn(`[UPDATE DAG] External CID Method: ${e}`);
-      return res.status(400).json({ error: 'Failed to resolve external CID' });
-    }
-  }
   //finding rootCid
   const manifestCidEntry = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCidEntry
@@ -214,10 +194,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     .cid;
 
   const manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(latestManifestEntry);
-
-  /*
-   * END REMOVE HERE
-   */
 
   /*
    ** Check if user has enough storage space to upload
@@ -282,59 +258,12 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     newPathsFormatted = [header + '/' + newFolderName];
   }
 
-  if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
-    newPathsFormatted = externalCids.map((extCid) => header + '/' + extCid.name);
-  }
-
   const hasDuplicates = OldTreePaths.some((oldPath) => newPathsFormatted.includes(oldPath));
   if (hasDuplicates) {
     logger.info('[UPDATE DATASET] Rejected as duplicate paths were found');
     return res.status(400).json({ error: 'Duplicate files rejected' });
   }
 
-  //[EXTERNAL CIDS] If External Cids used, add to uploaded, and add to externalCidMap, also add to externalDagsToPin
-  const externalDagsToPin = [];
-  if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
-    uploaded = [];
-    for await (const extCid of externalCids) {
-      const { size, isDirectory } = cidTypesSizes[extCid.cid];
-      externalCidMap[extCid.cid] = { size, directory: isDirectory, path: extCid.name };
-      if (isDirectory) {
-        //Get external dag tree, add to external dag pin list
-        let tree: RecursiveLsResult[];
-        try {
-          tree = await pubRecursiveLs(extCid.cid, extCid.name);
-        } catch (e) {
-          logger.info(
-            { extCid },
-            '[UPDATE DATASET] External DAG tree resolution failed, the contents within the DAG were unable to be retrieved, rejecting update.',
-          );
-          return res
-            .status(400)
-            .json({ error: 'Failed resolving external dag tree, the DAG or its contents were unable to be retrieved' });
-        }
-        const flatTree = recursiveFlattenTree(tree);
-        (flatTree as RecursiveLsResult[]).forEach((file: RecursiveLsResult) => {
-          cidTypesSizes[file.cid] = { size: file.size, isDirectory: file.type === 'dir' };
-          if (file.type === 'dir') externalDagsToPin.push(file.cid);
-          uploaded.push({ path: file.path, cid: file.cid, size: file.size });
-          externalCidMap[file.cid] = { size: file.size, directory: file.type === 'dir', path: file.path };
-        });
-        externalDagsToPin.push(extCid.cid);
-      }
-      uploaded.push({
-        path: extCid.name,
-        cid: extCid.cid,
-        size: size,
-      });
-    }
-  }
-
-  //pin exteralDagsToPin
-  let externalDagsPinned = [];
-  if (externalDagsToPin.length) {
-    externalDagsPinned = await pinExternalDags(externalDagsToPin);
-  }
   //Pin the new files
   const structuredFilesForPinning: IpfsDirStructuredInput[] = files.map((f: any) => {
     return { path: f.originalname, content: f.buffer };
@@ -438,12 +367,10 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
 
   //For adding correct types to the db, when a predefined component type is used
   const newFilePathDbTypeMap = {};
-  const externalPathsAdded = {};
   uploaded.forEach((file: IpfsPinnedResult) => {
     const neutralFullPath = contextPath + '/' + file.path;
     const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
     newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
-    if (Object.keys(cidTypesSizes)?.length) externalPathsAdded[deneutralizedFullPath] = true;
   });
 
   try {
@@ -459,18 +386,10 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
       },
     });
 
-    // setup refs, matching existing ones with their id, and marking external ones
+    // setup refs, matching existing ones with their id
     const refs = newRefs.map((ref) => {
-      // add id's if exists
       const existingRef = existingRefs.find((r) => neutralizePath(r.path) === neutralizePath(ref.path));
       if (existingRef) ref.id = existingRef.id;
-
-      // handle externals (may be needed)
-      const extTypeAndSize = externalCidMap[ref.cid];
-      if (extTypeAndSize) {
-        ref.directory = extTypeAndSize.directory;
-        ref.external = true;
-      }
       return ref;
     });
 
@@ -539,11 +458,8 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     });
   } catch (e: any) {
     logger.error(`[UPDATE DATASET] error: ${e}`);
-    if (uploaded.length || externalDagsPinned.length) {
-      logger.error(
-        { filesPinned: uploaded, externalDagsPinned },
-        `[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED`,
-      );
+    if (uploaded.length) {
+      logger.error({ filesPinned: uploaded }, `[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED`);
       const formattedPruneList = uploaded.map(async (e) => {
         const neutralPath = neutralizePath(e.path);
         return {
@@ -555,18 +471,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
           userId: owner.id,
           directory: await isDir(e.cid),
         };
-      });
-      externalDagsPinned.forEach((extDagCid) => {
-        const extTypeAndSize = externalCidMap[extDagCid];
-        formattedPruneList.push({
-          description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE (update v2)',
-          cid: extDagCid,
-          type: DataType.UNKNOWN,
-          size: extTypeAndSize.size || 0,
-          nodeId: node.id,
-          userId: owner.id,
-          directory: extTypeAndSize.directory,
-        } as any);
       });
       const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });
       if (prunedEntries.count) {
