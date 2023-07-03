@@ -11,7 +11,8 @@ set -euo pipefail
 trap catch ERR SIGTERM SIGINT
 catch() {
   echo "[seed:$CONTRACT_NAME] script failed!"
-  exit 1
+  trap - SIGTERM
+  kill 0
 }
 
 ROOT=$(git rev-parse --show-toplevel)
