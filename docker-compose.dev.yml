@@ -1,5 +1,9 @@
 version: "3"
 
+networks:
+  redis-cluster-compose:
+    driver: bridge
+
 services:
   db_postgres:
     container_name: "db_boilerplate"
@@ -48,7 +52,7 @@ services:
       - db_postgres
       - desci_blockchain_ganache
       - graph_node
-      - redis
+      - redis-cluster-creator
       # - nodes_media # UNCOMMENT FOR LOCAL DEV OF nodes-media
     links:
       - db_postgres
@@ -108,13 +112,47 @@ services:
       start_period: 10s
       timeout: 2s
 
-  redis:
+
+  redis-node-1:
     image: "redis:7-alpine"
-    container_name: "redis_cache"
     ports:
-      - "6379:6379"
+      - 7000:7000
+    networks:
+      - redis-cluster-compose
+    hostname: redis-node-1
     volumes:
-      - ./local-data/redis:/data
+      - ./local-data/redis/7001:/redis
+    command: redis-server /redis/redis.conf
+  redis-node-2:
+    image: "redis:7-alpine"
+    ports:
+      - 7001:7001
+    networks:
+      - redis-cluster-compose
+    hostname: redis-node-2
+    volumes:
+      - ./local-data/redis/7001:/redis
+    command: redis-server /redis/redis.conf
+  redis-insight:
+    image: redislabs/redisinsight
+    ports:
+      - 8199:8001
+    networks:
+      - redis-cluster-compose
+    volumes:
+      - ./local-data/redisinsight:/db
+    depends_on:
+      - redis-cluster-creator
+  redis-cluster-creator:
+    image: redis:latest
+    ports:
+      - 6937:6999
+    networks:
+      - redis-cluster-compose
+    command: redis-cli -p 7000 --cluster create redis-node-1:7000 redis-node-2:7001 --cluster-replicas 1 --cluster-yes
+    depends_on:
+      - redis-node-1
+      - redis-node-2
 
 
   # desci_nodes_backend_test:
