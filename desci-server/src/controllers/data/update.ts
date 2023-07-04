@@ -111,7 +111,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   if (externalUrl) externalUrl = JSON.parse(externalUrl);
   if (externalCids) externalCids = JSON.parse(externalCids);
   let uploaded: IpfsPinnedResult[];
-
   if (externalCids && Object.entries(externalCids).length > 0)
     return res.status(400).json({ error: 'EXTERNAL CID PASSED IN, use externalCid update route instead' });
 
@@ -227,7 +226,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   const OldTreePathsMap = oldFlatTree.reduce((map, branch) => {
     map[branch.path] = true;
     return map;
-  });
+  }, {});
 
   let newPathsFormatted: string[] = [];
   const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
@@ -387,7 +386,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     const existingRefMap = existingRefs.reduce((map, ref) => {
       map[neutralizePath(ref.path)] = ref;
       return map;
-    });
+    }, {});
 
     const dataRefCreates = [];
     const dataRefUpdates = [];
