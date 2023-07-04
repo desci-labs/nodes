@@ -15,6 +15,7 @@ import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/dr
 
 import { ErrorResponse, updateManifestDataBucket } from './update';
 import { getLatestManifest, persistManifest } from './utils';
+import { prepareDataRefs } from 'utils/dataRefTools';
 
 interface DeleteResponse {
   status?: number;
@@ -76,40 +77,33 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       },
     });
 
-    const externalCidMap = await generateExternalCidMap(node.uuid);
-    const tree = await getDirectoryTree(updatedRootCid, externalCidMap);
-    const flatTree: Partial<RecursiveLsResult>[] = recursiveFlattenTree(tree) as RecursiveLsResult[];
-    flatTree.push({
-      cid: updatedRootCid,
-      path: updatedRootCid,
-    });
+    //map existing ref neutral paths to the ref
+    const existingRefMap = existingDataRefs.reduce((map, ref) => {
+      map[neutralizePath(ref.path)] = ref;
+      return map;
+    }, {});
 
-    const dataRefsToUpdate: Partial<DataReference>[] = flatTree.map((f) => {
-      if (typeof f.cid !== 'string') f.cid = (f as any).cid.toString();
-      return {
-        cid: f.cid,
-        rootCid: updatedRootCid,
-        path: f.path,
-      };
-    });
+    const newRefs = await prepareDataRefs(node.uuid, latestManifest, updatedRootCid);
 
-    const dataRefUpdates = dataRefsToUpdate
-      .filter((dref) => {
-        const neutralPath = dref.path.replace(updatedRootCid, 'root');
-        return !neutralPath.startsWith(path);
-      })
-      .map((dref) => {
-        const neutralPath = dref.path.replace(updatedRootCid, 'root');
-        const match = existingDataRefs.find((ref) => neutralizePath(ref.path) === neutralPath);
-        dref.id = match?.id;
-        return dref;
-      });
+    // Find the dags that need updating
+    const dataRefUpdates: Partial<DataReference>[] = newRefs.map((newDataRef) => {
+      const newRefNeutralPath = neutralizePath(newDataRef.path);
+      const match = existingRefMap[newRefNeutralPath];
+      match.rootCid = updatedRootCid;
+      if (match) {
+        return { ...match, newDataRef };
+      } else {
+        return newDataRef;
+      }
+    });
 
     /*
      ** Delete dataRefs, add to cidPruneList
      */
     const deneutralizedPath = deneutralizePath(path, dataBucket?.payload?.cid);
-    const dataRefsToDelete = existingDataRefs.filter((e) => e.path.startsWith(deneutralizedPath));
+    const dataRefsToDelete = existingDataRefs.filter(
+      (e) => e.path.startsWith(deneutralizedPath + '/') || e.path === deneutralizedPath,
+    );
 
     const dataRefDeletionIds = dataRefsToDelete.map((e) => e.id);
     const formattedPruneList = dataRefsToDelete.map((e) => {
@@ -139,7 +133,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
      ** Delete components in Manifest, update DAG cids in manifest
      */
     const componentDeletionIds = latestManifest.components
-      .filter((c) => c.payload?.path?.startsWith(path))
+      .filter((c) => c.payload?.path?.startsWith(path + '/') || c.payload?.path === path)
       .map((c) => c.id);
 
     let updatedManifest = deleteComponentsFromManifest({
