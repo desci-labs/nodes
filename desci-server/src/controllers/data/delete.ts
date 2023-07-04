@@ -3,19 +3,18 @@ import {
   ResearchObjectV1,
   deneutralizePath,
   neutralizePath,
-  recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 
 import prisma from 'client';
 import parentLogger from 'logger';
-import { RecursiveLsResult, getDirectoryTree, removeFileFromDag } from 'services/ipfs';
-import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
+import { removeFileFromDag } from 'services/ipfs';
+import { prepareDataRefs } from 'utils/dataRefTools';
+import { updateManifestComponentDagCids } from 'utils/driveUtils';
 
 import { ErrorResponse, updateManifestDataBucket } from './update';
 import { getLatestManifest, persistManifest } from './utils';
-import { prepareDataRefs } from 'utils/dataRefTools';
 
 interface DeleteResponse {
   status?: number;
@@ -91,7 +90,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       const match = existingRefMap[newRefNeutralPath];
       match.rootCid = updatedRootCid;
       if (match) {
-        return { ...match, newDataRef };
+        return { ...match, ...newDataRef };
       } else {
         return newDataRef;
       }
