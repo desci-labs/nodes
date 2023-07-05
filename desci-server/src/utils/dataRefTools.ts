@@ -1,19 +1,26 @@
-import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import {
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+  neutralizePath,
+  recursiveFlattenTree,
+} from '@desci-labs/desci-models';
 import { DataReference, DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
-import { CidSource, discoveryLs, getDirectoryTree } from 'services/ipfs';
+import parentLogger from 'logger';
+import { discoveryLs, getDirectoryTree } from 'services/ipfs';
 import { objectPropertyXor, omitKeys } from 'utils';
 
 import {
   generateExternalCidMap,
-  recursiveFlattenTree,
   generateManifestPathsToDbTypeMap,
-  neutralizePath,
   inheritComponentType,
+  ExternalCidMap,
 } from './driveUtils';
+
+const logger = parentLogger.child({ module: 'Utils::DataRefTools' });
 
 // generates data references for the contents of a manifest
 export async function generateDataReferences(
@@ -32,7 +39,7 @@ export async function generateDataReferences(
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   const dataBucketCid = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
     .cid;
-  console.log('DATA BUCKET CID: ', dataBucketCid);
+  logger.info({ fn: 'generateDataReferences' }, `DATA BUCKET CID: ${dataBucketCid}`);
   const dataRootEntry: Prisma.DataReferenceCreateManyInput = {
     cid: dataBucketCid,
     path: dataBucketCid,
@@ -48,7 +55,7 @@ export async function generateDataReferences(
   };
 
   const externalCidMap = await generateExternalCidMap(node.uuid);
-  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap));
+  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
   if (markExternals) {
     dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
   }
@@ -81,6 +88,7 @@ export async function prepareDataRefs(
   manifest: ResearchObjectV1,
   rootDagCid: string,
   markExternals = false,
+  externalCidMapConcat?: ExternalCidMap, // adds externalCidMapConcat to the externalCidMap generated from the nodeUuid
 ): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
   nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
   const node = await prisma.node.findFirst({
@@ -105,10 +113,72 @@ export async function prepareDataRefs(
     ...(markExternals ? { external: null } : {}),
   };
 
-  const externalCidMap = await generateExternalCidMap(node.uuid);
-  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap));
+  const externalCidMap = { ...(await generateExternalCidMap(node.uuid)), ...externalCidMapConcat };
+  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
   if (markExternals) {
     dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
+  }
+  const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
+
+  const dataTreeToPubRef: Prisma.DataReferenceCreateManyInput[] = dataTree.map((entry) => {
+    const neutralPath = neutralizePath(entry.path);
+    const dbType = inheritComponentType(neutralPath, manifestPathsToDbTypes);
+    return {
+      cid: entry.cid,
+      path: entry.path,
+      userId: node.ownerId,
+      rootCid: dataBucketCid,
+      root: false,
+      directory: entry.type === 'dir',
+      size: entry.size,
+      type: dbType,
+      nodeId: node.id,
+      ...(!markExternals ? {} : entry.external ? { external: true } : { external: null }),
+    };
+  });
+
+  return [dataRootEntry, ...dataTreeToPubRef];
+}
+
+// used to prepare data refs for a given dag and manifest (differs from generateDataReferences in that you don't need the updated manifestCid ahead of time)
+export async function prepareDataRefsExternalCids(
+  nodeUuid: string,
+  manifest: ResearchObjectV1,
+  rootDagCid: string,
+  markExternals = false,
+  externalCidMapConcat?: ExternalCidMap, // adds externalCidMapConcat to the externalCidMap generated from the nodeUuid
+): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
+  nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
+  const node = await prisma.node.findFirst({
+    where: {
+      uuid: nodeUuid,
+    },
+  });
+  if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
+  const manifestEntry: ResearchObjectV1 = manifest;
+  const dataBucketCid = rootDagCid;
+
+  const dataRootEntry: Prisma.DataReferenceCreateManyInput = {
+    cid: dataBucketCid,
+    path: dataBucketCid,
+    userId: node.ownerId,
+    root: true,
+    rootCid: dataBucketCid,
+    directory: true,
+    size: 0,
+    type: DataType.DATA_BUCKET,
+    nodeId: node.id,
+    ...(markExternals ? { external: null } : {}),
+  };
+
+  const externalCidMap = { ...(await generateExternalCidMap(node.uuid)), ...externalCidMapConcat };
+  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, false);
+  let dataTree;
+
+  if (markExternals) {
+    dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
+  } else {
+    dataTree = recursiveFlattenTree(tree);
   }
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
 
@@ -239,7 +309,8 @@ export async function validateDataReferences(
   const totalDiffRefs = Object.keys(diffRefs).length;
 
   if (totalMissingRefs) {
-    console.log(
+    logger.info(
+      { fn: 'validateDataReferences' },
       `[validateDataReferences (MISSING)] node id: ${
         node.id
       } is missing ${totalMissingRefs} data refs for dataBucketCid: ${dataBucketCid}, missingRefs: ${JSON.stringify(
@@ -248,11 +319,12 @@ export async function validateDataReferences(
         2,
       )}`,
     );
-    console.log('_______________________________________________________________________________________');
+    logger.debug('_______________________________________________________________________________________');
   }
 
   if (totalUnusedRefs) {
-    console.log(
+    logger.info(
+      { fn: 'validateDataReferences' },
       `[validateDataReferences (UNUSED)] node id: ${
         node.id
       } has ${totalUnusedRefs} unused data refs for dataBucketCid: ${dataBucketCid}, unusedRefs: ${JSON.stringify(
@@ -261,11 +333,12 @@ export async function validateDataReferences(
         2,
       )}`,
     );
-    console.log('_______________________________________________________________________________________');
+    logger.debug('_______________________________________________________________________________________');
   }
 
   if (totalDiffRefs) {
-    console.log(
+    logger.info(
+      { fn: 'validateDataReferences' },
       `[validateDataReferences (DIFF)] node id: ${
         node.id
       } has ${totalDiffRefs} refs with non matching props for dataBucketCid: ${dataBucketCid}, diffRefs: ${JSON.stringify(
@@ -274,7 +347,7 @@ export async function validateDataReferences(
         2,
       )}`,
     );
-    console.log('_______________________________________________________________________________________');
+    logger.debug('_______________________________________________________________________________________');
   }
   return { missingRefs, unusedRefs, diffRefs };
 }
@@ -303,7 +376,10 @@ export async function validateAndHealDataRefs(
           data: missingRefs,
           skipDuplicates: true,
         });
-    console.log(`[validateAndFixDataRefs (MISSING)] node id: ${nodeUuid}, added ${addedRefs.count} missing data refs`);
+    logger.info(
+      { fn: 'validateAndHealDataRefs' },
+      `[validateAndFixDataRefs (MISSING)] node id: ${nodeUuid}, added ${addedRefs.count} missing data refs`,
+    );
   }
   if (unusedRefs.length) {
     const unusedRefIds = unusedRefs.map((ref) => ref.id);
@@ -314,7 +390,8 @@ export async function validateAndHealDataRefs(
       : await prisma.dataReference.deleteMany({
           where: { id: { in: unusedRefIds } },
         });
-    console.log(
+    logger.info(
+      { fn: 'validateAndHealDataRefs' },
       `[validateAndFixDataRefs (UNUSED)] node id: ${nodeUuid}, deleted ${deletedRefs.count} unused data refs`,
     );
   }
@@ -326,6 +403,9 @@ export async function validateAndHealDataRefs(
         ? await prisma.publicDataReference.update(updateOp)
         : await prisma.dataReference.update(updateOp);
     });
-    console.log(`[validateAndFixDataRefs (DIFF)] node id: ${nodeUuid}, healed ${updatedRefs.length} diff data refs`);
+    logger.info(
+      { fn: 'validateAndHealDataRefs' },
+      `[validateAndFixDataRefs (DIFF)] node id: ${nodeUuid}, healed ${updatedRefs.length} diff data refs`,
+    );
   }
 }

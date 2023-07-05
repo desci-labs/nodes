@@ -2,9 +2,12 @@ import crypto from 'crypto';
 
 import { User } from '@prisma/client';
 
+import parentLogger from 'logger';
 import createRandomCode from 'utils/createRandomCode';
 
 import client from '../client';
+
+const logger = parentLogger.child({ module: 'Services::Invites' });
 
 const inviteUser = async (from: User, invitedEmail: string) => {
   if (!from.isAdmin) {
@@ -23,7 +26,7 @@ const inviteUser = async (from: User, invitedEmail: string) => {
 
   if (invite.length) {
     const ids = invite.map((i) => i.id);
-    console.log('invite::inviteUser', invitedEmail, ids);
+    logger.trace({ fn: 'inviteUser', invitedEmail, ids, from }, 'invite::inviteUser');
     await client.invite.updateMany({
       where: {
         id: {
@@ -57,7 +60,7 @@ const acceptInvite = async (inviteCode: string, email: string) => {
       expired: false,
     },
   });
-  console.log('invites::acceptInvite', inviteCode, email, invite);
+  logger.trace({ fn: 'acceptInvite', inviteCode, email, invite }, 'invites::acceptInvite');
   if (!invite) {
     throw Error('Invite code invalid');
   }

@@ -1,13 +1,13 @@
 import 'mocha';
 import fs from 'fs';
 
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { ResearchObjectV1, recursiveFlattenTree } from '@desci-labs/desci-models';
 import { User, Node } from '@prisma/client';
 import { expect } from 'chai';
 
 import prisma from '../../src/client';
 import * as ipfs from '../../src/services/ipfs';
-import { generateExternalCidMap, recursiveFlattenTree } from '../../src/utils/driveUtils';
+import { generateExternalCidMap } from '../../src/utils/driveUtils';
 import { expectThrowsAsync } from '../util';
 
 describe('IPFS', () => {
@@ -55,10 +55,10 @@ describe('IPFS', () => {
 
     it('adds a manifest and adds a data reference', async () => {
       const res = await ipfs.updateManifestAndAddToIpfs(EXAMPLE_MANIFEST, { userId: admin.id, nodeId: node.id });
-      expect(res.cid).to.eq('bafkreigbnuw6byxj75f4w4i55xh36hjo6isinqec62jzfxsbieosdipyja');
+      expect(res.cid).to.eq('bafkreidf26rt63gbrwz4inlosn74hgb245tmkj7tbazrkdrchfqdfbn3u4');
       expect(res.ref).to.not.be.undefined;
-      expect(res.ref.size).to.eq(47);
-      console.log('RES', res);
+      expect(res.ref.size).to.eq(42);
+      // console.log('RES', res);
     });
     it('supports directories', async () => {
       const tmp = '/tmp';

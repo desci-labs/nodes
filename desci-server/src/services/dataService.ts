@@ -5,6 +5,7 @@
 import { User } from '@prisma/client';
 
 import prisma from 'client';
+import logger from 'logger';
 import { gbToBytes } from 'utils/driveUtils';
 
 export const getDataUsageForUserBytes = async (user: User) => {
@@ -54,13 +55,18 @@ export const hasAvailableDataUsageForUpload = async (
 
   const hasSpaceForUpload = usageAfterUploadBytes <= usersUploadLimitBytes;
 
-  console.log('dataService::hasAvailableDataUsageForUpload', {
-    fileSizeBytes,
-    currentUsageBytes,
-    usersUploadLimitBytes,
-    usageAfterUploadBytes,
-    hasSpaceForUpload,
-  });
+  logger.info(
+    {
+      module: 'Services::DataService',
+      fn: 'hasAvailableDataUsageForUpload',
+      fileSizeBytes,
+      currentUsageBytes,
+      usersUploadLimitBytes,
+      usageAfterUploadBytes,
+      hasSpaceForUpload,
+    },
+    'dataService::hasAvailableDataUsageForUpload',
+  );
 
   return hasSpaceForUpload;
 };

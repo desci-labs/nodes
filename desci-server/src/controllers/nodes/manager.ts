@@ -1,14 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 
 export const deleteNode = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;
   const uuid = req.params.uuid as string;
-  console.log('deleteNode', uuid, user);
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::deleteController',
+    body: req.body,
+    uuid,
+    user: (req as any).user,
+  });
+  logger.trace(`deleteNode ${uuid}`);
   const node = await prisma.node.findFirst({ where: { uuid: uuid + '.' } });
 
-  console.log('delete', uuid, node, user);
+  logger.info({ node }, 'delete');
 
   if (user.id !== node.ownerId) {
     res.status(401).send({ ok: false, message: 'Unauthorized' });
@@ -19,6 +27,6 @@ export const deleteNode = async (req: Request, res: Response, next: NextFunction
     where: { id: node.id },
     data: { isDeleted: true, deletedAt: new Date() },
   });
-  console.log('soft deleted', deleted);
+  logger.info({ deleted }, 'soft deleted');
   res.status(200).send({ ok: true });
 };

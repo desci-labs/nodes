@@ -5,7 +5,7 @@ metadata:
   labels:
     App: DesciServer
 spec:
-  replicas: 2
+  replicas: 16
   revisionHistoryLimit: 2
   selector:
     matchLabels:
@@ -82,11 +82,33 @@ spec:
             - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
           ports:
             - containerPort: 5420
+              name: server-api
           resources:
             limits:
-              cpu: '0.5'
-              memory: 2Gi
+              cpu: '1.0'
+              memory: 5Gi
             requests:
-              cpu: 250m
-              memory: 1Gi
+              cpu: '0.8'
+              memory: 5Gi
+          # restart pod after failureThreshold*periodSeconds total seconds
+          livenessProbe:
+            httpGet:
+              path: /
+              port: server-api
+            failureThreshold: 80
+            periodSeconds: 3
+          # temporarily stop sending traffic to pod after failureThreshold*periodSeconds total seconds
+          readinessProbe:
+            httpGet:
+              path: /
+              port: server-api
+            failureThreshold: 3
+            periodSeconds: 1
+          # wait for pod to start for failureThreshold*periodSeconds total seconds
+          startupProbe:
+            httpGet:
+              path: /
+              port: server-api
+            failureThreshold: 200
+            periodSeconds: 1
       serviceAccountName: 'vault-auth'

@@ -3,7 +3,7 @@
     "target": "esnext",
     "module": "commonjs",
     "lib": ["dom", "es6", "esnext", "es2017", "esnext.asynciterable"],
-    "sourceMap": true,
+    // "sourceMap": true,
     "outDir": "./dist",
     "moduleResolution": "node",
     "removeComments": true,
@@ -15,9 +15,14 @@
     "typeRoots": ["./src/types", "./node_modules/@types"],
     "baseUrl": "src/",
     "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "inlineSourceMap": true
   },
   "include": ["./src/**/*.tsx", "./src/**/*.ts", "./src/**/*.cjs"],
   "exclude": ["node_modules", "test/**/*.ts"],
-  "compileOnSave": true
+  "compileOnSave": true,
+  "ts-node": {
+    "swc": true
+  }
 }

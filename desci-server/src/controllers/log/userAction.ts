@@ -1,6 +1,7 @@
 import { ActionType, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
+import logger from 'logger';
 import { saveInteraction } from 'services/interactionLog';
 
 /**
@@ -86,7 +87,7 @@ export const logUserAction = async (req: Request, res: Response, next: NextFunct
 
     return;
   } catch (err) {
-    console.error('err', err);
+    logger.error({ fn: 'logUserAction', err }, 'error');
     res.status(500).send({ err });
     return;
   }

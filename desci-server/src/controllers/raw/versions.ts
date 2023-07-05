@@ -1,10 +1,6 @@
-import { ResearchObjectV1, ResearchObjectV1History, RESEARCH_OBJECT_NODES_PREFIX } from '@desci-labs/desci-models';
-import { Node } from '@prisma/client';
-import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
-import { CID } from 'multiformats/cid';
 
-import prisma from 'client';
+import logger from 'logger';
 import { getIndexedResearchObjects } from 'theGraph';
 
 /**
@@ -19,7 +15,10 @@ export const versions = async (req: Request, res: Response, next: NextFunction) 
     result = researchObjects[0];
     graphOk = true;
   } catch (err) {
-    console.error('[ERROR] graph lookup fail', err.message);
+    logger.error(
+      { module: 'RAW::versionsController', graphOk, result, err },
+      `[ERROR] graph lookup fail ${err.message}`,
+    );
   }
   if (!result) {
     res.status(404).send({ ok: false, msg: `could not locate uuid ${uuid}` });

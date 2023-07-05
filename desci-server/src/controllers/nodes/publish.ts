@@ -3,6 +3,7 @@ import { ActionType, Prisma } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 import { saveInteraction } from 'services/interactionLog';
 import {
   publishResearchObject,
@@ -15,9 +16,19 @@ import { discordNotify } from 'utils/discordUtils';
 
 // call node publish service and add job to queue
 export const publish = async (req: Request, res: Response, next: NextFunction) => {
-  debugger;
   const { uuid, cid, manifest, transactionId } = req.body;
   const email = (req as any).user.email;
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::publishController',
+    body: req.body,
+    uuid,
+    cid,
+    manifest,
+    transactionId,
+    email,
+    user: (req as any).user,
+  });
   if (!uuid || !cid || !manifest) {
     return res.status(404).send({ message: 'uuid, cid, and manifest must be valid' });
   }
@@ -41,7 +52,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
       },
     });
     if (!node) {
-      console.log(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
+      logger.warn({ owner, uuid }, `unauthed node user: ${owner}, node uuid provided: ${uuid}`);
       return res.status(400).json({ error: 'failed' });
     }
     /**TODO: END MOVE TO MIDDLEWARE */
@@ -55,7 +66,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
       },
     });
 
-    console.log(`[publish::publish] nodeUuid=${node.uuid}, manifestCid=${cid}, transaction=${transactionId}`);
+    logger.trace(`[publish::publish] nodeUuid=${node.uuid}, manifestCid=${cid}, transaction=${transactionId}`);
 
     const cidsPayload = {
       nodeId: node.id,
@@ -99,7 +110,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
         result: { newPublicDataRefs, dataMirrorJobs },
       });
     } catch (error) {
-      console.error(`[publish::publish] error=${error}`);
+      logger.error({ error }, `[publish::publish] error=${error}`);
       /**
        * Save a failure for configurable service quality tracking purposes
        */
@@ -144,7 +155,10 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
         versionId: nodeVersion.id,
       },
     });
-    console.log(`[publish::publish] publicDataReferences=${JSON.stringify(publicDataReferences)}`);
+    logger.debug(
+      { publicDataReferences },
+      `[publish::publish] publicDataReferences=${JSON.stringify(publicDataReferences)}`,
+    );
 
     // trigger ipfs storage upload, but don't wait for it to finish, will happen async
     publishResearchObject(publicDataReferences).then(handleMirrorSuccess).catch(handleMirrorFail);
@@ -158,7 +172,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
       ok: true,
     });
   } catch (err) {
-    console.error('[publish::publish] node-publish-err', err);
+    logger.error({ err }, '[publish::publish] node-publish-err');
     return res.status(400).send({ ok: false, error: err.message });
   }
 };

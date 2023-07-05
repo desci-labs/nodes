@@ -1,4 +1,6 @@
 import { randomBytes } from 'crypto';
+import fs, { promises as fsPromises } from 'fs';
+import * as path from 'path';
 import { Readable } from 'stream';
 
 import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
@@ -6,8 +8,14 @@ import axios from 'axios';
 import { base16 } from 'multiformats/bases/base16';
 import { CID } from 'multiformats/cid';
 import { encode, decode } from 'url-safe-base64';
+import * as yauzl from 'yauzl';
 
+import parentLogger from 'logger';
 import { processGithubUrl } from 'utils/githubUtils';
+
+const logger = parentLogger.child({
+  module: 'utils',
+});
 
 export const hideEmail = (email: string) => {
   return email.replace(/(.{1,1})(.*)(@.*)/, '$1...$3');
@@ -26,7 +34,7 @@ export const randomUUID64 = () => {
   const bytes = randomBytes(32);
 
   const encoded = encodeBase64UrlSafe(bytes);
-  console.log('GOT BYTES', Buffer.from(bytes).toString('hex'), encoded);
+  logger.debug({ fn: 'randomUUID64' }, `GOT BYTES ${Buffer.from(bytes).toString('hex')} ${encoded}`);
   return encoded;
 };
 
@@ -77,9 +85,95 @@ export function bufferToStream(buffer: Buffer): Readable {
   return stream;
 }
 
-export async function zipUrlToBuffer(url: string): Promise<Buffer> {
-  const response = await axios.get(url, { responseType: 'arraybuffer' });
-  return Buffer.from(response.data);
+export async function zipUrlToStream(url: string): Promise<Readable> {
+  const response = await axios.get(url, { responseType: 'stream' });
+  return response.data;
+}
+
+export async function calculateTotalZipUncompressedSize(zipPath: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let totalSize = 0;
+
+    yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
+      if (err) reject(err);
+
+      zipfile.readEntry();
+
+      zipfile.on('entry', (entry) => {
+        if (!entry.isDirectory) {
+          totalSize += entry.uncompressedSize;
+        }
+        zipfile.readEntry();
+      });
+
+      zipfile.on('end', () => {
+        resolve(totalSize);
+      });
+    });
+  });
+}
+
+// Extracts a zip file to a given path, deletes the zip, and returns the extracted path.
+export async function extractZipFileAndCleanup(zipFilePath: string, outputDirectory: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    yauzl.open(zipFilePath, { lazyEntries: true }, (err, zipfile) => {
+      if (err) return reject(err);
+
+      zipfile.readEntry();
+
+      zipfile.on('entry', (entry) => {
+        // Skip directories
+        if (/\/$/.test(entry.fileName)) {
+          zipfile.readEntry();
+          return;
+        }
+
+        zipfile.openReadStream(entry, (err, readStream) => {
+          if (err) return reject(err);
+
+          // Ensure parent directory exists.
+          const filePath = path.join(outputDirectory, entry.fileName);
+          const directoryName = path.dirname(filePath);
+          fs.mkdirSync(directoryName, { recursive: true });
+
+          // Create write stream.
+          const writeStream = fs.createWriteStream(filePath);
+
+          // Pipe readStream to writeStream.
+          readStream.on('error', reject);
+          writeStream.on('error', reject);
+          writeStream.on('finish', () => zipfile.readEntry());
+
+          readStream.pipe(writeStream);
+        });
+      });
+
+      zipfile.on('end', async () => {
+        try {
+          // Delete the original zip file.
+          await fs.promises.unlink(zipFilePath);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      zipfile.on('error', reject);
+    });
+  });
+}
+
+export async function saveZipStreamToDisk(zipStream: Readable, outputPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Create a writable stream to the output file
+    const fileStream = fs.createWriteStream(outputPath);
+
+    // Pipe the ZIP stream into the file stream
+    zipStream.pipe(fileStream);
+
+    fileStream.on('finish', resolve);
+    fileStream.on('error', reject);
+  });
 }
 
 export const processExternalUrls = async (

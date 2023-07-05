@@ -6,12 +6,13 @@ import { CID } from 'multiformats/cid';
 
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
+import parentLogger from 'logger';
 
 export const cleanupManifestUrl = (url: string, gateway?: string) => {
   if (url && (PUBLIC_IPFS_PATH || gateway)) {
     const s = url.split('/');
     const res = `${gateway ? gateway : PUBLIC_IPFS_PATH}/${s[s.length - 1]}`;
-    console.log(`resolving ${url} => ${res}`);
+    parentLogger.info({ fn: 'cleanupManifestUrl', url, gateway }, `resolving ${url} => ${res}`);
     return res;
   }
   return url;
@@ -46,11 +47,19 @@ const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node
 
 // Return ResearchObject manifest via CID or ResearchObject database ID
 export const show = async (req: Request, res: Response, next: NextFunction) => {
-  debugger;
   let ownerId = (req as any).user?.id;
   const shareId = req.query.shareId as string;
   let cid: string = null;
   let pid = req.params[0];
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::showController',
+    body: req.body,
+    cid,
+    pid,
+    shareId,
+    user: (req as any).user,
+  });
 
   if (shareId) {
     const privateShare = await prisma.privateShare.findFirst({
@@ -68,7 +77,6 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
     return;
   }
 
-  // console.log(pid, ownerId, RESEARCH_OBJECT_NODES_PREFIX);
   if (pid.substring(0, RESEARCH_OBJECT_NODES_PREFIX.length) === RESEARCH_OBJECT_NODES_PREFIX) {
     let id = 0;
     let uuid = null;
@@ -78,8 +86,6 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
       }
       id = parseInt((pid.substring(RESEARCH_OBJECT_NODES_PREFIX.length) || '').toString());
     } catch (e) {
-      // console.log('YERROR');
-      // console.error(e);
       uuid = (pid.substring(RESEARCH_OBJECT_NODES_PREFIX.length) || '').toString();
     }
     const discovery = await prisma.node.findFirst({
@@ -102,7 +108,10 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
 
       delete (discovery as any).restBody;
     } catch (err) {
-      console.error('nodes/show.ts: failed to preload manifest', discovery.manifestUrl, gatewayUrl, err);
+      logger.error(
+        { err, manifestUrl: discovery.manifestUrl, gatewayUrl },
+        'nodes/show.ts: failed to preload manifest',
+      );
     }
 
     res.send(discovery);
@@ -116,7 +125,7 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
     res.send(data);
     return;
   } catch (e) {
-    console.error(e);
+    logger.error({ error: e }, 'error');
     // res.status(404).send();
     // example
     const discovery = await prisma.node.findFirst();

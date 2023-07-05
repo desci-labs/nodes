@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
 import { logUserAction } from 'controllers/log';
+import logger from 'logger';
 import { saveInteraction } from 'services/interactionLog';
 
 export const profile = async (req: Request, res: Response, next: NextFunction) => {
@@ -27,7 +28,7 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
   try {
     (extra as any).vscode = user.canRunCode ? process.env.VSCODE_ACCESS_TOKEN : undefined;
   } catch (err) {
-    console.error('could not set vscode due to db migration');
+    logger.error({ fn: 'profile', err }, 'could not set vscode due to db migration');
   }
   saveInteraction(req, 'USER_ACTION', { action: 'PROFILE_REQ' }, user.id);
   res.send({
