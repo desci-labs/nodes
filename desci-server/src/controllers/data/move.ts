@@ -59,7 +59,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
      */
     const externalCidMap = await generateExternalCidMap(node.uuid);
     const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(dataBucket.payload.cid, externalCidMap));
-    const hasDuplicates = oldFlatTree.some((oldBranch) => neutralizePath(oldBranch.path).includes(newPath));
+    const hasDuplicates = oldFlatTree.some((oldBranch) => neutralizePath(oldBranch.path) === newPath);
     if (hasDuplicates) {
       logger.info('[DATA::Move] Rejected as duplicate paths were found');
       return res.status(400).json({ error: 'Name collision' });
@@ -110,11 +110,16 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     const flatTree = recursiveFlattenTree(
       await getDirectoryTree(updatedRootCid, externalCidMap),
     ) as RecursiveLsResult[];
+    const flatTreePathMap = flatTree.reduce((map, branch) => {
+      branch.path = neutralizePath(branch.path);
+      map[branch.path] = branch;
+      return map;
+    }, {});
     for (let i = 0; i < updatedManifest.components.length; i++) {
       const currentComponent = updatedManifest.components[i];
       if (currentComponent.payload.path === 'root' || currentComponent.type === ResearchObjectComponentType.LINK)
         continue; //skip data bucket and ext-links
-      const match = flatTree.find((branch) => neutralizePath(branch.path) === currentComponent.payload.path);
+      const match = flatTreePathMap[currentComponent.payload.path];
       if (match) {
         updatedManifest.components[i].payload.cid = match?.cid;
         updatedManifest.components[i].payload.url = match?.cid;
@@ -133,28 +138,29 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     });
 
     const newRefs = await prepareDataRefs(node.uuid, updatedManifest, updatedRootCid);
+    const existingRefMap = existingDataRefs.reduce((map, ref) => {
+      map[neutralizePath(ref.path)] = ref;
+      return map;
+    }, {});
 
     const dataRefsToUpdate = newRefs.map((newRef) => {
       const neutralizedNewRefPath = neutralizePath(newRef.path);
-      const match = existingDataRefs.find((oldRef) => {
-        const neutralizedOldRefPath = neutralizePath(oldRef.path);
-        if (neutralizedOldRefPath.startsWith(oldPath)) {
-          const replacedPath = neutralizePath(newRef.path).replace(newPath, oldPath);
-          return neutralizedOldRefPath === replacedPath;
-        } else {
-          return neutralizedOldRefPath === neutralizedNewRefPath;
-        }
-      });
-      if (match?.id) {
-        newRef.id = match?.id;
-      } else {
-        logger.warn(
+      // if paths are unchanged (unaffected by the move), their match is found in the line below
+      let match = existingRefMap[neutralizedNewRefPath];
+      if (!match) {
+        // if paths are changed (affected by the move), their match should be found in the line below
+        const wouldBeOldPath = neutralizedNewRefPath.replace(newPath, oldPath);
+        match = existingRefMap[wouldBeOldPath];
+      }
+      if (match === undefined) {
+        // In the move op, all data refs should have a match, if a match isn't found it indicates data refs were missing.
+        throw Error(
           `[DATA::Move] Failed to find match for data ref:
-          ${newRef}
+          ${JSON.stringify(newRef)}
           node ${node.uuid} may need its data references healed.`,
         );
       }
-      return newRef;
+      return { ...match, ...newRef };
     });
 
     const [...updates] = await prisma.$transaction([
