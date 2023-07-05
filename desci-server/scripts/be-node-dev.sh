@@ -13,4 +13,4 @@ cd desci-server
 yarn run migrate
 npx prisma db seed
 (npx prisma studio&)
-npm run dev
+yarn dev
