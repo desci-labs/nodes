@@ -146,6 +146,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     (externalUrl && externalUrl?.url?.length && componentType === ResearchObjectComponentType.PDF)
   ) {
     try {
+      debugger;
       // External URL code, only supports github for now
       if (componentType === ResearchObjectComponentType.CODE) {
         const processedUrl = await processExternalUrls(externalUrl.url, componentType);
@@ -155,8 +156,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
         fs.mkdirSync(zipPath.replace('.zip', ''), { recursive: true });
         await saveZipStreamToDisk(zipStream, zipPath);
         const totalSize = await calculateTotalZipUncompressedSize(zipPath);
-        // const { files, totalSize } = await zipToPinFormat(zipStream, externalUrl.path);
-        // externalUrlFiles = files;
         externalUrlTotalSizeBytes = totalSize;
       }
       // External URL pdf
@@ -269,13 +268,15 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     const filesToPin = structuredFilesForPinning.length ? structuredFilesForPinning : externalUrlFiles;
     if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
     if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
-    logger.info('[UPDATE DATASET] Pinned files: ', uploaded);
+    logger.info('[UPDATE DATASET] Pinned files: ', uploaded.length);
   }
 
   // Pin the zip file
   if (zipPath.length > 0) {
     const outputPath = zipPath.replace('.zip', '');
+    logger.debug({ outputPath }, 'Starting unzipping to output directory');
     await extractZipFileAndCleanup(zipPath, outputPath);
+    logger.debug({ outputPath }, 'extraction complete, starting pinning');
     const pinResult = await addDirToIpfs(outputPath);
 
     // Overrides the path name of the root directory
@@ -460,7 +461,14 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   } catch (e: any) {
     logger.error(`[UPDATE DATASET] error: ${e}`);
     if (uploaded.length) {
-      logger.error({ filesPinned: uploaded }, `[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED`);
+      let filesPinned: number | IpfsPinnedResult[] = uploaded;
+      let last10Pinned;
+      if (uploaded.length > 30) {
+        filesPinned = uploaded.length;
+        last10Pinned = uploaded.slice(uploaded.length - 10, uploaded.length);
+      }
+
+      logger.error({ filesPinned, last10Pinned }, `[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED`);
       const formattedPruneList = uploaded.map(async (e) => {
         const neutralPath = neutralizePath(e.path);
         return {
@@ -475,7 +483,10 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
       });
       const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });
       if (prunedEntries.count) {
-        logger.info({ prunedEntries }, `[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`);
+        logger.info(
+          { prunedEntriesCreated: prunedEntries.count },
+          `[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`,
+        );
       } else {
         logger.error(`[UPDATE DATASET E:2] failed adding files to prunelist, db may be down`);
       }

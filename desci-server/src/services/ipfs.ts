@@ -970,7 +970,6 @@ export async function getExternalCidSizeAndType(cid: string) {
       if (fSize) {
         size = fSize;
       } else {
-        // eslint-disable-next-line no-array-reduce/no-reduce
         size = unixFs.blockSizes.reduce((a, b) => a + b, 0);
       }
     }
@@ -991,10 +990,12 @@ export interface ZipToDagAndPinResult {
 export async function addDirToIpfs(directoryPath: string): Promise<IpfsPinnedResult[]> {
   // Add all files in the directory to IPFS using globSource
   const files = [];
-  for await (const file of client.addAll(globSource(directoryPath, '**/*'))) {
+  for await (const file of client.addAll(globSource(directoryPath, '**/*'), { cidVersion: 1 })) {
     files.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
-  logger.info({ fn: 'addFilesToIpfsAndCleanup', files }, 'Files added to IPFS:');
+  const totalFiles = files.length;
+  const rootDag = files[totalFiles - 1];
+  logger.info({ fn: 'addFilesToIpfsAndCleanup', rootDag, totalFiles }, 'Files added to IPFS:');
 
   return files;
 }
