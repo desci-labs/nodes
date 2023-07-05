@@ -1,29 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: desci-server-dev
+  name: prod-temp-please-kill-descerver-inspector
   labels:
-    App: DesciServerDev
+    App: ProdPleaseKillDescerverInspector
 spec:
-  replicas: 10
+  replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      App: DesciServerDev
-  strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
+      App: ProdPleaseKillDescerverInspector
   template:
     metadata:
       annotations:
         vault.hashicorp.com/agent-inject: 'true'
         vault.hashicorp.com/agent-inject-status: 'update'
         vault.hashicorp.com/role: app-vault-reader
-        vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/dev/db
+        vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/staging/db
         vault.hashicorp.com/agent-inject-template-config: |
-          {{- with secret "secrets/desci-server/dev/db" -}}
+          {{- with secret "secrets/desci-server/staging/db" -}}
           export PG_HOST={{ .Data.host }}
           export PG_PORT={{ .Data.port }}
           export POSTGRES_USER={{ .Data.user }}
@@ -34,7 +29,7 @@ spec:
           export NODE_ENV=production
           echo "dbset"; 
           {{- end -}}
-          {{- with secret "secrets/desci-server/dev/app" -}}
+          {{- with secret "secrets/desci-server/staging/app" -}}
           echo "appstart"; 
           export JWT_SECRET={{ .Data.JWT_SECRET }}
           export JWT_EXPIRATION=15m
@@ -72,44 +67,22 @@ spec:
           echo "appfinish";
           {{- end -}}
       labels:
-        App: DesciServerDev
+        App: ProdPleaseKillDescerverInspector
     spec:
       containers:
         - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-server-dev:latest
           name: desci-server-dev
           command: ['/bin/bash', '-c']
           args:
-            - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
+            - echo "SOURCING ENV"; source /vault/secrets/config; npx prisma studio;
           ports:
-            - containerPort: 5420
-              name: server-api
+            - containerPort: 5555
+              name: prisma-studio
           resources:
             limits:
-              cpu: '1.0'
-              memory: 5Gi
+              cpu: '4.0'
+              memory: 8Gi
             requests:
-              cpu: '0.8'
-              memory: 5Gi
-          # restart pod after failureThreshold*periodSeconds total seconds
-          livenessProbe:
-            httpGet:
-              path: /
-              port: server-api
-            failureThreshold: 80
-            periodSeconds: 3
-          # temporarily stop sending traffic to pod after failureThreshold*periodSeconds total seconds
-          readinessProbe:
-            httpGet:
-              path: /
-              port: server-api
-            failureThreshold: 3
-            periodSeconds: 1
-          # wait for pod to start for failureThreshold*periodSeconds total seconds
-          startupProbe:
-            httpGet:
-              path: /
-              port: server-api
-            failureThreshold: 200
-            periodSeconds: 1
-
+              cpu: '1.0'
+              memory: 4Gi
       serviceAccountName: 'vault-auth'

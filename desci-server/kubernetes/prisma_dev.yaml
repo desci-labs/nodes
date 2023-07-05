@@ -1,20 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: desci-server-dev
+  name: dev-descerver-inspector
   labels:
-    App: DesciServerDev
+    App: DevDescerverInspector
 spec:
-  replicas: 10
+  replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      App: DesciServerDev
-  strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
+      App: DevDescerverInspector
   template:
     metadata:
       annotations:
@@ -72,44 +67,22 @@ spec:
           echo "appfinish";
           {{- end -}}
       labels:
-        App: DesciServerDev
+        App: DevDescerverInspector
     spec:
       containers:
         - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-server-dev:latest
           name: desci-server-dev
           command: ['/bin/bash', '-c']
           args:
-            - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
+            - echo "SOURCING ENV"; source /vault/secrets/config; npx prisma studio;
           ports:
-            - containerPort: 5420
-              name: server-api
+            - containerPort: 5555
+              name: prisma-studio
           resources:
             limits:
-              cpu: '1.0'
-              memory: 5Gi
+              cpu: '2.0'
+              memory: 4Gi
             requests:
-              cpu: '0.8'
-              memory: 5Gi
-          # restart pod after failureThreshold*periodSeconds total seconds
-          livenessProbe:
-            httpGet:
-              path: /
-              port: server-api
-            failureThreshold: 80
-            periodSeconds: 3
-          # temporarily stop sending traffic to pod after failureThreshold*periodSeconds total seconds
-          readinessProbe:
-            httpGet:
-              path: /
-              port: server-api
-            failureThreshold: 3
-            periodSeconds: 1
-          # wait for pod to start for failureThreshold*periodSeconds total seconds
-          startupProbe:
-            httpGet:
-              path: /
-              port: server-api
-            failureThreshold: 200
-            periodSeconds: 1
-
+              cpu: '1.0'
+              memory: 2Gi
       serviceAccountName: 'vault-auth'
