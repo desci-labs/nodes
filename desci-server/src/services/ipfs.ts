@@ -429,6 +429,9 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
 
     for await (const filedir of lsOp) {
       const promise = new Promise<void>(async (resolve, reject) => {
+        if (filedir.path.includes('test/fixtures/test-module-loading-globalpaths/home-pkg-in-both')) {
+          debugger;
+        }
         const res: any = filedir;
         // if (parent) {
         //   res.parent = parent;
@@ -990,13 +993,14 @@ export interface ZipToDagAndPinResult {
 export async function addDirToIpfs(directoryPath: string): Promise<IpfsPinnedResult[]> {
   // Add all files in the directory to IPFS using globSource
   const files = [];
-  for await (const file of client.addAll(globSource(directoryPath, '**/*'), { cidVersion: 1 })) {
+
+  const source = globSource(directoryPath, '**/*', { hidden: true });
+  for await (const file of client.addAll(source, { cidVersion: 1 })) {
     files.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
   const totalFiles = files.length;
   const rootDag = files[totalFiles - 1];
   logger.info({ fn: 'addFilesToIpfsAndCleanup', rootDag, totalFiles }, 'Files added to IPFS:');
-
   return files;
 }
 

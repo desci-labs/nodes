@@ -146,7 +146,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     (externalUrl && externalUrl?.url?.length && componentType === ResearchObjectComponentType.PDF)
   ) {
     try {
-      debugger;
       // External URL code, only supports github for now
       if (componentType === ResearchObjectComponentType.CODE) {
         const processedUrl = await processExternalUrls(externalUrl.url, componentType);
@@ -382,7 +381,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
         type: { not: DataType.MANIFEST },
       },
     });
-
     //map existing ref neutral paths to the ref
     const existingRefMap = existingRefs.reduce((map, ref) => {
       map[neutralizePath(ref.path)] = ref;
