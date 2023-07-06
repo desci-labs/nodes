@@ -429,9 +429,6 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
 
     for await (const filedir of lsOp) {
       const promise = new Promise<void>(async (resolve, reject) => {
-        if (filedir.path.includes('test/fixtures/test-module-loading-globalpaths/home-pkg-in-both')) {
-          debugger;
-        }
         const res: any = filedir;
         // if (parent) {
         //   res.parent = parent;
