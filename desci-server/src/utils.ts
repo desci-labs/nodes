@@ -183,20 +183,6 @@ export async function saveZipStreamToDisk(zipStream: Readable, outputPath: strin
 
     // Pipe the ZIP stream into the file stream
     zipStream.pipe(fileStream);
-
-    // Pause the readable stream when the writable stream's buffer is full
-    // fileStream.on('drain', () => {
-    //   if (zipStream.isPaused()) {
-    //     zipStream.resume();
-    //   }
-    // });
-
-    // zipStream.on('data', (chunk) => {
-    //   // If the writable stream's internal buffer is full, pause the readable stream
-    //   if (fileStream.write(chunk) === false) {
-    //     zipStream.pause();
-    //   }
-    // });
     zipStream.on('error', reject);
     fileStream.on('error', reject);
 
