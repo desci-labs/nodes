@@ -20,17 +20,12 @@ import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addDirToIpfs,
   addFilesToDag,
-  convertToCidV1,
   FilesToAddToDag,
   getDirectoryTree,
-  getExternalCidSizeAndType,
-  GetExternalSizeAndTypeResult,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
   isDir,
   pinDirectory,
-  pinExternalDags,
-  pubRecursiveLs,
   RecursiveLsResult,
 } from 'services/ipfs';
 import {
@@ -95,7 +90,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl, newFolder)
   //ExternalURL - url + type, code (github) & external pdfs for now
-  //v0 ExternalCids - cids + type (data for now), no pinning
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::UpdateController',
@@ -117,7 +111,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   if (externalUrl) externalUrl = JSON.parse(externalUrl);
   if (externalCids) externalCids = JSON.parse(externalCids);
   let uploaded: IpfsPinnedResult[];
-
   if (externalCids && Object.entries(externalCids).length > 0)
     return res.status(400).json({ error: 'EXTERNAL CID PASSED IN, use externalCid update route instead' });
 
@@ -134,7 +127,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   }
 
   const files = req.files as Express.Multer.File[];
-  if (!arrayXor([externalUrl, files.length, externalCids?.length, newFolderName?.length]))
+  if (!arrayXor([externalUrl, files.length, newFolderName?.length]))
     return res
       .status(400)
       .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
@@ -162,8 +155,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
         fs.mkdirSync(zipPath.replace('.zip', ''), { recursive: true });
         await saveZipStreamToDisk(zipStream, zipPath);
         const totalSize = await calculateTotalZipUncompressedSize(zipPath);
-        // const { files, totalSize } = await zipToPinFormat(zipStream, externalUrl.path);
-        // externalUrlFiles = files;
         externalUrlTotalSizeBytes = totalSize;
       }
       // External URL pdf
@@ -182,26 +173,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     }
   }
 
-  /*
-   ** External CID setup
-   */
-  const cidTypesSizes: Record<string, GetExternalSizeAndTypeResult> = {};
-  if (externalCids && externalCids.length && componentType === ResearchObjectComponentType.DATA) {
-    try {
-      externalCids = externalCids.map((extCid) => ({ ...extCid, cid: convertToCidV1(extCid.cid) }));
-      for (const extCid of externalCids) {
-        const { isDirectory, size } = await getExternalCidSizeAndType(extCid.cid);
-        if (size !== undefined && isDirectory !== undefined) {
-          cidTypesSizes[extCid.cid] = { size, isDirectory };
-        } else {
-          throw new Error(`Failed to get size and type of external CID: ${extCid}`);
-        }
-      }
-    } catch (e: any) {
-      logger.warn(`[UPDATE DAG] External CID Method: ${e}`);
-      return res.status(400).json({ error: 'Failed to resolve external CID' });
-    }
-  }
   //finding rootCid
   const manifestCidEntry = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCidEntry
@@ -214,10 +185,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     .cid;
 
   const manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(latestManifestEntry);
-
-  /*
-   * END REMOVE HERE
-   */
 
   /*
    ** Check if user has enough storage space to upload
@@ -236,7 +203,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
 
   /*
-   ** Check if update path contains externals, temporarily disable adding to external DAGs NOTE: TO BE REMOVED
+   ** Check if update path contains externals, disable adding to external DAGs
    */
   const pathMatch = (oldFlatTree as RecursiveLsResult[]).find((c) => {
     const neutralPath = neutralizePath(c.path);
@@ -254,8 +221,11 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   logger.debug('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
 
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
-  // debugger;
-  const OldTreePaths = oldFlatTree.map((e) => e.path);
+  const OldTreePathsMap = oldFlatTree.reduce((map, branch) => {
+    map[branch.path] = true;
+    return map;
+  }, {});
+
   let newPathsFormatted: string[] = [];
   const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
   if (files.length) {
@@ -282,59 +252,12 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     newPathsFormatted = [header + '/' + newFolderName];
   }
 
-  if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
-    newPathsFormatted = externalCids.map((extCid) => header + '/' + extCid.name);
-  }
-
-  const hasDuplicates = OldTreePaths.some((oldPath) => newPathsFormatted.includes(oldPath));
+  const hasDuplicates = newPathsFormatted.some((newPath) => newPath in OldTreePathsMap);
   if (hasDuplicates) {
     logger.info('[UPDATE DATASET] Rejected as duplicate paths were found');
     return res.status(400).json({ error: 'Duplicate files rejected' });
   }
 
-  //[EXTERNAL CIDS] If External Cids used, add to uploaded, and add to externalCidMap, also add to externalDagsToPin
-  const externalDagsToPin = [];
-  if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
-    uploaded = [];
-    for await (const extCid of externalCids) {
-      const { size, isDirectory } = cidTypesSizes[extCid.cid];
-      externalCidMap[extCid.cid] = { size, directory: isDirectory, path: extCid.name };
-      if (isDirectory) {
-        //Get external dag tree, add to external dag pin list
-        let tree: RecursiveLsResult[];
-        try {
-          tree = await pubRecursiveLs(extCid.cid, extCid.name);
-        } catch (e) {
-          logger.info(
-            { extCid },
-            '[UPDATE DATASET] External DAG tree resolution failed, the contents within the DAG were unable to be retrieved, rejecting update.',
-          );
-          return res
-            .status(400)
-            .json({ error: 'Failed resolving external dag tree, the DAG or its contents were unable to be retrieved' });
-        }
-        const flatTree = recursiveFlattenTree(tree);
-        (flatTree as RecursiveLsResult[]).forEach((file: RecursiveLsResult) => {
-          cidTypesSizes[file.cid] = { size: file.size, isDirectory: file.type === 'dir' };
-          if (file.type === 'dir') externalDagsToPin.push(file.cid);
-          uploaded.push({ path: file.path, cid: file.cid, size: file.size });
-          externalCidMap[file.cid] = { size: file.size, directory: file.type === 'dir', path: file.path };
-        });
-        externalDagsToPin.push(extCid.cid);
-      }
-      uploaded.push({
-        path: extCid.name,
-        cid: extCid.cid,
-        size: size,
-      });
-    }
-  }
-
-  //pin exteralDagsToPin
-  let externalDagsPinned = [];
-  if (externalDagsToPin.length) {
-    externalDagsPinned = await pinExternalDags(externalDagsToPin);
-  }
   //Pin the new files
   const structuredFilesForPinning: IpfsDirStructuredInput[] = files.map((f: any) => {
     return { path: f.originalname, content: f.buffer };
@@ -344,13 +267,15 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     const filesToPin = structuredFilesForPinning.length ? structuredFilesForPinning : externalUrlFiles;
     if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
     if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
-    logger.info('[UPDATE DATASET] Pinned files: ', uploaded);
+    logger.info('[UPDATE DATASET] Pinned files: ', uploaded.length);
   }
 
   // Pin the zip file
   if (zipPath.length > 0) {
     const outputPath = zipPath.replace('.zip', '');
+    logger.debug({ outputPath }, 'Starting unzipping to output directory');
     await extractZipFileAndCleanup(zipPath, outputPath);
+    logger.debug({ outputPath }, 'extraction complete, starting pinning');
     const pinResult = await addDirToIpfs(outputPath);
 
     // Overrides the path name of the root directory
@@ -438,12 +363,10 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
 
   //For adding correct types to the db, when a predefined component type is used
   const newFilePathDbTypeMap = {};
-  const externalPathsAdded = {};
   uploaded.forEach((file: IpfsPinnedResult) => {
     const neutralFullPath = contextPath + '/' + file.path;
     const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
     newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
-    if (Object.keys(cidTypesSizes)?.length) externalPathsAdded[deneutralizedFullPath] = true;
   });
 
   try {
@@ -458,27 +381,23 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
         type: { not: DataType.MANIFEST },
       },
     });
-
-    // setup refs, matching existing ones with their id, and marking external ones
-    const refs = newRefs.map((ref) => {
-      // add id's if exists
-      const existingRef = existingRefs.find((r) => neutralizePath(r.path) === neutralizePath(ref.path));
-      if (existingRef) ref.id = existingRef.id;
-
-      // handle externals (may be needed)
-      const extTypeAndSize = externalCidMap[ref.cid];
-      if (extTypeAndSize) {
-        ref.directory = extTypeAndSize.directory;
-        ref.external = true;
-      }
-      return ref;
-    });
+    //map existing ref neutral paths to the ref
+    const existingRefMap = existingRefs.reduce((map, ref) => {
+      map[neutralizePath(ref.path)] = ref;
+      return map;
+    }, {});
 
     const dataRefCreates = [];
-    const dataRefUpdates = refs.filter((ref) => {
-      const isUpdate = 'id' in ref;
-      if (!isUpdate) dataRefCreates.push(ref);
-      return isUpdate;
+    const dataRefUpdates = [];
+    // setup refs, matching existing ones with their id, distinguish between update ops and create ops
+    newRefs.forEach((ref) => {
+      const newRefNeutralPath = neutralizePath(ref.path);
+      const matchingExistingRef = existingRefMap[newRefNeutralPath];
+      if (matchingExistingRef) {
+        dataRefUpdates.push({ ...matchingExistingRef, ...ref });
+      } else {
+        dataRefCreates.push(ref);
+      }
     });
 
     const upserts = await prisma.$transaction([
@@ -539,11 +458,15 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     });
   } catch (e: any) {
     logger.error(`[UPDATE DATASET] error: ${e}`);
-    if (uploaded.length || externalDagsPinned.length) {
-      logger.error(
-        { filesPinned: uploaded, externalDagsPinned },
-        `[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED`,
-      );
+    if (uploaded.length) {
+      let filesPinned: number | IpfsPinnedResult[] = uploaded;
+      let last10Pinned;
+      if (uploaded.length > 30) {
+        filesPinned = uploaded.length;
+        last10Pinned = uploaded.slice(uploaded.length - 10, uploaded.length);
+      }
+
+      logger.error({ filesPinned, last10Pinned }, `[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED`);
       const formattedPruneList = uploaded.map(async (e) => {
         const neutralPath = neutralizePath(e.path);
         return {
@@ -556,21 +479,12 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
           directory: await isDir(e.cid),
         };
       });
-      externalDagsPinned.forEach((extDagCid) => {
-        const extTypeAndSize = externalCidMap[extDagCid];
-        formattedPruneList.push({
-          description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE (update v2)',
-          cid: extDagCid,
-          type: DataType.UNKNOWN,
-          size: extTypeAndSize.size || 0,
-          nodeId: node.id,
-          userId: owner.id,
-          directory: extTypeAndSize.directory,
-        } as any);
-      });
       const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });
       if (prunedEntries.count) {
-        logger.info({ prunedEntries }, `[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`);
+        logger.info(
+          { prunedEntriesCreated: prunedEntries.count },
+          `[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`,
+        );
       } else {
         logger.error(`[UPDATE DATASET E:2] failed adding files to prunelist, db may be down`);
       }

@@ -154,7 +154,8 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
 
   const depthTree = await getOrCache(depthCacheKey, async () => {
     const tree = findAndPruneNode(filledTree[0], dataPath, depth);
-    if (tree.type === 'file') {
+    if (tree?.type === 'file' || tree === undefined) {
+      //tree can result in undefined if the dag link was recently renamed
       const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
       return findAndPruneNode(filledTree[0], poppedDataPath, depth);
     } else {
