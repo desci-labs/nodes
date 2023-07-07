@@ -67,7 +67,7 @@ export const createPublicDataRefs = async (
   });
 
   logger.debug(
-    { fn: 'createPublicDataRefs', data, userId, versionId },
+    { fn: 'createPublicDataRefs', userId, versionId },
     `[nodeManager::createPublicDataRefs] public data refs added: ${publicDataRefRes.count}`,
   );
   return publicDataRefRes;
