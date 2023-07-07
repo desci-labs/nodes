@@ -108,6 +108,12 @@ export async function calculateTotalZipUncompressedSize(zipPath: string): Promis
 
       zipfile.on('end', () => {
         resolve(totalSize);
+        zipfile.close();
+      });
+
+      zipfile.on('error', (err) => {
+        reject(err);
+        zipfile.close(); // Ensure the zipfile is closed even when there's an error
       });
     });
   });
@@ -140,8 +146,15 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
           const writeStream = fs.createWriteStream(filePath);
 
           // Pipe readStream to writeStream.
-          readStream.on('error', reject);
-          writeStream.on('error', reject);
+          readStream.on('error', (err) => {
+            readStream.destroy(); // Ensure the stream is closed
+            reject(err);
+          });
+
+          writeStream.on('error', (err) => {
+            writeStream.close(); // Ensure the file is closed
+            reject(err);
+          });
           writeStream.on('finish', () => zipfile.readEntry());
 
           readStream.pipe(writeStream);
@@ -170,9 +183,10 @@ export async function saveZipStreamToDisk(zipStream: Readable, outputPath: strin
 
     // Pipe the ZIP stream into the file stream
     zipStream.pipe(fileStream);
+    zipStream.on('error', reject);
+    fileStream.on('error', reject);
 
     fileStream.on('finish', resolve);
-    fileStream.on('error', reject);
   });
 }
 
@@ -191,7 +205,6 @@ export const processExternalUrls = async (
 };
 
 export function arrayXor(arr: any[]): boolean {
-  // eslint-disable-next-line no-array-reduce/no-reduce
   return arr.reduce((acc, val) => acc !== !!val, false);
 }
 
@@ -215,7 +228,6 @@ export function objectPropertyXor(obj1: any, obj2: any): any {
 
 // returns a new object omitting the specified keys in the filter list
 export function omitKeys(obj: Record<string, any>, filterList: string[]): Record<string, any> {
-  // eslint-disable-next-line no-array-reduce/no-reduce
   return Object.keys(obj)
     .filter((key) => !filterList.includes(key))
     .reduce((newObj, key) => ({ ...newObj, [key]: obj[key] }), {});
