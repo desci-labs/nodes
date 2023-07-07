@@ -212,7 +212,7 @@ async function publishCid(job: Prisma.PublicDataReferenceCreateManyInput): Promi
   try {
     const targetCid = dataRef.cid;
     const buffer = await resolveIpfsData(targetCid);
-    logger.debug({ fn: 'publishCid', job, dataBuffer: buffer }, `[nodeManager::publishCid] [DATA BUFFER]::${buffer}`);
+    logger.debug({ fn: 'publishCid', job }, `[nodeManager::publishCid] [DATA BUFFER]`);
     const { cid, providers } = await uploadDataToEstuary(targetCid, buffer);
     // console.log('Target CID uploaded', targetCid, cid);
     await prisma.publicDataReferenceOnIpfsMirror.update({
