@@ -1,5 +1,5 @@
 .PHONY: build
-build: .env
+build: .env desci-contracts/.env
 	$(MAKE) -C desci-models build
 	$(MAKE) -C desci-contracts build
 
@@ -20,13 +20,13 @@ clean:
 	$(MAKE) -C desci-models clean
 
 .PHONY: .env
-.env: desci-contracts/.env nodes-media/.env
+.env: nodes-media/.env
 	# Phony target, always runs but is idempotent
 	# Copies example env if not present, and fails until MNEMONIC is set
 	cp --no-clobber .env.example .env || true
 	if ! grep -q MNEMONIC .env; then echo "ERROR: set MNEMONIC in .env"; exit 1; fi
 
-desci-contracts/.env:
+desci-contracts/.env: .env
 	grep "MNEMONIC" .env > desci-contracts/.env
 
 nodes-media/.env:
