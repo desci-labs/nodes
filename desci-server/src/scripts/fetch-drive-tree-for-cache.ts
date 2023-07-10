@@ -1,9 +1,9 @@
 import fetch from 'node-fetch';
 
-const uuid = `ZMbOPr0JuxKCBxVBOgJjEz1l5S-i_P_ysGclr5NFq9E`;
-const manifestCid = `bafkreid3xtq3e4r4pfpzkpvxo27z4bt4tmfz7qxbqtvxpgh5nuc4okpsh4`;
-const privShare = `cSyfIvLqMa`;
-const url = `https://nodes-api-dev.desci.com/v1/data/retrieveTree/${uuid}/${manifestCid}/${privShare}?depth=1`;
+const uuid = `V6BPjFqt_AwDhx8IOaU8Y7R-CA8NbO0yCWWKEGRC4Gk`;
+const manifestCid = `bafkreifbcxqthy32d354icm273hfamvxaf2zpulzyhiq7r55lymlvqaumu`;
+const privShare = `NeB5jC9zxG`;
+const url = `https://nodes-api.desci.com/v1/data/retrieveTree/${uuid}/${manifestCid}/${privShare}?depth=1`;
 
 async function getTree(path?: string) {
   console.log('get tree for path', path);
@@ -14,8 +14,8 @@ async function getTree(path?: string) {
 }
 
 async function start() {
-  console.log('getting full treee');
-  const tree = await getTree('root/broad-data');
+  console.log('getting full tree');
+  const tree = await getTree('root');
 
   console.log('mapping full tree to paths');
 
