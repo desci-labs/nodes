@@ -5,7 +5,7 @@ build: .env desci-contracts/.env
 
 .PHONY: sterile
 sterile: clean
-	rm -rf local-data
+	sudo rm -rf local-data
 
 .PHONY: clean
 clean:
