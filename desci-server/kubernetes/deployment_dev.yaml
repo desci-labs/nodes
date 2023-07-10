@@ -5,7 +5,7 @@ metadata:
   labels:
     App: DesciServerDev
 spec:
-  replicas: 10
+  replicas: 6
   revisionHistoryLimit: 2
   selector:
     matchLabels:
@@ -85,10 +85,10 @@ spec:
               name: server-api
           resources:
             limits:
-              cpu: '1.0'
+              cpu: '0.7'
               memory: 5Gi
             requests:
-              cpu: '0.8'
+              cpu: '0.6'
               memory: 5Gi
           # restart pod after failureThreshold*periodSeconds total seconds
           livenessProbe:
