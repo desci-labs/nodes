@@ -43,12 +43,12 @@ else
   mkdir -p ../local-data/ganache
   waitAndDeploy &
   echo "[seed:$CONTRACT_NAME] waiting until contract is deployed"
-  check &
   npx ganache \
     --server.host="0.0.0.0" \
     --database.dbPath="../local-data/ganache" \
     --chain.networkId="1337" \
     --wallet.mnemonic="$MNEMONIC" \
-    --logging.quiet="true"
+    --logging.quiet="true" &
+  check
 fi
 
