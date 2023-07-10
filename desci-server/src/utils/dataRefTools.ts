@@ -75,7 +75,8 @@ export async function generateDataReferences(
       type: dbType,
       nodeId: node.id,
       ...(versionId ? { versionId } : {}),
-      ...(!markExternals ? {} : entry.external ? { external: true } : { external: null }),
+      external: entry.external,
+      // ...(!markExternals ? {} : entry.external ? { external: true } : { external: null }),
     };
   });
 
@@ -140,7 +141,6 @@ export async function prepareDataRefs(
   return [dataRootEntry, ...dataTreeToPubRef];
 }
 
-// used to prepare data refs for a given dag and manifest (differs from generateDataReferences in that you don't need the updated manifestCid ahead of time)
 export async function prepareDataRefsExternalCids(
   nodeUuid: string,
   manifest: ResearchObjectV1,
