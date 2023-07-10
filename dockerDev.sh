@@ -55,6 +55,12 @@ make
 echo "[dockerDev:desci-contracts] starting seed of local chain..."
 make -C desci-contracts seed
 
+# compose will initialise non-existing volume directories with root permissions
+echo "[dockerDev] initialising docker volume directories..."
+for volDir in $(grep -o "local-data/[a-z_]*" docker-compose.dev.yml); do
+  mkdir -p "$volDir"
+done
+
 # Default to empty if unset
 ADDITIONAL_FLAGS=${ADDITIONAL_FLAGS:-""}
 echo "[dockerDev] PWD=$PWD"

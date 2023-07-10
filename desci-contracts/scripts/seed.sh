@@ -26,7 +26,7 @@ check() {
   done
 
   echo "[seed:$CONTRACT_NAME] deployment found, killing ganache..."
-  pkill --full "npm exec ganache"
+  pkill -f "npm exec ganache"
 }
 
 waitAndDeploy() {

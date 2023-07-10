@@ -5,7 +5,7 @@ build: .env
 
 .PHONY: sterile
 sterile: clean
-	sudo rm -rf local-data
+	rm -rf local-data
 
 .PHONY: clean
 clean:

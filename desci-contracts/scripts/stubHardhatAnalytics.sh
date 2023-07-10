@@ -12,9 +12,9 @@ STUB='{"analytics": {"clientId": "47c226ca-85f1-4b1d-8e2e-bd9886703144"}}'
 FILE="$HOME/.local/share/hardhat-nodejs/analytics.json"
 
 echo "[stubHardhatAnalytics] checking..."
-if [ ! -f "$FILE" ];
-then
+if [ ! -f "$FILE" ]; then
   echo "[stubHardhatAnalytics] not present, writing"
+  mkdir -p $(dirname "$FILE")
   echo "$STUB" > "$FILE"
 else
   echo "[stubHardhatAnalytics] present, doing nothing"
