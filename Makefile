@@ -17,10 +17,9 @@ clean: clean-rec
 
 	# Down stops and removes containers
 	docker compose -p desci down
-	docker container prune --force
 
 .PHONY: clean-rec
-clean-children:
+clean-rec:
 	$(MAKE) -C desci-contracts clean
 	$(MAKE) -C desci-models clean
 	$(MAKE) -C desci-server clean
