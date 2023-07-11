@@ -10,7 +10,8 @@ chmod -R 777 /app/node_modules/.prisma
 chmod -R 777 /app/node_modules/prisma
 chmod -R 777 /root/ && chown node:node /root/.cache/prisma/master/2920a97877e12e055c1333079b8d19cee7f33826/debian-openssl-1.1.x/libquery-engine # for prisma studio
 cd desci-server
+yarn add concurrently
 yarn run migrate
 npx prisma db seed
-(npx prisma studio&)
+(npx prisma studio &)
 yarn dev
