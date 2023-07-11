@@ -1,7 +1,4 @@
-.PHONY: install build clean
-
-build: install
-	yarn build
+.PHONY: install clean
 
 install:
 	yarn --frozen-lockfile

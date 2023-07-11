@@ -11,7 +11,9 @@ set -euo pipefail
 trap catch ERR SIGTERM SIGINT
 catch() {
   echo "[seed:$CONTRACT_NAME] script failed!"
+  # unregister trap to avoid loop
   trap - SIGTERM
+  # kill current process group (including potential stray children)
   kill 0
 }
 
@@ -26,7 +28,8 @@ check() {
   done
 
   echo "[seed:$CONTRACT_NAME] deployment found, killing ganache..."
-  pkill -f "npm exec ganache"
+  killall "npm exec ganache"
+  echo "[seed:$CONTRACT_NAME] ganache killed"
 }
 
 waitAndDeploy() {
@@ -51,4 +54,4 @@ else
     --logging.quiet="true" &
   check
 fi
-
+echo "[seed:$CONTRACT_NAME] done!"

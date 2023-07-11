@@ -2,13 +2,16 @@
 build: .env desci-contracts/.env
 	$(MAKE) -C desci-models build
 	$(MAKE) -C desci-contracts build
+	$(MAKE) -C desci-server install
 
 .PHONY: sterile
-sterile: clean
+sterile: clean-rec
+	# Remove containers and volumes
+	docker compose -p desci down --volumes
 	sudo rm -rf local-data
 
 .PHONY: clean
-clean:
+clean: clean-rec
 	rm -rf local-data/ganache
 	./resetTables.sh
 
@@ -16,8 +19,11 @@ clean:
 	docker compose -p desci down
 	docker container prune --force
 
+.PHONY: clean-rec
+clean-children:
 	$(MAKE) -C desci-contracts clean
 	$(MAKE) -C desci-models clean
+	$(MAKE) -C desci-server clean
 
 .PHONY: .env
 .env: nodes-media/.env
