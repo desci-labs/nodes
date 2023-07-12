@@ -58,8 +58,6 @@ Houses all the tooling to build and deploy the ResearchObject contracts locally 
 This is the React-based frontend for DeSci Nodes. It implements a web3-enabled PDF Viewer that is actually a Research Object viewer and has support for editing and viewing IPLD-compliant JSON-LD self-describing linked data objects. It implements a frontend resolution of the [DCITE](https://dcite.org) Resolution Scheme. It implements blockchain writes for publishing Nodes.
 
 _Note:_ This repo lives separately at [https://github.com/desci-labs/nodes-web](https://github.com/desci-labs/nodes-web) because it has a different open source license.
-
-_Note:_ It is assumed that `nodes-web` is a sibling to `nodes` in the folder structure. From this root dir `../nodes-web` should exist.
 <br><br>
 
 ## **nodes-media**
@@ -89,19 +87,14 @@ There is more information on each module within each folder's individual README.
 
 # Running Locally
 
-The following guide is meant to get you running for full-stack dev on your local environment (dapp + server + local EVM test chain + indexer).
+The following guide is meant to get you running for full-stack dev on your local environment.
 
 ## 1) Run Backend + All Services
 
-### Set up desci-models package
-
-1. `cd ./desci-models`
-1. Install deps `yarn`
-1. build `yarn build`
-
-<br>
-
-**Ensure Docker agent is installed + running (Docker for Mac, etc.)**
+Make sure you have these packages installed on your system:
+- Docker
+- docker-compose
+- lsof (may not be available by default depending on OS)
 
 <br>
 
@@ -112,65 +105,29 @@ The following guide is meant to get you running for full-stack dev on your local
 
 This starts:
 
-1. postgres localhost:5433
-2. desci-server http://localhost:5420
-3. ganache blockchain (autodeploys ResearchObject + dPIDRegistry contract locally) http://localhost:8545 (metamask can connect to it locally)
+1. postgres (http://localhost:5433)
+2. desci-server (http://localhost:5420)
+3. ganache blockchain (autodeploys ResearchObject + dPIDRegistry contract locally) (http://localhost:8545, metamask can connect to it locally)
 4. expedition block explorer for local dev (http://localhost:3001)
 5. graph index pointing to latest deployed contract (http://localhost:8080)
 6. Local IPFS node (private, swarm key enabled) (http://localhost:5001 or http://localhost:8089)
-7. nodes-media (responsible for DOI / PDF downloads, and for media transcoding) http://localhost:5454
 
+__Note:__ nodes-media (http://localhost:5454, responsible for DOI / PDF downloads, and for media transcoding) is disabled in the dev cluster by default, but can be uncommented in `docker-compose.dev.yml` for local development
 <br>
 
 _Optional:_ Edit the DB, open http://localhost:5555
 
 1. Go to User table
-2. Edit user to have your email (default is noreply@desci.com)
+2. Edit user to have your email (or use the default user, `noreply@desci.com`)
    <br><br>
 
 ---
 
 <br>
+## 2.) Run frontend
+Follow the instructions in [`nodes-web`](https://github.com/desci-labs/nodes-web) and run the frontend.
 
-## 2) Run Frontend
-
-<br>
-
-In a separate terminal run
-
-```
-cd ..
-# clone nodes-web if you haven't yet
-git clone git@github.com:desci-labs/nodes-web.git
-cd ./nodes-web
-yarn
-yarn start
-```
-
-And visit http://localhost:3000
-
-<br>
-
-_Note:_ If running for the first time, make sure the server started, you may have to wait until it says `desci_nodes_backend | Server running on port 5420`
-
-<br>
-
-Login with your email (or noreply@desci.com), view the generated code in the Docker console for desci-server.
-
-```
-# this will appear in the console
-Simulating email to noreply@desci.com token: 123456
-```
-
-<br>
-
----
-
-<br>
-
-## 3) Done
-
-Enjoy your local DeSci Nodes installation. If you have issues, check Troubleshooting below.
+Enjoy your local development setup of Nodes!
 
 <br>
 
