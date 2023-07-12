@@ -1,6 +1,6 @@
 # nodes-models: DeSci Labs Research Object Module
 
-`nodes-models` is a module within the DeSci Labs "nodes" open-source repository that provides a simplified and structured way to manage research artifacts, including data, code, PDFs, and more. This module is designed with a focus on supporting semantic web technologies by enabling JSON-LD through the RO-Crate format and planning to support RDF, SPARQL, and more in the future.
+`nodes-models` is a module within the [DeSci Nodes open-source repository](https://github.com/desci-labs/nodes) that provides a simplified and structured way to manage research artifacts, including data, code, PDFs, and more. This module is designed with a focus on supporting semantic web technologies by enabling JSON-LD through the RO-Crate 1.1 format and planning to support RDF, SPARQL, and more in the future.
 
 The module includes TypeScript interfaces for defining research objects, a conversion script for transforming research objects to and from the RO-Crate format, and sample tests to validate the functionality of the module.
 
@@ -15,7 +15,7 @@ The module includes TypeScript interfaces for defining research objects, a conve
 
 ## Getting Started
 
-To get started with the `nodes-models` module in the DeSci Labs "nodes" project, follow the steps below:
+To get started with the `nodes-models` module in the DeSci Nodes project, follow the steps below:
 
 ### Prerequisites
 
@@ -32,7 +32,7 @@ git clone https://github.com/desci-labs/nodes.git
 2. Install the dependencies:
 
 ```bash
-cd nodes
+cd nodes/desci-models
 yarn install
 ```
 
