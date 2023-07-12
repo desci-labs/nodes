@@ -6,8 +6,8 @@
 set -euxo pipefail
 
 # Load psql auth vars to env
-source <(grep -e "POSTGRES_USER" -e "POSTGRES_PASSWORD" .env)
-
+POSTGRES_USER=$(grep "POSTGRES_USER" .env | cut -d"=" -f2)
+POSTGRES_PASSWORD=$(grep "POSTGRES_PASSWORD" .env | cut -d"=" -f2)
 
 # Try to get ahold of a running postgres container to execute in,
 # and if that doesn't exist we start the service from our compose cluster
@@ -24,7 +24,12 @@ if ! container=$(docker ps | grep db_boilerplate | cut -d' ' -f1); then
     --detach \
     db_postgres)
 
-  sleep 3
+  # docker is a lot slower on MacOS due to running in a Linux VM
+  if [ "$(uname)" == "Darwin" ]; then
+    sleep 8
+  else
+    sleep 3
+  fi
 fi
 
 drop_schema() {
