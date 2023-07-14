@@ -3,7 +3,7 @@
 set -euo pipefail
 trap "catch" ERR
 catch() {
-    echo "deployLocalSubgraph: script failed!"
+    echo "[graph-index] script failed!"
     exit 1
 }
 
@@ -14,7 +14,7 @@ echo "[graph-index] checking if subgraph available at $FILE"
 if [ -f "$FILE" ]; then
     echo "[graph-index] found deployment file"
 else
-    echo "[graph-index] no deployment file"
+    echo "[graph-index] no deployment file found, fatal"
     exit 1
 fi
 
@@ -22,21 +22,6 @@ TARGET_ADDRESS=$(jq -r '.proxies[-1].address' "$FILE" || echo "")
 
 # File doesn't exist when running outside of docker, empty is fine then
 FOUND_ADDRESS=$(grep 0x subgraph/subgraph.yaml | awk '{print $2}' | tr -d '"' || echo "[NONE]")
-
-waitForNodeAdminServer() {
-    until [ \
-        "$(curl -s -w '%{http_code}' -o /dev/null "http://host.docker.internal:8020")" \
-        -eq 405 ]; 
-    do
-        echo "[waitForNodeAdminServer]: Waiting for http://host.docker.internal:8020"
-        sleep 5
-    done
-
-    # until $(curl --output /dev/null --silent --fail http://host.docker.internal:8020); do
-    #     echo "[deployLocalSubgraph] waiting for http://host.docker.internal:8020 to start"
-    #     sleep 5
-    # done
-}
 
 if [ "$TARGET_ADDRESS" ]; then
     echo "[graph-index] found $TARGET_ADDRESS"
@@ -52,16 +37,14 @@ if [ "$TARGET_ADDRESS" ]; then
     npx hardhat compile
     yarn graph:build
 
-    waitForNodeAdminServer
-
-    echo "[graph-index] graph:create-docker"
+    echo "[graph-index] running graph:create-docker"
     npm run graph:create-docker
 
-    echo "[graph-index] graph:deploy-docker"
+    echo "[graph-index] running graph:deploy-docker"
     npm run graph:deploy-docker
 
-    echo "[graph-index] done"
+    echo "[graph-index] done!"
 else
-    echo "[graph-index] no target contract found"
+    echo "[graph-index] no target contract found, fatal"
     exit 1
 fi

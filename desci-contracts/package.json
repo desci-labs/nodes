@@ -4,11 +4,12 @@
   "version": "0.2.0",
   "license": "BSD-4-Clause",
   "scripts": {
-    "test": "npx hardhat test",
+    "test": "hardhat test",
+    "build": "hardhat compile --network ganache",
     "docker:build": "docker build -t desci-hardhat-node .",
     "docker:push": "docker tag desci-hardhat-node:latest 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest && docker push 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest",
-    "deploy:ganache": "yarn stubHardhatAnalytics && rm -f ./.openzeppelin/unknown-1337.json ; rm -f ./.openzeppelin/unknown-research-object.json ; npx hardhat run scripts/deployResearchObject.js --network ganache && mv ./.openzeppelin/unknown-1337.json ./.openzeppelin/unknown-research-object.json",
-    "deploy:dpid:ganache": "yarn stubHardhatAnalytics && rm -f ./.openzeppelin/unknown-1337.json ; rm -f ./.openzeppelin/unknown-dpid.json ; npx hardhat run scripts/deployDpidRegistry.js --network ganache  && mv ./.openzeppelin/unknown-1337.json ./.openzeppelin/unknown-dpid.json",
+    "deploy:ganache": "yarn stubHardhatAnalytics && rm -f ./.openzeppelin/unknown-1337.json ; rm -f ./.openzeppelin/unknown-research-object.json ; hardhat run scripts/deployResearchObject.js --network ganache && mv ./.openzeppelin/unknown-1337.json ./.openzeppelin/unknown-research-object.json",
+    "deploy:dpid:ganache": "yarn stubHardhatAnalytics && rm -f ./.openzeppelin/unknown-1337.json ; rm -f ./.openzeppelin/unknown-dpid.json ; hardhat run scripts/deployDpidRegistry.js --network ganache  && mv ./.openzeppelin/unknown-1337.json ./.openzeppelin/unknown-dpid.json",
     "graph:codegen": "graph codegen subgraph/subgraph.yaml -o subgraph/generated",
     "graph:build": "graph build subgraph/subgraph.yaml",
     "graph:create-local": "graph create nodes --node http://127.0.0.1:8020 subgraph/subgraph.yaml",
@@ -17,8 +18,9 @@
     "graph:deploy-docker": "graph deploy nodes --ipfs http://host.docker.internal:5001 --node http://host.docker.internal:8020 -l v0.0.1 subgraph/subgraph.yaml",
     "graph:create-dev-local": "cp subgraph/subgraph.local.yaml subgraph/subgraph.yaml && graph create nodes --node http://127.0.0.1:8020",
     "graph:deploy-dev-local": "cp subgraph/subgraph.local.yaml subgraph/subgraph.yaml && graph deploy nodes --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020",
-    "upgrade:local": "npx hardhat run scripts/upgradeResearchObject.js --network ganache",
-    "stubHardhatAnalytics": "scripts/stubHardhatAnalytics.sh"
+    "upgrade:local": "hardhat run scripts/upgradeResearchObject.js --network ganache",
+    "stubHardhatAnalytics": "scripts/stubHardhatAnalytics.sh",
+    "flatten": "hardhat flatten | sed '/SPDX/d' > flat.sol"
   },
   "files": [
     "/.openzeppelin",

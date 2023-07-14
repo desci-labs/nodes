@@ -58,4 +58,10 @@ makeDeployments() {
 makeDeployments &
 
 echo "[startTestChain] starting ganache..."
-npx ganache --server.host="0.0.0.0" --chain.networkId="1337" --wallet.mnemonic="${MNEMONIC}" --logging.quiet="true" --database.dbPath="/data"
+# Ganache is very spammy with eth_getBlock etc so we filter these out
+npx ganache \
+  --server.host="0.0.0.0" \
+  --chain.networkId="1337" \
+  --wallet.mnemonic="${MNEMONIC}" \
+  --database.dbPath="/data" \
+  | grep --line-buffered -v '^eth_.*$'
