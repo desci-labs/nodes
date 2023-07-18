@@ -201,6 +201,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   //Pull old tree
   const externalCidMap = await generateExternalCidMap(node.uuid);
   const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
+  oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
 
   /*
    ** Check if update path contains externals, disable adding to external DAGs
@@ -408,7 +409,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);
 
     // //CLEANUP DANGLING REFERENCES//
-    oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
 
     const flatTree = recursiveFlattenTree(
       await getDirectoryTree(newRootCidString, externalCidMap),
@@ -425,14 +425,14 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     //length should be n + 1, n being nested dirs modified + rootCid
     //a path match && a CID difference = prune
     flatTree.forEach((newFd) => {
-      if (newFd.path in OldTreePathsMap) {
-        const oldFd = OldTreePathsMap[newFd.path];
+      const oldEquivPath = deneutralizePath(newFd.path, rootCid);
+      if (oldEquivPath in OldTreePathsMap) {
+        const oldFd = OldTreePathsMap[oldEquivPath];
         if (oldFd.cid !== newFd.cid) {
           pruneList.push(oldFd);
         }
       }
     });
-    debugger;
 
     const formattedPruneList = pruneList.map((e) => {
       const neutralPath = neutralizePath(e.path);
