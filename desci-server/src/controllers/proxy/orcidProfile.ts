@@ -64,7 +64,7 @@ export const orcidProfile = async (
       logger.info({}, 'No cached result found, or refresh triggered, fetching');
       const { data, status } = await axios.get<any, any>(`${ORCID_API_URL}/${orcidId}/public-record.json`, {});
 
-      if (data?.lastModifiedDate === null) {
+      if (data?.lastModifiedTime === null) {
         return res.status(422).send({ ok: false, error: 'Invalid ORCID Id' });
       }
 
