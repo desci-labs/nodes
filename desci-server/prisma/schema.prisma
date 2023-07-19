@@ -456,6 +456,12 @@ model UserOrganizations {
   @@id([userId, organizationId])
 }
 
+model OrcidProfile {
+  id        Int      @id @default(autoincrement())
+  updatedAt DateTime @updatedAt
+  expiresIn DateTime
+}
+
 enum FriendReferralStatus {
   PENDING
   ACCEPTED
