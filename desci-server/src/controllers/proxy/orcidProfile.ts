@@ -15,12 +15,19 @@ interface OrcidQueryResponseError {
   error: string;
 }
 
-export const orcidQuery = async (
+const orcidProfileTtl = 1000 * 60 * 60 * 24; // 1 day
+
+export const orcidProfile = async (
   req: Request,
   res: Response<OrcidQueryResponse | OrcidQueryResponseError>,
   next: NextFunction,
 ) => {
-  const { orcidId, refresh } = req.query;
+  debugger;
+  const orcidId = req.params.orcidId as string;
+
+  const { refresh: refreshQuery } = req.query;
+  const refresh = refreshQuery === 'true';
+
   if (!orcidId) return res.status(400).json({ ok: false, error: 'orcidId required' });
 
   const logger = parentLogger.child({
@@ -53,7 +60,7 @@ export const orcidQuery = async (
 
       const updateEntry = {
         profile: data,
-        expiresIn: new Date(Date.now() + 1000 * 60 * 60 * 24), // 1 day
+        expiresIn: new Date(Date.now() + orcidProfileTtl),
       };
 
       const upsertResult = await prisma.orcidProfile.upsert({

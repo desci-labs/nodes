@@ -1,9 +1,9 @@
 import { Router } from 'express';
 
-import { orcidQuery } from 'controllers/proxy/orcidQuery';
+import { orcidProfile } from 'controllers/proxy/orcidProfile';
 
 const router = Router();
 
-router.get('/orcid/profile/:orcidId/:refresh?', [], orcidQuery);
+router.get('/orcid/profile/:orcidId', [], orcidProfile);
 
 export default router;
