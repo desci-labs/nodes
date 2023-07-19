@@ -8,7 +8,7 @@ export const ORCID_API_URL = 'https://orcid.org';
 
 interface OrcidQueryResponse {
   ok: boolean;
-  profile: Record<any, any>;
+  profile: any;
 }
 interface OrcidQueryResponseError {
   ok: boolean;
@@ -48,7 +48,7 @@ export const orcidProfile = async (
         { updatedAt: cachedResult.updatedAt, expiresIn: cachedResult.expiresIn },
         'Cached result found, returning',
       );
-      return res.status(200).send({ ok: true, profile: cachedResult });
+      return res.status(200).send({ ok: true, profile: cachedResult.profile });
     } else {
       //rate limit on refresh
       if (cachedResult && refresh) {
@@ -84,7 +84,7 @@ export const orcidProfile = async (
         create: { orcidId, ...updateEntry },
       });
       logger.info({ newExpiry: upsertResult.expiresIn }, 'Upserted ORCID profile');
-      return res.status(200).send({ ok: true, profile: upsertResult });
+      return res.status(200).send({ ok: true, profile: upsertResult.profile });
     }
   } catch (e) {
     logger.error({ e }, 'Error fetching ORCID profile');
