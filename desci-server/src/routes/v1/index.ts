@@ -14,6 +14,7 @@ import log from './log';
 import nodes from './nodes';
 import pub from './pub';
 import referral from './referral';
+import services from './services';
 import users from './users';
 import waitlist from './waitlist';
 
@@ -42,6 +43,7 @@ router.use('/waitlist', waitlist);
 router.use('/pub', pub);
 router.use('/data', data);
 router.use('/log', log);
+router.use('/services', services);
 
 router.get('/nft/:id', nft);
 router.use('/referral', referral);
