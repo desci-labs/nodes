@@ -15,7 +15,8 @@ interface OrcidQueryResponseError {
   error: string;
 }
 
-const orcidProfileTtl = 1000 * 60 * 60 * 24; // 1 day
+const ORCID_PROFILE_TTL = 1000 * 60 * 60 * 24; // 1 day
+const REFRESH_RATE_LIMIT = 1000 * 60 * 5; // 5 minutes
 
 export const orcidProfile = async (
   req: Request,
@@ -50,6 +51,16 @@ export const orcidProfile = async (
       return res.status(200).send({ ok: true, profile: cachedResult });
     } else {
       //rate limit on refresh
+      if (cachedResult && refresh) {
+        const rateLimitDate = new Date(Date.now() - REFRESH_RATE_LIMIT);
+        const isRecentlyRefreshed = cachedResult.updatedAt > rateLimitDate;
+        if (isRecentlyRefreshed) {
+          return res
+            .status(429)
+            .send({ ok: false, error: 'This ORCID id was recently refreshed, please try again in a few minutes.' });
+        }
+      }
+
       logger.info({}, 'No cached result found, or refresh triggered, fetching');
       const { data, status } = await axios.get<any, any>(`${ORCID_API_URL}/${orcidId}/public-record.json`, {});
 
@@ -60,7 +71,7 @@ export const orcidProfile = async (
 
       const updateEntry = {
         profile: data,
-        expiresIn: new Date(Date.now() + orcidProfileTtl),
+        expiresIn: new Date(Date.now() + ORCID_PROFILE_TTL),
       };
 
       const upsertResult = await prisma.orcidProfile.upsert({
