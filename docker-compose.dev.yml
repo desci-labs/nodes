@@ -68,7 +68,7 @@ services:
       graph_node:
         condition:
           service_started
-      redis:
+      redis-cluster-creator:
         condition:
           service_started
       # - nodes_media # UNCOMMENT FOR LOCAL DEV OF nodes-media
@@ -145,27 +145,52 @@ services:
       start_period: 10s
       timeout: 2s
 
-  redis:
-    image: "redis:7-alpine"
-    container_name: "redis_cache"
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./local-data/redis:/data
+  redis-node-1:
+      image: "redis:7-alpine"
+      ports:
+        - 7000:7000
+      networks:
+        - redis-cluster-compose
+      hostname: redis-node-1
+      volumes:
+        # - ./local-data/redis/7001:/redis
+        - ./redis/redis.conf:/redis/redis.conf
+      command: redis-server /redis/redis.conf
 
+  redis-node-2:
+      image: "redis:7-alpine"
+      ports:
+        # - "6379:6379"
+        - 7001:7001
+      networks:
+        - redis-cluster-compose
+      hostname: redis-node-2
+      volumes:
+        - ./redis/redis.conf:/redis/redis.conf
+        # - ./local-data/redis:/data
+        # - ./local-data/redis/7001:/redis
+      command: redis-server /redis/redis.conf
 
-  # desci_nodes_backend_test:
-  #   container_name: 'be_test_boilerplate'
-  #   command: echo 'Test container ready'
-  #   build: .
-  #   stdin_open: true
-  #   tty: true
-  #   depends_on:
-  #     - db_postgres
-  #   links:
-  #     - db_postgres
-  #   env_file:
-  #     - .envs
-  #   volumes:
-  #     - .:/app/
-  #     - /app/node_modules
+  redis-cluster-creator:
+      image: redis:latest
+      networks:
+        - redis-cluster-compose
+      command: redis-cli -p 7000 --cluster create redis-node-1:7000 redis-node-2:7001 --cluster-replicas 1 --cluster-yes
+      depends_on:
+        - redis-node-1
+        - redis-node-2
+        
+  # redis-insight:
+  #     image: redislabs/redisinsight
+  #     ports:
+  #       - 8199:8001
+  #     networks:
+  #       - redis-cluster-compose
+  #     volumes:
+  #       - ./local-data/redisinsight:/db
+  #     depends_on:
+  #       - redis-cluster-creator
+        
+networks:
+  redis-cluster-compose:
+    driver: bridge
