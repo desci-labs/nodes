@@ -59,7 +59,7 @@ function main() {
       break;
     case 'fillPublic':
       if (!nodeUuid && !userEmail) return logger.error('Missing NODE_UUID or USER_EMAIL');
-      fillPublic(nodeUuid, userEmail);
+      fillPublic(nodeUuid, userEmail, markExternals);
       break;
     default:
       logger.error('Invalid operation, valid operations include: validate, heal, validateAll, healAll');
@@ -140,7 +140,7 @@ async function dataRefDoctor(
   }
 }
 
-async function fillPublic(nodeUuid: string, userEmail: string) {
+async function fillPublic(nodeUuid: string, userEmail: string, externalCidMode = false) {
   const user = await prisma.user.findUnique({ where: { email: userEmail } });
   if (!user) return logger.error(`[FillPublic] Failed to find user with email: ${userEmail}`);
 
@@ -205,6 +205,10 @@ async function fillPublic(nodeUuid: string, userEmail: string) {
         nodeId: node.id,
         versionId: nodeVersion.id,
       };
+      logger.info(
+        { manifestEntry },
+        `[DataRefDoctor] Manifest entry being created for indexed version ${nodeVersIdx}, with txHash: ${indexedNode.versions[nodeVersIdx]?.id}`,
+      );
       await prisma.publicDataReference.create({ data: manifestEntry });
 
       //generate pub drefs for the bucket

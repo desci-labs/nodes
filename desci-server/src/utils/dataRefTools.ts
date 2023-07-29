@@ -55,9 +55,11 @@ export async function generateDataReferences(
   };
 
   const externalCidMap = await generateExternalCidMap(node.uuid);
-  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
+  let dataTree;
   if (markExternals) {
     dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
+  } else {
+    dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
   }
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
 
