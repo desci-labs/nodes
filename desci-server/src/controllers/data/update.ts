@@ -201,6 +201,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   //Pull old tree
   const externalCidMap = await generateExternalCidMap(node.uuid);
   const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
+  oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
 
   /*
    ** Check if update path contains externals, disable adding to external DAGs
@@ -222,7 +223,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
 
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
   const OldTreePathsMap = oldFlatTree.reduce((map, branch) => {
-    map[branch.path] = true;
+    map[branch.path] = branch;
     return map;
   }, {});
 
@@ -251,7 +252,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   if (newFolderName) {
     newPathsFormatted = [header + '/' + newFolderName];
   }
-
   const hasDuplicates = newPathsFormatted.some((newPath) => newPath in OldTreePathsMap);
   if (hasDuplicates) {
     logger.info('[UPDATE DATASET] Rejected as duplicate paths were found');
@@ -409,7 +409,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);
 
     // //CLEANUP DANGLING REFERENCES//
-    oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
 
     const flatTree = recursiveFlattenTree(
       await getDirectoryTree(newRootCidString, externalCidMap),
@@ -422,10 +421,17 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
       size: 0,
     });
 
+    const pruneList = [];
     //length should be n + 1, n being nested dirs modified + rootCid
-    const pruneList = (oldFlatTree as RecursiveLsResult[]).filter((oldF) => {
-      //a path match && a CID difference = prune
-      return flatTree.some((newF) => neutralizePath(oldF.path) === neutralizePath(newF.path) && oldF.cid !== newF.cid);
+    //a path match && a CID difference = prune
+    flatTree.forEach((newFd) => {
+      const oldEquivPath = deneutralizePath(newFd.path, rootCid);
+      if (oldEquivPath in OldTreePathsMap) {
+        const oldFd = OldTreePathsMap[oldEquivPath];
+        if (oldFd.cid !== newFd.cid) {
+          pruneList.push(oldFd);
+        }
+      }
     });
 
     const formattedPruneList = pruneList.map((e) => {

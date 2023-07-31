@@ -1,4 +1,4 @@
-FROM node:16.16.0
+FROM node:16.20.0-bookworm
 
 VOLUME /root/.yarn
 

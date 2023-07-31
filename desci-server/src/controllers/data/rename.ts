@@ -120,17 +120,23 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
 
     const newRefs = await prepareDataRefs(node.uuid, updatedManifest, updatedRootCid, false);
 
+    const existingRefMap = existingDataRefs.reduce((map, ref) => {
+      map[neutralizePath(ref.path)] = ref;
+      return map;
+    }, {});
+
     const dataRefUpdates = newRefs.map((newRef) => {
-      const neutralNewPath = newRef.path.replace(updatedRootCid, 'root');
-      const match = existingDataRefs.find((oldRef) => {
-        const neutralRefPath = neutralizePath(oldRef.path);
-        if (neutralRefPath === neutralNewPath) return true;
-        if (neutralRefPath.startsWith(path + '/') || neutralRefPath === path) {
-          const updatedPath = neutralRefPath.replace(path, newPath);
-          return updatedPath === neutralNewPath;
-        }
-        return false;
-      });
+      const neutralNewPath = neutralizePath(newRef.path);
+      let match = existingRefMap[neutralNewPath]; // covers path unchanged refs
+      if (!match) {
+        // path changed in the rename op
+        const updatedPath = neutralNewPath.replace(newPath, path); // adjusted for the old path
+        match = existingRefMap[updatedPath];
+      }
+      if (!match) {
+        logger.error({ refIteration: newRef }, 'failed to find an existing match for ref, node is missing refs');
+        throw Error(`failed to find an existing match for ref, node is missing refs, path: ${newRef.path}`);
+      }
       newRef.id = match?.id;
       return newRef;
     });
