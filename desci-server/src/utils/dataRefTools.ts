@@ -1,4 +1,5 @@
 import {
+  FileType,
   ResearchObjectComponentType,
   ResearchObjectV1,
   neutralizePath,
@@ -22,13 +23,43 @@ import {
 
 const logger = parentLogger.child({ module: 'Utils::DataRefTools' });
 
+async function extractExternalCidMapFromTreeUrl(workingTreeUrl: string) {
+  const res = await axios.get(workingTreeUrl);
+  if (res.status !== 200) throw new Error(`Failed to get working tree from ${workingTreeUrl}`);
+
+  const { tree } = res.data;
+  const flatTree = recursiveFlattenTree(tree[0]);
+  const externalCidMap: ExternalCidMap = {};
+  flatTree.forEach((entry) => {
+    if (entry.external && entry.type === FileType.DIR) {
+      externalCidMap[entry.cid] = {
+        size: entry.size,
+        path: entry.path,
+        directory: true,
+      };
+    }
+  });
+  return externalCidMap;
+}
+
+interface GenerateDataReferencesArgs {
+  nodeUuid: string;
+  manifestCid: string;
+  versionId?: number;
+  markExternals?: boolean;
+  workingTreeUrl?: string;
+}
+
 // generates data references for the contents of a manifest
-export async function generateDataReferences(
-  nodeUuid: string,
-  manifestCid: string,
-  versionId?: number,
-  markExternals = false,
-): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
+export async function generateDataReferences({
+  nodeUuid,
+  manifestCid,
+  versionId,
+  markExternals,
+  workingTreeUrl,
+}: GenerateDataReferencesArgs): Promise<
+  Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]
+> {
   nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
   const node = await prisma.node.findFirst({
     where: {
@@ -54,7 +85,9 @@ export async function generateDataReferences(
     ...(markExternals ? { external: null } : {}),
   };
 
-  const externalCidMap = await generateExternalCidMap(node.uuid);
+  const externalCidMap = workingTreeUrl
+    ? await extractExternalCidMapFromTreeUrl(workingTreeUrl)
+    : await generateExternalCidMap(node.uuid);
   let dataTree;
   if (markExternals) {
     dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
@@ -216,13 +249,14 @@ interface DiffObject {
 // generateDataReferences() refs won't contain these keys, they will be omitted from the diff.
 const DIFF_EXCLUSION_KEYS = ['id', 'createdAt', 'updatedAt', 'name', 'description'];
 
-export async function validateDataReferences(
-  nodeUuid: string,
-  manifestCid: string,
-  publicRefs: boolean,
-  markExternals = false,
-  txHash?: string,
-) {
+export async function validateDataReferences({
+  nodeUuid,
+  manifestCid,
+  publicRefs,
+  markExternals,
+  txHash,
+  workingTreeUrl,
+}: ValidateAndHealDataRefsArgs) {
   if (nodeUuid.endsWith('.')) nodeUuid = nodeUuid.slice(0, -1);
   const node = await prisma.node.findFirst({
     where: {
@@ -254,7 +288,13 @@ export async function validateDataReferences(
       })
     : await prisma.dataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } });
 
-  const requiredRefs = await generateDataReferences(nodeUuid, manifestCid, versionId, markExternals);
+  const requiredRefs = await generateDataReferences({
+    nodeUuid,
+    manifestCid,
+    versionId,
+    markExternals,
+    workingTreeUrl,
+  });
 
   const missingRefs = [];
   const diffRefs: DiffObject = {};
@@ -354,20 +394,31 @@ export async function validateDataReferences(
   return { missingRefs, unusedRefs, diffRefs };
 }
 
-export async function validateAndHealDataRefs(
-  nodeUuid: string,
-  manifestCid: string,
-  publicRefs: boolean,
-  markExternals = false,
-  txHash?: string,
-) {
-  const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(
+interface ValidateAndHealDataRefsArgs {
+  nodeUuid: string;
+  manifestCid: string;
+  publicRefs: boolean;
+  markExternals?: boolean;
+  txHash?: string;
+  workingTreeUrl?: string;
+}
+
+export async function validateAndHealDataRefs({
+  nodeUuid,
+  manifestCid,
+  publicRefs,
+  markExternals,
+  txHash,
+  workingTreeUrl,
+}: ValidateAndHealDataRefsArgs) {
+  const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
     nodeUuid,
     manifestCid,
     publicRefs,
     markExternals,
     txHash,
-  );
+    workingTreeUrl,
+  });
   if (missingRefs.length) {
     const addedRefs = publicRefs
       ? await prisma.publicDataReference.createMany({
