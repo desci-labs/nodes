@@ -28,7 +28,7 @@ async function extractExternalCidMapFromTreeUrl(workingTreeUrl: string) {
   if (res.status !== 200) throw new Error(`Failed to get working tree from ${workingTreeUrl}`);
 
   const { tree } = res.data;
-  const flatTree = recursiveFlattenTree(tree[0]);
+  const flatTree = recursiveFlattenTree(tree);
   const externalCidMap: ExternalCidMap = {};
   flatTree.forEach((entry) => {
     if (entry.external && entry.type === FileType.DIR) {

@@ -234,7 +234,6 @@ async function fillPublic(nodeUuid: string, userEmail: string, workingTreeUrl?: 
         nodeUuid: node.uuid,
         manifestCid,
         publicRefs: true,
-        markExternals: true,
         txHash,
         workingTreeUrl,
       });
