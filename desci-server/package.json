@@ -15,6 +15,7 @@
     "script:fill-research-fields": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/fill-research-fields.ts",
     "script:fix-data-refs": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/dataRefDoctor.ts",
     "script:active-users": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/activeUsers.ts",
+    "script:invalidate-redis-cache": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/invalidate-redis-cache.ts",
     "build": "rimraf dist && tsc && yarn copy-files",
     "copy-files": "copyfiles -u 1 src/**/*.cjs dist/",
     "generate": "npx prisma generate",
