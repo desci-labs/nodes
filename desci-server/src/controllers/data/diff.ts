@@ -84,7 +84,10 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
   const flatTreeA = recursiveFlattenTree(await getDirectoryTree(dataBucketCidA, externalCidMapA)) as DriveObject[];
   const flatTreeB = recursiveFlattenTree(await getDirectoryTree(dataBucketCidB, externalCidMapB)) as DriveObject[];
 
-  const diff = diffTrees(flatTreeA, flatTreeB);
+  const diff = diffTrees(flatTreeA, flatTreeB, {
+    pruneThreshold: 1000,
+    onThresholdExceeded: { onlyDirectories: true },
+  });
 
   if (diff) {
     return res.status(200).json({ diff });
