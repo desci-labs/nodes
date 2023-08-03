@@ -107,11 +107,11 @@ describe('Data Controllers', () => {
         expect(res.body).to.have.property('manifestCid');
       });
       it('should have created all necessary data references', async () => {
-        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(
-          node.uuid!,
-          res.body.manifestCid,
-          false,
-        );
+        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
+          nodeUuid: node.uuid!,
+          manifestCid: res.body.manifestCid,
+          publicRefs: false,
+        });
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
@@ -204,11 +204,11 @@ describe('Data Controllers', () => {
         expect(res.body).to.have.property('manifestCid');
       });
       it('should have created all necessary data references', async () => {
-        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(
-          node.uuid!,
-          res.body.manifestCid,
-          false,
-        );
+        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
+          nodeUuid: node.uuid!,
+          manifestCid: res.body.manifestCid,
+          publicRefs: false,
+        });
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
@@ -262,11 +262,11 @@ describe('Data Controllers', () => {
         expect(res.body).to.have.property('manifestCid');
       });
       it('should have created all necessary data references', async () => {
-        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(
-          node.uuid!,
-          res.body.manifestCid,
-          false,
-        );
+        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
+          nodeUuid: node.uuid!,
+          manifestCid: res.body.manifestCid,
+          publicRefs: false,
+        });
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
@@ -332,7 +332,7 @@ describe('Data Controllers', () => {
 
         await prisma.dataReference.create({ data: manifestEntry });
         await prisma.privateShare.create({ data: { shareId: privShareUuid, nodeUUID: node.uuid! } });
-        await validateAndHealDataRefs(node.uuid!, manifestCid, false);
+        await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
 
         dotlessUuid = node.uuid!.substring(0, node.uuid!.length - 1);
       });
@@ -423,7 +423,8 @@ describe('Data Controllers', () => {
         };
 
         await prisma.dataReference.create({ data: manifestEntry });
-        await validateAndHealDataRefs(node.uuid!, manifestCid, false);
+        await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
+
         res = await request(app)
           .post(`/v1/data/delete`)
           .set('authorization', authHeaderVal)
@@ -456,11 +457,11 @@ describe('Data Controllers', () => {
         expect(res.statusCode).to.not.equal(200);
       });
       it('should remove deleted content data references', async () => {
-        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(
-          node.uuid!,
-          res.body.manifestCid,
-          false,
-        );
+        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
+          nodeUuid: node.uuid!,
+          manifestCid: res.body.manifestCid,
+          publicRefs: false,
+        });
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
@@ -534,7 +535,7 @@ describe('Data Controllers', () => {
         };
 
         await prisma.dataReference.create({ data: manifestEntry });
-        await validateAndHealDataRefs(node.uuid!, manifestCid, false);
+        await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
         res = await request(app)
           .post(`/v1/data/rename`)
           .set('authorization', authHeaderVal)
@@ -579,11 +580,11 @@ describe('Data Controllers', () => {
         expect(res.statusCode).to.not.equal(200);
       });
       it('should rename all appropriate data references', async () => {
-        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(
-          node.uuid!,
-          res.body.manifestCid,
-          false,
-        );
+        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
+          nodeUuid: node.uuid!,
+          manifestCid: res.body.manifestCid,
+          publicRefs: false,
+        });
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
@@ -678,7 +679,7 @@ describe('Data Controllers', () => {
         };
 
         await prisma.dataReference.create({ data: manifestEntry });
-        await validateAndHealDataRefs(node.uuid!, manifestCid, false);
+        await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
         res = await request(app)
           .post(`/v1/data/move`)
           .set('authorization', authHeaderVal)
@@ -720,11 +721,11 @@ describe('Data Controllers', () => {
         expect(res.statusCode).to.not.equal(200);
       });
       it('should modify all appropriate data references', async () => {
-        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences(
-          node.uuid!,
-          res.body.manifestCid,
-          false,
-        );
+        const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
+          nodeUuid: node.uuid!,
+          manifestCid: res.body.manifestCid,
+          publicRefs: false,
+        });
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });

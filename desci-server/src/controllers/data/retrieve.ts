@@ -243,7 +243,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   const hasDataBucket = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
 
   const fetchCb = hasDataBucket
-    ? async () => await getTreeAndFill(manifest, uuid)
+    ? async () => await getTreeAndFill(manifest, uuid, undefined, true)
     : async () => await getTreeAndFillDeprecated(rootCid, uuid, dataSource);
 
   const cacheKey = hasDataBucket ? `pub-filled-tree-${manifestCid}` : `deprecated-filled-tree-${rootCid}`;

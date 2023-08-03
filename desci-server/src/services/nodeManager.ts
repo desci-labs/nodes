@@ -183,7 +183,7 @@ export const getAllCidsRequiredForPublish = async (
     nodeId,
     versionId,
   };
-  const dataBucketEntries = await generateDataReferences(nodeUuid, manifestCid, versionId);
+  const dataBucketEntries = await generateDataReferences({ nodeUuid, manifestCid, versionId });
 
   return [manifestEntry, ...dataBucketEntries];
 };

@@ -557,6 +557,7 @@ export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
 
 // Used for recursively lsing a DAG without knowing if it contains public or private cids, slow and INEFFICIENT!
 export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap, carryPath?: string) {
+  console.log('extCidMap', externalCidMap);
   try {
     carryPath = carryPath || convertToCidV1(dagCid);
     const tree = [];
@@ -584,7 +585,7 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
         result.size = link.Tsize;
       } else {
         let linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
-        if (!linkBlock) linkBlock = await publicIpfs.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+        if (!linkBlock) linkBlock = await publicIpfs.block.get(cidObject, { timeout: EXTERNAL_IPFS_TIMEOUT });
         if (!linkBlock) throw new Error('Could not find block for cid: ' + dagCid);
         const { Data: linkData } = dagPb.decode(linkBlock);
         const unixFsLink = UnixFS.unmarshal(linkData);
