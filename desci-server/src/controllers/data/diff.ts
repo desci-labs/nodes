@@ -18,7 +18,8 @@ import { ErrorResponse } from './update';
 
 interface DiffResponse {
   status?: number;
-  diff: TreeDiff;
+  treeDiff: TreeDiff;
+  sizeDiff: number;
 }
 
 // Diffs two public nodes
@@ -81,18 +82,26 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
   const externalCidMapA = await generateExternalCidMap(nodeUuid, dataBucketCidA);
   const externalCidMapB = await generateExternalCidMap(nodeUuid, dataBucketCidB);
 
-  const flatTreeA = recursiveFlattenTree(await getDirectoryTree(dataBucketCidA, externalCidMapA)) as DriveObject[];
-  const flatTreeB = recursiveFlattenTree(await getDirectoryTree(dataBucketCidB, externalCidMapB)) as DriveObject[];
+  const treeA = await getDirectoryTree(dataBucketCidA, externalCidMapA);
+  const treeB = await getDirectoryTree(dataBucketCidB, externalCidMapB);
 
-  const diff = diffTrees(flatTreeA, flatTreeB, {
+  const flatTreeA = recursiveFlattenTree(treeA) as DriveObject[];
+  const flatTreeB = recursiveFlattenTree(treeB) as DriveObject[];
+  debugger;
+  const treeASize = (treeA as DriveObject[]).reduce((acc: number, node: DriveObject) => acc + node.size, 0);
+  const treeBSize = (treeB as DriveObject[]).reduce((acc: number, node: DriveObject) => acc + node.size, 0);
+
+  const sizeDiff = treeASize - treeBSize;
+
+  const treeDiff = diffTrees(flatTreeA, flatTreeB, {
     pruneThreshold: 1000,
     onThresholdExceeded: { onlyDirectories: true },
   });
 
-  if (diff) {
-    return res.status(200).json({ diff });
+  if (treeDiff && sizeDiff) {
+    return res.status(200).json({ treeDiff, sizeDiff });
   }
 
-  logger.error({ diff, manifestA, manifestB, dataBucketCidA, dataBucketCidB }, 'Failed to diff trees');
+  logger.error({ treeDiff, manifestA, manifestB, dataBucketCidA, dataBucketCidB }, 'Failed to diff trees');
   return res.status(400).json({ error: 'Failed to diff trees' });
 };
