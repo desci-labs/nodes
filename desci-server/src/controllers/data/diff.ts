@@ -1,26 +1,24 @@
 import {
+  DriveObject,
   ResearchObjectComponentType,
   ResearchObjectV1,
-  ResearchObjectV1Component,
-  neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
-import { DataType } from '@prisma/client';
+import axios from 'axios';
 import { Request, Response } from 'express';
 
 import prisma from 'client';
+import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
-import { getDirectoryTree, renameFileInDag } from 'services/ipfs';
-import { prepareDataRefs } from 'utils/dataRefTools';
-import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
+import { getDirectoryTree } from 'services/ipfs';
+import { TreeDiff, diffTrees } from 'utils/diffUtils';
+import { generateExternalCidMap } from 'utils/driveUtils';
 
-import { ErrorResponse, updateManifestDataBucket } from './update';
-import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils';
+import { ErrorResponse } from './update';
 
 interface DiffResponse {
   status?: number;
-  manifest: ResearchObjectV1;
-  manifestCid: string;
+  diff: TreeDiff;
 }
 
 // Diffs two public nodes
@@ -49,7 +47,7 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
     return res.status(400).json({ error: 'nodeUuid not found' });
   }
 
-  // check if both manifestCids are public
+  // check if both manifestCids are public and valid
   const manifestAPubRef = await prisma.publicDataReference.findFirst({
     where: {
       cid: manifestCidA,
@@ -65,114 +63,33 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
     return res.status(400).json({ error: 'Invalid comparison manifestCids or unpublished nodes' });
   }
 
-  const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  const dataBucket = latestManifest?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const manifestUrlA = cleanupManifestUrl(manifestCidA);
+  const manifestUrlB = cleanupManifestUrl(manifestCidB);
 
-  try {
-    /*
-     ** New name collision check
-     */
-    const externalCidMap = await generateExternalCidMap(node.uuid);
-    const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(dataBucket.payload.cid, externalCidMap));
-    const oldPathSplit = path.split('/');
-    oldPathSplit.pop();
-    oldPathSplit.push(newName);
-    const newPath = oldPathSplit.join('/');
-    const hasDuplicates = oldFlatTree.some((oldBranch) => oldBranch.path.includes(newPath));
-    if (hasDuplicates) {
-      logger.info('[DATA::Rename] Rejected as duplicate paths were found');
-      return res.status(400).json({ error: 'Name collision' });
-    }
-
-    /*
-     ** Update in dag
-     */
-    const splitContextPath = path.split('/');
-    splitContextPath.shift(); //remove root
-    const linkToRename = splitContextPath.pop();
-    const cleanContextPath = splitContextPath.join('/');
-    logger.debug(`DATA::Rename cleanContextPath: ${cleanContextPath},  Renaming: ${linkToRename},  to : ${newName}`);
-    const { updatedDagCidMap, updatedRootCid } = await renameFileInDag(
-      dataBucket.payload.cid,
-      cleanContextPath,
-      linkToRename,
-      newName,
-    );
-
-    /*
-     ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
-     */
-    let updatedManifest = updateComponentPathsInManifest({ manifest: latestManifest, oldPath: path, newPath: newPath });
-
-    updatedManifest = updateManifestDataBucket({
-      manifest: updatedManifest,
-      dataBucketId: dataBucket.id,
-      newRootCid: updatedRootCid,
-    });
-
-    if (Object.keys(updatedDagCidMap).length) {
-      updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    }
-
-    if (renameComponent) {
-      const componentIndex = updatedManifest.components.findIndex((c) => c.payload.path === newPath);
-      const { fileName } = separateFileNameAndExtension(newName);
-      updatedManifest.components[componentIndex].name = fileName;
-    }
-
-    /*
-     ** Prepare updated refs
-     */
-    const existingDataRefs = await prisma.dataReference.findMany({
-      where: {
-        nodeId: node.id,
-        userId: owner.id,
-        type: { not: DataType.MANIFEST },
-      },
-    });
-
-    const newRefs = await prepareDataRefs(node.uuid, updatedManifest, updatedRootCid, false);
-
-    const existingRefMap = existingDataRefs.reduce((map, ref) => {
-      map[neutralizePath(ref.path)] = ref;
-      return map;
-    }, {});
-
-    const dataRefUpdates = newRefs.map((newRef) => {
-      const neutralNewPath = neutralizePath(newRef.path);
-      let match = existingRefMap[neutralNewPath]; // covers path unchanged refs
-      if (!match) {
-        // path changed in the rename op
-        const updatedPath = neutralNewPath.replace(newPath, path); // adjusted for the old path
-        match = existingRefMap[updatedPath];
-      }
-      if (!match) {
-        logger.error({ refIteration: newRef }, 'failed to find an existing match for ref, node is missing refs');
-        throw Error(`failed to find an existing match for ref, node is missing refs, path: ${newRef.path}`);
-      }
-      newRef.id = match?.id;
-      return newRef;
-    });
-
-    const [...updates] = await prisma.$transaction([
-      ...(dataRefUpdates as any).map((fd) => {
-        return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
-      }),
-    ]);
-    logger.info(`[DATA::Rename] ${updates.length} dataReferences updated`);
-
-    const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
-    if (!persistedManifestCid)
-      throw Error(`[DATA::RENAME]Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
-
-    logger.info(`[DATA::Rename] Success, path: ${path} changed to: ${newPath}`);
-
-    return res.status(200).json({
-      manifest: updatedManifest,
-      manifestCid: persistedManifestCid,
-    });
-  } catch (e: any) {
-    logger.error(`[DATA::Rename] error: ${e}`);
+  const manifestA = await axios.get<ResearchObjectV1>(manifestUrlA).then((res) => res.data);
+  const manifestB = await axios.get<ResearchObjectV1>(manifestUrlB).then((res) => res.data);
+  if (!manifestA || !manifestB) {
+    logger.warn(`Failed to retrieve manifest from ${manifestUrlA} or ${manifestUrlB}`);
+    return res.status(400).json({ error: 'Failed to retrieve manifest' });
   }
-  return res.status(400).json({ error: 'failed' });
+
+  const dataBucketCidA = manifestA?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
+    ?.cid;
+  const dataBucketCidB = manifestB?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
+    ?.cid;
+
+  const externalCidMapA = await generateExternalCidMap(nodeUuid, dataBucketCidA);
+  const externalCidMapB = await generateExternalCidMap(nodeUuid, dataBucketCidB);
+
+  const flatTreeA = recursiveFlattenTree(await getDirectoryTree(dataBucketCidA, externalCidMapA)) as DriveObject[];
+  const flatTreeB = recursiveFlattenTree(await getDirectoryTree(dataBucketCidB, externalCidMapB)) as DriveObject[];
+
+  const diff = diffTrees(flatTreeA, flatTreeB);
+
+  if (diff) {
+    return res.status(200).json({ diff });
+  }
+
+  logger.error({ diff, manifestA, manifestB, dataBucketCidA, dataBucketCidB }, 'Failed to diff trees');
+  return res.status(400).json({ error: 'Failed to diff trees' });
 };
