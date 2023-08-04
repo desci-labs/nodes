@@ -28,7 +28,7 @@ check() {
   done
 
   echo "[seed:$CONTRACT_NAME] deployment found, killing ganache..."
-  killall "npm exec ganache"
+  killall "ganache"
   echo "[seed:$CONTRACT_NAME] ganache killed"
 }
 
