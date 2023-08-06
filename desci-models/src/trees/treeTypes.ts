@@ -18,11 +18,18 @@ export interface DriveObject {
   cid: string;
   type: FileType;
   contains?: Array<DriveObject> | null;
+  containsComponents?: ContainsComponents;
   parent?: DriveObject | FileDir | null;
   path?: string;
   starred?: boolean;
   external?: boolean;
 }
+
+export const NODE_KEEP_FILE = ".nodeKeep";
+
+export type ContainsComponents = {
+  [key in ResearchObjectComponentType]?: number;
+};
 
 export type DriveMetadata = CommonComponentPayload & DataComponentMetadata;
 
