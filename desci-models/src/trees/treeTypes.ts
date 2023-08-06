@@ -25,6 +25,8 @@ export interface DriveObject {
   external?: boolean;
 }
 
+export const NODE_KEEP_FILE = ".nodeKeep";
+
 export type ContainsComponents = {
   [key in ResearchObjectComponentType]?: number;
 };

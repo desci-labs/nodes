@@ -14,6 +14,7 @@ import {
   DrivePath,
   FileDir,
   FileType,
+  NODE_KEEP_FILE,
   RecursiveLsResult,
   VirtualDriveArgs,
 } from "./treeTypes";
@@ -134,6 +135,11 @@ export function convertIpfsTreeToDriveObjectTree(
 export function aggregateContainedComponents(dirDrive: DriveObject) {
   return dirDrive?.contains?.reduce(
     (acc: ContainsComponents, fd: DriveObject) => {
+      if (
+        (fd.type === FileType.FILE && fd.name === ".DS_Store") ||
+        fd.name === NODE_KEEP_FILE
+      )
+        return acc;
       if (fd.type === FileType.DIR && fd.containsComponents)
         acc = addObjectValues(acc, fd.containsComponents);
       const key = fd.componentType as ResearchObjectComponentType;
@@ -142,7 +148,6 @@ export function aggregateContainedComponents(dirDrive: DriveObject) {
       } else {
         acc[key] = 1;
       }
-      // }
       return acc;
     },
     {} as ContainsComponents
