@@ -8,6 +8,7 @@ import {
 } from "../ResearchObject";
 import {
   AccessStatus,
+  ContainsComponents,
   DriveMetadata,
   DriveObject,
   DrivePath,
@@ -28,6 +29,7 @@ export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
     ipfsTree as DriveObject[],
     pathToCompMap,
     pathToSizeMap
+    // {}
   );
 
   // Potentially keep if we want to return the root node
@@ -39,7 +41,9 @@ export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
     path: DRIVE_NODE_ROOT_PATH,
     contains: driveObjectTree,
     size: rootSize,
+    type: FileType.DIR,
   });
+  treeRoot.containsComponents = aggregateContainedComponents(treeRoot);
 
   return [treeRoot];
   // return driveObjectTree;
@@ -121,9 +125,44 @@ export function convertIpfsTreeToDriveObjectTree(
         pathToCompMap,
         pathToSizeMap
       );
+      branch.containsComponents = aggregateContainedComponents(branch);
     }
   });
   return tree;
+}
+
+export function aggregateContainedComponents(dirDrive: DriveObject) {
+  return dirDrive?.contains?.reduce(
+    (acc: ContainsComponents, fd: DriveObject) => {
+      if (fd.type === FileType.DIR && fd.containsComponents)
+        acc = addObjectValues(acc, fd.containsComponents);
+      const key = fd.componentType as ResearchObjectComponentType;
+      if (key in acc) {
+        acc[key]! += 1;
+      } else {
+        acc[key] = 1;
+      }
+      // }
+      return acc;
+    },
+    {} as ContainsComponents
+  );
+}
+
+type NumericObject = {
+  [key: string]: number;
+};
+function addObjectValues(
+  objA: NumericObject,
+  objB: NumericObject
+): NumericObject {
+  const result: NumericObject = { ...objA };
+
+  for (const [key, value] of Object.entries(objB)) {
+    result[key] = (result[key] || 0) + value;
+  }
+
+  return result;
 }
 
 export function hasPublic(tree: DriveObject): boolean {
