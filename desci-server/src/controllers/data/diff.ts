@@ -1,7 +1,9 @@
 import {
+  ContainsComponents,
   DriveObject,
   ResearchObjectComponentType,
   ResearchObjectV1,
+  aggregateContainedComponents,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import axios from 'axios';
@@ -11,8 +13,8 @@ import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { getDirectoryTree } from 'services/ipfs';
-import { TreeDiff, diffTrees } from 'utils/diffUtils';
-import { generateExternalCidMap } from 'utils/driveUtils';
+import { TreeDiff, diffTrees, subtractObjectValues } from 'utils/diffUtils';
+import { generateExternalCidMap, getTreeAndFill } from 'utils/driveUtils';
 
 import { ErrorResponse } from './update';
 
@@ -20,6 +22,7 @@ interface DiffResponse {
   status?: number;
   treeDiff: TreeDiff;
   sizeDiff: number;
+  componentsDiff: ContainsComponents;
 }
 
 // Diffs two public nodes
@@ -79,19 +82,19 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
   const dataBucketCidB = manifestB?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
     ?.cid;
 
-  const externalCidMapA = await generateExternalCidMap(nodeUuid, dataBucketCidA);
-  const externalCidMapB = await generateExternalCidMap(nodeUuid, dataBucketCidB);
-
-  const treeA = await getDirectoryTree(dataBucketCidA, externalCidMapA);
-  const treeB = await getDirectoryTree(dataBucketCidB, externalCidMapB);
+  const treeA = await getTreeAndFill(manifestA, nodeUuid, undefined, true);
+  const treeB = await getTreeAndFill(manifestB, nodeUuid, undefined, true);
 
   const flatTreeA = recursiveFlattenTree(treeA) as DriveObject[];
   const flatTreeB = recursiveFlattenTree(treeB) as DriveObject[];
-  debugger;
-  const treeASize = (treeA as DriveObject[]).reduce((acc: number, node: DriveObject) => acc + node.size, 0);
-  const treeBSize = (treeB as DriveObject[]).reduce((acc: number, node: DriveObject) => acc + node.size, 0);
 
+  const treeASize = treeA[0].size;
+  const treeBSize = treeB[0].size;
   const sizeDiff = treeASize - treeBSize;
+
+  const treeAComponentsContained = aggregateContainedComponents(treeA[0]);
+  const treeBComponentsContained = aggregateContainedComponents(treeB[0]);
+  const componentsDiff = subtractObjectValues(treeAComponentsContained, treeBComponentsContained);
 
   const treeDiff = diffTrees(flatTreeA, flatTreeB, {
     pruneThreshold: 1000,
@@ -99,7 +102,7 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
   });
 
   if (treeDiff && sizeDiff) {
-    return res.status(200).json({ treeDiff, sizeDiff });
+    return res.status(200).json({ treeDiff, sizeDiff, componentsDiff });
   }
 
   logger.error({ treeDiff, manifestA, manifestB, dataBucketCidA, dataBucketCidB }, 'Failed to diff trees');

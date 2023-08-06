@@ -67,3 +67,21 @@ export function diffTrees(treeA: DriveObject[], treeB: DriveObject[], options: D
 
   return diff;
 }
+
+type NumericObject = {
+  [key: string]: number;
+};
+
+export function subtractObjectValues(objA: NumericObject, objB: NumericObject): NumericObject {
+  const result: NumericObject = { ...objA };
+
+  for (const [key, value] of Object.entries(objB)) {
+    if (result.hasOwnProperty(key)) {
+      result[key] -= value;
+    } else {
+      result[key] = -value;
+    }
+  }
+
+  return result;
+}
