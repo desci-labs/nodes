@@ -12,14 +12,16 @@ import { Request, Response } from 'express';
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
-import { getDirectoryTree } from 'services/ipfs';
+import { getFromCache, setToCache } from 'redisClient';
 import { TreeDiff, diffTrees, subtractObjectValues } from 'utils/diffUtils';
-import { generateExternalCidMap, getTreeAndFill } from 'utils/driveUtils';
+import { getTreeAndFill } from 'utils/driveUtils';
 
 import { ErrorResponse } from './update';
 
-interface DiffResponse {
+interface DiffResponse extends Diffs {
   status?: number;
+}
+interface Diffs {
   treeDiff: TreeDiff;
   sizeDiff: number;
   componentsDiff: ContainsComponents;
@@ -40,6 +42,11 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
 
   if (nodeUuid === undefined || manifestCidA === undefined || manifestCidB === undefined)
     return res.status(400).json({ error: 'uuid, manifestCidA and manifestCidB query params required' });
+
+  const cacheKey = `diff-${nodeUuid}-${manifestCidA}-${manifestCidB}`;
+
+  const cachedDiffs = await getFromCache<Diffs | null>(cacheKey);
+  if (cachedDiffs) return res.status(200).json(cachedDiffs);
 
   // ensure the node is valid
   const node = await prisma.node.findFirst({
@@ -93,6 +100,7 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
   const sizeDiff = treeASize - treeBSize;
 
   const treeAComponentsContained = aggregateContainedComponents(treeA[0]);
+  debugger;
   const treeBComponentsContained = aggregateContainedComponents(treeB[0]);
   const componentsDiff = subtractObjectValues(treeAComponentsContained, treeBComponentsContained);
 
@@ -101,8 +109,15 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
     onThresholdExceeded: { onlyDirectories: true },
   });
 
-  if (treeDiff && sizeDiff) {
-    return res.status(200).json({ treeDiff, sizeDiff, componentsDiff });
+  const diffs: Diffs = {
+    treeDiff,
+    sizeDiff,
+    componentsDiff,
+  };
+
+  if (treeDiff && sizeDiff && componentsDiff) {
+    await setToCache(cacheKey, diffs);
+    return res.status(200).json(diffs);
   }
 
   logger.error({ treeDiff, manifestA, manifestB, dataBucketCidA, dataBucketCidB }, 'Failed to diff trees');
