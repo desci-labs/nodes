@@ -1,4 +1,4 @@
-import { DataComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import { DataComponent, DrivePath, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 import axios from 'axios';
 import { v4 as uuid } from 'uuid';
