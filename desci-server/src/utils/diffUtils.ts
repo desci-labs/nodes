@@ -81,6 +81,10 @@ export function subtractObjectValues(objA: NumericObject, objB: NumericObject): 
     } else {
       result[key] = -value;
     }
+
+    if (result[key] === 0) {
+      delete result[key];
+    }
   }
 
   return result;
