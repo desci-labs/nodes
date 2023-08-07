@@ -100,7 +100,6 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
   const sizeDiff = treeASize - treeBSize;
 
   const treeAComponentsContained = aggregateContainedComponents(treeA[0]);
-  debugger;
   const treeBComponentsContained = aggregateContainedComponents(treeB[0]);
   const componentsDiff = subtractObjectValues(treeAComponentsContained, treeBComponentsContained);
 
