@@ -114,11 +114,16 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
     componentsDiff,
   };
 
-  if (treeDiff && sizeDiff && componentsDiff) {
+  const hasDiffs = treeDiff && (sizeDiff !== null || sizeDiff !== undefined) && componentsDiff;
+
+  if (hasDiffs) {
     await setToCache(cacheKey, diffs);
     return res.status(200).json(diffs);
   }
 
-  logger.error({ treeDiff, manifestA, manifestB, dataBucketCidA, dataBucketCidB }, 'Failed to diff trees');
+  logger.error(
+    { diffsSuccessfullyGenerated: hasDiffs, manifestCidA, manifestCidB, dataBucketCidA, dataBucketCidB },
+    'Failed to diff trees',
+  );
   return res.status(400).json({ error: 'Failed to diff trees' });
 };
