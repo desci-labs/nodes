@@ -503,10 +503,10 @@ export async function mixedLs(
       } else {
         let linkBlock;
         try {
-          linkBlock = await client.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT }); //instead of throwing, catch and print cid
+          linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT }); //instead of throwing, catch and print cid
         } catch (err) {
           logger.error(
-            { fn: 'mixedLs', cid: dagCid, carryPath, err },
+            { fn: 'mixedLs', cid: linkCidObject.toString(), carryPath, err },
             `[mixedLs] error, cid may not exist in priv swarm or unmarked external cid`,
           );
         }
