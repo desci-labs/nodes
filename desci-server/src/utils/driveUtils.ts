@@ -32,9 +32,10 @@ export function fillDirSizes(tree, cidInfoMap) {
 
 // Fills in the access status of CIDs and dates
 export function fillCidInfo(tree, cidInfoMap) {
+  // debugger;
   const contains = [];
   tree.forEach((fd) => {
-    if (fd.type === 'dir') fd.contains = fillCidInfo(fd.contains, cidInfoMap);
+    if (fd.type === 'dir' && fd.contains?.length) fd.contains = fillCidInfo(fd.contains, cidInfoMap);
     fd.date = cidInfoMap[fd.cid]?.date || Date.now();
     fd.published = cidInfoMap[fd.cid]?.published;
     contains.push(fd);
@@ -126,6 +127,7 @@ export async function getTreeAndFill(
   ownerId?: number,
   published?: boolean,
 ) {
+  // debugger;
   const rootCid = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload.cid;
   const externalCidMap = published
     ? await generateExternalCidMap(nodeUuid + '.', rootCid)
@@ -162,7 +164,7 @@ export async function getTreeAndFill(
   if (privEntries.length | pubEntries.length) {
     const pubCids: Record<string, boolean> = {};
     pubEntries.forEach((e) => (pubCids[e.cid] = true));
-
+    // debugger;
     // Build cidInfoMap
     privEntries.forEach((ref) => {
       if (pubCids[ref.cid]) return; // Skip if there's a pub entry
