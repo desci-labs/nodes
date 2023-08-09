@@ -220,7 +220,7 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
     ? cleanupManifestUrl(latestManifestCid as string, req.query?.g as string)
     : null;
 
-  debugger;
+  // debugger;
 
   const fetchedManifest = manifestUrl ? await (await axios.get(manifestUrl)).data : null;
   const latestManifest = fetchedManifest;
