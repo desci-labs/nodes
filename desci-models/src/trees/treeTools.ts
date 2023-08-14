@@ -147,8 +147,7 @@ export function aggregateContainedComponents(dirDrive: DriveObject) {
         acc[key]!.count += 1;
         acc[key]!.size += fd.size;
       } else {
-        acc[key]!.count = 1;
-        acc[key]!.size = fd.size;
+        acc[key] = { count: 1, size: fd.size };
       }
       return acc;
     },
