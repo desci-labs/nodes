@@ -68,22 +68,25 @@ export function diffTrees(treeA: DriveObject[], treeB: DriveObject[], options: D
   return diff;
 }
 
-type NumericObject = {
-  [key: string]: number;
+type NestedNumericObject = {
+  [key: string]: { [key: string]: number };
 };
 
-export function subtractObjectValues(objA: NumericObject, objB: NumericObject): NumericObject {
-  const result: NumericObject = { ...objA };
+export function subtractNestedObjectValues(objA: NestedNumericObject, objB: NestedNumericObject): NestedNumericObject {
+  const result: NestedNumericObject = JSON.parse(JSON.stringify(objA));
 
-  for (const [key, value] of Object.entries(objB)) {
-    if (result.hasOwnProperty(key)) {
-      result[key] -= value;
-    } else {
-      result[key] = -value;
-    }
+  for (const outerKey in objB) {
+    if (!result[outerKey]) result[outerKey] = {};
+    for (const innerKey in objB[outerKey]) {
+      if (result[outerKey].hasOwnProperty(innerKey)) {
+        result[outerKey][innerKey] -= objB[outerKey][innerKey];
+      } else {
+        result[outerKey][innerKey] = -objB[outerKey][innerKey];
+      }
 
-    if (result[key] === 0) {
-      delete result[key];
+      if (result[outerKey][innerKey] === 0) {
+        delete result[outerKey][innerKey];
+      }
     }
   }
 
