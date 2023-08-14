@@ -28,7 +28,10 @@ export interface DriveObject {
 export const NODE_KEEP_FILE = ".nodeKeep";
 
 export type ContainsComponents = {
-  [key in ResearchObjectComponentType]?: number;
+  [key in ResearchObjectComponentType]?: {
+    count: number;
+    size: number;
+  };
 };
 
 export type DriveMetadata = CommonComponentPayload & DataComponentMetadata;

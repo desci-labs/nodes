@@ -141,12 +141,14 @@ export function aggregateContainedComponents(dirDrive: DriveObject) {
       )
         return acc;
       if (fd.type === FileType.DIR && fd.containsComponents)
-        acc = addObjectValues(acc, fd.containsComponents);
+        acc = addNestedObjectValues(acc, fd.containsComponents);
       const key = fd.componentType as ResearchObjectComponentType;
-      if (key in acc) {
-        acc[key]! += 1;
+      if (key in acc && acc[key]?.count) {
+        acc[key]!.count += 1;
+        acc[key]!.size += fd.size;
       } else {
-        acc[key] = 1;
+        acc[key]!.count = 1;
+        acc[key]!.size = fd.size;
       }
       return acc;
     },
@@ -154,22 +156,26 @@ export function aggregateContainedComponents(dirDrive: DriveObject) {
   );
 }
 
-type NumericObject = {
-  [key: string]: number;
+type NestedNumericObject = {
+  [key: string]: { [key: string]: number };
 };
-function addObjectValues(
-  objA: NumericObject,
-  objB: NumericObject
-): NumericObject {
-  const result: NumericObject = { ...objA };
 
-  for (const [key, value] of Object.entries(objB)) {
-    result[key] = (result[key] || 0) + value;
+function addNestedObjectValues(
+  objA: NestedNumericObject,
+  objB: NestedNumericObject
+): NestedNumericObject {
+  const result: NestedNumericObject = JSON.parse(JSON.stringify(objA));
+
+  for (const outerKey in objB) {
+    if (!result[outerKey]) result[outerKey] = {};
+    for (const innerKey in objB[outerKey]) {
+      result[outerKey][innerKey] =
+        (result[outerKey][innerKey] || 0) + objB[outerKey][innerKey];
+    }
   }
 
   return result;
 }
-
 export function hasPublic(tree: DriveObject): boolean {
   return tree.contains!.some((fd) => {
     const fdTyped = fd as FileDir;
