@@ -38,6 +38,7 @@ export type ContainsComponents = {
   [key in ComponentTypesForStats]: {
     count: number;
     size: number;
+    dirs: number;
   };
 };
 

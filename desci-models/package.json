@@ -13,7 +13,7 @@
     "/dist"
   ],
   "scripts": {
-    "test": "mocha -r ts-node/register tests/**/*.test.ts",
+    "test": "mocha -r ts-node/register --inspect tests/**/*.test.ts",
     "coverage": "nyc -r lcov -e .ts -x \"*.test.ts\" npm run test",
     "build": "tsc",
     "publish": "npm publish --access public",

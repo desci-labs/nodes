@@ -15,7 +15,7 @@ import {
 import {
   aggregateContainedComponents,
   addNestedObjectValues,
-  EMPTY_COMPONENT_STATS,
+  createEmptyComponentStats,
 } from "../src/trees/treeTools";
 import { ResearchObjectComponentType } from "../src/ResearchObject";
 
@@ -23,12 +23,8 @@ describe("TreeTools", () => {
   describe("addNestedObjectValues", () => {
     it("adds two empty objects", () => {
       const res = addNestedObjectValues(
-        {
-          ...EMPTY_COMPONENT_STATS,
-        },
-        {
-          ...EMPTY_COMPONENT_STATS,
-        }
+        createEmptyComponentStats(),
+        createEmptyComponentStats()
       );
       expect(res.code.count).to.eq(0);
       expect(res.code.size).to.eq(0);
@@ -46,32 +42,38 @@ describe("TreeTools", () => {
           code: {
             count: 1,
             size: 1,
+            dirs: 11,
           },
           data: {
             count: 2,
             size: 2,
+            dirs: 21,
           },
-          link: { count: 3, size: 3 },
+          link: { count: 3, size: 3, dirs: 31 },
           pdf: {
             count: 4,
             size: 4,
+            dirs: 41,
           },
-          unknown: { count: 5, size: 5 },
+          unknown: { count: 5, size: 5, dirs: 51 },
         },
-        {
-          ...EMPTY_COMPONENT_STATS,
-        }
+        createEmptyComponentStats()
       );
       expect(res.code.count).to.eq(1);
       expect(res.code.size).to.eq(1);
+      expect(res.code.dirs).to.eq(11);
       expect(res.data.count).to.eq(2);
       expect(res.data.size).to.eq(2);
+      expect(res.data.dirs).to.eq(21);
       expect(res.link.count).to.eq(3);
       expect(res.link.size).to.eq(3);
+      expect(res.link.dirs).to.eq(31);
       expect(res.pdf.count).to.eq(4);
       expect(res.pdf.size).to.eq(4);
+      expect(res.pdf.dirs).to.eq(41);
       expect(res.unknown.count).to.eq(5);
       expect(res.unknown.size).to.eq(5);
+      expect(res.unknown.dirs).to.eq(51);
     });
   });
   describe("aggregateContainedComponents", () => {
@@ -91,7 +93,7 @@ describe("TreeTools", () => {
       expect(res?.data).to.be.undefined;
       expect(res?.link).to.be.undefined;
       expect(res?.unknown).to.be.undefined;
-    //   expect(res?.video).to.be.undefined;
+      //   expect(res?.video).to.be.undefined;
     });
 
     it("calculates simple case correctly", () => {
@@ -117,7 +119,9 @@ describe("TreeTools", () => {
           },
         ],
       };
-      const res = aggregateContainedComponents(simpleDrive) as ContainsComponents;
+      const res = aggregateContainedComponents(
+        simpleDrive
+      ) as ContainsComponents;
       expect(res).to.exist;
       expect(res.code).to.not.be.undefined;
       expect(res.code.size).to.eq(1);
@@ -183,7 +187,9 @@ describe("TreeTools", () => {
           },
         ],
       };
-      const res = aggregateContainedComponents(simpleDrive) as ContainsComponents;
+      const res = aggregateContainedComponents(
+        simpleDrive
+      ) as ContainsComponents;
       expect(res).to.exist;
 
       expect(res.code.size).to.eq(1);
@@ -244,10 +250,13 @@ describe("TreeTools", () => {
           },
         ],
       };
-      const res = aggregateContainedComponents(simpleDrive) as ContainsComponents;
-      
+      const res = aggregateContainedComponents(
+        simpleDrive
+      ) as ContainsComponents;
+
       expect(res.code.size).to.eq(20);
-      expect(res.code.count).to.eq(3);
+      expect(res.code.count).to.eq(2);
+      expect(res.code.dirs).to.eq(1);
     });
 
     it("calculates nesting of single component type and an additional component nested correctly", () => {
@@ -305,13 +314,17 @@ describe("TreeTools", () => {
           },
         ],
       };
-      const res = aggregateContainedComponents(simpleDrive) as ContainsComponents;
-      
+      const res = aggregateContainedComponents(
+        simpleDrive
+      ) as ContainsComponents;
+
       expect(res.code.size).to.eq(20);
-      expect(res.code.count).to.eq(3);
+      expect(res.code.count).to.eq(2);
+      expect(res.code.dirs).to.eq(1);
 
       expect(res.unknown.size).to.eq(10);
       expect(res.unknown.count).to.eq(1);
+      expect(res.unknown.dirs).to.eq(0);
     });
   });
 });

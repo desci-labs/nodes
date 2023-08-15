@@ -135,6 +135,7 @@ export function convertIpfsTreeToDriveObjectTree(
 
 export function isHiddenObject(currentObject: DriveObject) {
   return (
+    !currentObject ||
     (currentObject.type === FileType.FILE &&
       currentObject.name === ".DS_Store") ||
     currentObject.name === NODE_KEEP_FILE
@@ -161,46 +162,51 @@ export function aggregateContainedComponents(dirDrive: DriveObject) {
       }
 
       const key = currentObject.componentType as ComponentTypesForStats;
-      
+
       /** Base Case for files */
       if (!isDirectory(currentObject)) {
         acc[key].count += 1;
         acc[key].size += currentObject.size;
-        return acc;
+      } else {
+        acc[key].dirs += 1;
+        /** Base Case for Directories */
+        if (currentObject.containsComponents) {
+          /** If cached stats values exist */
+          acc = addNestedObjectValues(acc, currentObject.containsComponents);
+        } else {
+          /** If cached stats values do NOT exist, calculate them */
+          const res = aggregateContainedComponents(currentObject);
+          if (res) {
+            acc = addNestedObjectValues(acc, res);
+          }
+        }
       }
-      if (isDirectory(currentObject) && currentObject.containsComponents) {
-        acc = addNestedObjectValues(acc, currentObject.containsComponents);
-      }
-
       return acc;
     },
-    { ...EMPTY_COMPONENT_STATS }
+    createEmptyComponentStats()
   );
 }
-
-type NestedNumericObject = {
-  [key: string]: { [key: string]: number };
-};
 
 const EMPTY_COMPONENT_STAT = {
   count: 0,
   size: 0,
+  dirs: 0
 };
 
-export const EMPTY_COMPONENT_STATS: ContainsComponents = {
+export const createEmptyComponentStats = (): ContainsComponents => ({
   unknown: { ...EMPTY_COMPONENT_STAT },
   pdf: { ...EMPTY_COMPONENT_STAT },
   code: { ...EMPTY_COMPONENT_STAT },
   data: { ...EMPTY_COMPONENT_STAT },
   link: { ...EMPTY_COMPONENT_STAT },
-};
+});
 
 export function addNestedObjectValues(
   objA: ContainsComponents,
   objB: ContainsComponents
 ): ContainsComponents {
   const result: ContainsComponents = {
-    ...EMPTY_COMPONENT_STATS, // ensure all stats are zeroed to start
+    ...createEmptyComponentStats(), // ensure all stats are zeroed to start
     ...JSON.parse(JSON.stringify(objA)),
   };
 
@@ -210,6 +216,7 @@ export function addNestedObjectValues(
     result[keyTyped] = {
       count: objA[keyTyped].count + objB[keyTyped].count,
       size: objA[keyTyped].size + objB[keyTyped].size,
+      dirs: objA[keyTyped].dirs + objB[keyTyped].dirs,
     };
   }
 
