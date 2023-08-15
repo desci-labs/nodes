@@ -139,59 +139,129 @@ describe("TreeTools", () => {
         expect(res?.link?.size).to.eq(0)
         expect(res?.link?.count).to.eq(1)
       });
-  });
 
-  it("calculates nesting of single component type correctly", () => {
-    const simpleDrive: DriveObject = {
-      name: "",
-      lastModified: "",
-      componentType: ResearchObjectComponentType.DATA_BUCKET,
-      accessStatus: AccessStatus.PUBLIC,
-      size: 0,
-      metadata: {},
-      cid: "",
-      type: FileType.DIR,
-      contains: [
-        {
-          componentType: ResearchObjectComponentType.CODE,
-          size: 20,
-          cid: "1",
+      it("calculates nesting of single component type correctly", () => {
+        const simpleDrive: DriveObject = {
+          name: "",
+          lastModified: "",
+          componentType: ResearchObjectComponentType.DATA_BUCKET,
           accessStatus: AccessStatus.PUBLIC,
-          name:"code",
-          lastModified: "1",
+          size: 0,
           metadata: {},
-          type:FileType.DIR,
-          contains:[
+          cid: "",
+          type: FileType.DIR,
+          contains: [
             {
-                componentType: ResearchObjectComponentType.CODE,
-                size: 10,
-                cid: "2",
-                accessStatus: AccessStatus.PUBLIC,
-                name:"code",
-                lastModified: "1",
-                metadata: {},
-                type:FileType.FILE
-              },
-              {
-                componentType: ResearchObjectComponentType.CODE,
-                size: 10,
-                cid: "3",
-                accessStatus: AccessStatus.PUBLIC,
-                name:"code2",
-                lastModified: "1",
-                metadata: {},
-                type:FileType.FILE
-              },
-          ]
-        },
-        
-      ],
-    };
-    const res = aggregateContainedComponents(simpleDrive);
-    expect(res?.code).to.not.be.undefined;
-    expect(res?.code?.size).to.eq(20)
-    expect(res?.code?.count).to.eq(2)
+              componentType: ResearchObjectComponentType.CODE,
+              size: 20,
+              cid: "1",
+              accessStatus: AccessStatus.PUBLIC,
+              name:"code",
+              lastModified: "1",
+              metadata: {},
+              type:FileType.DIR,
+              contains:[
+                {
+                    componentType: ResearchObjectComponentType.CODE,
+                    size: 10,
+                    cid: "2",
+                    accessStatus: AccessStatus.PUBLIC,
+                    name:"code",
+                    lastModified: "1",
+                    metadata: {},
+                    type:FileType.FILE
+                  },
+                  {
+                    componentType: ResearchObjectComponentType.CODE,
+                    size: 10,
+                    cid: "3",
+                    accessStatus: AccessStatus.PUBLIC,
+                    name:"code2",
+                    lastModified: "1",
+                    metadata: {},
+                    type:FileType.FILE
+                  },
+              ]
+            },
+            
+          ],
+        };
+        const res = aggregateContainedComponents(simpleDrive);
+        expect(res?.code).to.not.be.undefined;
+        expect(res?.code?.size).to.eq(20)
+        expect(res?.code?.count).to.eq(3)
+    
+      });
 
+
+      it("calculates nesting of single component type and an additional component nested correctly", () => {
+        const simpleDrive: DriveObject = {
+          name: "",
+          lastModified: "",
+          componentType: ResearchObjectComponentType.DATA_BUCKET,
+          accessStatus: AccessStatus.PUBLIC,
+          size: 0,
+          metadata: {},
+          cid: "",
+          type: FileType.DIR,
+          contains: [
+            {
+              componentType: ResearchObjectComponentType.CODE,
+              size: 30,
+              cid: "1",
+              accessStatus: AccessStatus.PUBLIC,
+              name:"code",
+              lastModified: "1",
+              metadata: {},
+              type:FileType.DIR,
+              contains:[
+                {
+                    componentType: ResearchObjectComponentType.CODE,
+                    size: 10,
+                    cid: "2",
+                    accessStatus: AccessStatus.PUBLIC,
+                    name:"code",
+                    lastModified: "1",
+                    metadata: {},
+                    type:FileType.FILE
+                  },
+                  {
+                    componentType: ResearchObjectComponentType.CODE,
+                    size: 10,
+                    cid: "3",
+                    accessStatus: AccessStatus.PUBLIC,
+                    name:"code2",
+                    lastModified: "1",
+                    metadata: {},
+                    type:FileType.FILE
+                  },
+                  {
+                    componentType: ResearchObjectComponentType.UNKNOWN,
+                    size: 10,
+                    cid: "4",
+                    accessStatus: AccessStatus.PUBLIC,
+                    name:"unknown",
+                    lastModified: "1",
+                    metadata: {},
+                    type:FileType.FILE
+                  },
+              ]
+            },
+            
+          ],
+        };
+        const res = aggregateContainedComponents(simpleDrive);
+        expect(res?.code).to.not.be.undefined;
+        expect(res?.code?.size).to.eq(20)
+        expect(res?.code?.count).to.eq(3)
+
+        expect(res?.unknown).to.not.be.undefined;
+        expect(res?.unknown?.size).to.eq(10)
+        expect(res?.unknown?.count).to.eq(1)
+    
+      });
   });
+
+  
 
 });
