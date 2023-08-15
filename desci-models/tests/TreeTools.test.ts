@@ -326,5 +326,95 @@ describe("TreeTools", () => {
       expect(res.unknown.count).to.eq(1);
       expect(res.unknown.dirs).to.eq(0);
     });
+
+    it("calculates deep complex nesting of multiple component types", () => {
+      const simpleDrive: DriveObject = {
+        name: "",
+        lastModified: "",
+        componentType: ResearchObjectComponentType.DATA_BUCKET,
+        accessStatus: AccessStatus.PUBLIC,
+        size: 0,
+        metadata: {},
+        cid: "",
+        type: FileType.DIR,
+        contains: [
+          {
+            componentType: ResearchObjectComponentType.CODE,
+            size: 30,
+            cid: "1",
+            accessStatus: AccessStatus.PUBLIC,
+            name: "code",
+            lastModified: "1",
+            metadata: {},
+            type: FileType.DIR,
+            contains: [
+              {
+                componentType: ResearchObjectComponentType.CODE,
+                size: 10,
+                cid: "2",
+                accessStatus: AccessStatus.PUBLIC,
+                name: "code",
+                lastModified: "1",
+                metadata: {},
+                type: FileType.FILE,
+              },
+              {
+                componentType: ResearchObjectComponentType.CODE,
+                size: 10,
+                cid: "3",
+                accessStatus: AccessStatus.PUBLIC,
+                name: "code2",
+                lastModified: "1",
+                metadata: {},
+                type: FileType.FILE,
+              },
+              {
+                componentType: ResearchObjectComponentType.UNKNOWN,
+                size: 10,
+                cid: "4",
+                accessStatus: AccessStatus.PUBLIC,
+                name: "unknown",
+                lastModified: "1",
+                metadata: {},
+                type: FileType.FILE,
+              },
+              {
+                componentType: ResearchObjectComponentType.UNKNOWN,
+                size: 10,
+                cid: "5",
+                accessStatus: AccessStatus.PUBLIC,
+                name: "unknown-folder",
+                lastModified: "1",
+                metadata: {},
+                type: FileType.DIR,
+                contains: [
+                  {
+                    componentType: ResearchObjectComponentType.CODE,
+                    size: 100,
+                    cid: "3",
+                    accessStatus: AccessStatus.PUBLIC,
+                    name: "code3",
+                    lastModified: "1",
+                    metadata: {},
+                    type: FileType.FILE,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const res = aggregateContainedComponents(
+        simpleDrive
+      ) as ContainsComponents;
+
+      expect(res.code.size).to.eq(120);
+      expect(res.code.count).to.eq(3);
+      expect(res.code.dirs).to.eq(1);
+
+      expect(res.unknown.size).to.eq(10);
+      expect(res.unknown.count).to.eq(1);
+      expect(res.unknown.dirs).to.eq(1);
+    });
   });
 });
