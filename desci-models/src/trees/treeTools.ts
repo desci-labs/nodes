@@ -8,6 +8,7 @@ import {
 } from "../ResearchObject";
 import {
   AccessStatus,
+  ComponentTypesForStats,
   ContainsComponents,
   DriveMetadata,
   DriveObject,
@@ -132,8 +133,20 @@ export function convertIpfsTreeToDriveObjectTree(
   return tree;
 }
 
+export function isHiddenObject(currentObject: DriveObject) {
+  return (
+    (currentObject.type === FileType.FILE &&
+      currentObject.name === ".DS_Store") ||
+    currentObject.name === NODE_KEEP_FILE
+  );
+}
+
+export function isDirectory(currentObject: DriveObject) {
+  return currentObject.type === FileType.DIR;
+}
+
 /**
- * 
+ *
  * @param dirDrive Drive object to analyze
  * @returns Object with all counts and sizes of each component type
  * count should be +1 for each directory of that type and +1 for each file of that type
@@ -141,24 +154,27 @@ export function convertIpfsTreeToDriveObjectTree(
 
 export function aggregateContainedComponents(dirDrive: DriveObject) {
   return dirDrive?.contains?.reduce(
-    (acc: ContainsComponents, fd: DriveObject) => {
-      if (
-        (fd.type === FileType.FILE && fd.name === ".DS_Store") ||
-        fd.name === NODE_KEEP_FILE
-      )
+    (acc: ContainsComponents, currentObject: DriveObject) => {
+      /** Exclude hidden files */
+      if (isHiddenObject(currentObject)) {
         return acc;
-      if (fd.type === FileType.DIR && fd.containsComponents)
-        acc = addNestedObjectValues(acc, fd.containsComponents);
-      const key = fd.componentType as ResearchObjectComponentType;
-      if (key in acc && acc[key]?.count) {
-        acc[key]!.count += 1;
-        acc[key]!.size += fd.size;
-      } else {
-        acc[key] = { count: 1, size: fd.size };
       }
+
+      const key = currentObject.componentType as ComponentTypesForStats;
+      
+      /** Base Case for files */
+      if (!isDirectory(currentObject)) {
+        acc[key].count += 1;
+        acc[key].size += currentObject.size;
+        return acc;
+      }
+      if (isDirectory(currentObject) && currentObject.containsComponents) {
+        acc = addNestedObjectValues(acc, currentObject.containsComponents);
+      }
+
       return acc;
     },
-    {} as ContainsComponents
+    { ...EMPTY_COMPONENT_STATS }
   );
 }
 
@@ -166,18 +182,35 @@ type NestedNumericObject = {
   [key: string]: { [key: string]: number };
 };
 
-function addNestedObjectValues(
-  objA: NestedNumericObject,
-  objB: NestedNumericObject
-): NestedNumericObject {
-  const result: NestedNumericObject = JSON.parse(JSON.stringify(objA));
+const EMPTY_COMPONENT_STAT = {
+  count: 0,
+  size: 0,
+};
 
-  for (const outerKey in objB) {
-    if (!result[outerKey]) result[outerKey] = {};
-    for (const innerKey in objB[outerKey]) {
-      result[outerKey][innerKey] =
-        (result[outerKey][innerKey] || 0) + objB[outerKey][innerKey];
-    }
+export const EMPTY_COMPONENT_STATS: ContainsComponents = {
+  unknown: { ...EMPTY_COMPONENT_STAT },
+  pdf: { ...EMPTY_COMPONENT_STAT },
+  code: { ...EMPTY_COMPONENT_STAT },
+  data: { ...EMPTY_COMPONENT_STAT },
+  link: { ...EMPTY_COMPONENT_STAT },
+};
+
+export function addNestedObjectValues(
+  objA: ContainsComponents,
+  objB: ContainsComponents
+): ContainsComponents {
+  const result: ContainsComponents = {
+    ...EMPTY_COMPONENT_STATS, // ensure all stats are zeroed to start
+    ...JSON.parse(JSON.stringify(objA)),
+  };
+
+  for (const key in objB) {
+    const keyTyped = key as ComponentTypesForStats;
+
+    result[keyTyped] = {
+      count: objA[keyTyped].count + objB[keyTyped].count,
+      size: objA[keyTyped].size + objB[keyTyped].size,
+    };
   }
 
   return result;

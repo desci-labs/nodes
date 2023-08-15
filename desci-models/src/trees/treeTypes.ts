@@ -27,8 +27,15 @@ export interface DriveObject {
 
 export const NODE_KEEP_FILE = ".nodeKeep";
 
+export type ComponentTypesForStats =
+  | ResearchObjectComponentType.CODE
+  | ResearchObjectComponentType.DATA
+  | ResearchObjectComponentType.PDF
+  | ResearchObjectComponentType.UNKNOWN
+  | ResearchObjectComponentType.LINK;
+
 export type ContainsComponents = {
-  [key in ResearchObjectComponentType]?: {
+  [key in ComponentTypesForStats]: {
     count: number;
     size: number;
   };
