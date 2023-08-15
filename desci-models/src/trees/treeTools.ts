@@ -132,6 +132,13 @@ export function convertIpfsTreeToDriveObjectTree(
   return tree;
 }
 
+/**
+ * 
+ * @param dirDrive Drive object to analyze
+ * @returns Object with all counts and sizes of each component type
+ * count should be +1 for each directory of that type and +1 for each file of that type
+ */
+
 export function aggregateContainedComponents(dirDrive: DriveObject) {
   return dirDrive?.contains?.reduce(
     (acc: ContainsComponents, fd: DriveObject) => {
