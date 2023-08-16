@@ -1,37 +1,25 @@
-import { describe } from "mocha";
-import { expect } from "chai";
-import {
-  AccessStatus,
-  ComponentStats,
-  DriveObject,
-  FileType,
-} from "../src/trees/treeTypes";
-import {
-  calculateComponentStats,
-  addNestedObjectValues,
-  createEmptyComponentStats,
-} from "../src/trees/treeTools";
-import { ResearchObjectComponentType } from "../src/ResearchObject";
+import { describe } from 'mocha';
+import { expect } from 'chai';
+import { AccessStatus, ComponentStats, DriveObject, FileType } from '../src/trees/treeTypes';
+import { calculateComponentStats, addComponentStats, createEmptyComponentStats } from '../src/trees/treeTools';
+import { ResearchObjectComponentType } from '../src/ResearchObject';
 
-describe("TreeTools", () => {
-  describe("addNestedObjectValues", () => {
-    it("adds two empty objects", () => {
-      const res = addNestedObjectValues(
-        createEmptyComponentStats(),
-        createEmptyComponentStats()
-      );
+describe('TreeTools', () => {
+  describe('addComponentStats', () => {
+    it('adds two empty objects', () => {
+      const res = addComponentStats(createEmptyComponentStats(), createEmptyComponentStats());
       expect(res.code.count).to.eq(0);
       expect(res.code.size).to.eq(0);
       expect(res.data.count).to.eq(0);
       expect(res.data.size).to.eq(0);
-      expect(res.link.count).to.eq(0);
-      expect(res.link.size).to.eq(0);
+      // expect(res.link.count).to.eq(0);
+      // expect(res.link.size).to.eq(0);
       expect(res.unknown.count).to.eq(0);
       expect(res.unknown.size).to.eq(0);
     });
 
-    it("adds an empty object to a nonempty object", () => {
-      const res = addNestedObjectValues(
+    it('adds an empty object to a nonempty object', () => {
+      const res = addComponentStats(
         {
           code: {
             count: 1,
@@ -43,7 +31,7 @@ describe("TreeTools", () => {
             size: 2,
             dirs: 21,
           },
-          link: { count: 3, size: 3, dirs: 31 },
+          // link: { count: 3, size: 3, dirs: 31 },
           pdf: {
             count: 4,
             size: 4,
@@ -51,7 +39,7 @@ describe("TreeTools", () => {
           },
           unknown: { count: 5, size: 5, dirs: 51 },
         },
-        createEmptyComponentStats()
+        createEmptyComponentStats(),
       );
       expect(res.code.count).to.eq(1);
       expect(res.code.size).to.eq(1);
@@ -59,9 +47,9 @@ describe("TreeTools", () => {
       expect(res.data.count).to.eq(2);
       expect(res.data.size).to.eq(2);
       expect(res.data.dirs).to.eq(21);
-      expect(res.link.count).to.eq(3);
-      expect(res.link.size).to.eq(3);
-      expect(res.link.dirs).to.eq(31);
+      // expect(res.link.count).to.eq(3);
+      // expect(res.link.size).to.eq(3);
+      // expect(res.link.dirs).to.eq(31);
       expect(res.pdf.count).to.eq(4);
       expect(res.pdf.size).to.eq(4);
       expect(res.pdf.dirs).to.eq(41);
@@ -70,44 +58,44 @@ describe("TreeTools", () => {
       expect(res.unknown.dirs).to.eq(51);
     });
   });
-  describe("calculateComponentStats", () => {
-    it("calculates empty case correctly", () => {
+  describe('calculateComponentStats', () => {
+    it('calculates empty case correctly', () => {
       const emptyDrive: DriveObject = {
-        name: "",
-        lastModified: "",
+        name: '',
+        lastModified: '',
         componentType: ResearchObjectComponentType.DATA_BUCKET,
         accessStatus: AccessStatus.PUBLIC,
         size: 0,
         metadata: {},
-        cid: "",
+        cid: '',
         type: FileType.DIR,
       };
       const res = calculateComponentStats(emptyDrive);
       expect(res?.code).to.be.undefined;
       expect(res?.data).to.be.undefined;
-      expect(res?.link).to.be.undefined;
+      // expect(res?.link).to.be.undefined;
       expect(res?.unknown).to.be.undefined;
       //   expect(res?.video).to.be.undefined;
     });
 
-    it("calculates simple case correctly", () => {
+    it('calculates simple case correctly', () => {
       const simpleDrive: DriveObject = {
-        name: "",
-        lastModified: "",
+        name: '',
+        lastModified: '',
         componentType: ResearchObjectComponentType.DATA_BUCKET,
         accessStatus: AccessStatus.PUBLIC,
         size: 0,
         metadata: {},
-        cid: "",
+        cid: '',
         type: FileType.DIR,
         contains: [
           {
             componentType: ResearchObjectComponentType.CODE,
             size: 1,
-            cid: "1",
+            cid: '1',
             accessStatus: AccessStatus.PUBLIC,
-            name: "a",
-            lastModified: "1",
+            name: 'a',
+            lastModified: '1',
             metadata: {},
             type: FileType.FILE,
           },
@@ -120,60 +108,60 @@ describe("TreeTools", () => {
       expect(res.code.count).to.eq(1);
       expect(res.data.size).to.eq(0);
       expect(res.data.count).to.eq(0);
-      expect(res.link.size).to.eq(0);
-      expect(res.link.count).to.eq(0);
+      // expect(res.link.size).to.eq(0);
+      // expect(res.link.count).to.eq(0);
       expect(res.unknown.size).to.eq(0);
       expect(res.unknown.count).to.eq(0);
     });
 
-    it("calculates with every component present in data bucket correctly", () => {
+    it('calculates with every component present in data bucket correctly', () => {
       const simpleDrive: DriveObject = {
-        name: "",
-        lastModified: "",
+        name: '',
+        lastModified: '',
         componentType: ResearchObjectComponentType.DATA_BUCKET,
         accessStatus: AccessStatus.PUBLIC,
         size: 0,
         metadata: {},
-        cid: "",
+        cid: '',
         type: FileType.DIR,
         contains: [
           {
             componentType: ResearchObjectComponentType.CODE,
             size: 1,
-            cid: "1",
+            cid: '1',
             accessStatus: AccessStatus.PUBLIC,
-            name: "a",
-            lastModified: "1",
+            name: 'a',
+            lastModified: '1',
             metadata: {},
             type: FileType.FILE,
           },
           {
             componentType: ResearchObjectComponentType.DATA,
             size: 2,
-            cid: "2",
+            cid: '2',
             accessStatus: AccessStatus.PUBLIC,
-            name: "b",
-            lastModified: "1",
+            name: 'b',
+            lastModified: '1',
             metadata: {},
             type: FileType.FILE,
           },
           {
             componentType: ResearchObjectComponentType.UNKNOWN,
             size: 3,
-            cid: "3",
+            cid: '3',
             accessStatus: AccessStatus.PUBLIC,
-            name: "c",
-            lastModified: "1",
+            name: 'c',
+            lastModified: '1',
             metadata: {},
             type: FileType.FILE,
           },
           {
             componentType: ResearchObjectComponentType.LINK,
             size: 0,
-            cid: "4",
+            cid: '4',
             accessStatus: AccessStatus.PUBLIC,
-            name: "d",
-            lastModified: "1",
+            name: 'd',
+            lastModified: '1',
             metadata: {},
             type: FileType.FILE,
           },
@@ -191,48 +179,48 @@ describe("TreeTools", () => {
       expect(res.unknown.size).to.eq(3);
       expect(res.unknown.count).to.eq(1);
 
-      expect(res.link.size).to.eq(0);
-      expect(res.link.count).to.eq(1);
+      // expect(res.link.size).to.eq(0);
+      // expect(res.link.count).to.eq(1);
     });
 
-    it("calculates nesting of single component type correctly", () => {
+    it('calculates nesting of single component type correctly', () => {
       const simpleDrive: DriveObject = {
-        name: "",
-        lastModified: "",
+        name: '',
+        lastModified: '',
         componentType: ResearchObjectComponentType.DATA_BUCKET,
         accessStatus: AccessStatus.PUBLIC,
         size: 0,
         metadata: {},
-        cid: "",
+        cid: '',
         type: FileType.DIR,
         contains: [
           {
             componentType: ResearchObjectComponentType.CODE,
             size: 20,
-            cid: "1",
+            cid: '1',
             accessStatus: AccessStatus.PUBLIC,
-            name: "code",
-            lastModified: "1",
+            name: 'code',
+            lastModified: '1',
             metadata: {},
             type: FileType.DIR,
             contains: [
               {
                 componentType: ResearchObjectComponentType.CODE,
                 size: 10,
-                cid: "2",
+                cid: '2',
                 accessStatus: AccessStatus.PUBLIC,
-                name: "code",
-                lastModified: "1",
+                name: 'code',
+                lastModified: '1',
                 metadata: {},
                 type: FileType.FILE,
               },
               {
                 componentType: ResearchObjectComponentType.CODE,
                 size: 10,
-                cid: "3",
+                cid: '3',
                 accessStatus: AccessStatus.PUBLIC,
-                name: "code2",
-                lastModified: "1",
+                name: 'code2',
+                lastModified: '1',
                 metadata: {},
                 type: FileType.FILE,
               },
@@ -247,54 +235,54 @@ describe("TreeTools", () => {
       expect(res.code.dirs).to.eq(1);
     });
 
-    it("calculates nesting of single component type and an additional component nested correctly", () => {
+    it('calculates nesting of single component type and an additional component nested correctly', () => {
       const simpleDrive: DriveObject = {
-        name: "",
-        lastModified: "",
+        name: '',
+        lastModified: '',
         componentType: ResearchObjectComponentType.DATA_BUCKET,
         accessStatus: AccessStatus.PUBLIC,
         size: 0,
         metadata: {},
-        cid: "",
+        cid: '',
         type: FileType.DIR,
         contains: [
           {
             componentType: ResearchObjectComponentType.CODE,
             size: 30,
-            cid: "1",
+            cid: '1',
             accessStatus: AccessStatus.PUBLIC,
-            name: "code",
-            lastModified: "1",
+            name: 'code',
+            lastModified: '1',
             metadata: {},
             type: FileType.DIR,
             contains: [
               {
                 componentType: ResearchObjectComponentType.CODE,
                 size: 10,
-                cid: "2",
+                cid: '2',
                 accessStatus: AccessStatus.PUBLIC,
-                name: "code",
-                lastModified: "1",
+                name: 'code',
+                lastModified: '1',
                 metadata: {},
                 type: FileType.FILE,
               },
               {
                 componentType: ResearchObjectComponentType.CODE,
                 size: 10,
-                cid: "3",
+                cid: '3',
                 accessStatus: AccessStatus.PUBLIC,
-                name: "code2",
-                lastModified: "1",
+                name: 'code2',
+                lastModified: '1',
                 metadata: {},
                 type: FileType.FILE,
               },
               {
                 componentType: ResearchObjectComponentType.UNKNOWN,
                 size: 10,
-                cid: "4",
+                cid: '4',
                 accessStatus: AccessStatus.PUBLIC,
-                name: "unknown",
-                lastModified: "1",
+                name: 'unknown',
+                lastModified: '1',
                 metadata: {},
                 type: FileType.FILE,
               },
@@ -313,74 +301,74 @@ describe("TreeTools", () => {
       expect(res.unknown.dirs).to.eq(0);
     });
 
-    it("calculates deep complex nesting of multiple component types", () => {
+    it('calculates deep complex nesting of multiple component types', () => {
       const simpleDrive: DriveObject = {
-        name: "",
-        lastModified: "",
+        name: '',
+        lastModified: '',
         componentType: ResearchObjectComponentType.DATA_BUCKET,
         accessStatus: AccessStatus.PUBLIC,
         size: 0,
         metadata: {},
-        cid: "",
+        cid: '',
         type: FileType.DIR,
         contains: [
           {
             componentType: ResearchObjectComponentType.CODE,
             size: 30,
-            cid: "1",
+            cid: '1',
             accessStatus: AccessStatus.PUBLIC,
-            name: "code",
-            lastModified: "1",
+            name: 'code',
+            lastModified: '1',
             metadata: {},
             type: FileType.DIR,
             contains: [
               {
                 componentType: ResearchObjectComponentType.CODE,
                 size: 10,
-                cid: "2",
+                cid: '2',
                 accessStatus: AccessStatus.PUBLIC,
-                name: "code",
-                lastModified: "1",
+                name: 'code',
+                lastModified: '1',
                 metadata: {},
                 type: FileType.FILE,
               },
               {
                 componentType: ResearchObjectComponentType.CODE,
                 size: 10,
-                cid: "3",
+                cid: '3',
                 accessStatus: AccessStatus.PUBLIC,
-                name: "code2",
-                lastModified: "1",
+                name: 'code2',
+                lastModified: '1',
                 metadata: {},
                 type: FileType.FILE,
               },
               {
                 componentType: ResearchObjectComponentType.UNKNOWN,
                 size: 10,
-                cid: "4",
+                cid: '4',
                 accessStatus: AccessStatus.PUBLIC,
-                name: "unknown",
-                lastModified: "1",
+                name: 'unknown',
+                lastModified: '1',
                 metadata: {},
                 type: FileType.FILE,
               },
               {
                 componentType: ResearchObjectComponentType.UNKNOWN,
                 size: 10,
-                cid: "5",
+                cid: '5',
                 accessStatus: AccessStatus.PUBLIC,
-                name: "unknown-folder",
-                lastModified: "1",
+                name: 'unknown-folder',
+                lastModified: '1',
                 metadata: {},
                 type: FileType.DIR,
                 contains: [
                   {
                     componentType: ResearchObjectComponentType.CODE,
                     size: 100,
-                    cid: "3",
+                    cid: '3',
                     accessStatus: AccessStatus.PUBLIC,
-                    name: "code3",
-                    lastModified: "1",
+                    name: 'code3',
+                    lastModified: '1',
                     metadata: {},
                     type: FileType.FILE,
                   },
@@ -402,20 +390,20 @@ describe("TreeTools", () => {
     });
   });
 
-  it("defers to cached component stats if available", () => {
+  it('defers to cached component stats if available', () => {
     const simpleDrive: DriveObject = {
-      name: "",
-      lastModified: "",
+      name: '',
+      lastModified: '',
       componentType: ResearchObjectComponentType.DATA_BUCKET,
       accessStatus: AccessStatus.PUBLIC,
       size: 0,
       metadata: {},
-      cid: "",
+      cid: '',
       type: FileType.DIR,
       componentStats: {
         code: { count: 1337, size: 1337, dirs: 1337 },
         data: { count: 1337, size: 1337, dirs: 1337 },
-        link: { count: 1337, size: 1337, dirs: 1337 },
+        // link: { count: 1337, size: 1337, dirs: 1337 },
         pdf: { count: 1337, size: 1337, dirs: 1337 },
         unknown: { count: 1337, size: 1337, dirs: 1337 },
       },
@@ -423,10 +411,10 @@ describe("TreeTools", () => {
         {
           componentType: ResearchObjectComponentType.CODE,
           size: 30,
-          cid: "1",
+          cid: '1',
           accessStatus: AccessStatus.PUBLIC,
-          name: "code",
-          lastModified: "1",
+          name: 'code',
+          lastModified: '1',
           metadata: {},
           type: FileType.DIR,
 
@@ -434,50 +422,50 @@ describe("TreeTools", () => {
             {
               componentType: ResearchObjectComponentType.CODE,
               size: 10,
-              cid: "2",
+              cid: '2',
               accessStatus: AccessStatus.PUBLIC,
-              name: "code",
-              lastModified: "1",
+              name: 'code',
+              lastModified: '1',
               metadata: {},
               type: FileType.FILE,
             },
             {
               componentType: ResearchObjectComponentType.CODE,
               size: 10,
-              cid: "3",
+              cid: '3',
               accessStatus: AccessStatus.PUBLIC,
-              name: "code2",
-              lastModified: "1",
+              name: 'code2',
+              lastModified: '1',
               metadata: {},
               type: FileType.FILE,
             },
             {
               componentType: ResearchObjectComponentType.UNKNOWN,
               size: 10,
-              cid: "4",
+              cid: '4',
               accessStatus: AccessStatus.PUBLIC,
-              name: "unknown",
-              lastModified: "1",
+              name: 'unknown',
+              lastModified: '1',
               metadata: {},
               type: FileType.FILE,
             },
             {
               componentType: ResearchObjectComponentType.UNKNOWN,
               size: 10,
-              cid: "5",
+              cid: '5',
               accessStatus: AccessStatus.PUBLIC,
-              name: "unknown-folder",
-              lastModified: "1",
+              name: 'unknown-folder',
+              lastModified: '1',
               metadata: {},
               type: FileType.DIR,
               contains: [
                 {
                   componentType: ResearchObjectComponentType.CODE,
                   size: 100,
-                  cid: "3",
+                  cid: '3',
                   accessStatus: AccessStatus.PUBLIC,
-                  name: "code3",
-                  lastModified: "1",
+                  name: 'code3',
+                  lastModified: '1',
                   metadata: {},
                   type: FileType.FILE,
                 },
@@ -498,70 +486,70 @@ describe("TreeTools", () => {
     expect(res.unknown.dirs).to.eq(1337);
   });
 
-  it("defers to nested cached component stats if available", () => {
+  it('defers to nested cached component stats if available', () => {
     const simpleDrive: DriveObject = {
-      name: "",
-      lastModified: "",
+      name: '',
+      lastModified: '',
       componentType: ResearchObjectComponentType.DATA_BUCKET,
       accessStatus: AccessStatus.PUBLIC,
       size: 0,
       metadata: {},
-      cid: "",
+      cid: '',
       type: FileType.DIR,
       contains: [
         {
           componentType: ResearchObjectComponentType.CODE,
           size: 30,
-          cid: "1",
+          cid: '1',
           accessStatus: AccessStatus.PUBLIC,
-          name: "code",
-          lastModified: "1",
+          name: 'code',
+          lastModified: '1',
           metadata: {},
           type: FileType.DIR,
           contains: [
             {
               componentType: ResearchObjectComponentType.CODE,
               size: 10,
-              cid: "2",
+              cid: '2',
               accessStatus: AccessStatus.PUBLIC,
-              name: "code",
-              lastModified: "1",
+              name: 'code',
+              lastModified: '1',
               metadata: {},
               type: FileType.FILE,
             },
             {
               componentType: ResearchObjectComponentType.CODE,
               size: 10,
-              cid: "3",
+              cid: '3',
               accessStatus: AccessStatus.PUBLIC,
-              name: "code2",
-              lastModified: "1",
+              name: 'code2',
+              lastModified: '1',
               metadata: {},
               type: FileType.FILE,
             },
             {
               componentType: ResearchObjectComponentType.UNKNOWN,
               size: 10,
-              cid: "4",
+              cid: '4',
               accessStatus: AccessStatus.PUBLIC,
-              name: "unknown",
-              lastModified: "1",
+              name: 'unknown',
+              lastModified: '1',
               metadata: {},
               type: FileType.FILE,
             },
             {
               componentType: ResearchObjectComponentType.UNKNOWN,
               size: 10,
-              cid: "5",
+              cid: '5',
               accessStatus: AccessStatus.PUBLIC,
-              name: "unknown-folder",
-              lastModified: "1",
+              name: 'unknown-folder',
+              lastModified: '1',
               metadata: {},
               type: FileType.DIR,
               componentStats: {
                 code: { count: 50, size: 50, dirs: 50 },
                 data: { count: 0, size: 0, dirs: 0 },
-                link: { count: 0, size: 0, dirs: 0 },
+                // link: { count: 0, size: 0, dirs: 0 },
                 pdf: { count: 99, size: 99, dirs: 99 },
                 unknown: { count: 0, size: 0, dirs: 0 },
               },
@@ -569,10 +557,10 @@ describe("TreeTools", () => {
                 {
                   componentType: ResearchObjectComponentType.CODE,
                   size: 100,
-                  cid: "3",
+                  cid: '3',
                   accessStatus: AccessStatus.PUBLIC,
-                  name: "code3",
-                  lastModified: "1",
+                  name: 'code3',
+                  lastModified: '1',
                   metadata: {},
                   type: FileType.FILE,
                 },

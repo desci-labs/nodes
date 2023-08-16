@@ -34,8 +34,8 @@ export type ComponentTypesForStats =
   | ResearchObjectComponentType.CODE
   | ResearchObjectComponentType.DATA
   | ResearchObjectComponentType.PDF
-  | ResearchObjectComponentType.UNKNOWN
-  | ResearchObjectComponentType.LINK;
+  | ResearchObjectComponentType.UNKNOWN;
+// | ResearchObjectComponentType.LINK;
 
 export type ComponentStats = {
   [key in ComponentTypesForStats]: {

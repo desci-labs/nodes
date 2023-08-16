@@ -1,0 +1,1089 @@
+[1mdiff --git a/desci-models/src/trees/treeTools.ts b/desci-models/src/trees/treeTools.ts[m
+[1mindex 83c1c82..c53c7d8 100644[m
+[1m--- a/desci-models/src/trees/treeTools.ts[m
+[1m+++ b/desci-models/src/trees/treeTools.ts[m
+[36m@@ -1,11 +1,10 @@[m
+[31m-import path from "path";[m
+ import {[m
+   ExternalLinkComponent,[m
+   PdfComponent,[m
+   ResearchObjectComponentType,[m
+   ResearchObjectV1,[m
+   ResearchObjectV1Component,[m
+[31m-} from "../ResearchObject";[m
+[32m+[m[32m} from '../ResearchObject';[m
+ import {[m
+   AccessStatus,[m
+   ComponentTypesForStats,[m
+[36m@@ -18,9 +17,9 @@[m [mimport {[m
+   NODE_KEEP_FILE,[m
+   RecursiveLsResult,[m
+   VirtualDriveArgs,[m
+[31m-} from "./treeTypes";[m
+[32m+[m[32m} from './treeTypes';[m
+ [m
+[31m-export const DRIVE_NODE_ROOT_PATH = "root";[m
+[32m+[m[32mexport const DRIVE_NODE_ROOT_PATH = 'root';[m
+ [m
+ export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {[m
+   const pathToCompMap = generatePathCompMap(manifest);[m
+[36m@@ -30,7 +29,7 @@[m [mexport function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {[m
+   const driveObjectTree = convertIpfsTreeToDriveObjectTree([m
+     ipfsTree as DriveObject[],[m
+     pathToCompMap,[m
+[31m-    pathToSizeMap[m
+[32m+[m[32m    pathToSizeMap,[m
+     // {}[m
+   );[m
+ [m
+[36m@@ -38,7 +37,7 @@[m [mexport function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {[m
+   // eslint-disable-next-line no-array-reduce/no-reduce[m
+   const rootSize = driveObjectTree.reduce((acc, curr) => acc + curr.size, 0);[m
+   const treeRoot = createVirtualDrive({[m
+[31m-    name: "Node Root",[m
+[32m+[m[32m    name: 'Node Root',[m
+     componentType: ResearchObjectComponentType.DATA_BUCKET,[m
+     path: DRIVE_NODE_ROOT_PATH,[m
+     contains: driveObjectTree,[m
+[36m@@ -53,14 +52,14 @@[m [mexport function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {[m
+ [m
+ export function getAncestorComponent([m
+   drive: DriveObject,[m
+[31m-  pathToCompMap: Record<DrivePath, ResearchObjectV1Component>[m
+[32m+[m[32m  pathToCompMap: Record<DrivePath, ResearchObjectV1Component>,[m
+ ): ResearchObjectV1Component | null {[m
+[31m-  const pathSplit = drive.path!.split("/");[m
+[32m+[m[32m  const pathSplit = drive.path!.split('/');[m
+   // < 3 === don't inherit from root[m
+   if (pathSplit.length < 3) return null;[m
+   while (pathSplit.length > 1) {[m
+     pathSplit.pop();[m
+[31m-    const parentPath = pathSplit.join("/");[m
+[32m+[m[32m    const parentPath = pathSplit.join('/');[m
+     const parent = pathToCompMap[parentPath];[m
+     if (parent && parent.type !== ResearchObjectComponentType.UNKNOWN) {[m
+       return parent;[m
+[36m@@ -73,7 +72,7 @@[m [mexport function getAncestorComponent([m
+ export function convertIpfsTreeToDriveObjectTree([m
+   tree: DriveObject[],[m
+   pathToCompMap: Record<DrivePath, ResearchObjectV1Component>,[m
+[31m-  pathToSizeMap: Record<DrivePath, number>[m
+[32m+[m[32m  pathToSizeMap: Record<DrivePath, number>,[m
+ ) {[m
+   // tree = tree.filter((branch) => !FILTER_LIST.includes(branch.name)); // LEAVE THIS TO THE FRONTEND[m
+   tree.forEach((branch) => {[m
+[36m@@ -81,29 +80,15 @@[m [mexport function convertIpfsTreeToDriveObjectTree([m
+     const neutralPath = neutralizePath(branch.path!);[m
+     branch.path = neutralPath;[m
+     const component = pathToCompMap[branch.path!];[m
+[31m-    const ancestorComponent: ResearchObjectV1Component | null =[m
+[31m-      getAncestorComponent(branch, pathToCompMap);[m
+[31m-    branch.componentType =[m
+[31m-      component?.type ||[m
+[31m-      ancestorComponent?.type ||[m
+[31m-      ResearchObjectComponentType.UNKNOWN;[m
+[31m-[m
+[31m-    if ([m
+[31m-      component &&[m
+[31m-      [[m
+[31m-        ResearchObjectComponentType.PDF,[m
+[31m-        ResearchObjectComponentType.LINK,[m
+[31m-      ].includes(component.type)[m
+[31m-    ) {[m
+[31m-      branch.componentSubtype = ([m
+[31m-        component as PdfComponent | ExternalLinkComponent[m
+[31m-      ).subtype;[m
+[32m+[m[32m    const ancestorComponent: ResearchObjectV1Component | null = getAncestorComponent(branch, pathToCompMap);[m
+[32m+[m[32m    branch.componentType = component?.type || ancestorComponent?.type || ResearchObjectComponentType.UNKNOWN;[m
+[32m+[m
+[32m+[m[32m    if (component && [ResearchObjectComponentType.PDF, ResearchObjectComponentType.LINK].includes(component.type)) {[m
+[32m+[m[32m      branch.componentSubtype = (component as PdfComponent | ExternalLinkComponent).subtype;[m
+     }[m
+     // useful for annotation insert on file tree under a code component for example (refer to component id later)[m
+     branch.componentId = component?.id || ancestorComponent?.id;[m
+[31m-    branch.accessStatus = fileDirBranch.published[m
+[31m-      ? AccessStatus.PUBLIC[m
+[31m-      : AccessStatus.PRIVATE;[m
+[32m+[m[32m    branch.accessStatus = fileDirBranch.published ? AccessStatus.PUBLIC : AccessStatus.PRIVATE;[m
+ [m
+     //Determine partials[m
+     if (!fileDirBranch.published && branch.contains && branch.contains.length) {[m
+[36m@@ -116,17 +101,9 @@[m [mexport function convertIpfsTreeToDriveObjectTree([m
+     branch.metadata = inheritMetadata(branch.path, pathToCompMap);[m
+     branch.starred = component?.starred || false;[m
+     // branch.lastModified = formatDbDate(branch.lastModified) || tempDate; // LEAVE THIS TO FRONTEND[m
+[31m-    if ([m
+[31m-      branch.contains &&[m
+[31m-      branch.contains.length &&[m
+[31m-      branch.type === FileType.DIR[m
+[31m-    ) {[m
+[32m+[m[32m    if (branch.contains && branch.contains.length && branch.type === FileType.DIR) {[m
+       branch.size = pathToSizeMap[branch.path!] || 0;[m
+[31m-      branch.contains = convertIpfsTreeToDriveObjectTree([m
+[31m-        branch.contains,[m
+[31m-        pathToCompMap,[m
+[31m-        pathToSizeMap[m
+[31m-      );[m
+[32m+[m[32m      branch.contains = convertIpfsTreeToDriveObjectTree(branch.contains, pathToCompMap, pathToSizeMap);[m
+       branch.componentStats = calculateComponentStats(branch);[m
+     }[m
+   });[m
+[36m@@ -136,14 +113,13 @@[m [mexport function convertIpfsTreeToDriveObjectTree([m
+ export function isHiddenObject(currentObject: DriveObject) {[m
+   return ([m
+     !currentObject ||[m
+[31m-    (currentObject.type === FileType.FILE &&[m
+[31m-      currentObject.name === ".DS_Store") ||[m
+[32m+[m[32m    (currentObject.type === FileType.FILE && currentObject.name === '.DS_Store') ||[m
+     currentObject.name === NODE_KEEP_FILE[m
+   );[m
+ }[m
+ [m
+ export function isDirectory(currentObject: DriveObject) {[m
+[31m-  return currentObject.type === FileType.DIR; [m
+[32m+[m[32m  return currentObject.type === FileType.DIR;[m
+ }[m
+ [m
+ /**[m
+[36m@@ -158,43 +134,40 @@[m [mexport function calculateComponentStats(dirDrive: DriveObject) {[m
+   if (cachedStats) {[m
+     return cachedStats;[m
+   }[m
+[31m-  return dirDrive?.contains?.reduce([m
+[31m-    (acc: ComponentStats, currentObject: DriveObject) => {[m
+[31m-      /** Exclude hidden files */[m
+[31m-      if (isHiddenObject(currentObject)) {[m
+[31m-        return acc;[m
+[31m-      }[m
+[32m+[m[32m  return dirDrive?.contains?.reduce((acc: ComponentStats, currentObject: DriveObject) => {[m
+[32m+[m[32m    /** Exclude hidden files */[m
+[32m+[m[32m    if (isHiddenObject(currentObject)) {[m
+[32m+[m[32m      return acc;[m
+[32m+[m[32m    }[m
+ [m
+[31m-      const key = currentObject.componentType as ComponentTypesForStats;[m
+[32m+[m[32m    const key = currentObject.componentType as ComponentTypesForStats;[m
+ [m
+[31m-      /** Base Case for files */[m
+[31m-      if (!isDirectory(currentObject)) {[m
+[31m-        acc[key].count += 1;[m
+[31m-        acc[key].size += currentObject.size;[m
+[32m+[m[32m    /** Base Case for files */[m
+[32m+[m[32m    if (!isDirectory(currentObject)) {[m
+[32m+[m[32m      acc[key].count += 1;[m
+[32m+[m[32m      acc[key].size += currentObject.size;[m
+[32m+[m[32m    } else {[m
+[32m+[m[32m      acc[key].dirs += 1;[m
+[32m+[m[32m      /** Base Case for Directories */[m
+[32m+[m[32m      if (currentObject.componentStats) {[m
+[32m+[m[32m        /** If cached stats values exist */[m
+[32m+[m[32m        acc = addComponentStats(acc, currentObject.componentStats);[m
+       } else {[m
+[31m-        acc[key].dirs += 1;[m
+[31m-        /** Base Case for Directories */[m
+[31m-        if (currentObject.componentStats) {[m
+[31m-          /** If cached stats values exist */[m
+[31m-          acc = addNestedObjectValues(acc, currentObject.componentStats);[m
+[31m-        } else {[m
+[31m-          /** If cached stats values do NOT exist, calculate them */[m
+[31m-          const res = calculateComponentStats(currentObject);[m
+[31m-          if (res) {[m
+[31m-            acc = addNestedObjectValues(acc, res);[m
+[31m-          }[m
+[32m+[m[32m        /** If cached stats values do NOT exist, calculate them */[m
+[32m+[m[32m        const res = calculateComponentStats(currentObject);[m
+[32m+[m[32m        if (res) {[m
+[32m+[m[32m          acc = addComponentStats(acc, res);[m
+         }[m
+       }[m
+[31m-      return acc;[m
+[31m-    },[m
+[31m-    createEmptyComponentStats()[m
+[31m-  );[m
+[32m+[m[32m    }[m
+[32m+[m[32m    return acc;[m
+[32m+[m[32m  }, createEmptyComponentStats());[m
+ }[m
+ [m
+ const EMPTY_COMPONENT_STAT = {[m
+   count: 0,[m
+   size: 0,[m
+[31m-  dirs: 0[m
+[32m+[m[32m  dirs: 0,[m
+ };[m
+ [m
+ export const createEmptyComponentStats = (): ComponentStats => ({[m
+[36m@@ -202,13 +175,10 @@[m [mexport const createEmptyComponentStats = (): ComponentStats => ({[m
+   pdf: { ...EMPTY_COMPONENT_STAT },[m
+   code: { ...EMPTY_COMPONENT_STAT },[m
+   data: { ...EMPTY_COMPONENT_STAT },[m
+[31m-  link: { ...EMPTY_COMPONENT_STAT },[m
+[32m+[m[32m  // link: { ...EMPTY_COMPONENT_STAT },[m
+ });[m
+ [m
+[31m-export function addNestedObjectValues([m
+[31m-  objA: ComponentStats,[m
+[31m-  objB: ComponentStats[m
+[31m-): ComponentStats {[m
+[32m+[m[32mexport function addComponentStats(objA: ComponentStats, objB: ComponentStats): ComponentStats {[m
+   const result: ComponentStats = {[m
+     ...createEmptyComponentStats(), // ensure all stats are zeroed to start[m
+     ...JSON.parse(JSON.stringify(objA)),[m
+[36m@@ -235,22 +205,19 @@[m [mexport function hasPublic(tree: DriveObject): boolean {[m
+   });[m
+ }[m
+ [m
+[31m-export function inheritMetadata([m
+[31m-  path: DrivePath,[m
+[31m-  pathToCompMap: Record<DrivePath, ResearchObjectV1Component>[m
+[31m-) {[m
+[32m+[m[32mexport function inheritMetadata(path: DrivePath, pathToCompMap: Record<DrivePath, ResearchObjectV1Component>) {[m
+   const comp = pathToCompMap[path];[m
+   if (comp) {[m
+     const specificMetadata = extractComponentMetadata(comp);[m
+     if (Object.keys(specificMetadata).length) return specificMetadata;[m
+   }[m
+ [m
+[31m-  const pathSplit = path.split("/");[m
+[32m+[m[32m  const pathSplit = path.split('/');[m
+   // < 3 === don't inherit from root[m
+   if (pathSplit.length < 3) return {};[m
+   while (pathSplit.length > 1) {[m
+     pathSplit.pop();[m
+[31m-    const parentPath = pathSplit.join("/");[m
+[32m+[m[32m    const parentPath = pathSplit.join('/');[m
+     const parent = pathToCompMap[parentPath];[m
+     if (parent) {[m
+       const potentialMetadata = extractComponentMetadata(parent);[m
+[36m@@ -260,19 +227,17 @@[m [mexport function inheritMetadata([m
+   return {};[m
+ }[m
+ [m
+[31m-export function extractComponentMetadata([m
+[31m-  component: ResearchObjectV1Component[m
+[31m-): DriveMetadata {[m
+[32m+[m[32mexport function extractComponentMetadata(component: ResearchObjectV1Component): DriveMetadata {[m
+   if (!component) return {};[m
+   const metadata: DriveMetadata = {};[m
+   const validMetadataKeys: (keyof DriveMetadata)[] = [[m
+[31m-    "title",[m
+[31m-    "keywords",[m
+[31m-    "description",[m
+[31m-    "licenseType",[m
+[31m-    "ontologyPurl",[m
+[31m-    "cedarLink",[m
+[31m-    "controlledVocabTerms",[m
+[32m+[m[32m    'title',[m
+[32m+[m[32m    'keywords',[m
+[32m+[m[32m    'description',[m
+[32m+[m[32m    'licenseType',[m
+[32m+[m[32m    'ontologyPurl',[m
+[32m+[m[32m    'cedarLink',[m
+[32m+[m[32m    'controlledVocabTerms',[m
+   ];[m
+ [m
+   validMetadataKeys.forEach((k) => {[m
+[36m@@ -282,9 +247,7 @@[m [mexport function extractComponentMetadata([m
+   return metadata;[m
+ }[m
+ [m
+[31m-export function generatePathCompMap([m
+[31m-  manifest: ResearchObjectV1[m
+[31m-): Record<DrivePath, ResearchObjectV1Component> {[m
+[32m+[m[32mexport function generatePathCompMap(manifest: ResearchObjectV1): Record<DrivePath, ResearchObjectV1Component> {[m
+   const componentsMap: Record<DrivePath, ResearchObjectV1Component> = {};[m
+   manifest.components.forEach((c) => {[m
+     switch (c.type) {[m
+[36m@@ -301,9 +264,7 @@[m [mexport function generatePathCompMap([m
+   return componentsMap;[m
+ }[m
+ [m
+[31m-export function generateFlatPathDriveMap([m
+[31m-  tree: DriveObject[][m
+[31m-): Record<DrivePath, DriveObject> {[m
+[32m+[m[32mexport function generateFlatPathDriveMap(tree: DriveObject[]): Record<DrivePath, DriveObject> {[m
+   const contents = recursiveFlattenTree(tree);[m
+   const map: Record<DrivePath, DriveObject> = {};[m
+   (contents as DriveObject[]).forEach((d: DriveObject) => {[m
+[36m@@ -313,9 +274,7 @@[m [mexport function generateFlatPathDriveMap([m
+   return map;[m
+ }[m
+ [m
+[31m-export function generatePathSizeMap([m
+[31m-  flatPathDriveMap: Record<DrivePath, DriveObject>[m
+[31m-): Record<DrivePath, number> {[m
+[32m+[m[32mexport function generatePathSizeMap(flatPathDriveMap: Record<DrivePath, DriveObject>): Record<DrivePath, number> {[m
+   const pathSizeMap: Record<DrivePath, number> = {};[m
+   const dirSizeMap: Record<DrivePath, number> = {};[m
+ [m
+[36m@@ -328,9 +287,8 @@[m [mexport function generatePathSizeMap([m
+ [m
+       let parentPath = path;[m
+       while (parentPath) {[m
+[31m-        const lastSlashIndex = parentPath.lastIndexOf("/");[m
+[31m-        parentPath =[m
+[31m-          lastSlashIndex >= 0 ? parentPath.substring(0, lastSlashIndex) : "";[m
+[32m+[m[32m        const lastSlashIndex = parentPath.lastIndexOf('/');[m
+[32m+[m[32m        parentPath = lastSlashIndex >= 0 ? parentPath.substring(0, lastSlashIndex) : '';[m
+         if (parentPath in dirSizeMap) {[m
+           dirSizeMap[parentPath] += drive.size;[m
+         }[m
+[36m@@ -368,7 +326,7 @@[m [mexport function createVirtualDrive({[m
+     lastModified: lastModified || tempDate,[m
+     accessStatus: accessStatus || AccessStatus.PRIVATE,[m
+     metadata: metadata || {},[m
+[31m-    cid: cid || "",[m
+[32m+[m[32m    cid: cid || '',[m
+     type: type || FileType.DIR,[m
+     parent: parent || null,[m
+     path: path || undefined,[m
+[36m@@ -376,14 +334,12 @@[m [mexport function createVirtualDrive({[m
+     ...(uid && { uid: uid }),[m
+   };[m
+ }[m
+[31m-export const tempDate = "12/02/2022 7:00PM";[m
+[32m+[m[32mexport const tempDate = '12/02/2022 7:00PM';[m
+ [m
+[31m-export function recursiveFlattenTree<T extends RecursiveLsResult | DriveObject>([m
+[31m-  tree: T[][m
+[31m-): T[] {[m
+[32m+[m[32mexport function recursiveFlattenTree<T extends RecursiveLsResult | DriveObject>(tree: T[]): T[] {[m
+   // eslint-disable-next-line no-array-reduce/no-reduce[m
+   return tree.reduce((acc: T[], node: T) => {[m
+[31m-    if (node.type === "dir" && node.contains) {[m
+[32m+[m[32m    if (node.type === 'dir' && node.contains) {[m
+       return acc.concat(node, recursiveFlattenTree(node.contains as T[]));[m
+     } else {[m
+       return acc.concat(node);[m
+[36m@@ -392,26 +348,23 @@[m [mexport function recursiveFlattenTree<T extends RecursiveLsResult | DriveObject>([m
+ }[m
+ [m
+ export function neutralizePath(path: DrivePath) {[m
+[31m-  if (!path.includes("/") && path.length) return "root";[m
+[32m+[m[32m  if (!path.includes('/') && path.length) return 'root';[m
+   return path.replace(/^[^/]+/, DRIVE_NODE_ROOT_PATH);[m
+ }[m
+ export function deneutralizePath(path: DrivePath, rootCid: string) {[m
+[31m-  if (!path.includes("/") && path.length) return rootCid;[m
+[32m+[m[32m  if (!path.includes('/') && path.length) return rootCid;[m
+   return path.replace(/^[^/]+/, rootCid);[m
+ }[m
+ [m
+ // Clones a node removing its children to a specified depth[m
+[31m-export function pruneNode([m
+[31m-  node: DriveObject,[m
+[31m-  depth: number[m
+[31m-): DriveObject | null {[m
+[32m+[m[32mexport function pruneNode(node: DriveObject, depth: number): DriveObject | null {[m
+   if (depth < 0) {[m
+     return null;[m
+   }[m
+ [m
+   const cloned: DriveObject = { ...node };[m
+ [m
+[31m-  if (node.type === "dir" && node.contains && depth > 0) {[m
+[32m+[m[32m  if (node.type === 'dir' && node.contains && depth > 0) {[m
+     cloned.contains = node.contains[m
+       .map((child) => pruneNode(child, depth - 1))[m
+       .filter((n) => n !== null) as DriveObject[];[m
+[36m@@ -422,17 +375,13 @@[m [mexport function pruneNode([m
+   return cloned;[m
+ }[m
+ [m
+[31m-export function findAndPruneNode([m
+[31m-  root: DriveObject,[m
+[31m-  path: string,[m
+[31m-  depth?: number[m
+[31m-): DriveObject | null {[m
+[32m+[m[32mexport function findAndPruneNode(root: DriveObject, path: string, depth?: number): DriveObject | null {[m
+   if (root.path === path) {[m
+     // If depth is undefined, return the node directly without cloning or pruning[m
+     return depth !== undefined ? pruneNode(root, depth) : root;[m
+   }[m
+ [m
+[31m-  if (root.type === "dir" && root.contains) {[m
+[32m+[m[32m  if (root.type === 'dir' && root.contains) {[m
+     for (const child of root.contains) {[m
+       const foundNode = findAndPruneNode(child, path, depth);[m
+       if (foundNode) {[m
+[1mdiff --git a/desci-models/src/trees/treeTypes.ts b/desci-models/src/trees/treeTypes.ts[m
+[1mindex d0faf27..4fbae73 100644[m
+[1m--- a/desci-models/src/trees/treeTypes.ts[m
+[1m+++ b/desci-models/src/trees/treeTypes.ts[m
+[36m@@ -34,8 +34,8 @@[m [mexport type ComponentTypesForStats =[m
+   | ResearchObjectComponentType.CODE[m
+   | ResearchObjectComponentType.DATA[m
+   | ResearchObjectComponentType.PDF[m
+[31m-  | ResearchObjectComponentType.UNKNOWN[m
+[31m-  | ResearchObjectComponentType.LINK;[m
+[32m+[m[32m  | ResearchObjectComponentType.UNKNOWN;[m
+[32m+[m[32m// | ResearchObjectComponentType.LINK;[m
+ [m
+ export type ComponentStats = {[m
+   [key in ComponentTypesForStats]: {[m
+[1mdiff --git a/desci-models/tests/TreeTools.test.ts b/desci-models/tests/TreeTools.test.ts[m
+[1mindex f84f1b7..a266cc0 100644[m
+[1m--- a/desci-models/tests/TreeTools.test.ts[m
+[1m+++ b/desci-models/tests/TreeTools.test.ts[m
+[36m@@ -1,37 +1,25 @@[m
+[31m-import { describe } from "mocha";[m
+[31m-import { expect } from "chai";[m
+[31m-import {[m
+[31m-  AccessStatus,[m
+[31m-  ComponentStats,[m
+[31m-  DriveObject,[m
+[31m-  FileType,[m
+[31m-} from "../src/trees/treeTypes";[m
+[31m-import {[m
+[31m-  calculateComponentStats,[m
+[31m-  addNestedObjectValues,[m
+[31m-  createEmptyComponentStats,[m
+[31m-} from "../src/trees/treeTools";[m
+[31m-import { ResearchObjectComponentType } from "../src/ResearchObject";[m
+[32m+[m[32mimport { describe } from 'mocha';[m
+[32m+[m[32mimport { expect } from 'chai';[m
+[32m+[m[32mimport { AccessStatus, ComponentStats, DriveObject, FileType } from '../src/trees/treeTypes';[m
+[32m+[m[32mimport { calculateComponentStats, addComponentStats, createEmptyComponentStats } from '../src/trees/treeTools';[m
+[32m+[m[32mimport { ResearchObjectComponentType } from '../src/ResearchObject';[m
+ [m
+[31m-describe("TreeTools", () => {[m
+[31m-  describe("addNestedObjectValues", () => {[m
+[31m-    it("adds two empty objects", () => {[m
+[31m-      const res = addNestedObjectValues([m
+[31m-        createEmptyComponentStats(),[m
+[31m-        createEmptyComponentStats()[m
+[31m-      );[m
+[32m+[m[32mdescribe('TreeTools', () => {[m
+[32m+[m[32m  describe('addComponentStats', () => {[m
+[32m+[m[32m    it('adds two empty objects', () => {[m
+[32m+[m[32m      const res = addComponentStats(createEmptyComponentStats(), createEmptyComponentStats());[m
+       expect(res.code.count).to.eq(0);[m
+       expect(res.code.size).to.eq(0);[m
+       expect(res.data.count).to.eq(0);[m
+       expect(res.data.size).to.eq(0);[m
+[31m-      expect(res.link.count).to.eq(0);[m
+[31m-      expect(res.link.size).to.eq(0);[m
+[32m+[m[32m      // expect(res.link.count).to.eq(0);[m
+[32m+[m[32m      // expect(res.link.size).to.eq(0);[m
+       expect(res.unknown.count).to.eq(0);[m
+       expect(res.unknown.size).to.eq(0);[m
+     });[m
+ [m
+[31m-    it("adds an empty object to a nonempty object", () => {[m
+[31m-      const res = addNestedObjectValues([m
+[32m+[m[32m    it('adds an empty object to a nonempty object', () => {[m
+[32m+[m[32m      const res = addComponentStats([m
+         {[m
+           code: {[m
+             count: 1,[m
+[36m@@ -43,7 +31,7 @@[m [mdescribe("TreeTools", () => {[m
+             size: 2,[m
+             dirs: 21,[m
+           },[m
+[31m-          link: { count: 3, size: 3, dirs: 31 },[m
+[32m+[m[32m          // link: { count: 3, size: 3, dirs: 31 },[m
+           pdf: {[m
+             count: 4,[m
+             size: 4,[m
+[36m@@ -51,7 +39,7 @@[m [mdescribe("TreeTools", () => {[m
+           },[m
+           unknown: { count: 5, size: 5, dirs: 51 },[m
+         },[m
+[31m-        createEmptyComponentStats()[m
+[32m+[m[32m        createEmptyComponentStats(),[m
+       );[m
+       expect(res.code.count).to.eq(1);[m
+       expect(res.code.size).to.eq(1);[m
+[36m@@ -59,9 +47,9 @@[m [mdescribe("TreeTools", () => {[m
+       expect(res.data.count).to.eq(2);[m
+       expect(res.data.size).to.eq(2);[m
+       expect(res.data.dirs).to.eq(21);[m
+[31m-      expect(res.link.count).to.eq(3);[m
+[31m-      expect(res.link.size).to.eq(3);[m
+[31m-      expect(res.link.dirs).to.eq(31);[m
+[32m+[m[32m      // expect(res.link.count).to.eq(3);[m
+[32m+[m[32m      // expect(res.link.size).to.eq(3);[m
+[32m+[m[32m      // expect(res.link.dirs).to.eq(31);[m
+       expect(res.pdf.count).to.eq(4);[m
+       expect(res.pdf.size).to.eq(4);[m
+       expect(res.pdf.dirs).to.eq(41);[m
+[36m@@ -70,44 +58,44 @@[m [mdescribe("TreeTools", () => {[m
+       expect(res.unknown.dirs).to.eq(51);[m
+     });[m
+   });[m
+[31m-  describe("calculateComponentStats", () => {[m
+[31m-    it("calculates empty case correctly", () => {[m
+[32m+[m[32m  describe('calculateComponentStats', () => {[m
+[32m+[m[32m    it('calculates empty case correctly', () => {[m
+       const emptyDrive: DriveObject = {[m
+[31m-        name: "",[m
+[31m-        lastModified: "",[m
+[32m+[m[32m        name: '',[m
+[32m+[m[32m        lastModified: '',[m
+         componentType: ResearchObjectComponentType.DATA_BUCKET,[m
+         accessStatus: AccessStatus.PUBLIC,[m
+         size: 0,[m
+         metadata: {},[m
+[31m-        cid: "",[m
+[32m+[m[32m        cid: '',[m
+         type: FileType.DIR,[m
+       };[m
+       const res = calculateComponentStats(emptyDrive);[m
+       expect(res?.code).to.be.undefined;[m
+       expect(res?.data).to.be.undefined;[m
+[31m-      expect(res?.link).to.be.undefined;[m
+[32m+[m[32m      // expect(res?.link).to.be.undefined;[m
+       expect(res?.unknown).to.be.undefined;[m
+       //   expect(res?.video).to.be.undefined;[m
+     });[m
+ [m
+[31m-    it("calculates simple case correctly", () => {[m
+[32m+[m[32m    it('calculates simple case correctly', () => {[m
+       const simpleDrive: DriveObject = {[m
+[31m-        name: "",[m
+[31m-        lastModified: "",[m
+[32m+[m[32m        name: '',[m
+[32m+[m[32m        lastModified: '',[m
+         componentType: ResearchObjectComponentType.DATA_BUCKET,[m
+         accessStatus: AccessStatus.PUBLIC,[m
+         size: 0,[m
+         metadata: {},[m
+[31m-        cid: "",[m
+[32m+[m[32m        cid: '',[m
+         type: FileType.DIR,[m
+         contains: [[m
+           {[m
+             componentType: ResearchObjectComponentType.CODE,[m
+             size: 1,[m
+[31m-            cid: "1",[m
+[32m+[m[32m            cid: '1',[m
+             accessStatus: AccessStatus.PUBLIC,[m
+[31m-            name: "a",[m
+[31m-            lastModified: "1",[m
+[32m+[m[32m            name: 'a',[m
+[32m+[m[32m            lastModified: '1',[m
+             metadata: {},[m
+             type: FileType.FILE,[m
+           },[m
+[36m@@ -120,60 +108,60 @@[m [mdescribe("TreeTools", () => {[m
+       expect(res.code.count).to.eq(1);[m
+       expect(res.data.size).to.eq(0);[m
+       expect(res.data.count).to.eq(0);[m
+[31m-      expect(res.link.size).to.eq(0);[m
+[31m-      expect(res.link.count).to.eq(0);[m
+[32m+[m[32m      // expect(res.link.size).to.eq(0);[m
+[32m+[m[32m      // expect(res.link.count).to.eq(0);[m
+       expect(res.unknown.size).to.eq(0);[m
+       expect(res.unknown.count).to.eq(0);[m
+     });[m
+ [m
+[31m-    it("calculates with every component present in data bucket correctly", () => {[m
+[32m+[m[32m    it('calculates with every component present in data bucket correctly', () => {[m
+       const simpleDrive: DriveObject = {[m
+[31m-        name: "",[m
+[31m-        lastModified: "",[m
+[32m+[m[32m        name: '',[m
+[32m+[m[32m        lastModified: '',[m
+         componentType: ResearchObjectComponentType.DATA_BUCKET,[m
+         accessStatus: AccessStatus.PUBLIC,[m
+         size: 0,[m
+         metadata: {},[m
+[31m-        cid: "",[m
+[32m+[m[32m        cid: '',[m
+         type: FileType.DIR,[m
+         contains: [[m
+           {[m
+             componentType: ResearchObjectComponentType.CODE,[m
+             size: 1,[m
+[31m-            cid: "1",[m
+[32m+[m[32m            cid: '1',[m
+             accessStatus: AccessStatus.PUBLIC,[m
+[31m-            name: "a",[m
+[31m-            lastModified: "1",[m
+[32m+[m[32m            name: 'a',[m
+[32m+[m[32m            lastModified: '1',[m
+             metadata: {},[m
+             type: FileType.FILE,[m
+           },[m
+           {[m
+             componentType: ResearchObjectComponentType.DATA,[m
+             size: 2,[m
+[31m-            cid: "2",[m
+[32m+[m[32m            cid: '2',[m
+             accessStatus: AccessStatus.PUBLIC,[m
+[31m-            name: "b",[m
+[31m-            lastModified: "1",[m
+[32m+[m[32m            name: 'b',[m
+[32m+[m[32m            lastModified: '1',[m
+             metadata: {},[m
+             type: FileType.FILE,[m
+           },[m
+           {[m
+             componentType: ResearchObjectComponentType.UNKNOWN,[m
+             size: 3,[m
+[31m-            cid: "3",[m
+[32m+[m[32m            cid: '3',[m
+             accessStatus: AccessStatus.PUBLIC,[m
+[31m-            name: "c",[m
+[31m-            lastModified: "1",[m
+[32m+[m[32m            name: 'c',[m
+[32m+[m[32m            lastModified: '1',[m
+             metadata: {},[m
+             type: FileType.FILE,[m
+           },[m
+           {[m
+             componentType: ResearchObjectComponentType.LINK,[m
+             size: 0,[m
+[31m-            cid: "4",[m
+[32m+[m[32m            cid: '4',[m
+             accessStatus: AccessStatus.PUBLIC,[m
+[31m-            name: "d",[m
+[31m-            lastModified: "1",[m
+[32m+[m[32m            name: 'd',[m
+[32m+[m[32m            lastModified: '1',[m
+             metadata: {},[m
+             type: FileType.FILE,[m
+           },[m
+[36m@@ -191,48 +179,48 @@[m [mdescribe("TreeTools", () => {[m
+       expect(res.unknown.size).to.eq(3);[m
+       expect(res.unknown.count).to.eq(1);[m
+ [m
+[31m-      expect(res.link.size).to.eq(0);[m
+[31m-      expect(res.link.count).to.eq(1);[m
+[32m+[m[32m      // expect(res.link.size).to.eq(0);[m
+[32m+[m[32m      // expect(res.link.count).to.eq(1);[m
+     });[m
+ [m
+[31m-    it("calculates nesting of single component type correctly", () => {[m
+[32m+[m[32m    it('calculates nesting of single component type correctly', () => {[m
+       const simpleDrive: DriveObject = {[m
+[31m-        name: "",[m
+[31m-        lastModified: "",[m
+[32m+[m[32m        name: '',[m
+[32m+[m[32m        lastModified: '',[m
+         componentType: ResearchObjectComponentType.DATA_BUCKET,[m
+         accessStatus: AccessStatus.PUBLIC,[m
+         size: 0,[m
+         metadata: {},[m
+[31m-        cid: "",[m
+[32m+[m[32m        cid: '',[m
+         type: FileType.DIR,[m
+         contains: [[m
+           {[m
+             componentType: ResearchObjectComponentType.CODE,[m
+             size: 20,[m
+[31m-            cid: "1",[m
+[32m+[m[32m            cid: '1',[m
+             accessStatus: AccessStatus.PUBLIC,[m
+[31m-            name: "code",[m
+[31m-            lastModified: "1",[m
+[32m+[m[32m            name: 'code',[m
+[32m+[m[32m            lastModified: '1',[m
+             metadata: {},[m
+             type: FileType.DIR,[m
+             contains: [[m
+               {[m
+                 componentType: ResearchObjectComponentType.CODE,[m
+                 size: 10,[m
+[31m-                cid: "2",[m
+[32m+[m[32m                cid: '2',[m
+                 accessStatus: AccessStatus.PUBLIC,[m
+[31m-                name: "code",[m
+[31m-                lastModified: "1",[m
+[32m+[m[32m                name: 'code',[m
+[32m+[m[32m                lastModified: '1',[m
+                 metadata: {},[m
+                 type: FileType.FILE,[m
+               },[m
+               {[m
+                 componentType: ResearchObjectComponentType.CODE,[m
+                 size: 10,[m
+[31m-                cid: "3",[m
+[32m+[m[32m                cid: '3',[m
+                 accessStatus: AccessStatus.PUBLIC,[m
+[31m-                name: "code2",[m
+[31m-                lastModified: "1",[m
+[32m+[m[32m                name: 'code2',[m
+[32m+[m[32m                lastModified: '1',[m
+                 metadata: {},[m
+                 type: FileType.FILE,[m
+               },[m
+[36m@@ -247,54 +235,54 @@[m [mdescribe("TreeTools", () => {[m
+       expect(res.code.dirs).to.eq(1);[m
+     });[m
+ [m
+[31m-    it("calculates nesting of single component type and an additional component nested correctly", () => {[m
+[32m+[m[32m    it('calculates nesting of single component type and an additional component nested correctly', () => {[m
+       const simpleDrive: DriveObject = {[m
+[31m-        name: "",[m
+[31m-        lastModified: "",[m
+[32m+[m[32m        name: '',[m
+[32m+[m[32m        lastModified: '',[m
+         componentType: ResearchObjectComponentType.DATA_BUCKET,[m
+         accessStatus: AccessStatus.PUBLIC,[m
+         size: 0,[m
+         metadata: {},[m
+[31m-        cid: "",[m
+[32m+[m[32m        cid: '',[m
+         type: FileType.DIR,[m
+         contains: [[m
+           {[m
+             componentType: ResearchObjectComponentType.CODE,[m
+             size: 30,[m
+[31m-            cid: "1",[m
+[32m+[m[32m            cid: '1',[m
+             accessStatus: AccessStatus.PUBLIC,[m
+[31m-            name: "code",[m
+[31m-            lastModified: "1",[m
+[32m+[m[32m            name: 'code',[m
+[32m+[m[32m            lastModified: '1',[m
+             metadata: {},[m
+             type: FileType.DIR,[m
+             contains: [[m
+               {[m
+                 componentType: ResearchObjectComponentType.CODE,[m
+                 size: 10,[m
+[31m-                cid: "2",[m
+[32m+[m[32m                cid: '2',[m
+                 accessStatus: AccessStatus.PUBLIC,[m
+[31m-                name: "code",[m
+[31m-                lastModified: "1",[m
+[32m+[m[32m                name: 'code',[m
+[32m+[m[32m                lastModified: '1',[m
+                 metadata: {},[m
+                 type: FileType.FILE,[m
+               },[m
+               {[m
+                 componentType: ResearchObjectComponentType.CODE,[m
+                 size: 10,[m
+[31m-                cid: "3",[m
+[32m+[m[32m                cid: '3',[m
+                 accessStatus: AccessStatus.PUBLIC,[m
+[31m-                name: "code2",[m
+[31m-                lastModified: "1",[m
+[32m+[m[32m                name: 'code2',[m
+[32m+[m[32m                lastModified: '1',[m
+                 metadata: {},[m
+                 type: FileType.FILE,[m
+               },[m
+               {[m
+                 componentType: ResearchObjectComponentType.UNKNOWN,[m
+                 size: 10,[m
+[31m-                cid: "4",[m
+[32m+[m[32m                cid: '4',[m
+                 accessStatus: AccessStatus.PUBLIC,[m
+[31m-                name: "unknown",[m
+[31m-                lastModified: "1",[m
+[32m+[m[32m                name: 'unknown',[m
+[32m+[m[32m                lastModified: '1',[m
+                 metadata: {},[m
+                 type: FileType.FILE,[m
+               },[m
+[36m@@ -313,74 +301,74 @@[m [mdescribe("TreeTools", () => {[m
+       expect(res.unknown.dirs).to.eq(0);[m
+     });[m
+ [m
+[31m-    it("calculates deep complex nesting of multiple component types", () => {[m
+[32m+[m[32m    it('calculates deep complex nesting of multiple component types', () => {[m
+       const simpleDrive: DriveObject = {[m
+[31m-        name: "",[m
+[31m-        lastModified: "",[m
+[32m+[m[32m        name: '',[m
+[32m+[m[32m        lastModified: '',[m
+         componentType: ResearchObjectComponentType.DATA_BUCKET,[m
+         accessStatus: AccessStatus.PUBLIC,[m
+         size: 0,[m
+         metadata: {},[m
+[31m-        cid: "",[m
+[32m+[m[32m        cid: '',[m
+         type: FileType.DIR,[m
+         contains: [[m
+           {[m
+             componentType: ResearchObjectComponentType.CODE,[m
+             size: 30,[m
+[31m-            cid: "1",[m
+[32m+[m[32m            cid: '1',[m
+             accessStatus: AccessStatus.PUBLIC,[m
+[31m-            name: "code",[m
+[31m-            lastModified: "1",[m
+[32m+[m[32m            name: 'code',[m
+[32m+[m[32m            lastModified: '1',[m
+             metadata: {},[m
+             type: FileType.DIR,[m
+             contains: [[m
+               {[m
+                 componentType: ResearchObjectComponentType.CODE,[m
+                 size: 10,[m
+[31m-                cid: "2",[m
+[32m+[m[32m                cid: '2',[m
+                 accessStatus: AccessStatus.PUBLIC,[m
+[31m-                name: "code",[m
+[31m-                lastModified: "1",[m
+[32m+[m[32m                name: 'code',[m
+[32m+[m[32m                lastModified: '1',[m
+                 metadata: {},[m
+                 type: FileType.FILE,[m
+               },[m
+               {[m
+                 componentType: ResearchObjectComponentType.CODE,[m
+                 size: 10,[m
+[31m-                cid: "3",[m
+[32m+[m[32m                cid: '3',[m
+                 accessStatus: AccessStatus.PUBLIC,[m
+[31m-                name: "code2",[m
+[31m-                lastModified: "1",[m
+[32m+[m[32m                name: 'code2',[m
+[32m+[m[32m                lastModified: '1',[m
+                 metadata: {},[m
+                 type: FileType.FILE,[m
+               },[m
+               {[m
+                 componentType: ResearchObjectComponentType.UNKNOWN,[m
+                 size: 10,[m
+[31m-                cid: "4",[m
+[32m+[m[32m                cid: '4',[m
+                 accessStatus: AccessStatus.PUBLIC,[m
+[31m-                name: "unknown",[m
+[31m-                lastModified: "1",[m
+[32m+[m[32m                name: 'unknown',[m
+[32m+[m[32m                lastModified: '1',[m
+                 metadata: {},[m
+                 type: FileType.FILE,[m
+               },[m
+               {[m
+                 componentType: ResearchObjectComponentType.UNKNOWN,[m
+                 size: 10,[m
+[31m-                cid: "5",[m
+[32m+[m[32m                cid: '5',[m
+                 accessStatus: AccessStatus.PUBLIC,[m
+[31m-                name: "unknown-folder",[m
+[31m-                lastModified: "1",[m
+[32m+[m[32m                name: 'unknown-folder',[m
+[32m+[m[32m                lastModified: '1',[m
+                 metadata: {},[m
+                 type: FileType.DIR,[m
+                 contains: [[m
+                   {[m
+                     componentType: ResearchObjectComponentType.CODE,[m
+                     size: 100,[m
+[31m-                    cid: "3",[m
+[32m+[m[32m                    cid: '3',[m
+                     accessStatus: AccessStatus.PUBLIC,[m
+[31m-                    name: "code3",[m
+[31m-                    lastModified: "1",[m
+[32m+[m[32m                    name: 'code3',[m
+[32m+[m[32m                    lastModified: '1',[m
+                     metadata: {},[m
+                     type: FileType.FILE,[m
+                   },[m
+[36m@@ -402,20 +390,20 @@[m [mdescribe("TreeTools", () => {[m
+     });[m
+   });[m
+ [m
+[31m-  it("defers to cached component stats if available", () => {[m
+[32m+[m[32m  it('defers to cached component stats if available', () => {[m
+     const simpleDrive: DriveObject = {[m
+[31m-      name: "",[m
+[31m-      lastModified: "",[m
+[32m+[m[32m      name: '',[m
+[32m+[m[32m      lastModified: '',[m
+       componentType: ResearchObjectComponentType.DATA_BUCKET,[m
+       accessStatus: AccessStatus.PUBLIC,[m
+       size: 0,[m
+       metadata: {},[m
+[31m-      cid: "",[m
+[32m+[m[32m      cid: '',[m
+       type: FileType.DIR,[m
+       componentStats: {[m
+         code: { count: 1337, size: 1337, dirs: 1337 },[m
+         data: { count: 1337, size: 1337, dirs: 1337 },[m
+[31m-        link: { count: 1337, size: 1337, dirs: 1337 },[m
+[32m+[m[32m        // link: { count: 1337, size: 1337, dirs: 1337 },[m
+         pdf: { count: 1337, size: 1337, dirs: 1337 },[m
+         unknown: { count: 1337, size: 1337, dirs: 1337 },[m
+       },[m
+[36m@@ -423,10 +411,10 @@[m [mdescribe("TreeTools", () => {[m
+         {[m
+           componentType: ResearchObjectComponentType.CODE,[m
+           size: 30,[m
+[31m-          cid: "1",[m
+[32m+[m[32m          cid: '1',[m
+           accessStatus: AccessStatus.PUBLIC,[m
+[31m-          name: "code",[m
+[31m-          lastModified: "1",[m
+[32m+[m[32m          name: 'code',[m
+[32m+[m[32m          lastModified: '1',[m
+           metadata: {},[m
+           type: FileType.DIR,[m
+ [m
+[36m@@ -434,50 +422,50 @@[m [mdescribe("TreeTools", () => {[m
+             {[m
+               componentType: ResearchObjectComponentType.CODE,[m
+               size: 10,[m
+[31m-              cid: "2",[m
+[32m+[m[32m              cid: '2',[m
+               accessStatus: AccessStatus.PUBLIC,[m
+[31m-              name: "code",[m
+[31m-              lastModified: "1",[m
+[32m+[m[32m              name: 'code',[m
+[32m+[m[32m              lastModified: '1',[m
+               metadata: {},[m
+               type: FileType.FILE,[m
+             },[m
+             {[m
+               componentType: ResearchObjectComponentType.CODE,[m
+               size: 10,[m
+[31m-              cid: "3",[m
+[32m+[m[32m              cid: '3',[m
+               accessStatus: AccessStatus.PUBLIC,[m
+[31m-              name: "code2",[m
+[31m-              lastModified: "1",[m
+[32m+[m[32m              name: 'code2',[m
+[32m+[m[32m              lastModified: '1',[m
+               metadata: {},[m
+               type: FileType.FILE,[m
+             },[m
+             {[m
+               componentType: ResearchObjectComponentType.UNKNOWN,[m
+               size: 10,[m
+[31m-              cid: "4",[m
+[32m+[m[32m              cid: '4',[m
+               accessStatus: AccessStatus.PUBLIC,[m
+[31m-              name: "unknown",[m
+[31m-              lastModified: "1",[m
+[32m+[m[32m              name: 'unknown',[m
+[32m+[m[32m              lastModified: '1',[m
+               metadata: {},[m
+               type: FileType.FILE,[m
+             },[m
+             {[m
+               componentType: ResearchObjectComponentType.UNKNOWN,[m
+               size: 10,[m
+[31m-              cid: "5",[m
+[32m+[m[32m              cid: '5',[m
+               accessStatus: AccessStatus.PUBLIC,[m
+[31m-              name: "unknown-folder",[m
+[31m-              lastModified: "1",[m
+[32m+[m[32m              name: 'unknown-folder',[m
+[32m+[m[32m              lastModified: '1',[m
+               metadata: {},[m
+               type: FileType.DIR,[m
+               contains: [[m
+                 {[m
+                   componentType: ResearchObjectComponentType.CODE,[m
+                   size: 100,[m
+[31m-                  cid: "3",[m
+[32m+[m[32m                  cid: '3',[m
+                   accessStatus: AccessStatus.PUBLIC,[m
+[31m-                  name: "code3",[m
+[31m-                  lastModified: "1",[m
+[32m+[m[32m                  name: 'code3',[m
+[32m+[m[32m                  lastModified: '1',[m
+                   metadata: {},[m
+                   type: FileType.FILE,[m
+                 },[m
+[36m@@ -498,70 +486,70 @@[m [mdescribe("TreeTools", () => {[m
+     expect(res.unknown.dirs).to.eq(1337);[m
+   });[m
+ [m
+[31m-  it("defers to nested cached component stats if available", () => {[m
+[32m+[m[32m  it('defers to nested cached component stats if available', () => {[m
+     const simpleDrive: DriveObject = {[m
+[31m-      name: "",[m
+[31m-      lastModified: "",[m
+[32m+[m[32m      name: '',[m
+[32m+[m[32m      lastModified: '',[m
+       componentType: ResearchObjectComponentType.DATA_BUCKET,[m
+       accessStatus: AccessStatus.PUBLIC,[m
+       size: 0,[m
+       metadata: {},[m
+[31m-      cid: "",[m
+[32m+[m[32m      cid: '',[m
+       type: FileType.DIR,[m
+       contains: [[m
+         {[m
+           componentType: ResearchObjectComponentType.CODE,[m
+           size: 30,[m
+[31m-          cid: "1",[m
+[32m+[m[32m          cid: '1',[m
+           accessStatus: AccessStatus.PUBLIC,[m
+[31m-          name: "code",[m
+[31m-          lastModified: "1",[m
+[32m+[m[32m          name: 'code',[m
+[32m+[m[32m          lastModified: '1',[m
+           metadata: {},[m
+           type: FileType.DIR,[m
+           contains: [[m
+             {[m
+               componentType: ResearchObjectComponentType.CODE,[m
+               size: 10,[m
+[31m-              cid: "2",[m
+[32m+[m[32m              cid: '2',[m
+               accessStatus: AccessStatus.PUBLIC,[m
+[31m-              name: "code",[m
+[31m-              lastModified: "1",[m
+[32m+[m[32m              name: 'code',[m
+[32m+[m[32m              lastModified: '1',[m
+               metadata: {},[m
+               type: FileType.FILE,[m
+             },[m
+             {[m
+               componentType: ResearchObjectComponentType.CODE,[m
+               size: 10,[m
+[31m-              cid: "3",[m
+[32m+[m[32m              cid: '3',[m
+               accessStatus: AccessStatus.PUBLIC,[m
+[31m-              name: "code2",[m
+[31m-              lastModified: "1",[m
+[32m+[m[32m              name: 'code2',[m
+[32m+[m[32m              lastModified: '1',[m
+               metadata: {},[m
+               type: FileType.FILE,[m
+             },[m
+             {[m
+               componentType: ResearchObjectComponentType.UNKNOWN,[m
+               size: 10,[m
+[31m-              cid: "4",[m
+[32m+[m[32m              cid: '4',[m
+               accessStatus: AccessStatus.PUBLIC,[m
+[31m-              name: "unknown",[m
+[31m-              lastModified: "1",[m
+[32m+[m[32m              name: 'unknown',[m
+[32m+[m[32m              lastModified: '1',[m
+               metadata: {},[m
+               type: FileType.FILE,[m
+             },[m
+             {[m
+               componentType: ResearchObjectComponentType.UNKNOWN,[m
+               size: 10,[m
+[31m-              cid: "5",[m
+[32m+[m[32m              cid: '5',[m
+               accessStatus: AccessStatus.PUBLIC,[m
+[31m-              name: "unknown-folder",[m
+[31m-              lastModified: "1",[m
+[32m+[m[32m              name: 'unknown-folder',[m
+[32m+[m[32m              lastModified: '1',[m
+               metadata: {},[m
+               type: FileType.DIR,[m
+               componentStats: {[m
+                 code: { count: 50, size: 50, dirs: 50 },[m
+                 data: { count: 0, size: 0, dirs: 0 },[m
+[31m-                link: { count: 0, size: 0, dirs: 0 },[m
+[32m+[m[32m                // link: { count: 0, size: 0, dirs: 0 },[m
+                 pdf: { count: 99, size: 99, dirs: 99 },[m
+                 unknown: { count: 0, size: 0, dirs: 0 },[m
+               },[m
+[36m@@ -569,10 +557,10 @@[m [mdescribe("TreeTools", () => {[m
+                 {[m
+                   componentType: ResearchObjectComponentType.CODE,[m
+                   size: 100,[m
+[31m-                  cid: "3",[m
+[32m+[m[32m                  cid: '3',[m
+                   accessStatus: AccessStatus.PUBLIC,[m
+[31m-                  name: "code3",[m
+[31m-                  lastModified: "1",[m
+[32m+[m[32m                  name: 'code3',[m
+[32m+[m[32m                  lastModified: '1',[m
+                   metadata: {},[m
+                   type: FileType.FILE,[m
+                 },[m
