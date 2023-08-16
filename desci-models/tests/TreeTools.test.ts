@@ -2,18 +2,12 @@ import { describe } from "mocha";
 import { expect } from "chai";
 import {
   AccessStatus,
-  ContainsComponents,
-  DriveMetadata,
+  ComponentStats,
   DriveObject,
-  DrivePath,
-  FileDir,
   FileType,
-  NODE_KEEP_FILE,
-  RecursiveLsResult,
-  VirtualDriveArgs,
 } from "../src/trees/treeTypes";
 import {
-  aggregateContainedComponents,
+    calculateComponentStats,
   addNestedObjectValues,
   createEmptyComponentStats,
 } from "../src/trees/treeTools";
@@ -76,7 +70,7 @@ describe("TreeTools", () => {
       expect(res.unknown.dirs).to.eq(51);
     });
   });
-  describe("aggregateContainedComponents", () => {
+  describe("calculateComponentStats", () => {
     it("calculates empty case correctly", () => {
       const emptyDrive: DriveObject = {
         name: "",
@@ -88,7 +82,7 @@ describe("TreeTools", () => {
         cid: "",
         type: FileType.DIR,
       };
-      const res = aggregateContainedComponents(emptyDrive);
+      const res = calculateComponentStats(emptyDrive);
       expect(res?.code).to.be.undefined;
       expect(res?.data).to.be.undefined;
       expect(res?.link).to.be.undefined;
@@ -119,9 +113,9 @@ describe("TreeTools", () => {
           },
         ],
       };
-      const res = aggregateContainedComponents(
+      const res = calculateComponentStats(
         simpleDrive
-      ) as ContainsComponents;
+      ) as ComponentStats;
       expect(res).to.exist;
       expect(res.code).to.not.be.undefined;
       expect(res.code.size).to.eq(1);
@@ -187,9 +181,9 @@ describe("TreeTools", () => {
           },
         ],
       };
-      const res = aggregateContainedComponents(
+      const res = calculateComponentStats(
         simpleDrive
-      ) as ContainsComponents;
+      ) as ComponentStats;
       expect(res).to.exist;
 
       expect(res.code.size).to.eq(1);
@@ -250,9 +244,9 @@ describe("TreeTools", () => {
           },
         ],
       };
-      const res = aggregateContainedComponents(
+      const res = calculateComponentStats(
         simpleDrive
-      ) as ContainsComponents;
+      ) as ComponentStats;
 
       expect(res.code.size).to.eq(20);
       expect(res.code.count).to.eq(2);
@@ -314,9 +308,9 @@ describe("TreeTools", () => {
           },
         ],
       };
-      const res = aggregateContainedComponents(
+      const res = calculateComponentStats(
         simpleDrive
-      ) as ContainsComponents;
+      ) as ComponentStats;
 
       expect(res.code.size).to.eq(20);
       expect(res.code.count).to.eq(2);
@@ -404,9 +398,9 @@ describe("TreeTools", () => {
           },
         ],
       };
-      const res = aggregateContainedComponents(
+      const res = calculateComponentStats(
         simpleDrive
-      ) as ContainsComponents;
+      ) as ComponentStats;
 
       expect(res.code.size).to.eq(120);
       expect(res.code.count).to.eq(3);

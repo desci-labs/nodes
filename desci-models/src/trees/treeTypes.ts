@@ -18,7 +18,7 @@ export interface DriveObject {
   cid: string;
   type: FileType;
   contains?: Array<DriveObject> | null;
-  containsComponents?: ContainsComponents;
+  componentStats?: ComponentStats;
   parent?: DriveObject | FileDir | null;
   path?: string;
   starred?: boolean;
@@ -34,7 +34,7 @@ export type ComponentTypesForStats =
   | ResearchObjectComponentType.UNKNOWN
   | ResearchObjectComponentType.LINK;
 
-export type ContainsComponents = {
+export type ComponentStats = {
   [key in ComponentTypesForStats]: {
     count: number;
     size: number;

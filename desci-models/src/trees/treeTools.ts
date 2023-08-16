@@ -9,7 +9,7 @@ import {
 import {
   AccessStatus,
   ComponentTypesForStats,
-  ContainsComponents,
+  ComponentStats,
   DriveMetadata,
   DriveObject,
   DrivePath,
@@ -45,7 +45,7 @@ export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
     size: rootSize,
     type: FileType.DIR,
   });
-  treeRoot.containsComponents = aggregateContainedComponents(treeRoot);
+  treeRoot.componentStats = calculateComponentStats(treeRoot);
 
   return [treeRoot];
   // return driveObjectTree;
@@ -127,7 +127,7 @@ export function convertIpfsTreeToDriveObjectTree(
         pathToCompMap,
         pathToSizeMap
       );
-      branch.containsComponents = aggregateContainedComponents(branch);
+      branch.componentStats = calculateComponentStats(branch);
     }
   });
   return tree;
@@ -153,9 +153,9 @@ export function isDirectory(currentObject: DriveObject) {
  * count should be +1 for each directory of that type and +1 for each file of that type
  */
 
-export function aggregateContainedComponents(dirDrive: DriveObject) {
+export function calculateComponentStats(dirDrive: DriveObject) {
   return dirDrive?.contains?.reduce(
-    (acc: ContainsComponents, currentObject: DriveObject) => {
+    (acc: ComponentStats, currentObject: DriveObject) => {
       /** Exclude hidden files */
       if (isHiddenObject(currentObject)) {
         return acc;
@@ -170,12 +170,12 @@ export function aggregateContainedComponents(dirDrive: DriveObject) {
       } else {
         acc[key].dirs += 1;
         /** Base Case for Directories */
-        if (currentObject.containsComponents) {
+        if (currentObject.componentStats) {
           /** If cached stats values exist */
-          acc = addNestedObjectValues(acc, currentObject.containsComponents);
+          acc = addNestedObjectValues(acc, currentObject.componentStats);
         } else {
           /** If cached stats values do NOT exist, calculate them */
-          const res = aggregateContainedComponents(currentObject);
+          const res = calculateComponentStats(currentObject);
           if (res) {
             acc = addNestedObjectValues(acc, res);
           }
@@ -193,7 +193,7 @@ const EMPTY_COMPONENT_STAT = {
   dirs: 0
 };
 
-export const createEmptyComponentStats = (): ContainsComponents => ({
+export const createEmptyComponentStats = (): ComponentStats => ({
   unknown: { ...EMPTY_COMPONENT_STAT },
   pdf: { ...EMPTY_COMPONENT_STAT },
   code: { ...EMPTY_COMPONENT_STAT },
@@ -202,10 +202,10 @@ export const createEmptyComponentStats = (): ContainsComponents => ({
 });
 
 export function addNestedObjectValues(
-  objA: ContainsComponents,
-  objB: ContainsComponents
-): ContainsComponents {
-  const result: ContainsComponents = {
+  objA: ComponentStats,
+  objB: ComponentStats
+): ComponentStats {
+  const result: ComponentStats = {
     ...createEmptyComponentStats(), // ensure all stats are zeroed to start
     ...JSON.parse(JSON.stringify(objA)),
   };
