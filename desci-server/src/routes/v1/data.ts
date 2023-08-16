@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import multer = require('multer');
 
-import { downloadDataset, pubTree, retrieveTree, deleteData, update, renameData } from 'controllers/data';
+import { pubTree, retrieveTree, deleteData, update, renameData } from 'controllers/data';
+import { diffData } from 'controllers/data/diff';
 import { moveData } from 'controllers/data/move';
 import { updateExternalCid } from 'controllers/data/updateExternalCid';
 import { ensureUser } from 'middleware/ensureUser';
@@ -17,7 +18,8 @@ router.post('/move', [ensureUser], moveData);
 router.get('/retrieveTree/:nodeUuid/:manifestCid', [ensureUser], retrieveTree);
 router.get('/retrieveTree/:nodeUuid/:manifestCid/:shareId?', retrieveTree);
 router.get('/pubTree/:nodeUuid/:manifestCid/:rootCid?', pubTree);
-router.get('/downloadDataset/:nodeUuid/:cid', [ensureUser], downloadDataset);
+// router.get('/downloadDataset/:nodeUuid/:cid', [ensureUser], downloadDataset);
+router.get('/diff/:nodeUuid/:manifestCidA/:manifestCidB', diffData);
 
 // must be last
 // router.get('/*', [ensureUser], list);

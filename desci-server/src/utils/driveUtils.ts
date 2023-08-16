@@ -32,9 +32,10 @@ export function fillDirSizes(tree, cidInfoMap) {
 
 // Fills in the access status of CIDs and dates
 export function fillCidInfo(tree, cidInfoMap) {
+  // debugger;
   const contains = [];
   tree.forEach((fd) => {
-    if (fd.type === 'dir') fd.contains = fillCidInfo(fd.contains, cidInfoMap);
+    if (fd.type === 'dir' && fd.contains?.length) fd.contains = fillCidInfo(fd.contains, cidInfoMap);
     fd.date = cidInfoMap[fd.cid]?.date || Date.now();
     fd.published = cidInfoMap[fd.cid]?.published;
     contains.push(fd);
@@ -120,9 +121,17 @@ export async function getTreeAndFillDeprecated(
   return filledTree;
 }
 
-export async function getTreeAndFill(manifest: ResearchObjectV1, nodeUuid: string, ownerId?: number) {
+export async function getTreeAndFill(
+  manifest: ResearchObjectV1,
+  nodeUuid: string,
+  ownerId?: number,
+  published?: boolean,
+) {
+  // debugger;
   const rootCid = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload.cid;
-  const externalCidMap = await generateExternalCidMap(nodeUuid + '.');
+  const externalCidMap = published
+    ? await generateExternalCidMap(nodeUuid + '.', rootCid)
+    : await generateExternalCidMap(nodeUuid + '.');
   let tree: RecursiveLsResult[] = await getDirectoryTree(rootCid, externalCidMap);
 
   /*
@@ -155,7 +164,7 @@ export async function getTreeAndFill(manifest: ResearchObjectV1, nodeUuid: strin
   if (privEntries.length | pubEntries.length) {
     const pubCids: Record<string, boolean> = {};
     pubEntries.forEach((e) => (pubCids[e.cid] = true));
-
+    // debugger;
     // Build cidInfoMap
     privEntries.forEach((ref) => {
       if (pubCids[ref.cid]) return; // Skip if there's a pub entry
@@ -315,16 +324,29 @@ export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updat
 
 export type ExternalCidMap = Record<string, { size: number; path: string; directory: boolean }>;
 
-export async function generateExternalCidMap(nodeUuid) {
+export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
+  // dataBucketCid matters for public nodes, if a dataBucketCid is provided, this function will generate external cids for a specific version of the node
   const externalCidMap: ExternalCidMap = {};
-  const dataReferences = await prisma.dataReference.findMany({
-    where: {
-      node: {
-        uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.',
-      },
-      external: true,
-    },
-  });
+
+  const dataReferences = dataBucketCid
+    ? await prisma.publicDataReference.findMany({
+        where: {
+          node: {
+            uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.',
+          },
+          rootCid: dataBucketCid,
+          external: true,
+        },
+      })
+    : await prisma.dataReference.findMany({
+        where: {
+          node: {
+            uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.',
+          },
+          external: true,
+        },
+      });
+
   dataReferences.forEach((d: DataReference) => {
     externalCidMap[d.cid] = {
       size: d.size,
