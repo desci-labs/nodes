@@ -412,6 +412,13 @@ describe("TreeTools", () => {
       metadata: {},
       cid: "",
       type: FileType.DIR,
+      componentStats: {
+        code: { count: 1337, size: 1337, dirs: 1337 },
+        data: { count: 1337, size: 1337, dirs: 1337 },
+        link: { count: 1337, size: 1337, dirs: 1337 },
+        pdf: { count: 1337, size: 1337, dirs: 1337 },
+        unknown: { count: 1337, size: 1337, dirs: 1337 },
+      },
       contains: [
         {
           componentType: ResearchObjectComponentType.CODE,
@@ -422,13 +429,7 @@ describe("TreeTools", () => {
           lastModified: "1",
           metadata: {},
           type: FileType.DIR,
-          componentStats: {
-            code: { count: 1337, size: 1337, dirs: 1337 },
-            data: { count: 1337, size: 1337, dirs: 1337 },
-            link: { count: 1337, size: 1337, dirs: 1337 },
-            pdf: { count: 1337, size: 1337, dirs: 1337 },
-            unknown: { count: 1337, size: 1337, dirs: 1337 },
-          },
+
           contains: [
             {
               componentType: ResearchObjectComponentType.CODE,
@@ -490,7 +491,7 @@ describe("TreeTools", () => {
 
     expect(res.code.size).to.eq(1337);
     expect(res.code.count).to.eq(1337);
-    expect(res.code.dirs).to.eq(1338);
+    expect(res.code.dirs).to.eq(1337);
 
     expect(res.unknown.size).to.eq(1337);
     expect(res.unknown.count).to.eq(1337);
@@ -558,11 +559,11 @@ describe("TreeTools", () => {
               metadata: {},
               type: FileType.DIR,
               componentStats: {
-                code: {count:50, size:50,dirs:50},
-                data: {count:0, size:0,dirs:0},
-                link: {count:0, size:0,dirs:0},
-                pdf: {count:99, size:99,dirs:99},
-                unknown: {count:0, size:0,dirs:0},
+                code: { count: 50, size: 50, dirs: 50 },
+                data: { count: 0, size: 0, dirs: 0 },
+                link: { count: 0, size: 0, dirs: 0 },
+                pdf: { count: 99, size: 99, dirs: 99 },
+                unknown: { count: 0, size: 0, dirs: 0 },
               },
               contains: [
                 {
@@ -583,9 +584,9 @@ describe("TreeTools", () => {
     };
     const res = calculateComponentStats(simpleDrive) as ComponentStats;
 
-    expect(res.code.size).to.eq(20+50);
-    expect(res.code.count).to.eq(2+50);
-    expect(res.code.dirs).to.eq(1+50);
+    expect(res.code.size).to.eq(20 + 50);
+    expect(res.code.count).to.eq(2 + 50);
+    expect(res.code.dirs).to.eq(1 + 50);
 
     expect(res.unknown.size).to.eq(10);
     expect(res.unknown.count).to.eq(1);

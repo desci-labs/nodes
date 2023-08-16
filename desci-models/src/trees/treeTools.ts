@@ -143,7 +143,7 @@ export function isHiddenObject(currentObject: DriveObject) {
 }
 
 export function isDirectory(currentObject: DriveObject) {
-  return currentObject.type === FileType.DIR;
+  return currentObject.type === FileType.DIR; 
 }
 
 /**
@@ -154,6 +154,10 @@ export function isDirectory(currentObject: DriveObject) {
  */
 
 export function calculateComponentStats(dirDrive: DriveObject) {
+  const cachedStats = dirDrive.componentStats;
+  if (cachedStats) {
+    return cachedStats;
+  }
   return dirDrive?.contains?.reduce(
     (acc: ComponentStats, currentObject: DriveObject) => {
       /** Exclude hidden files */
