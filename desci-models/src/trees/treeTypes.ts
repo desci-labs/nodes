@@ -18,7 +18,10 @@ export interface DriveObject {
   cid: string;
   type: FileType;
   contains?: Array<DriveObject> | null;
-  containsComponents?: ContainsComponents;
+  /**
+   * Cached component stats EXCLUSIVE of current object (only counts nested objects)
+   */
+  componentStats?: ComponentStats;
   parent?: DriveObject | FileDir | null;
   path?: string;
   starred?: boolean;
@@ -27,10 +30,18 @@ export interface DriveObject {
 
 export const NODE_KEEP_FILE = ".nodeKeep";
 
-export type ContainsComponents = {
-  [key in ResearchObjectComponentType]?: {
+export type ComponentTypesForStats =
+  | ResearchObjectComponentType.CODE
+  | ResearchObjectComponentType.DATA
+  | ResearchObjectComponentType.PDF
+  | ResearchObjectComponentType.UNKNOWN;
+// | ResearchObjectComponentType.LINK;
+
+export type ComponentStats = {
+  [key in ComponentTypesForStats]: {
     count: number;
     size: number;
+    dirs: number;
   };
 };
 

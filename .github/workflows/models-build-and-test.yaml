@@ -40,4 +40,4 @@ jobs:
 
       - name: Run tests
         run: |
-          cd desci-models && yarn test
+          cd desci-models && yarn generate && yarn test
