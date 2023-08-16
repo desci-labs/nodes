@@ -1,9 +1,9 @@
 import {
-  ContainsComponents,
+  ComponentStats,
   DriveObject,
   ResearchObjectComponentType,
   ResearchObjectV1,
-  aggregateContainedComponents,
+  calculateComponentStats,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import axios from 'axios';
@@ -24,7 +24,7 @@ interface DiffResponse extends Diffs {
 interface Diffs {
   treeDiff: TreeDiff;
   sizeDiff: number;
-  componentsDiff: ContainsComponents;
+  componentsDiff: Partial<ComponentStats>;
 }
 
 // Diffs two public nodes
@@ -99,8 +99,8 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
   const treeBSize = treeB[0].size;
   const sizeDiff = treeASize - treeBSize;
 
-  const treeAComponentsContained = aggregateContainedComponents(treeA[0]);
-  const treeBComponentsContained = aggregateContainedComponents(treeB[0]);
+  const treeAComponentsContained = calculateComponentStats(treeA[0]);
+  const treeBComponentsContained = calculateComponentStats(treeB[0]);
   const componentsDiff = subtractNestedObjectValues(treeAComponentsContained, treeBComponentsContained);
 
   const treeDiff = diffTrees(flatTreeA, flatTreeB, {
