@@ -18,6 +18,9 @@ export interface DriveObject {
   cid: string;
   type: FileType;
   contains?: Array<DriveObject> | null;
+  /**
+   * Cached component stats EXCLUSIVE of current object (only counts nested objects)
+   */
   componentStats?: ComponentStats;
   parent?: DriveObject | FileDir | null;
   path?: string;
