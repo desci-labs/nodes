@@ -24,12 +24,12 @@ Usage Guidelines:
 Operation Types [validate, heal, validateAll, healAll]
 
 Usage Examples:
-validate:     OPERATION=validate NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_REFS=true npm run script:fix-data-refs
-heal:         OPERATION=heal NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_REFS=true npm run script:fix-data-refs
-validateAll:  OPERATION=validateAll PUBLIC_REFS=true npm run script:fix-data-refs
-healAll:      OPERATION=healAll PUBLIC_REFS=true npm run script:fix-data-refs
-fillPublic:   OPERATION=fillPublic USER_EMAIL=noreply@desci.com NODE_UUID=noDeUuiD. npm run script:fix-data-refs
-fillPublic:   OPERATION=clonePrivateNode NODE_UUID=noDeUuiD. NEW_NODE_UUID=nEwnoDeUuiD2. npm run script:fix-data-refs
+validate:         OPERATION=validate NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_REFS=true npm run script:fix-data-refs
+heal:             OPERATION=heal NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_REFS=true npm run script:fix-data-refs
+validateAll:      OPERATION=validateAll PUBLIC_REFS=true npm run script:fix-data-refs
+healAll:          OPERATION=healAll PUBLIC_REFS=true npm run script:fix-data-refs
+fillPublic:       OPERATION=fillPublic USER_EMAIL=noreply@desci.com NODE_UUID=noDeUuiD. npm run script:fix-data-refs
+clonePrivateNode: OPERATION=clonePrivateNode NODE_UUID=noDeUuiD. NEW_NODE_UUID=nEwnoDeUuiD2. npm run script:fix-data-refs
 
 Heal external flag in refs:
 healAll:      OPERATION=healAll PUBLIC_REFS=true MARK_EXTERNALS=true npm run script:fix-data-refs
