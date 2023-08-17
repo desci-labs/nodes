@@ -61,7 +61,7 @@ const PUBLIC_IPFS_RESOLVER = 'https://maritime.sealstorage.io';
 export const publicIpfs = ipfs.create({ url: PUBLIC_IPFS_RESOLVER, agent, apiPath: '/ipfs/api/v0' });
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
-const INTERNAL_IPFS_TIMEOUT = 5000;
+const INTERNAL_IPFS_TIMEOUT = 30000;
 const EXTERNAL_IPFS_TIMEOUT = 120000;
 
 export const updateManifestAndAddToIpfs = async (
