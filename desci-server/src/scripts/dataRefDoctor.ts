@@ -1,4 +1,4 @@
-import { DataType, Prisma } from '@prisma/client';
+import { DataType, Node, Prisma } from '@prisma/client';
 import axios from 'axios';
 
 import prisma from 'client';
@@ -29,6 +29,7 @@ heal:         OPERATION=heal NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_
 validateAll:  OPERATION=validateAll PUBLIC_REFS=true npm run script:fix-data-refs
 healAll:      OPERATION=healAll PUBLIC_REFS=true npm run script:fix-data-refs
 fillPublic:   OPERATION=fillPublic USER_EMAIL=noreply@desci.com NODE_UUID=noDeUuiD. npm run script:fix-data-refs
+fillPublic:   OPERATION=clonePrivateNode NODE_UUID=noDeUuiD. NEW_NODE_UUID=nEwnoDeUuiD2. npm run script:fix-data-refs
 
 Heal external flag in refs:
 healAll:      OPERATION=healAll PUBLIC_REFS=true MARK_EXTERNALS=true npm run script:fix-data-refs
@@ -38,8 +39,19 @@ const logger = parentLogger.child({ module: 'SCRIPTS::dataRefDoctor' });
 
 main();
 function main() {
-  const { operation, nodeUuid, manifestCid, publicRefs, start, end, markExternals, txHash, userEmail, workingTreeUrl } =
-    getOperationEnvs();
+  const {
+    operation,
+    nodeUuid,
+    manifestCid,
+    publicRefs,
+    start,
+    end,
+    markExternals,
+    txHash,
+    userEmail,
+    workingTreeUrl,
+    newNodeUuid,
+  } = getOperationEnvs();
   const startIterator = isNaN(start as any) ? undefined : parseInt(start);
   const endIterator = isNaN(end as any) ? undefined : parseInt(end);
 
@@ -62,6 +74,10 @@ function main() {
       if (!nodeUuid && !userEmail) return logger.error('Missing NODE_UUID or USER_EMAIL');
       fillPublic(nodeUuid, userEmail, workingTreeUrl);
       break;
+    case 'clonePrivateNode':
+      if (!nodeUuid && !newNodeUuid) return logger.error('Missing NODE_UUID or NEW_NODE_UUID');
+      clonePrivateNode(nodeUuid, newNodeUuid);
+      break;
     default:
       logger.error('Invalid operation, valid operations include: validate, heal, validateAll, healAll');
       return;
@@ -72,6 +88,7 @@ function getOperationEnvs() {
   return {
     operation: process.env.OPERATION || null,
     nodeUuid: process.env.NODE_UUID || null,
+    newNodeUuid: process.env.NEW_NODE_UUID || null,
     manifestCid: process.env.MANIFEST_CID || null,
     publicRefs: process.env.PUBLIC_REFS?.toLowerCase() === 'true' ? true : false,
     start: process.env.START,
@@ -258,4 +275,63 @@ async function fillPublic(nodeUuid: string, userEmail: string, workingTreeUrl?: 
       `[FillPublic] Failed to backfill data refs for public node: ${nodeUuid}, error`,
     );
   }
+}
+
+async function clonePrivateNode(nodeUuid: string, newNodeUuid: string) {
+  // find new node, get associated user
+  logger.info({ nodeUuid, newNodeUuid }, '[clonePrivateNode] Cloning node started');
+
+  if (!nodeUuid.endsWith('.')) nodeUuid += '.';
+  if (!newNodeUuid.endsWith('.')) newNodeUuid += '.';
+
+  const oldNode = await prisma.node.findUnique({ where: { uuid: nodeUuid } });
+  const newNode = await prisma.node.findUnique({ where: { uuid: newNodeUuid } });
+  if (!oldNode) return logger.error(`[clonePrivateNode] Failed to find new node with uuid: ${nodeUuid}`);
+  if (!newNode) return logger.error(`[clonePrivateNode] Failed to find new node with uuid: ${newNodeUuid}`);
+
+  const newNodeUser = await prisma.user.findUnique({ where: { id: newNode.ownerId } });
+  if (!newNodeUser) return logger.error(`[clonePrivateNode] Failed to find userid: ${newNode.ownerId}`);
+
+  // clone node state
+  const newNodeObj = {
+    ...oldNode,
+    uuid: newNodeUuid,
+    ownerId: newNodeUser.id,
+    id: newNode.id,
+  };
+
+  const updatedNode = await prisma.node.update({
+    where: {
+      id: newNode.id,
+    },
+    data: newNodeObj,
+  });
+
+  if (!updatedNode) {
+    return logger.error(`[clonePrivateNode] Failed to clone old node state to new node: ${newNodeUuid}`);
+  }
+  logger.info('[clonePrivateNode] Successfully cloned node state');
+
+  // clone refs
+  logger.info('[clonePrivateNode] Cloning data refs...');
+  const oldNodeDataRefs = await prisma.dataReference.findMany({ where: { nodeId: oldNode.id } });
+  if (!oldNodeDataRefs.length)
+    return logger.error({ oldNodeDataRefs }, `[clonePrivateNode] Failed to find data refs for node: ${nodeUuid}`);
+
+  const newNodeDataRefs = oldNodeDataRefs.map((ref) => {
+    delete ref.id;
+    return {
+      ...ref,
+      nodeId: newNode.id,
+      userId: newNodeUser.id,
+    };
+  });
+
+  const createdDataRefs = await prisma.dataReference.createMany({ data: newNodeDataRefs });
+
+  if (!createdDataRefs.count)
+    return logger.error({ createdDataRefs }, `[clonePrivateNode] Failed to create data refs for: ${newNodeUuid}`);
+
+  logger.info('[clonePrivateNode] Successfully cloned data refs');
+  logger.info(`[clonePrivateNode] Successfully cloned private node ${nodeUuid} to ${newNodeUuid}`);
 }
