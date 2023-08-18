@@ -35,12 +35,13 @@ export function diffTrees(treeA: DriveObject[], treeB: DriveObject[], options: D
   }, {});
 
   const prune = (category) => {
+    const treeMap = category === 'removed' ? treeBMap : treeAMap;
     if (
       options.pruneThreshold &&
       diff[category].count > options.pruneThreshold &&
       options.onThresholdExceeded?.onlyDirectories
     ) {
-      diff[category].entries = diff[category].entries.filter((path) => treeAMap[path]?.type === FileType.DIR);
+      diff[category].entries = diff[category].entries.filter((path) => treeMap[path]?.type === FileType.DIR);
     }
   };
 
