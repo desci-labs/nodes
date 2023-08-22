@@ -1,26 +1,36 @@
-import { createClient } from 'redis';
+// import * as Redis from 'ioredis';
+import { createClient, createCluster } from 'redis';
 
 import parentLogger from 'logger';
 const logger = parentLogger.child({
   module: 'RedisClient',
 });
 
-const redisClient = createClient({
-  // url: process.env.REDIS_URL,
-  socket: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT) || 6379,
-    connectTimeout: 5000,
-    reconnectStrategy: (times) => {
-      // Try reconnect 3 times, then stop trying
-      if (times > 3) {
-        return false;
-      }
-      // Interval between retries
-      return 5000;
-    },
-  },
-});
+const CLUSTER_NODES_COUNT = parseInt(process.env.REDIS_CLUSTER_NODES) || 0;
+const CLUSTER_PORT_START = parseInt(process.env.REDIS_CLUSTER_START_PORT) || 7000;
+const CLUSTER_NODES = Array.from({ length: CLUSTER_NODES_COUNT }, (_, i) => ({
+  url: `redis://${process.env.REDIS_HOST}/${CLUSTER_PORT_START + i}`,
+}));
+
+const redisClient =
+  process.env.NODE_ENV === 'production'
+    ? createCluster({ rootNodes: CLUSTER_NODES })
+    : createClient({
+        // url: process.env.REDIS_URL,
+        socket: {
+          host: process.env.REDIS_HOST || 'localhost',
+          port: parseInt(process.env.REDIS_PORT) || 6379,
+          connectTimeout: 5000,
+          reconnectStrategy: (times) => {
+            // Try reconnect 3 times, then stop trying
+            if (times > 3) {
+              return false;
+            }
+            // Interval between retries
+            return 5000;
+          },
+        },
+      });
 
 async function initRedisClient() {
   if (process.env.NODE_ENV === 'test') return logger.warn('Redis client not being used in test environment');
