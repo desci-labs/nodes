@@ -243,7 +243,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   const hasDataBucket = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
 
   const fetchCb = hasDataBucket
-    ? async () => await getTreeAndFill(manifest, uuid)
+    ? async () => await getTreeAndFill(manifest, uuid, undefined, true)
     : async () => await getTreeAndFillDeprecated(rootCid, uuid, dataSource);
 
   const cacheKey = hasDataBucket ? `pub-filled-tree-${manifestCid}` : `deprecated-filled-tree-${rootCid}`;
@@ -260,7 +260,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
 
   const depthTree = await getOrCache(depthCacheKey, async () => {
     const tree = hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree;
-    if (tree[0].type === 'file' && hasDataBucket) {
+    if (tree[0]?.type === 'file' && hasDataBucket) {
       const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
       return hasDataBucket ? [findAndPruneNode(filledTree[0], poppedDataPath, depth)] : filledTree;
     } else {

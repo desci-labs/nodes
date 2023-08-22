@@ -18,11 +18,32 @@ export interface DriveObject {
   cid: string;
   type: FileType;
   contains?: Array<DriveObject> | null;
+  /**
+   * Cached component stats EXCLUSIVE of current object (only counts nested objects)
+   */
+  componentStats?: ComponentStats;
   parent?: DriveObject | FileDir | null;
   path?: string;
   starred?: boolean;
   external?: boolean;
 }
+
+export const NODE_KEEP_FILE = ".nodeKeep";
+
+export type ComponentTypesForStats =
+  | ResearchObjectComponentType.CODE
+  | ResearchObjectComponentType.DATA
+  | ResearchObjectComponentType.PDF
+  | ResearchObjectComponentType.UNKNOWN;
+// | ResearchObjectComponentType.LINK;
+
+export type ComponentStats = {
+  [key in ComponentTypesForStats]: {
+    count: number;
+    size: number;
+    dirs: number;
+  };
+};
 
 export type DriveMetadata = CommonComponentPayload & DataComponentMetadata;
 

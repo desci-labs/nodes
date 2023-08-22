@@ -19,6 +19,7 @@ Usage Guidelines:
 - MARK_EXTERNALS is an optional flag, if true, it will mark external refs as external, downside is that it can take significantly longer to process, also size diff checking disabled when marking externals.
 - TX_HASH is an optional param, used for fixing node version of a specific published node version. (Edgecase of multiple publishes with same manifestCid)
 - USER_EMAIL is only required for the fillPublic operation
+- WORKING_TREE_URL is only required for the fillPublic operation, useful if a node is known to contain external cids, it can cut down the backfill time significantly for dags with external cids.
 
 Operation Types [validate, heal, validateAll, healAll]
 
@@ -37,7 +38,7 @@ const logger = parentLogger.child({ module: 'SCRIPTS::dataRefDoctor' });
 
 main();
 function main() {
-  const { operation, nodeUuid, manifestCid, publicRefs, start, end, markExternals, txHash, userEmail } =
+  const { operation, nodeUuid, manifestCid, publicRefs, start, end, markExternals, txHash, userEmail, workingTreeUrl } =
     getOperationEnvs();
   const startIterator = isNaN(start as any) ? undefined : parseInt(start);
   const endIterator = isNaN(end as any) ? undefined : parseInt(end);
@@ -45,11 +46,11 @@ function main() {
   switch (operation) {
     case 'validate':
       if (!nodeUuid && !manifestCid) return logger.error('Missing NODE_UUID or MANIFEST_CID');
-      validateDataReferences(nodeUuid, manifestCid, publicRefs, markExternals, txHash);
+      validateDataReferences({ nodeUuid, manifestCid, publicRefs, markExternals, txHash });
       break;
     case 'heal':
       if (!nodeUuid && !manifestCid) return logger.error('Missing NODE_UUID or MANIFEST_CID');
-      validateAndHealDataRefs(nodeUuid, manifestCid, publicRefs, markExternals, txHash);
+      validateAndHealDataRefs({ nodeUuid, manifestCid, publicRefs, markExternals, txHash });
       break;
     case 'validateAll':
       dataRefDoctor(false, publicRefs, startIterator, endIterator, markExternals);
@@ -59,7 +60,7 @@ function main() {
       break;
     case 'fillPublic':
       if (!nodeUuid && !userEmail) return logger.error('Missing NODE_UUID or USER_EMAIL');
-      fillPublic(nodeUuid, userEmail);
+      fillPublic(nodeUuid, userEmail, workingTreeUrl);
       break;
     default:
       logger.error('Invalid operation, valid operations include: validate, heal, validateAll, healAll');
@@ -77,6 +78,7 @@ function getOperationEnvs() {
     end: process.env.END,
     markExternals: process.env.MARK_EXTERNALS?.toLowerCase() === 'true' ? true : false,
     txHash: process.env.TX_HASH || null,
+    workingTreeUrl: process.env.WORKING_TREE_URL || null,
     userEmail: process.env.USER_EMAIL || null,
   };
 }
@@ -121,17 +123,33 @@ async function dataRefDoctor(
           const txHash = indexedNode.versions[nodeVersIdx]?.id;
           const manifestCid = hexToCid(hexCid);
           if (heal) {
-            await validateAndHealDataRefs(node.uuid, manifestCid, true, markExternals, txHash);
+            await validateAndHealDataRefs({
+              nodeUuid: node.uuid,
+              manifestCid,
+              publicRefs: true,
+              markExternals,
+              txHash,
+            });
           } else {
-            validateDataReferences(node.uuid, manifestCid, true, markExternals, txHash);
+            validateDataReferences({ nodeUuid: node.uuid, manifestCid, publicRefs: true, markExternals, txHash });
           }
         }
       }
       if (!publicRefs) {
         if (heal) {
-          await validateAndHealDataRefs(node.uuid, node.manifestUrl, false, markExternals);
+          await validateAndHealDataRefs({
+            nodeUuid: node.uuid,
+            manifestCid: node.manifestUrl,
+            publicRefs: false,
+            markExternals,
+          });
         } else {
-          await validateDataReferences(node.uuid, node.manifestUrl, false, markExternals);
+          await validateDataReferences({
+            nodeUuid: node.uuid,
+            manifestCid: node.manifestUrl,
+            publicRefs: false,
+            markExternals,
+          });
         }
       }
     } catch (e) {
@@ -140,7 +158,7 @@ async function dataRefDoctor(
   }
 }
 
-async function fillPublic(nodeUuid: string, userEmail: string) {
+async function fillPublic(nodeUuid: string, userEmail: string, workingTreeUrl?: string) {
   const user = await prisma.user.findUnique({ where: { email: userEmail } });
   if (!user) return logger.error(`[FillPublic] Failed to find user with email: ${userEmail}`);
 
@@ -205,10 +223,20 @@ async function fillPublic(nodeUuid: string, userEmail: string) {
         nodeId: node.id,
         versionId: nodeVersion.id,
       };
+      logger.info(
+        { manifestEntry },
+        `[DataRefDoctor] Manifest entry being created for indexed version ${nodeVersIdx}, with txHash: ${indexedNode.versions[nodeVersIdx]?.id}`,
+      );
       await prisma.publicDataReference.create({ data: manifestEntry });
 
       //generate pub drefs for the bucket
-      await validateAndHealDataRefs(node.uuid, manifestCid, true, true, txHash);
+      await validateAndHealDataRefs({
+        nodeUuid: node.uuid,
+        manifestCid,
+        publicRefs: true,
+        txHash,
+        workingTreeUrl,
+      });
       logger.info(
         `[DataRefDoctor]Successfully processed indexed node v: ${nodeVersIdx}, with txHash: ${indexedNode.versions[nodeVersIdx]?.id}, under user: ${user.email}`,
       );

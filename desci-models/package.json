@@ -1,6 +1,6 @@
 {
   "name": "@desci-labs/desci-models",
-  "version": "0.1.9",
+  "version": "0.1.16",
   "description": "Data models for DeSci Nodes",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,7 +13,7 @@
     "/dist"
   ],
   "scripts": {
-    "test": "yarn generate && mocha -r ts-node/register tests/**/*.test.ts",
+    "test": "mocha -r ts-node/register --inspect tests/**/*.test.ts",
     "coverage": "nyc -r lcov -e .ts -x \"*.test.ts\" npm run test",
     "build": "tsc",
     "publish": "npm publish --access public",

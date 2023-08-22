@@ -61,7 +61,7 @@ const PUBLIC_IPFS_RESOLVER = 'https://maritime.sealstorage.io';
 export const publicIpfs = ipfs.create({ url: PUBLIC_IPFS_RESOLVER, agent, apiPath: '/ipfs/api/v0' });
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
-const INTERNAL_IPFS_TIMEOUT = 5000;
+const INTERNAL_IPFS_TIMEOUT = 30000;
 const EXTERNAL_IPFS_TIMEOUT = 120000;
 
 export const updateManifestAndAddToIpfs = async (
@@ -393,7 +393,7 @@ export const getDirectoryTree = async (
 ): Promise<RecursiveLsResult[]> => {
   const isOnline = await client.isOnline();
   logger.info(
-    { fn: 'getDirectoryTree' },
+    { fn: 'getDirectoryTree', cid, returnFiles, returnExternalFiles },
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
   );
   try {
@@ -469,7 +469,15 @@ export async function mixedLs(
   carryPath = carryPath || convertToCidV1(dagCid);
   const tree = [];
   const cidObject = multiformats.CID.parse(dagCid);
-  const block = await client.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+  let block;
+  try {
+    block = await client.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT }); //instead of throwing, catch and print cid
+  } catch (err) {
+    logger.error(
+      { fn: 'mixedLs', cid: dagCid, carryPath, err },
+      `[mixedLs] error, cid may not exist in priv swarm or unmarked external cid`,
+    );
+  }
   const { Data, Links } = dagPb.decode(block);
   const unixFs = UnixFS.unmarshal(Data);
   const isDir = dirTypes.includes(unixFs?.type);
@@ -493,7 +501,15 @@ export async function mixedLs(
       if (linkCidObject.code === rawCode || isFile) {
         result.size = link.Tsize;
       } else {
-        const linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+        let linkBlock;
+        try {
+          linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT }); //instead of throwing, catch and print cid
+        } catch (err) {
+          logger.error(
+            { fn: 'mixedLs', cid: linkCidObject.toString(), carryPath, err },
+            `[mixedLs] error, cid may not exist in priv swarm or unmarked external cid`,
+          );
+        }
         const { Data: linkData } = dagPb.decode(linkBlock);
         const unixFsLink = UnixFS.unmarshal(linkData);
         const isLinkDir = dirTypes.includes(unixFsLink?.type);
@@ -557,6 +573,7 @@ export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
 
 // Used for recursively lsing a DAG without knowing if it contains public or private cids, slow and INEFFICIENT!
 export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap, carryPath?: string) {
+  console.log('extCidMap', externalCidMap);
   try {
     carryPath = carryPath || convertToCidV1(dagCid);
     const tree = [];
@@ -584,7 +601,7 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
         result.size = link.Tsize;
       } else {
         let linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
-        if (!linkBlock) linkBlock = await publicIpfs.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+        if (!linkBlock) linkBlock = await publicIpfs.block.get(cidObject, { timeout: EXTERNAL_IPFS_TIMEOUT });
         if (!linkBlock) throw new Error('Could not find block for cid: ' + dagCid);
         const { Data: linkData } = dagPb.decode(linkBlock);
         const unixFsLink = UnixFS.unmarshal(linkData);

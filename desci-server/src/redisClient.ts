@@ -52,36 +52,47 @@ export default redisClient;
 
 const DEFAULT_TTL = 60 * 60 * 24 * 7; // 1 week
 
-export function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEFAULT_TTL) {
-  return new Promise<T>(async (resolve, reject) => {
-    try {
-      let clientAvailable = true;
-      if (!redisClient.isOpen) {
-        logger.warn({ key }, 'Redis client is not connected');
-        clientAvailable = false;
-      }
-      let result = null;
-      if (clientAvailable) {
-        result = await redisClient.get(key);
-      }
-      if (result !== null) {
-        logger.info(`[REDIS CACHE]${key} retrieved from cache`);
+export async function getFromCache<T>(key: string): Promise<T | null> {
+  let clientAvailable = true;
 
-        // bump ttl for active cached items
-        redisClient.expire(key, ttl);
+  if (!redisClient.isOpen) {
+    logger.warn({ key }, 'Redis client is not connected');
+    clientAvailable = false;
+  }
 
-        return resolve(JSON.parse(result));
-      }
-      const value = await fn();
-      if (clientAvailable) {
-        await redisClient.set(key, JSON.stringify(value), { EX: ttl });
-        logger.info(`[REDIS CACHE]${key} cached`);
-      } else {
-        logger.info(`[REDIS CACHE] skipped-no-conn ${key}`);
-      }
-      resolve(value);
-    } catch (e) {
-      return reject(e);
+  if (clientAvailable) {
+    const result = await redisClient.get(key);
+    if (result !== null) {
+      logger.info(`[REDIS CACHE]${key} retrieved from cache`);
+      redisClient.expire(key, DEFAULT_TTL);
+      return JSON.parse(result);
     }
-  });
+  }
+
+  return null;
+}
+
+export async function setToCache<T>(key: string, value: T, ttl = DEFAULT_TTL): Promise<void> {
+  if (!redisClient.isOpen) {
+    logger.info(`[REDIS CACHE] skipped-no-conn ${key}`);
+    return;
+  }
+
+  await redisClient.set(key, JSON.stringify(value), { EX: ttl });
+  logger.info(`[REDIS CACHE]${key} cached`);
+}
+
+export async function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEFAULT_TTL): Promise<T> {
+  try {
+    const cachedValue = await getFromCache<T>(key);
+    if (cachedValue !== null) {
+      return cachedValue;
+    }
+
+    const value = await fn();
+    await setToCache<T>(key, value, ttl);
+    return value;
+  } catch (e) {
+    throw e;
+  }
 }
