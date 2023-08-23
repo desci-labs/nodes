@@ -1,5 +1,6 @@
 import { ResearchObjectComponentType } from '@desci-labs/desci-models';
 import axios from 'axios';
+import Redis from 'ioredis';
 
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
@@ -82,20 +83,21 @@ async function invalidateByUuid({ nodeUuid }: { nodeUuid: string }) {
 }
 
 async function deleteKeys(pattern: string) {
-  let cursor = 0;
-
-  do {
-    // Scan the Redis keyspace
-    const res = await redisClient.scan(cursor, { MATCH: pattern as string, COUNT: 500 });
-    cursor = res.cursor || 0;
-    const keys = res.keys || [];
-
-    // Delete the keys
-    if (keys?.length > 0) {
-      logger.info({ keys }, `Found ${keys.length} keys, deleting...`);
-      await Promise.all(keys.map(async (key) => await redisClient.del(key)));
+  if (redisClient instanceof Redis.Cluster) {
+    const keys = await redisClient.keys(pattern);
+    if (keys.length > 0) {
+      await Promise.all(keys.map((key) => redisClient.del(key)));
     }
-  } while (cursor !== 0);
-
+  } else {
+    let cursor = 0;
+    do {
+      const res = await redisClient.scan(cursor, 'MATCH', pattern, 'COUNT', 500);
+      cursor = parseInt(res[0], 10);
+      const keys = res[1];
+      if (keys.length > 0) {
+        await Promise.all(keys.map((key) => redisClient.del(key)));
+      }
+    } while (cursor !== 0);
+  }
   logger.info({ pattern }, `All matching keys deleted.`);
 }

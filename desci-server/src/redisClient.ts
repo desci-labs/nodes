@@ -1,5 +1,4 @@
-// import * as Redis from 'ioredis';
-import { createClient, createCluster } from 'redis';
+import Redis from 'ioredis';
 
 import parentLogger from 'logger';
 const logger = parentLogger.child({
@@ -9,48 +8,46 @@ const logger = parentLogger.child({
 const CLUSTER_NODES_COUNT = parseInt(process.env.REDIS_CLUSTER_NODES) || 0;
 const CLUSTER_PORT_START = parseInt(process.env.REDIS_CLUSTER_START_PORT) || 7000;
 const CLUSTER_NODES = Array.from({ length: CLUSTER_NODES_COUNT }, (_, i) => ({
-  url: `redis://${process.env.REDIS_HOST}/${CLUSTER_PORT_START + i}`,
+  host: process.env.REDIS_HOST,
+  port: CLUSTER_PORT_START + i,
 }));
 
+// default to single mode in local-dev, and cluster mode in production, unless REDIS_MODE env override is set
+export const REDIS_MODE =
+  (process.env.REDIS_MODE as 'single' | 'cluster') || (process.env.NODE_ENV === 'production' ? 'cluster' : 'single');
+
 const redisClient =
-  process.env.NODE_ENV === 'production'
-    ? createCluster({ rootNodes: CLUSTER_NODES })
-    : createClient({
-        // url: process.env.REDIS_URL,
-        socket: {
-          host: process.env.REDIS_HOST || 'localhost',
-          port: parseInt(process.env.REDIS_PORT) || 6379,
-          connectTimeout: 5000,
-          reconnectStrategy: (times) => {
-            // Try reconnect 3 times, then stop trying
-            if (times > 3) {
-              return false;
-            }
-            // Interval between retries
-            return 5000;
-          },
+  REDIS_MODE === 'cluster'
+    ? new Redis.Cluster(CLUSTER_NODES)
+    : new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT) || 6379,
+        connectTimeout: 5000,
+        retryStrategy: (times) => {
+          // Try reconnect 3 times, then stop trying
+          if (times > 3) {
+            return null; // Stop retrying
+          }
+          // Interval between retries
+          return 5000;
         },
       });
 
-async function initRedisClient() {
-  if (process.env.NODE_ENV === 'test') return logger.warn('Redis client not being used in test environment');
-  if (process.env.REDIS_HOST === undefined || process.env.REDIS_PORT === undefined) {
-    logger.error(
-      { fn: 'initRedisClient', redisHostEnv: process.env.REDIS_HOST, redisPortEnv: process.env.REDIS_PORT },
-      'Redis host or port is not defined',
-    );
-    return;
-  }
-  if (!redisClient.isOpen) await redisClient.connect();
-}
-initRedisClient();
-
 redisClient.on('connect', () => {
-  logger.info({ port: process.env.REDIS_PORT }, 'Redis Client successfully connected on port');
+  logger.info(
+    { port: process.env.REDIS_PORT },
+    `Redis Client successfully connected on port ${process.env.REDIS_PORT}}`,
+  );
 });
 
 redisClient.on('error', (err) => {
   logger.error({ err }, 'Redis Client Error');
+  if (process.env.NODE_ENV === 'test') return logger.warn('Redis client not being used in test environment');
+  if (process.env.REDIS_HOST === undefined || process.env.REDIS_PORT === undefined)
+    logger.error(
+      { fn: 'initRedisClient', redisHostEnv: process.env.REDIS_HOST, redisPortEnv: process.env.REDIS_PORT },
+      'Redis host or port is not defined',
+    );
 });
 
 // gracefully shutdown
@@ -65,7 +62,7 @@ const DEFAULT_TTL = 60 * 60 * 24 * 7; // 1 week
 export async function getFromCache<T>(key: string): Promise<T | null> {
   let clientAvailable = true;
 
-  if (!redisClient.isOpen) {
+  if (redisClient.status !== 'ready') {
     logger.warn({ key }, 'Redis client is not connected');
     clientAvailable = false;
   }
@@ -83,12 +80,12 @@ export async function getFromCache<T>(key: string): Promise<T | null> {
 }
 
 export async function setToCache<T>(key: string, value: T, ttl = DEFAULT_TTL): Promise<void> {
-  if (!redisClient.isOpen) {
+  if (redisClient.status !== 'ready') {
     logger.info(`[REDIS CACHE] skipped-no-conn ${key}`);
     return;
   }
 
-  await redisClient.set(key, JSON.stringify(value), { EX: ttl });
+  await redisClient.set(key, JSON.stringify(value), 'EX', ttl);
   logger.info(`[REDIS CACHE]${key} cached`);
 }
 
