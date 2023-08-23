@@ -127,7 +127,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   // Try early return if depth chunk cached
   const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}`;
   try {
-    if (redisClient.isOpen) {
+    if (redisClient.status === 'ready') {
       const cached = await redisClient.get(depthCacheKey);
       if (cached) {
         const tree = JSON.parse(cached);
@@ -223,7 +223,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   // Try early return if depth chunk cached
   const depthCacheKey = `pubTree-depth-${depth}-${manifestCid}-${dataPath}`;
   try {
-    if (redisClient.isOpen) {
+    if (redisClient.status === 'ready') {
       const cached = await redisClient.get(depthCacheKey);
       if (cached) {
         const tree = JSON.parse(cached);
