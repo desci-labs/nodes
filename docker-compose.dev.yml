@@ -205,20 +205,22 @@ services:
         - redis-node-1
         - redis-node-2
         - redis-node-3
+        
+  redis-insight:
+      image: redislabs/redisinsight
+      ports:
+        - 8337:8001
+      networks:
+        - redis-cluster-compose
+      volumes:
+        - ./local-data/redisinsight:/db
+      depends_on:
+        - redis-cluster-creator
+        
+
 networks:
   backend-network:
     driver: bridge
   redis-cluster-compose:
     driver: bridge
-        
-  # redis-insight:
-  #     image: redislabs/redisinsight
-  #     ports:
-  #       - 8199:8001
-  #     networks:
-  #       - redis-cluster-compose
-  #     volumes:
-  #       - ./local-data/redisinsight:/db
-  #     depends_on:
-  #       - redis-cluster-creator
         
