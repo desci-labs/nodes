@@ -155,7 +155,7 @@ services:
       volumes:
         # - ./local-data/redis/7001:/redis
         - ./redis/redis.conf:/redis/redis.conf
-      command: "sh -c 'mkdir -p /redis && redis-server /redis/redis.conf'"
+      command: "sh -c 'mkdir -p /redis && redis-server /redis/redis.conf --port 7000'"
 
   redis-node-2:
       image: "redis:7-alpine"
@@ -169,16 +169,34 @@ services:
         - ./redis/redis.conf:/redis/redis.conf
         # - ./local-data/redis:/data
         # - ./local-data/redis/7001:/redis
-      command: "sh -c 'mkdir -p /redis && redis-server /redis/redis.conf'"
+      command: "sh -c 'mkdir -p /redis && redis-server /redis/redis.conf --port 7001'"
+
+  redis-node-3:
+      image: "redis:7-alpine"
+      ports:
+        # - "6379:6379"
+        - 7002:7002
+      networks:
+        - redis-cluster-compose
+      hostname: redis-node-3
+      volumes:
+        - ./redis/redis.conf:/redis/redis.conf
+        # - ./local-data/redis:/data
+        # - ./local-data/redis/7001:/redis
+      command: "sh -c 'mkdir -p /redis && redis-server /redis/redis.conf --port 7002'"
 
   redis-cluster-creator:
       image: redis:latest
       networks:
         - redis-cluster-compose
-      command: redis-cli -p 7000 --cluster create desci_redis-node-1_1:7000 desci_redis-node-2_1:7001 --cluster-replicas 1 --cluster-yes
+      command: redis-cli -p 7000 --cluster create redis-node-1:7000 redis-node-2:7001 redis-node-3:7002 --cluster-replicas 0 --cluster-yes
       depends_on:
         - redis-node-1
         - redis-node-2
+        - redis-node-3
+networks:
+  redis-cluster-compose:
+    driver: bridge
         
   # redis-insight:
   #     image: redislabs/redisinsight
@@ -191,6 +209,3 @@ services:
   #     depends_on:
   #       - redis-cluster-creator
         
-networks:
-  redis-cluster-compose:
-    driver: bridge

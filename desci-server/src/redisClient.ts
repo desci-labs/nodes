@@ -8,7 +8,7 @@ const logger = parentLogger.child({
 const CLUSTER_NODES_COUNT = parseInt(process.env.REDIS_CLUSTER_NODES) || 0;
 const CLUSTER_PORT_START = parseInt(process.env.REDIS_CLUSTER_START_PORT) || 7000;
 const CLUSTER_NODES = Array.from({ length: CLUSTER_NODES_COUNT }, (_, i) => ({
-  host: process.env.REDIS_HOST,
+  host: `redis-node-${i + 1}`,
   port: CLUSTER_PORT_START + i,
 }));
 
@@ -62,8 +62,9 @@ const DEFAULT_TTL = 60 * 60 * 24 * 7; // 1 week
 export async function getFromCache<T>(key: string): Promise<T | null> {
   let clientAvailable = true;
 
+  // debugger;
   if (redisClient.status !== 'ready') {
-    logger.warn({ key }, 'Redis client is not connected');
+    logger.warn({ key, redisStatus: redisClient.status }, 'Redis client is not connected');
     clientAvailable = false;
   }
 
