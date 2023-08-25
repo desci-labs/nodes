@@ -20,6 +20,8 @@ services:
     environment:
       POSTGRES_INITDB_ARGS: '--encoding=UTF-8 --lc-collate=C --lc-ctype=C'
       POSTGRES_PASSWORD: 'white'
+    networks:
+        - backend-network
 
   desci_blockchain_ganache:
     container_name: "desci_blockchain_ganache"
@@ -46,6 +48,8 @@ services:
       db_postgres:
         condition:
           service_healthy
+    networks:
+      - backend-network
 
   desci_nodes_backend:
     container_name: "desci_nodes_backend"
@@ -76,6 +80,9 @@ services:
       - db_postgres
     volumes:
       - ./local-data/yarn_cache:/root/.yarn
+    networks:
+      - backend-network
+      - redis-cluster-compose
 
   block_explorer_dev:
     image: sinaiman/expedition-dev:latest
@@ -127,6 +134,8 @@ services:
       # GRAPH_LOG_POI_EVENTS: true
       # GRAPH_LOAD_THRESHOLD: 250
       # EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE: synced
+    networks:
+      - backend-network
 
   ipfs:
     image: ipfs/go-ipfs:v0.13.0
@@ -144,6 +153,8 @@ services:
       retries: 5
       start_period: 10s
       timeout: 2s
+    networks:
+      - backend-network
 
   redis-node-1:
       image: "redis:7-alpine"
@@ -195,6 +206,8 @@ services:
         - redis-node-2
         - redis-node-3
 networks:
+  backend-network:
+    driver: bridge
   redis-cluster-compose:
     driver: bridge
         
