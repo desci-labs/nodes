@@ -55,9 +55,16 @@ make
 echo "[dockerDev:desci-contracts] starting seed of local chain..."
 make -C desci-contracts seed
 
+# generate docker-compose.redis.yml file
+chmod +x ./generateRedisCompose.sh
+./generateRedisCompose.sh
+
 # compose will initialise non-existing volume directories with root permissions
 echo "[dockerDev] initialising docker volume directories..."
 for volDir in $(grep -o "local-data/[a-z_]*" docker-compose.dev.yml); do
+  mkdir -p "$volDir"
+done
+for volDir in $(grep -o "local-data/[a-z_]*" docker-compose.redis.yml); do
   mkdir -p "$volDir"
 done
 
@@ -68,6 +75,7 @@ COMPOSE_HTTP_TIMEOUT=120 docker-compose \
   --project-name desci \
   --file docker-compose.yml \
   --file docker-compose.dev.yml \
+  --file docker-compose.redis.yml \
   $ADDITIONAL_FLAGS \
   --compatibility \
   up \

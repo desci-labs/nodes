@@ -1,14 +1,5 @@
 version: "3"
 
-x-redis-node: &redis-node
-  image: "redis:7-alpine"
-  networks:
-    - redis-cluster-compose
-  volumes:
-    - ./redis/redis.conf:/redis/redis.conf
-  command: sh -c 'mkdir -p /redis && redis-server /redis/redis.conf --port $$PORT'
-
-
 services:
   db_postgres:
     container_name: "db_boilerplate"
@@ -81,9 +72,9 @@ services:
       graph_node:
         condition:
           service_started
-      redis-cluster-creator:
-        condition:
-          service_started
+      # redis-cluster-creator:
+      #   condition:
+      #     service_started
       # - nodes_media # UNCOMMENT FOR LOCAL DEV OF nodes-media
     links:
       - db_postgres
@@ -165,39 +156,6 @@ services:
     networks:
       - backend-network
 
-  redis-node-1:
-    <<: *redis-node
-    ports:
-      - 7000:7000
-    hostname: redis-node-1
-    environment:
-      - PORT=7000
-
-  redis-node-2:
-    <<: *redis-node
-    ports:
-      - 7001:7001
-    hostname: redis-node-2
-    environment:
-      - PORT=7001
-
-  redis-node-3:
-    <<: *redis-node
-    ports:
-      - 7002:7002
-    hostname: redis-node-3
-    environment:
-      - PORT=7002
-
-  redis-cluster-creator:
-      image: redis:latest
-      networks:
-        - redis-cluster-compose
-      command: redis-cli -p 7000 --cluster create redis-node-1:7000 redis-node-2:7001 redis-node-3:7002 --cluster-replicas 0 --cluster-yes
-      depends_on:
-        - redis-node-1
-        - redis-node-2
-        - redis-node-3
         
   redis-insight:
       image: redislabs/redisinsight
@@ -207,8 +165,6 @@ services:
         - redis-cluster-compose
       volumes:
         - ./local-data/redisinsight:/db
-      depends_on:
-        - redis-cluster-creator
         
 
 networks:
