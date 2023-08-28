@@ -36,7 +36,7 @@ const redisClient =
 redisClient.on('connect', () => {
   logger.info(
     { port: process.env.REDIS_PORT },
-    `Redis Client successfully connected on port ${process.env.REDIS_PORT}}`,
+    `Redis Client successfully connected on port ${process.env.REDIS_PORT}`,
   );
 });
 
@@ -71,6 +71,7 @@ export async function getFromCache<T>(key: string): Promise<T | null> {
   if (clientAvailable) {
     const result = await redisClient.get(key);
     if (result !== null) {
+      // debugger;
       logger.info(`[REDIS CACHE]${key} retrieved from cache`);
       redisClient.expire(key, DEFAULT_TTL);
       return JSON.parse(result);
@@ -93,6 +94,7 @@ export async function setToCache<T>(key: string, value: T, ttl = DEFAULT_TTL): P
 export async function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEFAULT_TTL): Promise<T> {
   try {
     const cachedValue = await getFromCache<T>(key);
+    // debugger;
     if (cachedValue !== null) {
       return cachedValue;
     }
