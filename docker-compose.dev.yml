@@ -172,4 +172,5 @@ networks:
     driver: bridge
   redis-cluster-compose:
     driver: bridge
+    internal: true
         

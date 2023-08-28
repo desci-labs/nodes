@@ -10,6 +10,7 @@ const CLUSTER_PORT_START = parseInt(process.env.REDIS_CLUSTER_START_PORT) || 700
 const CLUSTER_NODES = Array.from({ length: CLUSTER_NODES_COUNT }, (_, i) => ({
   host: `redis-node-${i + 1}`,
   port: CLUSTER_PORT_START + i,
+  password: process.env.REDIS_PASSWORD,
 }));
 
 // default to single mode in local-dev, and cluster mode in production, unless REDIS_MODE env override is set
@@ -22,6 +23,7 @@ const redisClient =
     : new Redis({
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT) || 6379,
+        password: process.env.REDIS_PASSWORD,
         connectTimeout: 5000,
         retryStrategy: (times) => {
           // Try reconnect 3 times, then stop trying

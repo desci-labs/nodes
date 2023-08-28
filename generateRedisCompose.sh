@@ -20,7 +20,7 @@ echo "  networks:" >> docker-compose.redis.yml
 echo "    - redis-cluster-compose" >> docker-compose.redis.yml
 echo "  volumes:" >> docker-compose.redis.yml
 echo "    - ./redis/redis.conf:/redis/redis.conf" >> docker-compose.redis.yml
-echo "  command: sh -c 'mkdir -p /redis && redis-server /redis/redis.conf --port \$\$PORT'" >> docker-compose.redis.yml
+echo "  command: sh -c 'mkdir -p /redis && redis-server /redis/redis.conf --port \$\$PORT --requirepass \$\$REDIS_PASSWORD'" >> docker-compose.redis.yml
 echo "services:" >> docker-compose.redis.yml
 
   redis_nodes=${REDIS_CLUSTER_NODES:-3}
@@ -38,6 +38,7 @@ echo "services:" >> docker-compose.redis.yml
     hostname: $service_name
     environment:
       - PORT=$port
+      - REDIS_PASSWORD=$REDIS_PASSWORD
 "
     cluster_command+="$service_name:$port "
     depends_on+="        - $service_name
@@ -63,6 +64,9 @@ echo "services:" >> docker-compose.redis.yml
       - '6379:6379'
     volumes:
       - ./local-data/redis:/data
+    environment:
+      - REDIS_PASSWORD=$REDIS_PASSWORD
+    command: redis-server --requirepass \$\$REDIS_PASSWORD
 "
 fi
 
