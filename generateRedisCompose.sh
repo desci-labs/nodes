@@ -87,7 +87,7 @@ else
       - ./local-data/redis:/data
     environment:
       - REDIS_PASSWORD=$REDIS_PASSWORD
-    command: redis-server --requirepass \$\$REDIS_PASSWORD
+    command: redis-server --requirepass $REDIS_PASSWORD
 "
 fi
 
