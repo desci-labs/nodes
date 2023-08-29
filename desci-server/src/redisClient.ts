@@ -6,20 +6,43 @@ const logger = parentLogger.child({
 });
 
 const CLUSTER_NODES_COUNT = parseInt(process.env.REDIS_CLUSTER_NODES) || 0;
+const CLUSTER_REPLICA_NODES = parseInt(process.env.REDIS_CLUSTER_REPLICA_NODES) || 0;
 const CLUSTER_PORT_START = parseInt(process.env.REDIS_CLUSTER_START_PORT) || 7000;
-const CLUSTER_NODES = Array.from({ length: CLUSTER_NODES_COUNT }, (_, i) => ({
-  host: `redis-node-${i + 1}`,
-  port: CLUSTER_PORT_START + i,
-  password: process.env.REDIS_PASSWORD,
-}));
-
+const CLUSTER_NODES = Array.from(
+  { length: CLUSTER_NODES_COUNT + CLUSTER_NODES_COUNT * CLUSTER_REPLICA_NODES },
+  (_, i) => {
+    const port = CLUSTER_PORT_START + i;
+    const isReplica = i >= CLUSTER_NODES_COUNT;
+    const nodeIndex = isReplica ? Math.floor((i - CLUSTER_NODES_COUNT) / CLUSTER_REPLICA_NODES) : i;
+    const replicaIndex = isReplica ? (i - CLUSTER_NODES_COUNT) % CLUSTER_REPLICA_NODES : 0;
+    const service_name = isReplica
+      ? `redis-replica-${nodeIndex * CLUSTER_REPLICA_NODES + replicaIndex + 1}`
+      : `redis-node-${nodeIndex + 1}`;
+    logger.info(
+      { port },
+      `Redis cluster ${isReplica ? 'replica' : 'master'} node ${i + 1} initialized on port ${port}`,
+    );
+    return {
+      host: service_name,
+      port,
+      password: process.env.REDIS_PASSWORD,
+    };
+  },
+);
 // default to single mode in local-dev, and cluster mode in production, unless REDIS_MODE env override is set
 export const REDIS_MODE =
   (process.env.REDIS_MODE as 'single' | 'cluster') || (process.env.NODE_ENV === 'production' ? 'cluster' : 'single');
 
 const redisClient =
   REDIS_MODE === 'cluster'
-    ? new Redis.Cluster(CLUSTER_NODES)
+    ? new Redis.Cluster(CLUSTER_NODES, {
+        clusterRetryStrategy: (times) => {
+          if (times > 3) {
+            return null;
+          }
+          return 5000;
+        },
+      })
     : new Redis({
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT) || 6379,
@@ -38,7 +61,9 @@ const redisClient =
 redisClient.on('connect', () => {
   logger.info(
     { port: process.env.REDIS_PORT },
-    `Redis Client successfully connected on port ${process.env.REDIS_PORT}`,
+    `Redis Client successfully connected ${
+      REDIS_MODE === 'single' ? `on port ${process.env.REDIS_PORT}` : 'in cluster mode'
+    }`,
   );
 });
 
