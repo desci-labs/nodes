@@ -1004,21 +1004,6 @@ export interface ZipToDagAndPinResult {
   totalSize: number;
 }
 
-// Adds a directory to IPFS and deletes the directory after, returning the root CID
-// export async function addDirToIpfs(directoryPath: string): Promise<IpfsPinnedResult[]> {
-//   // Add all files in the directory to IPFS using globSource
-//   const files = [];
-
-//   const source = globSource(directoryPath, '**/*', { hidden: true });
-//   for await (const file of client.addAll(source, { cidVersion: 1 })) {
-//     files.push({ path: file.path, cid: file.cid.toString(), size: file.size });
-//   }
-//   const totalFiles = files.length;
-//   const rootDag = files[totalFiles - 1];
-//   logger.info({ fn: 'addDirToIpfs', rootDag, totalFiles }, 'Files added to IPFS:');
-//   return files;
-// }
-
 export async function addDirToIpfs(directoryPath: string): Promise<IpfsPinnedResult[]> {
   const files = [];
 
