@@ -93,7 +93,7 @@ export async function zipUrlToStream(url: string): Promise<Readable> {
 export async function calculateTotalZipUncompressedSize(zipPath: string): Promise<number> {
   return new Promise((resolve, reject) => {
     let totalSize = 0;
-
+    console.log('[STREAMDBG start2] mem: ', process.memoryUsage());
     yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
       if (err) reject(err);
 
@@ -109,6 +109,7 @@ export async function calculateTotalZipUncompressedSize(zipPath: string): Promis
       zipfile.on('end', () => {
         resolve(totalSize);
         zipfile.close();
+        console.log('[STREAMDBG end2] mem: ', process.memoryUsage());
       });
 
       zipfile.on('error', (err) => {
@@ -178,6 +179,7 @@ export async function extractZipFileAndCleanup(zipFilePath: string, outputDirect
 
 export async function saveZipStreamToDisk(zipStream: Readable, outputPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    console.log('[STREAMDBG start1] mem: ', process.memoryUsage());
     // Create a writable stream to the output file
     const fileStream = fs.createWriteStream(outputPath);
 
@@ -187,6 +189,7 @@ export async function saveZipStreamToDisk(zipStream: Readable, outputPath: strin
     fileStream.on('error', reject);
 
     fileStream.on('finish', resolve);
+    console.log('[STREAMDBG end1] mem: ', process.memoryUsage());
   });
 }
 

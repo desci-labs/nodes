@@ -1,5 +1,6 @@
-import fs from 'fs';
+import fs, { createReadStream } from 'fs';
 import https from 'https';
+import { join, relative } from 'path';
 import { Readable } from 'stream';
 
 import {
@@ -8,15 +9,15 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   ResearchObjectV1Component,
-  deneutralizePath,
 } from '@desci-labs/desci-models';
 import * as dagPb from '@ipld/dag-pb';
 import { PBNode } from '@ipld/dag-pb/src/interface';
 import { DataReference, DataType, NodeVersion, Prisma } from '@prisma/client';
 import axios from 'axios';
 // import CID from 'cids';
+import { glob } from 'glob';
 import * as ipfs from 'ipfs-http-client';
-import { CID as CID2, globSource } from 'ipfs-http-client';
+import { CID as CID2 } from 'ipfs-http-client';
 import UnixFS from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
 import flatten from 'lodash/flatten';
@@ -1004,17 +1005,39 @@ export interface ZipToDagAndPinResult {
 }
 
 // Adds a directory to IPFS and deletes the directory after, returning the root CID
+// export async function addDirToIpfs(directoryPath: string): Promise<IpfsPinnedResult[]> {
+//   // Add all files in the directory to IPFS using globSource
+//   const files = [];
+
+//   const source = globSource(directoryPath, '**/*', { hidden: true });
+//   for await (const file of client.addAll(source, { cidVersion: 1 })) {
+//     files.push({ path: file.path, cid: file.cid.toString(), size: file.size });
+//   }
+//   const totalFiles = files.length;
+//   const rootDag = files[totalFiles - 1];
+//   logger.info({ fn: 'addDirToIpfs', rootDag, totalFiles }, 'Files added to IPFS:');
+//   return files;
+// }
+
 export async function addDirToIpfs(directoryPath: string): Promise<IpfsPinnedResult[]> {
-  // Add all files in the directory to IPFS using globSource
   const files = [];
 
-  const source = globSource(directoryPath, '**/*', { hidden: true });
-  for await (const file of client.addAll(source, { cidVersion: 1 })) {
+  // Get a list of all files in the directory
+  const filePaths = glob.sync(join(directoryPath, '**/*'), { nodir: true, dot: true });
+
+  const fileStreams = filePaths.map((filePath) => {
+    const stream = createReadStream(filePath);
+    const relativePath = relative(directoryPath, filePath);
+    return { path: relativePath, content: stream };
+  });
+
+  for await (const file of client.addAll(fileStreams, { cidVersion: 1 })) {
     files.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
+
   const totalFiles = files.length;
-  const rootDag = files[totalFiles - 1];
-  logger.info({ fn: 'addFilesToIpfsAndCleanup', rootDag, totalFiles }, 'Files added to IPFS:');
+  const rootDag = files.find((file) => file.path === '');
+  logger.info({ fn: 'addDirToIpfs', rootDag, totalFiles }, 'Files added to IPFS:');
   return files;
 }
 

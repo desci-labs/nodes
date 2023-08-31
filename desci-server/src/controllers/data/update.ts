@@ -132,6 +132,8 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
       .status(400)
       .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
 
+  debugger;
+
   /*
    ** External URL setup, currnetly used for Github Code Repositories & external PDFs
    */
@@ -274,7 +276,9 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   if (zipPath.length > 0) {
     const outputPath = zipPath.replace('.zip', '');
     logger.debug({ outputPath }, 'Starting unzipping to output directory');
+    console.log('[STREAMDBG start3 pre-unzip] mem: ', process.memoryUsage());
     await extractZipFileAndCleanup(zipPath, outputPath);
+    console.log('[STREAMDBG end3 unzip-finish] mem: ', process.memoryUsage());
     logger.debug({ outputPath }, 'extraction complete, starting pinning');
     const pinResult = await addDirToIpfs(outputPath);
 
