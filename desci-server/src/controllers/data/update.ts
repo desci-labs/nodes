@@ -132,6 +132,8 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
       .status(400)
       .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
 
+  // debugger;
+
   /*
    ** External URL setup, currnetly used for Github Code Repositories & external PDFs
    */
