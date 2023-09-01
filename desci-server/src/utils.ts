@@ -93,6 +93,7 @@ export async function zipUrlToStream(url: string): Promise<Readable> {
 export async function calculateTotalZipUncompressedSize(zipPath: string): Promise<number> {
   return new Promise((resolve, reject) => {
     let totalSize = 0;
+
     yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
       if (err) reject(err);
 
