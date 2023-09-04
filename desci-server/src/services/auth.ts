@@ -33,6 +33,9 @@ const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
     where: {
       email,
     },
+    orderBy: {
+      createdAt: 'desc',
+    },
   });
 
   if (!link) {

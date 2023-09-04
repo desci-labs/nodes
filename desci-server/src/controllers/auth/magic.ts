@@ -34,10 +34,10 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         maxAge: oneYear,
         httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: 'lax', // Desired for instant auth
       });
 
-      // Bearer token still returned for backwards compatability, should look to remove in the future.
+      // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
       res.send({ ok: true, user: { email: user.email, token } });
       saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
     } catch (err) {
