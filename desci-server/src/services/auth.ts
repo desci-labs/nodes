@@ -27,29 +27,20 @@ const registerUser = async (email: string) => {
 
 const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
   email = email.toLowerCase();
-  logger.trace({ fn: 'magicLinkRedeem', email, token }, 'auth::magicLinkRedeem');
+  logger.trace({ fn: 'magicLinkRedeem', email }, 'auth::magicLinkRedeem');
+
   const link = await client.magicLink.findFirst({
     where: {
       email,
-      token,
-      expiresAt: {
-        gte: new Date(),
-      },
     },
   });
-  if (link) {
-    let user = await client.user.findFirst({
-      where: {
-        email,
-      },
-    });
-    if (!user) {
-      user = await client.user.create({
-        data: {
-          email,
-        },
-      });
-    }
+
+  if (!link) {
+    throw Error('No magic link found for the provided email.');
+  }
+
+  if (link.failedAttempts >= 5) {
+    // Invalidate the token immediately
     await client.magicLink.update({
       where: {
         id: link.id,
@@ -58,9 +49,49 @@ const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
         expiresAt: new Date('1980-01-01'),
       },
     });
-    return user;
+    throw Error('Too many failed attempts. Token invalidated.');
   }
-  throw Error('Not found');
+
+  if (link.token !== token || new Date() > link.expiresAt) {
+    // Increment failedAttempts
+    await client.magicLink.update({
+      where: {
+        id: link.id,
+      },
+      data: {
+        failedAttempts: {
+          increment: 1,
+        },
+      },
+    });
+    throw Error('Invalid token.');
+  }
+
+  let user = await client.user.findFirst({
+    where: {
+      email,
+    },
+  });
+
+  if (!user) {
+    user = await client.user.create({
+      data: {
+        email,
+      },
+    });
+  }
+
+  // Invalidate the token by setting its expiresAt to a past date
+  await client.magicLink.update({
+    where: {
+      id: link.id,
+    },
+    data: {
+      expiresAt: new Date('1980-01-01'),
+    },
+  });
+
+  return user;
 };
 
 const sendMagicLinkEmail = async (email: string) => {
@@ -131,7 +162,7 @@ const sendMagicLinkEmail = async (email: string) => {
       // const data = await sendPromise;
       logger.info({ fn: 'sendMagicLinkEmail', email, msg }, 'Email sent');
     } catch (err) {
-      logger.error({ fn: 'sendMagicLinkEmail', err, email, token }, 'Mail error');
+      logger.error({ fn: 'sendMagicLinkEmail', err, email }, 'Mail error');
     }
     return true;
   } else {
