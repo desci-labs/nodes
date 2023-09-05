@@ -180,11 +180,27 @@ const sendMagicLinkEmail = async (email: string) => {
 
 const sendMagicLink = async (email: string) => {
   email = email.toLowerCase();
+
+  // Check for recent magic link generation
+  const recentMagicLink = await client.magicLink.findFirst({
+    where: {
+      email,
+      createdAt: {
+        gte: new Date(Date.now() - 30 * 1000), // 30 seconds ago
+      },
+    },
+  });
+
+  if (recentMagicLink) {
+    throw Error('A magic link was recently generated. Please wait 30 seconds before requesting another.');
+  }
+
   const user = await client.user.findFirst({
     where: {
       email,
     },
   });
+
   if (user) {
     // check to make sure user doesn't have Login Method associated
     const identities = await client.userIdentity.findMany({
@@ -197,15 +213,7 @@ const sendMagicLink = async (email: string) => {
     }
     return sendMagicLinkEmail(user.email);
   }
-  const invite = await client.invite.findFirst({
-    where: {
-      email,
-      expired: false,
-    },
-  });
-  if (invite) {
-    return sendMagicLinkEmail(invite.email);
-  }
+
   throw Error('Not found');
 };
 
