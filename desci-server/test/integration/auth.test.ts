@@ -31,10 +31,35 @@ describe('Magic Link Authentication', () => {
       expect(result).to.be.true;
     });
 
-    // it('should create a magic link for a new email', async () => {
-    //   const result = await auth.sendMagicLink('newuser@desci.com');
-    //   expect(result).to.be.true;
-    // });
+    describe('Magic Link Rate Limiting', () => {
+      it('should not allow generating a magic link within 30 seconds of the last one', async () => {
+        await auth.sendMagicLink(user.email);
+        await expectThrowsAsync(
+          () => auth.sendMagicLink(user.email),
+          'A magic link was recently generated. Please wait 30 seconds before requesting another.',
+        );
+      });
+
+      it('should allow generating a magic link after 30 seconds of the last one', async () => {
+        await auth.sendMagicLink(user.email);
+        const latestMagicLink = await prisma.magicLink.findFirst({
+          where: {
+            email: user.email,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
+        if (latestMagicLink) {
+          await prisma.magicLink.update({
+            where: { id: latestMagicLink.id },
+            data: { createdAt: new Date(Date.now() - 31 * 1000) }, // Set to 31 seconds ago
+          });
+        }
+        const result = await auth.sendMagicLink(user.email);
+        expect(result).to.be.true;
+      });
+    });
   });
 
   describe('Magic Link Redemption', () => {
