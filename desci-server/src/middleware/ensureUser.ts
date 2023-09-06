@@ -21,7 +21,7 @@ export const ensureUser = async (req: Request, res: Response, next: NextFunction
 
 export const retrieveUser = async (req: Request): Promise<User | null> => {
   let token: string | undefined;
-
+  // debugger;
   // Try to retrieve the token from the auth header
   const authHeader = req.headers['authorization'];
   if (authHeader) {

@@ -6,9 +6,10 @@ import logger from 'logger';
 import { magicLinkRedeem, sendMagicLink } from 'services/auth';
 import { saveInteraction } from 'services/interactionLog';
 
-const generateAccessToken = (payload) => {
+export const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });
 };
+
 const oneYear = 1000 * 60 * 60 * 24 * 365;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
   if (process.env.NODE_ENV === 'production') {
