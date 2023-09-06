@@ -19,29 +19,37 @@ export const ensureUser = async (req: Request, res: Response, next: NextFunction
   next();
 };
 
-export const retrieveUser = async (req: Request): Promise<User> => {
+export const retrieveUser = async (req: Request): Promise<User | null> => {
+  let token: string | undefined;
+  // debugger;
+  // Try to retrieve the token from the auth header
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  if (authHeader) {
+    token = authHeader.split(' ')[1];
+  }
+
+  // If auth token wasn't found in the header, try retrieve from cookies
+  if (!token && req.cookies) {
+    token = req.cookies['auth'];
+  }
 
   return new Promise(async (success, fail) => {
-    if (token == null) {
+    if (!token) {
       success(null);
-      return null;
+      return;
     }
+
     jwt.verify(token, process.env.JWT_SECRET as string, async (err: any, user: any) => {
       if (err) {
         // anonymous user
         logger.info({ module: 'retrieveUserMiddleware', authHeader, token }, 'anon request');
-        // console.log(err);
+        success(null);
+        return;
       }
 
-      if (err) {
-        success(null);
-        return null;
-      }
       if (!user) {
         success(null);
-        return null;
+        return;
       }
 
       const loggedInUserEmail = user.email as string;
@@ -53,7 +61,7 @@ export const retrieveUser = async (req: Request): Promise<User> => {
 
       if (!retrievedUser || !retrievedUser.id) {
         success(null);
-        return null;
+        return;
       }
 
       success(retrievedUser);

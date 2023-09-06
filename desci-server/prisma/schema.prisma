@@ -240,12 +240,13 @@ model ChainTransaction {
 }
 
 model MagicLink {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  expiresAt DateTime @default(dbgenerated("(now() + '01:00:00'::interval)"))
-  token     String
-  email     String
+  id             Int      @id @default(autoincrement())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  expiresAt      DateTime @default(dbgenerated("(now() + '01:00:00'::interval)"))
+  failedAttempts Int      @default(0)
+  token          String
+  email          String
 }
 
 model OauthAccessToken {
