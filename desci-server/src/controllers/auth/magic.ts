@@ -10,7 +10,7 @@ export const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });
 };
 
-const oneYear = 1000 * 60 * 60 * 24 * 365;
+export const oneYear = 1000 * 60 * 60 * 24 * 365;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
   if (process.env.NODE_ENV === 'production') {
     logger.info({ fn: 'magic', email: req.body.email }, `magic link requested`);
@@ -35,7 +35,8 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         maxAge: oneYear,
         httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax', // Desired for instant auth
+        domain: process.env.NODE_ENV === 'production' ? '.desci.com' : 'localhost',
+        sameSite: 'strict',
       });
 
       // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.

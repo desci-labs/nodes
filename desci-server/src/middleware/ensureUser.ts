@@ -6,11 +6,8 @@ import prisma from 'client';
 import logger from 'logger';
 import { getUserByEmail, getUserByOrcId } from 'services/user';
 
-import { CustomError } from '../utils/response/custom-error/CustomError';
-
 export const ensureUser = async (req: Request, res: Response, next: NextFunction) => {
   const retrievedUser = await retrieveUser(req);
-
   if (!retrievedUser) {
     res.status(401).send({ ok: false, message: 'Unauthorized' });
     return;
@@ -21,7 +18,6 @@ export const ensureUser = async (req: Request, res: Response, next: NextFunction
 
 export const retrieveUser = async (req: Request): Promise<User | null> => {
   let token: string | undefined;
-  // debugger;
   // Try to retrieve the token from the auth header
   const authHeader = req.headers['authorization'];
   if (authHeader) {

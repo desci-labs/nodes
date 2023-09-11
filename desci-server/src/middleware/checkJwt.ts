@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+import { oneYear } from 'controllers/auth';
+
 import { JwtPayload } from '../types/JwtPayload';
 import { createJwtToken } from '../utils/createJwtToken';
 import { CustomError } from '../utils/response/custom-error/CustomError';
@@ -39,9 +41,11 @@ export const checkJwt = (req: Request, res: Response, next: NextFunction) => {
     res.setHeader('token', `Bearer ${newToken}`);
 
     res.cookie('auth_token', newToken, {
+      maxAge: oneYear,
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      domain: process.env.NODE_ENV === 'production' ? '.desci.com' : 'localhost',
+      sameSite: 'strict',
     });
 
     return next();
