@@ -40,13 +40,13 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         sameSite: 'strict',
       });
 
-      if (dev === 'true') {
+      if (dev === 'true' && process.env.SERVER_URL === 'https://nodes-api-dev.desci.com') {
         // insecure cookie for local dev, should only be used for testing
         logger.info({ fn: 'magic', email: req.body.email }, `insecure dev cookie set`);
         res.cookie('auth', token, {
           maxAge: oneDay,
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
+          // secure: process.env.NODE_ENV === 'production', // unsafe, but only used for local dev
           domain: 'localhost', // unsafe
           sameSite: 'strict',
         });
