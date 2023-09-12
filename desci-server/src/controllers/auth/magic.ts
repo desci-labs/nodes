@@ -11,7 +11,7 @@ export const generateAccessToken = (payload) => {
 };
 
 export const oneYear = 1000 * 60 * 60 * 24 * 365;
-export const oneDay = 1000 * 60 * 60 * 24 * 365;
+export const oneDay = 1000 * 60 * 60 * 24;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
   if (process.env.NODE_ENV === 'production') {
     logger.info({ fn: 'magic', email: req.body.email }, `magic link requested`);
@@ -46,7 +46,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         res.cookie('auth', token, {
           maxAge: oneDay,
           httpOnly: true,
-          // secure: process.env.NODE_ENV === 'production', // unsafe, but only used for local dev
+          secure: false, // unsafe, but only used for local dev
           domain: 'localhost', // unsafe
           sameSite: 'strict',
         });
