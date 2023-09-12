@@ -40,7 +40,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         sameSite: 'strict',
       });
 
-      if (dev === 'true') {
+      if (dev === 'true' && process.env.SERVER_URL === 'https://nodes-api-dev.desci.com') {
         // insecure cookie for local dev, should only be used for testing
         logger.info({ fn: 'magic', email: req.body.email }, `insecure dev cookie set`);
         res.cookie('auth', token, {
