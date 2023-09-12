@@ -32,13 +32,15 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       const user = await magicLinkRedeem(email, code);
       const token = generateAccessToken({ email: user.email });
 
-      res.cookie('auth', token, {
-        maxAge: oneYear,
-        httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
-        secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.desci.com' : 'localhost',
-        sameSite: 'strict',
-      });
+      if (dev !== 'true') {
+        res.cookie('auth', token, {
+          maxAge: oneYear,
+          httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
+          secure: process.env.NODE_ENV === 'production',
+          domain: process.env.NODE_ENV === 'production' ? '.desci.com' : 'localhost',
+          sameSite: 'strict',
+        });
+      }
 
       if (dev === 'true' && process.env.SERVER_URL === 'https://nodes-api-dev.desci.com') {
         // insecure cookie for local dev, should only be used for testing
@@ -46,8 +48,6 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         res.cookie('auth', token, {
           maxAge: oneDay,
           httpOnly: true,
-          secure: false, // unsafe, but only used for local dev
-          domain: 'localhost', // unsafe
           sameSite: 'strict',
         });
       }
