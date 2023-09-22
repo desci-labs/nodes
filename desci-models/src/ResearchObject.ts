@@ -251,6 +251,7 @@ export type ResearchObjectComponentAnnotation = {
   text?: string;
   title?: string;
   __client?: any; // client-only variables, deleted before saving to server
+  rects?: Omit<ResearchObjectComponentAnnotation, "rects">[];
 };
 
 export enum ResearchObjectV1AuthorRole {
