@@ -16,3 +16,6 @@ local-data/
 node-modules/
 node_modules/*
 .idea
+
+# custom generated based on .envs
+docker-compose.redis.yml

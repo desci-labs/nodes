@@ -11,7 +11,7 @@ import tar from 'tar';
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
-import redisClient, { getOrCache } from 'redisClient';
+import redisClient, { getFromCache, getOrCache } from 'redisClient';
 import { getDatasetTar } from 'services/ipfs';
 import { getTreeAndFill, getTreeAndFillDeprecated } from 'utils/driveUtils';
 
@@ -127,11 +127,10 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   // Try early return if depth chunk cached
   const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}`;
   try {
-    if (redisClient.isOpen) {
-      const cached = await redisClient.get(depthCacheKey);
-      if (cached) {
-        const tree = JSON.parse(cached);
-        return res.status(200).json({ tree: [tree], date: dataset?.updatedAt.toString() });
+    if (redisClient.status === 'ready') {
+      const cachedTree = await getFromCache(depthCacheKey);
+      if (cachedTree !== null) {
+        return res.status(200).json({ tree: [cachedTree as DriveObject], date: dataset?.updatedAt.toString() });
       }
     }
   } catch (err) {
@@ -223,11 +222,10 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   // Try early return if depth chunk cached
   const depthCacheKey = `pubTree-depth-${depth}-${manifestCid}-${dataPath}`;
   try {
-    if (redisClient.isOpen) {
-      const cached = await redisClient.get(depthCacheKey);
-      if (cached) {
-        const tree = JSON.parse(cached);
-        return res.status(200).json({ tree: tree, date: publicDataset?.updatedAt.toString() });
+    if (redisClient.status === 'ready') {
+      const cachedTree = await getFromCache(depthCacheKey);
+      if (cachedTree !== null) {
+        return res.status(200).json({ tree: cachedTree as DriveObject[], date: publicDataset?.updatedAt.toString() });
       }
     }
   } catch (err) {
