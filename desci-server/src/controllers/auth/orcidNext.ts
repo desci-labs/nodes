@@ -64,7 +64,7 @@ export const orcidCheck =
         res.status(200).send({ userFound: true });
       } else {
         // we didn't find a user, so we need to prompt for an email verification flow to assign an email to this orcid
-        res.status(400).send({ err: 'need to attach email', code: 3, userFound: false });
+        res.status(400).send({ err: 'need to attach email', code: 3, userFound: false, promptEmail: true });
       }
     }
   };

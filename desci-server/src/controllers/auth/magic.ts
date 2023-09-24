@@ -2,11 +2,14 @@ import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+import prismaClient from 'client';
 import logger from 'logger';
 import { magicLinkRedeem, sendMagicLink } from 'services/auth';
 import { saveInteraction } from 'services/interactionLog';
-import { checkIfUserAcceptedTerms } from 'services/user';
+import { client } from 'services/ipfs';
+import { checkIfUserAcceptedTerms, setOrcidForUser } from 'services/user';
 
+import { orcidCheck } from './orcidNext';
 export const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });
 };
@@ -17,17 +20,42 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
   if (process.env.NODE_ENV === 'production') {
     logger.info({ fn: 'magic', email: req.body.email }, `magic link requested`);
   } else {
-    logger.info({ fn: 'magic', reqBody: req.body }, `magic link ${req.body}`);
+    logger.info({ fn: 'magic', reqBody: req.body }, `magic link`);
   }
 
-  const { email, code, dev } = req.body;
+  const { email, code, dev, orcid } = req.body;
 
   if (!code) {
     // we are sending the magic code
+
+    let user = await prismaClient.user.findFirst({
+      where: {
+        email,
+      },
+    });
+
+    if (!user) {
+      user = await prismaClient.user.upsert({
+        where: {
+          email,
+        },
+        create: {
+          email,
+        },
+        update: {
+          email,
+        },
+      });
+    }
+    if (orcid && user) {
+      logger.trace({ fn: 'magic', orcid: orcid.orcid }, `setting orcid for user`);
+      return orcidCheck()(req, res);
+    }
     try {
       const ok = await sendMagicLink(email);
       res.send({ ok });
     } catch (err) {
+      logger.error({ ...err, fn: 'magic' });
       res.status(400).send({ ok: false, error: err.message });
     }
   } else {
