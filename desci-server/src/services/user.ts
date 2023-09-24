@@ -1,9 +1,11 @@
-import { User } from '@prisma/client';
+import { AuthToken, AuthTokenSource, User } from '@prisma/client';
+
+import parentLogger from 'logger';
 import { hideEmail } from 'utils';
 
 import client from '../client';
 
-import parentLogger from 'logger';
+import { getUserConsent } from './interactionLog';
 const logger = parentLogger.child({
   module: 'Services::User',
 });
@@ -43,6 +45,63 @@ export async function increaseUsersDriveLimit(userId: number, { amountGb }: { am
   return updatedUser;
 }
 
+// add orcid auth token to user
+interface OrcidAuthPayload {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
+export async function isAuthTokenSetForUser(userId: number): Promise<boolean> {
+  logger.trace({ fn: 'isAuthTokenSetForUser' }, 'user::isAuthTokenSetForUser');
+  const authToken = await client.authToken.findFirst({
+    where: {
+      userId,
+      source: AuthTokenSource.ORCID,
+    },
+  });
+  return !!authToken;
+}
+
+export async function setOrcidForUser(
+  userId: number,
+  orcid: string,
+  auth: OrcidAuthPayload,
+): Promise<AuthToken | boolean> {
+  logger.trace({ fn: 'setOrcidForUser' }, 'user::setOrcidForUser');
+  const user = await client.user.findFirst({ where: { id: userId } });
+  if (!user) {
+    logger.warn({ fn: 'setOrcidForUser', userId }, 'user not found');
+    return false;
+  }
+  if (user.orcid && user.orcid !== orcid) {
+    logger.warn({ fn: 'setOrcidForUser', userId, orcid: user.orcid, newOrcid: orcid }, 'user already has orcid');
+    return false;
+  }
+  ///  TODO: wrap in transaction
+  const userUpdate = await client.user.update({
+    where: {
+      id: userId,
+    },
+    data: {
+      orcid,
+    },
+  });
+  logger.trace({ fn: 'setOrcidForUser' }, 'updated user');
+  const authTokenInsert = await client.authToken.create({
+    data: {
+      accessToken: auth.accessToken,
+      refreshToken: auth.refreshToken,
+      expiresIn: auth.expiresIn,
+      userId,
+      source: AuthTokenSource.ORCID,
+    },
+  });
+  logger.trace({ fn: 'setOrcidForUser' }, 'added auth token');
+
+  return authTokenInsert;
+}
+
 export async function getUserByOrcId(orcid: string): Promise<User | null> {
   logger.trace({ fn: 'getUserByOrcId' }, 'user::getUserByOrcId');
   const user = await client.user.findFirst({ where: { orcid } });
@@ -55,6 +114,16 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   const user = await client.user.findFirst({ where: { email } });
 
   return user;
+}
+
+export async function checkIfUserAcceptedTerms(email: string): Promise<boolean> {
+  logger.trace({ fn: 'checkIfUserAcceptedTerms' }, `user::checkIfUserAcceptedTerms ${hideEmail(email)}`);
+  const user = await client.user.findFirst({
+    where: {
+      email,
+    },
+  });
+  return !!(await getUserConsent(user.id));
 }
 
 export async function createUser({

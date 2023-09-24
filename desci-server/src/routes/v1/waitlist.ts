@@ -1,8 +1,8 @@
 import { Router } from 'express';
 
 import { add, list, promote } from 'controllers/waitlist';
-import { ensureUser } from 'middleware/ensureUser';
 import { ensureAdmin } from 'middleware/ensureAdmin';
+import { ensureUser } from 'middleware/ensureUser';
 
 const router = Router();
 

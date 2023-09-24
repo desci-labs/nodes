@@ -28,7 +28,7 @@ check() {
   done
 
   echo "[seed:$CONTRACT_NAME] deployment found, killing ganache..."
-  ps aux | grep ganache-cli | grep -v grep | awk '{print $2}' | xargs kill
+  ps aux | grep ganache-cli | grep -v grep | awk '{print $2}' | xargs -r -t kill || echo "[seed:$CONTRACT_NAME] ganache not running"
   echo "[seed:$CONTRACT_NAME] ganache killed"
 }
 

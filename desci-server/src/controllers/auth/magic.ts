@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import logger from 'logger';
 import { magicLinkRedeem, sendMagicLink } from 'services/auth';
 import { saveInteraction } from 'services/interactionLog';
+import { checkIfUserAcceptedTerms } from 'services/user';
 
 export const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });
@@ -20,7 +21,9 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
   }
 
   const { email, code, dev } = req.body;
+
   if (!code) {
+    // we are sending the magic code
     try {
       const ok = await sendMagicLink(email);
       res.send({ ok });
@@ -28,6 +31,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       res.status(400).send({ ok: false, error: err.message });
     }
   } else {
+    // we are validating the magic code is correct
     try {
       const user = await magicLinkRedeem(email, code);
       const token = generateAccessToken({ email: user.email });
@@ -51,9 +55,14 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
           sameSite: 'strict',
         });
       }
-
+      // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
+      const termsAccepted = await checkIfUserAcceptedTerms(email);
       // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
-      res.send({ ok: true, user: { email: user.email, token } });
+      res.send({ ok: true, user: { email: user.email, token, termsAccepted } });
+
+      if (!termsAccepted) {
+        saveInteraction(req, ActionType.USER_TERMS_CONSENT, { userId: user.id, email: user.email }, user.id);
+      }
       saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
     } catch (err) {
       res.status(400).send({ ok: false, error: err.message });
