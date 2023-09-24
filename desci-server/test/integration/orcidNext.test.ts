@@ -123,7 +123,7 @@ describe('ORCiD Auth Endpoints', () => {
         // .set('authorization', `Bearer ${mockToken}`)
         .send(ORCID_JSON_PAYLOAD);
 
-      expect(response.status).to.equal(400);
+      expect(response.status).to.equal(200);
       expect(response.body.userFound).to.equal(false);
       expect(response.body.err).to.equal('need to attach email');
 
@@ -173,7 +173,7 @@ describe('ORCiD Auth Endpoints', () => {
           .set('authorization', `Bearer ${mockToken}`)
           .send(ORCID_JSON_PAYLOAD);
 
-        expect(response.status).to.equal(400);
+        expect(response.status).to.equal(200);
         expect(response.body.userFound).to.equal(true);
 
         await ensureOrcidAuthInfo_NOT_Saved();

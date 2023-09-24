@@ -41,7 +41,7 @@ describe('Magic Link Authentication', () => {
         await sendMagicLink(user.email);
         await expectThrowsAsync(
           () => sendMagicLink(user.email),
-          'A magic link was recently generated. Please wait 30 seconds before requesting another.',
+          'A verification code was recently generated. Please wait 30 seconds before requesting another.',
         );
       });
 

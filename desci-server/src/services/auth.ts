@@ -11,6 +11,8 @@ AWS.config.update({ region: 'us-east-2' });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 import client from '../client';
 
+import { hideEmail } from 'utils';
+
 const logger = parentLogger.child({ module: 'Services::Auth' });
 
 const registerUser = async (email: string) => {
@@ -27,7 +29,7 @@ const registerUser = async (email: string) => {
 
 const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
   email = email.toLowerCase();
-  logger.trace({ fn: 'magicLinkRedeem', email }, 'auth::magicLinkRedeem');
+  logger.trace({ fn: 'magicLinkRedeem', email: hideEmail(email) }, 'auth::magicLinkRedeem');
 
   const link = await client.magicLink.findFirst({
     where: {
@@ -177,7 +179,7 @@ const sendMagicLinkEmail = async (email: string) => {
     return true;
   }
 };
-
+const MAGIC_LINK_COOLDOWN = 5 * 1000; // 5 second
 const sendMagicLink = async (email: string) => {
   email = email.toLowerCase();
 
@@ -186,13 +188,13 @@ const sendMagicLink = async (email: string) => {
     where: {
       email,
       createdAt: {
-        gte: new Date(Date.now() - 30 * 1000), // 30 seconds ago
+        gte: new Date(Date.now() - MAGIC_LINK_COOLDOWN),
       },
     },
   });
 
   if (recentMagicLink) {
-    throw Error('A magic link was recently generated. Please wait 30 seconds before requesting another.');
+    throw Error('A verification code was recently generated. Please wait 30 seconds before requesting another.');
   }
 
   const user = await client.user.findFirst({

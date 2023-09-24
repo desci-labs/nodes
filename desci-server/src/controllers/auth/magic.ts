@@ -7,8 +7,9 @@ import logger from 'logger';
 import { magicLinkRedeem, sendMagicLink } from 'services/auth';
 import { saveInteraction } from 'services/interactionLog';
 import { client } from 'services/ipfs';
-import { checkIfUserAcceptedTerms, setOrcidForUser } from 'services/user';
+import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible, setOrcidForUser } from 'services/user';
 
+import { getOrcidRecord } from './orcid';
 import { orcidCheck } from './orcidNext';
 export const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });
@@ -23,7 +24,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     logger.info({ fn: 'magic', reqBody: req.body }, `magic link`);
   }
 
-  const { email, code, dev, orcid } = req.body;
+  const { email, code, dev, orcid, access_token, refresh_token, expires_in } = req.body;
 
   if (!code) {
     // we are sending the magic code
@@ -34,6 +35,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       },
     });
 
+    // force 1 step user creation
     if (!user) {
       user = await prismaClient.user.upsert({
         where: {
@@ -47,10 +49,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         },
       });
     }
-    if (orcid && user) {
-      logger.trace({ fn: 'magic', orcid: orcid.orcid }, `setting orcid for user`);
-      return orcidCheck()(req, res);
-    }
+
     try {
       const ok = await sendMagicLink(email);
       res.send({ ok });
@@ -62,6 +61,26 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     // we are validating the magic code is correct
     try {
       const user = await magicLinkRedeem(email, code);
+
+      if (orcid && user) {
+        logger.trace({ fn: 'magic', orcid }, `setting orcid for user`);
+
+        if (!user.name) {
+          const orcidRecord = await getOrcidRecord(orcid, access_token);
+          const name = orcidRecord['person']['name'];
+          await prismaClient.user.update({
+            where: {
+              id: user.id,
+            },
+            data: {
+              name: `${[name['given-names']?.value, name['family-name']?.value].filter(Boolean).join(' ')}`,
+            },
+          });
+        }
+
+        await connectOrcidToUserIfPossible(user.id, orcid, access_token, refresh_token, expires_in, getOrcidRecord);
+      }
+
       const token = generateAccessToken({ email: user.email });
 
       if (dev !== 'true') {
@@ -93,7 +112,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       }
       saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
     } catch (err) {
-      res.status(400).send({ ok: false, error: err.message });
+      res.status(200).send({ ok: false, error: err.message });
     }
   }
 };
