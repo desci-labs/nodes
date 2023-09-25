@@ -5,8 +5,7 @@
 import { NextFunction, Request, Response } from 'express';
 
 import parentLogger from 'logger';
-import { saveInteraction } from 'services/interactionLog';
-import { connectOrcidToUserIfPossible, getUserByOrcId, isAuthTokenSetForUser, setOrcidForUser } from 'services/user';
+import { connectOrcidToUserIfPossible } from 'services/user';
 
 import { OrcIdRecordData, getOrcidRecord } from './orcid';
 const logger = parentLogger.child({ module: 'AUTH::OrcidNextController' });
@@ -23,7 +22,7 @@ export const orcidCheck =
     }
     const user = (req as any).user;
     const { access_token, refresh_token, expires_in, orcid } = req.body;
-
+    debugger;
     const orcidRecord = await connectOrcidToUserIfPossible(
       user?.id,
       orcid,

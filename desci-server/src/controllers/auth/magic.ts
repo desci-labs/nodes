@@ -7,7 +7,7 @@ import logger from 'logger';
 import { magicLinkRedeem, sendMagicLink } from 'services/auth';
 import { saveInteraction } from 'services/interactionLog';
 import { client } from 'services/ipfs';
-import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible, setOrcidForUser } from 'services/user';
+import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from 'services/user';
 
 import { getOrcidRecord } from './orcid';
 import { orcidCheck } from './orcidNext';

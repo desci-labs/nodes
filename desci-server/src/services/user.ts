@@ -82,24 +82,28 @@ export async function connectOrcidToUserIfPossible(
     return { error: 'orcid mismatch', code: 1 };
   }
 
-  const user = await client.user.findFirst({
-    where: {
-      id: userId,
-    },
-  });
+  const user = userId
+    ? await client.user.findFirst({
+        where: {
+          id: userId,
+        },
+      })
+    : null;
 
   if (user) {
     // we are already email auth'd, we have only one to check
     logger.info({ fn: 'orcidCheck', user }, `Requesting user ${user}`);
     if (!user.orcid || user.orcid === orcid) {
+      let nodeConnect;
+      debugger;
       if (!user.orcid || !(await isAuthTokenSetForUser(user.id))) {
-        await setOrcidForUser(user.id, orcid, {
+        nodeConnect = await setOrcidForUser(user.id, orcid, {
           accessToken,
           refreshToken,
           expiresIn,
         });
       }
-      return { userFound: true };
+      return { userFound: true, nodeConnect };
     } else {
       return { error: 'orcid mismatch', code: 2, userFound: true };
     }
@@ -108,14 +112,16 @@ export async function connectOrcidToUserIfPossible(
     logger.info({ fn: 'orcidCheck' }, `Orcid first time login, no associated email`);
     const userFound = await getUserByOrcId(orcid);
     if (userFound) {
+      let nodeConnect;
+      debugger;
       if (!userFound.orcid || !(await isAuthTokenSetForUser(userFound.id))) {
-        await setOrcidForUser(userFound.id, orcid, {
+        nodeConnect = await setOrcidForUser(user.id, orcid, {
           accessToken,
           refreshToken,
           expiresIn,
         });
       }
-      return { userFound: true };
+      return { userFound: true, nodeConnect };
     } else {
       // we didn't find a user, so we need to prompt for an email verification flow to assign an email to this orcid
       return { error: 'need to attach email', code: 3, userFound: false, promptEmail: true };
@@ -123,43 +129,67 @@ export async function connectOrcidToUserIfPossible(
   }
 }
 
+interface NodeConnectAuthError {
+  error?: string;
+  ok: boolean;
+}
+
 export async function setOrcidForUser(
   userId: number,
   orcid: string,
   auth: OrcidAuthPayload,
-): Promise<AuthToken | boolean> {
+): Promise<boolean | NodeConnectAuthError> {
   logger.trace({ fn: 'setOrcidForUser' }, 'user::setOrcidForUser');
   const user = await client.user.findFirst({ where: { id: userId } });
   if (!user) {
-    logger.warn({ fn: 'setOrcidForUser', userId }, 'user not found');
-    return false;
+    const payload = { ok: false, error: 'User not found' };
+    logger.warn({ fn: 'setOrcidForUser', userId, orcid, ...payload }, payload.error);
+    return payload;
   }
   if (user.orcid && user.orcid !== orcid) {
-    logger.warn({ fn: 'setOrcidForUser', userId, orcid: user.orcid, newOrcid: orcid }, 'user already has orcid');
-    return false;
+    const payload = { ok: false, error: 'This email address is registered to a different ORCiD ID' };
+    logger.warn({ fn: 'setOrcidForUser', userId, orcid: user.orcid, newOrcid: orcid, ...payload }, payload.error);
+    return payload;
   }
-  ///  TODO: wrap in transaction
-  const userUpdate = await client.user.update({
-    where: {
-      id: userId,
-    },
-    data: {
-      orcid,
-    },
-  });
-  logger.trace({ fn: 'setOrcidForUser' }, 'updated user');
-  const authTokenInsert = await client.authToken.create({
-    data: {
-      accessToken: auth.accessToken,
-      refreshToken: auth.refreshToken,
-      expiresIn: auth.expiresIn,
-      userId,
-      source: AuthTokenSource.ORCID,
-    },
-  });
-  logger.trace({ fn: 'setOrcidForUser' }, 'added auth token');
+  // handle if another user is tied to this orcid
+  if (user) {
+    const userWithOrcid = await getUserByOrcId(orcid);
+    if (userWithOrcid && userWithOrcid.id !== user.id) {
+      const payload = {
+        ok: false,
+        error:
+          'This ORCiD is already registered to another user' +
+          [user, userWithOrcid]
+            .filter(Boolean)
+            .map((a) => a?.id)
+            .join('|'),
+      };
+      logger.warn({ fn: 'setOrcidForUser', userId, orcid, ...payload }, payload.error);
+      return payload;
+    }
 
-  return authTokenInsert;
+    ///  TODO: wrap in transaction
+    const userUpdate = await client.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        orcid,
+      },
+    });
+    logger.trace({ fn: 'setOrcidForUser' }, 'updated user');
+    const authTokenInsert = await client.authToken.create({
+      data: {
+        accessToken: auth.accessToken,
+        refreshToken: auth.refreshToken,
+        expiresIn: auth.expiresIn,
+        userId,
+        source: AuthTokenSource.ORCID,
+      },
+    });
+    logger.trace({ fn: 'setOrcidForUser' }, 'added auth token');
+  }
+  return true;
 }
 
 export async function getUserByOrcId(orcid: string): Promise<User | null> {
