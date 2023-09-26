@@ -8,6 +8,7 @@ import { magicLinkRedeem, sendMagicLink } from 'services/auth';
 import { saveInteraction } from 'services/interactionLog';
 import { client } from 'services/ipfs';
 import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from 'services/user';
+import { sendCookie } from 'utils/sendCookie';
 
 import { getOrcidRecord } from './orcid';
 import { orcidCheck } from './orcidNext';
@@ -83,25 +84,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
       const token = generateAccessToken({ email: user.email });
 
-      if (dev !== 'true') {
-        res.cookie('auth', token, {
-          maxAge: oneYear,
-          httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
-          secure: process.env.NODE_ENV === 'production',
-          domain: process.env.NODE_ENV === 'production' ? '.desci.com' : 'localhost',
-          sameSite: 'strict',
-        });
-      }
-
-      if (dev === 'true' && process.env.SERVER_URL === 'https://nodes-api-dev.desci.com') {
-        // insecure cookie for local dev, should only be used for testing
-        logger.info({ fn: 'magic', email: req.body.email }, `insecure dev cookie set`);
-        res.cookie('auth', token, {
-          maxAge: oneDay,
-          httpOnly: true,
-          sameSite: 'strict',
-        });
-      }
+      sendCookie(res, token, dev === 'true');
       // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
       const termsAccepted = await checkIfUserAcceptedTerms(email);
       // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.

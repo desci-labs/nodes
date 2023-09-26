@@ -6,6 +6,7 @@ import { NextFunction, Request, Response } from 'express';
 
 import parentLogger from 'logger';
 import { connectOrcidToUserIfPossible } from 'services/user';
+import { sendCookie } from 'utils/sendCookie';
 
 import { OrcIdRecordData, getOrcidRecord } from './orcid';
 const logger = parentLogger.child({ module: 'AUTH::OrcidNextController' });
@@ -21,7 +22,7 @@ export const orcidCheck =
       return;
     }
     const user = (req as any).user;
-    const { access_token, refresh_token, expires_in, orcid } = req.body;
+    const { access_token, refresh_token, expires_in, orcid, dev } = req.body;
     debugger;
     const orcidRecord = await connectOrcidToUserIfPossible(
       user?.id,
@@ -31,6 +32,11 @@ export const orcidCheck =
       expires_in,
       orcidLookup,
     );
+
+    const jwtToken = orcidRecord.jwt;
+    if (jwtToken) {
+      sendCookie(res, jwtToken, dev === 'true');
+    }
 
     res.send(orcidRecord);
   };

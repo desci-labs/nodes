@@ -1,6 +1,6 @@
 import { AuthToken, AuthTokenSource, User, prisma } from '@prisma/client';
 
-import { OrcIdRecordData, getOrcidRecord } from 'controllers/auth';
+import { OrcIdRecordData, generateAccessToken, getOrcidRecord } from 'controllers/auth';
 import parentLogger from 'logger';
 import { hideEmail } from 'utils';
 
@@ -103,7 +103,8 @@ export async function connectOrcidToUserIfPossible(
           expiresIn,
         });
       }
-      return { userFound: true, nodeConnect };
+      const jwt = generateAccessToken({ email: user.email });
+      return { userFound: true, nodeConnect, jwt };
     } else {
       return { error: 'orcid mismatch', code: 2, userFound: true };
     }
@@ -115,13 +116,14 @@ export async function connectOrcidToUserIfPossible(
       let nodeConnect;
       debugger;
       if (!userFound.orcid || !(await isAuthTokenSetForUser(userFound.id))) {
-        nodeConnect = await setOrcidForUser(user.id, orcid, {
+        nodeConnect = await setOrcidForUser(undefined, orcid, {
           accessToken,
           refreshToken,
           expiresIn,
         });
       }
-      return { userFound: true, nodeConnect };
+      const jwt = generateAccessToken({ email: userFound.email });
+      return { userFound: true, nodeConnect, jwt };
     } else {
       // we didn't find a user, so we need to prompt for an email verification flow to assign an email to this orcid
       return { error: 'need to attach email', code: 3, userFound: false, promptEmail: true };
