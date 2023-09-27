@@ -1,4 +1,4 @@
-import { AuthToken, AuthTokenSource, User, prisma } from '@prisma/client';
+import { ActionType, AuthToken, AuthTokenSource, User, prisma } from '@prisma/client';
 
 import { OrcIdRecordData, generateAccessToken, getOrcidRecord } from 'controllers/auth';
 import parentLogger from 'logger';
@@ -6,7 +6,7 @@ import { hideEmail } from 'utils';
 
 import client from '../client';
 
-import { getUserConsent } from './interactionLog';
+import { getUserConsent, saveInteraction } from './interactionLog';
 const logger = parentLogger.child({
   module: 'Services::User',
 });
@@ -72,6 +72,7 @@ export async function connectOrcidToUserIfPossible(
   expiresIn: number,
   orcidLookup: (orcid: string, accessToken: string) => Promise<OrcIdRecordData> = getOrcidRecord,
 ) {
+  debugger;
   logger.info({ fn: 'connectOrcidToUserIfPossible', orcid, accessTokenPresent: !!accessToken }, `doing orcid lookup`);
   const orcidRecord = await orcidLookup(orcid, accessToken);
   logger.info({ fn: 'connectOrcidToUserIfPossible', orcidRecord, orcid }, `found orcid record`);
@@ -95,7 +96,7 @@ export async function connectOrcidToUserIfPossible(
     logger.info({ fn: 'orcidCheck', user }, `Requesting user ${user}`);
     if (!user.orcid || user.orcid === orcid) {
       let nodeConnect;
-      debugger;
+      // debugger;
       if (!user.orcid || !(await isAuthTokenSetForUser(user.id))) {
         nodeConnect = await setOrcidForUser(user.id, orcid, {
           accessToken,
@@ -114,9 +115,9 @@ export async function connectOrcidToUserIfPossible(
     const userFound = await getUserByOrcId(orcid);
     if (userFound) {
       let nodeConnect;
-      debugger;
+      // debugger;
       if (!userFound.orcid || !(await isAuthTokenSetForUser(userFound.id))) {
-        nodeConnect = await setOrcidForUser(undefined, orcid, {
+        nodeConnect = await setOrcidForUser(userFound.id, orcid, {
           accessToken,
           refreshToken,
           expiresIn,
@@ -141,6 +142,7 @@ export async function setOrcidForUser(
   orcid: string,
   auth: OrcidAuthPayload,
 ): Promise<boolean | NodeConnectAuthError> {
+  debugger;
   logger.trace({ fn: 'setOrcidForUser' }, 'user::setOrcidForUser');
   const user = await client.user.findFirst({ where: { id: userId } });
   if (!user) {
@@ -171,25 +173,30 @@ export async function setOrcidForUser(
     }
 
     ///  TODO: wrap in transaction
-    const userUpdate = await client.user.update({
-      where: {
-        id: userId,
-      },
-      data: {
-        orcid,
-      },
-    });
-    logger.trace({ fn: 'setOrcidForUser' }, 'updated user');
-    const authTokenInsert = await client.authToken.create({
-      data: {
-        accessToken: auth.accessToken,
-        refreshToken: auth.refreshToken,
-        expiresIn: auth.expiresIn,
-        userId,
-        source: AuthTokenSource.ORCID,
-      },
-    });
-    logger.trace({ fn: 'setOrcidForUser' }, 'added auth token');
+    if (userId) {
+      const userUpdate = await client.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          orcid,
+        },
+      });
+      logger.trace({ fn: 'setOrcidForUser' }, 'updated user');
+      const authTokenInsert = await client.authToken.create({
+        data: {
+          accessToken: auth.accessToken,
+          refreshToken: auth.refreshToken,
+          expiresIn: auth.expiresIn,
+          userId,
+          source: AuthTokenSource.ORCID,
+        },
+      });
+      logger.trace({ fn: 'setOrcidForUser' }, 'added auth token');
+    } else {
+      logger.trace({ fn: 'setOrcidForUser' }, 'no user found');
+      return false;
+    }
   }
   return true;
 }

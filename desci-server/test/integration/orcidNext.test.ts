@@ -4,12 +4,14 @@ import bodyParser from 'body-parser';
 import { expect } from 'chai';
 import cookieParser from 'cookie-parser';
 import express from 'express';
+import pinoHttp from 'pino-http';
 import supertest from 'supertest';
 
 import prisma from '../../src/client';
 import { generateAccessToken } from '../../src/controllers/auth/magic';
 import { OrcIdRecordData } from '../../src/controllers/auth/orcid';
 import { orcidCheck } from '../../src/controllers/auth/orcidNext';
+import logger from '../../src/logger';
 import { ensureUserIfPresent } from '../../src/middleware/ensureUserIfPresent';
 // describe('ORCiD Auth', () => {
 //   let user: User;
@@ -45,15 +47,17 @@ describe('ORCiD Auth Endpoints', () => {
   let request: supertest.SuperTest<supertest.Test>;
 
   const TEST_ORCID = '0000-0002-1825-0097';
-  const ORCID_JSON_PAYLOAD = { access_token: '1234', refresh_token: '5657', expires_in: 321, orcid: TEST_ORCID };
+  const ORCID_JSON_PAYLOAD = { access_token: '1234', refresh_token: '5657', expires_in: 322141241, orcid: TEST_ORCID };
 
   beforeEach(async () => {
+    console.log('[orcidNext.test::beforeEach] start');
     await prisma.authToken.deleteMany({});
     await prisma.user.updateMany({
       data: {
         orcid: null,
       },
     });
+    console.log('[orcidNext.test::beforeEach] end');
   });
 
   const ensureOrcidAuthInfoSaved = async () => {
@@ -79,9 +83,31 @@ describe('ORCiD Auth Endpoints', () => {
     expect(authToken).to.be.null;
   };
   before(async () => {
+    console.log('[orcidNext.test::before] start');
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
 
     app = express();
+    app.use(
+      pinoHttp({
+        logger,
+        serializers: {
+          res: (res) => {
+            return {
+              responseTime: res.responseTime,
+              status: res.statusCode,
+            };
+          },
+          req: (req) => {
+            return {
+              query: req.query,
+              params: req.params,
+              method: req.method,
+              url: req.url,
+            };
+          },
+        },
+      }),
+    );
     app.use(cookieParser());
     app.use(bodyParser.json());
 
@@ -114,6 +140,7 @@ describe('ORCiD Auth Endpoints', () => {
     mockToken = generateAccessToken({ email: mockUser.email });
 
     request = supertest(app);
+    console.log('[orcidNext.test::before] end');
   });
 
   describe('POST orcid/next', () => {
@@ -125,7 +152,7 @@ describe('ORCiD Auth Endpoints', () => {
 
       expect(response.status).to.equal(200);
       expect(response.body.userFound).to.equal(false);
-      expect(response.body.err).to.equal('need to attach email');
+      expect(response.body.error).to.equal('need to attach email');
 
       await ensureOrcidAuthInfo_NOT_Saved();
     });

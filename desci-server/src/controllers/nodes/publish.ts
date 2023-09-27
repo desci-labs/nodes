@@ -81,7 +81,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
      * Create public data refs and data mirror jobs from the CIDs in the manifest
      */
     let cidsRequiredForPublish: Prisma.PublicDataReferenceCreateManyInput[] = [];
-    debugger;
+    // debugger;
     try {
       /***
        * Traverse the DAG structure to find all relevant CIDs and get relevant info for indexing

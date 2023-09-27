@@ -2,9 +2,11 @@
  * Updated orcid login flow following https://miro.com/app/board/uXjVM0RdtUs=/
  */
 
+import { ActionType } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 
 import parentLogger from 'logger';
+import { saveInteraction } from 'services/interactionLog';
 import { connectOrcidToUserIfPossible } from 'services/user';
 import { sendCookie } from 'utils/sendCookie';
 
@@ -23,7 +25,7 @@ export const orcidCheck =
     }
     const user = (req as any).user;
     const { access_token, refresh_token, expires_in, orcid, dev } = req.body;
-    debugger;
+    // debugger;
     const orcidRecord = await connectOrcidToUserIfPossible(
       user?.id,
       orcid,
@@ -32,6 +34,11 @@ export const orcidCheck =
       expires_in,
       orcidLookup,
     );
+
+    if (orcidRecord.code === 3) {
+      // log an orcid email missing error
+      await saveInteraction(req, ActionType.USER_ACTION, { sub: 'orcid-missing-email', orcid });
+    }
 
     const jwtToken = orcidRecord.jwt;
     if (jwtToken) {
