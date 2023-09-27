@@ -13,6 +13,7 @@ import pinoHttp from 'pino-http';
 import prismaClient from 'client';
 import './utils/response/customSuccess';
 import { orcidConnect } from 'controllers/auth';
+import { orcidCheck } from 'controllers/auth/orcidNext';
 import logger from 'logger';
 
 import { errorHandler } from './middleware/errorHandler';
@@ -40,30 +41,35 @@ if (ENABLE_TELEMETRY) {
   logger.info('[DeSci Nodes] Telemetry disabled');
 }
 
-app.use(pinoHttp({ logger, serializers: {
-  res: (res) => {
-    if (IS_DEV) {
-      return {
-        responseTime: res.responseTime,
-        status: res.statusCode,
-      };
-    } else {
-      return res;
-    }
-  },
-  req: (req) => {
-    if (IS_DEV) {
-      return {
-        query: req.query,
-        params: req.params,
-        method: req.method,
-        url: req.url,
-      };
-    } else {
-      return req;
-    }
-  },
-}, }));
+app.use(
+  pinoHttp({
+    logger,
+    serializers: {
+      res: (res) => {
+        if (IS_DEV) {
+          return {
+            responseTime: res.responseTime,
+            status: res.statusCode,
+          };
+        } else {
+          return res;
+        }
+      },
+      req: (req) => {
+        if (IS_DEV) {
+          return {
+            query: req.query,
+            params: req.params,
+            method: req.method,
+            url: req.url,
+          };
+        } else {
+          return req;
+        }
+      },
+    },
+  }),
+);
 
 const allowlist = [
   'http://localhost:3000',
@@ -152,6 +158,8 @@ app.get('/readyz', (req, res) => {
 });
 
 app.get('/orcid', orcidConnect);
+// orcid/next is the v2 orcid flow
+app.post('/orcid/next', orcidCheck());
 
 app.use('/', routes);
 

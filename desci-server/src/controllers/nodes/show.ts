@@ -60,43 +60,41 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
     shareId,
     user: (req as any).user,
   });
+  logger.trace({}, 'show node');
 
   if (shareId) {
+    logger.trace({ shareId }, 'got shareId');
     const privateShare = await prisma.privateShare.findFirst({
       where: { shareId },
       select: { node: true, nodeUUID: true },
     });
     const node = privateShare.node;
+    logger.trace({ uuid: node.uuid, privateShare, shareId }, 'got node');
 
     if (privateShare && node) {
       pid = `${RESEARCH_OBJECT_NODES_PREFIX}${privateShare.nodeUUID.substring(0, privateShare.nodeUUID.length - 1)}`;
       ownerId = node.ownerId;
+      logger.trace({ shareId, pid, ownerId });
     }
   } else if (!ownerId) {
+    logger.warn({}, 'Unauthorized user');
     res.status(401).send({ ok: false, message: 'Unauthorized user' });
     return;
   }
 
   if (pid.substring(0, RESEARCH_OBJECT_NODES_PREFIX.length) === RESEARCH_OBJECT_NODES_PREFIX) {
-    let id = 0;
-    let uuid = null;
-    try {
-      if (pid.length > 15) {
-        throw Error('uuid');
-      }
-      id = parseInt((pid.substring(RESEARCH_OBJECT_NODES_PREFIX.length) || '').toString());
-    } catch (e) {
-      uuid = (pid.substring(RESEARCH_OBJECT_NODES_PREFIX.length) || '').toString();
-    }
+    const uuid = (pid.substring(RESEARCH_OBJECT_NODES_PREFIX.length) || '').toString();
+    logger.trace({ uuid }, 'got uuid');
+
     const discovery = await prisma.node.findFirst({
       where: {
-        id: uuid ? undefined : id,
         uuid: uuid + '.',
         ownerId,
       },
     });
 
     if (!discovery) {
+      logger.warn({ uuid }, 'uuid not found');
       res.sendStatus(403);
       return;
     }
@@ -104,9 +102,12 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
     let gatewayUrl = discovery.manifestUrl;
     try {
       gatewayUrl = cleanupManifestUrl(gatewayUrl, req.query?.g as string);
+      logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
       (discovery as any).manifestData = transformManifestWithHistory((await axios.get(gatewayUrl)).data, discovery);
 
       delete (discovery as any).restBody;
+
+      logger.trace({ gatewayUrl, uuid }, 'transformed manifest');
     } catch (err) {
       logger.error(
         { err, manifestUrl: discovery.manifestUrl, gatewayUrl },

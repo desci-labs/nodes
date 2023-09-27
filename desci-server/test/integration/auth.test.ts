@@ -14,9 +14,9 @@ import { expectThrowsAsync } from '../util';
 describe('Magic Link Authentication', () => {
   let user: User;
 
-  before(async () => {});
+  // before(async () => {});
 
-  after(async () => {});
+  // after(async () => {});
 
   beforeEach(async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "MagicLink" CASCADE;`;
@@ -28,7 +28,7 @@ describe('Magic Link Authentication', () => {
     });
   });
 
-  afterEach(async () => {});
+  // afterEach(async () => {});
 
   describe('Magic Link Creation', () => {
     it('should create a magic link for an existing user', async () => {
@@ -41,7 +41,7 @@ describe('Magic Link Authentication', () => {
         await sendMagicLink(user.email);
         await expectThrowsAsync(
           () => sendMagicLink(user.email),
-          'A magic link was recently generated. Please wait 30 seconds before requesting another.',
+          'A verification code was recently generated. Please wait 30 seconds before requesting another.',
         );
       });
 

@@ -52,7 +52,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
 
   const idsEncountered = [];
   const pathsEncountered = [];
-  debugger;
+  // debugger;
   try {
     manifestObj.components.forEach((c) => {
       const uniqueId = ensureUniqueString(c.id, idsEncountered);
@@ -113,7 +113,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
     res.status(400).send('Upgrade manifest failed, err: ' + e);
     // process.exit(404);
   }
-  debugger;
+  // debugger;
   const emptyDag = await createEmptyDag();
 
   const researchReportsDagCid = Object.entries(researchReportsDagFiles).length

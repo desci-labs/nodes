@@ -23,7 +23,7 @@ export const orcidProfile = async (
   res: Response<OrcidQueryResponse | OrcidQueryResponseError>,
   next: NextFunction,
 ) => {
-  debugger;
+  // debugger;
   const orcidId = req.params.orcidId as string;
 
   const { refresh: refreshQuery } = req.query;

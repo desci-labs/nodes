@@ -77,15 +77,16 @@ model Session {
 }
 
 model AuthToken {
-  id           Int      @id @default(autoincrement())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id           Int              @id @default(autoincrement())
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
   accessToken  String?
   refreshToken String?
   expiresIn    Int?
-  tokenId      String
+  tokenId      String?
+  source       AuthTokenSource?
   userId       Int
-  user         User     @relation(fields: [userId], references: [id])
+  user         User             @relation(fields: [userId], references: [id])
 }
 
 model Waitlist {
@@ -526,4 +527,8 @@ enum PublishState {
   PENDING
   SUCCESS
   FAILED
+}
+
+enum AuthTokenSource {
+  ORCID
 }
