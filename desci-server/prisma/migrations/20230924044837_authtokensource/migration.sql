@@ -8,4 +8,4 @@
 CREATE TYPE "AuthTokenSource" AS ENUM ('ORCID');
 
 -- AlterTable
-ALTER TABLE "AuthToken" ADD COLUMN     "source" "AuthTokenSource" NOT NULL;
+ALTER TABLE "AuthToken" ADD COLUMN     "source" "AuthTokenSource" NULL;
