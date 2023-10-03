@@ -11,6 +11,8 @@ AWS.config.update({ region: 'us-east-2' });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 import client from '../client';
 
+import { hideEmail } from 'utils';
+
 const logger = parentLogger.child({ module: 'Services::Auth' });
 
 const registerUser = async (email: string) => {
@@ -27,29 +29,23 @@ const registerUser = async (email: string) => {
 
 const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
   email = email.toLowerCase();
-  logger.trace({ fn: 'magicLinkRedeem', email, token }, 'auth::magicLinkRedeem');
+  logger.trace({ fn: 'magicLinkRedeem', email: hideEmail(email) }, 'auth::magicLinkRedeem');
+
   const link = await client.magicLink.findFirst({
     where: {
       email,
-      token,
-      expiresAt: {
-        gte: new Date(),
-      },
+    },
+    orderBy: {
+      createdAt: 'desc',
     },
   });
-  if (link) {
-    let user = await client.user.findFirst({
-      where: {
-        email,
-      },
-    });
-    if (!user) {
-      user = await client.user.create({
-        data: {
-          email,
-        },
-      });
-    }
+
+  if (!link) {
+    throw Error('No magic link found for the provided email.');
+  }
+
+  if (link.failedAttempts >= 5) {
+    // Invalidate the token immediately
     await client.magicLink.update({
       where: {
         id: link.id,
@@ -58,9 +54,49 @@ const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
         expiresAt: new Date('1980-01-01'),
       },
     });
-    return user;
+    throw Error('Too many failed attempts. Token invalidated.');
   }
-  throw Error('Not found');
+
+  if (link.token !== token || new Date() > link.expiresAt) {
+    // Increment failedAttempts
+    await client.magicLink.update({
+      where: {
+        id: link.id,
+      },
+      data: {
+        failedAttempts: {
+          increment: 1,
+        },
+      },
+    });
+    throw Error('Invalid token.');
+  }
+
+  let user = await client.user.findFirst({
+    where: {
+      email,
+    },
+  });
+
+  if (!user) {
+    user = await client.user.create({
+      data: {
+        email,
+      },
+    });
+  }
+
+  // Invalidate the token by setting its expiresAt to a past date
+  await client.magicLink.update({
+    where: {
+      id: link.id,
+    },
+    data: {
+      expiresAt: new Date('1980-01-01'),
+    },
+  });
+
+  return user;
 };
 
 const sendMagicLinkEmail = async (email: string) => {
@@ -131,7 +167,7 @@ const sendMagicLinkEmail = async (email: string) => {
       // const data = await sendPromise;
       logger.info({ fn: 'sendMagicLinkEmail', email, msg }, 'Email sent');
     } catch (err) {
-      logger.error({ fn: 'sendMagicLinkEmail', err, email, token }, 'Mail error');
+      logger.error({ fn: 'sendMagicLinkEmail', err, email }, 'Mail error');
     }
     return true;
   } else {
@@ -143,14 +179,30 @@ const sendMagicLinkEmail = async (email: string) => {
     return true;
   }
 };
-
+const MAGIC_LINK_COOLDOWN = 5 * 1000; // 5 second
 const sendMagicLink = async (email: string) => {
   email = email.toLowerCase();
+
+  // Check for recent magic link generation
+  const recentMagicLink = await client.magicLink.findFirst({
+    where: {
+      email,
+      createdAt: {
+        gte: new Date(Date.now() - MAGIC_LINK_COOLDOWN),
+      },
+    },
+  });
+
+  if (recentMagicLink) {
+    throw Error('A verification code was recently generated. Please wait 30 seconds before requesting another.');
+  }
+
   const user = await client.user.findFirst({
     where: {
       email,
     },
   });
+
   if (user) {
     // check to make sure user doesn't have Login Method associated
     const identities = await client.userIdentity.findMany({
@@ -163,15 +215,7 @@ const sendMagicLink = async (email: string) => {
     }
     return sendMagicLinkEmail(user.email);
   }
-  const invite = await client.invite.findFirst({
-    where: {
-      email,
-      expired: false,
-    },
-  });
-  if (invite) {
-    return sendMagicLinkEmail(invite.email);
-  }
+
   throw Error('Not found');
 };
 

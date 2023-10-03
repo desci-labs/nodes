@@ -40,7 +40,7 @@ export const validateOrcid = async (req: Request, res: Response) => {
   }
 };
 
-interface OrcIdRecordData {
+export interface OrcIdRecordData {
   'orcid-identifier': {
     path: string;
   };
@@ -56,7 +56,7 @@ interface OrcIdRecordData {
     };
   };
 }
-const getOrcidRecord = async (orcid: string, accessToken: string) => {
+export const getOrcidRecord = async (orcid: string, accessToken: string): Promise<OrcIdRecordData> => {
   const config: AxiosRequestConfig = {
     method: 'get',
     url: `https://pub.sandbox.orcid.org/v3.0/${orcid}/record`,

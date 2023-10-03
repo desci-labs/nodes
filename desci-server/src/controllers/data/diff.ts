@@ -84,10 +84,18 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
     return res.status(400).json({ error: 'Failed to retrieve manifest' });
   }
 
-  const dataBucketCidA = manifestA?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
-    ?.cid;
-  const dataBucketCidB = manifestB?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
-    ?.cid;
+  const dataBucketA = manifestA?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucketCidA = dataBucketA?.payload?.cid;
+  const dataBucketB = manifestB?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucketCidB = dataBucketB?.payload?.cid;
+
+  if (!dataBucketCidA || !dataBucketCidB) {
+    logger.error(
+      { diffsSuccessfullyGenerated: false, dataBucketA, dataBucketB },
+      'Empty data bucket, failed to diff trees',
+    );
+    return res.status(400).json({ error: 'Failed to diff trees' });
+  }
 
   const treeA = await getTreeAndFill(manifestA, nodeUuid, undefined, true);
   const treeB = await getTreeAndFill(manifestB, nodeUuid, undefined, true);
