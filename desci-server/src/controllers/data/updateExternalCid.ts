@@ -75,7 +75,7 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   // const isContextExternal = Object.values(externalCidMap).some((extDag) => neutralizePath(extDag.path) === contextPath);
 
   const cidTypesSizes: Record<string, GetExternalSizeAndTypeResult> = {};
-  if (externalCids && externalCids.length && componentType === ResearchObjectComponentType.DATA) {
+  if (externalCids && externalCids.length) {
     try {
       externalCids = externalCids.map((extCid) => ({ ...extCid, cid: convertToCidV1(extCid.cid) }));
       for (const extCid of externalCids) {
