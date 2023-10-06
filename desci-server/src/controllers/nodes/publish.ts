@@ -127,7 +127,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     const sendDiscordNotification = (error) => {
       const manifestSource = manifest as ResearchObjectV1;
       discordNotify(
-        `https://${manifestSource.dpid.prefix}.dpid.org/${manifestSource.dpid.id}${
+        `https://${manifestSource.dpid?.prefix}.dpid.org/${manifestSource.dpid?.id}${
           error ? ' (note: estuary-err)' : ''
         }`,
       );
