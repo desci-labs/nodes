@@ -3,6 +3,7 @@ import { ActionType, Prisma } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import { NodesErrorResponse } from 'controllers/data';
 import parentLogger from 'logger';
 import { saveInteraction } from 'services/interactionLog';
 import {
@@ -16,7 +17,20 @@ import { validateAndHealDataRefs } from 'utils/dataRefTools';
 import { discordNotify } from 'utils/discordUtils';
 
 // call node publish service and add job to queue
-export const publish = async (req: Request, res: Response, next: NextFunction) => {
+export interface NodesPublishRequest {
+  uuid: string;
+  cid: string;
+  manifest: ResearchObjectV1;
+  transactionId: string;
+}
+export interface NodesPublishResponse {
+  ok: boolean;
+}
+export const publish = async (
+  req: Request<any, any, NodesPublishRequest>,
+  res: Response<NodesPublishResponse | NodesErrorResponse>,
+  next: NextFunction,
+) => {
   const { uuid, cid, manifest, transactionId } = req.body;
   const email = (req as any).user.email;
   const logger = parentLogger.child({
@@ -31,9 +45,10 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     user: (req as any).user,
   });
   if (!uuid || !cid || !manifest) {
-    return res.status(404).send({ message: 'uuid, cid, and manifest must be valid' });
+    return res.status(400).send({ ok: false, error: 'uuid, cid, and manifest must be valid' });
   }
 
+  debugger;
   try {
     /**TODO: MOVE TO MIDDLEWARE */
     const owner = await prisma.user.findFirst({
@@ -54,7 +69,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     });
     if (!node) {
       logger.warn({ owner, uuid }, `unauthed node user: ${owner}, node uuid provided: ${uuid}`);
-      return res.status(400).json({ error: 'failed' });
+      return res.status(400).json({ ok: false, error: 'failed' });
     }
     /**TODO: END MOVE TO MIDDLEWARE */
 

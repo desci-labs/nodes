@@ -59,7 +59,6 @@ export const draftCreate = async (
   res: Response<NodesDraftCreateResponse | NodesErrorResponse>,
   next: NextFunction,
 ) => {
-  debugger;
   const {
     title,
     links: { pdf, code },

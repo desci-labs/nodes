@@ -13,6 +13,8 @@ module.exports = {
     '@typescript-eslint/no-non-null-assertion': 0,
     '@typescript-eslint/ban-ts-comment': 0,
     '@typescript-eslint/no-empty-interface': 0,
+    'no-empty-function': 'off',
+    '@typescript-eslint/no-empty-function': 'warn',
 
     // Import
     'import/order': [

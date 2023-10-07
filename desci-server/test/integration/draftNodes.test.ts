@@ -36,8 +36,6 @@ describe('Draft Node', () => {
     adminToken = generateJwtForUser(admin);
   });
 
-  afterEach(async () => {});
-
   describe('listing nodes', () => {
     it('resolves endpoint when list is empty', async () => {
       const result = await request.get('/v1/nodes').set('authorization', `Bearer ${adminToken}`);

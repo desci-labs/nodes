@@ -68,8 +68,9 @@ export async function generateDataReferences({
   });
   if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
-  const dataBucketCid = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
-    .cid;
+  const dataBucket = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  if (!dataBucket) throw new Error(`Data bucket not found in manifest ${manifestCid}`);
+  const dataBucketCid = dataBucket.payload.cid;
   logger.info({ fn: 'generateDataReferences' }, `DATA BUCKET CID: ${dataBucketCid}`);
   const dataRootEntry: Prisma.DataReferenceCreateManyInput = {
     cid: dataBucketCid,
