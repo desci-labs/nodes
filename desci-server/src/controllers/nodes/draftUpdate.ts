@@ -2,11 +2,29 @@ import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import { NodesErrorResponse } from 'controllers/data';
 import parentLogger from 'logger';
 import { updateManifestAndAddToIpfs } from 'services/ipfs';
 import { cleanManifestForSaving } from 'utils/manifestDraftUtils';
 
-export const draftUpdate = async (req: Request, res: Response, next: NextFunction) => {
+export interface NodesDraftUpdateRequest {
+  uuid: string;
+  manifest: ResearchObjectV1;
+}
+
+export interface NodesDraftUpdateResponse {
+  ok: boolean;
+  hash: string;
+  uri: string;
+  node: any;
+  version: any;
+}
+
+export const draftUpdate = async (
+  req: Request<any, any, NodesDraftUpdateRequest>,
+  res: Response<NodesDraftUpdateResponse | NodesErrorResponse>,
+  next: NextFunction,
+) => {
   const { uuid, manifest } = req.body;
   const logger = parentLogger.child({
     // id: req.id,

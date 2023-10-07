@@ -1,21 +1,17 @@
 import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 
 import prismaClient from 'client';
 import logger from 'logger';
-import { magicLinkRedeem, sendMagicLink } from 'services/auth';
+import { generateJwtForUser, magicLinkRedeem, sendMagicLink } from 'services/auth';
 import { saveInteraction } from 'services/interactionLog';
-import { client } from 'services/ipfs';
 import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from 'services/user';
 import { sendCookie } from 'utils/sendCookie';
 
 import { getOrcidRecord } from './orcid';
-import { orcidCheck } from './orcidNext';
-export const generateAccessToken = (payload) => {
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });
-};
-
+/**
+ * TODO: rename these consts to ONE_YEAR etc
+ */
 export const oneYear = 1000 * 60 * 60 * 24 * 365;
 export const oneDay = 1000 * 60 * 60 * 24;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
@@ -82,7 +78,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
         await connectOrcidToUserIfPossible(user.id, orcid, access_token, refresh_token, expires_in, getOrcidRecord);
       }
 
-      const token = generateAccessToken({ email: user.email });
+      const token = generateJwtForUser(user);
 
       sendCookie(res, token, dev === 'true');
       // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login

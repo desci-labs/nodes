@@ -1,11 +1,12 @@
 import { ActionType, AuthToken, AuthTokenSource, User, prisma } from '@prisma/client';
 
-import { OrcIdRecordData, generateAccessToken, getOrcidRecord } from 'controllers/auth';
+import { OrcIdRecordData, getOrcidRecord } from 'controllers/auth';
 import parentLogger from 'logger';
 import { hideEmail } from 'utils';
 
 import client from '../client';
 
+import { generateJwtForUser } from './auth';
 import { getUserConsent, saveInteraction } from './interactionLog';
 const logger = parentLogger.child({
   module: 'Services::User',
@@ -104,7 +105,7 @@ export async function connectOrcidToUserIfPossible(
           expiresIn,
         });
       }
-      const jwt = generateAccessToken({ email: user.email });
+      const jwt = generateJwtForUser(user);
       return { userFound: true, nodeConnect, jwt };
     } else {
       return { error: 'orcid mismatch', code: 2, userFound: true };
@@ -123,7 +124,7 @@ export async function connectOrcidToUserIfPossible(
           expiresIn,
         });
       }
-      const jwt = generateAccessToken({ email: userFound.email });
+      const jwt = generateJwtForUser(userFound);
       return { userFound: true, nodeConnect, jwt };
     } else {
       // we didn't find a user, so we need to prompt for an email verification flow to assign an email to this orcid

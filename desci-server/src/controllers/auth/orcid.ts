@@ -165,7 +165,7 @@ const processOrcidAuth = async (req: Request, res: Response, closing: boolean) =
         ? `${namesInOrcProfile.firstName} ${namesInOrcProfile.lastName}`
         : undefined;
       /**
-       * Users can have multiple emails in orc, but we only want to use the primary one
+       * Users can have multiple emails in orcid, but we only want to use the primary one
        * This is also dependent on the email being "public" in their OrcId profile
        * Otherwise we can use an orcid urn as a placeholder
        * Having a unique email is necessary so we need something there

@@ -95,7 +95,7 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
 
     if (!discovery) {
       logger.warn({ uuid }, 'uuid not found');
-      res.sendStatus(403);
+      res.status(404).send({ ok: false, message: 'uuid not found' });
       return;
     }
 
@@ -126,11 +126,7 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
     res.send(data);
     return;
   } catch (e) {
-    logger.error({ error: e }, 'error');
-    // res.status(404).send();
-    // example
-    const discovery = await prisma.node.findFirst();
-    discovery.manifestUrl = `${process.env.SERVER_URL}/v1/ipfs/read/test`;
-    res.send(discovery);
+    logger.error({ error: e, pid, cid }, 'could not find id error');
+    res.status(404).send({ ok: false, message: 'cid not found' });
   }
 };

@@ -341,7 +341,7 @@ export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
     if (!targetValue) {
       targetValue = res.value;
     }
-    logger.error(
+    logger.info(
       { fn: 'resolveIpfsData', err },
       `[ipfs:resolveIpfsData] SUCCESS(2/2) DAG, ipfs.dag.get cid=${cid}, bufferLen=${targetValue.length}`,
     );
@@ -353,6 +353,12 @@ export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
     const buffer = Buffer.from(targetValue);
     return buffer;
   }
+};
+
+export const resolveIpfsDataAsResearchObject = async (cid: string): Promise<ResearchObjectV1> => {
+  const content = await resolveIpfsData(cid);
+  const manifest: ResearchObjectV1 = JSON.parse(content.toString());
+  return manifest;
 };
 
 export const convertToCidV0 = (cid: string) => {

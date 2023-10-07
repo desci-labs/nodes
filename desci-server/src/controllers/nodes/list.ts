@@ -7,7 +7,7 @@ import parentLogger from 'logger';
 import { getIndexedResearchObjects } from 'theGraph';
 import { decodeBase64UrlSafeToHex, encodeBase64UrlSafe, randomUUID64 } from 'utils';
 
-export const list = async (req: Request, res: Response, next: NextFunction) => {
+export const list = async (req: Request, res: Response<NodesListResponse>, next: NextFunction) => {
   const owner = (req as any).user;
   const logger = parentLogger.child({
     // id: req.id,
@@ -80,12 +80,27 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
     // todo: try on chain direct (current method doesnt support batch, so fix that and add here)
   }
 
-  nodes = nodes.map((n) => {
+  const processedNodes: NodeWithPublishInfo[] = nodes.map((n) => {
     const hex = `0x${decodeBase64UrlSafeToHex(n.uuid)}`;
     const o = { ...n, uuid: n.uuid.replaceAll('.', ''), isPublished: !!indexMap[hex], index: indexMap[hex] };
     delete o.id;
 
     return o;
   });
-  res.send({ nodes });
+  res.send({ nodes: processedNodes });
 };
+
+export interface NodeWithPublishInfo {
+  uuid: string;
+  createdAt: Date;
+  updatedAt: Date;
+  ownerId: number;
+  title: string;
+  manifestUrl: string;
+  cid: string;
+  isPublished: boolean;
+  index: any;
+}
+export interface NodesListResponse {
+  nodes: NodeWithPublishInfo[];
+}

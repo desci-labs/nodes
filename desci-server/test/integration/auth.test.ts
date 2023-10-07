@@ -3,15 +3,15 @@ import { User } from '@prisma/client';
 import { expect } from 'chai';
 import cookieParser from 'cookie-parser';
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import supertest from 'supertest';
 
 import prisma from '../../src/client';
-import { generateAccessToken } from '../../src/controllers/auth/magic';
 import { ensureUser, retrieveUser } from '../../src/middleware/ensureUser';
-import { magicLinkRedeem, sendMagicLink } from '../../src/services/auth';
+import { generateJwtForUser, magicLinkRedeem, sendMagicLink } from '../../src/services/auth';
 import { expectThrowsAsync } from '../util';
 
-describe('Magic Link Authentication', () => {
+describe('Email Authentication', () => {
   let user: User;
 
   // before(async () => {});
@@ -164,7 +164,7 @@ describe('Auth Middleware', () => {
       },
     });
 
-    mockToken = generateAccessToken({ email: mockUser.email });
+    mockToken = generateJwtForUser(mockUser);
 
     request = supertest(app);
   });
@@ -191,6 +191,13 @@ describe('Auth Middleware', () => {
 
     it('should return 401 for invalid token', async () => {
       const response = await request.get('/test').set('authorization', 'Bearer invalidToken');
+
+      expect(response.status).to.equal(401);
+    });
+
+    it('should return 401 for previously valid but now invalid token due to email not being present', async () => {
+      const mockTokenIdField = jwt.sign({ id: mockUser.id }, process.env.JWT_SECRET!, { expiresIn: '1y' });
+      const response = await request.get('/test').set('authorization', `Bearer ${mockTokenIdField}`);
 
       expect(response.status).to.equal(401);
     });

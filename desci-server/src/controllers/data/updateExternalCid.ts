@@ -36,10 +36,10 @@ import {
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
 
-import { ErrorResponse, UpdateResponse, updateManifestDataBucket } from './update';
+import { NodesErrorResponse, UpdateResponse, updateManifestDataBucket } from './update';
 import { persistManifest } from './utils';
 
-export const updateExternalCid = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
+export const updateExternalCid = async (req: Request, res: Response<UpdateResponse | NodesErrorResponse | string>) => {
   const owner = (req as any).user as User;
   const { uuid, contextPath, componentType, componentSubtype } = req.body;
   let { externalCids } = req.body;
@@ -415,6 +415,4 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
     }
     return res.status(400).json({ error: 'failed #1' });
   }
-
-  return res.status(400);
 };

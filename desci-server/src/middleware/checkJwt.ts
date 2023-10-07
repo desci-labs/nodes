@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import { oneYear } from 'controllers/auth';
 
 import { JwtPayload } from '../types/JwtPayload';
-import { createJwtToken } from '../utils/createJwtToken';
 import { CustomError } from '../utils/response/custom-error/CustomError';
 
 export const checkJwt = (req: Request, res: Response, next: NextFunction) => {
@@ -35,7 +34,7 @@ export const checkJwt = (req: Request, res: Response, next: NextFunction) => {
 
   try {
     // Refresh and send a new token on every request
-    const newToken = createJwtToken(jwtPayload as JwtPayload);
+    const newToken = jwt.sign(jwtPayload as JwtPayload, process.env.JWT_SECRET, { expiresIn: '1y' });
 
     // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
     res.setHeader('token', `Bearer ${newToken}`);

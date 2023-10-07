@@ -3,15 +3,16 @@ import { env } from 'process';
 import { Invite, prisma, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import AWS from 'aws-sdk';
+import jwt from 'jsonwebtoken';
 
 import parentLogger from 'logger';
+import { hideEmail } from 'utils';
 import createRandomCode from 'utils/createRandomCode';
+
+import client from '../client';
 
 AWS.config.update({ region: 'us-east-2' });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-import client from '../client';
-
-import { hideEmail } from 'utils';
 
 const logger = parentLogger.child({ module: 'Services::Auth' });
 
@@ -25,6 +26,13 @@ const registerUser = async (email: string) => {
   });
 
   return true;
+};
+
+export const generateJwtForUser = (user: User) => {
+  /**
+   * TODO: use different payload, perhaps a user id
+   */
+  return jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: '1y' });
 };
 
 const magicLinkRedeem = async (email: string, token: string): Promise<User> => {

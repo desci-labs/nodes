@@ -14,7 +14,7 @@ import { RecursiveLsResult, getDirectoryTree, moveFileInDag } from 'services/ipf
 import { prepareDataRefs } from 'utils/dataRefTools';
 import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
 
-import { ErrorResponse, updateManifestDataBucket } from './update';
+import { NodesErrorResponse, updateManifestDataBucket } from './update';
 import { getLatestManifest, persistManifest } from './utils';
 
 interface MoveResponse {
@@ -23,7 +23,7 @@ interface MoveResponse {
   manifestCid: string;
 }
 
-export const moveData = async (req: Request, res: Response<MoveResponse | ErrorResponse | string>) => {
+export const moveData = async (req: Request, res: Response<MoveResponse | NodesErrorResponse | string>) => {
   const owner = (req as any).user;
   const { uuid, oldPath, newPath } = req.body;
   const logger = parentLogger.child({

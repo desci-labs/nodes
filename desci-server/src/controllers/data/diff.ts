@@ -16,7 +16,7 @@ import { getFromCache, setToCache } from 'redisClient';
 import { TreeDiff, diffTrees, subtractNestedObjectValues } from 'utils/diffUtils';
 import { getTreeAndFill } from 'utils/driveUtils';
 
-import { ErrorResponse } from './update';
+import { NodesErrorResponse } from './update';
 
 interface DiffResponse extends Diffs {
   status?: number;
@@ -28,7 +28,7 @@ interface Diffs {
 }
 
 // Diffs two public nodes
-export const diffData = async (req: Request, res: Response<DiffResponse | ErrorResponse | string>) => {
+export const diffData = async (req: Request, res: Response<DiffResponse | NodesErrorResponse | string>) => {
   //   const owner = (req as any).user;
   const { nodeUuid, manifestCidA, manifestCidB } = req.params;
   const logger = parentLogger.child({

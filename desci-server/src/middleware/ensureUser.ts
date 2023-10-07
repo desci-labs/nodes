@@ -49,8 +49,11 @@ export const retrieveUser = async (req: Request): Promise<User | null> => {
       }
 
       const loggedInUserEmail = user.email as string;
+      if (!loggedInUserEmail) {
+        success(null);
+        return;
+      }
       const shouldFetchUserByOrcId = Boolean(user.orcid);
-
       const retrievedUser = shouldFetchUserByOrcId
         ? await getUserByOrcId(user.orcid)
         : await getUserByEmail(loggedInUserEmail);

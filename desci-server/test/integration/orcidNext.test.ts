@@ -8,11 +8,11 @@ import pinoHttp from 'pino-http';
 import supertest from 'supertest';
 
 import prisma from '../../src/client';
-import { generateAccessToken } from '../../src/controllers/auth/magic';
 import { OrcIdRecordData } from '../../src/controllers/auth/orcid';
 import { orcidCheck } from '../../src/controllers/auth/orcidNext';
 import logger from '../../src/logger';
 import { ensureUserIfPresent } from '../../src/middleware/ensureUserIfPresent';
+import { generateJwtForUser } from '../../src/services/auth';
 // describe('ORCiD Auth', () => {
 //   let user: User;
 
@@ -50,14 +50,12 @@ describe('ORCiD Auth Endpoints', () => {
   const ORCID_JSON_PAYLOAD = { access_token: '1234', refresh_token: '5657', expires_in: 322141241, orcid: TEST_ORCID };
 
   beforeEach(async () => {
-    console.log('[orcidNext.test::beforeEach] start');
     await prisma.authToken.deleteMany({});
     await prisma.user.updateMany({
       data: {
         orcid: null,
       },
     });
-    console.log('[orcidNext.test::beforeEach] end');
   });
 
   const ensureOrcidAuthInfoSaved = async () => {
@@ -83,7 +81,6 @@ describe('ORCiD Auth Endpoints', () => {
     expect(authToken).to.be.null;
   };
   before(async () => {
-    console.log('[orcidNext.test::before] start');
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
 
     app = express();
@@ -137,10 +134,9 @@ describe('ORCiD Auth Endpoints', () => {
       },
     });
 
-    mockToken = generateAccessToken({ email: mockUser.email });
+    mockToken = generateJwtForUser(mockUser);
 
     request = supertest(app);
-    console.log('[orcidNext.test::before] end');
   });
 
   describe('POST orcid/next', () => {

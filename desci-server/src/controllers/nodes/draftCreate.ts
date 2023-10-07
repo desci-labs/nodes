@@ -5,10 +5,11 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
 } from '@desci-labs/desci-models';
-import { DataReference, DataType } from '@prisma/client';
+import { DataReference, DataType, Node, NodeVersion } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import { NodesErrorResponse } from 'controllers/data';
 import parentLogger from 'logger';
 import { getDataUsageForUserBytes, hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
@@ -38,7 +39,27 @@ const componentTypeToDataType = (type: ResearchObjectComponentType): DataType =>
   }
 };
 
-export const draftCreate = async (req: Request, res: Response, next: NextFunction) => {
+export interface NodesDraftCreateRequest {
+  title: string;
+  links: { pdf?: string[]; code?: string[] };
+  researchFields?: string[];
+  defaultLicense?: string;
+}
+
+export interface NodesDraftCreateResponse {
+  ok: boolean;
+  hash: string;
+  uri: string;
+  node: Node;
+  version: NodeVersion;
+}
+
+export const draftCreate = async (
+  req: Request<any, any, NodesDraftCreateRequest>,
+  res: Response<NodesDraftCreateResponse | NodesErrorResponse>,
+  next: NextFunction,
+) => {
+  debugger;
   const {
     title,
     links: { pdf, code },
@@ -78,6 +99,9 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
     });
     const { cid: hash } = await addBufferToIpfs(manifest, '');
     const uri = `${hash}`;
+    /**
+     * Move this to a service
+     */
     const node = await prisma.node.create({
       data: {
         title,
@@ -91,14 +115,16 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
 
     const dataConsumptionBytes = await getDataUsageForUserBytes(owner);
 
-    // eslint-disable-next-line no-array-reduce/no-reduce
     const uploadSizeBytes = files.map((f) => f.size).reduce((total, size) => total + size, 0);
 
     const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(owner, { fileSizeBytes: uploadSizeBytes });
     if (!hasStorageSpaceToUpload) {
-      res.send(400).json({
-        error: `upload size of ${uploadSizeBytes} exceeds users data budget of ${owner.currentDriveStorageLimitGb}GB`,
-      });
+      res
+        .status(400)
+        .json({
+          error: `upload size of ${uploadSizeBytes} exceeds users data budget of ${owner.currentDriveStorageLimitGb}GB`,
+        })
+        .send();
       return;
     }
 

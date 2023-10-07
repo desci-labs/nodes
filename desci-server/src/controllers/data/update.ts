@@ -79,12 +79,13 @@ export interface UpdateResponse {
   date: string;
 }
 
-export interface ErrorResponse {
+export interface NodesErrorResponse {
   error: string;
+  ok?: boolean;
   status?: number;
 }
 
-export const update = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
+export const update = async (req: Request, res: Response<UpdateResponse | NodesErrorResponse | string>) => {
   const owner = (req as any).user as User;
   const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;

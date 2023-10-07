@@ -13,7 +13,7 @@ import { removeFileFromDag } from 'services/ipfs';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import { updateManifestComponentDagCids } from 'utils/driveUtils';
 
-import { ErrorResponse, updateManifestDataBucket } from './update';
+import { NodesErrorResponse, updateManifestDataBucket } from './update';
 import { getLatestManifest, persistManifest } from './utils';
 
 interface DeleteResponse {
@@ -23,7 +23,7 @@ interface DeleteResponse {
 }
 
 //Delete Dataset
-export const deleteData = async (req: Request, res: Response<DeleteResponse | ErrorResponse | string>) => {
+export const deleteData = async (req: Request, res: Response<DeleteResponse | NodesErrorResponse | string>) => {
   const owner = (req as any).user;
   const { uuid, path } = req.body;
   const logger = parentLogger.child({

@@ -14,7 +14,7 @@ import { getDirectoryTree, renameFileInDag } from 'services/ipfs';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
 
-import { ErrorResponse, updateManifestDataBucket } from './update';
+import { NodesErrorResponse, updateManifestDataBucket } from './update';
 import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils';
 
 interface RenameResponse {
@@ -23,7 +23,7 @@ interface RenameResponse {
   manifestCid: string;
 }
 
-export const renameData = async (req: Request, res: Response<RenameResponse | ErrorResponse | string>) => {
+export const renameData = async (req: Request, res: Response<RenameResponse | NodesErrorResponse | string>) => {
   const owner = (req as any).user;
   const { uuid, path, newName, renameComponent } = req.body;
   const logger = parentLogger.child({

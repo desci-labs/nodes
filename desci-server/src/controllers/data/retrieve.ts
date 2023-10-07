@@ -15,7 +15,7 @@ import redisClient, { getOrCache } from 'redisClient';
 import { getDatasetTar } from 'services/ipfs';
 import { getTreeAndFill, getTreeAndFillDeprecated } from 'utils/driveUtils';
 
-import { ErrorResponse } from './update';
+import { NodesErrorResponse } from './update';
 import { getLatestManifest } from './utils';
 
 export enum DataReferenceSrc {
@@ -29,7 +29,7 @@ interface RetrieveResponse {
   date: string;
 }
 
-export const retrieveTree = async (req: Request, res: Response<RetrieveResponse | ErrorResponse | string>) => {
+export const retrieveTree = async (req: Request, res: Response<RetrieveResponse | NodesErrorResponse | string>) => {
   let ownerId = (req as any).user?.id;
   const manifestCid: string = req.params.manifestCid;
   const uuid: string = req.params.nodeUuid;
@@ -171,7 +171,7 @@ interface PubTreeResponse {
   date: string;
 }
 
-export const pubTree = async (req: Request, res: Response<PubTreeResponse | ErrorResponse | string>) => {
+export const pubTree = async (req: Request, res: Response<PubTreeResponse | NodesErrorResponse | string>) => {
   const owner = (req as any).user;
   const manifestCid: string = req.params.manifestCid;
   const rootCid: string = req.params.rootCid;
