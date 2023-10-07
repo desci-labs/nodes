@@ -1015,7 +1015,7 @@ export async function addDirToIpfs(directoryPath: string): Promise<IpfsPinnedRes
   const files = [];
 
   const source = globSource(directoryPath, '**/*', { hidden: true });
-  for await (const file of client.addAll(source, { cidVersion: 1 })) {
+  for await (const file of client.addAll(source, { cidVersion: 1, pin: true })) {
     files.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
   const totalFiles = files.length;

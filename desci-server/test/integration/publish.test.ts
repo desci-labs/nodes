@@ -115,133 +115,96 @@ describe('Publish', () => {
       expect(publishResp.status).to.equal(400);
     });
   });
-  it('succeeds with basic case', async () => {
-    const manifest = await spawnEmptyManifest();
-    const { cid, node, uuid } = await createTestNode(admin, manifest);
+  describe('publish scenarios', () => {
+    it('succeeds with basic case', async () => {
+      const draftRequest: NodesDraftCreateRequest = {
+        title: 'Test Node',
+        links: { pdf: [], code: [] },
+      };
 
-    const nodesPublishRequest: NodesPublishRequest = {
-      uuid,
-      cid,
-      manifest: manifest,
-      transactionId: '0x0',
-    };
-    const publishResp = await request
-      .post(PUBLISH_ROUTE)
-      .set('authorization', `Bearer ${adminToken}`)
-      .send(nodesPublishRequest);
+      const resp = await request
+        .post('/v1/nodes/createDraft')
+        .set('authorization', `Bearer ${adminToken}`)
+        .send(draftRequest);
 
-    expect(publishResp.status).to.equal(200);
-    const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
-      nodeUuid: uuid,
-      manifestCid: cid,
-      publicRefs: false,
-      markExternals: false,
+      const createResponse = resp.body as NodesDraftCreateResponse;
+
+      const cid = createResponse.hash;
+      const manifest = await resolveIpfsDataAsResearchObject(cid);
+      const uuid = createResponse.node.uuid!;
+
+      const nodesPublishRequest: NodesPublishRequest = {
+        uuid,
+        cid,
+        manifest: manifest,
+        transactionId: '0x0',
+      };
+      const publishResp = await request
+        .post(PUBLISH_ROUTE)
+        .set('authorization', `Bearer ${adminToken}`)
+        .send(nodesPublishRequest);
+
+      expect(publishResp.status).to.equal(200);
+      const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
+        nodeUuid: uuid,
+        manifestCid: cid,
+        publicRefs: false,
+        markExternals: false,
+      });
+      expect(missingRefs.length).to.eq(0);
+      expect(unusedRefs.length).to.eq(0);
     });
-    expect(missingRefs.length).to.eq(0);
-    expect(unusedRefs.length).to.eq(0);
-  });
 
-  it('succeeds with basic data uploaded', async () => {
-    const draftRequest: NodesDraftCreateRequest = {
-      title: 'Test Node',
-      links: { pdf: [], code: [] },
-    };
+    it('succeeds with basic data uploaded', async () => {
+      const draftRequest: NodesDraftCreateRequest = {
+        title: 'Test Node',
+        links: { pdf: [], code: [] },
+      };
 
-    const resp = await request
-      .post('/v1/nodes/createDraft')
-      .set('authorization', `Bearer ${adminToken}`)
-      .send(draftRequest);
+      const resp = await request
+        .post('/v1/nodes/createDraft')
+        .set('authorization', `Bearer ${adminToken}`)
+        .send(draftRequest);
 
-    const createResponse = resp.body as NodesDraftCreateResponse;
+      const createResponse = resp.body as NodesDraftCreateResponse;
 
-    // upload data to node
-    const baseManifest = await resolveIpfsDataAsResearchObject(createResponse.hash);
-    const uuid = createResponse.node.uuid!;
-    const respUpload = await request
-      .post('/v1/data/update')
-      .set('authorization', `Bearer ${adminToken}`)
-      .field('uuid', uuid)
-      .field('manifest', JSON.stringify(baseManifest))
-      .field('contextPath', 'root')
-      .attach('files', Buffer.from('test'), 'test.txt');
+      // upload data to node
+      const baseManifest = await resolveIpfsDataAsResearchObject(createResponse.hash);
+      const uuid = createResponse.node.uuid!;
+      const respUpload = await request
+        .post('/v1/data/update')
+        .set('authorization', `Bearer ${adminToken}`)
+        .field('uuid', uuid)
+        .field('manifest', JSON.stringify(baseManifest))
+        .field('contextPath', 'root')
+        .attach('files', Buffer.from('test'), 'test.txt');
 
-    const updateResponse = respUpload.body as UpdateResponse;
+      const updateResponse = respUpload.body as UpdateResponse;
 
-    expect(respUpload.statusCode).to.equal(200);
+      expect(respUpload.statusCode).to.equal(200);
 
-    const cid = updateResponse.manifestCid;
-    const manifest = updateResponse.manifest;
-    const nodesPublishRequest: NodesPublishRequest = {
-      uuid,
-      cid,
-      manifest: manifest,
-      transactionId: '0x0',
-    };
-    const publishResp = await request
-      .post(PUBLISH_ROUTE)
-      .set('authorization', `Bearer ${adminToken}`)
-      .send(nodesPublishRequest);
+      const cid = updateResponse.manifestCid;
+      const manifest = updateResponse.manifest;
+      const nodesPublishRequest: NodesPublishRequest = {
+        uuid,
+        cid,
+        manifest: manifest,
+        transactionId: '0x0',
+      };
+      const publishResp = await request
+        .post(PUBLISH_ROUTE)
+        .set('authorization', `Bearer ${adminToken}`)
+        .send(nodesPublishRequest);
 
-    expect(publishResp.status).to.equal(200);
-    const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
-      nodeUuid: uuid,
-      manifestCid: cid,
-      publicRefs: false,
-      markExternals: false,
+      expect(publishResp.status).to.equal(200);
+      const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
+        nodeUuid: uuid,
+        manifestCid: cid,
+        publicRefs: false,
+        markExternals: false,
+      });
+      expect(missingRefs.length).to.eq(0);
+      expect(unusedRefs.length).to.eq(0);
     });
-    expect(missingRefs.length).to.eq(0);
-    expect(unusedRefs.length).to.eq(0);
-  });
-
-  it('succeeds with basic data uploaded', async () => {
-    const draftRequest: NodesDraftCreateRequest = {
-      title: 'Test Node',
-      links: { pdf: [], code: [] },
-    };
-
-    const resp = await request
-      .post('/v1/nodes/createDraft')
-      .set('authorization', `Bearer ${adminToken}`)
-      .send(draftRequest);
-
-    const createResponse = resp.body as NodesDraftCreateResponse;
-
-    // upload data to node
-    const baseManifest = await resolveIpfsDataAsResearchObject(createResponse.hash);
-    const uuid = createResponse.node.uuid!;
-    const respUpload = await request
-      .post('/v1/data/update')
-      .set('authorization', `Bearer ${adminToken}`)
-      .field('uuid', uuid)
-      .field('manifest', JSON.stringify(baseManifest))
-      .field('contextPath', 'root')
-      .attach('files', Buffer.from('test'), 'test.txt');
-
-    const updateResponse = respUpload.body as UpdateResponse;
-
-    expect(respUpload.statusCode).to.equal(200);
-
-    const cid = updateResponse.manifestCid;
-    const manifest = updateResponse.manifest;
-    const nodesPublishRequest: NodesPublishRequest = {
-      uuid,
-      cid,
-      manifest: manifest,
-      transactionId: '0x0',
-    };
-    const publishResp = await request
-      .post(PUBLISH_ROUTE)
-      .set('authorization', `Bearer ${adminToken}`)
-      .send(nodesPublishRequest);
-
-    expect(publishResp.status).to.equal(200);
-    const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
-      nodeUuid: uuid,
-      manifestCid: cid,
-      publicRefs: true,
-      markExternals: false,
-    });
-    expect(missingRefs.length).to.eq(0);
-    expect(unusedRefs.length).to.eq(0);
   });
 });

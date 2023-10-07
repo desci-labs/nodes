@@ -79,6 +79,9 @@ export interface UpdateResponse {
   date: string;
 }
 
+export interface NodesResponse {
+  ok: boolean;
+}
 export interface NodesErrorResponse {
   error: string;
   ok?: boolean;

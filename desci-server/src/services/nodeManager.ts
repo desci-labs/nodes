@@ -6,7 +6,7 @@ import prisma from 'client';
 import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from 'config';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
-import { uploadDataToEstuary } from 'services/estuary';
+import { uploadDataToPublicIpfs } from 'services/publicIpfs';
 import { getIndexedResearchObjects } from 'theGraph';
 import { hexToCid, randomUUID64 } from 'utils';
 import { asyncMap } from 'utils';
@@ -213,10 +213,14 @@ async function publishCid(job: Prisma.PublicDataReferenceCreateManyInput): Promi
     const targetCid = dataRef.cid;
     const buffer = await resolveIpfsData(targetCid);
     logger.debug({ fn: 'publishCid', job }, `[nodeManager::publishCid] [DATA BUFFER]`);
-    const { cid, providers } = await uploadDataToEstuary(targetCid, buffer);
+    const ipfsResult = await uploadDataToPublicIpfs(targetCid, buffer);
+    if (!ipfsResult) {
+      throw new Error('IPFS upload failed');
+    }
+    const { cid } = ipfsResult;
     // console.log('Target CID uploaded', targetCid, cid);
     await prisma.publicDataReferenceOnIpfsMirror.update({
-      data: { status: 'SUCCESS', providerCount: providers.length },
+      data: { status: 'SUCCESS', providerCount: 1 },
       where: {
         dataReferenceId_mirrorId: {
           dataReferenceId: dataRef.id,
@@ -226,7 +230,7 @@ async function publishCid(job: Prisma.PublicDataReferenceCreateManyInput): Promi
     });
     // console.log('targetCid:end', targetCid, cid);
 
-    return cid && cid.length > 0;
+    return targetCid === cid.toString();
   } catch (err) {
     logger.error(
       { fn: 'publishCid', job, err },
