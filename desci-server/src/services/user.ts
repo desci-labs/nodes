@@ -142,7 +142,6 @@ export async function setOrcidForUser(
   orcid: string,
   auth: OrcidAuthPayload,
 ): Promise<boolean | NodeConnectAuthError> {
-  debugger;
   logger.trace({ fn: 'setOrcidForUser' }, 'user::setOrcidForUser');
   const user = await client.user.findFirst({ where: { id: userId } });
   if (!user) {

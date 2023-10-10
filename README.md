@@ -55,7 +55,7 @@ Houses all the tooling to build and deploy the ResearchObject contracts locally 
 
 ## **nodes-web**
 
-This is the React-based frontend for DeSci Nodes. It implements a web3-enabled PDF Viewer that is actually a Research Object viewer and has support for editing and viewing IPLD-compliant JSON-LD self-describing linked data objects. It implements a frontend resolution of the [DCITE](https://dcite.org) Resolution Scheme. It implements blockchain writes for publishing Nodes.
+This is the React-based frontend for DeSci Nodes. It implements a Research Object viewer with support for editing and viewing IPLD-compliant JSON-LD self-describing linked data objects. It implements a frontend resolution of the [dPID](https://dpid.org) Resolution Scheme.
 
 _Note:_ This repo lives separately at [https://github.com/desci-labs/nodes-web](https://github.com/desci-labs/nodes-web) because it has a different open source license.
 <br><br>
@@ -92,6 +92,7 @@ The following guide is meant to get you running for full-stack dev on your local
 ## 1) Run Backend + All Services
 
 Make sure you have these packages installed on your system:
+
 - Docker
 - docker-compose
 - lsof (may not be available by default depending on OS)
@@ -107,12 +108,12 @@ This starts:
 
 1. postgres (http://localhost:5433)
 2. desci-server (http://localhost:5420)
-3. ganache blockchain (autodeploys ResearchObject + dPIDRegistry contract locally) (http://localhost:8545, metamask can connect to it locally)
-4. expedition block explorer for local dev (http://localhost:3001)
+3. ganache ledger (autodeploys ResearchObject + dPIDRegistry contract locally) (http://localhost:8545, metamask can connect to it locally)
+4. expedition explorer for local dev (http://localhost:3001)
 5. graph index pointing to latest deployed contract (http://localhost:8080)
 6. Local IPFS node (private, swarm key enabled) (http://localhost:5001 or http://localhost:8089)
 
-__Note:__ nodes-media (http://localhost:5454, responsible for DOI / PDF downloads, and for media transcoding) is disabled in the dev cluster by default, but can be uncommented in `docker-compose.dev.yml` for local development
+**Note:** nodes-media (http://localhost:5454, responsible for DOI / PDF downloads, and for media transcoding) is disabled in the dev cluster by default, but can be uncommented in `docker-compose.dev.yml` for local development
 <br>
 
 _Optional:_ Edit the DB, open http://localhost:5555

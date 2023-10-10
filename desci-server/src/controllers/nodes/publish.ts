@@ -12,6 +12,7 @@ import {
   createPublicDataRefs,
   createDataMirrorJobs,
 } from 'services/nodeManager';
+import { validateAndHealDataRefs } from 'utils/dataRefTools';
 import { discordNotify } from 'utils/discordUtils';
 
 // call node publish service and add job to queue
@@ -127,7 +128,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     const sendDiscordNotification = (error) => {
       const manifestSource = manifest as ResearchObjectV1;
       discordNotify(
-        `https://${manifestSource.dpid.prefix}.dpid.org/${manifestSource.dpid.id}${
+        `https://${manifestSource.dpid?.prefix}.dpid.org/${manifestSource.dpid?.id}${
           error ? ' (note: estuary-err)' : ''
         }`,
       );
@@ -161,7 +162,17 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     );
 
     // trigger ipfs storage upload, but don't wait for it to finish, will happen async
-    publishResearchObject(publicDataReferences).then(handleMirrorSuccess).catch(handleMirrorFail);
+    publishResearchObject(publicDataReferences)
+      .then(handleMirrorSuccess)
+      .catch(handleMirrorFail)
+      .finally(async () => {
+        await validateAndHealDataRefs({
+          nodeUuid: node.uuid!,
+          manifestCid: cid,
+          publicRefs: true,
+          markExternals: true,
+        });
+      });
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
