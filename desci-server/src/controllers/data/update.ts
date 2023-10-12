@@ -28,6 +28,7 @@ import {
   pinDirectory,
   RecursiveLsResult,
 } from 'services/ipfs';
+import { fetchFileStreamFromS3 } from 'services/s3';
 import {
   arrayXor,
   calculateTotalZipUncompressedSize,
@@ -126,7 +127,8 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
     return res.status(400).json({ error: 'failed' });
   }
 
-  const files = req.files as Express.Multer.File[];
+  // const files = req.files as Express.Multer.File[];
+  const files = req.files as any[];
   if (!arrayXor([externalUrl, files.length, newFolderName?.length]))
     return res
       .status(400)
@@ -259,14 +261,17 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   }
 
   //Pin the new files
-  const structuredFilesForPinning: IpfsDirStructuredInput[] = files.map((f: any) => {
-    return { path: f.originalname, content: f.buffer };
-  });
+  const structuredFilesForPinning: IpfsDirStructuredInput[] = await Promise.all(
+    files.map(async (f: any) => {
+      const fileStream = await fetchFileStreamFromS3(f.location);
+      return { path: f.originalname, content: fileStream };
+    }),
+  );
 
   if (structuredFilesForPinning.length || externalUrlFiles?.length) {
     const filesToPin = structuredFilesForPinning.length ? structuredFilesForPinning : externalUrlFiles;
     if (filesToPin.length) uploaded = await pinDirectory(filesToPin);
-    if (!uploaded.length) res.status(400).json({ error: 'Failed uploading to ipfs' });
+    if (!uploaded.length) return res.status(400).json({ error: 'Failed uploading to ipfs' });
     logger.info('[UPDATE DATASET] Pinned files: ', uploaded.length);
   }
 
@@ -289,7 +294,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   //New folder creation, add to uploaded
   if (newFolderName) {
     const newFolder = await pinDirectory([{ path: newFolderName + '/.nodeKeep', content: Buffer.from('') }]);
-    if (!newFolder.length) res.status(400).json({ error: 'Failed creating new folder' });
+    if (!newFolder.length) return res.status(400).json({ error: 'Failed creating new folder' });
     uploaded = newFolder;
   }
 
