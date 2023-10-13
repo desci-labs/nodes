@@ -8,11 +8,27 @@ import { diffData } from 'controllers/data/diff';
 import { moveData } from 'controllers/data/move';
 import { updateExternalCid } from 'controllers/data/updateExternalCid';
 import { ensureUser } from 'middleware/ensureUser';
+import { s3Client } from 'services/s3';
 
-export const s3 = new S3Client();
+// export const s3 = new S3Client();
 
 const router = Router();
-const upload = multer({ preservePath: true, storage: multerS3({ s3, bucket: process.env.AWS_S3_BUCKET_NAME }) });
+const upload = multer({
+  preservePath: true,
+  storage: multerS3({
+    s3: s3Client,
+    bucket: process.env.AWS_S3_BUCKET_NAME,
+    key: (req, file, cb) => {
+      const userId = (req as any).user.id;
+      const { uuid, contextPath } = (req as any).body;
+      if (!uuid || !contextPath || !userId) {
+        cb(new Error('Missing required params to form key'));
+      }
+      const key = `${userId}*${uuid}*/upload${contextPath}${file.originalname}`; // adjust for dir uploads, doesn't start with '/'
+      cb(null, key);
+    },
+  }),
+});
 
 router.post('/update', [ensureUser, upload.array('files')], update);
 router.post('/updateExternalCid', [ensureUser], updateExternalCid);

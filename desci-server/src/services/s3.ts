@@ -6,11 +6,15 @@ const logger = parentLogger.child({
   module: 'Services::S3',
 });
 
-export const s3Client = new S3Client({ region: process.env.AWS_S3_REGION });
+export const s3Client = new S3Client({
+  region: process.env.AWS_S3_BUCKET_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
 
-export async function fetchFileStreamFromS3(url: string): Promise<ReadableStream | null> {
-  const key = url.replace(`https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/`, '');
-
+export async function fetchFileStreamFromS3(key: string): Promise<ReadableStream | null> {
   const params = {
     Bucket: process.env.AWS_S3_BUCKET_NAME,
     Key: key,

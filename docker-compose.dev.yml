@@ -76,6 +76,7 @@ services:
       - db_postgres
     volumes:
       - ./local-data/yarn_cache:/root/.yarn
+    mem_limit: 2g
 
   block_explorer_dev:
     image: sinaiman/expedition-dev:latest

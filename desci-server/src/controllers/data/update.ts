@@ -263,7 +263,7 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   //Pin the new files
   const structuredFilesForPinning: IpfsDirStructuredInput[] = await Promise.all(
     files.map(async (f: any) => {
-      const fileStream = await fetchFileStreamFromS3(f.location);
+      const fileStream = await fetchFileStreamFromS3(f.key);
       return { path: f.originalname, content: fileStream };
     }),
   );
