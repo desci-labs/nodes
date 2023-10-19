@@ -28,7 +28,7 @@ import {
   pinDirectory,
   RecursiveLsResult,
 } from 'services/ipfs';
-import { fetchFileStreamFromS3 } from 'services/s3';
+import { fetchFileStreamFromS3, isS3Configured } from 'services/s3';
 import {
   arrayXor,
   calculateTotalZipUncompressedSize,
@@ -263,8 +263,11 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   //Pin the new files
   const structuredFilesForPinning: IpfsDirStructuredInput[] = await Promise.all(
     files.map(async (f: any) => {
-      const fileStream = await fetchFileStreamFromS3(f.key);
-      return { path: f.originalname, content: fileStream };
+      if (isS3Configured) {
+        const fileStream = await fetchFileStreamFromS3(f.key);
+        return { path: f.originalname, content: fileStream };
+      }
+      return { path: f.originalname, content: f.buffer };
     }),
   );
 
