@@ -16,6 +16,7 @@ import { rimraf } from 'rimraf';
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
+import { AuthedRequest } from 'middleware/ensureWriteAccess';
 import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addDirToIpfs,
@@ -50,6 +51,7 @@ import {
 } from 'utils/driveUtils';
 
 import { persistManifest } from './utils';
+import { extractRootDagCidFromManifest, getManifestFromNode } from 'services/data/processing';
 
 interface UpdatingManifestParams {
   manifest: ResearchObjectV1;
@@ -85,8 +87,9 @@ export interface ErrorResponse {
   status?: number;
 }
 
-export const update = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
-  const owner = (req as any).user as User;
+export const update = async (req: AuthedRequest, res: Response<UpdateResponse | ErrorResponse | string>) => {
+  const owner = req.user;
+  const node = req.node;
   const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
   let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl, newFolder)
@@ -114,18 +117,6 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   let uploaded: IpfsPinnedResult[];
   if (externalCids && Object.entries(externalCids).length > 0)
     return res.status(400).json({ error: 'EXTERNAL CID PASSED IN, use externalCid update route instead' });
-
-  //validate requester owns the node
-  const node = await prisma.node.findFirst({
-    where: {
-      ownerId: owner.id,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
-    },
-  });
-  if (!node) {
-    logger.warn(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
-    return res.status(400).json({ error: 'failed' });
-  }
 
   // const files = req.files as Express.Multer.File[];
   const files = req.files as any[];
@@ -176,23 +167,20 @@ export const update = async (req: Request, res: Response<UpdateResponse | ErrorR
   }
 
   //finding rootCid
-  const manifestCidEntry = node.manifestUrl || node.cid;
-  const manifestUrlEntry = manifestCidEntry
-    ? cleanupManifestUrl(manifestCidEntry as string, req.query?.g as string)
-    : null;
+  const { manifest: latestManifestEntry, manifestCid: manifestCidEntry } = await getManifestFromNode(
+    node,
+    req.query?.g as string,
+  );
+  const rootCid = extractRootDagCidFromManifest(latestManifestEntry, manifestCidEntry);
 
-  const fetchedManifestEntry = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
-  const latestManifestEntry = fetchedManifestEntry || manifestObj;
-  const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
-    .cid;
-
+  // here
   const manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(latestManifestEntry);
 
   /*
    ** Check if user has enough storage space to upload
    */
   let uploadSizeBytes = 0;
-  if (files.length) files.forEach((f) => (uploadSizeBytes += f.size));
+  // if (files.length) files.forEach((f) => (uploadSizeBytes += f.size));
   if (externalUrl) uploadSizeBytes += externalUrlTotalSizeBytes;
   const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(owner, { fileSizeBytes: uploadSizeBytes });
   if (!hasStorageSpaceToUpload)

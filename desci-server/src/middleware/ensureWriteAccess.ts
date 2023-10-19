@@ -10,6 +10,7 @@ export interface AuthedRequest extends Request {
 }
 
 export const ensureWriteAccess = async (req: Request, res: Response, next: NextFunction) => {
+  // Comes after ensureUser middleware
   const user = (req as any).user;
   const { uuid } = req.body;
 

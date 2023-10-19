@@ -8,6 +8,7 @@ import { diffData } from 'controllers/data/diff';
 import { moveData } from 'controllers/data/move';
 import { updateExternalCid } from 'controllers/data/updateExternalCid';
 import { ensureUser } from 'middleware/ensureUser';
+import { ensureWriteAccess } from 'middleware/ensureWriteAccess';
 import { isS3Configured, s3Client } from 'services/s3';
 
 const router = Router();
@@ -31,7 +32,7 @@ const upload = isS3Configured
     })
   : multer({ preservePath: true });
 
-router.post('/update', [ensureUser, upload.array('files')], update);
+router.post('/update', [ensureUser, ensureWriteAccess, upload.array('files')], update);
 router.post('/updateExternalCid', [ensureUser], updateExternalCid);
 router.post('/delete', [ensureUser], deleteData);
 router.post('/rename', [ensureUser], renameData);
