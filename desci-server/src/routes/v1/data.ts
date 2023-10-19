@@ -2,6 +2,7 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { Router } from 'express';
 import multer = require('multer');
 import multerS3 from 'multer-s3';
+import { v4 } from 'uuid';
 
 import { pubTree, retrieveTree, deleteData, update, renameData } from 'controllers/data';
 import { diffData } from 'controllers/data/diff';
@@ -24,7 +25,7 @@ const upload = multer({
       if (!uuid || !contextPath || !userId) {
         cb(new Error('Missing required params to form key'));
       }
-      const key = `${userId}*${uuid}*/upload${contextPath}${file.originalname}`; // adjust for dir uploads, doesn't start with '/'
+      const key = `${userId}*${uuid}/${v4()}`; // adjust for dir uploads, doesn't start with '/'
       cb(null, key);
     },
   }),
