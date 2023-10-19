@@ -148,7 +148,7 @@ describe('Publish', () => {
       const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
         nodeUuid: uuid,
         manifestCid: cid,
-        publicRefs: false,
+        publicRefs: true,
         markExternals: false,
       });
       expect(missingRefs.length).to.eq(0);
@@ -200,7 +200,7 @@ describe('Publish', () => {
       const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
         nodeUuid: uuid,
         manifestCid: cid,
-        publicRefs: false,
+        publicRefs: true,
         markExternals: false,
       });
       expect(missingRefs.length).to.eq(0);
