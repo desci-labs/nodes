@@ -349,6 +349,7 @@ export function recursiveFlattenTree<T extends RecursiveLsResult | DriveObject>(
 
 export function neutralizePath(path: DrivePath) {
   if (!path.includes('/') && path.length) return 'root';
+  if (path.split('/')[0] === 'root') return path;
   return path.replace(/^[^/]+/, DRIVE_NODE_ROOT_PATH);
 }
 export function deneutralizePath(path: DrivePath, rootCid: string) {

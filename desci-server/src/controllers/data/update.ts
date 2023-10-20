@@ -17,6 +17,7 @@ import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { AuthedRequest } from 'middleware/ensureWriteAccess';
+import { extractRootDagCidFromManifest, getManifestFromNode } from 'services/data/processing';
 import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addDirToIpfs,
@@ -51,7 +52,6 @@ import {
 } from 'utils/driveUtils';
 
 import { persistManifest } from './utils';
-import { extractRootDagCidFromManifest, getManifestFromNode } from 'services/data/processing';
 
 interface UpdatingManifestParams {
   manifest: ResearchObjectV1;
@@ -173,7 +173,6 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
   );
   const rootCid = extractRootDagCidFromManifest(latestManifestEntry, manifestCidEntry);
 
-  // here
   const manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(latestManifestEntry);
 
   /*
