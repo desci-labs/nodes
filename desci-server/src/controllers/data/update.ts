@@ -17,7 +17,12 @@ import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { AuthedRequest } from 'middleware/ensureWriteAccess';
-import { extractRootDagCidFromManifest, getManifestFromNode } from 'services/data/processing';
+import {
+  extractRootDagCidFromManifest,
+  filterFirstNestings,
+  getManifestFromNode,
+  updateManifestDataBucket,
+} from 'services/data/processing';
 import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addDirToIpfs,
@@ -52,25 +57,6 @@ import {
 } from 'utils/driveUtils';
 
 import { persistManifest } from './utils';
-
-interface UpdatingManifestParams {
-  manifest: ResearchObjectV1;
-  dataBucketId: string;
-  newRootCid: string;
-}
-
-export function updateManifestDataBucket({ manifest, dataBucketId, newRootCid }: UpdatingManifestParams) {
-  const componentIndex = manifest.components.findIndex((c) => c.id === dataBucketId);
-  manifest.components[componentIndex] = {
-    ...manifest.components[componentIndex],
-    payload: {
-      ...manifest.components[componentIndex].payload,
-      cid: newRootCid,
-    },
-  };
-
-  return manifest;
-}
 
 const TEMP_REPO_ZIP_PATH = './repo-tmp';
 export interface UpdateResponse {
@@ -265,7 +251,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
     logger.info('[UPDATE DATASET] Pinned files: ', uploaded.length);
   }
 
-  // Pin the zip file
+  // Pin the zip file (CODE REPO)
   if (zipPath.length > 0) {
     const outputPath = zipPath.replace('.zip', '');
     logger.debug({ outputPath }, 'Starting unzipping to output directory');
@@ -292,14 +278,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
    ** Add files to dag, get new root cid
    */
   //Filtered to first nestings only
-  const filteredFiles = uploaded.filter((file) => {
-    return file.path.split('/').length === 1;
-  });
-
-  const filesToAddToDag: FilesToAddToDag = {};
-  filteredFiles.forEach((file) => {
-    filesToAddToDag[file.path] = { cid: file.cid, size: file.size };
-  });
+  const filesToAddToDag = filterFirstNestings(uploaded);
 
   const { updatedRootCid: newRootCidString, updatedDagCidMap } = await addFilesToDag(
     rootCid,
@@ -316,19 +295,10 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
     },
   });
 
-  const latestManifestCid = ltsNode.manifestUrl || ltsNode.cid;
-  const manifestUrl = latestManifestCid
-    ? cleanupManifestUrl(latestManifestCid as string, req.query?.g as string)
-    : null;
-
-  const fetchedManifest = manifestUrl ? await (await axios.get(manifestUrl)).data : null;
-  const latestManifest = fetchedManifest || manifestObj;
-
-  const dataBucketId = latestManifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).id;
+  const { manifest: latestManifest } = await getManifestFromNode(ltsNode);
 
   let updatedManifest = updateManifestDataBucket({
     manifest: latestManifest,
-    dataBucketId: dataBucketId,
     newRootCid: newRootCidString,
   });
 

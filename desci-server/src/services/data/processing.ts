@@ -1,6 +1,7 @@
 import {
   DrivePath,
   RecursiveLsResult,
+  ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
   ResearchObjectV1,
   neutralizePath,
@@ -9,11 +10,26 @@ import {
 import { User, Node } from '@prisma/client';
 import axios from 'axios';
 
+import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { hasAvailableDataUsageForUpload } from 'services/dataService';
-import { getDirectoryTree } from 'services/ipfs';
-import { generateExternalCidMap, generateManifestPathsToDbTypeMap } from 'utils/driveUtils';
+import {
+  FilesToAddToDag,
+  IpfsDirStructuredInput,
+  IpfsPinnedResult,
+  addFilesToDag,
+  getDirectoryTree,
+  pinDirectory,
+} from 'services/ipfs';
+import { fetchFileStreamFromS3, isS3Configured } from 'services/s3';
+import {
+  FirstNestingComponent,
+  addComponentsToManifest,
+  generateExternalCidMap,
+  generateManifestPathsToDbTypeMap,
+  updateManifestComponentDagCids,
+} from 'utils/driveUtils';
 
 interface ProcessS3DataToIpfsParams {
   files: any[];
@@ -23,13 +39,25 @@ interface ProcessS3DataToIpfsParams {
    * @type {string} path to the directory to be updated
    */
   contextPath: string;
+  componentType?: ResearchObjectComponentType;
+  componentSubtype?: ResearchObjectComponentSubtypes;
 }
 
 const logger = parentLogger.child({
   module: 'Services::Processing',
 });
 
-export async function processS3DataToIpfs({ files, user, node, contextPath }: ProcessS3DataToIpfsParams) {
+/**
+ * Proccesses regular file uploads, pins S3 files to IPFS, adds them to the end of the context DAG node, creates data references for them and updates the manifest.
+ */
+export async function processS3DataToIpfs({
+  files,
+  user,
+  node,
+  contextPath,
+  componentType,
+  componentSubtype,
+}: ProcessS3DataToIpfsParams) {
   try {
     ensureSpaceAvailable(files, user);
 
@@ -52,11 +80,60 @@ export async function processS3DataToIpfs({ files, user, node, contextPath }: Pr
 
     const splitContextPath = contextPath.split('/');
     splitContextPath.shift();
-    //rootlessContextPath = how many dags need to be reset, n + 1
+    //rootlessContextPath = how many dags need to be reset, n + 1, used for addToDag function
     const rootlessContextPath = splitContextPath.join('/');
 
     // Check if paths are unique
     ensureUniquePaths(OldTreePathsMap, contextPath, files);
+
+    // Pin new files, structure for DAG extension, add to DAG
+    const pinResult: IpfsPinnedResult[] = await pinNewFiles(files);
+    const { filesToAddToDag, filteredFiles } = filterFirstNestings(pinResult);
+    const { updatedRootCid: newRootCidString, updatedDagCidMap } = await addFilesToDag(
+      rootCid,
+      rootlessContextPath,
+      filesToAddToDag,
+    );
+    if (typeof newRootCidString !== 'string') throw Error('DAG extension failed, files already pinned');
+
+    /**
+     * Repull latest node, to avoid stale manifest that may of been modified since last pull
+     * lts = latest in this context, onwards
+     * */
+    const ltsNode = await prisma.node.findFirst({
+      where: {
+        ownerId: user.id,
+        uuid: node.uuid,
+      },
+    });
+
+    const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
+    let updatedManifest = updateManifestDataBucket({
+      manifest: ltsManifest,
+      newRootCid: newRootCidString,
+    });
+
+    //Update all existing DAG components with new CIDs if they were apart of a cascading update
+    if (Object.keys(updatedDagCidMap).length) {
+      updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
+    }
+
+    if (componentType) {
+      /**
+       * Automatically create a new component(s) for the files added, to the first nesting and stars them.
+       * It doesn't need to create a new component for every file, only the first nested ones, as inheritance takes care of the children files.
+       * Only needs to happen if a predefined component type is to be added
+       */
+      const firstNestingComponents = predefineComponentsForPinnedFiles({
+        pinnedFirstNestingFiles: filteredFiles,
+        contextPath,
+        componentType,
+        componentSubtype,
+      });
+      updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
+    }
+
+
   } catch (error) {
     // DB status to failed
     // Socket emit to client
@@ -140,4 +217,98 @@ export function ensureUniquePaths(
     throw new Error('Duplicate files rejected');
   }
   return true;
+}
+
+export async function pinNewFiles(files: any[]): Promise<IpfsPinnedResult[]> {
+  const structuredFilesForPinning: IpfsDirStructuredInput[] = await Promise.all(
+    files.map(async (f: any) => {
+      if (isS3Configured) {
+        const fileStream = await fetchFileStreamFromS3(f.key);
+        return { path: f.originalname, content: fileStream };
+      }
+      return { path: f.originalname, content: f.buffer };
+    }),
+  );
+  let uploaded: IpfsPinnedResult[];
+  if (structuredFilesForPinning.length) {
+    if (structuredFilesForPinning.length) uploaded = await pinDirectory(structuredFilesForPinning);
+    if (!uploaded.length) throw new Error('Failed uploading to ipfs');
+    logger.info('[UPDATE DATASET] Pinned files: ', uploaded.length);
+  }
+  return uploaded;
+}
+
+/**
+ * Useful for filtering for the files that need to be added to the end of a DAG node.
+ * @returns {FilesToAddToDag} an object structured ready to add to the end of a DAG node.
+ * @returns {FilteredFiles} the resulting array of files that need to be added to the end of a DAG node.
+ * @example
+ * ['/readme.md', '/data', 'data/file1.txt'], given this array of files pinned, only the first two elements should be added to the end of a DAG node.
+ */
+export function filterFirstNestings(pinResult: IpfsPinnedResult[]): {
+  filesToAddToDag: FilesToAddToDag;
+  filteredFiles: IpfsPinnedResult[];
+} {
+  const filteredFiles = pinResult.filter((file) => {
+    return file.path.split('/').length === 1;
+  });
+
+  const filesToAddToDag: FilesToAddToDag = {};
+  filteredFiles.forEach((file) => {
+    filesToAddToDag[file.path] = { cid: file.cid, size: file.size };
+  });
+  return { filesToAddToDag, filteredFiles };
+}
+
+interface UpdatingManifestParams {
+  manifest: ResearchObjectV1;
+  newRootCid: string;
+}
+
+export function updateManifestDataBucket({ manifest, newRootCid }: UpdatingManifestParams): ResearchObjectV1 {
+  const componentIndex = manifest.components.findIndex((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  manifest.components[componentIndex] = {
+    ...manifest.components[componentIndex],
+    payload: {
+      ...manifest.components[componentIndex].payload,
+      cid: newRootCid,
+    },
+  };
+
+  return manifest;
+}
+
+interface PredefineComponentsForPinnedFilesParams {
+  pinnedFirstNestingFiles: IpfsPinnedResult[];
+  contextPath: string;
+  componentType: ResearchObjectComponentType;
+  componentSubtype?: ResearchObjectComponentSubtypes;
+  externalUrl?: { url: string; path: string };
+}
+
+/**
+ * Create a new component(s) for the files passed in, these components are starred by default.
+ */
+export function predefineComponentsForPinnedFiles({
+  pinnedFirstNestingFiles,
+  contextPath,
+  componentType,
+  componentSubtype,
+  externalUrl,
+}: PredefineComponentsForPinnedFilesParams): FirstNestingComponent[] {
+  const firstNestingComponents: FirstNestingComponent[] = pinnedFirstNestingFiles.map((file) => {
+    const neutralFullPath = contextPath + '/' + file.path;
+    const pathSplit = file.path.split('/');
+    const name = pathSplit.pop();
+    return {
+      name: name,
+      path: neutralFullPath,
+      cid: file.cid,
+      componentType,
+      componentSubtype,
+      star: true,
+      ...(externalUrl && { externalUrl: externalUrl.url }),
+    };
+  });
+  return firstNestingComponents;
 }

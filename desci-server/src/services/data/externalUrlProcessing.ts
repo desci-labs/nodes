@@ -1,9 +1,7 @@
-import parentLogger from 'logger'
+import parentLogger from 'logger';
 
 const logger = parentLogger.child({
   module: 'Services::ExternalUrlProcessing',
 });
 
-export async function processExternalUrlDataToIpfs() {
-    
-}
+export async function processExternalUrlDataToIpfs() {}
