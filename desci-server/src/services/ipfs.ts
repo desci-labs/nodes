@@ -260,7 +260,7 @@ export const downloadSingleFile = async (url: string): Promise<PdfComponentSingl
 
 export interface IpfsDirStructuredInput {
   path: string;
-  content: Buffer | Readable;
+  content: Buffer | Readable | ReadableStream;
 }
 
 export interface IpfsPinnedResult {

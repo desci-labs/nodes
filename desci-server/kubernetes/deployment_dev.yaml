@@ -6,7 +6,7 @@ metadata:
     App: DesciServerDev
 spec:
   replicas: 6
-  revisionHistoryLimit: 2
+  revisionHistoryLimit: 8
   selector:
     matchLabels:
       App: DesciServerDev
@@ -39,6 +39,7 @@ spec:
           export JWT_SECRET={{ .Data.JWT_SECRET }}
           export JWT_EXPIRATION=15m
           export SESSION_KEY={{ .Data.SESSION_KEY }}
+          export ORCID_API_DOMAIN={{ .Data.ORCID_API_DOMAIN }}
           export ORCID_CLIENT_ID={{ .Data.ORCID_CLIENT_ID }}
           export ORCID_CLIENT_SECRET={{ .Data.ORCID_CLIENT_SECRET }}
           export ARWEAVE_ENABLED=0
@@ -56,6 +57,8 @@ spec:
           export SHOULD_SEND_EMAIL=true
           export AWS_ACCESS_KEY_ID={{ .Data.AWS_ACCESS_KEY_ID }}
           export AWS_SECRET_ACCESS_KEY={{ .Data.AWS_SECRET_ACCESS_KEY }}
+          export AWS_S3_BUCKET_NAME={{ .Data.AWS_S3_BUCKET_NAME }}
+          export AWS_S3_BUCKET_REGION={{ .Data.AWS_S3_BUCKET_REGION }}
           export THEGRAPH_API_URL={{ .Data.THEGRAPH_API_URL }}
           export HOT_WALLET_KEY={{ .Data.HOT_WALLET_KEY }}
           export CSO_CLASSIFIER_API={{ .Data.CSO_CLASSIFIER_API }}
