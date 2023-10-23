@@ -6,7 +6,7 @@ metadata:
     App: DesciServerDev
 spec:
   replicas: 6
-  revisionHistoryLimit: 2
+  revisionHistoryLimit: 8
   selector:
     matchLabels:
       App: DesciServerDev

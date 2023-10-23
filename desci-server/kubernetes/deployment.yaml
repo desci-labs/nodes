@@ -5,8 +5,8 @@ metadata:
   labels:
     App: DesciServer
 spec:
-  replicas: 16
-  revisionHistoryLimit: 2
+  replicas: 12
+  revisionHistoryLimit: 8
   selector:
     matchLabels:
       App: DesciServer
