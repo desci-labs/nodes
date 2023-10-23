@@ -29,7 +29,7 @@ export const orcidAuthClose = async (req: Request, res: Response) => {
 export const validateOrcid = async (req: Request, res: Response) => {
   // console.log('TOK', req.query.token);
   try {
-    const url = `https://pub.sandbox.orcid.org/v3.0/${req.query.orcid}/record`;
+    const url = `https://api.${process.env.ORCID_API_DOMAIN}/v3.0/${req.query.orcid}/record`;
     const { data } = await axios.get(url, {
       headers: { Authorization: `Bearer ${req.query.token}`, 'Content-Type': 'application/json', Accept: '*/*' },
     });
@@ -57,9 +57,12 @@ export interface OrcIdRecordData {
   };
 }
 export const getOrcidRecord = async (orcid: string, accessToken: string): Promise<OrcIdRecordData> => {
+  /**
+   * this will fail if the orcid doesn't match the accessToken
+   */
   const config: AxiosRequestConfig = {
     method: 'get',
-    url: `https://pub.sandbox.orcid.org/v3.0/${orcid}/record`,
+    url: `https://api.${process.env.ORCID_API_DOMAIN}/v3.0/${orcid}/record`,
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
@@ -88,7 +91,7 @@ const getAllOrcData = async ({ queryCode, redirectUri }: { queryCode: string; re
     access_token: string;
     refresh_token: string;
     expires_in: number;
-  }>('https://sandbox.orcid.org/oauth/token', data, {
+  }>(`https://${process.env.ORCID_API_DOMAIN}/oauth/token`, data, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
