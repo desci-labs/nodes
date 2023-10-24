@@ -109,6 +109,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
       .status(400)
       .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
 
+  // debugger
   if (files.length) {
     // temp short circuit for testing if regular files are being uploaded
     const {

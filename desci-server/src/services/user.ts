@@ -72,7 +72,6 @@ export async function connectOrcidToUserIfPossible(
   expiresIn: number,
   orcidLookup: (orcid: string, accessToken: string) => Promise<OrcIdRecordData> = getOrcidRecord,
 ) {
-  debugger;
   logger.info({ fn: 'connectOrcidToUserIfPossible', orcid, accessTokenPresent: !!accessToken }, `doing orcid lookup`);
   const orcidRecord = await orcidLookup(orcid, accessToken);
   logger.info({ fn: 'connectOrcidToUserIfPossible', orcidRecord, orcid }, `found orcid record`);
