@@ -7,6 +7,7 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   DriveObject,
+  DrivePath,
 } from '@desci-labs/desci-models';
 import { DataType, User } from '@prisma/client';
 import axios from 'axios';
@@ -18,9 +19,12 @@ import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { AuthedRequest } from 'middleware/ensureWriteAccess';
 import {
+  cleanupDanglingRefs,
   extractRootDagCidFromManifest,
   filterFirstNestings,
   getManifestFromNode,
+  handleCleanupOnMidProcessingError,
+  updateDataReferences,
   updateManifestDataBucket,
 } from 'services/data/processing';
 import { hasAvailableDataUsageForUpload } from 'services/dataService';
@@ -197,8 +201,8 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
   logger.debug('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
 
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
-  const OldTreePathsMap = oldFlatTree.reduce((map, branch) => {
-    map[branch.path] = branch;
+  const oldTreePathsMap: Record<DrivePath, RecursiveLsResult> = oldFlatTree.reduce((map, branch) => {
+    map[neutralizePath(branch.path)] = branch;
     return map;
   }, {});
 
@@ -227,7 +231,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
   if (newFolderName) {
     newPathsFormatted = [header + '/' + newFolderName];
   }
-  const hasDuplicates = newPathsFormatted.some((newPath) => newPath in OldTreePathsMap);
+  const hasDuplicates = newPathsFormatted.some((newPath) => newPath in oldTreePathsMap);
   if (hasDuplicates) {
     logger.info('[UPDATE DATASET] Rejected as duplicate paths were found');
     return res.status(400).json({ error: 'Duplicate files rejected' });
@@ -278,7 +282,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
    ** Add files to dag, get new root cid
    */
   //Filtered to first nestings only
-  const filesToAddToDag = filterFirstNestings(uploaded);
+  const { filesToAddToDag, filteredFiles } = filterFirstNestings(uploaded);
 
   const { updatedRootCid: newRootCidString, updatedDagCidMap } = await addFilesToDag(
     rootCid,
@@ -326,95 +330,37 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
     updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
   }
 
-  //For adding correct types to the db, when a predefined component type is used
-  const newFilePathDbTypeMap = {};
-  uploaded.forEach((file: IpfsPinnedResult) => {
-    const neutralFullPath = contextPath + '/' + file.path;
-    const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
-    newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
-  });
+  // //For adding correct types to the db, when a predefined component type is used **PROBABLY NO LONGER NEEDED WITH prepareDataRefs()**
+  // const newFilePathDbTypeMap = {};
+  // uploaded.forEach((file: IpfsPinnedResult) => {
+  //   const neutralFullPath = contextPath + '/' + file.path;
+  //   const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
+  //   newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
+  // });
 
   try {
-    //Update refs
-    const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString, false, externalCidMap);
-
-    //existing refs
-    const existingRefs = await prisma.dataReference.findMany({
-      where: {
-        nodeId: node.id,
-        userId: owner.id,
-        type: { not: DataType.MANIFEST },
-      },
-    });
-    //map existing ref neutral paths to the ref
-    const existingRefMap = existingRefs.reduce((map, ref) => {
-      map[neutralizePath(ref.path)] = ref;
-      return map;
-    }, {});
-
-    const dataRefCreates = [];
-    const dataRefUpdates = [];
-    // setup refs, matching existing ones with their id, distinguish between update ops and create ops
-    newRefs.forEach((ref) => {
-      const newRefNeutralPath = neutralizePath(ref.path);
-      const matchingExistingRef = existingRefMap[newRefNeutralPath];
-      if (matchingExistingRef) {
-        dataRefUpdates.push({ ...matchingExistingRef, ...ref });
-      } else {
-        dataRefCreates.push(ref);
-      }
+    const upserts = await updateDataReferences({
+      node: ltsNode,
+      user: owner,
+      updatedManifest,
+      newRootCidString,
+      externalCidMap,
     });
 
-    const upserts = await prisma.$transaction([
-      ...(dataRefUpdates as any).map((fd) => {
-        return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
-      }),
-      prisma.dataReference.createMany({ data: dataRefCreates }),
-    ]);
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);
 
     // //CLEANUP DANGLING REFERENCES//
-
-    const flatTree = recursiveFlattenTree(
-      await getDirectoryTree(newRootCidString, externalCidMap),
-    ) as RecursiveLsResult[];
-    flatTree.push({
-      name: 'root',
-      cid: newRootCidString,
-      type: 'dir',
-      path: newRootCidString,
-      size: 0,
+    const pruneRes = await cleanupDanglingRefs({
+      newRootCidString,
+      externalCidMap,
+      oldTreePathsMap,
+      manifestPathsToDbComponentTypesMap: manifestPathsToTypesPrune,
+      node,
+      user: owner as User,
     });
-
-    const pruneList = [];
-    //length should be n + 1, n being nested dirs modified + rootCid
-    //a path match && a CID difference = prune
-    flatTree.forEach((newFd) => {
-      const oldEquivPath = deneutralizePath(newFd.path, rootCid);
-      if (oldEquivPath in OldTreePathsMap) {
-        const oldFd = OldTreePathsMap[oldEquivPath];
-        if (oldFd.cid !== newFd.cid) {
-          pruneList.push(oldFd);
-        }
-      }
-    });
-
-    const formattedPruneList = pruneList.map((e) => {
-      const neutralPath = neutralizePath(e.path);
-      return {
-        description: 'DANGLING DAG, UPDATED DATASET (update v2)',
-        cid: e.cid,
-        type: inheritComponentType(neutralPath, manifestPathsToTypesPrune) || DataType.UNKNOWN,
-        size: 0, //only dags being removed in an update op
-        nodeId: node.id,
-        userId: owner.id,
-        directory: e.type === 'dir' ? true : false,
-      };
-    });
-
-    const pruneRes = await prisma.cidPruneList.createMany({ data: formattedPruneList });
     logger.info(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
     //END OF CLEAN UP//
+
     const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
       throw Error(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
@@ -430,35 +376,12 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
   } catch (e: any) {
     logger.error(`[UPDATE DATASET] error: ${e}`);
     if (uploaded.length) {
-      let filesPinned: number | IpfsPinnedResult[] = uploaded;
-      let last10Pinned;
-      if (uploaded.length > 30) {
-        filesPinned = uploaded.length;
-        last10Pinned = uploaded.slice(uploaded.length - 10, uploaded.length);
-      }
-
-      logger.error({ filesPinned, last10Pinned }, `[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED`);
-      const formattedPruneList = uploaded.map(async (e) => {
-        const neutralPath = neutralizePath(e.path);
-        return {
-          description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE (update v2)',
-          cid: e.cid,
-          type: inheritComponentType(neutralPath, manifestPathsToTypesPrune) || DataType.UNKNOWN,
-          size: e.size || 0,
-          nodeId: node.id,
-          userId: owner.id,
-          directory: await isDir(e.cid),
-        };
+      handleCleanupOnMidProcessingError({
+        pinnedFiles: uploaded,
+        manifestPathsToDbComponentTypesMap: manifestPathsToTypesPrune,
+        node,
+        user: owner,
       });
-      const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });
-      if (prunedEntries.count) {
-        logger.info(
-          { prunedEntriesCreated: prunedEntries.count },
-          `[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`,
-        );
-      } else {
-        logger.error(`[UPDATE DATASET E:2] failed adding files to prunelist, db may be down`);
-      }
     }
     return res.status(400).json({ error: 'failed #1' });
   }

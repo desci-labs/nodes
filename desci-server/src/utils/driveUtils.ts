@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 
 import {
+  DrivePath,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
   ResearchObjectV1,
@@ -236,7 +237,7 @@ export const ROTypesToPrismaTypes = {
 };
 
 export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
-  const manifestPathsToTypes: Record<string, DataType> = {};
+  const manifestPathsToTypes: Record<DrivePath, DataType> = {};
   manifest.components.forEach((c) => {
     if (c.payload?.path) {
       const dbType: DataType = ROTypesToPrismaTypes[c.type];
