@@ -2,20 +2,18 @@ import fs from 'fs';
 
 import {
   neutralizePath,
-  deneutralizePath,
   recursiveFlattenTree,
   ResearchObjectComponentType,
   ResearchObjectV1,
   DriveObject,
   DrivePath,
 } from '@desci-labs/desci-models';
-import { DataType, User } from '@prisma/client';
+import { User } from '@prisma/client';
 import axios from 'axios';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { rimraf } from 'rimraf';
 
 import prisma from 'client';
-import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { AuthedRequest } from 'middleware/ensureWriteAccess';
 import {
@@ -32,11 +30,9 @@ import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
   addDirToIpfs,
   addFilesToDag,
-  FilesToAddToDag,
   getDirectoryTree,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
-  isDir,
   pinDirectory,
   RecursiveLsResult,
 } from 'services/ipfs';
@@ -49,15 +45,12 @@ import {
   saveZipStreamToDisk,
   zipUrlToStream,
 } from 'utils';
-import { prepareDataRefs } from 'utils/dataRefTools';
 import {
   FirstNestingComponent,
-  ROTypesToPrismaTypes,
   addComponentsToManifest,
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
-  inheritComponentType,
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
 
