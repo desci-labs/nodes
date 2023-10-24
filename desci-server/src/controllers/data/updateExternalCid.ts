@@ -13,6 +13,7 @@ import { Response, Request } from 'express';
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
+import { updateManifestDataBucket } from 'services/data/processing';
 import {
   FilesToAddToDag,
   GetExternalSizeAndTypeResult,
@@ -36,7 +37,7 @@ import {
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
 
-import { ErrorResponse, UpdateResponse, updateManifestDataBucket } from './update';
+import { ErrorResponse, UpdateResponse } from './update';
 import { persistManifest } from './utils';
 
 export const updateExternalCid = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
@@ -229,7 +230,6 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
 
   let updatedManifest = updateManifestDataBucket({
     manifest: latestManifest,
-    dataBucketId: dataBucketId,
     newRootCid: newRootCidString,
   });
 

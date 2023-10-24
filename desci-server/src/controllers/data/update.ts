@@ -24,6 +24,7 @@ import {
   filterFirstNestings,
   getManifestFromNode,
   handleCleanupOnMidProcessingError,
+  processS3DataToIpfs,
   updateDataReferences,
   updateManifestDataBucket,
 } from 'services/data/processing';
@@ -114,6 +115,31 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
     return res
       .status(400)
       .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
+
+  if (files.length) {
+    // temp short circuit for testing if regular files are being uploaded
+    const {
+      rootDataCid: newRootCidString,
+      manifest: updatedManifest,
+      manifestCid: persistedManifestCid,
+      tree: tree,
+      date: date,
+    } = await processS3DataToIpfs({
+      files,
+      user: owner,
+      node,
+      contextPath,
+      componentType,
+      componentSubtype,
+    });
+    return res.status(200).json({
+      rootDataCid: newRootCidString,
+      manifest: updatedManifest,
+      manifestCid: persistedManifestCid,
+      tree: tree,
+      date: date,
+    });
+  }
 
   /*
    ** External URL setup, currnetly used for Github Code Repositories & external PDFs

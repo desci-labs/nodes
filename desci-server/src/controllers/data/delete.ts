@@ -13,8 +13,9 @@ import { removeFileFromDag } from 'services/ipfs';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import { updateManifestComponentDagCids } from 'utils/driveUtils';
 
-import { ErrorResponse, updateManifestDataBucket } from './update';
+import { ErrorResponse } from './update';
 import { getLatestManifest, persistManifest } from './utils';
+import { updateManifestDataBucket } from 'services/data/processing';
 
 interface DeleteResponse {
   status?: number;
@@ -142,7 +143,6 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
 
     updatedManifest = updateManifestDataBucket({
       manifest: updatedManifest,
-      dataBucketId: dataBucket.id,
       newRootCid: updatedRootCid,
     });
 

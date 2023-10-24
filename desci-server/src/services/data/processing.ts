@@ -185,6 +185,7 @@ export async function processS3DataToIpfs({
         user,
       });
     }
+    throw error;
   }
 }
 
