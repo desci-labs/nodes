@@ -1,6 +1,6 @@
 import { v4 } from 'uuid';
 
-export type Either<T, E> = { type: "success"; value: T } | { type: "error"; value: E };
+export type Either<T, E> = { ok: true; value: T } | { ok: false; value: E };
 
 export type ProcessingError =
     UnhandledError
@@ -15,8 +15,14 @@ export type ProcessingError =
 
 
 
+interface BaseProcessingError {
+    type: string,
+    status: number
+    message: string
+}
 
-interface UnhandledError {
+
+interface UnhandledError extends BaseProcessingError{
     type: 'UnhandledError'
     message: string;
     error: Error;
@@ -31,7 +37,7 @@ export const createUnhandledError = (error: Error): UnhandledError => ({
 
 })
 
-interface MixingExternalDataError {
+interface MixingExternalDataError extends BaseProcessingError {
     type: 'MixingExternalDataError'
     message: string;
     status: 400;
@@ -43,7 +49,7 @@ export const createMixingExternalDataError = (): MixingExternalDataError => ({
     status: 400
 })
 
-interface NotEnoughSpaceError {
+interface NotEnoughSpaceError extends BaseProcessingError {
     type: 'NotEnoughSpaceError'
     message: string;
     status: 507;
@@ -57,7 +63,7 @@ export const createNotEnoughSpaceError = (message: string): NotEnoughSpaceError 
 })
 
 
-interface InvalidManifestError {
+interface InvalidManifestError extends BaseProcessingError {
     type: 'InvalidManifestError'
     message: string;
     status: 400
@@ -69,7 +75,7 @@ export const createInvalidManifestError = (message: string): InvalidManifestErro
     status: 400
 })
 
-interface IpfsUnresolvableError {
+interface IpfsUnresolvableError extends BaseProcessingError {
     type: 'IpfsUnresolvableError'
     message: string;
     status: 404,
@@ -81,7 +87,7 @@ export const createIpfsUnresolvableError = (message: string): IpfsUnresolvableEr
     status: 404
 })
 
-interface DuplicateFileError {
+interface DuplicateFileError extends BaseProcessingError {
     type: 'DuplicateFileError'
     message: string;
     status: 409,
@@ -93,7 +99,7 @@ export const createDuplicateFileError = (): DuplicateFileError => ({
     status: 409
 })
 
-interface IpfsUploadFailureError {
+interface IpfsUploadFailureError extends BaseProcessingError {
     type: 'IpfsUploadFailureError'
     message: string;
     status: 502,
@@ -105,7 +111,7 @@ export const createIpfsUploadFailureError = (): IpfsUploadFailureError => ({
     status: 502
 })
 
-interface DagExtensionFailureError {
+interface DagExtensionFailureError extends BaseProcessingError {
     type: 'DagExtensionFailureError'
     message: string;
     status: 500,
@@ -117,7 +123,7 @@ export const createDagExtensionFailureError = (): DagExtensionFailureError => ({
     status: 500
 })
 
-interface ManifestPersistFailError {
+interface ManifestPersistFailError extends BaseProcessingError {
     type: 'ManifestPersistFailError'
     message: string;
     status: 500,

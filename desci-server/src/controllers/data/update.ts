@@ -55,6 +55,7 @@ import {
 } from 'utils/driveUtils';
 
 import { persistManifest } from './utils';
+import { error } from 'console';
 
 const TEMP_REPO_ZIP_PATH = './repo-tmp';
 export interface UpdateResponse {
@@ -112,13 +113,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
   // debugger
   if (files.length) {
     // temp short circuit for testing if regular files are being uploaded
-    const {
-      rootDataCid: newRootCidString,
-      manifest: updatedManifest,
-      manifestCid: persistedManifestCid,
-      tree: tree,
-      date: date,
-    } = await processS3DataToIpfs({
+    const { ok, value } = await processS3DataToIpfs({
       files,
       user: owner,
       node,
@@ -126,13 +121,26 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
       componentType,
       componentSubtype,
     });
-    return res.status(200).json({
-      rootDataCid: newRootCidString,
-      manifest: updatedManifest,
-      manifestCid: persistedManifestCid,
-      tree: tree,
-      date: date,
-    });
+    if (ok) {
+      const {
+        rootDataCid: newRootCidString,
+        manifest: updatedManifest,
+        manifestCid: persistedManifestCid,
+        tree: tree,
+        date: date,
+      } = value as UpdateResponse
+      return res.status(200).json({
+        rootDataCid: newRootCidString,
+        manifest: updatedManifest,
+        manifestCid: persistedManifestCid,
+        tree: tree,
+        date: date,
+      });
+    } else {
+      if (!('message' in value)) return res.status(500)
+      logger.error({value}, 'processing error occured')
+      return res.status(value.status).json({ status: value.status, error: value.message })
+    }
   }
 
   /*

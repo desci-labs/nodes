@@ -36,7 +36,8 @@ import {
   inheritComponentType,
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
-import { createDagExtensionFailureError, createDuplicateFileError, createInvalidManifestError, createIpfsUnresolvableError, createIpfsUploadFailureError, createManifestPersistFailError, createMixingExternalDataError, createNotEnoughSpaceError, createUnhandledError } from './processingErrors';
+import { Either, ProcessingError, createDagExtensionFailureError, createDuplicateFileError, createInvalidManifestError, createIpfsUnresolvableError, createIpfsUploadFailureError, createManifestPersistFailError, createMixingExternalDataError, createNotEnoughSpaceError, createUnhandledError } from './processingErrors';
+import { UpdateResponse } from 'controllers/data';
 
 interface ProcessS3DataToIpfsParams {
   files: any[];
@@ -64,7 +65,7 @@ export async function processS3DataToIpfs({
   contextPath,
   componentType,
   componentSubtype,
-}: ProcessS3DataToIpfsParams) {
+}: ProcessS3DataToIpfsParams): Promise<Either<UpdateResponse, ProcessingError>> {
   let pinResult: IpfsPinnedResult[] = [];
   let manifestPathsToTypesPrune: Record<DrivePath, DataType> = {};
   try {
@@ -167,17 +168,19 @@ export async function processS3DataToIpfs({
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 
     return {
-      rootDataCid: newRootCidString,
-      manifest: updatedManifest,
-      manifestCid: persistedManifestCid,
-      tree: tree,
-      date: date,
+      ok: true, value: {
+        rootDataCid: newRootCidString,
+        manifest: updatedManifest,
+        manifestCid: persistedManifestCid,
+        tree: tree,
+        date: date,
+      }
     };
     // SUCCESS
   } catch (error) {
     // DB status to failed
     // Socket emit to client
-    logger.error({error}, 'Error processing S3 data to IPFS');
+    logger.error({ error }, 'Error processing S3 data to IPFS');
     if (pinResult.length) {
       handleCleanupOnMidProcessingError({
         pinnedFiles: pinResult,
@@ -187,7 +190,7 @@ export async function processS3DataToIpfs({
       });
     }
     const controlledErr = 'type' in error ? error : createUnhandledError(error)
-    throw controlledErr;
+    return {ok: false, value: controlledErr};
   }
 }
 

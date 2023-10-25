@@ -147,7 +147,7 @@ describe('Data Controllers', () => {
           .field('manifest', JSON.stringify(res.body.manifest))
           .field('contextPath', 'root')
           .attach('files', Buffer.from('test'), 'test.txt');
-        expect(newRes.statusCode).to.equal(400);
+        expect(newRes.statusCode).to.equal(409);
       });
       it('should reject an update if more than a single upload method is used (files, new folder, externalCid, externalUrl...)', async () => {
         const newRes = await request(app)
