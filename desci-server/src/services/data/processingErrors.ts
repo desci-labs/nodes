@@ -84,47 +84,47 @@ export const createIpfsUnresolvableError = (message: string): IpfsUnresolvableEr
 interface DuplicateFileError {
     type: 'DuplicateFileError'
     message: string;
-    status: 404,
+    status: 409,
 }
 
 export const createDuplicateFileError = (): DuplicateFileError => ({
     type: 'DuplicateFileError',
     message: 'Duplicate files rejected',
-    status: 404
+    status: 409
 })
 
 interface IpfsUploadFailureError {
     type: 'IpfsUploadFailureError'
     message: string;
-    status: 404,
+    status: 502,
 }
 
 export const createIpfsUploadFailureError = (): IpfsUploadFailureError => ({
     type: 'IpfsUploadFailureError',
     message: 'Failed to upload files onto IPFS',
-    status: 404
+    status: 502
 })
 
 interface DagExtensionFailureError {
     type: 'DagExtensionFailureError'
     message: string;
-    status: 404,
+    status: 500,
 }
 
 export const createDagExtensionFailureError = (): DagExtensionFailureError => ({
     type: 'DagExtensionFailureError',
     message: 'DAG extension failed',
-    status: 404
+    status: 500
 })
 
 interface ManifestPersistFailError {
     type: 'ManifestPersistFailError'
     message: string;
-    status: 404,
+    status: 500,
 }
 
 export const createManifestPersistFailError = (message: string): ManifestPersistFailError => ({
     type: 'ManifestPersistFailError',
     message,
-    status: 404
+    status: 500
 })
