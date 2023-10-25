@@ -36,6 +36,7 @@ import {
   inheritComponentType,
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
+import { createDagExtensionFailureError, createDuplicateFileError, createInvalidManifestError, createIpfsUnresolvableError, createIpfsUploadFailureError, createManifestPersistFailError, createMixingExternalDataError, createNotEnoughSpaceError, createUnhandledError } from './processingErrors';
 
 interface ProcessS3DataToIpfsParams {
   files: any[];
@@ -104,7 +105,7 @@ export async function processS3DataToIpfs({
       rootlessContextPath,
       filesToAddToDag,
     );
-    if (typeof newRootCidString !== 'string') throw Error('DAG extension failed, files already pinned');
+    if (typeof newRootCidString !== 'string') throw createDagExtensionFailureError;
 
     /**
      * Repull latest node, to avoid stale manifest that may of been modified since last pull
@@ -161,7 +162,7 @@ export async function processS3DataToIpfs({
     // Persist updated manifest, (pin, update Node DB entry)
     const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: user.id });
     if (!persistedManifestCid)
-      throw Error(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${user.id}`);
+      throw createManifestPersistFailError(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${user.id}`);
 
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 
@@ -176,7 +177,7 @@ export async function processS3DataToIpfs({
   } catch (error) {
     // DB status to failed
     // Socket emit to client
-    logger.error('Error processing S3 data to IPFS:', error);
+    logger.error({error}, 'Error processing S3 data to IPFS');
     if (pinResult.length) {
       handleCleanupOnMidProcessingError({
         pinnedFiles: pinResult,
@@ -185,7 +186,8 @@ export async function processS3DataToIpfs({
         user,
       });
     }
-    throw error;
+    const controlledErr = 'type' in error ? error : createUnhandledError(error)
+    throw controlledErr;
   }
 }
 
@@ -195,7 +197,7 @@ export async function ensureSpaceAvailable(files: any[], user: User) {
   // if (externalUrl) uploadSizeBytes += externalUrlTotalSizeBytes;
   const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(user, { fileSizeBytes: uploadSizeBytes });
   if (!hasStorageSpaceToUpload)
-    throw new Error(
+    throw createNotEnoughSpaceError(
       `upload size of ${uploadSizeBytes} exceeds users data budget of ${user.currentDriveStorageLimitGb} GB`,
     );
   return true;
@@ -204,7 +206,7 @@ export async function ensureSpaceAvailable(files: any[], user: User) {
 export function extractRootDagCidFromManifest(manifest: ResearchObjectV1, manifestCid: string) {
   const rootCid: string = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
     .cid;
-  if (!rootCid) throw new Error(`Root DAG not found in manifest, manifestCid: ${manifestCid}`);
+  if (!rootCid) throw createInvalidManifestError(`Root DAG not found in manifest, manifestCid: ${manifestCid}`);
   return rootCid;
 }
 
@@ -216,14 +218,14 @@ export async function getManifestFromNode(
   const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid as string, queryString as string) : null;
 
   const fetchedManifest = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
-  if (!fetchedManifest) throw new Error(`Error fetching manifest from IPFS, manifestCid: ${manifestCid}`);
+  if (!fetchedManifest) throw createIpfsUnresolvableError(`Error fetching manifest from IPFS, manifestCid: ${manifestCid}`);
   return { manifest: fetchedManifest, manifestCid };
 }
 
 export function pathContainsExternalCids(flatTreeMap: Record<DrivePath, RecursiveLsResult>, contextPath: string) {
   // Check if update path contains externals, disable adding to external DAGs
   const pathMatch = flatTreeMap[contextPath];
-  if (pathMatch?.external) throw new Error('Cannot update externally added directories');
+  if (pathMatch?.external) throw createMixingExternalDataError();
   return false;
 }
 
@@ -262,7 +264,7 @@ export function ensureUniquePaths(
   const hasDuplicates = newPathsFormatted.some((newPath) => newPath in flatTreeMap);
   if (hasDuplicates) {
     logger.info('[UPDATE DATASET] Rejected as duplicate paths were found');
-    throw new Error('Duplicate files rejected');
+    throw createDuplicateFileError();
   }
   return true;
 }
@@ -280,7 +282,7 @@ export async function pinNewFiles(files: any[]): Promise<IpfsPinnedResult[]> {
   let uploaded: IpfsPinnedResult[];
   if (structuredFilesForPinning.length) {
     if (structuredFilesForPinning.length) uploaded = await pinDirectory(structuredFilesForPinning);
-    if (!uploaded.length) throw new Error('Failed uploading to ipfs');
+    if (!uploaded.length) throw createIpfsUploadFailureError();
     logger.info('[UPDATE DATASET] Pinned files: ', uploaded.length);
   }
   return uploaded;

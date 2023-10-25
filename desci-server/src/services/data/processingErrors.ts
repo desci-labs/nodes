@@ -1,0 +1,130 @@
+import { v4 } from 'uuid';
+
+export type Either<T, E> = { type: "success"; value: T } | { type: "error"; value: E };
+
+export type ProcessingError =
+    UnhandledError
+    | MixingExternalDataError
+    | NotEnoughSpaceError
+    | InvalidManifestError
+    | IpfsUnresolvableError
+    | DuplicateFileError
+    | IpfsUploadFailureError
+    | DagExtensionFailureError
+    | ManifestPersistFailError
+
+
+
+
+interface UnhandledError {
+    type: 'UnhandledError'
+    message: string;
+    error: Error;
+    status: 500;
+}
+
+export const createUnhandledError = (error: Error): UnhandledError => ({
+    type: 'UnhandledError',
+    message: `Unhandled error occured, error reference: ${v4()}`,
+    error: error,
+    status: 500
+
+})
+
+interface MixingExternalDataError {
+    type: 'MixingExternalDataError'
+    message: string;
+    status: 400;
+}
+
+export const createMixingExternalDataError = (): MixingExternalDataError => ({
+    type: 'MixingExternalDataError',
+    message: 'Unable to add files to external CID directory',
+    status: 400
+})
+
+interface NotEnoughSpaceError {
+    type: 'NotEnoughSpaceError'
+    message: string;
+    status: 507;
+
+}
+
+export const createNotEnoughSpaceError = (message: string): NotEnoughSpaceError => ({
+    type: 'NotEnoughSpaceError',
+    message,
+    status: 507
+})
+
+
+interface InvalidManifestError {
+    type: 'InvalidManifestError'
+    message: string;
+    status: 400
+}
+
+export const createInvalidManifestError = (message: string): InvalidManifestError => ({
+    type: 'InvalidManifestError',
+    message,
+    status: 400
+})
+
+interface IpfsUnresolvableError {
+    type: 'IpfsUnresolvableError'
+    message: string;
+    status: 404,
+}
+
+export const createIpfsUnresolvableError = (message: string): IpfsUnresolvableError => ({
+    type: 'IpfsUnresolvableError',
+    message,
+    status: 404
+})
+
+interface DuplicateFileError {
+    type: 'DuplicateFileError'
+    message: string;
+    status: 404,
+}
+
+export const createDuplicateFileError = (): DuplicateFileError => ({
+    type: 'DuplicateFileError',
+    message: 'Duplicate files rejected',
+    status: 404
+})
+
+interface IpfsUploadFailureError {
+    type: 'IpfsUploadFailureError'
+    message: string;
+    status: 404,
+}
+
+export const createIpfsUploadFailureError = (): IpfsUploadFailureError => ({
+    type: 'IpfsUploadFailureError',
+    message: 'Failed to upload files onto IPFS',
+    status: 404
+})
+
+interface DagExtensionFailureError {
+    type: 'DagExtensionFailureError'
+    message: string;
+    status: 404,
+}
+
+export const createDagExtensionFailureError = (): DagExtensionFailureError => ({
+    type: 'DagExtensionFailureError',
+    message: 'DAG extension failed',
+    status: 404
+})
+
+interface ManifestPersistFailError {
+    type: 'ManifestPersistFailError'
+    message: string;
+    status: 404,
+}
+
+export const createManifestPersistFailError = (message: string): ManifestPersistFailError => ({
+    type: 'ManifestPersistFailError',
+    message,
+    status: 404
+})
