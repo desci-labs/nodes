@@ -161,7 +161,7 @@ export interface CommonComponentPayload {
 
 export interface PdfComponentPayload {
   url: string;
-  annotations?: ResearchObjectComponentAnnotation[];
+  annotations?: PdfAnnotation[];
 }
 
 export interface ExternalLinkComponentPayload {
@@ -229,29 +229,37 @@ export interface TerminalComponent extends ResearchObjectV1Component {
   } & CommonComponentPayload;
 }
 
-export type Annotation = {
+export interface COORDS {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}
+export interface COORDP extends COORDS {
+  pageIndex?: number;
+}
+export interface Scaled {
   startX: number;
   startY: number;
   endX: number;
   endY: number;
   pageIndex?: number;
-  move?: boolean;
-  id: string;
-  text?: string;
-  title?: string;
-};
+}
 
-export type ResearchObjectComponentAnnotation = {
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-  pageIndex?: number;
-  id: string;
+export interface PdfAnnotation
+  extends ResearchObjectComponentAnnotation,
+    Scaled {
+  move?: boolean;
   text?: string;
   title?: string;
-  __client?: any; // client-only variables, deleted before saving to server
-  rects?: Omit<ResearchObjectComponentAnnotation, "rects">[];
+  rects?: COORDP[];
+  __client?: any;
+}
+
+export interface ResearchObjectComponentAnnotation {
+  id: string;
+  authorId?: string;
+  author?: ResearchObjectV1Author;
 };
 
 export enum ResearchObjectV1AuthorRole {
