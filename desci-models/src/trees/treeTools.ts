@@ -1,10 +1,13 @@
 import {
   ExternalLinkComponent,
+  FileExtension,
   PdfComponent,
   ResearchObjectComponentType,
+  ResearchObjectComponentTypeMap,
   ResearchObjectV1,
   ResearchObjectV1Component,
-} from '../ResearchObject';
+} from "../ResearchObject";
+import { DEFAULT_COMPONENT_TYPE } from "../constants";
 import {
   AccessStatus,
   ComponentTypesForStats,
@@ -17,9 +20,9 @@ import {
   NODE_KEEP_FILE,
   RecursiveLsResult,
   VirtualDriveArgs,
-} from './treeTypes';
+} from "./treeTypes";
 
-export const DRIVE_NODE_ROOT_PATH = 'root';
+export const DRIVE_NODE_ROOT_PATH = "root";
 
 export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
   const pathToCompMap = generatePathCompMap(manifest);
@@ -29,7 +32,7 @@ export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
   const driveObjectTree = convertIpfsTreeToDriveObjectTree(
     ipfsTree as DriveObject[],
     pathToCompMap,
-    pathToSizeMap,
+    pathToSizeMap
     // {}
   );
 
@@ -37,7 +40,7 @@ export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
   // eslint-disable-next-line no-array-reduce/no-reduce
   const rootSize = driveObjectTree.reduce((acc, curr) => acc + curr.size, 0);
   const treeRoot = createVirtualDrive({
-    name: 'Node Root',
+    name: "Node Root",
     componentType: ResearchObjectComponentType.DATA_BUCKET,
     path: DRIVE_NODE_ROOT_PATH,
     contains: driveObjectTree,
@@ -52,14 +55,14 @@ export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
 
 export function getAncestorComponent(
   drive: DriveObject,
-  pathToCompMap: Record<DrivePath, ResearchObjectV1Component>,
+  pathToCompMap: Record<DrivePath, ResearchObjectV1Component>
 ): ResearchObjectV1Component | null {
-  const pathSplit = drive.path!.split('/');
+  const pathSplit = drive.path!.split("/");
   // < 3 === don't inherit from root
   if (pathSplit.length < 3) return null;
   while (pathSplit.length > 1) {
     pathSplit.pop();
-    const parentPath = pathSplit.join('/');
+    const parentPath = pathSplit.join("/");
     const parent = pathToCompMap[parentPath];
     if (parent && parent.type !== ResearchObjectComponentType.UNKNOWN) {
       return parent;
@@ -68,11 +71,30 @@ export function getAncestorComponent(
   return null;
 }
 
+export function isResearchObjectComponentTypeMap(
+  componentType: any
+): componentType is ResearchObjectComponentTypeMap {
+  return (
+    typeof componentType === "object" &&
+    componentType !== null &&
+    !(componentType instanceof Array) &&
+    !(componentType instanceof Date)
+  );
+}
+
+export function extractComponentTypeFromTypeMap(path: string, typeMap: ResearchObjectComponentTypeMap): ResearchObjectComponentType {
+const extension = extractExtension(path)
+if (extension) {
+  return typeMap[extension] ?? DEFAULT_COMPONENT_TYPE;
+}
+return DEFAULT_COMPONENT_TYPE;
+}
+
 //Convert IPFS tree to DriveObject tree V2
 export function convertIpfsTreeToDriveObjectTree(
   tree: DriveObject[],
   pathToCompMap: Record<DrivePath, ResearchObjectV1Component>,
-  pathToSizeMap: Record<DrivePath, number>,
+  pathToSizeMap: Record<DrivePath, number>
 ) {
   // tree = tree.filter((branch) => !FILTER_LIST.includes(branch.name)); // LEAVE THIS TO THE FRONTEND
   tree.forEach((branch) => {
@@ -80,15 +102,39 @@ export function convertIpfsTreeToDriveObjectTree(
     const neutralPath = neutralizePath(branch.path!);
     branch.path = neutralPath;
     const component = pathToCompMap[branch.path!];
-    const ancestorComponent: ResearchObjectV1Component | null = getAncestorComponent(branch, pathToCompMap);
-    branch.componentType = component?.type || ancestorComponent?.type || ResearchObjectComponentType.UNKNOWN;
+    const ancestorComponent: ResearchObjectV1Component | null =
+      getAncestorComponent(branch, pathToCompMap);
 
-    if (component && [ResearchObjectComponentType.PDF, ResearchObjectComponentType.LINK].includes(component.type)) {
-      branch.componentSubtype = (component as PdfComponent | ExternalLinkComponent).subtype;
+      if (branch.type === FileType.FILE) {
+        // Component type determination for FILES only
+        if (component?.type) {
+          const cType = isResearchObjectComponentTypeMap(component.type) ? extractComponentTypeFromTypeMap(component.payload.path, component.type) : component.type;
+          branch.componentType = cType;
+        } else if (ancestorComponent?.type) {
+          const cType = isResearchObjectComponentTypeMap(ancestorComponent.type) ? extractComponentTypeFromTypeMap(neutralPath, ancestorComponent.type) : ancestorComponent.type;
+          branch.componentType = cType;
+        } else {
+          branch.componentType = ResearchObjectComponentType.UNKNOWN
+        }
+      }
+
+    if (
+      component &&
+      !isResearchObjectComponentTypeMap(component.type) &&
+      [
+        ResearchObjectComponentType.PDF,
+        ResearchObjectComponentType.LINK,
+      ].includes(component.type as ResearchObjectComponentType)
+    ) {
+      branch.componentSubtype = (
+        component as PdfComponent | ExternalLinkComponent
+      ).subtype;
     }
     // useful for annotation insert on file tree under a code component for example (refer to component id later)
     branch.componentId = component?.id || ancestorComponent?.id;
-    branch.accessStatus = fileDirBranch.published ? AccessStatus.PUBLIC : AccessStatus.PRIVATE;
+    branch.accessStatus = fileDirBranch.published
+      ? AccessStatus.PUBLIC
+      : AccessStatus.PRIVATE;
 
     //Determine partials
     if (!fileDirBranch.published && branch.contains && branch.contains.length) {
@@ -101,9 +147,23 @@ export function convertIpfsTreeToDriveObjectTree(
     branch.metadata = inheritMetadata(branch.path, pathToCompMap);
     branch.starred = component?.starred || false;
     // branch.lastModified = formatDbDate(branch.lastModified) || tempDate; // LEAVE THIS TO FRONTEND
-    if (branch.contains && branch.contains.length && branch.type === FileType.DIR) {
+    if (
+      branch.contains &&
+      branch.contains.length &&
+      branch.type === FileType.DIR
+    ) {
+      // Component type determination for dirs
+      branch.componentType =
+      component?.type ||
+      ancestorComponent?.type ||
+      ResearchObjectComponentType.UNKNOWN;
+
       branch.size = pathToSizeMap[branch.path!] || 0;
-      branch.contains = convertIpfsTreeToDriveObjectTree(branch.contains, pathToCompMap, pathToSizeMap);
+      branch.contains = convertIpfsTreeToDriveObjectTree(
+        branch.contains,
+        pathToCompMap,
+        pathToSizeMap
+      );
       branch.componentStats = calculateComponentStats(branch);
     }
   });
@@ -113,7 +173,8 @@ export function convertIpfsTreeToDriveObjectTree(
 export function isHiddenObject(currentObject: DriveObject) {
   return (
     !currentObject ||
-    (currentObject.type === FileType.FILE && currentObject.name === '.DS_Store') ||
+    (currentObject.type === FileType.FILE &&
+      currentObject.name === ".DS_Store") ||
     currentObject.name === NODE_KEEP_FILE
   );
 }
@@ -134,34 +195,37 @@ export function calculateComponentStats(dirDrive: DriveObject) {
   if (cachedStats) {
     return cachedStats;
   }
-  return dirDrive?.contains?.reduce((acc: ComponentStats, currentObject: DriveObject) => {
-    /** Exclude hidden files */
-    if (isHiddenObject(currentObject)) {
-      return acc;
-    }
+  return dirDrive?.contains?.reduce(
+    (acc: ComponentStats, currentObject: DriveObject) => {
+      /** Exclude hidden files */
+      if (isHiddenObject(currentObject)) {
+        return acc;
+      }
 
-    const key = currentObject.componentType as ComponentTypesForStats;
+      const key = currentObject.componentType as ComponentTypesForStats;
 
-    /** Base Case for files */
-    if (!isDirectory(currentObject)) {
-      acc[key].count += 1;
-      acc[key].size += currentObject.size;
-    } else {
-      acc[key].dirs += 1;
-      /** Base Case for Directories */
-      if (currentObject.componentStats) {
-        /** If cached stats values exist */
-        acc = addComponentStats(acc, currentObject.componentStats);
+      /** Base Case for files */
+      if (!isDirectory(currentObject)) {
+        acc[key].count += 1;
+        acc[key].size += currentObject.size;
       } else {
-        /** If cached stats values do NOT exist, calculate them */
-        const res = calculateComponentStats(currentObject);
-        if (res) {
-          acc = addComponentStats(acc, res);
+        acc[key].dirs += 1;
+        /** Base Case for Directories */
+        if (currentObject.componentStats) {
+          /** If cached stats values exist */
+          acc = addComponentStats(acc, currentObject.componentStats);
+        } else {
+          /** If cached stats values do NOT exist, calculate them */
+          const res = calculateComponentStats(currentObject);
+          if (res) {
+            acc = addComponentStats(acc, res);
+          }
         }
       }
-    }
-    return acc;
-  }, createEmptyComponentStats());
+      return acc;
+    },
+    createEmptyComponentStats()
+  );
 }
 
 const EMPTY_COMPONENT_STAT = {
@@ -178,7 +242,10 @@ export const createEmptyComponentStats = (): ComponentStats => ({
   // link: { ...EMPTY_COMPONENT_STAT },
 });
 
-export function addComponentStats(objA: ComponentStats, objB: ComponentStats): ComponentStats {
+export function addComponentStats(
+  objA: ComponentStats,
+  objB: ComponentStats
+): ComponentStats {
   const result: ComponentStats = {
     ...createEmptyComponentStats(), // ensure all stats are zeroed to start
     ...JSON.parse(JSON.stringify(objA)),
@@ -205,19 +272,22 @@ export function hasPublic(tree: DriveObject): boolean {
   });
 }
 
-export function inheritMetadata(path: DrivePath, pathToCompMap: Record<DrivePath, ResearchObjectV1Component>) {
+export function inheritMetadata(
+  path: DrivePath,
+  pathToCompMap: Record<DrivePath, ResearchObjectV1Component>
+) {
   const comp = pathToCompMap[path];
   if (comp) {
     const specificMetadata = extractComponentMetadata(comp);
     if (Object.keys(specificMetadata).length) return specificMetadata;
   }
 
-  const pathSplit = path.split('/');
+  const pathSplit = path.split("/");
   // < 3 === don't inherit from root
   if (pathSplit.length < 3) return {};
   while (pathSplit.length > 1) {
     pathSplit.pop();
-    const parentPath = pathSplit.join('/');
+    const parentPath = pathSplit.join("/");
     const parent = pathToCompMap[parentPath];
     if (parent) {
       const potentialMetadata = extractComponentMetadata(parent);
@@ -227,17 +297,19 @@ export function inheritMetadata(path: DrivePath, pathToCompMap: Record<DrivePath
   return {};
 }
 
-export function extractComponentMetadata(component: ResearchObjectV1Component): DriveMetadata {
+export function extractComponentMetadata(
+  component: ResearchObjectV1Component
+): DriveMetadata {
   if (!component) return {};
   const metadata: DriveMetadata = {};
   const validMetadataKeys: (keyof DriveMetadata)[] = [
-    'title',
-    'keywords',
-    'description',
-    'licenseType',
-    'ontologyPurl',
-    'cedarLink',
-    'controlledVocabTerms',
+    "title",
+    "keywords",
+    "description",
+    "licenseType",
+    "ontologyPurl",
+    "cedarLink",
+    "controlledVocabTerms",
   ];
 
   validMetadataKeys.forEach((k) => {
@@ -247,7 +319,9 @@ export function extractComponentMetadata(component: ResearchObjectV1Component): 
   return metadata;
 }
 
-export function generatePathCompMap(manifest: ResearchObjectV1): Record<DrivePath, ResearchObjectV1Component> {
+export function generatePathCompMap(
+  manifest: ResearchObjectV1
+): Record<DrivePath, ResearchObjectV1Component> {
   const componentsMap: Record<DrivePath, ResearchObjectV1Component> = {};
   manifest.components.forEach((c) => {
     switch (c.type) {
@@ -264,7 +338,9 @@ export function generatePathCompMap(manifest: ResearchObjectV1): Record<DrivePat
   return componentsMap;
 }
 
-export function generateFlatPathDriveMap(tree: DriveObject[]): Record<DrivePath, DriveObject> {
+export function generateFlatPathDriveMap(
+  tree: DriveObject[]
+): Record<DrivePath, DriveObject> {
   const contents = recursiveFlattenTree(tree);
   const map: Record<DrivePath, DriveObject> = {};
   (contents as DriveObject[]).forEach((d: DriveObject) => {
@@ -274,7 +350,9 @@ export function generateFlatPathDriveMap(tree: DriveObject[]): Record<DrivePath,
   return map;
 }
 
-export function generatePathSizeMap(flatPathDriveMap: Record<DrivePath, DriveObject>): Record<DrivePath, number> {
+export function generatePathSizeMap(
+  flatPathDriveMap: Record<DrivePath, DriveObject>
+): Record<DrivePath, number> {
   const pathSizeMap: Record<DrivePath, number> = {};
   const dirSizeMap: Record<DrivePath, number> = {};
 
@@ -287,8 +365,9 @@ export function generatePathSizeMap(flatPathDriveMap: Record<DrivePath, DriveObj
 
       let parentPath = path;
       while (parentPath) {
-        const lastSlashIndex = parentPath.lastIndexOf('/');
-        parentPath = lastSlashIndex >= 0 ? parentPath.substring(0, lastSlashIndex) : '';
+        const lastSlashIndex = parentPath.lastIndexOf("/");
+        parentPath =
+          lastSlashIndex >= 0 ? parentPath.substring(0, lastSlashIndex) : "";
         if (parentPath in dirSizeMap) {
           dirSizeMap[parentPath] += drive.size;
         }
@@ -326,7 +405,7 @@ export function createVirtualDrive({
     lastModified: lastModified || tempDate,
     accessStatus: accessStatus || AccessStatus.PRIVATE,
     metadata: metadata || {},
-    cid: cid || '',
+    cid: cid || "",
     type: type || FileType.DIR,
     parent: parent || null,
     path: path || undefined,
@@ -334,12 +413,14 @@ export function createVirtualDrive({
     ...(uid && { uid: uid }),
   };
 }
-export const tempDate = '12/02/2022 7:00PM';
+export const tempDate = "12/02/2022 7:00PM";
 
-export function recursiveFlattenTree<T extends RecursiveLsResult | DriveObject>(tree: T[]): T[] {
+export function recursiveFlattenTree<T extends RecursiveLsResult | DriveObject>(
+  tree: T[]
+): T[] {
   // eslint-disable-next-line no-array-reduce/no-reduce
   return tree.reduce((acc: T[], node: T) => {
-    if (node.type === 'dir' && node.contains) {
+    if (node.type === "dir" && node.contains) {
       return acc.concat(node, recursiveFlattenTree(node.contains as T[]));
     } else {
       return acc.concat(node);
@@ -348,24 +429,27 @@ export function recursiveFlattenTree<T extends RecursiveLsResult | DriveObject>(
 }
 
 export function neutralizePath(path: DrivePath) {
-  if (!path.includes('/') && path.length) return 'root';
-  if (path.split('/')[0] === 'root') return path;
+  if (!path.includes("/") && path.length) return "root";
+  if (path.split("/")[0] === "root") return path;
   return path.replace(/^[^/]+/, DRIVE_NODE_ROOT_PATH);
 }
 export function deneutralizePath(path: DrivePath, rootCid: string) {
-  if (!path.includes('/') && path.length) return rootCid;
+  if (!path.includes("/") && path.length) return rootCid;
   return path.replace(/^[^/]+/, rootCid);
 }
 
 // Clones a node removing its children to a specified depth
-export function pruneNode(node: DriveObject, depth: number): DriveObject | null {
+export function pruneNode(
+  node: DriveObject,
+  depth: number
+): DriveObject | null {
   if (depth < 0) {
     return null;
   }
 
   const cloned: DriveObject = { ...node };
 
-  if (node.type === 'dir' && node.contains && depth > 0) {
+  if (node.type === "dir" && node.contains && depth > 0) {
     cloned.contains = node.contains
       .map((child) => pruneNode(child, depth - 1))
       .filter((n) => n !== null) as DriveObject[];
@@ -376,13 +460,17 @@ export function pruneNode(node: DriveObject, depth: number): DriveObject | null 
   return cloned;
 }
 
-export function findAndPruneNode(root: DriveObject, path: string, depth?: number): DriveObject | null {
+export function findAndPruneNode(
+  root: DriveObject,
+  path: string,
+  depth?: number
+): DriveObject | null {
   if (root.path === path) {
     // If depth is undefined, return the node directly without cloning or pruning
     return depth !== undefined ? pruneNode(root, depth) : root;
   }
 
-  if (root.type === 'dir' && root.contains) {
+  if (root.type === "dir" && root.contains) {
     for (const child of root.contains) {
       const foundNode = findAndPruneNode(child, path, depth);
       if (foundNode) {
@@ -392,4 +480,11 @@ export function findAndPruneNode(root: DriveObject, path: string, depth?: number
   }
 
   return null;
+}
+
+
+export function extractExtension(path: string): FileExtension | null {
+  const splitName = path.split('.');
+  const extension = splitName.length > 1 ? splitName.pop() : '';
+  return extension ?? null;
 }

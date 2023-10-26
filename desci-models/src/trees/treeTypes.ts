@@ -3,13 +3,14 @@ import {
   DataComponentMetadata,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
+  ResearchObjectComponentTypeMap,
 } from "../ResearchObject";
 
 export interface DriveObject {
   uid?: string;
   name: string;
   lastModified: string;
-  componentType: ResearchObjectComponentType | DriveNonComponentTypes;
+  componentType: ResearchObjectComponentType | ResearchObjectComponentTypeMap | DriveNonComponentTypes;
   componentSubtype?: ResearchObjectComponentSubtypes;
   componentId?: string | undefined;
   accessStatus: AccessStatus;
