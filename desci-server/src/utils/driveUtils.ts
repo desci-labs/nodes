@@ -1,16 +1,20 @@
 import { randomUUID } from 'crypto';
 
 import {
+  DEFAULT_COMPONENT_TYPE,
   DrivePath,
+  FileExtension,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
   ResearchObjectV1,
   fillIpfsTree,
+  isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
 
 import prisma from 'client';
 import { DataReferenceSrc } from 'controllers/data';
+import { separateFileNameAndExtension } from 'controllers/data/utils';
 import logger from 'logger';
 import { getOrCache } from 'redisClient';
 import { getDirectoryTree, RecursiveLsResult } from 'services/ipfs';
@@ -236,11 +240,13 @@ export const ROTypesToPrismaTypes = {
   [ResearchObjectComponentType.DATA_BUCKET]: DataType.DATA_BUCKET,
 };
 
+export type ExtensionDataTypeMap = Record<FileExtension, DataType>;
 export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
-  const manifestPathsToTypes: Record<DrivePath, DataType> = {};
+  const manifestPathsToTypes: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   manifest.components.forEach((c) => {
     if (c.payload?.path) {
-      const dbType: DataType = ROTypesToPrismaTypes[c.type];
+      const cType = isResearchObjectComponentTypeMap(c.type) ? DEFAULT_COMPONENT_TYPE : c.type;
+      const dbType: DataType = ROTypesToPrismaTypes[cType];
       if (dbType) manifestPathsToTypes[c.payload.path] = dbType;
     }
   });
@@ -248,9 +254,25 @@ export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
   return manifestPathsToTypes;
 }
 
-export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataType>) {
-  const naturalType = pathToDbTypeMap[path];
-  if (naturalType && naturalType !== DataType.UNKNOWN) return naturalType;
+/**
+ * Inherits component types from the most specific node/parent
+ * NOTE: Used for DB DataType, not ResearchObjectComponentType!
+ */
+export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataType | ExtensionDataTypeMap>): DataType {
+  let naturalType = pathToDbTypeMap[path];
+  if (isResearchObjectComponentTypeMap(naturalType)) {
+    // Extract extension from path
+    const { extension } = separateFileNameAndExtension(path);
+    // See if extension lives inside the map
+    if (extension && naturalType[extension]) {
+      naturalType = (naturalType as ExtensionDataTypeMap)[extension];
+    } else {
+      // Fallback on DEFAULT_COMPONENT_TYPE
+      const defaultDataType = ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
+      naturalType = defaultDataType;
+    }
+  }
+  if (naturalType && naturalType !== DataType.UNKNOWN) return naturalType as DataType;
   const pathSplit = path.split('/');
   if (pathSplit.length < 3) return DataType.UNKNOWN;
   while (pathSplit.length > 1) {
@@ -258,7 +280,7 @@ export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataT
     const parentPath = pathSplit.join('/');
     const parent = pathToDbTypeMap[parentPath];
     if (parent && parent !== DataType.UNKNOWN) {
-      return parent;
+      return parent as DataType;
     }
   }
   return DataType.UNKNOWN;

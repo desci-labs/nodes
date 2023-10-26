@@ -22,7 +22,7 @@ interface BaseProcessingError {
 }
 
 
-interface UnhandledError extends BaseProcessingError{
+interface UnhandledError extends BaseProcessingError {
     type: 'UnhandledError'
     message: string;
     error: Error;

@@ -1,9 +1,11 @@
 import {
+  DEFAULT_COMPONENT_TYPE,
   ExternalLinkComponent,
   PdfComponent,
   ResearchObjectComponentLinkSubtype,
   ResearchObjectComponentType,
   ResearchObjectV1,
+  isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
@@ -19,7 +21,7 @@ import {
 } from 'services/ipfs';
 import { createNodeDraftBlank } from 'services/nodeManager';
 import { randomUUID64 } from 'utils';
-import { DRIVE_NODE_ROOT_PATH } from 'utils/driveUtils';
+import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes } from 'utils/driveUtils';
 
 const componentTypeToDataType = (type: ResearchObjectComponentType): DataType => {
   switch (type) {
@@ -108,12 +110,15 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
       const isDataBucket = component.type === ResearchObjectComponentType.DATA_BUCKET;
       const size = isDataBucket ? 0 : files.find((f) => f.cid === component.payload.url)?.size;
 
+      const cType = isResearchObjectComponentTypeMap(component.type) ? DEFAULT_COMPONENT_TYPE : component.type;
+      const dbCompType = ROTypesToPrismaTypes[cType];
+
       const cid = isDataBucket ? component.payload.cid : component.payload.url;
       return {
         cid: cid,
         size: size,
         root: isDataBucket,
-        type: componentTypeToDataType(component.type),
+        type: dbCompType,
         userId: owner.id,
         nodeId: node.id,
         directory: isDataBucket,

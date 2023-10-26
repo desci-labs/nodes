@@ -11,6 +11,7 @@ import { User, Node, DataType } from '@prisma/client';
 import axios from 'axios';
 
 import prisma from 'client';
+import { UpdateResponse } from 'controllers/data';
 import { persistManifest } from 'controllers/data/utils';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
@@ -27,6 +28,7 @@ import {
 import { fetchFileStreamFromS3, isS3Configured } from 'services/s3';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import {
+  ExtensionDataTypeMap,
   ExternalCidMap,
   FirstNestingComponent,
   addComponentsToManifest,
@@ -36,8 +38,20 @@ import {
   inheritComponentType,
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
-import { Either, ProcessingError, createDagExtensionFailureError, createDuplicateFileError, createInvalidManifestError, createIpfsUnresolvableError, createIpfsUploadFailureError, createManifestPersistFailError, createMixingExternalDataError, createNotEnoughSpaceError, createUnhandledError } from './processingErrors';
-import { UpdateResponse } from 'controllers/data';
+
+import {
+  Either,
+  ProcessingError,
+  createDagExtensionFailureError,
+  createDuplicateFileError,
+  createInvalidManifestError,
+  createIpfsUnresolvableError,
+  createIpfsUploadFailureError,
+  createManifestPersistFailError,
+  createMixingExternalDataError,
+  createNotEnoughSpaceError,
+  createUnhandledError,
+} from './processingErrors';
 
 interface ProcessS3DataToIpfsParams {
   files: any[];
@@ -67,7 +81,7 @@ export async function processS3DataToIpfs({
   componentSubtype,
 }: ProcessS3DataToIpfsParams): Promise<Either<UpdateResponse, ProcessingError>> {
   let pinResult: IpfsPinnedResult[] = [];
-  let manifestPathsToTypesPrune: Record<DrivePath, DataType> = {};
+  let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
     ensureSpaceAvailable(files, user);
 
@@ -163,18 +177,21 @@ export async function processS3DataToIpfs({
     // Persist updated manifest, (pin, update Node DB entry)
     const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: user.id });
     if (!persistedManifestCid)
-      throw createManifestPersistFailError(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${user.id}`);
+      throw createManifestPersistFailError(
+        `Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${user.id}`,
+      );
 
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 
     return {
-      ok: true, value: {
+      ok: true,
+      value: {
         rootDataCid: newRootCidString,
         manifest: updatedManifest,
         manifestCid: persistedManifestCid,
         tree: tree,
         date: date,
-      }
+      },
     };
     // SUCCESS
   } catch (error) {
@@ -189,8 +206,8 @@ export async function processS3DataToIpfs({
         user,
       });
     }
-    const controlledErr = 'type' in error ? error : createUnhandledError(error)
-    return {ok: false, value: controlledErr};
+    const controlledErr = 'type' in error ? error : createUnhandledError(error);
+    return { ok: false, value: controlledErr };
   }
 }
 
@@ -221,7 +238,8 @@ export async function getManifestFromNode(
   const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid as string, queryString as string) : null;
 
   const fetchedManifest = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
-  if (!fetchedManifest) throw createIpfsUnresolvableError(`Error fetching manifest from IPFS, manifestCid: ${manifestCid}`);
+  if (!fetchedManifest)
+    throw createIpfsUnresolvableError(`Error fetching manifest from IPFS, manifestCid: ${manifestCid}`);
   return { manifest: fetchedManifest, manifestCid };
 }
 
@@ -424,7 +442,7 @@ interface CleanupDanglingReferencesParams {
   newRootCidString: string;
   externalCidMap: ExternalCidMap;
   oldTreePathsMap: Record<DrivePath, RecursiveLsResult>;
-  manifestPathsToDbComponentTypesMap: Record<DrivePath, DataType>;
+  manifestPathsToDbComponentTypesMap: Record<DrivePath, DataType | ExtensionDataTypeMap>;
 }
 
 /**
@@ -489,7 +507,7 @@ interface HandleCleanupOnMidProcessingErrorParams {
   node: Node;
   user: User;
   pinnedFiles: IpfsPinnedResult[];
-  manifestPathsToDbComponentTypesMap: Record<DrivePath, DataType>;
+  manifestPathsToDbComponentTypesMap: Record<DrivePath, DataType | ExtensionDataTypeMap>;
 }
 
 /**
