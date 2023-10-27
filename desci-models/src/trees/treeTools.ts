@@ -191,6 +191,7 @@ export function isDirectory(currentObject: DriveObject) {
  */
 
 export function calculateComponentStats(dirDrive: DriveObject) {
+return createEmptyComponentStats();
   const cachedStats = dirDrive.componentStats;
   if (cachedStats) {
     return cachedStats;
@@ -332,6 +333,7 @@ export function generatePathCompMap(
         componentsMap[c.payload.path] = c;
         return;
       default:
+        componentsMap[c.payload.path] = c;
         return;
     }
   });
@@ -485,6 +487,6 @@ export function findAndPruneNode(
 
 export function extractExtension(path: string): FileExtension | null {
   const splitName = path.split('.');
-  const extension = splitName.length > 1 ? splitName.pop() : '';
+  const extension = splitName.length > 1 ? '.' + splitName.pop() : '';
   return extension ?? null;
 }

@@ -1,14 +1,19 @@
 import {
+  DEFAULT_COMPONENT_TYPE,
   DrivePath,
   RecursiveLsResult,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
+  ResearchObjectComponentTypeMap,
   ResearchObjectV1,
+  extractExtension,
+  isResearchObjectComponentTypeMap,
   neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import { User, Node, DataType } from '@prisma/client';
 import axios from 'axios';
+import { v4 } from 'uuid';
 
 import prisma from 'client';
 import { UpdateResponse } from 'controllers/data';
@@ -37,7 +42,9 @@ import {
   getTreeAndFill,
   inheritComponentType,
   updateManifestComponentDagCids,
+  urlOrCid,
 } from 'utils/driveUtils';
+import { EXTENSION_MAP } from 'utils/extensions';
 
 import {
   Either,
@@ -84,10 +91,11 @@ export async function processS3DataToIpfs({
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
     ensureSpaceAvailable(files, user);
-
+    debugger;
     const { manifest, manifestCid } = await getManifestFromNode(node);
     const rootCid = extractRootDagCidFromManifest(manifest, manifestCid);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
+    const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(files);
 
     // Pull old tree
     const externalCidMap = await generateExternalCidMap(node.uuid);
@@ -115,11 +123,11 @@ export async function processS3DataToIpfs({
     // Pin new files, structure for DAG extension, add to DAG
     pinResult = await pinNewFiles(files);
     const { filesToAddToDag, filteredFiles } = filterFirstNestings(pinResult);
-    const { updatedRootCid: newRootCidString, updatedDagCidMap } = await addFilesToDag(
-      rootCid,
-      rootlessContextPath,
-      filesToAddToDag,
-    );
+    const {
+      updatedRootCid: newRootCidString,
+      updatedDagCidMap,
+      contextPathNewCid,
+    } = await addFilesToDag(rootCid, rootlessContextPath, filesToAddToDag);
     if (typeof newRootCidString !== 'string') throw createDagExtensionFailureError;
 
     /**
@@ -144,19 +152,20 @@ export async function processS3DataToIpfs({
       updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
     }
 
-    if (componentType) {
+    if (componentTypeMap) {
       /**
        * Automatically create a new component(s) for the files added, to the first nesting.
        * It doesn't need to create a new component for every file, only the first nested ones, as inheritance takes care of the children files.
        * Only needs to happen if a predefined component type is to be added
        */
-      const firstNestingComponents = predefineComponentsForPinnedFiles({
-        pinnedFirstNestingFiles: filteredFiles,
-        contextPath,
-        componentType,
-        componentSubtype,
-      });
-      updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
+      // const firstNestingComponents = predefineComponentsForPinnedFiles({
+      //   pinnedFirstNestingFiles: filteredFiles,
+      //   contextPath,
+      //   componentType,
+      //   componentSubtype,
+      // });
+      // updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
+      updatedManifest = assignTypeMapInManifest(updatedManifest, componentTypeMap, contextPath, contextPathNewCid);
     }
 
     // Update existing data references, add new data references.
@@ -225,7 +234,7 @@ export async function ensureSpaceAvailable(files: any[], user: User) {
 
 export function extractRootDagCidFromManifest(manifest: ResearchObjectV1, manifestCid: string) {
   const rootCid: string = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
-    .cid;
+    ?.cid;
   if (!rootCid) throw createInvalidManifestError(`Root DAG not found in manifest, manifestCid: ${manifestCid}`);
   return rootCid;
 }
@@ -234,6 +243,7 @@ export async function getManifestFromNode(
   node: Node,
   queryString?: string,
 ): Promise<{ manifest: ResearchObjectV1; manifestCid: string }> {
+  debugger
   const manifestCid = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid as string, queryString as string) : null;
 
@@ -556,4 +566,51 @@ export async function handleCleanupOnMidProcessingError({
     );
     // In this case, we log the files just incase, no matter how many.
   }
+}
+
+/**
+ * Constructs a ComponentTypeMap from a list of files.
+ * @example ['hi.py', 'text.txt'] => { '.py': ROCT.CODE, '.txt': ROCT.DATA }
+ */
+export function constructComponentTypeMapFromFiles(files: any[]): ResearchObjectComponentTypeMap {
+  const componentTypeMap = {};
+  files.forEach((f) => {
+    const extension = extractExtension(f.originalname);
+    const cType = EXTENSION_MAP[extension] ?? DEFAULT_COMPONENT_TYPE;
+    componentTypeMap[extension] = cType;
+  });
+  return componentTypeMap;
+}
+
+export function assignTypeMapInManifest(
+  manifest: ResearchObjectV1,
+  compTypeMap: ResearchObjectComponentTypeMap,
+  contextPath: DrivePath,
+  contextPathNewCid: string,
+): ResearchObjectV1 {
+  const componentIndex = manifest.components.findIndex((c) => c.payload.path === contextPath);
+  // Check if the component already exists, update its type map
+  if (componentIndex !== -1) {
+    const existingType = manifest.components[componentIndex].type;
+    manifest.components[componentIndex].type = {
+      ...(isResearchObjectComponentTypeMap(existingType) && { ...existingType }),
+      ...compTypeMap,
+    };
+  } else {
+    // If doesn't exist, create the component and assign its type map
+    const compName = contextPath.split('/').pop();
+    const comp = {
+      id: v4(),
+      name: compName,
+      type: compTypeMap,
+      // ...(c.componentSubtype && { subtype: c.componentSubtype }),
+      payload: {
+        ...urlOrCid(contextPathNewCid, ResearchObjectComponentType.DATA),
+        path: contextPath,
+      },
+      // starred: c.star || false,
+    };
+    manifest.components.push(comp);
+  }
+  return manifest;
 }

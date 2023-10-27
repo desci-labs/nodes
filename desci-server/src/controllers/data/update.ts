@@ -55,7 +55,6 @@ import {
 } from 'utils/driveUtils';
 
 import { persistManifest } from './utils';
-import { error } from 'console';
 
 const TEMP_REPO_ZIP_PATH = './repo-tmp';
 export interface UpdateResponse {
@@ -74,8 +73,19 @@ export interface ErrorResponse {
 
 export const update = async (req: AuthedRequest, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = req.user;
-  const node = req.node;
+  let node = req.node;
   const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
+  
+  // temp workaround for non-file uploads
+  if (!node) {
+    node = await prisma.node.findFirst({
+      where: {
+        ownerId: owner.id,
+        uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      },
+  })
+}
+
   let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl, newFolder)
   //ExternalURL - url + type, code (github) & external pdfs for now
@@ -128,7 +138,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
         manifestCid: persistedManifestCid,
         tree: tree,
         date: date,
-      } = value as UpdateResponse
+      } = value as UpdateResponse;
       return res.status(200).json({
         rootDataCid: newRootCidString,
         manifest: updatedManifest,
@@ -137,9 +147,9 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
         date: date,
       });
     } else {
-      if (!('message' in value)) return res.status(500)
-      logger.error({value}, 'processing error occured')
-      return res.status(value.status).json({ status: value.status, error: value.message })
+      if (!('message' in value)) return res.status(500);
+      logger.error({ value }, 'processing error occured');
+      return res.status(value.status).json({ status: value.status, error: value.message });
     }
   }
 

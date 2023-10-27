@@ -197,7 +197,7 @@ export async function getTreeAndFill(
   }
 
   tree = fillCidInfo(tree, cidInfoMap);
-
+  debugger
   const treeRoot = await fillIpfsTree(manifest, tree);
 
   return treeRoot;
