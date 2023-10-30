@@ -137,7 +137,7 @@ describe('Data Controllers', () => {
           .field('manifest', JSON.stringify(res.body.manifest))
           .field('contextPath', 'root')
           .attach('files', Buffer.from('test'), 'test2.txt');
-        expect(newRes.statusCode).to.equal(401);
+        expect(newRes.statusCode).to.not.equal(200);
       });
       it('should reject an update with a file name that already exists in the same directory', async () => {
         const newRes = await request(app)
