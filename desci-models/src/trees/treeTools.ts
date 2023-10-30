@@ -183,6 +183,10 @@ export function isDirectory(currentObject: DriveObject) {
   return currentObject.type === FileType.DIR;
 }
 
+export function isNodeRoot(component: ResearchObjectV1Component) {
+ return component.type === ResearchObjectComponentType.DATA_BUCKET || component.payload.path === 'root'
+}
+
 /**
  *
  * @param dirDrive Drive object to analyze
