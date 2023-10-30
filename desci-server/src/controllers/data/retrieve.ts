@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 
-import { DriveObject, FileDir, ResearchObjectComponentType, findAndPruneNode } from '@desci-labs/desci-models';
+import { DriveObject, FileDir, findAndPruneNode, isNodeRoot } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import archiver from 'archiver';
 import axios from 'axios';
@@ -240,7 +240,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
 
   if (!uuid) return res.status(400).json({ error: 'Manifest not found' });
 
-  const hasDataBucket = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const hasDataBucket = manifest.components.find((c) => isNodeRoot(c));
 
   const fetchCb = hasDataBucket
     ? async () => await getTreeAndFill(manifest, uuid, undefined, true)

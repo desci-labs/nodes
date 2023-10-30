@@ -4,6 +4,7 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   calculateComponentStats,
+  isNodeRoot,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import axios from 'axios';
@@ -84,9 +85,9 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
     return res.status(400).json({ error: 'Failed to retrieve manifest' });
   }
 
-  const dataBucketA = manifestA?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucketA = manifestA?.components?.find((c) => isNodeRoot(c));
   const dataBucketCidA = dataBucketA?.payload?.cid;
-  const dataBucketB = manifestB?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucketB = manifestB?.components?.find((c) => isNodeRoot(c));
   const dataBucketCidB = dataBucketB?.payload?.cid;
 
   if (!dataBucketCidA || !dataBucketCidB) {

@@ -1,5 +1,10 @@
-import { ResearchObjectComponentType, ResearchObjectV1Component, recursiveFlattenTree } from '@desci-labs/desci-models';
-import { DataReference, DataType } from '@prisma/client';
+import {
+  ResearchObjectComponentType,
+  ResearchObjectV1Component,
+  isNodeRoot,
+  recursiveFlattenTree,
+} from '@desci-labs/desci-models';
+import { DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
@@ -34,7 +39,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   const hasDataBucket =
     manifestObj?.components[0]?.type === ResearchObjectComponentType.DATA_BUCKET
       ? true
-      : manifestObj?.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+      : manifestObj?.components.find((c) => isNodeRoot(c));
 
   if (hasDataBucket) {
     next();

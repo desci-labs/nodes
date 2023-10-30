@@ -2,6 +2,7 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   deneutralizePath,
+  isNodeRoot,
   neutralizePath,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
@@ -49,7 +50,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
   }
 
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  const dataBucket = latestManifest?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
 
   try {
     /*

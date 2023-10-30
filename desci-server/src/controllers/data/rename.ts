@@ -2,6 +2,7 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   ResearchObjectV1Component,
+  isNodeRoot,
   neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
@@ -54,7 +55,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
   }
 
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  const dataBucket = latestManifest?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
 
   try {
     /*

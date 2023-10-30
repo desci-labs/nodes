@@ -1,4 +1,4 @@
-import { ResearchObjectComponentType } from '@desci-labs/desci-models';
+import { ResearchObjectComponentType, isNodeRoot } from '@desci-labs/desci-models';
 import axios from 'axios';
 
 import { cleanupManifestUrl } from 'controllers/nodes';
@@ -62,8 +62,7 @@ async function invalidateByUuid({ nodeUuid }: { nodeUuid: string }) {
           { manifestUrl, manifestCid },
           `[invalidateByUuid] Failed to retrieve manifest from ipfs cid: ${manifestCid}`,
         );
-      const dataBucketCid = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET)?.payload
-        .cid;
+      const dataBucketCid = manifest.components.find((c) => isNodeRoot(c))?.payload.cid;
 
       await deleteKeys(`*${manifestCid}*`);
       await deleteKeys(`*${dataBucketCid}*`);

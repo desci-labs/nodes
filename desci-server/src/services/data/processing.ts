@@ -7,6 +7,7 @@ import {
   ResearchObjectComponentTypeMap,
   ResearchObjectV1,
   extractExtension,
+  isNodeRoot,
   isResearchObjectComponentTypeMap,
   neutralizePath,
   recursiveFlattenTree,
@@ -233,8 +234,7 @@ export async function ensureSpaceAvailable(files: any[], user: User) {
 }
 
 export function extractRootDagCidFromManifest(manifest: ResearchObjectV1, manifestCid: string) {
-  const rootCid: string = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
-    ?.cid;
+  const rootCid: string = manifest.components.find((c) => isNodeRoot(c)).payload?.cid;
   if (!rootCid) throw createInvalidManifestError(`Root DAG not found in manifest, manifestCid: ${manifestCid}`);
   return rootCid;
 }
@@ -243,7 +243,7 @@ export async function getManifestFromNode(
   node: Node,
   queryString?: string,
 ): Promise<{ manifest: ResearchObjectV1; manifestCid: string }> {
-  debugger
+  debugger;
   const manifestCid = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid as string, queryString as string) : null;
 
@@ -347,7 +347,7 @@ interface UpdatingManifestParams {
 }
 
 export function updateManifestDataBucket({ manifest, newRootCid }: UpdatingManifestParams): ResearchObjectV1 {
-  const componentIndex = manifest.components.findIndex((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const componentIndex = manifest.components.findIndex((c) => isNodeRoot(c));
   manifest.components[componentIndex] = {
     ...manifest.components[componentIndex],
     payload: {

@@ -7,7 +7,9 @@ import {
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
   ResearchObjectV1,
+  ResearchObjectV1Component,
   fillIpfsTree,
+  isNodeRoot,
   isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
@@ -133,7 +135,7 @@ export async function getTreeAndFill(
   published?: boolean,
 ) {
   // debugger;
-  const rootCid = manifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload.cid;
+  const rootCid = manifest.components.find((c) => isNodeRoot(c)).payload.cid;
   const externalCidMap = published
     ? await generateExternalCidMap(nodeUuid + '.', rootCid)
     : await generateExternalCidMap(nodeUuid + '.');
@@ -197,7 +199,7 @@ export async function getTreeAndFill(
   }
 
   tree = fillCidInfo(tree, cidInfoMap);
-  debugger
+  debugger;
   const treeRoot = await fillIpfsTree(manifest, tree);
 
   return treeRoot;
@@ -240,13 +242,24 @@ export const ROTypesToPrismaTypes = {
   [ResearchObjectComponentType.DATA_BUCKET]: DataType.DATA_BUCKET,
 };
 
+/**
+ * Converts desci-models component types into the database types auto genereated via the prisma schema.
+ * If a component type map is used as the component type, it would return the data bucket type if the component represents the node root,
+ * else it returns the default component type.
+ */
+export function getDbComponentType(component: ResearchObjectV1Component) {
+  if (isNodeRoot(component)) return ROTypesToPrismaTypes[ResearchObjectComponentType.DATA_BUCKET];
+  return isResearchObjectComponentTypeMap(component.type)
+    ? ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE]
+    : ROTypesToPrismaTypes[component.type];
+}
+
 export type ExtensionDataTypeMap = Record<FileExtension, DataType>;
 export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
   const manifestPathsToTypes: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   manifest.components.forEach((c) => {
     if (c.payload?.path) {
-      const cType = isResearchObjectComponentTypeMap(c.type) ? DEFAULT_COMPONENT_TYPE : c.type;
-      const dbType: DataType = ROTypesToPrismaTypes[cType];
+      const dbType: DataType = getDbComponentType(c);
       if (dbType) manifestPathsToTypes[c.payload.path] = dbType;
     }
   });

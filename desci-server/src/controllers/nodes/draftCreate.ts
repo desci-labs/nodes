@@ -5,6 +5,7 @@ import {
   ResearchObjectComponentLinkSubtype,
   ResearchObjectComponentType,
   ResearchObjectV1,
+  isNodeRoot,
   isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
@@ -21,24 +22,7 @@ import {
 } from 'services/ipfs';
 import { createNodeDraftBlank } from 'services/nodeManager';
 import { randomUUID64 } from 'utils';
-import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes } from 'utils/driveUtils';
-
-const componentTypeToDataType = (type: ResearchObjectComponentType): DataType => {
-  switch (type) {
-    case ResearchObjectComponentType.CODE:
-      return 'CODE_REPOS';
-    case ResearchObjectComponentType.DATA:
-      return 'DATASET';
-    case ResearchObjectComponentType.PDF:
-      return 'DOCUMENT';
-    case ResearchObjectComponentType.VIDEO:
-      return 'VIDEOS';
-    case ResearchObjectComponentType.DATA_BUCKET:
-      return 'DATA_BUCKET';
-    default:
-      throw Error('Unknown component type');
-  }
-};
+import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from 'utils/driveUtils';
 
 export const draftCreate = async (req: Request, res: Response, next: NextFunction) => {
   const {
@@ -107,11 +91,10 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
     const { nodeVersion } = await updateManifestAndAddToIpfs(researchObject, { userId: owner.id, nodeId: node.id });
 
     const uploadedFiles: Partial<DataReference>[] = researchObject.components.map((component) => {
-      const isDataBucket = component.type === ResearchObjectComponentType.DATA_BUCKET;
+      const isDataBucket = isNodeRoot(component);
       const size = isDataBucket ? 0 : files.find((f) => f.cid === component.payload.url)?.size;
 
-      const cType = isResearchObjectComponentTypeMap(component.type) ? DEFAULT_COMPONENT_TYPE : component.type;
-      const dbCompType = ROTypesToPrismaTypes[cType];
+      const dbCompType = getDbComponentType(component);
 
       const cid = isDataBucket ? component.payload.cid : component.payload.url;
       return {
@@ -233,7 +216,7 @@ export const draftAddComponent = async (req: Request, res: Response, next: NextF
             cid: file.cid,
             size: file.size,
             root: false,
-            type: componentTypeToDataType(component.type),
+            type: ROTypesToPrismaTypes[component.type],
             userId: loggedIn.id,
             nodeId: node.id,
             directory: false,
