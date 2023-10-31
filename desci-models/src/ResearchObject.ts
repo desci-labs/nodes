@@ -122,6 +122,7 @@ export enum ResearchObjectComponentType {
   DATA_BUCKET = "data-bucket",
   UNKNOWN = "unknown",
   PDF = "pdf",
+  XML = "xml",
   CODE = "code",
   VIDEO = "video",
   TERMINAL = "terminal", // not used, TODO: remove
@@ -260,7 +261,7 @@ export interface ResearchObjectComponentAnnotation {
   id: string;
   authorId?: string;
   author?: ResearchObjectV1Author;
-};
+}
 
 export enum ResearchObjectV1AuthorRole {
   AUTHOR = "Author",
