@@ -37,7 +37,6 @@ import {
   ExtensionDataTypeMap,
   ExternalCidMap,
   FirstNestingComponent,
-  addComponentsToManifest,
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
@@ -92,7 +91,7 @@ export async function processS3DataToIpfs({
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
     ensureSpaceAvailable(files, user);
-    debugger;
+
     const { manifest, manifestCid } = await getManifestFromNode(node);
     const rootCid = extractRootDagCidFromManifest(manifest, manifestCid);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
@@ -119,7 +118,7 @@ export async function processS3DataToIpfs({
     const rootlessContextPath = splitContextPath.join('/');
 
     // Check if paths are unique
-    ensureUniquePaths(oldTreePathsMap, contextPath, files);
+    ensureUniquePaths({ flatTreeMap: oldTreePathsMap, contextPath, filesBeingAdded: files });
 
     // Pin new files, structure for DAG extension, add to DAG
     pinResult = await pinNewFiles(files);
@@ -260,11 +259,19 @@ export function pathContainsExternalCids(flatTreeMap: Record<DrivePath, Recursiv
   return false;
 }
 
-export function ensureUniquePaths(
-  flatTreeMap: Record<DrivePath, RecursiveLsResult>,
-  contextPath: string,
-  filesBeingAdded: any[],
-): boolean {
+interface EnsureUniquePathsParams {
+  flatTreeMap: Record<DrivePath, RecursiveLsResult>;
+  contextPath: string;
+  filesBeingAdded?: any[];
+  externalUrlFilePaths?: string[];
+}
+
+export function ensureUniquePaths({
+  flatTreeMap,
+  contextPath,
+  filesBeingAdded,
+  externalUrlFilePaths,
+}: EnsureUniquePathsParams): boolean {
   // ensure all paths are unique to prevent borking datasets, reject if fails unique check
 
   let newPathsFormatted: string[] = [];
@@ -275,19 +282,18 @@ export function ensureUniquePaths(
       return header + f.originalname;
     });
   }
-  // if (externalUrl) {
-  //   if (externalUrlFiles?.length > 0) {
-  //     newPathsFormatted = externalUrlFiles.map((f) => {
-  //       return header + '/' + f.path;
-  //     });
-  //   }
+  if (externalUrlFilePaths) {
+    if (externalUrlFilePaths?.length > 0) {
+      newPathsFormatted = externalUrlFilePaths.map((filePath) => {
+        return header + '/' + filePath;
+      });
+    }
 
-  // Code repo, add repo dir path
-  //   if (zipPath.length > 0) {
-  //     newPathsFormatted = [header + '/' + externalUrl.path];
-  //   } else {
-  //   }
-  // }
+    // Code repo, add repo dir path
+    // if (zipPath.length > 0) {
+    //   newPathsFormatted = [header + '/' + externalUrl.path];
+    // }
+  }
 
   // if (newFolderName) {
   //   newPathsFormatted = [header + '/' + newFolderName];

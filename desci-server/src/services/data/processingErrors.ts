@@ -11,7 +11,8 @@ export type ProcessingError =
   | DuplicateFileError
   | IpfsUploadFailureError
   | DagExtensionFailureError
-  | ManifestPersistFailError;
+  | ManifestPersistFailError
+  | ExternalUrlResolutionError;
 
 interface BaseProcessingError {
   type: string;
@@ -125,6 +126,18 @@ interface ManifestPersistFailError extends BaseProcessingError {
 
 export const createManifestPersistFailError = (message: string): ManifestPersistFailError => ({
   type: 'ManifestPersistFailError',
+  message,
+  status: 500,
+});
+
+interface ExternalUrlResolutionError extends BaseProcessingError {
+  type: 'ExternalUrlResolutionError';
+  message: string;
+  status: 500;
+}
+
+export const ExternalUrlResolutionError = (message: string): ExternalUrlResolutionError => ({
+  type: 'ExternalUrlResolutionError',
   message,
   status: 500,
 });
