@@ -242,7 +242,7 @@ export async function getManifestFromNode(
   node: Node,
   queryString?: string,
 ): Promise<{ manifest: ResearchObjectV1; manifestCid: string }> {
-  debugger;
+  // debugger;
   const manifestCid = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid as string, queryString as string) : null;
 
@@ -276,7 +276,7 @@ export function ensureUniquePaths({
 
   let newPathsFormatted: string[] = [];
   const header = contextPath;
-  if (filesBeingAdded.length) {
+  if (filesBeingAdded?.length) {
     newPathsFormatted = filesBeingAdded.map((f) => {
       if (f.originalname[0] !== '/') f.originalname = '/' + f.originalname;
       return header + f.originalname;
@@ -307,13 +307,16 @@ export function ensureUniquePaths({
 }
 
 export async function pinNewFiles(files: any[]): Promise<IpfsPinnedResult[]> {
+  debugger
   const structuredFilesForPinning: IpfsDirStructuredInput[] = await Promise.all(
     files.map(async (f: any) => {
-      if (isS3Configured) {
+      const path = f.originalname ?? f.path;
+      if (isS3Configured && 'key' in f) {
         const fileStream = await fetchFileStreamFromS3(f.key);
-        return { path: f.originalname, content: fileStream };
+        return { path, content: fileStream };
       }
-      return { path: f.originalname, content: f.buffer };
+      const content = f.buffer ?? f.content;
+      return { path, content };
     }),
   );
   let uploaded: IpfsPinnedResult[];
@@ -581,7 +584,8 @@ export async function handleCleanupOnMidProcessingError({
 export function constructComponentTypeMapFromFiles(files: any[]): ResearchObjectComponentTypeMap {
   const componentTypeMap = {};
   files.forEach((f) => {
-    const extension = extractExtension(f.originalname);
+    const path = f.originalname ?? f.path;
+    const extension = extractExtension(path);
     const cType = EXTENSION_MAP[extension] ?? DEFAULT_COMPONENT_TYPE;
     componentTypeMap[extension] = cType;
   });
