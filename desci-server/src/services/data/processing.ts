@@ -307,7 +307,6 @@ export function ensureUniquePaths({
 }
 
 export async function pinNewFiles(files: any[]): Promise<IpfsPinnedResult[]> {
-  debugger
   const structuredFilesForPinning: IpfsDirStructuredInput[] = await Promise.all(
     files.map(async (f: any) => {
       const path = f.originalname ?? f.path;

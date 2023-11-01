@@ -28,6 +28,7 @@ import {
 } from 'utils';
 import {
   ExtensionDataTypeMap,
+  addComponentsToManifest,
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
@@ -45,6 +46,7 @@ import {
   handleCleanupOnMidProcessingError,
   pathContainsExternalCids,
   pinNewFiles,
+  predefineComponentsForPinnedFiles,
   updateDataReferences,
   updateManifestDataBucket,
 } from './processing';
@@ -86,7 +88,6 @@ export async function processExternalUrlDataToIpfs({
   let pinResult: IpfsPinnedResult[] = [];
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
-    debugger;
     const { manifest, manifestCid } = await getManifestFromNode(node);
     const rootCid = extractRootDagCidFromManifest(manifest, manifestCid);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
@@ -173,13 +174,11 @@ export async function processExternalUrlDataToIpfs({
     const externalUrlFilePaths = [externalUrl.path];
     ensureUniquePaths({ flatTreeMap: oldTreePathsMap, contextPath, externalUrlFilePaths });
 
-    debugger
     // Pin new files, structure for DAG extension, add to DAG
     if (externalUrlFiles?.length) {
       // External URL non-repo
       pinResult = await pinNewFiles(externalUrlFiles);
     } else if (zipPath?.length > 0) {
-      debugger
       const outputPath = zipPath.replace('.zip', '');
       logger.debug({ outputPath }, 'Starting unzipping to output directory');
       await extractZipFileAndCleanup(zipPath, outputPath);
@@ -222,10 +221,23 @@ export async function processExternalUrlDataToIpfs({
       updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
     }
 
-    // needs fixing
     // if (componentTypeMap) {
     //   updatedManifest = assignTypeMapInManifest(updatedManifest, componentTypeMap, contextPath, contextPathNewCid);
     // }
+    if (componentType) {
+      /**
+       * Automatically create a new component(s) for the files added, to the first nesting.
+       * It doesn't need to create a new component for every file, only the first nested ones, as inheritance takes care of the children files.
+       * Only needs to happen if a predefined component type is to be added
+       */
+      const firstNestingComponents = predefineComponentsForPinnedFiles({
+        pinnedFirstNestingFiles: filteredFiles,
+        contextPath,
+        componentType,
+        componentSubtype,
+      });
+      updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
+    }
 
     // Update existing data references, add new data references.
     const upserts = await updateDataReferences({ node, user, updatedManifest, newRootCidString, externalCidMap });
