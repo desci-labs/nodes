@@ -726,6 +726,7 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
   const updatedDagCidMap: Record<oldCid, newCid> = {};
 
   let lastUpdatedCid = updatedTailNodeCid;
+
   while (dagCidsToBeReset.length) {
     const currentNodeCid = dagCidsToBeReset.pop();
     //FIXME should be PBLink

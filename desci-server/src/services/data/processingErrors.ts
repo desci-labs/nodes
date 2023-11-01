@@ -136,7 +136,7 @@ interface ExternalUrlResolutionError extends BaseProcessingError {
   status: 500;
 }
 
-export const ExternalUrlResolutionError = (message: string): ExternalUrlResolutionError => ({
+export const createExternalUrlResolutionError = (message: string): ExternalUrlResolutionError => ({
   type: 'ExternalUrlResolutionError',
   message,
   status: 500,

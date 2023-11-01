@@ -6,6 +6,7 @@ import {
   RecursiveLsResult,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
+  ResearchObjectComponentTypeMap,
   neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
@@ -13,6 +14,8 @@ import { DataType, User, Node } from '@prisma/client';
 import axios from 'axios';
 import { rimraf } from 'rimraf';
 
+import prisma from 'client';
+import { persistManifest } from 'controllers/data/utils';
 import parentLogger from 'logger';
 import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import { IpfsDirStructuredInput, addDirToIpfs, addFilesToDag, getDirectoryTree } from 'services/ipfs';
@@ -23,11 +26,18 @@ import {
   saveZipStreamToDisk,
   zipUrlToStream,
 } from 'utils';
-import { ExtensionDataTypeMap, generateExternalCidMap, generateManifestPathsToDbTypeMap, getTreeAndFill, updateManifestComponentDagCids } from 'utils/driveUtils';
+import {
+  ExtensionDataTypeMap,
+  generateExternalCidMap,
+  generateManifestPathsToDbTypeMap,
+  getTreeAndFill,
+  updateManifestComponentDagCids,
+} from 'utils/driveUtils';
 
 import {
   assignTypeMapInManifest,
   cleanupDanglingRefs,
+  constructComponentTypeMapFromFiles,
   ensureUniquePaths,
   extractRootDagCidFromManifest,
   filterFirstNestings,
@@ -38,9 +48,13 @@ import {
   updateDataReferences,
   updateManifestDataBucket,
 } from './processing';
-import { createDagExtensionFailureError, createExternalUrlResolutionError, createManifestPersistFailError, createNotEnoughSpaceError, createUnhandledError } from './processingErrors';
-import prisma from 'client';
-import { persistManifest } from 'controllers/data/utils';
+import {
+  createDagExtensionFailureError,
+  createExternalUrlResolutionError,
+  createManifestPersistFailError,
+  createNotEnoughSpaceError,
+  createUnhandledError,
+} from './processingErrors';
 
 const TEMP_REPO_ZIP_PATH = './repo-tmp';
 
@@ -71,12 +85,14 @@ export async function processExternalUrlDataToIpfs({
 }: ProcessExternalUrlDataToIpfsParams) {
   let pinResult: IpfsPinnedResult[] = [];
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
-
   try {
+    debugger;
     const { manifest, manifestCid } = await getManifestFromNode(node);
     const rootCid = extractRootDagCidFromManifest(manifest, manifestCid);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
-    // const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(files);
+
+    // We can optionally do this after file resolution, may be more useful for code repos than pdfs
+    // const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles([externalUrl]);
 
     // Pull old tree
     const externalCidMap = await generateExternalCidMap(node.uuid);
@@ -157,17 +173,18 @@ export async function processExternalUrlDataToIpfs({
     const externalUrlFilePaths = [externalUrl.path];
     ensureUniquePaths({ flatTreeMap: oldTreePathsMap, contextPath, externalUrlFilePaths });
 
+    debugger
     // Pin new files, structure for DAG extension, add to DAG
-    if (externalUrlFiles.length) {
+    if (externalUrlFiles?.length) {
       // External URL non-repo
       pinResult = await pinNewFiles(externalUrlFiles);
-    } else if (zipPath.length > 0) {
+    } else if (zipPath?.length > 0) {
+      debugger
       const outputPath = zipPath.replace('.zip', '');
       logger.debug({ outputPath }, 'Starting unzipping to output directory');
       await extractZipFileAndCleanup(zipPath, outputPath);
       logger.debug({ outputPath }, 'extraction complete, starting pinning');
       pinResult = await addDirToIpfs(outputPath);
-
       // Overrides the path name of the root directory
       pinResult[pinResult.length - 1].path = externalUrl.path;
 
@@ -201,25 +218,14 @@ export async function processExternalUrlDataToIpfs({
     });
 
     //Update all existing DAG components with new CIDs if they were apart of a cascading update
-    if (Object.keys(updatedDagCidMap).length) {
+    if (Object.keys(updatedDagCidMap)?.length) {
       updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
     }
 
-    if (componentTypeMap) {
-      /**
-       * Automatically create a new component(s) for the files added, to the first nesting.
-       * It doesn't need to create a new component for every file, only the first nested ones, as inheritance takes care of the children files.
-       * Only needs to happen if a predefined component type is to be added
-       */
-      // const firstNestingComponents = predefineComponentsForPinnedFiles({
-      //   pinnedFirstNestingFiles: filteredFiles,
-      //   contextPath,
-      //   componentType,
-      //   componentSubtype,
-      // });
-      // updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
-      updatedManifest = assignTypeMapInManifest(updatedManifest, componentTypeMap, contextPath, contextPathNewCid);
-    }
+    // needs fixing
+    // if (componentTypeMap) {
+    //   updatedManifest = assignTypeMapInManifest(updatedManifest, componentTypeMap, contextPath, contextPathNewCid);
+    // }
 
     // Update existing data references, add new data references.
     const upserts = await updateDataReferences({ node, user, updatedManifest, newRootCidString, externalCidMap });

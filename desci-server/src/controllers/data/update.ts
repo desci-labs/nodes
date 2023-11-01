@@ -16,6 +16,7 @@ import { rimraf } from 'rimraf';
 import prisma from 'client';
 import parentLogger from 'logger';
 import { AuthedRequest } from 'middleware/ensureWriteAccess';
+import { processExternalUrlDataToIpfs } from 'services/data/externalUrlProcessing';
 import {
   cleanupDanglingRefs,
   extractRootDagCidFromManifest,
@@ -75,7 +76,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
   const owner = req.user;
   let node = req.node;
   const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
-  
+
   // temp workaround for non-file uploads
   if (!node) {
     node = await prisma.node.findFirst({
@@ -83,8 +84,8 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
         ownerId: owner.id,
         uuid: uuid.endsWith('.') ? uuid : uuid + '.',
       },
-  })
-}
+    });
+  }
 
   let { externalUrl, externalCids } = req.body;
   //Require XOR (files, externalCid, externalUrl, newFolder)
@@ -121,8 +122,11 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
       .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
 
   // debugger
+  /**
+   * temp short circuit for testing
+   *  */
   if (files.length) {
-    // temp short circuit for testing if regular files are being uploaded
+    // regular files case
     const { ok, value } = await processS3DataToIpfs({
       files,
       user: owner,
@@ -151,7 +155,40 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
       logger.error({ value }, 'processing error occured');
       return res.status(value.status).json({ status: value.status, error: value.message });
     }
+  } else if (externalUrl && externalUrl?.url?.length) {
+    // external url case
+    const { ok, value } = await processExternalUrlDataToIpfs({
+      user: owner,
+      node,
+      externalUrl,
+      contextPath,
+      componentType,
+      componentSubtype,
+    });
+    if (ok) {
+      const {
+        rootDataCid: newRootCidString,
+        manifest: updatedManifest,
+        manifestCid: persistedManifestCid,
+        tree: tree,
+        date: date,
+      } = value as UpdateResponse;
+      return res.status(200).json({
+        rootDataCid: newRootCidString,
+        manifest: updatedManifest,
+        manifestCid: persistedManifestCid,
+        tree: tree,
+        date: date,
+      });
+    } else {
+      if (!('message' in value)) return res.status(500);
+      logger.error({ value }, 'processing error occured');
+      return res.status(value.status).json({ status: value.status, error: value.message });
+    }
   }
+  /**
+   * END temp short circuit for testing
+   *  */
 
   /*
    ** External URL setup, currnetly used for Github Code Repositories & external PDFs
