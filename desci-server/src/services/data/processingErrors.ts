@@ -141,3 +141,15 @@ export const createExternalUrlResolutionError = (message: string): ExternalUrlRe
   message,
   status: 500,
 });
+
+interface NewFolderCreationError extends BaseProcessingError {
+  type: 'NewFolderCreationError';
+  message: string;
+  status: 500;
+}
+
+export const createNewFolderCreationError = (message: string): NewFolderCreationError => ({
+  type: 'NewFolderCreationError',
+  message,
+  status: 500,
+});

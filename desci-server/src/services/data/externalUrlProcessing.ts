@@ -6,7 +6,6 @@ import {
   RecursiveLsResult,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
-  ResearchObjectComponentTypeMap,
   neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
@@ -36,9 +35,7 @@ import {
 } from 'utils/driveUtils';
 
 import {
-  assignTypeMapInManifest,
   cleanupDanglingRefs,
-  constructComponentTypeMapFromFiles,
   ensureUniquePaths,
   extractRootDagCidFromManifest,
   filterFirstNestings,
@@ -77,6 +74,9 @@ interface ProcessExternalUrlDataToIpfsParams {
   componentSubtype?: ResearchObjectComponentSubtypes;
 }
 
+/**
+ * Processes external-url file uploads, currently .pdf URLs and github code repo's
+ */
 export async function processExternalUrlDataToIpfs({
   externalUrl,
   user,

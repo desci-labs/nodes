@@ -23,6 +23,7 @@ import {
   filterFirstNestings,
   getManifestFromNode,
   handleCleanupOnMidProcessingError,
+  processNewFolder,
   processS3DataToIpfs,
   updateDataReferences,
   updateManifestDataBucket,
@@ -164,6 +165,34 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
       contextPath,
       componentType,
       componentSubtype,
+    });
+    if (ok) {
+      const {
+        rootDataCid: newRootCidString,
+        manifest: updatedManifest,
+        manifestCid: persistedManifestCid,
+        tree: tree,
+        date: date,
+      } = value as UpdateResponse;
+      return res.status(200).json({
+        rootDataCid: newRootCidString,
+        manifest: updatedManifest,
+        manifestCid: persistedManifestCid,
+        tree: tree,
+        date: date,
+      });
+    } else {
+      if (!('message' in value)) return res.status(500);
+      logger.error({ value }, 'processing error occured');
+      return res.status(value.status).json({ status: value.status, error: value.message });
+    }
+  } else if (newFolderName) {
+    // new folder case
+    const { ok, value } = await processNewFolder({
+      user: owner,
+      node,
+      newFolderName,
+      contextPath,
     });
     if (ok) {
       const {
