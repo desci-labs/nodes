@@ -14,7 +14,7 @@ import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { getFromCache, setToCache } from 'redisClient';
-import { TreeDiff, diffTrees, subtractNestedObjectValues } from 'utils/diffUtils';
+import { TreeDiff, diffTrees, subtractComponentStats, subtractNestedObjectValues } from 'utils/diffUtils';
 import { getTreeAndFill } from 'utils/driveUtils';
 
 import { ErrorResponse } from './update';
@@ -110,7 +110,7 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
 
   const treeAComponentsContained = calculateComponentStats(treeA[0]);
   const treeBComponentsContained = calculateComponentStats(treeB[0]);
-  const componentsDiff = subtractNestedObjectValues(treeAComponentsContained, treeBComponentsContained);
+  const componentsDiff = subtractComponentStats(treeAComponentsContained, treeBComponentsContained);
 
   const treeDiff = diffTrees(flatTreeA, flatTreeB, {
     pruneThreshold: 1000,

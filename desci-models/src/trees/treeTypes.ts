@@ -31,6 +31,7 @@ export interface DriveObject {
 
 export const NODE_KEEP_FILE = ".nodeKeep";
 
+
 export type ComponentTypesForStats =
   | ResearchObjectComponentType.CODE
   | ResearchObjectComponentType.DATA
@@ -38,13 +39,17 @@ export type ComponentTypesForStats =
   | ResearchObjectComponentType.UNKNOWN;
 // | ResearchObjectComponentType.LINK;
 
-export type ComponentStats = {
+export type DirStat = {
+  dirs: number
+}
+export type ComponentTypeStats ={
   [key in ComponentTypesForStats]: {
     count: number;
     size: number;
-    dirs: number;
   };
-};
+}
+
+export type ComponentStats = DirStat & ComponentTypeStats;
 
 export type DriveMetadata = CommonComponentPayload & DataComponentMetadata;
 

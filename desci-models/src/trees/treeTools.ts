@@ -205,7 +205,7 @@ export function isNodeRoot(component: ResearchObjectV1Component) {
  */
 
 export function calculateComponentStats(dirDrive: DriveObject) {
-return createEmptyComponentStats();
+// return createEmptyComponentStats();
   const cachedStats = dirDrive.componentStats;
   if (cachedStats) {
     return cachedStats;
@@ -217,6 +217,7 @@ return createEmptyComponentStats();
         return acc;
       }
 
+
       const key = currentObject.componentType as ComponentTypesForStats;
 
       /** Base Case for files */
@@ -224,7 +225,7 @@ return createEmptyComponentStats();
         acc[key].count += 1;
         acc[key].size += currentObject.size;
       } else {
-        acc[key].dirs += 1;
+        acc.dirs += 1;
         /** Base Case for Directories */
         if (currentObject.componentStats) {
           /** If cached stats values exist */
@@ -250,6 +251,7 @@ const EMPTY_COMPONENT_STAT = {
 };
 
 export const createEmptyComponentStats = (): ComponentStats => ({
+  dirs: 0,
   unknown: { ...EMPTY_COMPONENT_STAT },
   pdf: { ...EMPTY_COMPONENT_STAT },
   code: { ...EMPTY_COMPONENT_STAT },
@@ -267,13 +269,18 @@ export function addComponentStats(
   };
 
   for (const key in objB) {
-    const keyTyped = key as ComponentTypesForStats;
+    if (key !== 'dirs') {
 
-    result[keyTyped] = {
-      count: objA[keyTyped].count + objB[keyTyped].count,
-      size: objA[keyTyped].size + objB[keyTyped].size,
-      dirs: objA[keyTyped].dirs + objB[keyTyped].dirs,
-    };
+      const keyTyped = key as ComponentTypesForStats;
+      
+      result[keyTyped] = {
+        count: objA[keyTyped].count + objB[keyTyped].count,
+        size: objA[keyTyped].size + objB[keyTyped].size,
+        // dirs: objA[keyTyped].dirs + objB[keyTyped].dirs,
+      };
+    } else {
+      result['dirs'] = objA['dirs'] + objB['dirs']
+    }
   }
 
   return result;
