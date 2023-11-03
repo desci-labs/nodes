@@ -81,7 +81,7 @@ export type DrivePath = string;
 
 export interface VirtualDriveArgs {
   name: string;
-  componentType?: ResearchObjectComponentType | DriveNonComponentTypes;
+  componentType?: ResearchObjectComponentType | DriveNonComponentTypes | ResearchObjectComponentTypeMap;
   componentSubtype?: ResearchObjectComponentSubtypes;
   componentId?: string;
   size?: number;

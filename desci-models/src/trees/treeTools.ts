@@ -33,15 +33,18 @@ export function fillIpfsTree(manifest: ResearchObjectV1, ipfsTree: FileDir[]) {
     ipfsTree as DriveObject[],
     pathToCompMap,
     pathToSizeMap
-    // {}
   );
 
   // Potentially keep if we want to return the root node
   // eslint-disable-next-line no-array-reduce/no-reduce
   const rootSize = driveObjectTree.reduce((acc, curr) => acc + curr.size, 0);
+
+  const rootComponent = manifest.components?.find((c) => isNodeRoot(c))
+  const rootComponentType = rootComponent?.type ?? ResearchObjectComponentType.DATA_BUCKET;
+  
   const treeRoot = createVirtualDrive({
     name: "Node Root",
-    componentType: ResearchObjectComponentType.DATA_BUCKET,
+    componentType: rootComponentType,
     path: DRIVE_NODE_ROOT_PATH,
     contains: driveObjectTree,
     size: rootSize,
@@ -58,13 +61,20 @@ export function getAncestorComponent(
   pathToCompMap: Record<DrivePath, ResearchObjectV1Component>
 ): ResearchObjectV1Component | null {
   const pathSplit = drive.path!.split("/");
+  /**
+   * This part being commented out enables inheritance from the root
   // < 3 === don't inherit from root
   if (pathSplit.length < 3) return null;
+   */
   while (pathSplit.length > 1) {
     pathSplit.pop();
     const parentPath = pathSplit.join("/");
     const parent = pathToCompMap[parentPath];
     if (parent && parent.type !== ResearchObjectComponentType.UNKNOWN) {
+        if (parent.type === ResearchObjectComponentType.DATA_BUCKET) {
+          // To prevent inheriting of the data-bucket type, as it should only be a singleton.
+          parent.type = DEFAULT_COMPONENT_TYPE;
+        }
       return parent;
     }
   }

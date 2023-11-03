@@ -117,7 +117,7 @@ export async function processS3DataToIpfs({
     splitContextPath.shift();
     //rootlessContextPath = how many dags need to be reset, n + 1, used for addToDag function
     const rootlessContextPath = splitContextPath.join('/');
-
+    debugger
     // Check if paths are unique
     ensureUniquePaths({ flatTreeMap: oldTreePathsMap, contextPath, filesBeingAdded: files });
 
