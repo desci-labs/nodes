@@ -235,6 +235,7 @@ export async function processExternalUrlDataToIpfs({
         contextPath,
         componentType,
         componentSubtype,
+        externalUrl,
       });
       updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
     }
