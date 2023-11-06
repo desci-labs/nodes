@@ -354,10 +354,14 @@ export async function processNewFolder({
   }
 }
 
+/**
+ * @param files to contain .size property on each file in the array
+ * @returns true if space available, otherwise throws an error
+ */
 export async function ensureSpaceAvailable(files: any[], user: User) {
   let uploadSizeBytes = 0;
   if (files.length) files.forEach((f) => (uploadSizeBytes += f.size));
-  // if (externalUrl) uploadSizeBytes += externalUrlTotalSizeBytes;
+
   const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(user, { fileSizeBytes: uploadSizeBytes });
   if (!hasStorageSpaceToUpload)
     throw createNotEnoughSpaceError(
@@ -367,7 +371,8 @@ export async function ensureSpaceAvailable(files: any[], user: User) {
 }
 
 export function extractRootDagCidFromManifest(manifest: ResearchObjectV1, manifestCid: string) {
-  const rootCid: string = manifest.components.find((c) => isNodeRoot(c)).payload?.cid;
+  const component = manifest.components.find((c) => isNodeRoot(c));
+  const rootCid: string = component?.payload?.cid;
   if (!rootCid) throw createInvalidManifestError(`Root DAG not found in manifest, manifestCid: ${manifestCid}`);
   return rootCid;
 }
@@ -379,11 +384,12 @@ export async function getManifestFromNode(
   // debugger;
   const manifestCid = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid as string, queryString as string) : null;
-
-  const fetchedManifest = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
-  if (!fetchedManifest)
+  try {
+    const fetchedManifest = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
+    return { manifest: fetchedManifest, manifestCid };
+  } catch (e) {
     throw createIpfsUnresolvableError(`Error fetching manifest from IPFS, manifestCid: ${manifestCid}`);
-  return { manifest: fetchedManifest, manifestCid };
+  }
 }
 
 export function pathContainsExternalCids(flatTreeMap: Record<DrivePath, RecursiveLsResult>, contextPath: string) {
