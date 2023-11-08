@@ -19,7 +19,7 @@ export interface ResearchObjectV1 extends ResearchObject {
   version: "desci-nodes-0.1.0" | "desci-nodes-0.2.0" | 1;
   title?: string;
   defaultLicense?: string;
-  image?: string | IpldUrl;
+  coverImage?: string | IpldUrl;
   components: ResearchObjectV1Component[];
   validations?: ResearchObjectV1Validation[];
   attributes?: ResearchObjectV1Attributes[];
@@ -260,7 +260,7 @@ export interface ResearchObjectComponentAnnotation {
   id: string;
   authorId?: string;
   author?: ResearchObjectV1Author;
-};
+}
 
 export enum ResearchObjectV1AuthorRole {
   AUTHOR = "Author",
