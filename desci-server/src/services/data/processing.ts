@@ -428,16 +428,8 @@ export function ensureUniquePaths({
         return header + '/' + filePath;
       });
     }
-
-    // Code repo, add repo dir path
-    // if (zipPath.length > 0) {
-    //   newPathsFormatted = [header + '/' + externalUrl.path];
-    // }
   }
 
-  // if (newFolderName) {
-  //   newPathsFormatted = [header + '/' + newFolderName];
-  // }
   const hasDuplicates = newPathsFormatted.some((newPath) => newPath in flatTreeMap);
   if (hasDuplicates) {
     logger.info('[UPDATE DATASET] Rejected as duplicate paths were found');
