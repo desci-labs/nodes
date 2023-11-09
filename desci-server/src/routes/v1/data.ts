@@ -75,7 +75,7 @@ router.get('/retrieveTree/:nodeUuid/:manifestCid', [ensureUser], retrieveTree);
 router.get('/retrieveTree/:nodeUuid/:manifestCid/:shareId?', retrieveTree);
 router.get('/pubTree/:nodeUuid/:manifestCid/:rootCid?', pubTree);
 // router.get('/downloadDataset/:nodeUuid/:cid', [ensureUser], downloadDataset);
-router.get('/diff/:nodeUuid/:manifestCidA/:manifestCidB', diffData);
+router.get('/diff/:nodeUuid/:manifestCidA/:manifestCidB?', diffData);
 
 // must be last
 // router.get('/*', [ensureUser], list);
