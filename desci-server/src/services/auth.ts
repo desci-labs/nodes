@@ -99,7 +99,7 @@ const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
   return user;
 };
 
-const sendMagicLinkEmail = async (email: string) => {
+const sendMagicLinkEmail = async (email: string, ip?: string) => {
   email = email.toLowerCase();
   const token = createRandomCode();
 
@@ -122,12 +122,21 @@ const sendMagicLinkEmail = async (email: string) => {
     logger.info({ fn: 'sendMagicLinkEmail', email, token }, `Sending actual email to ${email} token: ${token}`);
 
     const url = `${env.DAPP_URL}/web/login?e=${email}&c=${token}`;
+    const goodIp = ip?.length > 0 && ip !== '::1' && ip !== '127.0.0.1' && ip !== 'localhost';
     const msg = {
       to: email, // Change to your recipient
       from: 'no-reply@desci.com', // Change to your verified sender
       subject: `[nodes.desci.com] Verification: ${token}`,
-      text: `Login with: ${token} ${url}`,
-      html: `Welcome to DeSci Nodes, to access your account use the following code<br/><br/><a href="${url}" target="_blank">Login Now</a><br/><br/>Verification Code: ${token}`,
+      text: `Login with: ${token} ${url}${
+        goodIp
+          ? `\n\n (sent from ip: ${ip} -- if you weren't logging in, please forward this email to info@desci.com)`
+          : ''
+      }`,
+      html: `Welcome to DeSci Nodes, to access your account use the following code<br/><br/><a href="${url}" target="_blank">Login Now</a><br/><br/>Verification Code: ${token}${
+        goodIp
+          ? `<br/><br/><span style="font-size:10px">sent from ip address: ${ip} if you weren't logging in, please forward this email to info@desci.com</span>`
+          : ''
+      }`,
     };
 
     const params = {
@@ -180,7 +189,7 @@ const sendMagicLinkEmail = async (email: string) => {
   }
 };
 const MAGIC_LINK_COOLDOWN = 5 * 1000; // 5 second
-const sendMagicLink = async (email: string) => {
+const sendMagicLink = async (email: string, ip?: string) => {
   email = email.toLowerCase();
 
   // Check for recent magic link generation
@@ -213,7 +222,7 @@ const sendMagicLink = async (email: string) => {
     if (identities.length) {
       throw Error('Login Method associated, skipping magic link');
     }
-    return sendMagicLinkEmail(user.email);
+    return sendMagicLinkEmail(user.email, ip);
   }
 
   throw Error('Not found');

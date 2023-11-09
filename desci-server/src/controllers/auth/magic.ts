@@ -12,6 +12,7 @@ import { sendCookie } from 'utils/sendCookie';
 
 import { getOrcidRecord } from './orcid';
 import { orcidCheck } from './orcidNext';
+
 export const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });
 };
@@ -52,7 +53,8 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     }
 
     try {
-      const ok = await sendMagicLink(email);
+      const ip = req.ip;
+      const ok = await sendMagicLink(email, ip);
       res.send({ ok });
     } catch (err) {
       logger.error({ ...err, fn: 'magic' });
