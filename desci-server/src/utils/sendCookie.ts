@@ -8,7 +8,7 @@ export const sendCookie = (res: Response, token: string, isDevMode: boolean) => 
       maxAge: oneYear,
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
       secure: process.env.NODE_ENV === 'production',
-      domain: process.env.NODE_ENV === 'production' ? '.desci.com' : 'localhost',
+      domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN || '.desci.com' : 'localhost',
       sameSite: 'strict',
     });
   }
