@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 
 import {
+  isNodeRoot,
   recursiveFlattenTree,
   ResearchObjectComponentType,
   ResearchObjectV1,
@@ -52,7 +53,7 @@ export async function testUpgradeManifests() {
     const hasDataBucket =
       manifestObj?.components[0]?.type === ResearchObjectComponentType.DATA_BUCKET
         ? true
-        : manifestObj?.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+        : manifestObj?.components.find((c) => isNodeRoot(c));
 
     if (hasDataBucket) {
       //skip

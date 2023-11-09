@@ -1,4 +1,9 @@
-import { recursiveFlattenTree, ResearchObjectComponentType, ResearchObjectV1Component } from '@desci-labs/desci-models';
+import {
+  isNodeRoot,
+  recursiveFlattenTree,
+  ResearchObjectComponentType,
+  ResearchObjectV1Component,
+} from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import axios from 'axios';
 
@@ -6,7 +11,6 @@ import prisma from 'client';
 import { PersistManifestParams } from 'controllers/data/utils';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import {
-  client,
   createDag,
   createEmptyDag,
   FilesToAddToDag,
@@ -66,7 +70,7 @@ export async function upgradeManifestsScript() {
     const hasDataBucket =
       manifestObj?.components[0]?.type === ResearchObjectComponentType.DATA_BUCKET
         ? true
-        : manifestObj?.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+        : manifestObj?.components.find((c) => isNodeRoot(c));
 
     if (hasDataBucket) {
       //skip

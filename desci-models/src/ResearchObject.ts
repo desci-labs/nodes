@@ -48,7 +48,7 @@ export interface ResearchObjectV1Tags {
 export interface ResearchObjectV1Component {
   id: string;
   name: string;
-  type: ResearchObjectComponentType;
+  type: ResearchObjectComponentType | ResearchObjectComponentTypeMap;
   icon?: any;
   payload: any;
   primary?: boolean;
@@ -266,3 +266,15 @@ export enum ResearchObjectV1AuthorRole {
   AUTHOR = "Author",
   NODE_STEWARD = "Node Steward",
 }
+
+/**
+ * Maps FileExtensions => ResearchObjectComponentTypes
+ * @example { 
+ *   '.py': ResearchObjectComponentType.CODE,
+ *    '.ipynb': ResearchObjectComponentType.CODE,
+ *    '.csv': ResearchObjectComponentType.DATA,
+ *    '.pdf': ResearchObjectComponentType.PDF
+ * }
+ */
+export type ResearchObjectComponentTypeMap = Record<FileExtension, ResearchObjectComponentType>
+export type FileExtension = string;

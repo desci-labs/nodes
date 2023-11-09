@@ -4,6 +4,7 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   calculateComponentStats,
+  isNodeRoot,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import axios from 'axios';
@@ -13,7 +14,7 @@ import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { getFromCache, setToCache } from 'redisClient';
-import { TreeDiff, diffTrees, subtractNestedObjectValues } from 'utils/diffUtils';
+import { TreeDiff, diffTrees, subtractComponentStats, subtractNestedObjectValues } from 'utils/diffUtils';
 import { getTreeAndFill } from 'utils/driveUtils';
 
 import { ErrorResponse } from './update';
@@ -84,9 +85,9 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
     return res.status(400).json({ error: 'Failed to retrieve manifest' });
   }
 
-  const dataBucketA = manifestA?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucketA = manifestA?.components?.find((c) => isNodeRoot(c));
   const dataBucketCidA = dataBucketA?.payload?.cid;
-  const dataBucketB = manifestB?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucketB = manifestB?.components?.find((c) => isNodeRoot(c));
   const dataBucketCidB = dataBucketB?.payload?.cid;
 
   if (!dataBucketCidA || !dataBucketCidB) {
@@ -109,7 +110,7 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
 
   const treeAComponentsContained = calculateComponentStats(treeA[0]);
   const treeBComponentsContained = calculateComponentStats(treeB[0]);
-  const componentsDiff = subtractNestedObjectValues(treeAComponentsContained, treeBComponentsContained);
+  const componentsDiff = subtractComponentStats(treeAComponentsContained, treeBComponentsContained);
 
   const treeDiff = diffTrees(flatTreeA, flatTreeB, {
     pruneThreshold: 1000,
