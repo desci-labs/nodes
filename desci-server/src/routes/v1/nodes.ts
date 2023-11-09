@@ -33,6 +33,7 @@ router.get('/', [ensureUser], list);
 router.post('/doi', [ensureUser], retrieveDoi);
 router.get('/pdf', proxyPdf);
 router.post('/consent', [], consent);
+router.post('/terms', [ensureUser], consent);
 router.get('/share/verify/:shareId', checkPrivateShareId);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);
 router.post('/share/:uuid', [ensureUser], createPrivateShare);

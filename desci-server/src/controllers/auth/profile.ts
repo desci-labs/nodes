@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 import prisma from 'client';
 import { logUserAction } from 'controllers/log';
 import logger from 'logger';
-import { saveInteraction } from 'services/interactionLog';
+import { getUserConsent, saveInteraction } from 'services/interactionLog';
 
 export const profile = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;
@@ -23,6 +23,7 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
       googleScholarUrl: user.googleScholarUrl,
       orcid: user.orcid,
       userOrganization: organization.map((org) => org.organization),
+      consent: !!(await getUserConsent(user.id)),
     },
   };
   try {
