@@ -99,7 +99,7 @@ const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
   return user;
 };
 
-const sendMagicLinkEmail = async (email: string, ip: string) => {
+const sendMagicLinkEmail = async (email: string, ip?: string) => {
   email = email.toLowerCase();
   const token = createRandomCode();
 
@@ -189,7 +189,7 @@ const sendMagicLinkEmail = async (email: string, ip: string) => {
   }
 };
 const MAGIC_LINK_COOLDOWN = 5 * 1000; // 5 second
-const sendMagicLink = async (email: string, ip: string) => {
+const sendMagicLink = async (email: string, ip?: string) => {
   email = email.toLowerCase();
 
   // Check for recent magic link generation
