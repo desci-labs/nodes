@@ -14,7 +14,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
     sameSite: 'strict',
   });
 
-  (process.env.COOKIE_DOMAIN.split(',') || [undefined]).map((domain) => {
+  (process.env.COOKIE_DOMAIN?.split(',') || [undefined]).map((domain) => {
     res.clearCookie('auth', {
       maxAge: oneYear,
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
