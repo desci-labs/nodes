@@ -12,6 +12,7 @@ import { sendCookie } from 'utils/sendCookie';
 
 import { getOrcidRecord } from './orcid';
 import { orcidCheck } from './orcidNext';
+
 export const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });
 };
@@ -52,7 +53,8 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     }
 
     try {
-      const ok = await sendMagicLink(email);
+      const ip = req.ip;
+      const ok = await sendMagicLink(email, ip);
       res.send({ ok });
     } catch (err) {
       logger.error({ ...err, fn: 'magic' });
@@ -68,13 +70,14 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
         if (!user.name) {
           const orcidRecord = await getOrcidRecord(orcid, access_token);
-          const name = orcidRecord['person']['name'];
+          const nameObj = orcidRecord['person']['name'];
+          const name = `${[nameObj['given-names']?.value, nameObj['family-name']?.value].filter(Boolean).join(' ')}`;
           await prismaClient.user.update({
             where: {
               id: user.id,
             },
             data: {
-              name: `${[name['given-names']?.value, name['family-name']?.value].filter(Boolean).join(' ')}`,
+              name,
             },
           });
         }
@@ -91,7 +94,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       res.send({ ok: true, user: { email: user.email, token, termsAccepted } });
 
       if (!termsAccepted) {
-        saveInteraction(req, ActionType.USER_TERMS_CONSENT, { userId: user.id, email: user.email }, user.id);
+        // saveInteraction(req, ActionType.USER_TERMS_CONSENT, { userId: user.id, email: user.email }, user.id);
       }
       saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
     } catch (err) {

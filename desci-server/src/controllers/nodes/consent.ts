@@ -11,6 +11,7 @@ export const consent = async (req: Request, res: Response, next: NextFunction) =
     ActionType.USER_TERMS_CONSENT,
     {
       ...req.body,
+      email: user?.email,
     },
     user?.id,
   );
