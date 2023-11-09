@@ -18,6 +18,32 @@ interface OrcidQueryResponseError {
 const ORCID_PROFILE_TTL = 1000 * 60 * 60 * 24; // 1 day
 const REFRESH_RATE_LIMIT = 1000 * 60 * 5; // 5 minutes
 
+export const orcidDid = async (req: Request, res: Response) => {
+  const wallet = await prisma.wallet.findFirst({
+    where: {
+      address: req.params.did,
+    },
+  });
+  if (!wallet) {
+    res.status(404).send({ ok: false });
+    return;
+  }
+  const user = await prisma.user.findFirst({
+    where: {
+      id: wallet.userId,
+      orcid: {
+        not: null,
+      },
+    },
+  });
+  if (!user) {
+    res.status(404).send({ ok: false });
+    return;
+  }
+  res.send({ orcid: user.orcid, did: wallet.address });
+  return;
+};
+
 export const orcidProfile = async (
   req: Request,
   res: Response<OrcidQueryResponse | OrcidQueryResponseError>,

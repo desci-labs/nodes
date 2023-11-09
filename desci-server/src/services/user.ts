@@ -1,4 +1,5 @@
 import { ActionType, AuthToken, AuthTokenSource, User, prisma } from '@prisma/client';
+import axios from 'axios';
 
 import { OrcIdRecordData, generateAccessToken, getOrcidRecord } from 'controllers/auth';
 import parentLogger from 'logger';
@@ -64,6 +65,63 @@ export async function isAuthTokenSetForUser(userId: number): Promise<boolean> {
   return !!authToken;
 }
 
+export async function writeExternalIdToOrcidProfile(userId: number, didAddress: string) {
+  const user = await client.user.findFirst({
+    where: {
+      id: userId,
+    },
+  });
+  if (!user.orcid) {
+    throw new Error('User does not have an orcid');
+  }
+  const authToken = await client.authToken.findFirst({
+    where: {
+      userId,
+      source: AuthTokenSource.ORCID,
+    },
+  });
+  if (!authToken) {
+    throw new Error('User does not have an orcid auth token');
+  }
+  // check if it's already written to orcid
+  const headers = {
+    'Content-Type': 'application/vnd.orcid+json',
+    Authorization: `Bearer ${authToken.accessToken}`,
+  };
+  const orcidId = user.orcid;
+  const fullDid = `did:pkh:eip155:1:${didAddress}`;
+  try {
+    const externalIds = await axios.get(
+      `https://api.${process.env.ORCID_API_DOMAIN}/v3.0/${orcidId}/external-identifiers`,
+      { headers },
+    );
+    if (externalIds.data['external-identifier'].some((id) => id['external-id-value'] === fullDid)) {
+      console.log('External ID already added');
+      return;
+    }
+    debugger;
+  } catch (error) {
+    console.error('Error getting external IDs:', error.response?.data || error.message);
+  }
+
+  const apiUrl = `https://api.${process.env.ORCID_API_DOMAIN}/v3.0/${orcidId}/external-identifiers`;
+  const externalIdPayload = {
+    'external-id-type': 'Public Key',
+    'external-id-value': fullDid,
+    'external-id-url': {
+      value: `https://nodes.desci.com/orcid-did/${didAddress}`,
+    },
+    'external-id-relationship': 'self',
+  };
+
+  try {
+    const response = await axios.post(apiUrl, externalIdPayload, { headers });
+    console.log('External ID added:', response.data);
+  } catch (error) {
+    console.error('Error adding external ID:', error.response?.data || error.message);
+  }
+}
+
 export async function connectOrcidToUserIfPossible(
   userId: number,
   orcid: string,
@@ -72,7 +130,6 @@ export async function connectOrcidToUserIfPossible(
   expiresIn: number,
   orcidLookup: (orcid: string, accessToken: string) => Promise<OrcIdRecordData> = getOrcidRecord,
 ) {
-  debugger;
   logger.info({ fn: 'connectOrcidToUserIfPossible', orcid, accessTokenPresent: !!accessToken }, `doing orcid lookup`);
   const orcidRecord = await orcidLookup(orcid, accessToken);
   logger.info({ fn: 'connectOrcidToUserIfPossible', orcidRecord, orcid }, `found orcid record`);
