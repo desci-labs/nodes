@@ -68,13 +68,14 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
         if (!user.name) {
           const orcidRecord = await getOrcidRecord(orcid, access_token);
-          const name = orcidRecord['person']['name'];
+          const nameObj = orcidRecord['person']['name'];
+          const name = `${[nameObj['given-names']?.value, nameObj['family-name']?.value].filter(Boolean).join(' ')}`;
           await prismaClient.user.update({
             where: {
               id: user.id,
             },
             data: {
-              name: `${[name['given-names']?.value, name['family-name']?.value].filter(Boolean).join(' ')}`,
+              name,
             },
           });
         }

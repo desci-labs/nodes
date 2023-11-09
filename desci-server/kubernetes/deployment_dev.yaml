@@ -39,6 +39,7 @@ spec:
           export JWT_SECRET={{ .Data.JWT_SECRET }}
           export JWT_EXPIRATION=15m
           export SESSION_KEY={{ .Data.SESSION_KEY }}
+          export COOKIE_DOMAIN={{ .Data.COOKIE_DOMAIN }}
           export ORCID_API_DOMAIN={{ .Data.ORCID_API_DOMAIN }}
           export ORCID_CLIENT_ID={{ .Data.ORCID_CLIENT_ID }}
           export ORCID_CLIENT_SECRET={{ .Data.ORCID_CLIENT_SECRET }}
