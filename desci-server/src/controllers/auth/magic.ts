@@ -92,7 +92,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       res.send({ ok: true, user: { email: user.email, token, termsAccepted } });
 
       if (!termsAccepted) {
-        saveInteraction(req, ActionType.USER_TERMS_CONSENT, { userId: user.id, email: user.email }, user.id);
+        // saveInteraction(req, ActionType.USER_TERMS_CONSENT, { userId: user.id, email: user.email }, user.id);
       }
       saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
     } catch (err) {
