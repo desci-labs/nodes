@@ -163,8 +163,8 @@ model User {
   CidPruneList               CidPruneList[]
   PublicDataReference        PublicDataReference[]
   FriendReferral             FriendReferral[]
-  currentDriveStorageLimitGb Int                   @default(5)
-  maxDriveStorageLimitGb     Int                   @default(250)
+  currentDriveStorageLimitGb Int                   @default(100)
+  maxDriveStorageLimitGb     Int                   @default(500)
   userOrganizations          UserOrganizations[]
   UploadJobs                 UploadJobs[]
 
