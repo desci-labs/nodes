@@ -8,7 +8,7 @@ import { diffData } from 'controllers/data/diff';
 import { moveData } from 'controllers/data/move';
 import { updateExternalCid } from 'controllers/data/updateExternalCid';
 import logger from 'logger';
-import { ensureUser } from 'middleware/ensureUser';
+import { attachUser, ensureUser } from 'middleware/ensureUser';
 import { ensureWriteAccess, ensureWriteAccessCheck } from 'middleware/ensureWriteAccess';
 import { isS3Configured, s3Client } from 'services/s3';
 
@@ -75,7 +75,7 @@ router.get('/retrieveTree/:nodeUuid/:manifestCid', [ensureUser], retrieveTree);
 router.get('/retrieveTree/:nodeUuid/:manifestCid/:shareId?', retrieveTree);
 router.get('/pubTree/:nodeUuid/:manifestCid/:rootCid?', pubTree);
 // router.get('/downloadDataset/:nodeUuid/:cid', [ensureUser], downloadDataset);
-router.get('/diff/:nodeUuid/:manifestCidA/:manifestCidB?', diffData);
+router.get('/diff/:nodeUuid/:manifestCidA/:manifestCidB?', [attachUser], diffData);
 
 // must be last
 // router.get('/*', [ensureUser], list);
