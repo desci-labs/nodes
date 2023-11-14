@@ -2,6 +2,7 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   ResearchObjectV1Component,
+  isNodeRoot,
   neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
@@ -10,11 +11,12 @@ import { Request, Response } from 'express';
 
 import prisma from 'client';
 import parentLogger from 'logger';
+import { updateManifestDataBucket } from 'services/data/processing';
 import { getDirectoryTree, renameFileInDag } from 'services/ipfs';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
 
-import { ErrorResponse, updateManifestDataBucket } from './update';
+import { ErrorResponse } from './update';
 import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils';
 
 interface RenameResponse {
@@ -53,7 +55,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
   }
 
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  const dataBucket = latestManifest?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
 
   try {
     /*
@@ -93,7 +95,6 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
 
     updatedManifest = updateManifestDataBucket({
       manifest: updatedManifest,
-      dataBucketId: dataBucket.id,
       newRootCid: updatedRootCid,
     });
 

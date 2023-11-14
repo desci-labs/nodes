@@ -34,6 +34,7 @@ model Node {
   NodeCover           NodeCover[]
   isDeleted           Boolean               @default(false)
   deletedAt           DateTime?
+  UploadJobs          UploadJobs[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -165,6 +166,7 @@ model User {
   currentDriveStorageLimitGb Int                   @default(100)
   maxDriveStorageLimitGb     Int                   @default(500)
   userOrganizations          UserOrganizations[]
+  UploadJobs                 UploadJobs[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -466,6 +468,38 @@ model OrcidProfile {
   profile   Json
 
   @@index([orcidId])
+}
+
+model UploadJobs {
+  id                   Int              @id @default(autoincrement())
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  uploadType           UploadType
+  uploadPayload        Json
+  contextPath          String
+  storageReference     String? // If using S3, this would be the storage key used
+  totalSize            Int?
+  totalFiles           Int?
+  totalDirs            Int?
+  proccessingStartTime DateTime?
+  processingEndTime    DateTime?
+  processingState      ProcessingState?
+  nodeId               Int
+  userId               Int
+  node                 Node             @relation(fields: [nodeId], references: [id])
+  user                 User             @relation(fields: [userId], references: [id])
+}
+
+enum UploadType {
+  REGULAR
+  EXTERNAL_URL
+  EXTERNAL_CID
+}
+
+enum ProcessingState {
+  STARTED
+  FAILED
+  COMPLETED
 }
 
 enum FriendReferralStatus {

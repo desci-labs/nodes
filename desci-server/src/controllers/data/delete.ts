@@ -2,6 +2,7 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   deneutralizePath,
+  isNodeRoot,
   neutralizePath,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
@@ -9,11 +10,12 @@ import { Request, Response } from 'express';
 
 import prisma from 'client';
 import parentLogger from 'logger';
+import { updateManifestDataBucket } from 'services/data/processing';
 import { removeFileFromDag } from 'services/ipfs';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import { updateManifestComponentDagCids } from 'utils/driveUtils';
 
-import { ErrorResponse, updateManifestDataBucket } from './update';
+import { ErrorResponse } from './update';
 import { getLatestManifest, persistManifest } from './utils';
 
 interface DeleteResponse {
@@ -48,7 +50,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
   }
 
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  const dataBucket = latestManifest?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
 
   try {
     /*
@@ -142,7 +144,6 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
 
     updatedManifest = updateManifestDataBucket({
       manifest: updatedManifest,
-      dataBucketId: dataBucket.id,
       newRootCid: updatedRootCid,
     });
 

@@ -2,19 +2,21 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   ResearchObjectV1Component,
+  isNodeRoot,
   neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 
 import prisma from 'client';
 import parentLogger from 'logger';
+import { updateManifestDataBucket } from 'services/data/processing';
 import { RecursiveLsResult, getDirectoryTree, moveFileInDag } from 'services/ipfs';
 import { prepareDataRefs } from 'utils/dataRefTools';
 import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
 
-import { ErrorResponse, updateManifestDataBucket } from './update';
+import { ErrorResponse } from './update';
 import { getLatestManifest, persistManifest } from './utils';
 
 interface MoveResponse {
@@ -51,7 +53,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
   }
 
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  const dataBucket = latestManifest?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
 
   try {
     /*
@@ -95,7 +97,6 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
 
     updatedManifest = updateManifestDataBucket({
       manifest: updatedManifest,
-      dataBucketId: dataBucket.id,
       newRootCid: updatedRootCid,
     });
 

@@ -1,4 +1,4 @@
-import { DriveObject, DrivePath, FileType, neutralizePath } from '@desci-labs/desci-models';
+import { ComponentStats, DriveObject, DrivePath, FileType, neutralizePath } from '@desci-labs/desci-models';
 
 export type TreeDiffObject = {
   entries: DrivePath[];
@@ -92,4 +92,23 @@ export function subtractNestedObjectValues(objA: NestedNumericObject, objB: Nest
   }
 
   return result;
+}
+
+export function subtractComponentStats(statsA: ComponentStats, statsB: ComponentStats): ComponentStats {
+  const result = {} as ComponentStats;
+
+  result.dirs = (statsA.dirs || 0) - (statsB.dirs || 0);
+
+  const componentTypeStatsA = { ...statsA } as any as NestedNumericObject;
+  const componentTypeStatsB = { ...statsB } as any as NestedNumericObject;
+
+  delete componentTypeStatsA.dirs;
+  delete componentTypeStatsB.dirs;
+
+  const subtractedComponentTypeStats = subtractNestedObjectValues(componentTypeStatsA, componentTypeStatsB);
+
+  return {
+    ...result,
+    ...subtractedComponentTypeStats,
+  };
 }

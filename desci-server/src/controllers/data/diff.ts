@@ -4,6 +4,8 @@ import {
   ResearchObjectComponentType,
   ResearchObjectV1,
   calculateComponentStats,
+  createEmptyComponentStats,
+  isNodeRoot,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import axios from 'axios';
@@ -13,7 +15,7 @@ import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { getFromCache, setToCache } from 'redisClient';
-import { TreeDiff, diffTrees, subtractNestedObjectValues } from 'utils/diffUtils';
+import { TreeDiff, diffTrees, subtractComponentStats, subtractNestedObjectValues } from 'utils/diffUtils';
 import { getTreeAndFill } from 'utils/driveUtils';
 
 import { ErrorResponse } from './update';
@@ -27,10 +29,11 @@ interface Diffs {
   componentsDiff: Partial<ComponentStats>;
 }
 
-// Diffs two public nodes
+// Diffs a public node against another or a blank state (0diff)
 export const diffData = async (req: Request, res: Response<DiffResponse | ErrorResponse | string>) => {
-  //   const owner = (req as any).user;
+  const user = (req as any).user;
   const { nodeUuid, manifestCidA, manifestCidB } = req.params;
+
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::DiffController',
@@ -40,13 +43,8 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
   });
   logger.trace('Entered DATA::Diff');
 
-  if (nodeUuid === undefined || manifestCidA === undefined || manifestCidB === undefined)
-    return res.status(400).json({ error: 'uuid, manifestCidA and manifestCidB query params required' });
-
-  const cacheKey = `diff-${nodeUuid}-${manifestCidA}-${manifestCidB}`;
-
-  const cachedDiffs = await getFromCache<Diffs | null>(cacheKey);
-  if (cachedDiffs) return res.status(200).json(cachedDiffs);
+  if (nodeUuid === undefined || manifestCidA === undefined)
+    return res.status(400).json({ error: 'uuid and manifestCidA query params required' });
 
   // ensure the node is valid
   const node = await prisma.node.findFirst({
@@ -58,38 +56,90 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
     return res.status(400).json({ error: 'nodeUuid not found' });
   }
 
-  // check if both manifestCids are public and valid
-  const manifestAPubRef = await prisma.publicDataReference.findFirst({
-    where: {
-      cid: manifestCidA,
-    },
-  });
-  const manifestBPubRef = await prisma.publicDataReference.findFirst({
-    where: {
-      cid: manifestCidB,
-    },
-  });
-
-  if (!manifestAPubRef || !manifestBPubRef) {
-    return res.status(400).json({ error: 'Invalid comparison manifestCids or unpublished nodes' });
+  /**
+   * Ensure the user has read access to the manifests being diffed
+   */
+  let manifestAAuthed = false;
+  let manifestBAuthed = false;
+  if (manifestCidA) {
+    // Attempt to find a public reference for given manifest CID
+    const manifestAPubRef = await prisma.publicDataReference.findFirst({
+      where: {
+        cid: manifestCidA,
+      },
+    });
+    if (manifestAPubRef) {
+      manifestAAuthed = true;
+    } else {
+      // Attempt to find a private reference for given manifest CID, if user is AUTHED.
+      if (!user?.id) return res.status(401).json({ error: `Unauthorized manifest: ${manifestCidA}` });
+      const manifestAPrivRef = await prisma.dataReference.findFirst({
+        where: {
+          cid: manifestCidA,
+          userId: user.id,
+        },
+      });
+      if (manifestAPrivRef) manifestAAuthed = true;
+    }
   }
 
+  if (manifestCidB) {
+    // Attempt to find a public reference for given manifest CID
+    const manifestBPubRef = await prisma.publicDataReference.findFirst({
+      where: {
+        cid: manifestCidB,
+      },
+    });
+    if (manifestBPubRef) {
+      manifestBAuthed = true;
+    } else {
+      // Attempt to find a private reference for given manifest CID, if user is AUTHED.
+      if (!user?.id) return res.status(401).json({ error: `Unauthorized manifest: ${manifestCidB}` });
+      const manifestBPrivRef = await prisma.dataReference.findFirst({
+        where: {
+          cid: manifestCidB,
+          userId: user.id,
+        },
+      });
+      if (manifestBPrivRef) manifestBAuthed = true;
+    }
+  }
+
+  // Manifest A Unauthed = fail
+  if (!manifestAAuthed) return res.status(401).json({ error: `Unauthorized manifest: ${manifestCidA}` });
+  // Manifest A Authed + Manifest B Unauthed = fail
+  if (manifestAAuthed && manifestCidB && !manifestBAuthed)
+    return res.status(401).json({ error: `Unauthorized manifest: ${manifestCidB}` });
+
+  // Manifest A Authed + Blank = pass
+  // Manifest A Authed + Manifest B Authed = pass
+
+  const cacheKey = `diff-${nodeUuid}-${manifestCidA}-${manifestCidB || 'blank'}`;
+
+  const cachedDiffs = await getFromCache<Diffs | null>(cacheKey);
+  if (cachedDiffs) return res.status(200).json(cachedDiffs);
+
+  // if (!manifestAPubRef || !manifestBPubRef) {
+  //   return res.status(400).json({ error: 'Invalid comparison manifestCids or unpublished nodes' });
+  // }
+
   const manifestUrlA = cleanupManifestUrl(manifestCidA);
-  const manifestUrlB = cleanupManifestUrl(manifestCidB);
+  const manifestUrlB = manifestCidB ? cleanupManifestUrl(manifestCidB) : null;
 
   const manifestA = await axios.get<ResearchObjectV1>(manifestUrlA).then((res) => res.data);
-  const manifestB = await axios.get<ResearchObjectV1>(manifestUrlB).then((res) => res.data);
-  if (!manifestA || !manifestB) {
-    logger.warn(`Failed to retrieve manifest from ${manifestUrlA} or ${manifestUrlB}`);
+  const manifestB = manifestUrlB ? await axios.get<ResearchObjectV1>(manifestUrlB).then((res) => res.data) : null;
+
+  if (!manifestA) {
+    logger.warn(`Failed to retrieve manifest from ${manifestUrlA}`);
     return res.status(400).json({ error: 'Failed to retrieve manifest' });
   }
 
-  const dataBucketA = manifestA?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
+  const dataBucketA = manifestA?.components?.find((c) => isNodeRoot(c));
   const dataBucketCidA = dataBucketA?.payload?.cid;
-  const dataBucketB = manifestB?.components?.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET);
-  const dataBucketCidB = dataBucketB?.payload?.cid;
+  const dataBucketB = manifestB ? manifestB?.components?.find((c) => isNodeRoot(c)) : null;
+  const dataBucketCidB = manifestB ? dataBucketB?.payload?.cid : null;
 
-  if (!dataBucketCidA || !dataBucketCidB) {
+  if (!dataBucketCidA) {
     logger.error(
       { diffsSuccessfullyGenerated: false, dataBucketA, dataBucketB },
       'Empty data bucket, failed to diff trees',
@@ -98,18 +148,18 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
   }
 
   const treeA = await getTreeAndFill(manifestA, nodeUuid, undefined, true);
-  const treeB = await getTreeAndFill(manifestB, nodeUuid, undefined, true);
+  const treeB = manifestB ? await getTreeAndFill(manifestB, nodeUuid, undefined, true) : null;
 
   const flatTreeA = recursiveFlattenTree(treeA) as DriveObject[];
-  const flatTreeB = recursiveFlattenTree(treeB) as DriveObject[];
+  const flatTreeB = treeB ? (recursiveFlattenTree(treeB) as DriveObject[]) : [];
 
   const treeASize = treeA[0].size;
-  const treeBSize = treeB[0].size;
+  const treeBSize = treeB ? treeB[0].size : 0;
   const sizeDiff = treeASize - treeBSize;
 
   const treeAComponentsContained = calculateComponentStats(treeA[0]);
-  const treeBComponentsContained = calculateComponentStats(treeB[0]);
-  const componentsDiff = subtractNestedObjectValues(treeAComponentsContained, treeBComponentsContained);
+  const treeBComponentsContained = treeB ? calculateComponentStats(treeB[0]) : createEmptyComponentStats();
+  const componentsDiff = subtractComponentStats(treeAComponentsContained, treeBComponentsContained);
 
   const treeDiff = diffTrees(flatTreeA, flatTreeB, {
     pruneThreshold: 1000,

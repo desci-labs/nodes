@@ -1,10 +1,4 @@
-import {
-  FileType,
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  neutralizePath,
-  recursiveFlattenTree,
-} from '@desci-labs/desci-models';
+import { FileType, ResearchObjectV1, isNodeRoot, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
 import { DataReference, DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
 
@@ -68,8 +62,7 @@ export async function generateDataReferences({
   });
   if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
-  const dataBucketCid = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
-    .cid;
+  const dataBucketCid = manifestEntry.components.find((c) => isNodeRoot(c)).payload.cid;
   logger.info({ fn: 'generateDataReferences' }, `DATA BUCKET CID: ${dataBucketCid}`);
   const dataRootEntry: Prisma.DataReferenceCreateManyInput = {
     cid: dataBucketCid,
@@ -267,8 +260,7 @@ export async function validateDataReferences({
   if (!publicRefs) manifestCid = node.manifestUrl;
 
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
-  const dataBucketCid = manifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
-    .cid;
+  const dataBucketCid = manifestEntry.components.find((c) => isNodeRoot(c)).payload.cid;
 
   const versionId = publicRefs
     ? (
