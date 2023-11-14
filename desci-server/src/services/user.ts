@@ -218,11 +218,12 @@ export async function setOrcidForUser(
       const payload = {
         ok: false,
         error:
-          'This ORCiD is already registered to another user' +
+          'This ORCiD is already registered to another user (code: 1020-' +
           [user, userWithOrcid]
             .filter(Boolean)
             .map((a) => a?.id)
-            .join('|'),
+            .join('-') +
+          ')',
       };
       logger.warn({ fn: 'setOrcidForUser', userId, orcid, ...payload }, payload.error);
       return payload;
