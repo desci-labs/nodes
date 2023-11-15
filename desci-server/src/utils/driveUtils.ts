@@ -135,7 +135,9 @@ export async function getTreeAndFill(
   published?: boolean,
 ) {
   // debugger;
-  const rootCid = manifest.components.find((c) => isNodeRoot(c)).payload.cid;
+  const dataBucket = manifest.components.find((c) => isNodeRoot(c));
+  if (!dataBucket) throw new Error(`No data bucket found in manifest for nodeUuid ${nodeUuid}`);
+  const rootCid = dataBucket.payload.cid;
   const externalCidMap = published
     ? await generateExternalCidMap(nodeUuid + '.', rootCid)
     : await generateExternalCidMap(nodeUuid + '.');
