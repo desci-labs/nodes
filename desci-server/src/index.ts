@@ -15,6 +15,7 @@ import './utils/response/customSuccess';
 import { orcidConnect } from 'controllers/auth';
 import { orcidCheck } from 'controllers/auth/orcidNext';
 import logger from 'logger';
+import { ensureUserIfPresent } from 'middleware/ensureUserIfPresent';
 
 import { errorHandler } from './middleware/errorHandler';
 import routes from './routes';
@@ -158,7 +159,7 @@ app.get('/readyz', (req, res) => {
 
 app.get('/orcid', orcidConnect);
 // orcid/next is the v2 orcid flow
-app.post('/orcid/next', orcidCheck());
+app.post('/orcid/next', [ensureUserIfPresent], orcidCheck());
 
 app.use('/', routes);
 

@@ -13,6 +13,7 @@ import {
 } from "../ResearchObject";
 import { RoCrateGraph } from "../RoCrate";
 import { BaseTransformer } from "./BaseTransformer";
+import { isNodeRoot, isResearchObjectComponentTypeMap } from "../trees/treeTools";
 
 const IPFS_RESOLVER_HTTP = "https://ipfs.io/ipfs/";
 const cleanupUrlOrCid = (str: string) => {
@@ -217,13 +218,13 @@ export class RoCrateTransformer implements BaseTransformer {
       crateComponent = softwareSourceCode;
     } else if (
       component.type === ResearchObjectComponentType.DATA ||
-      component.type === ResearchObjectComponentType.DATA_BUCKET ||
+      isNodeRoot(component) ||
       component.type === ResearchObjectComponentType.UNKNOWN
     ) {
       const dataset: Dataset = {
         ...(crateComponent as Dataset),
       };
-      if (component.type !== ResearchObjectComponentType.DATA_BUCKET) {
+      if (!(isNodeRoot(component))) {
         const dataPayload = component.payload as DataComponentMetadata;
         if (dataPayload.ontologyPurl) {
           dataset.schemaVersion = dataPayload.ontologyPurl;
@@ -253,7 +254,7 @@ export class RoCrateTransformer implements BaseTransformer {
       crateComponent = creativeWork;
     }
     // add additional properties for root folder
-    if (component.type === ResearchObjectComponentType.DATA_BUCKET) {
+    if (isNodeRoot(component)) {
       const dataset: Dataset = {
         ...(crateComponent as Dataset),
       };

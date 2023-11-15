@@ -3,6 +3,7 @@ import {
   RecursiveLsResult,
   ResearchObjectComponentType,
   deneutralizePath,
+  isNodeRoot,
   neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
@@ -13,6 +14,7 @@ import { Response, Request } from 'express';
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
+import { updateManifestDataBucket } from 'services/data/processing';
 import {
   FilesToAddToDag,
   GetExternalSizeAndTypeResult,
@@ -36,7 +38,7 @@ import {
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
 
-import { ErrorResponse, UpdateResponse, updateManifestDataBucket } from './update';
+import { ErrorResponse, UpdateResponse } from './update';
 import { persistManifest } from './utils';
 
 export const updateExternalCid = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
@@ -100,8 +102,7 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
 
   const fetchedManifestEntry = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
   const latestManifestEntry = fetchedManifestEntry;
-  const rootCid = latestManifestEntry.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).payload
-    .cid;
+  const rootCid = latestManifestEntry.components.find((c) => isNodeRoot(c)).payload.cid;
 
   const manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(latestManifestEntry);
 
@@ -225,11 +226,10 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   const fetchedManifest = manifestUrl ? await (await axios.get(manifestUrl)).data : null;
   const latestManifest = fetchedManifest;
 
-  const dataBucketId = latestManifest.components.find((c) => c.type === ResearchObjectComponentType.DATA_BUCKET).id;
+  const dataBucketId = latestManifest.components.find((c) => isNodeRoot(c)).id;
 
   let updatedManifest = updateManifestDataBucket({
     manifest: latestManifest,
-    dataBucketId: dataBucketId,
     newRootCid: newRootCidString,
   });
 

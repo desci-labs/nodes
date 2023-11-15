@@ -726,6 +726,7 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
   const updatedDagCidMap: Record<oldCid, newCid> = {};
 
   let lastUpdatedCid = updatedTailNodeCid;
+
   while (dagCidsToBeReset.length) {
     const currentNodeCid = dagCidsToBeReset.pop();
     //FIXME should be PBLink
@@ -743,7 +744,11 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
     // oldToNewCidMap[oldCid] = lastUpdatedCid.toString();
   }
 
-  return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
+  return {
+    updatedRootCid: lastUpdatedCid.toString(),
+    updatedDagCidMap,
+    contextPathNewCid: updatedTailNodeCid.toString(),
+  };
 };
 
 export const removeFileFromDag = async (rootCid: string, contextPath: string, fileNameToRemove: string) => {

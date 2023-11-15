@@ -47,6 +47,8 @@ const logger = pino({
       '*.user.orcid',
       'authorization',
       '*.authorization',
+      '*.Authorization',
+      'Authorization',
     ],
   },
 });

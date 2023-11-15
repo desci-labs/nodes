@@ -16,6 +16,16 @@ export const ensureUser = async (req: Request, res: Response, next: NextFunction
   next();
 };
 
+/**
+ * Attaches the user to the request (req.user), the difference between this middleware and ensureUser is that this is optional
+ * and won't reject with a 401 if not logged in.
+ */
+export const attachUser = async (req: Request, res: Response, next: NextFunction) => {
+  const retrievedUser = await retrieveUser(req);
+  (req as any).user = retrievedUser;
+  next();
+};
+
 export const retrieveUser = async (req: Request): Promise<User | null> => {
   let token: string | undefined;
   // Try to retrieve the token from the auth header
