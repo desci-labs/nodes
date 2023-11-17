@@ -127,6 +127,7 @@ export enum ResearchObjectComponentType {
   TERMINAL = "terminal", // not used, TODO: remove
   DATA = "data",
   LINK = "link", // external link
+  Media = "media", // external link
 }
 
 export enum ResearchObjectComponentDocumentSubtype {
@@ -136,6 +137,25 @@ export enum ResearchObjectComponentDocumentSubtype {
   SUPPLEMENTARY_INFORMATION = "supplementary-information",
   PRESENTATION_DECK = "presentation-deck",
   OTHER = "other",
+}
+
+export enum DataComponentSubtype {
+  PROCESSED_DATA = "processed-data",
+  RAW_DATA = "raw-data",
+}
+
+export enum CodeComponentSubtype {
+  JUPYTER_NOTEBOOK = "jupyter-notebook",
+  SOFTWARE_PACKAGE = "software-package",
+  CONTAINER = "container",
+}
+
+export enum MediaComponentSubtype {
+  COMMUNITY_DISCUSSION = "community-discussion",
+  VIDEO_RESOURCE = "video-resource",
+  EXTERNAL_REPOSITORY = "external-repository",
+  IMAGE_RESOURCE = "image-resource",
+  API_ENDPOINT = "api-endpoint",
 }
 
 export enum ResearchObjectComponentLinkSubtype {
@@ -149,7 +169,10 @@ export enum ResearchObjectComponentLinkSubtype {
 
 export type ResearchObjectComponentSubtypes =
   | ResearchObjectComponentDocumentSubtype
-  | ResearchObjectComponentLinkSubtype;
+  | ResearchObjectComponentLinkSubtype
+  | DataComponentSubtype
+  | CodeComponentSubtype
+  | MediaComponentSubtype;
 
 export interface CommonComponentPayload {
   title?: string;
