@@ -127,7 +127,7 @@ export enum ResearchObjectComponentType {
   TERMINAL = "terminal", // not used, TODO: remove
   DATA = "data",
   LINK = "link", // external link
-  Media = "media", // external link
+  MEDIA = "media",
 }
 
 export enum ResearchObjectComponentDocumentSubtype {
