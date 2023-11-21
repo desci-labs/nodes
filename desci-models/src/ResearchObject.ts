@@ -148,14 +148,12 @@ export enum CodeComponentSubtype {
   JUPYTER_NOTEBOOK = "jupyter-notebook",
   SOFTWARE_PACKAGE = "software-package",
   CONTAINER = "container",
+  EXTERNAL_REPOSITORY = "external-repository",
 }
 
 export enum MediaComponentSubtype {
-  COMMUNITY_DISCUSSION = "community-discussion",
   VIDEO_RESOURCE = "video-resource",
-  EXTERNAL_REPOSITORY = "external-repository",
   IMAGE_RESOURCE = "image-resource",
-  API_ENDPOINT = "api-endpoint",
 }
 
 export enum ResearchObjectComponentLinkSubtype {
@@ -164,6 +162,7 @@ export enum ResearchObjectComponentLinkSubtype {
   EXTERNAL_API = "external-api",
   RESTRICTED_DATA = "restricted",
   PRESENTATION_DECK = "presentation-deck",
+  API_ENDPOINT = "api-endpoint",
   OTHER = "other",
 }
 
