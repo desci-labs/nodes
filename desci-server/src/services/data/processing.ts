@@ -717,7 +717,7 @@ export function constructComponentTypeMapFromFiles(files: any[]): ResearchObject
   files.forEach((f) => {
     const path = f.originalname ?? f.path;
     const extension = extractExtension(path);
-    const cType = EXTENSION_MAP[extension] ?? DEFAULT_COMPONENT_TYPE;
+    const cType = EXTENSION_MAP[extension?.toLowerCase()] ?? DEFAULT_COMPONENT_TYPE;
     componentTypeMap[extension] = cType;
   });
   return componentTypeMap;
