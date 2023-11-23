@@ -11,6 +11,7 @@ export const createPrivateShare = async (req: Request, res: Response, next: Next
     where: {
       uuid: uuid + '.',
       ownerId: owner.id,
+      isDeleted: false,
     },
   });
 
@@ -43,6 +44,7 @@ export const getPrivateShare = async (req: Request, res: Response, next: NextFun
       where: {
         uuid: uuid + '.',
         ownerId: owner.id,
+        isDeleted: false,
       },
     });
 
