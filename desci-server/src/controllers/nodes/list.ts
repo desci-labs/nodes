@@ -63,7 +63,7 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
       },
       where: {
         ownerId: owner.id,
-        // isDeleted: false,
+        isDeleted: false,
       },
       orderBy: { updatedAt: 'desc' },
     });
