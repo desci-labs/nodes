@@ -90,6 +90,7 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
       where: {
         uuid: uuid + '.',
         ownerId,
+        isDeleted: false,
       },
     });
 
