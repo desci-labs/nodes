@@ -500,6 +500,7 @@ model DraftNodeTree {
   cid       String
   directory Boolean
   size      Int
+  external  Boolean
   nodeId    Int
   userId    Int
   node      Node     @relation(fields: [nodeId], references: [id])
