@@ -17,6 +17,7 @@
     "script:active-users": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/activeUsers.ts",
     "script:invalidate-redis-cache": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/invalidate-redis-cache.ts",
     "script:increase-base-drive-storage": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/increase-base-drive-storage.ts",
+    "script:testing": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/testing.ts",
     "build": "rimraf dist && tsc && yarn copy-files",
     "copy-files": "copyfiles -u 1 src/**/*.cjs dist/",
     "generate": "npx prisma generate",
