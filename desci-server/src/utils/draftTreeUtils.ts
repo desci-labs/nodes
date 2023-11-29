@@ -1,5 +1,5 @@
-import { DrivePath, FileType, RecursiveLsResult, recursiveFlattenTree } from '@desci-labs/desci-models';
-import { DraftNodeTree, Node, User } from '@prisma/client';
+import { DrivePath, FileType, RecursiveLsResult, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
+import { DraftNodeTree, Node, Prisma, PrismaClient, User } from '@prisma/client';
 
 export type TimestampMap = Record<DrivePath, { createdAt: Date; updatedAt: Date }>;
 
@@ -12,18 +12,18 @@ export function ipfsDagToDraftNodeTreeEntries(
   node: Node,
   user: User,
   timestampMap?: TimestampMap,
-): Array<Partial<DraftNodeTree>> {
+): Prisma.DraftNodeTreeCreateManyInput[] {
   const flatIpfsTree = recursiveFlattenTree(ipfsTree);
-  const draftNodeTreeEntries: Array<Partial<DraftNodeTree>> = [];
+  const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = [];
 
   flatIpfsTree.forEach((fd) => {
     const timestampEntry = timestampMap?.[fd.path];
-    const draftNodeTreeEntry: Partial<DraftNodeTree> = {
-      cid: fd.cid,
+    const draftNodeTreeEntry: Prisma.DraftNodeTreeCreateManyInput = {
+      cid: fd.type === FileType.FILE ? fd.cid : 'dir',
       size: fd.size,
       directory: fd.type === FileType.DIR,
-      path: fd.path,
-      external: fd.external,
+      path: neutralizePath(fd.path),
+      external: fd.external ?? false,
       nodeId: node.id,
       userId: user.id,
       ...(timestampEntry && { createdAt: timestampEntry.createdAt, updatedAt: timestampEntry.updatedAt }),
@@ -47,7 +47,8 @@ export function draftNodeTreeEntriesToFlatIpfsTree(draftNodeTree: DraftNodeTree[
       size,
       type: directory ? FileType.DIR : FileType.FILE,
       path,
-      external,
+      name: path.split('/').pop(),
+      external: external ?? false,
     };
     flatIpfsTree.push(flatIpfsTreeEntry);
   });
