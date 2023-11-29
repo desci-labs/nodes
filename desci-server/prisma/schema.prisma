@@ -496,7 +496,7 @@ model DraftNodeTree {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  path      String?
+  path      String
   cid       String
   directory Boolean
   size      Int
