@@ -61,7 +61,7 @@ import { persistManifest } from './utils';
 const TEMP_REPO_ZIP_PATH = './repo-tmp';
 export interface UpdateResponse {
   status?: number;
-  rootDataCid: string;
+  rootDataCid?: string;
   manifest: ResearchObjectV1;
   manifestCid: string;
   tree: DriveObject[];

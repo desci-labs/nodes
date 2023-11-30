@@ -128,7 +128,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}`;
   try {
     if (redisClient.isOpen) {
-      const cached = await redisClient.get(depthCacheKey);
+      const cached = await redisClient.get(depthCacheKey + 'invalid');
       if (cached) {
         const tree = JSON.parse(cached);
         return res.status(200).json({ tree: [tree], date: dataset?.updatedAt.toString() });
@@ -142,7 +142,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   let filledTree;
   try {
     filledTree = await getOrCache(
-      `filled-tree-${manifestCid}`,
+      `filled-tree-${manifestCid}-${Date.now()}`,
       async () => await getTreeAndFill(manifest, uuid, ownerId),
     );
     if (!filledTree) throw new Error('[retrieveTree] Failed to retrieve tree from cache');
