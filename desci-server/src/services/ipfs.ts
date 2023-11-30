@@ -397,16 +397,22 @@ export const getDirectoryTree = async (
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
   );
   try {
-    const tree = await getOrCache(
-      `full-tree-${cid}${!returnFiles ? '-no-files' : ''}${cid}${!returnExternalFiles ? '-no-ext-files' : ''}`,
-      getTree,
-    );
+    // const tree = await getOrCache(
+    //   `full-tree-${cid}${!returnFiles ? '-no-files' : ''}${cid}${!returnExternalFiles ? '-no-ext-files' : ''}`,
+    //   getTree,
+    // );
+    const tree = null;
     if (tree) return tree;
     throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
   } catch (err) {
     logger.warn({ fn: 'getDirectoryTree', err }, '[getDirectoryTree] error');
     logger.info('[getDirectoryTree] Falling back on uncached tree retrieval');
-    return getTree();
+    const startTime = process.hrtime();
+    const treeRes = await getTree();
+    // return getTree();
+    const endTime = process.hrtime(startTime);
+    logger.error(`Execution time: ${endTime[0]}s ${endTime[1] / 1000000}ms`);
+    return treeRes;
   }
   async function getTree() {
     if (Object.keys(externalCidMap).length === 0) {
