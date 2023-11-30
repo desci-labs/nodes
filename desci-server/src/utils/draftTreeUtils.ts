@@ -1,6 +1,8 @@
 import { DrivePath, FileType, RecursiveLsResult, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
 import { DraftNodeTree, Node, Prisma, PrismaClient, User } from '@prisma/client';
 
+export const DRAFT_CID = 'draft';
+
 export type TimestampMap = Record<DrivePath, { createdAt: Date; updatedAt: Date }>;
 
 /**
@@ -53,4 +55,32 @@ export function draftNodeTreeEntriesToFlatIpfsTree(draftNodeTree: DraftNodeTree[
     flatIpfsTree.push(flatIpfsTreeEntry);
   });
   return flatIpfsTree;
+}
+
+/**
+ * Converts a flat IPFS tree structure to a hierarchical tree structure.
+ */
+export function flatTreeToHierarchicalTree(flatTree: RecursiveLsResult[]): RecursiveLsResult[] {
+  const treeMap = new Map<string, RecursiveLsResult>();
+  const rootNodes: RecursiveLsResult[] = [];
+
+  flatTree.forEach((node) => {
+    treeMap.set(node.path, node);
+    node.contains = [];
+  });
+
+  flatTree.forEach((node) => {
+    const pathParts = node.path.split('/');
+    pathParts.pop(); // Remove the current node part
+    const parentPath = pathParts.join('/');
+
+    if (treeMap.has(parentPath)) {
+      const parentNode = treeMap.get(parentPath);
+      parentNode?.contains?.push(node);
+    } else {
+      rootNodes.push(node); // Root node
+    }
+  });
+
+  return rootNodes;
 }
