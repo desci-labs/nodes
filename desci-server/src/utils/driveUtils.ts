@@ -22,6 +22,8 @@ import { getOrCache } from 'redisClient';
 import { getDirectoryTree, RecursiveLsResult } from 'services/ipfs';
 import { getIndexedResearchObjects } from 'theGraph';
 
+import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils';
+
 export function fillDirSizes(tree, cidInfoMap) {
   const contains = [];
   tree.forEach((fd) => {
@@ -141,8 +143,14 @@ export async function getTreeAndFill(
   const externalCidMap = published
     ? await generateExternalCidMap(nodeUuid + '.', rootCid)
     : await generateExternalCidMap(nodeUuid + '.');
-  let tree: RecursiveLsResult[] = await getDirectoryTree(rootCid, externalCidMap);
 
+  const node = await prisma.node.findUnique({ where: { uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.' } });
+
+  const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
+  let tree: RecursiveLsResult[] = published
+    ? await getDirectoryTree(rootCid, externalCidMap)
+    : flatTreeToHierarchicalTree(await draftNodeTreeEntriesToFlatIpfsTree(dbTree));
+  logger.info('ran getTreeAndFill');
   /*
    ** Get all entries for the nodeUuid, for filling the tree
    ** Both entries neccessary to determine publish state, prioritize public entries over private
