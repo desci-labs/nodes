@@ -149,7 +149,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   } catch (err) {
     logger.warn({ fn: 'retrieveTree', err }, '[retrieveTree] error');
     logger.info('[retrieveTree] Falling back on uncached tree retrieval');
-    filledTree = await getTreeAndFill(manifest, uuid, ownerId);
+    filledTree = (await getTreeAndFill(manifest, uuid, ownerId)) ?? [];
   }
 
   const depthTree = await getOrCache(depthCacheKey, async () => {
