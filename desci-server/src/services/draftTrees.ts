@@ -53,6 +53,7 @@ export async function ensureUniquePathsDraftTree({
   contextPath,
   filesBeingAdded,
   externalUrlFilePaths,
+  nodeId,
 }: EnsureUniquePathsDraftTreeParams): Promise<boolean> {
   // Ensure all baths being added are unique to prevent collisions
 
@@ -74,6 +75,7 @@ export async function ensureUniquePathsDraftTree({
 
   const matches = await prisma.draftNodeTree.findMany({
     where: {
+      nodeId,
       path: {
         in: newPathsFormatted,
       },
