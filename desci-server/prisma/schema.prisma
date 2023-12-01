@@ -505,6 +505,8 @@ model DraftNodeTree {
   userId    Int
   node      Node     @relation(fields: [nodeId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([nodeId, path])
 }
 
 enum UploadType {
