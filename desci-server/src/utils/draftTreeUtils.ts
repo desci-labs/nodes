@@ -15,6 +15,7 @@ export function ipfsDagToDraftNodeTreeEntries(
   user: User,
   timestampMap?: TimestampMap,
 ): Prisma.DraftNodeTreeCreateManyInput[] {
+  // debugger;
   const flatIpfsTree = recursiveFlattenTree(ipfsTree);
   const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = [];
 
