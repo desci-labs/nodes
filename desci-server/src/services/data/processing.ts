@@ -94,6 +94,7 @@ export async function processS3DataToIpfs({
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
     ensureSpaceAvailable(files, user);
+    // debugger;
 
     const { manifest, manifestCid } = await getManifestFromNode(node);
     const rootCid = extractRootDagCidFromManifest(manifest, manifestCid);
@@ -130,9 +131,10 @@ export async function processS3DataToIpfs({
     pinResult = await pinNewFiles(files, true);
     if (pinResult) {
       const root = pinResult[pinResult.length - 1];
-      const flatRootTree = recursiveFlattenTree(await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
+      const rootTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
+      // debugger;
       const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries(
-        flatRootTree,
+        rootTree,
         node,
         user,
       );
