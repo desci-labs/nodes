@@ -1,0 +1,13 @@
+{
+  "jsc": {
+    "parser": {
+      "syntax": "typescript"
+    },
+    "baseUrl": "src/"
+  },
+  "module": {
+    "type": "nodenext"
+  },
+  "sourceMaps": "inline",
+  "inlineSourcesContent": true
+}
