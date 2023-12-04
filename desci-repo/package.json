@@ -58,6 +58,7 @@
     "typescript": "5.1.6"
   },
   "dependencies": {
+    "@desci-labs/desci-models": "^0.1.21",
     "@sentry/node": "^7.84.0",
     "@sentry/tracing": "^7.84.0",
     "cors": "^2.8.5",
