@@ -103,12 +103,12 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
 
     // Update new name in draftTree db entry
     const updatedEntry = await prisma.draftNodeTree.update({
-      where: { nodeId: node.id, path: path },
+      where: { nodeId_path: { nodeId: node.id, path: path } },
       data: { path: newPath },
     });
 
     if (updatedEntry.path !== newPath) {
-      return res.status(400).json({ error: 'failed renaming in the draft tree' });
+      return res.status(400).json({ error: 'failed renaming file in the draft tree' });
     }
 
     // updatedManifest = updateManifestDataBucket({
