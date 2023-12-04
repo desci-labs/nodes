@@ -24,9 +24,9 @@ const researchObject: ResearchObjectV1 = {
 
 const getNodeDocument = async function (req: Request, res: Response) {
   try {
-    console.log('REQ', req.params, req.query);
     const repo = server.repo;
-    res.status(200).send({ documentId: repo.networkSubsystem.peerId });
+    console.log('REQ', req.params, repo.networkSubsystem.peerId);
+    res.status(200).send({ documentId: '2ZNaMBfKDHRQU6aXC9KNt5zXggmB' });
   } catch (err) {
     console.log(err);
     res.status(500).send({ ok: false, message: JSON.stringify(err) });

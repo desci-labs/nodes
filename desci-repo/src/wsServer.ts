@@ -6,6 +6,9 @@ import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket
 import { NodeFSStorageAdapter } from '@automerge/automerge-repo-storage-nodefs';
 import os from 'os';
 import type { Server as HttpServer } from 'http';
+import { extractUserFromToken, extractAuthToken } from './middleware/permissions.js';
+import logger from './logger.js';
+import { Request } from 'express';
 
 export default class SocketServer {
   #socket: WebSocketServer;
@@ -46,8 +49,12 @@ export default class SocketServer {
     //! REMOVE LATER, statically set uuid for demo
     this.nodeUuidToDocIcMap.set('ADyYCVqKaFrnDRr6I8FhRrn5eUuHG40-ANe-z_eh-ZY', '2ZNaMBfKDHRQU6aXC9KNt5zXggmB');
 
-    this.#server.on('upgrade', (request, socket, head) => {
-      console.log(`Server upgrade ${port}`);
+    this.#server.on('upgrade', async (request, socket, head) => {
+      console.log(`Server upgrade ${port}`, request.headers.cookie);
+      const token = await extractAuthToken(request as Request);
+      const authUser = await extractUserFromToken(token);
+      logger.info({ module: 'WebSocket SERVER', token, authUser }, 'Upgrade Connection Established');
+
       this.#socket.handleUpgrade(request, socket, head, (socket) => {
         console.log(`WS Server upgrade ${port}`);
         this.#socket.emit('connection', socket, request);

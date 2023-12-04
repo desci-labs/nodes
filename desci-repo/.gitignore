@@ -5,3 +5,5 @@ node_modules
 dist/
 .DS_Store
 .amrg
+log/server.log
+log/access.log
