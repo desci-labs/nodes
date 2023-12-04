@@ -63,7 +63,9 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
      ** New name collision check
      */
     // const externalCidMap = await generateExternalCidMap(node.uuid);
-    const contextPath = path.split('/').pop().join('/');
+    const contextPath = path.split('/');
+    contextPath.pop();
+    contextPath.join('/');
     await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, filesBeingAdded: [{ originalname: newName }] });
 
     // const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(dataBucket.payload.cid, externalCidMap));
