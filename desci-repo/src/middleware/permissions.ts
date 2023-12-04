@@ -49,7 +49,13 @@ export const extractUserFromToken = async (token: string) => {
     jwt.verify(token, process.env.JWT_SECRET as string, async (err: any, user: any) => {
       if (err) {
         logger.info({ module: 'ExtractAuthUser', token }, 'anon request');
-        resolve(null);
+        //! TODO: REVERT BACK TO resolve(null)
+        //! TODO: REVERT BACK TO resolve(null)
+        //! TODO: REVERT BACK TO resolve(null)
+        //! TODO: REVERT BACK TO resolve(null)
+        //! TODO: REVERT BACK TO resolve(null)
+        //! TODO: REVERT BACK TO resolve(null)
+        resolve({});
         return;
       }
 

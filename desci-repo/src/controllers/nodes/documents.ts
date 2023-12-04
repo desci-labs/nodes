@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import server from '../../server.js';
 import { ResearchObjectDocument } from '../../types.js';
 import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import prisma from '../../client.js';
 
 const researchObject: ResearchObjectV1 = {
   title: '',
@@ -26,6 +27,11 @@ const getNodeDocument = async function (req: Request, res: Response) {
   try {
     const repo = server.repo;
     console.log('REQ', req.params, repo.networkSubsystem.peerId);
+    const node = await prisma.node.findMany();
+    // const node = await prisma.node.findFirst({
+    //   where: { uuid: req.params.uuid.endsWith('.') ? req.params.uuid : `${req.params.uuid}.` },
+    // });
+    console.log('NODE FOUND', node);
     res.status(200).send({ documentId: '2ZNaMBfKDHRQU6aXC9KNt5zXggmB' });
   } catch (err) {
     console.log(err);
@@ -52,6 +58,7 @@ const createNodeDocument = async function (req: Request, res: Response) {
     const document = await handle.doc();
     console.log('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
     console.log('REPO', repo);
+
     res.status(200).send({ ok: true, documentId: '' });
   } catch (err) {
     console.log(err);

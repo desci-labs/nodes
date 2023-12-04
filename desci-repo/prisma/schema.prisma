@@ -1,0 +1,561 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AuthToken {
+  id           Int              @id @default(autoincrement())
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime
+  accessToken  String?
+  refreshToken String?
+  expiresIn    Int?
+  tokenId      String?
+  userId       Int
+  source       AuthTokenSource?
+  User         User             @relation(fields: [userId], references: [id])
+}
+
+model AuthorInvite {
+  id                                 Int      @id @default(autoincrement())
+  createdAt                          DateTime @default(now())
+  updatedAt                          DateTime
+  email                              String   @unique
+  phoneNumber                        String   @unique
+  senderId                           Int
+  receiverId                         Int
+  nodeId                             Int
+  Node                               Node     @relation(fields: [nodeId], references: [id])
+  User_AuthorInvite_receiverIdToUser User     @relation("AuthorInvite_receiverIdToUser", fields: [receiverId], references: [id])
+  User_AuthorInvite_senderIdToUser   User     @relation("AuthorInvite_senderIdToUser", fields: [senderId], references: [id])
+}
+
+model ChainTransaction {
+  id                                       Int                  @id @default(autoincrement())
+  createdAt                                DateTime             @default(now())
+  updatedAt                                DateTime
+  hash                                     String
+  type                                     ChainTransactionType
+  userId                                   Int?
+  targetUserId                             Int?
+  nodeId                                   Int?
+  nodeVoteId                               Int?                 @unique
+  Node                                     Node?                @relation(fields: [nodeId], references: [id])
+  NodeVote                                 NodeVote?            @relation(fields: [nodeVoteId], references: [id])
+  User_ChainTransaction_targetUserIdToUser User?                @relation("ChainTransaction_targetUserIdToUser", fields: [targetUserId], references: [id])
+  User_ChainTransaction_userIdToUser       User?                @relation("ChainTransaction_userIdToUser", fields: [userId], references: [id])
+}
+
+model CidPruneList {
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  description String
+  cid         String
+  size        Int
+  type        DataType
+  duration    Int      @default(30)
+  deleted     Boolean  @default(false)
+  nodeId      Int
+  userId      Int
+  directory   Boolean
+  Node        Node     @relation(fields: [nodeId], references: [id])
+  User        User     @relation(fields: [userId], references: [id])
+}
+
+model DataReference {
+  id          Int          @id @default(autoincrement())
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime
+  cid         String
+  size        Int
+  userId      Int
+  name        String?
+  nodeId      Int
+  root        Boolean
+  type        DataType
+  description String?
+  directory   Boolean
+  path        String?
+  rootCid     String?
+  versionId   Int?
+  external    Boolean?
+  Node        Node         @relation(fields: [nodeId], references: [id])
+  User        User         @relation(fields: [userId], references: [id])
+  NodeVersion NodeVersion? @relation(fields: [versionId], references: [id])
+}
+
+model FriendReferral {
+  id                     Int                  @id @default(autoincrement())
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime
+  status                 FriendReferralStatus
+  awardedStorage         Boolean              @default(false)
+  amountAwardedStorageGb Int                  @default(0)
+  receiverEmail          String
+  senderUserId           Int
+  uuid                   String               @unique
+  User                   User                 @relation(fields: [senderUserId], references: [id])
+}
+
+model InteractionLog {
+  id         Int         @id @default(autoincrement())
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime
+  ip         String?
+  userAgent  String?
+  extra      String?
+  action     ActionType?
+  userId     Int?
+  rep        Int?
+  nodeId     Int?
+  waitlistId Int?
+  Node       Node?       @relation(fields: [nodeId], references: [id])
+  User       User?       @relation(fields: [userId], references: [id])
+  Waitlist   Waitlist?   @relation(fields: [waitlistId], references: [id])
+}
+
+model Invite {
+  id                           Int      @id @default(autoincrement())
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime
+  email                        String?
+  phoneNumber                  String?
+  senderId                     Int
+  receiverId                   Int?
+  inviteCode                   String?  @default("desci")
+  expired                      Boolean  @default(false)
+  expiredAt                    DateTime @default(dbgenerated("'2001-01-01 00:00:00'::timestamp without time zone"))
+  User_Invite_receiverIdToUser User?    @relation("Invite_receiverIdToUser", fields: [receiverId], references: [id])
+  User_Invite_senderIdToUser   User     @relation("Invite_senderIdToUser", fields: [senderId], references: [id])
+}
+
+model IpfsMirror {
+  id                              Int                               @id @default(autoincrement())
+  createdAt                       DateTime                          @default(now())
+  updatedAt                       DateTime
+  name                            String                            @unique
+  description                     String?
+  website                         String
+  PublicDataReferenceOnIpfsMirror PublicDataReferenceOnIpfsMirror[]
+}
+
+model MagicLink {
+  id             Int      @id @default(autoincrement())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+  expiresAt      DateTime @default(dbgenerated("(now() + '01:00:00'::interval)"))
+  token          String
+  email          String
+  failedAttempts Int      @default(0)
+}
+
+model Node {
+  id                  Int                   @id @default(autoincrement())
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  title               String
+  cid                 String                @default("")
+  state               NodeState             @default(NEW)
+  isFeatured          Boolean               @default(false)
+  manifestUrl         String
+  restBody            Json                  @default("{}")
+  replicationFactor   Int
+  ownerId             Int
+  uuid                String?               @unique
+  deletedAt           DateTime?
+  isDeleted           Boolean               @default(false)
+  AuthorInvite        AuthorInvite[]
+  ChainTransaction    ChainTransaction[]
+  CidPruneList        CidPruneList[]
+  DataReference       DataReference[]
+  InteractionLog      InteractionLog[]
+  User                User                  @relation(fields: [ownerId], references: [id])
+  NodeAuthor          NodeAuthor[]
+  NodeCover           NodeCover[]
+  NodeVersion         NodeVersion[]
+  NodeVote            NodeVote[]
+  PrivateShare        PrivateShare?
+  PublicDataReference PublicDataReference[]
+  UploadJobs          UploadJobs[]
+
+  @@index([ownerId])
+  @@index([uuid])
+}
+
+model NodeAuthor {
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  shares    Int
+  userId    Int
+  nodeId    Int
+  Node      Node     @relation(fields: [nodeId], references: [id])
+  User      User     @relation(fields: [userId], references: [id])
+
+  @@id([userId, nodeId])
+}
+
+model NodeCover {
+  id       Int     @id @default(autoincrement())
+  url      String
+  cid      String?
+  nodeUuid String
+  name     String?
+  version  Int?    @default(0)
+  Node     Node    @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, version])
+}
+
+model NodeVersion {
+  id                  Int                   @id @default(autoincrement())
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  manifestUrl         String
+  cid                 String                @default("")
+  transactionId       String?
+  nodeId              Int?
+  DataReference       DataReference[]
+  Node                Node?                 @relation(fields: [nodeId], references: [id])
+  PublicDataReference PublicDataReference[]
+}
+
+model NodeVote {
+  id               Int               @id @default(autoincrement())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime
+  voteWeight       Int
+  userId           Int
+  nodeId           Int
+  ChainTransaction ChainTransaction?
+  Node             Node              @relation(fields: [nodeId], references: [id])
+  User             User              @relation(fields: [userId], references: [id])
+}
+
+model OauthAccessGrant {
+  id                  String           @id
+  userId              Int
+  applicationId       String
+  token               String           @unique
+  expiresAt           DateTime
+  redirectUri         String
+  codeChallengeMethod String?
+  codeChallenge       String?
+  scopes              Json             @default("[]")
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @default(now())
+  OauthApplication    OauthApplication @relation(fields: [applicationId], references: [id])
+  User                User             @relation(fields: [userId], references: [id])
+
+  @@index([applicationId])
+  @@index([userId])
+}
+
+model OauthAccessToken {
+  id                    String           @id
+  userId                Int
+  applicationId         String
+  token                 String           @unique
+  refreshToken          String?          @unique
+  tokenExpiresAt        DateTime?
+  refreshTokenExpiresAt DateTime?
+  scopes                Json             @default("[]")
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @default(now())
+  OauthApplication      OauthApplication @relation(fields: [applicationId], references: [id])
+  User                  User             @relation(fields: [userId], references: [id])
+
+  @@index([applicationId])
+  @@index([userId])
+}
+
+model OauthApplication {
+  id               String             @id
+  name             String
+  clientId         String             @unique
+  clientSecret     String
+  redirectUris     Json               @default("[]")
+  scopes           Json               @default("[]")
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @default(now())
+  grants           Json               @default("[]")
+  OauthAccessGrant OauthAccessGrant[]
+  OauthAccessToken OauthAccessToken[]
+}
+
+model OrcidProfile {
+  id        Int      @id @default(autoincrement())
+  updatedAt DateTime
+  expiresIn DateTime
+  orcidId   String   @unique
+  profile   Json
+
+  @@index([orcidId])
+}
+
+model Organization {
+  id                String              @id @unique
+  name              String
+  UserOrganizations UserOrganizations[]
+}
+
+model PrivateShare {
+  id        Int      @id @default(autoincrement())
+  shareId   String   @unique
+  nodeUUID  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Node      Node     @relation(fields: [nodeUUID], references: [uuid])
+
+  @@index([shareId])
+}
+
+model PublicDataReference {
+  id                              Int                               @id @default(autoincrement())
+  createdAt                       DateTime                          @default(now())
+  updatedAt                       DateTime
+  name                            String?
+  description                     String?
+  cid                             String
+  root                            Boolean
+  directory                       Boolean
+  size                            Int
+  type                            DataType
+  nodeId                          Int
+  userId                          Int?
+  versionId                       Int?
+  path                            String?
+  rootCid                         String?
+  external                        Boolean?
+  Node                            Node                              @relation(fields: [nodeId], references: [id])
+  User                            User?                             @relation(fields: [userId], references: [id])
+  NodeVersion                     NodeVersion?                      @relation(fields: [versionId], references: [id])
+  PublicDataReferenceOnIpfsMirror PublicDataReferenceOnIpfsMirror[]
+}
+
+model PublicDataReferenceOnIpfsMirror {
+  dataReferenceId     Int
+  mirrorId            Int
+  status              PublishState        @default(WAITING)
+  retryCount          Int                 @default(0)
+  providerCount       Int                 @default(0)
+  PublicDataReference PublicDataReference @relation(fields: [dataReferenceId], references: [id])
+  IpfsMirror          IpfsMirror          @relation(fields: [mirrorId], references: [id])
+
+  @@id([dataReferenceId, mirrorId])
+}
+
+model ResearchFields {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
+model Session {
+  id        String   @id
+  sid       String   @unique
+  data      String
+  expiresAt DateTime
+}
+
+model UploadJobs {
+  id                   Int              @id @default(autoincrement())
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime
+  uploadType           UploadType
+  uploadPayload        Json
+  contextPath          String
+  storageReference     String?
+  totalSize            Int?
+  totalFiles           Int?
+  totalDirs            Int?
+  proccessingStartTime DateTime?
+  processingEndTime    DateTime?
+  processingState      ProcessingState?
+  nodeId               Int
+  userId               Int
+  Node                 Node             @relation(fields: [nodeId], references: [id])
+  User                 User             @relation(fields: [userId], references: [id])
+}
+
+model User {
+  id                                                   Int                   @id @default(autoincrement())
+  createdAt                                            DateTime              @default(now())
+  updatedAt                                            DateTime
+  email                                                String                @unique
+  phoneNumber                                          String?               @unique
+  name                                                 String?
+  walletAddress                                        String?               @unique
+  isPatron                                             Boolean               @default(false)
+  isWarden                                             Boolean               @default(false)
+  isKeeper                                             Boolean               @default(false)
+  pseudonym                                            String?               @unique
+  orcid                                                String?               @unique
+  isAdmin                                              Boolean               @default(false)
+  isVerified                                           Boolean               @default(false)
+  verificationCode                                     String                @default("")
+  siweNonce                                            String                @default("")
+  canRunCode                                           Boolean?              @default(false)
+  researchInterests                                    String?
+  website                                              String?
+  googleScholarUrl                                     String?
+  gitcoinPassport                                      String?               @unique
+  currentDriveStorageLimitGb                           Int                   @default(100)
+  maxDriveStorageLimitGb                               Int                   @default(500)
+  AuthToken                                            AuthToken[]
+  AuthorInvite_AuthorInvite_receiverIdToUser           AuthorInvite[]        @relation("AuthorInvite_receiverIdToUser")
+  AuthorInvite_AuthorInvite_senderIdToUser             AuthorInvite[]        @relation("AuthorInvite_senderIdToUser")
+  ChainTransaction_ChainTransaction_targetUserIdToUser ChainTransaction[]    @relation("ChainTransaction_targetUserIdToUser")
+  ChainTransaction_ChainTransaction_userIdToUser       ChainTransaction[]    @relation("ChainTransaction_userIdToUser")
+  CidPruneList                                         CidPruneList[]
+  DataReference                                        DataReference[]
+  FriendReferral                                       FriendReferral[]
+  InteractionLog                                       InteractionLog[]
+  Invite_Invite_receiverIdToUser                       Invite[]              @relation("Invite_receiverIdToUser")
+  Invite_Invite_senderIdToUser                         Invite[]              @relation("Invite_senderIdToUser")
+  Node                                                 Node[]
+  NodeAuthor                                           NodeAuthor[]
+  NodeVote                                             NodeVote[]
+  OauthAccessGrant                                     OauthAccessGrant[]
+  OauthAccessToken                                     OauthAccessToken[]
+  PublicDataReference                                  PublicDataReference[]
+  UploadJobs                                           UploadJobs[]
+  UserIdentity                                         UserIdentity[]
+  UserOrganizations                                    UserOrganizations[]
+  Waitlist                                             Waitlist[]
+  Wallet                                               Wallet[]
+
+  @@index([orcid])
+  @@index([pseudonym])
+  @@index([walletAddress])
+}
+
+model UserIdentity {
+  id        String   @id
+  userId    Int
+  provider  String
+  uid       String
+  name      String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  User      User     @relation(fields: [userId], references: [id])
+
+  @@unique([provider, uid])
+  @@index([userId])
+}
+
+model UserOrganizations {
+  organizationId String
+  userId         Int
+  Organization   Organization @relation(fields: [organizationId], references: [id])
+  User           User         @relation(fields: [userId], references: [id])
+
+  @@id([userId, organizationId])
+}
+
+model Waitlist {
+  id             Int              @id @default(autoincrement())
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  email          String           @unique
+  userId         Int?
+  InteractionLog InteractionLog[]
+  User           User?            @relation(fields: [userId], references: [id])
+}
+
+model Wallet {
+  id              Int      @id @default(autoincrement())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime
+  address         String
+  network         String?
+  chainId         String?
+  msgSignature    String?
+  msgPlain        String?
+  userId          Int?
+  nickname        String?
+  usedFaucet      Boolean? @default(false)
+  giftTransaction String?
+  User            User?    @relation(fields: [userId], references: [id])
+
+  @@index([address])
+  @@index([userId])
+}
+
+enum ActionType {
+  ORCID_RETRIEVE
+  USER_LOGIN
+  USER_WALLET_ASSOCIATE
+  USER_WALLET_CONNECT
+  USER_NODE_VOTE
+  WAITLIST_ADD
+  RETRIEVE_URL
+  RETRIEVE_URL_FAIL
+  RETREIVE_URL_SUCCESS
+  USER_TERMS_CONSENT
+  PUBLISH_NODE_CID_SUCCESS
+  PUBLISH_NODE_CID_FAIL
+  PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS
+  PUBLISH_NODE_RESEARCH_OBJECT_FAIL
+  USER_ACTION
+  NEW_REFERRAL
+  ACCEPTED_REFERRAL
+}
+
+enum AuthTokenSource {
+  ORCID
+}
+
+enum ChainTransactionType {
+  NODE_MINT
+  NODE_UPDATE
+  NODE_VOTE
+}
+
+enum DataType {
+  MANIFEST
+  DATASET
+  IMAGES
+  VIDEOS
+  CODE_REPOS
+  DOCUMENT
+  DATA_BUCKET
+  UNKNOWN
+}
+
+enum FriendReferralStatus {
+  PENDING
+  ACCEPTED
+}
+
+enum NodeState {
+  NEW
+  PENDING_DAO_APPROVAL
+  DAO_APPROVED
+  PENDING_VALIDATION
+  VALIDATED
+  WITHDRAWN
+}
+
+enum ProcessingState {
+  STARTED
+  FAILED
+  COMPLETED
+}
+
+enum PublishState {
+  WAITING
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum UploadType {
+  REGULAR
+  EXTERNAL_URL
+  EXTERNAL_CID
+}
