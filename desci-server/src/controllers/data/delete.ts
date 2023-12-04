@@ -5,7 +5,7 @@ import {
   isNodeRoot,
   neutralizePath,
 } from '@desci-labs/desci-models';
-import { DataReference, DataType } from '@prisma/client';
+import { CidPruneList, DataReference, DataType, Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import prisma from 'client';
@@ -50,68 +50,36 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
   }
 
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
+  // const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
 
   try {
-    /*
-     ** Delete from DAG
+    /**
+     * Remove draft node tree entries, add them to the cid prune list
      */
-    const splitContextPath = path.split('/');
-    splitContextPath.shift(); //remove root
-    const pathToDelete = splitContextPath.pop();
-    const cleanContextPath = splitContextPath.join('/');
-    logger.debug('DATA::Delete cleanContextPath: ', cleanContextPath, ' Deleting: ', pathToDelete);
-    const { updatedDagCidMap, updatedRootCid } = await removeFileFromDag(
-      dataBucket.payload.cid,
-      cleanContextPath,
-      pathToDelete,
-    );
 
-    /*
-     ** Prepare updated refs
-     */
-    const existingDataRefs = await prisma.dataReference.findMany({
+    const entriesToDelete = await prisma.draftNodeTree.findMany({
       where: {
         nodeId: node.id,
-        userId: owner.id,
-        type: { not: DataType.MANIFEST },
+        AND: [
+          {
+            path: {
+              startsWith: path + '/',
+            },
+          },
+          {
+            path: path,
+          },
+        ],
       },
     });
 
-    //map existing ref neutral paths to the ref
-    const existingRefMap = existingDataRefs.reduce((map, ref) => {
-      map[neutralizePath(ref.path)] = ref;
-      return map;
-    }, {});
+    const entriesToDeleteIds = entriesToDelete.map((e) => e.id);
 
-    const newRefs = await prepareDataRefs(node.uuid, latestManifest, updatedRootCid);
-
-    // Find the dags that need updating
-    const dataRefUpdates: Partial<DataReference>[] = newRefs.map((newDataRef) => {
-      const newRefNeutralPath = neutralizePath(newDataRef.path);
-      const match = existingRefMap[newRefNeutralPath];
-      match.rootCid = updatedRootCid;
-      if (match) {
-        return { ...match, ...newDataRef };
-      } else {
-        return newDataRef;
-      }
-    });
-
-    /*
-     ** Delete dataRefs, add to cidPruneList
-     */
-    const deneutralizedPath = deneutralizePath(path, dataBucket?.payload?.cid);
-    const dataRefsToDelete = existingDataRefs.filter(
-      (e) => e.path.startsWith(deneutralizedPath + '/') || e.path === deneutralizedPath,
-    );
-
-    const dataRefDeletionIds = dataRefsToDelete.map((e) => e.id);
-    const formattedPruneList = dataRefsToDelete.map((e) => {
+    const formattedPruneList: Prisma.CidPruneListCreateManyInput[] = entriesToDelete.map((e) => {
       return {
-        description: '[DATA::DELETE]path: ' + neutralizePath(e.path),
+        description: '[DATA::DELETE db]path: ' + e.path,
         cid: e.cid,
-        type: e.type,
+        type: DataType.UNKNOWN,
         size: e.size,
         nodeId: e.nodeId,
         userId: e.userId,
@@ -119,16 +87,90 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       };
     });
 
-    const [deletions, creations, ...updates] = await prisma.$transaction([
-      prisma.dataReference.deleteMany({ where: { id: { in: dataRefDeletionIds } } }),
+    const [deletions, creations] = await prisma.$transaction([
+      prisma.dataReference.deleteMany({ where: { id: { in: entriesToDeleteIds } } }),
       prisma.cidPruneList.createMany({ data: formattedPruneList }),
-      ...(dataRefUpdates as any).map((fd) => {
-        return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
-      }),
     ]);
     logger.info(
-      `DATA::Delete ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added, ${updates.length} dataReferences updated`,
+      `DATA::Delete ${deletions.count} draftNodeTree entries deleted, ${creations.count} cidPruneList entries added`,
     );
+
+    /*
+     ** Delete from DAG
+     */
+    // const splitContextPath = path.split('/');
+    // splitContextPath.shift(); //remove root
+    // const pathToDelete = splitContextPath.pop();
+    // const cleanContextPath = splitContextPath.join('/');
+    // logger.debug('DATA::Delete cleanContextPath: ', cleanContextPath, ' Deleting: ', pathToDelete);
+    // const { updatedDagCidMap, updatedRootCid } = await removeFileFromDag(
+    //   dataBucket.payload.cid,
+    //   cleanContextPath,
+    //   pathToDelete,
+    // );
+
+    /*
+     ** Prepare updated refs
+     */
+    // const existingDataRefs = await prisma.dataReference.findMany({
+    //   where: {
+    //     nodeId: node.id,
+    //     userId: owner.id,
+    //     type: { not: DataType.MANIFEST },
+    //   },
+    // });
+
+    //map existing ref neutral paths to the ref
+    // const existingRefMap = existingDataRefs.reduce((map, ref) => {
+    //   map[neutralizePath(ref.path)] = ref;
+    //   return map;
+    // }, {});
+
+    // const newRefs = await prepareDataRefs(node.uuid, latestManifest, updatedRootCid);
+
+    // // Find the dags that need updating
+    // const dataRefUpdates: Partial<DataReference>[] = newRefs.map((newDataRef) => {
+    //   const newRefNeutralPath = neutralizePath(newDataRef.path);
+    //   const match = existingRefMap[newRefNeutralPath];
+    //   match.rootCid = updatedRootCid;
+    //   if (match) {
+    //     return { ...match, ...newDataRef };
+    //   } else {
+    //     return newDataRef;
+    //   }
+    // });
+
+    /*
+     ** Delete dataRefs, add to cidPruneList
+     */
+    // const deneutralizedPath = deneutralizePath(path, dataBucket?.payload?.cid);
+    // const dataRefsToDelete = existingDataRefs.filter(
+    //   (e) => e.path.startsWith(deneutralizedPath + '/') || e.path === deneutralizedPath,
+    // );
+
+    // const dataRefDeletionIds = dataRefsToDelete.map((e) => e.id);
+    // const formattedPruneList = dataRefsToDelete.map((e) => {
+    //   return {
+    //     description: '[DATA::DELETE]path: ' + neutralizePath(e.path),
+    //     cid: e.cid,
+    //     type: e.type,
+    //     size: e.size,
+    //     nodeId: e.nodeId,
+    //     userId: e.userId,
+    //     directory: e.directory,
+    //   };
+    // });
+
+    // const [deletions, creations, ...updates] = await prisma.$transaction([
+    //   prisma.dataReference.deleteMany({ where: { id: { in: dataRefDeletionIds } } }),
+    //   prisma.cidPruneList.createMany({ data: formattedPruneList }),
+    //   ...(dataRefUpdates as any).map((fd) => {
+    //     return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
+    //   }),
+    // ]);
+    // logger.info(
+    //   `DATA::Delete ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added, ${updates.length} dataReferences updated`,
+    // );
 
     /*
      ** Delete components in Manifest, update DAG cids in manifest
@@ -137,19 +179,19 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       .filter((c) => c.payload?.path?.startsWith(path + '/') || c.payload?.path === path)
       .map((c) => c.id);
 
-    let updatedManifest = deleteComponentsFromManifest({
+    const updatedManifest = deleteComponentsFromManifest({
       manifest: latestManifest,
       componentIds: componentDeletionIds,
     });
 
-    updatedManifest = updateManifestDataBucket({
-      manifest: updatedManifest,
-      newRootCid: updatedRootCid,
-    });
+    // updatedManifest = updateManifestDataBucket({
+    //   manifest: updatedManifest,
+    //   newRootCid: updatedRootCid,
+    // });
 
-    if (Object.keys(updatedDagCidMap).length) {
-      updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    }
+    // if (Object.keys(updatedDagCidMap).length) {
+    //   updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
+    // }
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
