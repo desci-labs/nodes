@@ -86,7 +86,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     const entriesToUpdate = await prisma.draftNodeTree.findMany({
       where: {
         nodeId: node.id,
-        AND: [
+        OR: [
           {
             path: {
               startsWith: oldPath + '/',
@@ -108,7 +108,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
 
     const [...updates] = await prisma.$transaction([
       ...(updatesToPerform as any).map((fd) => {
-        return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
+        return prisma.draftNodeTree.update({ where: { id: fd.id }, data: fd });
       }),
     ]);
     logger.info(`[DATA::Move] ${updates.length} draftNodeTree entries updated to perform the move operation`);

@@ -125,7 +125,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   }
 
   // Try early return if depth chunk cached
-  const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}`;
+  const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}-${Date.now()}`;
   try {
     if (redisClient.isOpen) {
       const cached = await redisClient.get(depthCacheKey + 'invalid');

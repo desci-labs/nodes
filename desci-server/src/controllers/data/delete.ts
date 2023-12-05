@@ -56,11 +56,11 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
     /**
      * Remove draft node tree entries, add them to the cid prune list
      */
-
+    // debugger;
     const entriesToDelete = await prisma.draftNodeTree.findMany({
       where: {
         nodeId: node.id,
-        AND: [
+        OR: [
           {
             path: {
               startsWith: path + '/',
@@ -88,7 +88,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
     });
 
     const [deletions, creations] = await prisma.$transaction([
-      prisma.dataReference.deleteMany({ where: { id: { in: entriesToDeleteIds } } }),
+      prisma.draftNodeTree.deleteMany({ where: { id: { in: entriesToDeleteIds } } }),
       prisma.cidPruneList.createMany({ data: formattedPruneList }),
     ]);
     logger.info(
