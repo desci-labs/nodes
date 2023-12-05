@@ -1,17 +1,17 @@
 import {
-  DEFAULT_COMPONENT_TYPE,
   ExternalLinkComponent,
   PdfComponent,
   ResearchObjectComponentLinkSubtype,
   ResearchObjectComponentType,
   ResearchObjectV1,
   isNodeRoot,
-  isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
-import { DataReference, DataType } from '@prisma/client';
+import { DataReference } from '@prisma/client';
+import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
 import prisma from 'client';
+import { REPO_SERVICE_API_KEY, REPO_SERVICE_API_URL } from 'config';
 import parentLogger from 'logger';
 import { getDataUsageForUserBytes, hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
@@ -75,9 +75,19 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
       },
     });
 
+    // TODO: send (uuid, manifest) to desci-repo service to create a new document
+    logger.debug(`create automerge document ${node.uuid} ${manifest}`);
+    // const repoServiceResponse = await axios.post(
+    //   `${REPO_SERVICE_API_URL}/v1/nodes/documents`,
+    //   { uuid: node.uuid, manifest },
+    //   {
+    //     headers: { 'x-api-key': REPO_SERVICE_API_KEY },
+    //   },
+    // );
+    // logger.info({ repoServiceResponse }, 'Automerge document created');
+
     const dataConsumptionBytes = await getDataUsageForUserBytes(owner);
 
-    // eslint-disable-next-line no-array-reduce/no-reduce
     const uploadSizeBytes = files.map((f) => f.size).reduce((total, size) => total + size, 0);
 
     const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(owner, { fileSizeBytes: uploadSizeBytes });

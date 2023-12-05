@@ -359,6 +359,7 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
     // console.log('cacheNodeMetadata::Manifest', manifest);
 
     const pdfs = manifest.components.filter(
+      // todo: update check to include file extension (.pdf)
       (c) => c.type === ResearchObjectComponentType.PDF && c.starred,
     ) as PdfComponent[];
     logger.debug({ pdfs }, 'PDFS:::=>>>>>>>>>>>>');

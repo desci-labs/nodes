@@ -1,6 +1,8 @@
 import { NextFunction, Request as ExpressRequest, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import logger from '../logger.js';
+import { getUserByEmail, getUserByOrcId } from '../services/user.js';
+import { User } from '@prisma/client';
 
 export const ensureUser = async (req: ExpressRequest, res: Response, next: NextFunction) => {
   const token = await extractAuthToken(req);
@@ -39,7 +41,7 @@ export const extractAuthToken = async (request: ExpressRequest | Request) => {
   return token;
 };
 
-export const extractUserFromToken = async (token: string) => {
+export const extractUserFromToken = async (token: string): Promise<User | null> => {
   return new Promise(async (resolve, reject) => {
     if (!token) {
       resolve(null);
@@ -49,15 +51,11 @@ export const extractUserFromToken = async (token: string) => {
     jwt.verify(token, process.env.JWT_SECRET as string, async (err: any, user: any) => {
       if (err) {
         logger.info({ module: 'ExtractAuthUser', token }, 'anon request');
-        //! TODO: REVERT BACK TO resolve(null)
-        //! TODO: REVERT BACK TO resolve(null)
-        //! TODO: REVERT BACK TO resolve(null)
-        //! TODO: REVERT BACK TO resolve(null)
-        //! TODO: REVERT BACK TO resolve(null)
-        //! TODO: REVERT BACK TO resolve(null)
-        resolve({});
+        resolve(null);
         return;
       }
+
+      logger.info({ module: 'ExtractAuthUser', user }, 'User decrypted');
 
       if (!user) {
         resolve(null);
@@ -67,15 +65,16 @@ export const extractUserFromToken = async (token: string) => {
       const loggedInUserEmail = user.email as string;
       const shouldFetchUserByOrcId = Boolean(user.orcid);
 
-      const retrievedUser = null;
-      //  const retrievedUser = shouldFetchUserByOrcId
-      //    ? await getUserByOrcId(user.orcid)
-      //    : await getUserByEmail(loggedInUserEmail);
+      const retrievedUser = shouldFetchUserByOrcId
+        ? await getUserByOrcId(user.orcid)
+        : await getUserByEmail(loggedInUserEmail);
 
-      //  if (!retrievedUser || !retrievedUser.id) {
-      //    resolve(null);
-      //    return;
-      //  }
+      logger.info('User Retrieved', { name: retrievedUser.name, id: retrievedUser.id });
+
+      if (!retrievedUser || !retrievedUser.id) {
+        resolve(null);
+        return;
+      }
 
       resolve(retrievedUser);
     });

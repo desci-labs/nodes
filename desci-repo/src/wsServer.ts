@@ -53,7 +53,14 @@ export default class SocketServer {
       console.log(`Server upgrade ${port}`, request.headers.cookie);
       const token = await extractAuthToken(request as Request);
       const authUser = await extractUserFromToken(token);
-      logger.info({ module: 'WebSocket SERVER', token, authUser }, 'Upgrade Connection Established');
+
+      logger.info(
+        { module: 'WebSocket SERVER', token, ...(authUser && { id: authUser.id, name: authUser.name }) },
+        'Upgrade Connection Authorised',
+      );
+      if (!authUser) {
+        return;
+      }
 
       this.#socket.handleUpgrade(request, socket, head, (socket) => {
         console.log(`WS Server upgrade ${port}`);

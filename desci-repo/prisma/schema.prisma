@@ -170,12 +170,12 @@ model Node {
   deletedAt           DateTime?
   isDeleted           Boolean               @default(false)
   manifestDocumentId  String                @default("")
+  User                User                  @relation(fields: [ownerId], references: [id])
   AuthorInvite        AuthorInvite[]
   ChainTransaction    ChainTransaction[]
   CidPruneList        CidPruneList[]
   DataReference       DataReference[]
   InteractionLog      InteractionLog[]
-  User                User                  @relation(fields: [ownerId], references: [id])
   NodeAuthor          NodeAuthor[]
   NodeCover           NodeCover[]
   NodeVersion         NodeVersion[]
@@ -220,8 +220,8 @@ model NodeVersion {
   cid                 String                @default("")
   transactionId       String?
   nodeId              Int?
-  DataReference       DataReference[]
   Node                Node?                 @relation(fields: [nodeId], references: [id])
+  DataReference       DataReference[]
   PublicDataReference PublicDataReference[]
 }
 
@@ -232,9 +232,9 @@ model NodeVote {
   voteWeight       Int
   userId           Int
   nodeId           Int
-  ChainTransaction ChainTransaction?
   Node             Node              @relation(fields: [nodeId], references: [id])
   User             User              @relation(fields: [userId], references: [id])
+  ChainTransaction ChainTransaction?
 }
 
 model OauthAccessGrant {
@@ -464,8 +464,8 @@ model Waitlist {
   updatedAt      DateTime
   email          String           @unique
   userId         Int?
-  InteractionLog InteractionLog[]
   User           User?            @relation(fields: [userId], references: [id])
+  InteractionLog InteractionLog[]
 }
 
 model Wallet {
