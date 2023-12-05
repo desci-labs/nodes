@@ -20,6 +20,7 @@ model Node {
   replicationFactor   Int
   ownerId             Int
   uuid                String?               @unique @default(uuid())
+  manifestDocumentId  String               @default("")
   privateShare        PrivateShare?
   owner               User                  @relation(fields: [ownerId], references: [id])
   authorInvites       AuthorInvite[]

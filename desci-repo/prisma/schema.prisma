@@ -169,6 +169,7 @@ model Node {
   uuid                String?               @unique
   deletedAt           DateTime?
   isDeleted           Boolean               @default(false)
+  manifestDocumentId  String                @default("")
   AuthorInvite        AuthorInvite[]
   ChainTransaction    ChainTransaction[]
   CidPruneList        CidPruneList[]

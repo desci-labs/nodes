@@ -18,7 +18,7 @@
     "lint-prettier": "prettier --config .prettierrc --list-different '{src,test}/**/*.{ts,js,css,scss}'",
     "prettier": "prettier --config .prettierrc --write './**/*.{ts,js,css,scss,json,md}'",
     "commit": "git-cz",
-    "db:sync": "npx prisma db pull",
+    "db:sync": "npx prisma db pull && npx prisma generate",
     "db:generate": "npx prisma generate"
   },
   "keywords": [],

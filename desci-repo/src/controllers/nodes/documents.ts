@@ -26,6 +26,10 @@ const researchObject: ResearchObjectV1 = {
 const getNodeDocument = async function (req: Request, res: Response) {
   try {
     const repo = server.repo;
+    // TODO: for nodes without documentId set, pull their manifest,
+    // todo: create a new document and set the documentId
+    // todo: return the newly created document ID
+
     console.log('REQ', req.params, repo.networkSubsystem.peerId);
     const node = await prisma.node.findMany();
     // const node = await prisma.node.findFirst({
