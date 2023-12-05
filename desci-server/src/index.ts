@@ -172,4 +172,5 @@ app.use(errorHandler);
 const port = process.env.PORT || 5420;
 app.listen(port, () => {
   logger.info(`Server running on port ${port}`);
+  // logger.info(`Repo server ${process.env.REPO_SERVER_URL} ${JSON.stringify(process.env)} `);
 });

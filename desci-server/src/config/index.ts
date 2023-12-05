@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 export const PUBLIC_IPFS_PATH =
   process.env.NODE_ENV === 'dev'
     ? `http://host.docker.internal:8089/ipfs`

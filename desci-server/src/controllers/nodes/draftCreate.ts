@@ -75,17 +75,6 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
       },
     });
 
-    // TODO: send (uuid, manifest) to desci-repo service to create a new document
-    logger.debug(`create automerge document ${node.uuid} ${manifest}`);
-    // const repoServiceResponse = await axios.post(
-    //   `${REPO_SERVICE_API_URL}/v1/nodes/documents`,
-    //   { uuid: node.uuid, manifest },
-    //   {
-    //     headers: { 'x-api-key': REPO_SERVICE_API_KEY },
-    //   },
-    // );
-    // logger.info({ repoServiceResponse }, 'Automerge document created');
-
     const dataConsumptionBytes = await getDataUsageForUserBytes(owner);
 
     const uploadSizeBytes = files.map((f) => f.size).reduce((total, size) => total + size, 0);
@@ -127,6 +116,22 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
 
     const nodeCopy = Object.assign({}, node);
     nodeCopy.uuid = nodeCopy.uuid.replace(/\.$/, '');
+
+    logger.debug(`create automerge document ${REPO_SERVICE_API_URL} ${node.uuid} ${manifest}`);
+
+    try {
+      const repoServiceResponse = await axios.post(
+        // todo: replace host:port with env var
+        `http://host.docker.internal:5484/v1/nodes/documents`,
+        { uuid: node.uuid, manifest: researchObject },
+        {
+          headers: { 'x-api-key': REPO_SERVICE_API_KEY },
+        },
+      );
+      logger.info('Automerge document created', repoServiceResponse.data);
+    } catch (e) {
+      logger.error('Automerge document Creation Error', e);
+    }
 
     res.send({
       ok: true,

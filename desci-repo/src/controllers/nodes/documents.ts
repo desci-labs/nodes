@@ -83,7 +83,7 @@ const getNodeDocument = async function (req: Request, res: Response) {
 };
 
 const createNodeDocument = async function (req: Request, res: Response) {
-  console.log('createNodeDocument', req.body, req.params);
+  logger.info('START [CreateNodeDocument]', req.body, req.params);
   try {
     if (!(req.body.uuid && req.body.manifest)) {
       res.status(400).send({ ok: false, message: 'Invalid data' });
@@ -93,11 +93,10 @@ const createNodeDocument = async function (req: Request, res: Response) {
     const { uuid, manifest } = req.body;
 
     const repo = server.repo;
-    console.log('REPO', repo.networkSubsystem.peerId);
-    console.log(req.body, req.params, req.query);
+    logger.info('[Backend REPO]:', repo.networkSubsystem.peerId);
 
     const node = await prisma.node.findFirst({
-      where: { uuid: req.params.uuid.endsWith('.') ? req.params.uuid : `${req.params.uuid}.` },
+      where: { uuid },
     });
 
     if (!node) {
@@ -106,25 +105,24 @@ const createNodeDocument = async function (req: Request, res: Response) {
     }
 
     const handle = repo.create<ResearchObjectDocument>();
-    console.log('[AUTOMERGE]::[HANDLE NEW]', { uuid }, handle.url, handle.documentId);
     handle.change((d) => {
       d.manifest = manifest;
-      d.uuid = uuid;
+      d.uuid = uuid.slice(0, -1);
     });
 
-    // this.nodeUuidToDocIcMap.set(uuid, handle.documentId);
     await handle.doc();
 
     await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
 
     const document = await handle.doc();
-    console.log('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
-    console.log('REPO', repo);
+    logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
 
     res.status(200).send({ ok: true, documentId: handle.documentId });
+    logger.info('END [CreateNodeDocument]', { documentId: handle.documentId });
   } catch (err) {
     console.log(err);
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
+    logger.error('END [CreateNodeDocument]', err);
   }
 };
 
