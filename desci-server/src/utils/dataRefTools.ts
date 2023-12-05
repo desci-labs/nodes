@@ -8,6 +8,7 @@ import parentLogger from 'logger';
 import { discoveryLs, getDirectoryTree } from 'services/ipfs';
 import { objectPropertyXor, omitKeys } from 'utils';
 
+import { DRAFT_CID, draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils';
 import {
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
@@ -167,6 +168,41 @@ export async function prepareDataRefs(
   });
 
   return [dataRootEntry, ...dataTreeToPubRef];
+}
+
+export async function prepareDataRefsForDraftTrees(
+  nodeUuid: string,
+  manifest: ResearchObjectV1,
+): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
+  nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
+  const node = await prisma.node.findFirst({
+    where: {
+      uuid: nodeUuid,
+    },
+  });
+  if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
+  const manifestEntry: ResearchObjectV1 = manifest;
+
+  const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
+  const dataTree = flatTreeToHierarchicalTree(await draftNodeTreeEntriesToFlatIpfsTree(dbTree));
+  const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
+
+  const dataTreeToPubRef: Prisma.DataReferenceCreateManyInput[] = dataTree.map((entry) => {
+    const dbType = inheritComponentType(entry.path, manifestPathsToDbTypes);
+    return {
+      cid: entry.cid,
+      path: entry.path,
+      userId: node.ownerId,
+      rootCid: DRAFT_CID,
+      root: false,
+      directory: entry.type === 'dir',
+      size: entry.size,
+      type: dbType,
+      nodeId: node.id,
+    };
+  });
+
+  return dataTreeToPubRef;
 }
 
 export async function prepareDataRefsExternalCids(
