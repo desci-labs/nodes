@@ -14,7 +14,7 @@ import parentLogger from 'logger';
 import { updateManifestDataBucket } from 'services/data/processing';
 import { ensureUniquePathsDraftTree } from 'services/draftTrees';
 import { getDirectoryTree, renameFileInDag } from 'services/ipfs';
-import { prepareDataRefs } from 'utils/dataRefTools';
+import { prepareDataRefs, prepareDataRefsForDraftTrees } from 'utils/dataRefTools';
 import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
 
 import { ErrorResponse } from './update';
@@ -132,43 +132,43 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     /*
      ** Prepare updated refs
      */
-    // const existingDataRefs = await prisma.dataReference.findMany({
-    //   where: {
-    //     nodeId: node.id,
-    //     userId: owner.id,
-    //     type: { not: DataType.MANIFEST },
-    //   },
-    // });
+    const existingDataRefs = await prisma.dataReference.findMany({
+      where: {
+        nodeId: node.id,
+        userId: owner.id,
+        type: { not: DataType.MANIFEST },
+      },
+    });
 
-    // const newRefs = await prepareDataRefs(node.uuid, updatedManifest, updatedRootCid, false);
+    const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
 
-    // const existingRefMap = existingDataRefs.reduce((map, ref) => {
-    //   map[neutralizePath(ref.path)] = ref;
-    //   return map;
-    // }, {});
+    const existingRefMap = existingDataRefs.reduce((map, ref) => {
+      map[neutralizePath(ref.path)] = ref;
+      return map;
+    }, {});
 
-    // const dataRefUpdates = newRefs.map((newRef) => {
-    //   const neutralNewPath = neutralizePath(newRef.path);
-    //   let match = existingRefMap[neutralNewPath]; // covers path unchanged refs
-    //   if (!match) {
-    //     // path changed in the rename op
-    //     const updatedPath = neutralNewPath.replace(newPath, path); // adjusted for the old path
-    //     match = existingRefMap[updatedPath];
-    //   }
-    //   if (!match) {
-    //     logger.error({ refIteration: newRef }, 'failed to find an existing match for ref, node is missing refs');
-    //     throw Error(`failed to find an existing match for ref, node is missing refs, path: ${newRef.path}`);
-    //   }
-    //   newRef.id = match?.id;
-    //   return newRef;
-    // });
+    const dataRefUpdates = newRefs.map((newRef) => {
+      const neutralNewPath = neutralizePath(newRef.path);
+      let match = existingRefMap[neutralNewPath]; // covers path unchanged refs
+      if (!match) {
+        // path changed in the rename op
+        const updatedPath = neutralNewPath.replace(newPath, path); // adjusted for the old path
+        match = existingRefMap[updatedPath];
+      }
+      if (!match) {
+        logger.error({ refIteration: newRef }, 'failed to find an existing match for ref, node is missing refs');
+        throw Error(`failed to find an existing match for ref, node is missing refs, path: ${newRef.path}`);
+      }
+      newRef.id = match?.id;
+      return newRef;
+    });
 
-    // const [...updates] = await prisma.$transaction([
-    //   ...(dataRefUpdates as any).map((fd) => {
-    //     return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
-    //   }),
-    // ]);
-    // logger.info(`[DATA::Rename] ${updates.length} dataReferences updated`);
+    const [...updates] = await prisma.$transaction([
+      ...(dataRefUpdates as any).map((fd) => {
+        return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
+      }),
+    ]);
+    logger.info(`[DATA::Rename] ${updates.length} dataReferences updated`);
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
