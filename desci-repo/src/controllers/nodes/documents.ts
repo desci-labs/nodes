@@ -5,6 +5,7 @@ import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci
 import prisma from '../../client.js';
 import { getLatestManifest } from './utils.js';
 import logger from '../../logger.js';
+import { RequestWithNode } from 'middleware/nodeGuard.js';
 
 const researchObject: ResearchObjectV1 = {
   title: '',
@@ -25,18 +26,12 @@ const researchObject: ResearchObjectV1 = {
   defaultLicense: 'CC BY',
 };
 
-const getNodeDocument = async function (req: Request, res: Response) {
+const getNodeDocument = async function (req: RequestWithNode, res: Response) {
   try {
+    console.log('START GetNodeDocument', req.user.id, req.node.uuid);
     const repo = server.repo;
-    // TODO: Add a check to see if auth user has access to node uuid whose document ID is requested
 
-    console.log('REQ', req.params, repo.networkSubsystem.peerId);
-    // const node = await prisma.node.findMany();
-    const uuid = req.params.uuid.endsWith('.') ? req.params.uuid : `${req.params.uuid}.`;
-
-    const node = await prisma.node.findFirst({
-      where: { uuid: req.params.uuid.endsWith('.') ? req.params.uuid : `${req.params.uuid}.` },
-    });
+    const node = req.node;
 
     if (!node) {
       logger.info({ module: 'GetNodeDocument' }, 'Node not found', 'Request Params', req.params);
@@ -44,6 +39,7 @@ const getNodeDocument = async function (req: Request, res: Response) {
       return;
     }
 
+    const uuid = node.uuid;
     let documentId = node.manifestDocumentId;
 
     if (!documentId || documentId == '') {
