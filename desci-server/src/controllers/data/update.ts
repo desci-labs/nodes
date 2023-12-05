@@ -447,8 +447,6 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
       node: ltsNode,
       user: owner,
       updatedManifest,
-      newRootCidString,
-      externalCidMap,
     });
 
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);

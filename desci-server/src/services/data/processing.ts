@@ -33,7 +33,7 @@ import {
   pinDirectory,
 } from 'services/ipfs';
 import { fetchFileStreamFromS3, isS3Configured } from 'services/s3';
-import { prepareDataRefs } from 'utils/dataRefTools';
+import { prepareDataRefs, prepareDataRefsForDraftTrees } from 'utils/dataRefTools';
 import { DRAFT_CID, ipfsDagToDraftNodeTreeEntries } from 'utils/draftTreeUtils';
 import {
   ExtensionDataTypeMap,
@@ -195,8 +195,8 @@ export async function processS3DataToIpfs({
      * RE-ENABLE DON'T DELETE
      */
     // Update existing data references, add new data references.
-    // const upserts = await updateDataReferences({ node, user, updatedManifest, newRootCidString, externalCidMap });
-    // if (upserts) logger.info(`${upserts.length} new data references added/modified`);
+    const upserts = await updateDataReferences({ node, user, updatedManifest });
+    if (upserts) logger.info(`${upserts.length} new data references added/modified`);
     /**
      * RE-ENABLEDON'T DELETE END
      */
@@ -332,7 +332,7 @@ export async function processNewFolder({
     }
 
     // Update existing data references, add new data references.
-    const upserts = await updateDataReferences({ node, user, updatedManifest, newRootCidString, externalCidMap });
+    const upserts = await updateDataReferences({ node, user, updatedManifest });
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);
 
     // Cleanup, add old DAGs to prune list
@@ -567,17 +567,10 @@ interface UpdateDataReferencesParams {
   node: Node;
   user: User;
   updatedManifest: ResearchObjectV1;
-  newRootCidString: string;
-  externalCidMap: ExternalCidMap;
 }
-export async function updateDataReferences({
-  node,
-  user,
-  updatedManifest,
-  newRootCidString,
-  externalCidMap,
-}: UpdateDataReferencesParams) {
-  const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString, false, externalCidMap);
+export async function updateDataReferences({ node, user, updatedManifest }: UpdateDataReferencesParams) {
+  // const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString, false, externalCidMap);
+  const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
 
   // Get old refs to match their DB entry id's with the updated refs
   const existingRefs = await prisma.dataReference.findMany({
