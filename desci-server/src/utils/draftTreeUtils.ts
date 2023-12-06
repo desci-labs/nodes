@@ -2,6 +2,7 @@ import { DrivePath, FileType, RecursiveLsResult, neutralizePath, recursiveFlatte
 import { DraftNodeTree, Node, Prisma, PrismaClient, User } from '@prisma/client';
 
 export const DRAFT_CID = 'draft';
+export const DRAFT_DIR_CID = 'dir';
 
 export type TimestampMap = Record<DrivePath, { createdAt: Date; updatedAt: Date }>;
 
@@ -22,7 +23,7 @@ export function ipfsDagToDraftNodeTreeEntries(
   flatIpfsTree.forEach((fd) => {
     const timestampEntry = timestampMap?.[fd.path];
     const draftNodeTreeEntry: Prisma.DraftNodeTreeCreateManyInput = {
-      cid: fd.type === FileType.FILE ? fd.cid : 'dir',
+      cid: fd.type === FileType.FILE ? fd.cid : DRAFT_DIR_CID,
       size: fd.size,
       directory: fd.type === FileType.DIR,
       path: neutralizePath(fd.path),
