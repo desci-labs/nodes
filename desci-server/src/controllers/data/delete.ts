@@ -12,7 +12,7 @@ import prisma from 'client';
 import parentLogger from 'logger';
 import { updateManifestDataBucket } from 'services/data/processing';
 import { removeFileFromDag } from 'services/ipfs';
-import { prepareDataRefs } from 'utils/dataRefTools';
+import { prepareDataRefs, prepareDataRefsForDraftTrees } from 'utils/dataRefTools';
 import { updateManifestComponentDagCids } from 'utils/driveUtils';
 
 import { ErrorResponse } from './update';
@@ -87,12 +87,25 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       };
     });
 
-    const [deletions, creations] = await prisma.$transaction([
+    const existingDataRefs = await prisma.dataReference.findMany({
+      where: {
+        nodeId: node.id,
+        userId: owner.id,
+        type: { not: DataType.MANIFEST },
+      },
+    });
+
+    const dataRefsToDelete = existingDataRefs.filter((e) => e.path.startsWith(path + '/') || e.path === path);
+
+    const dataRefDeletionIds = dataRefsToDelete.map((e) => e.id);
+
+    const [deletions, creations, dataRefDeletions] = await prisma.$transaction([
       prisma.draftNodeTree.deleteMany({ where: { id: { in: entriesToDeleteIds } } }),
       prisma.cidPruneList.createMany({ data: formattedPruneList }),
+      prisma.dataReference.deleteMany({ where: { id: { in: dataRefDeletionIds } } }),
     ]);
     logger.info(
-      `DATA::Delete ${deletions.count} draftNodeTree entries deleted, ${creations.count} cidPruneList entries added`,
+      `DATA::Delete ${deletions.count} draftNodeTree entries deleted, ${creations.count} cidPruneList entries added, ${dataRefDeletions.count} dataReferences deleted`,
     );
 
     /*
@@ -120,19 +133,18 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
     //   },
     // });
 
-    //map existing ref neutral paths to the ref
+    // map existing ref neutral paths to the ref
     // const existingRefMap = existingDataRefs.reduce((map, ref) => {
     //   map[neutralizePath(ref.path)] = ref;
     //   return map;
     // }, {});
 
-    // const newRefs = await prepareDataRefs(node.uuid, latestManifest, updatedRootCid);
+    // const newRefs = await prepareDataRefsForDraftTrees(node.uuid, latestManifest);
 
-    // // Find the dags that need updating
+    // Find the dags that need updating
     // const dataRefUpdates: Partial<DataReference>[] = newRefs.map((newDataRef) => {
     //   const newRefNeutralPath = neutralizePath(newDataRef.path);
     //   const match = existingRefMap[newRefNeutralPath];
-    //   match.rootCid = updatedRootCid;
     //   if (match) {
     //     return { ...match, ...newDataRef };
     //   } else {
@@ -144,9 +156,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
      ** Delete dataRefs, add to cidPruneList
      */
     // const deneutralizedPath = deneutralizePath(path, dataBucket?.payload?.cid);
-    // const dataRefsToDelete = existingDataRefs.filter(
-    //   (e) => e.path.startsWith(deneutralizedPath + '/') || e.path === deneutralizedPath,
-    // );
+    // const dataRefsToDelete = existingDataRefs.filter((e) => e.path.startsWith(path + '/') || e.path === path);
 
     // const dataRefDeletionIds = dataRefsToDelete.map((e) => e.id);
     // const formattedPruneList = dataRefsToDelete.map((e) => {
@@ -161,15 +171,15 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
     //   };
     // });
 
-    // const [deletions, creations, ...updates] = await prisma.$transaction([
+    // const [dataRefDeletions] = await prisma.$transaction([
     //   prisma.dataReference.deleteMany({ where: { id: { in: dataRefDeletionIds } } }),
-    //   prisma.cidPruneList.createMany({ data: formattedPruneList }),
-    //   ...(dataRefUpdates as any).map((fd) => {
-    //     return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
-    //   }),
+    //   // prisma.cidPruneList.createMany({ data: formattedPruneList }),
+    //   // ...(dataRefUpdates as any).map((fd) => {
+    //   //   return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
+    //   // }),
     // ]);
     // logger.info(
-    //   `DATA::Delete ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added, ${updates.length} dataReferences updated`,
+    //   `DATA::Delete ${dataRefDeletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added`,
     // );
 
     /*
