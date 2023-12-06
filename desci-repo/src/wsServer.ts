@@ -1,7 +1,7 @@
 import fs from 'fs';
 // import express from 'express';
 import { WebSocketServer } from 'ws';
-import { Repo, RepoConfig } from '@automerge/automerge-repo';
+import { PeerId, Repo, RepoConfig } from '@automerge/automerge-repo';
 import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import { NodeFSStorageAdapter } from '@automerge/automerge-repo-storage-nodefs';
 import os from 'os';
@@ -9,6 +9,7 @@ import type { Server as HttpServer } from 'http';
 import { extractUserFromToken, extractAuthToken } from './middleware/permissions.js';
 import logger from './logger.js';
 import { Request } from 'express';
+import { verifyNodeDocumentAccess } from './services/nodes.js';
 
 export default class SocketServer {
   #socket: WebSocketServer;
@@ -38,16 +39,20 @@ export default class SocketServer {
     const config: RepoConfig = {
       network: [adapter],
       storage: new NodeFSStorageAdapter(dir),
-      /** @ts-ignore @type {(import("@automerge/automerge-repo").PeerId)}  */
-      peerId: `storage-server-${hostname}`,
+      peerId: `storage-server-${hostname}` as PeerId,
       // Since this is a server, we don't share generously — meaning we only sync documents they already
       // know about and can ask for by ID.
-      sharePolicy: async (peerId) => peerId !== 'anonymous',
+      sharePolicy: async (peerId, documentId) => {
+        // peer format: `peer-[user_id]:[unique string combination]
+        if (peerId.toString().length < 8) return false;
+
+        const userId = peerId.split(':')?.[0]?.split('-')?.[1];
+        const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
+        logger.info({ peerId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
+        return isAuthorised;
+      },
     };
     this.repo = new Repo(config);
-
-    //! REMOVE LATER, statically set uuid for demo
-    this.nodeUuidToDocIcMap.set('ADyYCVqKaFrnDRr6I8FhRrn5eUuHG40-ANe-z_eh-ZY', '2ZNaMBfKDHRQU6aXC9KNt5zXggmB');
 
     this.#server.on('upgrade', async (request, socket, head) => {
       console.log(`Server upgrade ${port}`, request.headers.cookie);

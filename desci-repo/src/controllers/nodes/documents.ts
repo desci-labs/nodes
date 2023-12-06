@@ -1,30 +1,30 @@
 import { Request, Response } from 'express';
 import server from '../../server.js';
 import { ResearchObjectDocument } from '../../types.js';
-import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+// import { ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import prisma from '../../client.js';
 import { getLatestManifest } from './utils.js';
 import logger from '../../logger.js';
 import { RequestWithNode } from 'middleware/nodeGuard.js';
 
-const researchObject: ResearchObjectV1 = {
-  title: '',
-  version: 'desci-nodes-0.2.0',
-  components: [
-    {
-      id: 'root',
-      name: 'root',
-      type: ResearchObjectComponentType.DATA_BUCKET,
-      payload: {
-        cid: 'bafybeicrsddlvfbbo5s3upvjbtb5flc73iupxfy2kf3rv43kkbvegbqbwq',
-        path: 'root',
-      },
-    },
-  ],
-  authors: [],
-  researchFields: [],
-  defaultLicense: 'CC BY',
-};
+// const researchObject: ResearchObjectV1 = {
+//   title: '',
+//   version: 'desci-nodes-0.2.0',
+//   components: [
+//     {
+//       id: 'root',
+//       name: 'root',
+//       type: ResearchObjectComponentType.DATA_BUCKET,
+//       payload: {
+//         cid: 'bafybeicrsddlvfbbo5s3upvjbtb5flc73iupxfy2kf3rv43kkbvegbqbwq',
+//         path: 'root',
+//       },
+//     },
+//   ],
+//   authors: [],
+//   researchFields: [],
+//   defaultLicense: 'CC BY',
+// };
 
 const getNodeDocument = async function (req: RequestWithNode, res: Response) {
   try {
