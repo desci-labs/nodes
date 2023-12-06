@@ -1,5 +1,9 @@
 import { DrivePath, FileType, RecursiveLsResult, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
-import { DraftNodeTree, Node, Prisma, PrismaClient, User } from '@prisma/client';
+import { DraftNodeTree, Node, Prisma, User } from '@prisma/client';
+import { DAGNode, DAGLink } from 'ipld-dag-pb';
+
+import prisma from 'client';
+import { client } from 'services/ipfs';
 
 export const DRAFT_CID = 'draft';
 export const DRAFT_DIR_CID = 'dir';
@@ -85,4 +89,50 @@ export function flatTreeToHierarchicalTree(flatTree: RecursiveLsResult[]): Recur
   });
 
   return rootNodes;
+}
+
+async function addDagNodeToIpfs(dagNode: DAGNode): Promise<string> {
+  const cid = await client.dag.put(dagNode, { pin: true });
+  console.error('dagNode added: ', cid.toString());
+  return cid.toString();
+}
+
+/**
+ * Converts a draft node tree to a dag-pb tree and pins it to the IPFS node.
+ */
+export async function dagifyAndPinDraftDbTree(nodeId: number): Promise<string> {
+  const treeEntries = await prisma.draftNodeTree.findMany({
+    where: { nodeId: nodeId },
+  });
+
+  const flatTree = draftNodeTreeEntriesToFlatIpfsTree(treeEntries);
+  const hierarchicalTree = flatTreeToHierarchicalTree(flatTree);
+
+  // Function to recursively create DAGNodes from the tree structure
+  async function createDagNode(treeNode: RecursiveLsResult): Promise<string> {
+    // If the node is a directory and has a placeholder CID, create and add the node to IPFS
+    if (treeNode.type === 'dir' && treeNode.cid === DRAFT_DIR_CID) {
+      const links: DAGLink[] = [];
+
+      if (treeNode.contains) {
+        for (const child of treeNode.contains) {
+          // Recursively create child nodes first
+          const childCid = await createDagNode(child);
+          links.push(new DAGLink(child.name, child.size, childCid));
+        }
+      }
+
+      const dagNode = new DAGNode(Buffer.from(treeNode.name), links);
+      return await addDagNodeToIpfs(dagNode);
+    } else {
+      // For files or directories with a known CID, return the existing CID
+      return treeNode.cid;
+    }
+  }
+
+  let rootCid = '';
+  for (const rootNode of hierarchicalTree) {
+    rootCid = await createDagNode(rootNode);
+  }
+  return rootCid; // Return the CID of the last root node
 }
