@@ -56,7 +56,7 @@ export async function ensureUniquePathsDraftTree({
   nodeId,
 }: EnsureUniquePathsDraftTreeParams): Promise<boolean> {
   // Ensure all baths being added are unique to prevent collisions
-
+  // debugger;
   let newPathsFormatted: string[] = [];
   const header = contextPath;
   if (filesBeingAdded?.length) {

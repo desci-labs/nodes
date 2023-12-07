@@ -14,6 +14,7 @@ import { Response, Request } from 'express';
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
+import { processExternalCidDataToIpfs } from 'services/data/externalCidProcessing';
 import { updateManifestDataBucket } from 'services/data/processing';
 import {
   FilesToAddToDag,
@@ -44,7 +45,7 @@ import { persistManifest } from './utils';
 export const updateExternalCid = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = (req as any).user as User;
   const { uuid, contextPath, componentType, componentSubtype } = req.body;
-  let { externalCids } = req.body;
+  const { externalCids } = req.body;
 
   const logger = parentLogger.child({
     // id: req.id,
@@ -58,8 +59,8 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   });
 
   logger.trace(`[UPDATE DATASET] Updating in context: ${contextPath}`);
-  if (uuid === undefined || contextPath === undefined)
-    return res.status(400).json({ error: 'uuid, manifest, contextPath required' });
+  if (uuid === undefined || contextPath === undefined || externalCids === undefined)
+    return res.status(400).json({ error: 'uuid, manifest, contextPath required, externalCids required' });
 
   //validate requester owns the node
   const node = await prisma.node.findFirst({
@@ -73,6 +74,37 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
     return res.status(400).json({ error: 'failed' });
   }
 
+  const { ok, value } = await processExternalCidDataToIpfs({
+    user: owner,
+    node,
+    externalCids,
+    contextPath,
+    // componentType,
+    // componentSubtype,
+  });
+  if (ok) {
+    const {
+      // rootDataCid: newRootCidString,
+      manifest: updatedManifest,
+      manifestCid: persistedManifestCid,
+      tree: tree,
+      date: date,
+    } = value as UpdateResponse;
+    return res.status(200).json({
+      // rootDataCid: newRootCidString,
+      manifest: updatedManifest,
+      manifestCid: persistedManifestCid,
+      tree: tree,
+      date: date,
+    });
+  } else {
+    logger.error({ value }, 'ext-cid processing error occured');
+    if (!('message' in value)) return res.status(500);
+    return res.status(value.status).json({ status: value.status, error: value.message });
+  }
+
+  /*
+OLD
   // Uncomment if external CID dags become expandable
   // const isContextExternal = Object.values(externalCidMap).some((extDag) => neutralizePath(extDag.path) === contextPath);
 
@@ -102,30 +134,31 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
 
   const fetchedManifestEntry = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
   const latestManifestEntry = fetchedManifestEntry;
-  const rootCid = latestManifestEntry.components.find((c) => isNodeRoot(c)).payload.cid;
+  // const rootCid = latestManifestEntry.components.find((c) => isNodeRoot(c)).payload.cid;
 
-  const manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(latestManifestEntry);
+  // const manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(latestManifestEntry);
 
   //Pull old tree
-  const externalCidMap = await generateExternalCidMap(node.uuid);
-  const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
+  // const externalCidMap = await generateExternalCidMap(node.uuid);
+  // const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
 
   /*
    ** Determine the path of the directory to be updated
    */
-  const splitContextPath = contextPath.split('/');
-  splitContextPath.shift();
+  // const splitContextPath = contextPath.split('/');
+  // splitContextPath.shift();
   //cleanContextPath = how many dags need to be reset, n + 1
-  const cleanContextPath = splitContextPath.join('/');
-  logger.debug('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
+  // const cleanContextPath = splitContextPath.join('/');
+  // logger.debug('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
 
   /*
    ** UNIQUENESS CHECK, NO DUPLICATE PATHS
    */
+  /*
   const OldTreePaths = oldFlatTree.map((e) => e.path);
   let newPathsFormatted: string[] = [];
   const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
-
+  
   if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
     newPathsFormatted = externalCids.map((extCid) => header + '/' + extCid.name);
   }
@@ -137,11 +170,13 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   }
 
   //[EXTERNAL CIDS] If External Cids used, add to uploaded, and add to externalCidMap, also add to externalDagsToPin
+  */
   /*
    ** PIN THE DAGS
    */
-  let uploaded = [];
-  const externalDagsToPin = [];
+  /*
+ let uploaded = [];
+ const externalDagsToPin = [];
   if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
     uploaded = [];
     for await (const extCid of externalCids) {
@@ -187,10 +222,11 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   if (externalDagsToPin.length) {
     externalDagsPinned = await pinExternalDags(externalDagsToPin);
   }
-
+*/
   /*
    ** Add files to dag, get new root cid
    */
+  /*
   //Filtered to first nestings only
   const filteredFiles = uploaded.filter((file) => {
     return file.path.split('/').length === 1;
@@ -205,11 +241,11 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
     rootCid,
     cleanContextPath,
     filesToAddToDag,
-  );
-  if (typeof newRootCidString !== 'string') throw Error('DAG extension failed, files already pinned');
-
-  //repull of node required, previous manifestUrl may already be stale
-  const ltsNode = await prisma.node.findFirst({
+    );
+    if (typeof newRootCidString !== 'string') throw Error('DAG extension failed, files already pinned');
+    
+    //repull of node required, previous manifestUrl may already be stale
+    const ltsNode = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
       uuid: node.uuid,
@@ -220,23 +256,25 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   const manifestUrl = latestManifestCid
     ? cleanupManifestUrl(latestManifestCid as string, req.query?.g as string)
     : null;
-
-  // debugger;
-
-  const fetchedManifest = manifestUrl ? await (await axios.get(manifestUrl)).data : null;
-  const latestManifest = fetchedManifest;
-
-  const dataBucketId = latestManifest.components.find((c) => isNodeRoot(c)).id;
-
-  let updatedManifest = updateManifestDataBucket({
+    
+    // debugger;
+    
+    const fetchedManifest = manifestUrl ? await (await axios.get(manifestUrl)).data : null;
+    const latestManifest = fetchedManifest;
+    
+    const dataBucketId = latestManifest.components.find((c) => isNodeRoot(c)).id;
+    
+    let updatedManifest = updateManifestDataBucket({
     manifest: latestManifest,
     newRootCid: newRootCidString,
   });
-
+  
+  */
   //Update all existing DAG components with new CIDs if they were apart of a cascading update
   /*
    ** Might be unnecessary in ext-cid only update
    */
+  /*
   if (Object.keys(updatedDagCidMap).length) {
     updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
   }
@@ -270,11 +308,11 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
     newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
     if (hasCidTypeSizes) externalPathsAdded[deneutralizedFullPath] = true;
   });
-
+  
   try {
     //Update refs
     logger.debug('Preparing data refs');
-
+    
     const newRefs = await prepareDataRefsExternalCids(
       node.uuid,
       updatedManifest,
@@ -292,13 +330,13 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
         type: { not: DataType.MANIFEST },
       },
     });
-
+    
     // setup refs, matching existing ones with their id, and marking external ones
     const refs = newRefs.map((ref) => {
       // add id's if exists
       const existingRef = existingRefs.find((r) => neutralizePath(r.path) === neutralizePath(ref.path));
       if (existingRef) ref.id = existingRef.id;
-
+      
       // handle externals (may be needed)
       const extTypeAndSize = externalCidMap[ref.cid];
       if (extTypeAndSize) {
@@ -314,7 +352,7 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
       if (!isUpdate) dataRefCreates.push(ref);
       return isUpdate;
     });
-
+    
     const upserts = await prisma.$transaction([
       ...(dataRefUpdates as any).map((fd) => {
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
@@ -322,49 +360,49 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
       prisma.dataReference.createMany({ data: dataRefCreates }),
     ]);
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);
-
+    
     // //CLEANUP DANGLING REFERENCES//
     oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
-
+    
     logger.debug('Before retrieving new tree');
-
+    
     const flatTree = recursiveFlattenTree(
       await getDirectoryTree(newRootCidString, externalCidMap),
-    ) as RecursiveLsResult[];
-    flatTree.push({
-      name: 'root',
-      cid: newRootCidString,
-      type: 'dir',
-      path: newRootCidString,
-      size: 0,
-    });
-
-    logger.debug('After retrieving new tree');
-
-    //length should be n + 1, n being nested dirs modified + rootCid
-    const pruneList = (oldFlatTree as RecursiveLsResult[]).filter((oldF) => {
-      //a path match && a CID difference = prune
-      return flatTree.some((newF) => neutralizePath(oldF.path) === neutralizePath(newF.path) && oldF.cid !== newF.cid);
-    });
-
-    const formattedPruneList = pruneList.map((e) => {
-      const neutralPath = neutralizePath(e.path);
-      return {
-        description: 'DANGLING DAG, UPDATED DATASET (update v2)',
-        cid: e.cid,
-        type: inheritComponentType(neutralPath, manifestPathsToTypesPrune) || DataType.UNKNOWN,
-        size: 0, //only dags being removed in an update op
-        nodeId: node.id,
-        userId: owner.id,
-        directory: e.type === 'dir' ? true : false,
-      };
-    });
-
-    const pruneRes = await prisma.cidPruneList.createMany({ data: formattedPruneList });
-    logger.info(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
-    //END OF CLEAN UP//
-    const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
-    if (!persistedManifestCid)
+      ) as RecursiveLsResult[];
+      flatTree.push({
+        name: 'root',
+        cid: newRootCidString,
+        type: 'dir',
+        path: newRootCidString,
+        size: 0,
+      });
+      
+      logger.debug('After retrieving new tree');
+      
+      //length should be n + 1, n being nested dirs modified + rootCid
+      const pruneList = (oldFlatTree as RecursiveLsResult[]).filter((oldF) => {
+        //a path match && a CID difference = prune
+        return flatTree.some((newF) => neutralizePath(oldF.path) === neutralizePath(newF.path) && oldF.cid !== newF.cid);
+      });
+      
+      const formattedPruneList = pruneList.map((e) => {
+        const neutralPath = neutralizePath(e.path);
+        return {
+          description: 'DANGLING DAG, UPDATED DATASET (update v2)',
+          cid: e.cid,
+          type: inheritComponentType(neutralPath, manifestPathsToTypesPrune) || DataType.UNKNOWN,
+          size: 0, //only dags being removed in an update op
+          nodeId: node.id,
+          userId: owner.id,
+          directory: e.type === 'dir' ? true : false,
+        };
+      });
+      
+      const pruneRes = await prisma.cidPruneList.createMany({ data: formattedPruneList });
+      logger.info(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
+      //END OF CLEAN UP//
+      const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
+      if (!persistedManifestCid)
       throw Error(`Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
     const tree = await getTreeAndFill(updatedManifest, uuid, owner.id);
@@ -375,46 +413,48 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
       tree: tree,
       date: date,
     });
+    
   } catch (e: any) {
     logger.error(`[UPDATE DATASET] error: ${e}`);
-    if (uploaded.length || externalDagsPinned.length) {
-      logger.error(
-        { filesPinned: uploaded, externalDagsPinned },
-        `[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED`,
-      );
-      const formattedPruneList = uploaded.map(async (e) => {
-        const neutralPath = neutralizePath(e.path);
-        return {
-          description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE (update v2)',
-          cid: e.cid,
-          type: inheritComponentType(neutralPath, manifestPathsToTypesPrune) || DataType.UNKNOWN,
-          size: e.size || 0,
-          nodeId: node.id,
-          userId: owner.id,
-          directory: await isDir(e.cid),
-        };
-      });
-      externalDagsPinned.forEach((extDagCid) => {
-        const extTypeAndSize = externalCidMap[extDagCid];
-        formattedPruneList.push({
-          description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE (update v2)',
-          cid: extDagCid,
-          type: DataType.UNKNOWN,
-          size: extTypeAndSize?.size || 0,
-          nodeId: node.id,
-          userId: owner.id,
-          directory: extTypeAndSize.directory,
-        } as any);
-      });
-      const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });
-      if (prunedEntries.count) {
-        logger.info({ prunedEntries }, `[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`);
-      } else {
-        logger.error(`[UPDATE DATASET E:2] failed adding files to prunelist, db may be down`);
-      }
-    }
-    return res.status(400).json({ error: 'failed #1' });
-  }
-
-  return res.status(400);
+    //   if (uploaded.length || externalDagsPinned.length) {
+      //     logger.error(
+        //       { filesPinned: uploaded, externalDagsPinned },
+        //       `[UPDATE DATASET E:2] CRITICAL! FILES PINNED, DB ADD FAILED`,
+        //     );
+        //     const formattedPruneList = uploaded.map(async (e) => {
+          //       const neutralPath = neutralizePath(e.path);
+          //       return {
+            //         description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE (update v2)',
+            //         cid: e.cid,
+            //         type: inheritComponentType(neutralPath, manifestPathsToTypesPrune) || DataType.UNKNOWN,
+            //         size: e.size || 0,
+            //         nodeId: node.id,
+            //         userId: owner.id,
+            //         directory: await isDir(e.cid),
+            //       };
+            //     });
+            //     externalDagsPinned.forEach((extDagCid) => {
+              //       const extTypeAndSize = externalCidMap[extDagCid];
+              //       formattedPruneList.push({
+                //         description: '[UPDATE DATASET E:2] FILES PINNED WITH DB ENTRY FAILURE (update v2)',
+                //         cid: extDagCid,
+                //         type: DataType.UNKNOWN,
+                //         size: extTypeAndSize?.size || 0,
+                //         nodeId: node.id,
+  //         userId: owner.id,
+  //         directory: extTypeAndSize.directory,
+  //       } as any);
+  //     });
+  //     const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });
+  //     if (prunedEntries.count) {
+    //       logger.info({ prunedEntries }, `[UPDATE DATASET E:2] ${prunedEntries.count} ADDED FILES TO PRUNE LIST`);
+    //     } else {
+      //       logger.error(`[UPDATE DATASET E:2] failed adding files to prunelist, db may be down`);
+      //     }
+      //   }
+      //   return res.status(400).json({ error: 'failed #1' });
+      // }
+      
+      return res.status(400);
+      */
 };
