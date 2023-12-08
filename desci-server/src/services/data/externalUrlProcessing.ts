@@ -91,27 +91,13 @@ export async function processExternalUrlDataToIpfs({
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
     const { manifest, manifestCid } = await getManifestFromNode(node);
-    // const rootCid = extractRootDagCidFromManifest(manifest, manifestCid);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
 
     // We can optionally do this after file resolution, may be more useful for code repos than pdfs
     // const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles([externalUrl]);
 
-    // Pull old tree
-    // const externalCidMap = await generateExternalCidMap(node.uuid);
-    // const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
-    // oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
-    // Map paths=>branch for constant lookup
-    // const oldTreePathsMap: Record<DrivePath, RecursiveLsResult> = oldFlatTree.reduce((map, branch) => {
-    // branch.path would still be deneutralized path, change if ever becomes necessary.
-    // i.e. branch.path === '/bafkrootcid/images/node.png' rather than '/root/images/node.png'
-    //   map[neutralizePath(branch.path)] = branch;
-    //   return map;
-    // }, {});
-
     // External dir check
     await externalDirCheck(node.id, contextPath);
-    // pathContainsExternalCids(oldTreePathsMap, contextPath);
 
     /*
      ** External URL setup, currently used for Github Code Repositories & external PDFs
@@ -168,15 +154,9 @@ export async function processExternalUrlDataToIpfs({
         `upload size of ${externalUrlTotalSizeBytes} exceeds users data budget of ${user.currentDriveStorageLimitGb} GB`,
       );
 
-    // const splitContextPath = contextPath.split('/');
-    // splitContextPath.shift();
-    //rootlessContextPath = how many dags need to be reset, n + 1, used for addToDag function
-    // const rootlessContextPath = splitContextPath.join('/');
-
     // Check if paths are unique
     const externalUrlFilePaths = [externalUrl.path];
     await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, externalUrlFilePaths });
-    // ensureUniquePaths({ flatTreeMap: oldTreePathsMap, contextPath, externalUrlFilePaths });
 
     // Pin new files, add draftNodeTree entries
     if (externalUrlFiles?.length) {
@@ -210,12 +190,6 @@ export async function processExternalUrlDataToIpfs({
     logger.info(`Successfully added ${addedEntries.count} entries to DraftNodeTree`);
 
     const { filesToAddToDag, filteredFiles } = filterFirstNestings(pinResult);
-    // const {
-    //   updatedRootCid: newRootCidString,
-    //   updatedDagCidMap,
-    //   contextPathNewCid,
-    // } = await addFilesToDag(rootCid, rootlessContextPath, filesToAddToDag);
-    // if (typeof newRootCidString !== 'string') throw createDagExtensionFailureError;
 
     /**
      * Repull latest node, to avoid stale manifest that may of been modified since last pull
@@ -230,19 +204,7 @@ export async function processExternalUrlDataToIpfs({
 
     const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
     let updatedManifest = ltsManifest;
-    // let updatedManifest = updateManifestDataBucket({
-    //   manifest: ltsManifest,
-    //   newRootCid: newRootCidString,
-    // });
 
-    //Update all existing DAG components with new CIDs if they were apart of a cascading update
-    // if (Object.keys(updatedDagCidMap)?.length) {
-    //   updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    // }
-
-    // if (componentTypeMap) {
-    //   updatedManifest = assignTypeMapInManifest(updatedManifest, componentTypeMap, contextPath, contextPathNewCid);
-    // }
     if (componentType) {
       /**
        * Automatically create a new component(s) for the files added, to the first nesting.
@@ -263,17 +225,6 @@ export async function processExternalUrlDataToIpfs({
     const upserts = await updateDataReferences({ node, user, updatedManifest });
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);
 
-    // Cleanup, add old DAGs to prune list
-    // const pruneRes = await cleanupDanglingRefs({
-    //   newRootCidString,
-    //   externalCidMap,
-    //   oldTreePathsMap: oldTreePathsMap,
-    //   manifestPathsToDbComponentTypesMap: manifestPathsToTypesPrune,
-    //   node,
-    //   user,
-    // });
-    // logger.info(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
-
     // Persist updated manifest, (pin, update Node DB entry)
     const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: user.id });
     if (!persistedManifestCid)
@@ -286,7 +237,6 @@ export async function processExternalUrlDataToIpfs({
     return {
       ok: true,
       value: {
-        // rootDataCid: newRootCidString,
         manifest: updatedManifest,
         manifestCid: persistedManifestCid,
         tree: tree,

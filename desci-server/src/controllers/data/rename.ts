@@ -1,21 +1,11 @@
-import {
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  ResearchObjectV1Component,
-  isNodeRoot,
-  neutralizePath,
-  recursiveFlattenTree,
-} from '@desci-labs/desci-models';
+import { ResearchObjectV1, ResearchObjectV1Component, neutralizePath } from '@desci-labs/desci-models';
 import { DataType, Node } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import prisma from 'client';
 import parentLogger from 'logger';
-import { updateManifestDataBucket } from 'services/data/processing';
 import { ensureUniquePathsDraftTree } from 'services/draftTrees';
-import { getDirectoryTree, renameFileInDag } from 'services/ipfs';
-import { prepareDataRefs, prepareDataRefsForDraftTrees } from 'utils/dataRefTools';
-import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
+import { prepareDataRefsForDraftTrees } from 'utils/dataRefTools';
 
 import { ErrorResponse } from './update';
 import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils';
@@ -56,7 +46,6 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
   }
 
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  // const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
 
   try {
     /*
@@ -68,31 +57,10 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     contextPath.join('/');
     await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, filesBeingAdded: [{ originalname: newName }] });
 
-    // const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(dataBucket.payload.cid, externalCidMap));
     const oldPathSplit = path.split('/');
     oldPathSplit.pop();
     oldPathSplit.push(newName);
     const newPath = oldPathSplit.join('/');
-    // const hasDuplicates = oldFlatTree.some((oldBranch) => oldBranch.path.includes(newPath));
-    // if (hasDuplicates) {
-    //   logger.info('[DATA::Rename] Rejected as duplicate paths were found');
-    //   return res.status(400).json({ error: 'Name collision' });
-    // }
-
-    /*
-     ** Update in dag
-     */
-    // const splitContextPath = path.split('/');
-    // splitContextPath.shift(); //remove root
-    // const linkToRename = splitContextPath.pop();
-    // const cleanContextPath = splitContextPath.join('/');
-    // logger.debug(`DATA::Rename cleanContextPath: ${cleanContextPath},  Renaming: ${linkToRename},  to : ${newName}`);
-    // const { updatedDagCidMap, updatedRootCid } = await renameFileInDag(
-    //   dataBucket.payload.cid,
-    //   cleanContextPath,
-    //   linkToRename,
-    //   newName,
-    // );
 
     /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
@@ -112,15 +80,6 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     if (updatedEntry.path !== newPath) {
       return res.status(400).json({ error: 'failed renaming file in the draft tree' });
     }
-
-    // updatedManifest = updateManifestDataBucket({
-    //   manifest: updatedManifest,
-    //   newRootCid: updatedRootCid,
-    // });
-
-    // if (Object.keys(updatedDagCidMap).length) {
-    //   updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    // }
 
     if (renameComponent) {
       // If checkbox ticked to rename the component along with the filename, note: not used in capybara

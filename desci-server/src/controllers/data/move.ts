@@ -1,22 +1,11 @@
-import {
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  ResearchObjectV1Component,
-  isNodeRoot,
-  neutralizePath,
-  recursiveFlattenTree,
-} from '@desci-labs/desci-models';
+import { ResearchObjectV1, ResearchObjectV1Component, isNodeRoot, neutralizePath } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
-import { DraftBotVersion } from 'aws-sdk/clients/lexmodelsv2';
 import { Request, Response } from 'express';
 
 import prisma from 'client';
 import parentLogger from 'logger';
-import { updateManifestDataBucket } from 'services/data/processing';
 import { ensureUniquePathsDraftTree } from 'services/draftTrees';
-import { RecursiveLsResult, getDirectoryTree, moveFileInDag } from 'services/ipfs';
-import { prepareDataRefs, prepareDataRefsForDraftTrees } from 'utils/dataRefTools';
-import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
+import { prepareDataRefsForDraftTrees } from 'utils/dataRefTools';
 
 import { ErrorResponse } from './update';
 import { getLatestManifest, persistManifest } from './utils';
@@ -55,19 +44,15 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
   }
 
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
 
   try {
-    /*
-     ** New path collision check
-     */
-    // const externalCidMap = await generateExternalCidMap(node.uuid);
-    // const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(dataBucket.payload.cid, externalCidMap));
-
     const newPathSplit = newPath.split('/');
     const fileName = newPathSplit.pop();
     const newContextPath = newPathSplit.join('/');
 
+    /*
+     ** New path collision check
+     */
     const noDuplicates = await ensureUniquePathsDraftTree({
       nodeId: node.id,
       contextPath: newContextPath,
@@ -114,25 +99,6 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     logger.info(`[DATA::Move] ${updates.length} draftNodeTree entries updated to perform the move operation`);
 
     /*
-     ** Update in dag
-     */
-    // const splitContextPath = oldPath.split('/');
-    // splitContextPath.shift(); //remove root
-    // const fileToMove = splitContextPath.pop();
-    // const cleanContextPath = splitContextPath.join('/');
-
-    // const splitNewPath = newPath.split('/');
-    // splitNewPath.shift(); //remove root
-    // const cleanNewPath = splitNewPath.join('/');
-    // logger.debug(`[DATA::Move] cleanContextPath: ${cleanContextPath}, Moving: ${fileToMove} to: ${newPath}`);
-    // const { updatedDagCidMap, updatedRootCid } = await moveFileInDag(
-    //   dataBucket.payload.cid,
-    //   cleanContextPath,
-    //   fileToMove,
-    //   cleanNewPath,
-    // );
-
-    /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
     const updatedManifest = updateComponentPathsInManifest({
@@ -140,38 +106,6 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
       oldPath: oldPath,
       newPath: newPath,
     });
-
-    // updatedManifest = updateManifestDataBucket({
-    //   manifest: updatedManifest,
-    //   newRootCid: updatedRootCid,
-    // });
-
-    // note: updatedDagCidMap here unreliable
-    // if (Object.keys(updatedDagCidMap).length) {
-    //   updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    // }
-
-    /*
-     ** Workaround for keeping manifest cids in sync
-     */
-    // const flatTree = recursiveFlattenTree(
-    //   await getDirectoryTree(updatedRootCid, externalCidMap),
-    // ) as RecursiveLsResult[];
-    // const flatTreePathMap = flatTree.reduce((map, branch) => {
-    //   branch.path = neutralizePath(branch.path);
-    //   map[branch.path] = branch;
-    //   return map;
-    // }, {});
-    // for (let i = 0; i < updatedManifest.components.length; i++) {
-    //   const currentComponent = updatedManifest.components[i];
-    //   if (currentComponent.payload.path === 'root' || currentComponent.type === ResearchObjectComponentType.LINK)
-    //     continue; //skip data bucket and ext-links
-    //   const match = flatTreePathMap[currentComponent.payload.path];
-    //   if (match) {
-    //     updatedManifest.components[i].payload.cid = match?.cid;
-    //     updatedManifest.components[i].payload.url = match?.cid;
-    //   }
-    // }
 
     /*
      ** Prepare updated refs

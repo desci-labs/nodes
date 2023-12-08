@@ -97,36 +97,15 @@ export async function processS3DataToIpfs({
     // debugger;
 
     const { manifest, manifestCid } = await getManifestFromNode(node);
-    // const rootCid = extractRootDagCidFromManifest(manifest, manifestCid);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
     const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(files);
 
-    // Pull old tree
-    // const externalCidMap = await generateExternalCidMap(node.uuid);
-    // const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
-    // oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
-    // // Map paths=>branch for constant lookup
-    // const oldTreePathsMap: Record<DrivePath, RecursiveLsResult> = oldFlatTree.reduce((map, branch) => {
-    //   // branch.path would still be deneutralized path, change if ever becomes necessary.
-    //   // i.e. branch.path === '/bafkrootcid/images/node.png' rather than '/root/images/node.png'
-    //   map[neutralizePath(branch.path)] = branch;
-    //   return map;
-    // }, {});
-
     // External dir check
     await externalDirCheck(node.id, contextPath);
-    // pathContainsExternalCids(oldTreePathsMap, contextPath);
-
-    // const splitContextPath = contextPath.split('/');
-    // splitContextPath.shift();
-    //rootlessContextPath = how many dags need to be reset, n + 1, used for addToDag function
-    // const rootlessContextPath = splitContextPath.join('/');
 
     // Check if paths are unique
     await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, filesBeingAdded: files });
-    // ensureUniquePaths({ flatTreeMap: oldTreePathsMap, contextPath, filesBeingAdded: files });
 
-    //// Pin new files, structure for DAG extension, add to DAG
     // Pin new files, add draftNodeTree entries
     pinResult = await pinNewFiles(files, true);
     if (pinResult) {
@@ -144,13 +123,6 @@ export async function processS3DataToIpfs({
       });
       logger.info(`Successfully added ${addedEntries.count} entries to DraftNodeTree`);
     }
-    // const { filesToAddToDag, filteredFiles } = filterFirstNestings(pinResult);
-    // const {
-    //   updatedRootCid: newRootCidString,
-    //   updatedDagCidMap,
-    //   contextPathNewCid,
-    // } = await addFilesToDag(rootCid, rootlessContextPath, filesToAddToDag);
-    // if (typeof newRootCidString !== 'string') throw createDagExtensionFailureError;
 
     /**
      * Repull latest node, to avoid stale manifest that may of been modified since last pull
@@ -165,15 +137,6 @@ export async function processS3DataToIpfs({
 
     const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
     let updatedManifest = ltsManifest;
-    // let updatedManifest = updateManifestDataBucket({
-    //   manifest: ltsManifest,
-    //   newRootCid: newRootCidString,
-    // });
-
-    //Update all existing DAG components with new CIDs if they were apart of a cascading update
-    // if (Object.keys(updatedDagCidMap).length) {
-    // updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    // }
 
     if (componentTypeMap) {
       /**
@@ -191,26 +154,8 @@ export async function processS3DataToIpfs({
       updatedManifest = assignTypeMapInManifest(updatedManifest, componentTypeMap, contextPath, DRAFT_CID);
     }
 
-    /**
-     * RE-ENABLE DON'T DELETE
-     */
-    // Update existing data references, add new data references.
     const upserts = await updateDataReferences({ node, user, updatedManifest });
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);
-    /**
-     * RE-ENABLEDON'T DELETE END
-     */
-
-    // Cleanup, add old DAGs to prune list
-    // const pruneRes = await cleanupDanglingRefs({
-    //   newRootCidString,
-    //   externalCidMap,
-    //   oldTreePathsMap: oldTreePathsMap,
-    //   manifestPathsToDbComponentTypesMap: manifestPathsToTypesPrune,
-    //   node,
-    //   user,
-    // });
-    // logger.info(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
 
     // Persist updated manifest, (pin, update Node DB entry)
     const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: user.id });
@@ -265,32 +210,9 @@ export async function processNewFolder({
   contextPath,
   newFolderName,
 }: ProcessNewFolderParams): Promise<Either<UpdateResponse, ProcessingError>> {
-  // let pinResult: IpfsPinnedResult[] = [];
-  // const manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
-    // const { manifest, manifestCid } = await getManifestFromNode(node);
-    // const rootCid = extractRootDagCidFromManifest(manifest, manifestCid);
-
-    // Pull old tree
-    // const externalCidMap = await generateExternalCidMap(node.uuid);
-    // const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
-    // oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
-    // Map paths=>branch for constant lookup
-    // const oldTreePathsMap: Record<DrivePath, RecursiveLsResult> = oldFlatTree.reduce((map, branch) => {
-    // branch.path would still be deneutralized path, change if ever becomes necessary.
-    // i.e. branch.path === '/bafkrootcid/images/node.png' rather than '/root/images/node.png'
-    //   map[neutralizePath(branch.path)] = branch;
-    //   return map;
-    // }, {});
-
     // External dir check
     await externalDirCheck(node.id, contextPath);
-    // pathContainsExternalCids(oldTreePathsMap, contextPath);
-
-    // const splitContextPath = contextPath.split('/');
-    // splitContextPath.shift();
-    //rootlessContextPath = how many dags need to be reset, n + 1, used for addToDag function
-    // const rootlessContextPath = splitContextPath.join('/');
 
     // Make sure newFolderName doesn't contain any slashes
     newFolderName = newFolderName.replace(/\//g, '');
@@ -313,21 +235,6 @@ export async function processNewFolder({
 
     const date = newFolderEntry.updatedAt;
 
-    //New folder creation, structure for DAG extension, add to DAG
-    // if (newFolderName) {
-    //   const newFolder = await pinDirectory([{ path: newFolderName + '/.nodeKeep', content: Buffer.from('') }]);
-    //   if (!newFolder.length) throw createNewFolderCreationError('Failed creating new folder');
-    //   pinResult = newFolder;
-    // }
-
-    // const { filesToAddToDag, filteredFiles } = filterFirstNestings(pinResult);
-    // const {
-    //   updatedRootCid: newRootCidString,
-    //   updatedDagCidMap,
-    //   contextPathNewCid,
-    // } = await addFilesToDag(rootCid, rootlessContextPath, filesToAddToDag);
-    // if (typeof newRootCidString !== 'string') throw createDagExtensionFailureError;
-
     /**
      * Repull latest node, to avoid stale manifest that may of been modified since last pull
      * lts = latest in this context, onwards
@@ -340,37 +247,6 @@ export async function processNewFolder({
     });
 
     const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
-    // let updatedManifest = updateManifestDataBucket({
-    //   manifest: ltsManifest,
-    //   newRootCid: newRootCidString,
-    // });
-
-    //Update all existing DAG components with new CIDs if they were apart of a cascading update
-    // if (Object.keys(updatedDagCidMap).length) {
-    //   updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    // }
-
-    // Update existing data references, add new data references.
-    // const upserts = await updateDataReferences({ node, user, updatedManifest });
-    // if (upserts) logger.info(`${upserts.length} new data references added/modified`);
-
-    // Cleanup, add old DAGs to prune list
-    // const pruneRes = await cleanupDanglingRefs({
-    //   newRootCidString,
-    //   externalCidMap,
-    //   oldTreePathsMap: oldTreePathsMap,
-    //   manifestPathsToDbComponentTypesMap: manifestPathsToTypesPrune,
-    //   node,
-    //   user,
-    // });
-    // logger.info(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
-
-    // Persist updated manifest, (pin, update Node DB entry)
-    // const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: user.id });
-    // if (!persistedManifestCid)
-    //   throw createManifestPersistFailError(
-    //     `Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${user.id}`,
-    //   );
 
     const tree = await getTreeAndFill(ltsManifest, node.uuid, user.id);
 
@@ -389,14 +265,6 @@ export async function processNewFolder({
     // DB status to failed
     // Socket emit to client
     logger.error({ error }, 'Error processing new folder');
-    // if (pinResult.length) {
-    //   handleCleanupOnMidProcessingError({
-    //     pinnedFiles: pinResult,
-    //     manifestPathsToDbComponentTypesMap: manifestPathsToTypesPrune,
-    //     node,
-    //     user,
-    //   });
-    // }
     const controlledErr = 'type' in error ? error : createUnhandledError(error);
     return { ok: false, value: controlledErr };
   }
