@@ -1,9 +1,19 @@
 import { DrivePath, FileType, RecursiveLsResult, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
+import { encode, prepare } from '@ipld/dag-pb';
 import { DraftNodeTree, Node, Prisma, User } from '@prisma/client';
+import CID from 'cids';
+import UnixFS from 'ipfs-unixfs';
 import { DAGNode, DAGLink } from 'ipld-dag-pb';
 
 import prisma from 'client';
+import parentLogger from 'logger';
 import { client } from 'services/ipfs';
+// import * as multiformats from 'multiformats';
+// const dagPb = require('@ipld/dag-pb');
+
+const logger = parentLogger.child({
+  module: 'Utils::DraftTreeUtils',
+});
 
 export const DRAFT_CID = 'draft';
 export const DRAFT_DIR_CID = 'dir';
@@ -91,48 +101,75 @@ export function flatTreeToHierarchicalTree(flatTree: RecursiveLsResult[]): Recur
   return rootNodes;
 }
 
-async function addDagNodeToIpfs(dagNode: DAGNode): Promise<string> {
-  const cid = await client.dag.put(dagNode, { pin: true });
-  console.error('dagNode added: ', cid.toString());
-  return cid.toString();
+/*
+ * Function to add a DAGNode to IPFS and return its CID
+ */
+async function addDagNodeToIpfs(dagNode) {
+  const cid = await client.block.put(encode(prepare(dagNode)), {
+    version: 1,
+    format: 'dag-pb',
+    pin: true,
+  });
+  // logger.debug(`Added DAGNode to IPFS: ${cid.toString()}`);
+  return cid;
 }
 
-/**
- * Converts a draft node tree to a dag-pb tree and pins it to the IPFS node.
+/*
+ * Converts a draft node tree to a dag-pb tree and pins it to the IPFS node
  */
 export async function dagifyAndPinDraftDbTree(nodeId: number): Promise<string> {
+  // Fetch tree entries from the database
   const treeEntries = await prisma.draftNodeTree.findMany({
     where: { nodeId: nodeId },
   });
-
+  // debugger;
+  // Convert the flat tree entries to a hierarchical tree structure
   const flatTree = draftNodeTreeEntriesToFlatIpfsTree(treeEntries);
   const hierarchicalTree = flatTreeToHierarchicalTree(flatTree);
+  const root = {
+    contains: hierarchicalTree,
+    cid: DRAFT_DIR_CID,
+    size: 0,
+    type: FileType.DIR,
+    path: 'root',
+    name: 'root',
+  };
 
   // Function to recursively create DAGNodes from the tree structure
   async function createDagNode(treeNode: RecursiveLsResult): Promise<string> {
-    // If the node is a directory and has a placeholder CID, create and add the node to IPFS
-    if (treeNode.type === 'dir' && treeNode.cid === DRAFT_DIR_CID) {
+    if (treeNode.type === 'dir') {
       const links: DAGLink[] = [];
+      // Create a new UnixFS instance for a directory
+      const unixFsEntry = new UnixFS({ type: 'directory' });
 
-      if (treeNode.contains) {
-        for (const child of treeNode.contains) {
-          // Recursively create child nodes first
-          const childCid = await createDagNode(child);
-          links.push(new DAGLink(child.name, child.size, childCid));
+      for (const child of treeNode.contains || []) {
+        const childCid = await createDagNode(child);
+        // logger.debug(`Child CID: ${childCid}`); // debugging
+
+        try {
+          const cidV1 = new CID(childCid);
+          // Create a new DAGLink
+          const link = new DAGLink(child.name, child.size, cidV1);
+          links.push(link);
+        } catch (error) {
+          logger.error({ error, childCid }, 'Error creating CID or DAGLink');
+          throw error;
         }
       }
 
-      const dagNode = new DAGNode(Buffer.from(treeNode.name), links);
-      return await addDagNodeToIpfs(dagNode);
+      // Serialize the UnixFS entry to a buffer
+      const buffer = unixFsEntry.marshal();
+      // Create a new DAGNode with the serialized UnixFS entry
+      const dagNode = new DAGNode(buffer, links);
+      // Add the DAGNode to IPFS and return its CID
+      const cid = await addDagNodeToIpfs(dagNode);
+      return cid.toString();
     } else {
-      // For files or directories with a known CID, return the existing CID
+      // For files, directly return the CID
       return treeNode.cid;
     }
   }
 
-  let rootCid = '';
-  for (const rootNode of hierarchicalTree) {
-    rootCid = await createDagNode(rootNode);
-  }
-  return rootCid; // Return the CID of the last root node
+  const rootCid = await createDagNode(root);
+  return rootCid.toString();
 }

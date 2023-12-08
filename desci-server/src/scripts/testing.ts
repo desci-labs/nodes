@@ -8,7 +8,7 @@ import { generateExternalCidMap } from 'utils/driveUtils';
 const logger = parentLogger.child({ module: 'SCRIPTS::Testing' });
 
 const rootCid = '';
-const nodeUuid = 'XAlBzxT0NFFXPvDodJvWeJ_y30m_p3qmtdRyeYlXHD0.';
+const nodeUuid = 'SN-CfB9BXpWy7-AJj5as4FahLDaAMtRCeXCZXhCHiuo.';
 
 async function benchmark() {
   const extCidMap = await generateExternalCidMap(nodeUuid, rootCid);
@@ -29,11 +29,13 @@ async function benchmark() {
 
 async function dbDraftTreeToIpfsTreeAndPin() {
   const node = await prisma.node.findUnique({ where: { uuid: nodeUuid } });
-  const tree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
-  // const ipfsTree = await draftNodeTreeEntriesToFlatIpfsTree(tree);
-  // const cid = await client.dag.put(ipfsTree, { pin: true });
+
   const rootDagNode = await dagifyAndPinDraftDbTree(node.id);
 
-  logger.error('dag pinned: ', rootDagNode);
+  if (rootDagNode) {
+    logger.info(`DAG pinned: ${rootDagNode}`);
+  } else {
+    logger.error(`DAG pinning failed: rootDagNode is undefined or null`);
+  }
 }
 dbDraftTreeToIpfsTreeAndPin();
