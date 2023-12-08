@@ -49,14 +49,12 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   });
   if (ok) {
     const {
-      // rootDataCid: newRootCidString,
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
       tree: tree,
       date: date,
     } = value as UpdateResponse;
     return res.status(200).json({
-      // rootDataCid: newRootCidString,
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
       tree: tree,

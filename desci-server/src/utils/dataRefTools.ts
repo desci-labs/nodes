@@ -56,6 +56,7 @@ export async function generateDataReferences({
   Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]
 > {
   nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
+  const isPublished = !!versionId;
   const node = await prisma.node.findFirst({
     where: {
       uuid: nodeUuid,
@@ -83,10 +84,15 @@ export async function generateDataReferences({
     ? await extractExternalCidMapFromTreeUrl(workingTreeUrl)
     : await generateExternalCidMap(node.uuid);
   let dataTree;
-  if (markExternals) {
-    dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
+  if (isPublished) {
+    if (markExternals) {
+      dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
+    } else {
+      dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
+    }
   } else {
-    dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
+    const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
+    dataTree = await draftNodeTreeEntriesToFlatIpfsTree(dbTree);
   }
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
 
@@ -97,7 +103,7 @@ export async function generateDataReferences({
       cid: entry.cid,
       path: entry.path,
       userId: node.ownerId,
-      rootCid: dataBucketCid,
+      rootCid: isPublished ? dataBucketCid : DRAFT_CID,
       root: false,
       directory: entry.type === 'dir',
       size: entry.size,
@@ -109,7 +115,7 @@ export async function generateDataReferences({
     };
   });
 
-  return [dataRootEntry, ...dataTreeToPubRef];
+  return [...(isPublished ? [dataRootEntry] : []), ...dataTreeToPubRef];
 }
 
 // used to prepare data refs for a given dag and manifest (differs from generateDataReferences in that you don't need the updated manifestCid ahead of time)
