@@ -5,6 +5,7 @@
   "engines": {
     "node": ">=16.14"
   },
+  "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run watch-compile\" \"npm run watch-dev\"",
     "watch-compile": "debug=* NODE_PATH=./src swc src -w --log-watch-compilation --out-dir dist",
@@ -79,6 +80,7 @@
     "ipfs-utils": "9.0.6",
     "jsonwebtoken": "^8.5.1",
     "kill-port": "^2.0.1",
+    "kubo-rpc-client": "^3.0.2",
     "lodash": "^4.17.21",
     "mkdirp": "^1.0.4",
     "morgan": "^1.10.0",

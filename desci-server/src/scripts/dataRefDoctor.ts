@@ -1,13 +1,15 @@
 import { DataType, Node, Prisma } from '@prisma/client';
 import axios from 'axios';
+import { create } from 'kubo-rpc-client';
 
 import prisma from 'client';
 import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
-import { getSizeForCid } from 'services/ipfs';
 import { getIndexedResearchObjects } from 'theGraph';
-import { hexToCid } from 'utils';
+import { encodeBase64UrlSafe, hexToCid } from 'utils';
 import { validateAndHealDataRefs, validateDataReferences } from 'utils/dataRefTools';
+import { getSize } from 'utils/kuboUtils';
+const publicIpfsClient = create({ url: 'https://ipfs.desci.com' });
 
 /* 
 Usage Guidelines:
@@ -28,11 +30,14 @@ validate:         OPERATION=validate NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123
 heal:             OPERATION=heal NODE_UUID=noDeUuiD. MANIFEST_CID=bafkabc123 PUBLIC_REFS=true npm run script:fix-data-refs
 validateAll:      OPERATION=validateAll PUBLIC_REFS=true npm run script:fix-data-refs
 healAll:          OPERATION=healAll PUBLIC_REFS=true npm run script:fix-data-refs
-fillPublic:       OPERATION=fillPublic USER_EMAIL=noreply@desci.com NODE_UUID=noDeUuiD. npm run script:fix-data-refs
+fillPublic:       OPERATION=fillPublic USER_EMAIL=noreply@desci.com [NODE_UUID=noDeUuiD.] [NODE_DPID=46] npm run script:fix-data-refs
 clonePrivateNode: OPERATION=clonePrivateNode NODE_UUID=noDeUuiD. NEW_NODE_UUID=nEwnoDeUuiD2. npm run script:fix-data-refs
 
 Heal external flag in refs:
 healAll:      OPERATION=healAll PUBLIC_REFS=true MARK_EXTERNALS=true npm run script:fix-data-refs
+
+dpid fill public example:
+NODE_DPID=46 OPERATION=fillPublic USER_EMAIL=noreply@desci.com npm run script:fix-data-refs
  */
 
 const logger = parentLogger.child({ module: 'SCRIPTS::dataRefDoctor' });
@@ -42,6 +47,7 @@ function main() {
   const {
     operation,
     nodeUuid,
+    nodeDpid,
     manifestCid,
     publicRefs,
     start,
@@ -71,15 +77,35 @@ function main() {
       dataRefDoctor(true, publicRefs, startIterator, endIterator, markExternals);
       break;
     case 'fillPublic':
-      if (!nodeUuid && !userEmail) return logger.error('Missing NODE_UUID or USER_EMAIL');
-      fillPublic(nodeUuid, userEmail, workingTreeUrl);
+      if (!(nodeUuid || nodeDpid) && !userEmail) return logger.error('Missing NODE_DPID, NODE_UUID or USER_EMAIL');
+      (async function () {
+        let tempUuid = nodeUuid;
+        if (!nodeUuid) {
+          const targetUrl = `https://beta.dpid.org/api/v1/dpid?sort=asc&page=${parseInt(nodeDpid) + 1}&size=1`;
+          logger.info({ targetUrl, nodeDpid, nodeUuid }, 'converting dpid to uuid');
+          const res = await fetch(targetUrl);
+          const resJson = await res.json();
+          logger.info({ resJson }, 'dpid response');
+          const codeHex = resJson[0].researchObject.id;
+          // hex to bytes
+          const hexBytes = codeHex
+            .substring(2)
+            .match(/.{1,2}/g)
+            .map((byte) => parseInt(byte, 16));
+          tempUuid = encodeBase64UrlSafe(hexBytes);
+          console.log({ codeHex, tempUuid }, 'converted dpid to uuid');
+        }
+        await fillPublic(tempUuid, userEmail, workingTreeUrl);
+      })();
       break;
     case 'clonePrivateNode':
       if (!nodeUuid && !newNodeUuid) return logger.error('Missing NODE_UUID or NEW_NODE_UUID');
       clonePrivateNode(nodeUuid, newNodeUuid);
       break;
     default:
-      logger.error('Invalid operation, valid operations include: validate, heal, validateAll, healAll');
+      logger.error(
+        `Invalid operation ${operation}, valid operations include: validate, heal, validateAll, healAll, fillPublic`,
+      );
       return;
   }
 }
@@ -87,6 +113,7 @@ function main() {
 function getOperationEnvs() {
   return {
     operation: process.env.OPERATION || null,
+    nodeDpid: process.env.NODE_DPID || null,
     nodeUuid: process.env.NODE_UUID || null,
     newNodeUuid: process.env.NEW_NODE_UUID || null,
     manifestCid: process.env.MANIFEST_CID || null,
@@ -180,15 +207,28 @@ async function fillPublic(nodeUuid: string, userEmail: string, workingTreeUrl?: 
   if (!user) return logger.error(`[FillPublic] Failed to find user with email: ${userEmail}`);
 
   if (!nodeUuid.endsWith('.')) nodeUuid += '.';
-  const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
+  const graphResp = await getIndexedResearchObjects(
+    [nodeUuid],
+    'https://graph-goerli-stage.desci.com/subgraphs/name/nodes',
+  );
+  logger.info({ graphResp }, 'Got graph response');
+  const { researchObjects } = graphResp;
   if (!researchObjects.length)
     logger.error(`[FillPublic] Failed to resolve any public nodes with the uuid: ${nodeUuid}`);
 
   const indexedNode = researchObjects[0];
-  const latestHexCid = indexedNode.recentCid;
-  const latestManifestCid = hexToCid(latestHexCid);
-  const manifestUrl = cleanupManifestUrl(latestManifestCid);
-  const latestManifest = await (await axios.get(manifestUrl)).data;
+  let latestManifest, manifestUrl, latestManifestCid, latestHexCid;
+  try {
+    latestHexCid = indexedNode.recentCid;
+    latestManifestCid = hexToCid(latestHexCid);
+    manifestUrl = cleanupManifestUrl(latestManifestCid, 'https://ipfs.desci.com/ipfs');
+    latestManifest = await (await axios.get(manifestUrl)).data;
+  } catch (err) {
+    logger.error(
+      { err, indexedNode, nodeUuid, userEmail, workingTreeUrl },
+      `[FillPublic] Failed to retrieve node from initial uuid`,
+    );
+  }
 
   if (!latestManifest)
     return logger.error(
@@ -235,7 +275,7 @@ async function fillPublic(nodeUuid: string, userEmail: string, workingTreeUrl?: 
         userId: node.ownerId,
         root: false,
         directory: false,
-        size: await getSizeForCid(manifestCid, false),
+        size: await getSize(publicIpfsClient, manifestCid, false),
         type: DataType.MANIFEST,
         nodeId: node.id,
         versionId: nodeVersion.id,

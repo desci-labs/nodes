@@ -5,7 +5,7 @@ import axios from 'axios';
 import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
 import parentLogger from 'logger';
-import { discoveryLs, getDirectoryTree } from 'services/ipfs';
+import { discoveryLs, getDirectoryTree } from 'services/kubo';
 import { objectPropertyXor, omitKeys } from 'utils';
 
 import {

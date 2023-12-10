@@ -15,10 +15,9 @@ import { PBNode } from '@ipld/dag-pb/src/interface';
 import { DataReference, DataType, NodeVersion, Prisma } from '@prisma/client';
 import axios from 'axios';
 // import CID from 'cids';
-import * as ipfs from 'ipfs-http-client';
-import { CID as CID2, globSource } from 'ipfs-http-client';
 import UnixFS from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
+import * as ipfs from 'kubo-rpc-client';
 import flatten from 'lodash/flatten';
 import uniq from 'lodash/uniq';
 import * as multiformats from 'multiformats';
@@ -28,18 +27,27 @@ import prisma from 'client';
 import { PUBLIC_IPFS_PATH } from 'config';
 import parentLogger from 'logger';
 import { getOrCache } from 'redisClient';
-import { UrlWithCid } from 'types/IpfsTypes';
 import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
 import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
 import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
 
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
-export const IPFS_PATH_TMP = '/tmp/ipfs';
+import { addToDir, concat, getSize, makeDir, updateDagCid } from '../utils/kuboUtils';
 
 const logger = parentLogger.child({
-  module: 'Services::Ipfs',
+  module: 'Services::Kubo',
 });
+
+// key = type
+// data = array of string URLs
+// returns array of corrected URLs
+export interface UrlWithCid {
+  cid: string;
+  key: string;
+  buffer?: Buffer;
+  size?: number;
+}
 
 // connect to a different API
 export const client = ipfs.create({ url: process.env.IPFS_NODE_URL });

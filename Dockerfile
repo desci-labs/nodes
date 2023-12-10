@@ -1,10 +1,10 @@
-FROM node:16.20.0-bookworm
+FROM node:18.17.0-bookworm
 
 VOLUME /root/.yarn
 
 RUN apt-get -qy update && apt-get -qy install openssl
 
-RUN npm install -g npm@9.8.1
+RUN npm install -g npm@10.2.5
 
 RUN mkdir /app
 RUN chown -R node:node /app

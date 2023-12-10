@@ -7,7 +7,7 @@ import axios from 'axios';
 import logger from 'logger';
 import { decodeBase64UrlSafeToHex } from 'utils';
 
-export const getIndexedResearchObjects = async (urlSafe64s: string[]) => {
+export const getIndexedResearchObjects = async (urlSafe64s: string[], hostOverride?: string) => {
   const hex = urlSafe64s.map(decodeBase64UrlSafeToHex).map((h) => `0x${h}`);
   const q = `{
     researchObjects(where: { id_in: ["${hex.join('","')}"]}) {
@@ -16,14 +16,14 @@ export const getIndexedResearchObjects = async (urlSafe64s: string[]) => {
       }
     } 
   }`;
-  return query(q);
+  return query(q, hostOverride);
 };
 
-export const query = async (query: string) => {
+export const query = async (query: string, hostOverride?: string) => {
   const payload = JSON.stringify({
     query,
   });
-  const { data } = await axios.post(process.env.THEGRAPH_API_URL, payload);
+  const { data } = await axios.post(hostOverride || process.env.THEGRAPH_API_URL, payload);
   if (data.errors) {
     logger.error({ fn: 'query', err: data.errors, query, dataRes: data }, `graph index query err ${query}`);
     throw Error(JSON.stringify(data.errors));
