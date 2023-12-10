@@ -26,6 +26,8 @@ const allowlist = [
   'https://nodes.desci.com',
   'https://nodes-dev.desci.com',
   'https://nodes-demo.desci.com',
+  'https://nodes-v1.desci.com',
+  'https://nodes-v1-dev.desci.com',
   'd2195goqok3wlx.amplifyapp.com',
   'd3ge8gcb3rt5iw.amplifyapp.com',
   'desci.com',
