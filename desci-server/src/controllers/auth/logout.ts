@@ -12,6 +12,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
     secure: process.env.NODE_ENV === 'production',
     domain: process.env.NODE_ENV === 'production' ? '.desci.com' : 'localhost',
     sameSite: 'strict',
+    path: '/',
   });
 
   (process.env.COOKIE_DOMAIN?.split(',') || [undefined]).map((domain) => {
@@ -21,6 +22,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
       secure: process.env.NODE_ENV === 'production',
       domain: process.env.NODE_ENV === 'production' ? domain || '.desci.com' : 'localhost',
       sameSite: 'strict',
+      path: '/',
     });
   });
 
@@ -30,6 +32,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
       maxAge: oneYear,
       httpOnly: true,
       sameSite: 'strict',
+      path: '/',
     });
   }
 
