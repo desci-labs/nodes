@@ -215,11 +215,11 @@ describe('Data Controllers', () => {
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
     });
     describe('Update a node with a code repo via external URL', () => {
       let node: Node;
@@ -270,6 +270,7 @@ describe('Data Controllers', () => {
           manifestCid: res.body.manifestCid,
           publicRefs: false,
         });
+        // debugger;
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });

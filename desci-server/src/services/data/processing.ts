@@ -458,7 +458,7 @@ interface UpdateDataReferencesParams {
 export async function updateDataReferences({ node, user, updatedManifest }: UpdateDataReferencesParams) {
   // const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString, false, externalCidMap);
   const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
-
+  // debugger;
   // Get old refs to match their DB entry id's with the updated refs
   const existingRefs = await prisma.dataReference.findMany({
     where: {

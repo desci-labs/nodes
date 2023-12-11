@@ -114,6 +114,7 @@ export async function generateDataReferences({
       // ...(!markExternals ? {} : entry.external ? { external: true } : { external: null }),
     };
   });
+  // debugger;
 
   return [...(isPublished ? [dataRootEntry] : []), ...dataTreeToPubRef];
 }
@@ -190,8 +191,9 @@ export async function prepareDataRefsForDraftTrees(
   const manifestEntry: ResearchObjectV1 = manifest;
 
   const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
-  const dataTree = flatTreeToHierarchicalTree(await draftNodeTreeEntriesToFlatIpfsTree(dbTree));
+  const dataTree = await draftNodeTreeEntriesToFlatIpfsTree(dbTree);
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
+  // debugger;
 
   const dataTreeToPubRef: Prisma.DataReferenceCreateManyInput[] = dataTree.map((entry) => {
     const dbType = inheritComponentType(entry.path, manifestPathsToDbTypes);

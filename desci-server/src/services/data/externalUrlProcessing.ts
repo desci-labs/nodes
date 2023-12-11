@@ -27,7 +27,7 @@ import {
   saveZipStreamToDisk,
   zipUrlToStream,
 } from 'utils';
-import { ipfsDagToDraftNodeTreeEntries } from 'utils/draftTreeUtils';
+import { DRAFT_DIR_CID, ipfsDagToDraftNodeTreeEntries } from 'utils/draftTreeUtils';
 import {
   ExtensionDataTypeMap,
   addComponentsToManifest,
@@ -201,16 +201,32 @@ export async function processExternalUrlDataToIpfs({
     });
     // debugger;
 
-    const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries(
-      newDraftNodeTreeEntries,
-      node,
-      user,
-    );
+    // const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries(
+    //   newDraftNodeTreeEntries,
+    //   node,
+    //   user,
+    // );
+
+    const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = [];
+
+    newDraftNodeTreeEntries.forEach((fd) => {
+      const draftNodeTreeEntry: Prisma.DraftNodeTreeCreateManyInput = {
+        cid: fd.type === FileType.FILE ? fd.cid : DRAFT_DIR_CID,
+        size: fd.size,
+        directory: fd.type === FileType.DIR,
+        path: fd.path,
+        external: false,
+        nodeId: node.id,
+      };
+      draftNodeTreeEntries.push(draftNodeTreeEntry);
+    });
+    // debugger;
     const addedEntries = await prisma.draftNodeTree.createMany({
       data: draftNodeTreeEntries,
       skipDuplicates: true,
     });
     logger.info(`Successfully added ${addedEntries.count} entries to DraftNodeTree`);
+    // debugger;
 
     const { filesToAddToDag, filteredFiles } = filterFirstNestings(pinResult);
 
