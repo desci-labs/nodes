@@ -2,6 +2,7 @@ import fs from 'fs';
 
 import {
   DrivePath,
+  FileType,
   IpfsPinnedResult,
   RecursiveLsResult,
   ResearchObjectComponentSubtypes,
@@ -174,12 +175,34 @@ export async function processExternalUrlDataToIpfs({
       // Cleanup
       await rimraf(outputPath);
     }
-
-    const root = pinResult[pinResult.length - 1];
-    const rootTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
     // debugger;
+    const root = pinResult[pinResult.length - 1];
+    let uploadedTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
+    if (zipPath.length > 0) {
+      // Overrides the path name of the root directory
+      const rootName = externalUrl.path;
+      uploadedTree = [{ ...root, type: 'dir', name: rootName, contains: uploadedTree }];
+    }
+
+    // Prepare draft node tree entires
+    const flatUploadedTree = recursiveFlattenTree(uploadedTree);
+    const newDraftNodeTreeEntries = flatUploadedTree.map((entry) => {
+      // debugger;
+      if (entry.path.split('/').length === 1) {
+        return { ...entry, path: contextPath + '/' + entry.path };
+      } else {
+        const neutralPath = neutralizePath(entry.path);
+        const adjustedPath = neutralPath.replace('root', contextPath);
+        const adjustedPathSplit = adjustedPath.split('/');
+        // Horrible logic, needs to change but works atm, will break when we add more external url upload methods that involve directories, currently we just have repos.
+        const adjustedPathRepo = [contextPath, externalUrl.path, ...adjustedPathSplit.slice(1)].join('/');
+        return { ...entry, path: adjustedPathRepo };
+      }
+    });
+    // debugger;
+
     const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries(
-      rootTree,
+      newDraftNodeTreeEntries,
       node,
       user,
     );
