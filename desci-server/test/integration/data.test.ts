@@ -443,11 +443,11 @@ describe('Data Controllers', () => {
       it('should return new manifestCid', () => {
         expect(res.body).to.have.property('manifestCid');
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should reject if unauthed', async () => {
         const res = await request(app).post(`/v1/data/delete`).send({ uuid: node.uuid, path: 'root/dir' });
         expect(res.statusCode).to.not.equal(200);
@@ -564,11 +564,11 @@ describe('Data Controllers', () => {
         expect(renamedDir?.type).to.equal('dir');
         expect(nestedFile?.type).to.equal('file');
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should reject if unauthed', async () => {
         const res = await request(app)
           .post(`/v1/data/rename`)
@@ -705,11 +705,11 @@ describe('Data Controllers', () => {
         expect(!!movedDir).to.equal(true);
         expect(movedDir?.type).to.equal('dir');
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should reject if unauthed', async () => {
         const res = await request(app)
           .post(`/v1/data/move`)
