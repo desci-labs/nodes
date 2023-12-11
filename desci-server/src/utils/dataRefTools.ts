@@ -375,7 +375,13 @@ export async function validateDataReferences({
       // ref consumed, don't add to unused refs
       usedRefIds[exists.id] = true;
     }
-    if (!exists) missingRefs.push(requiredRef);
+    if (!exists) {
+      if (requiredRef.directory && !publicRefs) {
+        // if the required entry doesn't exist in a draft node and it's a directory, it's an unnecessary ref, and should be omitted.
+      } else {
+        missingRefs.push(requiredRef);
+      }
+    }
   });
 
   const unusedRefs = currentRefs.filter((currentRef) => !(currentRef.id in usedRefIds));

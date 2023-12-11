@@ -71,7 +71,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
         type: DataType.UNKNOWN,
         size: e.size,
         nodeId: e.nodeId,
-        userId: e.userId,
+        userId: owner.id,
         directory: e.directory,
       };
     });
