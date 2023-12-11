@@ -70,15 +70,33 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       newPath: newPath,
     });
 
-    // Update new name in draftTree db entry
-    const updatedEntry = await prisma.draftNodeTree.update({
-      where: { nodeId_path: { nodeId: node.id, path: path } },
-      data: { path: newPath },
+    // // Update new name in draftTree db entry
+    // const updatedEntry = await prisma.draftNodeTree.update({
+    //   where: { nodeId_path: { nodeId: node.id, path: path } },
+    //   data: { path: newPath },
+    // });
+
+    // Get all entries that need to be updated
+    const entriesToUpdate = await prisma.draftNodeTree.findMany({
+      where: {
+        OR: [
+          { nodeId: node.id, path: path },
+          { nodeId: node.id, path: { startsWith: path + '/' } },
+        ],
+      },
     });
 
-    if (updatedEntry.path !== newPath) {
-      return res.status(400).json({ error: 'failed renaming file in the draft tree' });
-    }
+    // Update === with newPath, and .replace the ones that start with oldPath + "/"
+    const updateOperations = entriesToUpdate.map((entry) => {
+      const updatedPath = entry.path.startsWith(path + '/') ? entry.path.replace(path, newPath) : newPath;
+
+      return prisma.draftNodeTree.update({
+        where: { id: entry.id },
+        data: { path: updatedPath },
+      });
+    });
+
+    const updatedEntries = await Promise.all(updateOperations);
 
     if (renameComponent) {
       // If checkbox ticked to rename the component along with the filename, note: not used in capybara

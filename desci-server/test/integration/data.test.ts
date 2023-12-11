@@ -29,6 +29,7 @@ import { randomUUID64 } from '../../src/utils';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools';
 import { addComponentsToManifest } from '../../src/utils/driveUtils';
 import { spawnExampleDirDag } from '../util';
+import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils';
 
 describe('Data Controllers', () => {
   let user: User;
@@ -557,11 +558,14 @@ describe('Data Controllers', () => {
       it('should return new manifestCid', () => {
         expect(res.body).to.have.property('manifestCid');
       });
-      it('databucket dag should contain renamed directory and nested files', async () => {
-        const databucketCid = res.body.manifest.components[0].payload.cid;
-        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {})) as FileDir[];
-        const renamedDir = flatTree.find((f) => neutralizePath(f.path) === newPath);
-        const nestedFile = flatTree.find((f) => neutralizePath(f.path) === newPath + '/b.txt');
+      it('draft tree should contain renamed directory and nested files', async () => {
+        const treeEntries = await prisma.draftNodeTree.findMany({
+          where: { nodeId: node.id },
+        });
+        const flatTree = draftNodeTreeEntriesToFlatIpfsTree(treeEntries);
+        const renamedDir = flatTree.find((f) => f.path === newPath);
+        const nestedFile = flatTree.find((f) => f.path === newPath + '/b.txt');
+        debugger;
         expect(!!renamedDir).to.equal(true);
         expect(!!nestedFile).to.equal(true);
         expect(renamedDir?.type).to.equal('dir');
