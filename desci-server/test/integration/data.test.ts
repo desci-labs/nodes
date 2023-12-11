@@ -539,6 +539,7 @@ describe('Data Controllers', () => {
           nodeId: node.id,
         };
 
+        await migrateIpfsTreeToNodeTree(node.uuid!);
         await prisma.dataReference.create({ data: manifestEntry });
         await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
         res = await request(app)
@@ -683,6 +684,7 @@ describe('Data Controllers', () => {
           nodeId: node.id,
         };
 
+        await migrateIpfsTreeToNodeTree(node.uuid!);
         await prisma.dataReference.create({ data: manifestEntry });
         await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
         res = await request(app)

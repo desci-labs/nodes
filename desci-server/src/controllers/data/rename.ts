@@ -44,7 +44,6 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     logger.warn(`DATA::Rename: auth failed, user id: ${owner.id} does not own node: ${uuid}`);
     return res.status(400).json({ error: 'failed' });
   }
-
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
 
   try {
@@ -98,7 +97,6 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
         type: { not: DataType.MANIFEST },
       },
     });
-
     const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
 
     const existingRefMap = existingDataRefs.reduce((map, ref) => {
@@ -106,6 +104,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       return map;
     }, {});
 
+    // const missingRefs = []; // for debugging
     const dataRefUpdates = newRefs.map((newRef) => {
       const neutralNewPath = neutralizePath(newRef.path);
       let match = existingRefMap[neutralNewPath]; // covers path unchanged refs
@@ -117,11 +116,12 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       if (!match) {
         logger.error({ refIteration: newRef }, 'failed to find an existing match for ref, node is missing refs');
         throw Error(`failed to find an existing match for ref, node is missing refs, path: ${newRef.path}`);
+        // missingRefs.push(newRef);
       }
       newRef.id = match?.id;
       return newRef;
     });
-
+    // debugger;
     const [...updates] = await prisma.$transaction([
       ...(dataRefUpdates as any).map((fd) => {
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });

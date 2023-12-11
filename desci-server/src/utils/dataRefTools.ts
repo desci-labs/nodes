@@ -210,7 +210,7 @@ export async function prepareDataRefsForDraftTrees(
     };
   });
 
-  return dataTreeToPubRef;
+  return dataTreeToPubRef.filter((ref) => !ref.directory);
 }
 
 export async function prepareDataRefsExternalCids(
