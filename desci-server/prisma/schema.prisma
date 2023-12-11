@@ -168,7 +168,7 @@ model User {
   maxDriveStorageLimitGb     Int                   @default(500)
   userOrganizations          UserOrganizations[]
   UploadJobs                 UploadJobs[]
-  DraftNodeTree              DraftNodeTree[]
+  // DraftNodeTree              DraftNodeTree[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -502,9 +502,9 @@ model DraftNodeTree {
   size      Int
   external  Boolean
   nodeId    Int
-  userId    Int
+  // userId    Int
   node      Node     @relation(fields: [nodeId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  // user      User     @relation(fields: [userId], references: [id])
 
   @@unique([nodeId, path])
 }

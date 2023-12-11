@@ -229,7 +229,7 @@ export async function processNewFolder({
         size: 0,
         external: false,
         nodeId: node.id,
-        userId: user.id,
+        // userId: user.id,
       },
     });
 

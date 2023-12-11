@@ -43,7 +43,7 @@ export function ipfsDagToDraftNodeTreeEntries(
       path: neutralizePath(fd.path),
       external: fd.external ?? false,
       nodeId: node.id,
-      userId: user.id,
+      // userId: user.id,
       ...(timestampEntry && { createdAt: timestampEntry.createdAt, updatedAt: timestampEntry.updatedAt }),
     };
     draftNodeTreeEntries.push(draftNodeTreeEntry);

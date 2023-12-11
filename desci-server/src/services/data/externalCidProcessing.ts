@@ -132,7 +132,7 @@ export async function processExternalCidDataToIpfs({
     const newDraftTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = entriesDiscovered.map((entry) => {
       return {
         nodeId: node.id,
-        userId: user.id,
+        // userId: user.id,
         path: entry.path,
         cid: entry.cid,
         size: entry.size,
