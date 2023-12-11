@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import 'reflect-metadata';
 
+import { Repo, RepoConfig } from '@automerge/automerge-repo';
+import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import bodyParser from 'body-parser';
