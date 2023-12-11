@@ -2,12 +2,12 @@ import { DataType, Node, Prisma } from '@prisma/client';
 import axios from 'axios';
 
 import prisma from 'client';
-import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { getSizeForCid } from 'services/ipfs';
 import { getIndexedResearchObjects } from 'theGraph';
 import { hexToCid } from 'utils';
 import { validateAndHealDataRefs, validateDataReferences } from 'utils/dataRefTools';
+import { cleanupManifestUrl } from 'utils/manifest';
 
 /* 
 Usage Guidelines:

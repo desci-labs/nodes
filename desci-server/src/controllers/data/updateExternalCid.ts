@@ -12,7 +12,6 @@ import axios from 'axios';
 import { Response, Request } from 'express';
 
 import prisma from 'client';
-import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { updateManifestDataBucket } from 'services/data/processing';
 import {
@@ -37,6 +36,7 @@ import {
   inheritComponentType,
   updateManifestComponentDagCids,
 } from 'utils/driveUtils';
+import { cleanupManifestUrl } from 'utils/manifest';
 
 import { ErrorResponse, UpdateResponse } from './update';
 import { persistManifest } from './utils';

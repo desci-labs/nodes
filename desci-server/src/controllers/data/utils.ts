@@ -4,9 +4,10 @@ import axios from 'axios';
 import { v4 as uuid } from 'uuid';
 
 import prisma from 'client';
-import { cleanupManifestUrl } from 'controllers/nodes';
+import { REPO_SERVICE_API_KEY, REPO_SERVICE_API_URL } from 'config';
 import parentLogger from 'logger';
 import { updateManifestAndAddToIpfs } from 'services/ipfs';
+import { cleanupManifestUrl } from 'utils/manifest';
 
 const logger = parentLogger.child({
   module: 'DATA::Utils',
@@ -84,6 +85,17 @@ export async function getLatestManifest(
   const manifestUrl = latestManifestCid ? cleanupManifestUrl(latestManifestCid as string, resolver as string) : null;
 
   return manifestUrl ? await (await axios.get(manifestUrl)).data : null;
+}
+
+export async function getLatestManifestFromRepo(nodeUuid: string): Promise<ResearchObjectV1 | null> {
+  const repoServiceResponse = await axios.get<{ manifest: ResearchObjectV1 }>(
+    `${REPO_SERVICE_API_URL}/v1/nodes/documents/getLatestManifest/${nodeUuid}`,
+    {
+      headers: { 'x-api-key': REPO_SERVICE_API_KEY },
+    },
+  );
+  console.log('[getLatestManifestFromRepo]', JSON.stringify(repoServiceResponse?.data?.manifest ?? {}));
+  return repoServiceResponse.data.manifest;
 }
 
 export function separateFileNameAndExtension(fileName: string): {

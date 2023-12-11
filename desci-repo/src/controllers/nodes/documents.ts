@@ -6,6 +6,7 @@ import prisma from '../../client.js';
 import { getLatestManifest } from './utils.js';
 import logger from '../../logger.js';
 import { RequestWithNode } from 'middleware/nodeGuard.js';
+import { AutomergeUrl } from '@automerge/automerge-repo';
 
 // const researchObject: ResearchObjectV1 = {
 //   title: '',
@@ -122,4 +123,39 @@ const createNodeDocument = async function (req: Request, res: Response) {
   }
 };
 
-export { createNodeDocument, getNodeDocument };
+const getLatestNodeManifest = async function (req: Request, res: Response) {
+  logger.info({ params: req.params }, 'START [getLatestNodeManifest]');
+  try {
+    if (!req.params.uuid) {
+      res.status(400).send({ ok: false, message: 'Invalid data' });
+      return;
+    }
+
+    const { uuid } = req.params;
+
+    const repo = server.repo;
+    const node = await prisma.node.findFirst({
+      where: { uuid },
+    });
+
+    if (!node) {
+      res.status(400).send({ ok: false, message: `Node with uuid ${uuid} not found!` });
+      return;
+    }
+
+    const automergeUrl = `automerge:${node.manifestDocumentId}`;
+    const handle = repo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+
+    const document = await handle.doc();
+
+    logger.info({ document }, '[AUTOMERGE]::[Document Found]');
+
+    logger.info('END [getLatestNodeManifest]', { manifest: document.manifest });
+    res.status(200).send({ ok: true, manifest: document.manifest });
+  } catch (err) {
+    logger.error(err, 'Error [getLatestNodeManifest]');
+    res.status(500).send({ ok: false, message: JSON.stringify(err) });
+  }
+};
+
+export { createNodeDocument, getNodeDocument, getLatestNodeManifest };

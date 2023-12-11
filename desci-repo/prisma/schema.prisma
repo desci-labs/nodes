@@ -89,6 +89,11 @@ model DataReference {
   NodeVersion NodeVersion? @relation(fields: [versionId], references: [id])
 }
 
+model DocumentStore {
+  key   String @id
+  value Bytes
+}
+
 model FriendReferral {
   id                     Int                  @id @default(autoincrement())
   createdAt              DateTime             @default(now())

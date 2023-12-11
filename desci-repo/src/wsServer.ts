@@ -10,6 +10,8 @@ import { extractUserFromToken, extractAuthToken } from './middleware/permissions
 import logger from './logger.js';
 import { Request } from 'express';
 import { verifyNodeDocumentAccess } from './services/nodes.js';
+import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
+import prisma from './client.js';
 
 export default class SocketServer {
   #socket: WebSocketServer;
@@ -38,7 +40,8 @@ export default class SocketServer {
     const adapter = new NodeWSServerAdapter(this.#socket);
     const config: RepoConfig = {
       network: [adapter],
-      storage: new NodeFSStorageAdapter(dir),
+      storage: new PostgresStorageAdapter(prisma),
+      // storage: new NodeFSStorageAdapter(dir),
       peerId: `storage-server-${hostname}` as PeerId,
       // Since this is a server, we don't share generously — meaning we only sync documents they already
       // know about and can ask for by ID.

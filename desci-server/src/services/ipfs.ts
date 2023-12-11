@@ -398,7 +398,9 @@ export const getDirectoryTree = async (
   );
   try {
     const tree = await getOrCache(
-      `full-tree-${cid}${!returnFiles ? '-no-files' : ''}${cid}${!returnExternalFiles ? '-no-ext-files' : ''}`,
+      `full-tree-${cid}${!returnFiles ? '-no-files' : ''}${cid}${
+        !returnExternalFiles ? '-no-ext-files' : ''
+      }-${Date.now()}`,
       getTree,
     );
     if (tree) return tree;
@@ -549,7 +551,7 @@ export async function mixedLs(
 }
 
 export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
-  return await getOrCache(`tree-chunk-${cid}-${carryPath}`, async () => {
+  return await getOrCache(`tree-chunk-${cid}-${carryPath}-${Date.now()}`, async () => {
     logger.info({ fn: 'pubRecursiveLs', cid, carryPath }, 'Tree chunk not cached, retrieving from IPFS');
     carryPath = carryPath || convertToCidV1(cid);
     const tree = [];

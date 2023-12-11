@@ -4,13 +4,13 @@ import axios from 'axios';
 
 import prisma from 'client';
 import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from 'config';
-import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { uploadDataToEstuary } from 'services/estuary';
 import { getIndexedResearchObjects } from 'theGraph';
 import { hexToCid, randomUUID64 } from 'utils';
 import { asyncMap } from 'utils';
 import { generateDataReferences } from 'utils/dataRefTools';
+import { cleanupManifestUrl } from 'utils/manifest';
 
 import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs';
 

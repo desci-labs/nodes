@@ -9,7 +9,6 @@ import axios from 'axios';
 
 import prisma from 'client';
 import { PersistManifestParams } from 'controllers/data/utils';
-import { cleanupManifestUrl } from 'controllers/nodes';
 import {
   createDag,
   createEmptyDag,
@@ -20,6 +19,7 @@ import {
 } from 'services/ipfs';
 import { ensureUniqueString } from 'utils';
 import { addComponentsToManifest } from 'utils/driveUtils';
+import { cleanupManifestUrl } from 'utils/manifest';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 

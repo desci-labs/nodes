@@ -19,7 +19,6 @@ import { v4 } from 'uuid';
 import prisma from 'client';
 import { UpdateResponse } from 'controllers/data';
 import { persistManifest } from 'controllers/data/utils';
-import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { hasAvailableDataUsageForUpload } from 'services/dataService';
 import {
@@ -45,6 +44,7 @@ import {
   urlOrCid,
 } from 'utils/driveUtils';
 import { EXTENSION_MAP } from 'utils/extensions';
+import { cleanupManifestUrl } from 'utils/manifest';
 
 import {
   Either,

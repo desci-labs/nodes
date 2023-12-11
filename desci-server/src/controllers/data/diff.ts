@@ -12,11 +12,11 @@ import axios from 'axios';
 import { Request, Response } from 'express';
 
 import prisma from 'client';
-import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import { getFromCache, setToCache } from 'redisClient';
 import { TreeDiff, diffTrees, subtractComponentStats, subtractNestedObjectValues } from 'utils/diffUtils';
 import { getTreeAndFill } from 'utils/driveUtils';
+import { cleanupManifestUrl } from 'utils/manifest';
 
 import { ErrorResponse } from './update';
 

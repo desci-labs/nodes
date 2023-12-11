@@ -1,11 +1,11 @@
 import { ResearchObjectComponentType, isNodeRoot } from '@desci-labs/desci-models';
 import axios from 'axios';
 
-import { cleanupManifestUrl } from 'controllers/nodes';
 import parentLogger from 'logger';
 import redisClient from 'redisClient';
 import { getIndexedResearchObjects } from 'theGraph';
 import { hexToCid } from 'utils';
+import { cleanupManifestUrl } from 'utils/manifest';
 
 const logger = parentLogger.child({ module: 'SCRIPTS::invalidateRedisKeys' });
 /* 

@@ -20,7 +20,7 @@ model Node {
   replicationFactor   Int
   ownerId             Int
   uuid                String?               @unique @default(uuid())
-  manifestDocumentId  String               @default("")
+  manifestDocumentId  String                @default("")
   privateShare        PrivateShare?
   owner               User                  @relation(fields: [ownerId], references: [id])
   authorInvites       AuthorInvite[]
@@ -489,6 +489,11 @@ model UploadJobs {
   userId               Int
   node                 Node             @relation(fields: [nodeId], references: [id])
   user                 User             @relation(fields: [userId], references: [id])
+}
+
+model DocumentStore {
+  key   String @id
+  value Bytes
 }
 
 enum UploadType {
