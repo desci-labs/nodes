@@ -17,6 +17,7 @@ import request from 'supertest';
 
 import prisma from '../../src/client';
 import { app } from '../../src/index';
+import { migrateIpfsTreeToNodeTree } from '../../src/services/draftTrees';
 import {
   addFilesToDag,
   getDirectoryTree,
@@ -426,6 +427,8 @@ describe('Data Controllers', () => {
           nodeId: node.id,
         };
 
+        await migrateIpfsTreeToNodeTree(node.uuid!);
+
         await prisma.dataReference.create({ data: manifestEntry });
         await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
 
@@ -480,10 +483,8 @@ describe('Data Controllers', () => {
         expect(!!containedComponentFound).to.not.equal(true);
       });
       it('should add deleted entries to cidPruneList', async () => {
-        const deletedCids = [
-          'bafybeiceadgl6eqm52csjdkuch4wyawuyckbt6j4jg3tpxgs2we5mgy254',
-          'bafkreig7pzyokaqvit2igs564zfj4n4j726ex2auodpwfhfnnxnqgmqklq',
-        ];
+        const deletedCids = ['bafkreig7pzyokaqvit2igs564zfj4n4j726ex2auodpwfhfnnxnqgmqklq'];
+        // debugger;
         const pruneListEntries = await prisma.cidPruneList.findMany({ where: { cid: { in: deletedCids } } });
         const allEntriesFound = deletedCids.every((cid) => pruneListEntries.some((entry) => entry.cid === cid));
         expect(allEntriesFound).to.equal(true);

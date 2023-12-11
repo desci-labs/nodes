@@ -75,7 +75,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
         directory: e.directory,
       };
     });
-
+    // debugger;
     const existingDataRefs = await prisma.dataReference.findMany({
       where: {
         nodeId: node.id,
