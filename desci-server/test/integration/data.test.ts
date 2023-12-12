@@ -707,10 +707,14 @@ describe('Data Controllers', () => {
       it('should return new manifestCid', () => {
         expect(res.body).to.have.property('manifestCid');
       });
-      it('databucket dag should contain moved directory', async () => {
-        const databucketCid = res.body.manifest.components[0].payload.cid;
-        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {})) as RecursiveLsResult[];
-        const movedDir = flatTree.find((f) => neutralizePath(f.path) === moveToPath);
+      it('draft tree should contain moved directory', async () => {
+        // const databucketCid = res.body.manifest.components[0].payload.cid;
+        // const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {})) as RecursiveLsResult[];
+        const treeEntries = await prisma.draftNodeTree.findMany({
+          where: { nodeId: node.id },
+        });
+        const flatTree = draftNodeTreeEntriesToFlatIpfsTree(treeEntries);
+        const movedDir = flatTree.find((f) => f.path === moveToPath);
         expect(!!movedDir).to.equal(true);
         expect(movedDir?.type).to.equal('dir');
       });
