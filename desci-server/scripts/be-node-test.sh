@@ -15,4 +15,4 @@ cd desci-server
 yarn run migrate
 npx prisma db seed
 (npx prisma studio&)
-npm run coverage:destructive:debug
+npm run test:destructive:debug

@@ -11,6 +11,7 @@
     // Recommended by docs, but a lot of errors
     // "verbatimModuleSyntax": true,
 
+    "lib": ["esnext"],
     "outDir": "./dist",
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -19,7 +20,9 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
-    "inlineSourceMap": true
+    "inlineSourceMap": true,
+    // Globally overrides a few type declarations
+    "typeRoots": ["./src/types", "./node_modules/@types"]
   },
   "include": ["./src/**/*.tsx", "./src/**/*.ts", "./src/**/*.cjs"],
   "exclude": ["test/**/*.ts"],
