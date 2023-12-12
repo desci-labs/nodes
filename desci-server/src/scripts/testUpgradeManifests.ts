@@ -18,8 +18,6 @@ import { ensureUniqueString } from '../utils.js';
 /* 
 This script only tests the DAG step, and only a manifest is required, no DB entries are required
 */
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
 
 interface Manifest {
   fileName: string;
@@ -27,7 +25,7 @@ interface Manifest {
 }
 
 async function loadFiles(folderPath: string): Promise<Manifest[]> {
-  const fileNames = await fs.readdirSync(folderPath);
+  const fileNames = fs.readdirSync(folderPath);
   const manifests: Manifest[] = [];
 
   for (const fileName of fileNames) {

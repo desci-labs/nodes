@@ -20,6 +20,8 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
+    // dagConcat.cjs requires this
+    "allowJs": true,
     "inlineSourceMap": true,
     "paths": {
       // Overrides a built-in Response type

@@ -1,7 +1,6 @@
 import fs from 'fs';
 import https from 'https';
 import { Readable } from 'stream';
-
 import {
   type CodeComponent,
   type PdfComponent,
@@ -13,12 +12,10 @@ import * as dagPb from '@ipld/dag-pb';
 import { PBNode } from '@ipld/dag-pb';
 import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import axios from 'axios';
-// import CID from 'cids';
 import * as ipfs from 'ipfs-http-client';
 import { CID as CID2, globSource } from 'ipfs-http-client';
 import UnixFS from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
-// import { flatten, uniq } from 'lodash';
 import { flatten, uniq } from 'lodash-es';
 import * as multiformats from 'multiformats';
 import { code as rawCode } from 'multiformats/codecs/raw';
