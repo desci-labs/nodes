@@ -4,6 +4,7 @@ import { generateNonce } from 'siwe';
 import { prisma } from '../../client.js';
 import { queryResearchFields } from '../../controllers/data/index.js';
 import { queryRor } from '../../controllers/proxy/index.js';
+import { nft } from '../../controllers/raw/nft.js';
 import { ensureUser } from '../../middleware/ensureUser.js';
 
 import admin from './admin.js';
@@ -16,7 +17,6 @@ import referral from './referral.js';
 import services from './services.js';
 import users from './users.js';
 import waitlist from './waitlist.js';
-import { nft } from '../../controllers/raw/nft.js';
 
 const router = Router();
 

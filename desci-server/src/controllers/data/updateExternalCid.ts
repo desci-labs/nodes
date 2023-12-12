@@ -11,6 +11,7 @@ import axios from 'axios';
 import { Response, Request } from 'express';
 
 import { prisma } from '../../client.js';
+import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 import { logger as parentLogger } from '../../logger.js';
 import { updateManifestDataBucket } from '../../services/data/processing.js';
 import {
@@ -38,7 +39,6 @@ import {
 
 import { ErrorResponse, UpdateResponse } from './update.js';
 import { persistManifest } from './utils.js';
-import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 
 export const updateExternalCid = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = (req as any).user as User;

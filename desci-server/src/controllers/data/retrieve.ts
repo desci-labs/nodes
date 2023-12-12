@@ -9,6 +9,7 @@ import mkdirp from 'mkdirp';
 import tar from 'tar';
 
 import { prisma } from '../../client.js';
+import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 import { logger as parentLogger } from '../../logger.js';
 import redisClient, { getOrCache } from '../../redisClient.js';
 import { getDatasetTar } from '../../services/ipfs.js';
@@ -16,7 +17,6 @@ import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils
 
 import { ErrorResponse } from './update.js';
 import { getLatestManifest } from './utils.js';
-import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 
 export enum DataReferenceSrc {
   PRIVATE = 'private',

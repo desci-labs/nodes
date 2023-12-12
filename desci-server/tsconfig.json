@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
     "module": "nodenext",
-    /** 
-    * Implied by "module: nodenext":
-    * "moduleResolution": "nodenext",
-    * "esModuleInterop": true,
-    * "target": "esnext",
-    */
-    
+    /**
+     * Implied by "module: nodenext":
+     * "moduleResolution": "nodenext",
+     * "esModuleInterop": true,
+     * "target": "esnext",
+     */
+
     // Recommended by docs, but a lot of errors
     // "verbatimModuleSyntax": true,
 

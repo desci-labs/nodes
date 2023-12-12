@@ -2,7 +2,11 @@ import { ActionType, FriendReferralStatus, User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { logger as parentLogger } from '../../logger.js';
-import { getReferralByUuid, updateReferralAwardedStorage, updateReferralStatus } from '../../services/friendReferral.js';
+import {
+  getReferralByUuid,
+  updateReferralAwardedStorage,
+  updateReferralStatus,
+} from '../../services/friendReferral.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { increaseUsersDriveLimit } from '../../services/user.js';
 export const DRIVE_STORAGE_LIMIT_INCREASE_GB = 5;

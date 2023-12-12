@@ -1,11 +1,10 @@
 import { AuthTokenSource, User } from '@prisma/client';
 import axios from 'axios';
 
+import { prisma as client } from '../client.js';
 import { OrcIdRecordData, generateAccessToken, getOrcidRecord } from '../controllers/auth/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { hideEmail } from '../utils.js';
-
-import { prisma as client } from '../client.js';
 
 import { getUserConsent } from './interactionLog.js';
 const logger = parentLogger.child({

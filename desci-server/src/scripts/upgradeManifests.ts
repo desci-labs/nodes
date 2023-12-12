@@ -7,6 +7,7 @@ import {
 import { DataType } from '@prisma/client';
 import axios from 'axios';
 
+import { prisma } from '../client.js';
 import { PersistManifestParams } from '../controllers/data/utils.js';
 import { cleanupManifestUrl } from '../controllers/nodes/show.js';
 import {
@@ -17,9 +18,8 @@ import {
   strIsCid,
   updateManifestAndAddToIpfs,
 } from '../services/ipfs.js';
-import { ensureUniqueString } from '../utils.js';
 import { addComponentsToManifest } from '../utils/driveUtils.js';
-import { prisma } from '../client.js';
+import { ensureUniqueString } from '../utils.js';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
@@ -176,8 +176,8 @@ export async function upgradeManifestsScript() {
           path === researchReportPath
             ? ResearchObjectComponentType.PDF
             : path === codeReposPath
-            ? ResearchObjectComponentType.CODE
-            : ResearchObjectComponentType.DATA,
+              ? ResearchObjectComponentType.CODE
+              : ResearchObjectComponentType.DATA,
       };
     });
 

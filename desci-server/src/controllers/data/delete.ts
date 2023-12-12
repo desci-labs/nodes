@@ -1,13 +1,9 @@
-import {
-  ResearchObjectV1,
-  deneutralizePath,
-  isNodeRoot,
-  neutralizePath,
-} from '@desci-labs/desci-models';
+import { ResearchObjectV1, deneutralizePath, isNodeRoot, neutralizePath } from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import { logger as parentLogger} from '../../logger.js';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
 import { updateManifestDataBucket } from '../../services/data/processing.js';
 import { removeFileFromDag } from '../../services/ipfs.js';
 import { prepareDataRefs } from '../../utils/dataRefTools.js';
@@ -15,7 +11,6 @@ import { updateManifestComponentDagCids } from '../../utils/driveUtils.js';
 
 import { ErrorResponse } from './update.js';
 import { getLatestManifest, persistManifest } from './utils.js';
-import { prisma } from '../../client.js';
 
 interface DeleteResponse {
   status?: number;

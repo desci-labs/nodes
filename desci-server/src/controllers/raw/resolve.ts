@@ -8,14 +8,13 @@ import axios from 'axios';
 import { ethers } from 'ethers';
 import { NextFunction, Request, Response } from 'express';
 
-import { decodeBase64UrlSafeToHex, hexToCid } from '../../utils.js';
-import { logger as parentLogger } from '../../logger.js';
-import { getIndexedResearchObjects } from '../../theGraph.js';
-
 import goerli from '../../desci-contracts-artifacts/contracts/ResearchObject.sol/ResearchObject.json' assert { type: 'json' };
 import localhost from '../../desci-contracts-artifacts/contracts/ResearchObject.sol/ResearchObject.json' assert { type: 'json' };
 import goerliInfo from '../../desci-contracts-config/goerli-research-object.json' assert { type: 'json' };
 import localhostInfo from '../../desci-contracts-config/unknown-research-object.json' assert { type: 'json' };
+import { logger as parentLogger } from '../../logger.js';
+import { getIndexedResearchObjects } from '../../theGraph.js';
+import { decodeBase64UrlSafeToHex, hexToCid } from '../../utils.js';
 
 export const directChainCall = async (decodedUuid: string) => {
   let provider;

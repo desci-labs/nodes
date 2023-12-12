@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import 'reflect-metadata';
-
 import { Repo, type RepoConfig } from '@automerge/automerge-repo';
 import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import * as Sentry from '@sentry/node';
@@ -11,17 +10,16 @@ import express from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { pinoHttp } from 'pino-http';
+import { WebSocketServer } from 'ws';
 
 import './utils/response/customSuccess.js';
+import { prisma } from './client.js';
+import { orcidConnect } from './controllers/auth/orcid.js';
 import { orcidCheck } from './controllers/auth/orcidNext.js';
 import { logger } from './logger.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
-
 import { errorHandler } from './middleware/errorHandler.js';
 import routes from './routes/index.js';
-import { WebSocketServer } from 'ws';
-import { prisma } from './client.js';
-import { orcidConnect } from './controllers/auth/orcid.js';
 
 export const app = express();
 
@@ -32,7 +30,7 @@ if (ENABLE_TELEMETRY) {
   Sentry.init({
     dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
     release: 'desci-nodes-server@' + process.env.npm_package_version,
-    integrations: [new Tracing.Integrations.Prisma({ client: prisma})],
+    integrations: [new Tracing.Integrations.Prisma({ client: prisma })],
     // Set tracesSampleRate to 1.0 to capture 100%
     // of transactions for performance monitoring.
     // We recommend adjusting this value in production

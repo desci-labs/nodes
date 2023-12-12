@@ -2,7 +2,7 @@ import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
-import { logger as parentLogger} from '../../logger.js';
+import { logger as parentLogger } from '../../logger.js';
 import { updateManifestAndAddToIpfs } from '../../services/ipfs.js';
 import { cleanManifestForSaving } from '../../utils/manifestDraftUtils.js';
 

@@ -19,6 +19,7 @@ import { CID as CID2, globSource } from 'ipfs-http-client';
 import UnixFS from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
 // import { flatten, uniq } from 'lodash';
+import { flatten, uniq } from 'lodash-es';
 import * as multiformats from 'multiformats';
 import { code as rawCode } from 'multiformats/codecs/raw';
 
@@ -26,13 +27,12 @@ import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
+import { addToDir, concat, getSize, makeDir, updateDagCid } from '../utils/dagConcat.cjs';
 import { DRIVE_NODE_ROOT_PATH, type ExternalCidMap, type newCid, type oldCid } from '../utils/driveUtils.js';
 import { getGithubExternalUrl, processGithubUrl } from '../utils/githubUtils.js';
 import { createManifest, getUrlsFromParam, makePublic } from '../utils/manifestDraftUtils.js';
-import { flatten, uniq } from 'lodash-es';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-import { addToDir, concat, getSize, makeDir, updateDagCid } from '../utils/dagConcat.cjs';
 export const IPFS_PATH_TMP = '/tmp/ipfs';
 
 const logger = parentLogger.child({

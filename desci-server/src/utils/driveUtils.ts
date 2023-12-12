@@ -17,12 +17,12 @@ import type {
 import { DataReference, DataType } from '@prisma/client';
 
 import { prisma } from '../client.js';
-import { separateFileNameAndExtension } from '../controllers/data/utils.js';
-import { logger }from '../logger.js';
-import { getOrCache } from '../redisClient.js';
-import { getIndexedResearchObjects } from '../theGraph.js';
 import { DataReferenceSrc } from '../controllers/data/retrieve.js';
+import { separateFileNameAndExtension } from '../controllers/data/utils.js';
+import { logger } from '../logger.js';
+import { getOrCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
+import { getIndexedResearchObjects } from '../theGraph.js';
 
 export function fillDirSizes(tree, cidInfoMap) {
   const contains = [];

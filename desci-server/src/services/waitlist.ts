@@ -60,7 +60,7 @@ const addUser = async (email: string): Promise<boolean> => {
   if (!user) {
     user = await client.user.create({
       data: {
-        email
+        email,
       },
     });
   }

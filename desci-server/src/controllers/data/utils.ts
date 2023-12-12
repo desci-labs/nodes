@@ -4,9 +4,9 @@ import axios from 'axios';
 import { v4 as uuid } from 'uuid';
 
 import { prisma } from '../../client.js';
+import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 import { logger as parentLogger } from '../../logger.js';
 import { updateManifestAndAddToIpfs } from '../../services/ipfs.js';
-import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 
 const logger = parentLogger.child({
   module: 'DATA::Utils',

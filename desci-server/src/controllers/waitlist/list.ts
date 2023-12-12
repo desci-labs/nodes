@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+
 import * as waitlist from '../../services/waitlist.js';
 
 export const list = async (req: Request, res: Response, next: NextFunction) => {

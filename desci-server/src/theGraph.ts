@@ -4,7 +4,7 @@
 
 import axios from 'axios';
 
-import { logger }from './logger.js';
+import { logger } from './logger.js';
 import { decodeBase64UrlSafeToHex } from './utils.js';
 
 export const getIndexedResearchObjects = async (urlSafe64s: string[]) => {

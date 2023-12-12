@@ -1,9 +1,8 @@
 import { User } from '@prisma/client';
 
+import { prisma as client } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import createRandomCode from '../utils/createRandomCode.js';
-
-import { prisma as client } from '../client.js';
 
 const logger = parentLogger.child({ module: 'Services::Invites' });
 

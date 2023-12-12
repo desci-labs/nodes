@@ -19,13 +19,6 @@ import { logger as parentLogger } from '../../logger.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import { IpfsDirStructuredInput, addDirToIpfs, addFilesToDag, getDirectoryTree } from '../../services/ipfs.js';
 import {
-  calculateTotalZipUncompressedSize,
-  extractZipFileAndCleanup,
-  processExternalUrls,
-  saveZipStreamToDisk,
-  zipUrlToStream,
-} from '../../utils.js';
-import {
   ExtensionDataTypeMap,
   addComponentsToManifest,
   generateExternalCidMap,
@@ -33,6 +26,13 @@ import {
   getTreeAndFill,
   updateManifestComponentDagCids,
 } from '../../utils/driveUtils.js';
+import {
+  calculateTotalZipUncompressedSize,
+  extractZipFileAndCleanup,
+  processExternalUrls,
+  saveZipStreamToDisk,
+  zipUrlToStream,
+} from '../../utils.js';
 
 import {
   cleanupDanglingRefs,

@@ -2,6 +2,7 @@ import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+import { prisma as prismaClient } from '../../client.js';
 import { logger } from '../../logger.js';
 import { magicLinkRedeem, sendMagicLink } from '../../services/auth.js';
 import { saveInteraction } from '../../services/interactionLog.js';
@@ -9,7 +10,6 @@ import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from '../../se
 import { sendCookie } from '../../utils/sendCookie.js';
 
 import { getOrcidRecord } from './orcid.js';
-import { prisma as prismaClient } from '../../client.js';
 
 export const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });

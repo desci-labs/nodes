@@ -18,8 +18,8 @@ const parseVersion = (version: string): number | undefined => {
   return !isNaN(parseInt(version))
     ? +version
     : version[0]?.toLowerCase() === 'v' && version.length > 1
-    ? parseInt(version.substring(1)) - 1
-    : undefined;
+      ? parseInt(version.substring(1)) - 1
+      : undefined;
 };
 
 export const getCoverImage = async (req: Request, res: Response, next: NextFunction) => {

@@ -16,9 +16,10 @@ import { User, Node, DataType } from '@prisma/client';
 import axios from 'axios';
 import { v4 } from 'uuid';
 
+import { persistManifest } from '../..//controllers/data/utils.js';
 import { prisma } from '../../client.js';
 import { UpdateResponse } from '../../controllers/data/update.js';
-import { persistManifest } from '../..//controllers/data/utils.js';
+import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 import { logger as parentLogger } from '../../logger.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import {
@@ -59,7 +60,6 @@ import {
   createNotEnoughSpaceError,
   createUnhandledError,
 } from './processingErrors.js';
-import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 
 interface ProcessS3DataToIpfsParams {
   files: any[];

@@ -1,6 +1,6 @@
-import { oneDay, oneYear } from '../controllers/auth/magic.js';
 import { type Response } from 'express';
 
+import { oneDay, oneYear } from '../controllers/auth/magic.js';
 import { logger } from '../logger.js';
 export const sendCookie = (res: Response, token: string, isDevMode: boolean) => {
   if (isDevMode && process.env.SERVER_URL === 'https://nodes-api-dev.desci.com') {

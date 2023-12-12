@@ -41,7 +41,7 @@ export const ensureWriteAccess = async (req: Request, res: Response, next: NextF
   return next();
 };
 
-interface EnsureWriteAccessCheckResult  {
+interface EnsureWriteAccessCheckResult {
   ok: boolean;
   node?: Node;
 }
@@ -52,23 +52,23 @@ export async function ensureWriteAccessCheck(user: User, uuid: string): Promise<
     user,
     uuid: uuid,
   });
-  
+
   if (!user || !uuid) {
     logger.warn(user, `unauthed user entered ensureWriteAccess middleware, rejecting`);
-    return {ok: false}
+    return { ok: false };
   }
 
-    //validate requester owns the node
-    const node = await prisma.node.findFirst({
-      where: {
-        ownerId: user.id,
-        uuid: uuid.endsWith('.') ? uuid : uuid + '.',
-      },
-    });
-    if (!node) {
-      logger.warn(user, `unauthed node user: ${user.id}, node uuid provided: ${uuid}`);
-      return {ok: false}
-    }
-  
-  return {ok: true, node}
+  //validate requester owns the node
+  const node = await prisma.node.findFirst({
+    where: {
+      ownerId: user.id,
+      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+    },
+  });
+  if (!node) {
+    logger.warn(user, `unauthed node user: ${user.id}, node uuid provided: ${uuid}`);
+    return { ok: false };
+  }
+
+  return { ok: true, node };
 }

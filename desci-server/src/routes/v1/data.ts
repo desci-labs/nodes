@@ -3,8 +3,8 @@ import multer = require('multer');
 import multerS3 from 'multer-s3';
 import { v4 } from 'uuid';
 
-import { pubTree, retrieveTree, deleteData, update, renameData } from '../../controllers/data/index.js';
 import { diffData } from '../../controllers/data/diff.js';
+import { pubTree, retrieveTree, deleteData, update, renameData } from '../../controllers/data/index.js';
 import { moveData } from '../../controllers/data/move.js';
 import { updateExternalCid } from '../../controllers/data/updateExternalCid.js';
 import { logger } from '../../logger.js';

@@ -12,8 +12,8 @@ import {
 } from '@desci-labs/desci-models';
 
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from '../services/ipfs.js';
-import { ensureUniqueString } from '../utils.js';
 import { addComponentsToManifest } from '../utils/driveUtils.js';
+import { ensureUniqueString } from '../utils.js';
 
 /* 
 This script only tests the DAG step, and only a manifest is required, no DB entries are required
@@ -159,8 +159,8 @@ export async function testUpgradeManifests() {
           path === researchReportPath
             ? ResearchObjectComponentType.PDF
             : path === codeReposPath
-            ? ResearchObjectComponentType.CODE
-            : ResearchObjectComponentType.DATA,
+              ? ResearchObjectComponentType.CODE
+              : ResearchObjectComponentType.DATA,
       };
     });
 

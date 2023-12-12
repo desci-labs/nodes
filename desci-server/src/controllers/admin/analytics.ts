@@ -1,7 +1,7 @@
-import { logger as parentLogger } from '../../logger.js';
 import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
+import { logger as parentLogger } from '../../logger.js';
 import {
   getCountActiveUsersInMonth,
   getCountActiveUsersInXDays,
