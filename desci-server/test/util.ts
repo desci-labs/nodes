@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import { IpfsDirStructuredInput, IpfsPinnedResult, client as ipfs, pinDirectory } from '../src/services/ipfs.js';
 
 const expectThrowsAsync = async (method, errorMessage) => {
-  let error = null;
+  let error: Error | null = null;
   try {
     await method();
   } catch (err) {
@@ -12,7 +12,7 @@ const expectThrowsAsync = async (method, errorMessage) => {
   }
   expect(error).to.be.an('Error');
   if (errorMessage) {
-    expect(error.message).to.equal(errorMessage);
+    expect(error?.message).to.equal(errorMessage);
   }
 };
 export { expectThrowsAsync };

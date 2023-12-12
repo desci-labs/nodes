@@ -1,4 +1,4 @@
-import { ResearchObject } from "../ResearchObject";
+import { ResearchObject } from '../ResearchObject';
 interface ImportFunc {
   (input: any): ResearchObject;
 }

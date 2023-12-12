@@ -176,12 +176,20 @@ const port = process.env.PORT || 5420;
 app.listen(port, () => {
   logger.info(`Server running on port ${port}`);
 });
-// const wsServer = new WebSocketServer({ noServer: true });
-// const config = {
-//   network: [new NodeWSServerAdapter(wsServer)],
-// };
-// const repo = new Repo(config);
+const wsServer = new WebSocketServer({ noServer: true });
+const config = {
+  network: [new NodeWSServerAdapter(wsServer)],
+};
+const repo = new Repo(config);
 
-// const server = app.listen(port, () => {
-//   logger.info(`Server running on port ${port}`);
-// });
+const server = app.listen(port, () => {
+  logger.info(`Server running on port ${port}`);
+});
+
+server.on('upgrade', (request, socket, head) => {
+  console.log(`Server upgrade ${port}`);
+  wsServer.handleUpgrade(request, socket, head, (socket) => {
+    console.log(`WS Server upgrade ${port}`);
+    wsServer.emit('connection', socket, request);
+  });
+});
