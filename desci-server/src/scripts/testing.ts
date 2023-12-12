@@ -2,7 +2,7 @@ import prisma from 'client';
 import parentLogger from 'logger';
 import { migrateIpfsTreeToNodeTree } from 'services/draftTrees';
 import { client, getDirectoryTree } from 'services/ipfs';
-import { dagifyAndPinDraftDbTree, draftNodeTreeEntriesToFlatIpfsTree } from 'utils/draftTreeUtils';
+import { dagifyAndAddDbTreeToIpfs, draftNodeTreeEntriesToFlatIpfsTree } from 'utils/draftTreeUtils';
 import { generateExternalCidMap } from 'utils/driveUtils';
 
 const logger = parentLogger.child({ module: 'SCRIPTS::Testing' });
@@ -30,7 +30,7 @@ async function benchmark() {
 async function dbDraftTreeToIpfsTreeAndPin() {
   const node = await prisma.node.findUnique({ where: { uuid: nodeUuid } });
 
-  const rootDagNode = await dagifyAndPinDraftDbTree(node.id);
+  const rootDagNode = await dagifyAndAddDbTreeToIpfs(node.id);
 
   if (rootDagNode) {
     logger.info(`DAG pinned: ${rootDagNode}`);

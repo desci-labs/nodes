@@ -6,6 +6,7 @@ export * from './proxyPdf';
 export * from './show';
 export * from './consent';
 export * from './api';
+export * from './prepublish';
 export * from './publish';
 export * from './share';
 export * from './nodesCover';

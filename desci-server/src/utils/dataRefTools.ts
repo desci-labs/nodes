@@ -1,5 +1,5 @@
 import { FileType, ResearchObjectV1, isNodeRoot, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
-import { DataReference, DataType, Prisma } from '@prisma/client';
+import { DataReference, DataType, NodeVersion, Prisma, Node } from '@prisma/client';
 import axios from 'axios';
 
 import prisma from 'client';
@@ -211,6 +211,60 @@ export async function prepareDataRefsForDraftTrees(
   });
 
   return dataTreeToPubRef.filter((ref) => !ref.directory);
+}
+
+export interface PrepareDataRefsForDagSkeletonArgs {
+  node: Node;
+  dataBucketCid: string;
+  manifest: ResearchObjectV1;
+}
+
+/**
+ * Prepares data references for a DAG skeleton, this is used in the prepublish step where we pin the DAG structure, before we pin the files to the public IPFS node.
+ * We create publicDataRefs for the structure, to cover for the edge case of a garbage collection event occuring the moment someone publishes, their data would be lost.
+ */
+export async function prepareDataRefsForDagSkeleton({
+  node,
+  dataBucketCid,
+  manifest,
+}: PrepareDataRefsForDagSkeletonArgs) {
+  const manifestEntry: ResearchObjectV1 = manifest;
+
+  const dataRootEntry: Prisma.DataReferenceCreateManyInput = {
+    cid: dataBucketCid,
+    path: dataBucketCid,
+    userId: node.ownerId,
+    root: true,
+    rootCid: dataBucketCid,
+    directory: true,
+    size: 0,
+    type: DataType.DATA_BUCKET,
+    nodeId: node.id,
+  };
+
+  const externalCidMap = { ...(await generateExternalCidMap(node.uuid)) };
+  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, false);
+
+  const dataTree = recursiveFlattenTree(tree).filter((entry) => entry.type === FileType.DIR);
+  const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
+
+  const dataTreeToPubRef: Prisma.DataReferenceCreateManyInput[] = dataTree.map((entry) => {
+    const neutralPath = neutralizePath(entry.path);
+    const dbType = inheritComponentType(neutralPath, manifestPathsToDbTypes);
+    return {
+      cid: entry.cid,
+      path: entry.path,
+      userId: node.ownerId,
+      rootCid: dataBucketCid,
+      root: false,
+      directory: entry.type === 'dir',
+      size: entry.size,
+      type: dbType,
+      nodeId: node.id,
+    };
+  });
+
+  return [dataRootEntry, ...dataTreeToPubRef];
 }
 
 export async function prepareDataRefsExternalCids(

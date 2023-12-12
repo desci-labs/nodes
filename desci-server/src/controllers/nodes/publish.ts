@@ -31,7 +31,12 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     user: (req as any).user,
   });
   if (!uuid || !cid || !manifest) {
-    return res.status(404).send({ message: 'uuid, cid, and manifest must be valid' });
+    return res.status(404).send({ message: 'uuid, cid, email, and manifest must be valid' });
+  }
+
+  if (email === undefined || email === null) {
+    // Prevent any issues with prisma findFirst with undefined fields
+    return res.status(401).send({ message: 'email must be valid' });
   }
 
   try {
@@ -49,9 +54,10 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     const node = await prisma.node.findFirst({
       where: {
         ownerId: owner.id,
-        uuid: uuid + '.',
+        uuid: uuid.endsWith('.') ? uuid : uuid + '.',
       },
     });
+
     if (!node) {
       logger.warn({ owner, uuid }, `unauthed node user: ${owner}, node uuid provided: ${uuid}`);
       return res.status(400).json({ error: 'failed' });
@@ -62,7 +68,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     const nodeVersion = await prisma.nodeVersion.create({
       data: {
         nodeId: node.id,
-        manifestUrl: cid,
+        manifestUrl: cid, // Plug updated manifest CID here
         transactionId,
       },
     });

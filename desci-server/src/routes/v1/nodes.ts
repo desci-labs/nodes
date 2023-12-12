@@ -17,13 +17,16 @@ import {
   checkPrivateShareId,
   getCoverImage,
   deleteNode,
+  prepublish,
 } from 'controllers/nodes/index';
 import { retrieveTitle } from 'controllers/nodes/legacyManifestApi';
 import { versionDetails } from 'controllers/nodes/versionDetails';
 import { ensureUser } from 'middleware/ensureUser';
+import { ensureWriteAccess } from 'middleware/ensureWriteAccess';
 
 const router = Router();
 
+router.post('/prepublish', [ensureUser, ensureWriteAccess], prepublish);
 router.post('/publish', [ensureUser], publish);
 router.post('/createDraft', [ensureUser], draftCreate);
 router.post('/addComponentToDraft', [ensureUser], draftAddComponent);

@@ -108,7 +108,7 @@ async function addDagNodeToIpfs(dagNode) {
   const cid = await client.block.put(encode(prepare(dagNode)), {
     version: 1,
     format: 'dag-pb',
-    pin: true,
+    // pin: true,
   });
   // logger.debug(`Added DAGNode to IPFS: ${cid.toString()}`);
   return cid;
@@ -116,8 +116,9 @@ async function addDagNodeToIpfs(dagNode) {
 
 /*
  * Converts a draft node tree to a dag-pb tree and pins it to the IPFS node
+ * NOTE: Only the DAG structure is pinned in this step, not the files themselves.
  */
-export async function dagifyAndPinDraftDbTree(nodeId: number): Promise<string> {
+export async function dagifyAndAddDbTreeToIpfs(nodeId: number): Promise<string> {
   // Fetch tree entries from the database
   const treeEntries = await prisma.draftNodeTree.findMany({
     where: { nodeId: nodeId },
