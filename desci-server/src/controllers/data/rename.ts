@@ -159,7 +159,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    logger.error(`[DATA::Rename] error: ${e}`);
+    logger.error(e, `[DATA::Rename] error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import https from 'https';
 import { Readable } from 'stream';
+
 import {
   type CodeComponent,
   type PdfComponent,
@@ -9,7 +10,7 @@ import {
   type ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
 import * as dagPb from '@ipld/dag-pb';
-import { PBNode } from '@ipld/dag-pb';
+import type { PBNode } from '@ipld/dag-pb';
 import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import axios from 'axios';
 import * as ipfs from 'ipfs-http-client';
@@ -24,7 +25,7 @@ import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
-import { addToDir, concat, getSize, makeDir, updateDagCid } from '../utils/dagConcat.js';
+import { addToDir, getSize, makeDir, updateDagCid } from '../utils/dagConcat.js';
 import { DRIVE_NODE_ROOT_PATH, type ExternalCidMap, type newCid, type oldCid } from '../utils/driveUtils.js';
 import { getGithubExternalUrl, processGithubUrl } from '../utils/githubUtils.js';
 import { createManifest, getUrlsFromParam, makePublic } from '../utils/manifestDraftUtils.js';
@@ -939,6 +940,7 @@ export async function renameDagLink(dagCid: string | multiformats.CID, linkName:
   }
 
   const linkIdx = Links.findIndex((link) => link.Name === linkName);
+  console.log('[LINKS]::', Links, linkIdx, linkName, Links[linkIdx]);
   Links[linkIdx].Name = newName;
 
   return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links })), {

@@ -40,14 +40,6 @@ import {
 } from '../../services/ipfs.js';
 import { fetchFileStreamFromS3, isS3Configured } from '../../services/s3.js';
 import {
-  FirstNestingComponent,
-  addComponentsToManifest,
-  generateExternalCidMap,
-  generateManifestPathsToDbTypeMap,
-  getTreeAndFill,
-  updateManifestComponentDagCids,
-} from '../../utils/driveUtils.js';
-import {
   arrayXor,
   calculateTotalZipUncompressedSize,
   extractZipFileAndCleanup,
@@ -55,6 +47,14 @@ import {
   saveZipStreamToDisk,
   zipUrlToStream,
 } from '../../utils.js';
+import {
+  FirstNestingComponent,
+  addComponentsToManifest,
+  generateExternalCidMap,
+  generateManifestPathsToDbTypeMap,
+  getTreeAndFill,
+  updateManifestComponentDagCids,
+} from '../../utils/driveUtils.js';
 
 import { persistManifest } from './utils.js';
 

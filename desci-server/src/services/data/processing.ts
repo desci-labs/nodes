@@ -123,11 +123,13 @@ export async function processS3DataToIpfs({
     // Pin new files, structure for DAG extension, add to DAG
     pinResult = await pinNewFiles(files);
     const { filesToAddToDag, filteredFiles } = filterFirstNestings(pinResult);
+    logger.info({ filesToAddToDag }, '[START addFilesToDag]');
     const {
       updatedRootCid: newRootCidString,
       updatedDagCidMap,
       contextPathNewCid,
     } = await addFilesToDag(rootCid, rootlessContextPath, filesToAddToDag);
+    logger.info({ newRootCidString }, '[END addFilesToDag]');
     if (typeof newRootCidString !== 'string') throw createDagExtensionFailureError;
 
     /**

@@ -18,15 +18,14 @@ import {
   strIsCid,
   updateManifestAndAddToIpfs,
 } from '../services/ipfs.js';
-import { addComponentsToManifest } from '../utils/driveUtils.js';
 import { ensureUniqueString } from '../utils.js';
-
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
 IMPORTANT: Called after ensureUser and multer
 */
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
+// import { addToDir, concat, getSize, makeDir, updateDagCid } from '../utils/dagConcat.js';
+import { addComponentsToManifest } from '../utils/driveUtils.js';
 
 upgradeManifestsScript();
 export async function upgradeManifestsScript() {
@@ -176,8 +175,8 @@ export async function upgradeManifestsScript() {
           path === researchReportPath
             ? ResearchObjectComponentType.PDF
             : path === codeReposPath
-              ? ResearchObjectComponentType.CODE
-              : ResearchObjectComponentType.DATA,
+            ? ResearchObjectComponentType.CODE
+            : ResearchObjectComponentType.DATA,
       };
     });
 

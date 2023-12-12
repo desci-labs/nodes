@@ -120,6 +120,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
       }),
     ]);
+    console.log('[DELETE]::', deletions.length);
     logger.info(
       `DATA::Delete ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added, ${updates.length} dataReferences updated`,
     );
@@ -131,6 +132,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       .filter((c) => c.payload?.path?.startsWith(path + '/') || c.payload?.path === path)
       .map((c) => c.id);
 
+    console.log('[START deleteComponentsFromManifest]::', latestManifest);
     let updatedManifest = deleteComponentsFromManifest({
       manifest: latestManifest,
       componentIds: componentDeletionIds,
@@ -156,7 +158,8 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    logger.error(`DATA::Delete error: ${e}`);
+    console.log('[START deleteComponentsFromManifest]::', e);
+    logger.error(e, `DATA::Delete error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };
