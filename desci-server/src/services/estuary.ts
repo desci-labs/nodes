@@ -1,9 +1,7 @@
-import { ReadStream } from 'fs';
-
 import axios, { AxiosResponse } from 'axios';
 import FormData from 'form-data';
 
-import parentLogger from 'logger';
+import { logger as parentLogger } from '../logger.js';
 
 type ACTIONS = 'PIN' | 'UPLOAD';
 

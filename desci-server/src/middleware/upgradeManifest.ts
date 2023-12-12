@@ -7,11 +7,11 @@ import {
 import { DataType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
-import { getLatestManifest, persistManifest } from 'controllers/data/utils';
-import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from 'services/ipfs';
-import { ensureUniqueString } from 'utils';
-import { addComponentsToManifest } from 'utils/driveUtils';
+import { prisma } from '../client.js';
+import { getLatestManifest, persistManifest } from '../controllers/data/utils.js';
+import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from '../services/ipfs.js';
+import { ensureUniqueString } from '../utils.js';
+import { addComponentsToManifest } from '../utils/driveUtils.js';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 

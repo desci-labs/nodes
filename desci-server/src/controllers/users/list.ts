@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import client from '../../client';
+import { prisma } from '../../client.js';
 
 export const list = async (req: Request, res: Response, next: NextFunction) => {
-  const users = await client.user.findMany();
+  const users = await prisma.user.findMany();
   res.send({ users });
 };

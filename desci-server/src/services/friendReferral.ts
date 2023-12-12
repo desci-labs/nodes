@@ -1,7 +1,7 @@
 import { FriendReferralStatus } from '@prisma/client';
 
-import client from '../client';
-import parentLogger from '../logger';
+import { prisma as client } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
 
 const logger = parentLogger.child({ module: 'Services::FriendReferral' });
 

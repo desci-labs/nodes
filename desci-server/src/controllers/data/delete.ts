@@ -1,5 +1,4 @@
 import {
-  ResearchObjectComponentType,
   ResearchObjectV1,
   deneutralizePath,
   isNodeRoot,
@@ -8,15 +7,15 @@ import {
 import { DataReference, DataType } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { updateManifestDataBucket } from 'services/data/processing';
-import { removeFileFromDag } from 'services/ipfs';
-import { prepareDataRefs } from 'utils/dataRefTools';
-import { updateManifestComponentDagCids } from 'utils/driveUtils';
+import { logger as parentLogger} from '../../logger.js';
+import { updateManifestDataBucket } from '../../services/data/processing.js';
+import { removeFileFromDag } from '../../services/ipfs.js';
+import { prepareDataRefs } from '../../utils/dataRefTools.js';
+import { updateManifestComponentDagCids } from '../../utils/driveUtils.js';
 
-import { ErrorResponse } from './update';
-import { getLatestManifest, persistManifest } from './utils';
+import { ErrorResponse } from './update.js';
+import { getLatestManifest, persistManifest } from './utils.js';
+import { prisma } from '../../client.js';
 
 interface DeleteResponse {
   status?: number;

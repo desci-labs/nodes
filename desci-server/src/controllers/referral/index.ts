@@ -1,3 +1,3 @@
-export * from './newReferral';
-export * from './getReferralsByUserId';
-export * from './acceptReferralById';
+export * from './newReferral.js';
+export * from './getReferralsByUserId.js';
+export * from './acceptReferralById.js';

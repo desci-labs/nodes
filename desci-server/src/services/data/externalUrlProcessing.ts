@@ -13,18 +13,18 @@ import { DataType, User, Node } from '@prisma/client';
 import axios from 'axios';
 import { rimraf } from 'rimraf';
 
-import prisma from 'client';
-import { persistManifest } from 'controllers/data/utils';
-import parentLogger from 'logger';
-import { hasAvailableDataUsageForUpload } from 'services/dataService';
-import { IpfsDirStructuredInput, addDirToIpfs, addFilesToDag, getDirectoryTree } from 'services/ipfs';
+import { prisma } from '../../client.js';
+import { persistManifest } from '../../controllers/data/utils.js';
+import { logger as parentLogger } from '../../logger.js';
+import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
+import { IpfsDirStructuredInput, addDirToIpfs, addFilesToDag, getDirectoryTree } from '../../services/ipfs.js';
 import {
   calculateTotalZipUncompressedSize,
   extractZipFileAndCleanup,
   processExternalUrls,
   saveZipStreamToDisk,
   zipUrlToStream,
-} from 'utils';
+} from '../../utils.js';
 import {
   ExtensionDataTypeMap,
   addComponentsToManifest,
@@ -32,7 +32,7 @@ import {
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
   updateManifestComponentDagCids,
-} from 'utils/driveUtils';
+} from '../../utils/driveUtils.js';
 
 import {
   cleanupDanglingRefs,
@@ -46,14 +46,14 @@ import {
   predefineComponentsForPinnedFiles,
   updateDataReferences,
   updateManifestDataBucket,
-} from './processing';
+} from './processing.js';
 import {
   createDagExtensionFailureError,
   createExternalUrlResolutionError,
   createManifestPersistFailError,
   createNotEnoughSpaceError,
   createUnhandledError,
-} from './processingErrors';
+} from './processingErrors.js';
 
 const TEMP_REPO_ZIP_PATH = './repo-tmp';
 

@@ -2,17 +2,16 @@ import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@de
 import { DataType, Prisma, PublicDataReference, User } from '@prisma/client';
 import axios from 'axios';
 
-import prisma from 'client';
-import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from 'config';
-import { cleanupManifestUrl } from 'controllers/nodes';
-import parentLogger from 'logger';
-import { uploadDataToEstuary } from 'services/estuary';
-import { getIndexedResearchObjects } from 'theGraph';
-import { hexToCid, randomUUID64 } from 'utils';
-import { asyncMap } from 'utils';
-import { generateDataReferences } from 'utils/dataRefTools';
+import { prisma } from '../client.js';
+import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from '../config/index.js';
+import { cleanupManifestUrl } from '../controllers/nodes/show.js';
+import { logger as parentLogger } from '../logger.js';
+import { uploadDataToEstuary } from '../services/estuary.js';
+import { getIndexedResearchObjects } from '../theGraph.js';
+import { hexToCid, randomUUID64, asyncMap} from '../utils.js';
+import { generateDataReferences } from '../utils/dataRefTools.js';
 
-import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs';
+import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
 
 const ESTUARY_MIRROR_ID = 1;
 

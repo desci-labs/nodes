@@ -2,18 +2,18 @@ import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { ActionType, Prisma } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { saveInteraction } from 'services/interactionLog';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { saveInteraction } from '../../services/interactionLog.js';
 import {
   publishResearchObject,
   cacheNodeMetadata,
   getAllCidsRequiredForPublish,
   createPublicDataRefs,
   createDataMirrorJobs,
-} from 'services/nodeManager';
-import { validateAndHealDataRefs } from 'utils/dataRefTools';
-import { discordNotify } from 'utils/discordUtils';
+} from '../../services/nodeManager.js';
+import { validateAndHealDataRefs } from '../../utils/dataRefTools.js';
+import { discordNotify } from '../../utils/discordUtils.js';
 
 // call node publish service and add job to queue
 export const publish = async (req: Request, res: Response, next: NextFunction) => {

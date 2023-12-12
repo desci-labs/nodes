@@ -7,9 +7,8 @@ import {
 import { DataType } from '@prisma/client';
 import axios from 'axios';
 
-import prisma from 'client';
-import { PersistManifestParams } from 'controllers/data/utils';
-import { cleanupManifestUrl } from 'controllers/nodes';
+import { PersistManifestParams } from '../controllers/data/utils.js';
+import { cleanupManifestUrl } from '../controllers/nodes/show.js';
 import {
   createDag,
   createEmptyDag,
@@ -17,9 +16,10 @@ import {
   getDirectoryTree,
   strIsCid,
   updateManifestAndAddToIpfs,
-} from 'services/ipfs';
-import { ensureUniqueString } from 'utils';
-import { addComponentsToManifest } from 'utils/driveUtils';
+} from '../services/ipfs.js';
+import { ensureUniqueString } from '../utils.js';
+import { addComponentsToManifest } from '../utils/driveUtils.js';
+import { prisma } from '../client.js';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 

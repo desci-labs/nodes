@@ -1,20 +1,20 @@
+import { logger as parentLogger } from '../../logger.js';
 import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import parentLogger from 'logger';
 import {
   getCountActiveUsersInMonth,
   getCountActiveUsersInXDays,
   getNodeViewsInMonth,
   getNodeViewsInXDays,
-} from 'services/interactionLog';
+} from '../../services/interactionLog.js';
 import {
   getCountNewNodesInXDays,
   getBytesInXDays,
   getCountNewNodesInMonth,
   getBytesInMonth,
-} from 'services/nodeManager';
-import { getCountNewUsersInMonth, getCountNewUsersInXDays } from 'services/user';
+} from '../../services/nodeManager.js';
+import { getCountNewUsersInMonth, getCountNewUsersInXDays } from '../../services/user.js';
 
 const logger = parentLogger.child({ module: 'ADMIN::AnalyticsController' });
 

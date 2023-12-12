@@ -16,12 +16,11 @@ import { User, Node, DataType } from '@prisma/client';
 import axios from 'axios';
 import { v4 } from 'uuid';
 
-import prisma from 'client';
-import { UpdateResponse } from 'controllers/data';
-import { persistManifest } from 'controllers/data/utils';
-import { cleanupManifestUrl } from 'controllers/nodes';
-import parentLogger from 'logger';
-import { hasAvailableDataUsageForUpload } from 'services/dataService';
+import { prisma } from '../../client.js';
+import { UpdateResponse } from '../../controllers/data/update.js';
+import { persistManifest } from '../..//controllers/data/utils.js';
+import { logger as parentLogger } from '../../logger.js';
+import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import {
   FilesToAddToDag,
   IpfsDirStructuredInput,
@@ -30,9 +29,9 @@ import {
   getDirectoryTree,
   isDir,
   pinDirectory,
-} from 'services/ipfs';
-import { fetchFileStreamFromS3, isS3Configured } from 'services/s3';
-import { prepareDataRefs } from 'utils/dataRefTools';
+} from '../../services/ipfs.js';
+import { fetchFileStreamFromS3, isS3Configured } from '../../services/s3.js';
+import { prepareDataRefs } from '../../utils/dataRefTools.js';
 import {
   ExtensionDataTypeMap,
   ExternalCidMap,
@@ -43,8 +42,8 @@ import {
   inheritComponentType,
   updateManifestComponentDagCids,
   urlOrCid,
-} from 'utils/driveUtils';
-import { EXTENSION_MAP } from 'utils/extensions';
+} from '../../utils/driveUtils.js';
+import { EXTENSION_MAP } from '../../utils/extensions.js';
 
 import {
   Either,
@@ -59,7 +58,8 @@ import {
   createNewFolderCreationError,
   createNotEnoughSpaceError,
   createUnhandledError,
-} from './processingErrors';
+} from './processingErrors.js';
+import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 
 interface ProcessS3DataToIpfsParams {
   files: any[];

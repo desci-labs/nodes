@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-import { oneYear } from 'controllers/auth';
 
-import { JwtPayload } from '../types/JwtPayload';
-import { createJwtToken } from '../utils/createJwtToken';
-import { CustomError } from '../utils/response/custom-error/CustomError';
+import { JwtPayload } from '../types/JwtPayload.js';
+import { createJwtToken } from '../utils/createJwtToken.js';
+import { CustomError } from '../utils/response/custom-error/CustomError.js';
+import { oneYear } from '../controllers/auth/magic.js';
 
 export const checkJwt = (req: Request, res: Response, next: NextFunction) => {
   let token: string | undefined;

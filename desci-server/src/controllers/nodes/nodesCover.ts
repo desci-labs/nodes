@@ -2,12 +2,12 @@ import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@de
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
-import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL } from 'config';
-import parentLogger from 'logger';
-import { cacheNodeMetadata } from 'services/nodeManager';
+import { prisma } from '../../client.js';
+import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL } from '../../config/index.js';
+import { logger as parentLogger } from '../../logger.js';
+import { cacheNodeMetadata } from '../../services/nodeManager.js';
 
-import { cleanupManifestUrl } from './show';
+import { cleanupManifestUrl } from './show.js';
 
 if (!process.env.NODES_MEDIA_SERVER_URL) {
   throw Error('NODES_MEDIA_SERVER_URL not found, add to env file');

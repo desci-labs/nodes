@@ -1,7 +1,6 @@
 import {
   IpfsPinnedResult,
   RecursiveLsResult,
-  ResearchObjectComponentType,
   deneutralizePath,
   isNodeRoot,
   neutralizePath,
@@ -11,10 +10,9 @@ import { DataType, User } from '@prisma/client';
 import axios from 'axios';
 import { Response, Request } from 'express';
 
-import prisma from 'client';
-import { cleanupManifestUrl } from 'controllers/nodes';
-import parentLogger from 'logger';
-import { updateManifestDataBucket } from 'services/data/processing';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { updateManifestDataBucket } from '../../services/data/processing.js';
 import {
   FilesToAddToDag,
   GetExternalSizeAndTypeResult,
@@ -25,8 +23,8 @@ import {
   isDir,
   pinExternalDags,
   pubRecursiveLs,
-} from 'services/ipfs';
-import { prepareDataRefs, prepareDataRefsExternalCids } from 'utils/dataRefTools';
+} from '../../services/ipfs.js';
+import { prepareDataRefsExternalCids } from '../../utils/dataRefTools.js';
 import {
   FirstNestingComponent,
   ROTypesToPrismaTypes,
@@ -36,10 +34,11 @@ import {
   getTreeAndFill,
   inheritComponentType,
   updateManifestComponentDagCids,
-} from 'utils/driveUtils';
+} from '../../utils/driveUtils.js';
 
-import { ErrorResponse, UpdateResponse } from './update';
-import { persistManifest } from './utils';
+import { ErrorResponse, UpdateResponse } from './update.js';
+import { persistManifest } from './utils.js';
+import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 
 export const updateExternalCid = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = (req as any).user as User;
@@ -113,10 +112,10 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   /*
    ** Determine the path of the directory to be updated
    */
-  const splitContextPath = contextPath.split('/');
+  const splitContextPath = contextPath.split('../../');
   splitContextPath.shift();
   //cleanContextPath = how many dags need to be reset, n + 1
-  const cleanContextPath = splitContextPath.join('/');
+  const cleanContextPath = splitContextPath.join('../../');
   logger.debug('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
 
   /*
@@ -124,10 +123,10 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
    */
   const OldTreePaths = oldFlatTree.map((e) => e.path);
   let newPathsFormatted: string[] = [];
-  const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
+  const header = !!cleanContextPath ? rootCid + '../../' + cleanContextPath : rootCid;
 
   if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
-    newPathsFormatted = externalCids.map((extCid) => header + '/' + extCid.name);
+    newPathsFormatted = externalCids.map((extCid) => header + '../../' + extCid.name);
   }
 
   const hasDuplicates = OldTreePaths.some((oldPath) => newPathsFormatted.includes(oldPath));
@@ -193,7 +192,7 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
    */
   //Filtered to first nestings only
   const filteredFiles = uploaded.filter((file) => {
-    return file.path.split('/').length === 1;
+    return file.path.split('../../').length === 1;
   });
 
   const filesToAddToDag: FilesToAddToDag = {};
@@ -244,8 +243,8 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   //Only needs to happen if a predefined component type is to be added
   if (componentType) {
     const firstNestingComponents: FirstNestingComponent[] = filteredFiles.map((file) => {
-      const neutralFullPath = contextPath + '/' + file.path;
-      const pathSplit = file.path.split('/');
+      const neutralFullPath = contextPath + '../../' + file.path;
+      const pathSplit = file.path.split('../../');
       const name = pathSplit.pop();
       return {
         name: name,
@@ -265,7 +264,7 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   const externalPathsAdded = {};
   const hasCidTypeSizes = Object.keys(cidTypesSizes)?.length;
   uploaded.forEach((file: IpfsPinnedResult) => {
-    const neutralFullPath = contextPath + '/' + file.path;
+    const neutralFullPath = contextPath + '../../' + file.path;
     const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
     newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
     if (hasCidTypeSizes) externalPathsAdded[deneutralizedFullPath] = true;

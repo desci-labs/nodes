@@ -1,8 +1,7 @@
 import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
+import { getUserConsent, saveInteraction } from '../../services/interactionLog.js';
 
-import prisma from 'client';
-import { getUserConsent, saveInteraction } from 'services/interactionLog';
 
 export const consent = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;

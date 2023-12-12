@@ -1,8 +1,8 @@
 import { Node, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
+import { prisma } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
 
 export interface AuthedRequest extends Request {
   user?: User;

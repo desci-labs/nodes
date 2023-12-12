@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import * as waitlist from '../../services/waitlist';
+import * as waitlist from '../../services/waitlist.js';
 
 export const add = async (req: Request, res: Response, next: NextFunction) => {
   let success: Boolean = false;

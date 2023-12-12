@@ -1,13 +1,13 @@
-import { DataType, Node, Prisma } from '@prisma/client';
+import { DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
 
-import prisma from 'client';
-import { cleanupManifestUrl } from 'controllers/nodes';
-import parentLogger from 'logger';
-import { getSizeForCid } from 'services/ipfs';
-import { getIndexedResearchObjects } from 'theGraph';
-import { hexToCid } from 'utils';
-import { validateAndHealDataRefs, validateDataReferences } from 'utils/dataRefTools';
+import { prisma } from '../client.js';
+import { cleanupManifestUrl } from '../controllers/nodes/show.js';
+import { logger as parentLogger } from '../logger.js';
+import { getSizeForCid } from '../services/ipfs.js';
+import { getIndexedResearchObjects } from '../theGraph.js';
+import { hexToCid } from '../utils.js';
+import { validateAndHealDataRefs, validateDataReferences } from '../utils/dataRefTools.js';
 
 /* 
 Usage Guidelines:

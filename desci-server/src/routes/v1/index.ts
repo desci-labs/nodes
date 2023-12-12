@@ -1,22 +1,22 @@
 import { Router } from 'express';
-import { generateNonce, ErrorTypes, SiweMessage } from 'siwe';
+import { generateNonce } from 'siwe';
 
-import prisma from 'client';
-import { queryResearchFields } from 'controllers/data';
-import { queryRor } from 'controllers/proxy';
-import { nft } from 'controllers/raw';
-import { ensureUser } from 'middleware/ensureUser';
+import { prisma } from '../../client.js';
+import { queryResearchFields } from '../../controllers/data/index.js';
+import { queryRor } from '../../controllers/proxy/index.js';
+import { ensureUser } from '../../middleware/ensureUser.js';
 
-import admin from './admin';
-import auth from './auth';
-import data from './data';
-import log from './log';
-import nodes from './nodes';
-import pub from './pub';
-import referral from './referral';
-import services from './services';
-import users from './users';
-import waitlist from './waitlist';
+import admin from './admin.js';
+import auth from './auth.js';
+import data from './data.js';
+import log from './log.js';
+import nodes from './nodes.js';
+import pub from './pub.js';
+import referral from './referral.js';
+import services from './services.js';
+import users from './users.js';
+import waitlist from './waitlist.js';
+import { nft } from '../../controllers/raw/nft.js';
 
 const router = Router();
 

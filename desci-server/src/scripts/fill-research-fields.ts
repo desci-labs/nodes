@@ -1,4 +1,4 @@
-import prisma from 'client';
+import { prisma } from '../client.js';
 
 const main = async () => {
   const researchFieldsData = require('../../data/fields.json');

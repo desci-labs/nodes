@@ -11,9 +11,9 @@ import {
   ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
 
-import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from 'services/ipfs';
-import { ensureUniqueString } from 'utils';
-import { addComponentsToManifest } from 'utils/driveUtils';
+import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from '../services/ipfs.js';
+import { ensureUniqueString } from '../utils.js';
+import { addComponentsToManifest } from '../utils/driveUtils.js';
 
 /* 
 This script only tests the DAG step, and only a manifest is required, no DB entries are required

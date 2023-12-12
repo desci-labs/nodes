@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import fs, { promises as fsPromises } from 'fs';
+import fs from 'fs';
 import * as path from 'path';
 import { Readable } from 'stream';
 
@@ -10,8 +10,8 @@ import { CID } from 'multiformats/cid';
 import { encode, decode } from 'url-safe-base64';
 import * as yauzl from 'yauzl';
 
-import parentLogger from 'logger';
-import { processGithubUrl } from 'utils/githubUtils';
+import { logger as parentLogger } from './logger.js';
+import { processGithubUrl } from './utils/githubUtils.js';
 
 const logger = parentLogger.child({
   module: 'utils',

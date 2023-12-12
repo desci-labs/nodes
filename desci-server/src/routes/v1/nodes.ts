@@ -17,10 +17,10 @@ import {
   checkPrivateShareId,
   getCoverImage,
   deleteNode,
-} from 'controllers/nodes/index';
-import { retrieveTitle } from 'controllers/nodes/legacyManifestApi';
-import { versionDetails } from 'controllers/nodes/versionDetails';
-import { ensureUser } from 'middleware/ensureUser';
+} from '../../controllers/nodes/index.js';
+import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
+import { versionDetails } from '../../controllers/nodes/versionDetails.js';
+import { ensureUser } from '../../middleware/ensureUser.js';
 
 const router = Router();
 

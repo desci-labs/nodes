@@ -1,12 +1,12 @@
-import { DataComponent, DrivePath, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import { DataComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 import axios from 'axios';
 import { v4 as uuid } from 'uuid';
 
-import prisma from 'client';
-import { cleanupManifestUrl } from 'controllers/nodes';
-import parentLogger from 'logger';
-import { updateManifestAndAddToIpfs } from 'services/ipfs';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { updateManifestAndAddToIpfs } from '../../services/ipfs.js';
+import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 
 const logger = parentLogger.child({
   module: 'DATA::Utils',
