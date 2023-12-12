@@ -28,7 +28,12 @@
       "express": ["./src/types/express"]
     }
   },
-  "include": ["./src/**/*.tsx", "./src/**/*.ts", "./src/**/*.cjs"],
+  "include": [
+    "./src/**/*.tsx",
+    "./src/**/*.ts",
+    "./src/**/*.cjs",
+    "src/utils/dagConcat.js"
+  ],
   "exclude": ["test/**/*.ts"],
   "compileOnSave": true
 }

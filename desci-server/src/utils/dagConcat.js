@@ -1,9 +1,11 @@
 //Thanks to https://github.com/webrecorder/ipfs-composite-files
 /* eslint-disable @typescript-eslint/no-var-requires */
-const dagPb = require('@ipld/dag-pb');
-const UnixFS = require('ipfs-unixfs');
-const multiformats = require('multiformats');
-const { code } = require('multiformats/codecs/raw');
+import * as dagPb from '@ipld/dag-pb';
+import * as IpfsUnixFS from 'ipfs-unixfs';
+import { CID } from 'multiformats';
+import { code } from 'multiformats/codecs/raw';
+
+const { default: UnixFS } = IpfsUnixFS;
 
 const rawCode = code;
 // ===========================================================================
