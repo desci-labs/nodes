@@ -21,8 +21,10 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
     "inlineSourceMap": true,
-    // Globally overrides a few type declarations
-    "typeRoots": ["./src/types", "./node_modules/@types"]
+    "paths": {
+      // Overrides a built-in Response type
+      "express": ["./src/types/express"]
+    }
   },
   "include": ["./src/**/*.tsx", "./src/**/*.ts", "./src/**/*.cjs"],
   "exclude": ["test/**/*.ts"],
