@@ -230,7 +230,7 @@ export async function prepareDataRefsForDagSkeleton({
 }: PrepareDataRefsForDagSkeletonArgs) {
   const manifestEntry: ResearchObjectV1 = manifest;
 
-  const dataRootEntry: Prisma.DataReferenceCreateManyInput = {
+  const dataRootEntry: Prisma.PublicDataReferenceCreateManyInput = {
     cid: dataBucketCid,
     path: dataBucketCid,
     userId: node.ownerId,
