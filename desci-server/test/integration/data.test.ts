@@ -27,9 +27,9 @@ import {
 } from '../../src/services/ipfs';
 import { randomUUID64 } from '../../src/utils';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools';
+import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils';
 import { addComponentsToManifest } from '../../src/utils/driveUtils';
 import { spawnExampleDirDag } from '../util';
-import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils';
 
 describe('Data Controllers', () => {
   let user: User;
@@ -565,7 +565,7 @@ describe('Data Controllers', () => {
         const flatTree = draftNodeTreeEntriesToFlatIpfsTree(treeEntries);
         const renamedDir = flatTree.find((f) => f.path === newPath);
         const nestedFile = flatTree.find((f) => f.path === newPath + '/b.txt');
-        debugger;
+        // debugger;
         expect(!!renamedDir).to.equal(true);
         expect(!!nestedFile).to.equal(true);
         expect(renamedDir?.type).to.equal('dir');
@@ -618,10 +618,11 @@ describe('Data Controllers', () => {
         expect(componentCard.name).to.equal('dubdir');
       });
       it('should reject if new name already exists within the same directory', async () => {
+        // debugger;
         const res = await request(app)
           .post(`/v1/data/rename`)
           .set('authorization', authHeaderVal)
-          .send({ uuid: node.uuid!, path: 'dir/a.txt', newName: 'c.txt' });
+          .send({ uuid: node.uuid!, path: 'root/dir/a.txt', newName: 'c.txt' });
         expect(res.statusCode).to.not.equal(200);
       });
     });

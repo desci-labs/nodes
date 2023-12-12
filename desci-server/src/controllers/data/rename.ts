@@ -51,9 +51,10 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
      ** New name collision check
      */
     // const externalCidMap = await generateExternalCidMap(node.uuid);
-    const contextPath = path.split('/');
-    contextPath.pop();
-    contextPath.join('/');
+    const contextPathSplit = path.split('/');
+    contextPathSplit.pop();
+    const contextPath = contextPathSplit.join('/');
+    // debugger;
     await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, filesBeingAdded: [{ originalname: newName }] });
 
     const oldPathSplit = path.split('/');
