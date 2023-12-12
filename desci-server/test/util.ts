@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 
-import { IpfsDirStructuredInput, IpfsPinnedResult, client as ipfs, pinDirectory } from '../src/services/ipfs';
+import { IpfsDirStructuredInput, IpfsPinnedResult, client as ipfs, pinDirectory } from '../src/services/ipfs.js';
 
 const expectThrowsAsync = async (method, errorMessage) => {
   let error = null;

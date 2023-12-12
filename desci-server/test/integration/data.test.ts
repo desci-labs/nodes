@@ -15,19 +15,19 @@ import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
-import prisma from '../../src/client';
-import { app } from '../../src/index';
+import { prisma } from '../../src/client.js';
+import { app } from '../../src/index.js';
 import {
   addFilesToDag,
   getDirectoryTree,
   getSizeForCid,
   client as ipfs,
   spawnEmptyManifest,
-} from '../../src/services/ipfs';
-import { randomUUID64 } from '../../src/utils';
-import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools';
-import { addComponentsToManifest } from '../../src/utils/driveUtils';
-import { spawnExampleDirDag } from '../util';
+} from '../../src/services/ipfs.js';
+import { randomUUID64 } from '../../src/utils.js';
+import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools.js';
+import { addComponentsToManifest } from '../../src/utils/driveUtils.js';
+import { spawnExampleDirDag } from '../util.js';
 
 describe('Data Controllers', () => {
   let user: User;
