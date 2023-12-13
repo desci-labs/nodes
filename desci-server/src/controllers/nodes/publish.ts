@@ -76,7 +76,7 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     });
 
     // Prevent duplicating the NodeVersion entry if the latest version is the same as the one we're trying to publish, as a draft save is triggered before publishing
-    const latestNodeVersionId = latestNodeVersion.manifestUrl === cid ? latestNodeVersion.id : -1;
+    const latestNodeVersionId = latestNodeVersion?.manifestUrl === cid ? latestNodeVersion.id : -1;
 
     const nodeVersion = await prisma.nodeVersion.upsert({
       where: {
