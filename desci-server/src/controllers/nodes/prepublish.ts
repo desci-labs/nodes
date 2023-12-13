@@ -10,7 +10,8 @@ import { getManifestFromNode, updateManifestDataBucket } from 'services/data/pro
 import { prepareDataRefsForDagSkeleton } from 'utils/dataRefTools';
 import { dagifyAndAddDbTreeToIpfs } from 'utils/draftTreeUtils';
 
-export interface PrepublishResponse {
+type PrepublishResponse = PrepublishSuccessResponse | PrepublishErrorResponse;
+export interface PrepublishSuccessResponse {
   ok: boolean;
   updatedManifestCid: string;
   updatedManifest: ResearchObjectV1;
@@ -26,20 +27,19 @@ export interface PrepublishErrorResponse {
 /**
  * DAGifies the drafts current DB tree state, adds the structure to IPFS (No Files Pinned, Folders staged), and updates the manifest data bucket CID.
  */
-export const prepublish = async (req: AuthedRequest, res: Response<PrepublishResponse | PrepublishErrorResponse>) => {
+export const prepublish = async (req: AuthedRequest, res: Response<PrepublishResponse>) => {
   const owner = req.user;
   const node = req.node;
-  const { uuid, cid } = req.body;
+  const { uuid } = req.body;
   const logger = parentLogger.child({
     // id: req.id,
     module: 'NODE::PrepublishController',
     body: req.body,
     uuid,
-    cid,
     user: (req as any).user,
   });
-  if (!uuid || !cid) {
-    return res.status(400).json({ ok: false, error: 'UUID and CID are required.' });
+  if (!uuid) {
+    return res.status(400).json({ ok: false, error: 'UUID is required.' });
   }
 
   try {
