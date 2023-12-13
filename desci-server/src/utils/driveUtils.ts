@@ -301,7 +301,7 @@ export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataT
     pathSplit.pop();
     const parentPath = pathSplit.join('/');
     const parent = pathToDbTypeMap[parentPath];
-    if (parent && parent !== DataType.UNKNOWN) {
+    if (parent && parent !== DataType.UNKNOWN && parent !== DataType.DATA_BUCKET) {
       return parent as DataType;
     }
   }
