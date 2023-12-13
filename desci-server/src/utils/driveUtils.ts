@@ -6,8 +6,10 @@ import {
   FileExtension,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
+  ResearchObjectComponentTypeMap,
   ResearchObjectV1,
   ResearchObjectV1Component,
+  extractExtension,
   fillIpfsTree,
   isNodeRoot,
   isResearchObjectComponentTypeMap,
@@ -257,10 +259,18 @@ export const ROTypesToPrismaTypes = {
  * else it returns the default component type.
  */
 export function getDbComponentType(component: ResearchObjectV1Component) {
-  if (isNodeRoot(component)) return ROTypesToPrismaTypes[ResearchObjectComponentType.DATA_BUCKET];
+  // if (isNodeRoot(component)) return ROTypesToPrismaTypes[ResearchObjectComponentType.DATA_BUCKET];
   return isResearchObjectComponentTypeMap(component.type)
-    ? ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE]
+    ? componentTypeMapToDbComponentTypeMap(component.type)
     : ROTypesToPrismaTypes[component.type];
+}
+
+function componentTypeMapToDbComponentTypeMap(componentTypeMap: ResearchObjectComponentTypeMap) {
+  const dbTypeMap: Record<FileExtension, DataType> = {};
+  Object.keys(componentTypeMap).forEach((ext) => {
+    dbTypeMap[ext as FileExtension] = ROTypesToPrismaTypes[componentTypeMap[ext as FileExtension]];
+  });
+  return dbTypeMap;
 }
 
 export type ExtensionDataTypeMap = Record<FileExtension, DataType>;
@@ -269,10 +279,11 @@ export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
   manifest.components.forEach((c) => {
     if (c.payload?.path) {
       const dbType: DataType = getDbComponentType(c);
+
       if (dbType) manifestPathsToTypes[c.payload.path] = dbType;
     }
   });
-  manifestPathsToTypes[DRIVE_NODE_ROOT_PATH] = DataType.DATA_BUCKET;
+  // manifestPathsToTypes[DRIVE_NODE_ROOT_PATH] = DataType.DATA_BUCKET;
   return manifestPathsToTypes;
 }
 
@@ -281,31 +292,52 @@ export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
  * NOTE: Used for DB DataType, not ResearchObjectComponentType!
  */
 export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataType | ExtensionDataTypeMap>): DataType {
-  let naturalType = pathToDbTypeMap[path];
-  if (isResearchObjectComponentTypeMap(naturalType)) {
-    // Extract extension from path
-    const { extension } = separateFileNameAndExtension(path);
-    // See if extension lives inside the map
-    if (extension && naturalType[extension]) {
-      naturalType = (naturalType as ExtensionDataTypeMap)[extension];
+  if (path === DRIVE_NODE_ROOT_PATH) return DataType.DATA_BUCKET;
+
+  // Check if path has a direct type on it, meaning a component exists for that path
+  const directType = pathToDbTypeMap[path];
+  if (directType) {
+    // The direct type is either a component type map or a type
+    if (isResearchObjectComponentTypeMap(directType)) {
+      // If it is a component type map, return it as as the default component type (Data), as a component type map isn't a valid DB type.
+      return ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
     } else {
-      // Fallback on DEFAULT_COMPONENT_TYPE
-      const defaultDataType = ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
-      naturalType = defaultDataType;
+      // It's a regular type, return it.
+      return directType as DataType;
     }
   }
-  if (naturalType && naturalType !== DataType.UNKNOWN) return naturalType as DataType;
+
+  // debugger;
+  // No direct types found, so try to inherit from parents
   const pathSplit = path.split('/');
-  if (pathSplit.length < 3) return DataType.UNKNOWN;
+  // If pathSplit.length is < 2, and a direct component doesn't exist on it, it has no parent to inherit from.
+  if (pathSplit.length < 2) return DataType.UNKNOWN;
   while (pathSplit.length > 1) {
+    // debugger;
     pathSplit.pop();
+
     const parentPath = pathSplit.join('/');
-    const parent = pathToDbTypeMap[parentPath];
-    if (parent && parent !== DataType.UNKNOWN && parent !== DataType.DATA_BUCKET) {
-      return parent as DataType;
+    const parentType = pathToDbTypeMap[parentPath];
+    if (parentType) {
+      // A parent with a type exists, it's either a type or a component type map.
+      if (isResearchObjectComponentTypeMap(parentType)) {
+        const extension = extractExtension(path);
+        if (extension && parentType[extension]) {
+          // A match on the extension was found inside the parents component type map, return it.
+          return (parentType as ExtensionDataTypeMap)[extension] as DataType;
+        } else {
+          // A component type map exists, but it doesn't contain the extension, return the default component type (Data).
+          return ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
+        }
+      } else {
+        // The parent has a regular type, return it.
+        return parentType as DataType;
+      }
     }
   }
-  return DataType.UNKNOWN;
+  // Inheritance failed to find a type, return default.
+  // return DataType.UNKNOWN;
+  return ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
 }
 
 /* 

@@ -1,9 +1,10 @@
 import prisma from 'client';
 import parentLogger from 'logger';
+import { getManifestFromNode } from 'services/data/processing';
 import { migrateIpfsTreeToNodeTree } from 'services/draftTrees';
 import { client, getDirectoryTree } from 'services/ipfs';
 import { dagifyAndAddDbTreeToIpfs, draftNodeTreeEntriesToFlatIpfsTree } from 'utils/draftTreeUtils';
-import { generateExternalCidMap } from 'utils/driveUtils';
+import { generateExternalCidMap, generateManifestPathsToDbTypeMap, inheritComponentType } from 'utils/driveUtils';
 
 const logger = parentLogger.child({ module: 'SCRIPTS::Testing' });
 
@@ -38,4 +39,19 @@ async function dbDraftTreeToIpfsTreeAndPin() {
     logger.error(`DAG pinning failed: rootDagNode is undefined or null`);
   }
 }
-dbDraftTreeToIpfsTreeAndPin();
+// dbDraftTreeToIpfsTreeAndPin();
+
+async function dbInheritanceFnTest() {
+  const path = 'root/orange.txt';
+  const path2 = 'root/test/ing.txt';
+  const node = await prisma.node.findFirst({ where: { id: 57 } });
+  const { manifest } = await getManifestFromNode(node);
+
+  const pathToDbTypeMap = generateManifestPathsToDbTypeMap(manifest);
+  const inheritedType = inheritComponentType(path, pathToDbTypeMap);
+  const inheritedType2 = inheritComponentType(path2, pathToDbTypeMap);
+
+  console.log(path, inheritedType);
+  console.log(path2, inheritedType2);
+}
+dbInheritanceFnTest();
