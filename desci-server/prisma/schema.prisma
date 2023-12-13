@@ -380,6 +380,8 @@ model PublicDataReference {
   node        Node                              @relation(fields: [nodeId], references: [id])
   user        User?                             @relation(fields: [userId], references: [id])
   nodeVersion NodeVersion?                      @relation(fields: [versionId], references: [id])
+
+  @@unique([path, versionId])
 }
 
 model IpfsMirror {
