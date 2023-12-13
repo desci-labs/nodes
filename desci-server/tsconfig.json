@@ -5,13 +5,16 @@
      * Implied by "module: nodenext":
      * "moduleResolution": "nodenext",
      * "esModuleInterop": true,
-     * "target": "esnext",
      */
+    "target": "esnext",
 
     // Recommended by docs, but a lot of errors
     // "verbatimModuleSyntax": true,
 
-    "lib": ["esnext"],
+    "lib": [
+      "esnext",
+      "dom"
+    ],
     "outDir": "./dist",
     "removeComments": true,
     "emitDecoratorMetadata": true,

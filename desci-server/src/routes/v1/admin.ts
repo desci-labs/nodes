@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import { createCsv, getAnalytics } from '../../controllers/admin/analytics.js';
 import { ensureAdmin } from '../../middleware/ensureAdmin.js';
-import { ensureUser } from '../../middleware/ensureUser.js';
+import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
 

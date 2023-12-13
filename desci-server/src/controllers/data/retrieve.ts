@@ -153,6 +153,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   // }
 
   let filledTree;
+
   try {
     filledTree = await getOrCache(
       `filled-tree-${manifestCid}`,
@@ -161,15 +162,18 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     if (!filledTree) throw new Error('[retrieveTree] Failed to retrieve tree from cache');
   } catch (err) {
     logger.warn({ fn: 'retrieveTree', err }, '[retrieveTree] error');
-    logger.info('[retrieveTree] Falling back on uncached tree retrieval');
     filledTree = await getTreeAndFill(manifest, uuid, ownerId);
+    logger.info({ filledTree }, '[retrieveTree] Falling back on uncached tree retrieval');
   }
 
   const depthTree = await getOrCache(depthCacheKey, async () => {
     const tree = findAndPruneNode(filledTree[0], dataPath, depth);
     if (tree?.type === 'file' || tree === undefined) {
       //tree can result in undefined if the dag link was recently renamed
-      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('../../'));
+      // Changed the dataPath.lastIndexOf('../../) to dataPath.lastIndexOf('/')
+      // because it was resolving null tree
+      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
+      logger.info({ tree, poppedDataPath }, '[PROCESS FILE OR UNDEFINED]::');
       return findAndPruneNode(filledTree[0], poppedDataPath, depth);
     } else {
       return tree;

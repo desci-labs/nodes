@@ -20,7 +20,7 @@ import {
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
-import { ensureUser } from '../../middleware/ensureUser.js';
+import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
 
