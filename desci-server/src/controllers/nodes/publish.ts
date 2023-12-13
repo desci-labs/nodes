@@ -17,7 +17,7 @@ import { discordNotify } from 'utils/discordUtils';
 
 // call node publish service and add job to queue
 export const publish = async (req: Request, res: Response, next: NextFunction) => {
-  const { uuid, cid, manifest, transactionId } = req.body;
+  const { uuid, cid, manifest, transactionId, nodeVersionId } = req.body;
   const email = (req as any).user.email;
   const logger = parentLogger.child({
     // id: req.id,
@@ -65,10 +65,29 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     /**TODO: END MOVE TO MIDDLEWARE */
 
     // update node version
-    const nodeVersion = await prisma.nodeVersion.create({
-      data: {
+    const latestNodeVersion = await prisma.nodeVersion.findFirst({
+      where: {
+        id: nodeVersionId || -1,
         nodeId: node.id,
-        manifestUrl: cid, // Plug updated manifest CID here
+      },
+      orderBy: {
+        id: 'desc',
+      },
+    });
+
+    // Prevent duplicating the NodeVersion entry if the latest version is the same as the one we're trying to publish, as a draft save is triggered before publishing
+    const latestNodeVersionId = latestNodeVersion.manifestUrl === cid ? latestNodeVersion.id : -1;
+
+    const nodeVersion = await prisma.nodeVersion.upsert({
+      where: {
+        id: latestNodeVersionId,
+      },
+      update: {
+        transactionId,
+      },
+      create: {
+        nodeId: node.id,
+        manifestUrl: cid,
         transactionId,
       },
     });
