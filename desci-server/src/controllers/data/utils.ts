@@ -4,9 +4,9 @@ import axios from 'axios';
 import { v4 as uuid } from 'uuid';
 
 import { prisma } from '../../client.js';
-import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 import { logger as parentLogger } from '../../logger.js';
 import { updateManifestAndAddToIpfs } from '../../services/ipfs.js';
+import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 const logger = parentLogger.child({
   module: 'DATA::Utils',
@@ -84,6 +84,12 @@ export async function getLatestManifest(
   const manifestUrl = latestManifestCid ? cleanupManifestUrl(latestManifestCid as string, resolver as string) : null;
 
   return manifestUrl ? await (await axios.get(manifestUrl)).data : null;
+}
+
+export async function getLatestManifestFromRepo(uuid: string): Promise<ResearchObjectV1 | null> {
+  // todo: retrieve documentId from uuid and call repo.find to get latest document manifest;
+
+  return null;
 }
 
 export function separateFileNameAndExtension(fileName: string): {

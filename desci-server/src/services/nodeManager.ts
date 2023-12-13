@@ -4,12 +4,12 @@ import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from '../config/index.js';
-import { cleanupManifestUrl } from '../controllers/nodes/show.js';
 import { logger as parentLogger } from '../logger.js';
 import { uploadDataToEstuary } from '../services/estuary.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { hexToCid, randomUUID64, asyncMap } from '../utils.js';
 import { generateDataReferences } from '../utils/dataRefTools.js';
+import { cleanupManifestUrl } from '../utils/manifest.js';
 
 import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
 
@@ -358,6 +358,7 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
     // console.log('cacheNodeMetadata::Manifest', manifest);
 
     const pdfs = manifest.components.filter(
+      // todo: update check to include file extension (.pdf)
       (c) => c.type === ResearchObjectComponentType.PDF && c.starred,
     ) as PdfComponent[];
     logger.debug({ pdfs }, 'PDFS:::=>>>>>>>>>>>>');

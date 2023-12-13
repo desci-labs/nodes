@@ -7,16 +7,7 @@ import { CID } from 'multiformats/cid';
 import { prisma } from '../../client.js';
 import { PUBLIC_IPFS_PATH } from '../../config/index.js';
 import { logger as parentLogger } from '../../logger.js';
-
-export const cleanupManifestUrl = (url: string, gateway?: string) => {
-  if (url && (PUBLIC_IPFS_PATH || gateway)) {
-    const s = url.split('/');
-    const res = `${gateway ? gateway : PUBLIC_IPFS_PATH}/${s[s.length - 1]}`;
-    parentLogger.info({ fn: 'cleanupManifestUrl', url, gateway }, `resolving ${url} => ${res}`);
-    return res;
-  }
-  return url;
-};
+import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node) => {
   const ro = Object.assign({}, data);
@@ -58,7 +49,7 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
     cid,
     pid,
     shareId,
-    user: (req as any).user,
+    user: { id: (req as any).user?.id, email: (req as any).user?.email },
   });
   logger.trace({}, 'show node');
 

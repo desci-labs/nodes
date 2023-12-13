@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 
-import { DriveObject, FileDir, findAndPruneNode, isNodeRoot } from '@desci-labs/desci-models';
+import { DriveObject, FileDir, ResearchObjectV1, findAndPruneNode, isNodeRoot } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import archiver from 'archiver';
 import axios from 'axios';
@@ -9,11 +9,11 @@ import mkdirp from 'mkdirp';
 import tar from 'tar';
 
 import { prisma } from '../../client.js';
-import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 import { logger as parentLogger } from '../../logger.js';
 import redisClient, { getOrCache } from '../../redisClient.js';
 import { getDatasetTar } from '../../services/ipfs.js';
 import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
+import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 import { ErrorResponse } from './update.js';
 import { getLatestManifest } from './utils.js';
@@ -125,7 +125,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   }
 
   // Try early return if depth chunk cached
-  const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}`;
+  const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}-${Date.now()}`;
   try {
     if (redisClient.isOpen) {
       const cached = await redisClient.get(depthCacheKey);
@@ -138,7 +138,20 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     logger.debug({ err, depthCacheKey }, 'Failed to retrieve from cache, continuing');
   }
 
-  const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
+  const manifest: ResearchObjectV1 = await getLatestManifest(node.uuid, req.query?.g as string, node);
+  // try {
+  //   manifest = await getLatestManifestFromRepo(node.uuid);
+  //   console.log('[getLatestManifestFromRepo]', manifest?.title);
+
+  //   if (!manifest) {
+  //     manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
+  //     console.log('[getLatestManifest]', manifest?.title);
+  //   }
+  // } catch (e) {
+  //   manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
+  //   console.log('[getLatestManifest]', manifest?.title);
+  // }
+
   let filledTree;
   try {
     filledTree = await getOrCache(
@@ -162,6 +175,8 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
       return tree;
     }
   });
+
+  logger.info({ tree: JSON.stringify(depthTree) }, '[END retrieveTree] Falling back on uncached tree retrieval');
 
   return res.status(200).json({ tree: [depthTree], date: dataset?.updatedAt.toString() });
 };

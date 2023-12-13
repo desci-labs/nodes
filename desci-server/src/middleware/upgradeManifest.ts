@@ -10,8 +10,8 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../client.js';
 import { getLatestManifest, persistManifest } from '../controllers/data/utils.js';
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from '../services/ipfs.js';
-import { addComponentsToManifest } from '../utils/driveUtils.js';
 import { ensureUniqueString } from '../utils.js';
+import { addComponentsToManifest } from '../utils/driveUtils.js';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
@@ -144,8 +144,8 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
         path === researchReportPath
           ? ResearchObjectComponentType.PDF
           : path === codeReposPath
-            ? ResearchObjectComponentType.CODE
-            : ResearchObjectComponentType.DATA,
+          ? ResearchObjectComponentType.CODE
+          : ResearchObjectComponentType.DATA,
     };
   });
 

@@ -9,7 +9,6 @@ import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { PersistManifestParams } from '../controllers/data/utils.js';
-import { cleanupManifestUrl } from '../controllers/nodes/show.js';
 import {
   createDag,
   createEmptyDag,
@@ -19,13 +18,8 @@ import {
   updateManifestAndAddToIpfs,
 } from '../services/ipfs.js';
 import { ensureUniqueString } from '../utils.js';
-/* 
-upgrades the manifest from the old opiniated version to the unopiniated version 
-IMPORTANT: Called after ensureUser and multer
-*/
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-// import { addToDir, concat, getSize, makeDir, updateDagCid } from '../utils/dagConcat.js';
 import { addComponentsToManifest } from '../utils/driveUtils.js';
+import { cleanupManifestUrl } from '../utils/manifest.js';
 
 upgradeManifestsScript();
 export async function upgradeManifestsScript() {

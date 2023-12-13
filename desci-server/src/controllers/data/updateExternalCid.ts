@@ -11,7 +11,6 @@ import axios from 'axios';
 import { Response, Request } from 'express';
 
 import { prisma } from '../../client.js';
-import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 import { logger as parentLogger } from '../../logger.js';
 import { updateManifestDataBucket } from '../../services/data/processing.js';
 import {
@@ -36,6 +35,7 @@ import {
   inheritComponentType,
   updateManifestComponentDagCids,
 } from '../../utils/driveUtils.js';
+import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 import { ErrorResponse, UpdateResponse } from './update.js';
 import { persistManifest } from './utils.js';

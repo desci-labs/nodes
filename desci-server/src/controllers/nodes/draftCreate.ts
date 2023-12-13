@@ -19,8 +19,8 @@ import {
   updateManifestAndAddToIpfs,
 } from '../../services/ipfs.js';
 import { createNodeDraftBlank } from '../../services/nodeManager.js';
-import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
 import { randomUUID64 } from '../../utils.js';
+import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
 
 export const draftCreate = async (req: Request, res: Response, next: NextFunction) => {
   const {
@@ -114,6 +114,13 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
 
     const nodeCopy = Object.assign({}, node);
     nodeCopy.uuid = nodeCopy.uuid.replace(/\.$/, '');
+
+    try {
+      // TODO: CALL create Node document service
+      logger.info('Automerge document created');
+    } catch (e) {
+      logger.error('Automerge document Creation Error', e);
+    }
 
     res.send({
       ok: true,

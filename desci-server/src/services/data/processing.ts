@@ -19,7 +19,6 @@ import { v4 } from 'uuid';
 import { persistManifest } from '../..//controllers/data/utils.js';
 import { prisma } from '../../client.js';
 import { UpdateResponse } from '../../controllers/data/update.js';
-import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 import { logger as parentLogger } from '../../logger.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import {
@@ -45,6 +44,7 @@ import {
   urlOrCid,
 } from '../../utils/driveUtils.js';
 import { EXTENSION_MAP } from '../../utils/extensions.js';
+import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 import {
   Either,

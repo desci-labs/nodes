@@ -1,11 +1,11 @@
 import { isNodeRoot } from '@desci-labs/desci-models';
 import axios from 'axios';
 
-import { cleanupManifestUrl } from '../controllers/nodes/show.js';
 import { logger as parentLogger } from '../logger.js';
 import redisClient from '../redisClient.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { hexToCid } from '../utils.js';
+import { cleanupManifestUrl } from '../utils/manifest.js';
 
 const logger = parentLogger.child({ module: 'SCRIPTS::invalidateRedisKeys' });
 /* 
