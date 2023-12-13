@@ -1,3 +1,6 @@
+import { neutralizePath } from '@desci-labs/desci-models';
+import { Logger } from 'ethers/lib/utils';
+
 import prisma from 'client';
 import parentLogger from 'logger';
 import { generateTimestampMapFromDataRefs } from 'utils/dataRefTools';
@@ -32,6 +35,26 @@ export async function migrateIpfsTreeToNodeTree(nodeUuid: string) {
     data: dbDraftTreeEntries,
     skipDuplicates: true,
   });
+
+  // Adjust existing private data references to use neutral paths
+  const currentPrivateDataRefs = await prisma.dataReference.findMany({ where: { nodeId: node.id } });
+  const updatesForPrivateDataRefs = currentPrivateDataRefs.map((ref) =>
+    prisma.dataReference.update({
+      where: {
+        id: ref.id,
+      },
+      data: {
+        path: neutralizePath(ref.path),
+      },
+    }),
+  );
+  try {
+    await prisma.$transaction(updatesForPrivateDataRefs);
+    logger.info(`Private data refs updated successfully for node ${nodeUuid}`);
+  } catch (error) {
+    logger.error({ error }, `Failed to update private data refs for node ${nodeUuid}`);
+  }
+
   logger.info(`Migrated IPFS tree to DraftNodeTree for node ${nodeUuid}`);
 }
 
