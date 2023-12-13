@@ -1,8 +1,7 @@
-import { DraftNodeTree, Prisma } from '@prisma/client';
-
 import prisma from 'client';
 import parentLogger from 'logger';
-import { ipfsDagToDraftNodeTreeEntries } from 'utils/draftTreeUtils';
+import { generateTimestampMapFromDataRefs } from 'utils/dataRefTools';
+import { TimestampMap, ipfsDagToDraftNodeTreeEntries } from 'utils/draftTreeUtils';
 import { generateExternalCidMap } from 'utils/driveUtils';
 
 import { extractRootDagCidFromManifest, getManifestFromNode } from './data/processing';
@@ -25,7 +24,9 @@ export async function migrateIpfsTreeToNodeTree(nodeUuid: string) {
 
   const ipfsTree = await getDirectoryTree(rootDagCid, externalCidMap);
 
-  const dbDraftTreeEntries = await ipfsDagToDraftNodeTreeEntries(ipfsTree, node, node.owner);
+  const timestampMap: TimestampMap = await generateTimestampMapFromDataRefs(node.id);
+
+  const dbDraftTreeEntries = await ipfsDagToDraftNodeTreeEntries(ipfsTree, node, node.owner, timestampMap);
 
   await prisma.draftNodeTree.createMany({
     data: dbDraftTreeEntries,

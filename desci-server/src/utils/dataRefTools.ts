@@ -8,7 +8,12 @@ import parentLogger from 'logger';
 import { discoveryLs, getDirectoryTree } from 'services/ipfs';
 import { objectPropertyXor, omitKeys } from 'utils';
 
-import { DRAFT_CID, draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils';
+import {
+  DRAFT_CID,
+  TimestampMap,
+  draftNodeTreeEntriesToFlatIpfsTree,
+  flatTreeToHierarchicalTree,
+} from './draftTreeUtils';
 import {
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
@@ -557,4 +562,17 @@ export async function validateAndHealDataRefs({
       `[validateAndFixDataRefs (DIFF)] node id: ${nodeUuid}, healed ${updatedRefs.length} diff data refs`,
     );
   }
+}
+
+/**
+ * Helper function to generate a timestamp map from a node's data refs, mapping paths -> psql db default timestamps
+ */
+export async function generateTimestampMapFromDataRefs(nodeId: number): Promise<TimestampMap> {
+  const dataRefs = await prisma.dataReference.findMany({ where: { nodeId } });
+  const timestampMap: TimestampMap = {};
+  dataRefs.forEach((ref: DataReference) => {
+    const neutralPath = neutralizePath(ref.path);
+    timestampMap[neutralPath] = { createdAt: ref.createdAt, updatedAt: ref.updatedAt };
+  });
+  return timestampMap;
 }
