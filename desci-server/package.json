@@ -18,6 +18,7 @@
     "script:invalidate-redis-cache": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/invalidate-redis-cache.ts",
     "script:increase-base-drive-storage": "debug=* NODE_PATH=./src ts-node-dev ./src/scripts/increase-base-drive-storage.ts",
     "script:testing": "debug=* NODE_PATH=./src ts-node-dev --inspect=0.0.0.0:9277 ./src/scripts/testing.ts",
+    "script:migrate-draft-trees": "debug=* NODE_PATH=./src ts-node-dev --inspect=0.0.0.0:9277 ./src/scripts/migrate-draft-trees.ts",
     "build": "rimraf dist && tsc && yarn copy-files",
     "copy-files": "copyfiles -u 1 src/**/*.cjs dist/",
     "generate": "npx prisma generate",

@@ -411,7 +411,7 @@ export const getDirectoryTree = async (
     const treeRes = await getTree();
     // return getTree();
     const endTime = process.hrtime(startTime);
-    logger.error(`Execution time: ${endTime[0]}s ${endTime[1] / 1000000}ms`);
+    logger.info(`[getDirectoryTree] Execution time: ${endTime[0]}s ${endTime[1] / 1000000}ms`);
     return treeRes;
   }
   async function getTree() {
