@@ -940,7 +940,7 @@ export async function renameDagLink(dagCid: string | multiformats.CID, linkName:
   }
 
   const linkIdx = Links.findIndex((link) => link.Name === linkName);
-  console.log('[LINKS]::', Links, linkIdx, linkName, Links[linkIdx]);
+  logger.info({ Links, linkIdx, linkName, Link: Links[linkIdx] }, '[RENAME DAG LINK INFO]::');
   Links[linkIdx].Name = newName;
 
   return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links })), {
