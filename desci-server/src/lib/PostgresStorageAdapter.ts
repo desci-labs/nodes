@@ -3,7 +3,9 @@ import path from 'path';
 import { Chunk, StorageAdapter, StorageKey } from '@automerge/automerge-repo';
 
 import { prisma } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
 
+const logger = parentLogger.child({ module: 'PostgresStorageAdapter' });
 export class PostgresStorageAdapter extends StorageAdapter {
   private client: typeof prisma;
   private cache: { [key: string]: Uint8Array } = {};
@@ -28,6 +30,7 @@ export class PostgresStorageAdapter extends StorageAdapter {
 
   async save(keyArray: StorageKey, binary: Uint8Array): Promise<void> {
     const key = getKey(keyArray);
+    logger.info({ action: 'Save', key }, 'PostgresStorageAdapter::Save');
     this.cache[key] = binary;
 
     try {

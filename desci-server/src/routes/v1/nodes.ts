@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { getNodeDocument } from '../../controllers/nodes/documents.js';
 import {
   show,
   draftUpdate,
@@ -20,6 +21,7 @@ import {
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
+import { ensureNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
@@ -40,6 +42,7 @@ router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
 router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
+router.get('/documents/:uuid', [ensureNodeAccess], getNodeDocument);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 

@@ -50,9 +50,9 @@ const allowlist = [
   'vercel.app' /** NOT SECURE */,
 ];
 class AppServer {
-  _readyResolvers: ((value: any) => void)[] = [];
+  #readyResolvers: ((value: any) => void)[] = [];
 
-  _isReady = false;
+  #isReady = false;
 
   app: Express;
   server: HttpServer;
@@ -61,7 +61,7 @@ class AppServer {
 
   constructor() {
     this.app = express();
-    this._initSerialiser();
+    this.#initSerialiser();
 
     this.app.use(function (req, res, next) {
       const origin = req.headers.origin;
@@ -83,8 +83,8 @@ class AppServer {
       next();
     });
 
-    this._attachProxies();
-    this._initTelemetry();
+    this.#attachProxies();
+    this.#initTelemetry();
 
     this.app.use(helmet());
     this.app.use(bodyParser.json({ limit: '100mb' }));
@@ -104,14 +104,14 @@ class AppServer {
     // this.app.use(cors());
     this.app.use(morgan('combined'));
 
-    this._attachRouteHandlers();
+    this.#attachRouteHandlers();
 
     this.app.use(errorHandler);
 
     this.port = parseInt(process.env.PORT) || 5484;
     this.server = this.app.listen(this.port, () => {
-      this._isReady = true;
-      this._readyResolvers.forEach((resolve) => resolve(true));
+      this.#isReady = true;
+      this.#readyResolvers.forEach((resolve) => resolve(true));
       console.log(`Server running on port ${this.port}`);
     });
 
@@ -123,16 +123,16 @@ class AppServer {
   }
 
   async ready() {
-    if (this._isReady) {
+    if (this.#isReady) {
       return true;
     }
 
     return new Promise((resolve) => {
-      this._readyResolvers.push(resolve);
+      this.#readyResolvers.push(resolve);
     });
   }
 
-  _attachRouteHandlers() {
+  #attachRouteHandlers() {
     this.app.get('/readyz', (_, res) => {
       res.status(200).json({ status: 'ok' });
     });
@@ -141,7 +141,7 @@ class AppServer {
     this.app.use('/', routes);
   }
 
-  _attachProxies() {
+  #attachProxies() {
     this.app.use(
       createProxyMiddleware({
         target: process.env.NODES_MEDIA_SERVER_URL,
@@ -151,7 +151,7 @@ class AppServer {
     );
   }
 
-  _initSerialiser() {
+  #initSerialiser() {
     this.app.use(
       pinoHttp({
         logger,
@@ -183,7 +183,7 @@ class AppServer {
     );
   }
 
-  _initTelemetry() {
+  #initTelemetry() {
     if (ENABLE_TELEMETRY) {
       logger.info('[DeSci Nodes] Telemetry enabled');
       Sentry.init({
