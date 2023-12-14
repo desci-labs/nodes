@@ -36,6 +36,7 @@ model Node {
   isDeleted           Boolean               @default(false)
   deletedAt           DateTime?
   UploadJobs          UploadJobs[]
+  DraftNodeTree       DraftNodeTree[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -168,6 +169,7 @@ model User {
   maxDriveStorageLimitGb     Int                   @default(500)
   userOrganizations          UserOrganizations[]
   UploadJobs                 UploadJobs[]
+  // DraftNodeTree              DraftNodeTree[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -379,6 +381,8 @@ model PublicDataReference {
   node        Node                              @relation(fields: [nodeId], references: [id])
   user        User?                             @relation(fields: [userId], references: [id])
   nodeVersion NodeVersion?                      @relation(fields: [versionId], references: [id])
+
+  @@unique([path, versionId])
 }
 
 model IpfsMirror {
@@ -494,6 +498,22 @@ model UploadJobs {
 model DocumentStore {
   key   String @id
   value Bytes
+}
+model DraftNodeTree {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  path      String
+  cid       String
+  directory Boolean
+  size      Int
+  external  Boolean
+  nodeId    Int
+  // userId    Int
+  node      Node     @relation(fields: [nodeId], references: [id])
+  // user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([nodeId, path])
 }
 
 enum UploadType {

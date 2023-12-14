@@ -19,13 +19,16 @@ import {
   getCoverImage,
   deleteNode,
 } from '../../controllers/nodes/index.js';
+import { prepublish } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { ensureNodeAccess } from '../../middleware/authorisation.js';
+import { ensureWriteAccess } from '../../middleware/ensureWriteAccess.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
 
+router.post('/prepublish', [ensureUser, ensureWriteAccess], prepublish);
 router.post('/publish', [ensureUser], publish);
 router.post('/createDraft', [ensureUser], draftCreate);
 router.post('/addComponentToDraft', [ensureUser], draftAddComponent);

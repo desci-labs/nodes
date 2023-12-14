@@ -19,8 +19,8 @@ import {
   updateManifestAndAddToIpfs,
 } from '../../services/ipfs.js';
 import { createNodeDraftBlank } from '../../services/nodeManager.js';
-import { randomUUID64 } from '../../utils.js';
 import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
+import { randomUUID64 } from '../../utils.js';
 
 export const draftCreate = async (req: Request, res: Response, next: NextFunction) => {
   const {

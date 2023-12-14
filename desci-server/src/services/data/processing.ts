@@ -12,15 +12,16 @@ import {
   neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
-import { User, Node, DataType } from '@prisma/client';
+import { User, Node, DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
 import { v4 } from 'uuid';
 
-import { persistManifest } from '../..//controllers/data/utils.js';
 import { prisma } from '../../client.js';
 import { UpdateResponse } from '../../controllers/data/update.js';
+import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
+import { ensureUniquePathsDraftTree, externalDirCheck } from '../../services/draftTrees.js';
 import {
   FilesToAddToDag,
   IpfsDirStructuredInput,
@@ -31,7 +32,8 @@ import {
   pinDirectory,
 } from '../../services/ipfs.js';
 import { fetchFileStreamFromS3, isS3Configured } from '../../services/s3.js';
-import { prepareDataRefs } from '../../utils/dataRefTools.js';
+import { prepareDataRefs, prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
+import { DRAFT_CID, DRAFT_DIR_CID, ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
   ExtensionDataTypeMap,
   ExternalCidMap,
@@ -92,45 +94,35 @@ export async function processS3DataToIpfs({
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
     ensureSpaceAvailable(files, user);
+    // debugger;
 
     const { manifest, manifestCid } = await getManifestFromNode(node);
-    const rootCid = extractRootDagCidFromManifest(manifest, manifestCid);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
     const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(files);
 
-    // Pull old tree
-    const externalCidMap = await generateExternalCidMap(node.uuid);
-    const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
-    oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
-    // Map paths=>branch for constant lookup
-    const oldTreePathsMap: Record<DrivePath, RecursiveLsResult> = oldFlatTree.reduce((map, branch) => {
-      // branch.path would still be deneutralized path, change if ever becomes necessary.
-      // i.e. branch.path === '/bafkrootcid/images/node.png' rather than '/root/images/node.png'
-      map[neutralizePath(branch.path)] = branch;
-      return map;
-    }, {});
-
     // External dir check
-    pathContainsExternalCids(oldTreePathsMap, contextPath);
+    await externalDirCheck(node.id, contextPath);
 
-    const splitContextPath = contextPath.split('/');
-    splitContextPath.shift();
-    //rootlessContextPath = how many dags need to be reset, n + 1, used for addToDag function
-    const rootlessContextPath = splitContextPath.join('/');
     // Check if paths are unique
-    ensureUniquePaths({ flatTreeMap: oldTreePathsMap, contextPath, filesBeingAdded: files });
+    await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, filesBeingAdded: files });
 
-    // Pin new files, structure for DAG extension, add to DAG
-    pinResult = await pinNewFiles(files);
-    const { filesToAddToDag, filteredFiles } = filterFirstNestings(pinResult);
-    logger.info({ filesToAddToDag }, '[START addFilesToDag]');
-    const {
-      updatedRootCid: newRootCidString,
-      updatedDagCidMap,
-      contextPathNewCid,
-    } = await addFilesToDag(rootCid, rootlessContextPath, filesToAddToDag);
-    logger.info({ newRootCidString }, '[END addFilesToDag]');
-    if (typeof newRootCidString !== 'string') throw createDagExtensionFailureError;
+    // Pin new files, add draftNodeTree entries
+    pinResult = await pinNewFiles(files, true);
+    if (pinResult) {
+      const root = pinResult[pinResult.length - 1];
+      const rootTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
+      // debugger;
+      const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries(
+        rootTree,
+        node,
+        user,
+      );
+      const addedEntries = await prisma.draftNodeTree.createMany({
+        data: draftNodeTreeEntries,
+        skipDuplicates: true,
+      });
+      logger.info(`Successfully added ${addedEntries.count} entries to DraftNodeTree`);
+    }
 
     /**
      * Repull latest node, to avoid stale manifest that may of been modified since last pull
@@ -144,15 +136,7 @@ export async function processS3DataToIpfs({
     });
 
     const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
-    let updatedManifest = updateManifestDataBucket({
-      manifest: ltsManifest,
-      newRootCid: newRootCidString,
-    });
-
-    //Update all existing DAG components with new CIDs if they were apart of a cascading update
-    if (Object.keys(updatedDagCidMap).length) {
-      updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    }
+    let updatedManifest = ltsManifest;
 
     if (componentTypeMap) {
       /**
@@ -167,23 +151,11 @@ export async function processS3DataToIpfs({
       //   componentSubtype,
       // });
       // updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
-      updatedManifest = assignTypeMapInManifest(updatedManifest, componentTypeMap, contextPath, contextPathNewCid);
+      updatedManifest = assignTypeMapInManifest(updatedManifest, componentTypeMap, contextPath, DRAFT_CID);
     }
 
-    // Update existing data references, add new data references.
-    const upserts = await updateDataReferences({ node, user, updatedManifest, newRootCidString, externalCidMap });
+    const upserts = await updateDataReferences({ node, user, updatedManifest });
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);
-
-    // Cleanup, add old DAGs to prune list
-    const pruneRes = await cleanupDanglingRefs({
-      newRootCidString,
-      externalCidMap,
-      oldTreePathsMap: oldTreePathsMap,
-      manifestPathsToDbComponentTypesMap: manifestPathsToTypesPrune,
-      node,
-      user,
-    });
-    logger.info(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
 
     // Persist updated manifest, (pin, update Node DB entry)
     const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: user.id });
@@ -197,7 +169,7 @@ export async function processS3DataToIpfs({
     return {
       ok: true,
       value: {
-        rootDataCid: newRootCidString,
+        // rootDataCid: newRootCidString,
         manifest: updatedManifest,
         manifestCid: persistedManifestCid,
         tree: tree,
@@ -238,49 +210,30 @@ export async function processNewFolder({
   contextPath,
   newFolderName,
 }: ProcessNewFolderParams): Promise<Either<UpdateResponse, ProcessingError>> {
-  let pinResult: IpfsPinnedResult[] = [];
-  const manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
-    const { manifest, manifestCid } = await getManifestFromNode(node);
-    const rootCid = extractRootDagCidFromManifest(manifest, manifestCid);
-
-    // Pull old tree
-    const externalCidMap = await generateExternalCidMap(node.uuid);
-    const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(rootCid, externalCidMap)) as RecursiveLsResult[];
-    oldFlatTree.push({ cid: rootCid, path: rootCid, name: 'Old Root Dir', type: 'dir', size: 0 });
-    // Map paths=>branch for constant lookup
-    const oldTreePathsMap: Record<DrivePath, RecursiveLsResult> = oldFlatTree.reduce((map, branch) => {
-      // branch.path would still be deneutralized path, change if ever becomes necessary.
-      // i.e. branch.path === '/bafkrootcid/images/node.png' rather than '/root/images/node.png'
-      map[neutralizePath(branch.path)] = branch;
-      return map;
-    }, {});
-
     // External dir check
-    pathContainsExternalCids(oldTreePathsMap, contextPath);
+    await externalDirCheck(node.id, contextPath);
 
-    const splitContextPath = contextPath.split('/');
-    splitContextPath.shift();
-    //rootlessContextPath = how many dags need to be reset, n + 1, used for addToDag function
-    const rootlessContextPath = splitContextPath.join('/');
+    // Make sure newFolderName doesn't contain any slashes
+    newFolderName = newFolderName.replace(/\//g, '');
 
     // Check if paths are unique
-    ensureUniquePaths({ flatTreeMap: oldTreePathsMap, contextPath, externalUrlFilePaths: [newFolderName] });
+    await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, externalUrlFilePaths: [newFolderName] });
 
-    //New folder creation, structure for DAG extension, add to DAG
-    if (newFolderName) {
-      const newFolder = await pinDirectory([{ path: newFolderName + '/.nodeKeep', content: Buffer.from('') }]);
-      if (!newFolder.length) throw createNewFolderCreationError('Failed creating new folder');
-      pinResult = newFolder;
-    }
+    // Create new folder in draft node tree
+    const newFolderEntry = await prisma.draftNodeTree.create({
+      data: {
+        path: contextPath + '/' + newFolderName,
+        cid: DRAFT_DIR_CID,
+        directory: true,
+        size: 0,
+        external: false,
+        nodeId: node.id,
+        // userId: user.id,
+      },
+    });
 
-    const { filesToAddToDag, filteredFiles } = filterFirstNestings(pinResult);
-    const {
-      updatedRootCid: newRootCidString,
-      updatedDagCidMap,
-      contextPathNewCid,
-    } = await addFilesToDag(rootCid, rootlessContextPath, filesToAddToDag);
-    if (typeof newRootCidString !== 'string') throw createDagExtensionFailureError;
+    const date = newFolderEntry.updatedAt;
 
     /**
      * Repull latest node, to avoid stale manifest that may of been modified since last pull
@@ -294,63 +247,24 @@ export async function processNewFolder({
     });
 
     const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
-    let updatedManifest = updateManifestDataBucket({
-      manifest: ltsManifest,
-      newRootCid: newRootCidString,
-    });
 
-    //Update all existing DAG components with new CIDs if they were apart of a cascading update
-    if (Object.keys(updatedDagCidMap).length) {
-      updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    }
-
-    // Update existing data references, add new data references.
-    const upserts = await updateDataReferences({ node, user, updatedManifest, newRootCidString, externalCidMap });
-    if (upserts) logger.info(`${upserts.length} new data references added/modified`);
-
-    // Cleanup, add old DAGs to prune list
-    const pruneRes = await cleanupDanglingRefs({
-      newRootCidString,
-      externalCidMap,
-      oldTreePathsMap: oldTreePathsMap,
-      manifestPathsToDbComponentTypesMap: manifestPathsToTypesPrune,
-      node,
-      user,
-    });
-    logger.info(`[PRUNING] ${pruneRes.count} cidPruneList entries added.`);
-
-    // Persist updated manifest, (pin, update Node DB entry)
-    const { persistedManifestCid, date } = await persistManifest({ manifest: updatedManifest, node, userId: user.id });
-    if (!persistedManifestCid)
-      throw createManifestPersistFailError(
-        `Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${user.id}`,
-      );
-
-    const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
+    const tree = await getTreeAndFill(ltsManifest, node.uuid, user.id);
 
     return {
       ok: true,
       value: {
-        rootDataCid: newRootCidString,
-        manifest: updatedManifest,
-        manifestCid: persistedManifestCid,
+        // rootDataCid: newRootCidString,
+        manifest: ltsManifest,
+        manifestCid: ltsManifestCid,
         tree: tree,
-        date: date,
+        date: date.toString(),
       },
     };
     // SUCCESS
   } catch (error) {
     // DB status to failed
     // Socket emit to client
-    logger.error({ error }, 'Error processing S3 data to IPFS');
-    if (pinResult.length) {
-      handleCleanupOnMidProcessingError({
-        pinnedFiles: pinResult,
-        manifestPathsToDbComponentTypesMap: manifestPathsToTypesPrune,
-        node,
-        user,
-      });
-    }
+    logger.error({ error }, 'Error processing new folder');
     const controlledErr = 'type' in error ? error : createUnhandledError(error);
     return { ok: false, value: controlledErr };
   }
@@ -401,7 +315,7 @@ export function pathContainsExternalCids(flatTreeMap: Record<DrivePath, Recursiv
   return false;
 }
 
-interface EnsureUniquePathsParams {
+export interface EnsureUniquePathsParams {
   flatTreeMap: Record<DrivePath, RecursiveLsResult>;
   contextPath: string;
   filesBeingAdded?: any[];
@@ -440,7 +354,7 @@ export function ensureUniquePaths({
   return true;
 }
 
-export async function pinNewFiles(files: any[]): Promise<IpfsPinnedResult[]> {
+export async function pinNewFiles(files: any[], wrapWithDirectory = false): Promise<IpfsPinnedResult[]> {
   const structuredFilesForPinning: IpfsDirStructuredInput[] = await Promise.all(
     files.map(async (f: any) => {
       const path = f.originalname ?? f.path;
@@ -454,7 +368,7 @@ export async function pinNewFiles(files: any[]): Promise<IpfsPinnedResult[]> {
   );
   let uploaded: IpfsPinnedResult[];
   if (structuredFilesForPinning.length) {
-    if (structuredFilesForPinning.length) uploaded = await pinDirectory(structuredFilesForPinning);
+    if (structuredFilesForPinning.length) uploaded = await pinDirectory(structuredFilesForPinning, wrapWithDirectory);
     if (!uploaded.length) throw createIpfsUploadFailureError();
     logger.info('[UPDATE DATASET] Pinned files: ', uploaded.length);
   }
@@ -540,18 +454,11 @@ interface UpdateDataReferencesParams {
   node: Node;
   user: User;
   updatedManifest: ResearchObjectV1;
-  newRootCidString: string;
-  externalCidMap: ExternalCidMap;
 }
-export async function updateDataReferences({
-  node,
-  user,
-  updatedManifest,
-  newRootCidString,
-  externalCidMap,
-}: UpdateDataReferencesParams) {
-  const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString, false, externalCidMap);
-
+export async function updateDataReferences({ node, user, updatedManifest }: UpdateDataReferencesParams) {
+  // const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString, false, externalCidMap);
+  const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
+  // debugger;
   // Get old refs to match their DB entry id's with the updated refs
   const existingRefs = await prisma.dataReference.findMany({
     where: {

@@ -7,9 +7,9 @@ import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from '..
 import { logger as parentLogger } from '../logger.js';
 import { uploadDataToEstuary } from '../services/estuary.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
-import { hexToCid, randomUUID64, asyncMap } from '../utils.js';
 import { generateDataReferences } from '../utils/dataRefTools.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
+import { hexToCid, randomUUID64, asyncMap } from '../utils.js';
 
 import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
 
@@ -340,8 +340,8 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
       versionToCache !== undefined && versionToCache < history.versions.length
         ? versionToCache
         : history?.versions.length
-        ? history.versions.length - 1
-        : 0;
+          ? history.versions.length - 1
+          : 0;
 
     if (!manifestCid || manifestCid.length === 0) {
       history.versions.reverse();

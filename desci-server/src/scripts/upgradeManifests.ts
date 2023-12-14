@@ -17,9 +17,9 @@ import {
   strIsCid,
   updateManifestAndAddToIpfs,
 } from '../services/ipfs.js';
-import { ensureUniqueString } from '../utils.js';
 import { addComponentsToManifest } from '../utils/driveUtils.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
+import { ensureUniqueString } from '../utils.js';
 
 upgradeManifestsScript();
 export async function upgradeManifestsScript() {
@@ -169,8 +169,8 @@ export async function upgradeManifestsScript() {
           path === researchReportPath
             ? ResearchObjectComponentType.PDF
             : path === codeReposPath
-            ? ResearchObjectComponentType.CODE
-            : ResearchObjectComponentType.DATA,
+              ? ResearchObjectComponentType.CODE
+              : ResearchObjectComponentType.DATA,
       };
     });
 

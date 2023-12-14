@@ -17,6 +17,7 @@ import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { app } from '../../src/index.js';
+import { migrateIpfsTreeToNodeTree } from '../../src/services/draftTrees.js';
 import {
   addFilesToDag,
   getDirectoryTree,
@@ -24,9 +25,10 @@ import {
   client as ipfs,
   spawnEmptyManifest,
 } from '../../src/services/ipfs.js';
-import { randomUUID64 } from '../../src/utils.js';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools.js';
+import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils.js';
 import { addComponentsToManifest } from '../../src/utils/driveUtils.js';
+import { randomUUID64 } from '../../src/utils.js';
 import { spawnExampleDirDag } from '../util.js';
 
 describe('Data Controllers', () => {
@@ -112,14 +114,16 @@ describe('Data Controllers', () => {
           manifestCid: res.body.manifestCid,
           publicRefs: false,
         });
+        // debugger;
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // IDEALLY REPLACED WITH A NONCE TEST
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should reject if unauthed', async () => {
         const newRes = await request(app)
           .post('/v1/data/update')
@@ -209,14 +213,15 @@ describe('Data Controllers', () => {
           manifestCid: res.body.manifestCid,
           publicRefs: false,
         });
+        // debugger;
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
     });
     describe('Update a node with a code repo via external URL', () => {
       let node: Node;
@@ -267,14 +272,15 @@ describe('Data Controllers', () => {
           manifestCid: res.body.manifestCid,
           publicRefs: false,
         });
+        // debugger;
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should have added a code component to the manifest', () => {
         const newCodeComponent = res.body.manifest.components.find(
           (c) => c.type === ResearchObjectComponentType.CODE && c.payload.path === 'root/' + externalRepoPath,
@@ -422,6 +428,8 @@ describe('Data Controllers', () => {
           nodeId: node.id,
         };
 
+        await migrateIpfsTreeToNodeTree(node.uuid!);
+
         await prisma.dataReference.create({ data: manifestEntry });
         await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
 
@@ -440,11 +448,11 @@ describe('Data Controllers', () => {
       it('should return new manifestCid', () => {
         expect(res.body).to.have.property('manifestCid');
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should reject if unauthed', async () => {
         const res = await request(app).post(`/v1/data/delete`).send({ uuid: node.uuid, path: 'root/dir' });
         expect(res.statusCode).to.not.equal(200);
@@ -476,10 +484,8 @@ describe('Data Controllers', () => {
         expect(!!containedComponentFound).to.not.equal(true);
       });
       it('should add deleted entries to cidPruneList', async () => {
-        const deletedCids = [
-          'bafybeiceadgl6eqm52csjdkuch4wyawuyckbt6j4jg3tpxgs2we5mgy254',
-          'bafkreig7pzyokaqvit2igs564zfj4n4j726ex2auodpwfhfnnxnqgmqklq',
-        ];
+        const deletedCids = ['bafkreig7pzyokaqvit2igs564zfj4n4j726ex2auodpwfhfnnxnqgmqklq'];
+        // debugger;
         const pruneListEntries = await prisma.cidPruneList.findMany({ where: { cid: { in: deletedCids } } });
         const allEntriesFound = deletedCids.every((cid) => pruneListEntries.some((entry) => entry.cid === cid));
         expect(allEntriesFound).to.equal(true);
@@ -534,6 +540,7 @@ describe('Data Controllers', () => {
           nodeId: node.id,
         };
 
+        await migrateIpfsTreeToNodeTree(node.uuid!);
         await prisma.dataReference.create({ data: manifestEntry });
         await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
         res = await request(app)
@@ -551,21 +558,24 @@ describe('Data Controllers', () => {
       it('should return new manifestCid', () => {
         expect(res.body).to.have.property('manifestCid');
       });
-      it('databucket dag should contain renamed directory and nested files', async () => {
-        const databucketCid = res.body.manifest.components[0].payload.cid;
-        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {})) as FileDir[];
-        const renamedDir = flatTree.find((f) => neutralizePath(f.path) === newPath);
-        const nestedFile = flatTree.find((f) => neutralizePath(f.path) === newPath + '/b.txt');
+      it('draft tree should contain renamed directory and nested files', async () => {
+        const treeEntries = await prisma.draftNodeTree.findMany({
+          where: { nodeId: node.id },
+        });
+        const flatTree = draftNodeTreeEntriesToFlatIpfsTree(treeEntries);
+        const renamedDir = flatTree.find((f) => f.path === newPath);
+        const nestedFile = flatTree.find((f) => f.path === newPath + '/b.txt');
+        // debugger;
         expect(!!renamedDir).to.equal(true);
         expect(!!nestedFile).to.equal(true);
         expect(renamedDir?.type).to.equal('dir');
         expect(nestedFile?.type).to.equal('file');
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should reject if unauthed', async () => {
         const res = await request(app)
           .post(`/v1/data/rename`)
@@ -608,10 +618,11 @@ describe('Data Controllers', () => {
         expect(componentCard.name).to.equal('dubdir');
       });
       it('should reject if new name already exists within the same directory', async () => {
+        // debugger;
         const res = await request(app)
           .post(`/v1/data/rename`)
           .set('authorization', authHeaderVal)
-          .send({ uuid: node.uuid!, path: 'dir/a.txt', newName: 'c.txt' });
+          .send({ uuid: node.uuid!, path: 'root/dir/a.txt', newName: 'c.txt' });
         expect(res.statusCode).to.not.equal(200);
       });
     });
@@ -678,6 +689,7 @@ describe('Data Controllers', () => {
           nodeId: node.id,
         };
 
+        await migrateIpfsTreeToNodeTree(node.uuid!);
         await prisma.dataReference.create({ data: manifestEntry });
         await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
         res = await request(app)
@@ -695,18 +707,22 @@ describe('Data Controllers', () => {
       it('should return new manifestCid', () => {
         expect(res.body).to.have.property('manifestCid');
       });
-      it('databucket dag should contain moved directory', async () => {
-        const databucketCid = res.body.manifest.components[0].payload.cid;
-        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {})) as RecursiveLsResult[];
-        const movedDir = flatTree.find((f) => neutralizePath(f.path) === moveToPath);
+      it('draft tree should contain moved directory', async () => {
+        // const databucketCid = res.body.manifest.components[0].payload.cid;
+        // const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {})) as RecursiveLsResult[];
+        const treeEntries = await prisma.draftNodeTree.findMany({
+          where: { nodeId: node.id },
+        });
+        const flatTree = draftNodeTreeEntriesToFlatIpfsTree(treeEntries);
+        const movedDir = flatTree.find((f) => f.path === moveToPath);
         expect(!!movedDir).to.equal(true);
         expect(movedDir?.type).to.equal('dir');
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should reject if unauthed', async () => {
         const res = await request(app)
           .post(`/v1/data/move`)

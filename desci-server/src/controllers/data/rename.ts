@@ -5,14 +5,16 @@ import {
   neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
-import { DataType } from '@prisma/client';
+import { DataType, Node } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { updateManifestDataBucket } from '../../services/data/processing.js';
+import { ensureUniquePathsDraftTree } from '../../services/draftTrees.js';
 import { getDirectoryTree, renameFileInDag } from '../../services/ipfs.js';
 import { prepareDataRefs } from '../../utils/dataRefTools.js';
+import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 import { generateExternalCidMap, updateManifestComponentDagCids } from '../../utils/driveUtils.js';
 
 import { ErrorResponse } from './update.js';
@@ -42,7 +44,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     return res.status(400).json({ error: 'uuid, path and newName required' });
 
   //validate requester owns the node
-  const node = await prisma.node.findFirst({
+  const node: Node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
       uuid: uuid.endsWith('.') ? uuid : uuid + '.',
@@ -52,56 +54,63 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     logger.warn(`DATA::Rename: auth failed, user id: ${owner.id} does not own node: ${uuid}`);
     return res.status(400).json({ error: 'failed' });
   }
-
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
 
   try {
     /*
      ** New name collision check
      */
-    const externalCidMap = await generateExternalCidMap(node.uuid);
-    const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(dataBucket.payload.cid, externalCidMap));
-    const oldPathSplit = path.split('../../');
+    // const externalCidMap = await generateExternalCidMap(node.uuid);
+    const contextPathSplit = path.split('/');
+    contextPathSplit.pop();
+    const contextPath = contextPathSplit.join('/');
+    // debugger;
+    await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, filesBeingAdded: [{ originalname: newName }] });
+
+    const oldPathSplit = path.split('/');
     oldPathSplit.pop();
     oldPathSplit.push(newName);
-    const newPath = oldPathSplit.join('../../');
-    const hasDuplicates = oldFlatTree.some((oldBranch) => oldBranch.path.includes(newPath));
-    if (hasDuplicates) {
-      logger.info('[DATA::Rename] Rejected as duplicate paths were found');
-      return res.status(400).json({ error: 'Name collision' });
-    }
-
-    /*
-     ** Update in dag
-     */
-    const splitContextPath = path.split('../../');
-    splitContextPath.shift(); //remove root
-    const linkToRename = splitContextPath.pop();
-    const cleanContextPath = splitContextPath.join('../../');
-    logger.debug(`DATA::Rename cleanContextPath: ${cleanContextPath},  Renaming: ${linkToRename},  to : ${newName}`);
-    const { updatedDagCidMap, updatedRootCid } = await renameFileInDag(
-      dataBucket.payload.cid,
-      cleanContextPath,
-      linkToRename,
-      newName,
-    );
+    const newPath = oldPathSplit.join('/');
 
     /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
-    let updatedManifest = updateComponentPathsInManifest({ manifest: latestManifest, oldPath: path, newPath: newPath });
-
-    updatedManifest = updateManifestDataBucket({
-      manifest: updatedManifest,
-      newRootCid: updatedRootCid,
+    const updatedManifest = updateComponentPathsInManifest({
+      manifest: latestManifest,
+      oldPath: path,
+      newPath: newPath,
     });
 
-    if (Object.keys(updatedDagCidMap).length) {
-      updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    }
+    // // Update new name in draftTree db entry
+    // const updatedEntry = await prisma.draftNodeTree.update({
+    //   where: { nodeId_path: { nodeId: node.id, path: path } },
+    //   data: { path: newPath },
+    // });
+
+    // Get all entries that need to be updated
+    const entriesToUpdate = await prisma.draftNodeTree.findMany({
+      where: {
+        OR: [
+          { nodeId: node.id, path: path },
+          { nodeId: node.id, path: { startsWith: path + '/' } },
+        ],
+      },
+    });
+
+    // Update === with newPath, and .replace the ones that start with oldPath + "/"
+    const updateOperations = entriesToUpdate.map((entry) => {
+      const updatedPath = entry.path.startsWith(path + '/') ? entry.path.replace(path, newPath) : newPath;
+
+      return prisma.draftNodeTree.update({
+        where: { id: entry.id },
+        data: { path: updatedPath },
+      });
+    });
+
+    const updatedEntries = await Promise.all(updateOperations);
 
     if (renameComponent) {
+      // If checkbox ticked to rename the component along with the filename, note: not used in capybara
       const componentIndex = updatedManifest.components.findIndex((c) => c.payload.path === newPath);
       const { fileName } = separateFileNameAndExtension(newName);
       updatedManifest.components[componentIndex].name = fileName;
@@ -117,14 +126,14 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
         type: { not: DataType.MANIFEST },
       },
     });
-
-    const newRefs = await prepareDataRefs(node.uuid, updatedManifest, updatedRootCid, false);
+    const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
 
     const existingRefMap = existingDataRefs.reduce((map, ref) => {
       map[neutralizePath(ref.path)] = ref;
       return map;
     }, {});
 
+    // const missingRefs = []; // for debugging
     const dataRefUpdates = newRefs.map((newRef) => {
       const neutralNewPath = neutralizePath(newRef.path);
       let match = existingRefMap[neutralNewPath]; // covers path unchanged refs
@@ -136,11 +145,12 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       if (!match) {
         logger.error({ refIteration: newRef }, 'failed to find an existing match for ref, node is missing refs');
         throw Error(`failed to find an existing match for ref, node is missing refs, path: ${newRef.path}`);
+        // missingRefs.push(newRef);
       }
       newRef.id = match?.id;
       return newRef;
     });
-
+    // debugger;
     const [...updates] = await prisma.$transaction([
       ...(dataRefUpdates as any).map((fd) => {
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });

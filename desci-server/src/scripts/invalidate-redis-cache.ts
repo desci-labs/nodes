@@ -4,8 +4,8 @@ import axios from 'axios';
 import { logger as parentLogger } from '../logger.js';
 import redisClient from '../redisClient.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
-import { hexToCid } from '../utils.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
+import { hexToCid } from '../utils.js';
 
 const logger = parentLogger.child({ module: 'SCRIPTS::invalidateRedisKeys' });
 /* 

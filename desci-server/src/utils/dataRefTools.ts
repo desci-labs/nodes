@@ -1,5 +1,5 @@
 import { FileType, ResearchObjectV1, isNodeRoot, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
-import { DataReference, DataType, Prisma } from '@prisma/client';
+import { DataReference, DataType, NodeVersion, Prisma, Node } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
@@ -8,6 +8,12 @@ import { logger as parentLogger } from '../logger.js';
 import { discoveryLs, getDirectoryTree } from '../services/ipfs.js';
 import { objectPropertyXor, omitKeys } from '../utils.js';
 
+import {
+  DRAFT_CID,
+  TimestampMap,
+  draftNodeTreeEntriesToFlatIpfsTree,
+  flatTreeToHierarchicalTree,
+} from './draftTreeUtils.js';
 import {
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
@@ -55,6 +61,7 @@ export async function generateDataReferences({
   Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]
 > {
   nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
+  const isPublished = !!versionId;
   const node = await prisma.node.findFirst({
     where: {
       uuid: nodeUuid,
@@ -82,10 +89,15 @@ export async function generateDataReferences({
     ? await extractExternalCidMapFromTreeUrl(workingTreeUrl)
     : await generateExternalCidMap(node.uuid);
   let dataTree;
-  if (markExternals) {
-    dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
+  if (isPublished) {
+    if (markExternals) {
+      dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
+    } else {
+      dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
+    }
   } else {
-    dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
+    const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
+    dataTree = await draftNodeTreeEntriesToFlatIpfsTree(dbTree);
   }
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
 
@@ -96,7 +108,7 @@ export async function generateDataReferences({
       cid: entry.cid,
       path: entry.path,
       userId: node.ownerId,
-      rootCid: dataBucketCid,
+      rootCid: isPublished ? dataBucketCid : DRAFT_CID,
       root: false,
       directory: entry.type === 'dir',
       size: entry.size,
@@ -107,8 +119,9 @@ export async function generateDataReferences({
       // ...(!markExternals ? {} : entry.external ? { external: true } : { external: null }),
     };
   });
+  // debugger;
 
-  return [dataRootEntry, ...dataTreeToPubRef];
+  return [...(isPublished ? [dataRootEntry] : []), ...dataTreeToPubRef];
 }
 
 // used to prepare data refs for a given dag and manifest (differs from generateDataReferences in that you don't need the updated manifestCid ahead of time)
@@ -163,6 +176,96 @@ export async function prepareDataRefs(
       type: dbType,
       nodeId: node.id,
       ...(!markExternals ? {} : entry.external ? { external: true } : { external: null }),
+    };
+  });
+
+  return [dataRootEntry, ...dataTreeToPubRef];
+}
+
+export async function prepareDataRefsForDraftTrees(
+  nodeUuid: string,
+  manifest: ResearchObjectV1,
+): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
+  nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
+  const node = await prisma.node.findFirst({
+    where: {
+      uuid: nodeUuid,
+    },
+  });
+  if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
+  const manifestEntry: ResearchObjectV1 = manifest;
+
+  const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
+  const dataTree = await draftNodeTreeEntriesToFlatIpfsTree(dbTree);
+  const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
+  // debugger;
+
+  const dataTreeToPubRef: Prisma.DataReferenceCreateManyInput[] = dataTree.map((entry) => {
+    const dbType = inheritComponentType(entry.path, manifestPathsToDbTypes);
+    return {
+      cid: entry.cid,
+      path: entry.path,
+      userId: node.ownerId,
+      rootCid: DRAFT_CID,
+      root: false,
+      directory: entry.type === 'dir',
+      size: entry.size,
+      type: dbType,
+      nodeId: node.id,
+    };
+  });
+
+  return dataTreeToPubRef.filter((ref) => !ref.directory);
+}
+
+export interface PrepareDataRefsForDagSkeletonArgs {
+  node: Node;
+  dataBucketCid: string;
+  manifest: ResearchObjectV1;
+}
+
+/**
+ * Prepares data references for a DAG skeleton, this is used in the prepublish step where we pin the DAG structure, before we pin the files to the public IPFS node.
+ * We create publicDataRefs for the structure, to cover for the edge case of a garbage collection event occuring the moment someone publishes, their data would be lost.
+ */
+export async function prepareDataRefsForDagSkeleton({
+  node,
+  dataBucketCid,
+  manifest,
+}: PrepareDataRefsForDagSkeletonArgs) {
+  const manifestEntry: ResearchObjectV1 = manifest;
+
+  const dataRootEntry: Prisma.PublicDataReferenceCreateManyInput = {
+    cid: dataBucketCid,
+    path: dataBucketCid,
+    userId: node.ownerId,
+    root: true,
+    rootCid: dataBucketCid,
+    directory: true,
+    size: 0,
+    type: DataType.DATA_BUCKET,
+    nodeId: node.id,
+  };
+
+  const externalCidMap = { ...(await generateExternalCidMap(node.uuid)) };
+  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, false);
+
+  const dataTree = recursiveFlattenTree(tree).filter((entry) => entry.type === FileType.DIR);
+  const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
+
+  const dataTreeToPubRef: Prisma.DataReferenceCreateManyInput[] = dataTree.map((entry) => {
+    const neutralPath = neutralizePath(entry.path);
+    const dbType = inheritComponentType(neutralPath, manifestPathsToDbTypes);
+    return {
+      cid: entry.cid,
+      path: entry.path,
+      userId: node.ownerId,
+      rootCid: dataBucketCid,
+      root: false,
+      directory: entry.type === 'dir',
+      size: entry.size,
+      type: dbType,
+      nodeId: node.id,
     };
   });
 
@@ -333,7 +436,13 @@ export async function validateDataReferences({
       // ref consumed, don't add to unused refs
       usedRefIds[exists.id] = true;
     }
-    if (!exists) missingRefs.push(requiredRef);
+    if (!exists) {
+      if (requiredRef.directory && !publicRefs) {
+        // if the required entry doesn't exist in a draft node and it's a directory, it's an unnecessary ref, and should be omitted.
+      } else {
+        missingRefs.push(requiredRef);
+      }
+    }
   });
 
   const unusedRefs = currentRefs.filter((currentRef) => !(currentRef.id in usedRefIds));
@@ -453,4 +562,17 @@ export async function validateAndHealDataRefs({
       `[validateAndFixDataRefs (DIFF)] node id: ${nodeUuid}, healed ${updatedRefs.length} diff data refs`,
     );
   }
+}
+
+/**
+ * Helper function to generate a timestamp map from a node's data refs, mapping paths -> psql db default timestamps
+ */
+export async function generateTimestampMapFromDataRefs(nodeId: number): Promise<TimestampMap> {
+  const dataRefs = await prisma.dataReference.findMany({ where: { nodeId } });
+  const timestampMap: TimestampMap = {};
+  dataRefs.forEach((ref: DataReference) => {
+    const neutralPath = neutralizePath(ref.path);
+    timestampMap[neutralPath] = { createdAt: ref.createdAt, updatedAt: ref.updatedAt };
+  });
+  return timestampMap;
 }
