@@ -123,7 +123,6 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
        * Create a job per mirror in order to track the status of the upload
        * There can be multiple mirrors per node, right now there is just Estuary
        */
-
       const dataMirrorJobs = await createDataMirrorJobs(cidsRequiredForPublish, owner.id);
 
       // TODO: update public data refs to link versionId
@@ -187,17 +186,16 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     );
 
     // trigger ipfs storage upload, but don't wait for it to finish, will happen async
-    publishResearchObject(publicDataReferences)
-      .then(handleMirrorSuccess)
-      .catch(handleMirrorFail)
-      .finally(async () => {
-        await validateAndHealDataRefs({
-          nodeUuid: node.uuid!,
-          manifestCid: cid,
-          publicRefs: true,
-          markExternals: true,
-        });
-      });
+    publishResearchObject(publicDataReferences).then(handleMirrorSuccess).catch(handleMirrorFail);
+    // Disabled bandaid fix, shouldn't be necessary if publish step handled correctly on frontend.
+    // .finally(async () => {
+    //   await validateAndHealDataRefs({
+    //     nodeUuid: node.uuid!,
+    //     manifestCid: cid,
+    //     publicRefs: true,
+    //     markExternals: true,
+    //   });
+    // });
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
