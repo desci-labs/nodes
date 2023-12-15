@@ -18,6 +18,7 @@ export interface IpldUrl {
 export interface ResearchObjectV1 extends ResearchObject {
   version: "desci-nodes-0.1.0" | "desci-nodes-0.2.0" | 1;
   title?: string;
+  description?: string;
   defaultLicense?: string;
   coverImage?: string | IpldUrl;
   components: ResearchObjectV1Component[];
@@ -269,12 +270,15 @@ export enum ResearchObjectV1AuthorRole {
 
 /**
  * Maps FileExtensions => ResearchObjectComponentTypes
- * @example { 
+ * @example {
  *   '.py': ResearchObjectComponentType.CODE,
  *    '.ipynb': ResearchObjectComponentType.CODE,
  *    '.csv': ResearchObjectComponentType.DATA,
  *    '.pdf': ResearchObjectComponentType.PDF
  * }
  */
-export type ResearchObjectComponentTypeMap = Record<FileExtension, ResearchObjectComponentType>
+export type ResearchObjectComponentTypeMap = Record<
+  FileExtension,
+  ResearchObjectComponentType
+>;
 export type FileExtension = string;
