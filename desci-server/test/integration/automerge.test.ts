@@ -8,6 +8,13 @@ describe('Automerge Integration', () => {
       expect(true).to.be.equal(true);
     });
   });
+
+  describe('Creating a Node should create a new Automerge Document', () => {
+    it('Backend Repo should be ready', () => {
+      expect(true).to.be.equal(true);
+    });
+  });
+
   describe('Existing Nodes should get an Automerge Document', () => {
     it('Backend Repo should be ready', () => {
       expect(true).to.be.equal(true);
@@ -20,11 +27,6 @@ describe('Automerge Integration', () => {
     });
   });
 
-  describe('Creating a Node should create a new Automerge Document', () => {
-    it('Backend Repo should be ready', () => {
-      expect(true).to.be.equal(true);
-    });
-  });
   describe('Update Automerge Document', () => {
     it('Backend Repo should be ready', () => {
       expect(true).to.be.equal(true);

@@ -31,6 +31,7 @@ const router = Router();
 router.post('/prepublish', [ensureUser, ensureWriteAccess], prepublish);
 router.post('/publish', [ensureUser], publish);
 router.post('/createDraft', [ensureUser], draftCreate);
+// is this api deprecated?
 router.post('/addComponentToDraft', [ensureUser], draftAddComponent);
 router.post('/updateDraft', [ensureUser], draftUpdate);
 router.get('/versionDetails', [], versionDetails);

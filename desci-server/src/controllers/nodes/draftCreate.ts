@@ -1,3 +1,4 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   ExternalLinkComponent,
   PdfComponent,
@@ -18,6 +19,7 @@ import {
   downloadSingleFile,
   updateManifestAndAddToIpfs,
 } from '../../services/ipfs.js';
+import { createManifestDocument } from '../../services/manifestRepo.js';
 import { createNodeDraftBlank } from '../../services/nodeManager.js';
 import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
 import { randomUUID64 } from '../../utils.js';
@@ -115,11 +117,13 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
     const nodeCopy = Object.assign({}, node);
     nodeCopy.uuid = nodeCopy.uuid.replace(/\.$/, '');
 
+    let documentId: DocumentId;
     try {
       // TODO: CALL create Node document service
-      logger.info('Automerge document created');
+      documentId = await createManifestDocument({ node, manifest: researchObject });
+      logger.info({ uuid: node.uuid, documentId }, 'Automerge document created');
     } catch (e) {
-      logger.error('Automerge document Creation Error', e);
+      logger.error({ e, researchObject, uuid: node.uuid }, 'Automerge document Creation Error');
     }
 
     res.send({
@@ -128,6 +132,7 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
       uri,
       node: nodeCopy,
       version: nodeVersion,
+      documentId,
     });
     return;
   } catch (err) {
