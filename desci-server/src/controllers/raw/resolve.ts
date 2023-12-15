@@ -17,6 +17,8 @@ import localhost from '../../desci-contracts-artifacts/contracts/ResearchObject.
 import goerliInfo from '../../desci-contracts-config/goerli-research-object.json';
 import localhostInfo from '../../desci-contracts-config/unknown-research-object.json';
 
+const IPFS_RESOLVER_OVERRIDE = process.env.IPFS_RESOLVER_OVERRIDE || '';
+//change
 export const directChainCall = async (decodedUuid: string) => {
   let provider;
   try {
@@ -80,7 +82,6 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
     user: (req as any).user,
   });
   logger.debug(`[resolve::resolve] firstParam=${firstParam} secondParam=${secondParam}`);
-
   // const node = await prisma.node.findFirst({
   //   where: { uuid },
   // });
@@ -128,7 +129,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
 
   // console.log('VERSION', version.args._cid);
 
-  const ipfsResolver = req.query.g || 'https://ipfs.desci.com/ipfs';
+  const ipfsResolver = IPFS_RESOLVER_OVERRIDE || req.query.g || 'https://ipfs.desci.com/ipfs';
   // TODO: add whitelist of resolvers
 
   if (!firstParam || !firstParam.trim().length) {
