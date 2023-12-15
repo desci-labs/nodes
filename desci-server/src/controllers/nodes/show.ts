@@ -7,6 +7,8 @@ import { CID } from 'multiformats/cid';
 import { prisma } from '../../client.js';
 import { PUBLIC_IPFS_PATH } from '../../config/index.js';
 import { logger as parentLogger } from '../../logger.js';
+import { RequestWithNode } from '../../middleware/authorisation.js';
+import { NodeUuid, getDraftManifestFromUuid } from '../../services/manifestRepo.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node) => {
@@ -37,8 +39,8 @@ const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node
 };
 
 // Return ResearchObject manifest via CID or ResearchObject database ID
-export const show = async (req: Request, res: Response, next: NextFunction) => {
-  let ownerId = (req as any).user?.id;
+export const show = async (req: RequestWithNode, res: Response, next: NextFunction) => {
+  let ownerId = req.user?.id;
   const shareId = req.query.shareId as string;
   let cid: string = null;
   let pid = req.params[0];
@@ -100,6 +102,10 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
       delete (discovery as any).restBody;
 
       logger.trace({ gatewayUrl, uuid }, 'transformed manifest');
+      // Add draft manifest document
+      const nodeUuid = (uuid + '.') as NodeUuid;
+      const manifest = await getDraftManifestFromUuid(nodeUuid);
+      (discovery as any).manifest = manifest;
     } catch (err) {
       logger.error(
         { err, manifestUrl: discovery.manifestUrl, gatewayUrl },
@@ -107,7 +113,7 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
       );
     }
 
-    res.send(discovery);
+    res.send({ ...discovery });
     return;
   }
 

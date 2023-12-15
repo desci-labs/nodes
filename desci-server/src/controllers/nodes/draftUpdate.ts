@@ -4,8 +4,8 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { updateManifestAndAddToIpfs } from '../../services/ipfs.js';
+import { NodeUuid, getDraftManifestFromUuid } from '../../services/manifestRepo.js';
 import { cleanManifestForSaving } from '../../utils/manifestDraftUtils.js';
-import { getLatestManifestFromRepo } from '../data/utils.js';
 
 export const draftUpdate = async (req: Request, res: Response, next: NextFunction) => {
   const { uuid, manifest } = req.body;
@@ -49,12 +49,9 @@ export const draftUpdate = async (req: Request, res: Response, next: NextFunctio
 
     let manifestParsed: ResearchObjectV1;
 
-    let manifest: ResearchObjectV1;
     try {
-      manifestParsed = await getLatestManifestFromRepo(node.uuid);
-      console.log('[getLatestManifestFromRepo]', manifest);
+      manifestParsed = await getDraftManifestFromUuid(node.uuid as NodeUuid);
     } catch (e) {
-      console.log('[getLatestManifest]', manifest?.title);
       manifestParsed = req.body.manifest as ResearchObjectV1;
     }
 
