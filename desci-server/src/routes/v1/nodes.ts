@@ -23,12 +23,11 @@ import { prepublish } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { ensureNodeAccess } from '../../middleware/authorisation.js';
-import { ensureWriteAccess } from '../../middleware/ensureWriteAccess.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
 
-router.post('/prepublish', [ensureUser, ensureWriteAccess], prepublish);
+router.post('/prepublish', [ensureUser, ensureNodeAccess], prepublish);
 router.post('/publish', [ensureUser], publish);
 router.post('/createDraft', [ensureUser], draftCreate);
 // is this api deprecated?
@@ -46,7 +45,7 @@ router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
 router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
-router.get('/documents/:uuid', [ensureNodeAccess], getNodeDocument);
+router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 

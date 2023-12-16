@@ -4,7 +4,7 @@ import { Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { AuthedRequest } from '../../middleware/ensureWriteAccess.js';
+import { RequestWithNode } from '../../middleware/authorisation.js';
 import { getManifestFromNode, updateManifestDataBucket } from '../../services/data/processing.js';
 import { prepareDataRefsForDagSkeleton } from '../../utils/dataRefTools.js';
 import { dagifyAndAddDbTreeToIpfs } from '../../utils/draftTreeUtils.js';
@@ -27,7 +27,7 @@ export interface PrepublishErrorResponse {
 /**
  * DAGifies the drafts current DB tree state, adds the structure to IPFS (No Files Pinned, Folders staged), and updates the manifest data bucket CID.
  */
-export const prepublish = async (req: AuthedRequest, res: Response<PrepublishResponse>) => {
+export const prepublish = async (req: RequestWithNode, res: Response<PrepublishResponse>) => {
   const owner = req.user;
   const node = req.node;
   const { uuid } = req.body;

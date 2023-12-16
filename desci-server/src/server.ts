@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
 import express from 'express';
 import type { Express } from 'express';
 import helmet from 'helmet';
@@ -90,6 +91,7 @@ class AppServer {
     this.app.use(bodyParser.json({ limit: '100mb' }));
     this.app.use(bodyParser.urlencoded({ extended: false }));
 
+    this.app.use(cookieParser());
     this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
     try {

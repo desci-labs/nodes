@@ -14,13 +14,14 @@ import {
   isNodeRoot,
   isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
-import { DataReference, DataType } from '@prisma/client';
+import { DataReference, DataType, Node } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
+import { getNodeManifestUpdater } from '../services/manifestRepo.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
@@ -386,6 +387,28 @@ export function addComponentsToManifest(manifest: ResearchObjectV1, firstNesting
     manifest.components.push(comp);
   });
   return manifest;
+}
+
+export async function addComponentsToDraftManifest(node: Node, firstNestingComponents: FirstNestingComponent[]) {
+  const manifestUpdater = getNodeManifestUpdater(node);
+  let updatedManifest: ResearchObjectV1;
+  //add duplicate path check
+  firstNestingComponents.forEach(async (c) => {
+    const component = {
+      id: randomUUID(),
+      name: c.name,
+      ...(c.componentType && { type: c.componentType }),
+      ...(c.componentSubtype && { subtype: c.componentSubtype }),
+      payload: {
+        ...urlOrCid(c.cid, c.componentType),
+        path: c.path,
+        ...(c.externalUrl && { externalUrl: c.externalUrl }),
+      },
+      starred: c.star || false,
+    };
+    updatedManifest = await manifestUpdater({ type: 'Add Component', component });
+  });
+  return updatedManifest;
 }
 
 export type oldCid = string;

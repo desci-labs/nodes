@@ -56,10 +56,14 @@ const getNodeDocument = async function (req: RequestWithNode, res: Response) {
       // Object.assign({}, researchObject) as ResearchObjectV1; // todo: pull latest draft manifest
       const handle = repo.create<ResearchObjectDocument>();
       logger.info({ manifest, doc: handle.documentId }, 'Create new document');
-      handle.change((document) => {
-        document.manifest = manifest;
-        document.uuid = uuid.slice(0, -1);
-      });
+      handle.change(
+        (document) => {
+          document.manifest = manifest;
+          document.uuid = uuid.slice(0, -1);
+        },
+        { message: 'Init Document', time: Date.now() },
+      );
+
       logger.info('Initialized new document with Last published manfiest', { manifest });
       const document = await handle.doc();
       documentId = handle.documentId;

@@ -7,6 +7,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { updateManifestDataBucket } from '../../services/data/processing.js';
 import { ensureUniquePathsDraftTree } from '../../services/draftTrees.js';
 import { RecursiveLsResult, getDirectoryTree, moveFileInDag } from '../../services/ipfs.js';
+import { getLatestManifestFromNode, getNodeManifestUpdater } from '../../services/manifestRepo.js';
 import { prepareDataRefs } from '../../utils/dataRefTools.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 import { generateExternalCidMap, updateManifestComponentDagCids } from '../../utils/driveUtils.js';
@@ -47,8 +48,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     return res.status(400).json({ error: 'failed' });
   }
 
-  // TODO: Pull from automerge repo
-  const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
+  // const latestManifest = await getLatestManifestFromNode(node);
 
   try {
     const newPathSplit = newPath.split('/');
@@ -106,12 +106,14 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
-    // TODO: [AUTOMERGE] Delegate to repo service
-    const updatedManifest = updateComponentPathsInManifest({
-      manifest: latestManifest,
-      oldPath: oldPath,
-      newPath: newPath,
-    });
+    // const updatedManifest = updateComponentPathsInManifest({
+    //   manifest: latestManifest,
+    //   oldPath: oldPath,
+    //   newPath: newPath,
+    // });
+    // [AUTOMERGE] Delegate to repo service
+    const dispatchChange = getNodeManifestUpdater(node);
+    const updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath, newPath });
 
     /*
      ** Prepare updated refs
@@ -178,11 +180,11 @@ interface UpdateComponentPathsInManifest {
   newPath: string;
 }
 
-export function updateComponentPathsInManifest({ manifest, oldPath, newPath }: UpdateComponentPathsInManifest) {
-  manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
-    if (c.payload?.path.startsWith(oldPath + '/') || c.payload.path === oldPath) {
-      manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
-    }
-  });
-  return manifest;
-}
+// export function updateComponentPathsInManifest({ manifest, oldPath, newPath }: UpdateComponentPathsInManifest) {
+//   manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
+//     if (c.payload?.path.startsWith(oldPath + '/') || c.payload.path === oldPath) {
+//       manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
+//     }
+//   });
+//   return manifest;
+// }

@@ -1,24 +1,15 @@
-import {
-  ResearchObjectV1,
-  ResearchObjectV1Component,
-  isNodeRoot,
-  neutralizePath,
-  recursiveFlattenTree,
-} from '@desci-labs/desci-models';
+import { ResearchObjectV1, neutralizePath } from '@desci-labs/desci-models';
 import { DataType, Node } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { updateManifestDataBucket } from '../../services/data/processing.js';
 import { ensureUniquePathsDraftTree } from '../../services/draftTrees.js';
-import { getDirectoryTree, renameFileInDag } from '../../services/ipfs.js';
-import { prepareDataRefs } from '../../utils/dataRefTools.js';
+import { getLatestManifestFromNode, getNodeManifestUpdater } from '../../services/manifestRepo.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
-import { generateExternalCidMap, updateManifestComponentDagCids } from '../../utils/driveUtils.js';
 
 import { ErrorResponse } from './update.js';
-import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils.js';
+import { persistManifest, separateFileNameAndExtension } from './utils.js';
 
 interface RenameResponse {
   status?: number;
@@ -54,7 +45,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     logger.warn(`DATA::Rename: auth failed, user id: ${owner.id} does not own node: ${uuid}`);
     return res.status(400).json({ error: 'failed' });
   }
-  const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
+  const latestManifest = await getLatestManifestFromNode(node);
 
   try {
     /*
@@ -75,11 +66,13 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
-    const updatedManifest = updateComponentPathsInManifest({
-      manifest: latestManifest,
-      oldPath: path,
-      newPath: newPath,
-    });
+    // const updatedManifest = await updateComponentPathsInManifest({
+    //   node,
+    //   oldPath: path,
+    //   newPath: newPath,
+    // });
+    const dispatchChange = getNodeManifestUpdater(node);
+    let updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath: path, newPath });
 
     // // Update new name in draftTree db entry
     // const updatedEntry = await prisma.draftNodeTree.update({
@@ -111,9 +104,10 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
 
     if (renameComponent) {
       // If checkbox ticked to rename the component along with the filename, note: not used in capybara
-      const componentIndex = updatedManifest.components.findIndex((c) => c.payload.path === newPath);
+      // const componentIndex = updatedManifest.components.findIndex((c) => c.payload.path === newPath);
       const { fileName } = separateFileNameAndExtension(newName);
-      updatedManifest.components[componentIndex].name = fileName;
+      // updatedManifest.components[componentIndex].name = fileName;
+      updatedManifest = await dispatchChange({ type: 'Rename Component', path: newPath, fileName });
     }
 
     /*
@@ -175,16 +169,18 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
 };
 
 interface UpdateComponentPathsInManifest {
-  manifest: ResearchObjectV1;
+  node: Node;
   oldPath: string;
   newPath: string;
 }
 
-export function updateComponentPathsInManifest({ manifest, oldPath, newPath }: UpdateComponentPathsInManifest) {
-  manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
-    if (c.payload?.path.startsWith(oldPath + '../../') || c.payload.path === oldPath) {
-      manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
-    }
-  });
-  return manifest;
-}
+// export async function updateComponentPathsInManifest({ node, oldPath, newPath }: UpdateComponentPathsInManifest) {
+//   // manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
+//   //   if (c.payload?.path.startsWith(oldPath + '../../') || c.payload.path === oldPath) {
+//   //     manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
+//   //   }
+//   // });
+//   const dispatchChange = getNodeManifestUpdater(node);
+//   const updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath, newPath });
+//   return updatedManifest;
+// }

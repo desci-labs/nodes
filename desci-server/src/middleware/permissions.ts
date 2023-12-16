@@ -78,7 +78,7 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
         ? await getUserByOrcId(user.orcid)
         : await getUserByEmail(loggedInUserEmail);
 
-      logger.info(retrievedUser, 'User Retrieved');
+      logger.info({ user: retrievedUser.id }, 'User Retrieved');
 
       if (!retrievedUser || !retrievedUser.id) {
         resolve(null);

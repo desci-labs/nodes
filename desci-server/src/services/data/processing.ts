@@ -47,6 +47,7 @@ import {
 } from '../../utils/driveUtils.js';
 import { EXTENSION_MAP } from '../../utils/extensions.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
+import { getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRepo.js';
 
 import {
   Either,
@@ -96,7 +97,8 @@ export async function processS3DataToIpfs({
     ensureSpaceAvailable(files, user);
     // debugger;
 
-    const { manifest, manifestCid } = await getManifestFromNode(node);
+    const manifest = await getLatestManifestFromNode(node);
+    logger.info({ manifest }, 'processS3DataToIpfs::Manifest Draft');
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
     const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(files);
 
@@ -135,7 +137,7 @@ export async function processS3DataToIpfs({
       },
     });
 
-    const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
+    const ltsManifest = await getLatestManifestFromNode(ltsNode);
     let updatedManifest = ltsManifest;
 
     if (componentTypeMap) {
@@ -151,7 +153,7 @@ export async function processS3DataToIpfs({
       //   componentSubtype,
       // });
       // updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
-      updatedManifest = assignTypeMapInManifest(updatedManifest, componentTypeMap, contextPath, DRAFT_CID);
+      updatedManifest = await assignTypeMapInManifest(node, updatedManifest, componentTypeMap, contextPath, DRAFT_CID);
     }
 
     const upserts = await updateDataReferences({ node, user, updatedManifest });
@@ -246,7 +248,7 @@ export async function processNewFolder({
       },
     });
 
-    const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
+    const ltsManifest = await getLatestManifestFromNode(ltsNode);
 
     const tree = await getTreeAndFill(ltsManifest, node.uuid, user.id);
 
@@ -255,7 +257,7 @@ export async function processNewFolder({
       value: {
         // rootDataCid: newRootCidString,
         manifest: ltsManifest,
-        manifestCid: ltsManifestCid,
+        manifestCid: node.manifestUrl,
         tree: tree,
         date: date.toString(),
       },
@@ -632,24 +634,39 @@ export function constructComponentTypeMapFromFiles(files: any[]): ResearchObject
   return componentTypeMap;
 }
 
-export function assignTypeMapInManifest(
+export async function assignTypeMapInManifest(
+  node: Node,
   manifest: ResearchObjectV1,
   compTypeMap: ResearchObjectComponentTypeMap,
   contextPath: DrivePath,
   contextPathNewCid: string,
-): ResearchObjectV1 {
+): Promise<ResearchObjectV1> {
+  const manifestUpdater = getNodeManifestUpdater(node);
+  let updatedManifest: ResearchObjectV1;
   const componentIndex = manifest.components.findIndex((c) => c.payload.path === contextPath);
   // Check if the component already exists, update its type map
   if (componentIndex !== -1) {
-    const existingType = manifest.components[componentIndex].type;
-    manifest.components[componentIndex].type = {
+    const prevComponent = manifest.components[componentIndex];
+    const existingType = prevComponent.type;
+    const comp = {
+      ...prevComponent,
       ...(isResearchObjectComponentTypeMap(existingType) && { ...existingType }),
       ...compTypeMap,
     };
+    updatedManifest = await manifestUpdater({
+      type: 'Assign Component Type',
+      component: prevComponent,
+      componentTypeMap: compTypeMap,
+      componentIndex,
+    });
+    // manifest.components[componentIndex].type = {
+    //   ...(isResearchObjectComponentTypeMap(existingType) && { ...existingType }),
+    //   ...compTypeMap,
+    // };
   } else {
     // If doesn't exist, create the component and assign its type map
     const compName = contextPath.split('/').pop();
-    const comp = {
+    const component = {
       id: v4(),
       name: compName,
       type: compTypeMap,
@@ -660,7 +677,8 @@ export function assignTypeMapInManifest(
       },
       // starred: c.star || false,
     };
-    manifest.components.push(comp);
+    // manifest.components.push(comp);
+    updatedManifest = await manifestUpdater({ type: 'Add Component', component });
   }
   return manifest;
 }

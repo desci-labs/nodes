@@ -98,14 +98,12 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
       gatewayUrl = cleanupManifestUrl(gatewayUrl, req.query?.g as string);
       logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
       (discovery as any).manifestData = transformManifestWithHistory((await axios.get(gatewayUrl)).data, discovery);
-
-      delete (discovery as any).restBody;
-
-      logger.trace({ gatewayUrl, uuid }, 'transformed manifest');
       // Add draft manifest document
       const nodeUuid = (uuid + '.') as NodeUuid;
       const manifest = await getDraftManifestFromUuid(nodeUuid);
-      (discovery as any).manifest = manifest;
+      if (manifest) (discovery as any).manifestData = transformManifestWithHistory(manifest, discovery);
+      delete (discovery as any).restBody;
+      logger.info({}, 'Retrive DraftManifest For /SHOW');
     } catch (err) {
       logger.error(
         { err, manifestUrl: discovery.manifestUrl, gatewayUrl },

@@ -1,12 +1,13 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { DataType, Prisma } from '@prisma/client';
+import { DataType, Node, Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getLatestManifestFromNode, getNodeManifestUpdater } from '../../services/manifestRepo.js';
 
 import { ErrorResponse } from './update.js';
-import { getLatestManifest, persistManifest } from './utils.js';
+import { persistManifest } from './utils.js';
 
 interface DeleteResponse {
   status?: number;
@@ -39,7 +40,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
     return res.status(400).json({ error: 'failed' });
   }
 
-  const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
+  const latestManifest = await getLatestManifestFromNode(node);
 
   try {
     /**
@@ -105,9 +106,8 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       .filter((c) => c.payload?.path?.startsWith(path + '/') || c.payload?.path === path)
       .map((c) => c.id);
 
-    // TODO: delete ops to Repo service
-    const updatedManifest = deleteComponentsFromManifest({
-      manifest: latestManifest,
+    const updatedManifest = await deleteComponentsFromManifest({
+      node,
       componentIds: componentDeletionIds,
     });
 
@@ -129,14 +129,17 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
 };
 
 interface UpdatingManifestParams {
-  manifest: ResearchObjectV1;
+  node: Node;
   componentIds: string[];
 }
 
-export function deleteComponentsFromManifest({ manifest, componentIds }: UpdatingManifestParams) {
-  for (const compId in componentIds) {
-    const componentIndex = manifest.components.findIndex((c) => c.id === compId);
-    manifest.components.splice(componentIndex, 1);
+export async function deleteComponentsFromManifest({ node, componentIds }: UpdatingManifestParams) {
+  let updatedManifest: ResearchObjectV1;
+  const manifestUpdater = getNodeManifestUpdater(node);
+  parentLogger.info({ componentIds }, `deleteComponentsFromManifest:`);
+  for (const componentId of componentIds) {
+    updatedManifest = await manifestUpdater({ type: 'Delete Component', componentId });
+    parentLogger.info({ componentId, updatedManifest }, `Deleted ${componentId}:`);
   }
-  return manifest;
+  return updatedManifest;
 }

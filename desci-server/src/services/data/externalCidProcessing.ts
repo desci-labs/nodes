@@ -17,7 +17,13 @@ import {
   getExternalCidSizeAndType,
   pubRecursiveLs,
 } from '../../services/ipfs.js';
-import { FirstNestingComponent, addComponentsToManifest, getTreeAndFill } from '../../utils/driveUtils.js';
+import {
+  FirstNestingComponent,
+  addComponentsToDraftManifest,
+  addComponentsToManifest,
+  getTreeAndFill,
+} from '../../utils/driveUtils.js';
+import { getLatestManifestFromNode } from '../manifestRepo.js';
 
 import { getManifestFromNode, updateDataReferences } from './processing.js';
 import {
@@ -163,7 +169,7 @@ export async function processExternalCidDataToIpfs({
         uuid: node.uuid,
       },
     });
-    const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
+    const ltsManifest = await getLatestManifestFromNode(ltsNode);
     let updatedManifest = ltsManifest;
 
     const extCidsBeingAdded = externalCids.map((extCid) => {
@@ -188,7 +194,7 @@ export async function processExternalCidDataToIpfs({
           star: false,
         };
       });
-      updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
+      updatedManifest = await addComponentsToDraftManifest(node, firstNestingComponents);
     }
 
     const upserts = await updateDataReferences({ node, user, updatedManifest });

@@ -2,7 +2,8 @@ import fs from 'fs';
 import type { Server as HttpServer } from 'http';
 import os from 'os';
 
-import { PeerId, Repo, RepoConfig } from '@automerge/automerge-repo';
+import { next as A } from '@automerge/automerge';
+import { AutomergeUrl, PeerId, Repo, RepoConfig } from '@automerge/automerge-repo';
 import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import { Request } from 'express';
 import { WebSocketServer } from 'ws';
@@ -24,10 +25,10 @@ export default class SocketServer {
   repo: Repo;
 
   constructor(server: HttpServer, port: number) {
-    const dir = process.env.DATA_DIR !== undefined ? process.env.DATA_DIR : '.amrg';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir);
-    }
+    // const dir = process.env.DATA_DIR !== undefined ? process.env.DATA_DIR : '.amrg';
+    // if (!fs.existsSync(dir)) {
+    //   fs.mkdirSync(dir);
+    // }
 
     this.#server = server;
     const hostname = os.hostname();
@@ -46,7 +47,19 @@ export default class SocketServer {
 
         const userId = peerId.split(':')?.[0]?.split('-')?.[1];
         const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
-        logger.info({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
+        const handle = this.repo.find(`automerge:${documentId}` as AutomergeUrl);
+        const changes = await A.getAllChanges(await handle.doc())
+          .map((change, i) => {
+            return A.decodeChange(change);
+          })
+          .map((c) => {
+            delete c.ops;
+            return c;
+          });
+        logger.info(
+          { peerId, userId, documentId, isAuthorised, doc: await handle.doc(), changes },
+          '[SHARE POLICY CALLED]::',
+        );
         return isAuthorised;
       },
     };

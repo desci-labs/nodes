@@ -23,6 +23,7 @@ import { IpfsDirStructuredInput, addDirToIpfs, getDirectoryTree } from '../../se
 import { DRAFT_DIR_CID } from '../../utils/draftTreeUtils.js';
 import {
   ExtensionDataTypeMap,
+  addComponentsToDraftManifest,
   addComponentsToManifest,
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
@@ -34,6 +35,7 @@ import {
   saveZipStreamToDisk,
   zipUrlToStream,
 } from '../../utils.js';
+import { getLatestManifestFromNode } from '../manifestRepo.js';
 
 import {
   filterFirstNestings,
@@ -83,7 +85,7 @@ export async function processExternalUrlDataToIpfs({
   let pinResult: IpfsPinnedResult[] = [];
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
-    const { manifest, manifestCid } = await getManifestFromNode(node);
+    const manifest = await getLatestManifestFromNode(node);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
 
     // We can optionally do this after file resolution, may be more useful for code repos than pdfs
@@ -233,8 +235,7 @@ export async function processExternalUrlDataToIpfs({
       },
     });
 
-    // TODO: [AUTOMERGE] Delegate to repo service
-    const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
+    const ltsManifest = await getLatestManifestFromNode(ltsNode);
     let updatedManifest = ltsManifest;
 
     if (componentType) {
@@ -251,8 +252,7 @@ export async function processExternalUrlDataToIpfs({
         componentSubtype,
         externalUrl,
       });
-      // TODO: [AUTOMERGE] Delegate to repo service
-      updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
+      updatedManifest = await addComponentsToDraftManifest(node, firstNestingComponents);
     }
 
     // Update existing data references, add new data references.
