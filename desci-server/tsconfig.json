@@ -35,7 +35,7 @@
     "./src/**/*.tsx",
     "./src/**/*.ts",
     "./src/**/*.cjs",
-    "src/utils/dagConcat.js"
+    "src/utils/dagConcat.ts"
   ],
   "exclude": ["test/**/*.ts"],
   "compileOnSave": true

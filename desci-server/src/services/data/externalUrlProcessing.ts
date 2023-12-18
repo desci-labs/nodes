@@ -24,7 +24,6 @@ import { DRAFT_DIR_CID } from '../../utils/draftTreeUtils.js';
 import {
   ExtensionDataTypeMap,
   addComponentsToDraftManifest,
-  addComponentsToManifest,
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
 } from '../../utils/driveUtils.js';
@@ -39,7 +38,6 @@ import { getLatestManifestFromNode } from '../manifestRepo.js';
 
 import {
   filterFirstNestings,
-  getManifestFromNode,
   handleCleanupOnMidProcessingError,
   pinNewFiles,
   predefineComponentsForPinnedFiles,

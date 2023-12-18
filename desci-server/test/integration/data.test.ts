@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import 'mocha';
-import { DocumentId } from '@automerge/automerge-repo';
 import {
   DriveObject,
   FileDir,
@@ -17,7 +16,6 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
-import { getNodeDocument } from '../../src/controllers/nodes/documents.js';
 import { app } from '../../src/index.js';
 import { migrateIpfsTreeToNodeTree } from '../../src/services/draftTrees.js';
 import {
@@ -27,11 +25,11 @@ import {
   client as ipfs,
   spawnEmptyManifest,
 } from '../../src/services/ipfs.js';
-import { NodeUuid, createManifestDocument, getDraftManifestFromUuid } from '../../src/services/manifestRepo.js';
+import { createManifestDocument } from '../../src/services/manifestRepo.js';
 // import { ResearchObjectDocument } from '../../src/types/documents.js';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools.js';
 import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils.js';
-import { addComponentsToDraftManifest, addComponentsToManifest } from '../../src/utils/driveUtils.js';
+import { addComponentsToDraftManifest } from '../../src/utils/driveUtils.js';
 import { randomUUID64 } from '../../src/utils.js';
 import { spawnExampleDirDag } from '../util.js';
 

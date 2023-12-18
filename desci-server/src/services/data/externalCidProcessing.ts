@@ -17,15 +17,10 @@ import {
   getExternalCidSizeAndType,
   pubRecursiveLs,
 } from '../../services/ipfs.js';
-import {
-  FirstNestingComponent,
-  addComponentsToDraftManifest,
-  addComponentsToManifest,
-  getTreeAndFill,
-} from '../../utils/driveUtils.js';
+import { FirstNestingComponent, addComponentsToDraftManifest, getTreeAndFill } from '../../utils/driveUtils.js';
 import { getLatestManifestFromNode } from '../manifestRepo.js';
 
-import { getManifestFromNode, updateDataReferences } from './processing.js';
+import { updateDataReferences } from './processing.js';
 import {
   createIpfsUnresolvableError,
   createManifestPersistFailError,
