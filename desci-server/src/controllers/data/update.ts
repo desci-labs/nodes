@@ -72,7 +72,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
       .status(400)
       .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
 
-  // debugger
+  // debugger;
   /**
    * temp short circuit for testing
    *  */

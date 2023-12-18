@@ -28,6 +28,7 @@ export interface PrepublishErrorResponse {
  * DAGifies the drafts current DB tree state, adds the structure to IPFS (No Files Pinned, Folders staged), and updates the manifest data bucket CID.
  */
 export const prepublish = async (req: AuthedRequest, res: Response<PrepublishResponse>) => {
+  // debugger;
   const owner = req.user;
   const node = req.node;
   const { uuid } = req.body;
@@ -41,7 +42,6 @@ export const prepublish = async (req: AuthedRequest, res: Response<PrepublishRes
   if (!uuid) {
     return res.status(400).json({ ok: false, error: 'UUID is required.' });
   }
-
   try {
     // Sourced from middleware EnsureUser
     if (!owner.id || owner.id < 1) {

@@ -1,4 +1,11 @@
-import { DrivePath, FileType, RecursiveLsResult, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
+import {
+  DrivePath,
+  FileType,
+  RecursiveLsResult,
+  deneutralizePath,
+  neutralizePath,
+  recursiveFlattenTree,
+} from '@desci-labs/desci-models';
 import { encode, prepare } from '@ipld/dag-pb';
 import { DraftNodeTree, Node, Prisma, User } from '@prisma/client';
 import CID from 'cids';
@@ -20,16 +27,25 @@ export const DRAFT_DIR_CID = 'dir';
 
 export type TimestampMap = Record<DrivePath, { createdAt: Date; updatedAt: Date }>;
 
+interface IpfsDagToDraftNodeTreeEntriesParams {
+  ipfsTree: RecursiveLsResult[];
+  node: Node;
+  user: User;
+  timestampMap?: TimestampMap;
+  contextPath?: string;
+}
+
 /**
  * Converts an IPFS tree to an array of DraftNodeTree entries ready to be added to the DraftNodeTree table
  * @param timestampMap - Optional map that maps drive paths to their created/last modified timestamps, if not provided then they'll be generated automatically by the DB.
  */
-export function ipfsDagToDraftNodeTreeEntries(
-  ipfsTree: RecursiveLsResult[],
-  node: Node,
-  user: User,
-  timestampMap?: TimestampMap,
-): Prisma.DraftNodeTreeCreateManyInput[] {
+export function ipfsDagToDraftNodeTreeEntries({
+  ipfsTree,
+  node,
+  user,
+  timestampMap,
+  contextPath,
+}: IpfsDagToDraftNodeTreeEntriesParams): Prisma.DraftNodeTreeCreateManyInput[] {
   // debugger;
   const flatIpfsTree = recursiveFlattenTree(ipfsTree);
   const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = [];
@@ -40,7 +56,7 @@ export function ipfsDagToDraftNodeTreeEntries(
       cid: fd.type === FileType.FILE ? fd.cid : DRAFT_DIR_CID,
       size: fd.size,
       directory: fd.type === FileType.DIR,
-      path: neutralizePath(fd.path),
+      path: contextPath ? deneutralizePath(fd.path, contextPath) : neutralizePath(fd.path),
       external: fd.external ?? false,
       nodeId: node.id,
       // userId: user.id,

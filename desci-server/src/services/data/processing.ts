@@ -112,11 +112,12 @@ export async function processS3DataToIpfs({
       const root = pinResult[pinResult.length - 1];
       const rootTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
       // debugger;
-      const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries(
-        rootTree,
+      const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries({
+        ipfsTree: rootTree,
         node,
         user,
-      );
+        contextPath,
+      });
       const addedEntries = await prisma.draftNodeTree.createMany({
         data: draftNodeTreeEntries,
         skipDuplicates: true,

@@ -18,6 +18,7 @@ import { discordNotify } from 'utils/discordUtils';
 // call node publish service and add job to queue
 export const publish = async (req: Request, res: Response, next: NextFunction) => {
   const { uuid, cid, manifest, transactionId, nodeVersionId } = req.body;
+  debugger;
   const email = (req as any).user.email;
   const logger = parentLogger.child({
     // id: req.id,
