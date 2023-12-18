@@ -95,10 +95,8 @@ export async function processS3DataToIpfs({
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
     ensureSpaceAvailable(files, user);
-    // debugger;
 
     const manifest = await getLatestManifestFromNode(node);
-    logger.info({ manifest }, 'processS3DataToIpfs::Manifest Draft');
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
     const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(files);
 
@@ -182,6 +180,7 @@ export async function processS3DataToIpfs({
   } catch (error) {
     // DB status to failed
     // Socket emit to client
+    // const manifest = await getLatestManifestFromNode(node);
     logger.error({ error }, 'Error processing S3 data to IPFS');
     if (pinResult.length) {
       handleCleanupOnMidProcessingError({
@@ -266,6 +265,7 @@ export async function processNewFolder({
   } catch (error) {
     // DB status to failed
     // Socket emit to client
+    console.log({ error }, 'Error processing new folder');
     logger.error({ error }, 'Error processing new folder');
     const controlledErr = 'type' in error ? error : createUnhandledError(error);
     return { ok: false, value: controlledErr };

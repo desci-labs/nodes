@@ -169,6 +169,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
+    console.log('MOVE ERROR', e);
     logger.error(`[DATA::Move] error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });

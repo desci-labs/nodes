@@ -11,21 +11,23 @@ import * as Tracing from '@sentry/tracing';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
-import type { Express } from 'express';
+import type { Express, Request } from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import morgan from 'morgan';
 import { pinoHttp } from 'pino-http';
 
 import { prisma } from './client.js';
+// eslint-disable-next-line import/order
+import routes from './routes/index.js';
 import { orcidConnect } from './controllers/auth/orcid.js';
 import { orcidCheck } from './controllers/auth/orcidNext.js';
 import { logger } from './logger.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import routes from './routes/index.js';
-import SocketServer from './wsServer.js';
-
+// import SocketServer from './wsServer.js';
+import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
+import { socket as wsSocket } from './repo.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -58,7 +60,7 @@ class AppServer {
   app: Express;
   server: HttpServer;
   port: number;
-  socketServer: SocketServer;
+  // socketServer: SocketServer;
 
   constructor() {
     this.app = express();
@@ -117,7 +119,25 @@ class AppServer {
       console.log(`Server running on port ${this.port}`);
     });
 
-    this.socketServer = new SocketServer(this.server, this.port);
+    // this.socketServer = new SocketServer(this.server, this.port);
+    this.server.on('upgrade', async (request, socket, head) => {
+      console.log(`Server upgrade`, request.headers.cookie);
+      const token = await extractAuthToken(request as Request);
+      const authUser = await extractUserFromToken(token);
+
+      logger.info(
+        { module: 'WebSocket SERVER', token, ...(authUser && { id: authUser.id, name: authUser.name }) },
+        'Upgrade Connection Authorised',
+      );
+      if (!authUser) {
+        return;
+      }
+
+      wsSocket.handleUpgrade(request, socket, head, (socket) => {
+        console.log(`WS Server upgrade ${this.port}`);
+        wsSocket.emit('connection', socket, request);
+      });
+    });
   }
 
   get httpServer() {
@@ -204,11 +224,6 @@ class AppServer {
       logger.info('[DeSci Nodes] Telemetry disabled');
     }
   }
-
-  get repo() {
-    return this.socketServer.repo;
-  }
 }
 
-const server = new AppServer();
-export default server;
+export const server = new AppServer();

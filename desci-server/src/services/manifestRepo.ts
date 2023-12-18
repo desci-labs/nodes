@@ -10,7 +10,7 @@ import { Node } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import { logger } from '../logger.js';
-import server from '../server.js';
+import { backendRepo } from '../repo.js';
 import { ResearchObjectDocument } from '../types/documents.js';
 
 import { getManifestFromNode } from './data/processing.js';
@@ -24,7 +24,7 @@ export const getAutomergeUrl = (documentId: DocumentId): AutomergeUrl => {
 export const createManifestDocument = async function ({ node, manifest }: { node: Node; manifest: ResearchObjectV1 }) {
   logger.info({ uuid: node.uuid }, 'START [CreateNodeDocument]');
   const uuid = node.uuid.replace(/\.$/, '');
-  const backendRepo = server.repo;
+  // const backendRepo = server.repo;
   logger.info('[Backend REPO]:', backendRepo.networkSubsystem.peerId);
 
   const handle = backendRepo.create<ResearchObjectDocument>();
@@ -47,7 +47,7 @@ export const createManifestDocument = async function ({ node, manifest }: { node
 
 export const getDraftManifestFromUuid = async function (uuid: NodeUuid) {
   logger.info({ uuid }, 'START [getDraftManifestFromUuid]');
-  const backendRepo = server.repo;
+  // const backendRepo = server.repo;
   const node = await prisma.node.findFirst({
     where: { uuid },
   });
@@ -104,7 +104,7 @@ export type ManifestActions =
     };
 
 export const getNodeManifestUpdater = (node: Node) => {
-  const backendRepo = server.repo;
+  // const backendRepo = server.repo;
 
   const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
@@ -149,18 +149,16 @@ export const getNodeManifestUpdater = (node: Node) => {
       case 'Rename Component Path':
         const components = latestDocument.manifest.components.filter(
           (component) =>
-            component.payload?.path.startsWith(action.oldPath + '../../') || component.payload?.path === action.oldPath,
+            component.payload?.path.startsWith(action.oldPath + '/') || component.payload?.path === action.oldPath,
         );
-        logger.info({ components: components.length }, `DocumentUpdater::Rename::Check`);
         if (components.length > 0) {
           handle.change(
             (document) => {
               const components = document.manifest.components.filter(
                 (component) =>
-                  component.payload?.path.startsWith(action.oldPath + '../../') ||
+                  component.payload?.path.startsWith(action.oldPath + '/') ||
                   component.payload?.path === action.oldPath,
               );
-              logger.info({ components }, `DocumentUpdater::Start Rename`);
               for (const component of components) {
                 component.payload.path = component.payload.path.replace(action.oldPath, action.newPath);
               }

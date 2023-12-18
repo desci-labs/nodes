@@ -194,7 +194,10 @@ export async function processExternalCidDataToIpfs({
           star: false,
         };
       });
-      updatedManifest = await addComponentsToDraftManifest(node, firstNestingComponents);
+
+      if (firstNestingComponents.length > 0) {
+        updatedManifest = await addComponentsToDraftManifest(node, firstNestingComponents);
+      }
     }
 
     const upserts = await updateDataReferences({ node, user, updatedManifest });

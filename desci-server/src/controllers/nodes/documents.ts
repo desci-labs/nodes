@@ -3,14 +3,14 @@ import { Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
-import server from '../../server.js';
+import { backendRepo } from '../../repo.js';
 import { ResearchObjectDocument } from '../../types/documents.js';
 import { getLatestManifest } from '../data/utils.js';
 
 export const getNodeDocument = async function (req: RequestWithNode, response: Response) {
   try {
     logger.info({ userId: req.user.id, uuid: req.node.uuid }, '[START] GetNodeDocument');
-    const repo = server.repo;
+    const repo = backendRepo;
 
     const node = req.node;
 

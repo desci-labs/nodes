@@ -132,6 +132,7 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
         date: date,
       });
     } else {
+      console.log(value, 'processing error occured');
       if (!('message' in value)) return res.status(500);
       logger.error({ value }, 'processing error occured');
       return res.status(value.status).json({ status: value.status, error: value.message });

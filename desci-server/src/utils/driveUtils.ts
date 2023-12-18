@@ -393,21 +393,21 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
   const manifestUpdater = getNodeManifestUpdater(node);
   let updatedManifest: ResearchObjectV1;
   //add duplicate path check
-  firstNestingComponents.forEach(async (c) => {
+  for (const entry of firstNestingComponents) {
     const component = {
       id: randomUUID(),
-      name: c.name,
-      ...(c.componentType && { type: c.componentType }),
-      ...(c.componentSubtype && { subtype: c.componentSubtype }),
+      name: entry.name,
+      ...(entry.componentType && { type: entry.componentType }),
+      ...(entry.componentSubtype && { subtype: entry.componentSubtype }),
       payload: {
-        ...urlOrCid(c.cid, c.componentType),
-        path: c.path,
-        ...(c.externalUrl && { externalUrl: c.externalUrl }),
+        ...urlOrCid(entry.cid, entry.componentType),
+        path: entry.path,
+        ...(entry.externalUrl && { externalUrl: entry.externalUrl }),
       },
-      starred: c.star || false,
+      starred: entry.star || false,
     };
     updatedManifest = await manifestUpdater({ type: 'Add Component', component });
-  });
+  }
   return updatedManifest;
 }
 

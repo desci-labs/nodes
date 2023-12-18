@@ -235,9 +235,6 @@ export async function processExternalUrlDataToIpfs({
       },
     });
 
-    const ltsManifest = await getLatestManifestFromNode(ltsNode);
-    let updatedManifest = ltsManifest;
-
     if (componentType) {
       /**
        * Automatically create a new component(s) for the files added, to the first nesting.
@@ -252,8 +249,13 @@ export async function processExternalUrlDataToIpfs({
         componentSubtype,
         externalUrl,
       });
-      updatedManifest = await addComponentsToDraftManifest(node, firstNestingComponents);
+
+      if (firstNestingComponents?.length > 0) {
+        await addComponentsToDraftManifest(node, firstNestingComponents);
+      }
     }
+
+    const updatedManifest = await getLatestManifestFromNode(ltsNode);
 
     // Update existing data references, add new data references.
     const upserts = await updateDataReferences({ node, user, updatedManifest });
