@@ -12,12 +12,13 @@ export interface ResearchObjectPreviewResult {
 }
 
 export interface IpldUrl {
-  ['/']: string;
+  ["/"]: string;
 }
 
 export interface ResearchObjectV1 extends ResearchObject {
-  version: 'desci-nodes-0.1.0' | 'desci-nodes-0.2.0' | 1;
+  version: "desci-nodes-0.1.0" | "desci-nodes-0.2.0" | 1;
   title?: string;
+  description?: string;
   defaultLicense?: string;
   coverImage?: string | IpldUrl;
   components: ResearchObjectV1Component[];
@@ -79,12 +80,12 @@ export interface ResearchObjectTransaction {
 }
 
 export enum ResearchObjectValidationType {
-  GRANT = 'grant',
-  REVIEW = 'review',
-  CONFERENCE = 'conference',
-  AUDIT = 'audit',
-  CERTIFICATION = 'certification',
-  CERTIFICATION_ARC = 'certification-arc',
+  GRANT = "grant",
+  REVIEW = "review",
+  CONFERENCE = "conference",
+  AUDIT = "audit",
+  CERTIFICATION = "certification",
+  CERTIFICATION_ARC = "certification-arc",
 }
 export interface ResearchObjectValidationDeposit {
   token: string;
@@ -104,13 +105,13 @@ export interface ResearchObjectV1Validation {
 }
 
 export enum ResearchObjectAttributeKey {
-  ACM_AVAILABLE = 'available',
-  ACM_FUNCTIONAL = 'functional',
-  ACM_REUSABLE = 'reusable',
-  ACM_REPRODUCED = 'reproduced',
-  ACM_REPLICATED = 'replicated',
-  AUTHORSHIP_VERIFIED = 'authorship-verified',
-  COMPUTATIONAL_REPRODUCIBILITY = 'computational-reproducibility',
+  ACM_AVAILABLE = "available",
+  ACM_FUNCTIONAL = "functional",
+  ACM_REUSABLE = "reusable",
+  ACM_REPRODUCED = "reproduced",
+  ACM_REPLICATED = "replicated",
+  AUTHORSHIP_VERIFIED = "authorship-verified",
+  COMPUTATIONAL_REPRODUCIBILITY = "computational-reproducibility",
 }
 
 export interface ResearchObjectV1Attributes {
@@ -119,32 +120,32 @@ export interface ResearchObjectV1Attributes {
 }
 
 export enum ResearchObjectComponentType {
-  DATA_BUCKET = 'data-bucket',
-  UNKNOWN = 'unknown',
-  PDF = 'pdf',
-  CODE = 'code',
-  VIDEO = 'video',
-  TERMINAL = 'terminal', // not used, TODO: remove
-  DATA = 'data',
-  LINK = 'link', // external link
+  DATA_BUCKET = "data-bucket",
+  UNKNOWN = "unknown",
+  PDF = "pdf",
+  CODE = "code",
+  VIDEO = "video",
+  TERMINAL = "terminal", // not used, TODO: remove
+  DATA = "data",
+  LINK = "link", // external link
 }
 
 export enum ResearchObjectComponentDocumentSubtype {
-  RESEARCH_ARTICLE = 'research-article',
-  PREREGISTERED_REPORT = 'preregistered-report',
-  PREREGISTERED_ANALYSIS_PLAN = 'preregistered-analysis-plan',
-  SUPPLEMENTARY_INFORMATION = 'supplementary-information',
-  PRESENTATION_DECK = 'presentation-deck',
-  OTHER = 'other',
+  RESEARCH_ARTICLE = "research-article",
+  PREREGISTERED_REPORT = "preregistered-report",
+  PREREGISTERED_ANALYSIS_PLAN = "preregistered-analysis-plan",
+  SUPPLEMENTARY_INFORMATION = "supplementary-information",
+  PRESENTATION_DECK = "presentation-deck",
+  OTHER = "other",
 }
 
 export enum ResearchObjectComponentLinkSubtype {
-  COMMUNITY_DISCUSSION = 'community-discussion',
-  VIDEO_RESOURCE = 'video-resource',
-  EXTERNAL_API = 'external-api',
-  RESTRICTED_DATA = 'restricted',
-  PRESENTATION_DECK = 'presentation-deck',
-  OTHER = 'other',
+  COMMUNITY_DISCUSSION = "community-discussion",
+  VIDEO_RESOURCE = "video-resource",
+  EXTERNAL_API = "external-api",
+  RESTRICTED_DATA = "restricted",
+  PRESENTATION_DECK = "presentation-deck",
+  OTHER = "other",
 }
 
 export type ResearchObjectComponentSubtypes =
@@ -188,8 +189,8 @@ export interface DataComponentPayload {
 
 export interface DataBucketComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.DATA_BUCKET;
-  id: 'root';
-  name: 'root';
+  id: "root";
+  name: "root";
   payload: DataBucketComponentPayload;
 }
 export interface DataBucketComponentPayload {
@@ -246,7 +247,9 @@ export interface Scaled {
   pageIndex?: number;
 }
 
-export interface PdfAnnotation extends ResearchObjectComponentAnnotation, Scaled {
+export interface PdfAnnotation
+  extends ResearchObjectComponentAnnotation,
+    Scaled {
   move?: boolean;
   text?: string;
   title?: string;
@@ -261,8 +264,8 @@ export interface ResearchObjectComponentAnnotation {
 }
 
 export enum ResearchObjectV1AuthorRole {
-  AUTHOR = 'Author',
-  NODE_STEWARD = 'Node Steward',
+  AUTHOR = "Author",
+  NODE_STEWARD = "Node Steward",
 }
 
 /**
@@ -274,5 +277,8 @@ export enum ResearchObjectV1AuthorRole {
  *    '.pdf': ResearchObjectComponentType.PDF
  * }
  */
-export type ResearchObjectComponentTypeMap = Record<FileExtension, ResearchObjectComponentType>;
+export type ResearchObjectComponentTypeMap = Record<
+  FileExtension,
+  ResearchObjectComponentType
+>;
 export type FileExtension = string;
