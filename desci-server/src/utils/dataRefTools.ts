@@ -67,6 +67,7 @@ export async function generateDataReferences({
       uuid: nodeUuid,
     },
   });
+  // debugger;
   if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   const dataBucketCid = manifestEntry.components.find((c) => isNodeRoot(c)).payload.cid;
