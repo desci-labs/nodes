@@ -104,7 +104,7 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
         userId: owner.id,
         nodeId: node.id,
         directory: isDataBucket,
-        path: isDataBucket ? DRIVE_NODE_ROOT_PATH : DRIVE_NODE_ROOT_PATH + '../../' + component.name,
+        path: isDataBucket ? DRIVE_NODE_ROOT_PATH : DRIVE_NODE_ROOT_PATH + '/' + component.name,
         // versionId: nodeVersion.id,
       };
     });
@@ -119,7 +119,6 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
 
     let documentId: DocumentId;
     try {
-      // TODO: CALL create Node document service
       documentId = await createManifestDocument({ node, manifest: researchObject });
       logger.info({ uuid: node.uuid, documentId }, 'Automerge document created');
     } catch (e) {

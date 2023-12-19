@@ -647,22 +647,12 @@ export async function assignTypeMapInManifest(
   // Check if the component already exists, update its type map
   if (componentIndex !== -1) {
     const prevComponent = manifest.components[componentIndex];
-    const existingType = prevComponent.type;
-    const comp = {
-      ...prevComponent,
-      ...(isResearchObjectComponentTypeMap(existingType) && { ...existingType }),
-      ...compTypeMap,
-    };
     updatedManifest = await manifestUpdater({
       type: 'Assign Component Type',
       component: prevComponent,
       componentTypeMap: compTypeMap,
       componentIndex,
     });
-    // manifest.components[componentIndex].type = {
-    //   ...(isResearchObjectComponentTypeMap(existingType) && { ...existingType }),
-    //   ...compTypeMap,
-    // };
   } else {
     // If doesn't exist, create the component and assign its type map
     const compName = contextPath.split('/').pop();
@@ -670,15 +660,12 @@ export async function assignTypeMapInManifest(
       id: v4(),
       name: compName,
       type: compTypeMap,
-      // ...(c.componentSubtype && { subtype: c.componentSubtype }),
       payload: {
         ...urlOrCid(contextPathNewCid, ResearchObjectComponentType.DATA),
         path: contextPath,
       },
-      // starred: c.star || false,
     };
-    // manifest.components.push(comp);
     updatedManifest = await manifestUpdater({ type: 'Add Component', component });
   }
-  return manifest;
+  return updatedManifest;
 }
