@@ -66,19 +66,9 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
-    // const updatedManifest = await updateComponentPathsInManifest({
-    //   node,
-    //   oldPath: path,
-    //   newPath: newPath,
-    // });
+
     const dispatchChange = getNodeManifestUpdater(node);
     let updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath: path, newPath });
-
-    // // Update new name in draftTree db entry
-    // const updatedEntry = await prisma.draftNodeTree.update({
-    //   where: { nodeId_path: { nodeId: node.id, path: path } },
-    //   data: { path: newPath },
-    // });
 
     // Get all entries that need to be updated
     const entriesToUpdate = await prisma.draftNodeTree.findMany({
@@ -163,25 +153,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    console.error(`[DATA::Rename] error: ${e}`, e);
     logger.error(e, `[DATA::Rename] error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };
-
-interface UpdateComponentPathsInManifest {
-  node: Node;
-  oldPath: string;
-  newPath: string;
-}
-
-// export async function updateComponentPathsInManifest({ node, oldPath, newPath }: UpdateComponentPathsInManifest) {
-//   // manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
-//   //   if (c.payload?.path.startsWith(oldPath + '../../') || c.payload.path === oldPath) {
-//   //     manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
-//   //   }
-//   // });
-//   const dispatchChange = getNodeManifestUpdater(node);
-//   const updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath, newPath });
-//   return updatedManifest;
-// }

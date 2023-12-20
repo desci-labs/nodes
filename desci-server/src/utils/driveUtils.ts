@@ -211,7 +211,7 @@ export async function getTreeAndFill(
   }
 
   tree = fillCidInfo(tree, cidInfoMap);
-  const treeRoot = await fillIpfsTree(manifest, tree);
+  const treeRoot = fillIpfsTree(manifest, tree);
 
   return treeRoot;
 }
@@ -406,7 +406,11 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
       },
       starred: entry.star || false,
     };
-    updatedManifest = await manifestUpdater({ type: 'Add Component', component });
+    try {
+      updatedManifest = await manifestUpdater({ type: 'Add Component', component });
+    } catch (e) {
+      logger.error(e, '[ERROR addComponentsToDraftManifest]');
+    }
   }
   return updatedManifest;
 }

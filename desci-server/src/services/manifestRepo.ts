@@ -118,6 +118,10 @@ export const getNodeManifestUpdater = (node: Node) => {
 
     switch (action.type) {
       case 'Add Component':
+        const exists = latestDocument.manifest.components.find(
+          (c) => c.payload?.path === action.component.payload?.path,
+        );
+        if (exists) break;
         handle.change(
           (document) => {
             document.manifest.components.push(action.component);
