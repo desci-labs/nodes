@@ -1,4 +1,4 @@
-FROM node:16.16.0
+FROM node:18.17.0
 
 VOLUME /root/.yarn
 
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install imagemagick
 # update imagemagick security policy to allow pdf
 RUN sed '/"PDF"/d' /etc/ImageMagick-6/policy.xml > /etc/ImageMagick-6/policy.xml
 
-RUN npm install -g npm@8.10.0
+RUN npm install -g npm@10.2.5
 
 RUN mkdir /app
 WORKDIR /app
