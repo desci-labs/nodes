@@ -177,8 +177,9 @@ export async function processExternalUrlDataToIpfs({
     }
     // debugger;
     const root = pinResult[pinResult.length - 1];
+    const isCodeRepo = zipPath.length > 0;
     let uploadedTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
-    if (zipPath.length > 0) {
+    if (isCodeRepo) {
       // Overrides the path name of the root directory
       const rootName = externalUrl.path;
       uploadedTree = [{ ...root, type: 'dir', name: rootName, contains: uploadedTree }];
@@ -186,41 +187,15 @@ export async function processExternalUrlDataToIpfs({
 
     // Prepare draft node tree entires
     const flatUploadedTree = recursiveFlattenTree(uploadedTree);
-    const newDraftNodeTreeEntries = flatUploadedTree.map((entry) => {
-      // debugger;
-      if (entry.path.split('/').length === 1) {
-        return { ...entry, path: contextPath + '/' + entry.path };
-      } else {
-        const neutralPath = neutralizePath(entry.path);
-        const adjustedPath = neutralPath.replace('root', contextPath);
-        const adjustedPathSplit = adjustedPath.split('/');
-        // Horrible logic, needs to change but works atm, will break when we add more external url upload methods that involve directories, currently we just have repos.
-        const adjustedPathRepo = [contextPath, externalUrl.path, ...adjustedPathSplit.slice(1)].join('/');
-        return { ...entry, path: adjustedPathRepo };
-      }
+
+    const parsedContextPath = isCodeRepo ? contextPath + '/' + externalUrl.path : contextPath;
+    const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries({
+      ipfsTree: flatUploadedTree,
+      node,
+      user,
+      contextPath: parsedContextPath,
     });
-    // debugger;
 
-    // const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries(
-    //   newDraftNodeTreeEntries,
-    //   node,
-    //   user,
-    // );
-
-    const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = [];
-
-    newDraftNodeTreeEntries.forEach((fd) => {
-      const draftNodeTreeEntry: Prisma.DraftNodeTreeCreateManyInput = {
-        cid: fd.type === FileType.FILE ? fd.cid : DRAFT_DIR_CID,
-        size: fd.size,
-        directory: fd.type === FileType.DIR,
-        path: fd.path,
-        external: false,
-        nodeId: node.id,
-      };
-      draftNodeTreeEntries.push(draftNodeTreeEntry);
-    });
-    // debugger;
     const addedEntries = await prisma.draftNodeTree.createMany({
       data: draftNodeTreeEntries,
       skipDuplicates: true,
