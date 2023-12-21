@@ -11,8 +11,10 @@ import { encode, prepare } from '@ipld/dag-pb';
 import { DraftNodeTree, Node, Prisma, User } from '@prisma/client';
 import CID from 'cids';
 import UnixFS from 'ipfs-unixfs';
-import { DAGNode, DAGLink } from 'ipld-dag-pb';
+// import { DAGNode, DAGLink } from 'ipld-dag-pb';
+import pkg from 'ipld-dag-pb';
 
+const { DAGNode, DAGLink } = pkg;
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { client } from '../services/ipfs.js';
