@@ -1,10 +1,9 @@
 import { Wallet } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
-import { logUserAction } from 'controllers/log';
-import logger from 'logger';
-import { getUserConsent, saveInteraction } from 'services/interactionLog';
+import { prisma } from '../../client.js';
+import { logger } from '../../logger.js';
+import { getUserConsent, saveInteraction } from '../../services/interactionLog.js';
 
 export const profile = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;

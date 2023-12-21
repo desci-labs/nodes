@@ -5,10 +5,9 @@ import { ResearchObjectV1, recursiveFlattenTree } from '@desci-labs/desci-models
 import { User, Node } from '@prisma/client';
 import { expect } from 'chai';
 
-import prisma from '../../src/client';
-import * as ipfs from '../../src/services/ipfs';
-import { generateExternalCidMap } from '../../src/utils/driveUtils';
-import { expectThrowsAsync } from '../util';
+import { prisma } from '../../src/client.js';
+import * as ipfs from '../../src/services/ipfs.js';
+import { generateExternalCidMap } from '../../src/utils/driveUtils.js';
 
 describe('IPFS', () => {
   let admin: User;

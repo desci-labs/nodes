@@ -4,9 +4,9 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import qs from 'qs';
 
-import parentLogger from 'logger';
-import { saveInteraction } from 'services/interactionLog';
-import { createUser, getUserByOrcId } from 'services/user';
+import { logger as parentLogger } from '../../logger.js';
+import { saveInteraction } from '../../services/interactionLog.js';
+import { createUser, getUserByOrcId } from '../../services/user.js';
 
 const logger = parentLogger.child({ module: 'AUTH::OrcidController' });
 

@@ -3,14 +3,14 @@ import multer = require('multer');
 import multerS3 from 'multer-s3';
 import { v4 } from 'uuid';
 
-import { pubTree, retrieveTree, deleteData, update, renameData } from 'controllers/data';
-import { diffData } from 'controllers/data/diff';
-import { moveData } from 'controllers/data/move';
-import { updateExternalCid } from 'controllers/data/updateExternalCid';
-import logger from 'logger';
-import { attachUser, ensureUser } from 'middleware/ensureUser';
-import { ensureWriteAccess, ensureWriteAccessCheck } from 'middleware/ensureWriteAccess';
-import { isS3Configured, s3Client } from 'services/s3';
+import { diffData } from '../../controllers/data/diff.js';
+import { pubTree, retrieveTree, deleteData, update, renameData } from '../../controllers/data/index.js';
+import { moveData } from '../../controllers/data/move.js';
+import { updateExternalCid } from '../../controllers/data/updateExternalCid.js';
+import { logger } from '../../logger.js';
+import { attachUser, ensureUser } from '../../middleware/ensureUser.js';
+import { ensureWriteAccessCheck } from '../../middleware/ensureWriteAccess.js';
+import { isS3Configured, s3Client } from '../../services/s3.js';
 
 const router = Router();
 

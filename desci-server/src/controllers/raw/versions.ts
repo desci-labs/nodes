@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 
-import logger from 'logger';
-import { getIndexedResearchObjects } from 'theGraph';
+import { logger } from '../../logger.js';
+import { getIndexedResearchObjects } from '../../theGraph.js';
 
 /**
  * Get all versions of research object from index (publicView)

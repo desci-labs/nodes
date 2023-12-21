@@ -1,22 +1,16 @@
-import {
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  deneutralizePath,
-  isNodeRoot,
-  neutralizePath,
-} from '@desci-labs/desci-models';
+import { ResearchObjectV1, deneutralizePath, isNodeRoot, neutralizePath } from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { updateManifestDataBucket } from 'services/data/processing';
-import { removeFileFromDag } from 'services/ipfs';
-import { prepareDataRefs } from 'utils/dataRefTools';
-import { updateManifestComponentDagCids } from 'utils/driveUtils';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { updateManifestDataBucket } from '../../services/data/processing.js';
+import { removeFileFromDag } from '../../services/ipfs.js';
+import { prepareDataRefs } from '../../utils/dataRefTools.js';
+import { updateManifestComponentDagCids } from '../../utils/driveUtils.js';
 
-import { ErrorResponse } from './update';
-import { getLatestManifest, persistManifest } from './utils';
+import { ErrorResponse } from './update.js';
+import { getLatestManifest, persistManifest } from './utils.js';
 
 interface DeleteResponse {
   status?: number;
@@ -126,6 +120,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
       }),
     ]);
+    console.log('[DELETE]::', deletions.length);
     logger.info(
       `DATA::Delete ${deletions.count} dataReferences deleted, ${creations.count} cidPruneList entries added, ${updates.length} dataReferences updated`,
     );
@@ -137,6 +132,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       .filter((c) => c.payload?.path?.startsWith(path + '/') || c.payload?.path === path)
       .map((c) => c.id);
 
+    console.log('[START deleteComponentsFromManifest]::', latestManifest);
     let updatedManifest = deleteComponentsFromManifest({
       manifest: latestManifest,
       componentIds: componentDeletionIds,
@@ -162,7 +158,8 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    logger.error(`DATA::Delete error: ${e}`);
+    console.log('[START deleteComponentsFromManifest]::', e);
+    logger.error(e, `DATA::Delete error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };

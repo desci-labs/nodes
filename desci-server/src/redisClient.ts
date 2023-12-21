@@ -1,6 +1,6 @@
 import { createClient } from 'redis';
 
-import parentLogger from 'logger';
+import { logger as parentLogger } from './logger.js';
 const logger = parentLogger.child({
   module: 'RedisClient',
 });

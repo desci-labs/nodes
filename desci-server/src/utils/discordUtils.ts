@@ -1,6 +1,6 @@
 import { DiscordNotification } from '@penseapp/discord-notification';
 
-import logger from 'logger';
+import { logger } from '../logger.js';
 
 const discordNotification = new DiscordNotification(
   process.env.SERVER_URL,

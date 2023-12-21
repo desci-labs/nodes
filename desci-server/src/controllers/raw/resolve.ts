@@ -8,14 +8,13 @@ import axios from 'axios';
 import { ethers } from 'ethers';
 import { NextFunction, Request, Response } from 'express';
 
-import { decodeBase64UrlSafeToHex, hexToCid } from '@/../utils';
-import parentLogger from 'logger';
-import { getIndexedResearchObjects } from 'theGraph';
-
-import goerli from '../../desci-contracts-artifacts/contracts/ResearchObject.sol/ResearchObject.json';
-import localhost from '../../desci-contracts-artifacts/contracts/ResearchObject.sol/ResearchObject.json';
-import goerliInfo from '../../desci-contracts-config/goerli-research-object.json';
-import localhostInfo from '../../desci-contracts-config/unknown-research-object.json';
+import goerli from '../../desci-contracts-artifacts/contracts/ResearchObject.sol/ResearchObject.json' assert { type: 'json' };
+import localhost from '../../desci-contracts-artifacts/contracts/ResearchObject.sol/ResearchObject.json' assert { type: 'json' };
+import goerliInfo from '../../desci-contracts-config/goerli-research-object.json' assert { type: 'json' };
+import localhostInfo from '../../desci-contracts-config/unknown-research-object.json' assert { type: 'json' };
+import { logger as parentLogger } from '../../logger.js';
+import { getIndexedResearchObjects } from '../../theGraph.js';
+import { decodeBase64UrlSafeToHex, hexToCid } from '../../utils.js';
 
 export const directChainCall = async (decodedUuid: string) => {
   let provider;
@@ -66,7 +65,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
    */
   const uuid = req.params.query; // TODO: check if we need a dot here
   const decodedUuid = '0x' + decodeBase64UrlSafeToHex(uuid);
-  const [firstParam, secondParam, thirdParam, ...rest] = req.params[0]?.substring(1).split('/');
+  const [firstParam, secondParam, thirdParam, ...rest] = req.params[0]?.substring(1).split('../../');
   const logger = parentLogger.child({
     // id: req.id,
     module: 'RAW::resolveController',
@@ -230,13 +229,13 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
         try {
           const targetUrl = `https://raw.githubusercontent.com/${
             codeComponent.payload.externalUrl.split('github.com/')[1]
-          }/${[thirdParam, ...rest].filter(Boolean).join('/')}`;
+          }/${[thirdParam, ...rest].filter(Boolean).join('../../')}`;
           const { data } = await axios.get(targetUrl);
           res.header('content-type', 'text/plain').send(data);
         } catch (err) {
           res
             .status(400)
-            .send({ ok: false, msg: `fail to resolve ${[thirdParam, ...rest].filter(Boolean).join('/')}` });
+            .send({ ok: false, msg: `fail to resolve ${[thirdParam, ...rest].filter(Boolean).join('../../')}` });
         }
         return;
       default:

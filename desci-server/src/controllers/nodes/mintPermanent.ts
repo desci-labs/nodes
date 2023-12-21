@@ -1,10 +1,8 @@
-import fs from 'fs';
-
 import Arweave from 'arweave';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
-import parentLogger from 'logger';
+import { logger as parentLogger } from '../../logger.js';
 
 const logger = parentLogger.child({
   // id: req.id,

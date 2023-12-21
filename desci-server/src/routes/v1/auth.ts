@@ -11,8 +11,8 @@ import {
   orcidConnectClose,
   validateOrcid,
   magic,
-} from 'controllers/auth';
-import { ensureUser } from 'middleware/ensureUser';
+} from '../../controllers/auth/index.js';
+import { ensureUser } from '../../middleware/ensureUser.js';
 
 const router = Router();
 

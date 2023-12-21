@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
 
 // call node publish service and add job to queue
 export const versionDetails = async (req: Request, res: Response, next: NextFunction) => {

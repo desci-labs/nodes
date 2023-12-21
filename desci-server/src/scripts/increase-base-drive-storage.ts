@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 
-import prisma from 'client';
+import { prisma } from '../client.js';
 dotenv.config({ path: '../.env' });
 
 export const increaseBaseDriveStoragePreview = async (targetDriveStorageGb: number, shouldApply: boolean) => {

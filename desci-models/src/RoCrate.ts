@@ -1,16 +1,9 @@
-import { ComputerLanguage } from "schema-dts";
-import {
-  CreativeWork,
-  SoftwareSourceCode,
-  Thing,
-  Person,
-  Organization,
-  Dataset,
-} from "schema-dts";
+import { ComputerLanguage } from 'schema-dts';
+import { CreativeWork, SoftwareSourceCode, Thing, Person, Organization, Dataset } from 'schema-dts';
 
 interface RoCrateFormalParameter {
-  "@type": "FormalParameter";
-  "@id": string;
+  '@type': 'FormalParameter';
+  '@id': string;
   name: string;
   valueRequired?: boolean;
   format?: string;
@@ -20,7 +13,7 @@ interface RoCrateFormalParameter {
 }
 
 interface RoCrateWorkflow {
-  "@type": "Workflow";
+  '@type': 'Workflow';
   conformsTo: string;
   creator: Person;
   dateCreated: string;
@@ -42,6 +35,6 @@ export type RoCrateGraph =
   | Dataset;
 
 export interface RoCrate {
-  "@context": string;
-  "@graph": RoCrateGraph[];
+  '@context': string;
+  '@graph': RoCrateGraph[];
 }

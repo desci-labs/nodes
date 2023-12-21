@@ -51,11 +51,11 @@ yarn test
 Create a research object using the provided TypeScript interfaces in the `nodes-models` module:
 
 ```typescript
-import { ResearchObjectV1 } from "./nodes-models/ResearchObject";
+import { ResearchObjectV1 } from './nodes-models/ResearchObject';
 
 const researchObject: ResearchObjectV1 = {
-  version: "desci-nodes-0.2.0",
-  title: "My Research Project",
+  version: 'desci-nodes-0.2.0',
+  title: 'My Research Project',
   // ...
 };
 ```
@@ -65,7 +65,7 @@ const researchObject: ResearchObjectV1 = {
 Import the `RoCrateTransformer` class and use it to convert a research object to and from the RO-Crate format:
 
 ```typescript
-import { RoCrateTransformer } from "./nodes-models/transformers/RoCrateTransformer";
+import { RoCrateTransformer } from './nodes-models/transformers/RoCrateTransformer';
 
 const transformer = new RoCrateTransformer();
 const roCrate = transformer.exportObject(researchObject);

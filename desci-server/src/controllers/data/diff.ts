@@ -1,7 +1,6 @@
 import {
   ComponentStats,
   DriveObject,
-  ResearchObjectComponentType,
   ResearchObjectV1,
   calculateComponentStats,
   createEmptyComponentStats,
@@ -11,14 +10,15 @@ import {
 import axios from 'axios';
 import { Request, Response } from 'express';
 
-import prisma from 'client';
-import { cleanupManifestUrl } from 'controllers/nodes';
-import parentLogger from 'logger';
-import { getFromCache, setToCache } from 'redisClient';
-import { TreeDiff, diffTrees, subtractComponentStats, subtractNestedObjectValues } from 'utils/diffUtils';
-import { getTreeAndFill } from 'utils/driveUtils';
+import { prisma } from '../../client.js';
+// import { cleanupManifestUrl } from 'controllers/nodes/';
+import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
+import { logger as parentLogger } from '../../logger.js';
+import { getFromCache, setToCache } from '../../redisClient.js';
+import { TreeDiff, diffTrees, subtractComponentStats } from '../../utils/diffUtils.js';
+import { getTreeAndFill } from '../../utils/driveUtils.js';
 
-import { ErrorResponse } from './update';
+import { ErrorResponse } from './update.js';
 
 interface DiffResponse extends Diffs {
   status?: number;

@@ -4,7 +4,7 @@ import {
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
   ResearchObjectComponentTypeMap,
-} from "../ResearchObject";
+} from '../ResearchObject';
 
 export interface DriveObject {
   uid?: string;
@@ -29,8 +29,7 @@ export interface DriveObject {
   external?: boolean;
 }
 
-export const NODE_KEEP_FILE = ".nodeKeep";
-
+export const NODE_KEEP_FILE = '.nodeKeep';
 
 export type ComponentTypesForStats =
   | ResearchObjectComponentType.CODE
@@ -40,27 +39,27 @@ export type ComponentTypesForStats =
 // | ResearchObjectComponentType.LINK;
 
 export type DirStat = {
-  dirs: number
-}
-export type ComponentTypeStats ={
+  dirs: number;
+};
+export type ComponentTypeStats = {
   [key in ComponentTypesForStats]: {
     count: number;
     size: number;
   };
-}
+};
 
 export type ComponentStats = DirStat & ComponentTypeStats;
 
 export type DriveMetadata = CommonComponentPayload & DataComponentMetadata;
 
 export enum FileType {
-  DIR = "dir",
-  FILE = "file",
+  DIR = 'dir',
+  FILE = 'file',
 }
 
 export enum DriveNonComponentTypes {
-  MANIFEST = "manifest",
-  UNKNOWN = "unknown",
+  MANIFEST = 'manifest',
+  UNKNOWN = 'unknown',
 }
 
 export interface IpfsPinnedResult {
@@ -72,7 +71,7 @@ export interface IpfsPinnedResult {
 export interface RecursiveLsResult extends IpfsPinnedResult {
   name: string;
   contains?: RecursiveLsResult[];
-  type: "dir" | "file";
+  type: 'dir' | 'file';
   parent?: RecursiveLsResult;
   external?: boolean;
 }
@@ -103,10 +102,10 @@ export interface VirtualDriveArgs {
 }
 
 export enum AccessStatus {
-  PUBLIC = "Public",
-  PRIVATE = "Private",
-  PARTIAL = "Partial",
-  EXTERNAL = "External",
-  UPLOADING = "Uploading",
-  FAILED = "Failed",
+  PUBLIC = 'Public',
+  PRIVATE = 'Private',
+  PARTIAL = 'Partial',
+  EXTERNAL = 'External',
+  UPLOADING = 'Uploading',
+  FAILED = 'Failed',
 }

@@ -1,6 +1,6 @@
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
-import parentLogger from 'logger';
+import { logger as parentLogger } from '../logger.js';
 
 const logger = parentLogger.child({
   module: 'Services::S3',

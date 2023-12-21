@@ -2,10 +2,10 @@
 
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { getIndexedResearchObjects } from 'theGraph';
-import { decodeBase64UrlSafeToHex, encodeBase64UrlSafe, randomUUID64 } from 'utils';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { getIndexedResearchObjects } from '../../theGraph.js';
+import { decodeBase64UrlSafeToHex, randomUUID64 } from '../../utils.js';
 
 export const list = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
