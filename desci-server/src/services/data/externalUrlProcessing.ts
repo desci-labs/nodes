@@ -2,61 +2,51 @@ import fs from 'fs';
 
 import {
   DrivePath,
-  FileType,
   IpfsPinnedResult,
   RecursiveLsResult,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
-  neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import { DataType, User, Node, Prisma } from '@prisma/client';
 import axios from 'axios';
 import { rimraf } from 'rimraf';
 
-import prisma from 'client';
-import { persistManifest } from 'controllers/data/utils';
-import parentLogger from 'logger';
-import { hasAvailableDataUsageForUpload } from 'services/dataService';
-import { ensureUniquePathsDraftTree, externalDirCheck } from 'services/draftTrees';
-import { IpfsDirStructuredInput, addDirToIpfs, addFilesToDag, getDirectoryTree } from 'services/ipfs';
+import { prisma } from '../../client.js';
+import { persistManifest } from '../../controllers/data/utils.js';
+import { logger as parentLogger } from '../../logger.js';
+import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
+import { IpfsDirStructuredInput, addDirToIpfs, addFilesToDag, getDirectoryTree } from '../../services/ipfs.js';
 import {
   calculateTotalZipUncompressedSize,
   extractZipFileAndCleanup,
   processExternalUrls,
   saveZipStreamToDisk,
   zipUrlToStream,
-} from 'utils';
-import { DRAFT_DIR_CID, ipfsDagToDraftNodeTreeEntries } from 'utils/draftTreeUtils';
+} from '../../utils.js';
+import { ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
   ExtensionDataTypeMap,
   addComponentsToManifest,
-  generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
-  updateManifestComponentDagCids,
-} from 'utils/driveUtils';
+} from '../../utils/driveUtils.js';
+import { ensureUniquePathsDraftTree, externalDirCheck } from '../draftTrees.js';
 
 import {
-  cleanupDanglingRefs,
-  ensureUniquePaths,
-  extractRootDagCidFromManifest,
   filterFirstNestings,
   getManifestFromNode,
   handleCleanupOnMidProcessingError,
-  pathContainsExternalCids,
   pinNewFiles,
   predefineComponentsForPinnedFiles,
   updateDataReferences,
-  updateManifestDataBucket,
-} from './processing';
+} from './processing.js';
 import {
-  createDagExtensionFailureError,
   createExternalUrlResolutionError,
   createManifestPersistFailError,
   createNotEnoughSpaceError,
   createUnhandledError,
-} from './processingErrors';
+} from './processingErrors.js';
 
 const TEMP_REPO_ZIP_PATH = './repo-tmp';
 

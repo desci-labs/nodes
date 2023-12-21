@@ -1,10 +1,9 @@
 import 'mocha';
 import { User } from '@prisma/client';
-import { expect } from 'chai';
 
-import prisma from '../../src/client';
-import * as invites from '../../src/services/invites';
-import { expectThrowsAsync } from '../util';
+import { prisma } from '../../src/client.js';
+import * as invites from '../../src/services/invites.js';
+import { expectThrowsAsync } from '../util.js';
 
 describe('Invites', () => {
   let admin: User;

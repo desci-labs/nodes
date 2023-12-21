@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
 
 export const ORCID_API_URL = 'https://orcid.org';
 

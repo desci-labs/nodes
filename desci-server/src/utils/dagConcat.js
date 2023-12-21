@@ -1,16 +1,17 @@
 //Thanks to https://github.com/webrecorder/ipfs-composite-files
 /* eslint-disable @typescript-eslint/no-var-requires */
-const dagPb = require('@ipld/dag-pb');
-const UnixFS = require('ipfs-unixfs');
-const multiformats = require('multiformats');
-const { code } = require('multiformats/codecs/raw');
+import * as dagPb from '@ipld/dag-pb';
+import * as IpfsUnixFS from 'ipfs-unixfs';
+import { CID } from 'multiformats';
+import { code as rawCode } from 'multiformats/codecs/raw';
 
-const rawCode = code;
+const { default: UnixFS } = IpfsUnixFS;
+
 // ===========================================================================
-async function getSize(ipfs, cid, allowDir = false) {
+export async function getSize(ipfs, cid, allowDir = false) {
   const block = await ipfs.block.get(cid);
   // console.log('cid: ', cid);
-  if (typeof cid === 'string') cid = multiformats.CID.parse(cid);
+  if (typeof cid === 'string') cid = CID.parse(cid);
   // console.log('cid.code: ', cid.code);
   // if raw, use length of block
   if (cid.code == rawCode) {
@@ -31,13 +32,12 @@ async function getSize(ipfs, cid, allowDir = false) {
   } else if (!unixfs.isDirectory()) {
     return unixfs.fileSize();
   } else {
-    // eslint-disable-next-line no-array-reduce/no-reduce
     return unixfs.blockSizes.reduce((a, b) => a + b, 0);
   }
 }
 
 // ===========================================================================
-async function concat(ipfs, cids, sizes = {}) {
+export async function concat(ipfs, cids, sizes = {}) {
   if (cids.length === 1) {
     return cids[0];
   }
@@ -84,7 +84,7 @@ async function _createDirLinks(ipfs, files) {
 }
 
 // ===========================================================================
-async function makeDir(ipfs, files) {
+export async function makeDir(ipfs, files) {
   // debugger;
   const node = new UnixFS({ type: 'directory' });
 
@@ -96,7 +96,7 @@ async function makeDir(ipfs, files) {
 }
 
 // ===========================================================================
-async function addToDir(ipfs, dirCid, files) {
+export async function addToDir(ipfs, dirCid, files) {
   if (dirCid.code == rawCode) {
     throw new Error('raw cid -- not a directory');
   }
@@ -124,7 +124,7 @@ async function addToDir(ipfs, dirCid, files) {
 }
 
 //nodeCid refers to the dag node being updated, oldCid is the cid of the link to be replaced, newCid is the cid of the new link
-async function updateDagCid(ipfs, nodeCid, oldCid, newCid) {
+export async function updateDagCid(ipfs, nodeCid, oldCid, newCid) {
   if (typeof nodeCid === 'string') oldCid = CID.parse(oldCid);
   if (typeof oldCid === 'string') oldCid = CID.parse(oldCid);
   if (typeof newCid === 'string') newCid = CID.parse(newCid);
@@ -144,7 +144,7 @@ async function updateDagCid(ipfs, nodeCid, oldCid, newCid) {
     throw new Error(`file cid -- not a directory`);
   }
 
-  linkIdx = Links.findIndex((link) => link.Hash.equals(oldCid));
+  const linkIdx = Links.findIndex((link) => link.Hash.equals(oldCid));
 
   // debugger;
   if (linkIdx !== -1) {
@@ -161,11 +161,3 @@ function putBlock(ipfs, node) {
     format: 'dag-pb',
   });
 }
-
-module.exports = {
-  addToDir,
-  concat,
-  getSize,
-  makeDir,
-  updateDagCid,
-};

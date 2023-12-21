@@ -2,9 +2,8 @@ import { User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-import prisma from 'client';
-import logger from 'logger';
-import { getUserByEmail, getUserByOrcId } from 'services/user';
+import { logger } from '../logger.js';
+import { getUserByEmail, getUserByOrcId } from '../services/user.js';
 
 export const ensureUser = async (req: Request, res: Response, next: NextFunction) => {
   const retrievedUser = await retrieveUser(req);

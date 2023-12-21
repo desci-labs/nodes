@@ -1,7 +1,9 @@
 import { Router } from 'express';
 
-import { getReferralsByUserId, newReferral, acceptReferralById } from 'controllers/referral';
-import { ensureUser } from 'middleware/ensureUser';
+import { acceptReferralById } from '../../controllers/referral/acceptReferralById.js';
+import { newReferral } from '../../controllers/referral/newReferral.js';
+import { ensureUser } from '../../middleware/ensureUser.js';
+import { getReferralsByUserId } from '../../services/friendReferral.js';
 
 const router = Router();
 

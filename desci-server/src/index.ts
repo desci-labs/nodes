@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import 'reflect-metadata';
-
+import { Repo, type RepoConfig } from '@automerge/automerge-repo';
+import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import bodyParser from 'body-parser';
@@ -8,17 +9,17 @@ import cookieParser from 'cookie-parser';
 import express from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import pinoHttp from 'pino-http';
+import { pinoHttp } from 'pino-http';
+import { WebSocketServer } from 'ws';
 
-import prismaClient from 'client';
-import './utils/response/customSuccess';
-import { orcidConnect } from 'controllers/auth';
-import { orcidCheck } from 'controllers/auth/orcidNext';
-import logger from 'logger';
-import { ensureUserIfPresent } from 'middleware/ensureUserIfPresent';
-
-import { errorHandler } from './middleware/errorHandler';
-import routes from './routes';
+import './utils/response/customSuccess.js';
+import { prisma } from './client.js';
+import { orcidConnect } from './controllers/auth/orcid.js';
+import { orcidCheck } from './controllers/auth/orcidNext.js';
+import { logger } from './logger.js';
+import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import routes from './routes/index.js';
 
 export const app = express();
 
@@ -29,7 +30,7 @@ if (ENABLE_TELEMETRY) {
   Sentry.init({
     dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
     release: 'desci-nodes-server@' + process.env.npm_package_version,
-    integrations: [new Tracing.Integrations.Prisma({ client: prismaClient })],
+    integrations: [new Tracing.Integrations.Prisma({ client: prisma })],
     // Set tracesSampleRate to 1.0 to capture 100%
     // of transactions for performance monitoring.
     // We recommend adjusting this value in production
@@ -174,4 +175,21 @@ app.use(errorHandler);
 const port = process.env.PORT || 5420;
 app.listen(port, () => {
   logger.info(`Server running on port ${port}`);
+});
+const wsServer = new WebSocketServer({ noServer: true });
+const config = {
+  network: [new NodeWSServerAdapter(wsServer)],
+};
+const repo = new Repo(config);
+
+const server = app.listen(port, () => {
+  logger.info(`Server running on port ${port}`);
+});
+
+server.on('upgrade', (request, socket, head) => {
+  console.log(`Server upgrade ${port}`);
+  wsServer.handleUpgrade(request, socket, head, (socket) => {
+    console.log(`WS Server upgrade ${port}`);
+    wsServer.emit('connection', socket, request);
+  });
 });

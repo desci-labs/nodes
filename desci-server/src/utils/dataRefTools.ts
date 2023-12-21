@@ -2,11 +2,11 @@ import { FileType, ResearchObjectV1, isNodeRoot, neutralizePath, recursiveFlatte
 import { DataReference, DataType, NodeVersion, Prisma, Node } from '@prisma/client';
 import axios from 'axios';
 
-import prisma from 'client';
-import { PUBLIC_IPFS_PATH } from 'config';
-import parentLogger from 'logger';
-import { discoveryLs, getDirectoryTree } from 'services/ipfs';
-import { objectPropertyXor, omitKeys } from 'utils';
+import { prisma } from '../client.js';
+import { PUBLIC_IPFS_PATH } from '../config/index.js';
+import { logger as parentLogger } from '../logger.js';
+import { discoveryLs, getDirectoryTree } from '../services/ipfs.js';
+import { objectPropertyXor, omitKeys } from '../utils.js';
 
 import {
   DRAFT_CID,
@@ -19,7 +19,7 @@ import {
   generateManifestPathsToDbTypeMap,
   inheritComponentType,
   ExternalCidMap,
-} from './driveUtils';
+} from './driveUtils.js';
 
 const logger = parentLogger.child({ module: 'Utils::DataRefTools' });
 

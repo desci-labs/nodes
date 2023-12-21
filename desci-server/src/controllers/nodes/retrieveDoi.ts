@@ -1,11 +1,9 @@
-import checkUrl from 'url';
-
 import { ActionType } from '@prisma/client';
 import axios from 'axios';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 
 // import { headlessDownloadPdf } from 'services/headlessBrowser';
-import { saveInteraction } from 'services/interactionLog';
+import { saveInteraction } from '../../services/interactionLog.js';
 
 export interface ResearchObjectMetadata {
   title: string;

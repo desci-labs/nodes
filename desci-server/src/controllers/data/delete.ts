@@ -2,11 +2,11 @@ import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DataType, Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
 
-import { ErrorResponse } from './update';
-import { getLatestManifest, persistManifest } from './utils';
+import { ErrorResponse } from './update.js';
+import { getLatestManifest, persistManifest } from './utils.js';
 
 interface DeleteResponse {
   status?: number;
@@ -93,6 +93,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       prisma.cidPruneList.createMany({ data: formattedPruneList }),
       prisma.dataReference.deleteMany({ where: { id: { in: dataRefDeletionIds } } }),
     ]);
+    console.log('[DELETE]::', deletions.count);
     logger.info(
       `DATA::Delete ${deletions.count} draftNodeTree entries deleted, ${creations.count} cidPruneList entries added, ${dataRefDeletions.count} dataReferences deleted`,
     );
@@ -120,7 +121,8 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    logger.error(`DATA::Delete error: ${e}`);
+    console.log('[START deleteComponentsFromManifest]::', e);
+    logger.error(e, `DATA::Delete error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };

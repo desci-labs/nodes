@@ -8,15 +8,15 @@ import { Request, Response, NextFunction } from 'express';
 import mkdirp from 'mkdirp';
 import tar from 'tar';
 
-import prisma from 'client';
-import { cleanupManifestUrl } from 'controllers/nodes';
-import parentLogger from 'logger';
-import redisClient, { getOrCache } from 'redisClient';
-import { getDatasetTar } from 'services/ipfs';
-import { getTreeAndFill, getTreeAndFillDeprecated } from 'utils/driveUtils';
+import { prisma } from '../../client.js';
+import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
+import { logger as parentLogger } from '../../logger.js';
+import redisClient, { getOrCache } from '../../redisClient.js';
+import { getDatasetTar } from '../../services/ipfs.js';
+import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
 
-import { ErrorResponse } from './update';
-import { getLatestManifest } from './utils';
+import { ErrorResponse } from './update.js';
+import { getLatestManifest } from './utils.js';
 
 export enum DataReferenceSrc {
   PRIVATE = 'private',
@@ -235,7 +235,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   const depthTree = await getOrCache(depthCacheKey, async () => {
     const tree = hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree;
     if (tree[0]?.type === 'file' && hasDataBucket) {
-      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
+      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('../../'));
       return hasDataBucket ? [findAndPruneNode(filledTree[0], poppedDataPath, depth)] : filledTree;
     } else {
       return tree;
@@ -303,7 +303,7 @@ export const downloadDataset = async (req: Request, res: Response, next: NextFun
     'Content-disposition': `attachment; filename=dataset_${cid}.zip`,
   });
 
-  const basePath = process.cwd() + '/';
+  const basePath = process.cwd() + '../../';
   const targetPath = basePath + zipPath;
   const zipped = fs.createReadStream(targetPath);
 

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import ShortUniqueId from 'short-unique-id';
 
-import prisma from 'client';
+import { prisma } from '../../client.js';
 
 export const createPrivateShare = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
@@ -20,7 +20,8 @@ export const createPrivateShare = async (req: Request, res: Response, next: Next
     return;
   }
 
-  const shareUUID = new ShortUniqueId({ length: 10 });
+  // short-unique-id does a weird default class export
+  const shareUUID = new ShortUniqueId.default({ length: 10 });
   const shareId = shareUUID() as string;
 
   let privateShare = await prisma.privateShare.findFirst({ where: { nodeUUID: uuid + '.' } });

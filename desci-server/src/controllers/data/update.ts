@@ -1,15 +1,13 @@
 import { ResearchObjectV1, DriveObject } from '@desci-labs/desci-models';
 import { Response } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { AuthedRequest } from 'middleware/ensureWriteAccess';
-import { processExternalUrlDataToIpfs } from 'services/data/externalUrlProcessing';
-import { processNewFolder, processS3DataToIpfs } from 'services/data/processing';
-import { IpfsPinnedResult } from 'services/ipfs';
-import { arrayXor } from 'utils';
-
-const TEMP_REPO_ZIP_PATH = './repo-tmp';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { AuthedRequest } from '../../middleware/ensureWriteAccess.js';
+import { processExternalUrlDataToIpfs } from '../../services/data/externalUrlProcessing.js';
+import { processNewFolder, processS3DataToIpfs } from '../../services/data/processing.js';
+import { IpfsPinnedResult } from '../../services/ipfs.js';
+import { arrayXor } from '../../utils.js';
 export interface UpdateResponse {
   status?: number;
   rootDataCid?: string;

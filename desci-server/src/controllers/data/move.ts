@@ -2,13 +2,13 @@ import { ResearchObjectV1, ResearchObjectV1Component, isNodeRoot, neutralizePath
 import { DataType } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { ensureUniquePathsDraftTree } from 'services/draftTrees';
-import { prepareDataRefsForDraftTrees } from 'utils/dataRefTools';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { ensureUniquePathsDraftTree } from '../../services/draftTrees.js';
+import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
-import { ErrorResponse } from './update';
-import { getLatestManifest, persistManifest } from './utils';
+import { ErrorResponse } from './update.js';
+import { getLatestManifest, persistManifest } from './utils.js';
 
 interface MoveResponse {
   status?: number;

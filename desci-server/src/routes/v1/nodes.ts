@@ -11,18 +11,18 @@ import {
   consent,
   api,
   publish,
+  checkPrivateShareId,
   createPrivateShare,
   revokePrivateShare,
   getPrivateShare,
-  checkPrivateShareId,
   getCoverImage,
   deleteNode,
-  prepublish,
-} from 'controllers/nodes/index';
-import { retrieveTitle } from 'controllers/nodes/legacyManifestApi';
-import { versionDetails } from 'controllers/nodes/versionDetails';
-import { ensureUser } from 'middleware/ensureUser';
-import { ensureWriteAccess } from 'middleware/ensureWriteAccess';
+} from '../../controllers/nodes/index.js';
+import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
+import { prepublish } from '../../controllers/nodes/prepublish.js';
+import { versionDetails } from '../../controllers/nodes/versionDetails.js';
+import { ensureUser } from '../../middleware/ensureUser.js';
+import { ensureWriteAccess } from '../../middleware/ensureWriteAccess.js';
 
 const router = Router();
 

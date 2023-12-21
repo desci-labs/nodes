@@ -2,13 +2,13 @@ import { ResearchObjectV1, ResearchObjectV1Component, neutralizePath } from '@de
 import { DataType, Node } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { ensureUniquePathsDraftTree } from 'services/draftTrees';
-import { prepareDataRefsForDraftTrees } from 'utils/dataRefTools';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { ensureUniquePathsDraftTree } from '../../services/draftTrees.js';
+import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
-import { ErrorResponse } from './update';
-import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils';
+import { ErrorResponse } from './update.js';
+import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils.js';
 
 interface RenameResponse {
   status?: number;
@@ -159,7 +159,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    logger.error(`[DATA::Rename] error: ${e}`);
+    logger.error(e, `[DATA::Rename] error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };
@@ -172,7 +172,7 @@ interface UpdateComponentPathsInManifest {
 
 export function updateComponentPathsInManifest({ manifest, oldPath, newPath }: UpdateComponentPathsInManifest) {
   manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
-    if (c.payload?.path.startsWith(oldPath + '/') || c.payload.path === oldPath) {
+    if (c.payload?.path.startsWith(oldPath + '../../') || c.payload.path === oldPath) {
       manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
     }
   });

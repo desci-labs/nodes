@@ -1,9 +1,9 @@
-import { DrivePath, RecursiveLsResult, ResearchObjectV1, isNodeRoot } from '@desci-labs/desci-models';
+import { ResearchObjectV1, isNodeRoot } from '@desci-labs/desci-models';
 import { Node, User } from '@prisma/client';
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import prisma from '../../src/client';
+import { prisma } from '../../src/client.js';
 import {
   ensureSpaceAvailable,
   ensureUniquePaths,
@@ -12,9 +12,9 @@ import {
   getManifestFromNode,
   pathContainsExternalCids,
   updateManifestDataBucket,
-} from '../../src/services/data/processing';
-import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs';
-import { randomUUID64 } from '../../src/utils';
+} from '../../src/services/data/processing.js';
+import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
+import { randomUUID64 } from '../../src/utils.js';
 
 describe('Data Processing Functions Tests', () => {
   let user: User;

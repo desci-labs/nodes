@@ -1,6 +1,6 @@
-import dotenv from 'dotenv'
-dotenv.config({ path: __dirname + '/../../.env' });
 import Arweave from 'arweave/node';
+import dotenv from 'dotenv';
+dotenv.config({ path: __dirname + '/../../.env' });
 
 const config = {
   host: process.env.ARWEAVE_HOST,
@@ -15,7 +15,7 @@ let k;
 arweave.wallets.generate().then((key) => {
   k = key;
   arweave.wallets.jwkToAddress(k).then((address) => {
-    console.log("PUBLIC ADDRESS", address);
-    console.log("PRIVATE KEY", Buffer.from(JSON.stringify(k)).toString('base64'));
+    console.log('PUBLIC ADDRESS', address);
+    console.log('PRIVATE KEY', Buffer.from(JSON.stringify(k)).toString('base64'));
   });
 });

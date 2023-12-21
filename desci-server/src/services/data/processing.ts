@@ -16,52 +16,47 @@ import { User, Node, DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
 import { v4 } from 'uuid';
 
-import prisma from 'client';
-import { UpdateResponse } from 'controllers/data';
-import { persistManifest } from 'controllers/data/utils';
-import { cleanupManifestUrl } from 'controllers/nodes';
-import parentLogger from 'logger';
-import { hasAvailableDataUsageForUpload } from 'services/dataService';
-import { ensureUniquePathsDraftTree, externalDirCheck } from 'services/draftTrees';
+import { persistManifest } from '../..//controllers/data/utils.js';
+import { prisma } from '../../client.js';
+import { UpdateResponse } from '../../controllers/data/update.js';
+import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
+import { logger as parentLogger } from '../../logger.js';
+import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import {
   FilesToAddToDag,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
-  addFilesToDag,
   getDirectoryTree,
   isDir,
   pinDirectory,
-} from 'services/ipfs';
-import { fetchFileStreamFromS3, isS3Configured } from 'services/s3';
-import { prepareDataRefs, prepareDataRefsForDraftTrees } from 'utils/dataRefTools';
-import { DRAFT_CID, DRAFT_DIR_CID, ipfsDagToDraftNodeTreeEntries } from 'utils/draftTreeUtils';
+} from '../../services/ipfs.js';
+import { fetchFileStreamFromS3, isS3Configured } from '../../services/s3.js';
+import { prepareDataRefs, prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
+import { DRAFT_CID, DRAFT_DIR_CID, ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
   ExtensionDataTypeMap,
   ExternalCidMap,
   FirstNestingComponent,
-  generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
   inheritComponentType,
-  updateManifestComponentDagCids,
   urlOrCid,
-} from 'utils/driveUtils';
-import { EXTENSION_MAP } from 'utils/extensions';
+} from '../../utils/driveUtils.js';
+import { EXTENSION_MAP } from '../../utils/extensions.js';
+import { ensureUniquePathsDraftTree, externalDirCheck } from '../draftTrees.js';
 
 import {
   Either,
   ProcessingError,
-  createDagExtensionFailureError,
   createDuplicateFileError,
   createInvalidManifestError,
   createIpfsUnresolvableError,
   createIpfsUploadFailureError,
   createManifestPersistFailError,
   createMixingExternalDataError,
-  createNewFolderCreationError,
   createNotEnoughSpaceError,
   createUnhandledError,
-} from './processingErrors';
+} from './processingErrors.js';
 
 interface ProcessS3DataToIpfsParams {
   files: any[];

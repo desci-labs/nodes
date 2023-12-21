@@ -1,13 +1,12 @@
-import { ActionType, AuthToken, AuthTokenSource, User, prisma } from '@prisma/client';
+import { AuthTokenSource, User } from '@prisma/client';
 import axios from 'axios';
 
-import { OrcIdRecordData, generateAccessToken, getOrcidRecord } from 'controllers/auth';
-import parentLogger from 'logger';
-import { hideEmail } from 'utils';
+import { prisma as client } from '../client.js';
+import { OrcIdRecordData, generateAccessToken, getOrcidRecord } from '../controllers/auth/index.js';
+import { logger as parentLogger } from '../logger.js';
+import { hideEmail } from '../utils.js';
 
-import client from '../client';
-
-import { getUserConsent, saveInteraction } from './interactionLog';
+import { getUserConsent } from './interactionLog.js';
 const logger = parentLogger.child({
   module: 'Services::User',
 });

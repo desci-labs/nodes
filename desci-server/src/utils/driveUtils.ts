@@ -2,29 +2,30 @@ import { randomUUID } from 'crypto';
 
 import {
   DEFAULT_COMPONENT_TYPE,
-  DrivePath,
-  FileExtension,
-  ResearchObjectComponentSubtypes,
-  ResearchObjectComponentType,
-  ResearchObjectComponentTypeMap,
-  ResearchObjectV1,
-  ResearchObjectV1Component,
   extractExtension,
   fillIpfsTree,
   isNodeRoot,
   isResearchObjectComponentTypeMap,
+  ResearchObjectComponentType,
+} from '@desci-labs/desci-models';
+import type {
+  DrivePath,
+  FileExtension,
+  ResearchObjectComponentSubtypes,
+  ResearchObjectComponentTypeMap,
+  ResearchObjectV1,
+  ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType } from '@prisma/client';
 
-import prisma from 'client';
-import { DataReferenceSrc } from 'controllers/data';
-import { separateFileNameAndExtension } from 'controllers/data/utils';
-import logger from 'logger';
-import { getOrCache } from 'redisClient';
-import { getDirectoryTree, RecursiveLsResult } from 'services/ipfs';
-import { getIndexedResearchObjects } from 'theGraph';
+import { prisma } from '../client.js';
+import { DataReferenceSrc } from '../controllers/data/retrieve.js';
+import { logger } from '../logger.js';
+import { getOrCache } from '../redisClient.js';
+import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
+import { getIndexedResearchObjects } from '../theGraph.js';
 
-import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils';
+import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from '../utils/draftTreeUtils.js';
 
 export function fillDirSizes(tree, cidInfoMap) {
   const contains = [];
