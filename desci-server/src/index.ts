@@ -173,9 +173,6 @@ if (ENABLE_TELEMETRY) {
 app.use(errorHandler);
 
 const port = process.env.PORT || 5420;
-app.listen(port, () => {
-  logger.info(`Server running on port ${port}`);
-});
 const wsServer = new WebSocketServer({ noServer: true });
 const config = {
   network: [new NodeWSServerAdapter(wsServer)],
