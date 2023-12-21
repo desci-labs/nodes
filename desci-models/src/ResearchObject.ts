@@ -18,6 +18,7 @@ export interface IpldUrl {
 export interface ResearchObjectV1 extends ResearchObject {
   version: 'desci-nodes-0.1.0' | 'desci-nodes-0.2.0' | 1;
   title?: string;
+  description?: string;
   defaultLicense?: string;
   coverImage?: string | IpldUrl;
   components: ResearchObjectV1Component[];
