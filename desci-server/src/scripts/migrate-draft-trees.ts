@@ -1,8 +1,8 @@
 import readline from 'readline';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { migrateIpfsTreeToNodeTree } from 'services/draftTrees';
+import { prisma } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
+import { migrateIpfsTreeToNodeTree } from '../services/draftTrees.js';
 
 const rl = readline.createInterface({
   input: process.stdin,

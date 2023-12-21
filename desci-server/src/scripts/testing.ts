@@ -1,10 +1,9 @@
-import prisma from 'client';
-import parentLogger from 'logger';
-import { getManifestFromNode } from 'services/data/processing';
-import { migrateIpfsTreeToNodeTree } from 'services/draftTrees';
-import { client, getDirectoryTree } from 'services/ipfs';
-import { dagifyAndAddDbTreeToIpfs, draftNodeTreeEntriesToFlatIpfsTree } from 'utils/draftTreeUtils';
-import { generateExternalCidMap, generateManifestPathsToDbTypeMap, inheritComponentType } from 'utils/driveUtils';
+import { prisma } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
+import { getManifestFromNode } from '../services/data/processing.js';
+import { getDirectoryTree } from '../services/ipfs.js';
+import { dagifyAndAddDbTreeToIpfs, draftNodeTreeEntriesToFlatIpfsTree } from '../utils/draftTreeUtils.js';
+import { generateExternalCidMap, generateManifestPathsToDbTypeMap, inheritComponentType } from '../utils/driveUtils.js';
 
 const logger = parentLogger.child({ module: 'SCRIPTS::Testing' });
 

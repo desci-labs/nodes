@@ -7,15 +7,19 @@ import {
 } from '@desci-labs/desci-models';
 import { User, Node, Prisma } from '@prisma/client';
 
-import prisma from 'client';
-import { persistManifest } from 'controllers/data/utils';
-import parentLogger from 'logger';
-import { ensureUniquePathsDraftTree } from 'services/draftTrees';
-import { GetExternalSizeAndTypeResult, convertToCidV1, getExternalCidSizeAndType, pubRecursiveLs } from 'services/ipfs';
-import { FirstNestingComponent, addComponentsToManifest, getTreeAndFill } from 'utils/driveUtils';
+import { prisma } from '../../client.js';
+import { persistManifest } from '../../controllers/data/utils.js';
+import { logger as parentLogger } from '../../logger.js';
+import { FirstNestingComponent, addComponentsToManifest, getTreeAndFill } from '../../utils/driveUtils.js';
+import { ensureUniquePathsDraftTree } from '../draftTrees.js';
+import { GetExternalSizeAndTypeResult, convertToCidV1, getExternalCidSizeAndType, pubRecursiveLs } from '../ipfs.js';
 
-import { getManifestFromNode, updateDataReferences } from './processing';
-import { createIpfsUnresolvableError, createManifestPersistFailError, createUnhandledError } from './processingErrors';
+import { getManifestFromNode, updateDataReferences } from './processing.js';
+import {
+  createIpfsUnresolvableError,
+  createManifestPersistFailError,
+  createUnhandledError,
+} from './processingErrors.js';
 
 const logger = parentLogger.child({
   module: 'Services::ExternalCidProcessing',

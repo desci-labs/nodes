@@ -1,15 +1,14 @@
 import { neutralizePath } from '@desci-labs/desci-models';
-import { Logger } from 'ethers/lib/utils';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { generateTimestampMapFromDataRefs } from 'utils/dataRefTools';
-import { TimestampMap, ipfsDagToDraftNodeTreeEntries } from 'utils/draftTreeUtils';
-import { generateExternalCidMap } from 'utils/driveUtils';
+import { prisma } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
+import { generateTimestampMapFromDataRefs } from '../utils/dataRefTools.js';
+import { TimestampMap, ipfsDagToDraftNodeTreeEntries } from '../utils/draftTreeUtils.js';
+import { generateExternalCidMap } from '../utils/driveUtils.js';
 
-import { extractRootDagCidFromManifest, getManifestFromNode } from './data/processing';
-import { createDuplicateFileError, createMixingExternalDataError } from './data/processingErrors';
-import { getDirectoryTree } from './ipfs';
+import { extractRootDagCidFromManifest, getManifestFromNode } from './data/processing.js';
+import { createDuplicateFileError, createMixingExternalDataError } from './data/processingErrors.js';
+import { getDirectoryTree } from './ipfs.js';
 
 const logger = parentLogger.child({
   module: 'Services::DraftTrees',

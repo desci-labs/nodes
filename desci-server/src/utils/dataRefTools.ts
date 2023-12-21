@@ -8,12 +8,7 @@ import { logger as parentLogger } from '../logger.js';
 import { discoveryLs, getDirectoryTree } from '../services/ipfs.js';
 import { objectPropertyXor, omitKeys } from '../utils.js';
 
-import {
-  DRAFT_CID,
-  TimestampMap,
-  draftNodeTreeEntriesToFlatIpfsTree,
-  flatTreeToHierarchicalTree,
-} from './draftTreeUtils';
+import { DRAFT_CID, TimestampMap, draftNodeTreeEntriesToFlatIpfsTree } from './draftTreeUtils.js';
 import {
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,

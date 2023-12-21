@@ -2,13 +2,13 @@ import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { NodeVersion } from '@prisma/client';
 import { Response } from 'express';
 
-import prisma from 'client';
-import { persistManifest } from 'controllers/data/utils';
-import parentLogger from 'logger';
-import { AuthedRequest } from 'middleware/ensureWriteAccess';
-import { getManifestFromNode, updateManifestDataBucket } from 'services/data/processing';
-import { prepareDataRefsForDagSkeleton } from 'utils/dataRefTools';
-import { dagifyAndAddDbTreeToIpfs } from 'utils/draftTreeUtils';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { AuthedRequest } from '../../middleware/ensureWriteAccess.js';
+import { getManifestFromNode, updateManifestDataBucket } from '../../services/data/processing.js';
+import { prepareDataRefsForDagSkeleton } from '../../utils/dataRefTools.js';
+import { dagifyAndAddDbTreeToIpfs } from '../../utils/draftTreeUtils.js';
+import { persistManifest } from '../data/utils.js';
 
 type PrepublishResponse = PrepublishSuccessResponse | PrepublishErrorResponse;
 export interface PrepublishSuccessResponse {

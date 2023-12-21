@@ -13,9 +13,9 @@ import CID from 'cids';
 import UnixFS from 'ipfs-unixfs';
 import { DAGNode, DAGLink } from 'ipld-dag-pb';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { client } from 'services/ipfs';
+import { prisma } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
+import { client } from '../services/ipfs.js';
 // import * as multiformats from 'multiformats';
 // const dagPb = require('@ipld/dag-pb');
 
