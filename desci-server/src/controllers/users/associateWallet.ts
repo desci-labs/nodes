@@ -3,10 +3,10 @@ import { ethers } from 'ethers';
 import { NextFunction, Request, Response } from 'express';
 import { ErrorTypes, SiweMessage } from 'siwe';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { saveInteraction } from 'services/interactionLog';
-import { writeExternalIdToOrcidProfile } from 'services/user';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { saveInteraction } from '../../services/interactionLog.js';
+import { writeExternalIdToOrcidProfile } from '../../services/user.js';
 
 const createWalletNickname = async (user: Prisma.UserWhereInput) => {
   const count = await prisma.wallet.count({

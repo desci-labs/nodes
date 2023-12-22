@@ -11,13 +11,13 @@ import {
   orcidConnectClose,
   validateOrcid,
   magic,
-} from 'controllers/auth';
-import { ensureUser } from 'middleware/ensureUser';
+} from '../../controllers/auth/index.js';
+import { ensureUser } from '../../middleware/ensureUser.js';
 
 const router = Router();
 
 router.post('/login', login);
-router.delete('/logout', [ensureUser], logout);
+router.delete('/logout', logout);
 router.get('/profile', [ensureUser], profile);
 router.post('/register', register);
 router.get('/orcid/auth', orcidAuth);

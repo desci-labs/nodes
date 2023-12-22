@@ -3,37 +3,34 @@ import https from 'https';
 import { Readable } from 'stream';
 
 import {
-  CodeComponent,
-  PdfComponent,
+  type CodeComponent,
+  type PdfComponent,
   ResearchObjectComponentType,
-  ResearchObjectV1,
-  ResearchObjectV1Component,
-  deneutralizePath,
+  type ResearchObjectV1,
+  type ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
 import * as dagPb from '@ipld/dag-pb';
-import { PBNode } from '@ipld/dag-pb/src/interface';
-import { DataReference, DataType, NodeVersion, Prisma } from '@prisma/client';
+import type { PBNode } from '@ipld/dag-pb';
+import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import axios from 'axios';
-// import CID from 'cids';
 import * as ipfs from 'ipfs-http-client';
 import { CID as CID2, globSource } from 'ipfs-http-client';
 import UnixFS from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
-import flatten from 'lodash/flatten';
-import uniq from 'lodash/uniq';
+import { flatten, uniq } from 'lodash-es';
 import * as multiformats from 'multiformats';
 import { code as rawCode } from 'multiformats/codecs/raw';
 
-import prisma from 'client';
-import { PUBLIC_IPFS_PATH } from 'config';
-import parentLogger from 'logger';
-import { getOrCache } from 'redisClient';
-import { DRIVE_NODE_ROOT_PATH, ExternalCidMap, newCid, oldCid } from 'utils/driveUtils';
-import { getGithubExternalUrl, processGithubUrl } from 'utils/githubUtils';
-import { createManifest, getUrlsFromParam, makePublic } from 'utils/manifestDraftUtils';
+import { prisma } from '../client.js';
+import { PUBLIC_IPFS_PATH } from '../config/index.js';
+import { logger as parentLogger } from '../logger.js';
+import { getOrCache } from '../redisClient.js';
+import { addToDir, getSize, makeDir, updateDagCid } from '../utils/dagConcat.js';
+import { DRIVE_NODE_ROOT_PATH, type ExternalCidMap, type newCid, type oldCid } from '../utils/driveUtils.js';
+import { getGithubExternalUrl, processGithubUrl } from '../utils/githubUtils.js';
+import { createManifest, getUrlsFromParam, makePublic } from '../utils/manifestDraftUtils.js';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
 export const IPFS_PATH_TMP = '/tmp/ipfs';
 
 const logger = parentLogger.child({
@@ -374,7 +371,7 @@ export const getDirectoryTreeCids = async (cid: string, externalCidMap: External
       }
     });
   };
-  const flatCids = uniq(
+  const flatCids = uniq<string>(
     recurse(tree)
       .filter(Boolean)
       .map((e) => e.cid || e)
@@ -943,6 +940,7 @@ export async function renameDagLink(dagCid: string | multiformats.CID, linkName:
   }
 
   const linkIdx = Links.findIndex((link) => link.Name === linkName);
+  logger.info({ Links, linkIdx, linkName, Link: Links[linkIdx] }, '[RENAME DAG LINK INFO]::');
   Links[linkIdx].Name = newName;
 
   return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links })), {

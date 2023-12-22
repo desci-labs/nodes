@@ -145,15 +145,7 @@
             "text": "Reproduce Figure B1 [Fig B1](#/code/303046a7-47e1-4e36-8541-ab5ede4d86c5?path=codes/plot_figure_10.ipynb&line=14)\n"
           }
         ],
-        "keywords": [
-          "alma",
-          "lupus",
-          "protoplanetary disks",
-          "dust",
-          "gas",
-          "astronomy",
-          "astrophysics"
-        ],
+        "keywords": ["alma", "lupus", "protoplanetary disks", "dust", "gas", "astronomy", "astrophysics"],
         "description": "This is the research report associated with the Node \"Exploring Lupus\". The PDF has previously been published at https://arxiv.org/abs/1604.05719 and was visually altered slightly for the purpose of re-publishing on DeSci Nodes."
       },
       "starred": true,
@@ -183,15 +175,7 @@
         "title": "Preprocessed Data for Node \"Exploring Lupus\"",
         "ontologyPurl": "https://www.ebi.ac.uk/ols/ontologies/srao/terms?iri=http%3A%2F%2Fwww.fairsharing.org%2Fontology%2Fsubject%2FSRAO_0000189&lang=en&viewMode=All&siblings=false",
         "controlledVocabTerms": [],
-        "keywords": [
-          "atronomy",
-          "astophysics",
-          "alma telescope",
-          "lupus",
-          "protoplanetary disks",
-          "gas",
-          "dust"
-        ],
+        "keywords": ["atronomy", "astophysics", "alma telescope", "lupus", "protoplanetary disks", "gas", "dust"],
         "description": "This data is processed data from the ALMA Telescope as well as literature data as cited in the paper that has been used to analyze the dust and gas massess of Lupus protoplanetary disks."
       },
       "starred": false

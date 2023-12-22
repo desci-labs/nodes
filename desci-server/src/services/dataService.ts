@@ -4,9 +4,9 @@
 
 import { User } from '@prisma/client';
 
-import prisma from 'client';
-import logger from 'logger';
-import { gbToBytes } from 'utils/driveUtils';
+import { prisma } from '../client.js';
+import { logger } from '../logger.js';
+import { gbToBytes } from '../utils/driveUtils.js';
 
 export const getDataUsageForUserBytes = async (user: User) => {
   const dataConsumption = await prisma.dataReference.aggregate({

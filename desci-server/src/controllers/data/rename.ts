@@ -1,5 +1,4 @@
 import {
-  ResearchObjectComponentType,
   ResearchObjectV1,
   ResearchObjectV1Component,
   isNodeRoot,
@@ -9,15 +8,15 @@ import {
 import { DataType } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { updateManifestDataBucket } from 'services/data/processing';
-import { getDirectoryTree, renameFileInDag } from 'services/ipfs';
-import { prepareDataRefs } from 'utils/dataRefTools';
-import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { updateManifestDataBucket } from '../../services/data/processing.js';
+import { getDirectoryTree, renameFileInDag } from '../../services/ipfs.js';
+import { prepareDataRefs } from '../../utils/dataRefTools.js';
+import { generateExternalCidMap, updateManifestComponentDagCids } from '../../utils/driveUtils.js';
 
-import { ErrorResponse } from './update';
-import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils';
+import { ErrorResponse } from './update.js';
+import { getLatestManifest, persistManifest, separateFileNameAndExtension } from './utils.js';
 
 interface RenameResponse {
   status?: number;
@@ -63,10 +62,10 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
      */
     const externalCidMap = await generateExternalCidMap(node.uuid);
     const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(dataBucket.payload.cid, externalCidMap));
-    const oldPathSplit = path.split('/');
+    const oldPathSplit = path.split('../../');
     oldPathSplit.pop();
     oldPathSplit.push(newName);
-    const newPath = oldPathSplit.join('/');
+    const newPath = oldPathSplit.join('../../');
     const hasDuplicates = oldFlatTree.some((oldBranch) => oldBranch.path.includes(newPath));
     if (hasDuplicates) {
       logger.info('[DATA::Rename] Rejected as duplicate paths were found');
@@ -76,10 +75,10 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     /*
      ** Update in dag
      */
-    const splitContextPath = path.split('/');
+    const splitContextPath = path.split('../../');
     splitContextPath.shift(); //remove root
     const linkToRename = splitContextPath.pop();
-    const cleanContextPath = splitContextPath.join('/');
+    const cleanContextPath = splitContextPath.join('../../');
     logger.debug(`DATA::Rename cleanContextPath: ${cleanContextPath},  Renaming: ${linkToRename},  to : ${newName}`);
     const { updatedDagCidMap, updatedRootCid } = await renameFileInDag(
       dataBucket.payload.cid,
@@ -160,7 +159,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    logger.error(`[DATA::Rename] error: ${e}`);
+    logger.error(e, `[DATA::Rename] error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };
@@ -173,7 +172,7 @@ interface UpdateComponentPathsInManifest {
 
 export function updateComponentPathsInManifest({ manifest, oldPath, newPath }: UpdateComponentPathsInManifest) {
   manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
-    if (c.payload?.path.startsWith(oldPath + '/') || c.payload.path === oldPath) {
+    if (c.payload?.path.startsWith(oldPath + '../../') || c.payload.path === oldPath) {
       manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
     }
   });

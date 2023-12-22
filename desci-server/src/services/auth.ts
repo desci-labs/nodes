@@ -1,17 +1,16 @@
 import { env } from 'process';
 
-import { Invite, prisma, User } from '@prisma/client';
+import { User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import AWS from 'aws-sdk';
 
-import parentLogger from 'logger';
-import createRandomCode from 'utils/createRandomCode';
+import { prisma as client } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
+import createRandomCode from '../utils/createRandomCode.js';
+import { hideEmail } from '../utils.js';
 
 AWS.config.update({ region: 'us-east-2' });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-import client from '../client';
-
-import { hideEmail } from 'utils';
 
 const logger = parentLogger.child({ module: 'Services::Auth' });
 

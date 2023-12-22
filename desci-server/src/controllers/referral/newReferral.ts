@@ -1,10 +1,11 @@
 import { ActionType, FriendReferral, User } from '@prisma/client';
-import { SES } from 'aws-sdk';
+import awsSdk from 'aws-sdk';
 import { Request, Response } from 'express';
 
-import parentLogger from 'logger';
-import { saveFriendReferral } from 'services/friendReferral';
-import { saveInteraction } from 'services/interactionLog';
+import { logger as parentLogger } from '../../logger.js';
+import { saveFriendReferral } from '../../services/friendReferral.js';
+import { saveInteraction } from '../../services/interactionLog.js';
+const { SES } = awsSdk;
 
 interface ExpectedBody {
   emails: string[];

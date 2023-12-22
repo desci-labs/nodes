@@ -1,8 +1,8 @@
 import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import parentLogger from 'logger';
-import { getReferralsByUserId as getReferralsByUserIdDb } from 'services/friendReferral';
+import { logger as parentLogger } from '../../logger.js';
+import { getReferralsByUserId as getReferralsByUserIdDb } from '../../services/friendReferral.js';
 
 export const getReferralsByUserId = async (req: Request, res: Response) => {
   const logger = parentLogger.child({

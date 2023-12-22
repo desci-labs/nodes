@@ -1,29 +1,24 @@
-import { describe } from "mocha";
-import { expect } from "chai";
-import { RoCrateTransformer } from "../../src/transformers/RoCrateTransformer";
-import ResearchObjectTi from "../../src/ResearchObject-ti";
-import { RoCrate, RoCrateGraph } from "../../src/RoCrate";
-import { createCheckers } from "ts-interface-checker";
-import exampleNode from "../example-data/exampleNode.json";
-import exampleRoCrate from "../example-data/exampleRoCrate.json";
-import exampleNodeWithAuthors from "../example-data/exampleNodeWithAuthors.json";
-import expectedJsonLd from "../example-data/exampleNodeToRoCrate.json";
-import exampleRoCrateWithWorkflow from "../example-data/roCrateWithWorkflow.json";
-import {
-  CodeComponent,
-  DataComponent,
-  PdfComponent,
-  ResearchObjectV1,
-} from "../../src/ResearchObject";
+import { describe } from 'mocha';
+import { expect } from 'chai';
+import { RoCrateTransformer } from '../../src/transformers/RoCrateTransformer';
+import ResearchObjectTi from '../../src/ResearchObject-ti';
+import { RoCrate, RoCrateGraph } from '../../src/RoCrate';
+import { createCheckers } from 'ts-interface-checker';
+import exampleNode from '../example-data/exampleNode.json';
+import exampleRoCrate from '../example-data/exampleRoCrate.json';
+import exampleNodeWithAuthors from '../example-data/exampleNodeWithAuthors.json';
+import expectedJsonLd from '../example-data/exampleNodeToRoCrate.json';
+import exampleRoCrateWithWorkflow from '../example-data/roCrateWithWorkflow.json';
+import { CodeComponent, DataComponent, PdfComponent, ResearchObjectV1 } from '../../src/ResearchObject';
 
-import { CreativeWork } from "schema-dts";
-const context = "https://www.researchobject.org/ro-crate/1.1/context.jsonld";
+import { CreativeWork } from 'schema-dts';
+const context = 'https://www.researchobject.org/ro-crate/1.1/context.jsonld';
 const checkers = createCheckers(ResearchObjectTi);
 
 const transformer = new RoCrateTransformer();
 
-describe("RoCrateTransformer", () => {
-  it("Imports a simple valid RO-Crate object", () => {
+describe('RoCrateTransformer', () => {
+  it('Imports a simple valid RO-Crate object', () => {
     const roCrate = exampleRoCrate;
 
     const researchObject = transformer.importObject(roCrate);
@@ -31,7 +26,7 @@ describe("RoCrateTransformer", () => {
   });
 
   // skipping due to lossy conversion, need to update spec to capture encoding
-  it("Exports a simple valid ResearchObject to RO-Crate format", async () => {
+  it('Exports a simple valid ResearchObject to RO-Crate format', async () => {
     const researchObject = exampleNode;
 
     const roCrate = transformer.exportObject(researchObject);
@@ -41,156 +36,124 @@ describe("RoCrateTransformer", () => {
     expect(roCrate).to.deep.equal(expectedJsonLd);
   });
 
-  it("Properly imports PDF components", () => {
+  it('Properly imports PDF components', () => {
     const roCrate = exampleRoCrate;
 
-    const researchObject = transformer.importObject(
-      roCrate
-    ) as ResearchObjectV1;
-    const pdfComponent = researchObject.components.find(
-      (component) => component.type === "pdf"
-    ) as PdfComponent;
+    const researchObject = transformer.importObject(roCrate) as ResearchObjectV1;
+    const pdfComponent = researchObject.components.find((component) => component.type === 'pdf') as PdfComponent;
 
     expect(pdfComponent).to.not.be.undefined;
-    expect(pdfComponent.payload.url).to.equal(
-      "https://example.com/example.pdf"
-    );
+    expect(pdfComponent.payload.url).to.equal('https://example.com/example.pdf');
   });
 
-  it("Properly imports code components", () => {
+  it('Properly imports code components', () => {
     const roCrate = exampleRoCrateWithWorkflow;
 
-    const researchObject = transformer.importObject(
-      roCrate
-    ) as ResearchObjectV1;
+    const researchObject = transformer.importObject(roCrate) as ResearchObjectV1;
 
-    const codeComponent = researchObject.components.find(
-      (component) => component.type === "code"
-    ) as CodeComponent;
+    const codeComponent = researchObject.components.find((component) => component.type === 'code') as CodeComponent;
 
     expect(codeComponent).to.not.be.undefined;
-    expect(codeComponent.payload.url).to.equal(
-      "http://example.com/workflows/alignment"
-    );
+    expect(codeComponent.payload.url).to.equal('http://example.com/workflows/alignment');
   });
 
-  it("Properly imports data components", () => {
+  it('Properly imports data components', () => {
     const roCrate = exampleRoCrate;
 
-    const researchObject = transformer.importObject(
-      roCrate
-    ) as ResearchObjectV1;
-    const dataComponent = researchObject.components.find(
-      (component) => component.type === "data"
-    ) as DataComponent;
+    const researchObject = transformer.importObject(roCrate) as ResearchObjectV1;
+    const dataComponent = researchObject.components.find((component) => component.type === 'data') as DataComponent;
 
     expect(dataComponent).to.not.be.undefined;
-    expect(dataComponent.payload.cid).to.equal(
-      "https://doi.org/10.5281/zenodo.1234567"
-    );
+    expect(dataComponent.payload.cid).to.equal('https://doi.org/10.5281/zenodo.1234567');
   });
 
-  it("Properly exports PDF components", () => {
+  it('Properly exports PDF components', () => {
     const researchObject = exampleNode;
 
     const roCrate = transformer.exportObject(researchObject) as RoCrate;
-    const pdfComponent = roCrate["@graph"].find(
+    const pdfComponent = roCrate['@graph'].find(
       (item: RoCrateGraph) =>
-        typeof item !== "string" &&
-        item["@type"] &&
-        item["@type"] === "CreativeWork" &&
-        (item as CreativeWork).encodingFormat === "application/pdf"
+        typeof item !== 'string' &&
+        item['@type'] &&
+        item['@type'] === 'CreativeWork' &&
+        (item as CreativeWork).encodingFormat === 'application/pdf',
     ) as CreativeWork;
 
     expect(pdfComponent).to.not.be.undefined;
     expect(pdfComponent.url).to.equal(
-      "https://ipfs.io/ipfs/bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy"
+      'https://ipfs.io/ipfs/bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy',
     );
-    expect((pdfComponent as any)["/"]).to.equal(
-      "bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy"
-    );
+    expect((pdfComponent as any)['/']).to.equal('bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy');
   });
 
-  it("Properly exports code components", () => {
+  it('Properly exports code components', () => {
     const researchObject = exampleNode;
 
     const roCrate = transformer.exportObject(researchObject);
 
-    const codeComponent = roCrate["@graph"].find(
+    const codeComponent = roCrate['@graph'].find(
       (item: RoCrateGraph) =>
-        typeof item !== "string" &&
-        item["@type"] === "SoftwareSourceCode" &&
-        item.encodingFormat === "text/plain"
+        typeof item !== 'string' && item['@type'] === 'SoftwareSourceCode' && item.encodingFormat === 'text/plain',
     );
 
     expect(codeComponent).to.not.be.undefined;
-    expect(codeComponent["/"]).to.equal(
-      "bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i"
-    );
+    expect(codeComponent['/']).to.equal('bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i');
     expect(codeComponent.url).to.equal(
-      "https://ipfs.io/ipfs/bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i"
+      'https://ipfs.io/ipfs/bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i',
     );
   });
 
-  it("Properly exports data components", () => {
+  it('Properly exports data components', () => {
     const researchObject = exampleNode;
     const roCrate = transformer.exportObject(researchObject);
-    const dataComponent = roCrate["@graph"].find(
+    const dataComponent = roCrate['@graph'].find(
       (item: RoCrateGraph) =>
-        typeof item !== "string" &&
-        item["@type"] === "Dataset" &&
-        item.encodingFormat === "application/octet-stream"
+        typeof item !== 'string' && item['@type'] === 'Dataset' && item.encodingFormat === 'application/octet-stream',
     );
 
     expect(dataComponent).to.not.be.undefined;
     expect(dataComponent.url).to.equal(
-      "https://ipfs.io/ipfs/bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m"
+      'https://ipfs.io/ipfs/bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m',
     );
-    expect(dataComponent["/"]).to.equal(
-      "bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m"
-    );
+    expect(dataComponent['/']).to.equal('bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m');
   });
 
-  it("Properly exports authors", () => {
+  it('Properly exports authors', () => {
     const researchObject = exampleNodeWithAuthors;
     const roCrate = transformer.exportObject(researchObject);
     // console.log("RO", roCrate);
-    const authors = roCrate["@graph"].filter(
-      (item: RoCrateGraph) =>
-        typeof item !== "string" && item["@type"] === "Person"
+    const authors = roCrate['@graph'].filter(
+      (item: RoCrateGraph) => typeof item !== 'string' && item['@type'] === 'Person',
     );
 
     expect(authors).to.not.be.undefined;
     expect(authors.length).to.equal(17);
   });
-  it("Properly handles CEDAR link", () => {
+  it('Properly handles CEDAR link', () => {
     const researchObject = exampleNodeWithAuthors;
     const roCrate = transformer.exportObject(researchObject);
     // console.log("RO", roCrate);
-    const cedar = roCrate["@graph"].find(
+    const cedar = roCrate['@graph'].find(
       (item: RoCrateGraph) =>
-        typeof item !== "string" &&
-        item["@type"] === "Dataset" &&
-        item["@id"] == "dd562a70-0bb9-4a07-8b00-c414bc8b9ad9" &&
-        item["schemaVersion"] &&
-        item["schemaVersion"].toString().length > 0
+        typeof item !== 'string' &&
+        item['@type'] === 'Dataset' &&
+        item['@id'] == 'dd562a70-0bb9-4a07-8b00-c414bc8b9ad9' &&
+        item['schemaVersion'] &&
+        item['schemaVersion'].toString().length > 0,
     );
 
     expect(cedar).to.not.be.undefined;
   });
-  it("Adds orcid.org prefix to author ids", () => {
+  it('Adds orcid.org prefix to author ids', () => {
     const researchObject = exampleNodeWithAuthors;
     const roCrate = transformer.exportObject(researchObject);
     // console.log("RO", roCrate);
-    console.log("EXPORTED RO-CRATE", JSON.stringify(roCrate));
-    const authors = roCrate["@graph"].filter(
-      (item: RoCrateGraph) =>
-        typeof item !== "string" && item["@type"] === "Person"
+    console.log('EXPORTED RO-CRATE', JSON.stringify(roCrate));
+    const authors = roCrate['@graph'].filter(
+      (item: RoCrateGraph) => typeof item !== 'string' && item['@type'] === 'Person',
     );
 
     expect(authors).to.not.be.undefined;
-    expect(authors[0]["@id"]).to.equal(
-      `https://orcid.org/${researchObject.authors[0].orcid}`
-    );
+    expect(authors[0]['@id']).to.equal(`https://orcid.org/${researchObject.authors[0].orcid}`);
   });
 });

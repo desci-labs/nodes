@@ -1,4 +1,4 @@
-import client from '../client';
+import { prisma as client } from '../client.js';
 
 const promote = async (id: number): Promise<boolean> => {
   console.log('waitlist::promote', id);
@@ -60,7 +60,7 @@ const addUser = async (email: string): Promise<boolean> => {
   if (!user) {
     user = await client.user.create({
       data: {
-        email
+        email,
       },
     });
   }

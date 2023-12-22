@@ -1,12 +1,12 @@
-import { ResearchObjectV1, ResearchObjectV1History, RESEARCH_OBJECT_NODES_PREFIX } from '@desci-labs/desci-models';
+import { ResearchObjectV1, RESEARCH_OBJECT_NODES_PREFIX } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 import { CID } from 'multiformats/cid';
 
-import prisma from 'client';
-import { PUBLIC_IPFS_PATH } from 'config';
-import parentLogger from 'logger';
+import { prisma } from '../../client.js';
+import { PUBLIC_IPFS_PATH } from '../../config/index.js';
+import { logger as parentLogger } from '../../logger.js';
 
 export const cleanupManifestUrl = (url: string, gateway?: string) => {
   if (url && (PUBLIC_IPFS_PATH || gateway)) {
@@ -90,6 +90,7 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
       where: {
         uuid: uuid + '.',
         ownerId,
+        isDeleted: false,
       },
     });
 

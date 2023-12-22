@@ -1,11 +1,8 @@
-import crypto from 'crypto';
-
 import { User } from '@prisma/client';
 
-import parentLogger from 'logger';
-import createRandomCode from 'utils/createRandomCode';
-
-import client from '../client';
+import { prisma as client } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
+import createRandomCode from '../utils/createRandomCode.js';
 
 const logger = parentLogger.child({ module: 'Services::Invites' });
 

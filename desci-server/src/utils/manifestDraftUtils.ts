@@ -1,6 +1,6 @@
 import { PdfComponentPayload, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 
-import { UrlWithCid } from 'services/ipfs';
+import { UrlWithCid } from '../services/ipfs.js';
 
 export const cleanManifestForSaving = (manifest: ResearchObjectV1) => {
   manifest.components = manifest.components.map((c) => {

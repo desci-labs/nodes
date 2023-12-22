@@ -1,8 +1,8 @@
-import { Organization, User } from '@prisma/client';
+import { Organization } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
+import { prisma } from '../../client.js';
 
 export const ROR_API_URL = 'https://api.ror.org/organizations';
 const cache = {};

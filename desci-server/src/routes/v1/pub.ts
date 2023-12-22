@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { versions } from 'controllers/raw';
+import { versions } from '../../controllers/raw/versions.js';
 
 const router = Router();
 
