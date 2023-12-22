@@ -1,38 +1,42 @@
 {
-    "explorer.compactFolders": false,
-    "files.exclude": {
-        "**/node_modules/**": true
-    },
-    "editor.formatOnSave": true, // Tell VSCode to format files on save
+  "explorer.compactFolders": false,
+  "files.exclude": {
+    "**/node_modules/**": true
+  },
+  "editor.formatOnSave": true, // Tell VSCode to format files on save
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "typescript.format.enable": false,
+  "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "typescript.format.enable": false,
-    "[typescript]": {
-        "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "editor.formatOnSave": true,
-        "editor.codeActionsOnSave": {
-            /// TSX auto format on save ESLint
-            "source.fixAll.eslint": true
-        }
-    },
-    "yaml.schemas": {
-        "https://gitpod.io/schemas/gitpod-schema.json": "file:///workspace/desci-nodes/.gitpod.yml"
-    },
-    "tailwindCSS.includeLanguages": {
-        "typescript": "javascript", // if you are using typescript
-        "typescriptreact": "javascript" // if you are using typescript with react
-    },
-    "editor.quickSuggestions": {
-        "strings": true // forces VS Code to trigger completions when editing "string" content
-    },
-    "tailwindCSS.experimental.classRegex": [
-        "tw`([^`]*)", // tw`...`
-        "tw\\.[^`]+`([^`]*)`", // tw.xxx<xxx>`...`
-        "tw\\(.*?\\).*?`([^`]*)" // tw(Component)<xxx>`...`
-    ],
-    "solidity.defaultCompiler": "localFile",
-    "solidity.packageDefaultDependenciesContractsDirectory": "./desci-contracts/node_modules",
-    "solidity.remappingsUnix": [
-        "@openzeppelin/=./desci-contracts/node_modules/@openzeppelin/",
-        "hardhat/=./desci-contracts/node_modules/hardhat/"
-   ]
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      /// TSX auto format on save ESLint
+      "source.fixAll.eslint": true
+    }
+  },
+  "yaml.schemas": {
+    "https://gitpod.io/schemas/gitpod-schema.json": "file:///workspace/desci-nodes/.gitpod.yml"
+  },
+  "tailwindCSS.includeLanguages": {
+    "typescript": "javascript", // if you are using typescript
+    "typescriptreact": "javascript" // if you are using typescript with react
+  },
+  "editor.quickSuggestions": {
+    "strings": true // forces VS Code to trigger completions when editing "string" content
+  },
+  "tailwindCSS.experimental.classRegex": [
+    "tw`([^`]*)", // tw`...`
+    "tw\\.[^`]+`([^`]*)`", // tw.xxx<xxx>`...`
+    "tw\\(.*?\\).*?`([^`]*)" // tw(Component)<xxx>`...`
+  ],
+  "solidity.defaultCompiler": "localFile",
+  "solidity.packageDefaultDependenciesContractsDirectory": "./desci-contracts/node_modules",
+  "solidity.remappingsUnix": [
+    "@openzeppelin/=./desci-contracts/node_modules/@openzeppelin/",
+    "hardhat/=./desci-contracts/node_modules/hardhat/"
+  ],
+  "[solidity]": {
+    "editor.defaultFormatter": "JuanBlanco.solidity",
+    "editor.formatOnSave": true
+  }
 }
