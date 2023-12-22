@@ -6,7 +6,6 @@
     "yaml.schemas": {
         "https://gitpod.io/schemas/gitpod-schema.json": "file:///workspace/desci-nodes/.gitpod.yml"
     },
-    "solidity.defaultCompiler": "localFile",
     "tailwindCSS.includeLanguages": {
         "typescript": "javascript", // if you are using typescript
         "typescriptreact": "javascript" // if you are using typescript with react
@@ -18,5 +17,11 @@
         "tw`([^`]*)", // tw`...`
         "tw\\.[^`]+`([^`]*)`", // tw.xxx<xxx>`...`
         "tw\\(.*?\\).*?`([^`]*)" // tw(Component)<xxx>`...`
-    ]
+    ],
+    "solidity.defaultCompiler": "localFile",
+    "solidity.packageDefaultDependenciesContractsDirectory": "./desci-contracts/node_modules",
+    "solidity.remappingsUnix": [
+        "@openzeppelin/=./desci-contracts/node_modules/@openzeppelin/",
+        "hardhat/=./desci-contracts/node_modules/hardhat/"
+   ]
 }

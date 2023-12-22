@@ -27,8 +27,9 @@ clean-rec:
 .PHONY: .env
 .env: nodes-media/.env
 	# Phony target, always runs but is idempotent
-	# Copies example env if not present, and fails until MNEMONIC is set
-	cp --no-clobber .env.example .env || true
+	# Copies example env if not present
+	if [ ! -e .env ]; then cp .env.example .env; fi
+	# fails until MNEMONIC is set
 	if ! grep -q MNEMONIC .env; then echo "ERROR: set MNEMONIC in .env"; exit 1; fi
 
 desci-contracts/.env: .env
