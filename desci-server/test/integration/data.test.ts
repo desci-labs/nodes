@@ -17,7 +17,7 @@ import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { app } from '../../src/index.js';
-import { migrateIpfsTreeToNodeTree } from '../../src/services/draftTrees';
+import { migrateIpfsTreeToNodeTree } from '../../src/services/draftTrees.js';
 import {
   addFilesToDag,
   getDirectoryTree,
@@ -25,10 +25,10 @@ import {
   client as ipfs,
   spawnEmptyManifest,
 } from '../../src/services/ipfs.js';
-import { randomUUID64 } from '../../src/utils.js';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools.js';
-import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils';
+import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils.js';
 import { addComponentsToManifest } from '../../src/utils/driveUtils.js';
+import { randomUUID64 } from '../../src/utils.js';
 import { spawnExampleDirDag } from '../util.js';
 
 describe('Data Controllers', () => {
