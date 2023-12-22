@@ -1,8 +1,10 @@
 {
-    "recommendations": [
-        "bradlc.vscode-tailwindcss",
-        "juanblanco.solidity",
-        "esbenp.prettier-vscode",
-        "prisma.prisma"
-    ]
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "juanblanco.solidity",
+    "esbenp.prettier-vscode",
+    "prisma.prisma",
+    "eamodio.gitlens",
+    "ms-vscode.makefile-tools"
+  ]
 }

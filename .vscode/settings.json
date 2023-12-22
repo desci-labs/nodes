@@ -3,6 +3,17 @@
     "files.exclude": {
         "**/node_modules/**": true
     },
+    "editor.formatOnSave": true, // Tell VSCode to format files on save
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "typescript.format.enable": false,
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            /// TSX auto format on save ESLint
+            "source.fixAll.eslint": true
+        }
+    },
     "yaml.schemas": {
         "https://gitpod.io/schemas/gitpod-schema.json": "file:///workspace/desci-nodes/.gitpod.yml"
     },

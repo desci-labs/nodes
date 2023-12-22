@@ -2,9 +2,9 @@
   "name": "@desci-labs/desci-contracts",
   "description": "Smart contracts implementing DeSci Nodes on-chain state and logic",
   "version": "0.2.0",
-  "license": "BSD-4-Clause",
+  "license": "MIT",
   "scripts": {
-    "test": "hardhat test",
+    "test": "hardhat clean && hardhat test",
     "build": "hardhat compile --network ganache",
     "docker:build": "docker build -t desci-hardhat-node .",
     "docker:push": "docker tag desci-hardhat-node:latest 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest && docker push 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest",
