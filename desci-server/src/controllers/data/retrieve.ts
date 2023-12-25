@@ -156,7 +156,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     const tree = findAndPruneNode(filledTree[0], dataPath, depth);
     if (tree?.type === 'file' || tree === undefined) {
       //tree can result in undefined if the dag link was recently renamed
-      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('../../'));
+      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
       return findAndPruneNode(filledTree[0], poppedDataPath, depth);
     } else {
       return tree;
@@ -261,7 +261,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   const depthTree = await getOrCache(depthCacheKey, async () => {
     const tree = hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree;
     if (tree[0]?.type === 'file' && hasDataBucket) {
-      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('../../'));
+      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
       return hasDataBucket ? [findAndPruneNode(filledTree[0], poppedDataPath, depth)] : filledTree;
     } else {
       return tree;
@@ -329,7 +329,7 @@ export const downloadDataset = async (req: Request, res: Response, next: NextFun
     'Content-disposition': `attachment; filename=dataset_${cid}.zip`,
   });
 
-  const basePath = process.cwd() + '../../';
+  const basePath = process.cwd() + '/';
   const targetPath = basePath + zipPath;
   const zipped = fs.createReadStream(targetPath);
 

@@ -112,10 +112,10 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   /*
    ** Determine the path of the directory to be updated
    */
-  const splitContextPath = contextPath.split('../../');
+  const splitContextPath = contextPath.split('/');
   splitContextPath.shift();
   //cleanContextPath = how many dags need to be reset, n + 1
-  const cleanContextPath = splitContextPath.join('../../');
+  const cleanContextPath = splitContextPath.join('/');
   logger.debug('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
 
   /*
@@ -123,10 +123,10 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
    */
   const OldTreePaths = oldFlatTree.map((e) => e.path);
   let newPathsFormatted: string[] = [];
-  const header = !!cleanContextPath ? rootCid + '../../' + cleanContextPath : rootCid;
+  const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
 
   if (externalCids?.length && Object.keys(cidTypesSizes)?.length) {
-    newPathsFormatted = externalCids.map((extCid) => header + '../../' + extCid.name);
+    newPathsFormatted = externalCids.map((extCid) => header + '/' + extCid.name);
   }
 
   const hasDuplicates = OldTreePaths.some((oldPath) => newPathsFormatted.includes(oldPath));
@@ -192,7 +192,7 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
    */
   //Filtered to first nestings only
   const filteredFiles = uploaded.filter((file) => {
-    return file.path.split('../../').length === 1;
+    return file.path.split('/').length === 1;
   });
 
   const filesToAddToDag: FilesToAddToDag = {};
@@ -243,8 +243,8 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   //Only needs to happen if a predefined component type is to be added
   if (componentType) {
     const firstNestingComponents: FirstNestingComponent[] = filteredFiles.map((file) => {
-      const neutralFullPath = contextPath + '../../' + file.path;
-      const pathSplit = file.path.split('../../');
+      const neutralFullPath = contextPath + '/' + file.path;
+      const pathSplit = file.path.split('/');
       const name = pathSplit.pop();
       return {
         name: name,
@@ -264,7 +264,7 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   const externalPathsAdded = {};
   const hasCidTypeSizes = Object.keys(cidTypesSizes)?.length;
   uploaded.forEach((file: IpfsPinnedResult) => {
-    const neutralFullPath = contextPath + '../../' + file.path;
+    const neutralFullPath = contextPath + '/' + file.path;
     const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
     newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
     if (hasCidTypeSizes) externalPathsAdded[deneutralizedFullPath] = true;

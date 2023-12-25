@@ -65,7 +65,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
    */
   const uuid = req.params.query; // TODO: check if we need a dot here
   const decodedUuid = '0x' + decodeBase64UrlSafeToHex(uuid);
-  const [firstParam, secondParam, thirdParam, ...rest] = req.params[0]?.substring(1).split('../../');
+  const [firstParam, secondParam, thirdParam, ...rest] = req.params[0]?.substring(1).split('/');
   const logger = parentLogger.child({
     // id: req.id,
     module: 'RAW::resolveController',
@@ -229,13 +229,13 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
         try {
           const targetUrl = `https://raw.githubusercontent.com/${
             codeComponent.payload.externalUrl.split('github.com/')[1]
-          }/${[thirdParam, ...rest].filter(Boolean).join('../../')}`;
+          }/${[thirdParam, ...rest].filter(Boolean).join('/')}`;
           const { data } = await axios.get(targetUrl);
           res.header('content-type', 'text/plain').send(data);
         } catch (err) {
           res
             .status(400)
-            .send({ ok: false, msg: `fail to resolve ${[thirdParam, ...rest].filter(Boolean).join('../../')}` });
+            .send({ ok: false, msg: `fail to resolve ${[thirdParam, ...rest].filter(Boolean).join('/')}` });
         }
         return;
       default:
