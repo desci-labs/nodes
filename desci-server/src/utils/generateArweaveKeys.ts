@@ -1,6 +1,6 @@
 import Arweave from 'arweave/node';
 import dotenv from 'dotenv';
-dotenv.config({ path: __dirname + '/../../.env' });
+dotenv.config({ path: __dirname + '/.env' });
 
 const config = {
   host: process.env.ARWEAVE_HOST,

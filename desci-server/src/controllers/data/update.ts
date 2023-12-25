@@ -237,7 +237,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
       if (componentType === ResearchObjectComponentType.CODE) {
         const processedUrl = await processExternalUrls(externalUrl.url, componentType);
         const zipStream = await zipUrlToStream(processedUrl);
-        zipPath = TEMP_REPO_ZIP_PATH + '../../' + owner.id + '_' + Date.now() + '.zip';
+        zipPath = TEMP_REPO_ZIP_PATH + '/' + owner.id + '_' + Date.now() + '.zip';
 
         fs.mkdirSync(zipPath.replace('.zip', ''), { recursive: true });
         await saveZipStreamToDisk(zipStream, zipPath);
@@ -298,10 +298,10 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
   /*
    ** Determine the path of the directory to be updated
    */
-  const splitContextPath = contextPath.split('../../');
+  const splitContextPath = contextPath.split('/');
   splitContextPath.shift();
   //cleanContextPath = how many dags need to be reset, n + 1
-  const cleanContextPath = splitContextPath.join('../../');
+  const cleanContextPath = splitContextPath.join('/');
   logger.debug('[UPDATE DATASET] cleanContextPath: ', cleanContextPath);
 
   //ensure all paths are unique to prevent borking datasets, reject if fails unique check
@@ -311,29 +311,29 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
   }, {});
 
   let newPathsFormatted: string[] = [];
-  const header = !!cleanContextPath ? rootCid + '../../' + cleanContextPath : rootCid;
+  const header = !!cleanContextPath ? rootCid + '/' + cleanContextPath : rootCid;
   if (files.length) {
     newPathsFormatted = files.map((f) => {
-      if (f.originalname[0] !== '../../') f.originalname = '../../' + f.originalname;
+      if (f.originalname[0] !== '/') f.originalname = '/' + f.originalname;
       return header + f.originalname;
     });
   }
   if (externalUrl) {
     if (externalUrlFiles?.length > 0) {
       newPathsFormatted = externalUrlFiles.map((f) => {
-        return header + '../../' + f.path;
+        return header + '/' + f.path;
       });
     }
 
     // Code repo, add repo dir path
     if (zipPath.length > 0) {
-      newPathsFormatted = [header + '../../' + externalUrl.path];
+      newPathsFormatted = [header + '/' + externalUrl.path];
     } else {
     }
   }
 
   if (newFolderName) {
-    newPathsFormatted = [header + '../../' + newFolderName];
+    newPathsFormatted = [header + '/' + newFolderName];
   }
   const hasDuplicates = newPathsFormatted.some((newPath) => newPath in oldTreePathsMap);
   if (hasDuplicates) {
@@ -377,7 +377,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
 
   //New folder creation, add to uploaded
   if (newFolderName) {
-    const newFolder = await pinDirectory([{ path: newFolderName + '../../.nodeKeep', content: Buffer.from('') }]);
+    const newFolder = await pinDirectory([{ path: newFolderName + '/.nodeKeep', content: Buffer.from('') }]);
     if (!newFolder.length) return res.status(400).json({ error: 'Failed creating new folder' });
     uploaded = newFolder;
   }
@@ -418,8 +418,8 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
   //Only needs to happen if a predefined component type is to be added
   if (componentType) {
     const firstNestingComponents: FirstNestingComponent[] = filteredFiles.map((file) => {
-      const neutralFullPath = contextPath + '../../' + file.path;
-      const pathSplit = file.path.split('../../');
+      const neutralFullPath = contextPath + '/' + file.path;
+      const pathSplit = file.path.split('/');
       const name = pathSplit.pop();
       return {
         name: name,
@@ -437,7 +437,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
   // //For adding correct types to the db, when a predefined component type is used **PROBABLY NO LONGER NEEDED WITH prepareDataRefs()**
   // const newFilePathDbTypeMap = {};
   // uploaded.forEach((file: IpfsPinnedResult) => {
-  //   const neutralFullPath = contextPath + '../../' + file.path;
+  //   const neutralFullPath = contextPath + '/' + file.path;
   //   const deneutralizedFullPath = deneutralizePath(neutralFullPath, newRootCidString);
   //   newFilePathDbTypeMap[deneutralizedFullPath] = ROTypesToPrismaTypes[componentType] || DataType.UNKNOWN;
   // });
