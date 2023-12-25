@@ -20,17 +20,18 @@ contract ResearchObjectMigrated is ResearchObjectV2 {
         _disableInitializers();
     }
 
-    function initialize(
-        address dpidRegistry,
-        MigrationData[] memory importData,
-        bytes32 defaultPrefix
-    ) public initializer {
+    function initialize(address dpidRegistry) public initializer {
         ResearchObjectV2.__ResearchObjectV2_init(dpidRegistry);
 
         OwnableUpgradeable.__Ownable_init();
 
         _dpidRegistry = dpidRegistry;
+    }
 
+    function _importChunk(
+        MigrationData[] memory importData,
+        bytes32 defaultPrefix
+    ) public payable onlyOwner {
         for (uint256 i = 0; i < importData.length; i++) {
             MigrationData memory data = importData[i];
             _importWithDpid(
@@ -51,7 +52,7 @@ contract ResearchObjectMigrated is ResearchObjectV2 {
         uint256 expectedDpid,
         uint256 timestamp,
         address targetAccount
-    ) private onlyInitializing {
+    ) public payable onlyOwner {
         IDpidRegistry registry = IDpidRegistry(_dpidRegistry);
 
         uint256 target = registry.get(prefix, expectedDpid);

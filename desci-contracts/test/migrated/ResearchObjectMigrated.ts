@@ -59,9 +59,15 @@ describe("Research Object Migration", function () {
       const importData: MigrationDataStruct[] = [];
       let researchObjectMigrated = (await upgrades.deployProxy(
         ResearchObjectMigratedFactory,
-        [dpidRegistry.address, importData, DEFAULT_PREFIX]
+        [dpidRegistry.address]
       )) as ResearchObjectMigrated;
       await researchObjectMigrated.deployed();
+
+      const result = await researchObjectMigrated._importChunk(
+        importData,
+        DEFAULT_PREFIX
+      );
+      console.log("result", result);
 
       // ensure we are owner
       expect(await researchObjectMigrated.owner()).to.equal(
@@ -91,9 +97,15 @@ describe("Research Object Migration", function () {
       ];
       let researchObjectMigrated = (await upgrades.deployProxy(
         ResearchObjectMigratedFactory,
-        [dpidRegistry.address, importData, DEFAULT_PREFIX]
+        [dpidRegistry.address]
       )) as ResearchObjectMigrated;
       await researchObjectMigrated.deployed();
+
+      const result = await researchObjectMigrated._importChunk(
+        importData,
+        DEFAULT_PREFIX
+      );
+      console.log("result", result);
 
       // expect one log of each
       const logs = await researchObjectMigrated.queryFilter(
@@ -151,9 +163,15 @@ describe("Research Object Migration", function () {
     ];
     let researchObjectMigrated = (await upgrades.deployProxy(
       ResearchObjectMigratedFactory,
-      [dpidRegistry.address, importData, DEFAULT_PREFIX]
+      [dpidRegistry.address]
     )) as ResearchObjectMigrated;
     await researchObjectMigrated.deployed();
+
+    const result = await researchObjectMigrated._importChunk(
+      importData,
+      DEFAULT_PREFIX
+    );
+    console.log("result", result);
 
     // check RO side
     expect(await researchObjectMigrated.exists(targetUuid)).to.be.true;
@@ -245,9 +263,15 @@ describe("Research Object Migration", function () {
     ];
     let researchObjectMigrated = (await upgrades.deployProxy(
       ResearchObjectMigratedFactory,
-      [dpidRegistry.address, importData, DEFAULT_PREFIX]
+      [dpidRegistry.address]
     )) as ResearchObjectMigrated;
     await researchObjectMigrated.deployed();
+
+    const result = await researchObjectMigrated._importChunk(
+      importData,
+      DEFAULT_PREFIX
+    );
+    console.log("result", result);
 
     // check RO side
     expect(await researchObjectMigrated.exists(targetUuid)).to.be.true;

@@ -46,12 +46,14 @@ export interface ResearchObjectMigratedInterface extends utils.Interface {
     "__ResearchObjectV2_init(address)": FunctionFragment;
     "__VersionedERC721V2_init(string,string)": FunctionFragment;
     "_dpidRegistry()": FunctionFragment;
+    "_importChunk((address,uint256,bytes,uint256,uint256)[],bytes32)": FunctionFragment;
+    "_importWithDpid(uint256,bytes,bytes32,uint256,uint256,address)": FunctionFragment;
     "_metadata(uint256)": FunctionFragment;
     "approve(address,uint256)": FunctionFragment;
     "balanceOf(address)": FunctionFragment;
     "exists(uint256)": FunctionFragment;
     "getApproved(uint256)": FunctionFragment;
-    "initialize(address,(address,uint256,bytes,uint256,uint256)[],bytes32)": FunctionFragment;
+    "initialize(address)": FunctionFragment;
     "isApprovedForAll(address,address)": FunctionFragment;
     "mint(uint256,bytes)": FunctionFragment;
     "mintWithDpid(uint256,bytes,bytes32,uint256)": FunctionFragment;
@@ -84,6 +86,21 @@ export interface ResearchObjectMigratedInterface extends utils.Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "_importChunk",
+    values: [MigrationDataStruct[], BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "_importWithDpid",
+    values: [
+      BigNumberish,
+      BytesLike,
+      BytesLike,
+      BigNumberish,
+      BigNumberish,
+      string
+    ]
+  ): string;
+  encodeFunctionData(
     functionFragment: "_metadata",
     values: [BigNumberish]
   ): string;
@@ -100,10 +117,7 @@ export interface ResearchObjectMigratedInterface extends utils.Interface {
     functionFragment: "getApproved",
     values: [BigNumberish]
   ): string;
-  encodeFunctionData(
-    functionFragment: "initialize",
-    values: [string, MigrationDataStruct[], BytesLike]
-  ): string;
+  encodeFunctionData(functionFragment: "initialize", values: [string]): string;
   encodeFunctionData(
     functionFragment: "isApprovedForAll",
     values: [string, string]
@@ -168,6 +182,14 @@ export interface ResearchObjectMigratedInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "_dpidRegistry",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "_importChunk",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "_importWithDpid",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "_metadata", data: BytesLike): Result;
@@ -340,6 +362,22 @@ export interface ResearchObjectMigrated extends BaseContract {
 
     _dpidRegistry(overrides?: CallOverrides): Promise<[string]>;
 
+    _importChunk(
+      importData: MigrationDataStruct[],
+      defaultPrefix: BytesLike,
+      overrides?: PayableOverrides & { from?: string | Promise<string> }
+    ): Promise<ContractTransaction>;
+
+    _importWithDpid(
+      uuid: BigNumberish,
+      cid: BytesLike,
+      prefix: BytesLike,
+      expectedDpid: BigNumberish,
+      timestamp: BigNumberish,
+      targetAccount: string,
+      overrides?: PayableOverrides & { from?: string | Promise<string> }
+    ): Promise<ContractTransaction>;
+
     _metadata(arg0: BigNumberish, overrides?: CallOverrides): Promise<[string]>;
 
     approve(
@@ -362,8 +400,6 @@ export interface ResearchObjectMigrated extends BaseContract {
 
     initialize(
       dpidRegistry: string,
-      importData: MigrationDataStruct[],
-      defaultPrefix: BytesLike,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<ContractTransaction>;
 
@@ -475,6 +511,22 @@ export interface ResearchObjectMigrated extends BaseContract {
 
   _dpidRegistry(overrides?: CallOverrides): Promise<string>;
 
+  _importChunk(
+    importData: MigrationDataStruct[],
+    defaultPrefix: BytesLike,
+    overrides?: PayableOverrides & { from?: string | Promise<string> }
+  ): Promise<ContractTransaction>;
+
+  _importWithDpid(
+    uuid: BigNumberish,
+    cid: BytesLike,
+    prefix: BytesLike,
+    expectedDpid: BigNumberish,
+    timestamp: BigNumberish,
+    targetAccount: string,
+    overrides?: PayableOverrides & { from?: string | Promise<string> }
+  ): Promise<ContractTransaction>;
+
   _metadata(arg0: BigNumberish, overrides?: CallOverrides): Promise<string>;
 
   approve(
@@ -494,8 +546,6 @@ export interface ResearchObjectMigrated extends BaseContract {
 
   initialize(
     dpidRegistry: string,
-    importData: MigrationDataStruct[],
-    defaultPrefix: BytesLike,
     overrides?: Overrides & { from?: string | Promise<string> }
   ): Promise<ContractTransaction>;
 
@@ -601,6 +651,22 @@ export interface ResearchObjectMigrated extends BaseContract {
 
     _dpidRegistry(overrides?: CallOverrides): Promise<string>;
 
+    _importChunk(
+      importData: MigrationDataStruct[],
+      defaultPrefix: BytesLike,
+      overrides?: CallOverrides
+    ): Promise<void>;
+
+    _importWithDpid(
+      uuid: BigNumberish,
+      cid: BytesLike,
+      prefix: BytesLike,
+      expectedDpid: BigNumberish,
+      timestamp: BigNumberish,
+      targetAccount: string,
+      overrides?: CallOverrides
+    ): Promise<void>;
+
     _metadata(arg0: BigNumberish, overrides?: CallOverrides): Promise<string>;
 
     approve(
@@ -618,12 +684,7 @@ export interface ResearchObjectMigrated extends BaseContract {
       overrides?: CallOverrides
     ): Promise<string>;
 
-    initialize(
-      dpidRegistry: string,
-      importData: MigrationDataStruct[],
-      defaultPrefix: BytesLike,
-      overrides?: CallOverrides
-    ): Promise<void>;
+    initialize(dpidRegistry: string, overrides?: CallOverrides): Promise<void>;
 
     isApprovedForAll(
       owner: string,
@@ -791,6 +852,22 @@ export interface ResearchObjectMigrated extends BaseContract {
 
     _dpidRegistry(overrides?: CallOverrides): Promise<BigNumber>;
 
+    _importChunk(
+      importData: MigrationDataStruct[],
+      defaultPrefix: BytesLike,
+      overrides?: PayableOverrides & { from?: string | Promise<string> }
+    ): Promise<BigNumber>;
+
+    _importWithDpid(
+      uuid: BigNumberish,
+      cid: BytesLike,
+      prefix: BytesLike,
+      expectedDpid: BigNumberish,
+      timestamp: BigNumberish,
+      targetAccount: string,
+      overrides?: PayableOverrides & { from?: string | Promise<string> }
+    ): Promise<BigNumber>;
+
     _metadata(
       arg0: BigNumberish,
       overrides?: CallOverrides
@@ -816,8 +893,6 @@ export interface ResearchObjectMigrated extends BaseContract {
 
     initialize(
       dpidRegistry: string,
-      importData: MigrationDataStruct[],
-      defaultPrefix: BytesLike,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<BigNumber>;
 
@@ -930,6 +1005,22 @@ export interface ResearchObjectMigrated extends BaseContract {
 
     _dpidRegistry(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
+    _importChunk(
+      importData: MigrationDataStruct[],
+      defaultPrefix: BytesLike,
+      overrides?: PayableOverrides & { from?: string | Promise<string> }
+    ): Promise<PopulatedTransaction>;
+
+    _importWithDpid(
+      uuid: BigNumberish,
+      cid: BytesLike,
+      prefix: BytesLike,
+      expectedDpid: BigNumberish,
+      timestamp: BigNumberish,
+      targetAccount: string,
+      overrides?: PayableOverrides & { from?: string | Promise<string> }
+    ): Promise<PopulatedTransaction>;
+
     _metadata(
       arg0: BigNumberish,
       overrides?: CallOverrides
@@ -958,8 +1049,6 @@ export interface ResearchObjectMigrated extends BaseContract {
 
     initialize(
       dpidRegistry: string,
-      importData: MigrationDataStruct[],
-      defaultPrefix: BytesLike,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<PopulatedTransaction>;
 
