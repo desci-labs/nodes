@@ -101,6 +101,15 @@ const idToRo = {};
     .reverse();
   console.log(unified);
 
+  // write to JSON file
+  const fs = require("fs");
+  fs.writeFileSync(
+    `migrationData_${new Date().toDateString()}.json`,
+    JSON.stringify(unified)
+  );
+
+  process.exit(1);
+
   const DpidRegistryMigrated = await ethers.getContractFactory("DpidRegistry");
   console.log("[deployDpidRegistryMigrated] Deploying DpidRegistryMigrated...");
   const proxyDpid = await upgrades.deployProxy(DpidRegistryMigrated, []);
