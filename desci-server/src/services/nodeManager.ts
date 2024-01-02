@@ -59,6 +59,7 @@ export const createPublicDataRefs = async (
   userId: number | undefined,
   versionId: number | undefined,
 ) => {
+  debugger;
   const dataWithVersions = data.map((d) => ({ ...d, versionId }));
   const publicDataRefRes = await prisma.publicDataReference.createMany({
     data: dataWithVersions,
@@ -149,6 +150,7 @@ export const getAllCidsRequiredForPublish = async (
   nodeId: number | undefined,
   versionId: number | undefined,
 ): Promise<Prisma.PublicDataReferenceCreateManyInput[]> => {
+  // debugger;
   // ensure public data refs staged matches our data bucket cids
   const latestManifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   // const manifestString = manifestBuffer.toString('utf8');

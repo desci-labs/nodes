@@ -26,7 +26,6 @@ import {
   FilesToAddToDag,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
-  addFilesToDag,
   getDirectoryTree,
   isDir,
   pinDirectory,
@@ -38,11 +37,9 @@ import {
   ExtensionDataTypeMap,
   ExternalCidMap,
   FirstNestingComponent,
-  generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
   inheritComponentType,
-  updateManifestComponentDagCids,
   urlOrCid,
 } from '../../utils/driveUtils.js';
 import { EXTENSION_MAP } from '../../utils/extensions.js';
@@ -52,14 +49,12 @@ import { getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRe
 import {
   Either,
   ProcessingError,
-  createDagExtensionFailureError,
   createDuplicateFileError,
   createInvalidManifestError,
   createIpfsUnresolvableError,
   createIpfsUploadFailureError,
   createManifestPersistFailError,
   createMixingExternalDataError,
-  createNewFolderCreationError,
   createNotEnoughSpaceError,
   createUnhandledError,
 } from './processingErrors.js';
@@ -112,11 +107,12 @@ export async function processS3DataToIpfs({
       const root = pinResult[pinResult.length - 1];
       const rootTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
       // debugger;
-      const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries(
-        rootTree,
+      const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries({
+        ipfsTree: rootTree,
         node,
         user,
-      );
+        contextPath,
+      });
       const addedEntries = await prisma.draftNodeTree.createMany({
         data: draftNodeTreeEntries,
         skipDuplicates: true,

@@ -8,8 +8,6 @@ import { processExternalUrlDataToIpfs } from '../../services/data/externalUrlPro
 import { processNewFolder, processS3DataToIpfs } from '../../services/data/processing.js';
 import { IpfsPinnedResult } from '../../services/ipfs.js';
 import { arrayXor } from '../../utils.js';
-
-const TEMP_REPO_ZIP_PATH = './repo-tmp';
 export interface UpdateResponse {
   status?: number;
   rootDataCid?: string;
@@ -72,7 +70,7 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
       .status(400)
       .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
 
-  // debugger
+  // debugger;
   /**
    * temp short circuit for testing
    *  */

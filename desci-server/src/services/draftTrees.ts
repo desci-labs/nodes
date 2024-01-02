@@ -28,7 +28,7 @@ export async function migrateIpfsTreeToNodeTree(nodeUuid: string) {
 
   const timestampMap: TimestampMap = await generateTimestampMapFromDataRefs(node.id);
 
-  const dbDraftTreeEntries = await ipfsDagToDraftNodeTreeEntries(ipfsTree, node, node.owner, timestampMap);
+  const dbDraftTreeEntries = await ipfsDagToDraftNodeTreeEntries({ ipfsTree, node, user: node.owner, timestampMap });
 
   await prisma.draftNodeTree.createMany({
     data: dbDraftTreeEntries,

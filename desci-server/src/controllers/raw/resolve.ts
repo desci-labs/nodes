@@ -16,6 +16,8 @@ import { logger as parentLogger } from '../../logger.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
 import { decodeBase64UrlSafeToHex, hexToCid } from '../../utils.js';
 
+const IPFS_RESOLVER_OVERRIDE = process.env.IPFS_RESOLVER_OVERRIDE || '';
+//change
 export const directChainCall = async (decodedUuid: string) => {
   let provider;
   try {
@@ -65,7 +67,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
    */
   const uuid = req.params.query; // TODO: check if we need a dot here
   const decodedUuid = '0x' + decodeBase64UrlSafeToHex(uuid);
-  const [firstParam, secondParam, thirdParam, ...rest] = req.params[0]?.substring(1).split('../../');
+  const [firstParam, secondParam, thirdParam, ...rest] = req.params[0]?.substring(1).split('/');
   const logger = parentLogger.child({
     // id: req.id,
     module: 'RAW::resolveController',
@@ -79,7 +81,6 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
     user: (req as any).user,
   });
   logger.debug(`[resolve::resolve] firstParam=${firstParam} secondParam=${secondParam}`);
-
   // const node = await prisma.node.findFirst({
   //   where: { uuid },
   // });
@@ -127,7 +128,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
 
   // console.log('VERSION', version.args._cid);
 
-  const ipfsResolver = req.query.g || 'https://ipfs.desci.com/ipfs';
+  const ipfsResolver = IPFS_RESOLVER_OVERRIDE || req.query.g || 'https://ipfs.desci.com/ipfs';
   // TODO: add whitelist of resolvers
 
   if (!firstParam || !firstParam.trim().length) {
@@ -229,13 +230,13 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
         try {
           const targetUrl = `https://raw.githubusercontent.com/${
             codeComponent.payload.externalUrl.split('github.com/')[1]
-          }/${[thirdParam, ...rest].filter(Boolean).join('../../')}`;
+          }/${[thirdParam, ...rest].filter(Boolean).join('/')}`;
           const { data } = await axios.get(targetUrl);
           res.header('content-type', 'text/plain').send(data);
         } catch (err) {
           res
             .status(400)
-            .send({ ok: false, msg: `fail to resolve ${[thirdParam, ...rest].filter(Boolean).join('../../')}` });
+            .send({ ok: false, msg: `fail to resolve ${[thirdParam, ...rest].filter(Boolean).join('/')}` });
         }
         return;
       default:

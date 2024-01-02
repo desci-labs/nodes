@@ -236,7 +236,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   const depthTree = await getOrCache(depthCacheKey, async () => {
     const tree = hasDataBucket ? [findAndPruneNode(filledTree[0], dataPath, depth)] : filledTree;
     if (tree[0]?.type === 'file' && hasDataBucket) {
-      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('../../'));
+      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
       return hasDataBucket ? [findAndPruneNode(filledTree[0], poppedDataPath, depth)] : filledTree;
     } else {
       return tree;
@@ -304,7 +304,7 @@ export const downloadDataset = async (req: Request, res: Response, next: NextFun
     'Content-disposition': `attachment; filename=dataset_${cid}.zip`,
   });
 
-  const basePath = process.cwd() + '../../';
+  const basePath = process.cwd() + '/';
   const targetPath = basePath + zipPath;
   const zipped = fs.createReadStream(targetPath);
 

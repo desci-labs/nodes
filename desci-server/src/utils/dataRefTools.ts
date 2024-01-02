@@ -8,12 +8,7 @@ import { logger as parentLogger } from '../logger.js';
 import { discoveryLs, getDirectoryTree } from '../services/ipfs.js';
 import { objectPropertyXor, omitKeys } from '../utils.js';
 
-import {
-  DRAFT_CID,
-  TimestampMap,
-  draftNodeTreeEntriesToFlatIpfsTree,
-  flatTreeToHierarchicalTree,
-} from './draftTreeUtils.js';
+import { DRAFT_CID, TimestampMap, draftNodeTreeEntriesToFlatIpfsTree } from './draftTreeUtils.js';
 import {
   generateExternalCidMap,
   generateManifestPathsToDbTypeMap,
@@ -67,6 +62,7 @@ export async function generateDataReferences({
       uuid: nodeUuid,
     },
   });
+  // debugger;
   if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   const dataBucketCid = manifestEntry.components.find((c) => isNodeRoot(c)).payload.cid;

@@ -4,16 +4,12 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { updateManifestDataBucket } from '../../services/data/processing.js';
 import { ensureUniquePathsDraftTree } from '../../services/draftTrees.js';
-import { RecursiveLsResult, getDirectoryTree, moveFileInDag } from '../../services/ipfs.js';
-import { getLatestManifestFromNode, getNodeManifestUpdater } from '../../services/manifestRepo.js';
-import { prepareDataRefs } from '../../utils/dataRefTools.js';
+import { getNodeManifestUpdater } from '../../services/manifestRepo.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
-import { generateExternalCidMap, updateManifestComponentDagCids } from '../../utils/driveUtils.js';
 
 import { ErrorResponse } from './update.js';
-import { getLatestManifest, persistManifest } from './utils.js';
+import { persistManifest } from './utils.js';
 
 interface MoveResponse {
   status?: number;
