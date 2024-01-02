@@ -172,7 +172,7 @@ interface UpdateComponentPathsInManifest {
 
 export function updateComponentPathsInManifest({ manifest, oldPath, newPath }: UpdateComponentPathsInManifest) {
   manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
-    if (c.payload?.path.startsWith(oldPath + '../../') || c.payload.path === oldPath) {
+    if (c.payload?.path.startsWith(oldPath + '/') || c.payload.path === oldPath) {
       manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
     }
   });
