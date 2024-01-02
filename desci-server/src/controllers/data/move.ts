@@ -1,20 +1,11 @@
-import {
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  ResearchObjectV1Component,
-  isNodeRoot,
-  neutralizePath,
-  recursiveFlattenTree,
-} from '@desci-labs/desci-models';
+import { ResearchObjectV1, ResearchObjectV1Component, isNodeRoot, neutralizePath } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { updateManifestDataBucket } from '../../services/data/processing.js';
-import { RecursiveLsResult, getDirectoryTree, moveFileInDag } from '../../services/ipfs.js';
-import { prepareDataRefs } from '../../utils/dataRefTools.js';
-import { generateExternalCidMap, updateManifestComponentDagCids } from '../../utils/driveUtils.js';
+import { ensureUniquePathsDraftTree } from '../../services/draftTrees.js';
+import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
 import { ErrorResponse } from './update.js';
 import { getLatestManifest, persistManifest } from './utils.js';
@@ -53,79 +44,68 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
   }
 
   const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
 
   try {
+    const newPathSplit = newPath.split('/');
+    const fileName = newPathSplit.pop();
+    const newContextPath = newPathSplit.join('/');
+
     /*
      ** New path collision check
      */
-    const externalCidMap = await generateExternalCidMap(node.uuid);
-    const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(dataBucket.payload.cid, externalCidMap));
-    const hasDuplicates = oldFlatTree.some((oldBranch) => neutralizePath(oldBranch.path) === newPath);
-    if (hasDuplicates) {
+    const noDuplicates = await ensureUniquePathsDraftTree({
+      nodeId: node.id,
+      contextPath: newContextPath,
+      filesBeingAdded: [{ originalname: fileName }],
+    });
+
+    if (!noDuplicates) {
       logger.info('[DATA::Move] Rejected as duplicate paths were found');
       return res.status(400).json({ error: 'Name collision' });
     }
 
-    /*
-     ** Update in dag
+    /**
+     * Update draftNodeTree entries for the move operation
      */
-    const splitContextPath = oldPath.split('/');
-    splitContextPath.shift(); //remove root
-    const fileToMove = splitContextPath.pop();
-    const cleanContextPath = splitContextPath.join('/');
 
-    const splitNewPath = newPath.split('/');
-    splitNewPath.shift(); //remove root
-    const cleanNewPath = splitNewPath.join('/');
-    logger.debug(`[DATA::Move] cleanContextPath: ${cleanContextPath}, Moving: ${fileToMove} to: ${newPath}`);
-    const { updatedDagCidMap, updatedRootCid } = await moveFileInDag(
-      dataBucket.payload.cid,
-      cleanContextPath,
-      fileToMove,
-      cleanNewPath,
-    );
+    const entriesToUpdate = await prisma.draftNodeTree.findMany({
+      where: {
+        nodeId: node.id,
+        OR: [
+          {
+            path: {
+              startsWith: oldPath + '/',
+            },
+          },
+          {
+            path: oldPath,
+          },
+        ],
+      },
+    });
+
+    const updatesToPerform = entriesToUpdate.map((e) => {
+      return {
+        ...e,
+        path: e.path.replace(oldPath, newPath),
+      };
+    });
+
+    const [...updates] = await prisma.$transaction([
+      ...(updatesToPerform as any).map((fd) => {
+        return prisma.draftNodeTree.update({ where: { id: fd.id }, data: fd });
+      }),
+    ]);
+    logger.info(`[DATA::Move] ${updates.length} draftNodeTree entries updated to perform the move operation`);
 
     /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
-    let updatedManifest = updateComponentPathsInManifest({
+    const updatedManifest = updateComponentPathsInManifest({
       manifest: latestManifest,
       oldPath: oldPath,
       newPath: newPath,
     });
-
-    updatedManifest = updateManifestDataBucket({
-      manifest: updatedManifest,
-      newRootCid: updatedRootCid,
-    });
-
-    // note: updatedDagCidMap here unreliable
-    if (Object.keys(updatedDagCidMap).length) {
-      updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    }
-
-    /*
-     ** Workaround for keeping manifest cids in sync
-     */
-    const flatTree = recursiveFlattenTree(
-      await getDirectoryTree(updatedRootCid, externalCidMap),
-    ) as RecursiveLsResult[];
-    const flatTreePathMap = flatTree.reduce((map, branch) => {
-      branch.path = neutralizePath(branch.path);
-      map[branch.path] = branch;
-      return map;
-    }, {});
-    for (let i = 0; i < updatedManifest.components.length; i++) {
-      const currentComponent = updatedManifest.components[i];
-      if (currentComponent.payload.path === 'root' || currentComponent.type === ResearchObjectComponentType.LINK)
-        continue; //skip data bucket and ext-links
-      const match = flatTreePathMap[currentComponent.payload.path];
-      if (match) {
-        updatedManifest.components[i].payload.cid = match?.cid;
-        updatedManifest.components[i].payload.url = match?.cid;
-      }
-    }
 
     /*
      ** Prepare updated refs
@@ -138,19 +118,18 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
       },
     });
 
-    const newRefs = await prepareDataRefs(node.uuid, updatedManifest, updatedRootCid);
+    const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
     const existingRefMap = existingDataRefs.reduce((map, ref) => {
       map[neutralizePath(ref.path)] = ref;
       return map;
     }, {});
 
     const dataRefsToUpdate = newRefs.map((newRef) => {
-      const neutralizedNewRefPath = neutralizePath(newRef.path);
       // if paths are unchanged (unaffected by the move), their match is found in the line below
-      let match = existingRefMap[neutralizedNewRefPath];
+      let match = existingRefMap[newRef.path];
       if (!match) {
         // if paths are changed (affected by the move), their match should be found in the line below
-        const wouldBeOldPath = neutralizedNewRefPath.replace(newPath, oldPath);
+        const wouldBeOldPath = newRef.path.replace(newPath, oldPath);
         match = existingRefMap[wouldBeOldPath];
       }
       if (match === undefined) {
@@ -164,12 +143,12 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
       return { ...match, ...newRef };
     });
 
-    const [...updates] = await prisma.$transaction([
+    const [...dataRefUpdates] = await prisma.$transaction([
       ...(dataRefsToUpdate as any).map((fd) => {
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
       }),
     ]);
-    logger.info(`[DATA::Move] ${updates.length} dataReferences updated`);
+    logger.info(`[DATA::Move] ${dataRefUpdates.length} dataReferences updated`);
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)

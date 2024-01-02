@@ -17,7 +17,8 @@ import { discordNotify } from '../../utils/discordUtils.js';
 
 // call node publish service and add job to queue
 export const publish = async (req: Request, res: Response, next: NextFunction) => {
-  const { uuid, cid, manifest, transactionId } = req.body;
+  const { uuid, cid, manifest, transactionId, nodeVersionId } = req.body;
+  // debugger;
   const email = (req as any).user.email;
   const logger = parentLogger.child({
     // id: req.id,
@@ -31,7 +32,12 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     user: (req as any).user,
   });
   if (!uuid || !cid || !manifest) {
-    return res.status(404).send({ message: 'uuid, cid, and manifest must be valid' });
+    return res.status(404).send({ message: 'uuid, cid, email, and manifest must be valid' });
+  }
+
+  if (email === undefined || email === null) {
+    // Prevent any issues with prisma findFirst with undefined fields
+    return res.status(401).send({ message: 'email must be valid' });
   }
 
   try {
@@ -49,9 +55,10 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     const node = await prisma.node.findFirst({
       where: {
         ownerId: owner.id,
-        uuid: uuid + '.',
+        uuid: uuid.endsWith('.') ? uuid : uuid + '.',
       },
     });
+
     if (!node) {
       logger.warn({ owner, uuid }, `unauthed node user: ${owner}, node uuid provided: ${uuid}`);
       return res.status(400).json({ error: 'failed' });
@@ -59,8 +66,27 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     /**TODO: END MOVE TO MIDDLEWARE */
 
     // update node version
-    const nodeVersion = await prisma.nodeVersion.create({
-      data: {
+    const latestNodeVersion = await prisma.nodeVersion.findFirst({
+      where: {
+        id: nodeVersionId || -1,
+        nodeId: node.id,
+      },
+      orderBy: {
+        id: 'desc',
+      },
+    });
+
+    // Prevent duplicating the NodeVersion entry if the latest version is the same as the one we're trying to publish, as a draft save is triggered before publishing
+    const latestNodeVersionId = latestNodeVersion?.manifestUrl === cid ? latestNodeVersion.id : -1;
+
+    const nodeVersion = await prisma.nodeVersion.upsert({
+      where: {
+        id: latestNodeVersionId,
+      },
+      update: {
+        transactionId,
+      },
+      create: {
         nodeId: node.id,
         manifestUrl: cid,
         transactionId,
@@ -98,7 +124,6 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
        * Create a job per mirror in order to track the status of the upload
        * There can be multiple mirrors per node, right now there is just Estuary
        */
-
       const dataMirrorJobs = await createDataMirrorJobs(cidsRequiredForPublish, owner.id);
 
       // TODO: update public data refs to link versionId
@@ -162,17 +187,16 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     );
 
     // trigger ipfs storage upload, but don't wait for it to finish, will happen async
-    publishResearchObject(publicDataReferences)
-      .then(handleMirrorSuccess)
-      .catch(handleMirrorFail)
-      .finally(async () => {
-        await validateAndHealDataRefs({
-          nodeUuid: node.uuid!,
-          manifestCid: cid,
-          publicRefs: true,
-          markExternals: true,
-        });
-      });
+    publishResearchObject(publicDataReferences).then(handleMirrorSuccess).catch(handleMirrorFail);
+    // Disabled bandaid fix, shouldn't be necessary if publish step handled correctly on frontend.
+    // .finally(async () => {
+    //   await validateAndHealDataRefs({
+    //     nodeUuid: node.uuid!,
+    //     manifestCid: cid,
+    //     publicRefs: true,
+    //     markExternals: true,
+    //   });
+    // });
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version

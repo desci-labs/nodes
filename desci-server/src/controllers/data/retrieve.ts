@@ -124,46 +124,20 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     return res.status(400).json({ error: 'failed' });
   }
 
-  // Try early return if depth chunk cached
-  const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath}`;
-  try {
-    if (redisClient.isOpen) {
-      const cached = await redisClient.get(depthCacheKey);
-      if (cached) {
-        const tree = JSON.parse(cached);
-        return res.status(200).json({ tree: [tree], date: dataset?.updatedAt.toString() });
-      }
-    }
-  } catch (err) {
-    logger.debug({ err, depthCacheKey }, 'Failed to retrieve from cache, continuing');
-  }
+  // const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath};
 
   const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
-  let filledTree;
-  try {
-    filledTree = await getOrCache(
-      `filled-tree-${manifestCid}`,
-      async () => await getTreeAndFill(manifest, uuid, ownerId),
-    );
-    if (!filledTree) throw new Error('[retrieveTree] Failed to retrieve tree from cache');
-  } catch (err) {
-    logger.warn({ fn: 'retrieveTree', err }, '[retrieveTree] error');
-    logger.info('[retrieveTree] Falling back on uncached tree retrieval');
-    filledTree = await getTreeAndFill(manifest, uuid, ownerId);
+  const filledTree = (await getTreeAndFill(manifest, uuid, ownerId)) ?? [];
+
+  let tree = findAndPruneNode(filledTree[0], dataPath, depth);
+  if (tree?.type === 'file' || tree === undefined) {
+    // Logic to avoid returning files, if a file is the path requested, it returns its parent
+    //tree can result in undefined if the dag link was recently renamed
+    const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
+    tree = findAndPruneNode(filledTree[0], poppedDataPath, depth);
   }
 
-  const depthTree = await getOrCache(depthCacheKey, async () => {
-    const tree = findAndPruneNode(filledTree[0], dataPath, depth);
-    if (tree?.type === 'file' || tree === undefined) {
-      //tree can result in undefined if the dag link was recently renamed
-      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
-      return findAndPruneNode(filledTree[0], poppedDataPath, depth);
-    } else {
-      return tree;
-    }
-  });
-
-  return res.status(200).json({ tree: [depthTree], date: dataset?.updatedAt.toString() });
+  return res.status(200).json({ tree: [tree], date: dataset?.updatedAt.toString() });
 };
 
 interface PubTreeResponse {
