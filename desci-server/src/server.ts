@@ -121,7 +121,7 @@ class AppServer {
 
     // this.socketServer = new SocketServer(this.server, this.port);
     this.server.on('upgrade', async (request, socket, head) => {
-      console.log(`Server upgrade`, request.headers.cookie);
+      // console.log(`Server upgrade`, request.headers.cookie);
       const token = await extractAuthToken(request as Request);
       const authUser = await extractUserFromToken(token);
 
