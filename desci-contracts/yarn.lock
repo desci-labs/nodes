@@ -3062,9 +3062,9 @@ concat-stream@^1.5.1, concat-stream@^1.6.0, concat-stream@^1.6.2, concat-stream@
     readable-stream "^2.2.2"
     typedarray "^0.0.6"
 
-"concat-stream@github:maxogden/concat-stream#feat/smaller":
+"concat-stream@github:max-mapper/concat-stream#feat/smaller":
   version "2.0.0"
-  resolved "https://codeload.github.com/maxogden/concat-stream/tar.gz/057bc7b5d6d8df26c8cf00a3f151b6721a0a8034"
+  resolved "https://codeload.github.com/max-mapper/concat-stream/tar.gz/057bc7b5d6d8df26c8cf00a3f151b6721a0a8034"
   dependencies:
     inherits "^2.0.3"
     readable-stream "^3.0.2"
@@ -5550,7 +5550,7 @@ ipfs-http-client@34.0.0:
     bs58 "^4.0.1"
     buffer "^5.4.2"
     cids "~0.7.1"
-    concat-stream "github:maxogden/concat-stream#feat/smaller"
+    concat-stream "github:max-mapper/concat-stream#feat/smaller"
     debug "^4.1.0"
     detect-node "^2.0.4"
     end-of-stream "^1.4.1"
@@ -5579,7 +5579,7 @@ ipfs-http-client@34.0.0:
     multibase "~0.6.0"
     multicodec "~0.5.1"
     multihashes "~0.4.14"
-    ndjson "github:maxogden/ndjson#feat/readable-stream3"
+    ndjson "github:max-mapper/ndjson#feat/readable-stream3"
     once "^1.4.0"
     peer-id "~0.12.3"
     peer-info "~0.15.1"
@@ -7474,9 +7474,9 @@ napi-macros@~2.0.0:
   resolved "https://registry.yarnpkg.com/napi-macros/-/napi-macros-2.0.0.tgz#2b6bae421e7b96eb687aa6c77a7858640670001b"
   integrity sha512-A0xLykHtARfueITVDernsAWdtIMbOJgKgcluwENp3AlsKN/PloyO10HtmoqnFAQAcxPkgZN7wdfPfEd0zNGxbg==
 
-"ndjson@github:maxogden/ndjson#feat/readable-stream3":
+"ndjson@github:max-mapper/ndjson#feat/readable-stream3":
   version "1.5.0"
-  resolved "https://codeload.github.com/maxogden/ndjson/tar.gz/4db16da6b42e5b39bf300c3a7cde62abb3fa3a11"
+  resolved "https://codeload.github.com/max-mapper/ndjson/tar.gz/4db16da6b42e5b39bf300c3a7cde62abb3fa3a11"
   dependencies:
     json-stringify-safe "^5.0.1"
     minimist "^1.2.0"

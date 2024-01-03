@@ -374,7 +374,7 @@ export const getDirectoryTreeCids = async (cid: string, externalCidMap: External
       }
     });
   };
-  const flatCids = uniq(
+  const flatCids: string[] = uniq(
     recurse(tree)
       .filter(Boolean)
       .map((e) => e.cid || e)
