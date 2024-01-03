@@ -104,7 +104,12 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
 
   const expiresAt = new Date('1980-01-01');
   await client.magicLink.updateMany({
-    where: { email },
+    where: { 
+      email: {
+        equals: email,
+        mode: 'insensitive'
+      } 
+    },
     data: {
       expiresAt,
     },
@@ -194,7 +199,10 @@ const sendMagicLink = async (email: string, ip?: string) => {
   // Check for recent magic link generation
   const recentMagicLink = await client.magicLink.findFirst({
     where: {
-      email,
+      email: {
+        equals: email,
+        mode: 'insensitive'
+      },
       createdAt: {
         gte: new Date(Date.now() - MAGIC_LINK_COOLDOWN),
       },
@@ -207,7 +215,10 @@ const sendMagicLink = async (email: string, ip?: string) => {
 
   const user = await client.user.findFirst({
     where: {
-      email,
+      email: {
+          equals: email,
+          mode: 'insensitive'
+      },
     },
   });
 
