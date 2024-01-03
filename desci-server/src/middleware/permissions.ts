@@ -41,7 +41,7 @@ export const extractAuthToken = async (request: ExpressRequest | Request) => {
       .map((entry) => entry.split('='))
       .filter(([key]) => key.trim().toLowerCase() === 'auth')[0];
     token = parsedTokenValue?.[1];
-    console.log('parsedTokenValue', parsedTokenValue);
+    // console.log('parsedTokenValue', parsedTokenValue);
   }
 
   return token;

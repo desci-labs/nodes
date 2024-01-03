@@ -126,7 +126,7 @@ class AppServer {
       const authUser = await extractUserFromToken(token);
 
       logger.info(
-        { module: 'WebSocket SERVER', token, ...(authUser && { id: authUser.id, name: authUser.name }) },
+        { module: 'WebSocket SERVER', ...(authUser && { id: authUser.id, name: authUser.name }) },
         'Upgrade Connection Authorised',
       );
       if (!authUser) {
