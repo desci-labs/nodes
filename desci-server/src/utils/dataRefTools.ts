@@ -564,7 +564,7 @@ export async function validateAndHealDataRefs({
  * Helper function to generate a timestamp map from a node's data refs, mapping paths -> psql db default timestamps
  */
 export async function generateTimestampMapFromDataRefs(nodeId: number): Promise<TimestampMap> {
-  const dataRefs = await prisma.dataReference.findMany({ where: { nodeId } });
+  const dataRefs = await prisma.dataReference.findMany({ where: { nodeId, type: { not: DataType.MANIFEST } } });
   const timestampMap: TimestampMap = {};
   dataRefs.forEach((ref: DataReference) => {
     if (ref.path) {

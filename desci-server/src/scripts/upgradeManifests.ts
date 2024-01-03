@@ -18,6 +18,7 @@ import {
   strIsCid,
   updateManifestAndAddToIpfs,
 } from '../services/ipfs.js';
+import { addComponentsToManifest } from '../utils/driveUtils.js';
 import { ensureUniqueString } from '../utils.js';
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
@@ -25,7 +26,6 @@ IMPORTANT: Called after ensureUser and multer
 */
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 // import { addToDir, concat, getSize, makeDir, updateDagCid } from '../utils/dagConcat.js';
-import { addComponentsToManifest } from '../utils/driveUtils.js';
 
 upgradeManifestsScript();
 export async function upgradeManifestsScript() {

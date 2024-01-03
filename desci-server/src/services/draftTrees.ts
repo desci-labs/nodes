@@ -1,4 +1,5 @@
 import { neutralizePath } from '@desci-labs/desci-models';
+import { DataType } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
@@ -36,7 +37,9 @@ export async function migrateIpfsTreeToNodeTree(nodeUuid: string) {
   });
 
   // Adjust existing private data references to use neutral paths
-  const currentPrivateDataRefs = await prisma.dataReference.findMany({ where: { nodeId: node.id } });
+  const currentPrivateDataRefs = await prisma.dataReference.findMany({
+    where: { nodeId: node.id, type: { not: DataType.MANIFEST } },
+  });
   const updatesForPrivateDataRefs = currentPrivateDataRefs.map((ref) =>
     prisma.dataReference.update({
       where: {
