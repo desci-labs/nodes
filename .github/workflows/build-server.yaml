@@ -195,7 +195,6 @@ jobs:
       - name: Verify EKS Deployment (DEV)
         if: github.ref == 'refs/heads/develop'
         run: |
-          kubectl apply -f desci-server/kubernetes/deployment_dev.yaml
           kubectl rollout status deployment/desci-server-dev
 
       - name: Verify EKS Deployment (DEMO)
@@ -206,5 +205,4 @@ jobs:
       - name: Verify EKS Deployment (PROD)
         if: github.ref == 'refs/heads/main'
         run: |
-          kubectl apply -f desci-server/kubernetes/deployment.yaml
           kubectl rollout status deployment/desci-server

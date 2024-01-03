@@ -33,7 +33,10 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
     let user = await prismaClient.user.findFirst({
       where: {
-        email,
+        email: {
+          equals: email,
+          mode: 'insensitive'
+        },
       },
     });
 
