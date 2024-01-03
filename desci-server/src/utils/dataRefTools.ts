@@ -567,8 +567,10 @@ export async function generateTimestampMapFromDataRefs(nodeId: number): Promise<
   const dataRefs = await prisma.dataReference.findMany({ where: { nodeId } });
   const timestampMap: TimestampMap = {};
   dataRefs.forEach((ref: DataReference) => {
-    const neutralPath = neutralizePath(ref.path);
-    timestampMap[neutralPath] = { createdAt: ref.createdAt, updatedAt: ref.updatedAt };
+    if (ref.path) {
+      const neutralPath = neutralizePath(ref.path);
+      timestampMap[neutralPath] = { createdAt: ref.createdAt, updatedAt: ref.updatedAt };
+    }
   });
   return timestampMap;
 }
