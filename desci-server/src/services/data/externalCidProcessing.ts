@@ -10,11 +10,17 @@ import { User, Node, Prisma } from '@prisma/client';
 import { prisma } from '../../client.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
-import { FirstNestingComponent, addComponentsToManifest, getTreeAndFill } from '../../utils/driveUtils.js';
-import { ensureUniquePathsDraftTree } from '../draftTrees.js';
-import { GetExternalSizeAndTypeResult, convertToCidV1, getExternalCidSizeAndType, pubRecursiveLs } from '../ipfs.js';
+import { ensureUniquePathsDraftTree } from '../../services/draftTrees.js';
+import {
+  GetExternalSizeAndTypeResult,
+  convertToCidV1,
+  getExternalCidSizeAndType,
+  pubRecursiveLs,
+} from '../../services/ipfs.js';
+import { FirstNestingComponent, addComponentsToDraftManifest, getTreeAndFill } from '../../utils/driveUtils.js';
+import { getLatestManifestFromNode } from '../manifestRepo.js';
 
-import { getManifestFromNode, updateDataReferences } from './processing.js';
+import { updateDataReferences } from './processing.js';
 import {
   createIpfsUnresolvableError,
   createManifestPersistFailError,
@@ -158,7 +164,7 @@ export async function processExternalCidDataToIpfs({
         uuid: node.uuid,
       },
     });
-    const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
+    const ltsManifest = await getLatestManifestFromNode(ltsNode);
     let updatedManifest = ltsManifest;
 
     const extCidsBeingAdded = externalCids.map((extCid) => {
@@ -183,7 +189,10 @@ export async function processExternalCidDataToIpfs({
           star: false,
         };
       });
-      updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
+
+      if (firstNestingComponents.length > 0) {
+        updatedManifest = await addComponentsToDraftManifest(node, firstNestingComponents);
+      }
     }
 
     const upserts = await updateDataReferences({ node, user, updatedManifest });

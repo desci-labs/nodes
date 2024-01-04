@@ -25,11 +25,29 @@ import {
   client as ipfs,
   spawnEmptyManifest,
 } from '../../src/services/ipfs.js';
+import { createManifestDocument } from '../../src/services/manifestRepo.js';
+// import { ResearchObjectDocument } from '../../src/types/documents.js';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools.js';
 import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils.js';
-import { addComponentsToManifest } from '../../src/utils/driveUtils.js';
+import { addComponentsToDraftManifest } from '../../src/utils/driveUtils.js';
 import { randomUUID64 } from '../../src/utils.js';
 import { spawnExampleDirDag } from '../util.js';
+
+const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseManifestCid: string) => {
+  const node = await prisma.node.create({
+    data: {
+      ownerId: user.id,
+      uuid: randomUUID64(),
+      title: '',
+      manifestUrl: baseManifestCid,
+      replicationFactor: 0,
+    },
+  });
+
+  const documentId = await createManifestDocument({ node, manifest: baseManifest });
+  const updatedNode = await prisma.node.findFirst({ where: { id: node.id } });
+  return { node: updatedNode || node, documentId };
+};
 
 describe('Data Controllers', () => {
   let user: User;
@@ -69,16 +87,10 @@ describe('Data Controllers', () => {
     describe('Update a node with a new file', () => {
       let node: Node;
       let res: request.Response;
+
       before(async () => {
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: baseManifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
+        node = nodeData.node;
 
         res = await request(app)
           .post('/v1/data/update')
@@ -170,15 +182,8 @@ describe('Data Controllers', () => {
       let node: Node;
       let res: request.Response;
       before(async () => {
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: baseManifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
+        node = nodeData.node;
 
         res = await request(app)
           .post('/v1/data/update')
@@ -228,16 +233,11 @@ describe('Data Controllers', () => {
       let res: request.Response;
       const externalRepoUrl = 'https://github.com/github/dev';
       const externalRepoPath = 'A Repo';
+
       before(async () => {
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: baseManifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
+        node = nodeData.node;
+
         res = await request(app)
           .post('/v1/data/update')
           .set('authorization', authHeaderVal)
@@ -317,15 +317,9 @@ describe('Data Controllers', () => {
         manifest.components[0].payload.cid = exampleDagCid;
         manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
 
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: manifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, manifest, manifestCid);
+        node = nodeData.node;
+
         const manifestEntry: Prisma.DataReferenceCreateManyInput = {
           cid: manifestCid,
           userId: user.id,
@@ -406,18 +400,14 @@ describe('Data Controllers', () => {
           componentType: ResearchObjectComponentType.CODE,
           star: true,
         }));
-        manifest = addComponentsToManifest(manifest, componentsToAdd);
-        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
 
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: manifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, manifest, baseManifestCid);
+        node = nodeData.node;
+
+        manifest = await addComponentsToDraftManifest(node, componentsToAdd);
+        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
+        await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
+
         const manifestEntry: Prisma.DataReferenceCreateManyInput = {
           cid: manifestCid,
           userId: user.id,
@@ -493,7 +483,7 @@ describe('Data Controllers', () => {
     });
   });
 
-  describe.skip('Rename', () => {
+  describe('Rename', () => {
     before(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
@@ -518,18 +508,14 @@ describe('Data Controllers', () => {
           componentType: ResearchObjectComponentType.CODE,
           star: true,
         }));
-        manifest = addComponentsToManifest(manifest, componentsToAdd);
-        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
 
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: manifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
+        node = nodeData.node;
+
+        manifest = await addComponentsToDraftManifest(node, componentsToAdd);
+        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
+        await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
+
         const manifestEntry: Prisma.DataReferenceCreateManyInput = {
           cid: manifestCid,
           userId: user.id,
@@ -667,18 +653,15 @@ describe('Data Controllers', () => {
             star: true,
           };
         });
-        manifest = addComponentsToManifest(manifest, componentsToAdd);
+
+        const nodeData = await createDraftNode(user, manifest, baseManifestCid);
+        node = nodeData.node;
+
+        manifest = await addComponentsToDraftManifest(node, componentsToAdd);
         const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
 
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: manifestCid,
-            replicationFactor: 0,
-          },
-        });
+        await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
+
         const manifestEntry: Prisma.DataReferenceCreateManyInput = {
           cid: manifestCid,
           userId: user.id,

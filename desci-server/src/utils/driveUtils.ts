@@ -2,30 +2,29 @@ import { randomUUID } from 'crypto';
 
 import {
   DEFAULT_COMPONENT_TYPE,
+  DrivePath,
+  FileExtension,
+  ResearchObjectComponentSubtypes,
+  ResearchObjectComponentType,
+  ResearchObjectComponentTypeMap,
+  ResearchObjectV1,
+  ResearchObjectV1Component,
   extractExtension,
   fillIpfsTree,
   isNodeRoot,
   isResearchObjectComponentTypeMap,
-  ResearchObjectComponentType,
 } from '@desci-labs/desci-models';
-import type {
-  DrivePath,
-  FileExtension,
-  ResearchObjectComponentSubtypes,
-  ResearchObjectComponentTypeMap,
-  ResearchObjectV1,
-  ResearchObjectV1Component,
-} from '@desci-labs/desci-models';
-import { DataReference, DataType } from '@prisma/client';
+import { DataReference, DataType, Node } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
+import { getNodeManifestUpdater } from '../services/manifestRepo.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 
-import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from '../utils/draftTreeUtils.js';
+import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
 
 export function fillDirSizes(tree, cidInfoMap) {
   const contains = [];
@@ -212,7 +211,7 @@ export async function getTreeAndFill(
   }
 
   tree = fillCidInfo(tree, cidInfoMap);
-  const treeRoot = await fillIpfsTree(manifest, tree);
+  const treeRoot = fillIpfsTree(manifest, tree);
 
   return treeRoot;
 }
@@ -388,6 +387,32 @@ export function addComponentsToManifest(manifest: ResearchObjectV1, firstNesting
     manifest.components.push(comp);
   });
   return manifest;
+}
+
+export async function addComponentsToDraftManifest(node: Node, firstNestingComponents: FirstNestingComponent[]) {
+  const manifestUpdater = getNodeManifestUpdater(node);
+  let updatedManifest: ResearchObjectV1;
+  //add duplicate path check
+  for (const entry of firstNestingComponents) {
+    const component = {
+      id: randomUUID(),
+      name: entry.name,
+      ...(entry.componentType && { type: entry.componentType }),
+      ...(entry.componentSubtype && { subtype: entry.componentSubtype }),
+      payload: {
+        ...urlOrCid(entry.cid, entry.componentType),
+        path: entry.path,
+        ...(entry.externalUrl && { externalUrl: entry.externalUrl }),
+      },
+      starred: entry.star || false,
+    };
+    try {
+      updatedManifest = await manifestUpdater({ type: 'Add Component', component });
+    } catch (e) {
+      logger.error(e, '[ERROR addComponentsToDraftManifest]');
+    }
+  }
+  return updatedManifest;
 }
 
 export type oldCid = string;
