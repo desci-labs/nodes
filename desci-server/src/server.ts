@@ -120,23 +120,30 @@ class AppServer {
     });
 
     // this.socketServer = new SocketServer(this.server, this.port);
-    this.server.on('upgrade', async (request, socket, head) => {
-      // console.log(`Server upgrade`, request.headers.cookie);
-      const token = await extractAuthToken(request as Request);
-      const authUser = await extractUserFromToken(token);
-
-      logger.info(
-        { module: 'WebSocket SERVER', ...(authUser && { id: authUser.id, name: authUser.name }) },
-        'Upgrade Connection Authorised',
-      );
-      if (!authUser) {
-        return;
+    wsSocket.on('listening', () => {
+      logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
+    });
+    wsSocket.on('connection', async (socket, request) => {
+      try {
+        const token = await extractAuthToken(request as Request);
+        const authUser = await extractUserFromToken(token);
+        if (!authUser) {
+          socket.close(); // Close connection if user is not authorized
+          return false;
+        }
+        logger.info(
+          { module: 'WebSocket SERVER', id: authUser.id, name: authUser.name },
+          'WebSocket Connection Authorised',
+        );
+        socket.on('message', (message) => {
+          // Handle incoming messages
+          // console.log(`Received message: ${message}`);
+        });
+        // Additional event listeners (e.g., 'close', 'error') can be set up here
+      } catch (error) {
+        socket.close(); // Close the connection in case of an error
+        logger.error(error, 'Error during WebSocket connection');
       }
-
-      wsSocket.handleUpgrade(request, socket, head, (socket) => {
-        console.log(`WS Server upgrade ${this.port}`);
-        wsSocket.emit('connection', socket, request);
-      });
     });
   }
 

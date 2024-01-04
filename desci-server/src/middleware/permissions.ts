@@ -26,7 +26,7 @@ export const extractAuthToken = async (request: ExpressRequest | Request) => {
   if (authHeader) {
     token = authHeader.split(' ')[1];
   }
-  logger.info({ module: 'Permissions::extractAuthToken', authHeader }, 'Request');
+  logger.info({ module: 'Permissions::extractAuthToken', authHeaderLength: authHeader?.length || 0 }, 'Request');
 
   // If auth token wasn't found in the header, try retrieve from cookies
   if (!token && request['cookies']) {
@@ -51,7 +51,7 @@ export const extractAuthToken = async (request: ExpressRequest | Request) => {
  * Attempt to retrieve user from JWT Authorisation token
  */
 export const extractUserFromToken = async (token: string): Promise<User | null> => {
-  return new Promise(async (resolve, _) => {
+  return new Promise(async (resolve, reject) => {
     if (!token) {
       resolve(null);
       return;
@@ -59,12 +59,12 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
 
     jwt.verify(token, process.env.JWT_SECRET as string, async (err: any, user: any) => {
       if (err) {
-        logger.info({ module: 'ExtractAuthUser', token }, 'anon request');
-        resolve(null);
+        logger.error({ module: 'ExtractAuthUser', err }, 'anon request');
+        reject(err);
         return;
       }
 
-      logger.info({ module: 'ExtractAuthUser', user }, 'User decrypted');
+      // logger.info({ module: 'ExtractAuthUser', user }, 'User decrypted');
 
       if (!user) {
         resolve(null);
@@ -78,7 +78,7 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
         ? await getUserByOrcId(user.orcid)
         : await getUserByEmail(loggedInUserEmail);
 
-      logger.info({ user: retrievedUser.id }, 'User Retrieved');
+      // logger.info({ user: retrievedUser.id }, 'User Retrieved');
 
       if (!retrievedUser || !retrievedUser.id) {
         resolve(null);
