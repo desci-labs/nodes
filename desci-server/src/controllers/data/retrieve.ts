@@ -127,18 +127,23 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
 
   // const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath};
 
-  const manifest = await getLatestManifestFromNode(node);
-  const filledTree = (await getTreeAndFill(manifest, uuid, ownerId)) ?? [];
+  try {
+    const manifest = await getLatestManifestFromNode(node);
+    const filledTree = (await getTreeAndFill(manifest, uuid, ownerId)) ?? [];
 
-  let tree = findAndPruneNode(filledTree[0], dataPath, depth);
-  if (tree?.type === 'file' || tree === undefined) {
-    // Logic to avoid returning files, if a file is the path requested, it returns its parent
-    //tree can result in undefined if the dag link was recently renamed
-    const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
-    tree = findAndPruneNode(filledTree[0], poppedDataPath, depth);
+    let tree = findAndPruneNode(filledTree[0], dataPath, depth);
+    if (tree?.type === 'file' || tree === undefined) {
+      // Logic to avoid returning files, if a file is the path requested, it returns its parent
+      //tree can result in undefined if the dag link was recently renamed
+      const poppedDataPath = dataPath.substring(0, dataPath.lastIndexOf('/'));
+      tree = findAndPruneNode(filledTree[0], poppedDataPath, depth);
+    }
+
+    return res.status(200).json({ tree: [tree], date: dataset?.updatedAt.toString() });
+  } catch (err) {
+    logger.error({ err }, 'Failed to retrieve tree');
+    return res.status(400).json({ error: 'failed' });
   }
-
-  return res.status(200).json({ tree: [tree], date: dataset?.updatedAt.toString() });
 };
 
 interface PubTreeResponse {
