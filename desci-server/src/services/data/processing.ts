@@ -16,12 +16,12 @@ import { User, Node, DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
 import { v4 } from 'uuid';
 
-import { persistManifest } from '../..//controllers/data/utils.js';
 import { prisma } from '../../client.js';
 import { UpdateResponse } from '../../controllers/data/update.js';
-import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
+import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
+import { ensureUniquePathsDraftTree, externalDirCheck } from '../../services/draftTrees.js';
 import {
   FilesToAddToDag,
   IpfsDirStructuredInput,
@@ -43,7 +43,8 @@ import {
   urlOrCid,
 } from '../../utils/driveUtils.js';
 import { EXTENSION_MAP } from '../../utils/extensions.js';
-import { ensureUniquePathsDraftTree, externalDirCheck } from '../draftTrees.js';
+import { cleanupManifestUrl } from '../../utils/manifest.js';
+import { getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRepo.js';
 
 import {
   Either,
@@ -89,9 +90,8 @@ export async function processS3DataToIpfs({
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
     ensureSpaceAvailable(files, user);
-    // debugger;
 
-    const { manifest, manifestCid } = await getManifestFromNode(node);
+    const manifest = await getLatestManifestFromNode(node);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
     const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(files);
 
@@ -131,7 +131,7 @@ export async function processS3DataToIpfs({
       },
     });
 
-    const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
+    const ltsManifest = await getLatestManifestFromNode(ltsNode);
     let updatedManifest = ltsManifest;
 
     if (componentTypeMap) {
@@ -147,7 +147,7 @@ export async function processS3DataToIpfs({
       //   componentSubtype,
       // });
       // updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
-      updatedManifest = assignTypeMapInManifest(updatedManifest, componentTypeMap, contextPath, DRAFT_CID);
+      updatedManifest = await assignTypeMapInManifest(node, updatedManifest, componentTypeMap, contextPath, DRAFT_CID);
     }
 
     const upserts = await updateDataReferences({ node, user, updatedManifest });
@@ -176,6 +176,9 @@ export async function processS3DataToIpfs({
   } catch (error) {
     // DB status to failed
     // Socket emit to client
+    // const manifest = await getLatestManifestFromNode(node);
+    console.log('Error processing S3 assignTypeMapInManifest', error);
+    logger.error(error, 'Error processing S3 assignTypeMapInManifest');
     logger.error({ error }, 'Error processing S3 data to IPFS');
     if (pinResult.length) {
       handleCleanupOnMidProcessingError({
@@ -242,7 +245,7 @@ export async function processNewFolder({
       },
     });
 
-    const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
+    const ltsManifest = await getLatestManifestFromNode(ltsNode);
 
     const tree = await getTreeAndFill(ltsManifest, node.uuid, user.id);
 
@@ -251,7 +254,7 @@ export async function processNewFolder({
       value: {
         // rootDataCid: newRootCidString,
         manifest: ltsManifest,
-        manifestCid: ltsManifestCid,
+        manifestCid: node.manifestUrl,
         tree: tree,
         date: date.toString(),
       },
@@ -260,6 +263,7 @@ export async function processNewFolder({
   } catch (error) {
     // DB status to failed
     // Socket emit to client
+    console.log({ error }, 'Error processing new folder');
     logger.error({ error }, 'Error processing new folder');
     const controlledErr = 'type' in error ? error : createUnhandledError(error);
     return { ok: false, value: controlledErr };
@@ -628,35 +632,42 @@ export function constructComponentTypeMapFromFiles(files: any[]): ResearchObject
   return componentTypeMap;
 }
 
-export function assignTypeMapInManifest(
+export async function assignTypeMapInManifest(
+  node: Node,
   manifest: ResearchObjectV1,
   compTypeMap: ResearchObjectComponentTypeMap,
   contextPath: DrivePath,
   contextPathNewCid: string,
-): ResearchObjectV1 {
+): Promise<ResearchObjectV1> {
+  const manifestUpdater = getNodeManifestUpdater(node);
+  let updatedManifest: ResearchObjectV1;
   const componentIndex = manifest.components.findIndex((c) => c.payload.path === contextPath);
   // Check if the component already exists, update its type map
   if (componentIndex !== -1) {
-    const existingType = manifest.components[componentIndex].type;
-    manifest.components[componentIndex].type = {
-      ...(isResearchObjectComponentTypeMap(existingType) && { ...existingType }),
-      ...compTypeMap,
-    };
+    const prevComponent = manifest.components[componentIndex];
+    updatedManifest = await manifestUpdater({
+      type: 'Assign Component Type',
+      component: prevComponent,
+      componentTypeMap: compTypeMap,
+      componentIndex,
+    });
   } else {
     // If doesn't exist, create the component and assign its type map
     const compName = contextPath.split('/').pop();
-    const comp = {
+    const component = {
       id: v4(),
       name: compName,
       type: compTypeMap,
-      // ...(c.componentSubtype && { subtype: c.componentSubtype }),
       payload: {
         ...urlOrCid(contextPathNewCid, ResearchObjectComponentType.DATA),
         path: contextPath,
       },
-      // starred: c.star || false,
     };
-    manifest.components.push(comp);
+    try {
+      updatedManifest = await manifestUpdater({ type: 'Add Component', component });
+    } catch (e) {
+      console.log('[ERROR assignTypeMapInManifest]', e);
+    }
   }
-  return manifest;
+  return updatedManifest;
 }

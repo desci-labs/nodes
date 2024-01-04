@@ -9,14 +9,15 @@ import mkdirp from 'mkdirp';
 import tar from 'tar';
 
 import { prisma } from '../../client.js';
-import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 import { logger as parentLogger } from '../../logger.js';
 import redisClient, { getOrCache } from '../../redisClient.js';
 import { getDatasetTar } from '../../services/ipfs.js';
+import { getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
+import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 import { ErrorResponse } from './update.js';
-import { getLatestManifest } from './utils.js';
+// import { getLatestManifest } from './utils.js';
 
 export enum DataReferenceSrc {
   PRIVATE = 'private',
@@ -126,7 +127,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
 
   // const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath};
 
-  const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
+  const manifest = await getLatestManifestFromNode(node);
   const filledTree = (await getTreeAndFill(manifest, uuid, ownerId)) ?? [];
 
   let tree = findAndPruneNode(filledTree[0], dataPath, depth);

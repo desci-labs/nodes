@@ -1,11 +1,11 @@
 //Thanks to https://github.com/webrecorder/ipfs-composite-files
 /* eslint-disable @typescript-eslint/no-var-requires */
-import * as dagPb from '@ipld/dag-pb';
-import * as IpfsUnixFS from 'ipfs-unixfs';
+import { encode, decode, prepare } from '@ipld/dag-pb';
+import UnixFS from 'ipfs-unixfs';
 import { CID } from 'multiformats';
 import { code as rawCode } from 'multiformats/codecs/raw';
 
-const { default: UnixFS } = IpfsUnixFS;
+// const { default: UnixFS } = IpfsUnixFS;
 
 // ===========================================================================
 export async function getSize(ipfs, cid, allowDir = false) {
@@ -18,10 +18,10 @@ export async function getSize(ipfs, cid, allowDir = false) {
     return block.length;
   }
 
-  const { Data } = dagPb.decode(block);
+  const { Data } = decode(block);
 
   // otherwise, parse to unixfs node
-  let unixfs = UnixFS.unmarshal(Data);
+  const unixfs = UnixFS.unmarshal(Data);
 
   if (!allowDir && unixfs.isDirectory()) {
     throw new Error(`cid ${cid} is a directory, only files allowed`);
@@ -103,10 +103,10 @@ export async function addToDir(ipfs, dirCid, files) {
 
   const block = await ipfs.block.get(dirCid);
 
-  let { Data, Links } = dagPb.decode(block);
+  const { Data, Links } = decode(block);
 
   // debugger;
-  let node = UnixFS.unmarshal(Data);
+  const node = UnixFS.unmarshal(Data);
   UnixFS.unmarshal;
 
   if (!node.isDirectory()) {
@@ -115,12 +115,12 @@ export async function addToDir(ipfs, dirCid, files) {
   const newLinks = await _createDirLinks(ipfs, files);
 
   // debugger;
-  Links = [...Links, ...newLinks];
+  const UpdatedLinks = [...Links, ...newLinks];
 
   // todo: disallow duplicates
-  Links.sort((a, b) => (a.Name < b.Name ? -1 : 1));
+  UpdatedLinks.sort((a, b) => (a.Name < b.Name ? -1 : 1));
 
-  return await putBlock(ipfs, { Data, Links });
+  return await putBlock(ipfs, { Data, Links: UpdatedLinks });
 }
 
 //nodeCid refers to the dag node being updated, oldCid is the cid of the link to be replaced, newCid is the cid of the new link
@@ -135,9 +135,9 @@ export async function updateDagCid(ipfs, nodeCid, oldCid, newCid) {
 
   const block = await ipfs.block.get(nodeCid);
 
-  let { Data, Links } = dagPb.decode(block);
+  const { Data, Links } = decode(block);
 
-  let node = UnixFS.unmarshal(Data);
+  const node = UnixFS.unmarshal(Data);
   UnixFS.unmarshal;
 
   if (!node.isDirectory()) {
@@ -156,7 +156,7 @@ export async function updateDagCid(ipfs, nodeCid, oldCid, newCid) {
 
 // ===========================================================================
 function putBlock(ipfs, node) {
-  return ipfs.block.put(dagPb.encode(dagPb.prepare(node)), {
+  return ipfs.block.put(encode(prepare(node)), {
     version: 1,
     format: 'dag-pb',
   });

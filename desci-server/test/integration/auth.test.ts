@@ -7,7 +7,7 @@ import supertest from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { generateAccessToken } from '../../src/controllers/auth/magic.js';
-import { ensureUser } from '../../src/middleware/ensureUser.js';
+import { ensureUser } from '../../src/middleware/permissions.js';
 import { magicLinkRedeem, sendMagicLink } from '../../src/services/auth.js';
 import { expectThrowsAsync } from '../util.js';
 

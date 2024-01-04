@@ -4,6 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { updateManifestAndAddToIpfs } from '../../services/ipfs.js';
+import { NodeUuid, getDraftManifestFromUuid } from '../../services/manifestRepo.js';
 import { cleanManifestForSaving } from '../../utils/manifestDraftUtils.js';
 
 export const draftUpdate = async (req: Request, res: Response, next: NextFunction) => {
@@ -46,7 +47,17 @@ export const draftUpdate = async (req: Request, res: Response, next: NextFunctio
       },
     });
 
-    const manifestParsed: ResearchObjectV1 = req.body.manifest as ResearchObjectV1;
+    let manifestParsed: ResearchObjectV1;
+
+    try {
+      manifestParsed = await getDraftManifestFromUuid(node.uuid as NodeUuid);
+    } catch (e) {
+      manifestParsed = req.body.manifest as ResearchObjectV1;
+    }
+
+    if (!manifestParsed) {
+      manifestParsed = req.body.manifest as ResearchObjectV1;
+    }
 
     const updatedMeta: any = {};
     if (manifestParsed.title) updatedMeta.title = manifestParsed.title;

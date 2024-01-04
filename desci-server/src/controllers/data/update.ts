@@ -3,7 +3,7 @@ import { Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { AuthedRequest } from '../../middleware/ensureWriteAccess.js';
+import { RequestWithNode } from '../../middleware/authorisation.js';
 import { processExternalUrlDataToIpfs } from '../../services/data/externalUrlProcessing.js';
 import { processNewFolder, processS3DataToIpfs } from '../../services/data/processing.js';
 import { IpfsPinnedResult } from '../../services/ipfs.js';
@@ -22,10 +22,10 @@ export interface ErrorResponse {
   status?: number;
 }
 
-export const update = async (req: AuthedRequest, res: Response<UpdateResponse | ErrorResponse | string>) => {
+export const update = async (req: RequestWithNode, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = req.user;
   let node = req.node;
-  const { uuid, manifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
+  const { uuid, manifest: draftManifest, contextPath, componentType, componentSubtype, newFolderName } = req.body;
 
   // temp workaround for non-file uploads
   if (!node) {
@@ -45,7 +45,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
     module: 'DATA::UpdateController',
     userId: owner.id,
     uuid: uuid,
-    manifest: manifest,
+    manifest: draftManifest,
     contextPath: contextPath,
     componentType: componentType,
     componentSubtype,
@@ -55,7 +55,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
     files: req.files,
   });
   logger.trace(`[UPDATE DATASET] Updating in context: ${contextPath}`);
-  if (uuid === undefined || manifest === undefined || contextPath === undefined)
+  if (uuid === undefined || contextPath === undefined)
     return res.status(400).json({ error: 'uuid, manifest, contextPath required' });
   if (externalUrl) externalUrl = JSON.parse(externalUrl);
   if (externalCids) externalCids = JSON.parse(externalCids);
@@ -130,6 +130,7 @@ export const update = async (req: AuthedRequest, res: Response<UpdateResponse | 
         date: date,
       });
     } else {
+      console.log(value, 'processing error occured');
       if (!('message' in value)) return res.status(500);
       logger.error({ value }, 'processing error occured');
       return res.status(value.status).json({ status: value.status, error: value.message });

@@ -5,7 +5,7 @@ import { prisma } from '../../client.js';
 import { queryResearchFields } from '../../controllers/data/index.js';
 import { queryRor } from '../../controllers/proxy/index.js';
 import { nft } from '../../controllers/raw/nft.js';
-import { ensureUser } from '../../middleware/ensureUser.js';
+import { ensureUser } from '../../middleware/permissions.js';
 
 import admin from './admin.js';
 import auth from './auth.js';

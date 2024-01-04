@@ -16,7 +16,15 @@ import { prisma } from '../../client.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
-import { IpfsDirStructuredInput, addDirToIpfs, addFilesToDag, getDirectoryTree } from '../../services/ipfs.js';
+import { ensureUniquePathsDraftTree, externalDirCheck } from '../../services/draftTrees.js';
+import { IpfsDirStructuredInput, addDirToIpfs, getDirectoryTree } from '../../services/ipfs.js';
+import { ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
+import {
+  ExtensionDataTypeMap,
+  addComponentsToDraftManifest,
+  generateManifestPathsToDbTypeMap,
+  getTreeAndFill,
+} from '../../utils/driveUtils.js';
 import {
   calculateTotalZipUncompressedSize,
   extractZipFileAndCleanup,
@@ -24,18 +32,10 @@ import {
   saveZipStreamToDisk,
   zipUrlToStream,
 } from '../../utils.js';
-import { ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
-import {
-  ExtensionDataTypeMap,
-  addComponentsToManifest,
-  generateManifestPathsToDbTypeMap,
-  getTreeAndFill,
-} from '../../utils/driveUtils.js';
-import { ensureUniquePathsDraftTree, externalDirCheck } from '../draftTrees.js';
+import { getLatestManifestFromNode } from '../manifestRepo.js';
 
 import {
   filterFirstNestings,
-  getManifestFromNode,
   handleCleanupOnMidProcessingError,
   pinNewFiles,
   predefineComponentsForPinnedFiles,
@@ -81,7 +81,7 @@ export async function processExternalUrlDataToIpfs({
   let pinResult: IpfsPinnedResult[] = [];
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
-    const { manifest, manifestCid } = await getManifestFromNode(node);
+    const manifest = await getLatestManifestFromNode(node);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
 
     // We can optionally do this after file resolution, may be more useful for code repos than pdfs
@@ -206,15 +206,13 @@ export async function processExternalUrlDataToIpfs({
       },
     });
 
-    const { manifest: ltsManifest, manifestCid: ltsManifestCid } = await getManifestFromNode(ltsNode);
-    let updatedManifest = ltsManifest;
-
     if (componentType) {
       /**
        * Automatically create a new component(s) for the files added, to the first nesting.
        * It doesn't need to create a new component for every file, only the first nested ones, as inheritance takes care of the children files.
        * Only needs to happen if a predefined component type is to be added
        */
+
       const firstNestingComponents = predefineComponentsForPinnedFiles({
         pinnedFirstNestingFiles: filteredFiles,
         contextPath,
@@ -222,8 +220,13 @@ export async function processExternalUrlDataToIpfs({
         componentSubtype,
         externalUrl,
       });
-      updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
+
+      if (firstNestingComponents?.length > 0) {
+        await addComponentsToDraftManifest(node, firstNestingComponents);
+      }
     }
+
+    const updatedManifest = await getLatestManifestFromNode(ltsNode);
 
     // Update existing data references, add new data references.
     const upserts = await updateDataReferences({ node, user, updatedManifest });

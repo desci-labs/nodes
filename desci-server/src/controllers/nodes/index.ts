@@ -7,6 +7,7 @@ export * from './show.js';
 export * from './consent.js';
 export * from './api.js';
 export * from './publish.js';
+export * from './prepublish.js';
 export * from './share.js';
 export * from './nodesCover.js';
 export * from './manager.js';
