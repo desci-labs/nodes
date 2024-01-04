@@ -96,23 +96,23 @@ class AppServer {
     this.app.use(cookieParser());
     this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
-    try {
-      const accessLogStream = fs.createWriteStream(path.join(__dirname, '../log/access.log'), {
-        flags: 'a',
-      });
-      this.app.use(morgan('combined', { stream: accessLogStream }));
-    } catch (err) {
-      console.log(err);
-    }
+    // try {
+    //   const accessLogStream = fs.createWriteStream(path.join(__dirname, '../log/access.log'), {
+    //     flags: 'a',
+    //   });
+    //   this.app.use(morgan('combined', { stream: accessLogStream }));
+    // } catch (err) {
+    //   console.log(err);
+    // }
 
     // this.app.use(cors());
-    this.app.use(morgan('combined'));
+    // this.app.use(morgan('combined'));
 
     this.#attachRouteHandlers();
 
     this.app.use(errorHandler);
 
-    this.port = parseInt(process.env.PORT) || 5484;
+    this.port = parseInt(process.env.PORT) || 5420;
     this.server = this.app.listen(this.port, () => {
       this.#isReady = true;
       this.#readyResolvers.forEach((resolve) => resolve(true));
