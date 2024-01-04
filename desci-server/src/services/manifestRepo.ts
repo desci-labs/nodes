@@ -31,7 +31,7 @@ export const createManifestDocument = async function ({ node, manifest }: { node
   handle.change(
     (d) => {
       d.manifest = manifest;
-      d.uuid = uuid.slice(0, -1);
+      d.uuid = uuid;
     },
     { message: 'Init Document', time: Date.now() },
   );

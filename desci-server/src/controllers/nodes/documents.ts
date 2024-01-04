@@ -20,7 +20,7 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
       return;
     }
 
-    const uuid = node.uuid;
+    const uuid = node.uuid.replace(/\.$/, '');
     let documentId = node.manifestDocumentId;
 
     if (!documentId || documentId == '') {
@@ -38,12 +38,12 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
       logger.info({ manifest, doc: handle.documentId }, 'Create new document');
       handle.change((document) => {
         document.manifest = manifest;
-        document.uuid = uuid.slice(0, -1);
+        document.uuid = uuid;
       });
       handle.docSync();
       const document = await handle.doc();
       documentId = handle.documentId;
-      logger.info({ document, documentId, manifest }, 'Initialized new document with Last published manfiest');
+      logger.info({ document, documentId, manifest }, 'Initialized new document with Last published manifest');
       await prisma.node.update({
         where: { id: node.id },
         data: { manifestDocumentId: handle.documentId },
