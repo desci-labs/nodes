@@ -129,7 +129,7 @@ class AppServer {
         const authUser = await extractUserFromToken(token);
         if (!authUser) {
           socket.close(); // Close connection if user is not authorized
-          return false;
+          return;
         }
         logger.info(
           { module: 'WebSocket SERVER', id: authUser.id, name: authUser.name },
