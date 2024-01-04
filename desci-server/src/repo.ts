@@ -9,7 +9,7 @@ import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
 import { logger } from './logger.js';
 import { verifyNodeDocumentAccess } from './services/permissions.js';
 
-export const socket = new WebSocketServer({ noServer: true, path: '/sync' });
+export const socket = new WebSocketServer({ noServer: true, path: '/sync/' });
 const hostname = os.hostname();
 
 const adapter = new NodeWSServerAdapter(socket);
