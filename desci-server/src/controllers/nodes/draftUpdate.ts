@@ -71,6 +71,13 @@ export const draftUpdate = async (req: Request, res: Response, next: NextFunctio
 
     const uri = `${hash}`;
 
+    logger.info(
+      {
+        updatedMeta,
+      },
+      `Updating node ${node.uuid}`,
+    );
+
     await prisma.node.update({
       where: {
         id: node.id,
