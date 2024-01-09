@@ -30,7 +30,7 @@ export class PostgresStorageAdapter extends StorageAdapter {
 
   async save(keyArray: StorageKey, binary: Uint8Array): Promise<void> {
     const key = getKey(keyArray);
-    logger.info({ action: 'Save', key }, 'PostgresStorageAdapter::Save');
+    logger.trace({ action: 'Save', key }, 'PostgresStorageAdapter::Save');
     this.cache[key] = binary;
 
     try {

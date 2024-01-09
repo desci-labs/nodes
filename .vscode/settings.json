@@ -1,22 +1,24 @@
 {
-    "explorer.compactFolders": false,
-    "files.exclude": {
-        "**/node_modules/**": false
-    },
-    "yaml.schemas": {
-        "https://gitpod.io/schemas/gitpod-schema.json": "file:///workspace/desci-nodes/.gitpod.yml"
-    },
-    "solidity.defaultCompiler": "localFile",
-    "tailwindCSS.includeLanguages": {
-        "typescript": "javascript", // if you are using typescript
-        "typescriptreact": "javascript" // if you are using typescript with react
-    },
-    "editor.quickSuggestions": {
-        "strings": true // forces VS Code to trigger completions when editing "string" content
-    },
-    "tailwindCSS.experimental.classRegex": [
-        "tw`([^`]*)", // tw`...`
-        "tw\\.[^`]+`([^`]*)`", // tw.xxx<xxx>`...`
-        "tw\\(.*?\\).*?`([^`]*)" // tw(Component)<xxx>`...`
-    ]
+  "explorer.compactFolders": false,
+  "files.exclude": {
+    "**/node_modules/**": false
+  },
+  "yaml.schemas": {
+    "https://gitpod.io/schemas/gitpod-schema.json": "file:///workspace/desci-nodes/.gitpod.yml"
+  },
+  "solidity.defaultCompiler": "localFile",
+  "tailwindCSS.includeLanguages": {
+    "typescript": "javascript", // if you are using typescript
+    "typescriptreact": "javascript" // if you are using typescript with react
+  },
+  "editor.quickSuggestions": {
+    "strings": true // forces VS Code to trigger completions when editing "string" content
+  },
+  "tailwindCSS.experimental.classRegex": [
+    "tw`([^`]*)", // tw`...`
+    "tw\\.[^`]+`([^`]*)`", // tw.xxx<xxx>`...`
+    "tw\\(.*?\\).*?`([^`]*)" // tw(Component)<xxx>`...`
+  ],
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true
 }

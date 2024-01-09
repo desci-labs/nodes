@@ -1,6 +1,13 @@
 import os from 'os';
 
-import { PeerId, Repo, RepoConfig } from '@automerge/automerge-repo';
+import {
+  DocHandle,
+  DocHandleChangePayload,
+  DocHandleEvents,
+  PeerId,
+  Repo,
+  RepoConfig,
+} from '@automerge/automerge-repo';
 import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import { WebSocketServer } from 'ws';
 
@@ -8,6 +15,7 @@ import { prisma } from './client.js';
 import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
 import { logger } from './logger.js';
 import { verifyNodeDocumentAccess } from './services/permissions.js';
+import { ResearchObjectDocument } from './types/documents.js';
 
 export const socket = new WebSocketServer({ port: 5445, path: '/sync' });
 const hostname = os.hostname();
@@ -34,8 +42,25 @@ const config: RepoConfig = {
     //     delete c.ops;
     //     return c;
     //   });
-    logger.info({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
+    logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
     return isAuthorised;
   },
 };
 export const backendRepo = new Repo(config);
+const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {
+  // console.log(change);
+  const newTitle = change.patchInfo.after.manifest.title;
+  const uuid = change.doc.uuid;
+  logger.info({ uuid, newTitle }, 'update node db cache');
+  await prisma.node.update({
+    where: { uuid: uuid + '.' },
+    data: { title: newTitle },
+  });
+};
+backendRepo.on('document', async (doc) => {
+  doc.handle.on<keyof DocHandleEvents<'change'>>('change', handleChange);
+});
+
+backendRepo.off('document', async (doc) => {
+  doc.handle.off('change', handleChange);
+});

@@ -33,7 +33,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       where: {
         email: {
           equals: email,
-          mode: 'insensitive'
+          mode: 'insensitive',
         },
       },
     });
