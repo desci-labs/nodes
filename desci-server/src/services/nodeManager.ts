@@ -54,6 +54,20 @@ export const createNodeDraftBlank = async (
   return nodeCopy;
 };
 
+export const setCeramicStream = async (uuid: string, ceramicStream: string) => {
+  logger.debug({ fn: 'setCeramicStream', uuid, ceramicStream}, 'node::setCeramicStream');
+  uuid = uuid.endsWith(".") ? uuid : uuid + ".";
+  return await prisma.node.update({
+
+    data: {
+      ceramicStream,
+    },
+    where: {
+      uuid,
+    }
+  });
+};
+
 export const createPublicDataRefs = async (
   data: Prisma.PublicDataReferenceCreateManyInput[],
   userId: number | undefined,
