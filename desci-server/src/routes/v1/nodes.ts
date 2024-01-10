@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { getNodeDocument } from '../../controllers/nodes/documents.js';
+import { feed } from '../../controllers/nodes/feed.js';
 import {
   show,
   draftUpdate,
@@ -48,6 +49,8 @@ router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
+
+router.get('/feed', [], feed);
 
 router.get('/legacy/retrieveTitle', retrieveTitle);
 
