@@ -10,6 +10,7 @@ import { generateExternalCidMap } from '../utils/driveUtils.js';
 import { extractRootDagCidFromManifest, getManifestFromNode } from './data/processing.js';
 import { createDuplicateFileError, createMixingExternalDataError } from './data/processingErrors.js';
 import { getDirectoryTree } from './ipfs.js';
+import { NodeUuid } from './manifestRepo.js';
 
 const logger = parentLogger.child({
   module: 'Services::DraftTrees',
@@ -114,4 +115,35 @@ export async function ensureUniquePathsDraftTree({
     throw createDuplicateFileError();
   }
   return true;
+}
+
+export async function getDraftTreeEntriesByUuid(uuid: NodeUuid) {
+  const node = await prisma.node.findFirst({ where: uuid.endsWith('.') ? { uuid } : { uuid: uuid + '.' } });
+
+  const treeEntries = await prisma.draftNodeTree.findMany({
+    where: {
+      nodeId: node.id,
+    },
+  });
+
+  return treeEntries;
+}
+
+export async function getLatestDriveTime(nodeUuid: NodeUuid) {
+  const node = await prisma.node.findFirst({
+    where: {
+      uuid: nodeUuid,
+    },
+  });
+
+  const latestDriveTime = await prisma.draftNodeTree.findFirst({
+    where: {
+      nodeId: node.id,
+    },
+    orderBy: {
+      updatedAt: 'desc',
+    },
+  });
+
+  return latestDriveTime.updatedAt.getTime().toString();
 }
