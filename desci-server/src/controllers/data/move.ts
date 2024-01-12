@@ -4,8 +4,8 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { ensureUniquePathsDraftTree } from '../../services/draftTrees.js';
-import { getNodeManifestUpdater } from '../../services/manifestRepo.js';
+import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
+import { NodeUuid, getNodeManifestUpdater } from '../../services/manifestRepo.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
 import { ErrorResponse } from './update.js';
@@ -159,6 +159,13 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
       throw Error(`[DATA::MOVE]Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
     logger.info(`[DATA::Move] Success, path: ${oldPath} changed to: ${newPath}`);
+
+    /**
+     * Update drive clock on automerge document
+     */
+    const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
+    const manifestUpdater = getNodeManifestUpdater(node);
+    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
 
     return res.status(200).json({
       manifest: updatedManifest,

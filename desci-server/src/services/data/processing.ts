@@ -165,7 +165,7 @@ export async function processS3DataToIpfs({
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
     const manifestUpdater = getNodeManifestUpdater(node);
-    const updatedDocument = await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
 
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 
@@ -253,6 +253,13 @@ export async function processNewFolder({
     });
 
     const ltsManifest = await getLatestManifestFromNode(ltsNode);
+
+    /**
+     * Update drive clock on automerge document
+     */
+    const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
+    const manifestUpdater = getNodeManifestUpdater(node);
+    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
 
     const tree = await getTreeAndFill(ltsManifest, node.uuid, user.id);
 

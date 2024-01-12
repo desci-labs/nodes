@@ -16,7 +16,7 @@ import { prisma } from '../../client.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
-import { ensureUniquePathsDraftTree, externalDirCheck } from '../../services/draftTrees.js';
+import { ensureUniquePathsDraftTree, externalDirCheck, getLatestDriveTime } from '../../services/draftTrees.js';
 import { IpfsDirStructuredInput, addDirToIpfs, getDirectoryTree } from '../../services/ipfs.js';
 import { ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
@@ -32,7 +32,7 @@ import {
   saveZipStreamToDisk,
   zipUrlToStream,
 } from '../../utils.js';
-import { getLatestManifestFromNode } from '../manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRepo.js';
 
 import {
   filterFirstNestings,
@@ -238,6 +238,13 @@ export async function processExternalUrlDataToIpfs({
       throw createManifestPersistFailError(
         `Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${user.id}`,
       );
+
+    /**
+     * Update drive clock on automerge document
+     */
+    const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
+    const manifestUpdater = getNodeManifestUpdater(node);
+    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
 
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 

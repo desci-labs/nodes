@@ -106,6 +106,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       .filter((c) => c.payload?.path?.startsWith(path + '/') || c.payload?.path === path)
       .map((c) => c.id);
 
+    debugger;
     const updatedManifest = await deleteComponentsFromManifest({
       node,
       componentIds: componentDeletionIds,
