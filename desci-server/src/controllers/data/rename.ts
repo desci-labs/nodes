@@ -152,8 +152,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    const manifestUpdater = getNodeManifestUpdater(node);
-    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
 
     return res.status(200).json({
       manifest: updatedManifest,
