@@ -68,7 +68,13 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
      */
 
     const dispatchChange = getNodeManifestUpdater(node);
-    let updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath: path, newPath });
+    let updatedManifest = latestManifest;
+    try {
+      updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath: path, newPath });
+    } catch (err) {
+      logger.error({ err }, 'Source: Rename Component Path');
+      return res.status(400).json({ error: 'failed' });
+    }
 
     // Get all entries that need to be updated
     const entriesToUpdate = await prisma.draftNodeTree.findMany({
@@ -97,7 +103,11 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       // const componentIndex = updatedManifest.components.findIndex((c) => c.payload.path === newPath);
       const { fileName } = separateFileNameAndExtension(newName);
       // updatedManifest.components[componentIndex].name = fileName;
-      updatedManifest = await dispatchChange({ type: 'Rename Component', path: newPath, fileName });
+      try {
+        updatedManifest = await dispatchChange({ type: 'Rename Component', path: newPath, fileName });
+      } catch (err) {
+        logger.error({ err }, 'Source: Rename Component');
+      }
     }
 
     /*

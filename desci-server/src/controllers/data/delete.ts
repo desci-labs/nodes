@@ -106,10 +106,15 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       .filter((c) => c.payload?.path?.startsWith(path + '/') || c.payload?.path === path)
       .map((c) => (c.payload?.path as string) || '');
 
-    const updatedManifest = await deleteComponentsFromManifest({
-      node,
-      pathsToDelete,
-    });
+    let updatedManifest = latestManifest;
+    try {
+      updatedManifest = await deleteComponentsFromManifest({
+        node,
+        pathsToDelete,
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error: deleteComponentsFromManifest');
+    }
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
@@ -134,13 +139,8 @@ interface UpdatingManifestParams {
 }
 
 export async function deleteComponentsFromManifest({ node, pathsToDelete }: UpdatingManifestParams) {
-  // let updatedManifest: ResearchObjectV1;
   const manifestUpdater = getNodeManifestUpdater(node);
   parentLogger.info({ pathsToDelete }, `deleteComponentsFromManifest:`);
   const updatedManifest = await manifestUpdater({ type: 'Delete Components', pathsToDelete });
-  // for (const path of pathsToDelete) {
-  //   updatedManifest = await manifestUpdater({ type: 'Delete Component', componentId });
-  //   parentLogger.info({ pathsToDelete, updatedManifest }, `Deleted ${componentId}:`);
-  // }
   return updatedManifest;
 }
