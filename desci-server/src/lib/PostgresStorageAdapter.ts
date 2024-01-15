@@ -20,26 +20,30 @@ export class PostgresStorageAdapter extends StorageAdapter {
     if (this.cache[key]) return this.cache[key];
 
     try {
+      // logger.trace({ action: 'Load', key }, 'PostgresStorageAdaptser::Load');
       const response = await this.client.documentStore.findFirst({ where: { key } });
       if (!response) return undefined;
       return new Uint8Array(response.value);
     } catch (error) {
+      logger.error({ action: 'Load', key }, 'PostgresStorageAdaptser::Load ==> Error loading document');
       throw error;
     }
   }
 
   async save(keyArray: StorageKey, binary: Uint8Array): Promise<void> {
     const key = getKey(keyArray);
-    logger.trace({ action: 'Save', key }, 'PostgresStorageAdapter::Save');
     this.cache[key] = binary;
 
     try {
+      logger.info({ action: 'Save', key }, 'PostgresStorageAdaptser::Save');
       await this.client.documentStore.upsert({
         where: { key },
         create: { key, value: Buffer.from(binary) },
         update: { value: Buffer.from(binary) },
       });
-    } catch (e) {}
+    } catch (e) {
+      logger.error({ e }, 'PostgresStorageAdapter::Save ==> Error saving document');
+    }
   }
 
   async remove(keyArray: string[]): Promise<void> {
@@ -47,8 +51,11 @@ export class PostgresStorageAdapter extends StorageAdapter {
     // remove from cache
     delete this.cache[key];
     try {
+      logger.info({ action: 'Remove', key }, 'PostgresStorageAdaptser::Remove');
       await this.client.documentStore.delete({ where: { key: key } });
-    } catch (e) {}
+    } catch (e) {
+      logger.error({ e }, 'PostgresStorageAdapter::Remove ==> Error deleting document');
+    }
   }
 
   async loadRange(keyPrefix: StorageKey): Promise<Chunk[]> {

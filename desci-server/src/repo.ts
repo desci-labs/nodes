@@ -32,12 +32,14 @@ const config: RepoConfig = {
 };
 export const backendRepo = new Repo(config);
 const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {
-  logger.info({ change: change.handle.documentId, doc: change.patchInfo.after.manifest }, 'Document Changed');
+  logger.trace({ change: change.handle.documentId, doc: change.patchInfo.after.manifest }, 'Document Changed');
   const newTitle = change.patchInfo.after.manifest.title;
-  const node = await prisma.node.findFirst({ where: { manifestDocumentId: change.handle.documentId } });
-  logger.info({ node }, 'UPDATE Node');
-
-  await prisma.node.update({ where: { id: node.id }, data: { title: newTitle } });
+  const uuid = change.doc.uuid;
+  logger.info({ uuid, newTitle }, 'UPDATE NODE');
+  await prisma.node.update({
+    where: { uuid: uuid + '.' },
+    data: { title: newTitle },
+  });
 };
 
 backendRepo.on('document', async (doc) => {

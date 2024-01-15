@@ -46,7 +46,7 @@
     "podman:dev": "podman-compose --file docker-compose.yml --file docker-compose.dev.yml up --build"
   },
   "dependencies": {
-    "@automerge/automerge": "^2.1.7",
+    "@automerge/automerge": "2.1.10",
     "@automerge/automerge-repo": "^1.0.19",
     "@automerge/automerge-repo-network-websocket": "^1.0.19",
     "@desci-labs/desci-models": "link:./desci-models",
