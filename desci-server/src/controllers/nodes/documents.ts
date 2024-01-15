@@ -40,10 +40,13 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
         document.manifest = manifest;
         document.uuid = uuid;
       });
-      handle.docSync();
+      // handle.docSync();
+
       const document = await handle.doc();
       documentId = handle.documentId;
+
       logger.info({ document, documentId, manifest }, 'Initialized new document with Last published manifest');
+
       await prisma.node.update({
         where: { id: node.id },
         data: { manifestDocumentId: handle.documentId },
@@ -51,11 +54,11 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
       const updatedNode = await prisma.node.findFirst({ where: { id: node.id } });
       logger.info({ document, updatedNode }, 'Node updated');
     }
-    logger.info({ documentId }, 'End GetDocumentId');
-    response.status(200).send({ documentId });
+    logger.info({ documentId, document }, 'End GetDocumentId');
+    response.status(200).send({ documentId, document });
   } catch (err) {
-    logger.error('Creating new document Error', req.body, err);
-    console.log(err);
+    logger.error({ err }, 'Creating new document Error', req.body, err);
+
     response.status(500).send({ ok: false, message: JSON.stringify(err) });
   }
 };
