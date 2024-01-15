@@ -35,8 +35,9 @@ const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocumen
   logger.trace({ change: change.handle.documentId, doc: change.patchInfo.after.manifest }, 'Document Changed');
   const newTitle = change.patchInfo.after.manifest.title;
   const uuid = change.doc.uuid;
-  logger.info({ uuid, newTitle }, 'UPDATE NODE');
-  await prisma.node.update({
+  logger.info({ uuid: uuid + '.', newTitle }, 'UPDATE NODE');
+
+  await prisma.node.updateMany({
     where: { uuid: uuid + '.' },
     data: { title: newTitle },
   });
