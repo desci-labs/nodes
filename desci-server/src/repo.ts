@@ -1,13 +1,6 @@
 import os from 'os';
 
-import {
-  DocHandle,
-  DocHandleChangePayload,
-  DocHandleEvents,
-  PeerId,
-  Repo,
-  RepoConfig,
-} from '@automerge/automerge-repo';
+import { DocHandleChangePayload, DocHandleEvents, PeerId, Repo, RepoConfig } from '@automerge/automerge-repo';
 import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import { WebSocketServer } from 'ws';
 
@@ -28,35 +21,34 @@ const config: RepoConfig = {
   // Since this is a server, we don't share generously — meaning we only sync documents they already
   // know about and can ask for by ID.
   sharePolicy: async (peerId, documentId) => {
-    // peer format: `peer-[user#id]:[unique string combination]
-    if (peerId.toString().length < 8) return false;
+    try {
+      // peer format: `peer-[user#id]:[unique string combination]
+      if (peerId.toString().length < 8) return false;
 
-    const userId = peerId.split(':')?.[0]?.split('-')?.[1];
-    const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
-    // const handle = repo.find(`automerge:${documentId}` as AutomergeUrl);
-    // const changes = await A.getAllChanges(await handle.doc())
-    //   .map((change, i) => {
-    //     return A.decodeChange(change);
-    //   })
-    //   .map((c) => {
-    //     delete c.ops;
-    //     return c;
-    //   });
-    logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
-    return isAuthorised;
+      const userId = peerId.split(':')?.[0]?.split('-')?.[1];
+      const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
+      logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
+      return isAuthorised;
+    } catch (err) {
+      logger.error({ err }, 'Error in share policy');
+      return false;
+    }
   },
 };
 export const backendRepo = new Repo(config);
 const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {
-  // console.log(change);
-  const newTitle = change.patchInfo.after.manifest.title;
-  const uuid = change.doc.uuid;
-  logger.info({ uuid, newTitle }, 'update node db cache');
-  await prisma.node.update({
-    where: { uuid: uuid + '.' },
-    data: { title: newTitle },
-  });
+  try {
+    logger.info({ change: change.handle.documentId, doc: change.patchInfo.after.manifest }, 'Document Changed');
+    const newTitle = change.patchInfo.after.manifest.title;
+    const node = await prisma.node.findFirst({ where: { manifestDocumentId: change.handle.documentId } });
+    logger.info({ node }, 'UPDATE Node');
+
+    await prisma.node.update({ where: { id: node.id }, data: { title: newTitle } });
+  } catch (err) {
+    logger.error({ err }, 'Error updating node');
+  }
 };
+
 backendRepo.on('document', async (doc) => {
   doc.handle.on<keyof DocHandleEvents<'change'>>('change', handleChange);
 });
@@ -64,3 +56,5 @@ backendRepo.on('document', async (doc) => {
 backendRepo.off('document', async (doc) => {
   doc.handle.off('change', handleChange);
 });
+
+// todo: Recover from RangeError -> reset repo and return a new instance

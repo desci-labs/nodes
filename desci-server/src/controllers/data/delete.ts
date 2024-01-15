@@ -104,15 +104,19 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
     /*
      ** Delete components in Manifest, update DAG cids in manifest
      */
-    const componentDeletionIds = latestManifest.components
+    const pathsToDelete = latestManifest.components
       .filter((c) => c.payload?.path?.startsWith(path + '/') || c.payload?.path === path)
-      .map((c) => c.id);
+      .map((c) => (c.payload?.path as string) || '');
 
-    debugger;
-    const updatedManifest = await deleteComponentsFromManifest({
-      node,
-      componentIds: componentDeletionIds,
-    });
+    let updatedManifest = latestManifest;
+    try {
+      updatedManifest = await deleteComponentsFromManifest({
+        node,
+        pathsToDelete,
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error: deleteComponentsFromManifest');
+    }
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
@@ -139,16 +143,12 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
 
 interface UpdatingManifestParams {
   node: Node;
-  componentIds: string[];
+  pathsToDelete: string[];
 }
 
-export async function deleteComponentsFromManifest({ node, componentIds }: UpdatingManifestParams) {
-  let updatedManifest: ResearchObjectV1;
+export async function deleteComponentsFromManifest({ node, pathsToDelete }: UpdatingManifestParams) {
   const manifestUpdater = getNodeManifestUpdater(node);
-  parentLogger.info({ componentIds }, `deleteComponentsFromManifest:`);
-  for (const componentId of componentIds) {
-    updatedManifest = await manifestUpdater({ type: 'Delete Component', componentId });
-    parentLogger.info({ componentId, updatedManifest }, `Deleted ${componentId}:`);
-  }
+  parentLogger.info({ pathsToDelete }, `deleteComponentsFromManifest:`);
+  const updatedManifest = await manifestUpdater({ type: 'Delete Components', pathsToDelete });
   return updatedManifest;
 }

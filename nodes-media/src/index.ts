@@ -74,7 +74,7 @@ app.use(fileupload());
 app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
 try {
-  const accessLogStream = fs.createWriteStream(path.join(__dirname, 'log/access.log'), {
+  const accessLogStream = fs.createWriteStream(path.join(__dirname, '../log/access.log'), {
     flags: 'a',
   });
   app.use(morgan('combined', { stream: accessLogStream }));

@@ -102,12 +102,6 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
-    // const updatedManifest = updateComponentPathsInManifest({
-    //   manifest: latestManifest,
-    //   oldPath: oldPath,
-    //   newPath: newPath,
-    // });
-    // [AUTOMERGE] Delegate to repo service
     const dispatchChange = getNodeManifestUpdater(node);
     const updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath, newPath });
 

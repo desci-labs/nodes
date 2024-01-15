@@ -654,35 +654,40 @@ export async function assignTypeMapInManifest(
   contextPath: DrivePath,
   contextPathNewCid: string,
 ): Promise<ResearchObjectV1> {
-  const manifestUpdater = getNodeManifestUpdater(node);
-  let updatedManifest: ResearchObjectV1;
-  const componentIndex = manifest.components.findIndex((c) => c.payload.path === contextPath);
-  // Check if the component already exists, update its type map
-  if (componentIndex !== -1) {
-    const prevComponent = manifest.components[componentIndex];
-    updatedManifest = await manifestUpdater({
-      type: 'Assign Component Type',
-      component: prevComponent,
-      componentTypeMap: compTypeMap,
-      componentIndex,
-    });
-  } else {
-    // If doesn't exist, create the component and assign its type map
-    const compName = contextPath.split('/').pop();
-    const component = {
-      id: v4(),
-      name: compName,
-      type: compTypeMap,
-      payload: {
-        ...urlOrCid(contextPathNewCid, ResearchObjectComponentType.DATA),
-        path: contextPath,
-      },
-    };
-    try {
+  try {
+    const manifestUpdater = getNodeManifestUpdater(node);
+    let updatedManifest: ResearchObjectV1;
+    const componentIndex = manifest.components.findIndex((c) => c.payload.path === contextPath);
+    // Check if the component already exists, update its type map
+    if (componentIndex !== -1) {
+      const prevComponent = manifest.components[componentIndex];
+      updatedManifest = await manifestUpdater({
+        type: 'Assign Component Type',
+        component: prevComponent,
+        componentTypeMap: compTypeMap,
+        componentIndex,
+      });
+    } else {
+      // If doesn't exist, create the component and assign its type map
+      const compName = contextPath.split('/').pop();
+      const component = {
+        id: v4(),
+        name: compName,
+        type: compTypeMap,
+        payload: {
+          ...urlOrCid(contextPathNewCid, ResearchObjectComponentType.DATA),
+          path: contextPath,
+        },
+      };
+      // try {
       updatedManifest = await manifestUpdater({ type: 'Add Component', component });
-    } catch (e) {
-      console.log('[ERROR assignTypeMapInManifest]', e);
+      // } catch (e) {
+      //   console.log('[ERROR assignTypeMapInManifest]', e);
+      // }
     }
+    return updatedManifest;
+  } catch (err) {
+    logger.error(err, 'Error Caught in assignTypeMapInManifest');
+    return manifest;
   }
-  return updatedManifest;
 }

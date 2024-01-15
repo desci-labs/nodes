@@ -90,6 +90,7 @@ export function assertNever(value: never) {
 export type ManifestActions =
   | { type: 'Add Component'; component: ResearchObjectV1Component }
   | { type: 'Delete Component'; componentId: string }
+  | { type: 'Delete Components'; pathsToDelete: string[] }
   | { type: 'Rename Component'; path: string; fileName: string }
   | { type: 'Rename Component Path'; oldPath: string; newPath: string }
   | {
@@ -147,6 +148,24 @@ export const getNodeManifestUpdater = (node: Node) => {
           handle.change(
             (document) => {
               document.manifest.components.splice(deleteIdx, 1);
+            },
+            { time: Date.now(), message: action.type },
+          );
+        }
+        break;
+      case 'Delete Components':
+        const componentEntries = latestDocument.manifest.components
+          .map((c) => (action.pathsToDelete.includes(c.payload?.path) ? c.payload?.path : null))
+          .filter(Boolean) as string[];
+        if (componentEntries.length > 0) {
+          logger.info({ action, componentEntries }, `DocumentUpdater::Delete Components`);
+          handle.change(
+            (document) => {
+              for (const path of componentEntries) {
+                const deleteIdx = document.manifest.components.findIndex((c) => c.payload?.path === path);
+                logger.info({ path, deleteIdx }, `DocumentUpdater::Delete`);
+                if (deleteIdx !== -1) document.manifest.components.splice(deleteIdx, 1);
+              }
             },
             { time: Date.now(), message: action.type },
           );
