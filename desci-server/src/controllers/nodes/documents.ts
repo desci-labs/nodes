@@ -1,3 +1,4 @@
+import { AnyDocumentId } from '@automerge/automerge-repo';
 import { Response } from 'express';
 
 import { prisma } from '../../client.js';
@@ -22,6 +23,7 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
 
     const uuid = node.uuid.replace(/\.$/, '');
     let documentId = node.manifestDocumentId;
+    let document: ResearchObjectDocument | null = null;
 
     if (!documentId || documentId == '') {
       logger.info({ uuid, query: req?.query?.g, node }, 'Before GetLatestManifest');
@@ -36,13 +38,16 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
       // Object.assign({}, researchObject) as ResearchObjectV1; // todo: pull latest draft manifest
       const handle = repo.create<ResearchObjectDocument>();
       logger.info({ manifest, doc: handle.documentId }, 'Create new document');
-      handle.change((document) => {
-        document.manifest = manifest;
-        document.uuid = uuid;
-      });
+      handle.change(
+        (document) => {
+          document.manifest = manifest;
+          document.uuid = uuid;
+        },
+        { message: 'Init Document', time: Date.now() },
+      );
       // handle.docSync();
 
-      const document = await handle.doc();
+      document = await handle.doc();
       documentId = handle.documentId;
 
       logger.info({ document, documentId, manifest }, 'Initialized new document with Last published manifest');
@@ -53,6 +58,18 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
       });
       const updatedNode = await prisma.node.findFirst({ where: { id: node.id } });
       logger.info({ document, updatedNode }, 'Node updated');
+    } else {
+      const handle = repo.find<ResearchObjectDocument>(documentId as AnyDocumentId);
+      document = await handle.doc();
+      if (document.uuid !== uuid && handle.isReady()) {
+        handle.change(
+          (document) => {
+            document.uuid = uuid;
+          },
+          { message: 'Update Document', time: Date.now() },
+        );
+      }
+      document = await handle.doc();
     }
     logger.info({ documentId, document }, 'End GetDocumentId');
     response.status(200).send({ documentId, document });

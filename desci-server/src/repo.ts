@@ -32,7 +32,7 @@ const config: RepoConfig = {
 };
 export const backendRepo = new Repo(config);
 const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {
-  logger.trace({ change: change.handle.documentId, doc: change.patchInfo.after.manifest }, 'Document Changed');
+  logger.trace({ change: change.handle.documentId, uuid: (await change.handle.doc()).uuid }, 'Document Changed');
   const newTitle = change.patchInfo.after.manifest.title;
   const uuid = change.doc.uuid;
   logger.info({ uuid: uuid + '.', newTitle }, 'UPDATE NODE');
