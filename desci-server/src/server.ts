@@ -16,6 +16,7 @@ import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import morgan from 'morgan';
 import { pinoHttp } from 'pino-http';
+import { v4 } from 'uuid';
 
 import { prisma } from './client.js';
 // eslint-disable-next-line import/order
@@ -52,6 +53,9 @@ const allowlist = [
   'loca.lt' /** NOT SECURE */,
   'vercel.app' /** NOT SECURE */,
 ];
+
+const serverUuid = v4();
+
 class AppServer {
   #readyResolvers: ((value: any) => void)[] = [];
 
@@ -164,6 +168,9 @@ class AppServer {
   #attachRouteHandlers() {
     this.app.get('/readyz', (_, res) => {
       res.status(200).json({ status: 'ok' });
+    });
+    this.app.get('/id', (_, res) => {
+      res.status(200).json({ id: serverUuid });
     });
     this.app.get('/orcid', orcidConnect);
     this.app.post('/orcid/next', [ensureUserIfPresent], orcidCheck());
