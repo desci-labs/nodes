@@ -39,6 +39,7 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
       handle.change((document) => {
         document.manifest = manifest;
         document.uuid = uuid;
+        document.driveClock = Date.now().toString();
       });
       handle.docSync();
       const document = await handle.doc();

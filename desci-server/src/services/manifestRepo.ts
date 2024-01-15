@@ -32,6 +32,7 @@ export const createManifestDocument = async function ({ node, manifest }: { node
     (d) => {
       d.manifest = manifest;
       d.uuid = uuid;
+      d.driveClock = Date.now().toString();
     },
     { message: 'Init Document', time: Date.now() },
   );
