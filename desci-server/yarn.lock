@@ -80,6 +80,19 @@
   resolved "https://registry.yarnpkg.com/@automerge/automerge-wasm/-/automerge-wasm-0.7.0.tgz#f8c66c228eabc0d7723e25f300e5fc266d7a3f29"
   integrity sha512-nql3kAO0xAYslEfrr2uTQe595fasKsOKxXEkNpilP97F3T0PD7n0YP9MirLiAytNRBXYccMayhN+hP5Af4xprA==
 
+"@automerge/automerge-wasm@0.9.0":
+  version "0.9.0"
+  resolved "https://registry.yarnpkg.com/@automerge/automerge-wasm/-/automerge-wasm-0.9.0.tgz#1b0e1ea595feeb47ea0f4b685bf2ffb7fa61f97c"
+  integrity sha512-wTPcW3wVk20D1x0DOko/RsfZV1mlc8HJynqgTRhVocOxFIU/RCilnYRfJmSb8LwCG2uZzfqg0DLsEBqQZ53KBQ==
+
+"@automerge/automerge@2.1.10":
+  version "2.1.10"
+  resolved "https://registry.yarnpkg.com/@automerge/automerge/-/automerge-2.1.10.tgz#257f9f94c37db088008548cca7e57e853d1ed354"
+  integrity sha512-xj8R3fQHZmDYnrYW5WrBqWm/r5sLV9Z7mu89pJ10wGLVS2V+iAB2os85DoOGI2etzjmQsoHyrd97GBmszjH4zQ==
+  dependencies:
+    "@automerge/automerge-wasm" "0.9.0"
+    uuid "^9.0.0"
+
 "@automerge/automerge@^2.1.7":
   version "2.1.9"
   resolved "https://registry.yarnpkg.com/@automerge/automerge/-/automerge-2.1.9.tgz#69776836deee0976bb41741db656ff5be741cf92"

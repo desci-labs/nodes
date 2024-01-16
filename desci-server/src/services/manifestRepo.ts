@@ -29,9 +29,9 @@ export const createManifestDocument = async function ({ node, manifest }: { node
 
   const handle = backendRepo.create<ResearchObjectDocument>();
   handle.change(
-    (d) => {
-      d.manifest = manifest;
-      d.uuid = uuid;
+    (document) => {
+      document.manifest = manifest;
+      document.uuid = uuid;
     },
     { message: 'Init Document', time: Date.now() },
   );
@@ -172,7 +172,7 @@ export const getNodeManifestUpdater = (node: Node) => {
       case 'Rename Component Path':
         const components = latestDocument.manifest.components.filter(
           (component) =>
-            component.payload?.path.startsWith(action.oldPath + '/') || component.payload?.path === action.oldPath,
+            component.payload?.path?.startsWith(action.oldPath + '/') || component.payload?.path === action.oldPath,
         );
         if (components.length > 0) {
           handle.change(
@@ -183,7 +183,7 @@ export const getNodeManifestUpdater = (node: Node) => {
                   component.payload?.path === action.oldPath,
               );
               for (const component of components) {
-                component.payload.path = component.payload.path.replace(action.oldPath, action.newPath);
+                component.payload.path = component.payload?.path.replace(action.oldPath, action.newPath);
               }
             },
             { time: Date.now(), message: action.type },
