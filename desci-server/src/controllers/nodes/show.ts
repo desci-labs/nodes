@@ -1,22 +1,15 @@
-import { ResearchObjectV1, ResearchObjectV1History, RESEARCH_OBJECT_NODES_PREFIX } from '@desci-labs/desci-models';
+import { ResearchObjectV1, RESEARCH_OBJECT_NODES_PREFIX } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 import { CID } from 'multiformats/cid';
 
-import prisma from 'client';
-import { PUBLIC_IPFS_PATH } from 'config';
-import parentLogger from 'logger';
-
-export const cleanupManifestUrl = (url: string, gateway?: string) => {
-  if (url && (PUBLIC_IPFS_PATH || gateway)) {
-    const s = url.split('/');
-    const res = `${gateway ? gateway : PUBLIC_IPFS_PATH}/${s[s.length - 1]}`;
-    parentLogger.info({ fn: 'cleanupManifestUrl', url, gateway }, `resolving ${url} => ${res}`);
-    return res;
-  }
-  return url;
-};
+import { prisma } from '../../client.js';
+import { PUBLIC_IPFS_PATH } from '../../config/index.js';
+import { logger as parentLogger } from '../../logger.js';
+import { RequestWithNode } from '../../middleware/authorisation.js';
+import { NodeUuid, getDraftManifestFromUuid } from '../../services/manifestRepo.js';
+import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node) => {
   const ro = Object.assign({}, data);
@@ -46,8 +39,8 @@ const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node
 };
 
 // Return ResearchObject manifest via CID or ResearchObject database ID
-export const show = async (req: Request, res: Response, next: NextFunction) => {
-  let ownerId = (req as any).user?.id;
+export const show = async (req: RequestWithNode, res: Response, next: NextFunction) => {
+  let ownerId = req.user?.id;
   const shareId = req.query.shareId as string;
   let cid: string = null;
   let pid = req.params[0];
@@ -58,7 +51,7 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
     cid,
     pid,
     shareId,
-    user: (req as any).user,
+    user: { id: (req as any).user?.id, email: (req as any).user?.email },
   });
   logger.trace({}, 'show node');
 
@@ -105,10 +98,12 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
       gatewayUrl = cleanupManifestUrl(gatewayUrl, req.query?.g as string);
       logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
       (discovery as any).manifestData = transformManifestWithHistory((await axios.get(gatewayUrl)).data, discovery);
-
+      // Add draft manifest document
+      const nodeUuid = (uuid + '.') as NodeUuid;
+      const manifest = await getDraftManifestFromUuid(nodeUuid);
+      if (manifest) (discovery as any).manifestData = transformManifestWithHistory(manifest, discovery);
       delete (discovery as any).restBody;
-
-      logger.trace({ gatewayUrl, uuid }, 'transformed manifest');
+      logger.info({}, 'Retrive DraftManifest For /SHOW');
     } catch (err) {
       logger.error(
         { err, manifestUrl: discovery.manifestUrl, gatewayUrl },
@@ -116,7 +111,7 @@ export const show = async (req: Request, res: Response, next: NextFunction) => {
       );
     }
 
-    res.send(discovery);
+    res.send({ ...discovery });
     return;
   }
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { orcidDid, orcidProfile } from 'controllers/proxy/orcidProfile';
+import { orcidDid, orcidProfile } from '../../controllers/proxy/orcidProfile.js';
 
 const router = Router();
 

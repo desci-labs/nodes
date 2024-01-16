@@ -1,7 +1,7 @@
 import { BigNumber } from 'ethers';
 import { NextFunction, Request, Response } from 'express';
 
-import { encodeBase64UrlSafe } from 'utils';
+import { encodeBase64UrlSafe } from '../../utils.js';
 
 /**
  * Get NFT metadata

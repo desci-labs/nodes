@@ -1,17 +1,16 @@
 import { env } from 'process';
 
-import { Invite, prisma, User } from '@prisma/client';
+import { User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import AWS from 'aws-sdk';
 
-import parentLogger from 'logger';
-import createRandomCode from 'utils/createRandomCode';
+import { prisma as client } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
+import createRandomCode from '../utils/createRandomCode.js';
+import { hideEmail } from '../utils.js';
 
 AWS.config.update({ region: 'us-east-2' });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-import client from '../client';
-
-import { hideEmail } from 'utils';
 
 const logger = parentLogger.child({ module: 'Services::Auth' });
 
@@ -105,7 +104,12 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
 
   const expiresAt = new Date('1980-01-01');
   await client.magicLink.updateMany({
-    where: { email },
+    where: { 
+      email: {
+        equals: email,
+        mode: 'insensitive'
+      } 
+    },
     data: {
       expiresAt,
     },
@@ -195,7 +199,10 @@ const sendMagicLink = async (email: string, ip?: string) => {
   // Check for recent magic link generation
   const recentMagicLink = await client.magicLink.findFirst({
     where: {
-      email,
+      email: {
+        equals: email,
+        mode: 'insensitive'
+      },
       createdAt: {
         gte: new Date(Date.now() - MAGIC_LINK_COOLDOWN),
       },
@@ -208,7 +215,10 @@ const sendMagicLink = async (email: string, ip?: string) => {
 
   const user = await client.user.findFirst({
     where: {
-      email,
+      email: {
+          equals: email,
+          mode: 'insensitive'
+      },
     },
   });
 

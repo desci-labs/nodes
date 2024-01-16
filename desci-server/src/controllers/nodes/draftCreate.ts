@@ -1,28 +1,28 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import {
-  DEFAULT_COMPONENT_TYPE,
   ExternalLinkComponent,
   PdfComponent,
   ResearchObjectComponentLinkSubtype,
   ResearchObjectComponentType,
   ResearchObjectV1,
   isNodeRoot,
-  isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
-import { DataReference, DataType } from '@prisma/client';
+import { DataReference } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { getDataUsageForUserBytes, hasAvailableDataUsageForUpload } from 'services/dataService';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { getDataUsageForUserBytes, hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import {
   addBufferToIpfs,
   downloadFilesAndMakeManifest,
   downloadSingleFile,
   updateManifestAndAddToIpfs,
-} from 'services/ipfs';
-import { createNodeDraftBlank } from 'services/nodeManager';
-import { randomUUID64 } from 'utils';
-import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from 'utils/driveUtils';
+} from '../../services/ipfs.js';
+import { createManifestDocument } from '../../services/manifestRepo.js';
+import { createNodeDraftBlank } from '../../services/nodeManager.js';
+import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
+import { randomUUID64 } from '../../utils.js';
 
 export const draftCreate = async (req: Request, res: Response, next: NextFunction) => {
   const {
@@ -77,7 +77,6 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
 
     const dataConsumptionBytes = await getDataUsageForUserBytes(owner);
 
-    // eslint-disable-next-line no-array-reduce/no-reduce
     const uploadSizeBytes = files.map((f) => f.size).reduce((total, size) => total + size, 0);
 
     const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(owner, { fileSizeBytes: uploadSizeBytes });
@@ -118,12 +117,21 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
     const nodeCopy = Object.assign({}, node);
     nodeCopy.uuid = nodeCopy.uuid.replace(/\.$/, '');
 
+    let documentId: DocumentId;
+    try {
+      documentId = await createManifestDocument({ node, manifest: researchObject });
+      logger.info({ uuid: node.uuid, documentId }, 'Automerge document created');
+    } catch (e) {
+      logger.error({ e, researchObject, uuid: node.uuid }, 'Automerge document Creation Error');
+    }
+
     res.send({
       ok: true,
       hash,
       uri,
       node: nodeCopy,
       version: nodeVersion,
+      documentId,
     });
     return;
   } catch (err) {

@@ -7,9 +7,8 @@ import {
 import { DataType } from '@prisma/client';
 import axios from 'axios';
 
-import prisma from 'client';
-import { PersistManifestParams } from 'controllers/data/utils';
-import { cleanupManifestUrl } from 'controllers/nodes';
+import { prisma } from '../client.js';
+import { PersistManifestParams } from '../controllers/data/utils.js';
 import {
   createDag,
   createEmptyDag,
@@ -17,16 +16,10 @@ import {
   getDirectoryTree,
   strIsCid,
   updateManifestAndAddToIpfs,
-} from 'services/ipfs';
-import { ensureUniqueString } from 'utils';
-import { addComponentsToManifest } from 'utils/driveUtils';
-
-/* 
-upgrades the manifest from the old opiniated version to the unopiniated version 
-IMPORTANT: Called after ensureUser and multer
-*/
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
+} from '../services/ipfs.js';
+import { addComponentsToManifest } from '../utils/driveUtils.js';
+import { cleanupManifestUrl } from '../utils/manifest.js';
+import { ensureUniqueString } from '../utils.js';
 
 upgradeManifestsScript();
 export async function upgradeManifestsScript() {
@@ -176,8 +169,8 @@ export async function upgradeManifestsScript() {
           path === researchReportPath
             ? ResearchObjectComponentType.PDF
             : path === codeReposPath
-            ? ResearchObjectComponentType.CODE
-            : ResearchObjectComponentType.DATA,
+              ? ResearchObjectComponentType.CODE
+              : ResearchObjectComponentType.DATA,
       };
     });
 

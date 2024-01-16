@@ -1,5 +1,5 @@
-import logger from 'logger';
-import { getEmailsActiveUsersInXDays } from 'services/interactionLog';
+import { logger } from '../logger.js';
+import { getEmailsActiveUsersInXDays } from '../services/interactionLog.js';
 
 (async () => {
   const [users7, users30, users90] = await Promise.all([

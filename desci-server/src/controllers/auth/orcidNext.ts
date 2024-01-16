@@ -3,14 +3,15 @@
  */
 
 import { ActionType } from '@prisma/client';
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response } from 'express';
 
-import parentLogger from 'logger';
-import { saveInteraction } from 'services/interactionLog';
-import { connectOrcidToUserIfPossible } from 'services/user';
-import { sendCookie } from 'utils/sendCookie';
+import { logger as parentLogger } from '../../logger.js';
+import { saveInteraction } from '../../services/interactionLog.js';
+import { connectOrcidToUserIfPossible } from '../../services/user.js';
+import { sendCookie } from '../../utils/sendCookie.js';
 
-import { OrcIdRecordData, getOrcidRecord } from './orcid';
+import { OrcIdRecordData, getOrcidRecord } from './orcid.js';
+
 const logger = parentLogger.child({ module: 'AUTH::OrcidNextController' });
 /**
  * check if orcid account is already linked

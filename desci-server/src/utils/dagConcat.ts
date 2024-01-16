@@ -1,26 +1,27 @@
 //Thanks to https://github.com/webrecorder/ipfs-composite-files
 /* eslint-disable @typescript-eslint/no-var-requires */
-const dagPb = require('@ipld/dag-pb');
-const UnixFS = require('ipfs-unixfs');
-const multiformats = require('multiformats');
-const { code } = require('multiformats/codecs/raw');
+import { encode, decode, prepare } from '@ipld/dag-pb';
+import UnixFS from 'ipfs-unixfs';
+import { CID } from 'multiformats';
+import { code as rawCode } from 'multiformats/codecs/raw';
 
-const rawCode = code;
+// const { default: UnixFS } = IpfsUnixFS;
+
 // ===========================================================================
-async function getSize(ipfs, cid, allowDir = false) {
+export async function getSize(ipfs, cid, allowDir = false) {
   const block = await ipfs.block.get(cid);
   // console.log('cid: ', cid);
-  if (typeof cid === 'string') cid = multiformats.CID.parse(cid);
+  if (typeof cid === 'string') cid = CID.parse(cid);
   // console.log('cid.code: ', cid.code);
   // if raw, use length of block
   if (cid.code == rawCode) {
     return block.length;
   }
 
-  const { Data } = dagPb.decode(block);
+  const { Data } = decode(block);
 
   // otherwise, parse to unixfs node
-  let unixfs = UnixFS.unmarshal(Data);
+  const unixfs = UnixFS.unmarshal(Data);
 
   if (!allowDir && unixfs.isDirectory()) {
     throw new Error(`cid ${cid} is a directory, only files allowed`);
@@ -31,13 +32,12 @@ async function getSize(ipfs, cid, allowDir = false) {
   } else if (!unixfs.isDirectory()) {
     return unixfs.fileSize();
   } else {
-    // eslint-disable-next-line no-array-reduce/no-reduce
     return unixfs.blockSizes.reduce((a, b) => a + b, 0);
   }
 }
 
 // ===========================================================================
-async function concat(ipfs, cids, sizes = {}) {
+export async function concat(ipfs, cids, sizes = {}) {
   if (cids.length === 1) {
     return cids[0];
   }
@@ -84,7 +84,7 @@ async function _createDirLinks(ipfs, files) {
 }
 
 // ===========================================================================
-async function makeDir(ipfs, files) {
+export async function makeDir(ipfs, files) {
   // debugger;
   const node = new UnixFS({ type: 'directory' });
 
@@ -96,17 +96,17 @@ async function makeDir(ipfs, files) {
 }
 
 // ===========================================================================
-async function addToDir(ipfs, dirCid, files) {
+export async function addToDir(ipfs, dirCid, files) {
   if (dirCid.code == rawCode) {
     throw new Error('raw cid -- not a directory');
   }
 
   const block = await ipfs.block.get(dirCid);
 
-  let { Data, Links } = dagPb.decode(block);
+  const { Data, Links } = decode(block);
 
   // debugger;
-  let node = UnixFS.unmarshal(Data);
+  const node = UnixFS.unmarshal(Data);
   UnixFS.unmarshal;
 
   if (!node.isDirectory()) {
@@ -115,16 +115,16 @@ async function addToDir(ipfs, dirCid, files) {
   const newLinks = await _createDirLinks(ipfs, files);
 
   // debugger;
-  Links = [...Links, ...newLinks];
+  const UpdatedLinks = [...Links, ...newLinks];
 
   // todo: disallow duplicates
-  Links.sort((a, b) => (a.Name < b.Name ? -1 : 1));
+  UpdatedLinks.sort((a, b) => (a.Name < b.Name ? -1 : 1));
 
-  return await putBlock(ipfs, { Data, Links });
+  return await putBlock(ipfs, { Data, Links: UpdatedLinks });
 }
 
 //nodeCid refers to the dag node being updated, oldCid is the cid of the link to be replaced, newCid is the cid of the new link
-async function updateDagCid(ipfs, nodeCid, oldCid, newCid) {
+export async function updateDagCid(ipfs, nodeCid, oldCid, newCid) {
   if (typeof nodeCid === 'string') oldCid = CID.parse(oldCid);
   if (typeof oldCid === 'string') oldCid = CID.parse(oldCid);
   if (typeof newCid === 'string') newCid = CID.parse(newCid);
@@ -135,16 +135,16 @@ async function updateDagCid(ipfs, nodeCid, oldCid, newCid) {
 
   const block = await ipfs.block.get(nodeCid);
 
-  let { Data, Links } = dagPb.decode(block);
+  const { Data, Links } = decode(block);
 
-  let node = UnixFS.unmarshal(Data);
+  const node = UnixFS.unmarshal(Data);
   UnixFS.unmarshal;
 
   if (!node.isDirectory()) {
     throw new Error(`file cid -- not a directory`);
   }
 
-  linkIdx = Links.findIndex((link) => link.Hash.equals(oldCid));
+  const linkIdx = Links.findIndex((link) => link.Hash.equals(oldCid));
 
   // debugger;
   if (linkIdx !== -1) {
@@ -156,16 +156,8 @@ async function updateDagCid(ipfs, nodeCid, oldCid, newCid) {
 
 // ===========================================================================
 function putBlock(ipfs, node) {
-  return ipfs.block.put(dagPb.encode(dagPb.prepare(node)), {
+  return ipfs.block.put(encode(prepare(node)), {
     version: 1,
     format: 'dag-pb',
   });
 }
-
-module.exports = {
-  addToDir,
-  concat,
-  getSize,
-  makeDir,
-  updateDagCid,
-};

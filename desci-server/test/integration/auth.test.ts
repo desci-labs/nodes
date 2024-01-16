@@ -5,11 +5,11 @@ import cookieParser from 'cookie-parser';
 import express from 'express';
 import supertest from 'supertest';
 
-import prisma from '../../src/client';
-import { generateAccessToken } from '../../src/controllers/auth/magic';
-import { ensureUser, retrieveUser } from '../../src/middleware/ensureUser';
-import { magicLinkRedeem, sendMagicLink } from '../../src/services/auth';
-import { expectThrowsAsync } from '../util';
+import { prisma } from '../../src/client.js';
+import { generateAccessToken } from '../../src/controllers/auth/magic.js';
+import { ensureUser } from '../../src/middleware/permissions.js';
+import { magicLinkRedeem, sendMagicLink } from '../../src/services/auth.js';
+import { expectThrowsAsync } from '../util.js';
 
 describe('Magic Link Authentication', () => {
   let user: User;

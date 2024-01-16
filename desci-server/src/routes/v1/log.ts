@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
-import { logUserAction } from 'controllers/log/index';
-import { ensureUserIfPresent } from 'middleware/ensureUserIfPresent';
+import { logUserAction } from '../../controllers/log/index.js';
+import { ensureUserIfPresent } from '../../middleware/ensureUserIfPresent.js';
 
 const router = Router();
 
