@@ -5,7 +5,8 @@ import { Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
-import { getManifestFromNode, updateManifestDataBucket } from '../../services/data/processing.js';
+import { updateManifestDataBucket } from '../../services/data/processing.js';
+import { NodeUuid, getDraftManifestFromUuid } from '../../services/manifestRepo.js';
 import { prepareDataRefsForDagSkeleton } from '../../utils/dataRefTools.js';
 import { dagifyAndAddDbTreeToIpfs } from '../../utils/draftTreeUtils.js';
 import { persistManifest } from '../data/utils.js';
@@ -53,7 +54,7 @@ export const prepublish = async (req: RequestWithNode, res: Response<PrepublishR
       return res.status(403).json({ ok: false, error: 'Failed' });
     }
 
-    const { manifest, manifestCid } = await getManifestFromNode(node);
+    const manifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
 
     /**
      * Dagify and add DAGs to IPFS (No Files Pinned yet, just the folder structure added to IPFS (NOT PINNED!))

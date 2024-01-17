@@ -10,7 +10,7 @@ import { User, Node, Prisma } from '@prisma/client';
 import { prisma } from '../../client.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
-import { ensureUniquePathsDraftTree } from '../../services/draftTrees.js';
+import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
 import {
   GetExternalSizeAndTypeResult,
   convertToCidV1,
@@ -18,7 +18,7 @@ import {
   pubRecursiveLs,
 } from '../../services/ipfs.js';
 import { FirstNestingComponent, addComponentsToDraftManifest, getTreeAndFill } from '../../utils/driveUtils.js';
-import { getLatestManifestFromNode } from '../manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRepo.js';
 
 import { updateDataReferences } from './processing.js';
 import {
@@ -203,6 +203,13 @@ export async function processExternalCidDataToIpfs({
       throw createManifestPersistFailError(
         `Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${user.id}`,
       );
+
+    /**
+     * Update drive clock on automerge document
+     */
+    const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
+    const manifestUpdater = getNodeManifestUpdater(node);
+    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
 
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 

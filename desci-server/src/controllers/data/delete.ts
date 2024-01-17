@@ -4,7 +4,8 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getLatestManifestFromNode, getNodeManifestUpdater } from '../../services/manifestRepo.js';
+import { getLatestDriveTime } from '../../services/draftTrees.js';
+import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../../services/manifestRepo.js';
 
 import { ErrorResponse } from './update.js';
 import { persistManifest } from './utils.js';
@@ -41,6 +42,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
   }
 
   const latestManifest = await getLatestManifestFromNode(node);
+  const dispatchChange = getNodeManifestUpdater(node);
 
   try {
     /**
@@ -121,6 +123,12 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       throw Error(`[DATA::DELETE]Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${owner.id}`);
 
     logger.info(`DATA::Delete Success, path: `, path, ' deleted');
+
+    /**
+     * Update drive clock on automerge document
+     */
+    const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
+    await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
 
     return res.status(200).json({
       manifest: updatedManifest,

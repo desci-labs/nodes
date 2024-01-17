@@ -42,6 +42,7 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
         (document) => {
           document.manifest = manifest;
           document.uuid = uuid;
+          document.driveClock = Date.now().toString();
         },
         { message: 'Init Document', time: Date.now() },
       );

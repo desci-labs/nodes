@@ -21,7 +21,7 @@ import { UpdateResponse } from '../../controllers/data/update.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
-import { ensureUniquePathsDraftTree, externalDirCheck } from '../../services/draftTrees.js';
+import { ensureUniquePathsDraftTree, externalDirCheck, getLatestDriveTime } from '../../services/draftTrees.js';
 import {
   FilesToAddToDag,
   IpfsDirStructuredInput,
@@ -44,7 +44,7 @@ import {
 } from '../../utils/driveUtils.js';
 import { EXTENSION_MAP } from '../../utils/extensions.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
-import { getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRepo.js';
 
 import {
   Either,
@@ -160,6 +160,13 @@ export async function processS3DataToIpfs({
         `Failed to persist manifest: ${updatedManifest}, node: ${node}, userId: ${user.id}`,
       );
 
+    /**
+     * Update drive clock on automerge document
+     */
+    const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
+    const manifestUpdater = getNodeManifestUpdater(node);
+    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 
     return {
@@ -246,6 +253,14 @@ export async function processNewFolder({
     });
 
     const ltsManifest = await getLatestManifestFromNode(ltsNode);
+
+    /**
+     * Update drive clock on automerge document
+     */
+    debugger;
+    const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
+    const manifestUpdater = getNodeManifestUpdater(node);
+    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
 
     const tree = await getTreeAndFill(ltsManifest, node.uuid, user.id);
 

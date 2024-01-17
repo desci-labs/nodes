@@ -32,6 +32,7 @@ export const createManifestDocument = async function ({ node, manifest }: { node
     (document) => {
       document.manifest = manifest;
       document.uuid = uuid;
+      document.driveClock = Date.now().toString();
     },
     { message: 'Init Document', time: Date.now() },
   );
@@ -102,7 +103,8 @@ export type ManifestActions =
       component: ResearchObjectV1Component;
       componentIndex: number;
       componentTypeMap: ResearchObjectComponentTypeMap;
-    };
+    }
+  | { type: 'Set Drive Clock'; time: string };
 
 export const getNodeManifestUpdater = (node: Node) => {
   // const backendRepo = server.repo;
@@ -206,6 +208,23 @@ export const getNodeManifestUpdater = (node: Node) => {
           { time: Date.now(), message: action.type },
         );
         break;
+      case 'Set Drive Clock':
+        handle.change(
+          (document) => {
+            if (document.driveClock && document.driveClock === action.time) return; // Don't update if already the latest
+            document.driveClock = action.time;
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      // case 'Remove Drive Clock':
+      //   handle.change(
+      //     (document) => {
+      //       delete document.driveClock;
+      //     },
+      //     { time: Date.now(), message: action.type },
+      //   );
+      //   break;
       default:
         assertNever(action);
     }
