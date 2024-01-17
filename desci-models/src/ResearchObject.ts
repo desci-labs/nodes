@@ -50,6 +50,7 @@ export interface ResearchObjectV1Component {
   id: string;
   name: string;
   type: ResearchObjectComponentType | ResearchObjectComponentTypeMap;
+  subtype?: string;
   icon?: any;
   payload: any;
   primary?: boolean;
