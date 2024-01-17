@@ -112,6 +112,9 @@ This starts:
 4. expedition explorer for local dev (http://localhost:3001)
 5. graph index pointing to latest deployed contract (http://localhost:8080)
 6. Local IPFS node (private, swarm key enabled) (http://localhost:5001 or http://localhost:8089)
+7. Local Ceramic node, run `bootstrapCeramic.sh` to initialize (http://localhost:7007)
+
+**Note:** The Ceramic publish functionality needs to be activated by setting the corresponding environment variable, see `.env.example` for instructions.
 
 **Note:** nodes-media (http://localhost:5454, responsible for DOI / PDF downloads, and for media transcoding) is disabled in the dev cluster by default, but can be uncommented in `docker-compose.dev.yml` for local development
 <br>
