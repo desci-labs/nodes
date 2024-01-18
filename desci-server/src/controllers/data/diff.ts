@@ -12,11 +12,11 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 // import { cleanupManifestUrl } from 'controllers/nodes/';
-import { cleanupManifestUrl } from '../../controllers/nodes/show.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getFromCache, setToCache } from '../../redisClient.js';
 import { TreeDiff, diffTrees, subtractComponentStats } from '../../utils/diffUtils.js';
 import { getTreeAndFill } from '../../utils/driveUtils.js';
+import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 import { ErrorResponse } from './update.js';
 

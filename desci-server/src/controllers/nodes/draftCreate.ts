@@ -1,3 +1,4 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   ExternalLinkComponent,
   PdfComponent,
@@ -18,6 +19,7 @@ import {
   downloadSingleFile,
   updateManifestAndAddToIpfs,
 } from '../../services/ipfs.js';
+import { createManifestDocument } from '../../services/manifestRepo.js';
 import { createNodeDraftBlank } from '../../services/nodeManager.js';
 import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
 import { randomUUID64 } from '../../utils.js';
@@ -102,7 +104,7 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
         userId: owner.id,
         nodeId: node.id,
         directory: isDataBucket,
-        path: isDataBucket ? DRIVE_NODE_ROOT_PATH : DRIVE_NODE_ROOT_PATH + '../../' + component.name,
+        path: isDataBucket ? DRIVE_NODE_ROOT_PATH : DRIVE_NODE_ROOT_PATH + '/' + component.name,
         // versionId: nodeVersion.id,
       };
     });
@@ -115,12 +117,21 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
     const nodeCopy = Object.assign({}, node);
     nodeCopy.uuid = nodeCopy.uuid.replace(/\.$/, '');
 
+    let documentId: DocumentId;
+    try {
+      documentId = await createManifestDocument({ node, manifest: researchObject });
+      logger.info({ uuid: node.uuid, documentId }, 'Automerge document created');
+    } catch (e) {
+      logger.error({ e, researchObject, uuid: node.uuid }, 'Automerge document Creation Error');
+    }
+
     res.send({
       ok: true,
       hash,
       uri,
       node: nodeCopy,
       version: nodeVersion,
+      documentId,
     });
     return;
   } catch (err) {

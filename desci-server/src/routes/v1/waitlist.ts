@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import { add, list, promote } from '../../controllers/waitlist/index.js';
 import { ensureAdmin } from '../../middleware/ensureAdmin.js';
-import { ensureUser } from '../../middleware/ensureUser.js';
+import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
 

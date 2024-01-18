@@ -2,11 +2,11 @@ import { DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
-import { cleanupManifestUrl } from '../controllers/nodes/show.js';
 import { logger as parentLogger } from '../logger.js';
 import { getSizeForCid } from '../services/ipfs.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { validateAndHealDataRefs, validateDataReferences } from '../utils/dataRefTools.js';
+import { cleanupManifestUrl } from '../utils/manifest.js';
 import { hexToCid } from '../utils.js';
 
 /* 

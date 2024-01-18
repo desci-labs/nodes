@@ -20,6 +20,7 @@ model Node {
   replicationFactor   Int
   ownerId             Int
   uuid                String?               @unique @default(uuid())
+  manifestDocumentId  String                @default("")
   privateShare        PrivateShare?
   owner               User                  @relation(fields: [ownerId], references: [id])
   authorInvites       AuthorInvite[]
@@ -35,6 +36,7 @@ model Node {
   isDeleted           Boolean               @default(false)
   deletedAt           DateTime?
   UploadJobs          UploadJobs[]
+  DraftNodeTree       DraftNodeTree[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -120,36 +122,36 @@ model Wallet {
 }
 
 model User {
-  id                         Int                   @id @default(autoincrement())
-  createdAt                  DateTime              @default(now())
-  updatedAt                  DateTime              @updatedAt
-  email                      String                @unique
-  phoneNumber                String?               @unique
+  id                         Int                       @id @default(autoincrement())
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  email                      String                    @unique
+  phoneNumber                String?                   @unique
   name                       String?
   website                    String?
   googleScholarUrl           String?
   researchInterests          String?
-  gitcoinPassport            String?               @unique
-  walletAddress              String?               @unique
-  isPatron                   Boolean               @default(false)
-  isWarden                   Boolean               @default(false)
-  isKeeper                   Boolean               @default(false)
-  pseudonym                  String?               @unique
-  orcid                      String?               @unique
+  gitcoinPassport            String?                   @unique
+  walletAddress              String?                   @unique
+  isPatron                   Boolean                   @default(false)
+  isWarden                   Boolean                   @default(false)
+  isKeeper                   Boolean                   @default(false)
+  pseudonym                  String?                   @unique
+  orcid                      String?                   @unique
   // rorPid                     String[]              @default([])
   // organization               String[]              @default([])
-  isAdmin                    Boolean               @default(false)
-  isVerified                 Boolean               @default(false)
-  verificationCode           String                @default("")
-  siweNonce                  String                @default("")
+  isAdmin                    Boolean                   @default(false)
+  isVerified                 Boolean                   @default(false)
+  verificationCode           String                    @default("")
+  siweNonce                  String                    @default("")
   authTokens                 AuthToken[]
-  authorInvitesReceived      AuthorInvite[]        @relation("ReceivedAuthorInvites")
-  authorInvitesSent          AuthorInvite[]        @relation("SentAuthorInvites")
-  receivedTransactions       ChainTransaction[]    @relation("ReceivedTransactions")
-  sentTransactions           ChainTransaction[]    @relation("SentTransactions")
+  authorInvitesReceived      AuthorInvite[]            @relation("ReceivedAuthorInvites")
+  authorInvitesSent          AuthorInvite[]            @relation("SentAuthorInvites")
+  receivedTransactions       ChainTransaction[]        @relation("ReceivedTransactions")
+  sentTransactions           ChainTransaction[]        @relation("SentTransactions")
   interactionLogs            InteractionLog[]
-  invitesReceived            Invite[]              @relation("ReceivedInvites")
-  invitesSent                Invite[]              @relation("SentInvites")
+  invitesReceived            Invite[]                  @relation("ReceivedInvites")
+  invitesSent                Invite[]                  @relation("SentInvites")
   ownedNodes                 Node[]
   authoredNodes              NodeAuthor[]
   nodeVotes                  NodeVote[]
@@ -158,15 +160,19 @@ model User {
   identities                 UserIdentity[]
   Waitlist                   Waitlist[]
   wallets                    Wallet[]
-  canRunCode                 Boolean?              @default(false)
+  canRunCode                 Boolean?                  @default(false)
   DataReference              DataReference[]
   CidPruneList               CidPruneList[]
   PublicDataReference        PublicDataReference[]
   FriendReferral             FriendReferral[]
-  currentDriveStorageLimitGb Int                   @default(100)
-  maxDriveStorageLimitGb     Int                   @default(500)
+  currentDriveStorageLimitGb Int                       @default(100)
+  maxDriveStorageLimitGb     Int                       @default(500)
   userOrganizations          UserOrganizations[]
   UploadJobs                 UploadJobs[]
+  // DraftNodeTree              DraftNodeTree[]
+  NodeFeedItemEndorsement    NodeFeedItemEndorsement[]
+  DesciCommunity             DesciCommunity?           @relation(fields: [desciCommunityId], references: [id])
+  desciCommunityId           Int?
 
   @@index([orcid])
   @@index([walletAddress])
@@ -378,6 +384,8 @@ model PublicDataReference {
   node        Node                              @relation(fields: [nodeId], references: [id])
   user        User?                             @relation(fields: [userId], references: [id])
   nodeVersion NodeVersion?                      @relation(fields: [versionId], references: [id])
+
+  @@unique([path, versionId])
 }
 
 model IpfsMirror {
@@ -488,6 +496,69 @@ model UploadJobs {
   userId               Int
   node                 Node             @relation(fields: [nodeId], references: [id])
   user                 User             @relation(fields: [userId], references: [id])
+}
+
+model DocumentStore {
+  key   String @id
+  value Bytes
+}
+
+model DraftNodeTree {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  path      String
+  cid       String
+  directory Boolean
+  size      Int
+  external  Boolean
+  nodeId    Int
+  // userId    Int
+  node      Node     @relation(fields: [nodeId], references: [id])
+  // user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([nodeId, path])
+}
+
+// create a model for Node UUIDs, titles, dates, authors, and abstracts
+model NodeFeedItem {
+  id                      Int                       @id @default(autoincrement())
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  nodeUuid                String                    
+  nodeUuidHex             String                    
+  nodeDpid10              String                    @unique
+  manifestCid             String
+  title                   String
+  date                    DateTime
+  authors                 String
+  abstract                String
+  nodeFeedItemEndorsement NodeFeedItemEndorsement[]
+}
+
+model NodeFeedItemEndorsement {
+  id             Int            @id @default(autoincrement())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  nodeDpid10              String                   
+  type          String
+  userId         Int
+  nodeFeedItemId Int
+  desciCommunityId Int
+  user           User           @relation(fields: [userId], references: [id])
+  nodeFeedItem   NodeFeedItem   @relation(fields: [nodeFeedItemId], references: [id])
+  desciCommunity DesciCommunity @relation(fields: [desciCommunityId], references: [id])
+}
+
+// an organization that endorses work and has members
+model DesciCommunity {
+  id           Int                       @id @default(autoincrement())
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  name         String                    @unique
+  description  String
+  members      User[]
+  endorsements NodeFeedItemEndorsement[]
 }
 
 enum UploadType {

@@ -266,7 +266,10 @@ export async function getUserByOrcId(orcid: string): Promise<User | null> {
 
 export async function getUserByEmail(email: string): Promise<User | null> {
   logger.trace({ fn: 'getUserByEmail' }, `user::getUserByEmail ${hideEmail(email)}`);
-  const user = await client.user.findFirst({ where: { email } });
+  const user = await client.user.findFirst({ where: { email: {
+    equals: email,
+    mode: 'insensitive'
+  } } });
 
   return user;
 }

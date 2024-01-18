@@ -4,12 +4,12 @@ import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from '../config/index.js';
-import { cleanupManifestUrl } from '../controllers/nodes/show.js';
 import { logger as parentLogger } from '../logger.js';
 import { uploadDataToEstuary } from '../services/estuary.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
-import { hexToCid, randomUUID64, asyncMap } from '../utils.js';
 import { generateDataReferences } from '../utils/dataRefTools.js';
+import { cleanupManifestUrl } from '../utils/manifest.js';
+import { hexToCid, randomUUID64, asyncMap } from '../utils.js';
 
 import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
 
@@ -59,6 +59,7 @@ export const createPublicDataRefs = async (
   userId: number | undefined,
   versionId: number | undefined,
 ) => {
+  debugger;
   const dataWithVersions = data.map((d) => ({ ...d, versionId }));
   const publicDataRefRes = await prisma.publicDataReference.createMany({
     data: dataWithVersions,
@@ -149,6 +150,7 @@ export const getAllCidsRequiredForPublish = async (
   nodeId: number | undefined,
   versionId: number | undefined,
 ): Promise<Prisma.PublicDataReferenceCreateManyInput[]> => {
+  // debugger;
   // ensure public data refs staged matches our data bucket cids
   const latestManifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   // const manifestString = manifestBuffer.toString('utf8');
@@ -340,8 +342,8 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
       versionToCache !== undefined && versionToCache < history.versions.length
         ? versionToCache
         : history?.versions.length
-        ? history.versions.length - 1
-        : 0;
+          ? history.versions.length - 1
+          : 0;
 
     if (!manifestCid || manifestCid.length === 0) {
       history.versions.reverse();
@@ -358,6 +360,7 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
     // console.log('cacheNodeMetadata::Manifest', manifest);
 
     const pdfs = manifest.components.filter(
+      // todo: update check to include file extension (.pdf)
       (c) => c.type === ResearchObjectComponentType.PDF && c.starred,
     ) as PdfComponent[];
     logger.debug({ pdfs }, 'PDFS:::=>>>>>>>>>>>>');
