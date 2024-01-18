@@ -8403,9 +8403,9 @@ open@^7.4.2:
     is-docker "^2.0.0"
     is-wsl "^2.1.1"
 
-"openzeppelin-solidity@https://github.com/OpenZeppelin/openzeppelin-contracts#dc739dcbe34fb0c7b15c4e197c6ba3fe9b0c8946":
+"openzeppelin-solidity@git+https://github.com/OpenZeppelin/openzeppelin-contracts#dc739dcbe34fb0c7b15c4e197c6ba3fe9b0c8946":
   version "4.5.0"
-  resolved "https://github.com/OpenZeppelin/openzeppelin-contracts#dc739dcbe34fb0c7b15c4e197c6ba3fe9b0c8946"
+  resolved "git+https://github.com/OpenZeppelin/openzeppelin-contracts#dc739dcbe34fb0c7b15c4e197c6ba3fe9b0c8946"
 
 ora@4.0.2:
   version "4.0.2"

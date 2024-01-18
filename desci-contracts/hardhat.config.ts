@@ -21,7 +21,6 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 const DEFAULT_MNEMONIC =
   "test test test test test test test test test test test junk";
 
-
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
@@ -79,6 +78,30 @@ module.exports = {
             mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
           },
       gasPrice: 35000000000,
+    },
+    sepoliaDev: {
+      chainId: 11155111,
+      live: true,
+      saveDeployments: true,
+      url: "https://eth-sepolia.g.alchemy.com/v2/F2stKHfM8-_Tr14sLKqNW83vrJOYQlg2",
+      accounts: process.env.PRIVATE_KEY
+        ? [process.env.PRIVATE_KEY]
+        : {
+            mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
+          },
+      gasPrice: 200000000000,
+    },
+    sepoliaProd: {
+      chainId: 11155111,
+      live: true,
+      saveDeployments: true,
+      url: "https://eth-sepolia.g.alchemy.com/v2/Dg4eT90opKOFZ7w-YCxVwX9O-sriKn0N",
+      accounts: process.env.PRIVATE_KEY
+        ? [process.env.PRIVATE_KEY]
+        : {
+            mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
+          },
+      gasPrice: 200000000000,
     },
   },
   react: {

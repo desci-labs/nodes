@@ -108,8 +108,6 @@ const idToRo = {};
     JSON.stringify(unified)
   );
 
-  process.exit(1);
-
   const DpidRegistryMigrated = await ethers.getContractFactory("DpidRegistry");
   console.log("[deployDpidRegistryMigrated] Deploying DpidRegistryMigrated...");
   const proxyDpid = await upgrades.deployProxy(DpidRegistryMigrated, []);
