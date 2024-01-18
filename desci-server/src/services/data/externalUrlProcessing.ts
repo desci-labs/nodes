@@ -32,7 +32,12 @@ import {
   saveZipStreamToDisk,
   zipUrlToStream,
 } from '../../utils.js';
-import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRepo.js';
+import {
+  NodeUuid,
+  getDraftManifestFromUuid,
+  getLatestManifestFromNode,
+  getNodeManifestUpdater,
+} from '../manifestRepo.js';
 
 import {
   filterFirstNestings,
@@ -226,7 +231,7 @@ export async function processExternalUrlDataToIpfs({
       }
     }
 
-    const updatedManifest = await getLatestManifestFromNode(ltsNode);
+    let updatedManifest = await getDraftManifestFromUuid(ltsNode.uuid as NodeUuid);
 
     // Update existing data references, add new data references.
     const upserts = await updateDataReferences({ node, user, updatedManifest });
@@ -243,8 +248,12 @@ export async function processExternalUrlDataToIpfs({
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    const manifestUpdater = getNodeManifestUpdater(node);
-    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    const dispatchChange = getNodeManifestUpdater(node);
+    try {
+      updatedManifest = await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
 
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 

@@ -128,14 +128,18 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
 
     return res.status(200).json({
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    console.log('[START deleteComponentsFromManifest]::', e);
+    console.log('[ERROR]::[DeleteComponentsFromManifest]::', e);
     logger.error(e, `DATA::Delete error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });

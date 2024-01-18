@@ -62,9 +62,9 @@ export const getDraftManifestFromUuid = async function (uuid: NodeUuid) {
 
   const document = await handle.doc();
 
-  logger.info({ document }, '[AUTOMERGE]::[Document Found]');
+  logger.info({ uuid: document.uuid, documentId: handle.documentId }, '[AUTOMERGE]::[Document Found]');
 
-  logger.info('END [getDraftManifestFromUuid]', { manifest: document.manifest });
+  logger.info({ uuid }, '[END]::GetDraftManifestFromUuid');
   return document.manifest;
 };
 
@@ -88,7 +88,7 @@ export function assertNever(value: never) {
 }
 
 export type ManifestActions =
-  | { type: 'Add Component'; component: ResearchObjectV1Component }
+  | { type: 'Add Components'; components: ResearchObjectV1Component[] }
   | { type: 'Delete Component'; componentId: string }
   | { type: 'Delete Components'; pathsToDelete: string[] }
   | { type: 'Rename Component'; path: string; fileName: string }
@@ -101,14 +101,11 @@ export type ManifestActions =
   | {
       type: 'Assign Component Type';
       component: ResearchObjectV1Component;
-      componentIndex: number;
       componentTypeMap: ResearchObjectComponentTypeMap;
     }
   | { type: 'Set Drive Clock'; time: string };
 
 export const getNodeManifestUpdater = (node: Node) => {
-  // const backendRepo = server.repo;
-
   const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
 
@@ -120,17 +117,20 @@ export const getNodeManifestUpdater = (node: Node) => {
     logger.info({ action }, `DocumentUpdater::Dispatched`);
 
     switch (action.type) {
-      case 'Add Component':
-        const exists = latestDocument.manifest.components.find(
-          (c) => c.payload?.path === action.component.payload?.path,
+      case 'Add Components':
+        const uniqueComponents = action.components.filter((componentToAdd) =>
+          latestDocument.manifest.components.some((c) => c.payload?.path === componentToAdd.payload?.path),
         );
-        if (exists) break;
-        handle.change(
-          (document) => {
-            document.manifest.components.push(action.component);
-          },
-          { time: Date.now(), message: action.type },
-        );
+        if (uniqueComponents.length > 0) {
+          handle.change(
+            (document) => {
+              uniqueComponents.forEach((component) => {
+                document.manifest.components.push(component);
+              });
+            },
+            { time: Date.now(), message: action.type },
+          );
+        }
         break;
       case 'Rename Component':
         handle.change(
@@ -203,7 +203,7 @@ export const getNodeManifestUpdater = (node: Node) => {
       case 'Assign Component Type':
         handle.change(
           (document) => {
-            updateComponentTypeMap(document, action.componentIndex, action.componentTypeMap);
+            updateComponentTypeMap(document, action.component.payload?.path, action.componentTypeMap);
           },
           { time: Date.now(), message: action.type },
         );
@@ -217,14 +217,6 @@ export const getNodeManifestUpdater = (node: Node) => {
           { time: Date.now(), message: action.type },
         );
         break;
-      // case 'Remove Drive Clock':
-      //   handle.change(
-      //     (document) => {
-      //       delete document.driveClock;
-      //     },
-      //     { time: Date.now(), message: action.type },
-      //   );
-      //   break;
       default:
         assertNever(action);
     }
@@ -252,12 +244,12 @@ const updateManifestComponent = (
 
 const updateComponentTypeMap = (
   doc: Doc<ResearchObjectDocument>,
-  componentIndex: number,
+  path: string,
   compTypeMap: ResearchObjectComponentTypeMap,
 ) => {
-  if (componentIndex === -1 || componentIndex === undefined) return;
+  const currentComponent = doc.manifest.components.find((c) => c.payload?.path === path);
+  if (!currentComponent) return;
 
-  const currentComponent = doc.manifest.components[componentIndex];
   const existingType = currentComponent.type;
   if (!isResearchObjectComponentTypeMap(existingType)) {
     currentComponent.type = {};

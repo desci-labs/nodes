@@ -165,7 +165,11 @@ export async function processS3DataToIpfs({
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
     const manifestUpdater = getNodeManifestUpdater(node);
-    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
 
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 
@@ -260,7 +264,11 @@ export async function processNewFolder({
     debugger;
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
     const manifestUpdater = getNodeManifestUpdater(node);
-    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
 
     const tree = await getTreeAndFill(ltsManifest, node.uuid, user.id);
 
@@ -665,7 +673,6 @@ export async function assignTypeMapInManifest(
         type: 'Assign Component Type',
         component: prevComponent,
         componentTypeMap: compTypeMap,
-        componentIndex,
       });
     } else {
       // If doesn't exist, create the component and assign its type map
@@ -679,11 +686,7 @@ export async function assignTypeMapInManifest(
           path: contextPath,
         },
       };
-      // try {
-      updatedManifest = await manifestUpdater({ type: 'Add Component', component });
-      // } catch (e) {
-      //   console.log('[ERROR assignTypeMapInManifest]', e);
-      // }
+      updatedManifest = await manifestUpdater({ type: 'Add Components', components: [component] });
     }
     return updatedManifest;
   } catch (err) {

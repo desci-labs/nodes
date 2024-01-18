@@ -5,7 +5,12 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
-import { NodeUuid, getNodeManifestUpdater } from '../../services/manifestRepo.js';
+import {
+  NodeUuid,
+  getDraftManifestFromUuid,
+  getLatestManifestFromNode,
+  getNodeManifestUpdater,
+} from '../../services/manifestRepo.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
 import { ErrorResponse } from './update.js';
@@ -103,7 +108,14 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
     const dispatchChange = getNodeManifestUpdater(node);
-    const updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath, newPath });
+    let updatedManifest: ResearchObjectV1;
+
+    try {
+      updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath, newPath });
+    } catch (err) {
+      logger.error({ err }, '[Source]: Rename Component Path');
+      updatedManifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
+    }
 
     /*
      ** Prepare updated refs
@@ -158,7 +170,11 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
 
     return res.status(200).json({
       manifest: updatedManifest,

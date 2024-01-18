@@ -393,8 +393,8 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
   const manifestUpdater = getNodeManifestUpdater(node);
   let updatedManifest: ResearchObjectV1;
   //add duplicate path check
-  for (const entry of firstNestingComponents) {
-    const component = {
+  const components = firstNestingComponents.map((entry) => {
+    return {
       id: randomUUID(),
       name: entry.name,
       ...(entry.componentType && { type: entry.componentType }),
@@ -406,11 +406,12 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
       },
       starred: entry.star || false,
     };
-    try {
-      updatedManifest = await manifestUpdater({ type: 'Add Component', component });
-    } catch (e) {
-      logger.error(e, '[ERROR addComponentsToDraftManifest]');
-    }
+  });
+
+  try {
+    updatedManifest = await manifestUpdater({ type: 'Add Components', components });
+  } catch (e) {
+    logger.error(e, '[ERROR addComponentsToDraftManifest]');
   }
   return updatedManifest;
 }

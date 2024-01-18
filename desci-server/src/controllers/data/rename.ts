@@ -5,7 +5,12 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
-import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../../services/manifestRepo.js';
+import {
+  NodeUuid,
+  getDraftManifestFromUuid,
+  getLatestManifestFromNode,
+  getNodeManifestUpdater,
+} from '../../services/manifestRepo.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
 import { ErrorResponse } from './update.js';
@@ -73,7 +78,8 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath: path, newPath });
     } catch (err) {
       logger.error({ err }, 'Source: Rename Component Path');
-      return res.status(400).json({ error: 'failed' });
+      updatedManifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
+      // return res.status(400).json({ error: 'failed' });
     }
 
     // Get all entries that need to be updated
@@ -107,6 +113,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
         updatedManifest = await dispatchChange({ type: 'Rename Component', path: newPath, fileName });
       } catch (err) {
         logger.error({ err }, 'Source: Rename Component');
+        updatedManifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
       }
     }
 
@@ -162,7 +169,11 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
 
     return res.status(200).json({
       manifest: updatedManifest,

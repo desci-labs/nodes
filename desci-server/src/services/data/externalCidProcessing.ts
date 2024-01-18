@@ -18,7 +18,12 @@ import {
   pubRecursiveLs,
 } from '../../services/ipfs.js';
 import { FirstNestingComponent, addComponentsToDraftManifest, getTreeAndFill } from '../../utils/driveUtils.js';
-import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRepo.js';
+import {
+  NodeUuid,
+  getDraftManifestFromUuid,
+  getLatestManifestFromNode,
+  getNodeManifestUpdater,
+} from '../manifestRepo.js';
 
 import { updateDataReferences } from './processing.js';
 import {
@@ -164,8 +169,6 @@ export async function processExternalCidDataToIpfs({
         uuid: node.uuid,
       },
     });
-    const ltsManifest = await getLatestManifestFromNode(ltsNode);
-    let updatedManifest = ltsManifest;
 
     const extCidsBeingAdded = externalCids.map((extCid) => {
       return {
@@ -191,9 +194,11 @@ export async function processExternalCidDataToIpfs({
       });
 
       if (firstNestingComponents.length > 0) {
-        updatedManifest = await addComponentsToDraftManifest(node, firstNestingComponents);
+        await addComponentsToDraftManifest(node, firstNestingComponents);
       }
     }
+
+    const updatedManifest = await getDraftManifestFromUuid(ltsNode.uuid as NodeUuid);
 
     const upserts = await updateDataReferences({ node, user, updatedManifest });
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);
@@ -209,7 +214,11 @@ export async function processExternalCidDataToIpfs({
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
     const manifestUpdater = getNodeManifestUpdater(node);
-    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
 
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 
