@@ -139,8 +139,16 @@ export async function getTreeAndFill(
   published?: boolean,
 ) {
   // debugger;
-  const dataBucket = manifest.components.find((c) => isNodeRoot(c));
-  if (!dataBucket) throw new Error(`No data bucket found in manifest for nodeUuid ${nodeUuid}`);
+  let dataBucket = manifest.components.find((c) => isNodeRoot(c));
+  if (!dataBucket) {
+    dataBucket = {
+      payload: { cid: 'draft' },
+      id: 'bucket-placeholder',
+      name: 'draft-placeholder',
+      type: ResearchObjectComponentType.DATA_BUCKET,
+    };
+    logger.warn({ nodeUuid, ownerId }, "Couldn't find data bucket in manifest, using placeholder");
+  }
   const rootCid = dataBucket.payload.cid;
   const externalCidMap = published
     ? await generateExternalCidMap(nodeUuid + '.', rootCid)
