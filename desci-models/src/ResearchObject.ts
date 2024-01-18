@@ -50,7 +50,6 @@ export interface ResearchObjectV1Component {
   id: string;
   name: string;
   type: ResearchObjectComponentType | ResearchObjectComponentTypeMap;
-  subtype?: string;
   icon?: any;
   payload: any;
   primary?: boolean;
@@ -131,12 +130,31 @@ export enum ResearchObjectComponentType {
   LINK = "link", // external link
 }
 
-export enum ResearchObjectComponentDocumentSubtype {
+export enum ResearchObjectComponentDocumentSubtypeV1 {
   RESEARCH_ARTICLE = "research-article",
   PREREGISTERED_REPORT = "preregistered-report",
   PREREGISTERED_ANALYSIS_PLAN = "preregistered-analysis-plan",
   SUPPLEMENTARY_INFORMATION = "supplementary-information",
   PRESENTATION_DECK = "presentation-deck",
+  OTHER = "other",
+}
+
+export enum ResearchObjectComponentDocumentSubtypeV2 {
+  AUTHOR_ACCEPTED = "author-accepted",
+  PREPRINT = "preprint",
+  REVIEW_REPORT = "review-report",
+}
+
+export enum ResearchObjectComponentDataSubtype {
+  PROCESSED_DATA = "processed-data",
+  RAW_DATA = "raw-data",
+  IMAGE = "image",
+  OTHER = "other",
+}
+
+export enum ResearchObjectComponentCodeSubtype {
+  CODE_SCRIPTS = "code-scripts",
+  SOFTWARE_PACKAGE = "software-package",
   OTHER = "other",
 }
 
@@ -150,7 +168,10 @@ export enum ResearchObjectComponentLinkSubtype {
 }
 
 export type ResearchObjectComponentSubtypes =
-  | ResearchObjectComponentDocumentSubtype
+  | ResearchObjectComponentDocumentSubtypeV1
+  | ResearchObjectComponentDocumentSubtypeV2
+  | ResearchObjectComponentDataSubtype
+  | ResearchObjectComponentCodeSubtype
   | ResearchObjectComponentLinkSubtype;
 
 export interface CommonComponentPayload {
@@ -200,7 +221,9 @@ export interface DataBucketComponentPayload {
 
 export interface PdfComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.PDF;
-  subtype?: ResearchObjectComponentDocumentSubtype;
+  subtype?:
+    | ResearchObjectComponentDocumentSubtypeV1
+    | ResearchObjectComponentDocumentSubtypeV2;
   payload: PdfComponentPayload & CommonComponentPayload;
 }
 
@@ -212,11 +235,13 @@ export interface ExternalLinkComponent extends ResearchObjectV1Component {
 
 export interface DataComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.DATA;
+  subtype?: ResearchObjectComponentDataSubtype;
   payload: DataComponentPayload & DataComponentMetadata;
 }
 
 export interface CodeComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.CODE;
+  subtype?: ResearchObjectComponentCodeSubtype;
   payload: {
     language?: string;
     code?: string;
