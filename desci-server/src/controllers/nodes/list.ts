@@ -26,6 +26,7 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
       title: true,
       manifestUrl: true,
       cid: true,
+      NodeCover: true,
     },
     where: {
       ownerId: owner.id,
@@ -60,6 +61,7 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
         title: true,
         manifestUrl: true,
         cid: true,
+        NodeCover: true,
       },
       where: {
         ownerId: owner.id,
