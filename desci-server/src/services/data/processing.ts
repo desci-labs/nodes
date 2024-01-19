@@ -146,8 +146,8 @@ export async function processS3DataToIpfs({
       //   componentType,
       //   componentSubtype,
       // });
-      // updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
       updatedManifest = await assignTypeMapInManifest(node, updatedManifest, componentTypeMap, contextPath, DRAFT_CID);
+      logger.info({ updatedManifest }, 'assignTypeMapInManifest');
     }
 
     const upserts = await updateDataReferences({ node, user, updatedManifest });
@@ -188,8 +188,6 @@ export async function processS3DataToIpfs({
     // DB status to failed
     // Socket emit to client
     // const manifest = await getLatestManifestFromNode(node);
-    console.log('Error processing S3 assignTypeMapInManifest', error);
-    logger.error(error, 'Error processing S3 assignTypeMapInManifest');
     logger.error({ error }, 'Error processing S3 data to IPFS');
     if (pinResult.length) {
       handleCleanupOnMidProcessingError({
@@ -256,16 +254,15 @@ export async function processNewFolder({
       },
     });
 
-    const ltsManifest = await getLatestManifestFromNode(ltsNode);
+    let ltsManifest = await getLatestManifestFromNode(ltsNode);
 
     /**
      * Update drive clock on automerge document
      */
-    debugger;
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
     const manifestUpdater = getNodeManifestUpdater(node);
     try {
-      await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+      ltsManifest = await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
     } catch (err) {
       logger.error({ err }, 'Set Drive Clock');
     }
@@ -275,7 +272,6 @@ export async function processNewFolder({
     return {
       ok: true,
       value: {
-        // rootDataCid: newRootCidString,
         manifest: ltsManifest,
         manifestCid: node.manifestUrl,
         tree: tree,

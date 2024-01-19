@@ -70,7 +70,6 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
       .status(400)
       .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
 
-  // debugger;
   /**
    * temp short circuit for testing
    *  */

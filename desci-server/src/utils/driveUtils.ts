@@ -410,6 +410,7 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
 
   try {
     updatedManifest = await manifestUpdater({ type: 'Add Components', components });
+    logger.info({ updatedManifest }, 'AddComponentsToDraftManifest]');
   } catch (e) {
     logger.error(e, '[ERROR addComponentsToDraftManifest]');
   }

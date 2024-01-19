@@ -118,8 +118,9 @@ export const getNodeManifestUpdater = (node: Node) => {
 
     switch (action.type) {
       case 'Add Components':
-        const uniqueComponents = action.components.filter((componentToAdd) =>
-          latestDocument.manifest.components.some((c) => c.payload?.path === componentToAdd.payload?.path),
+        const uniqueComponents = action.components.filter(
+          (componentToAdd) =>
+            !latestDocument.manifest.components.some((c) => c.payload?.path === componentToAdd.payload?.path),
         );
         if (uniqueComponents.length > 0) {
           handle.change(
@@ -222,8 +223,7 @@ export const getNodeManifestUpdater = (node: Node) => {
     }
     latestDocument = await handle.doc();
     const updatedHeads = getHeads(latestDocument);
-    logger.info({ heads: updatedHeads }, `Document`);
-    logger.info({ action, manifest: latestDocument.manifest }, `DocumentUpdater::Exit`);
+    logger.info({ action, heads: updatedHeads }, `DocumentUpdater::Exit`);
     return latestDocument.manifest;
   };
 };

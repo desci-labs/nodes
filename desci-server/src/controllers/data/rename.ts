@@ -26,7 +26,6 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
   const owner = (req as any).user;
   const { uuid, path, newName, renameComponent } = req.body;
   const logger = parentLogger.child({
-    // id: req.id,
     module: 'DATA::RenameController',
     uuid: uuid,
     path: path,
@@ -34,7 +33,6 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     newName: newName,
     renameComponent: renameComponent,
   });
-  logger.trace('Entered DATA::Rename');
 
   if (uuid === undefined || path === undefined)
     return res.status(400).json({ error: 'uuid, path and newName required' });
@@ -60,7 +58,6 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     const contextPathSplit = path.split('/');
     contextPathSplit.pop();
     const contextPath = contextPathSplit.join('/');
-    // debugger;
     await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, filesBeingAdded: [{ originalname: newName }] });
 
     const oldPathSplit = path.split('/');
@@ -151,7 +148,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       newRef.id = match?.id;
       return newRef;
     });
-    // debugger;
+
     const [...updates] = await prisma.$transaction([
       ...(dataRefUpdates as any).map((fd) => {
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
@@ -170,7 +167,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
     try {
-      await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+      updatedManifest = await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
     } catch (err) {
       logger.error({ err }, 'Set Drive Clock');
     }

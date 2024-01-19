@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import 'mocha';
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   DriveObject,
   FileDir,
@@ -17,6 +18,7 @@ import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { app } from '../../src/index.js';
+import { backendRepo } from '../../src/repo.js';
 import { migrateIpfsTreeToNodeTree } from '../../src/services/draftTrees.js';
 import {
   addFilesToDag,
@@ -25,7 +27,7 @@ import {
   client as ipfs,
   spawnEmptyManifest,
 } from '../../src/services/ipfs.js';
-import { createManifestDocument } from '../../src/services/manifestRepo.js';
+import { createManifestDocument, getAutomergeUrl } from '../../src/services/manifestRepo.js';
 // import { ResearchObjectDocument } from '../../src/types/documents.js';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools.js';
 import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils.js';
@@ -233,10 +235,12 @@ describe('Data Controllers', () => {
       let res: request.Response;
       const externalRepoUrl = 'https://github.com/github/dev';
       const externalRepoPath = 'A Repo';
+      let documentId: DocumentId;
 
       before(async () => {
         const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
         node = nodeData.node;
+        documentId = nodeData.documentId;
 
         res = await request(app)
           .post('/v1/data/update')
@@ -246,6 +250,7 @@ describe('Data Controllers', () => {
           .field('contextPath', 'root')
           .field('externalUrl', JSON.stringify({ url: externalRepoUrl, path: externalRepoPath }))
           .field('componentType', ResearchObjectComponentType.CODE);
+        console.log('[Response]::', res.body);
       });
 
       it('should return status 200', () => {
@@ -281,13 +286,19 @@ describe('Data Controllers', () => {
       //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
       //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
       // });
-      it('should have added a code component to the manifest', () => {
+      it('should have added a code component to the manifest', async () => {
+        console.log(res.body.manifest);
+        const handle = backendRepo.find(getAutomergeUrl(documentId));
+        const doc = await handle.doc();
+        console.log('Doc', doc);
+
         const newCodeComponent = res.body.manifest.components.find(
           (c) => c.type === ResearchObjectComponentType.CODE && c.payload.path === 'root/' + externalRepoPath,
         );
         expect(!!newCodeComponent).to.equal(true);
       });
       it('should have added the repo url to the new code components payload', () => {
+        console.log('[log]', res.body.manifest);
         const newCodeComponent = res.body.manifest.components.find(
           (c) => c.type === ResearchObjectComponentType.CODE && c.payload.path === 'root/' + externalRepoPath,
         );
@@ -592,6 +603,7 @@ describe('Data Controllers', () => {
         expect(!!newPathFound).to.equal(true);
       });
       it('should cascade update all manifest component paths that were dependent on the renamed directory', () => {
+        console.log('[LOG]::', res.body.manifest);
         const oldPathContainedComponentFound = res.body.manifest.components.some((c) =>
           c.payload.path.includes(renameDirPath),
         );
@@ -600,6 +612,7 @@ describe('Data Controllers', () => {
         expect(!!containedNewPathFound).to.equal(true);
       });
       it('should rename component card if renameComponent flag is true', () => {
+        console.log('[LOG]::', res.body.manifest);
         const componentCard = res.body.manifest.components.find((c) => c.payload.path === newPath);
         expect(componentCard.name).to.equal('dubdir');
       });
@@ -741,6 +754,7 @@ describe('Data Controllers', () => {
         const containedNewPathFound = res.body.manifest.components.find(
           (c) => c.payload.path === moveToPath + '/b.txt',
         );
+        console.log('[log];:', oldPathContainedComponentFound, containedNewPathFound, res.body.manifest);
         expect(!!oldPathContainedComponentFound).to.not.equal(true);
         expect(!!containedNewPathFound).to.equal(true);
       });

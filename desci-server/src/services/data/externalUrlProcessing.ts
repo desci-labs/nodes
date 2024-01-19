@@ -6,6 +6,7 @@ import {
   RecursiveLsResult,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
+  ResearchObjectV1,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import { DataType, User, Node, Prisma } from '@prisma/client';
@@ -211,6 +212,7 @@ export async function processExternalUrlDataToIpfs({
       },
     });
 
+    let updatedManifest: ResearchObjectV1;
     if (componentType) {
       /**
        * Automatically create a new component(s) for the files added, to the first nesting.
@@ -227,11 +229,11 @@ export async function processExternalUrlDataToIpfs({
       });
 
       if (firstNestingComponents?.length > 0) {
-        await addComponentsToDraftManifest(node, firstNestingComponents);
+        updatedManifest = await addComponentsToDraftManifest(node, firstNestingComponents);
       }
     }
 
-    let updatedManifest = await getDraftManifestFromUuid(ltsNode.uuid as NodeUuid);
+    updatedManifest = await getDraftManifestFromUuid(ltsNode.uuid as NodeUuid);
 
     // Update existing data references, add new data references.
     const upserts = await updateDataReferences({ node, user, updatedManifest });

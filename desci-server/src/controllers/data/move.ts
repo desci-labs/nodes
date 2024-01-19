@@ -171,7 +171,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
     try {
-      await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+      updatedManifest = await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
     } catch (err) {
       logger.error({ err }, 'Set Drive Clock');
     }
