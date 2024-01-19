@@ -170,7 +170,7 @@ class AppServer {
       res.status(200).json({ status: 'ok' });
     });
     this.app.get('/id', (req, res) => {
-      res.status(200).json({ id: serverUuid, affinity: req.headers['stickie-dev-ingress61'] });
+      res.status(200).json({ id: serverUuid, affinity: req.cookies['stickie-dev-ingress61'] });
     });
     this.app.get('/orcid', orcidConnect);
     this.app.post('/orcid/next', [ensureUserIfPresent], orcidCheck());
