@@ -169,11 +169,7 @@ export type ResearchObjectComponentSubtypes =
   | ResearchObjectComponentDocumentSubtype
   | ResearchObjectComponentDataSubtype
   | ResearchObjectComponentCodeSubtype
-  | ResearchObjectComponentLinkSubtype
-  | ResearchObjectComponentType.PDF
-  | ResearchObjectComponentType.DATA
-  | ResearchObjectComponentType.CODE
-  | ResearchObjectComponentType.LINK;
+  | ResearchObjectComponentLinkSubtype;
 
 export interface CommonComponentPayload {
   title?: string;
@@ -222,33 +218,25 @@ export interface DataBucketComponentPayload {
 
 export interface PdfComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.PDF;
-  subtype?:
-    | ResearchObjectComponentDocumentSubtype
-    | ResearchObjectComponentType.PDF;
+  subtype?: ResearchObjectComponentDocumentSubtype;
   payload: PdfComponentPayload & CommonComponentPayload;
 }
 
 export interface ExternalLinkComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.LINK;
-  subtype?:
-    | ResearchObjectComponentLinkSubtype
-    | ResearchObjectComponentType.LINK;
+  subtype?: ResearchObjectComponentLinkSubtype;
   payload: ExternalLinkComponentPayload & CommonComponentPayload;
 }
 
 export interface DataComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.DATA;
-  subtype?:
-    | ResearchObjectComponentDataSubtype
-    | ResearchObjectComponentType.DATA;
+  subtype?: ResearchObjectComponentDataSubtype;
   payload: DataComponentPayload & DataComponentMetadata;
 }
 
 export interface CodeComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.CODE;
-  subtype?:
-    | ResearchObjectComponentCodeSubtype
-    | ResearchObjectComponentType.CODE;
+  subtype?: ResearchObjectComponentCodeSubtype;
   payload: {
     language?: string;
     code?: string;
