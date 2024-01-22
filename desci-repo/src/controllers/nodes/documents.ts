@@ -67,7 +67,7 @@ const getNodeDocument = async function (req: RequestWithNode, res: Response) {
       document = await handle.doc();
     }
     logger.info({ documentId }, 'End GetDocumentId');
-    res.status(200).send({ documentId, document });
+    res.status(200).send({ ok: true, documentId, document });
   } catch (err) {
     logger.error('Creating new document Error', req.body, err);
     console.log(err);
@@ -146,10 +146,8 @@ const getLatestNodeManifest = async function (req: Request, res: Response) {
 
     const document = await handle.doc();
 
-    logger.info({ document }, '[AUTOMERGE]::[Document Found]');
-
-    logger.info('END [getLatestNodeManifest]', { manifest: document.manifest });
-    res.status(200).send({ ok: true, manifest: document.manifest });
+    logger.info('[END]:: GetLatestNodeManifest]', { manifest: document.manifest });
+    res.status(200).send({ ok: true, document });
   } catch (err) {
     logger.error(err, 'Error [getLatestNodeManifest]');
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
@@ -159,16 +157,21 @@ const getLatestNodeManifest = async function (req: Request, res: Response) {
 export const dispatchDocumentChange = async function (req: RequestWithNode, res: Response) {
   logger.info({ params: req.params }, 'START [getLatestNodeManifest]');
   try {
-    if (!req.params.uuid) {
+    if (!(req.body.uuid && req.body.actions)) {
       res.status(400).send({ ok: false, message: 'Invalid data' });
       return;
     }
 
-    const node = req.node;
+    const uuid = (req.body.uuid as string).endsWith('.') ? req.body.uuid : req.body.uuid + '.';
+    const node = await prisma.node.findFirst({
+      where: {
+        uuid,
+      },
+    });
 
-    const changes = req.body.changes as ManifestActions[];
+    const actions = req.body.actions as ManifestActions[];
 
-    if (!(changes && changes.length > 0)) {
+    if (!(actions && actions.length > 0)) {
       res.status(400).send({ ok: false, message: 'No actions to dispatch' });
       return;
     }
@@ -177,7 +180,7 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
 
     const dispatchChange = getNodeManifestUpdater(node);
 
-    for (const action of changes) {
+    for (const action of actions) {
       logger.info({ action }, '[AUTOMERGE]::[dispatch Update]');
       document = await dispatchChange(action);
     }
@@ -186,8 +189,6 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
       res.status(400).send({ ok: false, message: 'Document not found' });
       return;
     }
-
-    logger.info({ document }, '[AUTOMERGE]::[Document Updated]');
 
     logger.info('END [getLatestNodeManifest]', { document });
     res.status(200).send({ ok: true, document });
