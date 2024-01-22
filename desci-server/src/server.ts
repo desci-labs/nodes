@@ -1,9 +1,9 @@
 // @ts-check
 import 'dotenv/config';
 import 'reflect-metadata';
-import fs from 'fs';
+// import fs from 'fs';
 import type { Server as HttpServer } from 'http';
-import path from 'path';
+// import path from 'path';
 import { fileURLToPath } from 'url';
 
 import * as Sentry from '@sentry/node';
@@ -14,7 +14,6 @@ import express from 'express';
 import type { Express, Request } from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import morgan from 'morgan';
 import { pinoHttp } from 'pino-http';
 import { v4 } from 'uuid';
 
@@ -30,7 +29,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import { socket as wsSocket } from './repo.js';
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __dirname = path.dirname(__filename);
 
 const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
 const IS_DEV = !ENABLE_TELEMETRY;

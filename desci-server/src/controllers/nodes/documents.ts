@@ -46,7 +46,6 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
         },
         { message: 'Init Document', time: Date.now() },
       );
-      // handle.docSync();
 
       document = await handle.doc();
       documentId = handle.documentId;
