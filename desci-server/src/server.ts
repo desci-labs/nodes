@@ -169,8 +169,8 @@ class AppServer {
     this.app.get('/readyz', (_, res) => {
       res.status(200).json({ status: 'ok' });
     });
-    this.app.get('/id', (_, res) => {
-      res.status(200).json({ id: serverUuid });
+    this.app.get('/id', (req, res) => {
+      res.status(200).json({ id: serverUuid, affinity: req.cookies['stickie-dev-ingress61'] });
     });
     this.app.get('/orcid', orcidConnect);
     this.app.post('/orcid/next', [ensureUserIfPresent], orcidCheck());
