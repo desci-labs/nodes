@@ -169,7 +169,11 @@ export type ResearchObjectComponentSubtypes =
   | ResearchObjectComponentDocumentSubtype
   | ResearchObjectComponentDataSubtype
   | ResearchObjectComponentCodeSubtype
-  | ResearchObjectComponentLinkSubtype;
+  | ResearchObjectComponentLinkSubtype
+  | ResearchObjectComponentType.PDF
+  | ResearchObjectComponentType.DATA
+  | ResearchObjectComponentType.CODE
+  | ResearchObjectComponentType.LINK;
 
 export interface CommonComponentPayload {
   title?: string;
