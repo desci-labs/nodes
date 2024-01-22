@@ -4,6 +4,7 @@ import { prisma } from '../../client.js';
 import { Node } from '@prisma/client';
 import { PUBLIC_IPFS_PATH } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
+import { createIpfsUnresolvableError } from '../../lib/errors.js';
 
 export async function getLatestManifest(
   nodeUuid: string,
@@ -26,3 +27,18 @@ export const cleanupManifestUrl = (url: string, gateway?: string) => {
   }
   return url;
 };
+
+export async function getManifestFromNode(
+  node: Node,
+  queryString?: string,
+): Promise<{ manifest: ResearchObjectV1; manifestCid: string }> {
+  // debugger;
+  const manifestCid = node.manifestUrl || node.cid;
+  const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid as string, queryString as string) : null;
+  try {
+    const fetchedManifest = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
+    return { manifest: fetchedManifest, manifestCid };
+  } catch (e) {
+    throw createIpfsUnresolvableError(`Error fetching manifest from IPFS, manifestCid: ${manifestCid}`);
+  }
+}

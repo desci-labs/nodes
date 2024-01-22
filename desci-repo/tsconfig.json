@@ -7,10 +7,8 @@
      * "esModuleInterop": true,
      */
     "target": "esnext",
-
     // Recommended by docs, but a lot of errors
     // "verbatimModuleSyntax": true,
-
     "lib": [
       "esnext",
       "dom"
@@ -28,15 +26,16 @@
     "inlineSourceMap": true,
     "paths": {
       // Overrides a built-in Response type
-      "express": ["./src/types/express"]
+      "express": [
+        "./src/types/express"
+      ]
     }
   },
   "include": [
-    "./src/**/*.tsx",
     "./src/**/*.ts",
-    "./src/**/*.cjs",
-    "src/utils/dagConcat.ts"
   ],
-  "exclude": ["test/**/*.ts"],
+  "exclude": [
+    "test/**/*.ts"
+  ],
   "compileOnSave": true
 }

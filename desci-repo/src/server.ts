@@ -10,7 +10,7 @@ import 'reflect-metadata';
 import path from 'path';
 
 import * as Sentry from '@sentry/node';
-import morgan from 'morgan';
+import * as Tracing from '@sentry/tracing';
 import type { Server as HttpServer } from 'http';
 import { v4 } from 'uuid';
 
@@ -21,11 +21,14 @@ import { fileURLToPath } from 'url';
 import { socket as wsSocket } from './repo.js';
 import { logger } from './logger.js';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
+import { pinoHttp } from 'pino-http';
+import { prisma } from './client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const ENABLE_SENTRY = process.env.NODE_ENV === 'production';
+const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
+const IS_DEV = !ENABLE_TELEMETRY;
 
 const serverUuid = v4();
 
@@ -58,6 +61,8 @@ class AppServer {
 
   constructor() {
     this.app = express();
+    this.#initSerialiser();
+
     this.app.use(function (req, res, next) {
       const origin = req.headers.origin;
       if (
@@ -78,36 +83,14 @@ class AppServer {
       next();
     });
 
-    if (ENABLE_SENTRY) {
-      Sentry.init({
-        dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
-        release: 'desci-nodes-media@' + process.env.npm_package_version,
-        integrations: [],
-        // Set tracesSampleRate to 1.0 to capture 100%
-        // of transactions for performance monitoring.
-        // We recommend adjusting this value in production
-        tracesSampleRate: 1.0,
-      });
-      this.app.use(Sentry.Handlers.requestHandler());
-      this.app.use(Sentry.Handlers.tracingHandler());
-    }
+    this.#initTelemetry();
 
     this.app.use(bodyParser.json({ limit: '100mb' }));
     this.app.use(bodyParser.urlencoded({ extended: false }));
 
     this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
-    try {
-      const accessLogStream = fs.createWriteStream(path.join(__dirname, '../log/access.log'), {
-        flags: 'a',
-      });
-      this.app.use(morgan('combined', { stream: accessLogStream }));
-    } catch (err) {
-      console.log(err);
-    }
-
     this.app.use(cors());
-    this.app.use(morgan('combined'));
 
     this.app.get('/readyz', (_, res) => {
       res.status(200).json({ status: 'ok' });
@@ -118,26 +101,20 @@ class AppServer {
       res.status(200).json({ id: serverUuid });
     });
 
-    if (ENABLE_SENTRY) {
-      this.app.use(Sentry.Handlers.errorHandler());
-    }
-
     this.port = parseInt(process.env.PORT) || 5484;
-    console.log(`Server starting on port ${this.port}`);
+    logger.info(`Server starting on port ${this.port}`);
     this.server = this.app.listen(this.port, () => {
       this.#isReady = true;
       this.#readyResolvers.forEach((resolve) => resolve(true));
-      console.log(`Server running on port ${this.port}`);
+      logger.info(`Server running on port ${this.port}`);
     });
 
-    // this.socketServer = new SocketServer(this.server, this.port);
-    // this.repo = this.socketServer.repo;
-    // this.socketServer = new SocketServer(this.server, this.port);
     wsSocket.on('listening', () => {
       logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
     });
     wsSocket.on('connection', async (socket, request) => {
       try {
+        logger.info({ module: 'WebSocket SERVER' }, 'WebSocket Connection Attempt');
         const token = await extractAuthToken(request as Request);
         const authUser = await extractUserFromToken(token);
         if (!authUser) {
@@ -158,6 +135,58 @@ class AppServer {
         logger.error(error, 'Error during WebSocket connection');
       }
     });
+  }
+
+  #initSerialiser() {
+    this.app.use(
+      pinoHttp({
+        logger,
+        serializers: {
+          res: (res) => {
+            if (IS_DEV) {
+              return {
+                responseTime: res.responseTime,
+                status: res.statusCode,
+              };
+            } else {
+              return res;
+            }
+          },
+          req: (req) => {
+            if (IS_DEV) {
+              return {
+                query: req.query,
+                params: req.params,
+                method: req.method,
+                url: req.url,
+              };
+            } else {
+              return req;
+            }
+          },
+        },
+      }),
+    );
+  }
+
+  #initTelemetry() {
+    if (ENABLE_TELEMETRY) {
+      logger.info('[DeSci Repo] Telemetry enabled');
+      Sentry.init({
+        dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
+        release: 'desci-nodes-server@' + process.env.npm_package_version,
+        integrations: [new Tracing.Integrations.Prisma({ client: prisma })],
+        // Set tracesSampleRate to 1.0 to capture 100%
+        // of transactions for performance monitoring.
+        // We recommend adjusting this value in production
+        tracesSampleRate: 1.0,
+      });
+      this.app.use(Sentry.Handlers.requestHandler());
+      this.app.use(Sentry.Handlers.tracingHandler());
+      this.app.use(Sentry.Handlers.errorHandler());
+    } else {
+      logger.info('[DeSci Repo] Telemetry disabled');
+    }
   }
 
   async ready() {

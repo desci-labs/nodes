@@ -40,23 +40,28 @@ const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocumen
   logger.trace({ change: change.handle.documentId, uuid: (await change.handle.doc()).uuid }, 'Document Changed');
   const newTitle = change.patchInfo.after.manifest.title;
   const newCover = change.patchInfo.after.manifest.coverImage;
-  const uuid = change.doc.uuid;
+  const uuid = change.doc.uuid.endsWith('.') ? change.doc.uuid : change.doc.uuid + '.';
   logger.info({ uuid: uuid + '.', newTitle }, 'UPDATE NODE');
 
-  await prisma.node.updateMany({
-    where: { uuid: uuid + '.' },
-    data: { title: newTitle },
-  });
-
-  // Update the cover image url in the db for fetching collection
-  if (newCover) {
-    const coverUrl = process.env.IPFS_RESOLVER_OVERRIDE + newCover;
-    await prisma.nodeCover.upsert({
-      where: { nodeUuid_version: { nodeUuid: uuid + '.', version: 0 } },
-      update: { url: coverUrl, cid: newCover as string },
-      create: { nodeUuid: uuid + '.', url: coverUrl, cid: newCover as string },
+  try {
+    await prisma.node.updateMany({
+      where: { uuid },
+      data: { title: newTitle },
     });
+
+    // Update the cover image url in the db for fetching collection
+    if (newCover) {
+      const coverUrl = process.env.IPFS_RESOLVER_OVERRIDE + newCover;
+      await prisma.nodeCover.upsert({
+        where: { nodeUuid_version: { nodeUuid: uuid + '.', version: 0 } },
+        update: { url: coverUrl, cid: newCover as string },
+        create: { nodeUuid: uuid + '.', url: coverUrl, cid: newCover as string },
+      });
+    }
+  } catch (err) {
+    logger.error(err, '[Error in DOCUMENT CHANG HANDLER CALLBACK]');
   }
+
 };
 
 backendRepo.on('document', async (doc) => {

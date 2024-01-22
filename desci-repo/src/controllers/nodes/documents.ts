@@ -6,6 +6,7 @@ import { logger } from '../../logger.js';
 import { AnyDocumentId, AutomergeUrl } from '@automerge/automerge-repo';
 import { RequestWithNode } from '../../middleware/guard.js';
 import { backendRepo } from '../../repo.js';
+import { ManifestActions, getNodeManifestUpdater } from '../../services/manifestRepo.js';
 
 const getNodeDocument = async function (req: RequestWithNode, res: Response) {
   try {
@@ -82,7 +83,7 @@ const createNodeDocument = async function (req: Request, res: Response) {
       return;
     }
 
-    const { uuid, manifest } = req.body;
+    let { uuid, manifest } = req.body;
 
     logger.info('[Backend REPO]:', backendRepo.networkSubsystem.peerId);
 
@@ -95,21 +96,25 @@ const createNodeDocument = async function (req: Request, res: Response) {
       return;
     }
 
+    uuid = node.uuid.replace(/\.$/, '');
     const handle = backendRepo.create<ResearchObjectDocument>();
-    handle.change((d) => {
-      d.manifest = manifest;
-      d.uuid = uuid.slice(0, -1);
-    });
+    handle.change(
+      (d) => {
+        d.manifest = manifest;
+        d.uuid = uuid.endsWith('.') ? uuid.slice(0, -1) : uuid;
+        d.driveClock = Date.now().toString();
+      },
+      { message: 'Init Document', time: Date.now() },
+    );
 
-    await handle.doc();
+    const document = await handle.doc();
 
     await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
 
-    const document = await handle.doc();
     logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
 
-    res.status(200).send({ ok: true, documentId: handle.documentId });
-    logger.info('END [CreateNodeDocument]', { documentId: handle.documentId });
+    res.status(200).send({ ok: true, documentId: handle.documentId, document });
+    logger.info('END [CreateNodeDocument]', { documentId: handle.documentId, document });
   } catch (err) {
     console.log(err);
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
@@ -145,6 +150,47 @@ const getLatestNodeManifest = async function (req: Request, res: Response) {
 
     logger.info('END [getLatestNodeManifest]', { manifest: document.manifest });
     res.status(200).send({ ok: true, manifest: document.manifest });
+  } catch (err) {
+    logger.error(err, 'Error [getLatestNodeManifest]');
+    res.status(500).send({ ok: false, message: JSON.stringify(err) });
+  }
+};
+
+export const dispatchDocumentChange = async function (req: RequestWithNode, res: Response) {
+  logger.info({ params: req.params }, 'START [getLatestNodeManifest]');
+  try {
+    if (!req.params.uuid) {
+      res.status(400).send({ ok: false, message: 'Invalid data' });
+      return;
+    }
+
+    const node = req.node;
+
+    const changes = req.body.changes as ManifestActions[];
+
+    if (!(changes && changes.length > 0)) {
+      res.status(400).send({ ok: false, message: 'No actions to dispatch' });
+      return;
+    }
+
+    let document: ResearchObjectDocument;
+
+    const dispatchChange = getNodeManifestUpdater(node);
+
+    for (const action of changes) {
+      logger.info({ action }, '[AUTOMERGE]::[dispatch Update]');
+      document = await dispatchChange(action);
+    }
+
+    if (!document) {
+      res.status(400).send({ ok: false, message: 'Document not found' });
+      return;
+    }
+
+    logger.info({ document }, '[AUTOMERGE]::[Document Updated]');
+
+    logger.info('END [getLatestNodeManifest]', { document });
+    res.status(200).send({ ok: true, document });
   } catch (err) {
     logger.error(err, 'Error [getLatestNodeManifest]');
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
