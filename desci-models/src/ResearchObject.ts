@@ -136,13 +136,11 @@ export enum ResearchObjectComponentDocumentSubtype {
   PREREGISTERED_ANALYSIS_PLAN = 'preregistered-analysis-plan',
   SUPPLEMENTARY_INFORMATION = 'supplementary-information',
   PRESENTATION_DECK = 'presentation-deck',
-  OTHER = 'other',
-}
-
-export enum ResearchObjectComponentDocumentSubtypeV2 {
   AUTHOR_ACCEPTED = 'author-accepted',
   PREPRINT = 'preprint',
   REVIEW_REPORT = 'review-report',
+  MANUSCRIPT = 'manuscript',
+  OTHER = 'other',
 }
 
 export enum ResearchObjectComponentDataSubtype {
@@ -169,7 +167,6 @@ export enum ResearchObjectComponentLinkSubtype {
 
 export type ResearchObjectComponentSubtypes =
   | ResearchObjectComponentDocumentSubtype
-  | ResearchObjectComponentDocumentSubtypeV2
   | ResearchObjectComponentDataSubtype
   | ResearchObjectComponentCodeSubtype
   | ResearchObjectComponentLinkSubtype;
@@ -221,7 +218,7 @@ export interface DataBucketComponentPayload {
 
 export interface PdfComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.PDF;
-  subtype?: ResearchObjectComponentDocumentSubtype | ResearchObjectComponentDocumentSubtypeV2;
+  subtype?: ResearchObjectComponentDocumentSubtype;
   payload: PdfComponentPayload & CommonComponentPayload;
 }
 
