@@ -1,0 +1,152 @@
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: composedb-dev
+  namespace: default
+  labels:
+    app: composedb-dev
+spec:
+  replicas: 1
+  serviceName: composedb-dev
+  selector:
+    matchLabels:
+      app: composedb-dev
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-status: "update"
+        vault.hashicorp.com/role: app-vault-reader
+        vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/dev/ceramic
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secrets/desci-server/dev/app" -}}
+          echo "sourcing"; 
+          export CERAMIC_ADMIN_PRIVATE_KEY={{ .Data.CERAMIC_ADMIN_PRIVATE_KEY }}
+          export CERAMIC_INDEXING_DB_USERNAME={{ .Data.CERAMIC_INDEXING_DB_USERNAME }}
+          export CERAMIC_INDEXING_DB_PASSWORD={{ .Data.CERAMIC_INDEXING_DB_PASSWORD }}
+          {{- end -}}
+      labels:
+        app: composedb-dev
+    spec:
+      initContainers:
+        - name: init-composedb-config
+          image: ceramicnetwork/composedb
+          resources:
+            limits:
+              cpu: 250m
+              ephemeral-storage: 1Gi
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              ephemeral-storage: 1Gi
+              memory: 512Mi
+          command:
+            - 'echo "SOURCING ENV"; source /vault/secrets/config;'
+            - "/bin/bash"
+            - "-c"
+            - "/composedb-init/compose-init.sh"
+
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+            - name: composedb-init
+              mountPath: /composedb-init
+
+      containers:
+        - name: composedb
+          image: ceramicnetwork/composedb
+          metadata:
+            annotations:
+              vault.hashicorp.com/agent-inject: "true"
+              vault.hashicorp.com/agent-inject-status: "update"
+              vault.hashicorp.com/role: app-vault-reader
+              vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/dev/ceramic
+              vault.hashicorp.com/agent-inject-template-config: |
+                {{- with secret "secrets/desci-server/dev/app" -}}
+                echo "sourcing"; 
+
+                export CERAMIC_ADMIN_PRIVATE_KEY={{ .Data.CERAMIC_ADMIN_PRIVATE_KEY }}
+                export CERAMIC_ENABLE_EXPERIMENTAL_COMPOSE_DB=true
+                export CERAMIC_ENABLE_EXPERIMENTAL_SYNC=true
+                export CERAMIC_NETWORK=testnet-clay
+                export CERAMIC_STATE_STORE_PATH=/ceramic-data
+                export CERAMIC_IPFS_HOST=http://172.20.237.79:5001
+                export CERAMIC_CORS_ALLOWED_ORIGINS=.*
+                export CERAMIC_LOG_LEVEL=2
+                {{- end -}}
+          command:
+            - 'echo "SOURCING ENV"; source /vault/secrets/config ;'
+            - "/js-ceramic/packages/cli/bin/ceramic.js"
+            - "daemon"
+            - "--config"
+            - "/config/daemon-config.json"
+          resources:
+            limits:
+              cpu: 250m
+              ephemeral-storage: 1Gi
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              ephemeral-storage: 1Gi
+              memory: 512Mi
+          env:
+            - name: CERAMIC_STATE_STORE_PATH
+              value: "/ceramic-dev-data"
+
+          ports:
+            - containerPort: 7007
+          readinessProbe:
+            httpGet:
+              path: /api/v0/node/healthcheck
+              port: 7007
+            initialDelaySeconds: 0
+            periodSeconds: 15
+            timeoutSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /api/v0/node/healthcheck
+              port: 7007
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 30
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+            - name: ceramic-dev-data
+              mountPath: /ceramic-dev-data
+      volumes:
+        - name: config-volume
+          emptyDir: {}
+        - name: composedb-init
+          configMap:
+            name: composedb-init
+            defaultMode: 0755
+        - name: ceramic-dev-data
+          persistentVolumeClaim:
+            claimName: ceramic-dev-data
+  volumeClaimTemplates:
+    - metadata:
+        name: ceramic-dev-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 40Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: composedb-dev
+  namespace: default
+  labels:
+    app: composedb-dev
+spec:
+  ports:
+    - port: 7007
+      targetPort: 7007
+      protocol: TCP
+      name: composedb-dev
+  selector:
+    app: composedb-dev
+  type: NodePort
