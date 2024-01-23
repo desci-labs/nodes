@@ -2,12 +2,16 @@ import { User } from '@prisma/client';
 import { NextFunction, Request as ExpressRequest, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
+import { prisma } from '../client.js';
+import { hashApiKey } from '../controllers/auth/utils.js';
 import { logger } from '../logger.js';
 import { getUserByEmail, getUserByOrcId } from '../services/user.js';
 
 export const ensureUser = async (req: ExpressRequest, res: Response, next: NextFunction) => {
   const token = await extractAuthToken(req);
-  const retrievedUser = await extractUserFromToken(token);
+  const apiKey = await extractApiKey(req);
+  const retrievedUser = (await extractUserFromToken(token)) || (await extractUserFromApiKey(apiKey));
+
   if (!retrievedUser) {
     res.status(401).send({ ok: false, message: 'Unauthorized' });
     return;
@@ -92,5 +96,56 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
 
       resolve(retrievedUser);
     });
+  });
+};
+
+/**
+ * Extract API Key from IncommingRequest
+ */
+export const extractApiKey = async (request: ExpressRequest | Request) => {
+  const apiKeyHeader = request.headers['api-key'];
+  return apiKeyHeader;
+};
+
+/**
+ * Attempt to retrieve user via API key
+ */
+export const extractUserFromApiKey = async (apiKey: string): Promise<User | null> => {
+  return new Promise(async (resolve, reject) => {
+    if (!apiKey) {
+      resolve(null);
+      return;
+    }
+
+    const hashedApiKey = hashApiKey(apiKey);
+
+    const validKey = await prisma.apiKey.findFirst({
+      where: {
+        key: hashedApiKey,
+        isActive: true,
+      },
+      include: { user: true },
+    });
+
+    if (!validKey) {
+      resolve(null);
+      return;
+    }
+
+    const { user } = validKey;
+
+    const loggedInUserEmail = user.email as string;
+    const shouldFetchUserByOrcId = Boolean(user.orcid);
+
+    const retrievedUser = shouldFetchUserByOrcId
+      ? await getUserByOrcId(user.orcid)
+      : await getUserByEmail(loggedInUserEmail);
+
+    if (!retrievedUser || !retrievedUser.id) {
+      resolve(null);
+      return;
+    }
+
+    resolve(retrievedUser);
   });
 };
