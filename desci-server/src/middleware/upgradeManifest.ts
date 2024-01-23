@@ -10,7 +10,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../client.js';
 import { getLatestManifest, persistManifest } from '../controllers/data/utils.js';
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from '../services/ipfs.js';
-import { addComponentsToManifest } from '../utils/driveUtils.js';
+import { DANGEROUSLY_addComponentsToManifest } from '../utils/driveUtils.js';
 import { ensureUniqueString } from '../utils.js';
 
 /* 
@@ -158,7 +158,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
     },
   };
   manifestObj.components.unshift(dataBucketComponent);
-  manifestObj = addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
+  manifestObj = DANGEROUSLY_addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
 
   const dagTree = await getDirectoryTree(rootDagCid, {});
   const flatTree = recursiveFlattenTree(dagTree);

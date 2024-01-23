@@ -3,10 +3,10 @@ import { ResearchObjectDocument } from '../../types.js';
 import { prisma } from '../../client.js';
 import { getLatestManifest } from './utils.js';
 import { logger } from '../../logger.js';
-import { AnyDocumentId, AutomergeUrl } from '@automerge/automerge-repo';
+import { AnyDocumentId, AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import { RequestWithNode } from '../../middleware/guard.js';
 import { backendRepo } from '../../repo.js';
-import { ManifestActions, getNodeManifestUpdater } from '../../services/manifestRepo.js';
+import { ManifestActions, NodeUuid, getAutomergeUrl, getNodeManifestUpdater } from '../../services/manifestRepo.js';
 
 const getNodeDocument = async function (req: RequestWithNode, res: Response) {
   try {
@@ -20,14 +20,15 @@ const getNodeDocument = async function (req: RequestWithNode, res: Response) {
       return;
     }
 
-    const uuid = node.uuid;
+    const parsedUuid = node.uuid.slice(0, -1) as NodeUuid;
+
     let documentId = node.manifestDocumentId;
     let document: ResearchObjectDocument | null = null;
 
     if (!documentId || documentId == '') {
-      logger.info({ uuid, query: req?.query?.g, node }, 'Before GetLatestManifest');
-      const manifest = await getLatestManifest(uuid, req.query?.g as string, node);
-      logger.info({ uuid, manifest }, 'Node latest manifest');
+      logger.info({ parsedUuid, query: req?.query?.g, node }, 'Before GetLatestManifest');
+      const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
+      logger.info({ parsedUuid, manifest }, 'Node latest manifest');
 
       if (!manifest) {
         res.status(500).send({ ok: false, message: 'Error pulling node manifest' });
@@ -40,7 +41,7 @@ const getNodeDocument = async function (req: RequestWithNode, res: Response) {
       handle.change(
         (document) => {
           document.manifest = manifest;
-          document.uuid = uuid.endsWith('.') ? uuid.slice(0, -1) : uuid;
+          document.uuid = parsedUuid;
           document.driveClock = Date.now().toString();
         },
         { message: 'Init Document', time: Date.now() },
@@ -60,10 +61,10 @@ const getNodeDocument = async function (req: RequestWithNode, res: Response) {
     } else {
       const handle = backendRepo.find<ResearchObjectDocument>(documentId as AnyDocumentId);
       document = await handle.doc();
-      if (document.uuid !== uuid && handle.isReady()) {
+      if (document.uuid !== parsedUuid && handle.isReady()) {
         handle.change(
           (document) => {
-            document.uuid = uuid;
+            document.uuid = parsedUuid;
           },
           { message: 'Update Document', time: Date.now() },
         );
@@ -105,7 +106,7 @@ const createNodeDocument = async function (req: Request, res: Response) {
     handle.change(
       (d) => {
         d.manifest = manifest;
-        d.uuid = uuid.endsWith('.') ? uuid.slice(0, -1) : uuid;
+        d.uuid = uuid;
         d.driveClock = Date.now().toString();
       },
       { message: 'Init Document', time: Date.now() },
@@ -145,7 +146,7 @@ const getLatestNodeManifest = async function (req: Request, res: Response) {
       return;
     }
 
-    const automergeUrl = `automerge:${node.manifestDocumentId}`;
+    const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
     const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
 
     const document = await handle.doc();
@@ -172,6 +173,11 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
         uuid,
       },
     });
+
+    if (!node) {
+      res.status(400).send({ ok: false, message: 'Research Node not found' });
+      return;
+    }
 
     const actions = req.body.actions as ManifestActions[];
 

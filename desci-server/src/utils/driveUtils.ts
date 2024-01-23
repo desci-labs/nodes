@@ -378,7 +378,17 @@ export interface FirstNestingComponent {
   star?: boolean;
   externalUrl?: string;
 }
-export function addComponentsToManifest(manifest: ResearchObjectV1, firstNestingComponents: FirstNestingComponent[]) {
+
+/**
+ * This function is used to manually update the manifest document by mutating it in playce
+ * @param manifest ResearchObjectV1
+ * @param firstNestingComponents array of components to add to manifest
+ * @returns updated manifest object with newly added components
+ */
+export function DANGEROUSLY_addComponentsToManifest(
+  manifest: ResearchObjectV1,
+  firstNestingComponents: FirstNestingComponent[],
+) {
   //add duplicate path check
   firstNestingComponents.forEach((c) => {
     const comp = {
@@ -433,13 +443,13 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
 
 export type oldCid = string;
 export type newCid = string;
-export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
-  manifest.components.forEach((c) => {
-    if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
-    if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
-  });
-  return manifest;
-}
+// export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
+//   manifest.components.forEach((c) => {
+//     if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
+//     if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
+//   });
+//   return manifest;
+// }
 
 export type ExternalCidMap = Record<string, { size: number; path: string; directory: boolean }>;
 

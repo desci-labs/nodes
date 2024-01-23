@@ -2,13 +2,11 @@ import { Doc, getHeads } from '@automerge/automerge';
 import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import {
   ResearchObjectComponentTypeMap,
-  ResearchObjectV1,
   ResearchObjectV1Component,
   isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 
-import { prisma } from '../client.js';
 import { logger } from '../logger.js';
 import { backendRepo } from '../repo.js';
 import { ResearchObjectDocument } from '../types/documents.js';
@@ -22,30 +20,30 @@ export const getAutomergeUrl = (documentId: DocumentId): AutomergeUrl => {
   return `automerge:${documentId}` as AutomergeUrl;
 };
 
-export const createManifestDocument = async function ({ node, manifest }: { node: Node; manifest: ResearchObjectV1 }) {
-  logger.info({ uuid: node.uuid }, 'START [CreateNodeDocument]');
-  const uuid = node.uuid.replace(/\.$/, '');
-  // const backendRepo = server.repo;
-  logger.info('[Backend REPO]:', backendRepo.networkSubsystem.peerId);
+// const createManifestDocument = async function ({ node, manifest }: { node: Node; manifest: ResearchObjectV1 }) {
+//   logger.info({ uuid: node.uuid }, 'START [CreateNodeDocument]');
+//   const uuid = node.uuid.replace(/\.$/, '');
+//   // const backendRepo = server.repo;
+//   logger.info('[Backend REPO]:', backendRepo.networkSubsystem.peerId);
 
-  const handle = backendRepo.create<ResearchObjectDocument>();
-  handle.change(
-    (document) => {
-      document.manifest = manifest;
-      document.uuid = uuid;
-      document.driveClock = Date.now().toString();
-    },
-    { message: 'Init Document', time: Date.now() },
-  );
+//   const handle = backendRepo.create<ResearchObjectDocument>();
+//   handle.change(
+//     (document) => {
+//       document.manifest = manifest;
+//       document.uuid = uuid;
+//       document.driveClock = Date.now().toString();
+//     },
+//     { message: 'Init Document', time: Date.now() },
+//   );
 
-  const document = await handle.doc();
-  logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
+//   const document = await handle.doc();
+//   logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
 
-  await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
+//   await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
 
-  logger.info('END [CreateNodeDocument]', { documentId: handle.documentId });
-  return handle.documentId;
-};
+//   logger.info('END [CreateNodeDocument]', { documentId: handle.documentId });
+//   return handle.documentId;
+// };
 
 // TODO: remove after migration
 // const getDraftManifestFromUuid = async function (uuid: NodeUuid) {

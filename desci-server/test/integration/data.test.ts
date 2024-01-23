@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import 'mocha';
+import assert from 'assert';
+
 import { DocumentId } from '@automerge/automerge-repo';
 import {
   DriveObject,
@@ -27,8 +29,9 @@ import {
   client as ipfs,
   spawnEmptyManifest,
 } from '../../src/services/ipfs.js';
-import { createManifestDocument, getAutomergeUrl } from '../../src/services/manifestRepo.js';
+import { NodeUuid, getAutomergeUrl } from '../../src/services/manifestRepo.js';
 // import { ResearchObjectDocument } from '../../src/types/documents.js';
+import repoService from '../../src/services/repoService.js';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools.js';
 import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils.js';
 import { addComponentsToDraftManifest } from '../../src/utils/driveUtils.js';
@@ -46,9 +49,17 @@ const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseM
     },
   });
 
-  const documentId = await createManifestDocument({ node, manifest: baseManifest });
+  const response = await repoService.initDraftDocument({
+    uuid: node.uuid as NodeUuid,
+    manifest: baseManifest,
+  });
   const updatedNode = await prisma.node.findFirst({ where: { id: node.id } });
-  return { node: updatedNode || node, documentId };
+  console.log('Draft Node create', response);
+
+  assert(response?.documentId);
+  assert(response?.document);
+
+  return { node: updatedNode || node, documentId: response?.documentId };
 };
 
 describe('Data Controllers', () => {
@@ -401,7 +412,7 @@ describe('Data Controllers', () => {
       const deleteDirPath = 'root/dir/subdir';
 
       before(async () => {
-        let manifest = { ...baseManifest };
+        let manifest: ResearchObjectV1 = { ...baseManifest };
         const exampleDagCid = await spawnExampleDirDag();
         manifest.components[0].payload.cid = exampleDagCid;
         const componentsToAdd = ['dir/subdir', 'dir/subdir/b.txt'].map((path) => ({
@@ -415,7 +426,7 @@ describe('Data Controllers', () => {
         const nodeData = await createDraftNode(user, manifest, baseManifestCid);
         node = nodeData.node;
 
-        manifest = await addComponentsToDraftManifest(node, componentsToAdd);
+        manifest = (await addComponentsToDraftManifest(node, componentsToAdd)) ?? manifest;
         const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
         await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
 
@@ -523,7 +534,7 @@ describe('Data Controllers', () => {
         const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
         node = nodeData.node;
 
-        manifest = await addComponentsToDraftManifest(node, componentsToAdd);
+        manifest = (await addComponentsToDraftManifest(node, componentsToAdd)) ?? manifest;
         const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
         await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
 
@@ -670,7 +681,7 @@ describe('Data Controllers', () => {
         const nodeData = await createDraftNode(user, manifest, baseManifestCid);
         node = nodeData.node;
 
-        manifest = await addComponentsToDraftManifest(node, componentsToAdd);
+        manifest = (await addComponentsToDraftManifest(node, componentsToAdd)) ?? manifest;
         const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
 
         await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });

@@ -25,6 +25,8 @@ class RepoService {
       throw new Error('[REPO SERVICE]: Base url or api key missing');
     }
 
+    logger.info({ url: this.baseUrl }, 'Init Repo Service');
+
     this.#client = axios.create({
       baseURL: this.baseUrl,
       headers: { 'x-api-key': this.#apiKey },
