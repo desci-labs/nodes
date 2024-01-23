@@ -10,7 +10,7 @@ WORKDIR /app
 COPY . .
 
 RUN --mount=type=cache,target=/root/.yarn YARN_CACHE_FOLDER=/root/.yarn yarn install
-RUN npm i -g npm-run-all
+RUN yarn install
 RUN yarn build
 
 # server api
