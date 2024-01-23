@@ -33,12 +33,8 @@ import {
   saveZipStreamToDisk,
   zipUrlToStream,
 } from '../../utils.js';
-import {
-  NodeUuid,
-  getDraftManifestFromUuid,
-  getLatestManifestFromNode,
-  getNodeManifestUpdater,
-} from '../manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../manifestRepo.js';
+import repoService from '../repoService.js';
 
 import {
   filterFirstNestings,
@@ -233,7 +229,7 @@ export async function processExternalUrlDataToIpfs({
       }
     }
 
-    updatedManifest = await getDraftManifestFromUuid(ltsNode.uuid as NodeUuid);
+    updatedManifest = updatedManifest ?? (await repoService.getDraftManifest(ltsNode.uuid as NodeUuid));
 
     // Update existing data references, add new data references.
     const upserts = await updateDataReferences({ node, user, updatedManifest });
@@ -250,11 +246,16 @@ export async function processExternalUrlDataToIpfs({
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    const dispatchChange = getNodeManifestUpdater(node);
     try {
-      updatedManifest = await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+      const response = await repoService.dispatchAction({
+        uuid: node.uuid as NodeUuid,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      if (response) {
+        updatedManifest = response.manifest;
+      }
     } catch (err) {
-      logger.error({ err }, 'Set Drive Clock');
+      logger.error({ err }, 'ERROR: Set Drive Clock');
     }
 
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);

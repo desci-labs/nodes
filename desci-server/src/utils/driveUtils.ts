@@ -21,7 +21,8 @@ import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
-import { getNodeManifestUpdater } from '../services/manifestRepo.js';
+import { ManifestActions, NodeUuid } from '../services/manifestRepo.js';
+import repoService from '../services/repoService.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
@@ -398,8 +399,6 @@ export function addComponentsToManifest(manifest: ResearchObjectV1, firstNesting
 }
 
 export async function addComponentsToDraftManifest(node: Node, firstNestingComponents: FirstNestingComponent[]) {
-  const manifestUpdater = getNodeManifestUpdater(node);
-  let updatedManifest: ResearchObjectV1;
   //add duplicate path check
   const components = firstNestingComponents.map((entry) => {
     return {
@@ -416,13 +415,20 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
     };
   });
 
+  const actions: ManifestActions[] = [{ type: 'Add Components', components }];
   try {
-    updatedManifest = await manifestUpdater({ type: 'Add Components', components });
-    logger.info({ updatedManifest }, 'AddComponentsToDraftManifest]');
-  } catch (e) {
-    logger.error(e, '[ERROR addComponentsToDraftManifest]');
+    // updatedManifest = await manifestUpdater({ type: 'Add Components', components });
+    logger.info({ uuid: node.uuid, actions }, '[AddComponentsToDraftManifest]');
+    const response = await repoService.dispatchAction({
+      uuid: node.uuid as NodeUuid,
+      actions,
+    });
+    logger.info({ actions, response }, '[AddComponentsToDraftManifest]');
+    return response?.manifest;
+  } catch (err) {
+    logger.error({ err, actions }, '[ERROR addComponentsToDraftManifest]');
+    return null;
   }
-  return updatedManifest;
 }
 
 export type oldCid = string;

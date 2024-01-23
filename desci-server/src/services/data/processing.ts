@@ -31,6 +31,7 @@ import {
   pinDirectory,
 } from '../../services/ipfs.js';
 import { fetchFileStreamFromS3, isS3Configured } from '../../services/s3.js';
+import { ResearchObjectDocument } from '../../types/documents.js';
 import { prepareDataRefs, prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 import { DRAFT_CID, DRAFT_DIR_CID, ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
@@ -44,7 +45,8 @@ import {
 } from '../../utils/driveUtils.js';
 import { EXTENSION_MAP } from '../../utils/extensions.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
-import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../manifestRepo.js';
+import repoService from '../repoService.js';
 
 import {
   Either,
@@ -131,8 +133,8 @@ export async function processS3DataToIpfs({
       },
     });
 
-    const ltsManifest = await getLatestManifestFromNode(ltsNode);
-    let updatedManifest = ltsManifest;
+    // const ltsManifest = await getLatestManifestFromNode(ltsNode);
+    let updatedManifest = await repoService.getDraftManifest(ltsNode.uuid as NodeUuid);
 
     if (componentTypeMap) {
       /**
@@ -164,9 +166,12 @@ export async function processS3DataToIpfs({
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    const manifestUpdater = getNodeManifestUpdater(node);
     try {
-      await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+      await repoService.dispatchAction({
+        uuid: node.uuid as NodeUuid,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      // await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
     } catch (err) {
       logger.error({ err }, 'Set Drive Clock');
     }
@@ -260,9 +265,15 @@ export async function processNewFolder({
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    const manifestUpdater = getNodeManifestUpdater(node);
     try {
-      ltsManifest = await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+      // ltsManifest = await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+      const response = await repoService.dispatchAction({
+        uuid: node.uuid as NodeUuid,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      if (response?.manifest) {
+        ltsManifest = response.manifest;
+      }
     } catch (err) {
       logger.error({ err }, 'Set Drive Clock');
     }
@@ -659,16 +670,20 @@ export async function assignTypeMapInManifest(
   contextPathNewCid: string,
 ): Promise<ResearchObjectV1> {
   try {
-    const manifestUpdater = getNodeManifestUpdater(node);
-    let updatedManifest: ResearchObjectV1;
+    let document: ResearchObjectDocument;
     const componentIndex = manifest.components.findIndex((c) => c.payload.path === contextPath);
     // Check if the component already exists, update its type map
     if (componentIndex !== -1) {
       const prevComponent = manifest.components[componentIndex];
-      updatedManifest = await manifestUpdater({
-        type: 'Assign Component Type',
-        component: prevComponent,
-        componentTypeMap: compTypeMap,
+      document = await repoService.dispatchAction({
+        uuid: node.uuid as NodeUuid,
+        actions: [
+          {
+            type: 'Assign Component Type',
+            component: prevComponent,
+            componentTypeMap: compTypeMap,
+          },
+        ],
       });
     } else {
       // If doesn't exist, create the component and assign its type map
@@ -682,9 +697,12 @@ export async function assignTypeMapInManifest(
           path: contextPath,
         },
       };
-      updatedManifest = await manifestUpdater({ type: 'Add Components', components: [component] });
+      document = await repoService.dispatchAction({
+        uuid: node.uuid as NodeUuid,
+        actions: [{ type: 'Add Components', components: [component] }],
+      });
     }
-    return updatedManifest;
+    return document.manifest;
   } catch (err) {
     logger.error(err, 'Error Caught in assignTypeMapInManifest');
     return manifest;

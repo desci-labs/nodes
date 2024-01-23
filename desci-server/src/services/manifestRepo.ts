@@ -14,6 +14,7 @@ import { backendRepo } from '../repo.js';
 import { ResearchObjectDocument } from '../types/documents.js';
 
 import { getManifestFromNode } from './data/processing.js';
+import repoService from './repoService.js';
 
 export type NodeUuid = string & { _kind: 'uuid' };
 
@@ -46,35 +47,36 @@ export const createManifestDocument = async function ({ node, manifest }: { node
   return handle.documentId;
 };
 
-export const getDraftManifestFromUuid = async function (uuid: NodeUuid) {
-  logger.info({ uuid }, 'START [getDraftManifestFromUuid]');
-  // const backendRepo = server.repo;
-  const node = await prisma.node.findFirst({
-    where: { uuid },
-  });
+// TODO: remove after migration
+// const getDraftManifestFromUuid = async function (uuid: NodeUuid) {
+//   logger.info({ uuid }, 'START [getDraftManifestFromUuid]');
+//   // const backendRepo = server.repo;
+//   const node = await prisma.node.findFirst({
+//     where: { uuid },
+//   });
 
-  if (!node) {
-    throw new Error(`Node with uuid ${uuid} not found!`);
-  }
+//   if (!node) {
+//     throw new Error(`Node with uuid ${uuid} not found!`);
+//   }
 
-  const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
-  const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+//   const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
+//   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
 
-  const document = await handle.doc();
+//   const document = await handle.doc();
 
-  logger.info({ uuid: document.uuid, documentId: handle.documentId }, '[AUTOMERGE]::[Document Found]');
+//   logger.info({ uuid: document.uuid, documentId: handle.documentId }, '[AUTOMERGE]::[Document Found]');
 
-  logger.info({ uuid }, '[END]::GetDraftManifestFromUuid');
-  return document.manifest;
-};
+//   logger.info({ uuid }, '[END]::GetDraftManifestFromUuid');
+//   return document.manifest;
+// };
 
-export const getDraftManifest = async function (node: Node) {
-  return getDraftManifestFromUuid(node.uuid as NodeUuid);
-};
+// export const getDraftManifest = async function (node: Node) {
+//   return getDraftManifestFromUuid(node.uuid as NodeUuid);
+// };
 
 export const getLatestManifestFromNode = async (node: Node) => {
   logger.info({ uuid: node.uuid }, 'START [getLatestManifestFromNode]');
-  let manifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
+  let manifest = await repoService.getDraftManifest(node.uuid as NodeUuid);
   if (!manifest) {
     const publishedManifest = await getManifestFromNode(node);
     manifest = publishedManifest.manifest;
@@ -105,7 +107,7 @@ export type ManifestActions =
     }
   | { type: 'Set Drive Clock'; time: string };
 
-export const getNodeManifestUpdater = (node: Node) => {
+const getNodeManifestUpdater = (node: Node) => {
   const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
 

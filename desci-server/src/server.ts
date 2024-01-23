@@ -27,7 +27,7 @@ import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
 // import SocketServer from './wsServer.js';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
-import { socket as wsSocket } from './repo.js';
+// import { socket as wsSocket } from './repo.js';
 const __filename = fileURLToPath(import.meta.url);
 // const __dirname = path.dirname(__filename);
 
@@ -99,18 +99,6 @@ class AppServer {
     this.app.use(cookieParser());
     this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
-    // try {
-    //   const accessLogStream = fs.createWriteStream(path.join(__dirname, '../log/access.log'), {
-    //     flags: 'a',
-    //   });
-    //   this.app.use(morgan('combined', { stream: accessLogStream }));
-    // } catch (err) {
-    //   console.log(err);
-    // }
-
-    // this.app.use(cors());
-    // this.app.use(morgan('combined'));
-
     this.#attachRouteHandlers();
 
     this.app.use(errorHandler);
@@ -123,31 +111,31 @@ class AppServer {
     });
 
     // this.socketServer = new SocketServer(this.server, this.port);
-    wsSocket.on('listening', () => {
-      logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
-    });
-    wsSocket.on('connection', async (socket, request) => {
-      try {
-        const token = await extractAuthToken(request as Request);
-        const authUser = await extractUserFromToken(token);
-        if (!authUser) {
-          socket.close(); // Close connection if user is not authorized
-          return;
-        }
-        logger.info(
-          { module: 'WebSocket SERVER', id: authUser.id, name: authUser.name },
-          'WebSocket Connection Authorised',
-        );
-        socket.on('message', (message) => {
-          // Handle incoming messages
-          // console.log(`Received message: ${message}`);
-        });
-        // Additional event listeners (e.g., 'close', 'error') can be set up here
-      } catch (error) {
-        socket.close(); // Close the connection in case of an error
-        logger.error(error, 'Error during WebSocket connection');
-      }
-    });
+    // wsSocket.on('listening', () => {
+    //   logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
+    // });
+    // wsSocket.on('connection', async (socket, request) => {
+    //   try {
+    //     const token = await extractAuthToken(request as Request);
+    //     const authUser = await extractUserFromToken(token);
+    //     if (!authUser) {
+    //       socket.close(); // Close connection if user is not authorized
+    //       return;
+    //     }
+    //     logger.info(
+    //       { module: 'WebSocket SERVER', id: authUser.id, name: authUser.name },
+    //       'WebSocket Connection Authorised',
+    //     );
+    //     socket.on('message', (message) => {
+    //       // Handle incoming messages
+    //       // console.log(`Received message: ${message}`);
+    //     });
+    //     // Additional event listeners (e.g., 'close', 'error') can be set up here
+    //   } catch (error) {
+    //     socket.close(); // Close the connection in case of an error
+    //     logger.error(error, 'Error during WebSocket connection');
+    //   }
+    // });
   }
 
   get httpServer() {

@@ -6,7 +6,8 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
 import { updateManifestDataBucket } from '../../services/data/processing.js';
-import { NodeUuid, getDraftManifestFromUuid } from '../../services/manifestRepo.js';
+import { NodeUuid } from '../../services/manifestRepo.js';
+import repoService from '../../services/repoService.js';
 import { prepareDataRefsForDagSkeleton } from '../../utils/dataRefTools.js';
 import { dagifyAndAddDbTreeToIpfs } from '../../utils/draftTreeUtils.js';
 import { persistManifest } from '../data/utils.js';
@@ -54,7 +55,7 @@ export const prepublish = async (req: RequestWithNode, res: Response<PrepublishR
       return res.status(403).json({ ok: false, error: 'Failed' });
     }
 
-    const manifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
+    const manifest = await repoService.getDraftManifest(node.uuid as NodeUuid);
 
     /**
      * Dagify and add DAGs to IPFS (No Files Pinned yet, just the folder structure added to IPFS (NOT PINNED!))
@@ -62,6 +63,7 @@ export const prepublish = async (req: RequestWithNode, res: Response<PrepublishR
     const nodeFileTreeDagCid = await dagifyAndAddDbTreeToIpfs(node.id);
 
     // Update manifest data bucket CID, and persist the manifest
+    // TODO: use repo service action dispatcher method instead
     const updatedManifest = updateManifestDataBucket({ manifest, newRootCid: nodeFileTreeDagCid });
     const { persistedManifestCid, nodeVersion } = await persistManifest({
       manifest: updatedManifest,

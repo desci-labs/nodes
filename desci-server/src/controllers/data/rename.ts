@@ -5,12 +5,8 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
-import {
-  NodeUuid,
-  getDraftManifestFromUuid,
-  getLatestManifestFromNode,
-  getNodeManifestUpdater,
-} from '../../services/manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import repoService from '../../services/repoService.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
 import { ErrorResponse } from './update.js';
@@ -69,13 +65,17 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
 
-    const dispatchChange = getNodeManifestUpdater(node);
     let updatedManifest = latestManifest;
     try {
-      updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath: path, newPath });
+      const response = await repoService.dispatchAction({
+        uuid,
+        actions: [{ type: 'Rename Component Path', oldPath: path, newPath }],
+      });
+      // dispatchChange({ type: 'Rename Component Path', oldPath: path, newPath });
+      updatedManifest = response.manifest;
     } catch (err) {
       logger.error({ err }, 'Source: Rename Component Path');
-      updatedManifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
+      updatedManifest = await repoService.getDraftManifest(node.uuid as NodeUuid);
       // return res.status(400).json({ error: 'failed' });
     }
 
@@ -107,13 +107,21 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       const { fileName } = separateFileNameAndExtension(newName);
       // updatedManifest.components[componentIndex].name = fileName;
       try {
-        updatedManifest = await dispatchChange({ type: 'Rename Component', path: newPath, fileName });
+        const response = await repoService.dispatchAction({
+          uuid,
+          actions: [{ type: 'Rename Component', path: newPath, fileName }],
+        });
+        // updatedManifest = await dispatchChange({ type: 'Rename Component', path: newPath, fileName });
+        updatedManifest = response?.manifest;
       } catch (err) {
         logger.error({ err }, 'Source: Rename Component');
-        updatedManifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
+        updatedManifest = await repoService.getDraftManifest(node.uuid as NodeUuid);
       }
     }
 
+    if (!updatedManifest) {
+      updatedManifest = await getLatestManifestFromNode(node);
+    }
     /*
      ** Prepare updated refs
      */
@@ -167,9 +175,15 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
     try {
-      updatedManifest = await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+      // updatedManifest = await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+      const response = await repoService.dispatchAction({
+        uuid,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      updatedManifest = response?.manifest;
     } catch (err) {
       logger.error({ err }, 'Set Drive Clock');
+      updatedManifest = await getLatestManifestFromNode(node);
     }
 
     return res.status(200).json({

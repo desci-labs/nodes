@@ -37,10 +37,14 @@ const getNodeDocument = async function (req: RequestWithNode, res: Response) {
       // Object.assign({}, researchObject) as ResearchObjectV1; // todo: pull latest draft manifest
       const handle = backendRepo.create<ResearchObjectDocument>();
       logger.info({ manifest, doc: handle.documentId }, 'Create new document');
-      handle.change((document) => {
-        document.manifest = manifest;
-        document.uuid = uuid.slice(0, -1);
-      });
+      handle.change(
+        (document) => {
+          document.manifest = manifest;
+          document.uuid = uuid.endsWith('.') ? uuid.slice(0, -1) : uuid;
+          document.driveClock = Date.now().toString();
+        },
+        { message: 'Init Document', time: Date.now() },
+      );
 
       document = await handle.doc();
       documentId = handle.documentId;

@@ -10,12 +10,12 @@ import { logger } from './logger.js';
 import { verifyNodeDocumentAccess } from './services/permissions.js';
 import { ResearchObjectDocument } from './types/documents.js';
 
-export const socket = new WebSocketServer({ port: 5445, path: '/sync' });
+// export const socket = new WebSocketServer({ port: 5446, path: '/sync' });
 const hostname = os.hostname();
 
-const adapter = new NodeWSServerAdapter(socket);
+// const adapter = new NodeWSServerAdapter(socket);
 const config: RepoConfig = {
-  network: [adapter],
+  network: [],
   storage: new PostgresStorageAdapter(prisma),
   peerId: `storage-server-${hostname}` as PeerId,
   // Since this is a server, we don't share generously — meaning we only sync documents they already

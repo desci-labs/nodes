@@ -18,12 +18,8 @@ import {
   pubRecursiveLs,
 } from '../../services/ipfs.js';
 import { FirstNestingComponent, addComponentsToDraftManifest, getTreeAndFill } from '../../utils/driveUtils.js';
-import {
-  NodeUuid,
-  getDraftManifestFromUuid,
-  getLatestManifestFromNode,
-  getNodeManifestUpdater,
-} from '../manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../manifestRepo.js';
+import repoService from '../repoService.js';
 
 import { updateDataReferences } from './processing.js';
 import {
@@ -198,7 +194,7 @@ export async function processExternalCidDataToIpfs({
       }
     }
 
-    const updatedManifest = await getDraftManifestFromUuid(ltsNode.uuid as NodeUuid);
+    const updatedManifest = await getLatestManifestFromNode(ltsNode);
 
     const upserts = await updateDataReferences({ node, user, updatedManifest });
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);
@@ -213,9 +209,13 @@ export async function processExternalCidDataToIpfs({
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    const manifestUpdater = getNodeManifestUpdater(node);
     try {
-      await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+      // await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+      const response = await repoService.dispatchAction({
+        uuid: node.uuid,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      logger.info({ response }, '[SET DRIVE CLOCK RESPONSE]');
     } catch (err) {
       logger.error({ err }, 'Set Drive Clock');
     }

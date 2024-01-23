@@ -5,12 +5,8 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
-import {
-  NodeUuid,
-  getDraftManifestFromUuid,
-  getLatestManifestFromNode,
-  getNodeManifestUpdater,
-} from '../../services/manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import repoService from '../../services/repoService.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
 import { ErrorResponse } from './update.js';
@@ -107,14 +103,17 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
-    const dispatchChange = getNodeManifestUpdater(node);
     let updatedManifest: ResearchObjectV1;
 
     try {
-      updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath, newPath });
+      const response = await repoService.dispatchAction({
+        uuid,
+        actions: [{ type: 'Rename Component Path', oldPath, newPath }],
+      });
+      updatedManifest = response ? response.manifest : await getLatestManifestFromNode(node);
     } catch (err) {
       logger.error({ err }, '[Source]: Rename Component Path');
-      updatedManifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
+      updatedManifest = await getLatestManifestFromNode(node);
     }
 
     /*
@@ -171,7 +170,13 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
     try {
-      updatedManifest = await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+      const res = await repoService.dispatchAction({
+        uuid,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      if (res && res.manifest) {
+        updatedManifest = res.manifest;
+      }
     } catch (err) {
       logger.error({ err }, 'Set Drive Clock');
     }
@@ -186,18 +191,3 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
   }
   return res.status(400).json({ error: 'failed' });
 };
-
-interface UpdateComponentPathsInManifest {
-  manifest: ResearchObjectV1;
-  oldPath: string;
-  newPath: string;
-}
-
-// export function updateComponentPathsInManifest({ manifest, oldPath, newPath }: UpdateComponentPathsInManifest) {
-//   manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
-//     if (c.payload?.path.startsWith(oldPath + '/') || c.payload.path === oldPath) {
-//       manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
-//     }
-//   });
-//   return manifest;
-// }

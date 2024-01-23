@@ -5,7 +5,8 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getLatestDriveTime } from '../../services/draftTrees.js';
-import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../../services/manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import repoService from '../../services/repoService.js';
 
 import { ErrorResponse } from './update.js';
 import { persistManifest } from './utils.js';
@@ -42,7 +43,6 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
   }
 
   const latestManifest = await getLatestManifestFromNode(node);
-  const dispatchChange = getNodeManifestUpdater(node);
 
   try {
     /**
@@ -129,7 +129,13 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
     try {
-      await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+      const response = await repoService.dispatchAction({
+        uuid,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      if (response?.manifest) {
+        updatedManifest = response.manifest;
+      }
     } catch (err) {
       logger.error({ err }, 'Set Drive Clock');
     }
@@ -151,8 +157,11 @@ interface UpdatingManifestParams {
 }
 
 export async function deleteComponentsFromManifest({ node, pathsToDelete }: UpdatingManifestParams) {
-  const manifestUpdater = getNodeManifestUpdater(node);
   parentLogger.info({ pathsToDelete }, `deleteComponentsFromManifest:`);
-  const updatedManifest = await manifestUpdater({ type: 'Delete Components', pathsToDelete });
-  return updatedManifest;
+  const response = await repoService.dispatchAction({
+    uuid: node.uuid,
+    actions: [{ type: 'Delete Components', pathsToDelete }],
+  });
+
+  return response?.manifest;
 }
