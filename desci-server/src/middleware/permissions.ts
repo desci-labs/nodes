@@ -10,7 +10,7 @@ import { getUserByEmail, getUserByOrcId } from '../services/user.js';
 export const ensureUser = async (req: ExpressRequest, res: Response, next: NextFunction) => {
   const token = await extractAuthToken(req);
   const apiKey = await extractApiKey(req);
-  const retrievedUser = (await extractUserFromToken(token)) || (await extractUserFromApiKey(apiKey));
+  const retrievedUser = (await extractUserFromToken(token)) || (await extractUserFromApiKey(apiKey, req.ip));
 
   if (!retrievedUser) {
     res.status(401).send({ ok: false, message: 'Unauthorized' });
@@ -110,7 +110,7 @@ export const extractApiKey = async (request: ExpressRequest | Request) => {
 /**
  * Attempt to retrieve user via API key
  */
-export const extractUserFromApiKey = async (apiKey: string): Promise<User | null> => {
+export const extractUserFromApiKey = async (apiKey: string, ip: string): Promise<User | null> => {
   return new Promise(async (resolve, reject) => {
     if (!apiKey) {
       resolve(null);
@@ -131,6 +131,16 @@ export const extractUserFromApiKey = async (apiKey: string): Promise<User | null
       resolve(null);
       return;
     }
+
+    // Bump last used data
+    await prisma.apiKey.update({
+      where: {
+        id: validKey.id,
+      },
+      data: {
+        lastUsedIp: ip,
+      },
+    });
 
     const { user } = validKey;
 
