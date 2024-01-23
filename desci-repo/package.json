@@ -10,6 +10,7 @@
     "build": "rimraf dist && tsc",
     "start": "NODE_PATH=./dist node ./dist/index.js",
     "dev": "npm-run-all --parallel watch-compile watch-dev",
+    "docker:dev": "docker-compose --file docker-compose.repo.yml --compatibility up --build",
     "watch-dev": "debug=* nodemon --watch \"dist/**/*\" -e js ./dist/index.js",
     "watch-compile": "debug=* tsc -w --preserveWatchOutput",
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -19,7 +20,7 @@
     "prettier": "prettier --config .prettierrc --write './**/*.{ts,js,css,scss,json,md}'",
     "commit": "git-cz",
     "db:sync": "npx prisma db pull && npx prisma generate",
-    "db:generate": "npx prisma generate"
+    "generate": "npx prisma generate"
   },
   "keywords": [],
   "author": "",

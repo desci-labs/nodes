@@ -15,6 +15,16 @@
       "remoteRoot": "/app"
     },
     {
+      "name": "Docker: Attach to Desci Repo",
+      "type": "node",
+      "request": "attach",
+      "restart": true,
+      "port": 9232,
+      "address": "localhost",
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app"
+    },
+    {
       "type": "node",
       "request": "attach",
       "name": "Mocha Tests",
