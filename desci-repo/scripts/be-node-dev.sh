@@ -8,7 +8,7 @@ apt-get add --update bash
 # npm run seed:run
 chmod -R 777 /app/node_modules/.prisma
 chmod -R 777 /app/node_modules/prisma
-chmod -R 777 /root/ && chown node:node /root/.cache/prisma/master/2920a97877e12e055c1333079b8d19cee7f33826/debian-openssl-1.1.x/libquery-engine # for prisma studio
+# chmod -R 777 /root/ && chown node:node /root/.cache/prisma/master/2920a97877e12e055c1333079b8d19cee7f33826/debian-openssl-1.1.x/libquery-engine # for prisma studio
 cd desci-repo
-yarn run db:sync
+npm run db:sync
 yarn dev

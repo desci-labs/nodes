@@ -48,7 +48,7 @@ services:
 
   nodes_test_repo_service:
     container_name: "nodes_test_repo_service"
-    entrypoint: /bin/sh './desci-repo/scripts/be-node-dev.sh'
+    entrypoint: /bin/sh './desci-repo/scripts/be-node-test.sh'
     build: ./desci-repo
     env_file:
       - ./desci-repo/.env.test

@@ -7,5 +7,5 @@ apt-get add --update bash
 
 chmod -R 777 /app/desci-repo/repo-tmp
 cd desci-repo
-yarn run db:sync
-npm run test:destructive:debug
+npm run db:sync
+yarn dev
