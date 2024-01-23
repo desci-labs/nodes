@@ -21,7 +21,7 @@ env:
   AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  CONTAINER_IMAGE: desci-server
+  CONTAINER_IMAGE: desci-repo-server
   DOCKER_BUILDKIT: 1
 
 jobs:
@@ -157,31 +157,31 @@ jobs:
         if: github.ref == 'refs/heads/develop'
         run: | # defaults to latest kubectl binary version
           kubectl apply -f desci-repo/kubernetes/deployment_dev.yaml
-          kubectl set image deployment/desci-repo-dev desci-repo-dev=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} --record
+          kubectl set image deployment/desci-repo-server-dev desci-repo-server-dev=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} --record
 
       - name: Deploy to EKS (DEMO)
         # uses: steebchen/kubectl@v2.0.0
         if: github.ref == 'refs/heads/demo'
         run: | # defaults to latest kubectl binary version
-          kubectl set image deployment/desci-repo-demo desci-repo-demo=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }} --record
+          kubectl set image deployment/desci-repo-server-demo desci-repo-server-demo=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }} --record
 
       - name: Deploy to EKS (PROD)
         if: github.ref == 'refs/heads/main'
         run: | # defaults to latest kubectl binary version
           kubectl apply -f desci-repo/kubernetes/deployment.yaml
-          kubectl set image deployment/desci-repo desci-repo=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} --record
+          kubectl set image deployment/desci-repo-server desci-repo-server=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} --record
 
       - name: Verify EKS Deployment (DEV)
         if: github.ref == 'refs/heads/develop'
         run: |
-          kubectl rollout status deployment/desci-repo-dev
+          kubectl rollout status deployment/desci-repo-server-dev
 
       - name: Verify EKS Deployment (DEMO)
         if: github.ref == 'refs/heads/demo'
         run: |
-          kubectl rollout status deployment/desci-repo-demo
+          kubectl rollout status deployment/desci-repo-server-demo
 
       - name: Verify EKS Deployment (PROD)
         if: github.ref == 'refs/heads/main'
         run: |
-          kubectl rollout status deployment/desci-repo
+          kubectl rollout status deployment/desci-repo-server
