@@ -37,6 +37,7 @@ model Node {
   deletedAt           DateTime?
   UploadJobs          UploadJobs[]
   DraftNodeTree       DraftNodeTree[]
+  ceramicStream       String?
 
   @@index([ownerId])
   @@index([uuid])

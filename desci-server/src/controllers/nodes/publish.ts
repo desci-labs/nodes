@@ -11,13 +11,13 @@ import {
   getAllCidsRequiredForPublish,
   createPublicDataRefs,
   createDataMirrorJobs,
+  setCeramicStream,
 } from '../../services/nodeManager.js';
-import { validateAndHealDataRefs } from '../../utils/dataRefTools.js';
 import { discordNotify } from '../../utils/discordUtils.js';
 
 // call node publish service and add job to queue
-export const publish = async (req: Request, res: Response, next: NextFunction) => {
-  const { uuid, cid, manifest, transactionId, nodeVersionId } = req.body;
+export const publish = async (req: Request, res: Response, _next: NextFunction) => {
+  const { uuid, cid, manifest, transactionId, nodeVersionId, ceramicStream } = req.body;
   // debugger;
   const email = (req as any).user.email;
   const logger = parentLogger.child({
@@ -92,6 +92,16 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
         transactionId,
       },
     });
+
+    if (process.env.TOGGLE_CERAMIC === "1") {
+      if (ceramicStream) {
+        logger.trace(`[ceramic] setting streamID on node`);
+        await setCeramicStream(uuid, ceramicStream);
+      } else {
+        // Likely feature toggle is active in backend, but not in frontend
+        logger.warn(`[ceramic] wanted to set streamID for ${node.uuid} but request did not contain one`)
+      }
+    };
 
     logger.trace(`[publish::publish] nodeUuid=${node.uuid}, manifestCid=${cid}, transaction=${transactionId}`);
 
@@ -187,16 +197,9 @@ export const publish = async (req: Request, res: Response, next: NextFunction) =
     );
 
     // trigger ipfs storage upload, but don't wait for it to finish, will happen async
-    publishResearchObject(publicDataReferences).then(handleMirrorSuccess).catch(handleMirrorFail);
-    // Disabled bandaid fix, shouldn't be necessary if publish step handled correctly on frontend.
-    // .finally(async () => {
-    //   await validateAndHealDataRefs({
-    //     nodeUuid: node.uuid!,
-    //     manifestCid: cid,
-    //     publicRefs: true,
-    //     markExternals: true,
-    //   });
-    // });
+    publishResearchObject(publicDataReferences)
+      .then(handleMirrorSuccess)
+      .catch(handleMirrorFail);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
