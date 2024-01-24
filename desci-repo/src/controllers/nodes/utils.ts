@@ -1,10 +1,10 @@
 import axios from 'axios';
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { prisma } from '../../client.js';
-import { Node } from '@prisma/client';
 import { PUBLIC_IPFS_PATH } from '../../config.js';
 import { logger as parentLogger } from '../../logger.js';
 import { createIpfsUnresolvableError } from '../../lib/errors.js';
+import { findNodeByUuid } from '../../db/index.js';
+import { Node } from '../../middleware/guard.js';
 
 export async function getLatestManifest(
   nodeUuid: string,
@@ -12,10 +12,10 @@ export async function getLatestManifest(
   node?: Node,
 ): Promise<ResearchObjectV1 | null> {
   parentLogger.info({ nodeUuid, resolver, node }, 'Start Node latest manifest');
-  node = node || (await prisma.node.findUnique({ where: { uuid: nodeUuid } }));
+  node = node || (await findNodeByUuid(nodeUuid)); // (await prisma.node.findUnique({ where: { uuid: nodeUuid } }));
   const latestManifestCid = node.manifestUrl || node.cid;
   const manifestUrl = latestManifestCid ? cleanupManifestUrl(latestManifestCid as string, resolver as string) : null;
-  return manifestUrl ? await (await axios.get(manifestUrl)).data : null;
+  return manifestUrl ? await(await axios.get(manifestUrl)).data : null;
 }
 
 export const cleanupManifestUrl = (url: string, gateway?: string) => {

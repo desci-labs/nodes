@@ -2,18 +2,13 @@ import { Doc, getHeads } from '@automerge/automerge';
 import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import {
   ResearchObjectComponentTypeMap,
-  ResearchObjectV1,
   ResearchObjectV1Component,
   isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
-import { Node } from '@prisma/client';
 
-import { prisma } from '../client.js';
 import { logger } from '../logger.js';
 import { backendRepo } from '../repo.js';
 import { ResearchObjectDocument } from '../types.js';
-
-import { getManifestFromNode } from '../controllers/nodes/utils.js';
 
 export type NodeUuid = string & { _kind: 'uuid' };
 
@@ -21,65 +16,65 @@ export const getAutomergeUrl = (documentId: DocumentId): AutomergeUrl => {
   return `automerge:${documentId}` as AutomergeUrl;
 };
 
-export const createManifestDocument = async function ({ node, manifest }: { node: Node; manifest: ResearchObjectV1 }) {
-  logger.info({ uuid: node.uuid }, 'START [CreateNodeDocument]');
-  const uuid = node.uuid.replace(/\.$/, '');
-  logger.info('[Backend REPO]:', backendRepo.networkSubsystem.peerId);
+// export const createManifestDocument = async function ({ node, manifest }: { node: Node; manifest: ResearchObjectV1 }) {
+//   logger.info({ uuid: node.uuid }, 'START [CreateNodeDocument]');
+//   const uuid = node.uuid.replace(/\.$/, '');
+//   logger.info('[Backend REPO]:', backendRepo.networkSubsystem.peerId);
 
-  const handle = backendRepo.create<ResearchObjectDocument>();
-  handle.change(
-    (document) => {
-      document.manifest = manifest;
-      document.uuid = uuid;
-      document.driveClock = Date.now().toString();
-    },
-    { message: 'Init Document', time: Date.now() },
-  );
+//   const handle = backendRepo.create<ResearchObjectDocument>();
+//   handle.change(
+//     (document) => {
+//       document.manifest = manifest;
+//       document.uuid = uuid;
+//       document.driveClock = Date.now().toString();
+//     },
+//     { message: 'Init Document', time: Date.now() },
+//   );
 
-  const document = await handle.doc();
-  logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
+//   const document = await handle.doc();
+//   logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
 
-  await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
+//   await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
 
-  logger.info('END [CreateNodeDocument]', { documentId: handle.documentId });
-  return handle.documentId;
-};
+//   logger.info('END [CreateNodeDocument]', { documentId: handle.documentId });
+//   return handle.documentId;
+// };
 
-export const getDraftManifestFromUuid = async function (uuid: NodeUuid) {
-  logger.info({ uuid }, 'START [getDraftManifestFromUuid]');
-  // const backendRepo = server.repo;
-  const node = await prisma.node.findFirst({
-    where: { uuid },
-  });
+// export const getDraftManifestFromUuid = async function (uuid: NodeUuid) {
+//   logger.info({ uuid }, 'START [getDraftManifestFromUuid]');
+//   // const backendRepo = server.repo;
+//   const node = await prisma.node.findFirst({
+//     where: { uuid },
+//   });
 
-  if (!node) {
-    throw new Error(`Node with uuid ${uuid} not found!`);
-  }
+//   if (!node) {
+//     throw new Error(`Node with uuid ${uuid} not found!`);
+//   }
 
-  const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
-  const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+//   const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
+//   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
 
-  const document = await handle.doc();
+//   const document = await handle.doc();
 
-  logger.info({ uuid: document.uuid, documentId: handle.documentId }, '[AUTOMERGE]::[Document Found]');
+//   logger.info({ uuid: document.uuid, documentId: handle.documentId }, '[AUTOMERGE]::[Document Found]');
 
-  logger.info({ uuid }, '[END]::GetDraftManifestFromUuid');
-  return document.manifest;
-};
+//   logger.info({ uuid }, '[END]::GetDraftManifestFromUuid');
+//   return document.manifest;
+// };
 
-export const getDraftManifest = async function (node: Node) {
-  return getDraftManifestFromUuid(node.uuid as NodeUuid);
-};
+// export const getDraftManifest = async function (node: Node) {
+//   return getDraftManifestFromUuid(node.uuid as NodeUuid);
+// };
 
-export const getLatestManifestFromNode = async (node: Node) => {
-  logger.info({ uuid: node.uuid }, 'START [getLatestManifestFromNode]');
-  let manifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
-  if (!manifest) {
-    const publishedManifest = await getManifestFromNode(node);
-    manifest = publishedManifest.manifest;
-  }
-  return manifest;
-};
+// export const getLatestManifestFromNode = async (node: Node) => {
+//   logger.info({ uuid: node.uuid }, 'START [getLatestManifestFromNode]');
+//   let manifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
+//   if (!manifest) {
+//     const publishedManifest = await getManifestFromNode(node);
+//     manifest = publishedManifest.manifest;
+//   }
+//   return manifest;
+// };
 
 export function assertNever(value: never) {
   console.error('Unknown value', value);

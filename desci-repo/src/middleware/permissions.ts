@@ -1,4 +1,3 @@
-import { User } from '@prisma/client';
 import { NextFunction, Request as ExpressRequest, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
@@ -54,7 +53,7 @@ export const extractAuthToken = async (request: ExpressRequest | Request) => {
 /**
  * Attempt to retrieve user from JWT Authorisation token
  */
-export const extractUserFromToken = async (token: string): Promise<User | null> => {
+export const extractUserFromToken = async (token: string): Promise<any | null> => {
   return new Promise(async (resolve, reject) => {
     if (!token) {
       resolve(null);

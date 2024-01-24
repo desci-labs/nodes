@@ -1,15 +1,23 @@
-import { Node, User } from '@prisma/client';
+// import { Node, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
-import { prisma } from '../client.js';
-
-// import { CustomError } from '../utils/response/custom-error/CustomError';
 import { extractAuthToken, extractUserFromToken } from './permissions.js';
 import { logger } from '../logger.js';
 import { hideEmail } from '../services/user.js';
+import { query } from '../db/index.js';
+
+export type Node = {
+  id: number;
+  title: string;
+  cid: string;
+  ownerId: number;
+  uuid: string | null;
+  manifestUrl: string;
+  manifestDocumentId: string;
+};
 
 export interface RequestWithUser extends Request {
-  user: User;
+  user: { email: string; id: number };
 }
 
 export interface RequestWithNode extends RequestWithUser {
@@ -37,7 +45,9 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
   }
   logger.info('[EnsureNodeAccess]:: => ', { email: hideEmail(user.email), uuid });
 
-  const node = await prisma.node.findFirst({ where: { uuid: uuid + '.', ownerId: user.id } });
+  const rows = await query('SELECT * FROM "Node" WHERE uuid = $1 AND ownerId = $2');
+  console.log('SELECT USER NODE', rows);
+  const node = rows[0];
 
   if (!node) {
     logger.info({ module: 'GetNodeDocument' }, `Node not found ${req.params}`);

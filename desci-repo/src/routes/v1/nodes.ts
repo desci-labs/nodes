@@ -3,14 +3,11 @@ import {
   createNodeDocument,
   dispatchDocumentChange,
   getLatestNodeManifest,
-  getNodeDocument,
 } from '../../controllers/nodes/documents.js';
 import { ensureApiKey } from '../../middleware/ensureApiKey.js';
-import { ensureNodeAccess } from '../../middleware/guard.js';
 
 const router = Router();
 
-// router.get('/documents/:uuid', [ensureNodeAccess], getNodeDocument);
 router.get('/documents/draft/:uuid', [ensureApiKey], getLatestNodeManifest);
 router.post('/documents/dispatch', [ensureApiKey], dispatchDocumentChange);
 router.post('/documents', [ensureApiKey], createNodeDocument);

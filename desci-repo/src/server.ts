@@ -1,5 +1,4 @@
 // @ts-check
-import fs from 'fs';
 import express from 'express';
 import type { Express, Request } from 'express';
 import cors from 'cors';
@@ -10,7 +9,6 @@ import 'reflect-metadata';
 import path from 'path';
 
 import * as Sentry from '@sentry/node';
-import * as Tracing from '@sentry/tracing';
 import type { Server as HttpServer } from 'http';
 import { v4 } from 'uuid';
 
@@ -22,7 +20,6 @@ import { socket as wsSocket } from './repo.js';
 import { logger } from './logger.js';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import { pinoHttp } from 'pino-http';
-import { prisma } from './client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -175,7 +172,7 @@ class AppServer {
       Sentry.init({
         dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
         release: 'desci-nodes-server@' + process.env.npm_package_version,
-        integrations: [new Tracing.Integrations.Prisma({ client: prisma })],
+        integrations: [],
         // Set tracesSampleRate to 1.0 to capture 100%
         // of transactions for performance monitoring.
         // We recommend adjusting this value in production
