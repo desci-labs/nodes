@@ -19,7 +19,7 @@ export async function revokeApiKey(req: Request, res: Response<RevokeApiKeyRespo
   });
 
   try {
-    const { memo } = req.body.memo;
+    const { memo } = req.body;
     logger.trace({ memo }, '[API KEY] revoke API key');
     const userId = (req as any).user.id;
 

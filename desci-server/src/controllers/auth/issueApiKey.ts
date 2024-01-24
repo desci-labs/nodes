@@ -21,7 +21,7 @@ export async function issueApiKey(req: Request, res: Response<IssueApiKeyRespons
   logger.trace({}, '[API KEY] Issue API key');
 
   try {
-    const { memo, magicToken } = req.body.memo;
+    const { memo, magicToken } = req.body;
     const user = (req as any).user;
     const createdIp = req.ip;
 
