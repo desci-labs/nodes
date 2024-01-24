@@ -2,9 +2,6 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-
-import { generateApiKey, hashApiKey } from './utils.js';
-
 interface RevokeApiKeyResponse {
   ok: boolean;
   memo?: string;
@@ -29,6 +26,7 @@ export async function revokeApiKey(req: Request, res: Response<RevokeApiKeyRespo
       where: {
         userId: userId,
         memo: memo,
+        isActive: true,
       },
     });
 
@@ -45,7 +43,7 @@ export async function revokeApiKey(req: Request, res: Response<RevokeApiKeyRespo
     });
 
     logger.trace({ memo }, 'Successfully revoked API key');
-    return res.status(201).json({ ok: true, memo });
+    return res.status(200).json({ ok: true, memo });
   } catch (error) {
     logger.error('Error revoking API key:', error);
     return res.status(500).json({ ok: false, error: 'Internal Server Error' });
