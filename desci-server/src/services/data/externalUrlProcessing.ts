@@ -1,5 +1,6 @@
 import fs from 'fs';
 
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   DrivePath,
   IpfsPinnedResult,
@@ -249,6 +250,7 @@ export async function processExternalUrlDataToIpfs({
     try {
       const response = await repoService.dispatchAction({
         uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId as DocumentId,
         actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
       });
       if (response) {

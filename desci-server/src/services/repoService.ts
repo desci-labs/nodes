@@ -33,7 +33,7 @@ class RepoService {
     });
   }
 
-  async dispatchAction(arg: { uuid: NodeUuid | string; actions: ManifestActions[] }) {
+  async dispatchAction(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
     logger.info({ arg }, 'Disatch Changes');
     const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
       `${this.baseUrl}/v1/nodes/documents/dispatch`,
@@ -48,7 +48,7 @@ class RepoService {
     }
   }
 
-  async initDraftDocument(arg: { uuid: NodeUuid; manifest: ResearchObjectV1 }) {
+  async initDraftDocument(arg: { uuid: string; manifest: ResearchObjectV1 }) {
     logger.info({ arg }, 'Create Draft');
     try {
       const response = await this.#client.post<
@@ -68,7 +68,6 @@ class RepoService {
 
   async getDraftDocument(arg: { uuid: NodeUuid }) {
     logger.info({ arg }, 'Retrieve Draft Document');
-    // try {} catch (err) {}
     try {
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
         `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}`,

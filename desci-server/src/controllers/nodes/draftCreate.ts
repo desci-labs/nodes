@@ -128,6 +128,9 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
 
     const documentId = result.documentId;
     const document = result.document;
+
+    await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: documentId } });
+
     logger.info({ uuid: node.uuid, documentId }, 'Automerge document created');
 
     res.send({

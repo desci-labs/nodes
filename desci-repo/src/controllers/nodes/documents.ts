@@ -6,7 +6,7 @@ import { logger } from '../../logger.js';
 import { AnyDocumentId, AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import { RequestWithNode } from '../../middleware/guard.js';
 import { backendRepo } from '../../repo.js';
-import { ManifestActions, NodeUuid, getAutomergeUrl, getNodeManifestUpdater } from '../../services/manifestRepo.js';
+import { ManifestActions, NodeUuid, getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
 
 const getNodeDocument = async function (req: RequestWithNode, res: Response) {
   try {
@@ -92,16 +92,7 @@ const createNodeDocument = async function (req: Request, res: Response) {
 
     logger.info('[Backend REPO]:', backendRepo.networkSubsystem.peerId);
 
-    const node = await prisma.node.findFirst({
-      where: { uuid },
-    });
-
-    if (!node) {
-      res.status(400).send({ ok: false, message: `Node with uuid ${uuid} not found!` });
-      return;
-    }
-
-    uuid = node.uuid.replace(/\.$/, '');
+    uuid = uuid.endsWith('.') ? uuid.slice(0, -1) : uuid;
     const handle = backendRepo.create<ResearchObjectDocument>();
     handle.change(
       (d) => {
@@ -114,7 +105,7 @@ const createNodeDocument = async function (req: Request, res: Response) {
 
     const document = await handle.doc();
 
-    await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
+    // await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
 
     logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
 
@@ -162,24 +153,26 @@ const getLatestNodeManifest = async function (req: Request, res: Response) {
 export const dispatchDocumentChange = async function (req: RequestWithNode, res: Response) {
   logger.info({ params: req.params }, 'START [getLatestNodeManifest]');
   try {
-    if (!(req.body.uuid && req.body.actions)) {
+    if (!(req.body.uuid && req.body.documentId && req.body.actions)) {
       res.status(400).send({ ok: false, message: 'Invalid data' });
       return;
     }
 
+    // TODO: consider updating the title using the uuid if necessary
     const uuid = (req.body.uuid as string).endsWith('.') ? req.body.uuid : req.body.uuid + '.';
-    const node = await prisma.node.findFirst({
-      where: {
-        uuid,
-      },
-    });
+    // const node = await prisma.node.findFirst({
+    //   where: {
+    //     uuid,
+    //   },
+    // });
 
-    if (!node) {
-      res.status(400).send({ ok: false, message: 'Research Node not found' });
-      return;
-    }
+    // if (!node) {
+    //   res.status(400).send({ ok: false, message: 'Research Node not found' });
+    //   return;
+    // }
 
     const actions = req.body.actions as ManifestActions[];
+    const documentId = req.body.documentId as DocumentId;
 
     if (!(actions && actions.length > 0)) {
       res.status(400).send({ ok: false, message: 'No actions to dispatch' });
@@ -188,7 +181,7 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
 
     let document: ResearchObjectDocument;
 
-    const dispatchChange = getNodeManifestUpdater(node);
+    const dispatchChange = getDocumentUpdater(documentId);
 
     for (const action of actions) {
       logger.info({ action }, '[AUTOMERGE]::[dispatch Update]');

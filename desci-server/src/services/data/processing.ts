@@ -1,3 +1,4 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   DEFAULT_COMPONENT_TYPE,
   DrivePath,
@@ -169,6 +170,7 @@ export async function processS3DataToIpfs({
     try {
       await repoService.dispatchAction({
         uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId as DocumentId,
         actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
       });
       // await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
@@ -269,6 +271,7 @@ export async function processNewFolder({
       // ltsManifest = await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
       const response = await repoService.dispatchAction({
         uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId as DocumentId,
         actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
       });
       if (response?.manifest) {
@@ -677,6 +680,7 @@ export async function assignTypeMapInManifest(
       const prevComponent = manifest.components[componentIndex];
       document = await repoService.dispatchAction({
         uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId as DocumentId,
         actions: [
           {
             type: 'Assign Component Type',
@@ -699,6 +703,7 @@ export async function assignTypeMapInManifest(
       };
       document = await repoService.dispatchAction({
         uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId as DocumentId,
         actions: [{ type: 'Add Components', components: [component] }],
       });
     }

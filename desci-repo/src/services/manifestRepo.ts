@@ -104,8 +104,8 @@ export type ManifestActions =
     }
   | { type: 'Set Drive Clock'; time: string };
 
-export const getNodeManifestUpdater = (node: Node) => {
-  const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
+export const getDocumentUpdater = (documentId: DocumentId) => {
+  const automergeUrl = getAutomergeUrl(documentId);
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
 
   return async (action: ManifestActions) => {
@@ -113,7 +113,7 @@ export const getNodeManifestUpdater = (node: Node) => {
     let latestDocument = await handle.doc();
 
     if (!latestDocument) {
-      logger.error({ node: node.manifestDocumentId, nodeUUid: node.uuid }, 'Automerge document not found');
+      logger.error({ node: documentId }, 'Automerge document not found');
       throw new Error('Automerge Document Not found');
     }
 

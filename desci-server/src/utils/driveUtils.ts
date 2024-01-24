@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   DEFAULT_COMPONENT_TYPE,
   DrivePath,
@@ -431,6 +432,7 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
     logger.info({ uuid: node.uuid, actions }, '[AddComponentsToDraftManifest]');
     const response = await repoService.dispatchAction({
       uuid: node.uuid as NodeUuid,
+      documentId: node.manifestDocumentId as DocumentId,
       actions,
     });
     logger.info({ actions, response }, '[AddComponentsToDraftManifest]');

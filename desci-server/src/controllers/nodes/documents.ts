@@ -1,9 +1,11 @@
 import { Response } from 'express';
 
+import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
+import { getLatestManifest } from '../data/utils.js';
 // import { ResearchObjectDocument } from '../../types/documents.js';
 // import { backendRepo } from '../../repo.js';
 
@@ -14,18 +16,25 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
     // const repo = backendRepo;
 
     const node = req.node;
-    if (!node) {
-      logger.info({ module: 'GetNodeDocument' }, 'Node not found', 'Request Params', req.params);
-      response.status(400).send({ ok: false, message: `Node with uuid ${req.params.uuid} not found!` });
-      return;
+
+    const manifest = await getLatestManifest(node.uuid, req.query?.g as string, node);
+
+    if (!node.manifestDocumentId) {
+      const result = await repoService.initDraftDocument({ uuid: node.uuid, manifest });
+
+      if (!result) {
+        logger.error({ result, uuid: node.uuid }, 'Automerge document Creation Error');
+        response.status(400).send({ ok: false, message: 'Could not intialize new draft document' });
+        return;
+      }
+
+      await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: result.documentId } });
+
+      response.status(200).send({ documentId: result.document, document: result.document });
+    } else {
+      const document = await repoService.getDraftDocument({ uuid: node.uuid as NodeUuid });
+      response.status(200).send({ documentId: node.manifestDocumentId, document });
     }
-
-    // const uuid = node.uuid.replace(/\.$/, '');
-    // let documentId = node.manifestDocumentId;
-    // let document: ResearchObjectDocument | null = null;
-
-    const document = await repoService.getDraftDocument({ uuid: node.uuid as NodeUuid });
-
     // if (!documentId || documentId == '') {
     //   logger.info({ uuid, query: req?.query?.g, node }, 'Before GetLatestManifest');
     //   const manifest = await getLatestManifest(uuid, req.query?.g as string, node);
@@ -73,7 +82,6 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
     //   document = await handle.doc();
     // }
     // logger.info({ documentId, document }, 'End GetDocumentId');
-    response.status(200).send({ documentId: node.manifestDocumentId, document });
   } catch (err) {
     logger.error({ err }, 'Creating new document Error', req.body, err);
 

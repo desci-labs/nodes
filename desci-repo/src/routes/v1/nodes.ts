@@ -10,7 +10,7 @@ import { ensureNodeAccess } from '../../middleware/guard.js';
 
 const router = Router();
 
-router.get('/documents/:uuid', [ensureNodeAccess], getNodeDocument);
+// router.get('/documents/:uuid', [ensureNodeAccess], getNodeDocument);
 router.get('/documents/draft/:uuid', [ensureApiKey], getLatestNodeManifest);
 router.post('/documents/dispatch', [ensureApiKey], dispatchDocumentChange);
 router.post('/documents', [ensureApiKey], createNodeDocument);

@@ -1,3 +1,4 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   FileType,
   RecursiveLsResult,
@@ -213,6 +214,7 @@ export async function processExternalCidDataToIpfs({
       // await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
       const response = await repoService.dispatchAction({
         uuid: node.uuid,
+        documentId: node.manifestDocumentId as DocumentId,
         actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
       });
       logger.info({ response }, '[SET DRIVE CLOCK RESPONSE]');

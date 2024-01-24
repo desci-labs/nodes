@@ -1,3 +1,4 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DataType, Node, Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
@@ -131,6 +132,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
     try {
       const response = await repoService.dispatchAction({
         uuid,
+        documentId: node.manifestDocumentId as DocumentId,
         actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
       });
       if (response?.manifest) {
@@ -160,6 +162,7 @@ export async function deleteComponentsFromManifest({ node, pathsToDelete }: Upda
   parentLogger.info({ pathsToDelete }, `deleteComponentsFromManifest:`);
   const response = await repoService.dispatchAction({
     uuid: node.uuid,
+    documentId: node.manifestDocumentId as DocumentId,
     actions: [{ type: 'Delete Components', pathsToDelete }],
   });
 

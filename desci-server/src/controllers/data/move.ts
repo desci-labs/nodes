@@ -1,4 +1,5 @@
-import { ResearchObjectV1, ResearchObjectV1Component, isNodeRoot, neutralizePath } from '@desci-labs/desci-models';
+import { DocumentId } from '@automerge/automerge-repo';
+import { ResearchObjectV1, neutralizePath } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import { Request, Response } from 'express';
 
@@ -108,6 +109,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     try {
       const response = await repoService.dispatchAction({
         uuid,
+        documentId: node.manifestDocumentId as DocumentId,
         actions: [{ type: 'Rename Component Path', oldPath, newPath }],
       });
       updatedManifest = response ? response.manifest : await getLatestManifestFromNode(node);
@@ -172,6 +174,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     try {
       const res = await repoService.dispatchAction({
         uuid,
+        documentId: node.manifestDocumentId as DocumentId,
         actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
       });
       if (res && res.manifest) {

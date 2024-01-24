@@ -1,3 +1,4 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import { ResearchObjectV1, neutralizePath } from '@desci-labs/desci-models';
 import { DataType, Node } from '@prisma/client';
 import { Request, Response } from 'express';
@@ -69,6 +70,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     try {
       const response = await repoService.dispatchAction({
         uuid,
+        documentId: node.manifestDocumentId as DocumentId,
         actions: [{ type: 'Rename Component Path', oldPath: path, newPath }],
       });
       // dispatchChange({ type: 'Rename Component Path', oldPath: path, newPath });
@@ -109,6 +111,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       try {
         const response = await repoService.dispatchAction({
           uuid,
+          documentId: node.manifestDocumentId as DocumentId,
           actions: [{ type: 'Rename Component', path: newPath, fileName }],
         });
         // updatedManifest = await dispatchChange({ type: 'Rename Component', path: newPath, fileName });
@@ -178,6 +181,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       // updatedManifest = await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
       const response = await repoService.dispatchAction({
         uuid,
+        documentId: node.manifestDocumentId as DocumentId,
         actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
       });
       updatedManifest = response?.manifest;
