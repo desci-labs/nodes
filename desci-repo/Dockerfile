@@ -2,7 +2,7 @@ FROM node:16.20.0-bookworm
 
 VOLUME /root/.yarn
 
-RUN npm install -g npm@8.10.0
+RUN npm install -g npm@9.8.1
 
 RUN mkdir /app
 WORKDIR /app
