@@ -22,7 +22,7 @@ class RepoService {
     this.baseUrl = process.env.REPO_SERVER_URL;
 
     if (!this.#apiKey || !this.baseUrl) {
-      throw new Error('[REPO SERVICE]: Base url or api key missing');
+      throw new Error('[REPO SERVICE]: env.REPO_SERVER_URL or env.REPO_SERVICE_SECRET_KEY missing');
     }
 
     logger.info({ url: this.baseUrl }, 'Init Repo Service');
