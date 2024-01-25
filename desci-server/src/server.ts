@@ -160,7 +160,7 @@ class AppServer {
     this.app.get('/version', (req, res) => {
       const revision = child.execSync('git rev-parse HEAD').toString().trim();
       // const sha256 = child.execSync('find /app/desci-server/dist -type f -exec sha256sum \\;').toString().trim();
-      res.status(200).json({ revision });
+      res.status(200).json({ revision, npm: process.env.npm_package_version });
     });
     this.app.get('/id', (req, res) => {
       res.status(200).json({ id: serverUuid, affinity: req.cookies['stickie-dev-ingress61'] });
