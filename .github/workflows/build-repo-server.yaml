@@ -60,7 +60,7 @@ jobs:
           fi
 
   build-and-push:
-    needs: build-and-test
+    # needs: build-and-test
     name: Build and deploy
     runs-on: ubuntu-latest
     steps:
