@@ -32,7 +32,7 @@ export const ceramicPublish = async (
   modifiedObject: PrepublishResponse,
   history: History,
   seed: string,
-): Promise<string> => {
+): Promise<NodeIDs> => {
   console.log("[DEBUG]::CERAMIC starting publish...");
   const ceramic = await authenticatedCeramicClient(seed);
   const compose = newComposeClient({ ceramic });
@@ -47,7 +47,7 @@ export const ceramicPublish = async (
     console.log(
       `[DEBUG]::CERAMIC successfully updated ${ro.streamID} with commit ${ro.commitID}`
     );
-    return ro.streamID;
+    return { streamID: ro.streamID, commitID: ro.commitID };
   };
 
   if (history.versions.length === 0) {
@@ -59,13 +59,12 @@ export const ceramicPublish = async (
     console.log(
       `[DEBUG]::CERAMIC published to new stream ${ro.streamID} with commit ${ro.commitID}`
     );
-    return ro.streamID;
+    return { streamID: ro.streamID, commitID: ro.commitID };
   } else {
     console.log("[DEBUG]::CERAMIC backfilling new stream to mirror history...");
     const streamID = await backfillNewStream(compose, history.versions);
     console.log("[DEBUG]::CERAMIC backfill done, recursing to append latest event...");
-    await ceramicPublish(modifiedObject, { existingStream: streamID, versions: history.versions }, seed);
-    return streamID;
+    return await ceramicPublish(modifiedObject, { existingStream: streamID, versions: history.versions }, seed);
   };
 };
 
