@@ -18,6 +18,7 @@ export interface PrepublishSuccessResponse {
   updatedManifestCid: string;
   updatedManifest: ResearchObjectV1;
   version?: NodeVersion;
+  ceramicStream?: string;
 }
 
 export interface PrepublishErrorResponse {
@@ -39,6 +40,7 @@ export const prepublish = async (req: RequestWithNode, res: Response<PrepublishR
     body: req.body,
     uuid,
     user: (req as any).user,
+    ceramicStream: node.ceramicStream,
   });
   if (!uuid) {
     return res.status(400).json({ ok: false, error: 'UUID is required.' });
@@ -89,6 +91,7 @@ export const prepublish = async (req: RequestWithNode, res: Response<PrepublishR
       updatedManifestCid: persistedManifestCid,
       updatedManifest: updatedManifest,
       version: nodeVersion,
+      ceramicStream: node.ceramicStream,
     });
   } catch (err) {
     logger.error({ err }, '[prepublish::prepublish] node-pre-publish-err');

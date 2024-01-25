@@ -131,13 +131,22 @@ services:
       # EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE: synced
 
   ipfs:
-    image: ipfs/go-ipfs:v0.13.0
+    image: ipfs/kubo:v0.24.0
     container_name: "ipfs"
     environment:
       IPFS_SWARM_KEY: "/key/swarm/psk/1.0.0/\n/base16/\n9d002c50635a479d29dcc0ccb49d862952a0dcc52baddd253167adcd496c8d04"
     ports:
       - "5001:5001"
       - "8089:8080"
+    command:
+      # These are defaults from the go-ipfs dockerfile CMD
+      - "daemon"
+      - "--migrate=true"
+      - "--agent-version-suffix=docker"
+      # This is necessary before ceramic ships Recon, the new tip gossip protocol
+      - "--enable-pubsub-experiment"
+    extra_hosts:
+      - host.docker.internal:host-gateway
     volumes:
       - ./local-data/ipfs:/data/ipfs
     healthcheck:
@@ -155,6 +164,25 @@ services:
     volumes:
       - ./local-data/redis:/data
 
+  ceramic:
+    image: ceramicnetwork/js-ceramic:3.2.0
+    container_name: ceramic
+    ports:
+      - "7007:7007"
+    environment:
+      NODE_ENV: production
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./local-data/ceramic/statestore:/root/.ceramic/statestore
+      - ./.ceramicDev.config.json:/root/.ceramic/daemon.config.json
+    depends_on:
+      ipfs:
+        condition:
+          service_healthy
+      db_postgres:
+        condition:
+          service_healthy
 
   # desci_nodes_backend_test:
   #   container_name: 'be_test_boilerplate'
