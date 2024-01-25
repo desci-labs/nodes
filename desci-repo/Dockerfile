@@ -6,7 +6,6 @@ RUN npm install -g npm@8.10.0
 
 RUN mkdir /app
 WORKDIR /app
-RUN mkdir /app/desci-repo/repo-tmp
 RUN mkdir /app/repo-tmp
 
 COPY . .
