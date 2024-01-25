@@ -8,4 +8,5 @@ apt-get add --update bash
 mkdir -p /app/desci-repo/repo-tmp
 chmod -R 777 /app/desci-repo/repo-tmp
 cd desci-repo
-yarn dev
+yarn build
+yarn start
