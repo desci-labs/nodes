@@ -1,3 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: desci-repo-server-dev-service
+  labels:
+    App: DesciRepoServerDev
+spec:
+  type: ClusterIP
+  selector:
+    App: DesciRepoServerDev
+  ports:
+    - name: server-api
+      port: 5484
+      targetPort: 5484
+    - name: ws-api
+      port: 5445
+      targetPort: 5445
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
