@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   DEFAULT_COMPONENT_TYPE,
   DrivePath,
@@ -21,7 +22,8 @@ import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
-import { getNodeManifestUpdater } from '../services/manifestRepo.js';
+import { ManifestActions, NodeUuid } from '../services/manifestRepo.js';
+import repoService from '../services/repoService.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
@@ -377,7 +379,17 @@ export interface FirstNestingComponent {
   star?: boolean;
   externalUrl?: string;
 }
-export function addComponentsToManifest(manifest: ResearchObjectV1, firstNestingComponents: FirstNestingComponent[]) {
+
+/**
+ * This function is used to manually update the manifest document by mutating it in playce
+ * @param manifest ResearchObjectV1
+ * @param firstNestingComponents array of components to add to manifest
+ * @returns updated manifest object with newly added components
+ */
+export function DANGEROUSLY_addComponentsToManifest(
+  manifest: ResearchObjectV1,
+  firstNestingComponents: FirstNestingComponent[],
+) {
   //add duplicate path check
   firstNestingComponents.forEach((c) => {
     const comp = {
@@ -398,11 +410,9 @@ export function addComponentsToManifest(manifest: ResearchObjectV1, firstNesting
 }
 
 export async function addComponentsToDraftManifest(node: Node, firstNestingComponents: FirstNestingComponent[]) {
-  const manifestUpdater = getNodeManifestUpdater(node);
-  let updatedManifest: ResearchObjectV1;
   //add duplicate path check
-  for (const entry of firstNestingComponents) {
-    const component = {
+  const components = firstNestingComponents.map((entry) => {
+    return {
       id: randomUUID(),
       name: entry.name,
       ...(entry.componentType && { type: entry.componentType }),
@@ -414,24 +424,34 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
       },
       starred: entry.star || false,
     };
-    try {
-      updatedManifest = await manifestUpdater({ type: 'Add Component', component });
-    } catch (e) {
-      logger.error(e, '[ERROR addComponentsToDraftManifest]');
-    }
+  });
+
+  const actions: ManifestActions[] = [{ type: 'Add Components', components }];
+  try {
+    // updatedManifest = await manifestUpdater({ type: 'Add Components', components });
+    logger.info({ uuid: node.uuid, actions }, '[AddComponentsToDraftManifest]');
+    const response = await repoService.dispatchAction({
+      uuid: node.uuid as NodeUuid,
+      documentId: node.manifestDocumentId as DocumentId,
+      actions,
+    });
+    logger.info({ actions, response }, '[AddComponentsToDraftManifest]');
+    return response?.manifest;
+  } catch (err) {
+    logger.error({ err, actions }, '[ERROR addComponentsToDraftManifest]');
+    return null;
   }
-  return updatedManifest;
 }
 
 export type oldCid = string;
 export type newCid = string;
-export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
-  manifest.components.forEach((c) => {
-    if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
-    if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
-  });
-  return manifest;
-}
+// export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
+//   manifest.components.forEach((c) => {
+//     if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
+//     if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
+//   });
+//   return manifest;
+// }
 
 export type ExternalCidMap = Record<string, { size: number; path: string; directory: boolean }>;
 

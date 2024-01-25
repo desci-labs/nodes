@@ -1,3 +1,4 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DataType, Node, Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
@@ -5,7 +6,8 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getLatestDriveTime } from '../../services/draftTrees.js';
-import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../../services/manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import repoService from '../../services/repoService.js';
 
 import { ErrorResponse } from './update.js';
 import { persistManifest } from './utils.js';
@@ -42,7 +44,6 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
   }
 
   const latestManifest = await getLatestManifestFromNode(node);
-  const dispatchChange = getNodeManifestUpdater(node);
 
   try {
     /**
@@ -128,14 +129,25 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      const response = await repoService.dispatchAction({
+        uuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      if (response?.manifest) {
+        updatedManifest = response.manifest;
+      }
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
 
     return res.status(200).json({
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
-    console.log('[START deleteComponentsFromManifest]::', e);
+    console.log('[ERROR]::[DeleteComponentsFromManifest]::', e);
     logger.error(e, `DATA::Delete error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
@@ -147,8 +159,12 @@ interface UpdatingManifestParams {
 }
 
 export async function deleteComponentsFromManifest({ node, pathsToDelete }: UpdatingManifestParams) {
-  const manifestUpdater = getNodeManifestUpdater(node);
   parentLogger.info({ pathsToDelete }, `deleteComponentsFromManifest:`);
-  const updatedManifest = await manifestUpdater({ type: 'Delete Components', pathsToDelete });
-  return updatedManifest;
+  const response = await repoService.dispatchAction({
+    uuid: node.uuid,
+    documentId: node.manifestDocumentId as DocumentId,
+    actions: [{ type: 'Delete Components', pathsToDelete }],
+  });
+
+  return response?.manifest;
 }

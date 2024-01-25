@@ -19,8 +19,9 @@ import {
   downloadSingleFile,
   updateManifestAndAddToIpfs,
 } from '../../services/ipfs.js';
-import { createManifestDocument } from '../../services/manifestRepo.js';
+import { NodeUuid } from '../../services/manifestRepo.js';
 import { createNodeDraftBlank } from '../../services/nodeManager.js';
+import repoService from '../../services/repoService.js';
 import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
 import { randomUUID64 } from '../../utils.js';
 
@@ -117,13 +118,20 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
     const nodeCopy = Object.assign({}, node);
     nodeCopy.uuid = nodeCopy.uuid.replace(/\.$/, '');
 
-    let documentId: DocumentId;
-    try {
-      documentId = await createManifestDocument({ node, manifest: researchObject });
-      logger.info({ uuid: node.uuid, documentId }, 'Automerge document created');
-    } catch (e) {
-      logger.error({ e, researchObject, uuid: node.uuid }, 'Automerge document Creation Error');
+    const result = await repoService.initDraftDocument({ uuid: node.uuid as NodeUuid, manifest: researchObject });
+
+    if (!result) {
+      logger.error({ researchObject, uuid: node.uuid }, 'Automerge document Creation Error');
+      res.status(400).send({ ok: false, message: 'Could not intialize new draft document' });
+      return;
     }
+
+    const documentId = result.documentId;
+    const document = result.document;
+
+    await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: documentId } });
+
+    logger.info({ uuid: node.uuid, documentId }, 'Automerge document created');
 
     res.send({
       ok: true,
@@ -132,6 +140,7 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
       node: nodeCopy,
       version: nodeVersion,
       documentId,
+      document,
     });
     return;
   } catch (err) {

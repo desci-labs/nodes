@@ -2,18 +2,17 @@ import { Doc, getHeads } from '@automerge/automerge';
 import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import {
   ResearchObjectComponentTypeMap,
-  ResearchObjectV1,
   ResearchObjectV1Component,
   isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 
-import { prisma } from '../client.js';
 import { logger } from '../logger.js';
 import { backendRepo } from '../repo.js';
 import { ResearchObjectDocument } from '../types/documents.js';
 
 import { getManifestFromNode } from './data/processing.js';
+import repoService from './repoService.js';
 
 export type NodeUuid = string & { _kind: 'uuid' };
 
@@ -21,60 +20,61 @@ export const getAutomergeUrl = (documentId: DocumentId): AutomergeUrl => {
   return `automerge:${documentId}` as AutomergeUrl;
 };
 
-export const createManifestDocument = async function ({ node, manifest }: { node: Node; manifest: ResearchObjectV1 }) {
-  logger.info({ uuid: node.uuid }, 'START [CreateNodeDocument]');
-  const uuid = node.uuid.replace(/\.$/, '');
-  // const backendRepo = server.repo;
-  logger.info('[Backend REPO]:', backendRepo.networkSubsystem.peerId);
+// const createManifestDocument = async function ({ node, manifest }: { node: Node; manifest: ResearchObjectV1 }) {
+//   logger.info({ uuid: node.uuid }, 'START [CreateNodeDocument]');
+//   const uuid = node.uuid.replace(/\.$/, '');
+//   // const backendRepo = server.repo;
+//   logger.info('[Backend REPO]:', backendRepo.networkSubsystem.peerId);
 
-  const handle = backendRepo.create<ResearchObjectDocument>();
-  handle.change(
-    (document) => {
-      document.manifest = manifest;
-      document.uuid = uuid;
-      document.driveClock = Date.now().toString();
-    },
-    { message: 'Init Document', time: Date.now() },
-  );
+//   const handle = backendRepo.create<ResearchObjectDocument>();
+//   handle.change(
+//     (document) => {
+//       document.manifest = manifest;
+//       document.uuid = uuid;
+//       document.driveClock = Date.now().toString();
+//     },
+//     { message: 'Init Document', time: Date.now() },
+//   );
 
-  const document = await handle.doc();
-  logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
+//   const document = await handle.doc();
+//   logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
 
-  await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
+//   await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
 
-  logger.info('END [CreateNodeDocument]', { documentId: handle.documentId });
-  return handle.documentId;
-};
+//   logger.info('END [CreateNodeDocument]', { documentId: handle.documentId });
+//   return handle.documentId;
+// };
 
-export const getDraftManifestFromUuid = async function (uuid: NodeUuid) {
-  logger.info({ uuid }, 'START [getDraftManifestFromUuid]');
-  // const backendRepo = server.repo;
-  const node = await prisma.node.findFirst({
-    where: { uuid },
-  });
+// TODO: remove after migration
+// const getDraftManifestFromUuid = async function (uuid: NodeUuid) {
+//   logger.info({ uuid }, 'START [getDraftManifestFromUuid]');
+//   // const backendRepo = server.repo;
+//   const node = await prisma.node.findFirst({
+//     where: { uuid },
+//   });
 
-  if (!node) {
-    throw new Error(`Node with uuid ${uuid} not found!`);
-  }
+//   if (!node) {
+//     throw new Error(`Node with uuid ${uuid} not found!`);
+//   }
 
-  const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
-  const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+//   const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
+//   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
 
-  const document = await handle.doc();
+//   const document = await handle.doc();
 
-  logger.info({ document }, '[AUTOMERGE]::[Document Found]');
+//   logger.info({ uuid: document.uuid, documentId: handle.documentId }, '[AUTOMERGE]::[Document Found]');
 
-  logger.info('END [getDraftManifestFromUuid]', { manifest: document.manifest });
-  return document.manifest;
-};
+//   logger.info({ uuid }, '[END]::GetDraftManifestFromUuid');
+//   return document.manifest;
+// };
 
-export const getDraftManifest = async function (node: Node) {
-  return getDraftManifestFromUuid(node.uuid as NodeUuid);
-};
+// export const getDraftManifest = async function (node: Node) {
+//   return getDraftManifestFromUuid(node.uuid as NodeUuid);
+// };
 
 export const getLatestManifestFromNode = async (node: Node) => {
   logger.info({ uuid: node.uuid }, 'START [getLatestManifestFromNode]');
-  let manifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
+  let manifest = await repoService.getDraftManifest(node.uuid as NodeUuid);
   if (!manifest) {
     const publishedManifest = await getManifestFromNode(node);
     manifest = publishedManifest.manifest;
@@ -88,7 +88,7 @@ export function assertNever(value: never) {
 }
 
 export type ManifestActions =
-  | { type: 'Add Component'; component: ResearchObjectV1Component }
+  | { type: 'Add Components'; components: ResearchObjectV1Component[] }
   | { type: 'Delete Component'; componentId: string }
   | { type: 'Delete Components'; pathsToDelete: string[] }
   | { type: 'Rename Component'; path: string; fileName: string }
@@ -101,14 +101,11 @@ export type ManifestActions =
   | {
       type: 'Assign Component Type';
       component: ResearchObjectV1Component;
-      componentIndex: number;
       componentTypeMap: ResearchObjectComponentTypeMap;
     }
   | { type: 'Set Drive Clock'; time: string };
 
-export const getNodeManifestUpdater = (node: Node) => {
-  // const backendRepo = server.repo;
-
+const getNodeManifestUpdater = (node: Node) => {
   const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
 
@@ -120,17 +117,21 @@ export const getNodeManifestUpdater = (node: Node) => {
     logger.info({ action }, `DocumentUpdater::Dispatched`);
 
     switch (action.type) {
-      case 'Add Component':
-        const exists = latestDocument.manifest.components.find(
-          (c) => c.payload?.path === action.component.payload?.path,
+      case 'Add Components':
+        const uniqueComponents = action.components.filter(
+          (componentToAdd) =>
+            !latestDocument.manifest.components.some((c) => c.payload?.path === componentToAdd.payload?.path),
         );
-        if (exists) break;
-        handle.change(
-          (document) => {
-            document.manifest.components.push(action.component);
-          },
-          { time: Date.now(), message: action.type },
-        );
+        if (uniqueComponents.length > 0) {
+          handle.change(
+            (document) => {
+              uniqueComponents.forEach((component) => {
+                document.manifest.components.push(component);
+              });
+            },
+            { time: Date.now(), message: action.type },
+          );
+        }
         break;
       case 'Rename Component':
         handle.change(
@@ -203,7 +204,7 @@ export const getNodeManifestUpdater = (node: Node) => {
       case 'Assign Component Type':
         handle.change(
           (document) => {
-            updateComponentTypeMap(document, action.componentIndex, action.componentTypeMap);
+            updateComponentTypeMap(document, action.component.payload?.path, action.componentTypeMap);
           },
           { time: Date.now(), message: action.type },
         );
@@ -217,21 +218,12 @@ export const getNodeManifestUpdater = (node: Node) => {
           { time: Date.now(), message: action.type },
         );
         break;
-      // case 'Remove Drive Clock':
-      //   handle.change(
-      //     (document) => {
-      //       delete document.driveClock;
-      //     },
-      //     { time: Date.now(), message: action.type },
-      //   );
-      //   break;
       default:
         assertNever(action);
     }
     latestDocument = await handle.doc();
     const updatedHeads = getHeads(latestDocument);
-    logger.info({ heads: updatedHeads }, `Document`);
-    logger.info({ action, manifest: latestDocument.manifest }, `DocumentUpdater::Exit`);
+    logger.info({ action, heads: updatedHeads }, `DocumentUpdater::Exit`);
     return latestDocument.manifest;
   };
 };
@@ -252,12 +244,12 @@ const updateManifestComponent = (
 
 const updateComponentTypeMap = (
   doc: Doc<ResearchObjectDocument>,
-  componentIndex: number,
+  path: string,
   compTypeMap: ResearchObjectComponentTypeMap,
 ) => {
-  if (componentIndex === -1 || componentIndex === undefined) return;
+  const currentComponent = doc.manifest.components.find((c) => c.payload?.path === path);
+  if (!currentComponent) return;
 
-  const currentComponent = doc.manifest.components[componentIndex];
   const existingType = currentComponent.type;
   if (!isResearchObjectComponentTypeMap(existingType)) {
     currentComponent.type = {};

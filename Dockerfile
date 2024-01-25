@@ -56,9 +56,6 @@ RUN yarn build
 # server api
 EXPOSE 5420
 
-# websocket
-EXPOSE 5445
-
 # prisma studio
 EXPOSE 5555
 

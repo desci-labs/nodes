@@ -14,5 +14,9 @@ chmod -R 777 /app/desci-server/repo-tmp
 cd desci-server
 yarn run migrate
 npx prisma db seed
+
+# update prisma client in desci-repo in case it not initialized properly
+cp node_modules/.prisma/*/* ../desci-repo/node_modules/.prisma/
+
 (npx prisma studio &)
 npm run test:destructive:debug
