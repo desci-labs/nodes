@@ -1,6 +1,7 @@
 // @ts-check
 import 'dotenv/config';
 import 'reflect-metadata';
+import * as child from 'child_process';
 // import fs from 'fs';
 import type { Server as HttpServer } from 'http';
 // import path from 'path';
@@ -155,6 +156,11 @@ class AppServer {
   #attachRouteHandlers() {
     this.app.get('/readyz', (_, res) => {
       res.status(200).json({ status: 'ok' });
+    });
+    this.app.get('/version', (req, res) => {
+      const revision = child.execSync('git rev-parse HEAD').toString().trim();
+      // const sha256 = child.execSync('find /app/desci-server/dist -type f -exec sha256sum \\;').toString().trim();
+      res.status(200).json({ revision });
     });
     this.app.get('/id', (req, res) => {
       res.status(200).json({ id: serverUuid, affinity: req.cookies['stickie-dev-ingress61'] });
