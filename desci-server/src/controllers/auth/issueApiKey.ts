@@ -36,6 +36,18 @@ export async function issueApiKey(req: Request, res: Response<IssueApiKeyRespons
     const newApiKey = generateApiKey();
     const hashedApiKey = hashApiKey(newApiKey);
 
+    // Check if an API key with the same memo was already issued.
+    const existingApiKey = await prisma.apiKey.findFirst({
+      where: {
+        memo: memo,
+        userId: user.id,
+      },
+    });
+    if (!existingApiKey)
+      return res
+        .status(500)
+        .json({ ok: false, error: 'Failed issuing API Key, ensure the memo is unique and wasnt previously used' });
+
     // Store the API key in the database
     const apiKey = await prisma.apiKey.create({
       data: {
@@ -47,8 +59,7 @@ export async function issueApiKey(req: Request, res: Response<IssueApiKeyRespons
       },
     });
 
-    if (!apiKey)
-      return res.status(500).json({ ok: false, error: 'Failed issuing API Key, ensure the memo is unique.' });
+    if (!apiKey) return res.status(500).json({ ok: false, error: 'Failed issuing API Key' });
 
     logger.trace({ memo }, 'Successfully created API key');
     return res.status(201).json({ ok: true, apiKey: newApiKey });

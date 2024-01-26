@@ -183,7 +183,7 @@ model User {
 model ApiKey {
   id         Int       @id @default(autoincrement())
   key        String    @unique
-  memo       String    @unique
+  memo       String
   createdAt  DateTime  @default(now())
   lastUsed   DateTime? @updatedAt
   isActive   Boolean   @default(true)
@@ -191,7 +191,8 @@ model ApiKey {
   lastUsedIp String?
   userId     Int
   user       User      @relation(fields: [userId], references: [id])
-
+  
+  @@unique([memo, userId])
   @@index([userId])
 }
 
