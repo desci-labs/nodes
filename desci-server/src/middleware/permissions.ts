@@ -132,6 +132,11 @@ export const extractUserFromApiKey = async (apiKey: string, ip: string): Promise
       return;
     }
 
+    logger.trace(
+      { module: 'Permissions::extractUserFromApiKey', memo: validKey.memo },
+      'User authenticated via API Key',
+    );
+
     // Bump last used data
     await prisma.apiKey.update({
       where: {

@@ -257,7 +257,6 @@ export async function processNewFolder({
     /**
      * Update drive clock on automerge document
      */
-    debugger;
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
     const manifestUpdater = getNodeManifestUpdater(node);
     await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
