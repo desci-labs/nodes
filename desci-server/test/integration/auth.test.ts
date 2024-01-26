@@ -7,9 +7,10 @@ import supertest from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { generateAccessToken } from '../../src/controllers/auth/magic.js';
+import { app as backendExpress } from '../../src/index.js';
 import { ensureUser } from '../../src/middleware/permissions.js';
 import { magicLinkRedeem, sendMagicLink } from '../../src/services/auth.js';
-import { expectThrowsAsync } from '../util.js';
+import { expectThrowsAsync, testingGenerateMagicCode } from '../util.js';
 
 describe('Magic Link Authentication', () => {
   let user: User;
@@ -40,7 +41,7 @@ describe('Magic Link Authentication', () => {
       it('should not allow generating a magic link within 30 seconds of the last one', async () => {
         await sendMagicLink(user.email, undefined, true);
         await expectThrowsAsync(
-          () => sendMagicLink(user.email),
+          () => sendMagicLink(user.email, undefined, true),
           'A verification code was recently generated. Please wait 30 seconds before requesting another.',
         );
       });
@@ -206,6 +207,26 @@ describe('Auth Middleware', () => {
 
     it('should send 401 if no user is retrieved', async () => {
       const response = await request.get('/test');
+      expect(response.status).to.equal(401);
+    });
+
+    it('should be able to authenticate via a valid API key', async () => {
+      const magicToken = await testingGenerateMagicCode(mockUser.email);
+      const backendRequest = supertest(backendExpress);
+      const apiKeyRes = await backendRequest
+        .post('/v1/auth/apiKey/issue')
+        .set('authorization', `Bearer ${mockToken}`)
+        .send({ memo: 'ApiKey1', magicToken: magicToken })
+        .expect(201);
+      const { apiKey } = apiKeyRes.body;
+
+      const response = await request.get('/test').set('api-key', apiKey);
+
+      expect(response.status).to.equal(200);
+      expect(response.body.email).to.equal(mockUser.email);
+    });
+    it('should fail to authenticate with invalid API key', async () => {
+      const response = await request.get('/test').set('api-key', 'InvalidApiKey');
       expect(response.status).to.equal(401);
     });
   });
