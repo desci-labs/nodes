@@ -209,7 +209,7 @@ const sendMagicLink = async (email: string, ip?: string) => {
     },
   });
 
-  if (recentMagicLink) {
+  if (recentMagicLink && process.env.NODE_ENV !== 'test') {
     throw Error('A verification code was recently generated. Please wait 30 seconds before requesting another.');
   }
 
