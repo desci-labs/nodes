@@ -43,7 +43,7 @@ export async function issueApiKey(req: Request, res: Response<IssueApiKeyRespons
         userId: user.id,
       },
     });
-    if (!existingApiKey)
+    if (existingApiKey)
       return res
         .status(500)
         .json({ ok: false, error: 'Failed issuing API Key, ensure the memo is unique and wasnt previously used' });
