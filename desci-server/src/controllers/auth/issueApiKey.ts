@@ -35,10 +35,6 @@ export async function issueApiKey(req: Request, res: Response<IssueApiKeyRespons
       return res.status(400).json({ ok: false, error: 'Magic Token invalid' });
     }
 
-    // Generate a new API key, and hash it for storage
-    const newApiKey = generateApiKey();
-    const hashedApiKey = hashApiKey(newApiKey);
-
     // Check if an API key with the same memo was already issued.
     const existingApiKey = await prisma.apiKey.findFirst({
       where: {
@@ -48,8 +44,12 @@ export async function issueApiKey(req: Request, res: Response<IssueApiKeyRespons
     });
     if (existingApiKey)
       return res
-        .status(500)
+        .status(400)
         .json({ ok: false, error: 'Failed issuing API Key, ensure the memo is unique and wasnt previously used' });
+
+    // Generate a new API key, and hash it for storage
+    const newApiKey = generateApiKey();
+    const hashedApiKey = hashApiKey(newApiKey);
 
     // Store the API key in the database
     const apiKey = await prisma.apiKey.create({
