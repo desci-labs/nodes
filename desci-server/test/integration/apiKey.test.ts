@@ -30,6 +30,7 @@ describe('API Key Tests', () => {
 
   describe('Issue API Key', () => {
     it('should successfully issue an API key', async () => {
+      debugger;
       const magicToken = testingGenerateMagicCode(mockUser.email);
       const response = await request
         .post('/v1/auth/apiKey/issue')

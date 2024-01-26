@@ -13,6 +13,7 @@ interface IssueApiKeyResponse {
 }
 
 export async function issueApiKey(req: Request, res: Response<IssueApiKeyResponse>) {
+  debugger;
   const logger = parentLogger.child({
     module: 'AUTH::issueApiKeyController',
     body: req.body,
