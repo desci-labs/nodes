@@ -38,7 +38,7 @@ describe('Magic Link Authentication', () => {
 
     describe('Magic Link Rate Limiting', () => {
       it('should not allow generating a magic link within 30 seconds of the last one', async () => {
-        await sendMagicLink(user.email);
+        await sendMagicLink(user.email, undefined, true);
         await expectThrowsAsync(
           () => sendMagicLink(user.email),
           'A verification code was recently generated. Please wait 30 seconds before requesting another.',

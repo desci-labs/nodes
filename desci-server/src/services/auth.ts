@@ -193,7 +193,10 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
   }
 };
 const MAGIC_LINK_COOLDOWN = 5 * 1000; // 5 second
-const sendMagicLink = async (email: string, ip?: string) => {
+/**
+ * @param ignoreTestEnv For testing purposes, ignore the test environment check, this is to be able to test the rate limiting functionality.
+ */
+const sendMagicLink = async (email: string, ip?: string, ignoreTestEnv?: boolean) => {
   email = email.toLowerCase();
 
   // Check for recent magic link generation
@@ -209,7 +212,8 @@ const sendMagicLink = async (email: string, ip?: string) => {
     },
   });
 
-  if (recentMagicLink && process.env.NODE_ENV !== 'test') {
+  const testEnv = process.env.NODE_ENV === 'test' && ignoreTestEnv !== true;
+  if (recentMagicLink && !testEnv) {
     throw Error('A verification code was recently generated. Please wait 30 seconds before requesting another.');
   }
 
