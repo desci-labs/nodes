@@ -12,7 +12,6 @@ describe('API Key Tests', () => {
   let mockUser: User;
   let mockAuthToken: string;
   let request: supertest.SuperTest<supertest.Test>;
-  const testMemo = 'Test';
 
   before(async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
@@ -30,8 +29,8 @@ describe('API Key Tests', () => {
 
   describe('Issue API Key', () => {
     it('should successfully issue an API key', async () => {
-      debugger;
-      const magicToken = testingGenerateMagicCode(mockUser.email);
+      const magicToken = await testingGenerateMagicCode(mockUser.email);
+      const testMemo = 'Test';
       const response = await request
         .post('/v1/auth/apiKey/issue')
         .set('authorization', `Bearer ${mockAuthToken}`)
@@ -43,6 +42,7 @@ describe('API Key Tests', () => {
     });
 
     it('should not issue an API key with an invalid magic token', async () => {
+      const testMemo = 'Test1';
       const response = await request
         .post('/v1/auth/apiKey/issue')
         .set('authorization', `Bearer ${mockAuthToken}`)
@@ -53,13 +53,14 @@ describe('API Key Tests', () => {
       expect(response.body.error).to.equal('Magic Token invalid');
     });
     it('should not issue an API key if unauthenticated', async () => {
+      const testMemo = 'Test2';
       const response = await request
         .post('/v1/auth/apiKey/issue')
         .send({ memo: testMemo, magicToken: 'invalidToken' })
         .expect(401);
     });
     it('should not issue an API key if memo is missing', async () => {
-      const magicToken = testingGenerateMagicCode(mockUser.email);
+      const magicToken = await testingGenerateMagicCode(mockUser.email);
       const response = await request
         .post('/v1/auth/apiKey/issue')
         .set('authorization', `Bearer ${mockAuthToken}`)
@@ -67,35 +68,40 @@ describe('API Key Tests', () => {
         .expect(400);
 
       expect(response.body.ok).to.be.false;
-      expect(response.body.error).to.equal('Magic Token invalid');
+      expect(response.body.error).to.equal('Unique Memo required');
     });
-    it('should not issue an API key memo is not unique', async () => {
-      const magicToken1 = testingGenerateMagicCode(mockUser.email);
+    it('should not issue an API key if memo is not unique', async () => {
+      const sameMemo = 'SameMemo';
+      const magicToken1 = await testingGenerateMagicCode(mockUser.email);
       const response1 = await request
         .post('/v1/auth/apiKey/issue')
         .set('authorization', `Bearer ${mockAuthToken}`)
-        .send({ memo: testMemo, magicToken: magicToken1 })
-        .expect(200);
-      const magicToken2 = testingGenerateMagicCode(mockUser.email);
+        .send({ memo: sameMemo, magicToken: magicToken1 })
+        .expect(201);
+      const magicToken2 = await testingGenerateMagicCode(mockUser.email);
       const response2 = await request
         .post('/v1/auth/apiKey/issue')
         .set('authorization', `Bearer ${mockAuthToken}`)
-        .send({ memo: testMemo, magicToken: magicToken2 })
+        .send({ memo: sameMemo, magicToken: magicToken2 })
         .expect(400);
+      expect(response2.body.ok).to.be.false;
+      expect(response2.body.error).to.equal(
+        'Failed issuing API Key, ensure the memo is unique and wasnt previously used',
+      );
     });
   });
 
   describe('Revoke API Key', () => {
     it('should successfully revoke an API key', async () => {
       const revokeMemo = 'RevokeMe';
-      const magicToken = testingGenerateMagicCode(mockUser.email);
+      const magicToken = await testingGenerateMagicCode(mockUser.email);
       const issue = await request
         .post('/v1/auth/apiKey/issue')
         .set('authorization', `Bearer ${mockAuthToken}`)
         .send({ memo: revokeMemo, magicToken: magicToken })
         .expect(201);
       const response = await request
-        .post('/v1/auth/apiKey/revoke')
+        .delete('/v1/auth/apiKey/revoke')
         .set('authorization', `Bearer ${mockAuthToken}`)
         .send({ memo: revokeMemo })
         .expect(200);
@@ -105,19 +111,19 @@ describe('API Key Tests', () => {
     });
     it('should fail to revoke an API key if unauthenticated', async () => {
       const keyMemo = 'AuthTestKey';
-      const magicToken = testingGenerateMagicCode(mockUser.email);
+      const magicToken = await testingGenerateMagicCode(mockUser.email);
       const issue = await request
         .post('/v1/auth/apiKey/issue')
         .set('authorization', `Bearer ${mockAuthToken}`)
         .send({ memo: keyMemo, magicToken: magicToken })
         .expect(201);
-      const response = await request.post('/v1/auth/apiKey/revoke').send({ memo: keyMemo }).expect(401);
+      const response = await request.delete('/v1/auth/apiKey/revoke').send({ memo: keyMemo }).expect(401);
       expect(response.body.ok).to.be.false;
     });
     it('should fail to revoke an API key if memo is invalid', async () => {
       const invalidMemo = 'InvalidMemo';
       const response = await request
-        .post('/v1/auth/apiKey/revoke')
+        .delete('/v1/auth/apiKey/revoke')
         .set('authorization', `Bearer ${mockAuthToken}`)
         .send({ memo: invalidMemo })
         .expect(400);
@@ -131,16 +137,17 @@ describe('API Key Tests', () => {
     it('should successfully list all active API keys', async () => {
       const apiKeyMemo1 = 'ListTest1';
       const apiKeyMemo2 = 'ListTest2';
-      const magicToken = testingGenerateMagicCode(mockUser.email);
+      const magicToken1 = await testingGenerateMagicCode(mockUser.email);
       await request
         .post('/v1/auth/apiKey/issue')
         .set('authorization', `Bearer ${mockAuthToken}`)
-        .send({ memo: apiKeyMemo1, magicToken: magicToken })
+        .send({ memo: apiKeyMemo1, magicToken: magicToken1 })
         .expect(201);
+      const magicToken2 = await testingGenerateMagicCode(mockUser.email);
       await request
         .post('/v1/auth/apiKey/issue')
         .set('authorization', `Bearer ${mockAuthToken}`)
-        .send({ memo: apiKeyMemo2, magicToken: magicToken })
+        .send({ memo: apiKeyMemo2, magicToken: magicToken2 })
         .expect(201);
 
       const response = await request.get('/v1/auth/apiKey').set('authorization', `Bearer ${mockAuthToken}`).expect(200);

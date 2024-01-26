@@ -13,7 +13,7 @@ interface IssueApiKeyResponse {
 }
 
 export async function issueApiKey(req: Request, res: Response<IssueApiKeyResponse>) {
-  debugger;
+  // debugger;
   const logger = parentLogger.child({
     module: 'AUTH::issueApiKeyController',
     body: req.body,
@@ -29,8 +29,11 @@ export async function issueApiKey(req: Request, res: Response<IssueApiKeyRespons
     if (!memo) return res.status(400).json({ ok: false, error: 'Unique Memo required' });
     if (!magicToken) return res.status(400).json({ ok: false, error: 'Magic Token required' });
 
-    const redeemed = await magicLinkRedeem(user.email, magicToken);
-    if (!redeemed) return res.status(400).json({ ok: false, error: 'Magic Token invalid' });
+    try {
+      const redeemed = await magicLinkRedeem(user.email, magicToken);
+    } catch (error) {
+      return res.status(400).json({ ok: false, error: 'Magic Token invalid' });
+    }
 
     // Generate a new API key, and hash it for storage
     const newApiKey = generateApiKey();

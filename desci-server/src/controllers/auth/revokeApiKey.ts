@@ -30,7 +30,7 @@ export async function revokeApiKey(req: Request, res: Response<RevokeApiKeyRespo
       },
     });
 
-    if (!apiKey) return res.status(500).json({ ok: false, error: 'Invalid API Key, ensure the memo is correct.' });
+    if (!apiKey) return res.status(400).json({ ok: false, error: 'Invalid API Key, ensure the memo is correct.' });
 
     // Update the key to be inactive
     const updatedApiKey = await prisma.apiKey.update({

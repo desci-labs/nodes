@@ -39,7 +39,7 @@ export async function listApiKey(req: Request, res: Response<ListApiKeyResponse>
     });
 
     logger.trace({ apiKeys }, 'Returning users API keys');
-    return res.status(201).json({ ok: true, apiKeys: apiKeys });
+    return res.status(200).json({ ok: true, apiKeys: apiKeys });
   } catch (error) {
     logger.error('Error listing API keys:', error);
     return res.status(500).json({ ok: false, error: 'Internal Server Error' });
