@@ -63,6 +63,7 @@ services:
       - nodes_test_db
     volumes:
       - .:/app/
+      - ./local-data/yarn_cache:/root/.yarn
   # desci_nodes_backend_test:
   #   container_name: 'be_test_boilerplate'
   #   command: echo 'Test container ready'
