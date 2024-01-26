@@ -1,15 +1,18 @@
-// import { prisma } from '../client.js';
 import { query } from '../db/index.js';
+import { logger } from '../logger.js';
 
 export const verifyNodeDocumentAccess = async (userId: number, documentId: string) => {
   try {
-    console.log('START [verifyNodeDocumentAccess]::Node', { userId, documentId });
+    logger.info({ userId, documentId }, 'START [verifyNodeDocumentAccess]::Node');
     const rows = await query('SELECT * FROM "Node" WHERE "manifestDocumentId" = $1 AND "ownerId" = $2', [
       documentId,
       userId,
     ]);
     const node = rows[0];
-    console.log('[verifyNodeDocumentAccess]::Node', node.uuid, node.ownerId, node.manifestDocumentId);
+    logger.info(
+      { uuid: node.uuid, userId, ownerId: node.ownerId, documentId: node.manifestDocumentId },
+      '[verifyNodeDocumentAccess]::Node',
+    );
 
     if (!node) return false;
 

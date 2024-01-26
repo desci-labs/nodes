@@ -2,9 +2,11 @@
 import { Request, Response, NextFunction } from 'express';
 
 import { extractAuthToken, extractUserFromToken } from './permissions.js';
-import { logger } from '../logger.js';
+import { logger as parentLogger } from '../logger.js';
 import { hideEmail } from '../services/user.js';
 import { query } from '../db/index.js';
+
+const logger = parentLogger.child({ module: 'MIDDLEWARE/GUARD' });
 
 export type Node = {
   id: number;
@@ -43,19 +45,17 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
     res.status(400).send({ message: 'Bad Request' });
     return;
   }
-  logger.info('[EnsureNodeAccess]:: => ', { email: hideEmail(user.email), uuid });
 
   const rows = await query('SELECT * FROM "Node" WHERE uuid = $1 AND ownerId = $2');
-  console.log('SELECT USER NODE', rows);
   const node = rows[0];
 
+  logger.info({ email: hideEmail(user.email), uuid, node }, '[EnsureNodeAccess]:: => ');
   if (!node) {
-    logger.info({ module: 'GetNodeDocument' }, `Node not found ${req.params}`);
+    logger.info({ uuid, user }, `Node not found ${req.params}`);
     res.status(401).send({ message: 'Unauthorized' });
     return;
   }
 
   (req as RequestWithNode).node = node;
-  logger.info('END EnsureNodeAccess');
   next();
 };

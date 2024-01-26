@@ -21,7 +21,7 @@ export class PostgresStorageAdapter extends StorageAdapter {
 
     try {
       const result = await query(`SELECT * FROM "${this.tableName}" WHERE key = $1`, [key]);
-      console.log('LOAD DOCUMENT', result.length, key);
+      logger.info({ value: result.length, key }, '[LOAD DOCUMENT]::');
 
       const response = result[0];
       if (!response) return undefined;
@@ -39,14 +39,12 @@ export class PostgresStorageAdapter extends StorageAdapter {
     try {
       logger.info({ action: 'Save', key }, 'PostgresStorageAdaptser::Save');
 
-      const saved = await query(
+      await query(
         `INSERT INTO "${this.tableName}" (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = $2 RETURNING key`,
         [key, Buffer.from(binary)],
       );
-      console.log('[SAVE]', key, saved.length);
     } catch (e) {
-      console.log('[SAVE ERROR]', e);
-      logger.error({ e }, 'PostgresStorageAdapter::Save ==> Error saving document');
+      logger.error({ e, key }, 'PostgresStorageAdapter::Save ==> Error saving document');
     }
   }
 
@@ -56,13 +54,10 @@ export class PostgresStorageAdapter extends StorageAdapter {
     delete this.cache[key];
 
     try {
-      logger.info({ action: 'Remove', key }, 'PostgresStorageAdaptser::Remove');
-
-      const result = await query(`DELETE FROM "${this.tableName}" WHERE key = $1 RETURNING key`, [key]);
-      console.log('[DELETED DOCUMENT]', result.length);
+      logger.info({ action: 'Remove', key }, 'PostgresStorageAdapter::Remove');
+      await query(`DELETE FROM "${this.tableName}" WHERE key = $1 RETURNING key`, [key]);
     } catch (e) {
-      console.log('DELETED DOCUMENT ERROR', key);
-      logger.error({ e }, 'PostgresStorageAdapter::Remove ==> Error deleting document');
+      logger.error({ e, key }, 'PostgresStorageAdapter::Remove ==> Error deleting document');
     }
   }
 
@@ -85,12 +80,11 @@ export class PostgresStorageAdapter extends StorageAdapter {
     const key = getKey(keyPrefix);
     this.cachedKeys(keyPrefix).forEach((key) => delete this.cache[key]);
     try {
-      console.log('DELETE DOCUMENT RANGE', keyPrefix);
+      logger.info({ key, keyPrefix }, 'DELETE DOCUMENT RANGE');
       const result = await query(`DELETE FROM "${this.tableName}" WHERE key LIKE $1 RETURNING key`, [`${key}%`]);
-      console.log('DELETED MANY DOCUMENT', result.length);
+      console.log({ result, key }, 'DELETED MANY RANGE');
     } catch (e) {
-      console.log('DELETE RANGE ERROR', e);
-      logger.error({ keyPrefix, module: 'PostgresStorageAdapter' }, 'DELETE RANGE Keys');
+      logger.error({ keyPrefix, key }, '[DELETE RANGE kEYS]');
     }
   }
 
@@ -100,10 +94,9 @@ export class PostgresStorageAdapter extends StorageAdapter {
   }
 
   private async loadRangeKeys(keyPrefix: string[]): Promise<string[]> {
-    logger.info({ keyPrefix, module: 'PostgresStorageAdapter' }, 'LoadRange Keys');
+    logger.info({ keyPrefix }, 'LoadRange Keys');
     const response = await query(`SELECT key FROM "${this.tableName}" WHERE key LIKE $1`, [`${keyPrefix}%`]);
-    logger.info({ keyPrefix, module: 'PostgresStorageAdapter' }, 'LoadRange Keys');
-    console.log('LOAD RANGE KEYS', response.length);
+    logger.info({ keyPrefix, response: response?.length }, '[LOADED RANGE Keys]');
 
     return response.map((row) => row.key);
   }

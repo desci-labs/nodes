@@ -21,6 +21,8 @@ const fileTransport = {
   level: 'trace',
 };
 
+console.log('[DIR NAME]::', __dirname, __filename, logLevel);
+
 export const logger = pino({
   level: logLevel,
   serializers: {
