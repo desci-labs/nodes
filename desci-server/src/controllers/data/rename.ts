@@ -1,3 +1,4 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import { ResearchObjectV1, neutralizePath } from '@desci-labs/desci-models';
 import { DataType, Node } from '@prisma/client';
 import { Request, Response } from 'express';
@@ -5,7 +6,8 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
-import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../../services/manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import repoService from '../../services/repoService.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
 import { ErrorResponse } from './update.js';
@@ -21,7 +23,6 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
   const owner = (req as any).user;
   const { uuid, path, newName, renameComponent } = req.body;
   const logger = parentLogger.child({
-    // id: req.id,
     module: 'DATA::RenameController',
     uuid: uuid,
     path: path,
@@ -29,7 +30,6 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     newName: newName,
     renameComponent: renameComponent,
   });
-  logger.trace('Entered DATA::Rename');
 
   if (uuid === undefined || path === undefined)
     return res.status(400).json({ error: 'uuid, path and newName required' });
@@ -55,7 +55,6 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     const contextPathSplit = path.split('/');
     contextPathSplit.pop();
     const contextPath = contextPathSplit.join('/');
-    // debugger;
     await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, filesBeingAdded: [{ originalname: newName }] });
 
     const oldPathSplit = path.split('/');
@@ -67,13 +66,19 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
 
-    const dispatchChange = getNodeManifestUpdater(node);
     let updatedManifest = latestManifest;
     try {
-      updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath: path, newPath });
+      const response = await repoService.dispatchAction({
+        uuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [{ type: 'Rename Component Path', oldPath: path, newPath }],
+      });
+      // dispatchChange({ type: 'Rename Component Path', oldPath: path, newPath });
+      updatedManifest = response.manifest;
     } catch (err) {
       logger.error({ err }, 'Source: Rename Component Path');
-      return res.status(400).json({ error: 'failed' });
+      updatedManifest = await repoService.getDraftManifest(node.uuid as NodeUuid);
+      // return res.status(400).json({ error: 'failed' });
     }
 
     // Get all entries that need to be updated
@@ -104,12 +109,22 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       const { fileName } = separateFileNameAndExtension(newName);
       // updatedManifest.components[componentIndex].name = fileName;
       try {
-        updatedManifest = await dispatchChange({ type: 'Rename Component', path: newPath, fileName });
+        const response = await repoService.dispatchAction({
+          uuid,
+          documentId: node.manifestDocumentId as DocumentId,
+          actions: [{ type: 'Rename Component', path: newPath, fileName }],
+        });
+        // updatedManifest = await dispatchChange({ type: 'Rename Component', path: newPath, fileName });
+        updatedManifest = response?.manifest;
       } catch (err) {
         logger.error({ err }, 'Source: Rename Component');
+        updatedManifest = await repoService.getDraftManifest(node.uuid as NodeUuid);
       }
     }
 
+    if (!updatedManifest) {
+      updatedManifest = await getLatestManifestFromNode(node);
+    }
     /*
      ** Prepare updated refs
      */
@@ -144,7 +159,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       newRef.id = match?.id;
       return newRef;
     });
-    // debugger;
+
     const [...updates] = await prisma.$transaction([
       ...(dataRefUpdates as any).map((fd) => {
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
@@ -162,7 +177,18 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      // updatedManifest = await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+      const response = await repoService.dispatchAction({
+        uuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      updatedManifest = response?.manifest;
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+      updatedManifest = await getLatestManifestFromNode(node);
+    }
 
     return res.status(200).json({
       manifest: updatedManifest,

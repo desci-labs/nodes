@@ -1,3 +1,4 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   DEFAULT_COMPONENT_TYPE,
   DrivePath,
@@ -31,6 +32,7 @@ import {
   pinDirectory,
 } from '../../services/ipfs.js';
 import { fetchFileStreamFromS3, isS3Configured } from '../../services/s3.js';
+import { ResearchObjectDocument } from '../../types/documents.js';
 import { prepareDataRefs, prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 import { DRAFT_CID, DRAFT_DIR_CID, ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
@@ -44,7 +46,8 @@ import {
 } from '../../utils/driveUtils.js';
 import { EXTENSION_MAP } from '../../utils/extensions.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
-import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../manifestRepo.js';
+import repoService from '../repoService.js';
 
 import {
   Either,
@@ -131,8 +134,8 @@ export async function processS3DataToIpfs({
       },
     });
 
-    const ltsManifest = await getLatestManifestFromNode(ltsNode);
-    let updatedManifest = ltsManifest;
+    // const ltsManifest = await getLatestManifestFromNode(ltsNode);
+    let updatedManifest = await repoService.getDraftManifest(ltsNode.uuid as NodeUuid);
 
     if (componentTypeMap) {
       /**
@@ -146,8 +149,8 @@ export async function processS3DataToIpfs({
       //   componentType,
       //   componentSubtype,
       // });
-      // updatedManifest = addComponentsToManifest(updatedManifest, firstNestingComponents);
       updatedManifest = await assignTypeMapInManifest(node, updatedManifest, componentTypeMap, contextPath, DRAFT_CID);
+      logger.info({ updatedManifest }, 'assignTypeMapInManifest');
     }
 
     const upserts = await updateDataReferences({ node, user, updatedManifest });
@@ -164,8 +167,16 @@ export async function processS3DataToIpfs({
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    const manifestUpdater = getNodeManifestUpdater(node);
-    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      await repoService.dispatchAction({
+        uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      // await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
 
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 
@@ -184,8 +195,6 @@ export async function processS3DataToIpfs({
     // DB status to failed
     // Socket emit to client
     // const manifest = await getLatestManifestFromNode(node);
-    console.log('Error processing S3 assignTypeMapInManifest', error);
-    logger.error(error, 'Error processing S3 assignTypeMapInManifest');
     logger.error({ error }, 'Error processing S3 data to IPFS');
     if (pinResult.length) {
       handleCleanupOnMidProcessingError({
@@ -252,21 +261,31 @@ export async function processNewFolder({
       },
     });
 
-    const ltsManifest = await getLatestManifestFromNode(ltsNode);
+    let ltsManifest = await getLatestManifestFromNode(ltsNode);
 
     /**
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    const manifestUpdater = getNodeManifestUpdater(node);
-    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      // ltsManifest = await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+      const response = await repoService.dispatchAction({
+        uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      if (response?.manifest) {
+        ltsManifest = response.manifest;
+      }
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
 
     const tree = await getTreeAndFill(ltsManifest, node.uuid, user.id);
 
     return {
       ok: true,
       value: {
-        // rootDataCid: newRootCidString,
         manifest: ltsManifest,
         manifestCid: node.manifestUrl,
         tree: tree,
@@ -654,17 +673,21 @@ export async function assignTypeMapInManifest(
   contextPathNewCid: string,
 ): Promise<ResearchObjectV1> {
   try {
-    const manifestUpdater = getNodeManifestUpdater(node);
-    let updatedManifest: ResearchObjectV1;
+    let document: ResearchObjectDocument;
     const componentIndex = manifest.components.findIndex((c) => c.payload.path === contextPath);
     // Check if the component already exists, update its type map
     if (componentIndex !== -1) {
       const prevComponent = manifest.components[componentIndex];
-      updatedManifest = await manifestUpdater({
-        type: 'Assign Component Type',
-        component: prevComponent,
-        componentTypeMap: compTypeMap,
-        componentIndex,
+      document = await repoService.dispatchAction({
+        uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [
+          {
+            type: 'Assign Component Type',
+            component: prevComponent,
+            componentTypeMap: compTypeMap,
+          },
+        ],
       });
     } else {
       // If doesn't exist, create the component and assign its type map
@@ -678,13 +701,13 @@ export async function assignTypeMapInManifest(
           path: contextPath,
         },
       };
-      // try {
-      updatedManifest = await manifestUpdater({ type: 'Add Component', component });
-      // } catch (e) {
-      //   console.log('[ERROR assignTypeMapInManifest]', e);
-      // }
+      document = await repoService.dispatchAction({
+        uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [{ type: 'Add Components', components: [component] }],
+      });
     }
-    return updatedManifest;
+    return document.manifest;
   } catch (err) {
     logger.error(err, 'Error Caught in assignTypeMapInManifest');
     return manifest;

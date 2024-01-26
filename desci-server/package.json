@@ -32,9 +32,13 @@
     "lint-staged-husky": "lint-staged",
     "lint-prettier": "prettier --config .prettierrc --list-different '{src,test}/**/*.{ts,js,css,scss}'",
     "prettier": "prettier --config .prettierrc --write './**/*.{ts,js,css,scss,json,md}'",
+<<<<<<< HEAD
     "test:destructive": "NODE_OPTIONS=\"--experimental-specifier-resolution=node --loader=ts-node/esm\" mocha --colors --require ts-node/register 'test/integration/**/*.test.ts' --timeout 20000 --exit",
+=======
+    "test:destructive": "mocha --colors --require ts-node/esm 'test/integration/**/*.test.ts' --timeout 20000 --exit",
+>>>>>>> 9d3523f61f11fdcdb377541196f0b70e04cee478
     "test:destructive:debug": "yarn test:destructive --inspect=0.0.0.0:9227",
-    "test": "yarn docker:test && docker-compose  --file ../docker-compose.test.yml down",
+    "test": "yarn docker:test && docker-compose  --file ../docker-compose.test.yml --compatibility down",
     "coverage:destructive": "nyc --all --parser-plugins='[\"importAssertions\"]' -r lcov -e .ts -x \"*.test.ts\" npm run test:destructive",
     "coverage:destructive:debug": "nyc --all --parser-plugins='[\"importAssertions\"]' -r lcov -e .ts -x \"*.test.ts\" npm run test:destructive:debug",
     "commit": "git-cz",

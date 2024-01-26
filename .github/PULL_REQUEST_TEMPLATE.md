@@ -1,4 +1,3 @@
-Asana ticket: <ticket_link>
 Closes #<GH_issue_number>
 
 ## Description of the Problem / Feature

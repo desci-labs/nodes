@@ -47,6 +47,7 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
     // componentType,
     // componentSubtype,
   });
+  debugger;
   if (ok) {
     const {
       manifest: updatedManifest,

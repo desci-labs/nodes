@@ -8,7 +8,8 @@ import { prisma } from '../../client.js';
 import { PUBLIC_IPFS_PATH } from '../../config/index.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
-import { NodeUuid, getDraftManifestFromUuid } from '../../services/manifestRepo.js';
+import { NodeUuid } from '../../services/manifestRepo.js';
+import repoService from '../../services/repoService.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node) => {
@@ -100,7 +101,10 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
       (discovery as any).manifestData = transformManifestWithHistory((await axios.get(gatewayUrl)).data, discovery);
       // Add draft manifest document
       const nodeUuid = (uuid + '.') as NodeUuid;
-      const manifest = await getDraftManifestFromUuid(nodeUuid);
+      const manifest = await repoService.getDraftManifest(nodeUuid);
+
+      logger.info({ manifest }, '[SHOW API GET DRAFT MANIFEST]');
+
       if (manifest) (discovery as any).manifestData = transformManifestWithHistory(manifest, discovery);
       delete (discovery as any).restBody;
       logger.info({}, 'Retrive DraftManifest For /SHOW');

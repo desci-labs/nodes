@@ -14,10 +14,10 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
 
   if (!retrievedUser) {
     res.status(401).send({ ok: false, message: 'Unauthorized' });
-    return;
+  } else {
+    (req as any).user = retrievedUser;
+    next();
   }
-  (req as any).user = retrievedUser;
-  next();
 };
 
 /**
