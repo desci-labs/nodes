@@ -16,6 +16,8 @@ const devTransport = {
   },
 };
 
+console.log('[DIR NAME]::', __dirname, __filename, logLevel);
+
 const fileTransport = {
   target: 'pino/file',
   options: { destination: `${__dirname}/../log/server.log` },

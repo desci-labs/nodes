@@ -102,6 +102,9 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
       // Add draft manifest document
       const nodeUuid = (uuid + '.') as NodeUuid;
       const manifest = await repoService.getDraftManifest(nodeUuid);
+
+      logger.info({ manifest }, '[SHOW API GET DRAFT MANIFEST]');
+
       if (manifest) (discovery as any).manifestData = transformManifestWithHistory(manifest, discovery);
       delete (discovery as any).restBody;
       logger.info({}, 'Retrive DraftManifest For /SHOW');
