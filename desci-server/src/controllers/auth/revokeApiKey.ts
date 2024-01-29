@@ -16,14 +16,15 @@ export async function revokeApiKey(req: Request, res: Response<RevokeApiKeyRespo
   });
 
   try {
-    const { memo } = req.body;
-    logger.trace({ memo }, '[API KEY] revoke API key');
+    const { memo, keyId } = req.body;
+    logger.trace({ memo, keyId }, '[API KEY] revoke API key');
     const userId = (req as any).user.id;
 
     if (!memo) return res.status(400).json({ ok: false, error: 'Memo required' });
 
     const apiKey = await prisma.apiKey.findFirst({
       where: {
+        id: keyId,
         userId: userId,
         memo: memo,
         isActive: true,
