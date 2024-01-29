@@ -17,7 +17,7 @@ import {
   strIsCid,
   updateManifestAndAddToIpfs,
 } from '../services/ipfs.js';
-import { addComponentsToManifest } from '../utils/driveUtils.js';
+import { DANGEROUSLY_addComponentsToManifest } from '../utils/driveUtils.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
 import { ensureUniqueString } from '../utils.js';
 
@@ -183,7 +183,7 @@ export async function upgradeManifestsScript() {
       },
     };
     manifestObj.components.unshift(dataBucketComponent);
-    manifestObj = addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
+    manifestObj = DANGEROUSLY_addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
 
     const dagTree = await getDirectoryTree(rootDagCid, {});
     const flatTree = recursiveFlattenTree(dagTree);

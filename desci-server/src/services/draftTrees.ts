@@ -145,5 +145,5 @@ export async function getLatestDriveTime(nodeUuid: NodeUuid) {
     },
   });
 
-  return latestDriveTime.updatedAt.getTime().toString();
+  return latestDriveTime?.updatedAt.getTime().toString() ?? new Date().getTime().toString();
 }

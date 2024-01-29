@@ -25,7 +25,7 @@ clean-rec:
 	$(MAKE) -C desci-server clean
 
 .PHONY: .env
-.env: nodes-media/.env
+.env: nodes-media/.env desci-repo/.env
 	# Phony target, always runs but is idempotent
 	# Copies example env if not present, and fails until MNEMONIC is set
 	cp --no-clobber .env.example .env || true
@@ -36,4 +36,7 @@ desci-contracts/.env: .env
 
 nodes-media/.env:
 	cp nodes-media/.env.example nodes-media/.env
+
+desci-repo/.env:
+	cp desci-repo/.env.example desci-repo/.env
 

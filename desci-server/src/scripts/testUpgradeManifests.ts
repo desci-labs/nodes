@@ -12,7 +12,7 @@ import {
 } from '@desci-labs/desci-models';
 
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from '../services/ipfs.js';
-import { addComponentsToManifest } from '../utils/driveUtils.js';
+import { DANGEROUSLY_addComponentsToManifest } from '../utils/driveUtils.js';
 import { ensureUniqueString } from '../utils.js';
 
 /* 
@@ -171,7 +171,7 @@ export async function testUpgradeManifests() {
       },
     };
     manifestObj.components.unshift(dataBucketComponent);
-    manifestObj = addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
+    manifestObj = DANGEROUSLY_addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
 
     const dagTree = await getDirectoryTree(rootDagCid, {});
     const flatTree = recursiveFlattenTree(dagTree);

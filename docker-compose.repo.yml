@@ -1,0 +1,25 @@
+version: "3"
+
+services:
+  desci_repo:
+    container_name: "desci_repo"
+    entrypoint: /bin/sh './scripts/be-node-dev.sh'
+    build: ./desci-repo
+    env_file:
+      - ./desci-repo/.env
+    ports:
+      - "5484:5484"
+      - "5445:5445"
+      - "9232:9232"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      db_postgres:
+        condition:
+          service_healthy
+    links:
+      - db_postgres
+    volumes:
+      - ./desci-repo:/app/
+      - /app/node_modules
+      - ./local-data/yarn_cache:/root/.yarn

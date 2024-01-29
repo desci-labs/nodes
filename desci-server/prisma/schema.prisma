@@ -169,15 +169,31 @@ model User {
   currentDriveStorageLimitGb Int                       @default(100)
   maxDriveStorageLimitGb     Int                       @default(500)
   userOrganizations          UserOrganizations[]
-  UploadJobs                 UploadJobs[]
-  // DraftNodeTree              DraftNodeTree[]
   NodeFeedItemEndorsement    NodeFeedItemEndorsement[]
   DesciCommunity             DesciCommunity?           @relation(fields: [desciCommunityId], references: [id])
   desciCommunityId           Int?
+  ApiKey                     ApiKey[]
+  UploadJobs                 UploadJobs[]
 
   @@index([orcid])
   @@index([walletAddress])
   @@index([pseudonym])
+}
+
+model ApiKey {
+  id         Int       @id @default(autoincrement())
+  key        String    @unique
+  memo       String
+  createdAt  DateTime  @default(now())
+  lastUsed   DateTime? @updatedAt
+  isActive   Boolean   @default(true)
+  createdIp  String
+  lastUsedIp String?
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+  
+  // @@unique([memo, userId])
+  @@index([userId])
 }
 
 model Invite {
@@ -526,8 +542,8 @@ model NodeFeedItem {
   id                      Int                       @id @default(autoincrement())
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
-  nodeUuid                String                    
-  nodeUuidHex             String                    
+  nodeUuid                String
+  nodeUuidHex             String
   nodeDpid10              String                    @unique
   manifestCid             String
   title                   String
@@ -538,17 +554,17 @@ model NodeFeedItem {
 }
 
 model NodeFeedItemEndorsement {
-  id             Int            @id @default(autoincrement())
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  nodeDpid10              String                   
-  type          String
-  userId         Int
-  nodeFeedItemId Int
+  id               Int            @id @default(autoincrement())
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  nodeDpid10       String
+  type             String
+  userId           Int
+  nodeFeedItemId   Int
   desciCommunityId Int
-  user           User           @relation(fields: [userId], references: [id])
-  nodeFeedItem   NodeFeedItem   @relation(fields: [nodeFeedItemId], references: [id])
-  desciCommunity DesciCommunity @relation(fields: [desciCommunityId], references: [id])
+  user             User           @relation(fields: [userId], references: [id])
+  nodeFeedItem     NodeFeedItem   @relation(fields: [nodeFeedItemId], references: [id])
+  desciCommunity   DesciCommunity @relation(fields: [desciCommunityId], references: [id])
 }
 
 // an organization that endorses work and has members
