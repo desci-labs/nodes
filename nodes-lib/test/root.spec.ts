@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
-import { createDraftNode, getDraftNode, type CreateDraftParams, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles } from "../src/api.js";
+import { createDraftNode, getDraftNode, type CreateDraftParams, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode } from "../src/api.js";
 import axios from "axios";
 import { getPublishedFromCeramic } from "../src/codex.js";
-import type { ResearchObjectV1 } from "@desci-labs/desci-models";
 
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
@@ -31,11 +30,25 @@ describe("nodes-lib", () => {
         researchFields: [],
       };
       const response = await createDraftNode(expected, AUTH_TOKEN);
-      console.log(JSON.stringify(response, undefined, 2))
       expect(response.ok).toEqual(true);
 
       const actual = await getDraftNode(response.node.uuid, AUTH_TOKEN);
       expect(actual.title).toEqual(expected.title);
+    });
+
+    test("can be deleted", async () => {
+      const expected = {
+        title: "New Draft Node",
+        defaultLicense: "CC BY",
+        researchFields: [],
+      };
+      const createResponse = await createDraftNode(expected, AUTH_TOKEN);
+      expect(createResponse.ok).toEqual(true);
+
+      await deleteDraftNode(createResponse.node.uuid, AUTH_TOKEN);
+      await expect(
+        getDraftNode(createResponse.node.uuid, AUTH_TOKEN)
+      ).rejects.toThrowError("403")
     });
 
     test("can be published to ceramic", async () => {
@@ -114,7 +127,11 @@ describe("nodes-lib", () => {
         expect(ok).toEqual(true);
 
         const expectedFolderName = "MyFolder";
-        await createNewFolder(uuid, "root", expectedFolderName, AUTH_TOKEN);
+        await createNewFolder({
+          uuid,
+          locationPath: "root",
+          folderName: expectedFolderName
+        }, AUTH_TOKEN);
         const treeResult = await retrieveDraftFileTree(uuid, manifestUrl, AUTH_TOKEN);
         const actualFolderName = treeResult.tree[0].contains![0].name;
 
@@ -131,14 +148,26 @@ describe("nodes-lib", () => {
         const { ok, node: { uuid }} = await createDraftNode(node, AUTH_TOKEN);
         expect(ok).toEqual(true);
 
-        await createNewFolder(uuid, "root", "MyFolder", AUTH_TOKEN);
-        await createNewFolder(uuid, "root", "dir", AUTH_TOKEN);
+        await createNewFolder({
+          uuid,
+          locationPath: "root",
+          folderName: "MyFolder"
+        }, AUTH_TOKEN);
+        await createNewFolder({
+          uuid,
+          locationPath: "root",
+          folderName: "dir"
+        }, AUTH_TOKEN);
         const moveResult = await moveData(
           { uuid, oldPath: "root/MyFolder", newPath: "root/dir/MyFolder" },
           AUTH_TOKEN
         );
 
-        const treeResult = await retrieveDraftFileTree(uuid, moveResult.manifestCid, AUTH_TOKEN);
+        const treeResult = await retrieveDraftFileTree(
+          uuid,
+          moveResult.manifestCid,
+          AUTH_TOKEN
+        );
 
         const dir = treeResult.tree[0].contains![0];
         expect(dir.contains![0].name).toEqual("MyFolder");
@@ -147,21 +176,26 @@ describe("nodes-lib", () => {
 
     describe("files", async () => {
       test("can be uploaded", async () => {
-        const { node: { uuid, restBody: unparsedManifest }} = await createBoilerplateNode();
-        const manifest = JSON.parse(unparsedManifest) as ResearchObjectV1;
+        const { node: { uuid }} = await createBoilerplateNode();
         const filePaths = [ "package.json", "package-lock.json" ];
         const uploadResult = await uploadFiles({
           uuid,
-          manifest,
           targetPath: "root",
           filePaths,
         }, AUTH_TOKEN);
 
-        const treeResult = await retrieveDraftFileTree(uuid, uploadResult.manifestCid, AUTH_TOKEN);
+        const treeResult = await retrieveDraftFileTree(
+          uuid,
+          uploadResult.manifestCid,
+          AUTH_TOKEN
+        );
         const driveContent = treeResult.tree[0].contains!;
 
-        driveContent.forEach(driveObject => expect(filePaths).toContain(driveObject.name));
-        expect("Files not to be empty").toEqual(true);
+        expect(driveContent.map(driveObject => driveObject.name))
+          .toEqual(expect.arrayContaining(filePaths));
+        driveContent.forEach(driveObject => {
+          expect(driveObject.size).toBeGreaterThan(0);
+        });
       });
 
     });

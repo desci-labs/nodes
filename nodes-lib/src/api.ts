@@ -1,6 +1,3 @@
-import type {
-  AxiosRequestConfig,
-} from "axios";
 import axios from "axios";
 import type {
   DriveObject,
@@ -8,10 +5,8 @@ import type {
 } from "@desci-labs/desci-models";
 import { ceramicPublish } from "./codex.js";
 import FormData from "form-data";
-import { lookup } from "mime-types";
-import { readFileSync } from "fs";
+import { createReadStream } from "fs";
 import { basename } from "path";
-import {Blob} from 'node:buffer';
 
 // Set these dynamically in some reasonable fashion
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
@@ -23,6 +18,8 @@ const ROUTES = {
   retrieveTree: `${NODES_API_URL}/v1/data/retrieveTree`,
   moveData: `${NODES_API_URL}/v1/data/move`,
   createDraft: `${NODES_API_URL}/v1/nodes/createDraft`,
+  /** Append /uuid with node to delete */
+  deleteDraft: `${NODES_API_URL}/v1/nodes`,
   /** Append /uuid for node to show */
   showNode: `${NODES_API_URL}/v1/nodes/objects`,
   prepublish: `${NODES_API_URL}/v1/nodes/prepublish`,
@@ -54,7 +51,7 @@ export type CreateDraftResponse = {
 export const createDraftNode = async (
   params: Omit<CreateDraftParams, "links">,
   authToken: string,
-) => {
+): Promise<CreateDraftResponse> => {
   const payload: CreateDraftParams = {
     ...params,
     links: {
@@ -63,7 +60,7 @@ export const createDraftNode = async (
     },
   };
   const { status, statusText, data } = await axios.post<CreateDraftResponse>(
-    ROUTES.createDraft, payload, authConfig(authToken)
+    ROUTES.createDraft, payload, { headers: getHeaders(authToken) }
   );
 
   if (status !== 200) {
@@ -73,13 +70,27 @@ export const createDraftNode = async (
   return data;
 };
 
+export const deleteDraftNode = async (
+  uuid: string,
+  authToken: string,
+): Promise<void> => {
+  const { status, statusText } = await axios.delete(
+    ROUTES.deleteDraft + `/${uuid}`,
+    { headers: getHeaders(authToken) }
+  );
+
+  if (status !== 200) {
+    throwWithReason(ROUTES.deleteDraft, status, statusText);
+  };
+};
+
 export const getDraftNode = async (
   uuid: string,
   authToken: string,
 ) => {
   const { status, statusText, data } = await axios.get(
     ROUTES.showNode + `/${uuid}`,
-    authConfig(authToken),
+    { headers: getHeaders(authToken), }
   );
 
   if (status !== 200) {
@@ -121,10 +132,8 @@ export const publishDraftNode = async (
   // Compute the draft drive DAG, and update the data bucket CID
   const { status: preStatus, statusText: preStatusText, data: preData } = await axios.post<PrepublishResponse>(
     ROUTES.prepublish,
-    {
-      uuid,
-    },
-    authConfig(authToken),
+    { uuid },
+    { headers: getHeaders(authToken), }
   );
 
   if (preStatus !== 200) {
@@ -154,7 +163,7 @@ export const publishDraftNode = async (
   const { status, statusText, data } = await axios.post<{ok: boolean}>(
     ROUTES.publish,
     pubParams,
-    authConfig(authToken),
+    { headers: getHeaders(authToken), }
   );
 
   if (status !== 200) {
@@ -178,7 +187,7 @@ export const deleteFile = async (
   authToken: string
 ) => {
   const { status, statusText, data } = await axios.post<DeleteFileResponse>(
-    ROUTES.deleteFile, params, authConfig(authToken)
+    ROUTES.deleteFile, params, { headers: getHeaders(authToken) }
   );
 
   if (status !== 200) {
@@ -196,7 +205,7 @@ export type MoveDataParams = {
   newPath: string,
 };
 
-export type MoveDataResult = {
+export type MoveDataResponse = {
   manifest: ResearchObjectV1,
   manifestCid: string,
 };
@@ -205,8 +214,8 @@ export const moveData = async (
   params: MoveDataParams,
   authToken: string,
 ) => {
-  const { status, statusText, data } = await axios.post<MoveDataResult>(
-    ROUTES.moveData, params, authConfig(authToken)
+  const { status, statusText, data } = await axios.post<MoveDataResponse>(
+    ROUTES.moveData, params, { headers: getHeaders(authToken) }
   );
 
   if (status !== 200) {
@@ -215,7 +224,6 @@ export const moveData = async (
 
   return data;
 };
-
 
 export type RetrieveResponse = {
   status?: number;
@@ -229,7 +237,7 @@ export const retrieveDraftFileTree = async (
   authToken: string,
 ) => {
   const { status, statusText, data } = await axios.get<RetrieveResponse>(
-    ROUTES.retrieveTree + `/${uuid}/${manifestCid}`, authConfig(authToken)
+    ROUTES.retrieveTree + `/${uuid}/${manifestCid}`, { headers: getHeaders(authToken) }
   );
 
   if (status !== 200) {
@@ -239,55 +247,69 @@ export const retrieveDraftFileTree = async (
   return data;
 };
 
-export const createNewFolder = async (
+export type CreateFolderParams = {
   uuid: string,
   locationPath: string,
   folderName: string,
+};
+
+export type CreateFolderResponse = {
+  manifest: ResearchObjectV1,
+  manifestCid: string,
+  tree: DriveObject[],
+  date: string,
+};
+
+export const createNewFolder = async (
+  params: CreateFolderParams,
   authToken: string,
 ) => {
+  const { uuid, folderName, locationPath } = params;
   const form = new FormData();
   form.append("uuid", uuid);
   form.append("newFolderName", folderName);
   form.append("contextPath", locationPath);
-  const config = { headers: { ...authConfig(authToken).headers, "content-type": "multipart/form-data" } };
-  const { status, statusText, data } = await axios.post(
-    ROUTES.updateData, form, config
+  const { status, statusText, data } = await axios.post<CreateFolderResponse>(
+    ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
   );
 
   if (status !== 200) {
     throwWithReason(ROUTES.updateData, status, statusText);
   };
-
+  
   return data;
 };
 
 export type UploadParams = {
   uuid: string,
-  manifest: ResearchObjectV1,
+  /** Prefix path with `root/` to indicate absolute path */
   targetPath: string,
   filePaths: string[],
+};
+
+export type UploadFilesResponse = {
+  manifest: ResearchObjectV1,
+  manifestCid: string,
+  tree: DriveObject[],
+  date: string,
 };
 
 export const uploadFiles = async (
   params: UploadParams,
   authToken: string,
-) => {
-  const { uuid, manifest, targetPath, filePaths } = params;
+): Promise<UploadFilesResponse> => {
+  const { uuid, targetPath, filePaths } = params;
   const form = new FormData();
   form.append("uuid", uuid);
-  form.append("manifest", JSON.stringify(manifest));
   form.append("contextPath", targetPath);
 
   filePaths.forEach(f => {
-    // TODO less stupid, dr. memory assault
-    const blob = new Blob([readFileSync(f)], { type: lookup(f) as string});
-    const filename = basename(f);
-    form.append("files", JSON.stringify(blob.arrayBuffer()), filename);
+    const stream = createReadStream(f);
+    form.append("files", stream, basename(f));
   });
 
-  const config = { headers: { ...authConfig(authToken).headers, "content-type": "multipart/form-data" }};
-  const { status, statusText, data } = await axios.post(
-    ROUTES.updateData, form, config
+  const { status, statusText, data } = await axios.post<UploadFilesResponse>(
+    ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
   );
 
   if (status !== 200) {
@@ -305,8 +327,10 @@ const throwWithReason = (
   throw new Error(`Request to ${route} failed (${status}): ${reason}`)
 };
 
-const authConfig = (token: string): AxiosRequestConfig => ({
-  headers: {
-    "authorization": `Bearer ${token}`
-  }
-});
+const getHeaders = (token: string, formData: boolean = false) => {
+  const headers = {
+    "authorization": `Bearer ${token}`,
+    ...(formData ? { "content-type": "multipart/form-data" } : {})
+  };
+  return headers;
+};
