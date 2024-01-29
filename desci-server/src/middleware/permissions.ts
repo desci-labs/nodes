@@ -7,15 +7,24 @@ import { hashApiKey } from '../controllers/auth/utils.js';
 import { logger } from '../logger.js';
 import { getUserByEmail, getUserByOrcId } from '../services/user.js';
 
+export enum AuthMethods {
+  AUTH_TOKEN = 'AUTH_TOKEN',
+  API_KEY = 'API_KEY',
+}
+
 export const ensureUser = async (req: ExpressRequest, res: Response, next: NextFunction) => {
   const token = await extractAuthToken(req);
   const apiKey = await extractApiKey(req);
-  const retrievedUser = (await extractUserFromToken(token)) || (await extractUserFromApiKey(apiKey, req.ip));
+  const authTokenRetrieval = await extractUserFromToken(token);
+  const apiKeyRetrieval = await extractUserFromApiKey(apiKey, req.ip);
+
+  const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
 
   if (!retrievedUser) {
     res.status(401).send({ ok: false, message: 'Unauthorized' });
   } else {
     (req as any).user = retrievedUser;
+    (req as any).authMethod = authTokenRetrieval ? AuthMethods.AUTH_TOKEN : AuthMethods.API_KEY;
     next();
   }
 };
