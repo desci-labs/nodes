@@ -4,6 +4,7 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 
 interface ApiKeyFragment {
+  id: number;
   memo: string;
   createdAt: Date;
   lastUsed: Date;
@@ -28,6 +29,7 @@ export async function listApiKey(req: Request, res: Response<ListApiKeyResponse>
 
     const apiKeys = await prisma.apiKey.findMany({
       select: {
+        id: true,
         memo: true,
         createdAt: true,
         lastUsed: true,

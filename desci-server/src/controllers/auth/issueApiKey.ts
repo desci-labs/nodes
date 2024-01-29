@@ -35,11 +35,12 @@ export async function issueApiKey(req: Request, res: Response<IssueApiKeyRespons
       return res.status(400).json({ ok: false, error: 'Magic Token invalid' });
     }
 
-    // Check if an API key with the same memo was already issued.
+    // Check if an API key with the same memo is already active.
     const existingApiKey = await prisma.apiKey.findFirst({
       where: {
         memo: memo,
         userId: user.id,
+        isActive: true,
       },
     });
     if (existingApiKey)
