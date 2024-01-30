@@ -125,25 +125,40 @@ export type PrepublishResponse = {
     ceramicStream?: string;
 };
 
-export const publishDraftNode = async (
+/**
+ * Computes the draft drive DAG, and updates the data bucket CID
+ * with the new root.
+ * 
+ * @param uuid - UUID of the node to prepublish.
+ * @param authToken - Your API key.
+*/
+export const prePublishDraftNode = async (
   uuid: string,
   authToken: string,
-) => {
+): Promise<PrepublishResponse> => {
   // Compute the draft drive DAG, and update the data bucket CID
-  const { status: preStatus, statusText: preStatusText, data: preData } = await axios.post<PrepublishResponse>(
+  const { status, statusText, data } = await axios.post<PrepublishResponse>(
     ROUTES.prepublish,
     { uuid },
     { headers: getHeaders(authToken), }
   );
 
-  if (preStatus !== 200) {
-    throwWithReason(ROUTES.publish, preStatus, preStatusText);
+  if (status !== 200) {
+    throwWithReason(ROUTES.publish, status, statusText);
   };
 
-  const { updatedManifestCid, updatedManifest, ceramicStream } = preData;
+  return data;
+};
+
+export const publishDraftNode = async (
+  uuid: string,
+  authToken: string,
+) => {
+  const prePublishResult = await prePublishDraftNode(uuid, authToken);
+  const { updatedManifestCid, updatedManifest, ceramicStream } = prePublishResult;
 
   const ceramicIDs = await ceramicPublish(
-    preData,
+    prePublishResult,
     {
       existingStream: ceramicStream,
       // TODO do we want to query for on-chain history? :/

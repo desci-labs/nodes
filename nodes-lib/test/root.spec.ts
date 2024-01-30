@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
-import { createDraftNode, getDraftNode, type CreateDraftParams, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode } from "../src/api.js";
+import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode } from "../src/api.js";
 import axios from "axios";
 import { getPublishedFromCeramic } from "../src/codex.js";
+import { chainPublish, checkDpid } from "../src/chain.js";
 
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
@@ -37,27 +38,14 @@ describe("nodes-lib", () => {
     });
 
     test("can be deleted", async () => {
-      const expected = {
-        title: "New Draft Node",
-        defaultLicense: "CC BY",
-        researchFields: [],
-      };
-      const createResponse = await createDraftNode(expected, AUTH_TOKEN);
-      expect(createResponse.ok).toEqual(true);
+      const { node: { uuid }} = await createBoilerplateNode();
 
-      await deleteDraftNode(createResponse.node.uuid, AUTH_TOKEN);
-      await expect(
-        getDraftNode(createResponse.node.uuid, AUTH_TOKEN)
-      ).rejects.toThrowError("403")
+      await deleteDraftNode(uuid, AUTH_TOKEN);
+      await expect(getDraftNode(uuid, AUTH_TOKEN)).rejects.toThrowError("403");
     });
 
     test("can be published to ceramic", async () => {
-      const node = {
-        title: "New Draft Node",
-        defaultLicense: "CC BY",
-        researchFields: [],
-      };
-      const { node: { uuid }} = await createDraftNode(node, AUTH_TOKEN);
+      const { node: { uuid, manifestUrl }} = await createBoilerplateNode();
 
       const publishResult = await publishDraftNode(uuid, AUTH_TOKEN);
       // desci-server success
@@ -65,49 +53,41 @@ describe("nodes-lib", () => {
 
       const ceramicObject = await getPublishedFromCeramic(publishResult.ceramicIDs.streamID);
       // object present on ceramic
-      expect(ceramicObject!.title).toEqual(node.title);
+      expect(ceramicObject!.manifest).toEqual(manifestUrl);
     });
 
     test("can be updated on ceramic", async () => {
-      const node = {
-        title: "New Draft Node",
-        defaultLicense: "CC BY",
-        researchFields: [],
-      };
-      const { node: { uuid }} = await createDraftNode(node, AUTH_TOKEN);
+      const { node: { uuid, manifestUrl }} = await createBoilerplateNode();
 
-      const publishResult = await publishDraftNode(uuid, AUTH_TOKEN);
-      // desci-server success
-      expect(publishResult.ok).toEqual(true);
+      const { ok, ceramicIDs } = await publishDraftNode(uuid, AUTH_TOKEN);
+      expect(ok).toEqual(true);
 
-      const ceramicObject = await getPublishedFromCeramic(publishResult.ceramicIDs.streamID);
-      // object present on ceramic
-      expect(ceramicObject!.title).toEqual(node.title);
+      const ceramicObject = await getPublishedFromCeramic(ceramicIDs.streamID);
+      expect(ceramicObject!.manifest).toEqual(manifestUrl);
 
       const updateResult = await publishDraftNode(uuid, AUTH_TOKEN);
       expect(updateResult.ok).toEqual(true);
       // Update made to same stream, but with new commit
-      expect(updateResult.ceramicIDs.streamID).toEqual(publishResult.ceramicIDs.streamID);
-      expect(updateResult.ceramicIDs.commitID).not.toEqual(publishResult.ceramicIDs.commitID);
+      expect(updateResult.ceramicIDs.streamID).toEqual(ceramicIDs.streamID);
+      expect(updateResult.ceramicIDs.commitID).not.toEqual(ceramicIDs.commitID);
     });
 
     // Missing history without lifting over lots of code from nodes-web :thinking:
     test.todo("can be migrated by backfill")
 
-    // Handle all the signing without the browser impl from nodes-web? :/
-    test.todo("can be published to legacy contract")
+    test.only("can be published to legacy contract", async () => {
+      const { node: { uuid }} = await createBoilerplateNode();
+
+      await chainPublish(uuid, AUTH_TOKEN);
+      const dpid = await checkDpid(uuid);
+      expect(dpid).toEqual(0);
+    });
   });
 
   describe("data management", async () => {
     describe("trees", async () => {
       test("can be retrieved by owner", async () => {
-        const node = {
-          title: "My Node",
-          defaultLicense: "CC BY",
-          researchFields: [],
-        };
-
-        const { ok, node: { uuid, manifestUrl }} = await createDraftNode(node, AUTH_TOKEN);
+        const { ok, node: { uuid, manifestUrl }} = await createBoilerplateNode();
         expect(ok).toEqual(true);
 
         const treeResult = await retrieveDraftFileTree(uuid, manifestUrl, AUTH_TOKEN);
@@ -117,13 +97,7 @@ describe("nodes-lib", () => {
 
     describe("folders", async () => {
       test("can be created", async () => {
-        const node = {
-          title: "My Node",
-          defaultLicense: "CC BY",
-          researchFields: [],
-        };
-
-        const { ok, node: { uuid, manifestUrl }} = await createDraftNode(node, AUTH_TOKEN);
+        const { ok, node: { uuid, manifestUrl }} = await createBoilerplateNode();
         expect(ok).toEqual(true);
 
         const expectedFolderName = "MyFolder";
@@ -139,13 +113,7 @@ describe("nodes-lib", () => {
       });
 
       test("can be moved", async () => {
-        const node = {
-          title: "My Node",
-          defaultLicense: "CC BY",
-          researchFields: [],
-        };
-
-        const { ok, node: { uuid }} = await createDraftNode(node, AUTH_TOKEN);
+        const { ok, node: { uuid }} = await createBoilerplateNode();
         expect(ok).toEqual(true);
 
         await createNewFolder({
