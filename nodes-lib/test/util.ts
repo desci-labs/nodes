@@ -17,3 +17,7 @@ export const randomDID = async () => {
   await did.authenticate();
   return did;
 };
+
+export const sleep = async (seconds: number) => {
+  await new Promise(r => setTimeout(r, seconds));
+};

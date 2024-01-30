@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
-import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode } from "../src/api.js";
+import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory } from "../src/api.js";
 import axios from "axios";
 import { getPublishedFromCeramic } from "../src/codex.js";
-import { chainPublish, checkDpid } from "../src/chain.js";
+import { chainPublish, getDpid } from "../src/chain.js";
+import { sleep } from "./util.js";
+import { convertHexToCID, getBytesFromCIDString } from "../src/util/converting.js";
 
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
@@ -76,11 +78,22 @@ describe("nodes-lib", () => {
     test.todo("can be migrated by backfill")
 
     test.only("can be published to legacy contract", async () => {
-      const { node: { uuid }} = await createBoilerplateNode();
+      const { node: { uuid, manifestUrl }} = await createBoilerplateNode();
+      console.log(`New node manifest: ${manifestUrl} (${getBytesFromCIDString(manifestUrl)})`);
 
       await chainPublish(uuid, AUTH_TOKEN);
-      const dpid = await checkDpid(uuid);
+      const dpid = await getDpid(uuid);
       expect(dpid).toEqual(0);
+
+      // Graph node takes a bit to process
+      await sleep(2_500);
+
+      const historyResult = await getDpidHistory(uuid);
+      console.log(JSON.stringify(historyResult, undefined, 2))
+      const actualCid = convertHexToCID(historyResult.recentCid)
+
+      // FAILS. Maybe because of the prepublish edits to manifest?
+      expect(actualCid).toEqual(manifestUrl);
     });
   });
 

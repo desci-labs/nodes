@@ -24,6 +24,8 @@ const ROUTES = {
   showNode: `${NODES_API_URL}/v1/nodes/objects`,
   prepublish: `${NODES_API_URL}/v1/nodes/prepublish`,
   publish: `${NODES_API_URL}/v1/nodes/publish`,
+  /** Append /uuid for node to fetch publish history for */
+  dpidHistory: `${NODES_API_URL}/v1/pub/versions`,
 } as const;
 type Route = typeof ROUTES[keyof typeof ROUTES];
 
@@ -329,6 +331,44 @@ export const uploadFiles = async (
 
   if (status !== 200) {
     throwWithReason(ROUTES.updateData, status, statusText);
+  };
+
+  return data;
+};
+
+/** Historical log entry for a dPID */
+export type IndexedNodeVersion = {
+  /** Manifest CID */
+  cid: string;
+  /** Transaction ID of the update event */
+  id: string;
+  /** Epoch timestamp of the update*/
+  time: string;
+};
+
+/** Represents the state and publication history of a dPID */
+export type IndexedNode = {
+  /** Node UUID in hex */
+  id: string;
+  /** Node UUID in decimal */
+  id10: string;
+  /** Account who owns the node */
+  owner: string;
+  /** The most recent manifest CID */
+  recentCid: string;
+  /** Publication history of the node */
+  versions: IndexedNodeVersion[];
+};
+
+export const getDpidHistory = async (
+  uuid: string,
+): Promise<IndexedNode> => {
+  const { status, statusText, data } = await axios.get<IndexedNode>(
+    ROUTES.dpidHistory + `/${uuid}`
+  );
+
+  if (status !== 200) {
+    throwWithReason(ROUTES.dpidHistory, status, statusText);
   };
 
   return data;
