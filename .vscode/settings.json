@@ -20,5 +20,8 @@
     "tw\\(.*?\\).*?`([^`]*)" // tw(Component)<xxx>`...`
   ],
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "editor.formatOnSave": true
+  "editor.formatOnSave": true,
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  }
 }
