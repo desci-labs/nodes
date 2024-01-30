@@ -1,5 +1,5 @@
-import researchFieldsData from '../data/fields.json';
-import prisma from '../src/client';
+import researchFieldsData from '../data/fields.json' assert { type: 'json' };
+import { prisma } from '../src/client.js';
 
 async function main() {
   const owner = await prisma.user.upsert({

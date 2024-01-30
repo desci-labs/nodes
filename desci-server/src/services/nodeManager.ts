@@ -2,17 +2,16 @@ import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@de
 import { DataType, Prisma, PublicDataReference, User } from '@prisma/client';
 import axios from 'axios';
 
-import prisma from 'client';
-import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from 'config';
-import { cleanupManifestUrl } from 'controllers/nodes';
-import parentLogger from 'logger';
-import { uploadDataToEstuary } from 'services/estuary';
-import { getIndexedResearchObjects } from 'theGraph';
-import { hexToCid, randomUUID64 } from 'utils';
-import { asyncMap } from 'utils';
-import { generateDataReferences } from 'utils/dataRefTools';
+import { prisma } from '../client.js';
+import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from '../config/index.js';
+import { logger as parentLogger } from '../logger.js';
+import { uploadDataToEstuary } from '../services/estuary.js';
+import { getIndexedResearchObjects } from '../theGraph.js';
+import { generateDataReferences } from '../utils/dataRefTools.js';
+import { cleanupManifestUrl } from '../utils/manifest.js';
+import { hexToCid, randomUUID64, asyncMap } from '../utils.js';
 
-import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs';
+import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
 
 const ESTUARY_MIRROR_ID = 1;
 
@@ -55,11 +54,26 @@ export const createNodeDraftBlank = async (
   return nodeCopy;
 };
 
+export const setCeramicStream = async (uuid: string, ceramicStream: string) => {
+  logger.debug({ fn: 'setCeramicStream', uuid, ceramicStream}, 'node::setCeramicStream');
+  uuid = uuid.endsWith(".") ? uuid : uuid + ".";
+  return await prisma.node.update({
+
+    data: {
+      ceramicStream,
+    },
+    where: {
+      uuid,
+    }
+  });
+};
+
 export const createPublicDataRefs = async (
   data: Prisma.PublicDataReferenceCreateManyInput[],
   userId: number | undefined,
   versionId: number | undefined,
 ) => {
+  debugger;
   const dataWithVersions = data.map((d) => ({ ...d, versionId }));
   const publicDataRefRes = await prisma.publicDataReference.createMany({
     data: dataWithVersions,
@@ -150,6 +164,7 @@ export const getAllCidsRequiredForPublish = async (
   nodeId: number | undefined,
   versionId: number | undefined,
 ): Promise<Prisma.PublicDataReferenceCreateManyInput[]> => {
+  // debugger;
   // ensure public data refs staged matches our data bucket cids
   const latestManifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   // const manifestString = manifestBuffer.toString('utf8');
@@ -341,8 +356,8 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
       versionToCache !== undefined && versionToCache < history.versions.length
         ? versionToCache
         : history?.versions.length
-        ? history.versions.length - 1
-        : 0;
+          ? history.versions.length - 1
+          : 0;
 
     if (!manifestCid || manifestCid.length === 0) {
       history.versions.reverse();
@@ -359,6 +374,7 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
     // console.log('cacheNodeMetadata::Manifest', manifest);
 
     const pdfs = manifest.components.filter(
+      // todo: update check to include file extension (.pdf)
       (c) => c.type === ResearchObjectComponentType.PDF && c.starred,
     ) as PdfComponent[];
     logger.debug({ pdfs }, 'PDFS:::=>>>>>>>>>>>>');

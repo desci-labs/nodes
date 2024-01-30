@@ -4,15 +4,15 @@ import bodyParser from 'body-parser';
 import { expect } from 'chai';
 import cookieParser from 'cookie-parser';
 import express from 'express';
-import pinoHttp from 'pino-http';
+import { pinoHttp } from 'pino-http';
 import supertest from 'supertest';
 
-import prisma from '../../src/client';
-import { generateAccessToken } from '../../src/controllers/auth/magic';
-import { OrcIdRecordData } from '../../src/controllers/auth/orcid';
-import { orcidCheck } from '../../src/controllers/auth/orcidNext';
-import logger from '../../src/logger';
-import { ensureUserIfPresent } from '../../src/middleware/ensureUserIfPresent';
+import { prisma } from '../../src/client.js';
+import { generateAccessToken } from '../../src/controllers/auth/magic.js';
+import { OrcIdRecordData } from '../../src/controllers/auth/orcid.js';
+import { orcidCheck } from '../../src/controllers/auth/orcidNext.js';
+import { logger } from '../../src/logger.js';
+import { ensureUserIfPresent } from '../../src/middleware/ensureUserIfPresent.js';
 // describe('ORCiD Auth', () => {
 //   let user: User;
 

@@ -1,10 +1,9 @@
 import { Router } from 'express';
 
-import { list, associateWallet, updateProfile, associateOrcidWallet } from 'controllers/users';
-import { usage } from 'controllers/users/usage';
-import { checkJwt } from 'middleware/checkJwt';
-import { ensureAdmin } from 'middleware/ensureAdmin';
-import { ensureUser } from 'middleware/ensureUser';
+import { list, associateWallet, updateProfile, associateOrcidWallet } from '../../controllers/users/index.js';
+import { usage } from '../../controllers/users/usage.js';
+import { ensureAdmin } from '../../middleware/ensureAdmin.js';
+import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
 

@@ -1,23 +1,17 @@
-import {
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  ResearchObjectV1Component,
-  isNodeRoot,
-  neutralizePath,
-  recursiveFlattenTree,
-} from '@desci-labs/desci-models';
+import { DocumentId } from '@automerge/automerge-repo';
+import { ResearchObjectV1, neutralizePath } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import prisma from 'client';
-import parentLogger from 'logger';
-import { updateManifestDataBucket } from 'services/data/processing';
-import { RecursiveLsResult, getDirectoryTree, moveFileInDag } from 'services/ipfs';
-import { prepareDataRefs } from 'utils/dataRefTools';
-import { generateExternalCidMap, updateManifestComponentDagCids } from 'utils/driveUtils';
+import { prisma } from '../../client.js';
+import { logger as parentLogger } from '../../logger.js';
+import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
+import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import repoService from '../../services/repoService.js';
+import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
-import { ErrorResponse } from './update';
-import { getLatestManifest, persistManifest } from './utils';
+import { ErrorResponse } from './update.js';
+import { persistManifest } from './utils.js';
 
 interface MoveResponse {
   status?: number;
@@ -52,79 +46,76 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     return res.status(400).json({ error: 'failed' });
   }
 
-  const latestManifest = await getLatestManifest(uuid, req.query?.g as string, node);
-  const dataBucket = latestManifest?.components?.find((c) => isNodeRoot(c));
+  // const latestManifest = await getLatestManifestFromNode(node);
 
   try {
+    const newPathSplit = newPath.split('/');
+    const fileName = newPathSplit.pop();
+    const newContextPath = newPathSplit.join('/');
+
     /*
      ** New path collision check
      */
-    const externalCidMap = await generateExternalCidMap(node.uuid);
-    const oldFlatTree = recursiveFlattenTree(await getDirectoryTree(dataBucket.payload.cid, externalCidMap));
-    const hasDuplicates = oldFlatTree.some((oldBranch) => neutralizePath(oldBranch.path) === newPath);
-    if (hasDuplicates) {
+    const noDuplicates = await ensureUniquePathsDraftTree({
+      nodeId: node.id,
+      contextPath: newContextPath,
+      filesBeingAdded: [{ originalname: fileName }],
+    });
+
+    if (!noDuplicates) {
       logger.info('[DATA::Move] Rejected as duplicate paths were found');
       return res.status(400).json({ error: 'Name collision' });
     }
 
-    /*
-     ** Update in dag
+    /**
+     * Update draftNodeTree entries for the move operation
      */
-    const splitContextPath = oldPath.split('/');
-    splitContextPath.shift(); //remove root
-    const fileToMove = splitContextPath.pop();
-    const cleanContextPath = splitContextPath.join('/');
 
-    const splitNewPath = newPath.split('/');
-    splitNewPath.shift(); //remove root
-    const cleanNewPath = splitNewPath.join('/');
-    logger.debug(`[DATA::Move] cleanContextPath: ${cleanContextPath}, Moving: ${fileToMove} to: ${newPath}`);
-    const { updatedDagCidMap, updatedRootCid } = await moveFileInDag(
-      dataBucket.payload.cid,
-      cleanContextPath,
-      fileToMove,
-      cleanNewPath,
-    );
+    const entriesToUpdate = await prisma.draftNodeTree.findMany({
+      where: {
+        nodeId: node.id,
+        OR: [
+          {
+            path: {
+              startsWith: oldPath + '/',
+            },
+          },
+          {
+            path: oldPath,
+          },
+        ],
+      },
+    });
+
+    const updatesToPerform = entriesToUpdate.map((e) => {
+      return {
+        ...e,
+        path: e.path.replace(oldPath, newPath),
+      };
+    });
+
+    const [...updates] = await prisma.$transaction([
+      ...(updatesToPerform as any).map((fd) => {
+        return prisma.draftNodeTree.update({ where: { id: fd.id }, data: fd });
+      }),
+    ]);
+    logger.info(`[DATA::Move] ${updates.length} draftNodeTree entries updated to perform the move operation`);
 
     /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
-    let updatedManifest = updateComponentPathsInManifest({
-      manifest: latestManifest,
-      oldPath: oldPath,
-      newPath: newPath,
-    });
+    let updatedManifest: ResearchObjectV1;
 
-    updatedManifest = updateManifestDataBucket({
-      manifest: updatedManifest,
-      newRootCid: updatedRootCid,
-    });
-
-    // note: updatedDagCidMap here unreliable
-    if (Object.keys(updatedDagCidMap).length) {
-      updatedManifest = updateManifestComponentDagCids(updatedManifest, updatedDagCidMap);
-    }
-
-    /*
-     ** Workaround for keeping manifest cids in sync
-     */
-    const flatTree = recursiveFlattenTree(
-      await getDirectoryTree(updatedRootCid, externalCidMap),
-    ) as RecursiveLsResult[];
-    const flatTreePathMap = flatTree.reduce((map, branch) => {
-      branch.path = neutralizePath(branch.path);
-      map[branch.path] = branch;
-      return map;
-    }, {});
-    for (let i = 0; i < updatedManifest.components.length; i++) {
-      const currentComponent = updatedManifest.components[i];
-      if (currentComponent.payload.path === 'root' || currentComponent.type === ResearchObjectComponentType.LINK)
-        continue; //skip data bucket and ext-links
-      const match = flatTreePathMap[currentComponent.payload.path];
-      if (match) {
-        updatedManifest.components[i].payload.cid = match?.cid;
-        updatedManifest.components[i].payload.url = match?.cid;
-      }
+    try {
+      const response = await repoService.dispatchAction({
+        uuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [{ type: 'Rename Component Path', oldPath, newPath }],
+      });
+      updatedManifest = response ? response.manifest : await getLatestManifestFromNode(node);
+    } catch (err) {
+      logger.error({ err }, '[Source]: Rename Component Path');
+      updatedManifest = await getLatestManifestFromNode(node);
     }
 
     /*
@@ -138,19 +129,18 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
       },
     });
 
-    const newRefs = await prepareDataRefs(node.uuid, updatedManifest, updatedRootCid);
+    const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
     const existingRefMap = existingDataRefs.reduce((map, ref) => {
       map[neutralizePath(ref.path)] = ref;
       return map;
     }, {});
 
     const dataRefsToUpdate = newRefs.map((newRef) => {
-      const neutralizedNewRefPath = neutralizePath(newRef.path);
       // if paths are unchanged (unaffected by the move), their match is found in the line below
-      let match = existingRefMap[neutralizedNewRefPath];
+      let match = existingRefMap[newRef.path];
       if (!match) {
         // if paths are changed (affected by the move), their match should be found in the line below
-        const wouldBeOldPath = neutralizedNewRefPath.replace(newPath, oldPath);
+        const wouldBeOldPath = newRef.path.replace(newPath, oldPath);
         match = existingRefMap[wouldBeOldPath];
       }
       if (match === undefined) {
@@ -164,12 +154,12 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
       return { ...match, ...newRef };
     });
 
-    const [...updates] = await prisma.$transaction([
+    const [...dataRefUpdates] = await prisma.$transaction([
       ...(dataRefsToUpdate as any).map((fd) => {
         return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
       }),
     ]);
-    logger.info(`[DATA::Move] ${updates.length} dataReferences updated`);
+    logger.info(`[DATA::Move] ${dataRefUpdates.length} dataReferences updated`);
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
     if (!persistedManifestCid)
@@ -177,27 +167,30 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
 
     logger.info(`[DATA::Move] Success, path: ${oldPath} changed to: ${newPath}`);
 
+    /**
+     * Update drive clock on automerge document
+     */
+    const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
+    try {
+      const res = await repoService.dispatchAction({
+        uuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      if (res && res.manifest) {
+        updatedManifest = res.manifest;
+      }
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
+
     return res.status(200).json({
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
     });
   } catch (e: any) {
+    console.log('MOVE ERROR', e);
     logger.error(`[DATA::Move] error: ${e}`);
   }
   return res.status(400).json({ error: 'failed' });
 };
-
-interface UpdateComponentPathsInManifest {
-  manifest: ResearchObjectV1;
-  oldPath: string;
-  newPath: string;
-}
-
-export function updateComponentPathsInManifest({ manifest, oldPath, newPath }: UpdateComponentPathsInManifest) {
-  manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
-    if (c.payload?.path.startsWith(oldPath + '/') || c.payload.path === oldPath) {
-      manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
-    }
-  });
-  return manifest;
-}

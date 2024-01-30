@@ -11,8 +11,7 @@ catch() {
 
 assert_command_available() {
   local cmd_to_check=$1
-  if ! command -v "$cmd_to_check" &> /dev/null
-  then
+  if ! command -v "$cmd_to_check" &>/dev/null; then
     echo "[dockerDev] Script dependency '$cmd_to_check' is not installed, aborting"
     exit 1
   fi
@@ -28,8 +27,7 @@ init_node() {
   # Since nvm is loaded through shell config, it's not available
   # in scripts unless we source it manually
   local NVM_SCRIPT="$NVM_DIR/nvm.sh"
-  if [[ -s "$NVM_SCRIPT" ]]
-  then
+  if [[ -s "$NVM_SCRIPT" ]]; then
     source "$NVM_SCRIPT"
   else
     echo "[dockerDev] Could not find $NVM_SCRIPT, aborting"
@@ -64,10 +62,11 @@ done
 # Default to empty if unset
 ADDITIONAL_FLAGS=${ADDITIONAL_FLAGS:-""}
 echo "[dockerDev] PWD=$PWD"
-COMPOSE_HTTP_TIMEOUT=120 docker-compose \
+COMPOSE_HTTP_TIMEOUT=320 docker-compose \
   --project-name desci \
   --file docker-compose.yml \
   --file docker-compose.dev.yml \
+  --file docker-compose.repo.yml \
   $ADDITIONAL_FLAGS \
   --compatibility \
   up \

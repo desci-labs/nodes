@@ -2,12 +2,11 @@ import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@de
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
-import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL } from 'config';
-import parentLogger from 'logger';
-import { cacheNodeMetadata } from 'services/nodeManager';
-
-import { cleanupManifestUrl } from './show';
+import { prisma } from '../../client.js';
+import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL } from '../../config/index.js';
+import { logger as parentLogger } from '../../logger.js';
+import { cacheNodeMetadata } from '../../services/nodeManager.js';
+import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 if (!process.env.NODES_MEDIA_SERVER_URL) {
   throw Error('NODES_MEDIA_SERVER_URL not found, add to env file');
@@ -18,8 +17,8 @@ const parseVersion = (version: string): number | undefined => {
   return !isNaN(parseInt(version))
     ? +version
     : version[0]?.toLowerCase() === 'v' && version.length > 1
-    ? parseInt(version.substring(1)) - 1
-    : undefined;
+      ? parseInt(version.substring(1)) - 1
+      : undefined;
 };
 
 export const getCoverImage = async (req: Request, res: Response, next: NextFunction) => {

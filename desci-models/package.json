@@ -1,6 +1,6 @@
 {
   "name": "@desci-labs/desci-models",
-  "version": "0.1.21",
+  "version": "0.2.1",
   "description": "Data models for DeSci Nodes",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,10 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "jsonld": "^8.1.1",
-    "schema-dts": "^1.1.2",
-    "typescript": "^4.9.4",
-    "util": "^0.12.5",
-    "zod": "^3.20.2"
+    "schema-dts": "^1.1.2"
   },
   "devDependencies": {
     "@types/chai": "^4.3.4",
@@ -38,6 +35,7 @@
     "nyc": "^15.1.0",
     "ts-interface-builder": "^0.3.3",
     "ts-interface-checker": "^1.0.2",
-    "ts-node": "^10.9.1"
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.4"
   }
 }

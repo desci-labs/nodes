@@ -2,16 +2,14 @@ import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-import prismaClient from 'client';
-import logger from 'logger';
-import { magicLinkRedeem, sendMagicLink } from 'services/auth';
-import { saveInteraction } from 'services/interactionLog';
-import { client } from 'services/ipfs';
-import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from 'services/user';
-import { sendCookie } from 'utils/sendCookie';
+import { prisma as prismaClient } from '../../client.js';
+import { logger } from '../../logger.js';
+import { magicLinkRedeem, sendMagicLink } from '../../services/auth.js';
+import { saveInteraction } from '../../services/interactionLog.js';
+import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from '../../services/user.js';
+import { sendCookie } from '../../utils/sendCookie.js';
 
-import { getOrcidRecord } from './orcid';
-import { orcidCheck } from './orcidNext';
+import { getOrcidRecord } from './orcid.js';
 
 export const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });
@@ -35,7 +33,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       where: {
         email: {
           equals: email,
-          mode: 'insensitive'
+          mode: 'insensitive',
         },
       },
     });

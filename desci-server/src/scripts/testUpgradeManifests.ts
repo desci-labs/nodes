@@ -11,15 +11,13 @@ import {
   ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
 
-import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from 'services/ipfs';
-import { ensureUniqueString } from 'utils';
-import { addComponentsToManifest } from 'utils/driveUtils';
+import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from '../services/ipfs.js';
+import { DANGEROUSLY_addComponentsToManifest } from '../utils/driveUtils.js';
+import { ensureUniqueString } from '../utils.js';
 
 /* 
 This script only tests the DAG step, and only a manifest is required, no DB entries are required
 */
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { addToDir, concat, getSize, makeDir, updateDagCid } = require('../utils/dagConcat.cjs');
 
 interface Manifest {
   fileName: string;
@@ -27,7 +25,7 @@ interface Manifest {
 }
 
 async function loadFiles(folderPath: string): Promise<Manifest[]> {
-  const fileNames = await fs.readdirSync(folderPath);
+  const fileNames = fs.readdirSync(folderPath);
   const manifests: Manifest[] = [];
 
   for (const fileName of fileNames) {
@@ -159,8 +157,8 @@ export async function testUpgradeManifests() {
           path === researchReportPath
             ? ResearchObjectComponentType.PDF
             : path === codeReposPath
-            ? ResearchObjectComponentType.CODE
-            : ResearchObjectComponentType.DATA,
+              ? ResearchObjectComponentType.CODE
+              : ResearchObjectComponentType.DATA,
       };
     });
 
@@ -173,7 +171,7 @@ export async function testUpgradeManifests() {
       },
     };
     manifestObj.components.unshift(dataBucketComponent);
-    manifestObj = addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
+    manifestObj = DANGEROUSLY_addComponentsToManifest(manifestObj, opinionatedDirsFormatted);
 
     const dagTree = await getDirectoryTree(rootDagCid, {});
     const flatTree = recursiveFlattenTree(dagTree);

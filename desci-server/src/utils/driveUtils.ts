@@ -1,26 +1,32 @@
 import { randomUUID } from 'crypto';
 
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   DEFAULT_COMPONENT_TYPE,
   DrivePath,
   FileExtension,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
+  ResearchObjectComponentTypeMap,
   ResearchObjectV1,
   ResearchObjectV1Component,
+  extractExtension,
   fillIpfsTree,
   isNodeRoot,
   isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
-import { DataReference, DataType } from '@prisma/client';
+import { DataReference, DataType, Node } from '@prisma/client';
 
-import prisma from 'client';
-import { DataReferenceSrc } from 'controllers/data';
-import { separateFileNameAndExtension } from 'controllers/data/utils';
-import logger from 'logger';
-import { getOrCache } from 'redisClient';
-import { getDirectoryTree, RecursiveLsResult } from 'services/ipfs';
-import { getIndexedResearchObjects } from 'theGraph';
+import { prisma } from '../client.js';
+import { DataReferenceSrc } from '../controllers/data/retrieve.js';
+import { logger } from '../logger.js';
+import { getOrCache } from '../redisClient.js';
+import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
+import { ManifestActions, NodeUuid } from '../services/manifestRepo.js';
+import repoService from '../services/repoService.js';
+import { getIndexedResearchObjects } from '../theGraph.js';
+
+import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
 
 export function fillDirSizes(tree, cidInfoMap) {
   const contains = [];
@@ -135,14 +141,28 @@ export async function getTreeAndFill(
   published?: boolean,
 ) {
   // debugger;
-  const dataBucket = manifest.components.find((c) => isNodeRoot(c));
-  if (!dataBucket) throw new Error(`No data bucket found in manifest for nodeUuid ${nodeUuid}`);
+  let dataBucket = manifest.components.find((c) => isNodeRoot(c));
+  if (!dataBucket) {
+    dataBucket = {
+      payload: { cid: 'draft' },
+      id: 'bucket-placeholder',
+      name: 'draft-placeholder',
+      type: ResearchObjectComponentType.DATA_BUCKET,
+    };
+    logger.warn({ nodeUuid, ownerId }, "Couldn't find data bucket in manifest, using placeholder");
+  }
   const rootCid = dataBucket.payload.cid;
   const externalCidMap = published
     ? await generateExternalCidMap(nodeUuid + '.', rootCid)
     : await generateExternalCidMap(nodeUuid + '.');
-  let tree: RecursiveLsResult[] = await getDirectoryTree(rootCid, externalCidMap);
 
+  const node = await prisma.node.findUnique({ where: { uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.' } });
+
+  const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
+  let tree: RecursiveLsResult[] = published
+    ? await getDirectoryTree(rootCid, externalCidMap)
+    : flatTreeToHierarchicalTree(await draftNodeTreeEntriesToFlatIpfsTree(dbTree));
+  logger.info('ran getTreeAndFill');
   /*
    ** Get all entries for the nodeUuid, for filling the tree
    ** Both entries neccessary to determine publish state, prioritize public entries over private
@@ -201,7 +221,7 @@ export async function getTreeAndFill(
   }
 
   tree = fillCidInfo(tree, cidInfoMap);
-  const treeRoot = await fillIpfsTree(manifest, tree);
+  const treeRoot = fillIpfsTree(manifest, tree);
 
   return treeRoot;
 }
@@ -249,10 +269,18 @@ export const ROTypesToPrismaTypes = {
  * else it returns the default component type.
  */
 export function getDbComponentType(component: ResearchObjectV1Component) {
-  if (isNodeRoot(component)) return ROTypesToPrismaTypes[ResearchObjectComponentType.DATA_BUCKET];
+  // if (isNodeRoot(component)) return ROTypesToPrismaTypes[ResearchObjectComponentType.DATA_BUCKET];
   return isResearchObjectComponentTypeMap(component.type)
-    ? ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE]
+    ? componentTypeMapToDbComponentTypeMap(component.type)
     : ROTypesToPrismaTypes[component.type];
+}
+
+function componentTypeMapToDbComponentTypeMap(componentTypeMap: ResearchObjectComponentTypeMap) {
+  const dbTypeMap: Record<FileExtension, DataType> = {};
+  Object.keys(componentTypeMap).forEach((ext) => {
+    dbTypeMap[ext as FileExtension] = ROTypesToPrismaTypes[componentTypeMap[ext as FileExtension]];
+  });
+  return dbTypeMap;
 }
 
 export type ExtensionDataTypeMap = Record<FileExtension, DataType>;
@@ -261,10 +289,11 @@ export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
   manifest.components.forEach((c) => {
     if (c.payload?.path) {
       const dbType: DataType = getDbComponentType(c);
+
       if (dbType) manifestPathsToTypes[c.payload.path] = dbType;
     }
   });
-  manifestPathsToTypes[DRIVE_NODE_ROOT_PATH] = DataType.DATA_BUCKET;
+  // manifestPathsToTypes[DRIVE_NODE_ROOT_PATH] = DataType.DATA_BUCKET;
   return manifestPathsToTypes;
 }
 
@@ -273,31 +302,52 @@ export function generateManifestPathsToDbTypeMap(manifest: ResearchObjectV1) {
  * NOTE: Used for DB DataType, not ResearchObjectComponentType!
  */
 export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataType | ExtensionDataTypeMap>): DataType {
-  let naturalType = pathToDbTypeMap[path];
-  if (isResearchObjectComponentTypeMap(naturalType)) {
-    // Extract extension from path
-    const { extension } = separateFileNameAndExtension(path);
-    // See if extension lives inside the map
-    if (extension && naturalType[extension]) {
-      naturalType = (naturalType as ExtensionDataTypeMap)[extension];
+  if (path === DRIVE_NODE_ROOT_PATH) return DataType.DATA_BUCKET;
+
+  // Check if path has a direct type on it, meaning a component exists for that path
+  const directType = pathToDbTypeMap[path];
+  if (directType) {
+    // The direct type is either a component type map or a type
+    if (isResearchObjectComponentTypeMap(directType)) {
+      // If it is a component type map, return it as as the default component type (Data), as a component type map isn't a valid DB type.
+      return ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
     } else {
-      // Fallback on DEFAULT_COMPONENT_TYPE
-      const defaultDataType = ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
-      naturalType = defaultDataType;
+      // It's a regular type, return it.
+      return directType as DataType;
     }
   }
-  if (naturalType && naturalType !== DataType.UNKNOWN) return naturalType as DataType;
+
+  // debugger;
+  // No direct types found, so try to inherit from parents
   const pathSplit = path.split('/');
-  if (pathSplit.length < 3) return DataType.UNKNOWN;
+  // If pathSplit.length is < 2, and a direct component doesn't exist on it, it has no parent to inherit from.
+  if (pathSplit.length < 2) return DataType.UNKNOWN;
   while (pathSplit.length > 1) {
+    // debugger;
     pathSplit.pop();
+
     const parentPath = pathSplit.join('/');
-    const parent = pathToDbTypeMap[parentPath];
-    if (parent && parent !== DataType.UNKNOWN) {
-      return parent as DataType;
+    const parentType = pathToDbTypeMap[parentPath];
+    if (parentType) {
+      // A parent with a type exists, it's either a type or a component type map.
+      if (isResearchObjectComponentTypeMap(parentType)) {
+        const extension = extractExtension(path);
+        if (extension && parentType[extension]) {
+          // A match on the extension was found inside the parents component type map, return it.
+          return (parentType as ExtensionDataTypeMap)[extension] as DataType;
+        } else {
+          // A component type map exists, but it doesn't contain the extension, return the default component type (Data).
+          return ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
+        }
+      } else {
+        // The parent has a regular type, return it.
+        return parentType as DataType;
+      }
     }
   }
-  return DataType.UNKNOWN;
+  // Inheritance failed to find a type, return default.
+  // return DataType.UNKNOWN;
+  return ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
 }
 
 /* 
@@ -329,7 +379,17 @@ export interface FirstNestingComponent {
   star?: boolean;
   externalUrl?: string;
 }
-export function addComponentsToManifest(manifest: ResearchObjectV1, firstNestingComponents: FirstNestingComponent[]) {
+
+/**
+ * This function is used to manually update the manifest document by mutating it in playce
+ * @param manifest ResearchObjectV1
+ * @param firstNestingComponents array of components to add to manifest
+ * @returns updated manifest object with newly added components
+ */
+export function DANGEROUSLY_addComponentsToManifest(
+  manifest: ResearchObjectV1,
+  firstNestingComponents: FirstNestingComponent[],
+) {
   //add duplicate path check
   firstNestingComponents.forEach((c) => {
     const comp = {
@@ -349,15 +409,49 @@ export function addComponentsToManifest(manifest: ResearchObjectV1, firstNesting
   return manifest;
 }
 
+export async function addComponentsToDraftManifest(node: Node, firstNestingComponents: FirstNestingComponent[]) {
+  //add duplicate path check
+  const components = firstNestingComponents.map((entry) => {
+    return {
+      id: randomUUID(),
+      name: entry.name,
+      ...(entry.componentType && { type: entry.componentType }),
+      ...(entry.componentSubtype && { subtype: entry.componentSubtype }),
+      payload: {
+        ...urlOrCid(entry.cid, entry.componentType),
+        path: entry.path,
+        ...(entry.externalUrl && { externalUrl: entry.externalUrl }),
+      },
+      starred: entry.star || false,
+    };
+  });
+
+  const actions: ManifestActions[] = [{ type: 'Add Components', components }];
+  try {
+    // updatedManifest = await manifestUpdater({ type: 'Add Components', components });
+    logger.info({ uuid: node.uuid, actions }, '[AddComponentsToDraftManifest]');
+    const response = await repoService.dispatchAction({
+      uuid: node.uuid as NodeUuid,
+      documentId: node.manifestDocumentId as DocumentId,
+      actions,
+    });
+    logger.info({ actions, response }, '[AddComponentsToDraftManifest]');
+    return response?.manifest;
+  } catch (err) {
+    logger.error({ err, actions }, '[ERROR addComponentsToDraftManifest]');
+    return null;
+  }
+}
+
 export type oldCid = string;
 export type newCid = string;
-export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
-  manifest.components.forEach((c) => {
-    if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
-    if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
-  });
-  return manifest;
-}
+// export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
+//   manifest.components.forEach((c) => {
+//     if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
+//     if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
+//   });
+//   return manifest;
+// }
 
 export type ExternalCidMap = Record<string, { size: number; path: string; directory: boolean }>;
 

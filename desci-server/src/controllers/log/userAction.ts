@@ -1,8 +1,8 @@
 import { ActionType, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
-import logger from 'logger';
-import { saveInteraction } from 'services/interactionLog';
+import { logger } from '../../logger.js';
+import { saveInteraction } from '../../services/interactionLog.js';
 
 /**
  * TODO: Put this in desci-models?

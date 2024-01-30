@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
-import logger from 'logger';
-import { getIndexedResearchObjects } from 'theGraph';
-import { encodeBase64UrlSafe } from 'utils';
+import { prisma } from '../../client.js';
+import { logger } from '../../logger.js';
+import { getIndexedResearchObjects } from '../../theGraph.js';
+import { encodeBase64UrlSafe } from '../../utils.js';
 
 //takes a hex uuid or array of hex uuids, returns a mapped array of hexuuids, titles
 export const retrieveTitle = async (req: Request, res: Response, next: NextFunction) => {

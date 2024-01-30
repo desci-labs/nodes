@@ -1,4 +1,4 @@
-import { ErrorType, ErrorValidation, ErrorResponse } from './types';
+import { ErrorType, ErrorValidation, ErrorResponse } from './types.js';
 
 export class CustomError extends Error {
   private httpStatusCode: number;

@@ -1,7 +1,7 @@
 import { ResearchFields } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
+import { prisma } from '../../client.js';
 
 const cache = {};
 

@@ -1,4 +1,10 @@
-import pino from 'pino';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+import { pino } from 'pino';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const logLevel = process.env.PINO_LOG_LEVEL || 'trace';
 
@@ -10,13 +16,15 @@ const devTransport = {
   },
 };
 
+console.log('[DIR NAME]::', __dirname, __filename, logLevel);
+
 const fileTransport = {
   target: 'pino/file',
   options: { destination: `${__dirname}/../log/server.log` },
   level: 'trace',
 };
 
-const logger = pino({
+export const logger = pino({
   level: logLevel,
   serializers: {
     files: omitBuffer,
@@ -52,7 +60,6 @@ const logger = pino({
     ],
   },
 });
-export default logger;
 
 function omitBuffer(array) {
   return array.map((obj) => {

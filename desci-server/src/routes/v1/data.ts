@@ -3,14 +3,15 @@ import multer = require('multer');
 import multerS3 from 'multer-s3';
 import { v4 } from 'uuid';
 
-import { pubTree, retrieveTree, deleteData, update, renameData } from 'controllers/data';
-import { diffData } from 'controllers/data/diff';
-import { moveData } from 'controllers/data/move';
-import { updateExternalCid } from 'controllers/data/updateExternalCid';
-import logger from 'logger';
-import { attachUser, ensureUser } from 'middleware/ensureUser';
-import { ensureWriteAccess, ensureWriteAccessCheck } from 'middleware/ensureWriteAccess';
-import { isS3Configured, s3Client } from 'services/s3';
+import { diffData } from '../../controllers/data/diff.js';
+import { pubTree, retrieveTree, deleteData, update, renameData } from '../../controllers/data/index.js';
+import { moveData } from '../../controllers/data/move.js';
+import { updateExternalCid } from '../../controllers/data/updateExternalCid.js';
+import { logger } from '../../logger.js';
+import { ensureNodeAccess, ensureWriteAccessCheck } from '../../middleware/authorisation.js';
+import { attachUser } from '../../middleware/ensureUser.js';
+import { ensureUser } from '../../middleware/permissions.js';
+import { isS3Configured, s3Client } from '../../services/s3.js';
 
 const router = Router();
 
@@ -66,11 +67,11 @@ const wrappedHandler = (req, res, next) => {
   });
 };
 
-router.post('/update', [ensureUser, wrappedHandler], update);
-router.post('/updateExternalCid', [ensureUser], updateExternalCid);
-router.post('/delete', [ensureUser], deleteData);
-router.post('/rename', [ensureUser], renameData);
-router.post('/move', [ensureUser], moveData);
+router.post('/update', [ensureUser, wrappedHandler, ensureNodeAccess], update);
+router.post('/updateExternalCid', [ensureUser, ensureNodeAccess], updateExternalCid);
+router.post('/delete', [ensureUser, ensureNodeAccess], deleteData);
+router.post('/rename', [ensureUser, ensureNodeAccess], renameData);
+router.post('/move', [ensureUser, ensureNodeAccess], moveData);
 router.get('/retrieveTree/:nodeUuid/:manifestCid', [ensureUser], retrieveTree);
 router.get('/retrieveTree/:nodeUuid/:manifestCid/:shareId?', retrieveTree);
 router.get('/pubTree/:nodeUuid/:manifestCid/:rootCid?', pubTree);

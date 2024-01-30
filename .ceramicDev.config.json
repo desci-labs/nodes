@@ -1,0 +1,35 @@
+{
+  "anchor": { },
+  "http-api": {
+    "cors-allowed-origins": [
+      ".*"
+    ],
+    "admin-dids": [
+      "did:key:z6MktbKJrMnhVJ37QFTo12911ycm2juKDUzWHDVETu9s5a9T"
+    ]
+  },
+  "ipfs": {
+    "mode": "remote",
+    "host": "http://host.docker.internal:5001"
+  },
+  "logger": {
+    "log-level": 2
+  },
+  "metrics": {
+    "metrics-exporter-enabled": false,
+    "metrics-port": 9090
+  },
+  "network": {
+    "name": "inmemory"
+  },
+  "node": {},
+  "state-store": {
+    "mode": "fs",
+    "local-directory": "/root/.ceramic/statestore"
+  },
+  "indexing": {
+    "db": "postgres://walter:white@db_postgres:5432/postgres",
+    "allow-queries-before-historical-sync": true,
+    "models": []
+  }
+}

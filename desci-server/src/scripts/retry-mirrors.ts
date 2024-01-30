@@ -1,7 +1,7 @@
 import { PublicDataReferenceOnIpfsMirror } from '@prisma/client';
 
-import prisma from 'client';
-import logger from 'logger';
+import { prisma } from '../client.js';
+import { logger } from '../logger.js';
 
 async function main() {
   const publicDataReferences = await prisma.publicDataReference.findMany({

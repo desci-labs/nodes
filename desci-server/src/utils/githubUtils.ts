@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import logger from 'logger';
+import { logger } from '../logger.js';
 
 interface GithubUrlInfo {
   branch: string;

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 
+import { getNodeDocument } from '../../controllers/nodes/documents.js';
+import { feed } from '../../controllers/nodes/feed.js';
 import {
   show,
   draftUpdate,
@@ -11,21 +13,25 @@ import {
   consent,
   api,
   publish,
+  checkPrivateShareId,
   createPrivateShare,
   revokePrivateShare,
   getPrivateShare,
-  checkPrivateShareId,
   getCoverImage,
   deleteNode,
-} from 'controllers/nodes/index';
-import { retrieveTitle } from 'controllers/nodes/legacyManifestApi';
-import { versionDetails } from 'controllers/nodes/versionDetails';
-import { ensureUser } from 'middleware/ensureUser';
+} from '../../controllers/nodes/index.js';
+import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
+import { prepublish } from '../../controllers/nodes/prepublish.js';
+import { versionDetails } from '../../controllers/nodes/versionDetails.js';
+import { ensureNodeAccess } from '../../middleware/authorisation.js';
+import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
 
+router.post('/prepublish', [ensureUser, ensureNodeAccess], prepublish);
 router.post('/publish', [ensureUser], publish);
 router.post('/createDraft', [ensureUser], draftCreate);
+// is this api deprecated?
 router.post('/addComponentToDraft', [ensureUser], draftAddComponent);
 router.post('/updateDraft', [ensureUser], draftUpdate);
 router.get('/versionDetails', [], versionDetails);
@@ -40,8 +46,11 @@ router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
 router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
+router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
+
+router.get('/feed', [], feed);
 
 router.get('/legacy/retrieveTitle', retrieveTitle);
 

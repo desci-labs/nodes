@@ -72,6 +72,8 @@ spec:
           export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
           export ESTUARY_API_KEY={{ .Data.ESTUARY_API_KEY }}
           export ESTUARY_API_URL={{ .Data.ESTUARY_API_URL }}
+          export REPO_SERVER_URL={{ .Data.REPO_SERVER_URL }}
+          export REPO_SERVICE_SECRET_KEY={{ .Data.REPO_SERVICE_SECRET_KEY }}
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
@@ -87,6 +89,8 @@ spec:
           ports:
             - containerPort: 5420
               name: server-api
+            - containerPort: 5445
+              name: ws-api
           resources:
             limits:
               cpu: '0.7'

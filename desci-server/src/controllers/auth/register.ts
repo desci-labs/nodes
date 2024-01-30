@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
-import prisma from 'client';
+import { prisma } from '../../client.js';
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   const { email, tokendId } = req.body;

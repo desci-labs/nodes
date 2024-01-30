@@ -39,6 +39,8 @@ COPY --chown=node:node ./desci-contracts/.openzeppelin ./src/desci-contracts-con
 # copy contract abis
 RUN rm -r ./src/desci-contracts-artifacts
 RUN mkdir ./src/desci-contracts-artifacts
+RUN mkdir -p /app/desci-repo/repo-tmp
+RUN mkdir -p /app/desci-server/repo-tmp
 COPY --chown=node:node ./desci-contracts/artifacts ./src/desci-contracts-artifacts
 
 RUN mv package.json package.json.old
@@ -55,6 +57,8 @@ RUN yarn build
 
 # server api
 EXPOSE 5420
+
+EXPOSE 9227
 
 # prisma studio
 EXPOSE 5555

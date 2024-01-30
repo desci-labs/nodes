@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import 'mocha';
+import assert from 'assert';
+
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   DriveObject,
   FileDir,
@@ -15,19 +18,53 @@ import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
-import prisma from '../../src/client';
-import { app } from '../../src/index';
+import { prisma } from '../../src/client.js';
+import { app } from '../../src/index.js';
+import { backendRepo } from '../../src/repo.js';
+import { migrateIpfsTreeToNodeTree } from '../../src/services/draftTrees.js';
 import {
   addFilesToDag,
   getDirectoryTree,
   getSizeForCid,
   client as ipfs,
   spawnEmptyManifest,
-} from '../../src/services/ipfs';
-import { randomUUID64 } from '../../src/utils';
-import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools';
-import { addComponentsToManifest } from '../../src/utils/driveUtils';
-import { spawnExampleDirDag } from '../util';
+} from '../../src/services/ipfs.js';
+import { NodeUuid, getAutomergeUrl } from '../../src/services/manifestRepo.js';
+// import { ResearchObjectDocument } from '../../src/types/documents.js';
+import repoService from '../../src/services/repoService.js';
+import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools.js';
+import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils.js';
+import { addComponentsToDraftManifest } from '../../src/utils/driveUtils.js';
+import { randomUUID64 } from '../../src/utils.js';
+import { spawnExampleDirDag } from '../util.js';
+
+const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseManifestCid: string) => {
+  const node = await prisma.node.create({
+    data: {
+      ownerId: user.id,
+      uuid: randomUUID64(),
+      title: '',
+      manifestUrl: baseManifestCid,
+      replicationFactor: 0,
+    },
+  });
+
+  const response = await repoService.initDraftDocument({
+    uuid: node.uuid as NodeUuid,
+    manifest: baseManifest,
+  });
+
+  if (response?.document && response.documentId) {
+    await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: response.documentId } });
+  }
+  const updatedNode = await prisma.node.findFirst({ where: { id: node.id } });
+  console.log('Draft Node create', response);
+
+  assert(response?.documentId);
+  assert(response?.document);
+
+  return { node: updatedNode || node, documentId: response?.documentId };
+};
 
 describe('Data Controllers', () => {
   let user: User;
@@ -67,16 +104,10 @@ describe('Data Controllers', () => {
     describe('Update a node with a new file', () => {
       let node: Node;
       let res: request.Response;
+
       before(async () => {
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: baseManifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
+        node = nodeData.node;
 
         res = await request(app)
           .post('/v1/data/update')
@@ -112,14 +143,16 @@ describe('Data Controllers', () => {
           manifestCid: res.body.manifestCid,
           publicRefs: false,
         });
+        // debugger;
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // IDEALLY REPLACED WITH A NONCE TEST
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should reject if unauthed', async () => {
         const newRes = await request(app)
           .post('/v1/data/update')
@@ -166,15 +199,8 @@ describe('Data Controllers', () => {
       let node: Node;
       let res: request.Response;
       before(async () => {
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: baseManifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
+        node = nodeData.node;
 
         res = await request(app)
           .post('/v1/data/update')
@@ -209,30 +235,28 @@ describe('Data Controllers', () => {
           manifestCid: res.body.manifestCid,
           publicRefs: false,
         });
+        // debugger;
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
     });
     describe('Update a node with a code repo via external URL', () => {
       let node: Node;
       let res: request.Response;
       const externalRepoUrl = 'https://github.com/github/dev';
       const externalRepoPath = 'A Repo';
+      let documentId: DocumentId;
+
       before(async () => {
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: baseManifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
+        node = nodeData.node;
+        documentId = nodeData.documentId;
+
         res = await request(app)
           .post('/v1/data/update')
           .set('authorization', authHeaderVal)
@@ -241,6 +265,7 @@ describe('Data Controllers', () => {
           .field('contextPath', 'root')
           .field('externalUrl', JSON.stringify({ url: externalRepoUrl, path: externalRepoPath }))
           .field('componentType', ResearchObjectComponentType.CODE);
+        console.log('[Response]::', res.body);
       });
 
       it('should return status 200', () => {
@@ -267,21 +292,28 @@ describe('Data Controllers', () => {
           manifestCid: res.body.manifestCid,
           publicRefs: false,
         });
+        // debugger;
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
-      it('should have added a code component to the manifest', () => {
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
+      it('should have added a code component to the manifest', async () => {
+        console.log(res.body.manifest);
+        const handle = backendRepo.find(getAutomergeUrl(documentId));
+        const doc = await handle.doc();
+        console.log('Doc', doc);
+
         const newCodeComponent = res.body.manifest.components.find(
           (c) => c.type === ResearchObjectComponentType.CODE && c.payload.path === 'root/' + externalRepoPath,
         );
         expect(!!newCodeComponent).to.equal(true);
       });
       it('should have added the repo url to the new code components payload', () => {
+        console.log('[log]', res.body.manifest);
         const newCodeComponent = res.body.manifest.components.find(
           (c) => c.type === ResearchObjectComponentType.CODE && c.payload.path === 'root/' + externalRepoPath,
         );
@@ -311,15 +343,9 @@ describe('Data Controllers', () => {
         manifest.components[0].payload.cid = exampleDagCid;
         manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
 
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: manifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, manifest, manifestCid);
+        node = nodeData.node;
+
         const manifestEntry: Prisma.DataReferenceCreateManyInput = {
           cid: manifestCid,
           userId: user.id,
@@ -390,7 +416,7 @@ describe('Data Controllers', () => {
       const deleteDirPath = 'root/dir/subdir';
 
       before(async () => {
-        let manifest = { ...baseManifest };
+        let manifest: ResearchObjectV1 = { ...baseManifest };
         const exampleDagCid = await spawnExampleDirDag();
         manifest.components[0].payload.cid = exampleDagCid;
         const componentsToAdd = ['dir/subdir', 'dir/subdir/b.txt'].map((path) => ({
@@ -400,18 +426,14 @@ describe('Data Controllers', () => {
           componentType: ResearchObjectComponentType.CODE,
           star: true,
         }));
-        manifest = addComponentsToManifest(manifest, componentsToAdd);
-        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
 
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: manifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, manifest, baseManifestCid);
+        node = nodeData.node;
+
+        manifest = (await addComponentsToDraftManifest(node, componentsToAdd)) ?? manifest;
+        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
+        await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
+
         const manifestEntry: Prisma.DataReferenceCreateManyInput = {
           cid: manifestCid,
           userId: user.id,
@@ -421,6 +443,8 @@ describe('Data Controllers', () => {
           type: DataType.MANIFEST,
           nodeId: node.id,
         };
+
+        await migrateIpfsTreeToNodeTree(node.uuid!);
 
         await prisma.dataReference.create({ data: manifestEntry });
         await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
@@ -440,11 +464,11 @@ describe('Data Controllers', () => {
       it('should return new manifestCid', () => {
         expect(res.body).to.have.property('manifestCid');
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should reject if unauthed', async () => {
         const res = await request(app).post(`/v1/data/delete`).send({ uuid: node.uuid, path: 'root/dir' });
         expect(res.statusCode).to.not.equal(200);
@@ -476,10 +500,8 @@ describe('Data Controllers', () => {
         expect(!!containedComponentFound).to.not.equal(true);
       });
       it('should add deleted entries to cidPruneList', async () => {
-        const deletedCids = [
-          'bafybeiceadgl6eqm52csjdkuch4wyawuyckbt6j4jg3tpxgs2we5mgy254',
-          'bafkreig7pzyokaqvit2igs564zfj4n4j726ex2auodpwfhfnnxnqgmqklq',
-        ];
+        const deletedCids = ['bafkreig7pzyokaqvit2igs564zfj4n4j726ex2auodpwfhfnnxnqgmqklq'];
+        // debugger;
         const pruneListEntries = await prisma.cidPruneList.findMany({ where: { cid: { in: deletedCids } } });
         const allEntriesFound = deletedCids.every((cid) => pruneListEntries.some((entry) => entry.cid === cid));
         expect(allEntriesFound).to.equal(true);
@@ -512,18 +534,14 @@ describe('Data Controllers', () => {
           componentType: ResearchObjectComponentType.CODE,
           star: true,
         }));
-        manifest = addComponentsToManifest(manifest, componentsToAdd);
-        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
 
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: manifestCid,
-            replicationFactor: 0,
-          },
-        });
+        const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
+        node = nodeData.node;
+
+        manifest = (await addComponentsToDraftManifest(node, componentsToAdd)) ?? manifest;
+        const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
+        await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
+
         const manifestEntry: Prisma.DataReferenceCreateManyInput = {
           cid: manifestCid,
           userId: user.id,
@@ -534,6 +552,7 @@ describe('Data Controllers', () => {
           nodeId: node.id,
         };
 
+        await migrateIpfsTreeToNodeTree(node.uuid!);
         await prisma.dataReference.create({ data: manifestEntry });
         await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
         res = await request(app)
@@ -551,21 +570,24 @@ describe('Data Controllers', () => {
       it('should return new manifestCid', () => {
         expect(res.body).to.have.property('manifestCid');
       });
-      it('databucket dag should contain renamed directory and nested files', async () => {
-        const databucketCid = res.body.manifest.components[0].payload.cid;
-        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {})) as FileDir[];
-        const renamedDir = flatTree.find((f) => neutralizePath(f.path) === newPath);
-        const nestedFile = flatTree.find((f) => neutralizePath(f.path) === newPath + '/b.txt');
+      it('draft tree should contain renamed directory and nested files', async () => {
+        const treeEntries = await prisma.draftNodeTree.findMany({
+          where: { nodeId: node.id },
+        });
+        const flatTree = draftNodeTreeEntriesToFlatIpfsTree(treeEntries);
+        const renamedDir = flatTree.find((f) => f.path === newPath);
+        const nestedFile = flatTree.find((f) => f.path === newPath + '/b.txt');
+        // debugger;
         expect(!!renamedDir).to.equal(true);
         expect(!!nestedFile).to.equal(true);
         expect(renamedDir?.type).to.equal('dir');
         expect(nestedFile?.type).to.equal('file');
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should reject if unauthed', async () => {
         const res = await request(app)
           .post(`/v1/data/rename`)
@@ -596,6 +618,7 @@ describe('Data Controllers', () => {
         expect(!!newPathFound).to.equal(true);
       });
       it('should cascade update all manifest component paths that were dependent on the renamed directory', () => {
+        console.log('[LOG]::', res.body.manifest);
         const oldPathContainedComponentFound = res.body.manifest.components.some((c) =>
           c.payload.path.includes(renameDirPath),
         );
@@ -604,14 +627,16 @@ describe('Data Controllers', () => {
         expect(!!containedNewPathFound).to.equal(true);
       });
       it('should rename component card if renameComponent flag is true', () => {
+        console.log('[LOG]::', res.body.manifest);
         const componentCard = res.body.manifest.components.find((c) => c.payload.path === newPath);
         expect(componentCard.name).to.equal('dubdir');
       });
       it('should reject if new name already exists within the same directory', async () => {
+        // debugger;
         const res = await request(app)
           .post(`/v1/data/rename`)
           .set('authorization', authHeaderVal)
-          .send({ uuid: node.uuid!, path: 'dir/a.txt', newName: 'c.txt' });
+          .send({ uuid: node.uuid!, path: 'root/dir/a.txt', newName: 'c.txt' });
         expect(res.statusCode).to.not.equal(200);
       });
     });
@@ -656,18 +681,15 @@ describe('Data Controllers', () => {
             star: true,
           };
         });
-        manifest = addComponentsToManifest(manifest, componentsToAdd);
+
+        const nodeData = await createDraftNode(user, manifest, baseManifestCid);
+        node = nodeData.node;
+
+        manifest = (await addComponentsToDraftManifest(node, componentsToAdd)) ?? manifest;
         const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
 
-        node = await prisma.node.create({
-          data: {
-            ownerId: user.id,
-            uuid: randomUUID64(),
-            title: '',
-            manifestUrl: manifestCid,
-            replicationFactor: 0,
-          },
-        });
+        await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
+
         const manifestEntry: Prisma.DataReferenceCreateManyInput = {
           cid: manifestCid,
           userId: user.id,
@@ -678,6 +700,7 @@ describe('Data Controllers', () => {
           nodeId: node.id,
         };
 
+        await migrateIpfsTreeToNodeTree(node.uuid!);
         await prisma.dataReference.create({ data: manifestEntry });
         await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
         res = await request(app)
@@ -695,18 +718,22 @@ describe('Data Controllers', () => {
       it('should return new manifestCid', () => {
         expect(res.body).to.have.property('manifestCid');
       });
-      it('databucket dag should contain moved directory', async () => {
-        const databucketCid = res.body.manifest.components[0].payload.cid;
-        const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {})) as RecursiveLsResult[];
-        const movedDir = flatTree.find((f) => neutralizePath(f.path) === moveToPath);
+      it('draft tree should contain moved directory', async () => {
+        // const databucketCid = res.body.manifest.components[0].payload.cid;
+        // const flatTree = recursiveFlattenTree(await getDirectoryTree(databucketCid, {})) as RecursiveLsResult[];
+        const treeEntries = await prisma.draftNodeTree.findMany({
+          where: { nodeId: node.id },
+        });
+        const flatTree = draftNodeTreeEntriesToFlatIpfsTree(treeEntries);
+        const movedDir = flatTree.find((f) => f.path === moveToPath);
         expect(!!movedDir).to.equal(true);
         expect(movedDir?.type).to.equal('dir');
       });
-      it('should have an updated manifest data bucket cid', () => {
-        const oldDataBucketCid = baseManifest.components[0].payload.cid;
-        const newDataBucketCid = res.body.manifest.components[0].payload.cid;
-        expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
-      });
+      // it('should have an updated manifest data bucket cid', () => {
+      //   const oldDataBucketCid = baseManifest.components[0].payload.cid;
+      //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
+      //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
+      // });
       it('should reject if unauthed', async () => {
         const res = await request(app)
           .post(`/v1/data/move`)
@@ -742,6 +769,7 @@ describe('Data Controllers', () => {
         const containedNewPathFound = res.body.manifest.components.find(
           (c) => c.payload.path === moveToPath + '/b.txt',
         );
+        console.log('[log];:', oldPathContainedComponentFound, containedNewPathFound, res.body.manifest);
         expect(!!oldPathContainedComponentFound).to.not.equal(true);
         expect(!!containedNewPathFound).to.equal(true);
       });
