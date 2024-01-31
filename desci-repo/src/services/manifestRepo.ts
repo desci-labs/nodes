@@ -1,80 +1,26 @@
 import { Doc, getHeads } from '@automerge/automerge';
 import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import {
+  CommonComponentPayload,
+  ResearchObjectComponentType,
   ResearchObjectComponentTypeMap,
+  ResearchObjectV1AuthorRole,
   ResearchObjectV1Component,
+  ResearchObjectV1Dpid,
+  ResearchObjectV1Organization,
   isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
 
 import { logger } from '../logger.js';
 import { backendRepo } from '../repo.js';
 import { ResearchObjectDocument } from '../types.js';
+import { z } from 'zod';
 
 export type NodeUuid = string & { _kind: 'uuid' };
 
 export const getAutomergeUrl = (documentId: DocumentId): AutomergeUrl => {
   return `automerge:${documentId}` as AutomergeUrl;
 };
-
-// export const createManifestDocument = async function ({ node, manifest }: { node: Node; manifest: ResearchObjectV1 }) {
-//   logger.info({ uuid: node.uuid }, 'START [CreateNodeDocument]');
-//   const uuid = node.uuid.replace(/\.$/, '');
-//   logger.info('[Backend REPO]:', backendRepo.networkSubsystem.peerId);
-
-//   const handle = backendRepo.create<ResearchObjectDocument>();
-//   handle.change(
-//     (document) => {
-//       document.manifest = manifest;
-//       document.uuid = uuid;
-//       document.driveClock = Date.now().toString();
-//     },
-//     { message: 'Init Document', time: Date.now() },
-//   );
-
-//   const document = await handle.doc();
-//   logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
-
-//   await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
-
-//   logger.info('END [CreateNodeDocument]', { documentId: handle.documentId });
-//   return handle.documentId;
-// };
-
-// export const getDraftManifestFromUuid = async function (uuid: NodeUuid) {
-//   logger.info({ uuid }, 'START [getDraftManifestFromUuid]');
-//   // const backendRepo = server.repo;
-//   const node = await prisma.node.findFirst({
-//     where: { uuid },
-//   });
-
-//   if (!node) {
-//     throw new Error(`Node with uuid ${uuid} not found!`);
-//   }
-
-//   const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
-//   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
-
-//   const document = await handle.doc();
-
-//   logger.info({ uuid: document.uuid, documentId: handle.documentId }, '[AUTOMERGE]::[Document Found]');
-
-//   logger.info({ uuid }, '[END]::GetDraftManifestFromUuid');
-//   return document.manifest;
-// };
-
-// export const getDraftManifest = async function (node: Node) {
-//   return getDraftManifestFromUuid(node.uuid as NodeUuid);
-// };
-
-// export const getLatestManifestFromNode = async (node: Node) => {
-//   logger.info({ uuid: node.uuid }, 'START [getLatestManifestFromNode]');
-//   let manifest = await getDraftManifestFromUuid(node.uuid as NodeUuid);
-//   if (!manifest) {
-//     const publishedManifest = await getManifestFromNode(node);
-//     manifest = publishedManifest.manifest;
-//   }
-//   return manifest;
-// };
 
 export function assertNever(value: never) {
   console.error('Unknown value', value);
@@ -98,18 +44,20 @@ export type ManifestActions =
       componentTypeMap: ResearchObjectComponentTypeMap;
     }
   | { type: 'Set Drive Clock'; time: string };
+// frontend changes to support
 
 export const getDocumentUpdater = (documentId: DocumentId) => {
   const automergeUrl = getAutomergeUrl(documentId);
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
 
   return async (action: ManifestActions) => {
-    if (!handle) return null;
+    if (!handle) return;
     let latestDocument = await handle.doc();
 
     if (!latestDocument) {
       logger.error({ node: documentId }, 'Automerge document not found');
-      throw new Error('Automerge Document Not found');
+      // throw new Error('Automerge Document Not found');
+      return;
     }
 
     const heads = getHeads(latestDocument);
@@ -118,9 +66,8 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
 
     switch (action.type) {
       case 'Add Components':
-        const uniqueComponents = action.components.filter(
-          (componentToAdd) =>
-            !latestDocument.manifest.components.some((c) => c.payload?.path === componentToAdd.payload?.path),
+        const uniqueComponents = action.components.filter((componentToAdd) =>
+          latestDocument?.manifest.components.some((c) => c.payload?.path === componentToAdd.payload?.path),
         );
         if (uniqueComponents.length > 0) {
           handle.change(
@@ -222,8 +169,11 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
         assertNever(action);
     }
     latestDocument = await handle.doc();
-    const updatedHeads = getHeads(latestDocument);
-    logger.info({ action, heads: updatedHeads }, `DocumentUpdater::Exit`);
+
+    if (latestDocument) {
+      const updatedHeads = getHeads(latestDocument);
+      logger.info({ action, heads: updatedHeads }, `DocumentUpdater::Exit`);
+    }
     return latestDocument;
   };
 };
@@ -266,3 +216,84 @@ const updateComponentTypeMap = (
     componentType[key] = value;
   });
 };
+
+const componentType = z.nativeEnum(ResearchObjectComponentType);
+const componentTypeMap = z.record(componentType);
+
+const researchObject = z
+  .object({
+    id: z.string(),
+    version: z.union([z.literal('desci-nodes-0.1.0'), z.literal('desci-nodes-0.2.0'), z.literal(1)]),
+    name: z.string(),
+    payload: z.object({ path: z.string() }).passthrough(),
+    components: z.array(z.object({ id: z.string() }).passthrough()),
+  })
+  .passthrough();
+
+/**
+   * export interface CommonComponentPayload {
+    title?: string;
+    keywords?: string[];
+    description?: string;
+    licenseType?: string;
+    path?: string;
+}
+   */
+const commonPayloadSchema = z.object({
+  title: z.string().optional(),
+  keywords: z.array(z.string()).optional(),
+  description: z.string().optional(),
+  licenseType: z.string().optional(),
+  path: z.string().optional(),
+});
+
+const componentSchema: z.ZodType<ResearchObjectV1Component> = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    payload: commonPayloadSchema.passthrough(),
+    type: z.union([componentType, componentTypeMap]),
+    starred: z.boolean(),
+  })
+  .refine((arg) => {
+    if (!arg.starred) return false;
+    return true;
+  });
+// .passthrough();
+
+export interface ResearchObjectV1Author {
+  name: string;
+  orcid?: string | undefined;
+  googleScholar?: string | undefined;
+  role: ResearchObjectV1AuthorRole;
+  organizations?: ResearchObjectV1Organization[] | undefined;
+  github?: string | undefined;
+}
+
+const contributor: z.ZodType<ResearchObjectV1Author> = z.object({
+  name: z.string(),
+  orcid: z.string().optional(),
+  googleScholar: z.string().optional(),
+  role: z.nativeEnum(ResearchObjectV1AuthorRole),
+  organizations: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
+  github: z.string().optional(),
+});
+// .passthrough();
+
+const dpid: z.ZodType<ResearchObjectV1Dpid> = z.object({ prefix: z.string(), id: z.string() }).required();
+
+export const actionsSchema = z.array(
+  z.discriminatedUnion('type', [
+    z.object({ type: z.literal('Publish dPID'), dpid: dpid }),
+    z.object({ type: z.literal('Update Title'), title: z.string() }),
+    z.object({ type: z.literal('Update Description'), description: z.string() }),
+    z.object({ type: z.literal('Update License'), defaultLicense: z.string() }),
+    z.object({ type: z.literal('Update ResearchFields'), researchFields: z.array(z.string()) }),
+    z.object({ type: z.literal('Add Component'), component: componentSchema }),
+    z.object({ type: z.literal('Delete Component'), path: z.string() }),
+    z.object({ type: z.literal('Add Contributor'), author: contributor }),
+    z.object({ type: z.literal('Remove Contributor'), contributorIndex: z.number() }),
+    z.object({ type: z.literal('Pin Component'), componentIndex: z.number() }),
+    z.object({ type: z.literal('UnPin Component'), componentIndex: z.number() }),
+  ]),
+);

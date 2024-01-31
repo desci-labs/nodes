@@ -105,128 +105,128 @@ export type ManifestActions =
     }
   | { type: 'Set Drive Clock'; time: string };
 
-const getNodeManifestUpdater = (node: Node) => {
-  const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
-  const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+// const getNodeManifestUpdater = (node: Node) => {
+//   const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
+//   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
 
-  return async (action: ManifestActions) => {
-    if (!handle) return null;
-    let latestDocument = await handle.doc();
-    const heads = getHeads(latestDocument);
-    logger.info({ heads }, `Document`);
-    logger.info({ action }, `DocumentUpdater::Dispatched`);
+//   return async (action: ManifestActions) => {
+//     if (!handle) return null;
+//     let latestDocument = await handle.doc();
+//     const heads = getHeads(latestDocument);
+//     logger.info({ heads }, `Document`);
+//     logger.info({ action }, `DocumentUpdater::Dispatched`);
 
-    switch (action.type) {
-      case 'Add Components':
-        const uniqueComponents = action.components.filter(
-          (componentToAdd) =>
-            !latestDocument.manifest.components.some((c) => c.payload?.path === componentToAdd.payload?.path),
-        );
-        if (uniqueComponents.length > 0) {
-          handle.change(
-            (document) => {
-              uniqueComponents.forEach((component) => {
-                document.manifest.components.push(component);
-              });
-            },
-            { time: Date.now(), message: action.type },
-          );
-        }
-        break;
-      case 'Rename Component':
-        handle.change(
-          (document) => {
-            const component = document.manifest.components.find((c) => c.payload?.path === action.path);
-            if (component) component.name = action.fileName;
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
-      case 'Delete Component':
-        const deleteIdx = latestDocument.manifest.components.findIndex((c) => c.id === action.componentId);
-        if (deleteIdx !== -1) {
-          logger.info({ action, deleteIdx }, `DocumentUpdater::Deleteing`);
-          handle.change(
-            (document) => {
-              document.manifest.components.splice(deleteIdx, 1);
-            },
-            { time: Date.now(), message: action.type },
-          );
-        }
-        break;
-      case 'Delete Components':
-        const componentEntries = latestDocument.manifest.components
-          .map((c) => (action.pathsToDelete.includes(c.payload?.path) ? c.payload?.path : null))
-          .filter(Boolean) as string[];
-        if (componentEntries.length > 0) {
-          logger.info({ action, componentEntries }, `DocumentUpdater::Delete Components`);
-          handle.change(
-            (document) => {
-              for (const path of componentEntries) {
-                const deleteIdx = document.manifest.components.findIndex((c) => c.payload?.path === path);
-                logger.info({ path, deleteIdx }, `DocumentUpdater::Delete`);
-                if (deleteIdx !== -1) document.manifest.components.splice(deleteIdx, 1);
-              }
-            },
-            { time: Date.now(), message: action.type },
-          );
-        }
-        break;
-      case 'Rename Component Path':
-        const components = latestDocument.manifest.components.filter(
-          (component) =>
-            component.payload?.path?.startsWith(action.oldPath + '/') || component.payload?.path === action.oldPath,
-        );
-        if (components.length > 0) {
-          handle.change(
-            (document) => {
-              const components = document.manifest.components.filter(
-                (component) =>
-                  component.payload?.path.startsWith(action.oldPath + '/') ||
-                  component.payload?.path === action.oldPath,
-              );
-              for (const component of components) {
-                component.payload.path = component.payload?.path.replace(action.oldPath, action.newPath);
-              }
-            },
-            { time: Date.now(), message: action.type },
-          );
-        }
-        break;
-      case 'Update Component':
-        handle.change(
-          (document) => {
-            updateManifestComponent(document, action.component, action.componentIndex);
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
-      case 'Assign Component Type':
-        handle.change(
-          (document) => {
-            updateComponentTypeMap(document, action.component.payload?.path, action.componentTypeMap);
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
-      case 'Set Drive Clock':
-        handle.change(
-          (document) => {
-            if (document.driveClock && document.driveClock === action.time) return; // Don't update if already the latest
-            document.driveClock = action.time;
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
-      default:
-        assertNever(action);
-    }
-    latestDocument = await handle.doc();
-    const updatedHeads = getHeads(latestDocument);
-    logger.info({ action, heads: updatedHeads }, `DocumentUpdater::Exit`);
-    return latestDocument.manifest;
-  };
-};
+//     switch (action.type) {
+//       case 'Add Components':
+//         const uniqueComponents = action.components.filter(
+//           (componentToAdd) =>
+//             !latestDocument.manifest.components.some((c) => c.payload?.path === componentToAdd.payload?.path),
+//         );
+//         if (uniqueComponents.length > 0) {
+//           handle.change(
+//             (document) => {
+//               uniqueComponents.forEach((component) => {
+//                 document.manifest.components.push(component);
+//               });
+//             },
+//             { time: Date.now(), message: action.type },
+//           );
+//         }
+//         break;
+//       case 'Rename Component':
+//         handle.change(
+//           (document) => {
+//             const component = document.manifest.components.find((c) => c.payload?.path === action.path);
+//             if (component) component.name = action.fileName;
+//           },
+//           { time: Date.now(), message: action.type },
+//         );
+//         break;
+//       case 'Delete Component':
+//         const deleteIdx = latestDocument.manifest.components.findIndex((c) => c.id === action.componentId);
+//         if (deleteIdx !== -1) {
+//           logger.info({ action, deleteIdx }, `DocumentUpdater::Deleteing`);
+//           handle.change(
+//             (document) => {
+//               document.manifest.components.splice(deleteIdx, 1);
+//             },
+//             { time: Date.now(), message: action.type },
+//           );
+//         }
+//         break;
+//       case 'Delete Components':
+//         const componentEntries = latestDocument.manifest.components
+//           .map((c) => (action.pathsToDelete.includes(c.payload?.path) ? c.payload?.path : null))
+//           .filter(Boolean) as string[];
+//         if (componentEntries.length > 0) {
+//           logger.info({ action, componentEntries }, `DocumentUpdater::Delete Components`);
+//           handle.change(
+//             (document) => {
+//               for (const path of componentEntries) {
+//                 const deleteIdx = document.manifest.components.findIndex((c) => c.payload?.path === path);
+//                 logger.info({ path, deleteIdx }, `DocumentUpdater::Delete`);
+//                 if (deleteIdx !== -1) document.manifest.components.splice(deleteIdx, 1);
+//               }
+//             },
+//             { time: Date.now(), message: action.type },
+//           );
+//         }
+//         break;
+//       case 'Rename Component Path':
+//         const components = latestDocument.manifest.components.filter(
+//           (component) =>
+//             component.payload?.path?.startsWith(action.oldPath + '/') || component.payload?.path === action.oldPath,
+//         );
+//         if (components.length > 0) {
+//           handle.change(
+//             (document) => {
+//               const components = document.manifest.components.filter(
+//                 (component) =>
+//                   component.payload?.path.startsWith(action.oldPath + '/') ||
+//                   component.payload?.path === action.oldPath,
+//               );
+//               for (const component of components) {
+//                 component.payload.path = component.payload?.path.replace(action.oldPath, action.newPath);
+//               }
+//             },
+//             { time: Date.now(), message: action.type },
+//           );
+//         }
+//         break;
+//       case 'Update Component':
+//         handle.change(
+//           (document) => {
+//             updateManifestComponent(document, action.component, action.componentIndex);
+//           },
+//           { time: Date.now(), message: action.type },
+//         );
+//         break;
+//       case 'Assign Component Type':
+//         handle.change(
+//           (document) => {
+//             updateComponentTypeMap(document, action.component.payload?.path, action.componentTypeMap);
+//           },
+//           { time: Date.now(), message: action.type },
+//         );
+//         break;
+//       case 'Set Drive Clock':
+//         handle.change(
+//           (document) => {
+//             if (document.driveClock && document.driveClock === action.time) return; // Don't update if already the latest
+//             document.driveClock = action.time;
+//           },
+//           { time: Date.now(), message: action.type },
+//         );
+//         break;
+//       default:
+//         assertNever(action);
+//     }
+//     latestDocument = await handle.doc();
+//     const updatedHeads = getHeads(latestDocument);
+//     logger.info({ action, heads: updatedHeads }, `DocumentUpdater::Exit`);
+//     return latestDocument.manifest;
+//   };
+// };
 
 const updateManifestComponent = (
   doc: Doc<ResearchObjectDocument>,

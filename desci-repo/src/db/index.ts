@@ -6,7 +6,7 @@ const { Pool } = pg;
 console.log('DB', process.env.DATABASE_URL);
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || 'postgresql://walter:white@host.docker.internal:5433/boilerplate',
   options: '-c search_path=public',
 });
 

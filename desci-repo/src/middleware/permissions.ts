@@ -6,6 +6,12 @@ import { getUserByEmail, getUserByOrcId } from '../services/user.js';
 
 export const ensureUser = async (req: ExpressRequest, res: Response, next: NextFunction) => {
   const token = await extractAuthToken(req);
+
+  if (!token) {
+    res.status(401).send({ ok: false, message: 'Unauthorized' });
+    return;
+  }
+
   const retrievedUser = await extractUserFromToken(token);
   if (!retrievedUser) {
     res.status(401).send({ ok: false, message: 'Unauthorized' });

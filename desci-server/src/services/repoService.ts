@@ -18,8 +18,8 @@ class RepoService {
   baseUrl: string;
 
   constructor() {
-    this.#apiKey = process.env.REPO_SERVICE_SECRET_KEY;
-    this.baseUrl = process.env.REPO_SERVER_URL;
+    this.#apiKey = process.env.REPO_SERVICE_SECRET_KEY ?? '';
+    this.baseUrl = process.env.REPO_SERVER_URL ?? '';
 
     if (!this.#apiKey || !this.baseUrl) {
       throw new Error('[REPO SERVICE]: env.REPO_SERVER_URL or env.REPO_SERVICE_SECRET_KEY missing');
@@ -45,6 +45,20 @@ class RepoService {
     } else {
       // logger.info({ response: response.data }, 'Disatch Changes Response');
       return null;
+    }
+  }
+
+  async dispatchChanges(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
+    logger.info({ arg }, 'Disatch Actions');
+    const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
+      `${this.baseUrl}/v1/nodes/documents/actions`,
+      arg,
+    );
+    logger.info({ arg, response: response.data }, 'Disatch Actions Response');
+    if (response.status === 200 && response.data.ok) {
+      return response.data.document;
+    } else {
+      return response.data;
     }
   }
 
