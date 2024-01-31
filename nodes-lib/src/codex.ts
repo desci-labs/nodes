@@ -31,10 +31,10 @@ export type History = {
 export const ceramicPublish = async (
   modifiedObject: PrepublishResponse,
   history: History,
-  seed: string,
+  privateKey: string,
 ): Promise<NodeIDs> => {
   console.log("[DEBUG]::CERAMIC starting publish...");
-  const ceramic = await authenticatedCeramicClient(seed);
+  const ceramic = await authenticatedCeramicClient(privateKey);
   const compose = newComposeClient({ ceramic });
 
   if (history.existingStream) {
@@ -64,7 +64,11 @@ export const ceramicPublish = async (
     console.log("[DEBUG]::CERAMIC backfilling new stream to mirror history...");
     const streamID = await backfillNewStream(compose, history.versions);
     console.log("[DEBUG]::CERAMIC backfill done, recursing to append latest event...");
-    return await ceramicPublish(modifiedObject, { existingStream: streamID, versions: history.versions }, seed);
+    return await ceramicPublish(
+      modifiedObject,
+      { existingStream: streamID, versions: history.versions },
+      privateKey
+    );
   };
 };
 
@@ -117,11 +121,9 @@ export const getPublishedFromCeramic = async (
   id: string
 ) => {
   const ceramic = await authenticatedCeramicClient(
-    // TODO actually sign with wallet
-    process.env.SEED!
+    process.env.PKEY!
   );
 
   const compose = newComposeClient({ ceramic });
-
   return await queryResearchObject(compose, id);
 }

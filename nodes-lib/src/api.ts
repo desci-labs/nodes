@@ -190,8 +190,8 @@ export const publishDraftNode = async (
 };
 
 export type DeleteFileParams = {
-  nodeUuid: string,
-  filePath: string,
+  uuid: string,
+  path: string,
 };
 
 export type DeleteFileResponse = {

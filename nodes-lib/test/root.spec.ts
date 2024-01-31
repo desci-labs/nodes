@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
-import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory } from "../src/api.js";
+import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteFile } from "../src/api.js";
 import axios from "axios";
 import { getPublishedFromCeramic } from "../src/codex.js";
 import { chainPublish, getDpid } from "../src/chain.js";
@@ -77,7 +77,7 @@ describe("nodes-lib", () => {
     // Missing history without lifting over lots of code from nodes-web :thinking:
     test.todo("can be migrated by backfill")
 
-    test.only("can be published to legacy contract", async () => {
+    test("can be published to legacy contract", async () => {
       const { node: { uuid, manifestUrl }} = await createBoilerplateNode();
       console.log(`New node manifest: ${manifestUrl} (${getBytesFromCIDString(manifestUrl)})`);
 
@@ -179,18 +179,54 @@ describe("nodes-lib", () => {
         });
       });
 
-    });
+      test("can be moved", async () => {
+        const { node: { uuid }} = await createBoilerplateNode();
+        const filePaths = [ "package.json" ];
+        const uploadResult = await uploadFiles({
+          uuid,
+          targetPath: "root",
+          filePaths,
+        }, AUTH_TOKEN);
+        expect(uploadResult.tree[0].contains![0].path).toEqual("root/package.json");
 
-    test.todo("can move file", async () => {
+        const moveResult = await moveData({
+          uuid,
+          oldPath: "root/package.json",
+          newPath: "root/json.package",
+        }, AUTH_TOKEN);
 
-    });
+        const treeResult = await retrieveDraftFileTree(
+          uuid,
+          moveResult.manifestCid,
+          AUTH_TOKEN
+        );
+        expect(treeResult.tree[0].contains![0].path).toEqual("root/json.package");
+      });
 
-    test.todo("can rename file", async () => {
+      test("can be deleted", async () => {
+        const { node: { uuid }} = await createBoilerplateNode();
+        const filePaths = [ "package.json" ];
+        const uploadResult = await uploadFiles({
+          uuid,
+          targetPath: "root",
+          filePaths,
+        }, AUTH_TOKEN);
 
-    });
+        expect(uploadResult.tree[0].contains![0].name).toEqual("package.json");
 
-    test.todo("can delete file", async () => {
+        const { manifestCid } = await deleteFile({
+          uuid,
+          path: "root/package.json"
+        }, AUTH_TOKEN);
 
+        const treeResult = await retrieveDraftFileTree(
+          uuid,
+          manifestCid,
+          AUTH_TOKEN
+        );
+
+        expect(treeResult.tree[0].contains!.length).toEqual(0);
+      });
     });
   });
 });
