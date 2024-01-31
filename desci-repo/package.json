@@ -65,15 +65,15 @@
     "rimraf": "^5.0.5",
     "ts-node": "10.9.1",
     "ts-node-dev": "^2.0.0",
-    "tsx": "^4.7.0",
     "typescript": "5.1.6"
   },
   "dependencies": {
-    "@desci-labs/desci-models": "^0.1.21",
+    "@desci-labs/desci-models": "file:../desci-models",
     "@sentry/node": "^7.84.0",
     "@sentry/tracing": "^7.84.0",
     "axios": "^1.6.2",
     "cors": "^2.8.5",
+    "deep-equal": "^2.2.3",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",

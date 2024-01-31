@@ -1,6 +1,6 @@
 import 'mocha';
 import { expect } from 'chai';
-import { actionsSchema } from '../../services/manifestRepo.js';
+import { actionsSchema } from '../../validators/schema.js';
 import { ZodError } from 'zod';
 import {
   ResearchObjectComponentType,
@@ -32,6 +32,26 @@ describe('ManifestActions Schema', () => {
 
     it('should reject invalid title action', () => {
       const validated = actionsSchema.safeParse([{ type: 'Update Title', invalidKey: '' }]);
+      console.log(validated);
+      expect(validated.success).to.be.false;
+    });
+  });
+
+  describe('Publish Dpid', () => {
+    it('should validate dPID action', () => {
+      const validated = actionsSchema.safeParse([{ type: 'Publish dPID', dpid: { prefix: 'beta', id: '1' } }]);
+      console.log(validated);
+      expect(validated.success).to.be.true;
+    });
+
+    it('should reject invalid dPID action data', () => {
+      const validated = actionsSchema.safeParse([{ type: 'Publish dPID', dpid: { prefix: 'beta', ids: '1' } }]);
+      console.log(validated);
+      expect(validated.success).to.be.false;
+    });
+
+    it('should reject invalid dPID action', () => {
+      const validated = actionsSchema.safeParse([{ type: 'Publish dPID', invalidKey: '' }]);
       console.log(validated);
       expect(validated.success).to.be.false;
     });

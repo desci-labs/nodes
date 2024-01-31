@@ -1,20 +1,22 @@
 import { Doc, getHeads } from '@automerge/automerge';
 import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import {
-  CommonComponentPayload,
+  CodeComponent,
+  DataComponent,
+  ExternalLinkComponent,
+  PdfComponent,
   ResearchObjectComponentType,
   ResearchObjectComponentTypeMap,
-  ResearchObjectV1AuthorRole,
+  ResearchObjectV1Author,
   ResearchObjectV1Component,
   ResearchObjectV1Dpid,
-  ResearchObjectV1Organization,
   isResearchObjectComponentTypeMap,
 } from '@desci-labs/desci-models';
+import isEqual from 'deep-equal';
 
 import { logger } from '../logger.js';
 import { backendRepo } from '../repo.js';
 import { ResearchObjectDocument } from '../types.js';
-import { z } from 'zod';
 
 export type NodeUuid = string & { _kind: 'uuid' };
 
@@ -29,8 +31,7 @@ export function assertNever(value: never) {
 
 export type ManifestActions =
   | { type: 'Add Components'; components: ResearchObjectV1Component[] }
-  | { type: 'Delete Component'; componentId: string }
-  | { type: 'Delete Components'; pathsToDelete: string[] }
+  | { type: 'Delete Components'; paths: string[] }
   | { type: 'Rename Component'; path: string; fileName: string }
   | { type: 'Rename Component Path'; oldPath: string; newPath: string }
   | {
@@ -43,8 +44,27 @@ export type ManifestActions =
       component: ResearchObjectV1Component;
       componentTypeMap: ResearchObjectComponentTypeMap;
     }
-  | { type: 'Set Drive Clock'; time: string };
-// frontend changes to support
+  | { type: 'Set Drive Clock'; time: string }
+  // frontend changes to support
+  | { type: 'Update Title'; title: string }
+  | { type: 'Update Description'; description: string }
+  | { type: 'Update License'; defaultLicense: string }
+  | { type: 'Update ResearchFields'; researchFields: string[] }
+  | { type: 'Add Component'; component: ResearchObjectV1Component }
+  | { type: 'Delete Component'; path: string }
+  | { type: 'Add Contributor'; author: ResearchObjectV1Author }
+  | { type: 'Remove Contributor'; contributorIndex: number }
+  | { type: 'Pin Component'; path: string }
+  | { type: 'UnPin Component'; path: string }
+  | {
+      type: 'Update Component';
+      component: ResearchObjectV1Component;
+      componentIndex: number;
+    }
+  | {
+      type: 'Publish Dpid';
+      dpid: ResearchObjectV1Dpid;
+    };
 
 export const getDocumentUpdater = (documentId: DocumentId) => {
   const automergeUrl = getAutomergeUrl(documentId);
@@ -90,7 +110,7 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
         );
         break;
       case 'Delete Component':
-        const deleteIdx = latestDocument.manifest.components.findIndex((c) => c.id === action.componentId);
+        const deleteIdx = latestDocument.manifest.components.findIndex((c) => c.payload?.path === action.path);
         if (deleteIdx !== -1) {
           logger.info({ action, deleteIdx }, `DocumentUpdater::Deleteing`);
           handle.change(
@@ -103,7 +123,7 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
         break;
       case 'Delete Components':
         const componentEntries = latestDocument.manifest.components
-          .map((c) => (action.pathsToDelete.includes(c.payload?.path) ? c.payload?.path : null))
+          .map((c) => (action.paths.includes(c.payload?.path) ? c.payload?.path : null))
           .filter(Boolean) as string[];
         if (componentEntries.length > 0) {
           logger.info({ action, componentEntries }, `DocumentUpdater::Delete Components`);
@@ -165,6 +185,110 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
+      case 'Update License':
+        handle.change(
+          (document) => {
+            document.manifest.defaultLicense = action.defaultLicense;
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      case 'Update Description':
+        handle.change(
+          (document) => {
+            if (!document.manifest.description) document.manifest.description = '';
+            document.manifest.description = action.description;
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      case 'Update Title':
+        handle.change(
+          (document) => {
+            document.manifest.title = action.title;
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      case 'Update ResearchFields':
+        handle.change(
+          (document) => {
+            document.manifest.researchFields = action.researchFields;
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      case 'Add Component':
+        handle.change(
+          (document) => {
+            addManifestComponent(document, action.component);
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      case 'Delete Component':
+        handle.change(
+          (document) => {
+            deleteComponent(document, action.path);
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      case 'Update Component':
+        handle.change(
+          (document) => {
+            updateManifestComponent(document, action.component, action.componentIndex);
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      case 'Publish Dpid':
+        handle.change(
+          (document) => {
+            addDpid(document, action.dpid);
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      case 'Pin Component':
+        let componentIndex = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
+        if (componentIndex && componentIndex != -1) {
+          handle.change(
+            (document) => {
+              togglePin(document, componentIndex, true);
+            },
+            { time: Date.now(), message: action.type },
+          );
+        }
+        break;
+      case 'UnPin Component':
+        let index = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
+        if (index && index != -1) {
+          handle.change(
+            (document) => {
+              togglePin(document, index, false);
+            },
+            { time: Date.now(), message: action.type },
+          );
+        }
+        break;
+      case 'Remove Contributor':
+        handle.change(
+          (document) => {
+            document.manifest.authors?.splice(action.contributorIndex, 1);
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      case 'Add Contributor':
+        handle.change(
+          (document) => {
+            if (!document.manifest.authors) document.manifest.authors = [];
+            document.manifest.authors?.push(action.author);
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
       default:
         assertNever(action);
     }
@@ -176,20 +300,6 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
     }
     return latestDocument;
   };
-};
-
-const updateManifestComponent = (
-  doc: Doc<ResearchObjectDocument>,
-  component: ResearchObjectV1Component,
-  componentIndex: number,
-) => {
-  if (componentIndex === -1 || componentIndex === undefined) return;
-
-  const currentComponent = doc.manifest.components[componentIndex];
-  currentComponent.type = component?.type || currentComponent.type;
-
-  if (!currentComponent.starred) currentComponent.starred = false;
-  currentComponent.starred = component?.starred || currentComponent.starred;
 };
 
 const updateComponentTypeMap = (
@@ -217,83 +327,119 @@ const updateComponentTypeMap = (
   });
 };
 
-const componentType = z.nativeEnum(ResearchObjectComponentType);
-const componentTypeMap = z.record(componentType);
+const addManifestComponent = (doc: Doc<ResearchObjectDocument>, component: ResearchObjectV1Component) => {
+  doc.manifest.components.push(component);
+};
 
-const researchObject = z
-  .object({
-    id: z.string(),
-    version: z.union([z.literal('desci-nodes-0.1.0'), z.literal('desci-nodes-0.2.0'), z.literal(1)]),
-    name: z.string(),
-    payload: z.object({ path: z.string() }).passthrough(),
-    components: z.array(z.object({ id: z.string() }).passthrough()),
-  })
-  .passthrough();
+const deleteComponent = (doc: Doc<ResearchObjectDocument>, path: string) => {
+  const deleteIdx = doc.manifest.components.findIndex((component) => component?.payload?.path === path);
+  if (deleteIdx !== -1) doc.manifest.components.splice(deleteIdx, 1);
+};
 
-/**
-   * export interface CommonComponentPayload {
-    title?: string;
-    keywords?: string[];
-    description?: string;
-    licenseType?: string;
-    path?: string;
-}
-   */
-const commonPayloadSchema = z.object({
-  title: z.string().optional(),
-  keywords: z.array(z.string()).optional(),
-  description: z.string().optional(),
-  licenseType: z.string().optional(),
-  path: z.string().optional(),
-});
+const togglePin = (doc: Doc<ResearchObjectDocument>, componentIndex: number, pin: boolean) => {
+  const currentComponent = doc.manifest.components[componentIndex];
+  currentComponent.starred = pin;
+};
 
-const componentSchema: z.ZodType<ResearchObjectV1Component> = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    payload: commonPayloadSchema.passthrough(),
-    type: z.union([componentType, componentTypeMap]),
-    starred: z.boolean(),
-  })
-  .refine((arg) => {
-    if (!arg.starred) return false;
-    return true;
-  });
-// .passthrough();
+const addDpid = (doc: Doc<ResearchObjectDocument>, dpid: ResearchObjectV1Dpid) => {
+  if (doc.manifest.dpid) return;
+  doc.manifest.dpid = dpid;
+};
 
-export interface ResearchObjectV1Author {
-  name: string;
-  orcid?: string | undefined;
-  googleScholar?: string | undefined;
-  role: ResearchObjectV1AuthorRole;
-  organizations?: ResearchObjectV1Organization[] | undefined;
-  github?: string | undefined;
-}
+const updateManifestComponent = (
+  doc: Doc<ResearchObjectDocument>,
+  component: ResearchObjectV1Component,
+  componentIndex: number,
+) => {
+  if (componentIndex === -1 || componentIndex === undefined) return;
 
-const contributor: z.ZodType<ResearchObjectV1Author> = z.object({
-  name: z.string(),
-  orcid: z.string().optional(),
-  googleScholar: z.string().optional(),
-  role: z.nativeEnum(ResearchObjectV1AuthorRole),
-  organizations: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
-  github: z.string().optional(),
-});
-// .passthrough();
+  const currentComponent = doc.manifest.components[componentIndex];
+  currentComponent.type = component?.type || currentComponent.type;
 
-const dpid: z.ZodType<ResearchObjectV1Dpid> = z.object({ prefix: z.string(), id: z.string() }).required();
+  if (!currentComponent.starred) currentComponent.starred = false;
+  currentComponent.starred = component?.starred || currentComponent.starred;
 
-export const actionsSchema = z.array(
-  z.discriminatedUnion('type', [
-    z.object({ type: z.literal('Publish dPID'), dpid: dpid }),
-    z.object({ type: z.literal('Update Title'), title: z.string() }),
-    z.object({ type: z.literal('Update Description'), description: z.string() }),
-    z.object({ type: z.literal('Update License'), defaultLicense: z.string() }),
-    z.object({ type: z.literal('Update ResearchFields'), researchFields: z.array(z.string()) }),
-    z.object({ type: z.literal('Add Component'), component: componentSchema }),
-    z.object({ type: z.literal('Delete Component'), path: z.string() }),
-    z.object({ type: z.literal('Add Contributor'), author: contributor }),
-    z.object({ type: z.literal('Remove Contributor'), contributorIndex: z.number() }),
-    z.object({ type: z.literal('Pin Component'), componentIndex: z.number() }),
-    z.object({ type: z.literal('UnPin Component'), componentIndex: z.number() }),
-  ]),
-);
+  if (component.name) {
+    currentComponent.name = component.name;
+  }
+
+  if ('subtype' in component) {
+    if (component.subtype) {
+      if (isPdfComponent(component, currentComponent)) {
+        (currentComponent as PdfComponent).subtype = component.subtype;
+        // } else if (isDataComponent(component, currentComponent)) {
+        //   (currentComponent as DataComponent).subtype = component.subtype;
+        // } else if (isCodeComponent(component, currentComponent)) {
+        //   (currentComponent as CodeComponent).subtype = component.subtype;
+      } else if (isExternalLinkComponent(component, currentComponent)) {
+        (currentComponent as ExternalLinkComponent).subtype = component.subtype;
+      }
+    } else {
+      if (isPdfComponent(component, currentComponent)) {
+        delete (currentComponent as PdfComponent).subtype;
+        // } else if (isDataComponent(component, currentComponent)) {
+        //   delete (currentComponent as DataComponent).subtype;
+        // } else if (isCodeComponent(component, currentComponent)) {
+        //   delete (currentComponent as CodeComponent).subtype;
+      } else if (isExternalLinkComponent(component, currentComponent)) {
+        delete (currentComponent as ExternalLinkComponent).subtype;
+      } else {
+        delete currentComponent?.['subtype'];
+      }
+    }
+  }
+
+  const currentPayload = currentComponent.payload;
+  if ('payload' in component) {
+    // Prevent previous payload overwrite
+    Object.entries(component.payload).forEach(([key, value]) => {
+      if (component.payload[key] === null || component.payload[key] === undefined) return;
+      if (isEqual(currentPayload[key], value)) return;
+      if (!currentPayload[key]) currentPayload[key] = getTypeDefault(value);
+      currentPayload[key] = value;
+    });
+  }
+};
+
+const getTypeDefault = (value: unknown) => {
+  if (Array.isArray(value)) return [];
+  if (typeof value === 'string') return '';
+  if (typeof value === 'number') return 0;
+  if (typeof value === 'object') return {};
+};
+
+const isPdfComponent = (
+  component: ResearchObjectV1Component,
+  currentComponent: ResearchObjectV1Component,
+): component is PdfComponent => {
+  return (
+    component.type === ResearchObjectComponentType.PDF || currentComponent.type === ResearchObjectComponentType.PDF
+  );
+};
+
+const isDataComponent = (
+  component: ResearchObjectV1Component,
+  currentComponent: ResearchObjectV1Component,
+): component is DataComponent => {
+  return (
+    component.type === ResearchObjectComponentType.DATA || currentComponent.type === ResearchObjectComponentType.DATA
+  );
+};
+
+const isCodeComponent = (
+  component: ResearchObjectV1Component,
+  currentComponent: ResearchObjectV1Component,
+): component is CodeComponent => {
+  return (
+    component.type === ResearchObjectComponentType.CODE || currentComponent.type === ResearchObjectComponentType.CODE
+  );
+};
+
+const isExternalLinkComponent = (
+  component: ResearchObjectV1Component,
+  currentComponent: ResearchObjectV1Component,
+): component is ExternalLinkComponent => {
+  return (
+    component.type === ResearchObjectComponentType.LINK || currentComponent.type === ResearchObjectComponentType.LINK
+  );
+};

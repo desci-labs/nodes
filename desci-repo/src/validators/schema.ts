@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import {
+  ResearchObjectComponentType,
   ResearchObjectV1AuthorRole,
+  ResearchObjectV1Component,
   ResearchObjectV1Dpid,
   ResearchObjectV1Organization,
 } from '@desci-labs/desci-models';
@@ -44,6 +46,47 @@ export const manifestActionSchema = z.array(
     z.object({ type: z.literal('Update License'), defaultLicense: z.string() }),
     z.object({ type: z.literal('Update ResearchFields'), researchFields: z.array(z.string()) }),
     z.object({ type: z.literal('Add Component'), component: researchObject }),
+    z.object({ type: z.literal('Delete Component'), path: z.string() }),
+    z.object({ type: z.literal('Delete Componens'), paths: z.array(z.string()) }),
+    z.object({ type: z.literal('Add Contributor'), author: contributor }),
+    z.object({ type: z.literal('Remove Contributor'), contributorIndex: z.number() }),
+    z.object({ type: z.literal('Pin Component'), componentIndex: z.number() }),
+    z.object({ type: z.literal('UnPin Component'), componentIndex: z.number() }),
+  ]),
+);
+
+const componentType = z.nativeEnum(ResearchObjectComponentType);
+const componentTypeMap = z.record(componentType);
+
+const commonPayloadSchema = z.object({
+  title: z.string().optional(),
+  keywords: z.array(z.string()).optional(),
+  description: z.string().optional(),
+  licenseType: z.string().optional(),
+  path: z.string().optional(),
+});
+
+const componentSchema: z.ZodType<ResearchObjectV1Component> = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    payload: commonPayloadSchema.passthrough(),
+    type: z.union([componentType, componentTypeMap]),
+    starred: z.boolean(),
+  })
+  .refine((arg) => {
+    if (!arg.starred) return false;
+    return true;
+  });
+
+export const actionsSchema = z.array(
+  z.discriminatedUnion('type', [
+    z.object({ type: z.literal('Publish dPID'), dpid: dpid }),
+    z.object({ type: z.literal('Update Title'), title: z.string() }),
+    z.object({ type: z.literal('Update Description'), description: z.string() }),
+    z.object({ type: z.literal('Update License'), defaultLicense: z.string() }),
+    z.object({ type: z.literal('Update ResearchFields'), researchFields: z.array(z.string()) }),
+    z.object({ type: z.literal('Add Component'), component: componentSchema }),
     z.object({ type: z.literal('Delete Component'), path: z.string() }),
     z.object({ type: z.literal('Add Contributor'), author: contributor }),
     z.object({ type: z.literal('Remove Contributor'), contributorIndex: z.number() }),

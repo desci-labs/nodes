@@ -90,7 +90,7 @@ export function assertNever(value: never) {
 export type ManifestActions =
   | { type: 'Add Components'; components: ResearchObjectV1Component[] }
   | { type: 'Delete Component'; componentId: string }
-  | { type: 'Delete Components'; pathsToDelete: string[] }
+  | { type: 'Delete Components'; paths: string[] }
   | { type: 'Rename Component'; path: string; fileName: string }
   | { type: 'Rename Component Path'; oldPath: string; newPath: string }
   | {
