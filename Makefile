@@ -3,6 +3,7 @@ build: .env desci-contracts/.env
 	$(MAKE) -C desci-models build
 	$(MAKE) -C desci-contracts build
 	$(MAKE) -C desci-server install
+	$(MAKE) -C desci-repo install
 
 .PHONY: sterile
 sterile: clean-rec
@@ -23,6 +24,7 @@ clean-rec:
 	$(MAKE) -C desci-contracts clean
 	$(MAKE) -C desci-models clean
 	$(MAKE) -C desci-server clean
+	$(MAKE) -C desci-repo clean
 
 .PHONY: .env
 .env: nodes-media/.env desci-repo/.env
