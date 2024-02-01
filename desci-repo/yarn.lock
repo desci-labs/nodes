@@ -121,10 +121,6 @@
     jsonld "^8.1.1"
     schema-dts "^1.1.2"
 
-"@desci-labs/desci-models@link:./desci-models":
-  version "0.0.0"
-  uid ""
-
 "@digitalbazaar/http-client@^3.4.1":
   version "3.4.1"
   resolved "https://registry.yarnpkg.com/@digitalbazaar/http-client/-/http-client-3.4.1.tgz#5116fc44290d647cfe4b615d1f3fad9d6005e44d"

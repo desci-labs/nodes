@@ -1,14 +1,14 @@
 import { Request, Response } from 'express';
 import { ResearchObjectDocument } from '../../types.js';
-// import { getLatestManifest } from './utils.js';
 import { logger } from '../../logger.js';
 import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import { RequestWithNode } from '../../middleware/guard.js';
 import { backendRepo } from '../../repo.js';
-import { ManifestActions, actionsSchema, getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
+import { ManifestActions, getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
 import { findNodeByUuid, query } from '../../db/index.js';
 import { Doc } from '@automerge/automerge';
 import { ZodError } from 'zod';
+import { actionsSchema } from '../../validators/schema.js';
 
 export const createNodeDocument = async function (req: Request, res: Response) {
   logger.info('START [CreateNodeDocument]', req.body, req.params);
@@ -35,13 +35,14 @@ export const createNodeDocument = async function (req: Request, res: Response) {
 
     const document = await handle.doc();
 
+    const node = await findNodeByUuid(uuid);
     // await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
     const result = await query('UPDATE "Node" SET "manifestDocumentId" = $1 WHERE uuid = $2', [
       handle.documentId,
       uuid,
     ]);
 
-    console.log('UPDATE DOCUMENT ID', result);
+    console.log('UPDATE DOCUMENT ID', { node, result });
     logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
 
     res.status(200).send({ ok: true, documentId: handle.documentId, document });
@@ -130,7 +131,7 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
 };
 
 export const dispatchDocumentActions = async function (req: RequestWithNode, res: Response) {
-  logger.info({ params: req.params }, 'START [dispatchDocumentChange]');
+  logger.info({ body: req.body }, 'START [dispatchDocumentChange]');
   try {
     if (!(req.body.uuid && req.body.documentId && req.body.actions)) {
       res.status(400).send({ ok: false, message: 'Invalid data' });
@@ -146,7 +147,7 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
     }
 
     const validatedActions = await actionsSchema.parseAsync(actions);
-    logger.info({ validatedActions, actions }, 'Actions validated');
+    logger.info({ validatedActions }, 'Actions validated');
 
     let document: Doc<ResearchObjectDocument> | undefined;
 

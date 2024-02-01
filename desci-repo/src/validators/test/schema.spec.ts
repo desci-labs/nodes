@@ -3,6 +3,9 @@ import { expect } from 'chai';
 import { actionsSchema } from '../../validators/schema.js';
 import { ZodError } from 'zod';
 import {
+  CodeComponent,
+  ExternalLinkComponent,
+  ResearchObjectComponentCodeSubtype,
   ResearchObjectComponentType,
   ResearchObjectV1Author,
   ResearchObjectV1AuthorRole,
@@ -109,12 +112,80 @@ describe('ManifestActions Schema', () => {
       starred: true,
     };
 
+    const linkComponent: ExternalLinkComponent = {
+      name: 'Link',
+      id: 'id',
+      starred: false,
+      type: ResearchObjectComponentType.LINK,
+      payload: { path: 'root/external links/', url: 'https://google.com' },
+    };
+
+    const codeComponent: CodeComponent = {
+      name: 'code name',
+      id: 'id',
+      starred: false,
+      type: ResearchObjectComponentType.CODE,
+      subtype: ResearchObjectComponentCodeSubtype.SOFTWARE_PACKAGE,
+      payload: { path: 'root/external links/', url: 'https://google.com', language: 'typescript' },
+    };
+
     it('should validate Add Component action', async () => {
       const validated = await actionsSchema.safeParseAsync([
         { type: 'Add Component', component: researchObjectComponent },
       ]);
       // console.log(validated.success ? validated.data[0]['component']['payload'] : validated.error);
       expect(validated.success).to.be.true;
+    });
+
+    it('should validate Add Link Component action', async () => {
+      const validated = await actionsSchema.safeParseAsync([{ type: 'Add Component', component: linkComponent }]);
+      console.log(
+        validated.success
+          ? validated.data
+          : {
+              issues: validated.error.issues,
+              path: validated.error.errors[0].path,
+              // errors: validated.error.errors[0].path,
+              formErrors: validated.error.formErrors.fieldErrors,
+            },
+      );
+      expect(validated.success).to.be.true;
+    });
+
+    it('should validate Add Code Component action', async () => {
+      const validated = await actionsSchema.safeParseAsync([{ type: 'Add Component', component: codeComponent }]);
+      console.log(
+        validated.success
+          ? validated.data
+          : {
+              issues: validated.error.issues,
+              path: validated.error.errors[0].path,
+              // errors: validated.error.errors[0].path,
+              formErrors: validated.error.formErrors.fieldErrors,
+            },
+      );
+      expect(validated.success).to.be.true;
+    });
+
+    it('should reject Invalid Add Code Component action', async () => {
+      const invalidComponent = {
+        // name: 'code name',
+        id: 'id',
+        starred: false,
+        type: ResearchObjectComponentType.CODE,
+        subtype: ResearchObjectComponentCodeSubtype.SOFTWARE_PACKAGE,
+        payload: { path: 'root/external links/', url: 'https://google.com', language: 'typescript' },
+      };
+
+      const validated = await actionsSchema.safeParseAsync([{ type: 'Add Component', component: invalidComponent }]);
+      // console.log(
+      //   validated.success
+      //     ? validated.data[0]['component']['payload']
+      //     : {
+      //         issues: validated.error.issues,
+      //       },
+      // );
+      expect(validated.success).to.be.false;
     });
 
     it('should reject invalid Add Component action', () => {

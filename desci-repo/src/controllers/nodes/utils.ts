@@ -13,7 +13,7 @@ export async function getLatestManifest(
 ): Promise<ResearchObjectV1 | null> {
   parentLogger.info({ nodeUuid, resolver, node }, 'Start Node latest manifest');
   node = node || (await findNodeByUuid(nodeUuid)); // (await prisma.node.findUnique({ where: { uuid: nodeUuid } }));
-  const latestManifestCid = node.manifestUrl || node.cid;
+  const latestManifestCid = node?.manifestUrl || node?.cid;
   const manifestUrl = latestManifestCid ? cleanupManifestUrl(latestManifestCid as string, resolver as string) : null;
   return manifestUrl ? await(await axios.get(manifestUrl)).data : null;
 }

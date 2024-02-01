@@ -302,10 +302,10 @@ describe('Data Controllers', () => {
       //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
       // });
       it('should have added a code component to the manifest', async () => {
-        console.log(res.body.manifest);
-        const handle = backendRepo.find(getAutomergeUrl(documentId));
-        const doc = await handle.doc();
-        console.log('Doc', doc);
+        console.log(res.body.manifest?.components);
+        // const handle = backendRepo.find(getAutomergeUrl(documentId));
+        // const doc = await handle.doc();
+        // console.log('Doc', doc.manifest.components);
 
         const newCodeComponent = res.body.manifest.components.find(
           (c) => c.type === ResearchObjectComponentType.CODE && c.payload.path === 'root/' + externalRepoPath,
@@ -317,6 +317,7 @@ describe('Data Controllers', () => {
         const newCodeComponent = res.body.manifest.components.find(
           (c) => c.type === ResearchObjectComponentType.CODE && c.payload.path === 'root/' + externalRepoPath,
         );
+        console.log('[log]', newCodeComponent);
 
         expect(newCodeComponent.payload.externalUrl).to.equal(externalRepoUrl);
       });

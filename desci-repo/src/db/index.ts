@@ -29,6 +29,21 @@ export const findNodeByUuid = async (uuid: string) => {
   }
 };
 
+// export const createNode = async (node: {
+//   ownerId: number;
+//   uuid: string;
+//   manifestUrl: string;
+//   replicationFactor: 0;
+// }) => {
+//   try {
+//     const result = await pool.query('SELECT * FROM "Node" WHERE uuid = $1', [uuid]);
+//     return result.rows[0];
+//   } catch (err) {
+//     console.log('[Error]::findNodeByUuid', err);
+//     return undefined;
+//   }
+// };
+
 export const query = async (query: string, values?: (string | number | object)[]) => {
   try {
     // const client = await pool.connect();

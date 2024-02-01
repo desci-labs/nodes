@@ -37,24 +37,6 @@ const contributor: z.ZodType<ResearchObjectV1Author> = z.object({
 // .passthrough();
 
 const dpid: z.ZodType<ResearchObjectV1Dpid> = z.object({ prefix: z.string(), id: z.string() }).required();
-
-export const manifestActionSchema = z.array(
-  z.discriminatedUnion('type', [
-    z.object({ type: z.literal('Publish dPID'), dpid: dpid }),
-    z.object({ type: z.literal('Update Title'), title: z.string() }),
-    z.object({ type: z.literal('Update Description'), description: z.string() }),
-    z.object({ type: z.literal('Update License'), defaultLicense: z.string() }),
-    z.object({ type: z.literal('Update ResearchFields'), researchFields: z.array(z.string()) }),
-    z.object({ type: z.literal('Add Component'), component: researchObject }),
-    z.object({ type: z.literal('Delete Component'), path: z.string() }),
-    z.object({ type: z.literal('Delete Componens'), paths: z.array(z.string()) }),
-    z.object({ type: z.literal('Add Contributor'), author: contributor }),
-    z.object({ type: z.literal('Remove Contributor'), contributorIndex: z.number() }),
-    z.object({ type: z.literal('Pin Component'), componentIndex: z.number() }),
-    z.object({ type: z.literal('UnPin Component'), componentIndex: z.number() }),
-  ]),
-);
-
 const componentType = z.nativeEnum(ResearchObjectComponentType);
 const componentTypeMap = z.record(componentType);
 
@@ -64,6 +46,7 @@ const commonPayloadSchema = z.object({
   description: z.string().optional(),
   licenseType: z.string().optional(),
   path: z.string().optional(),
+  url: z.string().url().optional(),
 });
 
 const componentSchema: z.ZodType<ResearchObjectV1Component> = z
@@ -74,10 +57,7 @@ const componentSchema: z.ZodType<ResearchObjectV1Component> = z
     type: z.union([componentType, componentTypeMap]),
     starred: z.boolean(),
   })
-  .refine((arg) => {
-    if (!arg.starred) return false;
-    return true;
-  });
+  .passthrough();
 
 export const actionsSchema = z.array(
   z.discriminatedUnion('type', [

@@ -86,8 +86,9 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
 
     switch (action.type) {
       case 'Add Components':
-        const uniqueComponents = action.components.filter((componentToAdd) =>
-          latestDocument?.manifest.components.some((c) => c.payload?.path === componentToAdd.payload?.path),
+        const uniqueComponents = action.components.filter(
+          (componentToAdd) =>
+            !latestDocument?.manifest.components.some((c) => c.payload?.path === componentToAdd.payload?.path),
         );
         if (uniqueComponents.length > 0) {
           handle.change(
@@ -406,6 +407,7 @@ const getTypeDefault = (value: unknown) => {
   if (typeof value === 'string') return '';
   if (typeof value === 'number') return 0;
   if (typeof value === 'object') return {};
+  return '';
 };
 
 const isPdfComponent = (

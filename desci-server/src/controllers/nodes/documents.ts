@@ -58,12 +58,18 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, resp
       response.status(400).send({ ok: false, message: 'Node is Missing automerge document' });
       return;
     } else {
-      const document = await repoService.dispatchAction({
+      const result = await repoService.dispatchChanges({
         uuid: node.uuid!,
         documentId: node.manifestDocumentId as DocumentId,
         actions,
       });
-      response.status(200).send({ documentId: node.manifestDocumentId, document });
+
+      if ('status' in result) {
+        response.status(result.status).send(result);
+      } else {
+        response.status(200).send({ documentId: node.manifestDocumentId, document: result });
+      }
+
       return;
     }
   } catch (err) {

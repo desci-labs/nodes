@@ -50,15 +50,19 @@ class RepoService {
 
   async dispatchChanges(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
     logger.info({ arg }, 'Disatch Actions');
-    const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-      `${this.baseUrl}/v1/nodes/documents/actions`,
-      arg,
-    );
-    logger.info({ arg, response: response.data }, 'Disatch Actions Response');
-    if (response.status === 200 && response.data.ok) {
-      return response.data.document;
-    } else {
-      return response.data;
+    try {
+      const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
+        `${this.baseUrl}/v1/nodes/documents/actions`,
+        arg,
+      );
+      logger.info({ arg, response: response.data }, 'Disatch Actions Response');
+      if (response.status === 200 && response.data.ok) {
+        return response.data.document;
+      } else {
+        return { ok: false, status: response.status, message: response.data };
+      }
+    } catch (err) {
+      return { ok: false, status: err.status, message: err?.response?.data };
     }
   }
 
