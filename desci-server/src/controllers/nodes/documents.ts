@@ -46,7 +46,6 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
 export const dispatchDocumentChange = async function (req: RequestWithNode, response: Response) {
   try {
     logger.info({ userId: req.user.id, uuid: req.node.uuid }, '[START] GetNodeDocument');
-    console.log('[dispatchDocumentChange]', req.body, req.node, req.body.actions);
     const node = req.node;
     const actions = req.body.actions as ManifestActions[];
 
