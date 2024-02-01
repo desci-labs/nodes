@@ -11,7 +11,9 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
+import { app } from '../../src/index.js';
 import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
+import { ManifestActions } from '../../src/services/manifestRepo.js';
 import repoService from '../../src/services/repoService.js';
 import { ResearchObjectDocument } from '../../src/types/documents.js';
 import { randomUUID64 } from '../../src/utils.js';
@@ -81,6 +83,7 @@ describe('Automerge Integration', () => {
 
   describe('Dispatch Actions Api', () => {
     let node: Node;
+    let dotlessUuid: string;
     const repoServiceUrl = process.env.REPO_SERVER_URL;
     const linkComponent: ExternalLinkComponent = {
       name: 'Link',
@@ -100,6 +103,7 @@ describe('Automerge Integration', () => {
     before(async () => {
       nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
       node = nodeData.node;
+      dotlessUuid = node.uuid!.substring(0, node.uuid!.length - 1);
       client = axios.create({
         baseURL: process.env.REPO_SERVER_URL,
         headers: { 'x-api-key': process.env.REPO_SERVICE_SECRET_KEY },
@@ -196,6 +200,20 @@ describe('Automerge Integration', () => {
         expect(error.response?.data).to.have.property('ok', false);
         expect(error.response?.status).to.be.equal(400);
       }
+    });
+
+    it.only('Update Title Api', async () => {
+      const actions: ManifestActions[] = [{ type: 'Update Title', title: 'Api title' }];
+      res = await request(app)
+        .post(`/v1/nodes/documents/${dotlessUuid}/actions`)
+        .set('authorization', authHeaderVal)
+        .set('Content-Type', 'application/json')
+        .set('Accept', 'application/json')
+        .send(JSON.stringify({ uuid: node.uuid, actions }));
+
+      console.log('[ResponseBODY]::', res.body);
+      const document = res.body.document;
+      expect(document.manifest.title).to.be.equal('Api title');
     });
   });
 

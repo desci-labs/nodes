@@ -35,7 +35,7 @@ export const createNodeDocument = async function (req: Request, res: Response) {
 
     const document = await handle.doc();
 
-    const node = await findNodeByUuid(uuid);
+    const node = await findNodeByUuid(uuid + '.');
     // await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
     const result = await query('UPDATE "Node" SET "manifestDocumentId" = $1 WHERE uuid = $2', [
       handle.documentId,
@@ -131,7 +131,7 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
 };
 
 export const dispatchDocumentActions = async function (req: RequestWithNode, res: Response) {
-  logger.info({ body: req.body }, 'START [dispatchDocumentChange]');
+  logger.info({ body: req.body }, 'START [dispatchDocumentActions]');
   try {
     if (!(req.body.uuid && req.body.documentId && req.body.actions)) {
       res.status(400).send({ ok: false, message: 'Invalid data' });
@@ -163,7 +163,7 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
       return;
     }
 
-    logger.info('END [dispatchDocumentChange]', { document });
+    logger.info('END [dispatchDocumentActions]', { document });
     res.status(200).send({ ok: true, document });
   } catch (err) {
     logger.error(err, 'Error [dispatchDocumentChange]');

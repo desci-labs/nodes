@@ -20,7 +20,6 @@ import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { app } from '../../src/index.js';
-import { backendRepo } from '../../src/repo.js';
 import { migrateIpfsTreeToNodeTree } from '../../src/services/draftTrees.js';
 import {
   addFilesToDag,
@@ -29,8 +28,7 @@ import {
   client as ipfs,
   spawnEmptyManifest,
 } from '../../src/services/ipfs.js';
-import { NodeUuid, getAutomergeUrl } from '../../src/services/manifestRepo.js';
-// import { ResearchObjectDocument } from '../../src/types/documents.js';
+import { NodeUuid } from '../../src/services/manifestRepo.js';
 import repoService from '../../src/services/repoService.js';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools.js';
 import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils.js';
