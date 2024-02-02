@@ -18,7 +18,8 @@
   "scripts": {
     "build": "tsc",
     "publish": "npm run build && npm publish --access public",
-    "test": "vitest --run --config vitest.config.ts"
+    "test": "vitest --run --config vitest.config.ts",
+    "test:debug": "npm run test -- --inspect-brk --no-file-parallelism --test-timeout 99999999"
   },
   "dependencies": {
     "@desci-labs/desci-codex-lib": "^1.0.5",

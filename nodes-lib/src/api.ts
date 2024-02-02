@@ -7,6 +7,7 @@ import { ceramicPublish } from "./codex.js";
 import FormData from "form-data";
 import { createReadStream } from "fs";
 import { basename } from "path";
+import type { NodeIDs } from "@desci-labs/desci-codex-lib/dist/src/types.js";
 
 // Set these dynamically in some reasonable fashion
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
@@ -152,10 +153,16 @@ export const prePublishDraftNode = async (
   return data;
 };
 
+export type PublishResponse = {
+  ok: boolean,
+  ceramicIDs: NodeIDs,
+  updatedManifestCid: string,
+};
+
 export const publishDraftNode = async (
   uuid: string,
   authToken: string,
-) => {
+): Promise<PublishResponse> => {
   const prePublishResult = await prePublishDraftNode(uuid, authToken);
   const { updatedManifestCid, updatedManifest, ceramicStream } = prePublishResult;
 
@@ -186,7 +193,7 @@ export const publishDraftNode = async (
   if (status !== 200) {
     throwWithReason(ROUTES.publish, status, statusText);
   };
-  return { ...data, ceramicIDs };
+  return { ...data, ceramicIDs, updatedManifestCid };
 };
 
 export type DeleteFileParams = {

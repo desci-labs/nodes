@@ -3,9 +3,9 @@ import { test, describe, beforeAll, expect } from "vitest";
 import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteFile } from "../src/api.js";
 import axios from "axios";
 import { getPublishedFromCeramic } from "../src/codex.js";
-import { chainPublish, getDpid } from "../src/chain.js";
+import { chainPublish } from "../src/chain.js";
 import { sleep } from "./util.js";
-import { convertHexToCID, getBytesFromCIDString } from "../src/util/converting.js";
+import { convertHexToCID } from "../src/util/converting.js";
 
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
@@ -45,9 +45,11 @@ describe("nodes-lib", () => {
       await deleteDraftNode(uuid, AUTH_TOKEN);
       await expect(getDraftNode(uuid, AUTH_TOKEN)).rejects.toThrowError("403");
     });
+  });
 
-    test("can be published to ceramic", async () => {
-      const { node: { uuid, manifestUrl }} = await createBoilerplateNode();
+  describe("publish", async () => {
+    test("new node to ceramic", async () => {
+      const { node: { uuid }} = await createBoilerplateNode();
 
       const publishResult = await publishDraftNode(uuid, AUTH_TOKEN);
       // desci-server success
@@ -55,17 +57,17 @@ describe("nodes-lib", () => {
 
       const ceramicObject = await getPublishedFromCeramic(publishResult.ceramicIDs.streamID);
       // object present on ceramic
-      expect(ceramicObject!.manifest).toEqual(manifestUrl);
+      expect(ceramicObject!.manifest).toEqual(publishResult.updatedManifestCid);
     });
 
-    test("can be updated on ceramic", async () => {
-      const { node: { uuid, manifestUrl }} = await createBoilerplateNode();
+    test("node update to ceramic", async () => {
+      const { node: { uuid }} = await createBoilerplateNode();
 
-      const { ok, ceramicIDs } = await publishDraftNode(uuid, AUTH_TOKEN);
+      const { ok, ceramicIDs, updatedManifestCid } = await publishDraftNode(uuid, AUTH_TOKEN);
       expect(ok).toEqual(true);
 
       const ceramicObject = await getPublishedFromCeramic(ceramicIDs.streamID);
-      expect(ceramicObject!.manifest).toEqual(manifestUrl);
+      expect(ceramicObject!.manifest).toEqual(updatedManifestCid);
 
       const updateResult = await publishDraftNode(uuid, AUTH_TOKEN);
       expect(updateResult.ok).toEqual(true);
@@ -75,25 +77,43 @@ describe("nodes-lib", () => {
     });
 
     // Missing history without lifting over lots of code from nodes-web :thinking:
-    test.todo("can be migrated by backfill")
+    test.todo("with backfill ceramic migration", async () => {
+      const { node: { uuid }} = await createBoilerplateNode();
 
-    test("can be published to legacy contract", async () => {
-      const { node: { uuid, manifestUrl }} = await createBoilerplateNode();
-      console.log(`New node manifest: ${manifestUrl} (${getBytesFromCIDString(manifestUrl)})`);
+      const pubResult = await chainPublish(uuid, AUTH_TOKEN);
+      expect(pubResult.reciept.status).toEqual(1);
+    });
 
-      await chainPublish(uuid, AUTH_TOKEN);
-      const dpid = await getDpid(uuid);
-      expect(dpid).toEqual(0);
+    test("new node to dPID registry", async () => {
+      const { node: { uuid }} = await createBoilerplateNode();
+
+      const pubResult = await chainPublish(uuid, AUTH_TOKEN);
+      expect(pubResult.reciept.status).toEqual(1);
 
       // Graph node takes a bit to process
       await sleep(2_500);
 
       const historyResult = await getDpidHistory(uuid);
-      console.log(JSON.stringify(historyResult, undefined, 2))
       const actualCid = convertHexToCID(historyResult.recentCid)
 
-      // FAILS. Maybe because of the prepublish edits to manifest?
-      expect(actualCid).toEqual(manifestUrl);
+      expect(actualCid).toEqual(pubResult.prepubManifestCid);
+    });
+
+    test("node update to dPID registry", async () => {
+      const { node: { uuid }} = await createBoilerplateNode();
+
+      const pub1Result = await chainPublish(uuid, AUTH_TOKEN);
+      expect(pub1Result.reciept.status).toEqual(1);
+
+      const pub2Result = await chainPublish(uuid, AUTH_TOKEN);
+      expect(pub2Result.reciept.status).toEqual(1);
+
+      // Graph node takes a bit to process
+      await sleep(2_500);
+
+      const historyResult = await getDpidHistory(uuid);
+      expect(historyResult.versions.length).toEqual(2);
+
     });
   });
 
@@ -228,6 +248,11 @@ describe("nodes-lib", () => {
         expect(treeResult.tree[0].contains!.length).toEqual(0);
       });
     });
+  });
+
+  describe.skip("utils", async () => {
+    test.todo("cidEncode")
+    test.todo("cidDecode")
   });
 });
 

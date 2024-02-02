@@ -1,4 +1,4 @@
-import { Wallet, getDefaultProvider, type ContractReceipt } from "ethers";
+import { Wallet, getDefaultProvider, type ContractReceipt, BigNumber } from "ethers";
 import { DpidRegistry__factory, ResearchObject__factory } from "@desci-labs/desci-contracts/typechain-types";
 import { SigningKey, formatBytes32String } from "ethers/lib/utils.js";
 import { convertUUIDToHex, getBytesFromCIDString} from "./util/converting.js";
@@ -26,17 +26,28 @@ const dpidRegistry = DpidRegistry__factory.connect(
   LC_DPID_CONTRACT_ADDRESS, wallet
 );
 
+export type ChainPublishResult = {
+  reciept: ContractReceipt,
+  prepubManifestCid: string,
+};
+
+/**
+ * Publish a node to the dPID registry contract.
+ */
 export const chainPublish = async (
   uuid: string,
   authToken: string,
-): Promise<ContractReceipt> => {
+): Promise<ChainPublishResult> => {
   const hasDpid = await researchObject.exists(convertUUIDToHex(uuid));
 
   let reciept: ContractReceipt;
+  let prepubManifestCid: string;
   if (hasDpid) {
     console.log(`${LOG_CTX} dpid exists for ${uuid}, updating`);
     try {
-      reciept = await updateExistingDpid(uuid, authToken);
+      const { updatedManifestCid } = await prePublishDraftNode(uuid, authToken);
+      prepubManifestCid = updatedManifestCid;
+      reciept = await updateExistingDpid(uuid, prepubManifestCid);
     } catch(e) {
       const err = e as Error;
       console.log(`${LOG_CTX} Failed updating dpid for uuid ${uuid}: ${err.message}`);
@@ -45,22 +56,26 @@ export const chainPublish = async (
   } else {
     console.log(`${LOG_CTX} no dpid found for ${uuid}, registering new`);
     try {
-      reciept = await registerNewDpid(uuid, authToken);
+      const registrationResult = await registerNewDpid(uuid, authToken);
+      reciept = registrationResult.reciept;
+      prepubManifestCid = registrationResult.prepubManifestCid;
     } catch (e) {
       const err = e as Error;
       console.log(`${LOG_CTX} Failed registering new dpid for uuid ${uuid}: ${err.message}`);
       throw err;
     };
   };
-  return reciept;
+  return { reciept, prepubManifestCid };
 };
 
+/**
+ * Update an existing dPID with a new version of the manifest.
+ */
 const updateExistingDpid = async (
   uuid: string,
-  authToken: string
+  prepubManifestCid: string
 ): Promise<ContractReceipt> => {
-  const { updatedManifestCid } = await prePublishDraftNode(uuid, authToken);
-  const cidBytes = getBytesFromCIDString(updatedManifestCid);
+  const cidBytes = getBytesFromCIDString(prepubManifestCid);
   const hexUuid = convertUUIDToHex(uuid);
   
   const tx = await researchObject.updateMetadata(hexUuid, cidBytes);
@@ -68,14 +83,14 @@ const updateExistingDpid = async (
 };
 
 /**
- *
- *
+ * Optimistically create a manifest with the next available dPID,
+ * and try to register it as such.
  */
 const registerNewDpid = async (
   uuid: string,
   authToken: string,
-): Promise<ContractReceipt> => {
-  const [nextFreeDpid, _] = await dpidRegistry.getOrganization(DEFAULT_DPID_PREFIX);
+): Promise<{ reciept: ContractReceipt, prepubManifestCid: string }> => {
+  const optimisticDpid = await getPreliminaryDpid();
   const regFee = await dpidRegistry.getFee();
 
   // TODO merge with update operation below, not to have to re-fetch doc
@@ -93,35 +108,28 @@ const registerNewDpid = async (
   const { updatedManifestCid } = await prePublishDraftNode(uuid, authToken);
   const cidBytes = getBytesFromCIDString(updatedManifestCid);
   const hexUuid = convertUUIDToHex(uuid);
+
+  // Throws if the expected dPID isn't available
   const tx = await researchObject.mintWithDpid(
       hexUuid,
       cidBytes,
       DEFAULT_DPID_PREFIX,
-      nextFreeDpid,
+      optimisticDpid,
       { value: regFee, gasLimit: 350000 }
   );
-  return await tx.wait();
+  return { reciept: await tx.wait(), prepubManifestCid: updatedManifestCid };
 };
 
-const getPreliminaryDpid = async (): Promise<number> => {
+/**
+ * Get the next dPID up for minting, for creating an optimistic manifest.
+ * @returns the next free dPID
+ */
+const getPreliminaryDpid = async (): Promise<BigNumber> => {
   const [nextFreeDpid, _] = await dpidRegistry.getOrganization(DEFAULT_DPID_PREFIX);
-  return nextFreeDpid.toNumber();
+  return nextFreeDpid;
 };
 
 export const hasDpid = async (
   uuid: string,
 ): Promise<boolean> =>
   await researchObject.exists(convertUUIDToHex(uuid));
-
-export const getDpid = async (
-  uuid: string,
-): Promise<number> => {
-  const bigNumberDpid = await dpidRegistry.get(
-    DEFAULT_DPID_PREFIX, convertUUIDToHex(uuid)
-  );
-  const dpid = bigNumberDpid.toNumber();
-  if (dpid === 0) {
-    throw new ReferenceError(`No dPID registered for ${uuid}`);
-  };
-  return dpid;
-};
