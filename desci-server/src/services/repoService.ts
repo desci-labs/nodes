@@ -18,12 +18,11 @@ class RepoService {
   baseUrl: string;
 
   constructor() {
-    this.#apiKey = process.env.REPO_SERVICE_SECRET_KEY ?? '';
-    this.baseUrl = process.env.REPO_SERVER_URL ?? '';
-
-    if (!this.#apiKey || !this.baseUrl) {
+    if (!process.env.REPO_SERVICE_SECRET_KEY || !process.env.REPO_SERVER_URL)
       throw new Error('[REPO SERVICE]: env.REPO_SERVER_URL or env.REPO_SERVICE_SECRET_KEY missing');
-    }
+
+    this.#apiKey = process.env.REPO_SERVICE_SECRET_KEY;
+    this.baseUrl = process.env.REPO_SERVER_URL;
 
     logger.info({ url: this.baseUrl }, 'Init Repo Service');
 

@@ -6,7 +6,7 @@ const { Pool } = pg;
 console.log('DB', process.env.DATABASE_URL);
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://walter:white@host.docker.internal:5433/boilerplate',
+  connectionString: process.env.DATABASE_URL,
   options: '-c search_path=public',
 });
 
@@ -28,21 +28,6 @@ export const findNodeByUuid = async (uuid: string) => {
     return undefined;
   }
 };
-
-// export const createNode = async (node: {
-//   ownerId: number;
-//   uuid: string;
-//   manifestUrl: string;
-//   replicationFactor: 0;
-// }) => {
-//   try {
-//     const result = await pool.query('SELECT * FROM "Node" WHERE uuid = $1', [uuid]);
-//     return result.rows[0];
-//   } catch (err) {
-//     console.log('[Error]::findNodeByUuid', err);
-//     return undefined;
-//   }
-// };
 
 export const query = async (query: string, values?: (string | number | object)[]) => {
   try {

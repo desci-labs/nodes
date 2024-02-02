@@ -368,6 +368,7 @@ const updateManifestComponent = (
     if (component.subtype) {
       if (isPdfComponent(component, currentComponent)) {
         (currentComponent as PdfComponent).subtype = component.subtype;
+        /* Only pdf and external links component have subtypes in the model */
         // } else if (isDataComponent(component, currentComponent)) {
         //   (currentComponent as DataComponent).subtype = component.subtype;
         // } else if (isCodeComponent(component, currentComponent)) {
@@ -378,6 +379,7 @@ const updateManifestComponent = (
     } else {
       if (isPdfComponent(component, currentComponent)) {
         delete (currentComponent as PdfComponent).subtype;
+        /* Only pdf and external links component have subtypes in the model */
         // } else if (isDataComponent(component, currentComponent)) {
         //   delete (currentComponent as DataComponent).subtype;
         // } else if (isCodeComponent(component, currentComponent)) {
