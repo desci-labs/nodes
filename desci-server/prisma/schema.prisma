@@ -182,7 +182,7 @@ model User {
 
 model ApiKey {
   id         Int       @id @default(autoincrement())
-  key        String    @unique
+  keyHashed  String    @unique
   memo       String
   createdAt  DateTime  @default(now())
   lastUsed   DateTime? @updatedAt
