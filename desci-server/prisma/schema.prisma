@@ -675,7 +675,6 @@ model Annotation {
 model NodeAttestationReaction {
   id                Int             @id @default(autoincrement())
   reaction          String
-  highlight         Json?
   authorId          Int
   author            User            @relation(fields: [authorId], references: [id])
   nodeAttestationId Int
