@@ -10,11 +10,11 @@ interface ApiKeyFragment {
   lastUsed: Date;
 }
 
-interface ListApiKeyResponse {
+type ListApiKeyResponse = {
   ok: boolean;
   apiKeys?: ApiKeyFragment[];
   error?: string;
-}
+};
 
 export async function listApiKey(req: Request, res: Response<ListApiKeyResponse>) {
   const logger = parentLogger.child({

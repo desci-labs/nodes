@@ -119,7 +119,7 @@ export const extractApiKey = async (request: ExpressRequest | Request) => {
 /**
  * Attempt to retrieve user via API key
  */
-export const extractUserFromApiKey = async (apiKey: string, ip: string): Promise<User | null> => {
+export const extractUserFromApiKey = (apiKey: string, ip: string): Promise<User | null> => {
   return new Promise(async (resolve, reject) => {
     if (!apiKey) {
       resolve(null);
@@ -130,7 +130,7 @@ export const extractUserFromApiKey = async (apiKey: string, ip: string): Promise
 
     const validKey = await prisma.apiKey.findFirst({
       where: {
-        key: hashedApiKey,
+        keyHashed: hashedApiKey,
         isActive: true,
       },
       include: { user: true },

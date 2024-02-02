@@ -6,13 +6,20 @@ import { magicLinkRedeem } from '../../services/auth.js';
 
 import { generateApiKey, hashApiKey } from './utils.js';
 
-interface IssueApiKeyResponse {
+type IssueApiKeyResponse = {
   ok: boolean;
   apiKey?: string;
   error?: string;
-}
+};
 
-export async function issueApiKey(req: Request, res: Response<IssueApiKeyResponse>) {
+type IssueApiKeyRequest = {
+  body: {
+    memo: string;
+    magicToken: string;
+  };
+};
+
+export async function issueApiKey(req: Request<IssueApiKeyRequest>, res: Response<IssueApiKeyResponse>) {
   // debugger;
   const logger = parentLogger.child({
     module: 'AUTH::issueApiKeyController',
@@ -56,7 +63,7 @@ export async function issueApiKey(req: Request, res: Response<IssueApiKeyRespons
     const apiKey = await prisma.apiKey.create({
       data: {
         memo: memo,
-        key: hashedApiKey,
+        keyHashed: hashedApiKey,
         userId: user.id,
         createdIp: createdIp,
         isActive: true,
