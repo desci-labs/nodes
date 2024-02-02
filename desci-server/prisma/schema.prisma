@@ -180,6 +180,7 @@ model User {
   NodeAttestation             NodeAttestation[]
   Annotation                  Annotation[]
   NodeAttestationVerification NodeAttestationVerification[]
+  NodeAttestationReaction     NodeAttestationReaction[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -573,11 +574,12 @@ model DesciCommunity {
 }
 
 model CommunityMember {
-  id               Int            @id @default(autoincrement())
+  id               Int                     @id @default(autoincrement())
   communityId      Int
   userId           Int
-  user             User           @relation(fields: [userId], references: [id])
-  community        DesciCommunity @relation(fields: [desciCommunityId], references: [id])
+  role             CommunityMembershipRole
+  user             User                    @relation(fields: [userId], references: [id])
+  community        DesciCommunity          @relation(fields: [desciCommunityId], references: [id])
   desciCommunityId Int
 
   @@unique([userId, communityId])
@@ -594,34 +596,47 @@ model AttestationTemplate {
 }
 
 model Attestation {
-  id                    Int                  @id @default(autoincrement())
-  name                  String               @unique
-  attestationTemplateId Int?
-  desciCommunityId      Int
-  description           String
-  image_url             String
-  templateId            Int?
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
-  community             DesciCommunity       @relation(fields: [desciCommunityId], references: [id])
-  template              AttestationTemplate? @relation(fields: [attestationTemplateId], references: [id])
-  AttestationVersion    AttestationVersion[]
-  NodeAttestation       NodeAttestation[]
+  id                        Int                            @id @default(autoincrement())
+  name                      String                         @unique
+  attestationTemplateId     Int?
+  desciCommunityId          Int
+  description               String
+  image_url                 String
+  templateId                Int?
+  createdAt                 DateTime                       @default(now())
+  updatedAt                 DateTime                       @updatedAt
+  community                 DesciCommunity                 @relation(fields: [desciCommunityId], references: [id])
+  template                  AttestationTemplate?           @relation(fields: [attestationTemplateId], references: [id])
+  AttestationVersion        AttestationVersion[]
+  NodeAttestation           NodeAttestation[]
+  CommunityEntryAttestation CommunitySelectedAttestation[]
 }
 
 model AttestationVersion {
-  id              Int               @id @default(autoincrement())
-  name            String            @unique
-  version         Int
-  attestationId   Int
-  description     String
-  image_url       String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  attestation     Attestation       @relation(fields: [attestationId], references: [id])
-  NodeAttestation NodeAttestation[]
+  id                        Int                            @id @default(autoincrement())
+  name                      String                         @unique
+  version                   Int
+  attestationId             Int
+  description               String
+  image_url                 String
+  createdAt                 DateTime                       @default(now())
+  updatedAt                 DateTime                       @updatedAt
+  attestation               Attestation                    @relation(fields: [attestationId], references: [id])
+  NodeAttestation           NodeAttestation[]
+  CommunityEntryAttestation CommunitySelectedAttestation[]
 
   @@unique([attestationId, version])
+}
+
+model CommunitySelectedAttestation {
+  id                   Int                @id @default(autoincrement())
+  attestationId        Int
+  attestationVersionId Int
+  required             Boolean
+  attestation          Attestation        @relation(fields: [attestationId], references: [id])
+  attestationVersion   AttestationVersion @relation(fields: [attestationVersionId], references: [id])
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 }
 
 model NodeAttestation {
@@ -634,21 +649,32 @@ model NodeAttestation {
   community                   DesciCommunity                @relation(fields: [desciCommunityId], references: [id])
   claimedById                 Int
   claimedBy                   User                          @relation(fields: [claimedById], references: [id])
-  claimedOnId                 Int
-  claimedOn                   Node                          @relation(fields: [claimedOnId], references: [id])
-  claimedOnVersionId          Int
-  claimedOnVersion            NodeVersion                   @relation(fields: [claimedOnVersionId], references: [id])
+  nodeUuid                    String
+  node                        Node                          @relation(fields: [nodeUuid], references: [uuid])
+  nodeVersionId               Int
+  claimedOnVersion            NodeVersion                   @relation(fields: [nodeVersionId], references: [id])
   claimedAt                   DateTime                      @default(now())
   Annotation                  Annotation[]
   NodeAttestationVerification NodeAttestationVerification[]
+  NodeAttestationReaction     NodeAttestationReaction[]
 
-  @@unique([claimedOnId, claimedOnVersionId, attestationId, attestationVersionId])
+  @@unique([nodeUuid, nodeVersionId, attestationId, attestationVersionId])
 }
 
 model Annotation {
   id                Int             @id @default(autoincrement())
   type              AnnotationType
   body              String
+  highlight         Json?
+  authorId          Int
+  author            User            @relation(fields: [authorId], references: [id])
+  nodeAttestationId Int
+  attestation       NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
+}
+
+model NodeAttestationReaction {
+  id                Int             @id @default(autoincrement())
+  reaction          String
   highlight         Json?
   authorId          Int
   author            User            @relation(fields: [authorId], references: [id])
@@ -668,9 +694,13 @@ model NodeAttestationVerification {
   @@unique([nodeAttestationId, userId])
 }
 
+enum CommunityMembershipRole {
+  ADMIN
+  MEMBER
+}
+
 enum AnnotationType {
   COMMENT
-  REACTION
   HIGHLIGHT
 }
 
