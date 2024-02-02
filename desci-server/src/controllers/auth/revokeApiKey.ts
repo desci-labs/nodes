@@ -9,10 +9,8 @@ type RevokeApiKeyResponse = {
 };
 
 type RevokeApiKeyRequest = {
-  body: {
-    memo: string;
-    keyId: number;
-  };
+  memo: string;
+  keyId: number;
 };
 
 export async function revokeApiKey(req: Request<RevokeApiKeyRequest>, res: Response<RevokeApiKeyResponse>) {

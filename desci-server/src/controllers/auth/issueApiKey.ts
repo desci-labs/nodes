@@ -13,10 +13,8 @@ type IssueApiKeyResponse = {
 };
 
 type IssueApiKeyRequest = {
-  body: {
-    memo: string;
-    magicToken: string;
-  };
+  memo: string;
+  magicToken: string;
 };
 
 export async function issueApiKey(req: Request<IssueApiKeyRequest>, res: Response<IssueApiKeyResponse>) {
