@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, RequestHandler, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
@@ -8,12 +8,15 @@ type RevokeApiKeyResponse = {
   error?: string;
 };
 
-type RevokeApiKeyRequest = {
+type RevokeApiKeyRequestBody = {
   memo: string;
   keyId: number;
 };
 
-export async function revokeApiKey(req: Request<RevokeApiKeyRequest>, res: Response<RevokeApiKeyResponse>) {
+export async function revokeApiKey(
+  req: Request<any, any, RevokeApiKeyRequestBody>,
+  res: Response<RevokeApiKeyResponse>,
+) {
   const logger = parentLogger.child({
     module: 'AUTH::revokeApiKeyController',
     body: req.body,

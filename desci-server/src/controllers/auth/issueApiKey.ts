@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, RequestHandler, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
@@ -12,12 +12,12 @@ type IssueApiKeyResponse = {
   error?: string;
 };
 
-type IssueApiKeyRequest = {
+type IssueApiKeyRequestBody = {
   memo: string;
   magicToken: string;
 };
 
-export async function issueApiKey(req: Request<IssueApiKeyRequest>, res: Response<IssueApiKeyResponse>) {
+export async function issueApiKey(req: Request<any, any, IssueApiKeyRequestBody>, res: Response<IssueApiKeyResponse>) {
   // debugger;
   const logger = parentLogger.child({
     module: 'AUTH::issueApiKeyController',
