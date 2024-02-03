@@ -22,6 +22,7 @@ const config: RepoConfig = {
   // know about and can ask for by ID.
   sharePolicy: async (peerId, documentId) => {
     try {
+      if (!documentId) return false;
       // peer format: `peer-[user#id]:[unique string combination]
       if (peerId.toString().length < 8) return false;
 
@@ -37,7 +38,7 @@ const config: RepoConfig = {
 };
 export const backendRepo = new Repo(config);
 const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {
-  logger.trace({ change: change.handle.documentId, uuid: (await change.handle.doc()).uuid }, 'Document Changed');
+  logger.trace({ change: change.handle.documentId, uuid: change.patchInfo.after.uuid }, 'Document Changed');
   const newTitle = change.patchInfo.after.manifest.title;
   const newCover = change.patchInfo.after.manifest.coverImage;
   const uuid = change.doc.uuid.endsWith('.') ? change.doc.uuid : change.doc.uuid + '.';

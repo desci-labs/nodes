@@ -30,6 +30,12 @@ export interface RequestWithNode extends RequestWithUser {
 export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   logger.info('START EnsureNodeAccess');
   const token = await extractAuthToken(req);
+
+  if (!token) {
+    res.status(401).send({ ok: false, message: 'Unauthorized' });
+    return;
+  }
+
   const user = await extractUserFromToken(token);
 
   if (!(user && user.id > 0)) {
@@ -47,7 +53,7 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
   }
 
   const rows = await query('SELECT * FROM "Node" WHERE uuid = $1 AND ownerId = $2');
-  const node = rows[0];
+  const node = rows?.[0];
 
   logger.info({ email: hideEmail(user.email), uuid, node }, '[EnsureNodeAccess]:: => ');
   if (!node) {

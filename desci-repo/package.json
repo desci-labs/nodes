@@ -13,7 +13,7 @@
     "docker:dev": "docker-compose --file docker-compose.repo.yml --compatibility up --build",
     "watch-dev": "debug=* nodemon --watch \"dist/**/*\" -e js ./dist/index.js",
     "watch-compile": "debug=* tsc -w --preserveWatchOutput",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "NODE_ENV=test mocha --colors --timeout 20000 --exit",
     "lint": "eslint --max-warnings 0 --ext .js,ts src",
     "lint-staged-husky": "lint-staged",
     "lint-prettier": "prettier --config .prettierrc --list-different '{src,test}/**/*.{ts,js,css,scss}'",
@@ -31,18 +31,24 @@
       "eslint --max-warnings 0"
     ]
   },
+  "resolutions": {
+    "cliui": "^8.0.1"
+  },
   "devDependencies": {
     "@automerge/automerge": "^2.1.10",
     "@automerge/automerge-repo": "^1.0.19",
     "@automerge/automerge-repo-network-websocket": "^1.0.19",
     "@automerge/automerge-repo-storage-nodefs": "^1.0.19",
+    "@types/chai": "^4.3.11",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.5",
+    "@types/mocha": "^10.0.6",
     "@types/morgan": "^1.9.9",
     "@types/pg": "^8.10.9",
     "@types/ws": "^8.5.10",
     "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "chai": "4.3.4",
     "dotenv-cli": "^7.3.0",
     "eslint": "^8.55.0",
     "eslint-config-prettier": "^9.1.0",
@@ -50,6 +56,7 @@
     "eslint-plugin-no-array-reduce": "^1.0.62",
     "eslint-plugin-prettier": "^5.0.1",
     "lint-staged": "11.1.2",
+    "mocha": "^10.2.0",
     "nodemon": "^3.0.2",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.1.0",
@@ -61,11 +68,12 @@
     "typescript": "5.1.6"
   },
   "dependencies": {
-    "@desci-labs/desci-models": "^0.1.21",
+    "@desci-labs/desci-models": "^0.2.1",
     "@sentry/node": "^7.84.0",
     "@sentry/tracing": "^7.84.0",
     "axios": "^1.6.2",
     "cors": "^2.8.5",
+    "deep-equal": "^2.2.3",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
@@ -76,6 +84,7 @@
     "pino-pretty": "^10.2.3",
     "reflect-metadata": "^0.1.13",
     "uuid": "^9.0.1",
-    "ws": "^8.14.2"
+    "ws": "^8.14.2",
+    "zod": "^3.22.4"
   }
 }

@@ -12,7 +12,7 @@ export async function getUserByOrcId(orcid: string): Promise<any | null> {
   logger.info({ fn: 'getUserByOrcId' }, 'user::getUserByOrcId');
   // const user = await prisma.user.findFirst({ where: { orcid } });
   const rows = await query('SELECT * FROM "User" WHERE orcid = $1', [orcid]);
-  const user = rows[0];
+  const user = rows?.[0];
   logger.info({ fn: 'getUserByOrcId' }, 'user::getUserByOrcId');
   return user;
 }
@@ -22,9 +22,9 @@ export async function getUserByEmail(email: string): Promise<any | null> {
   logger.info({ email }, 'user::getUserByemail');
 
   const rows = await query('SELECT * FROM "User" WHERE email = $1', [email]);
-  logger.info(rows.length, 'USER');
+  logger.info(rows?.length, 'USER');
 
-  const user = rows[0];
+  const user = rows?.[0];
 
   return user;
 }

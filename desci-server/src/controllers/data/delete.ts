@@ -163,7 +163,7 @@ export async function deleteComponentsFromManifest({ node, pathsToDelete }: Upda
   const response = await repoService.dispatchAction({
     uuid: node.uuid,
     documentId: node.manifestDocumentId as DocumentId,
-    actions: [{ type: 'Delete Components', pathsToDelete }],
+    actions: [{ type: 'Delete Components', paths: pathsToDelete }],
   });
 
   return response?.manifest;

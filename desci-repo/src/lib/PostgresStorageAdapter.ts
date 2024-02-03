@@ -21,10 +21,10 @@ export class PostgresStorageAdapter extends StorageAdapter {
 
     try {
       const result = await query(`SELECT * FROM "${this.tableName}" WHERE key = $1`, [key]);
-      logger.info({ value: result.length, key }, '[LOAD DOCUMENT]::');
+      logger.info({ value: result?.length, key }, '[LOAD DOCUMENT]::');
 
-      const response = result[0];
-      if (!response) return undefined;
+      const response = result?.[0];
+      if (!response) return new Uint8Array();
       return new Uint8Array(response.value);
     } catch (error) {
       logger.error({ action: 'Load', key }, 'PostgresStorageAdaptser::Load ==> Error loading document');
@@ -98,7 +98,7 @@ export class PostgresStorageAdapter extends StorageAdapter {
     const response = await query(`SELECT key FROM "${this.tableName}" WHERE key LIKE $1`, [`${keyPrefix}%`]);
     logger.info({ keyPrefix, response: response?.length }, '[LOADED RANGE Keys]');
 
-    return response.map((row) => row.key);
+    return response ? response.map((row) => row.key) : [];
   }
 }
 
