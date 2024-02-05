@@ -1,14 +1,14 @@
 import { CommunityMembershipRole, DesciCommunity, NodeFeedItem, Prisma } from '@prisma/client';
 
 import { prisma } from '../client.js';
+import { DuplicateDataError } from '../core/communities/error.js';
 
 export class CommunityService {
   async createCommunity(data: Prisma.DesciCommunityCreateManyInput) {
     const exists = await prisma.desciCommunity.findFirst({ where: { name: data.name } });
-    console.log('[CommunityService]::EXISTS', exists);
 
     if (exists) {
-      throw Error('Community name taken!');
+      throw new DuplicateDataError('Community name taken!');
     }
 
     const community = await prisma.desciCommunity.create({ data: data });

@@ -1,6 +1,8 @@
+import { Prisma } from '@prisma/client';
 import { expect } from 'chai';
 
-import { IpfsDirStructuredInput, IpfsPinnedResult, client as ipfs, pinDirectory } from '../src/services/ipfs.js';
+import { prisma } from '../src/client.js';
+import { IpfsDirStructuredInput, IpfsPinnedResult, pinDirectory } from '../src/services/ipfs.js';
 
 const expectThrowsAsync = async (method, errorMessage) => {
   let error: Error | null = null;
@@ -41,4 +43,24 @@ export const spawnExampleDirDag = async () => {
   const uploaded: IpfsPinnedResult[] = await pinDirectory(structuredFiles, true);
   const rootCid = uploaded[uploaded.length - 1].cid;
   return rootCid;
+};
+
+export const createUsers = async (noOfUsers: number) => {
+  const promises = new Array(noOfUsers).fill(0).map((_, index) =>
+    prisma.user.create({
+      data: {
+        email: `user${index}@desci.com`,
+        name: `User_${index}`,
+      },
+    }),
+  );
+
+  const users = await Promise.all(promises);
+  return users;
+};
+
+export const createDraftNode = async (data: Prisma.NodeUncheckedCreateInput) => {
+  return prisma.node.create({
+    data,
+  });
 };

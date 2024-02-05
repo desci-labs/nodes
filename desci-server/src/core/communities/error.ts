@@ -69,6 +69,12 @@ export class VerificationNotFoundError extends AttestationError {
   }
 }
 
+export class VerificationError extends AttestationError {
+  constructor(message = 'Verification failed') {
+    super(ErrorType.OPERATION_FAILED, message);
+  }
+}
+
 export class DuplicateVerificationError extends AttestationError {
   constructor(message = 'Verification already exists') {
     super(ErrorType.DUPLICATE, message);

@@ -2,7 +2,7 @@ import 'dotenv/config';
 import 'mocha';
 import {
   Attestation,
-  AttestationTemplate,
+  // AttestationTemplate,
   AttestationVersion,
   CommunitySelectedAttestation,
   DesciCommunity,
@@ -14,20 +14,7 @@ import { prisma } from '../../src/client.js';
 import { DuplicateDataError } from '../../src/core/communities/error.js';
 import attestationService from '../../src/services/Attestation.js';
 import communityService from '../../src/services/Communities.js';
-
-const createUsers = async (noOfUsers: number) => {
-  const promises = new Array(noOfUsers).fill(0).map((_, index) =>
-    prisma.user.create({
-      data: {
-        email: `user${index}@desci.com`,
-        name: `User_${index}`,
-      },
-    }),
-  );
-
-  const users = await Promise.all(promises);
-  return users;
-};
+import { createUsers } from '../util.js';
 
 const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
@@ -142,12 +129,6 @@ describe.only('Desci Communities', () => {
     });
   });
 
-  // describe('Community Feed', () => {
-  //   it('should endorse a node', () => {});
-  //   it('should display endorsed nodes in community feed', () => {});
-  //   it('should remove an endorsed node', () => {});
-  // });
-
   describe('Community Attestation', () => {
     const attestationData = [
       {
@@ -181,6 +162,7 @@ describe.only('Desci Communities', () => {
 
     after(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "Attestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "AttestationVersion" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "AttestationTemplate" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
     });
@@ -232,8 +214,6 @@ describe.only('Desci Communities', () => {
             name: 'Custom attestation',
           },
         );
-        console.log('AttestationTemplate', template);
-        console.log('Attestation', attestationFromTemplate);
 
         assert(attestationFromTemplate);
         assert(template);

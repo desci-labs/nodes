@@ -13,6 +13,7 @@ import {
   DuplicateReactionError,
   DuplicateVerificationError,
   NoAccessError,
+  VerificationError,
   VerificationNotFoundError,
 } from '../core/communities/error.js';
 
@@ -26,7 +27,7 @@ import communityService from './Communities.js';
 export class AttestationService {
   // constructor() {}
 
-  async #verifyClaimAttestationQuery({
+  async #checkClaimAttestationQuery({
     attestationId,
     attestationVersion,
     nodeDpid,
@@ -205,7 +206,7 @@ export class AttestationService {
     nodeDpid: string;
     claimerId: number;
   }) {
-    const data = await this.#verifyClaimAttestationQuery({
+    const data = await this.#checkClaimAttestationQuery({
       attestationId,
       attestationVersion,
       nodeDpid,
@@ -237,7 +238,7 @@ export class AttestationService {
     claimerId: number;
   }) {
     try {
-      await this.#verifyClaimAttestationQuery({
+      await this.#checkClaimAttestationQuery({
         attestationId,
         attestationVersion,
         nodeDpid,
@@ -266,7 +267,7 @@ export class AttestationService {
   }) {
     const data = await Promise.all(
       attestations.map(({ attestationId, attestationVersion }) =>
-        this.#verifyClaimAttestationQuery({
+        this.#checkClaimAttestationQuery({
           attestationId,
           attestationVersion,
           nodeDpid,
@@ -291,6 +292,13 @@ export class AttestationService {
   async verifyClaim(nodeAttestationId: number, userId: number) {
     assert(nodeAttestationId > 0, 'Error: nodeAttestationId is Zero');
     assert(userId > 0, 'Error: userId is Zero');
+
+    const claim = await this.findClaimById(nodeAttestationId);
+    if (!claim) throw new ClaimNotFoundError();
+
+    const node = await prisma.node.findFirst({ where: { uuid: claim.nodeUuid } });
+    if (node.ownerId === userId) throw new VerificationError('Node author cannot verify claim');
+
     const exists = await prisma.nodeAttestationVerification.findFirst({ where: { nodeAttestationId, userId } });
     if (exists) throw new DuplicateVerificationError();
 
