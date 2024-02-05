@@ -32,6 +32,7 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
   const token = await extractAuthToken(req);
 
   if (!token) {
+    logger.trace('Token not found');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
     return;
   }
@@ -39,6 +40,7 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
   const user = await extractUserFromToken(token);
 
   if (!(user && user.id > 0)) {
+    logger.trace('User not found');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
     return;
   }
@@ -47,12 +49,12 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
   const uuid = req.body?.uuid || req.query?.uuid || req.params?.uuid;
 
   if (!uuid) {
-    logger.info({ module: 'GetNodeDocument' }, 'Node not found', 'Request Params', req.params);
+    logger.info({ module: 'GetNodeDocument', params: req.params }, 'Node not found');
     res.status(400).send({ message: 'Bad Request' });
     return;
   }
 
-  const rows = await query('SELECT * FROM "Node" WHERE uuid = $1 AND ownerId = $2');
+  const rows = await query('SELECT * FROM "Node" WHERE uuid = $1 AND ownerId = $2', [uuid, user.id]);
   const node = rows?.[0];
 
   logger.info({ email: hideEmail(user.email), uuid, node }, '[EnsureNodeAccess]:: => ');

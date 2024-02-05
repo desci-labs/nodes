@@ -12,6 +12,7 @@ import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
 import { ErrorResponse } from './update.js';
 import { persistManifest } from './utils.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 interface MoveResponse {
   status?: number;
@@ -38,7 +39,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
   if (!node) {

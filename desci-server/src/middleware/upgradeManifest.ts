@@ -11,7 +11,7 @@ import { prisma } from '../client.js';
 import { getLatestManifest, persistManifest } from '../controllers/data/utils.js';
 import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from '../services/ipfs.js';
 import { DANGEROUSLY_addComponentsToManifest } from '../utils/driveUtils.js';
-import { ensureUniqueString } from '../utils.js';
+import { ensureUniqueString, ensureUuidEndsWithDot } from '../utils.js';
 
 /* 
 upgrades the manifest from the old opiniated version to the unopiniated version 
@@ -26,7 +26,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
   if (!node) {

@@ -6,6 +6,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { processExternalCidDataToIpfs } from '../../services/data/externalCidProcessing.js';
 
 import { ErrorResponse, UpdateResponse } from './update.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export const updateExternalCid = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = (req as any).user as User;
@@ -31,7 +32,7 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
   if (!node) {

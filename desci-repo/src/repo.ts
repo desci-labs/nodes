@@ -9,6 +9,7 @@ import { logger } from './logger.js';
 import { verifyNodeDocumentAccess } from './services/nodes.js';
 import { ResearchObjectDocument } from './types.js';
 import * as db from './db/index.js';
+import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
 
 export const socket = new WebSocketServer({ port: 5445, path: '/sync' });
 const hostname = os.hostname();
@@ -41,8 +42,8 @@ const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocumen
   logger.trace({ change: change.handle.documentId, uuid: change.patchInfo.after.uuid }, 'Document Changed');
   const newTitle = change.patchInfo.after.manifest.title;
   const newCover = change.patchInfo.after.manifest.coverImage;
-  const uuid = change.doc.uuid.endsWith('.') ? change.doc.uuid : change.doc.uuid + '.';
-  logger.info({ uuid: uuid + '.', newTitle }, 'UPDATE NODE');
+  const uuid = ensureUuidEndsWithDot(change.doc.uuid);
+  logger.info({ uuid: uuid, newTitle }, 'UPDATE NODE');
 
   try {
     // TODO: Check if update message is 'UPDATE TITLE'

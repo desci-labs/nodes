@@ -12,6 +12,7 @@ import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 
 import { ErrorResponse } from './update.js';
 import { persistManifest, separateFileNameAndExtension } from './utils.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 interface RenameResponse {
   status?: number;
@@ -38,7 +39,7 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
   const node: Node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
   if (!node) {

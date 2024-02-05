@@ -11,6 +11,7 @@ import repoService from '../../services/repoService.js';
 
 import { ErrorResponse } from './update.js';
 import { persistManifest } from './utils.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 interface DeleteResponse {
   status?: number;
@@ -35,7 +36,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
   if (!node) {

@@ -11,6 +11,7 @@ import { extractRootDagCidFromManifest, getManifestFromNode } from './data/proce
 import { createDuplicateFileError, createMixingExternalDataError } from './data/processingErrors.js';
 import { getDirectoryTree } from './ipfs.js';
 import { NodeUuid } from './manifestRepo.js';
+import { ensureUuidEndsWithDot } from '../utils.js';
 
 const logger = parentLogger.child({
   module: 'Services::DraftTrees',
@@ -118,7 +119,7 @@ export async function ensureUniquePathsDraftTree({
 }
 
 export async function getDraftTreeEntriesByUuid(uuid: NodeUuid) {
-  const node = await prisma.node.findFirst({ where: uuid.endsWith('.') ? { uuid } : { uuid: uuid + '.' } });
+  const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
 
   const treeEntries = await prisma.draftNodeTree.findMany({
     where: {

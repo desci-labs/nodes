@@ -15,7 +15,7 @@ export async function getLatestManifest(
   node = node || (await findNodeByUuid(nodeUuid)); // (await prisma.node.findUnique({ where: { uuid: nodeUuid } }));
   const latestManifestCid = node?.manifestUrl || node?.cid;
   const manifestUrl = latestManifestCid ? cleanupManifestUrl(latestManifestCid as string, resolver as string) : null;
-  return manifestUrl ? await(await axios.get(manifestUrl)).data : null;
+  return manifestUrl ? await (await axios.get(manifestUrl)).data : null;
 }
 
 export const cleanupManifestUrl = (url: string, gateway?: string) => {
@@ -41,4 +41,8 @@ export async function getManifestFromNode(
   } catch (e) {
     throw createIpfsUnresolvableError(`Error fetching manifest from IPFS, manifestCid: ${manifestCid}`);
   }
+}
+
+export function ensureUuidEndsWithDot(uuid: string): string {
+  return uuid.endsWith('.') ? uuid : uuid + '.';
 }

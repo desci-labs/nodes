@@ -9,6 +9,7 @@ import { findNodeByUuid, query } from '../../db/index.js';
 import { Doc } from '@automerge/automerge';
 import { ZodError } from 'zod';
 import { actionsSchema } from '../../validators/schema.js';
+import { ensureUuidEndsWithDot } from './utils.js';
 
 export const createNodeDocument = async function (req: Request, res: Response) {
   logger.info('START [CreateNodeDocument]', req.body, req.params);
@@ -22,7 +23,7 @@ export const createNodeDocument = async function (req: Request, res: Response) {
 
     logger.info('[Backend REPO]:', backendRepo.networkSubsystem.peerId);
 
-    uuid = uuid.endsWith('.') ? uuid.slice(0, -1) : uuid;
+    uuid = ensureUuidEndsWithDot(uuid);
     const handle = backendRepo.create<ResearchObjectDocument>();
     handle.change(
       (d) => {
@@ -35,14 +36,14 @@ export const createNodeDocument = async function (req: Request, res: Response) {
 
     const document = await handle.doc();
 
-    const node = await findNodeByUuid(uuid + '.');
+    const node = await findNodeByUuid(uuid);
     // await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
     const result = await query('UPDATE "Node" SET "manifestDocumentId" = $1 WHERE uuid = $2', [
       handle.documentId,
       uuid,
     ]);
 
-    console.log('UPDATE DOCUMENT ID', { node, result });
+    logger.info({ node, result }, '[createNodeDocument] UPDATE DOCUMENT ID');
     logger.info('[AUTOMERGE]::[HANDLE NEW CHANGED]', handle.url, handle.isReady(), document);
 
     res.status(200).send({ ok: true, documentId: handle.documentId, document });
@@ -68,11 +69,12 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
     // const queryResult = await pool.query('SELECT * FROM nodes WHERE uuid = $1', [uuid]);
     // console.log('user:', queryResult.rows[0]);
 
-    console.log('[getLatestNodeManifest]', { uuid });
+    logger.info('[getLatestNodeManifest]', { uuid });
     const node = await findNodeByUuid(uuid);
-    console.log('[node]', { node });
+    logger.trace('[getLatestNodeManifest::node]', { node });
 
     if (!node) {
+      logger.warn('[getLatestNodeManifest]', `Node with uuid ${uuid} not found!`);
       res.status(400).send({ ok: false, message: `Node with uuid ${uuid} not found!` });
       return;
     }
@@ -82,7 +84,7 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
 
     const document = await handle.doc();
 
-    logger.info('[END]:: GetLatestNodeManifest]', { manifest: document?.manifest });
+    logger.info({ manifest: document?.manifest, automergeUrl }, '[getLatestNodeManifest::END]');
     res.status(200).send({ ok: true, document });
   } catch (err) {
     console.error('Error [getLatestNodeManifest]', err);
@@ -134,6 +136,7 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
   logger.info({ body: req.body }, 'START [dispatchDocumentActions]');
   try {
     if (!(req.body.uuid && req.body.documentId && req.body.actions)) {
+      logger.error({ body: req.body }, 'Invalid data');
       res.status(400).send({ ok: false, message: 'Invalid data' });
       return;
     }
@@ -142,6 +145,7 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
     const documentId = req.body.documentId as DocumentId;
 
     if (!(actions && actions.length > 0)) {
+      logger.error({ actions }, 'No actions to dispatch');
       res.status(400).send({ ok: false, message: 'No actions to dispatch' });
       return;
     }
@@ -159,6 +163,7 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
     }
 
     if (!document) {
+      logger.error({ document }, 'Document not found');
       res.status(400).send({ ok: false, message: 'Document not found' });
       return;
     }

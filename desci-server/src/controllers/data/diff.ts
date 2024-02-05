@@ -19,6 +19,7 @@ import { getTreeAndFill } from '../../utils/driveUtils.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 import { ErrorResponse } from './update.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 interface DiffResponse extends Diffs {
   status?: number;
@@ -49,7 +50,7 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
   // ensure the node is valid
   const node = await prisma.node.findFirst({
     where: {
-      uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.',
+      uuid: ensureUuidEndsWithDot(nodeUuid),
     },
   });
   if (!node) {
