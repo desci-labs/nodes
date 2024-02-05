@@ -179,6 +179,7 @@ describe.only('Desci Communities', () => {
       it('should create attestation version', async () => {
         assert(attestation);
         const versions = await attestationService.getAttestationVersions(attestation.id);
+        console.log(versions);
         expect(versions.length).to.be.equal(1);
         const attestationVersion = versions[0];
         assert(attestationVersion);
@@ -237,9 +238,10 @@ describe.only('Desci Communities', () => {
         await attestationService.updateAttestation(attestation.id, { ...attestation, name: 'Update 1' });
       });
 
-      it('should publish new attestation version', async () => {
+      it('should publish new attestation version(2)', async () => {
         const versions = await attestationService.getAttestationVersions(attestation.id);
         assert(versions);
+        console.log(versions);
         expect(versions.length).to.be.equal(2);
         expect(versions[1].name).be.equal('Update 1');
         expect(versions[1].description).be.equal(attestation.description);
@@ -254,6 +256,7 @@ describe.only('Desci Communities', () => {
           image_url: 'http://version3',
         });
         const versions = await attestationService.getAttestationVersions(attestation.id);
+        console.log(versions);
         assert(versions);
         expect(versions.length).to.be.equal(3);
         expect(versions[2].name).be.equal('Update 2');
@@ -268,6 +271,7 @@ describe.only('Desci Communities', () => {
           description: 'Version 4 Description',
         });
         const versions = await attestationService.getAttestationVersions(attestation.id);
+        console.log(versions);
         assert(versions);
         expect(versions.length).to.be.equal(4);
         expect(versions[3].name).be.equal(attestation.name);
@@ -280,7 +284,6 @@ describe.only('Desci Communities', () => {
     describe('Community Selected Attestation', () => {
       let selectedAttestation: CommunitySelectedAttestation;
       let version: AttestationVersion;
-      // let attestation2: Attestation;
       let selectedVersion: AttestationVersion;
       let selectedAttestation2: CommunitySelectedAttestation;
 

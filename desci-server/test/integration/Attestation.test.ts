@@ -61,7 +61,7 @@ const nodesData = [
   },
 ];
 
-describe.only('Attestations', async () => {
+describe('Attestations', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
