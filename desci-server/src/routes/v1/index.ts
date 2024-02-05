@@ -9,6 +9,7 @@ import { ensureUser } from '../../middleware/permissions.js';
 
 import admin from './admin.js';
 import auth from './auth.js';
+import communities from './communities.js';
 import data from './data.js';
 import log from './log.js';
 import nodes from './nodes.js';
@@ -17,7 +18,6 @@ import referral from './referral.js';
 import services from './services.js';
 import users from './users.js';
 import waitlist from './waitlist.js';
-import communities from './waitlist.js';
 
 const router = Router();
 
