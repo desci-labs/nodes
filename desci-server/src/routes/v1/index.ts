@@ -17,6 +17,7 @@ import referral from './referral.js';
 import services from './services.js';
 import users from './users.js';
 import waitlist from './waitlist.js';
+import communities from './waitlist.js';
 
 const router = Router();
 
@@ -44,6 +45,7 @@ router.use('/pub', pub);
 router.use('/data', data);
 router.use('/log', log);
 router.use('/services', services);
+router.use('/communities', communities);
 
 router.get('/nft/:id', nft);
 router.use('/referral', referral);

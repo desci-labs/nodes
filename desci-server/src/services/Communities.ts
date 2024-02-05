@@ -15,6 +15,17 @@ export class CommunityService {
     return community;
   }
 
+  async getAllCommunities() {
+    return prisma.desciCommunity.findMany({
+      select: {
+        id: true,
+        name: true,
+        image_url: true,
+        description: true,
+      },
+    });
+  }
+
   async getCommunityAdmin(communityId: number) {
     return prisma.communityMember.findFirst({
       where: { communityId, role: CommunityMembershipRole.ADMIN },
@@ -49,7 +60,7 @@ export class CommunityService {
   }
 
   async getAllMembers(communityId: number) {
-    return await prisma.communityMember.findMany({ where: { communityId, role: CommunityMembershipRole.MEMBER } });
+    return await prisma.communityMember.findMany({ where: { communityId }, select: { role: true, user: true } });
   }
 
   async findMemberByUserId(communityId: number, userId: number) {
