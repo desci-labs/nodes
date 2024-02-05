@@ -1,16 +1,16 @@
 import 'dotenv/config';
 import 'mocha';
 
-describe('Community Attestations', () => {
+describe('Attestations', () => {
   describe('Claiming an Attestation', () => {
-    it('should claim an attestaion to a node', () => {});
+    it('should claim an attestation to a node', () => {});
     it('should add author to a community membership', () => {});
     it('should assign attestation to correct node version', () => {});
     it('should add node to community feed', () => {});
   });
 
   describe('UnClaiming an Attestation', () => {
-    it('should unclaim an attestaion from a node', () => {});
+    it('should unclaim an attestation from a node', () => {});
     it('should remove/hide node from community feed if entry requirement is not met', () => {});
     it('should assign attestation to correct node version', () => {});
   });
@@ -31,7 +31,7 @@ describe('Community Attestations', () => {
   });
 
   describe('Node Attestation Engagement', () => {
-    it('should curate all node impressions across all attestaions', () => {});
+    it('should curate all node impressions across all attestations', () => {});
     it('should list all engaging users and only count users once', () => {});
   });
 });

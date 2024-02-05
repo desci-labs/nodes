@@ -560,27 +560,27 @@ model NodeFeedItemEndorsement {
 
 // an organization that endorses work and has members
 model DesciCommunity {
-  id              Int                       @id @default(autoincrement())
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
-  name            String                    @unique
-  image_url       String?
-  description     String
-  members         User[]
-  endorsements    NodeFeedItemEndorsement[]
-  CommunityMember CommunityMember[]
-  Attestation     Attestation[]
-  NodeAttestation NodeAttestation[]
+  id                           Int                            @id @default(autoincrement())
+  createdAt                    DateTime                       @default(now())
+  updatedAt                    DateTime                       @updatedAt
+  name                         String                         @unique
+  image_url                    String?
+  description                  String
+  members                      User[]
+  endorsements                 NodeFeedItemEndorsement[]
+  CommunityMember              CommunityMember[]
+  Attestation                  Attestation[]
+  NodeAttestation              NodeAttestation[]
+  CommunitySelectedAttestation CommunitySelectedAttestation[]
 }
 
 model CommunityMember {
-  id               Int                     @id @default(autoincrement())
-  communityId      Int
-  userId           Int
-  role             CommunityMembershipRole
-  user             User                    @relation(fields: [userId], references: [id])
-  community        DesciCommunity          @relation(fields: [desciCommunityId], references: [id])
-  desciCommunityId Int
+  id          Int                     @id @default(autoincrement())
+  communityId Int
+  userId      Int
+  role        CommunityMembershipRole
+  user        User                    @relation(fields: [userId], references: [id])
+  community   DesciCommunity          @relation(fields: [communityId], references: [id])
 
   @@unique([userId, communityId])
 }
@@ -598,15 +598,14 @@ model AttestationTemplate {
 model Attestation {
   id                        Int                            @id @default(autoincrement())
   name                      String                         @unique
-  attestationTemplateId     Int?
-  desciCommunityId          Int
+  communityId               Int
   description               String
   image_url                 String
   templateId                Int?
   createdAt                 DateTime                       @default(now())
   updatedAt                 DateTime                       @updatedAt
-  community                 DesciCommunity                 @relation(fields: [desciCommunityId], references: [id])
-  template                  AttestationTemplate?           @relation(fields: [attestationTemplateId], references: [id])
+  community                 DesciCommunity                 @relation(fields: [communityId], references: [id])
+  template                  AttestationTemplate?           @relation(fields: [templateId], references: [id])
   AttestationVersion        AttestationVersion[]
   NodeAttestation           NodeAttestation[]
   CommunityEntryAttestation CommunitySelectedAttestation[]
@@ -614,8 +613,7 @@ model Attestation {
 
 model AttestationVersion {
   id                        Int                            @id @default(autoincrement())
-  name                      String                         @unique
-  version                   Int
+  name                      String
   attestationId             Int
   description               String
   image_url                 String
@@ -624,12 +622,12 @@ model AttestationVersion {
   attestation               Attestation                    @relation(fields: [attestationId], references: [id])
   NodeAttestation           NodeAttestation[]
   CommunityEntryAttestation CommunitySelectedAttestation[]
-
-  @@unique([attestationId, version])
 }
 
 model CommunitySelectedAttestation {
   id                   Int                @id @default(autoincrement())
+  desciCommunityId     Int
+  desciCommunity       DesciCommunity     @relation(fields: [desciCommunityId], references: [id])
   attestationId        Int
   attestationVersionId Int
   required             Boolean
@@ -649,6 +647,7 @@ model NodeAttestation {
   community                   DesciCommunity                @relation(fields: [desciCommunityId], references: [id])
   claimedById                 Int
   claimedBy                   User                          @relation(fields: [claimedById], references: [id])
+  nodeDpid10                  String
   nodeUuid                    String
   node                        Node                          @relation(fields: [nodeUuid], references: [uuid])
   nodeVersionId               Int

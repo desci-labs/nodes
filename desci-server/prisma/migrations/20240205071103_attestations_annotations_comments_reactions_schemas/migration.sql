@@ -13,7 +13,6 @@ CREATE TABLE "CommunityMember" (
     "communityId" INTEGER NOT NULL,
     "userId" INTEGER NOT NULL,
     "role" "CommunityMembershipRole" NOT NULL,
-    "desciCommunityId" INTEGER NOT NULL,
 
     CONSTRAINT "CommunityMember_pkey" PRIMARY KEY ("id")
 );
@@ -34,8 +33,7 @@ CREATE TABLE "AttestationTemplate" (
 CREATE TABLE "Attestation" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
-    "attestationTemplateId" INTEGER,
-    "desciCommunityId" INTEGER NOT NULL,
+    "communityId" INTEGER NOT NULL,
     "description" TEXT NOT NULL,
     "image_url" TEXT NOT NULL,
     "templateId" INTEGER,
@@ -49,7 +47,6 @@ CREATE TABLE "Attestation" (
 CREATE TABLE "AttestationVersion" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
-    "version" INTEGER NOT NULL,
     "attestationId" INTEGER NOT NULL,
     "description" TEXT NOT NULL,
     "image_url" TEXT NOT NULL,
@@ -62,6 +59,7 @@ CREATE TABLE "AttestationVersion" (
 -- CreateTable
 CREATE TABLE "CommunitySelectedAttestation" (
     "id" SERIAL NOT NULL,
+    "desciCommunityId" INTEGER NOT NULL,
     "attestationId" INTEGER NOT NULL,
     "attestationVersionId" INTEGER NOT NULL,
     "required" BOOLEAN NOT NULL,
@@ -78,6 +76,7 @@ CREATE TABLE "NodeAttestation" (
     "attestationVersionId" INTEGER NOT NULL,
     "desciCommunityId" INTEGER NOT NULL,
     "claimedById" INTEGER NOT NULL,
+    "nodeDpid10" TEXT NOT NULL,
     "nodeUuid" TEXT NOT NULL,
     "nodeVersionId" INTEGER NOT NULL,
     "claimedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -128,12 +127,6 @@ CREATE UNIQUE INDEX "AttestationTemplate_name_key" ON "AttestationTemplate"("nam
 CREATE UNIQUE INDEX "Attestation_name_key" ON "Attestation"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AttestationVersion_name_key" ON "AttestationVersion"("name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "AttestationVersion_attestationId_version_key" ON "AttestationVersion"("attestationId", "version");
-
--- CreateIndex
 CREATE UNIQUE INDEX "NodeAttestation_nodeUuid_nodeVersionId_attestationId_attest_key" ON "NodeAttestation"("nodeUuid", "nodeVersionId", "attestationId", "attestationVersionId");
 
 -- CreateIndex
@@ -143,16 +136,19 @@ CREATE UNIQUE INDEX "NodeAttestationVerification_nodeAttestationId_userId_key" O
 ALTER TABLE "CommunityMember" ADD CONSTRAINT "CommunityMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CommunityMember" ADD CONSTRAINT "CommunityMember_desciCommunityId_fkey" FOREIGN KEY ("desciCommunityId") REFERENCES "DesciCommunity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CommunityMember" ADD CONSTRAINT "CommunityMember_communityId_fkey" FOREIGN KEY ("communityId") REFERENCES "DesciCommunity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Attestation" ADD CONSTRAINT "Attestation_desciCommunityId_fkey" FOREIGN KEY ("desciCommunityId") REFERENCES "DesciCommunity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Attestation" ADD CONSTRAINT "Attestation_communityId_fkey" FOREIGN KEY ("communityId") REFERENCES "DesciCommunity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Attestation" ADD CONSTRAINT "Attestation_attestationTemplateId_fkey" FOREIGN KEY ("attestationTemplateId") REFERENCES "AttestationTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Attestation" ADD CONSTRAINT "Attestation_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "AttestationTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AttestationVersion" ADD CONSTRAINT "AttestationVersion_attestationId_fkey" FOREIGN KEY ("attestationId") REFERENCES "Attestation"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CommunitySelectedAttestation" ADD CONSTRAINT "CommunitySelectedAttestation_desciCommunityId_fkey" FOREIGN KEY ("desciCommunityId") REFERENCES "DesciCommunity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CommunitySelectedAttestation" ADD CONSTRAINT "CommunitySelectedAttestation_attestationId_fkey" FOREIGN KEY ("attestationId") REFERENCES "Attestation"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
