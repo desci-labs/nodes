@@ -1,6 +1,6 @@
 import { type NodeIDs } from "@desci-labs/desci-codex-lib/dist/src/index.js";
 import { getDpidHistory } from "./api.js";
-import { chainPublish, hasDpid, type ChainPublishResult } from "./chain.js";
+import { dpidPublish, hasDpid, type DpidPublishResult } from "./chain.js";
 import { codexPublish } from "./codex.js";
 import { PublishError } from "./errors.js";
 
@@ -13,11 +13,11 @@ export const publish = async (
   authToken: string,
   pkey: string,
 ) => {
-  let chainPubResponse: ChainPublishResult;
+  let chainPubResponse: DpidPublishResult;
   let preexistingDpid: boolean;
   try {
     preexistingDpid = await hasDpid(uuid);
-    chainPubResponse = await chainPublish(uuid, authToken, preexistingDpid);
+    chainPubResponse = await dpidPublish(uuid, authToken, preexistingDpid);
   } catch (e) {
     /**
      * dPID registry operations failed. Since we can't know if the prepublish

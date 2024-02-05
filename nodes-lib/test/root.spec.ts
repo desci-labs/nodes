@@ -2,9 +2,9 @@
 import { test, describe, beforeAll, expect } from "vitest";
 import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteFile, prePublishDraftNode } from "../src/api.js";
 import axios from "axios";
-import { codexPublish, getPublishedFromCodex } from "../src/codex.js";
+import { codexPublish, getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
 import { resolveHistory } from "@desci-labs/desci-codex-lib/dist/src/index.js";
-import { chainPublish } from "../src/chain.js";
+import { dpidPublish } from "../src/chain.js";
 import { sleep } from "./util.js";
 import { convertHexToCID } from "../src/util/converting.js";
 
@@ -110,11 +110,32 @@ describe("nodes-lib", () => {
         expect(publishResult.ceramicIDs).not.toBeUndefined();
         const ceramicObject = await getPublishedFromCodex(publishResult.ceramicIDs!.streamID);
         expect(ceramicObject?.manifest).toEqual(publishResult.updatedManifestCid);
+
+        const ceramicHistory = await getCodexHistory(publishResult.ceramicIDs!.streamID);
+        expect(ceramicHistory.length).toEqual(2);
       });
     });
 
-    test.todo("with backfill ceramic migration", async () => {
-      // TODO compare ceramic and dPID history
+    test("with backfill ceramic migration", async () => {
+      const { node: { uuid }} = await createBoilerplateNode();
+
+      // make a dpid-only publish
+      await dpidPublish(uuid, AUTH_TOKEN, false);
+
+      // Wait for graph node to update
+      await sleep(1_500);
+
+      // make a regular publish
+      const pubResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
+
+      // Wait for graph node to update
+      await sleep(1_500);
+
+      // make sure codex history is of equal length
+      const dpidHistory = await getDpidHistory(uuid);
+      const codexHistory = await getCodexHistory(pubResult.ceramicIDs!.streamID);
+      expect(dpidHistory.length).toEqual(2);
+      expect (codexHistory.length).toEqual(2);
     });
   });
 

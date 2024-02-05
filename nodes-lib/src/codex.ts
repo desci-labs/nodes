@@ -6,6 +6,7 @@ import {
   type ComposeClient,
   type NodeIDs,
   queryResearchObject,
+  resolveHistory,
 } from "@desci-labs/desci-codex-lib/dist/src/index.js";
 import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
 import { convertHexToCID } from "./util/converting.js";
@@ -122,4 +123,14 @@ export const getPublishedFromCodex = async (
 
   const compose = newComposeClient({ ceramic });
   return await queryResearchObject(compose, id);
+};
+
+export const getCodexHistory = async (
+  streamID: string
+) => {
+  const ceramic = await authenticatedCeramicClient(
+    process.env.PKEY!
+  );
+
+  return await resolveHistory(ceramic, streamID);
 };

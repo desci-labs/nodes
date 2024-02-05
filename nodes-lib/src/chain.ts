@@ -26,7 +26,7 @@ const dpidRegistry = DpidRegistry__factory.connect(
   LC_DPID_CONTRACT_ADDRESS, wallet
 );
 
-export type ChainPublishResult = {
+export type DpidPublishResult = {
   prepubResult: PrepublishResponse,
   reciept: ContractReceipt,
 };
@@ -34,11 +34,11 @@ export type ChainPublishResult = {
 /**
  * Publish a node to the dPID registry contract.
  */
-export const chainPublish = async (
+export const dpidPublish = async (
   uuid: string,
   authToken: string,
   dpidExists: boolean,
-): Promise<ChainPublishResult> => {
+): Promise<DpidPublishResult> => {
   let reciept: ContractReceipt;
   let prepubResult: PrepublishResponse;
   if (dpidExists) {
