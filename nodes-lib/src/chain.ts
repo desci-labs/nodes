@@ -2,7 +2,7 @@ import { Wallet, getDefaultProvider, type ContractReceipt, BigNumber } from "eth
 import { DpidRegistry__factory, ResearchObject__factory } from "@desci-labs/desci-contracts/typechain-types";
 import { SigningKey, formatBytes32String } from "ethers/lib/utils.js";
 import { convertUUIDToHex, getBytesFromCIDString} from "./util/converting.js";
-import { prePublishDraftNode } from "./api.js"
+import { prePublishDraftNode, type PrepublishResponse } from "./api.js"
 
 const LOG_CTX = "[nodes-lib::chain]"
 const LC_RO_CONTRACT_ADDRESS = "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707";
@@ -27,8 +27,8 @@ const dpidRegistry = DpidRegistry__factory.connect(
 );
 
 export type ChainPublishResult = {
+  prepubResult: PrepublishResponse,
   reciept: ContractReceipt,
-  prepubManifestCid: string,
 };
 
 /**
@@ -37,17 +37,15 @@ export type ChainPublishResult = {
 export const chainPublish = async (
   uuid: string,
   authToken: string,
+  dpidExists: boolean,
 ): Promise<ChainPublishResult> => {
-  const hasDpid = await researchObject.exists(convertUUIDToHex(uuid));
-
   let reciept: ContractReceipt;
-  let prepubManifestCid: string;
-  if (hasDpid) {
+  let prepubResult: PrepublishResponse;
+  if (dpidExists) {
     console.log(`${LOG_CTX} dpid exists for ${uuid}, updating`);
     try {
-      const { updatedManifestCid } = await prePublishDraftNode(uuid, authToken);
-      prepubManifestCid = updatedManifestCid;
-      reciept = await updateExistingDpid(uuid, prepubManifestCid);
+      prepubResult = await prePublishDraftNode(uuid, authToken);
+      reciept = await updateExistingDpid(uuid, prepubResult.updatedManifestCid);
     } catch(e) {
       const err = e as Error;
       console.log(`${LOG_CTX} Failed updating dpid for uuid ${uuid}: ${err.message}`);
@@ -58,14 +56,14 @@ export const chainPublish = async (
     try {
       const registrationResult = await registerNewDpid(uuid, authToken);
       reciept = registrationResult.reciept;
-      prepubManifestCid = registrationResult.prepubManifestCid;
+      prepubResult = registrationResult.prepubResult;
     } catch (e) {
       const err = e as Error;
       console.log(`${LOG_CTX} Failed registering new dpid for uuid ${uuid}: ${err.message}`);
       throw err;
     };
   };
-  return { reciept, prepubManifestCid };
+  return { prepubResult, reciept };
 };
 
 /**
@@ -89,7 +87,7 @@ const updateExistingDpid = async (
 const registerNewDpid = async (
   uuid: string,
   authToken: string,
-): Promise<{ reciept: ContractReceipt, prepubManifestCid: string }> => {
+): Promise<{ reciept: ContractReceipt, prepubResult: PrepublishResponse}> => {
   const optimisticDpid = await getPreliminaryDpid();
   const regFee = await dpidRegistry.getFee();
 
@@ -105,8 +103,8 @@ const registerNewDpid = async (
   // const response = await updateDraft(uuid, optimisticDpidManifest)
   // check response OK
 
-  const { updatedManifestCid } = await prePublishDraftNode(uuid, authToken);
-  const cidBytes = getBytesFromCIDString(updatedManifestCid);
+  const prepubResult = await prePublishDraftNode(uuid, authToken);
+  const cidBytes = getBytesFromCIDString(prepubResult.updatedManifestCid);
   const hexUuid = convertUUIDToHex(uuid);
 
   // Throws if the expected dPID isn't available
@@ -117,7 +115,7 @@ const registerNewDpid = async (
       optimisticDpid,
       { value: regFee, gasLimit: 350000 }
   );
-  return { reciept: await tx.wait(), prepubManifestCid: updatedManifestCid };
+  return { reciept: await tx.wait(), prepubResult };
 };
 
 /**

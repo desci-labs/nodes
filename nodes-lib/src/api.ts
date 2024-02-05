@@ -3,11 +3,13 @@ import type {
   DriveObject,
   ResearchObjectV1,
 } from "@desci-labs/desci-models";
-import { ceramicPublish } from "./codex.js";
+import { codexPublish } from "./codex.js";
 import FormData from "form-data";
 import { createReadStream } from "fs";
 import { basename } from "path";
 import type { NodeIDs } from "@desci-labs/desci-codex-lib/dist/src/types.js";
+import { publish } from "./publish.js";
+import { PublishError } from "./errors.js";
 
 // Set these dynamically in some reasonable fashion
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
@@ -87,11 +89,31 @@ export const deleteDraftNode = async (
   };
 };
 
+export type NodeResponse = {
+  id: number,
+  createdAt: string,
+  updatedAt: string,
+  title: string,
+  cid: string,
+  state: string,
+  isFeatured: boolean,
+  manifestUrl: string,
+  /** Stringified JSON manifest */
+  restBody: string,
+  replicationFactor: number,
+  ownerId: number,
+  uuid: string,
+  deletedAt?: string,
+  isDeleted: boolean,
+  manifestDocumentId: string,
+  ceramicStream?: string,
+};
+
 export const getDraftNode = async (
   uuid: string,
   authToken: string,
-) => {
-  const { status, statusText, data } = await axios.get(
+): Promise<NodeResponse> => {
+  const { status, statusText, data } = await axios.get<NodeResponse>(
     ROUTES.showNode + `/${uuid}`,
     { headers: getHeaders(authToken), }
   );
@@ -101,15 +123,6 @@ export const getDraftNode = async (
   };
 
   return data;
-};
-
-type PublishParams = {
-  uuid: string,
-  cid: string,
-  manifest: ResearchObjectV1,
-  transactionId?: string,
-  nodeVersionId?: string,
-  ceramicStream?: string,
 };
 
 type NodeVersion = {
@@ -130,7 +143,8 @@ export type PrepublishResponse = {
 
 /**
  * Computes the draft drive DAG, and updates the data bucket CID
- * with the new root.
+ * with the new root. Note this does not actually publish the draft,
+ * just tells the backend to prepare for it.
  * 
  * @param uuid - UUID of the node to prepublish.
  * @param authToken - Your API key.
@@ -153,35 +167,34 @@ export const prePublishDraftNode = async (
   return data;
 };
 
+type PublishParams = {
+  uuid: string,
+  cid: string,
+  manifest: ResearchObjectV1,
+  transactionId?: string,
+  nodeVersionId?: string,
+  ceramicStream?: string,
+};
+
 export type PublishResponse = {
   ok: boolean,
-  ceramicIDs: NodeIDs,
   updatedManifestCid: string,
+  ceramicIDs?: NodeIDs,
 };
 
 export const publishDraftNode = async (
   uuid: string,
   authToken: string,
+  pkey: string,
 ): Promise<PublishResponse> => {
-  const prePublishResult = await prePublishDraftNode(uuid, authToken);
-  const { updatedManifestCid, updatedManifest, ceramicStream } = prePublishResult;
-
-  const ceramicIDs = await ceramicPublish(
-    prePublishResult,
-    {
-      existingStream: ceramicStream,
-      // TODO do we want to query for on-chain history? :/
-      // Otherwise, we can just init as stream if unknown (no backfilled history)
-      versions: []
-    },
-    process.env.SEED!
-  );
+  const publishResult = await publish(uuid, authToken, pkey);
 
   const pubParams: PublishParams = {
     uuid,
-    cid: updatedManifestCid,
-    manifest: updatedManifest,
-    ceramicStream: ceramicIDs.streamID,
+    cid: publishResult.cid,
+    manifest: publishResult.manifest,
+    transactionId: publishResult.transactionId,
+    ceramicStream: publishResult.ceramicIDs?.streamID,
   };
 
   const { status, statusText, data } = await axios.post<{ok: boolean}>(
@@ -191,9 +204,15 @@ export const publishDraftNode = async (
   );
 
   if (status !== 200) {
+    console.log(`Publish flow has been successful, but backend update failed for uuid ${uuid}.`);
     throwWithReason(ROUTES.publish, status, statusText);
   };
-  return { ...data, ceramicIDs, updatedManifestCid };
+
+  return { 
+    ...data,
+    ceramicIDs: publishResult.ceramicIDs,
+    updatedManifestCid: publishResult.cid
+  };
 };
 
 export type DeleteFileParams = {
@@ -345,7 +364,7 @@ export const uploadFiles = async (
 
 /** Historical log entry for a dPID */
 export type IndexedNodeVersion = {
-  /** Manifest CID */
+  /** Manifest CID in EVM format */
   cid: string;
   /** Transaction ID of the update event */
   id: string;
@@ -369,7 +388,7 @@ export type IndexedNode = {
 
 export const getDpidHistory = async (
   uuid: string,
-): Promise<IndexedNode> => {
+): Promise<IndexedNodeVersion[]> => {
   const { status, statusText, data } = await axios.get<IndexedNode>(
     ROUTES.dpidHistory + `/${uuid}`
   );
@@ -378,7 +397,7 @@ export const getDpidHistory = async (
     throwWithReason(ROUTES.dpidHistory, status, statusText);
   };
 
-  return data;
+  return data.versions;
 };
 
 const throwWithReason = (

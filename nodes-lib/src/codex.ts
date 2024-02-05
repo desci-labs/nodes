@@ -5,68 +5,64 @@ import {
   updateResearchObject,
   type ComposeClient,
   type NodeIDs,
-  queryResearchObject
+  queryResearchObject,
 } from "@desci-labs/desci-codex-lib/dist/src/index.js";
-import type { ResearchObjectV1History } from "@desci-labs/desci-models";
-import type { PrepublishResponse } from "./api.js";
-
-export type History = {
-  /** Known existing stream for this node */
-  existingStream?: string,
-  /** Previous versions according to desci-nodes */
-  versions: ResearchObjectV1History[],
-};
+import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
+import { convertHexToCID } from "./util/converting.js";
 
 /**
- * Publish an object modification to Ceramic. If it's the initial publish, it will be done
+ * Publish an object modification to Codex. If it's the initial publish, it will be done
  * onto a new stream. If there is a known existing stream for the object, the update is
  * made through a new commit to the same stream. If there is history, but no known stream,
  * it's backfilled onto a new one.
  *
- * @param modifiedObject - The new modification to publish
+ * @param prepublishResult - The new modification to publish
  * @param versions - Previous versions of the object, to potentially migrate
  * @param existingStream - A known stream for this object
  * @returns the stream ID of the object
  */
-export const ceramicPublish = async (
-  modifiedObject: PrepublishResponse,
-  history: History,
+export const codexPublish = async (
+  prepublishResult: PrepublishResponse,
+  dpidHistory: IndexedNodeVersion[],
   privateKey: string,
 ): Promise<NodeIDs> => {
-  console.log("[DEBUG]::CERAMIC starting publish...");
+  console.log("[DEBUG]::CODEX starting publish...");
   const ceramic = await authenticatedCeramicClient(privateKey);
   const compose = newComposeClient({ ceramic });
 
-  if (history.existingStream) {
-    console.log(`[DEBUG]::CERAMIC publishing to known stream ${history.existingStream}...`);
+  // If we know about a stream already, let's assume we backfilled it initially
+  if (prepublishResult.ceramicStream) {
+    console.log(`[DEBUG]::CODEX publishing to known stream ${prepublishResult.ceramicStream}...`);
     const ro = await updateResearchObject(compose, {
-      id: history.existingStream,
-      title: modifiedObject.updatedManifest.title,
-      manifest: modifiedObject.updatedManifestCid,
+      id: prepublishResult.ceramicStream,
+      title: prepublishResult.updatedManifest.title,
+      manifest: prepublishResult.updatedManifestCid,
     });
     console.log(
-      `[DEBUG]::CERAMIC successfully updated ${ro.streamID} with commit ${ro.commitID}`
+      `[DEBUG]::CODEX successfully updated ${ro.streamID} with commit ${ro.commitID}`
     );
     return { streamID: ro.streamID, commitID: ro.commitID };
   };
 
-  if (history.versions.length === 0) {
-    console.log("[DEBUG]::CERAMIC publishing to new stream...");
+  // Otherwise, create a new stream, potentially backfilling it with
+  // earlier updates.
+  if (dpidHistory.length === 0) {
+    console.log("[DEBUG]::CODEX publishing to new stream...");
     const ro = await createResearchObject(compose, {
-      title: modifiedObject.updatedManifest.title || "",
-      manifest: modifiedObject.updatedManifestCid,
+      title: prepublishResult.updatedManifest.title || "",
+      manifest: prepublishResult.updatedManifestCid,
     });
     console.log(
-      `[DEBUG]::CERAMIC published to new stream ${ro.streamID} with commit ${ro.commitID}`
+      `[DEBUG]::CODEX published to new stream ${ro.streamID} with commit ${ro.commitID}`
     );
     return { streamID: ro.streamID, commitID: ro.commitID };
   } else {
-    console.log("[DEBUG]::CERAMIC backfilling new stream to mirror history...");
-    const streamID = await backfillNewStream(compose, history.versions);
-    console.log("[DEBUG]::CERAMIC backfill done, recursing to append latest event...");
-    return await ceramicPublish(
-      modifiedObject,
-      { existingStream: streamID, versions: history.versions },
+    console.log("[DEBUG]::CODEX backfilling new stream to mirror history...");
+    const streamID = await backfillNewStream(compose, dpidHistory);
+    console.log("[DEBUG]::CODEX backfill done, recursing to append latest event...");
+    return await codexPublish(
+      { ...prepublishResult, ceramicStream: streamID },
+      dpidHistory,
       privateKey
     );
   };
@@ -81,10 +77,10 @@ export const ceramicPublish = async (
  */
 const backfillNewStream = async (
     compose: ComposeClient,
-    versions: ResearchObjectV1History[]
+    versions: IndexedNodeVersion[]
 ): Promise<string> => {
     console.log(
-        `[DEBUG]::CERAMIC starting backfill migration for versions:\n${JSON.stringify(
+        `[DEBUG]::CODEX starting backfill migration for versions:\n${JSON.stringify(
             versions,
             undefined,
             2
@@ -92,17 +88,17 @@ const backfillNewStream = async (
     );
     const backfillSequential = async (
         prevPromise: Promise<NodeIDs>,
-        nextVersion: ResearchObjectV1History,
+        nextVersion: IndexedNodeVersion,
         ix: number
     ): Promise<NodeIDs> => {
         const { streamID, commitID } = await prevPromise;
         streamID &&
             console.log(
-                `[DEBUG]::CERAMIC backfilled version ${ix} into ${streamID} with commit ${commitID}`
+                `[DEBUG]::CODEX backfilled version ${ix} into ${streamID} with commit ${commitID}`
             );
 
         const title = "[BACKFILLED]"; // version.title is the title of the event, e.g. "Published"
-        const manifest = nextVersion.transaction!.cid;
+        const manifest = convertHexToCID(nextVersion.cid);
         const op =
             streamID === ""
                 ? createResearchObject(compose, { title, manifest })
@@ -117,7 +113,7 @@ const backfillNewStream = async (
     return streamID;
 };
 
-export const getPublishedFromCeramic = async (
+export const getPublishedFromCodex = async (
   id: string
 ) => {
   const ceramic = await authenticatedCeramicClient(
@@ -126,4 +122,4 @@ export const getPublishedFromCeramic = async (
 
   const compose = newComposeClient({ ceramic });
   return await queryResearchObject(compose, id);
-}
+};
