@@ -528,6 +528,7 @@ model DraftNodeTree {
 }
 
 // create a model for Node UUIDs, titles, dates, authors, and abstracts
+// NodeFeedItem: Cached entry of a dpid
 model NodeFeedItem {
   id                      Int                       @id @default(autoincrement())
   createdAt               DateTime                  @default(now())
@@ -543,6 +544,7 @@ model NodeFeedItem {
   nodeFeedItemEndorsement NodeFeedItemEndorsement[]
 }
 
+//NodeFeedItemEndorsement: An endorsement of a node feed item from a community
 model NodeFeedItemEndorsement {
   id               Int            @id @default(autoincrement())
   createdAt        DateTime       @default(now())
@@ -584,6 +586,7 @@ model CommunityMember {
   @@unique([userId, communityId])
 }
 
+// Templates for creating a new attestation
 model AttestationTemplate {
   id          Int           @id @default(autoincrement())
   name        String        @unique
@@ -594,6 +597,7 @@ model AttestationTemplate {
   Attestation Attestation[]
 }
 
+// A factory attestation, these are the base attestations that can be assigned to nodes
 model Attestation {
   id                        Int                            @id @default(autoincrement())
   name                      String                         @unique
@@ -623,6 +627,7 @@ model AttestationVersion {
   CommunityEntryAttestation CommunitySelectedAttestation[]
 }
 
+// A communities selected attestations, these appear in their radar.
 model CommunitySelectedAttestation {
   id                   Int                @id @default(autoincrement())
   desciCommunityId     Int
@@ -636,6 +641,7 @@ model CommunitySelectedAttestation {
   updatedAt            DateTime           @updatedAt
 }
 
+//An attestation assigned to a node
 model NodeAttestation {
   id                          Int                           @id @default(autoincrement())
   attestationId               Int
@@ -658,6 +664,7 @@ model NodeAttestation {
   @@unique([nodeUuid, nodeVersion, attestationId, attestationVersionId])
 }
 
+//Comments on attestations
 model Annotation {
   id                Int             @id @default(autoincrement())
   type              AnnotationType
@@ -669,6 +676,7 @@ model Annotation {
   attestation       NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
 }
 
+//An emoji reaction to a node
 model NodeAttestationReaction {
   id                Int             @id @default(autoincrement())
   reaction          String
@@ -678,6 +686,7 @@ model NodeAttestationReaction {
   attestation       NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
 }
 
+// More prevalent reaction, reputation is staked
 model NodeAttestationVerification {
   id                Int             @id @default(autoincrement())
   userId            Int
