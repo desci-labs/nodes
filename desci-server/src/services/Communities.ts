@@ -1,8 +1,9 @@
-import { CommunityMembershipRole, DesciCommunity, NodeFeedItem, Prisma } from '@prisma/client';
+import { CommunityMembershipRole, NodeAttestation, NodeFeedItem, Prisma } from '@prisma/client';
+import _ from 'lodash';
 
 import { prisma } from '../client.js';
-import { DuplicateDataError } from '../core/communities/error.js';
-
+import { DuplicateDataError } from '../internal.js';
+import { attestationService } from '../internal.js';
 export class CommunityService {
   async createCommunity(data: Prisma.DesciCommunityCreateManyInput) {
     const exists = await prisma.desciCommunity.findFirst({ where: { name: data.name } });
@@ -63,15 +64,42 @@ export class CommunityService {
     return await prisma.communityMember.findMany({ where: { communityId }, select: { role: true, user: true } });
   }
 
-  async findMemberByUserId(communityId: number, userId: number) {
+  async getCommunityRadar(communityId: number) {
+    const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
+    console.log({ entryAttestations });
+    const selectedClaims = (await prisma.$queryRaw`
+      SELECT *
+      FROM "NodeAttestation" t1
+      WHERE t1."desciCommunityId" = ${communityId}
+        AND
+        EXISTS (SELECT *
+        from "CommunitySelectedAttestation" c1
+        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = t1."desciCommunityId")
+    `) as NodeAttestation[];
+
+    const entries = _(selectedClaims)
+      .groupBy((x) => x.nodeDpid10)
+      .map((value: NodeAttestation[], key: string) => ({
+        NodeAttestation: value,
+        nodeDpid10: key,
+        nodeuuid: value[0].nodeUuid,
+      }))
+      .filter((entry) => entry.NodeAttestation.length === entryAttestations.length)
+      .value();
+    // console.log('Selected claims', { selectedClaims, entries });
+
+    return entries;
+  }
+
+  private async findMemberByUserId(communityId: number, userId: number) {
     return await prisma.communityMember.findUnique({ where: { userId_communityId: { userId, communityId } } });
   }
 
-  async removeMember(communityId: number, userId: number) {
+  private async removeMember(communityId: number, userId: number) {
     return prisma.communityMember.delete({ where: { userId_communityId: { userId, communityId } } });
   }
 
-  async createOrFindNodeFeedItem({
+  private async createOrFindNodeFeedItem({
     dPID,
     nodeFeedItem,
   }: {
@@ -88,11 +116,11 @@ export class CommunityService {
     return nodeFeed;
   }
 
-  async getNodeFeedByDpid(nodeDpid10: string) {
+  private async getNodeFeedByDpid(nodeDpid10: string) {
     return prisma.nodeFeedItem.findUnique({ where: { nodeDpid10 } });
   }
 
-  async endorseNodeByDpid({
+  private async endorseNodeByDpid({
     communityId,
     dPID,
     userId,
@@ -110,7 +138,7 @@ export class CommunityService {
     return endorsement;
   }
 
-  async removeEndorsementById(desciCommunityId: number, nodeFeedItemEndorsementId: number) {
+  private async removeEndorsementById(desciCommunityId: number, nodeFeedItemEndorsementId: number) {
     const endorsement = await prisma.nodeFeedItemEndorsement.findFirst({
       where: { id: nodeFeedItemEndorsementId, desciCommunityId },
     });
@@ -118,7 +146,7 @@ export class CommunityService {
     return false;
   }
 
-  async removeNodeEndorsementByDpid(desciCommunityId: number, dPID: string) {
+  private async removeNodeEndorsementByDpid(desciCommunityId: number, dPID: string) {
     const endorsement = await prisma.nodeFeedItemEndorsement.findFirst({
       where: { desciCommunityId, nodeDpid10: dPID },
     });
@@ -128,26 +156,25 @@ export class CommunityService {
     return true;
   }
 
-  async getAllCommunityEndorsements(desciCommunityId: number) {
+  private async getAllCommunityEndorsements(desciCommunityId: number) {
     return prisma.nodeFeedItemEndorsement.findMany({ where: { desciCommunityId } });
   }
 
-  async getAllUserEndorsements(userId: number) {
+  private async getAllUserEndorsements(userId: number) {
     return prisma.nodeFeedItemEndorsement.findMany({ where: { userId } });
   }
 
-  async getAllNodeEndorsementsByDpid(dpid: string) {
+  private async getAllNodeEndorsementsByDpid(dpid: string) {
     return prisma.nodeFeedItemEndorsement.findMany({ where: { nodeFeedItem: { nodeDpid10: dpid } } });
   }
 
-  async getAllUserCommunityEndorsements(desciCommunityId: number, userId: number) {
+  private async getAllUserCommunityEndorsements(desciCommunityId: number, userId: number) {
     return prisma.nodeFeedItemEndorsement.findMany({ where: { desciCommunityId, userId } });
   }
 
-  async getEndorsmentById(id: number) {
+  private async getEndorsmentById(id: number) {
     return prisma.nodeFeedItemEndorsement.findFirst({ where: { id } });
   }
 }
 
-const communityService = new CommunityService();
-export default communityService;
+export const communityService = new CommunityService();

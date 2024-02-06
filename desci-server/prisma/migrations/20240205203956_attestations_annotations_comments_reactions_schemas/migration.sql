@@ -78,7 +78,7 @@ CREATE TABLE "NodeAttestation" (
     "claimedById" INTEGER NOT NULL,
     "nodeDpid10" TEXT NOT NULL,
     "nodeUuid" TEXT NOT NULL,
-    "nodeVersionId" INTEGER NOT NULL,
+    "nodeVersion" INTEGER NOT NULL,
     "claimedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "NodeAttestation_pkey" PRIMARY KEY ("id")
@@ -127,7 +127,7 @@ CREATE UNIQUE INDEX "AttestationTemplate_name_key" ON "AttestationTemplate"("nam
 CREATE UNIQUE INDEX "Attestation_name_key" ON "Attestation"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "NodeAttestation_nodeUuid_nodeVersionId_attestationId_attest_key" ON "NodeAttestation"("nodeUuid", "nodeVersionId", "attestationId", "attestationVersionId");
+CREATE UNIQUE INDEX "NodeAttestation_nodeUuid_nodeVersion_attestationId_attestat_key" ON "NodeAttestation"("nodeUuid", "nodeVersion", "attestationId", "attestationVersionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "NodeAttestationVerification_nodeAttestationId_userId_key" ON "NodeAttestationVerification"("nodeAttestationId", "userId");
@@ -170,9 +170,6 @@ ALTER TABLE "NodeAttestation" ADD CONSTRAINT "NodeAttestation_claimedById_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "NodeAttestation" ADD CONSTRAINT "NodeAttestation_nodeUuid_fkey" FOREIGN KEY ("nodeUuid") REFERENCES "Node"("uuid") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "NodeAttestation" ADD CONSTRAINT "NodeAttestation_nodeVersionId_fkey" FOREIGN KEY ("nodeVersionId") REFERENCES "NodeVersion"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Annotation" ADD CONSTRAINT "Annotation_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -9,15 +9,15 @@ import {
   ClaimError,
   ClaimNotFoundError,
   CommunityNotFoundError,
+  DuplicateClaimError,
   DuplicateDataError,
   DuplicateReactionError,
   DuplicateVerificationError,
   NoAccessError,
   VerificationError,
   VerificationNotFoundError,
-} from '../core/communities/error.js';
-
-import communityService from './Communities.js';
+} from '../internal.js';
+import { communityService } from '../internal.js';
 
 /**
  * Attestation Service
@@ -32,7 +32,7 @@ export class AttestationService {
     attestationVersion,
     nodeDpid,
     nodeUuid,
-    nodeVersion: nodeVersionId,
+    nodeVersion,
     claimerId,
   }: {
     attestationId: number;
@@ -46,11 +46,25 @@ export class AttestationService {
     if (!attestationVersionEntry) throw new AttestationVersionNotFoundError();
 
     const node = await prisma.node.findFirst({ where: { uuid: nodeUuid } });
-    const nodeVersion = await prisma.nodeVersion.findFirst({ where: { nodeId: node.id, id: nodeVersionId } });
-    if (!nodeVersion) throw new ClaimError('Node to claim not found');
+    const publishedNodeVersions = await prisma.nodeVersion.count({
+      where: { nodeId: node.id, transactionId: { not: null } },
+    });
+
+    if (nodeVersion >= publishedNodeVersions) throw new ClaimError('Invalid Node version');
 
     const claimedBy = await prisma.user.findUnique({ where: { id: claimerId } });
     if (!claimedBy) throw new NoAccessError('ClaimedBy user not found');
+
+    const exists = await prisma.nodeAttestation.findFirst({
+      where: {
+        attestationId,
+        attestationVersionId: attestationVersionEntry.id,
+        desciCommunityId: attestationVersionEntry.attestation.communityId,
+        nodeDpid10: nodeDpid,
+        nodeVersion,
+      },
+    });
+    if (exists) throw new DuplicateClaimError();
 
     return {
       attestationId: attestationVersionEntry.attestationId,
@@ -58,7 +72,7 @@ export class AttestationService {
       desciCommunityId: attestationVersionEntry.attestation.communityId,
       nodeDpid10: nodeDpid,
       nodeUuid: node.uuid,
-      nodeVersionId: nodeVersion.id,
+      nodeVersion,
       claimedById: claimedBy.id,
     };
   }
@@ -196,7 +210,7 @@ export class AttestationService {
     attestationVersion,
     nodeDpid,
     nodeUuid,
-    nodeVersion: nodeVersionId,
+    nodeVersion,
     claimerId,
   }: {
     attestationId: number;
@@ -211,7 +225,7 @@ export class AttestationService {
       attestationVersion,
       nodeDpid,
       nodeUuid,
-      nodeVersion: nodeVersionId,
+      nodeVersion,
       claimerId,
     });
 
@@ -283,10 +297,20 @@ export class AttestationService {
     return claims;
   }
 
-  async unClaimAttestation(id: number, claimedById: number) {
-    const claim = await prisma.nodeAttestation.findFirst({ where: { id, claimedById } });
+  async unClaimAttestation(id: number) {
+    const claim = await prisma.nodeAttestation.findFirst({ where: { id } });
     if (!claim) throw new ClaimNotFoundError();
-    prisma.nodeAttestation.delete({ where: { id } });
+    return prisma.nodeAttestation.delete({ where: { id } });
+  }
+
+  async getNodeCommunityClaims(nodeDpid10: string, desciCommunityId: number) {
+    return prisma.nodeAttestation.findMany({ where: { desciCommunityId, nodeDpid10 } });
+  }
+  async getClaimsOnAttestation(nodeDpid10: string, attestationId: number) {
+    return prisma.nodeAttestation.findMany({ where: { attestationId, nodeDpid10 } });
+  }
+  async getClaimOnAttestationVersion(nodeDpid10: string, attestationId: number, attestationVersionId: number) {
+    return prisma.nodeAttestation.findFirst({ where: { attestationId, nodeDpid10, attestationVersionId } });
   }
 
   async verifyClaim(nodeAttestationId: number, userId: number) {
@@ -308,7 +332,7 @@ export class AttestationService {
   async removeVerification(id: number, userId: number) {
     const verification = await prisma.nodeAttestationVerification.findFirst({ where: { id, userId } });
     if (!verification) throw new VerificationNotFoundError();
-    prisma.nodeAttestationVerification.delete({ where: { id } });
+    return prisma.nodeAttestationVerification.delete({ where: { id } });
   }
 
   async getUserClaimVerification(nodeAttestationId: number, userId: number) {
@@ -318,7 +342,7 @@ export class AttestationService {
   }
 
   async getAllClaimVerfications(nodeAttestationId: number) {
-    assert(typeof nodeAttestationId === 'number' && nodeAttestationId > 0);
+    assert(nodeAttestationId > 0);
     return prisma.nodeAttestationVerification.findMany({ where: { nodeAttestationId } });
   }
 
@@ -327,7 +351,7 @@ export class AttestationService {
   }
 
   async getAllNodeVerfications(nodeUuid: string) {
-    return prisma.nodeAttestationVerification.findFirst({
+    return prisma.nodeAttestationVerification.findMany({
       where: { nodeAttestation: { nodeUuid } },
       include: { nodeAttestation: true },
     });
@@ -348,13 +372,13 @@ export class AttestationService {
   }
 
   async removeReaction(id: number) {
-    await prisma.nodeAttestationReaction.delete({
+    return prisma.nodeAttestationReaction.delete({
       where: { id },
     });
   }
 
-  async createAnnotation(data: Prisma.AnnotationUncheckedCreateInput) {
-    await prisma.annotation.create({ data });
+  private async createAnnotation(data: Prisma.AnnotationUncheckedCreateInput) {
+    return prisma.annotation.create({ data });
   }
 
   async createComment({ claimId, authorId, comment }: { claimId: number; authorId: number; comment: string }) {
@@ -381,14 +405,20 @@ export class AttestationService {
     return this.createAnnotation(data);
   }
 
-  async removeAnnotation(id: number) {
-    await prisma.annotation.delete({
-      where: { id },
+  private async removeAnnotation(filter: Prisma.AnnotationWhereUniqueInput) {
+    return prisma.annotation.delete({
+      where: filter,
+    });
+  }
+
+  async removeComment(commentId: number) {
+    return prisma.annotation.delete({
+      where: { id: commentId },
     });
   }
 
   async getReactions(filter: Prisma.NodeAttestationReactionWhereInput) {
-    return prisma.annotation.findMany({ where: filter });
+    return prisma.nodeAttestationReaction.findMany({ where: filter });
   }
 
   async getUserClaimReactions(claimId: number, authorId: number) {
@@ -434,5 +464,5 @@ export class AttestationService {
   }
 }
 
-const attestationService = new AttestationService();
-export default attestationService;
+export const attestationService = new AttestationService();
+// export default attestationService;
