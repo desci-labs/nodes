@@ -4,9 +4,9 @@ import { Response, Request } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { processExternalCidDataToIpfs } from '../../services/data/externalCidProcessing.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse, UpdateResponse } from './update.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export const updateExternalCid = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = (req as any).user as User;

@@ -25,9 +25,9 @@ import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
 import { ManifestActions, NodeUuid } from '../services/manifestRepo.js';
 import repoService from '../services/repoService.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
+import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
-import { ensureUuidEndsWithDot } from '../utils.js';
 
 export function fillDirSizes(tree, cidInfoMap) {
   const contains = [];

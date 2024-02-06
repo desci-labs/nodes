@@ -9,10 +9,10 @@ import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/d
 import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
 import { persistManifest, separateFileNameAndExtension } from './utils.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
 
 interface RenameResponse {
   status?: number;

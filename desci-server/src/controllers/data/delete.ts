@@ -8,10 +8,10 @@ import { logger as parentLogger } from '../../logger.js';
 import { getLatestDriveTime } from '../../services/draftTrees.js';
 import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
 import { persistManifest } from './utils.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
 
 interface DeleteResponse {
   status?: number;

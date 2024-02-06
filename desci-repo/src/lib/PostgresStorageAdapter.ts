@@ -15,7 +15,7 @@ export class PostgresStorageAdapter extends StorageAdapter {
     this.tableName = 'DocumentStore';
   }
 
-  async load(keyArray: StorageKey): Promise<Uint8Array> {
+  async load(keyArray: StorageKey): Promise<Uint8Array | undefined> {
     const key = getKey(keyArray);
     if (this.cache[key]) return this.cache[key];
 
@@ -24,7 +24,8 @@ export class PostgresStorageAdapter extends StorageAdapter {
       logger.info({ value: result?.length, key }, '[LOAD DOCUMENT]::');
 
       const response = result?.[0];
-      if (!response) return new Uint8Array();
+      // MUST RETURN UNDEFINED!
+      if (!response) return undefined;
       return new Uint8Array(response.value);
     } catch (error) {
       logger.error({ action: 'Load', key }, 'PostgresStorageAdaptser::Load ==> Error loading document');

@@ -1,19 +1,23 @@
 import { NextFunction, Request as ExpressRequest, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
-import { logger } from '../logger.js';
+import { logger as parentLogger } from '../logger.js';
 import { getUserByEmail, getUserByOrcId } from '../services/user.js';
+
+const logger = parentLogger.child({ module: 'MIDDLEWARE/PERMISSIONS' });
 
 export const ensureUser = async (req: ExpressRequest, res: Response, next: NextFunction) => {
   const token = await extractAuthToken(req);
 
   if (!token) {
+    logger.trace('Token not found');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
     return;
   }
 
   const retrievedUser = await extractUserFromToken(token);
   if (!retrievedUser) {
+    logger.trace('User not found');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
   } else {
     (req as any).user = retrievedUser;

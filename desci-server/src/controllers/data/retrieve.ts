@@ -15,9 +15,9 @@ import { getDatasetTar } from '../../services/ipfs.js';
 import { getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
 // import { getLatestManifest } from './utils.js';
 
 export enum DataReferenceSrc {

@@ -17,9 +17,9 @@ import { getFromCache, setToCache } from '../../redisClient.js';
 import { TreeDiff, diffTrees, subtractComponentStats } from '../../utils/diffUtils.js';
 import { getTreeAndFill } from '../../utils/driveUtils.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
 
 interface DiffResponse extends Diffs {
   status?: number;

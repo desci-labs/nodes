@@ -5,14 +5,19 @@ import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket
 import { WebSocketServer } from 'ws';
 
 import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
-import { logger } from './logger.js';
+import { logger as parentLogger } from './logger.js';
 import { verifyNodeDocumentAccess } from './services/nodes.js';
 import { ResearchObjectDocument } from './types.js';
 import * as db from './db/index.js';
 import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
 
-export const socket = new WebSocketServer({ port: 5445, path: '/sync' });
+export const socket = new WebSocketServer({
+  port: process.env.PORT ? parseInt(process.env.PORT) : 5445,
+  path: '/sync',
+});
 const hostname = os.hostname();
+
+const logger = parentLogger.child({ module: 'repo.ts' });
 
 const adapter = new NodeWSServerAdapter(socket);
 const config: RepoConfig = {
@@ -23,9 +28,17 @@ const config: RepoConfig = {
   // know about and can ask for by ID.
   sharePolicy: async (peerId, documentId) => {
     try {
-      if (!documentId) return false;
+      if (!documentId) {
+        logger.warn({ peerId }, 'SharePolicy: Document ID NOT found');
+        return false;
+      } else {
+        logger.trace({ peerId, documentId }, 'SharePolicy: Document found');
+      }
       // peer format: `peer-[user#id]:[unique string combination]
-      if (peerId.toString().length < 8) return false;
+      if (peerId.toString().length < 8) {
+        logger.error({ peerId }, 'SharePolicy: Peer ID invalid');
+        return false;
+      }
 
       const userId = peerId.split(':')?.[0]?.split('-')?.[1];
       const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
@@ -63,8 +76,8 @@ const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocumen
       logger.info({ uuid, coverUrl, result }, 'COVER UPDATED');
     }
   } catch (err) {
-    console.error('[Error in DOCUMENT CHANG HANDLER CALLBACK]', err);
-    logger.error(err, '[Error in DOCUMENT CHANG HANDLER CALLBACK]');
+    console.error('[Error in DOCUMENT repo.ts::handleChange CALLBACK]', err);
+    logger.error(err, '[Error in DOCUMENT repo.ts::handleChange CALLBACK]');
   }
 };
 
