@@ -22,7 +22,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe.only('Desci Communities', () => {
+describe('Desci Communities', () => {
   const moonDao = {
     name: 'Moon Dao',
     image_url:
@@ -43,9 +43,6 @@ describe.only('Desci Communities', () => {
   const tearDownCommunity = async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "CommunityMember" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "DesciCommunity" CASCADE;`;
-    // await prisma.$queryRaw`TRUNCATE TABLE "Attestation" CASCADE;`;
-    // await prisma.$queryRaw`TRUNCATE TABLE "AttestationTemplate" CASCADE;`;
-    // await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
   };
 
   before(async () => {

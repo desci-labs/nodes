@@ -53,13 +53,13 @@ export class CommunityService {
     const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
     console.log({ entryAttestations });
     const selectedClaims = (await prisma.$queryRaw`
-    SELECT *
-    FROM "NodeAttestation" t1
-    WHERE t1."desciCommunityId" = ${communityId}
-      AND
-      EXISTS (SELECT *
-      from "CommunitySelectedAttestation" c1
-      where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = t1."desciCommunityId")
+      SELECT *
+      FROM "NodeAttestation" t1
+      WHERE t1."desciCommunityId" = ${communityId}
+        AND
+        EXISTS (SELECT *
+        from "CommunitySelectedAttestation" c1
+        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = t1."desciCommunityId")
     `) as NodeAttestation[];
 
     const entries = _(selectedClaims)
@@ -71,7 +71,7 @@ export class CommunityService {
       }))
       .filter((entry) => entry.NodeAttestation.length === entryAttestations.length)
       .value();
-    console.log('Selected claims', { selectedClaims, entries });
+    // console.log('Selected claims', { selectedClaims, entries });
 
     return entries;
   }

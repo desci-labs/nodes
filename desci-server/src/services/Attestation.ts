@@ -351,7 +351,7 @@ export class AttestationService {
   }
 
   async getAllNodeVerfications(nodeUuid: string) {
-    return prisma.nodeAttestationVerification.findFirst({
+    return prisma.nodeAttestationVerification.findMany({
       where: { nodeAttestation: { nodeUuid } },
       include: { nodeAttestation: true },
     });
@@ -372,13 +372,13 @@ export class AttestationService {
   }
 
   async removeReaction(id: number) {
-    await prisma.nodeAttestationReaction.delete({
+    return prisma.nodeAttestationReaction.delete({
       where: { id },
     });
   }
 
-  async createAnnotation(data: Prisma.AnnotationUncheckedCreateInput) {
-    await prisma.annotation.create({ data });
+  private async createAnnotation(data: Prisma.AnnotationUncheckedCreateInput) {
+    return prisma.annotation.create({ data });
   }
 
   async createComment({ claimId, authorId, comment }: { claimId: number; authorId: number; comment: string }) {
@@ -405,14 +405,20 @@ export class AttestationService {
     return this.createAnnotation(data);
   }
 
-  async removeAnnotation(id: number) {
-    await prisma.annotation.delete({
-      where: { id },
+  private async removeAnnotation(filter: Prisma.AnnotationWhereUniqueInput) {
+    return prisma.annotation.delete({
+      where: filter,
+    });
+  }
+
+  async removeComment(commentId: number) {
+    return prisma.annotation.delete({
+      where: { id: commentId },
     });
   }
 
   async getReactions(filter: Prisma.NodeAttestationReactionWhereInput) {
-    return prisma.annotation.findMany({ where: filter });
+    return prisma.nodeAttestationReaction.findMany({ where: filter });
   }
 
   async getUserClaimReactions(claimId: number, authorId: number) {
