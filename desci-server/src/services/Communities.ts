@@ -4,6 +4,8 @@ import _ from 'lodash';
 import { prisma } from '../client.js';
 import { DuplicateDataError } from '../internal.js';
 import { attestationService } from '../internal.js';
+
+type CommunityRadarNode = NodeAttestation & { annotations: number; reactions: number; verifications: number };
 export class CommunityService {
   async createCommunity(data: Prisma.DesciCommunityCreateManyInput) {
     const exists = await prisma.desciCommunity.findFirst({ where: { name: data.name } });
@@ -60,36 +62,75 @@ export class CommunityService {
     });
   }
 
+<<<<<<< HEAD
   async getAllMembers(communityId: number) {
     return await prisma.communityMember.findMany({ where: { communityId }, select: { role: true, user: true } });
   }
 
+=======
+  /**
+   * This query retrieves data from the "NodeAttestation" table along with the counts of related records from the
+   * "Annotation", "NodeAttestationReaction", and "NodeAttestationVerification" tables.
+   * It uses left outer joins to include all records from the "NodeAttestation" table,
+   * even if there are no related records in the other tables. The WHERE clause filters
+   * the results based on the "desciCommunityId" column.
+   * The EXISTS subquery checks if there is a matching record in the "CommunitySelectedAttestation" table based on certain conditions.
+   * Finally, the results are grouped by the "id" column of the "NodeAttestation" table.
+   * @param communityId
+   * @returns
+   */
+>>>>>>> 36f65bfabbd7a7056d60f63d6478ad9637fe5dca
   async getCommunityRadar(communityId: number) {
     const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
-    console.log({ entryAttestations });
     const selectedClaims = (await prisma.$queryRaw`
-      SELECT *
+      SELECT t1.*,
+      count("Annotation".id)::int AS annotations,
+      count("NodeAttestationReaction".id)::int AS reactions,
+      count("NodeAttestationVerification".id)::int AS verifications
       FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
       WHERE t1."desciCommunityId" = ${communityId}
         AND
-        EXISTS (SELECT *
+        EXISTS
+      (SELECT *
         from "CommunitySelectedAttestation" c1
         where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = t1."desciCommunityId")
-    `) as NodeAttestation[];
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
 
-    const entries = _(selectedClaims)
+    console.log({ selectedClaims });
+    const radar = _(selectedClaims)
       .groupBy((x) => x.nodeDpid10)
-      .map((value: NodeAttestation[], key: string) => ({
+      .map((value: CommunityRadarNode[], key: string) => ({
         NodeAttestation: value,
         nodeDpid10: key,
         nodeuuid: value[0].nodeUuid,
       }))
       .filter((entry) => entry.NodeAttestation.length === entryAttestations.length)
       .value();
-    // console.log('Selected claims', { selectedClaims, entries });
 
+<<<<<<< HEAD
     return entries;
     debugger;
+=======
+    console.log({ radar });
+    return radar;
+  }
+
+  async getCuratedNodes(communityId: number) {
+    const nodesOnRadar = await this.getCommunityRadar(communityId);
+    const curated = nodesOnRadar.filter((node) =>
+      node.NodeAttestation.every((attestation) => attestation.verifications > 0),
+    );
+    return curated;
+  }
+
+  private async getAllMembers(communityId: number) {
+    return await prisma.communityMember.findMany({ where: { communityId, role: CommunityMembershipRole.MEMBER } });
+>>>>>>> 36f65bfabbd7a7056d60f63d6478ad9637fe5dca
   }
 
   private async findMemberByUserId(communityId: number, userId: number) {
@@ -104,11 +145,9 @@ export class CommunityService {
     dPID,
     nodeFeedItem,
   }: {
-    // communityId: number;
     dPID: string;
     nodeFeedItem: Prisma.NodeFeedItemCreateManyInput;
   }) {
-    // const node = await prisma.node.findFirst({ where: { uuid: dPID } });
     const existingFeed = await prisma.nodeFeedItem.findFirst({ where: { nodeDpid10: dPID } });
     let nodeFeed: NodeFeedItem;
     if (!existingFeed) {
