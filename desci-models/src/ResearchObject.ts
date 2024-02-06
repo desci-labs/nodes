@@ -172,15 +172,24 @@ export type ResearchObjectComponentSubtypes =
   | ResearchObjectComponentLinkSubtype;
 
 export interface CommonComponentPayload {
+  /** Generic title of component */
   title?: string;
+  /** @deprecated Keyword metadata for component */
   keywords?: string[];
+  /** Description of component */
   description?: string;
+  /** License of component, if other than research object default */
   licenseType?: string;
-  path?: string;
+  /** Path of component in the drive, starting with `root` */
+  path: string;
 }
 
 export interface PdfComponentPayload {
-  url: string;
+  /** @deprecated CID of document, as stored in the drive */
+  url?: string;
+  /** CID of document, as stored in the drive */
+  cid: string;
+  /** Annotations on the document */
   annotations?: PdfAnnotation[];
 }
 
