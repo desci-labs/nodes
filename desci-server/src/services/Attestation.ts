@@ -193,6 +193,10 @@ export class AttestationService {
     });
   }
 
+  async getAllNodeAttestations(dpid: string) {
+    return prisma.nodeAttestation.findMany({ where: { nodeDpid10: dpid }, include: { attestation: true } });
+  }
+
   async getAllCommunityAttestations(communityId: number) {
     const community = await communityService.findCommunityById(communityId);
     if (!community) throw new CommunityNotFoundError();

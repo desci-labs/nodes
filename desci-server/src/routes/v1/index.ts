@@ -8,6 +8,7 @@ import { nft } from '../../controllers/raw/nft.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
 import admin from './admin.js';
+import attestations from './attestations.js';
 import auth from './auth.js';
 import communities from './communities.js';
 import data from './data.js';
@@ -46,6 +47,7 @@ router.use('/data', data);
 router.use('/log', log);
 router.use('/services', services);
 router.use('/communities', communities);
+router.use('/attestations', attestations);
 
 router.get('/nft/:id', nft);
 router.use('/referral', referral);
