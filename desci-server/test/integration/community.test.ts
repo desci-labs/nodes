@@ -11,9 +11,9 @@ import {
 import { assert, expect } from 'chai';
 
 import { prisma } from '../../src/client.js';
-import { DuplicateDataError } from '../../src/core/communities/error.js';
-import attestationService from '../../src/services/Attestation.js';
-import communityService from '../../src/services/Communities.js';
+// import { DuplicateDataError } from '../../src/core/communities/error.js';
+import { attestationService, communityService, DuplicateDataError } from '../../src/internal.js';
+// import {communityService} from '../../src/services/Communities.js';
 import { createUsers } from '../util.js';
 
 const clearDatabase = async () => {
@@ -179,7 +179,6 @@ describe.only('Desci Communities', () => {
       it('should create attestation version', async () => {
         assert(attestation);
         const versions = await attestationService.getAttestationVersions(attestation.id);
-        console.log(versions);
         expect(versions.length).to.be.equal(1);
         const attestationVersion = versions[0];
         assert(attestationVersion);
@@ -241,7 +240,6 @@ describe.only('Desci Communities', () => {
       it('should publish new attestation version(2)', async () => {
         const versions = await attestationService.getAttestationVersions(attestation.id);
         assert(versions);
-        console.log(versions);
         expect(versions.length).to.be.equal(2);
         expect(versions[1].name).be.equal('Update 1');
         expect(versions[1].description).be.equal(attestation.description);
@@ -256,7 +254,6 @@ describe.only('Desci Communities', () => {
           image_url: 'http://version3',
         });
         const versions = await attestationService.getAttestationVersions(attestation.id);
-        console.log(versions);
         assert(versions);
         expect(versions.length).to.be.equal(3);
         expect(versions[2].name).be.equal('Update 2');
@@ -271,7 +268,6 @@ describe.only('Desci Communities', () => {
           description: 'Version 4 Description',
         });
         const versions = await attestationService.getAttestationVersions(attestation.id);
-        console.log(versions);
         assert(versions);
         expect(versions.length).to.be.equal(4);
         expect(versions[3].name).be.equal(attestation.name);

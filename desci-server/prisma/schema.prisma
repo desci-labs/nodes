@@ -55,7 +55,6 @@ model NodeVersion {
   node                Node?                 @relation(fields: [nodeId], references: [id])
   PublicDataReference PublicDataReference[]
   DataReference       DataReference[]
-  NodeAttestation     NodeAttestation[]
 }
 
 model InteractionLog {
@@ -650,14 +649,13 @@ model NodeAttestation {
   nodeDpid10                  String
   nodeUuid                    String
   node                        Node                          @relation(fields: [nodeUuid], references: [uuid])
-  nodeVersionId               Int
-  claimedOnVersion            NodeVersion                   @relation(fields: [nodeVersionId], references: [id])
+  nodeVersion                 Int
   claimedAt                   DateTime                      @default(now())
   Annotation                  Annotation[]
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
 
-  @@unique([nodeUuid, nodeVersionId, attestationId, attestationVersionId])
+  @@unique([nodeUuid, nodeVersion, attestationId, attestationVersionId])
 }
 
 model Annotation {

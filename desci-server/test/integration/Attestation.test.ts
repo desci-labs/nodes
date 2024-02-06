@@ -1,12 +1,20 @@
 import 'dotenv/config';
 import 'mocha';
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { Attestation, DesciCommunity, Node, NodeVersion, User } from '@prisma/client';
-import { assert } from 'chai';
+import {
+  Attestation,
+  AttestationVersion,
+  DesciCommunity,
+  Node,
+  NodeAttestation,
+  NodeAttestationReaction,
+  NodeVersion,
+  User,
+} from '@prisma/client';
+import { assert, expect, use } from 'chai';
 
 import { prisma } from '../../src/client.js';
-import attestationService from '../../src/services/Attestation.js';
-import communityService from '../../src/services/Communities.js';
+import { attestationService, communityService } from '../../src/internal.js';
 import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
 import { randomUUID64 } from '../../src/utils.js';
 import { createDraftNode, createUsers } from '../util.js';
@@ -61,7 +69,13 @@ const nodesData = [
   },
 ];
 
-describe('Attestations', async () => {
+const clearDatabase = async () => {
+  await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
+  await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
+  await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
+};
+
+describe.only('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -96,11 +110,11 @@ describe('Attestations', async () => {
     console.log({ reproducibilityAttestation, openDataAttestation, fairMetadataAttestation });
 
     users = await createUsers(5);
-    console.log({ users });
+    // console.log({ users });
 
-    const BASE_MANIFEST = await spawnEmptyManifest();
-    baseManifest = BASE_MANIFEST;
-    const BASE_MANIFEST_CID = (await ipfs.add(JSON.stringify(BASE_MANIFEST), { cidVersion: 1, pin: true })).cid;
+    const baseManifest = await spawnEmptyManifest();
+    // baseManifest = BASE_MANIFEST;
+    const BASE_MANIFEST_CID = (await ipfs.add(JSON.stringify(baseManifest), { cidVersion: 1, pin: true })).cid;
     baseManifestCid = BASE_MANIFEST_CID.toString();
 
     nodes = await Promise.all(
@@ -108,26 +122,31 @@ describe('Attestations', async () => {
         createDraftNode({
           ownerId: user.id,
           title: `Node${idx} Title`,
+          cid: baseManifestCid,
           uuid: randomUUID64(),
           manifestUrl: baseManifestCid,
           replicationFactor: 0,
         }),
       ),
     );
-    console.log({ nodes });
+    // console.log({ nodes });
 
     nodeVersions = await Promise.all(
-      nodes.map((node) => prisma.nodeVersion.create({ data: { nodeId: node.id, manifestUrl: node.manifestUrl } })),
+      nodes.map((node) =>
+        prisma.nodeVersion.create({
+          data: { nodeId: node.id, manifestUrl: node.manifestUrl, transactionId: randomUUID64() },
+        }),
+      ),
     );
-    console.log({ nodeVersions });
+    // console.log({ nodeVersions });
   };
 
   const tearDown = async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "CommunityMember" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "DesciCommunity" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "Attestation" CASCADE;`;
-    await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "AttestationVersion" CASCADE;`;
+    await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
@@ -135,34 +154,262 @@ describe('Attestations', async () => {
   };
 
   before(async () => {
+    await clearDatabase();
+    await tearDown();
+
     await setup();
   });
 
   after(async () => {
-    tearDown();
+    await clearDatabase();
+    await tearDown();
   });
 
   describe('Claiming an Attestation', () => {
-    it('should claim an attestation to a node', () => {});
-    it('should add author to a community membership', () => {});
-    it('should assign attestation to correct node version', () => {});
-    it('should add node to community feed', () => {});
+    let claim: NodeAttestation;
+    let node: Node;
+    const nodeVersion = 0;
+    let attestationVersion: AttestationVersion;
+    let author: User;
+
+    before(async () => {
+      node = nodes[0];
+      author = users[0];
+      assert(node.uuid);
+      const versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
+      attestationVersion = versions[versions.length - 1];
+      claim = await attestationService.claimAttestation({
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: attestationVersion.id,
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+    });
+
+    it('should claim an attestation to a node', () => {
+      expect(claim).to.be.not.undefined;
+      expect(claim.attestationId).to.be.equal(reproducibilityAttestation.id);
+      expect(claim.attestationVersionId).to.be.equal(attestationVersion.id);
+      expect(claim.claimedById).to.be.equal(author.id);
+      expect(claim.nodeDpid10).to.be.equal('1');
+      expect(claim.nodeUuid).to.be.equal(node.uuid);
+      expect(claim.nodeVersion).to.be.equal(nodeVersion);
+      expect(claim.desciCommunityId).to.be.equal(desciCommunity.id);
+    });
+    // it('should add author to a community membership', () => {});
+    // it('should assign attestation to correct node version', () => {});
+    it('should prevent double claim', async () => {
+      assert(node.uuid);
+      const canClaim = await attestationService.canClaimAttestation({
+        nodeVersion,
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: attestationVersion.id,
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        claimerId: author.id,
+      });
+      // console.log('CAN CLAIM', canClaim);
+      expect(canClaim).to.be.false;
+    });
   });
 
-  describe('Claiming an Desci Community Selected Attestations', () => {
-    it('should claim an attestation to a node', () => {});
-    it('should add author to a community membership', () => {});
-    it('should assign attestation to correct node version', () => {});
-    it('should add node to community feed', () => {});
+  describe('Claiming a Desci Community Selected Attestations', () => {
+    let claim: NodeAttestation;
+    let node: Node;
+    const nodeVersion = 0;
+    let reproducibilityAttestationVersion: AttestationVersion;
+    let openDataAttestationVersion: AttestationVersion;
+    let author: User;
+
+    before(async () => {
+      node = nodes[0];
+      author = users[0];
+      assert(node.uuid);
+      let versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
+      reproducibilityAttestationVersion = versions[versions.length - 1];
+      claim = await attestationService.claimAttestation({
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: reproducibilityAttestationVersion.id,
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      // add to community entry
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: reproducibilityAttestationVersion.id,
+      });
+
+      versions = await attestationService.getAttestationVersions(openDataAttestation.id);
+      openDataAttestationVersion = versions[versions.length - 1];
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: openDataAttestation.id,
+        attestationVersion: openDataAttestationVersion.id,
+      });
+      console.log({ claim });
+      // console.log(claim);
+      // console.log(claim)
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+    });
+
+    it('should not add node to community radar', async () => {
+      const communityRadar = await communityService.getCommunityRadar(desciCommunity.id);
+      console.log({ communityRadar });
+      const radarNode = communityRadar.find((radarNode) => radarNode.nodeDpid10 === '1');
+      expect(radarNode).to.be.undefined;
+    });
+
+    it('should add node to community radar if it meets the entry requirements', async () => {
+      assert(node.uuid);
+      await attestationService.claimAttestation({
+        attestationId: openDataAttestation.id,
+        attestationVersion: openDataAttestationVersion.id,
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      const communityRadar = await communityService.getCommunityRadar(desciCommunity.id);
+      console.log({ communityRadar });
+      expect(communityRadar.length).to.be.equal(1);
+      const radarNode = communityRadar.find((radarNode) => radarNode.nodeDpid10 === '1');
+      expect(radarNode).to.be.not.undefined;
+      expect(radarNode?.NodeAttestation.length).be.equal(2);
+      expect(radarNode?.NodeAttestation[0].attestationId).to.be.equal(claim.attestationId);
+      expect(radarNode?.NodeAttestation[0].attestationVersionId).to.be.equal(claim.attestationVersionId);
+      expect(radarNode?.NodeAttestation[0].desciCommunityId).to.be.equal(claim.desciCommunityId);
+      expect(radarNode?.NodeAttestation[0].nodeDpid10).to.be.equal('1');
+      expect(radarNode?.NodeAttestation[0].nodeVersion).to.be.equal(nodeVersion);
+    });
+
+    // it('should assign attestation to correct node version', () => {});
   });
 
   describe('UnClaiming an Attestation', () => {
-    it('should unclaim an attestation from a node', () => {});
-    it('should remove/hide node from community feed if entry requirement is not met', () => {});
-    it('should assign attestation to correct node version', () => {});
+    let claim: NodeAttestation;
+    let node: Node;
+    const nodeVersion = 0;
+    let attestationVersion: AttestationVersion;
+    let author: User;
+
+    before(async () => {
+      node = nodes[0];
+      author = users[0];
+      assert(node.uuid);
+      const versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
+      attestationVersion = versions[versions.length - 1];
+      claim = await attestationService.claimAttestation({
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: attestationVersion.id,
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      // add to community entry list
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: attestationVersion.id,
+      });
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+    });
+
+    it('should unclaim an attestation from a node', async () => {
+      // check if it's appears in community radar
+      const communityRadar = await communityService.getCommunityRadar(desciCommunity.id);
+      console.log({ communityRadar });
+      expect(communityRadar.length).to.be.equal(1);
+      const radarNode = communityRadar.find((radarNode) => radarNode.nodeDpid10 === '1');
+      expect(radarNode).to.be.not.undefined;
+      expect(radarNode?.NodeAttestation.length).be.equal(1);
+
+      // unclaim attestaion
+      const unclaimed = await attestationService.unClaimAttestation(claim.id);
+      console.log({ unclaimed });
+      expect(unclaimed).to.be.not.null;
+      expect(unclaimed).to.be.not.undefined;
+      expect(unclaimed.attestationId).to.be.equal(reproducibilityAttestation.id);
+      expect(unclaimed.desciCommunityId).to.be.equal(desciCommunity.id);
+      expect(unclaimed.attestationVersionId).to.be.equal(attestationVersion.id);
+      expect(unclaimed.nodeDpid10).to.be.equal('1');
+
+      const nodeClaim = await attestationService.getClaimOnAttestationVersion(
+        '1',
+        reproducibilityAttestation.id,
+        attestationVersion.id,
+      );
+      expect(nodeClaim).to.be.null;
+    });
+
+    it('should remove/hide node from community feed if entry requirement is not met', async () => {
+      // check if it's has been removed from community radar
+      // await attestationService.unClaimAttestation(claim.id);
+      const communityRadar = await communityService.getCommunityRadar(desciCommunity.id);
+      console.log({ communityRadar });
+      expect(communityRadar.length).to.be.equal(0);
+      const radarNode = communityRadar.find((radarNode) => radarNode.nodeDpid10 === '1');
+      expect(radarNode).to.be.undefined;
+    });
+    // it('should assign attestation to correct node version', () => {});
   });
 
-  describe('Reacting to a Node Attestation', () => {
+  describe('Reacting to a Node Attestation(Claim)', () => {
+    let claim: NodeAttestation;
+    let node: Node;
+    const nodeVersion = 0;
+    let attestationVersion: AttestationVersion;
+    let author: User;
+    let reaction: NodeAttestationReaction;
+
+    before(async () => {
+      node = nodes[0];
+      author = users[0];
+      assert(node.uuid);
+      const versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
+      attestationVersion = versions[versions.length - 1];
+      claim = await attestationService.claimAttestation({
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: attestationVersion.id,
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      reaction = await attestationService.createReaction({
+        claimId: claim.id,
+        userId: users[1].id,
+        reaction: 'U+1F42F',
+      });
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+    });
+
     it('should react to a node attestation', () => {});
     it('should remove reaction to a node attestation', () => {});
   });
