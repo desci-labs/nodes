@@ -1,0 +1,64 @@
+{
+  "communities": [
+    {
+      "name": "Gridcoin",
+      "description": "Gridcoin is dedicated to exploring the potential of applying new technologies, incentives, processes, and funding models to the scientific ecosystem.",
+      "keywords": [
+        "Metascience",
+        "Scientometrics",
+        "Mechanism Design"
+      ],
+      "image_url": "https://gridcoin.us/assets/img/grc-title.svg"
+    },
+    {
+      "name": "Longevist",
+      "keywords": [
+        "Longevity",
+        "Aging",
+        "Healthspan"
+      ],
+      "description": "An overlay journal curating the world's most exciting longevity research. Presented in partnership with VitaDAO and DeSci Labs.",
+      "image_url": "https://assets-global.website-files.com/63a2af9d3c5974682e69a15b/63a2c515c31fc603106d3c30_Logo%20Primary.svg"
+    },
+    {
+      "name": "MoonDAO",
+      "description": "MoonDAO is an international collective of people united by the mission of decentralizing access to space research and exploration.",
+      "keywords": [
+        "Space",
+        "Space Exploration",
+        "Space Research"
+      ],
+      "image_url": "https://assets-global.website-files.com/634742417f9e1c182c6697d4/634f55796f66af7ee884539f_logo-white.svg"
+    },
+    {
+      "name": "DeSci Foundation",
+      "keywords": [
+        "Metascience",
+        "Scientometrics",
+        "Mechanism Design"
+      ],
+      "description": "DeSci Foundation is dedicated to exploring the potential of applying new technologies, incentives, processes, and funding models to the scientific ecosystem.",
+      "image_url": "https://assets-global.website-files.com/65157949a96a837b725df74e/651d2c294336f03440c61a0d_foundation%20white.svg"
+    }
+  ],
+  "attestations": [
+    {
+      "name": "Open Data",
+      "description": "",
+      "image_url": "",
+      "communityName": "DeSci Foundation"
+    },
+    {
+      "name": "Open Code",
+      "description": "",
+      "image_url": "",
+      "communityName": "DeSci Foundation"
+    },
+    {
+      "name": "Computational Reproducibility",
+      "description": "",
+      "image_url": "",
+      "communityName": "DeSci Foundation"
+    }
+  ]
+}

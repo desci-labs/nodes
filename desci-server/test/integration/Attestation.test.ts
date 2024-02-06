@@ -768,12 +768,12 @@ describe.only('Attestations Service', async () => {
       // verify both claims for node 1
       await attestationService.verifyClaim(claim.id, users[1].id);
       await attestationService.verifyClaim(claim.id, users[2].id);
+      await attestationService.verifyClaim(openDataAttestationClaim.id, users[1].id);
       await attestationService.createComment({
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
       });
-      await attestationService.verifyClaim(openDataAttestationClaim.id, users[1].id);
 
       // verify one claims for node 2 attestations
       await attestationService.verifyClaim(claim2.id, users[3].id);

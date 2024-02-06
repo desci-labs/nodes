@@ -5,7 +5,7 @@ import { prisma } from '../client.js';
 import { DuplicateDataError } from '../internal.js';
 import { attestationService } from '../internal.js';
 
-type CommunityRadarNode = NodeAttestation & { annotations: number; reactions: number; verifications: number };
+export type CommunityRadarNode = NodeAttestation & { annotations: number; reactions: number; verifications: number };
 export class CommunityService {
   async createCommunity(data: Prisma.DesciCommunityCreateManyInput) {
     const exists = await prisma.desciCommunity.findFirst({ where: { name: data.name } });
@@ -33,6 +33,10 @@ export class CommunityService {
 
   async findCommunityById(id: number) {
     return prisma.desciCommunity.findUnique({ where: { id } });
+  }
+
+  async getCommunities() {
+    return prisma.desciCommunity.findMany();
   }
 
   async findCommunityByName(name: string) {
@@ -66,9 +70,9 @@ export class CommunityService {
     const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
     const selectedClaims = (await prisma.$queryRaw`
       SELECT t1.*,
-      count("Annotation".id)::int AS annotations,
-      count("NodeAttestationReaction".id)::int AS reactions,
-      count("NodeAttestationVerification".id)::int AS verifications
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
       FROM "NodeAttestation" t1
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"

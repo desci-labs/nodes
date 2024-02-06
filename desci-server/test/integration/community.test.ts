@@ -11,9 +11,7 @@ import {
 import { assert, expect } from 'chai';
 
 import { prisma } from '../../src/client.js';
-// import { DuplicateDataError } from '../../src/core/communities/error.js';
 import { attestationService, communityService, DuplicateDataError } from '../../src/internal.js';
-// import {communityService} from '../../src/services/Communities.js';
 import { createUsers } from '../util.js';
 
 const clearDatabase = async () => {
@@ -22,7 +20,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe.only('Desci Communities', () => {
+describe('Desci Communities', () => {
   const moonDao = {
     name: 'Moon Dao',
     image_url:

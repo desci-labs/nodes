@@ -1,8 +1,10 @@
+import communitiesData from '../data/communities.json' assert { type: 'json' };
 import researchFieldsData from '../data/fields.json' assert { type: 'json' };
 import { prisma } from '../src/client.js';
+import { attestationService, communityService } from '../src/internal.js';
 
 async function main() {
-  const owner = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: {
       email: 'noreply@desci.com',
     },
@@ -66,6 +68,52 @@ async function main() {
   // });
 
   // console.log({ metascienceVault, genomicsVault, owner });
+  console.log('NODE ENV', process.env.NODE_ENV);
+
+  const communities = await Promise.all(
+    communitiesData['communities'].map((community) =>
+      prisma.desciCommunity.upsert({
+        where: { name: community.name },
+        create: {
+          name: community.name,
+          description: community.description,
+          image_url: community.image_url,
+          keywords: community.keywords,
+        },
+        update: {
+          description: community.description,
+          image_url: community.image_url,
+          keywords: community.keywords,
+        },
+      }),
+    ),
+  );
+
+  console.log('Communities SEEDED', communities);
+  const attestations = await Promise.all(
+    communitiesData['attestations'].map((attestation) => {
+      const community = communities.find((c) => c.name === attestation.communityName);
+      if (!community) return null;
+      return prisma.attestation.upsert({
+        where: {
+          name: attestation.name,
+        },
+        create: {
+          communityId: community?.id,
+          name: attestation.name,
+          description: attestation.description,
+          image_url: attestation.image_url,
+        },
+        update: {
+          communityId: community?.id,
+          name: attestation.name,
+          description: attestation.description,
+          image_url: attestation.image_url,
+        },
+      });
+    }),
+  );
+  console.log('Attestations SEEDED', attestations);
 }
 
 main()

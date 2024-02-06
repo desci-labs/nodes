@@ -23,18 +23,6 @@ const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node
       rest.links.pdf = null;
       delete rest.links.pdf;
     }
-    // const historyEntry: ResearchObjectV1History = {
-    //   title: 'Created Node',
-    //   content: hasMetadata
-    //     ? `Retrieved from ${body.links.pdf}`
-    //     : `Uploaded file\n\n_${PUBLIC_IPFS_PATH}/${data.components[0].id}_`,
-    //   date: researchNode.createdAt.getTime(),
-    //   author: {
-    //     id: '',
-    //     name: '',
-    //   },
-    // };
-    // ro.history = [historyEntry];
   }
   return ro;
 };
