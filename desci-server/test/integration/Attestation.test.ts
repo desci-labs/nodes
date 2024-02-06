@@ -84,7 +84,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe('Attestations Service', async () => {
+describe.only('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -306,8 +306,109 @@ describe('Attestations Service', async () => {
       expect(radarNode?.NodeAttestation[0].nodeDpid10).to.be.equal('1');
       expect(radarNode?.NodeAttestation[0].nodeVersion).to.be.equal(nodeVersion);
     });
+  });
 
-    // it('should assign attestation to correct node version', () => {});
+  describe('Claiming Desci Community Entry Requirements Attestations', async () => {
+    let claim: NodeAttestation;
+    let openDataAttestationClaim: NodeAttestation;
+    let node: Node;
+    const nodeVersion = 0;
+    let reproducibilityAttestationVersion: AttestationVersion;
+    let openDataAttestationVersion: AttestationVersion;
+    let author: User;
+
+    before(async () => {
+      node = nodes[0];
+      author = users[0];
+      assert(node.uuid);
+      let versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
+      reproducibilityAttestationVersion = versions[versions.length - 1];
+
+      // add to community entry
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: reproducibilityAttestationVersion.id,
+      });
+
+      versions = await attestationService.getAttestationVersions(openDataAttestation.id);
+      openDataAttestationVersion = versions[versions.length - 1];
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: openDataAttestation.id,
+        attestationVersion: openDataAttestationVersion.id,
+      });
+
+      // claim all entry requirements
+      [claim, openDataAttestationClaim] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+      // console.log({ claim, openDataAttestationClaim });
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+    });
+
+    it('should claim all entry requirements to community radar', async () => {
+      // check reproducibilityAttestation claim
+      expect(claim.attestationId).equal(reproducibilityAttestation.id);
+      expect(claim.attestationVersionId).equal(reproducibilityAttestationVersion.id);
+      expect(claim.desciCommunityId).equal(desciCommunity.id);
+      expect(claim.nodeDpid10).equal('1');
+      expect(claim.nodeVersion).equal(0);
+      expect(claim.claimedById).equal(author.id);
+
+      // check openDataAttestation claim
+      expect(openDataAttestationClaim.attestationId).equal(openDataAttestation.id);
+      expect(openDataAttestationClaim.attestationVersionId).equal(openDataAttestationVersion.id);
+      expect(openDataAttestationClaim.desciCommunityId).equal(desciCommunity.id);
+      expect(openDataAttestationClaim.nodeDpid10).equal('1');
+      expect(openDataAttestationClaim.nodeVersion).equal(0);
+      expect(openDataAttestationClaim.claimedById).equal(author.id);
+
+      const claims = await attestationService.getNodeCommunityClaims('1', desciCommunity.id);
+      // console.log({ claims });
+      expect(claims.length).equal(2);
+    });
+
+    it('should add node to community radar after claiming all entry requirements', async () => {
+      const communityRadar = await communityService.getCommunityRadar(desciCommunity.id);
+      // console.log({ communityRadar });
+      expect(communityRadar.length).to.be.equal(1);
+      const radarNode = communityRadar.find((radarNode) => radarNode.nodeDpid10 === '1');
+      expect(radarNode).to.be.not.undefined;
+      expect(radarNode?.NodeAttestation.length).be.equal(2);
+      // console.log({ radarNode });
+      //
+      expect(radarNode?.NodeAttestation[0].attestationId).to.be.equal(claim.attestationId);
+      expect(radarNode?.NodeAttestation[0].attestationVersionId).to.be.equal(claim.attestationVersionId);
+      expect(radarNode?.NodeAttestation[0].desciCommunityId).to.be.equal(claim.desciCommunityId);
+      expect(radarNode?.NodeAttestation[0].nodeDpid10).to.be.equal('1');
+      expect(radarNode?.NodeAttestation[0].nodeVersion).to.be.equal(nodeVersion);
+
+      expect(radarNode?.NodeAttestation[1].attestationId).to.be.equal(openDataAttestationClaim.attestationId);
+      expect(radarNode?.NodeAttestation[1].attestationVersionId).to.be.equal(
+        openDataAttestationClaim.attestationVersionId,
+      );
+      expect(radarNode?.NodeAttestation[1].desciCommunityId).to.be.equal(openDataAttestationClaim.desciCommunityId);
+      expect(radarNode?.NodeAttestation[1].nodeDpid10).to.be.equal('1');
+      expect(radarNode?.NodeAttestation[1].nodeVersion).to.be.equal(nodeVersion);
+    });
   });
 
   describe('UnClaiming an Attestation', () => {
@@ -587,6 +688,148 @@ describe('Attestations Service', async () => {
       assert(node.uuid);
       const nodeVerifications = await attestationService.getAllNodeVerfications(node.uuid);
       expect(nodeVerifications.length).to.be.equal(2);
+    });
+  });
+
+  describe('Radar and Curated Nodes', async () => {
+    let claim: NodeAttestation;
+    let claim2: NodeAttestation;
+    let openDataAttestationClaim: NodeAttestation;
+    let openDataAttestationClaim2: NodeAttestation;
+    let node: Node;
+    let node2: Node;
+    const nodeVersion = 0;
+    let reproducibilityAttestationVersion: AttestationVersion;
+    let openDataAttestationVersion: AttestationVersion;
+    let author: User;
+    let author2: User;
+
+    before(async () => {
+      node = nodes[0];
+      node2 = nodes[1];
+      author = users[0];
+      author2 = users[1];
+      assert(node.uuid);
+      assert(node2.uuid);
+      let versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
+      reproducibilityAttestationVersion = versions[versions.length - 1];
+
+      // add to community entry
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: reproducibilityAttestationVersion.id,
+      });
+
+      versions = await attestationService.getAttestationVersions(openDataAttestation.id);
+      openDataAttestationVersion = versions[versions.length - 1];
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: openDataAttestation.id,
+        attestationVersion: openDataAttestationVersion.id,
+      });
+
+      // claim all entry requirements
+      [claim, openDataAttestationClaim] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      [claim2, openDataAttestationClaim2] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '2',
+        nodeUuid: node2.uuid,
+        nodeVersion,
+        claimerId: author2.id,
+      });
+      // console.log({ claim, openDataAttestationClaim });
+
+      // verify both claims for node 1
+      await attestationService.verifyClaim(claim.id, users[1].id);
+      await attestationService.verifyClaim(claim.id, users[2].id);
+      await attestationService.createComment({
+        claimId: openDataAttestationClaim.id,
+        authorId: users[2].id,
+        comment: 'I love this game',
+      });
+      await attestationService.verifyClaim(openDataAttestationClaim.id, users[1].id);
+
+      // verify one claims for node 2 attestations
+      await attestationService.verifyClaim(claim2.id, users[3].id);
+      await attestationService.verifyClaim(claim2.id, users[2].id);
+      await attestationService.createComment({
+        claimId: openDataAttestationClaim2.id,
+        authorId: users[3].id,
+        comment: 'I love this guy',
+      });
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+    });
+
+    it('should return curated community nodes', async () => {
+      const curatedNodes = await communityService.getCuratedNodes(desciCommunity.id);
+      // console.log({ curatedNodes });
+      expect(curatedNodes.length).to.be.equal(1);
+
+      const curatedNode = curatedNodes[0];
+      expect(curatedNode.NodeAttestation.length).to.be.equal(2);
+      expect(curatedNode.nodeDpid10).to.be.equal('1');
+      expect(curatedNode.nodeuuid).to.be.equal(node.uuid);
+    });
+
+    it('should return community nodes on Radar', async () => {
+      const curatedNodes = await communityService.getCommunityRadar(desciCommunity.id);
+      // console.log({ curatedNodes });
+      expect(curatedNodes.length).to.be.equal(2);
+
+      const curatedNode = curatedNodes[0];
+      expect(curatedNode.NodeAttestation.length).to.be.equal(2);
+      expect(curatedNode.nodeDpid10).to.be.equal('1');
+      expect(curatedNode.nodeuuid).to.be.equal(node.uuid);
+
+      const curatedNode1 = curatedNodes[1];
+      expect(curatedNode1.NodeAttestation.length).to.be.equal(2);
+      expect(curatedNode1.nodeDpid10).to.be.equal('2');
+      expect(curatedNode1.nodeuuid).to.be.equal(node2.uuid);
+    });
+
+    it('should remove node from curated feed if verification requirement is not met', async () => {
+      const verifications = await attestationService.getAllClaimVerfications(openDataAttestationClaim.id);
+      // console.log({ verifications });
+      expect(verifications.length).to.equal(1);
+      await attestationService.removeVerification(verifications[0].id, users[1].id);
+
+      const curatedNodes = await communityService.getCuratedNodes(desciCommunity.id);
+      // console.log({ curatedNodes });
+      expect(curatedNodes.length).to.be.equal(0);
+
+      const radarNodes = await communityService.getCommunityRadar(desciCommunity.id);
+      // console.log({ radarNodes });
+      expect(radarNodes.length).to.be.equal(2);
     });
   });
 
