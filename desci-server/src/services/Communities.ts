@@ -89,6 +89,7 @@ export class CommunityService {
     // console.log('Selected claims', { selectedClaims, entries });
 
     return entries;
+    debugger;
   }
 
   private async findMemberByUserId(communityId: number, userId: number) {

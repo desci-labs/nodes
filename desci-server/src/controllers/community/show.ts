@@ -4,7 +4,7 @@ import { pick } from 'lodash-es';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import communityService from '../../services/Communities.js';
+import { communityService } from '../../services/Communities.js';
 
 type CommunityFragment = {
   id: number;
@@ -12,7 +12,8 @@ type CommunityFragment = {
   description: string;
   image_url: string;
   endorsements: NodeFeedItemEndorsement[]; // Subject to removal into its own route when necessary
-  members: MemberFragment[];
+  // radarFeed:
+  // members: MemberFragment[];
 };
 
 type MemberFragment = {
@@ -51,9 +52,14 @@ export const showCommunity = async (req: Request, res: Response<ListCommunitiesR
       user: pick(member.user, ['name', 'orcid']),
     }));
 
-    return res
-      .status(200)
-      .send({ ok: true, community: { ...community, members: memberFragments, endorsements: curatedNodes } });
+    return res.status(200).send({
+      ok: true,
+      community: {
+        ...community,
+        //  members: memberFragments,
+        endorsements: curatedNodes,
+      },
+    });
   } catch (e) {
     logger.error(e);
     return res.status(400).send({ ok: false, error: 'Failed to retrieve curations' });
