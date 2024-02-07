@@ -567,6 +567,7 @@ model DesciCommunity {
   name                         String                         @unique
   image_url                    String?
   description                  String
+  keywords                     String[]
   members                      User[]
   endorsements                 NodeFeedItemEndorsement[]
   CommunityMember              CommunityMember[]

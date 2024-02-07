@@ -84,7 +84,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe.only('Attestations Service', async () => {
+describe('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -95,15 +95,7 @@ describe.only('Attestations Service', async () => {
   let reproducibilityAttestation: Attestation;
   let openDataAttestation: Attestation;
   let fairMetadataAttestation: Attestation;
-  // let localAttestation: Attestation;
 
-  /**
-   * INIT USERS
-   * Init user nodes
-   * Publish different versions of nodes
-   * Seed Communities
-   * Seed attestations
-   */
   const setup = async () => {
     // Create communities
     desciCommunity = await communityService.createCommunity(communitiesData[0]);
@@ -768,12 +760,12 @@ describe.only('Attestations Service', async () => {
       // verify both claims for node 1
       await attestationService.verifyClaim(claim.id, users[1].id);
       await attestationService.verifyClaim(claim.id, users[2].id);
+      await attestationService.verifyClaim(openDataAttestationClaim.id, users[1].id);
       await attestationService.createComment({
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
       });
-      await attestationService.verifyClaim(openDataAttestationClaim.id, users[1].id);
 
       // verify one claims for node 2 attestations
       await attestationService.verifyClaim(claim2.id, users[3].id);
@@ -833,13 +825,285 @@ describe.only('Attestations Service', async () => {
     });
   });
 
-  describe('Community Engagement/Verification Signal', () => {
-    it('should curate all node impressions across all attestations', () => {});
-    it('should list all engaging users and only count users once', () => {});
+  describe('Community Engagement/Verification Signal', async () => {
+    let claim: NodeAttestation;
+    let claim2: NodeAttestation;
+    let openDataAttestationClaim: NodeAttestation;
+    let openDataAttestationClaim2: NodeAttestation;
+    let node: Node;
+    let node2: Node;
+    const nodeVersion = 0;
+    let reproducibilityAttestationVersion: AttestationVersion;
+    let openDataAttestationVersion: AttestationVersion;
+    let author: User;
+    let author2: User;
+
+    before(async () => {
+      node = nodes[0];
+      node2 = nodes[1];
+      author = users[0];
+      author2 = users[1];
+      assert(node.uuid);
+      assert(node2.uuid);
+      let versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
+      reproducibilityAttestationVersion = versions[versions.length - 1];
+
+      // add to community entry
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: reproducibilityAttestationVersion.id,
+      });
+
+      versions = await attestationService.getAttestationVersions(openDataAttestation.id);
+      openDataAttestationVersion = versions[versions.length - 1];
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: openDataAttestation.id,
+        attestationVersion: openDataAttestationVersion.id,
+      });
+
+      // claim all entry requirements
+      [claim, openDataAttestationClaim] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      [claim2, openDataAttestationClaim2] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '2',
+        nodeUuid: node2.uuid,
+        nodeVersion,
+        claimerId: author2.id,
+      });
+      // console.log({ claim, openDataAttestationClaim });
+
+      // verify both claims for node 1
+      await attestationService.verifyClaim(claim.id, users[1].id);
+      await attestationService.verifyClaim(claim.id, users[2].id);
+      await attestationService.verifyClaim(openDataAttestationClaim.id, users[1].id);
+      await attestationService.createReaction({
+        claimId: openDataAttestationClaim.id,
+        reaction: 'U+1F350',
+        userId: users[1].id,
+      });
+      await attestationService.createReaction({
+        claimId: claim.id,
+        reaction: 'U+1F350',
+        userId: users[1].id,
+      });
+      await attestationService.createComment({
+        claimId: openDataAttestationClaim.id,
+        authorId: users[2].id,
+        comment: 'I love this game',
+      });
+
+      // verify one claims for node 2 attestations
+      await attestationService.verifyClaim(claim2.id, users[3].id);
+      await attestationService.verifyClaim(claim2.id, users[2].id);
+      await attestationService.createComment({
+        claimId: openDataAttestationClaim2.id,
+        authorId: users[3].id,
+        comment: 'I love this guy',
+      });
+      await attestationService.createReaction({
+        claimId: claim2.id,
+        reaction: 'U+1F350',
+        userId: users[1].id,
+      });
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+    });
+
+    it('should curate all node impressions across all attestations', async () => {
+      const engagements = await communityService.getCommunityEngagementSignals(desciCommunity.id);
+      console.log({ engagements });
+      expect(engagements.annotations).to.be.equal(2);
+      expect(engagements.reactions).to.be.equal(3);
+      expect(engagements.verifications).to.be.equal(5);
+    });
+    it.skip('should list all engaging users and only count users once', () => {});
   });
 
-  describe('Node Attestation Engagement/Verification Signal', () => {
-    it('should curate all node impressions across all claims', () => {});
-    it('should list all engaging users and only count users once', () => {});
+  describe('Node Attestation Engagement/Verification Signal', async () => {
+    let claim: NodeAttestation;
+    let claim2: NodeAttestation;
+    let openDataAttestationClaim: NodeAttestation;
+    let openDataAttestationClaim2: NodeAttestation;
+    // let fairMetadataAttestationClaim: NodeAttestation;
+    let fairMetadataAttestationClaim2: NodeAttestation;
+    let node: Node;
+    let node2: Node;
+    const nodeVersion = 0;
+    let reproducibilityAttestationVersion: AttestationVersion;
+    let openDataAttestationVersion: AttestationVersion;
+    let fairMetadataAttestationVersion: AttestationVersion;
+    let author: User;
+    let author2: User;
+
+    before(async () => {
+      node = nodes[0];
+      node2 = nodes[1];
+      author = users[0];
+      author2 = users[1];
+      assert(node.uuid);
+      assert(node2.uuid);
+      let versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
+      reproducibilityAttestationVersion = versions[versions.length - 1];
+
+      // add to community entry
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: reproducibilityAttestationVersion.id,
+      });
+
+      versions = await attestationService.getAttestationVersions(openDataAttestation.id);
+      openDataAttestationVersion = versions[versions.length - 1];
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: openDataAttestation.id,
+        attestationVersion: openDataAttestationVersion.id,
+      });
+
+      // get version for fairMetadata attestations
+      versions = await attestationService.getAttestationVersions(fairMetadataAttestation.id);
+      fairMetadataAttestationVersion = versions[versions.length - 1];
+
+      // claim all entry requirements
+      [claim, openDataAttestationClaim] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      [claim2, openDataAttestationClaim2, fairMetadataAttestationClaim2] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+          {
+            attestationId: fairMetadataAttestation.id,
+            attestationVersion: fairMetadataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '2',
+        nodeUuid: node2.uuid,
+        nodeVersion,
+        claimerId: author2.id,
+      });
+      // console.log({ claim, openDataAttestationClaim });
+
+      // verify both claims for node 1
+      await attestationService.verifyClaim(claim.id, users[1].id);
+      await attestationService.verifyClaim(claim.id, users[2].id);
+      await attestationService.verifyClaim(openDataAttestationClaim.id, users[1].id);
+      await attestationService.createReaction({
+        claimId: openDataAttestationClaim.id,
+        reaction: 'U+1F350',
+        userId: users[1].id,
+      });
+      await attestationService.createReaction({
+        claimId: claim.id,
+        reaction: 'U+1F350',
+        userId: users[1].id,
+      });
+      await attestationService.createComment({
+        claimId: openDataAttestationClaim.id,
+        authorId: users[2].id,
+        comment: 'I love this game',
+      });
+
+      // verify one claims for node 2 attestations
+      await attestationService.verifyClaim(claim2.id, users[3].id);
+      await attestationService.verifyClaim(claim2.id, users[2].id);
+      await attestationService.verifyClaim(fairMetadataAttestationClaim2.id, users[2].id);
+      await attestationService.createComment({
+        claimId: openDataAttestationClaim2.id,
+        authorId: users[3].id,
+        comment: 'I love this guy',
+      });
+      await attestationService.createComment({
+        claimId: fairMetadataAttestationClaim2.id,
+        authorId: users[3].id,
+        comment: 'I love this guy',
+      });
+      await attestationService.createReaction({
+        claimId: claim2.id,
+        reaction: 'U+1F350',
+        userId: users[1].id,
+      });
+      await attestationService.createReaction({
+        claimId: fairMetadataAttestationClaim2.id,
+        reaction: 'U+1F350',
+        userId: users[2].id,
+      });
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+    });
+
+    it('should curate all node impressions across all claims', async () => {
+      const dPid1Engagements = await communityService.getNodeEngagementSignals(desciCommunity.id, '1');
+      console.log({ dPid1Engagements });
+      expect(dPid1Engagements.annotations).to.equal(1);
+      expect(dPid1Engagements.reactions).to.equal(2);
+      expect(dPid1Engagements.verifications).to.equal(3);
+
+      const dPid2Engagements = await communityService.getNodeEngagementSignals(desciCommunity.id, '2');
+      console.log({ dPid2Engagements });
+      expect(dPid2Engagements.annotations).to.equal(2);
+      expect(dPid2Engagements.reactions).to.equal(2);
+      expect(dPid2Engagements.verifications).to.equal(3);
+    });
+    it.skip('should list all engaging users and only count users once', () => {});
   });
 });

@@ -8,9 +8,9 @@ import { nft } from '../../controllers/raw/nft.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
 import admin from './admin.js';
-import attestations from './attestations.js';
+import attestations from './attestations/index.js';
 import auth from './auth.js';
-import communities from './communities.js';
+import communities from './communities/index.js';
 import data from './data.js';
 import log from './log.js';
 import nodes from './nodes.js';
