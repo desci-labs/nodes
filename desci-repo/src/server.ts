@@ -98,7 +98,7 @@ class AppServer {
       res.status(200).json({ id: serverUuid });
     });
 
-    this.port = parseInt(process.env.PORT!) || 5484;
+    this.port = process.env.PORT ? parseInt(process.env.PORT) : 5484;
     logger.info(`Server starting on port ${this.port}`);
     this.server = this.app.listen(this.port, () => {
       this.#isReady = true;

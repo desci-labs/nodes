@@ -14,9 +14,11 @@ import {
 } from '@desci-labs/desci-models';
 import isEqual from 'deep-equal';
 
-import { logger } from '../logger.js';
+import { logger as parentLogger } from '../logger.js';
 import { backendRepo } from '../repo.js';
 import { ResearchObjectDocument } from '../types.js';
+
+const logger = parentLogger.child({ module: 'manifestRepo.ts' });
 
 export type NodeUuid = string & { _kind: 'uuid' };
 
@@ -81,7 +83,7 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
     }
 
     const heads = getHeads(latestDocument);
-    logger.info({ heads }, `Document`);
+    logger.info({ heads }, `Document Heads`);
     logger.info({ action }, `DocumentUpdater::Dispatched`);
 
     switch (action.type) {

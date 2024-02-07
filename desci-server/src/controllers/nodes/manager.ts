@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export const deleteNode = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;
@@ -14,7 +15,7 @@ export const deleteNode = async (req: Request, res: Response, next: NextFunction
     user: (req as any).user,
   });
   logger.trace(`deleteNode ${uuid}`);
-  const node = await prisma.node.findFirst({ where: { uuid: uuid + '.' } });
+  const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
 
   logger.info({ node }, 'delete');
 

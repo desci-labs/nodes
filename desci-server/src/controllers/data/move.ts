@@ -9,6 +9,7 @@ import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/d
 import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
 import { persistManifest } from './utils.js';
@@ -38,7 +39,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
   if (!node) {

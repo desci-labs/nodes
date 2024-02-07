@@ -16,6 +16,7 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
     const manifest = await getLatestManifest(node.uuid!, req.query?.g as string, node);
 
     if (!manifest) {
+      logger.error({ uuid: node.uuid }, 'Node could not be migrated to draft, No manifest found');
       response.status(400).send({ ok: false, message: 'Node could not be migrated to draft, No manifest found' });
       return;
     }

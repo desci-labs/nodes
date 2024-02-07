@@ -25,6 +25,7 @@ import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
 import { ManifestActions, NodeUuid } from '../services/manifestRepo.js';
 import repoService from '../services/repoService.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
+import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
 
@@ -70,7 +71,7 @@ export async function getTreeAndFillDeprecated(
   ownerId?: number,
 ) {
   //NOTE/TODO: Adapted for priv(owner) and public (unauthed), may not work for node sharing users(authed/contributors)
-  const externalCidMap = await generateExternalCidMap(nodeUuid + '.');
+  const externalCidMap = await generateExternalCidMap(ensureUuidEndsWithDot(nodeUuid));
   const tree: RecursiveLsResult[] = await getDirectoryTree(rootCid, externalCidMap);
 
   /*
@@ -85,7 +86,7 @@ export async function getTreeAndFillDeprecated(
             rootCid: rootCid,
             // cid: { in: dirCids },
             node: {
-              uuid: nodeUuid + '.',
+              uuid: ensureUuidEndsWithDot(nodeUuid),
             },
           },
         })
@@ -95,7 +96,7 @@ export async function getTreeAndFillDeprecated(
             // cid: { in: dirCids },
             // rootCid: rootCid,
             node: {
-              uuid: nodeUuid + '.',
+              uuid: ensureUuidEndsWithDot(nodeUuid),
             },
           },
         });
@@ -107,7 +108,7 @@ export async function getTreeAndFillDeprecated(
           where: {
             type: { not: DataType.MANIFEST },
             node: {
-              uuid: nodeUuid + '.',
+              uuid: ensureUuidEndsWithDot(nodeUuid),
             },
           },
         })
@@ -153,10 +154,10 @@ export async function getTreeAndFill(
   }
   const rootCid = dataBucket.payload.cid;
   const externalCidMap = published
-    ? await generateExternalCidMap(nodeUuid + '.', rootCid)
-    : await generateExternalCidMap(nodeUuid + '.');
+    ? await generateExternalCidMap(ensureUuidEndsWithDot(nodeUuid), rootCid)
+    : await generateExternalCidMap(ensureUuidEndsWithDot(nodeUuid));
 
-  const node = await prisma.node.findUnique({ where: { uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.' } });
+  const node = await prisma.node.findUnique({ where: { uuid: ensureUuidEndsWithDot(nodeUuid) } });
 
   const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
   let tree: RecursiveLsResult[] = published
@@ -173,7 +174,7 @@ export async function getTreeAndFill(
       type: { not: DataType.MANIFEST },
       rootCid: rootCid,
       node: {
-        uuid: nodeUuid + '.',
+        uuid: ensureUuidEndsWithDot(nodeUuid),
       },
     },
   });
@@ -181,7 +182,7 @@ export async function getTreeAndFill(
     where: {
       type: { not: DataType.MANIFEST },
       node: {
-        uuid: nodeUuid + '.',
+        uuid: ensureUuidEndsWithDot(nodeUuid),
       },
     },
     include: {
@@ -463,7 +464,7 @@ export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
     ? await prisma.publicDataReference.findMany({
         where: {
           node: {
-            uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.',
+            uuid: ensureUuidEndsWithDot(nodeUuid),
           },
           rootCid: dataBucketCid,
           external: true,
@@ -472,7 +473,7 @@ export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
     : await prisma.dataReference.findMany({
         where: {
           node: {
-            uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.',
+            uuid: ensureUuidEndsWithDot(nodeUuid),
           },
           external: true,
         },

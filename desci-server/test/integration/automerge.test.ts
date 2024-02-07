@@ -38,7 +38,7 @@ const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseM
     await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: response.documentId } });
   }
   const updatedNode = await prisma.node.findFirst({ where: { id: node.id } });
-  console.log('Draft Node created', !!response);
+  console.log('Draft Node created', !!response, { response });
 
   assert(response?.documentId);
   assert(response?.document);
@@ -202,7 +202,7 @@ describe('Automerge Integration', () => {
       }
     });
 
-    it.only('Update Title Api', async () => {
+    it('Update Title Api', async () => {
       const actions: ManifestActions[] = [{ type: 'Update Title', title: 'Api title' }];
       res = await request(app)
         .post(`/v1/nodes/documents/${dotlessUuid}/actions`)

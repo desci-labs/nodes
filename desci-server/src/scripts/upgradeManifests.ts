@@ -52,7 +52,7 @@ export async function upgradeManifestsScript() {
     // const node = await prisma.node.findFirst({
     //   where: {
     //     ownerId: owner.id,
-    //     uuid: uuid + '.',
+    //     uuid: ensureUuidEndsWithDot(uuid),
     //   },
     // });
     //   if (!node) {
