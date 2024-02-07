@@ -9,6 +9,7 @@ import {
   ClaimError,
   ClaimNotFoundError,
   CommunityNotFoundError,
+  CommunityRadarNode,
   DuplicateClaimError,
   DuplicateDataError,
   DuplicateReactionError,
@@ -465,6 +466,117 @@ export class AttestationService {
   async getAllClaimReactions(nodeAttestationId: number) {
     assert(nodeAttestationId > 0, 'Error: nodeAttestationId is zero');
     return this.getReactions({ nodeAttestationId });
+  }
+
+  // TODO: write raw sql query to optimize this
+  async getAllClaimComments(filter: Prisma.AnnotationWhereInput) {
+    return prisma.annotation.findMany({
+      where: filter,
+      include: { author: true, attestation: { include: { attestationVersion: true } } },
+    });
+  }
+
+  /**
+   * Returns all engagement signals for a node across all claimed attestations
+   * This verification signal is the number returned for the verification field
+   * @param dpid
+   * @returns
+   */
+  async getNodeEngagementSignals(dpid: string) {
+    const claims = (await prisma.$queryRaw`
+      SELECT t1.*,
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
+      FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE t1."nodeDpid10" = ${dpid}
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
+
+    const groupedEngagements = claims.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+    return groupedEngagements;
+  }
+
+  /**
+   * Returns all verification signals for a node across all claimed attestations from a community {communityId}
+   * This community verification signal is the number returned for the verification field
+   * @param communityId {number}
+   * @param dpid {string}
+   * @returns
+   */
+  async getNodeCommunityVerificationSignals(communityId: number, dpid: string) {
+    const claims = (await prisma.$queryRaw`
+      SELECT t1.*,
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
+      FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE t1."desciCommunityId" = ${communityId} AND t1."nodeDpid10" = ${dpid}
+      AND
+        EXISTS
+      (SELECT *
+        from "CommunitySelectedAttestation" c1
+        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = t1."desciCommunityId")
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
+
+    const groupedEngagements = claims.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+    return groupedEngagements;
+  }
+
+  /**
+   * Returns all engagement signals for an attestations
+   * This verification signal is the number returned for the verification field
+   * @param attestationId
+   * @param attestationVersionId
+   * @returns
+   */
+  async getAttestationEngagementSignals(attestationId: number, attestationVersionId: number) {
+    const claims = (await prisma.$queryRaw`
+      SELECT t1.*,
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
+      FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE t1."attestationId" = ${attestationId} AND t1."attestationVersionId" = ${attestationVersionId}
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
+
+    const groupedEngagements = claims.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+    return groupedEngagements;
   }
 }
 

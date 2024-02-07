@@ -8,7 +8,7 @@ export const getCommunityFeed = async (req: Request, res: Response, next: NextFu
   // THIS is necessary because the engagement signal returned from getcuratedNodes
   // accounts for only engagements on community selected attestations
   const nodes = await asyncMap(curatedNodes, async (node) => {
-    const engagements = await communityService.getNodeEngagementSignals(
+    const engagements = await communityService.getNodeCommunityEngagementSignals(
       parseInt(req.params.communityId),
       node.nodeDpid10,
     );

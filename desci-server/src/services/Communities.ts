@@ -73,7 +73,7 @@ export class CommunityService {
    * even if there are no related records in the other tables. The WHERE clause filters
    * the results based on the "desciCommunityId" column.
    * The EXISTS subquery checks if there is a matching record in the "CommunitySelectedAttestation" table based on certain conditions.
-   * Finally, the results are grouped by the "id" column of the "NodeAttestation" table.
+   * Finally, t he results are grouped by the "id" column of the "NodeAttestation" table.
    * @param communityId
    * @returns
    */
@@ -147,7 +147,13 @@ export class CommunityService {
     return groupedEngagements;
   }
 
-  async getNodeEngagementSignals(communityId: number, dpid: string) {
+  /**
+   * Returns all community engagement signals for a node
+   * @param communityId
+   * @param dpid
+   * @returns
+   */
+  async getNodeCommunityEngagementSignals(communityId: number, dpid: string) {
     const claims = (await prisma.$queryRaw`
       SELECT t1.*,
       count(DISTINCT "Annotation".id)::int AS annotations,
