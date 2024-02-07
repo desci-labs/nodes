@@ -87,7 +87,7 @@ export class CommunityService {
   		t1.id
     `) as CommunityRadarNode[];
 
-    console.log({ selectedClaims });
+    // console.log({ selectedClaims });
     const radar = _(selectedClaims)
       .groupBy((x) => x.nodeDpid10)
       .map((value: CommunityRadarNode[], key: string) => ({
@@ -98,7 +98,7 @@ export class CommunityService {
       .filter((entry) => entry.NodeAttestation.length === entryAttestations.length)
       .value();
 
-    console.log({ radar });
+    // console.log({ radar });
     return radar;
   }
 
@@ -108,6 +108,62 @@ export class CommunityService {
       node.NodeAttestation.every((attestation) => attestation.verifications > 0),
     );
     return curated;
+  }
+
+  async getCommunityEngagementSignals(communityId: number) {
+    const claims = (await prisma.$queryRaw`
+      SELECT t1.*,
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
+      FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE t1."desciCommunityId" = ${communityId}
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
+
+    // console.log({ claims });
+    const groupedEngagements = claims.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+    // console.log({ groupedEngagements });
+    return groupedEngagements;
+  }
+
+  async getNodeEngagementSignals(communityId: number, dpid: string) {
+    const claims = (await prisma.$queryRaw`
+      SELECT t1.*,
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
+      FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE t1."desciCommunityId" = ${communityId} AND t1."nodeDpid10" = ${dpid}
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
+
+    // console.log({ claims });
+    const groupedEngagements = claims.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+    // console.log({ groupedEngagements });
+    return groupedEngagements;
   }
 
   private async getAllMembers(communityId: number) {

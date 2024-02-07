@@ -2,16 +2,25 @@ import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
 import { SuccessResponse, communityService } from '../../internal.js';
+import { logger as parentLogger } from '../../internal.js';
+import { asyncMap } from '../../utils.js';
+
+const logger = parentLogger.child({ module: 'LIST COMMUNITIES' });
 
 export const listCommunities = async (_req: Request, res: Response, _next: NextFunction) => {
   const allCommunities = await communityService.getCommunities();
-  const communities = allCommunities.map((community) =>
+  const pickedCommunities = allCommunities.map((community) =>
     _.pick(community, ['id', 'name', 'description', 'image_url', 'keywords']),
   );
 
-  // TODO:  get all engagements across all communities
-  // const engagements = await Promise.all()
-  // const allEngagements = //
+  const communities = await asyncMap(pickedCommunities, async (community) => {
+    const engagements = await communityService.getCommunityEngagementSignals(community.id);
+    return {
+      community,
+      engagements,
+    };
+  });
+  logger.info({ communities });
 
-  return new SuccessResponse(communities).send(res, {});
+  new SuccessResponse(communities).send(res);
 };

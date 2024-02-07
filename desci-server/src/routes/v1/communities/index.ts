@@ -6,7 +6,8 @@ import { ensureUser } from '../../../middleware/permissions.js';
 const router = Router();
 
 // list all communities and curated nodes()
-router.get('/', [ensureUser], asyncHander(listCommunities));
-router.get('/:desciCommunityId/feed', [ensureUser], asyncHander(getCommunityFeed));
-router.get('/:desciCommunityId/radar', [ensureUser], asyncHander(getCommunityRadar));
+router.get('/list', [], asyncHander(listCommunities));
+router.get('/:comunityId/feed', [], asyncHander(getCommunityFeed));
+router.get('/:comunityId/radar', [], asyncHander(getCommunityRadar));
+// router.get('/:comunityId/curated', [ensureUser], asyncHander(getCommunityRadar));
 export default router;

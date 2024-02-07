@@ -18,8 +18,9 @@ abstract class ApiResponse {
   ) {}
 
   protected prepare<T extends ApiResponse>(res: Response, response: T, headers: { [key: string]: string }): Response {
+    // console.log('prepare', response);
     for (const [key, value] of Object.entries(headers)) res.append(key, value);
-    return res.send(this.status).json(ApiResponse.sanitize(response));
+    return res.status(this.status).json(ApiResponse.sanitize(response));
   }
 
   public send(res: Response, headers: { [key: string]: string }): Response {
@@ -49,8 +50,8 @@ export class SuccessResponse<T> extends ApiResponse {
     super(ResponseStatus.SUCCESS, message);
   }
 
-  send(res: Response, headers: Headers): Response {
-    return super.prepare<SuccessResponse<T>>(res, this, headers);
+  send(res: Response, headers?: Headers): Response {
+    return super.prepare<SuccessResponse<T>>(res, this, headers ?? {});
   }
 }
 
