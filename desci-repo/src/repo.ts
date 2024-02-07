@@ -12,7 +12,7 @@ import * as db from './db/index.js';
 import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
 
 export const socket = new WebSocketServer({
-  port: process.env.PORT ? parseInt(process.env.PORT) : 5445,
+  port: process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 5445,
   path: '/sync',
 });
 const hostname = os.hostname();
