@@ -2,7 +2,7 @@ import { CommunityMembershipRole, NodeAttestation, NodeFeedItem, Prisma } from '
 import _ from 'lodash';
 
 import { prisma } from '../client.js';
-import { DuplicateDataError } from '../internal.js';
+import { CommunityNotFoundError, DuplicateDataError } from '../internal.js';
 import { attestationService } from '../internal.js';
 
 export type CommunityRadarNode = NodeAttestation & { annotations: number; reactions: number; verifications: number };
@@ -25,7 +25,7 @@ export class CommunityService {
     });
   }
 
-  async #addCommunityMember(communityId: number, data: Prisma.CommunityMemberCreateManyInput) {
+  private async addCommunityMember(communityId: number, data: Prisma.CommunityMemberCreateManyInput) {
     const existingMember = await this.findMemberByUserId(communityId, data.userId);
     if (existingMember) return existingMember;
     return prisma.communityMember.create({ data: data });

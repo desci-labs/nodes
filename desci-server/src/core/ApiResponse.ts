@@ -11,7 +11,11 @@ enum ResponseStatus {
 
 type Headers = { [key: string]: string };
 
-abstract class ApiResponse {
+export interface ToApiResponse {
+  apiResponse(res: Response): ApiResponse;
+}
+
+export abstract class ApiResponse {
   constructor(
     private status: ResponseStatus,
     message: string,
@@ -23,7 +27,7 @@ abstract class ApiResponse {
     return res.status(this.status).json(ApiResponse.sanitize(response));
   }
 
-  public send(res: Response, headers: { [key: string]: string }): Response {
+  public send(res: Response, headers: Headers = {}): Response {
     return this.prepare(res, this, headers);
   }
 
@@ -59,19 +63,11 @@ export class NotFoundResponse extends ApiResponse {
   constructor(message = 'NOT FOUND') {
     super(ResponseStatus.NOT_FOUND, message);
   }
-
-  send(res: Response, headers: Headers): Response {
-    return super.prepare<NotFoundResponse>(res, this, headers);
-  }
 }
 
 export class ForbiddenResponse extends ApiResponse {
   constructor(message = 'Forbidden') {
     super(ResponseStatus.FORBIDDEN, message);
-  }
-
-  send(res: Response, headers: Headers): Response {
-    return super.prepare<NotFoundResponse>(res, this, headers);
   }
 }
 
@@ -79,8 +75,16 @@ export class BadRequestResponse extends ApiResponse {
   constructor(message = 'Bad Request') {
     super(ResponseStatus.BAD_REQUEST, message);
   }
+}
 
-  send(res: Response, headers: Headers): Response {
-    return super.prepare<BadRequestResponse>(res, this, headers);
+export class InternalErrorResponse extends ApiResponse {
+  constructor(message = 'Internal Error') {
+    super(ResponseStatus.INTERNAL_ERROR, message);
+  }
+}
+
+export class AuthFailureResponse extends ApiResponse {
+  constructor(message = 'Unauthorized') {
+    super(ResponseStatus.UNAUTHORIZED, message);
   }
 }

@@ -84,7 +84,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe.only('Attestations Service', async () => {
+describe('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -95,15 +95,7 @@ describe.only('Attestations Service', async () => {
   let reproducibilityAttestation: Attestation;
   let openDataAttestation: Attestation;
   let fairMetadataAttestation: Attestation;
-  // let localAttestation: Attestation;
 
-  /**
-   * INIT USERS
-   * Init user nodes
-   * Publish different versions of nodes
-   * Seed Communities
-   * Seed attestations
-   */
   const setup = async () => {
     // Create communities
     desciCommunity = await communityService.createCommunity(communitiesData[0]);
@@ -960,7 +952,7 @@ describe.only('Attestations Service', async () => {
     it.skip('should list all engaging users and only count users once', () => {});
   });
 
-  describe.only('Node Attestation Engagement/Verification Signal', async () => {
+  describe('Node Attestation Engagement/Verification Signal', async () => {
     let claim: NodeAttestation;
     let claim2: NodeAttestation;
     let openDataAttestationClaim: NodeAttestation;
