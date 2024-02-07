@@ -7,7 +7,6 @@ const router = Router();
 
 // list all communities and curated nodes()
 router.get('/list', [], asyncHander(listCommunities));
-router.get('/:comunityId/feed', [], asyncHander(getCommunityFeed));
-router.get('/:comunityId/radar', [], asyncHander(getCommunityRadar));
-// router.get('/:comunityId/curated', [ensureUser], asyncHander(getCommunityRadar));
+router.get('/:communityId/feed', [], asyncHander(getCommunityFeed));
+router.get('/:communityId/radar', [], asyncHander(getCommunityRadar));
 export default router;

@@ -153,7 +153,6 @@ export class CommunityService {
   		t1.id
     `) as CommunityRadarNode[];
 
-    // console.log({ claims });
     const groupedEngagements = claims.reduce(
       (total, claim) => ({
         reactions: total.reactions + claim.reactions,
@@ -162,7 +161,6 @@ export class CommunityService {
       }),
       { reactions: 0, annotations: 0, verifications: 0 },
     );
-    // console.log({ groupedEngagements });
     return groupedEngagements;
   }
 
