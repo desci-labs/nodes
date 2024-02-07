@@ -130,7 +130,7 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
     },
   };
 
-  const pdfComponents = (await pdfHashes).map((d: UrlWithCid) => {
+  const pdfComponents = pdfHashes.map((d: UrlWithCid) => {
     const cid = makePublic([d])[0].val;
     const objectComponent: PdfComponent = {
       id: d.cid,
@@ -144,7 +144,7 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
     };
     return objectComponent;
   });
-  const codeComponents = (await codeHashes).map((d: UrlWithCid) => {
+  const codeComponents = codeHashes.map((d: UrlWithCid) => {
     const objectComponent: CodeComponent = {
       id: d.cid,
       name: 'Code',
