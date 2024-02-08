@@ -20,11 +20,21 @@ import {
 } from '../internal.js';
 import { communityService } from '../internal.js';
 
-export type AttestationWithEngagement = Attestation & {
+export type AllAttestation = Attestation & {
+  annotations: number;
+  reactions: number;
+  verifications: number;
+  communitySelected: boolean;
+  communityName: boolean;
+  communityImageurl: boolean;
+  communityDescription: boolean;
+};
+export type CommunityAttestation = Attestation & {
   required: boolean;
   annotations: number;
   reactions: number;
   verifications: number;
+  communitySelected: boolean;
 };
 
 /**
@@ -205,11 +215,11 @@ export class AttestationService {
     return prisma.nodeAttestation.findMany({
       where: { nodeDpid10: dpid },
       include: {
-        attestation: true,
-        NodeAttestationReaction: true,
-        NodeAttestationVerification: true,
-        Annotation: true,
-        attestationVersion: true,
+        community: { select: { name: true, description: true, keywords: true } },
+        attestationVersion: { select: { name: true, description: true, image_url: true } },
+        _count: {
+          select: { Annotation: true, NodeAttestationReaction: true, NodeAttestationVerification: true },
+        },
       },
     });
   }
@@ -502,21 +512,37 @@ export class AttestationService {
       A.*,
       COUNT(distinct AN.id)::int AS annotations,
       COUNT(distinct NAR.id)::int AS reactions,
-      COUNT(distinct NAV.id)::int AS verifications
+      COUNT(distinct NAV.id)::int AS verifications,
+      CASE
+        WHEN CSA.id IS NOT NULL THEN TRUE
+        ELSE FALSE
+      END AS "communitySelected",
+      DC.id AS "communityId",
+      DC.name AS "communityName",
+      DC.description AS "communityDescription",
+      DC.image_url AS "communityImageurl",
+      DC.keywords AS "communityKeywords"
     FROM
       "Attestation" A
       LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id
       LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
+      LEFT JOIN "DesciCommunity" DC ON DC.id = A."communityId"
+      LEFT JOIN "CommunitySelectedAttestation" CSA ON CSA."desciCommunityId" = NA."desciCommunityId"
+	    AND CSA."attestationId" = A.id
     GROUP BY
-      A.id`) as AttestationWithEngagement[];
+      A.id,
+      CSA.id,
+      DC.id
+      `) as AllAttestation[];
 
     return queryResult;
   }
 
   /**
    * List all community attestations and their engagements metrics across all claimed attestations
+   * Join rows from their community and prefix with ccommunity
    * @param communityId
    * @returns AttestationWithEngagement[]
    */
@@ -530,7 +556,7 @@ export class AttestationService {
       CASE
         WHEN CSA.id IS NOT NULL THEN TRUE
         ELSE FALSE
-      END AS required
+      END AS "communitySelected"
     FROM
       "Attestation" A
       LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id
@@ -543,7 +569,7 @@ export class AttestationService {
     GROUP BY
       A.id,
       CSA.id
-      `) as AttestationWithEngagement[];
+      `) as CommunityAttestation[];
 
     return queryResult;
   }

@@ -1,16 +1,22 @@
-import { Attestation, NodeAttestation } from '@prisma/client';
+import { AttestationVersion, DesciCommunity, NodeAttestation } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import { BadRequestErrorError, BadRequestResponse, SuccessResponse, attestationService } from '../../internal.js';
+import { BadRequestErrorError, SuccessResponse, attestationService } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 
-type AttestationFragment = NodeAttestation & {
-  attestation: Attestation;
+export type NodeAttestationFragment = NodeAttestation & {
+  community: Pick<DesciCommunity, 'name' | 'description' | 'keywords'>;
+  attestationVersion: Pick<AttestationVersion, 'name' | 'description' | 'image_url'>;
+  engagments: {
+    reactions: number;
+    verifications: number;
+    annotations: number;
+  };
 };
 
 type ShowNodeAttestationsResponse = {
   ok: boolean;
-  attestations?: AttestationFragment[];
+  attestations?: NodeAttestationFragment[];
   error?: string;
 };
 
@@ -21,7 +27,6 @@ export const showNodeAttestations = async (
   const { dpid } = req.params;
 
   const logger = parentLogger.child({
-    // id: req.id,
     module: 'ATTESTATIONS::showNodeAttestationsController',
     user: (req as any).user,
     dpid,
@@ -30,6 +35,15 @@ export const showNodeAttestations = async (
 
   if (!dpid) throw new BadRequestErrorError('DPID is required');
 
-  const attestations = await attestationService.getAllNodeAttestations(dpid);
+  let attestations = await attestationService.getAllNodeAttestations(dpid);
+  attestations = attestations.map((att) => ({
+    ...att,
+    _count: undefined,
+    engagments: {
+      annotations: att._count.Annotation,
+      reactions: att._count.NodeAttestationReaction,
+      verifications: att._count.NodeAttestationVerification,
+    },
+  }));
   return new SuccessResponse(attestations).send(res);
 };

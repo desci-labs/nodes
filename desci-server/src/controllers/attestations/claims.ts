@@ -9,11 +9,11 @@ import {
   SuccessResponse,
   asyncMap,
   attestationService,
+  logger,
   prisma,
 } from '../../internal.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 
-// TODO: ADD TEST
 export const claimAttestation = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const body = req.body as {
     attestationId: number;
@@ -23,12 +23,11 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     nodeDpid: string;
     claimerId: number;
   };
-
   const attestations = await attestationService.claimAttestation(body);
 
   return new SuccessResponse(attestations).send(res);
 };
-// TODO: ADD TEST
+
 export const removeClaim = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const body = req.body as {
     attestationId: number;
@@ -55,7 +54,6 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
   return new SuccessMessageResponse('Attestation unclaimed').send(res);
 };
 
-// TODO: ADD TEST
 export const claimEntryRequirements = async (req: Request, res: Response, _next: NextFunction) => {
   const { communityId } = req.params;
   const { nodeDpid, nodeUuid, nodeVersion, claimerId } = req.body as {
@@ -65,10 +63,9 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     nodeDpid: string;
     claimerId: number;
   };
-  console.log({ communityId, body: req.body });
+  logger.info({ communityId, body: req.body });
 
   const entryAttestations = await attestationService.getCommunityEntryAttestations(parseInt(communityId));
-  console.log({ entryAttestations });
 
   const claimables = (await asyncMap(entryAttestations, async (attestation) => {
     const claimable = await attestationService.canClaimAttestation({
@@ -81,22 +78,25 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     });
     return { ...attestation, claimable };
   })) as (CommunitySelectedAttestation & { claimable: boolean })[];
+  logger.info({ claimables, communityId });
   console.log({ claimables });
 
-  const claims = claimables.map((claimable) => ({
-    attestationId: claimable.attestationId,
-    attestationVersion: claimable.attestationVersionId,
-  }));
-  // if (!communityId) return new BadRequestResponse('CommunityId required').send()
+  const claims = claimables
+    .filter((entry) => entry.claimable === true)
+    .map((claimable) => ({
+      attestationId: claimable.attestationId,
+      attestationVersion: claimable.attestationVersionId,
+    }));
+
   console.log({ claims });
+  logger.info({ claims }, 'CLAIM all input');
   const attestations = await attestationService.claimAttestations({
     nodeVersion,
     nodeUuid,
-    nodeDpid,
+    nodeDpid: nodeDpid.toString(),
     claimerId,
     attestations: claims,
   });
 
-  console.log({ attestations });
   return new SuccessResponse(attestations).send(res);
 };
