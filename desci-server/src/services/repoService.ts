@@ -34,12 +34,12 @@ class RepoService {
   }
 
   async dispatchAction(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
-    logger.info({ arg }, 'Disatch Changes');
+    logger.info({ arg }, 'Dispatch Changes');
     const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
       `${this.baseUrl}/v1/nodes/documents/dispatch`,
       arg,
     );
-    logger.info({ arg, response: response.data }, 'Disatch Changes Response');
+    logger.info({ arg, response: response.data }, 'Dispatch Changes Response');
     if (response.status === 200 && response.data.ok) {
       return response.data.document;
     } else {

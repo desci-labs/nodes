@@ -103,7 +103,8 @@ export type ManifestActions =
       component: ResearchObjectV1Component;
       componentTypeMap: ResearchObjectComponentTypeMap;
     }
-  | { type: 'Set Drive Clock'; time: string };
+  | { type: 'Set Drive Clock'; time: string }
+  | { type: 'Set Dpid'; prefix: string; id: string };
 
 const getNodeManifestUpdater = (node: Node) => {
   const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
@@ -214,6 +215,15 @@ const getNodeManifestUpdater = (node: Node) => {
           (document) => {
             if (document.driveClock && document.driveClock === action.time) return; // Don't update if already the latest
             document.driveClock = action.time;
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      case 'Set Dpid':
+        handle.change(
+          (document) => {
+            document.manifest.dpid.id = action.id;
+            document.manifest.dpid.prefix = action.prefix;
           },
           { time: Date.now(), message: action.type },
         );
