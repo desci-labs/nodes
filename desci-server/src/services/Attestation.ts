@@ -553,7 +553,7 @@ export class AttestationService {
    * @param attestationVersionId
    * @returns
    */
-  async getAttestationEngagementSignals(attestationId: number, attestationVersionId: number) {
+  async getAttestationVersionEngagementSignals(attestationId: number, attestationVersionId: number) {
     const claims = (await prisma.$queryRaw`
       SELECT t1.*,
       count(DISTINCT "Annotation".id)::int AS annotations,
@@ -564,6 +564,38 @@ export class AttestationService {
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
       WHERE t1."attestationId" = ${attestationId} AND t1."attestationVersionId" = ${attestationVersionId}
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
+
+    const groupedEngagements = claims.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+    return groupedEngagements;
+  }
+
+  /**
+   * Returns all engagement signals for an attestations
+   * This verification signal is the number returned for the verification field
+   * @param attestationId
+   * @returns
+   */
+  async getAttestationEngagementSignals(attestationId: number) {
+    const claims = (await prisma.$queryRaw`
+      SELECT t1.*,
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
+      FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE t1."attestationId" = ${attestationId}
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];

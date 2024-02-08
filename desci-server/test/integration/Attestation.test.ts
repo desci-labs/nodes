@@ -15,11 +15,15 @@ import {
   User,
 } from '@prisma/client';
 import { assert, expect, use } from 'chai';
+import jwt from 'jsonwebtoken';
+import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
+import { app } from '../../src/index.js';
 import {
   DuplicateReactionError,
   DuplicateVerificationError,
+  NodeRadar,
   VerificationError,
   attestationService,
   communityService,
@@ -138,7 +142,7 @@ describe('Attestations Service', async () => {
     );
     console.log({ LocalReproducibilityAttestation, LocalOpenDataAttestation, LocalFairMetadataAttestation });
 
-    users = await createUsers(5);
+    users = await createUsers(10);
     // console.log({ users });
 
     const baseManifest = await spawnEmptyManifest();
@@ -1208,7 +1212,7 @@ describe('Attestations Service', async () => {
     });
 
     it('should validate all attestations engagement signals', async () => {
-      const reproducibilityAttestationEngagements = await attestationService.getAttestationEngagementSignals(
+      const reproducibilityAttestationEngagements = await attestationService.getAttestationVersionEngagementSignals(
         reproducibilityAttestation.id,
         reproducibilityAttestationVersion.id,
       );
@@ -1217,7 +1221,7 @@ describe('Attestations Service', async () => {
       expect(reproducibilityAttestationEngagements.reactions).to.equal(2);
       expect(reproducibilityAttestationEngagements.verifications).to.equal(4);
 
-      const openDataAttestationEngagements = await attestationService.getAttestationEngagementSignals(
+      const openDataAttestationEngagements = await attestationService.getAttestationVersionEngagementSignals(
         openDataAttestation.id,
         openDataAttestationVersion.id,
       );
@@ -1226,7 +1230,7 @@ describe('Attestations Service', async () => {
       expect(openDataAttestationEngagements.reactions).to.equal(1);
       expect(openDataAttestationEngagements.verifications).to.equal(1);
 
-      const fairMetadataAttestationEngagements = await attestationService.getAttestationEngagementSignals(
+      const fairMetadataAttestationEngagements = await attestationService.getAttestationVersionEngagementSignals(
         fairMetadataAttestation.id,
         fairMetadataAttestationVersion.id,
       );
@@ -1235,10 +1239,11 @@ describe('Attestations Service', async () => {
       expect(fairMetadataAttestationEngagements.reactions).to.equal(1);
       expect(fairMetadataAttestationEngagements.verifications).to.equal(1);
 
-      const LocalReproducibilityAttestationEngagements = await attestationService.getAttestationEngagementSignals(
-        LocalReproducibilityAttestation.id,
-        localReproducibilityAttestationVersion.id,
-      );
+      const LocalReproducibilityAttestationEngagements =
+        await attestationService.getAttestationVersionEngagementSignals(
+          LocalReproducibilityAttestation.id,
+          localReproducibilityAttestationVersion.id,
+        );
       // console.log({ LocalReproducibilityAttestationEngagements });
       expect(LocalReproducibilityAttestationEngagements.annotations).to.equal(1);
       expect(LocalReproducibilityAttestationEngagements.reactions).to.equal(1);
@@ -1246,5 +1251,160 @@ describe('Attestations Service', async () => {
     });
 
     it.skip('should list all engaging users and only count users once', () => {});
+  });
+
+  describe('Community Radar', async () => {
+    let node: Node;
+    let node2: Node;
+    let node3: Node;
+    let author: User;
+    let author2: User;
+    let author3: User;
+
+    let claim: NodeAttestation;
+    let claim2: NodeAttestation;
+    let claim3: NodeAttestation;
+    let openDataAttestationClaim: NodeAttestation;
+    let openDataAttestationClaim2: NodeAttestation;
+    let openDataAttestationClaim3: NodeAttestation;
+    let fairMetadataAttestationClaim: NodeAttestation;
+
+    const nodeVersion = 0;
+    let reproducibilityAttestationVersion: AttestationVersion;
+    let openDataAttestationVersion: AttestationVersion;
+    let fairMetadataAttestationVersion: AttestationVersion;
+
+    let res: request.Response;
+    let apiResponse: NodeRadar[];
+
+    before(async () => {
+      node = nodes[0];
+      node2 = nodes[1];
+      node3 = nodes[2];
+
+      author = users[0];
+      author2 = users[1];
+      author3 = users[2];
+      assert(node.uuid);
+      assert(node2.uuid);
+      assert(node3.uuid);
+
+      let versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
+      reproducibilityAttestationVersion = versions[versions.length - 1];
+      // add to community entry
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: reproducibilityAttestationVersion.id,
+      });
+
+      versions = await attestationService.getAttestationVersions(openDataAttestation.id);
+      openDataAttestationVersion = versions[versions.length - 1];
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: openDataAttestation.id,
+        attestationVersion: openDataAttestationVersion.id,
+      });
+
+      // get version for fairMetadata attestations
+      versions = await attestationService.getAttestationVersions(fairMetadataAttestation.id);
+      fairMetadataAttestationVersion = versions[versions.length - 1];
+
+      // claim all entry requirements
+      [claim, openDataAttestationClaim] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      // claim all entry requirements for node 2
+      [claim2, openDataAttestationClaim2] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '2',
+        nodeUuid: node2.uuid,
+        nodeVersion,
+        claimerId: author2.id,
+      });
+
+      // claim all entry requirements for node 3
+      [claim3, openDataAttestationClaim3] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '3',
+        nodeUuid: node3.uuid,
+        nodeVersion,
+        claimerId: author3.id,
+      });
+
+      // verify both claims for node 1
+      await attestationService.verifyClaim(claim.id, users[3].id);
+      await attestationService.verifyClaim(claim.id, users[4].id);
+      await attestationService.verifyClaim(openDataAttestationClaim.id, users[4].id);
+
+      // verify one claims for node 2 attestations
+      await attestationService.verifyClaim(claim2.id, users[4].id);
+      await attestationService.verifyClaim(claim2.id, users[5].id);
+
+      // verifications for claim 3
+      await attestationService.verifyClaim(claim3.id, users[6].id);
+      await attestationService.verifyClaim(openDataAttestationClaim3.id, users[5].id);
+      await attestationService.verifyClaim(openDataAttestationClaim3.id, users[4].id);
+
+      const JwtToken = jwt.sign({ email: users[0].email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
+      const authHeaderVal = `Bearer ${JwtToken}`;
+      res = await request(app)
+        .get(`/v1/communities/${desciCommunity.id}/radar`)
+        .set('authorization', authHeaderVal)
+        .field('communityId', desciCommunity.id);
+
+      apiResponse = res.body.data;
+      console.log(apiResponse[0]);
+      console.log(apiResponse[1]);
+      console.log(apiResponse[2]);
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+    });
+
+    it('should return nodes in radar in ASC order of verified engagements', async () => {
+      expect(res.status).to.equal(200);
+      expect(apiResponse.length).to.equal(3);
+      expect(apiResponse[0].node.nodeDpid10).to.be.equal('2');
+      expect(apiResponse[1].node.nodeDpid10).to.be.equal('1');
+      expect(apiResponse[2].node.nodeDpid10).to.be.equal('3');
+    });
   });
 });

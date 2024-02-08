@@ -3,6 +3,7 @@ import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
 import {
+  NodeRadarItem,
   SuccessResponse,
   asyncMap,
   attestationService,
@@ -10,6 +11,20 @@ import {
   logger as parentLogger,
   resolveLatestNode,
 } from '../../internal.js';
+
+export interface NodeRadar {
+  node: NodeRadarItem & { manifest: Node };
+  engagements: {
+    reactions: number;
+    annotations: number;
+    verifications: number;
+  };
+  verifiedEngagements: {
+    reactions: number;
+    annotations: number;
+    verifications: number;
+  };
+}
 
 const logger = parentLogger.child({ module: 'GET COMMUNITY RADAR' });
 export const getCommunityRadar = async (req: Request, res: Response, next: NextFunction) => {
@@ -22,12 +37,8 @@ export const getCommunityRadar = async (req: Request, res: Response, next: NextF
       parseInt(req.params.communityId),
       node.nodeDpid10,
     );
-    const verifiedEngagements = await attestationService.getNodeCommunityVerificationSignals(
-      parseInt(req.params.communityId),
-      node.nodeDpid10,
-    );
 
-    const verifiedEngagementFromAttestations = node.NodeAttestation.reduce(
+    const verifiedEngagements = node.NodeAttestation.reduce(
       (total, claim) => ({
         reactions: total.reactions + claim.reactions,
         annotations: total.annotations + claim.annotations,
@@ -36,7 +47,7 @@ export const getCommunityRadar = async (req: Request, res: Response, next: NextF
       { reactions: 0, annotations: 0, verifications: 0 },
     );
 
-    logger.info({ verifiedEngagementFromAttestations, verifiedEngagements }, 'CHECK Verification SignalS');
+    logger.info({ verifiedEngagements }, 'CHECK Verification SignalS');
 
     // todo: get all attestation signals
     return {
@@ -48,6 +59,9 @@ export const getCommunityRadar = async (req: Request, res: Response, next: NextF
 
   // rank nodes by sum of sum of verified and non verified signals
 
-  const data = await Promise.all(nodes.map(resolveLatestNode));
+  logger.info({ nodes }, 'CHECK Verification SignalS');
+  let data = await Promise.all(nodes.map(resolveLatestNode));
+  data = data.sort((c1, c2) => c1.verifiedEngagements.verifications - c2.verifiedEngagements.verifications);
+
   return new SuccessResponse(data).send(res);
 };
