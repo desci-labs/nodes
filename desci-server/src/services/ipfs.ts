@@ -151,7 +151,7 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
       type: ResearchObjectComponentType.CODE,
       payload: {
         language: 'bash',
-        code: makePublic([d])[0].val,
+        cid: makePublic([d])[0].val,
         path: DRIVE_NODE_ROOT_PATH + '/Code',
       },
     };
@@ -235,7 +235,7 @@ export const downloadSingleFile = async (url: string): Promise<PdfComponentSingl
       name: 'Code',
       type: ResearchObjectComponentType.CODE,
       payload: {
-        url: makePublic([file])[0].val,
+        cid: makePublic([file])[0].val,
         externalUrl: await getGithubExternalUrl(url),
         path: DRIVE_NODE_ROOT_PATH + '/Code',
       },

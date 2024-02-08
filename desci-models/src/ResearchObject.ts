@@ -16,19 +16,34 @@ export interface IpldUrl {
 }
 
 export interface ResearchObjectV1 extends ResearchObject {
+  /** Version of the research object schema*/
   version: 'desci-nodes-0.1.0' | 'desci-nodes-0.2.0' | 1;
+  /** Human-readable title of the publication */
   title?: string;
+  /** Human-readable desciption */
   description?: string;
+  /** The license that applies unless overriden with a component */
   defaultLicense?: string;
+  /** CID of a cover image to the publication */
   coverImage?: string | IpldUrl;
+  /** Metadata additions to DAG entires, or stand-alone entries like external links */
   components: ResearchObjectV1Component[];
+  /** @deprecated */
   validations?: ResearchObjectV1Validation[];
+  /* @deprecated **/
   attributes?: ResearchObjectV1Attributes[];
+  /** History for the object. Not part of the manifest, but can be populated
+  * by an pplication */
   history?: ResearchObjectV1History[];
+  /** @deprecated */
   tags?: ResearchObjectV1Tags[];
+  /** Organizations affiliated with the publication */
   organizations?: ResearchObjectV1Organization[];
+  /** Assigned dPID of the object, allowing finding the PID from the manifest */
   dpid?: ResearchObjectV1Dpid;
+  /** Research fields relevant for the publication */
   researchFields?: string[];
+  /** Contributors to this publication */
   authors?: ResearchObjectV1Author[];
 }
 
@@ -46,35 +61,68 @@ export interface ResearchObjectV1Tags {
   name: string;
 }
 
+/**
+ * Path-invariant metadata about a part of the research object.
+ * Can be used to tag a directory as code or data, mark a pdf file as
+ * as the main manuscript, add an external URL to the drive, et cetera.
+ *
+ * Mainly used through extension. See PdfComponent and DataComponent for
+ * example.
+*/
 export interface ResearchObjectV1Component {
+  /** Random UUID to identify the component, because paths and CIDs are
+   * neither unique nor stable.
+  */
   id: string;
+  /** Human-readable description of the component. */
   name: string;
+  /** Type of payload, which indicates to an app what to do with it. */
   type: ResearchObjectComponentType | ResearchObjectComponentTypeMap;
+  /** @deprecated visual representation for the component */
   icon?: any;
+  /** Description of the component content, see interface extenders. */
   payload: any;
+  /** @deprecated Preferred component to initially load in an app. */
   primary?: boolean;
+  /** Mark component as particularly interesting. */
   starred?: boolean;
 }
 
+/**
+ * Contributor listing for a research object.
+*/
 export interface ResearchObjectV1Author {
+  /** Name of the contributor */
   name: string;
+  /** Orcid handle of the contributor */
   orcid?: string;
+  /** Google Scholar profile of the contributor */
   googleScholar?: string;
+  /** Type of role in the publication */
   role: ResearchObjectV1AuthorRole;
+  /** Organizations the contributor is affiliated with */
   organizations?: ResearchObjectV1Organization[];
+  /** GitHub profile of the contributor */
   github?: string;
 }
 
 export interface ResearchObjectV1History {
   title: string;
-  author?: any; // does not refer to ResearchObject author for credit purpose, refers to the on-chain identity of the account who made the publication, this should not be stored in manifest and used in client only
+  /** does not refer to ResearchObject author for credit purpose, refers to
+   * the on-chain identity of the account who made the publication, this
+   * should not be stored in manifest and used in client only
+  */
+  author?: any;
   content: string;
   date?: number; // utc seconds
   transaction?: ResearchObjectTransaction;
 }
 
+/** Record of publication in the dPID registry contracts */
 export interface ResearchObjectTransaction {
+  /** Transaction hash in hex format */
   id: string;
+  /** Hex-encoded manifest CID as stored in the contract */
   cid: string;
   chainId?: string;
 }
@@ -125,7 +173,8 @@ export enum ResearchObjectComponentType {
   PDF = 'pdf',
   CODE = 'code',
   VIDEO = 'video',
-  TERMINAL = 'terminal', // not used, TODO: remove
+  /** @deprecated remove at will */
+  TERMINAL = 'terminal',
   DATA = 'data',
   LINK = 'link', // external link
 }
@@ -215,6 +264,19 @@ export interface DataComponentPayload {
   subMetadata: Record<Path, DataComponentMetadata>;
 }
 
+export interface CodeComponentPayload {
+  /** The main programming language of the code in the component */
+  language?: string;
+  /** @deprecated */
+  code?: string;
+  /** @deprecated CID of the component target */
+  url?: string;
+  /** CID of the component target */
+  cid: string;
+  /** Source URL, if externally imported code bundle */
+  externalUrl?: string;
+}
+
 export interface DataBucketComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.DATA_BUCKET;
   id: 'root';
@@ -246,13 +308,12 @@ export interface DataComponent extends ResearchObjectV1Component {
 export interface CodeComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.CODE;
   subtype?: ResearchObjectComponentCodeSubtype;
-  payload: {
-    language?: string;
-    code?: string;
-    url?: string;
-    externalUrl?: string;
-  } & CommonComponentPayload;
+  payload: CodeComponentPayload & CommonComponentPayload;
 }
+
+/** 
+ * @deprecated remove at will
+*/
 export interface TerminalComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.TERMINAL;
   payload: {
