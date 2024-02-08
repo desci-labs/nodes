@@ -1,15 +1,23 @@
-import axios from "axios";
-import type {
-  DriveObject,
-  ResearchObjectV1,
+import axios, { AxiosError, AxiosResponse } from "axios";
+import {
+    ResearchObjectComponentType,
+  type CodeComponent,
+  type DataComponent,
+  type DriveObject,
+  type ExternalLinkComponent,
+  type PdfComponent,
+  type ResearchObjectV1,
+  ResearchObjectComponentDocumentSubtype,
+  ResearchObjectComponentLinkSubtype,
+  ResearchObjectComponentCodeSubtype,
 } from "@desci-labs/desci-models";
-import { codexPublish } from "./codex.js";
 import FormData from "form-data";
 import { createReadStream } from "fs";
 import { basename } from "path";
 import type { NodeIDs } from "@desci-labs/desci-codex-lib/dist/src/types.js";
 import { publish } from "./publish.js";
-import { PublishError } from "./errors.js";
+import type { ManifestActions, ResearchObjectDocument } from "./automerge.js";
+import { randomUUID } from "crypto";
 
 // Set these dynamically in some reasonable fashion
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
@@ -27,6 +35,8 @@ const ROUTES = {
   showNode: `${NODES_API_URL}/v1/nodes/objects`,
   prepublish: `${NODES_API_URL}/v1/nodes/prepublish`,
   publish: `${NODES_API_URL}/v1/nodes/publish`,
+  /** Append `/uuid` for fetching document, `/uuid/actions` to mutate */
+  documents: `${NODES_API_URL}/v1/nodes/documents`,
   /** Append /uuid for node to fetch publish history for */
   dpidHistory: `${NODES_API_URL}/v1/pub/versions`,
 } as const;
@@ -99,7 +109,7 @@ export type NodeResponse = {
   isFeatured: boolean,
   manifestUrl: string,
   /** Stringified JSON manifest */
-  restBody: string,
+  manifestData: ResearchObjectV1,
   replicationFactor: number,
   ownerId: number,
   uuid: string,
@@ -323,11 +333,15 @@ export const createNewFolder = async (
   return data;
 };
 
+/** Params needed to upload a set of files */
 export type UploadParams = {
-  uuid: string,
-  /** Prefix path with `root/` to indicate absolute path */
+  /**
+   * Absolute path to target location in drive.
+   * Note that folders must already exist.
+  */
   targetPath: string,
-  filePaths: string[],
+  /** Local paths to files for upload */
+  localFilePaths: string[],
 };
 
 export type UploadFilesResponse = {
@@ -338,15 +352,16 @@ export type UploadFilesResponse = {
 };
 
 export const uploadFiles = async (
+  uuid: string,
   params: UploadParams,
   authToken: string,
 ): Promise<UploadFilesResponse> => {
-  const { uuid, targetPath, filePaths } = params;
+  const { targetPath, localFilePaths} = params;
   const form = new FormData();
   form.append("uuid", uuid);
   form.append("contextPath", targetPath);
 
-  filePaths.forEach(f => {
+  localFilePaths.forEach(f => {
     const stream = createReadStream(f);
     form.append("files", stream, basename(f));
   });
@@ -360,6 +375,11 @@ export const uploadFiles = async (
   };
 
   return data;
+};
+
+export const uploadRepository = async (
+) => {
+  
 };
 
 /** Historical log entry for a dPID */
@@ -399,6 +419,205 @@ export const getDpidHistory = async (
 
   return data.versions;
 };
+
+export type ChangeManifestParams = {
+  uuid: string,
+  actions: ManifestActions[],
+};
+
+export type ManifestDocumentResponse = {
+  documentId: string,
+  document: ResearchObjectDocument,
+};
+
+const getManifestDocument = async (
+  uuid: string,
+): Promise<ManifestDocumentResponse> => {
+  const { status, statusText, data } = await axios.get<ManifestDocumentResponse>(
+    ROUTES.documents + `/${uuid}`
+  );
+
+  if (status !== 200) {
+    throwWithReason(ROUTES.documents, status, statusText);
+  };
+
+  return data;
+};
+
+/**
+ * Send a manifest change to the backend.
+ * @param uuid - ID of the node
+ * @param actions - series of change actions to perform
+ * @param authToken - your API key or session token
+ * @returns the new state of the manifest document
+*/
+export const changeManifest = async (
+  uuid: string,
+  actions: ManifestActions[],
+  authToken: string,
+): Promise<ManifestDocumentResponse> => {
+  let actionResponse: AxiosResponse<ManifestDocumentResponse, any>;
+  try {
+    actionResponse = await axios.post<ManifestDocumentResponse>(
+      ROUTES.documents + `/${uuid}/actions`,
+      { actions },
+      { headers: getHeaders(authToken) }
+    );
+  } catch (e) {
+    const err = e as AxiosError
+    // Node doesn't have an automerge document, needs initialization
+    if (err.status === 400 && err.message.toLowerCase().includes("missing automerge document")) {
+      await getManifestDocument(uuid);
+      return await changeManifest(uuid, actions, authToken);
+    } else {
+      throw e;
+    };
+  };
+
+  return actionResponse.data;
+};
+
+export type ComponentParam =
+  | PdfComponent
+  | ExternalLinkComponent
+  | DataComponent
+  | CodeComponent;
+
+/**
+ * Creates a new component in the node.
+ * @param uuid - ID of the node
+ * @param params - component to add
+ * @param authToken - your API key or session token
+ * @returns the new state of the manifest document
+*/
+export const addRawComponent = async (
+  uuid: string,
+  params: ComponentParam,
+  authToken: string,
+): Promise<ManifestDocumentResponse> => {
+  const action: ManifestActions = {
+    type: "Add Component",
+    component: params,
+  };
+  return await changeManifest(uuid, [action], authToken);
+};
+
+/** Parameters for adding an external link component to manifest */
+export type AddLinkComponentParams = {
+  /** Human-readable name of component */
+  name: string,
+  /** Link component refers to */
+  url: string,
+  /** Which type of resource the link points to */
+  subtype: ResearchObjectComponentLinkSubtype,
+  /** Wether to show the link as a central component of the object */
+  starred: boolean,
+};
+
+export const addLinkComponent = async (
+  uuid: string,
+  params: AddLinkComponentParams,
+  authToken: string,
+): Promise<ManifestDocumentResponse> => {
+  const fullParams: ExternalLinkComponent = {
+    id: randomUUID(),
+    name: params.name,
+    type: ResearchObjectComponentType.LINK,
+    subtype: params.subtype,
+    payload: {
+      url: params.url,
+      path: `root/External Links/${params.name}`,
+    },
+    starred: params.starred
+  };
+  return await addRawComponent(uuid, fullParams, authToken);
+}
+
+/**
+ * Parameters for adding a PDF component to manifest. This is done after
+ * uploading the file, and allows adding richer metadata to the document.
+*/
+export type AddPdfComponentParams = {
+  /** Human-readable name of the document */
+  name: string,
+  /** Absolute path to the file in the drive */
+  pathToFile: string,
+  /** CID of the file */
+  cid: string,
+  /** Indicates the type of document */
+  subtype: ResearchObjectComponentDocumentSubtype,
+  /** Wether to show the document as a central component of the object */
+  starred: boolean,
+};
+
+export const addPdfComponent = async (
+  uuid: string,
+  params: AddPdfComponentParams,
+  authToken: string,
+): Promise<ManifestDocumentResponse> => {
+  const fullParams: PdfComponent = {
+    id: randomUUID(),
+    name: params.name,
+    type: ResearchObjectComponentType.PDF,
+    subtype: params.subtype,
+    payload: {
+      cid: params.cid,
+      path: params.pathToFile,
+    },
+    starred: params.starred,
+  };
+  return await addRawComponent(uuid, fullParams, authToken);
+};
+
+/**
+ * Parameters for adding code component to manifest. These can be
+ * nested in layers to mark subdirectories as other types of code, etc.
+*/
+export type AddCodeComponentParams = {
+  /** Human-readable name of the code collection */
+  name: string,
+  /** Absolute path to the code in the drive */
+  path: string,
+  /** CID of the target file or unixFS directory */
+  cid: string,
+  /** */
+  language: string,
+  /** Indicates the type of document */
+  subtype: ResearchObjectComponentCodeSubtype,
+  /** Wether to show the document as a central component of the object */
+  starred: boolean,
+};
+
+/**
+ * Manually add a code component to mark a subtree of the drive as code.
+*/
+export const addCodeComponent = async (
+  uuid: string,
+  params: AddCodeComponentParams,
+  authToken: string,
+): Promise<ManifestDocumentResponse> => {
+  const fullParams: CodeComponent = {
+    id: randomUUID(),
+    name: params.name,
+    type: ResearchObjectComponentType.CODE,
+    subtype: params.subtype,
+    payload: {
+      language: params.language,
+      path: params.path,
+      cid: params.cid,
+    },
+    starred: params.starred,
+  };
+  return await addRawComponent(uuid, fullParams, authToken);
+};
+
+export const deleteComponent = async (
+  uuid: string,
+  path: string,
+  authToken: string,
+): Promise<ManifestDocumentResponse> =>
+  await changeManifest(uuid, [{ type: "Delete Component", path }], authToken);
+
 
 const throwWithReason = (
   route: Route,
