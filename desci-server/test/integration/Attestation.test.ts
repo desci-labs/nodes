@@ -1407,4 +1407,11 @@ describe('Attestations Service', async () => {
       expect(apiResponse[2].node.nodeDpid10).to.be.equal('3');
     });
   });
+
+  // TODO: ADD TESTS FOR getAllRecommendations api
+  // TODO: ADD TESTS FOR getCommunityRecommendations api
+  // TODO: ADD TESTS FOR showNodeAttestations api
+  // TODO: ADD TESTS FOR claimAttestation api
+  // TODO: ADD TESTS FOR claimEntryRequirements api
+  // TODO: ADD TESTS FOR removeClaim api
 });

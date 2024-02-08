@@ -1,7 +1,7 @@
 import { Attestation, NodeAttestation } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import { attestationService } from '../../internal.js';
+import { BadRequestErrorError, BadRequestResponse, SuccessResponse, attestationService } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 
 type AttestationFragment = NodeAttestation & {
@@ -27,14 +27,9 @@ export const showNodeAttestations = async (
     dpid,
   });
   logger.trace(`showNodeAttestations`);
-  if (!dpid) return res.status(400).send({ ok: false, error: 'DPID is required' });
 
-  try {
-    const attestations = await attestationService.getAllNodeAttestations(dpid);
+  if (!dpid) throw new BadRequestErrorError('DPID is required');
 
-    return res.status(200).send({ ok: true, attestations });
-  } catch (e) {
-    logger.error(e);
-    return res.status(400).send({ ok: false, error: 'Failed to retrieve attestations' });
-  }
+  const attestations = await attestationService.getAllNodeAttestations(dpid);
+  return new SuccessResponse(attestations).send(res);
 };

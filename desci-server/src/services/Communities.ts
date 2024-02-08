@@ -1,8 +1,8 @@
-import { CommunityMembershipRole, NodeAttestation, NodeFeedItem, Prisma } from '@prisma/client';
+import { Attestation, CommunityMembershipRole, NodeAttestation, NodeFeedItem, Prisma } from '@prisma/client';
 import _ from 'lodash';
 
 import { prisma } from '../client.js';
-import { CommunityNotFoundError, DuplicateDataError } from '../internal.js';
+import { DuplicateDataError } from '../internal.js';
 import { attestationService } from '../internal.js';
 
 export type CommunityRadarNode = NodeAttestation & { annotations: number; reactions: number; verifications: number };
