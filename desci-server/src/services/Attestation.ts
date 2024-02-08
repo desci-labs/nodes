@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-import { AnnotationType, Prisma } from '@prisma/client';
+import { AnnotationType, Attestation, Prisma } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import {
@@ -19,6 +19,23 @@ import {
   VerificationNotFoundError,
 } from '../internal.js';
 import { communityService } from '../internal.js';
+
+export type AllAttestation = Attestation & {
+  annotations: number;
+  reactions: number;
+  verifications: number;
+  communitySelected: boolean;
+  communityName: boolean;
+  communityImageurl: boolean;
+  communityDescription: boolean;
+};
+export type CommunityAttestation = Attestation & {
+  required: boolean;
+  annotations: number;
+  reactions: number;
+  verifications: number;
+  communitySelected: boolean;
+};
 
 /**
  * Attestation Service
@@ -195,7 +212,16 @@ export class AttestationService {
   }
 
   async getAllNodeAttestations(dpid: string) {
-    return prisma.nodeAttestation.findMany({ where: { nodeDpid10: dpid }, include: { attestation: true } });
+    return prisma.nodeAttestation.findMany({
+      where: { nodeDpid10: dpid },
+      include: {
+        community: { select: { name: true, description: true, keywords: true } },
+        attestationVersion: { select: { name: true, description: true, image_url: true } },
+        _count: {
+          select: { Annotation: true, NodeAttestationReaction: true, NodeAttestationVerification: true },
+        },
+      },
+    });
   }
 
   async getAllCommunityAttestations(communityId: number) {
@@ -477,6 +503,78 @@ export class AttestationService {
   }
 
   /**
+   * List all attestations and their engagements metrics across all claimed attestations
+   * @returns AttestationWithEngagement[]
+   */
+  async listAll() {
+    const queryResult = (await prisma.$queryRaw`
+    SELECT
+      A.*,
+      COUNT(distinct AN.id)::int AS annotations,
+      COUNT(distinct NAR.id)::int AS reactions,
+      COUNT(distinct NAV.id)::int AS verifications,
+      CASE
+        WHEN CSA.id IS NOT NULL THEN TRUE
+        ELSE FALSE
+      END AS "communitySelected",
+      DC.id AS "communityId",
+      DC.name AS "communityName",
+      DC.description AS "communityDescription",
+      DC.image_url AS "communityImageurl",
+      DC.keywords AS "communityKeywords"
+    FROM
+      "Attestation" A
+      LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id
+      LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
+      LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
+      LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
+      LEFT JOIN "DesciCommunity" DC ON DC.id = A."communityId"
+      LEFT JOIN "CommunitySelectedAttestation" CSA ON CSA."desciCommunityId" = NA."desciCommunityId"
+	    AND CSA."attestationId" = A.id
+    GROUP BY
+      A.id,
+      CSA.id,
+      DC.id
+      `) as AllAttestation[];
+
+    return queryResult;
+  }
+
+  /**
+   * List all community attestations and their engagements metrics across all claimed attestations
+   * Join rows from their community and prefix with ccommunity
+   * @param communityId
+   * @returns AttestationWithEngagement[]
+   */
+  async listCommunityAttestations(communityId: number) {
+    const queryResult = (await prisma.$queryRaw`
+    SELECT
+      A.*,
+      COUNT(distinct AN.id)::int AS annotations,
+      COUNT(distinct NAR.id)::int AS reactions,
+      COUNT(distinct NAV.id)::int AS verifications,
+      CASE
+        WHEN CSA.id IS NOT NULL THEN TRUE
+        ELSE FALSE
+      END AS "communitySelected"
+    FROM
+      "Attestation" A
+      LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id
+      LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
+      LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
+      LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
+      LEFT JOIN "CommunitySelectedAttestation" CSA ON CSA."desciCommunityId" = NA."desciCommunityId"
+	    AND CSA."attestationId" = A.id
+     WHERE A."communityId" = ${communityId}
+    GROUP BY
+      A.id,
+      CSA.id
+      `) as CommunityAttestation[];
+
+    return queryResult;
+  }
+
+  /**
    * Returns all engagement signals for a node across all claimed attestations
    * This verification signal is the number returned for the verification field
    * @param dpid
@@ -553,7 +651,7 @@ export class AttestationService {
    * @param attestationVersionId
    * @returns
    */
-  async getAttestationEngagementSignals(attestationId: number, attestationVersionId: number) {
+  async getAttestationVersionEngagementSignals(attestationId: number, attestationVersionId: number) {
     const claims = (await prisma.$queryRaw`
       SELECT t1.*,
       count(DISTINCT "Annotation".id)::int AS annotations,
@@ -564,6 +662,38 @@ export class AttestationService {
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
       WHERE t1."attestationId" = ${attestationId} AND t1."attestationVersionId" = ${attestationVersionId}
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
+
+    const groupedEngagements = claims.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+    return groupedEngagements;
+  }
+
+  /**
+   * Returns all engagement signals for an attestations
+   * This verification signal is the number returned for the verification field
+   * @param attestationId
+   * @returns
+   */
+  async getAttestationEngagementSignals(attestationId: number) {
+    const claims = (await prisma.$queryRaw`
+      SELECT t1.*,
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
+      FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE t1."attestationId" = ${attestationId}
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];

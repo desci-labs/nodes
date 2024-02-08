@@ -13,6 +13,11 @@ export type NodeRadarWithEngagement = {
     annotations: number;
     verifications: number;
   };
+  verifiedEngagements: {
+    reactions: number;
+    annotations: number;
+    verifications: number;
+  };
 };
 
 export type CuratedNodeItem = {

@@ -18,6 +18,11 @@ export const getCommunityFeed = async (req: Request, res: Response, next: NextFu
     };
   });
 
-  const data = await Promise.all(nodes.map(resolveLatestNode));
+  let data = await Promise.all(nodes.map(resolveLatestNode));
+  data = data.sort((c1, c2) => {
+    const key1 = c1.engagements.verifications + c1.engagements.annotations + c1.engagements.reactions;
+    const key2 = c2.engagements.verifications + c2.engagements.annotations + c2.engagements.reactions;
+    return key2 - key1;
+  });
   return new SuccessResponse(data).send(res);
 };

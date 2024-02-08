@@ -1,19 +1,36 @@
 import { Router } from 'express';
 
-import { addComment } from '../../../controllers/attestations/addComment.js';
-import { addReaction } from '../../../controllers/attestations/addReaction.js';
-import { addVerification } from '../../../controllers/attestations/addVerification.js';
-import { getAttestationComments } from '../../../controllers/attestations/getComments.js';
-import { removeComment } from '../../../controllers/attestations/removeComment.js';
-import { removeReaction } from '../../../controllers/attestations/removeReaction.js';
-import { removeVerification } from '../../../controllers/attestations/removeVerification.js';
-import { showNodeAttestations } from '../../../controllers/attestations/show.js';
+import {
+  asyncHander,
+  addComment,
+  addReaction,
+  addVerification,
+  removeComment,
+  removeReaction,
+  removeVerification,
+  getAttestationComments,
+  getAllRecommendations,
+  getCommunityRecommendations,
+  showNodeAttestations,
+  claimAttestation,
+  claimEntryRequirements,
+  removeClaim,
+} from '../../../internal.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 
 const router = Router();
 
-router.get('/:dpid', [], showNodeAttestations);
+// router.get('/recommendations', [ensureUser], asyncHander(getAllRecommendations));
+router.get('/suggestions/all', [ensureUser], asyncHander(getAllRecommendations));
+router.get('/suggestions/:communityId', [ensureUser], asyncHander(getCommunityRecommendations));
+
+router.get('/:attestationId/version/:attestationVersionId', [], asyncHander(getAttestationComments));
 router.get('/:attestationId/version/:attestationVersionId/comments', [], getAttestationComments);
+router.get('/:dpid', [ensureUser], asyncHander(showNodeAttestations));
+
+router.post('/claim', [ensureUser], asyncHander(claimAttestation));
+router.post('/unclaim', [ensureUser], asyncHander(removeClaim));
+router.post('/claimAll/:communityId', [ensureUser], asyncHander(claimEntryRequirements));
 
 router.post('/comment', [ensureUser], addComment);
 router.post('/reaction', [ensureUser], addReaction);

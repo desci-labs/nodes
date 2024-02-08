@@ -8,7 +8,7 @@ import { NodeUuid, cleanupManifestUrl, logger, prisma, transformManifestWithHist
 import repoService from '../../services/repoService.js';
 
 export const resolveLatestNode = async (radar: NodeRadarWithEngagement) => {
-  let node: Node;
+  let node: Partial<Node>;
 
   const uuid = ensureUuidEndsWithDot(radar.node.nodeuuid);
 
@@ -28,6 +28,9 @@ export const resolveLatestNode = async (radar: NodeRadarWithEngagement) => {
   let gatewayUrl = discovery.manifestUrl;
 
   try {
+    // TODO: remove after test;
+    node = _.pick(discovery, ['id', 'cid', 'manifestUrl', 'ownerId', 'title']);
+
     gatewayUrl = cleanupManifestUrl(gatewayUrl);
     logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
     (discovery as any).manifestData = transformManifestWithHistory((await axios.get(gatewayUrl)).data, discovery);
@@ -39,11 +42,14 @@ export const resolveLatestNode = async (radar: NodeRadarWithEngagement) => {
 
     if (manifest) (discovery as any).manifestData = transformManifestWithHistory(manifest, discovery);
     delete (discovery as any).restBody;
-    node = discovery;
+    // node = discovery;
+    node = _.pick(discovery, ['id', 'cid', 'manifestUrl', 'ownerId']);
+    radar.node['manifest'] = node;
     logger.info({}, 'Retrive DraftManifest For /SHOW');
   } catch (err) {
     logger.error({ err, manifestUrl: discovery.manifestUrl, gatewayUrl }, 'nodes/show.ts: failed to preload manifest');
+    radar.node['manifest'] = node;
   }
 
-  return { ...radar, node };
+  return { ...radar };
 };
