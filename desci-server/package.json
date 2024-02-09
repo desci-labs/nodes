@@ -21,6 +21,7 @@
     "script:testing": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/testing.ts",
     "script:migrate-draft-trees": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/migrate-draft-trees.ts",
     "script:endorse-dpid": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/endorseDpid.ts",
+    "script:community-seeding-dev": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/communitySeeding.ts",
     "build": "rimraf dist && tsc && yarn copy-files",
     "copy-files": "copyfiles -u 1 src/**/*.cjs dist/",
     "generate": "npx prisma generate",

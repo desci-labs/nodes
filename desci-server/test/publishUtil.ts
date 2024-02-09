@@ -4,17 +4,17 @@ import { User } from '@prisma/client';
 import axios, { AxiosRequestConfig } from 'axios';
 import CID from 'cids';
 import { ethers } from 'ethers';
-import { formatBytes32String } from 'ethers/lib/utils';
+import { formatBytes32String } from 'ethers/lib/utils.js';
 import { decode, encode } from 'url-safe-base64';
 
-import { prisma } from '../src/client.ts';
-import { generateAccessToken } from '../src/controllers/auth/index.ts';
+import { prisma } from '../src/client.js';
+import { generateAccessToken } from '../src/controllers/auth/index.js';
 import localChainDpidAbi from '../src/desci-contracts-artifacts/contracts/DpidRegistry.sol/DpidRegistry.json';
 import localChainRoAbi from '../src/desci-contracts-artifacts/contracts/ResearchObject.sol/ResearchObject.json';
 import localChainDpidInfo from '../src/desci-contracts-config/unknown-dpid.json';
 import localChainRoInfo from '../src/desci-contracts-config/unknown-research-object.json';
-import repoService from '../src/services/repoService.ts';
-import { decodeBase64UrlSafeToHex } from '../src/utils.ts';
+import repoService from '../src/services/repoService.js';
+import { decodeBase64UrlSafeToHex } from '../src/utils.js';
 
 export const CHAIN_DEPLOYMENT = {
   address: localChainRoInfo.proxies[localChainRoInfo.proxies.length - 1].address,
