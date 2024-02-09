@@ -3,14 +3,12 @@ import { test, describe, beforeAll, expect } from "vitest";
 import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteFile, addRawComponent, addPdfComponent, type AddPdfComponentParams, AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, RetrieveResponse, UploadFilesResponse, ExternalUrl, uploadRepositoryFromUrl } from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
-import { resolveHistory } from "@desci-labs/desci-codex-lib/dist/src/index.js";
 import { dpidPublish } from "../src/chain.js";
 import { sleep } from "./util.js";
 import { convertHexToCID } from "../src/util/converting.js";
 import {
   ResearchObjectComponentType,
   type ExternalLinkComponent,
-  type PdfComponent,
   ResearchObjectComponentDocumentSubtype,
   ResearchObjectComponentCodeSubtype
 } from "@desci-labs/desci-models";
@@ -59,7 +57,7 @@ describe("nodes-lib", () => {
   });
 
   describe("manifest document actions", async () => {
-    test.only("can add link component", async () => {
+    test("can add link component", async () => {
       const { node: { uuid }} = await createBoilerplateNode();
       const id = randomUUID();
       const component: ExternalLinkComponent = {
