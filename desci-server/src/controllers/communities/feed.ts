@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { SuccessResponse, asyncMap, communityService, resolveLatestNode } from '../../internal.js';
+import { SuccessResponse, communityService, resolveLatestNode } from '../../internal.js';
+import { asyncMap } from '../../utils.js';
 
 export const getCommunityFeed = async (req: Request, res: Response, next: NextFunction) => {
   const curatedNodes = await communityService.getCuratedNodes(parseInt(req.params.communityId as string));

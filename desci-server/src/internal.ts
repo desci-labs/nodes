@@ -12,4 +12,3 @@ export * from './core/ApiResponse.js';
 export * from './utils/manifest.js';
 export * from './services/repoService.js';
 export * from './services/manifestRepo.js';
-export * from './utils.js';

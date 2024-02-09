@@ -5,12 +5,12 @@ import _ from 'lodash';
 import {
   NodeRadarItem,
   SuccessResponse,
-  asyncMap,
   attestationService,
   communityService,
   logger as parentLogger,
   resolveLatestNode,
 } from '../../internal.js';
+import { asyncMap } from '../../utils.js';
 
 export interface NodeRadar {
   node: NodeRadarItem & { manifest: Node };

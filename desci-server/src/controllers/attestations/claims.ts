@@ -7,12 +7,12 @@ import {
   NotFoundError,
   SuccessMessageResponse,
   SuccessResponse,
-  asyncMap,
   attestationService,
   logger,
   prisma,
 } from '../../internal.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
+import { asyncMap } from '../../utils.js';
 
 export const claimAttestation = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const body = req.body as {
