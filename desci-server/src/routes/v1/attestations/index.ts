@@ -20,7 +20,6 @@ import { ensureUser } from '../../../middleware/permissions.js';
 
 const router = Router();
 
-// router.get('/recommendations', [ensureUser], asyncHander(getAllRecommendations));
 router.get('/suggestions/all', [ensureUser], asyncHander(getAllRecommendations));
 router.get('/suggestions/:communityId', [ensureUser], asyncHander(getCommunityRecommendations));
 
