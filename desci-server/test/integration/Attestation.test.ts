@@ -1589,7 +1589,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe.only('Attestation Recommendations', async () => {
+  describe('Attestation Recommendations', async () => {
     let claim: NodeAttestation;
     let claim2: NodeAttestation;
     let localClaim: NodeAttestation;
@@ -1751,8 +1751,8 @@ describe('Attestations Service', async () => {
       // console.log('Recommendations', Recommendations.status, Recommendations.body, Recommendations.body.data);
 
       const allRes = await request(app).get(`/v1/attestations/suggestions/all`).set('authorization', authHeaderVal);
-      console.log({ bod: allRes.body, allResponse });
       allResponse = allRes.body.data;
+      console.log({ allResponse });
 
       res = await request(app)
         .get(`/v1/attestations/suggestions/${desciCommunity.id}`)
