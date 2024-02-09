@@ -106,7 +106,7 @@ class AppServer {
     this.app.use((_req, _res, next) => next(new NotFoundError()));
     this.app.use(errorHandler);
 
-    this.port = parseInt(process.env.PORT) || 5420;
+    this.port = process.env.PORT ? parseInt(process.env.PORT) : 5420;
     this.server = this.app.listen(this.port, () => {
       this.#isReady = true;
       this.#readyResolvers.forEach((resolve) => resolve(true));

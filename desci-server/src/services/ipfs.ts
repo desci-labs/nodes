@@ -470,7 +470,7 @@ export async function mixedLs(
   carryPath?: string,
 ) {
   carryPath = carryPath || convertToCidV1(dagCid);
-  const tree = [];
+  const tree: RecursiveLsResult[] = [];
   const cidObject = multiformats.CID.parse(dagCid);
   let block;
   try {
@@ -485,7 +485,7 @@ export async function mixedLs(
   const unixFs = UnixFS.unmarshal(Data);
   const isDir = dirTypes.includes(unixFs?.type);
   if (!isDir) return null;
-  const promises = [];
+  const promises: Promise<any>[] = [];
   for (const link of Links) {
     const promise = new Promise<void>(async (resolve, reject) => {
       const result: RecursiveLsResult = {
@@ -555,7 +555,7 @@ export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
   return await getOrCache(`tree-chunk-${cid}-${carryPath}-${Date.now()}`, async () => {
     logger.info({ fn: 'pubRecursiveLs', cid, carryPath }, 'Tree chunk not cached, retrieving from IPFS');
     carryPath = carryPath || convertToCidV1(cid);
-    const tree = [];
+    const tree: any[] = [];
     const lsOp = await publicIpfs.ls(cid, { timeout: EXTERNAL_IPFS_TIMEOUT });
     for await (const filedir of lsOp) {
       const res: any = filedir;
@@ -579,7 +579,7 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
   console.log('extCidMap', externalCidMap);
   try {
     carryPath = carryPath || convertToCidV1(dagCid);
-    const tree = [];
+    const tree: RecursiveLsResult[] = [];
     const cidObject = multiformats.CID.parse(dagCid);
     let block = await client.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
     if (!block) block = await publicIpfs.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
@@ -651,14 +651,16 @@ export const getDataset = async (cid) => {
 };
 
 export const getFilesAndPaths = async (tree: RecursiveLsResult) => {
-  const filesAndPaths = [];
-  const promises = tree.contains.map(async (fd) => {
+  const filesAndPaths: { path: string; content: Buffer }[] = [];
+  if (!tree.contains) return filesAndPaths;
+
+  const promises = tree?.contains.map(async (fd) => {
     if (fd.type === 'file') {
       const buffer = Buffer.from(await toBuffer(client.cat(fd.cid)));
       filesAndPaths.push({ path: fd.path, content: buffer });
     }
     if (fd.type === 'dir') {
-      filesAndPaths.push(await getFilesAndPaths(fd));
+      filesAndPaths.push(...(await getFilesAndPaths(fd)));
     }
   });
   await Promise.all(promises);

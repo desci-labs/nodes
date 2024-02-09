@@ -15,15 +15,16 @@ export class PostgresStorageAdapter extends StorageAdapter {
     this.tableName = 'DocumentStore';
   }
 
-  async load(keyArray: StorageKey): Promise<Uint8Array> {
+  async load(keyArray: StorageKey): Promise<Uint8Array | undefined> {
     const key = getKey(keyArray);
     if (this.cache[key]) return this.cache[key];
 
     try {
       const result = await query(`SELECT * FROM "${this.tableName}" WHERE key = $1`, [key]);
-      logger.info({ value: result.length, key }, '[LOAD DOCUMENT]::');
+      logger.info({ value: result?.length, key }, '[LOAD DOCUMENT]::');
 
-      const response = result[0];
+      const response = result?.[0];
+      // MUST RETURN UNDEFINED!
       if (!response) return undefined;
       return new Uint8Array(response.value);
     } catch (error) {
@@ -98,7 +99,7 @@ export class PostgresStorageAdapter extends StorageAdapter {
     const response = await query(`SELECT key FROM "${this.tableName}" WHERE key LIKE $1`, [`${keyPrefix}%`]);
     logger.info({ keyPrefix, response: response?.length }, '[LOADED RANGE Keys]');
 
-    return response.map((row) => row.key);
+    return response ? response.map((row) => row.key) : [];
   }
 }
 

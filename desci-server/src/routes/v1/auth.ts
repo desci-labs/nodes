@@ -11,6 +11,9 @@ import {
   orcidConnectClose,
   validateOrcid,
   magic,
+  issueApiKey,
+  revokeApiKey,
+  listApiKey,
   check,
 } from '../../controllers/auth/index.js';
 import { ensureUser } from '../../middleware/permissions.js';
@@ -28,5 +31,8 @@ router.get('/orcid/connect', orcidConnect);
 router.get('/orcid/connect/close', orcidConnectClose);
 router.get('/orcid/validate', validateOrcid);
 router.post('/magic', magic);
+router.post('/apiKey/issue', [ensureUser], issueApiKey);
+router.delete('/apiKey/revoke', [ensureUser], revokeApiKey);
+router.get('/apiKey', [ensureUser], listApiKey);
 
 export default router;

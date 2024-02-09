@@ -170,20 +170,36 @@ model User {
   currentDriveStorageLimitGb  Int                           @default(100)
   maxDriveStorageLimitGb      Int                           @default(500)
   userOrganizations           UserOrganizations[]
-  UploadJobs                  UploadJobs[]
-  // DraftNodeTree              DraftNodeTree[]
   NodeFeedItemEndorsement     NodeFeedItemEndorsement[]
   DesciCommunity              DesciCommunity?               @relation(fields: [desciCommunityId], references: [id])
   desciCommunityId            Int?
+  ApiKey                      ApiKey[]
+  UploadJobs                  UploadJobs[]
   CommunityMember             CommunityMember[]
   NodeAttestation             NodeAttestation[]
   Annotation                  Annotation[]
-  NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
+  NodeAttestationVerification NodeAttestationVerification[]
 
   @@index([orcid])
   @@index([walletAddress])
   @@index([pseudonym])
+}
+
+model ApiKey {
+  id         Int       @id @default(autoincrement())
+  keyHashed  String    @unique
+  memo       String
+  createdAt  DateTime  @default(now())
+  lastUsed   DateTime? @updatedAt
+  isActive   Boolean   @default(true)
+  createdIp  String
+  lastUsedIp String?
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+
+  // @@unique([memo, userId])
+  @@index([userId])
 }
 
 model Invite {

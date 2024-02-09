@@ -63,10 +63,10 @@ class AppServer {
     this.app.use(function (req, res, next) {
       const origin = req.headers.origin;
       if (
-        allowlist.indexOf(origin) !== -1 ||
+        allowlist.indexOf(origin!) !== -1 ||
         allowlist.filter((a) => a.indexOf('http') != 0 && origin && origin.endsWith(a)).length
       ) {
-        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Origin', origin!);
         res.setHeader(
           'Access-Control-Allow-Headers',
           'X-Requested-With,Content-Type,Authorization,sentry-trace,baggage',
@@ -98,7 +98,7 @@ class AppServer {
       res.status(200).json({ id: serverUuid });
     });
 
-    this.port = parseInt(process.env.PORT) || 5484;
+    this.port = process.env.PORT ? parseInt(process.env.PORT) : 5484;
     logger.info(`Server starting on port ${this.port}`);
     this.server = this.app.listen(this.port, () => {
       this.#isReady = true;
@@ -113,7 +113,7 @@ class AppServer {
       try {
         logger.info({ module: 'WebSocket SERVER' }, 'WebSocket Connection Attempt');
         const token = await extractAuthToken(request as Request);
-        const authUser = await extractUserFromToken(token);
+        const authUser = await extractUserFromToken(token!);
         if (!authUser) {
           socket.close(); // Close connection if user is not authorized
           return;

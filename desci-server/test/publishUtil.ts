@@ -93,7 +93,7 @@ export async function backendPublish({ uuid }: BackendPublishParams) {
     const amResponse = await repoService.dispatchAction({
       uuid,
       documentId: node.manifestDocumentId as DocumentId,
-      actions: [{ type: 'Set Dpid', prefix: dpidValue.prefix, id: dpidValue.id }],
+      actions: [{ type: 'Publish Dpid', dpid: { prefix: dpidValue.prefix, id: dpidValue.id } }],
     });
     if (!amResponse) throw new Error('Failed to set DPID');
 

@@ -104,11 +104,11 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
 
   const expiresAt = new Date('1980-01-01');
   await client.magicLink.updateMany({
-    where: { 
+    where: {
       email: {
         equals: email,
-        mode: 'insensitive'
-      } 
+        mode: 'insensitive',
+      },
     },
     data: {
       expiresAt,
@@ -193,7 +193,10 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
   }
 };
 const MAGIC_LINK_COOLDOWN = 5 * 1000; // 5 second
-const sendMagicLink = async (email: string, ip?: string) => {
+/**
+ * @param ignoreTestEnv For testing purposes, ignore the test environment check, this is to be able to test the rate limiting functionality.
+ */
+const sendMagicLink = async (email: string, ip?: string, ignoreTestEnv?: boolean) => {
   email = email.toLowerCase();
 
   // Check for recent magic link generation
@@ -201,7 +204,7 @@ const sendMagicLink = async (email: string, ip?: string) => {
     where: {
       email: {
         equals: email,
-        mode: 'insensitive'
+        mode: 'insensitive',
       },
       createdAt: {
         gte: new Date(Date.now() - MAGIC_LINK_COOLDOWN),
@@ -209,15 +212,16 @@ const sendMagicLink = async (email: string, ip?: string) => {
     },
   });
 
-  if (recentMagicLink) {
+  const testEnv = process.env.NODE_ENV === 'test' && ignoreTestEnv !== true;
+  if (recentMagicLink && !testEnv) {
     throw Error('A verification code was recently generated. Please wait 30 seconds before requesting another.');
   }
 
   const user = await client.user.findFirst({
     where: {
       email: {
-          equals: email,
-          mode: 'insensitive'
+        equals: email,
+        mode: 'insensitive',
       },
     },
   });

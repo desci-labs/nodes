@@ -15,6 +15,7 @@ import { getDatasetTar } from '../../services/ipfs.js';
 import { getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
 // import { getLatestManifest } from './utils.js';
@@ -57,7 +58,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   let node = await prisma.node.findFirst({
     where: {
       ownerId: ownerId,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
 
@@ -104,7 +105,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
       userId: ownerId,
       cid: manifestCid,
       node: {
-        uuid: uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
       },
     },
   });
@@ -113,7 +114,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
       cid: manifestCid,
       type: DataType.MANIFEST,
       node: {
-        uuid: uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
       },
     },
   });
@@ -186,7 +187,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
       type: DataType.MANIFEST,
       cid: manifestCid,
       node: {
-        uuid: uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
       },
     },
   });
@@ -280,7 +281,7 @@ export const downloadDataset = async (req: Request, res: Response, next: NextFun
       type: { not: DataType.MANIFEST },
       cid: cid,
       node: {
-        uuid: uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
       },
     },
   });

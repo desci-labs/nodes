@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { getNodeDocument } from '../../controllers/nodes/documents.js';
+import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import {
   show,
@@ -47,6 +47,7 @@ router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
 router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
+router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatchDocumentChange);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 

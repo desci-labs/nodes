@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "module": "nodenext",
+    
     /**
      * Implied by "module: nodenext":
      * "moduleResolution": "nodenext",
@@ -29,7 +30,7 @@
     "paths": {
       // Overrides a built-in Response type
       "express": ["./src/types/express"]
-    }
+    },
   },
   "include": [
     "./src/**/*.tsx",
