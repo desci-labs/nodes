@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
-import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteFile, addRawComponent, addPdfComponent, type AddPdfComponentParams, AddCodeComponentParams, addCodeComponent } from "../src/api.js";
+import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteFile, addRawComponent, addPdfComponent, type AddPdfComponentParams, AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, RetrieveResponse, UploadFilesResponse, ExternalUrl, uploadRepositoryFromUrl } from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
 import { resolveHistory } from "@desci-labs/desci-codex-lib/dist/src/index.js";
@@ -58,8 +58,8 @@ describe("nodes-lib", () => {
     });
   });
 
-  describe.only("manifest document actions", async () => {
-    test("can add link component", async () => {
+  describe("manifest document actions", async () => {
+    test.only("can add link component", async () => {
       const { node: { uuid }} = await createBoilerplateNode();
       const id = randomUUID();
       const component: ExternalLinkComponent = {
@@ -372,6 +372,101 @@ describe("nodes-lib", () => {
         );
 
         expect(treeResult.tree[0].contains!.length).toEqual(0);
+      });
+
+      describe("can be uploaded by PDF URL", async () => {
+        let treeResult: RetrieveResponse;
+        let uploadResult: UploadFilesResponse;
+        let externalUrl: ExternalUrl;
+        beforeAll(async () => {
+          const { node: { uuid }} = await createBoilerplateNode();
+          externalUrl = {
+            url: "https://ipfs.desci.com/ipfs/bafybeiamslevhsvjlnfejg7p2rzk6bncioaapwb3oauu7zqwmfpwko5ho4",
+            path: "manuscript.pdf",
+          };
+          uploadResult = await uploadPdfFromUrl(
+            {
+              uuid,
+              externalUrl,
+              targetPath: "root",
+              componentSubtype: ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
+            },
+            AUTH_TOKEN,
+          );
+          treeResult = await retrieveDraftFileTree(
+            uuid,
+            uploadResult.manifestCid,
+            AUTH_TOKEN,
+          );
+        });
+
+        test("adds file to tree", async () => {
+          const files = treeResult.tree[0].contains;
+          expect(files).not.toBeUndefined();
+          expect(files!.length).toEqual(1);
+          expect(files![0].name).toEqual(externalUrl.path);
+        });
+
+        test("automatically gets a component", async () => {
+          const components = uploadResult.manifest.components;
+          // TODO backend bug creates duplicates: https://github.com/desci-labs/nodes/issues/206
+          // expect(components.length).toEqual(2);
+
+          const expectedComponent = expect.objectContaining({
+            // id: some UUID,
+            name: "manuscript.pdf",
+            type: "pdf",
+            subtype: "manuscript",
+            payload: expect.objectContaining({
+              // cid: some cid,
+              path: "root/manuscript.pdf",
+              externalUrl: "https://ipfs.desci.com/ipfs/bafybeiamslevhsvjlnfejg7p2rzk6bncioaapwb3oauu7zqwmfpwko5ho4"
+            }),
+            starred: false
+          });
+
+          expect(components).toEqual(
+            expect.arrayContaining([expectedComponent])
+          );
+        });
+      });
+
+      describe("can be uploaded by repo URL", async () => {
+        let externalUrl: ExternalUrl;
+        let uploadResult: UploadFilesResponse;
+        let treeResult: RetrieveResponse;
+        beforeAll(async () => {
+          const { node: { uuid}} = await createBoilerplateNode();
+          externalUrl = {
+            // This is probably stupid to do in a unit test
+            url: "https://github.com/desci-labs/desci-codex",
+            path: "DeSci Codex",
+          };
+          uploadResult = await uploadRepositoryFromUrl(
+            {
+              uuid,
+              externalUrl,
+              targetPath: "root",
+              componentSubtype: ResearchObjectComponentCodeSubtype.SOFTWARE_PACKAGE,
+            },
+            AUTH_TOKEN
+          );
+          treeResult = await retrieveDraftFileTree(
+            uuid,
+            uploadResult.manifestCid,
+            AUTH_TOKEN
+          );
+        });
+
+        test("adds repo to tree", async () => {
+          expect(treeResult.tree[0]).not.toBeUndefined();
+          const tree = treeResult.tree[0];
+          // Lazy size check, prob ok if it got a lot of stuff
+          expect(tree.size).toBeGreaterThan(10_000);
+          expect(tree.contains).not.toBeUndefined();
+          expect(tree.contains![0].name).toEqual(externalUrl.path);
+          expect(tree.contains![0].contains!.length).toBeGreaterThan(5);
+        });
       });
     });
   });

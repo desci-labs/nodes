@@ -377,9 +377,76 @@ export const uploadFiles = async (
   return data;
 };
 
-export const uploadRepository = async (
-) => {
-  
+/** Upload an externally hosted PDF file */
+export type UploadPdfFromUrlParams = {
+  /** ID of target node */
+  uuid: string,
+  /** Web URL to the target document, and its filename */
+  externalUrl: ExternalUrl,
+  /** Target path in the drive (folders must exist beforehand) */
+  targetPath: string,
+  /** What type of document the target file is */
+  componentSubtype: ResearchObjectComponentDocumentSubtype,
+};
+
+/**
+ * Reference to externally hosted data to upload. Capable of handling
+ * pdf or github repos at the moment.
+*/
+export type ExternalUrl = {
+  /** Web URL to the target resource */
+  url: string,
+  /** Name of the file or code repo */
+  path: string,
+};
+
+/**
+ * Upload a PDF hosted elsewhere. Backend automatically creates a matching
+ * component which allows setting metadata.
+*/
+export const uploadPdfFromUrl = async (
+  params: UploadPdfFromUrlParams,
+  authToken: string,
+): Promise<UploadFilesResponse> => {
+  const { uuid, targetPath, externalUrl, componentSubtype } = params;
+  const form = new FormData();
+  form.append("uuid", uuid);
+  form.append("contextPath", targetPath);
+  form.append("externalUrl", JSON.stringify(externalUrl));
+  form.append("componentType", ResearchObjectComponentType.PDF);
+  form.append("componentSubtype", componentSubtype);
+  const { data } = await axios.post<UploadFilesResponse>(
+    ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
+  );
+  return data
+}
+
+export type UploadGithubRepoFromUrlParams = {
+  /** ID of target node */
+  uuid: string,
+  /** Web URL to the target repo, and its name */
+  externalUrl: ExternalUrl,
+  /** Target path in the drive (folders must exist beforehand) */
+  targetPath: string,
+  /** What type of code the repo contains */
+  componentSubtype: ResearchObjectComponentCodeSubtype,
+};
+
+export const uploadRepositoryFromUrl = async (
+  params: UploadGithubRepoFromUrlParams,
+  authToken: string,
+): Promise<UploadFilesResponse> => {
+  const { uuid, externalUrl, targetPath, componentSubtype } = params;
+  const form = new FormData();
+  form.append("uuid", uuid);
+  form.append("contextPath", targetPath);
+  form.append("externalUrl", JSON.stringify(externalUrl));
+  form.append("componentType", ResearchObjectComponentType.CODE);
+  form.append("componentSubtype", componentSubtype);
+  const { data } = await axios.post<UploadFilesResponse>(
+    ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
+  );
+  return data;
 };
 
 /** Historical log entry for a dPID */
