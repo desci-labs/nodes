@@ -165,7 +165,7 @@ export class AttestationService {
     return prisma.attestationVersion.findMany({ where: { attestationId } });
   }
 
-  async getAttestationVersion(id: number, attestationId: number) {
+  private async getAttestationVersion(id: number, attestationId: number) {
     return prisma.attestationVersion.findFirst({
       where: { attestationId, id },
       include: { attestation: { select: { communityId: true } } },
@@ -217,6 +217,7 @@ export class AttestationService {
       include: {
         community: { select: { name: true, description: true, keywords: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
+        // NodeAttestationReaction: { s},
         _count: {
           select: { Annotation: true, NodeAttestationReaction: true, NodeAttestationVerification: true },
         },
@@ -224,11 +225,11 @@ export class AttestationService {
     });
   }
 
-  async getAllCommunityAttestations(communityId: number) {
-    const community = await communityService.findCommunityById(communityId);
-    if (!community) throw new CommunityNotFoundError();
-    return prisma.attestation.findMany({ where: { communityId: communityId } });
-  }
+  // async getAllCommunityAttestations(communityId: number) {
+  //   const community = await communityService.findCommunityById(communityId);
+  //   if (!community) throw new CommunityNotFoundError();
+  //   return prisma.attestation.findMany({ where: { communityId: communityId } });
+  // }
 
   async getCommunityEntryAttestations(communityId: number) {
     const community = await communityService.findCommunityById(communityId);
@@ -337,9 +338,9 @@ export class AttestationService {
   async getNodeCommunityClaims(nodeDpid10: string, desciCommunityId: number) {
     return prisma.nodeAttestation.findMany({ where: { desciCommunityId, nodeDpid10 } });
   }
-  async getClaimsOnAttestation(nodeDpid10: string, attestationId: number) {
-    return prisma.nodeAttestation.findMany({ where: { attestationId, nodeDpid10 } });
-  }
+  // async getClaimsOnAttestation(nodeDpid10: string, attestationId: number) {
+  //   return prisma.nodeAttestation.findMany({ where: { attestationId, nodeDpid10 } });
+  // }
   async getClaimOnAttestationVersion(nodeDpid10: string, attestationId: number, attestationVersionId: number) {
     return prisma.nodeAttestation.findFirst({ where: { attestationId, nodeDpid10, attestationVersionId } });
   }
@@ -436,11 +437,11 @@ export class AttestationService {
     return this.createAnnotation(data);
   }
 
-  private async removeAnnotation(filter: Prisma.AnnotationWhereUniqueInput) {
-    return prisma.annotation.delete({
-      where: filter,
-    });
-  }
+  // private async removeAnnotation(filter: Prisma.AnnotationWhereUniqueInput) {
+  //   return prisma.annotation.delete({
+  //     where: filter,
+  //   });
+  // }
 
   async removeComment(commentId: number) {
     return prisma.annotation.delete({

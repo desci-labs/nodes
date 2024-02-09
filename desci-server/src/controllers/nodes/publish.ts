@@ -93,15 +93,15 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
       },
     });
 
-    if (process.env.TOGGLE_CERAMIC === "1") {
+    if (process.env.TOGGLE_CERAMIC === '1') {
       if (ceramicStream) {
         logger.trace(`[ceramic] setting streamID on node`);
         await setCeramicStream(uuid, ceramicStream);
       } else {
         // Likely feature toggle is active in backend, but not in frontend
-        logger.warn(`[ceramic] wanted to set streamID for ${node.uuid} but request did not contain one`)
+        logger.warn(`[ceramic] wanted to set streamID for ${node.uuid} but request did not contain one`);
       }
-    };
+    }
 
     logger.trace(`[publish::publish] nodeUuid=${node.uuid}, manifestCid=${cid}, transaction=${transactionId}`);
 
@@ -197,9 +197,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
     );
 
     // trigger ipfs storage upload, but don't wait for it to finish, will happen async
-    publishResearchObject(publicDataReferences)
-      .then(handleMirrorSuccess)
-      .catch(handleMirrorFail);
+    publishResearchObject(publicDataReferences).then(handleMirrorSuccess).catch(handleMirrorFail);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
