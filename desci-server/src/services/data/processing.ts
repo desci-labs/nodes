@@ -41,7 +41,6 @@ import {
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
   inheritComponentType,
-  urlOrCid,
 } from '../../utils/driveUtils.js';
 import { EXTENSION_MAP } from '../../utils/extensions.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
@@ -694,7 +693,7 @@ export async function assignTypeMapInManifest(
         name: compName,
         type: compTypeMap,
         payload: {
-          ...urlOrCid(contextPathNewCid, ResearchObjectComponentType.DATA),
+          cid: contextPathNewCid,
           path: contextPath,
         },
       };

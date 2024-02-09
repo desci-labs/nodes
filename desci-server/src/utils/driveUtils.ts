@@ -351,24 +351,6 @@ export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataT
   return ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
 }
 
-/* 
-Inconsistent use of URL and CID within the manifest payloads, PDFs and Code Repos use .url,
- others generally use .cid, this helper function fetches the appropriate property
-  */
-export function urlOrCid(cid: string, type: ResearchObjectComponentType) {
-  switch (type) {
-    case ResearchObjectComponentType.PDF:
-    case ResearchObjectComponentType.CODE:
-    case ResearchObjectComponentType.LINK:
-      return { url: cid };
-    case ResearchObjectComponentType.DATA:
-    case ResearchObjectComponentType.DATA_BUCKET:
-      return { cid };
-    default:
-      return { cid };
-  }
-}
-
 export const DRIVE_NODE_ROOT_PATH = 'root';
 
 export interface FirstNestingComponent {
@@ -399,7 +381,7 @@ export function DANGEROUSLY_addComponentsToManifest(
       ...(c.componentType && { type: c.componentType }),
       ...(c.componentSubtype && { subtype: c.componentSubtype }),
       payload: {
-        ...urlOrCid(c.cid, c.componentType),
+        cid: c.cid,
         path: c.path,
         ...(c.externalUrl && { externalUrl: c.externalUrl }),
       },
@@ -419,7 +401,7 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
       ...(entry.componentType && { type: entry.componentType }),
       ...(entry.componentSubtype && { subtype: entry.componentSubtype }),
       payload: {
-        ...urlOrCid(entry.cid, entry.componentType),
+        cid: entry.cid,
         path: entry.path,
         ...(entry.externalUrl && { externalUrl: entry.externalUrl }),
       },
