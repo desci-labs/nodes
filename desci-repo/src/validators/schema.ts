@@ -61,7 +61,7 @@ const componentSchema: z.ZodType<ResearchObjectV1Component> = z
 
 export const actionsSchema = z.array(
   z.discriminatedUnion('type', [
-    z.object({ type: z.literal('Publish dPID'), dpid: dpid }),
+    z.object({ type: z.literal('Publish Dpid'), dpid: dpid }),
     z.object({ type: z.literal('Update Title'), title: z.string() }),
     z.object({ type: z.literal('Update Description'), description: z.string() }),
     z.object({ type: z.literal('Update License'), defaultLicense: z.string() }),
