@@ -74,7 +74,49 @@ A node that's being modified is always in a "draft" state, meaning that the chan
 Manifests cannot be submitted "whole", as the state of draft manifests are maintained internally as [automerge CRDT documents](https://automerge.org/). Hence, one needs to send change chunks so that the lib submitted changes can be interspersed with simultaneous webapp edits. This means that your calls will more or less instantly be reflected in the webapp.
 
 ### Authentication
-Most functions require authentication, as they work on your private draft node. You can create an API key under your profile at [nodes.desci.com](https://nodes.desci.com).
+Most functions ineracting with the Nodes backend require authentication, as they work on your private draft node. You can create an API key under your profile at [nodes.desci.com](https://nodes.desci.com). Set this as `AUTH_TOKEN` in your environment.
+
+Publishing to the dPID registry and/or Codex requires a private key. Publishing is done in-library and is not sent to the Nodes backend. Set the environment variable `PKEY` and it will be used in interaction with the dPID registry on-chain, and as your DID in the Codex/Ceramic case.
+
+### Summarized API
+This section outlines the major functionality the library provides. It's not a complete rundown of all capabilities, but should be enough to get some inutition for the workflow.
+
+#### Node operations
+- `createDraftNode`: initializes a new, empty, private node.
+- `prepublishDraftNode`: instructs the backend to re-compute the DAG, which is emulated to speed up operations in the drive. This is called automatically in `publishNode`, so in general it doesn't need to be invoked explicitly.
+- `listNodes`: list existing nodes for the authenticated user.
+- `retrieveDraftFileTree`: get the drive file tree.
+- `deleteDraftNode`: remove a draft node.
+
+#### Manifest operations
+Pretty self explanatory:
+- `updateTitle`
+- `updateDescription`
+- `updateLicense`
+- `updateResearchFields`
+
+#### File operations
+- `uploadFiles`: upload one or more local files to the node drive.
+- `createNewFolder`: creates an empty folder in the drive, which can be used as a target for uploading/moving files.
+- `moveData`: move a file or directory to a new path in the drive. Note that this covers rename operations.
+- `deleteData`: delete a path (and its potential subtree) from the drive.
+
+#### External import
+These imports automatically create components for attaching metadata, in addition to creating the files in the drive.
+- `uploadPdfFromUrl`: let the backend get a PDF from URL and add it to the drive.
+- `uploadGithubRepoFromUrl`: let the backend download a snapshot of the repo and add it to the drive.
+
+#### Publishing
+Until a publish operation has been run, the entire content of a node is private.
+- `publishNode`: publishes said node to the dPID registry on the Görli testnet, and Codex on Ceramic.
+- `getDpidHistory`: fetch the dPID registry history, as the backend is aware of it.
+- `getManifestDocument`: get the state of the node manifest.
+- `addLinkComponent`: create a link to an external resource.
+- `addPdfComponent`: create a component for adding metadata to a PDF document in the drive.
+- `addCodeComponent`: create a component for adding metadata to code in the drive.
+- `deleteComponent`: remove a component from the manifest.
+- `addRawComponent`: create a new component in the node.
+- `changeManifest`: make an arbitrary change to the manifest.
 
 ## Application ideas
 Some random ideas of cool stuff you can build with this library:

@@ -14,6 +14,10 @@ import {
   ResearchObjectComponentLinkSubtype,
   ResearchObjectComponentCodeSubtype,
   type ManifestActions,
+  type ResearchObjectV1Component,
+  type License,
+  type ResearchObjectV1Author,
+  type ResearchField,
 } from "@desci-labs/desci-models";
 import FormData from "form-data";
 import { createReadStream } from "fs";
@@ -90,17 +94,31 @@ export const createDraftNode = async (
   return data;
 };
 
+export type ListedNode = {
+  uuid: string,
+  id: string,
+  createdAt: string,
+  updatedAt: string,
+  ownerId: number,
+  title: string,
+  manifestUrl: string,
+  isPublished: boolean,
+  cid: string,
+  NodeCover: any[],
+  index?: IndexedNode[],
+};
+
 /**
  * List nodes for the authenticated user.
 */
 export const listNodes = async (
   authToken: string,
-) => {
-  const { data } = await axios.get(
-    ROUTES.listNodes, { headers: getHeaders(authToken) }
+): Promise<ListedNode[]> => {
+  const { data } = await axios.get<{nodes: ListedNode[]}>(
+    ROUTES.listNodes + "/", { headers: getHeaders(authToken) }
   );
 
-  return data;
+  return data.nodes;
 };
 
 export const deleteDraftNode = async (
@@ -531,7 +549,8 @@ const getManifestDocument = async (
 };
 
 /**
- * Send a manifest change to the backend.
+ * Send a generic manifest change to the backend. Normally, one of the
+ * special-purpose functions is easier to use.
  * @param uuid - ID of the node
  * @param actions - series of change actions to perform
  * @param authToken - your API key or session token
@@ -584,6 +603,30 @@ export const addRawComponent = async (
   const action: ManifestActions = {
     type: "Add Component",
     component: params,
+  };
+  return await changeManifest(uuid, [action], authToken);
+};
+
+/**
+ * Update the content of a component.
+*/
+export type UpdateComponentParams = {
+  /** The new component data */
+  component: ResearchObjectV1Component,
+  /** Which component index to update */
+  componentIndex: number,
+};
+
+export const updateComponent = async (
+  uuid: string,
+  params: UpdateComponentParams,
+  authToken: string,
+): Promise<ManifestDocumentResponse> => {
+  const { component, componentIndex } = params;
+  const action: ManifestActions = {
+    type: "Update Component",
+    component,
+    componentIndex,
   };
   return await changeManifest(uuid, [action], authToken);
 };
@@ -704,6 +747,47 @@ export const deleteComponent = async (
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Delete Component", path }], authToken);
 
+export const updateTitle = async (
+  uuid: string,
+  title: string,
+  authToken: string,
+): Promise<ManifestDocumentResponse> =>
+  await changeManifest(uuid, [{ type: "Update Title", title }], authToken);
+
+export const updateDescription = async (
+  uuid: string,
+  description: string,
+  authToken: string,
+): Promise<ManifestDocumentResponse> =>
+  await changeManifest(uuid, [{ type: "Update Description", description }], authToken);
+
+export const updateLicense = async (
+  uuid: string,
+  license: License,
+  authToken: string,
+): Promise<ManifestDocumentResponse> =>
+  await changeManifest(uuid, [{ type: "Update License", defaultLicense: license }], authToken);
+
+export const updateResearchFields = async (
+  uuid: string,
+  researchFields: ResearchField[],
+  authToken: string,
+): Promise<ManifestDocumentResponse> =>
+  await changeManifest(uuid, [{ type: "Update ResearchFields", researchFields }], authToken);
+
+export const addContributor = async (
+  uuid: string,
+  author: ResearchObjectV1Author,
+  authToken: string,
+): Promise<ManifestDocumentResponse> =>
+  await changeManifest(uuid, [{ type: "Add Contributor", author }], authToken);
+
+export const removeContributor = async (
+  uuid: string,
+  contributorIndex: number,
+  authToken: string,
+): Promise<ManifestDocumentResponse> =>
+  await changeManifest(uuid, [{ type: "Remove Contributor", contributorIndex }], authToken);
 
 const throwWithReason = (
   route: Route,

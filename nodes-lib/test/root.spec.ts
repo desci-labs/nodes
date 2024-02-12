@@ -1,18 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
-import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteData, addRawComponent, addPdfComponent, type AddPdfComponentParams, type AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, type RetrieveResponse, type UploadFilesResponse, type ExternalUrl, uploadGithubRepoFromUrl, type PublishResponse, listNodes } from "../src/api.js";
+import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteData, addRawComponent, addPdfComponent, type AddPdfComponentParams, type AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, type RetrieveResponse, type UploadFilesResponse, type ExternalUrl, uploadGithubRepoFromUrl, type PublishResponse, listNodes, addLinkComponent, type AddLinkComponentParams, deleteComponent, updateComponent, changeManifest, updateTitle, updateDescription, updateLicense, updateResearchFields } from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
 import { dpidPublish } from "../src/chain.js";
 import { sleep } from "./util.js";
 import { convertHexToCID } from "../src/util/converting.js";
 import {
-  ResearchObjectComponentType,
-  type ExternalLinkComponent,
   ResearchObjectComponentDocumentSubtype,
-  ResearchObjectComponentCodeSubtype
+  ResearchObjectComponentCodeSubtype,
+  ResearchObjectComponentLinkSubtype,
+  type ResearchObjectV1,
+  type License,
+  type ResearchField
 } from "@desci-labs/desci-models";
-import { randomUUID } from "crypto";
 
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
@@ -48,12 +49,13 @@ describe("nodes-lib", () => {
       expect(actual.title).toEqual(expected.title);
     });
 
-    test.only("can be listed", async () => {
+    test("can be listed", async () => {
       await createBoilerplateNode();
       await createBoilerplateNode();
 
       const listedNodes = await listNodes(AUTH_TOKEN);
-      console.log(JSON.stringify(listedNodes, undefined, 2))
+      // Lazy check that listing returns at least these two nodes
+      expect(listedNodes.length).toBeGreaterThan(2);
     });
 
     test("can be deleted", async () => {
@@ -65,20 +67,48 @@ describe("nodes-lib", () => {
   });
 
   describe("manifest document actions", async () => {
+    describe("can update top-level property", async () => {
+      let uuid: string;
+
+      beforeAll(async () => {
+        const { node } = await createBoilerplateNode();
+        uuid = node.uuid;
+      });
+
+      test("title", async () => {
+        const newTitle = "UNTITLED";
+        const { document: { manifest }} = await updateTitle(uuid, newTitle, AUTH_TOKEN);
+        expect(manifest.title).toEqual(newTitle);
+      });
+
+      test("description", async () => {
+        const newDesc = "Oh my what an interesting topic";
+        const { document: { manifest }} = await updateDescription(uuid, newDesc, AUTH_TOKEN);
+        expect(manifest.description).toEqual(newDesc);
+      });
+
+      test("license", async () => {
+        const newLicense: License = "Mozilla Public License 2.0";
+        const { document: { manifest }} = await updateLicense(uuid, newLicense, AUTH_TOKEN);
+        expect(manifest.defaultLicense).toEqual(newLicense);
+      });
+
+      test("research fields", async () => {
+        const newResearchFields: ResearchField[] = [ "Bathymetry", "Fisheries Science" ];
+        const { document: { manifest }} = await updateResearchFields(uuid, newResearchFields, AUTH_TOKEN);
+        expect(manifest.researchFields).toEqual(newResearchFields);
+      });
+    });
+
     test("can add link component", async () => {
       const { node: { uuid }} = await createBoilerplateNode();
-      const id = randomUUID();
-      const component: ExternalLinkComponent = {
-        id,
+      const component: AddLinkComponentParams= {
         name: "my component",
-        type: ResearchObjectComponentType.LINK,
-        payload: {
-          url: "http://google.com",
-          path: "root",
-        },
+        url: "http://google.com",
+        subtype: ResearchObjectComponentLinkSubtype.OTHER,
         starred: false,
       };
-      await addRawComponent(uuid, component, AUTH_TOKEN);
+      await addLinkComponent(uuid, component, AUTH_TOKEN);
       const state = await getDraftNode(uuid, AUTH_TOKEN);
       const actualComponents = state.manifestData.components;
 
@@ -146,10 +176,54 @@ describe("nodes-lib", () => {
     });
 
     test("can delete component", async () => {
+      const { node: { uuid }} = await createBoilerplateNode();
+      await addLinkComponent(
+        uuid,
+        {
+          name: "Link",
+          url: "https://google.com",
+          subtype: ResearchObjectComponentLinkSubtype.OTHER,
+          starred: false,
+        },
+        AUTH_TOKEN
+      );
 
+      await deleteComponent(uuid, `root/External Links/Link`, AUTH_TOKEN);
+      const node = await getDraftNode(uuid, AUTH_TOKEN);
+      expect(node.manifestData.components.length).toEqual(1); // Just data-bucket
+    });
+
+    test.only("can update component", async () => {
+      const { node: { uuid }} = await createBoilerplateNode();
+      const { document: { manifest }} = await addLinkComponent(
+        uuid,
+        {
+          name: "Link",
+          url: "https://google.com",
+          subtype: ResearchObjectComponentLinkSubtype.OTHER,
+          starred: false,
+        },
+        AUTH_TOKEN
+      );
+
+      // Change
+      const expectedComponent = manifest.components[1];
+      expectedComponent.payload.url = "https://desci.com";
+
+      await updateComponent(
+        uuid,
+        {
+          componentIndex: 1,
+          component: expectedComponent,
+        },
+        AUTH_TOKEN
+      );
+
+      const updatedNode = await getDraftNode(uuid, AUTH_TOKEN);
+      const updatedComponent = updatedNode.manifestData.components[1];
+      expect(updatedComponent.payload.url).toEqual(expectedComponent.payload.url)
     });
   });
-
 
   describe("publishing ", async () => {
     let uuid: string;
@@ -235,6 +309,16 @@ describe("nodes-lib", () => {
       expect(dpidHistory.length).toEqual(2);
       expect (codexHistory.length).toEqual(2);
     });
+
+    /** This is not an user feature, but part of error handling during publish */
+    test("can remove dPID from manifest", async () => {
+      await changeManifest(
+        uuid, [{ type: "Remove Dpid" }], AUTH_TOKEN
+      );
+      const node = await getDraftNode(uuid, AUTH_TOKEN);
+      expect(node.manifestData.dpid).toBeUndefined();
+    });
+
   });
 
   describe("data management", async () => {
