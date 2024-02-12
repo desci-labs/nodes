@@ -42,19 +42,19 @@ describe('ManifestActions Schema', () => {
 
   describe('Publish Dpid', () => {
     it('should validate dPID action', () => {
-      const validated = actionsSchema.safeParse([{ type: 'Publish dPID', dpid: { prefix: 'beta', id: '1' } }]);
+      const validated = actionsSchema.safeParse([{ type: 'Publish Dpid', dpid: { prefix: 'beta', id: '1' } }]);
       console.log(validated);
       expect(validated.success).to.be.true;
     });
 
     it('should reject invalid dPID action data', () => {
-      const validated = actionsSchema.safeParse([{ type: 'Publish dPID', dpid: { prefix: 'beta', ids: '1' } }]);
+      const validated = actionsSchema.safeParse([{ type: 'Publish Dpid', dpid: { prefix: 'beta', ids: '1' } }]);
       console.log(validated);
       expect(validated.success).to.be.false;
     });
 
     it('should reject invalid dPID action', () => {
-      const validated = actionsSchema.safeParse([{ type: 'Publish dPID', invalidKey: '' }]);
+      const validated = actionsSchema.safeParse([{ type: 'Publish Dpid', invalidKey: '' }]);
       console.log(validated);
       expect(validated.success).to.be.false;
     });
