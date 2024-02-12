@@ -27,7 +27,7 @@ import { randomUUID } from "crypto";
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
 
 const ROUTES = {
-  deleteFile: `${NODES_API_URL}/v1/data/delete`,
+  deleteData: `${NODES_API_URL}/v1/data/delete`,
   updateData: `${NODES_API_URL}/v1/data/update`,
   /** Append /uuid/manifestCid for tree to fetch */
   retrieveTree: `${NODES_API_URL}/v1/data/retrieveTree`,
@@ -37,6 +37,7 @@ const ROUTES = {
   deleteDraft: `${NODES_API_URL}/v1/nodes`,
   /** Append /uuid for node to show */
   showNode: `${NODES_API_URL}/v1/nodes/objects`,
+  listNodes: `${NODES_API_URL}/v1/nodes`,
   prepublish: `${NODES_API_URL}/v1/nodes/prepublish`,
   publish: `${NODES_API_URL}/v1/nodes/publish`,
   /** Append `/uuid` for fetching document, `/uuid/actions` to mutate */
@@ -85,6 +86,19 @@ export const createDraftNode = async (
   if (status !== 200) {
     throwWithReason(ROUTES.createDraft, status, statusText);
   };
+
+  return data;
+};
+
+/**
+ * List nodes for the authenticated user.
+*/
+export const listNodes = async (
+  authToken: string,
+) => {
+  const { data } = await axios.get(
+    ROUTES.listNodes, { headers: getHeaders(authToken) }
+  );
 
   return data;
 };
@@ -229,26 +243,26 @@ export const publishDraftNode = async (
   };
 };
 
-export type DeleteFileParams = {
+export type DeleteDataParams = {
   uuid: string,
   path: string,
 };
 
-export type DeleteFileResponse = {
+export type DeleteDataResponse = {
   manifest: ResearchObjectV1;
   manifestCid: string;
 };
 
-export const deleteFile = async (
-  params: DeleteFileParams,
+export const deleteData = async (
+  params: DeleteDataParams,
   authToken: string
 ) => {
-  const { status, statusText, data } = await axios.post<DeleteFileResponse>(
-    ROUTES.deleteFile, params, { headers: getHeaders(authToken) }
+  const { status, statusText, data } = await axios.post<DeleteDataResponse>(
+    ROUTES.deleteData, params, { headers: getHeaders(authToken) }
   );
 
   if (status !== 200) {
-    throwWithReason(ROUTES.deleteFile, status, statusText);
+    throwWithReason(ROUTES.deleteData, status, statusText);
   };
 
   return data;
@@ -437,7 +451,7 @@ export type UploadGithubRepoFromUrlParams = {
   componentSubtype: ResearchObjectComponentCodeSubtype,
 };
 
-export const uploadRepositoryFromUrl = async (
+export const uploadGithubRepoFromUrl = async (
   params: UploadGithubRepoFromUrlParams,
   authToken: string,
 ): Promise<UploadFilesResponse> => {

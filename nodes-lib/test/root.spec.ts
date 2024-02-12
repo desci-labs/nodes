@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
-import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteFile, addRawComponent, addPdfComponent, type AddPdfComponentParams, type AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, type RetrieveResponse, type UploadFilesResponse, type ExternalUrl, uploadRepositoryFromUrl, type PublishResponse } from "../src/api.js";
+import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteData, addRawComponent, addPdfComponent, type AddPdfComponentParams, type AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, type RetrieveResponse, type UploadFilesResponse, type ExternalUrl, uploadGithubRepoFromUrl, type PublishResponse, listNodes } from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
 import { dpidPublish } from "../src/chain.js";
@@ -46,6 +46,14 @@ describe("nodes-lib", () => {
 
       const actual = await getDraftNode(response.node.uuid, AUTH_TOKEN);
       expect(actual.title).toEqual(expected.title);
+    });
+
+    test.only("can be listed", async () => {
+      await createBoilerplateNode();
+      await createBoilerplateNode();
+
+      const listedNodes = await listNodes(AUTH_TOKEN);
+      console.log(JSON.stringify(listedNodes, undefined, 2))
     });
 
     test("can be deleted", async () => {
@@ -355,7 +363,7 @@ describe("nodes-lib", () => {
 
         expect(uploadResult.tree[0].contains![0].name).toEqual("package.json");
 
-        const { manifestCid } = await deleteFile({
+        const { manifestCid } = await deleteData({
           uuid,
           path: "root/package.json"
         }, AUTH_TOKEN);
@@ -437,7 +445,7 @@ describe("nodes-lib", () => {
             url: "https://github.com/desci-labs/desci-codex",
             path: "DeSci Codex",
           };
-          uploadResult = await uploadRepositoryFromUrl(
+          uploadResult = await uploadGithubRepoFromUrl(
             {
               uuid,
               externalUrl,
