@@ -1,4 +1,7 @@
-import axios, { AxiosError, AxiosResponse } from "axios";
+import axios, {
+  AxiosError,
+  type AxiosResponse
+} from "axios";
 import {
     ResearchObjectComponentType,
   type CodeComponent,
@@ -10,13 +13,14 @@ import {
   ResearchObjectComponentDocumentSubtype,
   ResearchObjectComponentLinkSubtype,
   ResearchObjectComponentCodeSubtype,
+  type ManifestActions,
 } from "@desci-labs/desci-models";
 import FormData from "form-data";
 import { createReadStream } from "fs";
 import { basename } from "path";
 import type { NodeIDs } from "@desci-labs/desci-codex-lib/dist/src/types.js";
 import { publish } from "./publish.js";
-import type { ManifestActions, ResearchObjectDocument } from "./automerge.js";
+import type { ResearchObjectDocument } from "./automerge.js";
 import { randomUUID } from "crypto";
 
 // Set these dynamically in some reasonable fashion
@@ -335,6 +339,8 @@ export const createNewFolder = async (
 
 /** Params needed to upload a set of files */
 export type UploadParams = {
+  /** ID of target node */
+  uuid: string,
   /**
    * Absolute path to target location in drive.
    * Note that folders must already exist.
@@ -352,11 +358,10 @@ export type UploadFilesResponse = {
 };
 
 export const uploadFiles = async (
-  uuid: string,
   params: UploadParams,
   authToken: string,
 ): Promise<UploadFilesResponse> => {
-  const { targetPath, localFilePaths} = params;
+  const { targetPath, localFilePaths, uuid } = params;
   const form = new FormData();
   form.append("uuid", uuid);
   form.append("contextPath", targetPath);

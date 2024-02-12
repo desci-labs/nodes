@@ -1,8 +1,8 @@
-import { Wallet, getDefaultProvider, type ContractReceipt, BigNumber } from "ethers";
-import { DpidRegistry__factory, ResearchObject__factory } from "@desci-labs/desci-contracts/typechain-types";
+import { Wallet, getDefaultProvider, type ContractReceipt, BigNumber, type ContractTransaction } from "ethers";
+import { DpidRegistry__factory, ResearchObject__factory } from "@desci-labs/desci-contracts/typechain-types/index.js";
 import { SigningKey, formatBytes32String } from "ethers/lib/utils.js";
 import { convertUUIDToHex, getBytesFromCIDString} from "./util/converting.js";
-import { prePublishDraftNode, type PrepublishResponse } from "./api.js"
+import { changeManifest, prePublishDraftNode, type PrepublishResponse } from "./api.js"
 
 const LOG_CTX = "[nodes-lib::chain]"
 const LC_RO_CONTRACT_ADDRESS = "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707";
@@ -83,6 +83,7 @@ const updateExistingDpid = async (
 /**
  * Optimistically create a manifest with the next available dPID,
  * and try to register it as such.
+ * @throws on dpid registration failure.
  */
 const registerNewDpid = async (
   uuid: string,
@@ -91,31 +92,40 @@ const registerNewDpid = async (
   const optimisticDpid = await getPreliminaryDpid();
   const regFee = await dpidRegistry.getFee();
 
-  // TODO merge with update operation below, not to have to re-fetch doc
-  // const optimisticDpidManifest: ResearchObjectV1 = {
-  //   ...manifest,
-  //   dpid: {
-  //     prefix: DEFAULT_DPID_PREFIX,
-  //     id: nextFreeDpid.toString(),
-  //   },
-  // };
-  // Update manifest in DB and add to IPFS
-  // const response = await updateDraft(uuid, optimisticDpidManifest)
-  // check response OK
-
-  const prepubResult = await prePublishDraftNode(uuid, authToken);
-  const cidBytes = getBytesFromCIDString(prepubResult.updatedManifestCid);
-  const hexUuid = convertUUIDToHex(uuid);
-
-  // Throws if the expected dPID isn't available
-  const tx = await researchObject.mintWithDpid(
-      hexUuid,
-      cidBytes,
-      DEFAULT_DPID_PREFIX,
-      optimisticDpid,
-      { value: regFee, gasLimit: 350000 }
+  await changeManifest(
+    uuid,
+    [{ 
+      type: "Publish Dpid",
+      dpid: { prefix: DEFAULT_DPID_PREFIX_STRING, id: optimisticDpid.toString() }
+    }],
+    authToken
   );
-  return { reciept: await tx.wait(), prepubResult };
+
+  let prepubResult: PrepublishResponse;
+  let reciept: ContractReceipt;
+  try {
+    prepubResult = await prePublishDraftNode(uuid, authToken);
+    const cidBytes = getBytesFromCIDString(prepubResult.updatedManifestCid);
+    const hexUuid = convertUUIDToHex(uuid);
+
+    // Throws if the expected dPID isn't available
+    const tx = await researchObject.mintWithDpid(
+        hexUuid,
+        cidBytes,
+        DEFAULT_DPID_PREFIX,
+        optimisticDpid,
+        { value: regFee, gasLimit: 350000 }
+    );
+    reciept = await tx.wait();
+  } catch (e) {
+    console.log(`${LOG_CTX} dPID registration failed, revert optimistic dPID in manifest of ${uuid}`)
+    await changeManifest(
+      uuid, [{ type: "Remove Dpid" }], authToken
+    );
+    throw e;
+  };
+
+  return { reciept, prepubResult };
 };
 
 /**

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
-import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteFile, addRawComponent, addPdfComponent, type AddPdfComponentParams, AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, RetrieveResponse, UploadFilesResponse, ExternalUrl, uploadRepositoryFromUrl } from "../src/api.js";
+import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteFile, addRawComponent, addPdfComponent, type AddPdfComponentParams, type AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, type RetrieveResponse, type UploadFilesResponse, type ExternalUrl, uploadRepositoryFromUrl, type PublishResponse } from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
 import { dpidPublish } from "../src/chain.js";
@@ -83,8 +83,8 @@ describe("nodes-lib", () => {
       const { node: { uuid }} = await createBoilerplateNode();
       const localFilePaths = [ "test/test.pdf" ];
       const uploadResult = await uploadFiles(
-        uuid,
         {
+          uuid,
           targetPath: "root",
           localFilePaths
         },
@@ -111,8 +111,8 @@ describe("nodes-lib", () => {
       const { node: { uuid }} = await createBoilerplateNode();
       const localFilePaths = [ "test/root.spec.ts" ];
       const uploadResult = await uploadFiles(
-        uuid,
         {
+          uuid,
           targetPath: "root",
           localFilePaths
         },
@@ -143,25 +143,35 @@ describe("nodes-lib", () => {
   });
 
 
-  describe("publish", async () => {
-    describe("new node", async () => {
-      test("to dPID registry", async () => {
-        const { node: { uuid }} = await createBoilerplateNode();
-        const publishResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
-        expect(publishResult.ok).toEqual(true);
+  describe("publishing ", async () => {
+    let uuid: string;
+    let publishResult: PublishResponse;
 
-        // Graph node is a bit sleepy
+    beforeAll(async () => {
+      const { node } = await createBoilerplateNode();
+      uuid = node.uuid;
+      publishResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
+      expect(publishResult.ok).toEqual(true);
+    });
+
+    describe("new node", async () => {
+      test("adds it to the dpid registry", async () => {
+        // Allow graph node to index
         await sleep(1_500);
+
         const historyResult = await getDpidHistory(uuid);
         const actualCid = convertHexToCID(historyResult[0].cid);
         expect(actualCid).toEqual(publishResult.updatedManifestCid);
       });
 
-      test("to codex", async () => {
-        const { node: { uuid }} = await createBoilerplateNode();
-        const publishResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
-        expect(publishResult.ok).toEqual(true);
+      test("sets dPID in manifest", async () => {
+        const node = await getDraftNode(uuid, AUTH_TOKEN);
+        expect(node.manifestData.dpid).not.toBeUndefined();
+        expect(node.manifestData.dpid?.prefix).toEqual("beta");
+        expect(node.manifestData.dpid?.id).not.toBeNaN();
+      });
 
+      test("to codex", async () => {
         expect(publishResult.ceramicIDs).not.toBeUndefined();
         const ceramicObject = await getPublishedFromCodex(publishResult.ceramicIDs!.streamID);
         expect(ceramicObject?.manifest).toEqual(publishResult.updatedManifestCid);
@@ -169,38 +179,25 @@ describe("nodes-lib", () => {
     });
 
     describe("node update", async () => {
-      test("to dPID registry", async () => {
-        const { node: { uuid }} = await createBoilerplateNode();
-        const publishResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
-        expect(publishResult.ok).toEqual(true);
+      let updateResult: PublishResponse;
 
-        // Wait for graph node to update
-        await sleep(1_500);
-
-        const updateResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
+      beforeAll(async () => {
+        updateResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
         expect(updateResult.ok).toEqual(true);
-
-        // Wait for graph node to update
+        // Allow graph node to index
         await sleep(1_500);
+      });
 
+      test("updates entry in dpid registry", async () => {
         const historyResult = await getDpidHistory(uuid);
         const actualCid = convertHexToCID(historyResult[0].cid);
         expect(actualCid).toEqual(publishResult.updatedManifestCid);
         expect(historyResult.length).toEqual(2);
       });
 
-      test("to codex", async () => {
-        const { node: { uuid }} = await createBoilerplateNode();
-        const publishResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
-        expect(publishResult.ok).toEqual(true);
-
-        // Wait for graph node to update
-        await sleep(1_500);
-
-        const updateResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
-        expect(updateResult.ok).toEqual(true);
-
+      test("publishes to codex stream", async () => {
         expect(publishResult.ceramicIDs).not.toBeUndefined();
+
         const ceramicObject = await getPublishedFromCodex(publishResult.ceramicIDs!.streamID);
         expect(ceramicObject?.manifest).toEqual(publishResult.updatedManifestCid);
 
@@ -215,13 +212,13 @@ describe("nodes-lib", () => {
       // make a dpid-only publish
       await dpidPublish(uuid, AUTH_TOKEN, false);
 
-      // Wait for graph node to update
+        // Allow graph node to index
       await sleep(1_500);
 
       // make a regular publish
       const pubResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
 
-      // Wait for graph node to update
+        // Allow graph node to index
       await sleep(1_500);
 
       // make sure codex history is of equal length
@@ -295,8 +292,8 @@ describe("nodes-lib", () => {
         const { node: { uuid }} = await createBoilerplateNode();
         const localFilePaths = [ "package.json", "package-lock.json" ];
         const uploadResult = await uploadFiles(
-          uuid,
           {
+            uuid,
             targetPath: "root",
             localFilePaths,
           },
@@ -321,8 +318,8 @@ describe("nodes-lib", () => {
         const { node: { uuid }} = await createBoilerplateNode();
         const localFilePaths = [ "package.json" ];
         const uploadResult = await uploadFiles(
-          uuid,
           {
+            uuid,
             targetPath: "root",
             localFilePaths,
           },
@@ -348,8 +345,8 @@ describe("nodes-lib", () => {
         const { node: { uuid }} = await createBoilerplateNode();
         const localFilePaths = [ "package.json" ];
         const uploadResult = await uploadFiles(
-          uuid,
           {
+            uuid,
             targetPath: "root",
             localFilePaths,
           },
@@ -467,11 +464,6 @@ describe("nodes-lib", () => {
         });
       });
     });
-  });
-
-  describe.skip("utils", async () => {
-    test.todo("cidEncode")
-    test.todo("cidDecode")
   });
 });
 
