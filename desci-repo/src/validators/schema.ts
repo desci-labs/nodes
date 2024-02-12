@@ -5,6 +5,7 @@ import {
   ResearchObjectV1Component,
   ResearchObjectV1Dpid,
   ResearchObjectV1Organization,
+  ManifestActions,
 } from '@desci-labs/desci-models';
 
 const researchObject = z
@@ -59,18 +60,22 @@ const componentSchema: z.ZodType<ResearchObjectV1Component> = z
   })
   .passthrough();
 
+type Action = ManifestActions["type"];
+
 export const actionsSchema = z.array(
   z.discriminatedUnion('type', [
-    z.object({ type: z.literal('Publish Dpid'), dpid: dpid }),
-    z.object({ type: z.literal('Update Title'), title: z.string() }),
-    z.object({ type: z.literal('Update Description'), description: z.string() }),
-    z.object({ type: z.literal('Update License'), defaultLicense: z.string() }),
-    z.object({ type: z.literal('Update ResearchFields'), researchFields: z.array(z.string()) }),
-    z.object({ type: z.literal('Add Component'), component: componentSchema }),
-    z.object({ type: z.literal('Delete Component'), path: z.string() }),
-    z.object({ type: z.literal('Add Contributor'), author: contributor }),
-    z.object({ type: z.literal('Remove Contributor'), contributorIndex: z.number() }),
-    z.object({ type: z.literal('Pin Component'), componentIndex: z.number() }),
-    z.object({ type: z.literal('UnPin Component'), componentIndex: z.number() }),
+    z.object({ type: z.literal<Action>('Publish Dpid'), dpid: dpid }),
+    z.object({ type: z.literal<Action>('Remove Dpid')}),
+    z.object({ type: z.literal<Action>('Update Title'), title: z.string() }),
+    z.object({ type: z.literal<Action>('Update Description'), description: z.string() }),
+    z.object({ type: z.literal<Action>('Update License'), defaultLicense: z.string() }),
+    z.object({ type: z.literal<Action>('Update ResearchFields'), researchFields: z.array(z.string()) }),
+    z.object({ type: z.literal<Action>('Add Component'), component: componentSchema }),
+    z.object({ type: z.literal<Action>('Delete Component'), path: z.string() }),
+    z.object({ type: z.literal<Action>('Update Component'), component: componentSchema }),
+    z.object({ type: z.literal<Action>('Add Contributor'), author: contributor }),
+    z.object({ type: z.literal<Action>('Remove Contributor'), contributorIndex: z.number() }),
+    z.object({ type: z.literal<Action>('Pin Component'), componentIndex: z.number() }),
+    z.object({ type: z.literal<Action>('UnPin Component'), componentIndex: z.number() }),
   ]),
 );

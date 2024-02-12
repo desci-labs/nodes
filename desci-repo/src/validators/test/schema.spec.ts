@@ -126,7 +126,11 @@ describe('ManifestActions Schema', () => {
       starred: false,
       type: ResearchObjectComponentType.CODE,
       subtype: ResearchObjectComponentCodeSubtype.SOFTWARE_PACKAGE,
-      payload: { path: 'root/external links/', url: 'https://google.com', language: 'typescript' },
+      payload: {
+        path: 'root/external links/',
+        cid: 'bafybeicrsddlvfbbo5s3upvjbtb5flc73iupxfy2kf3rv43kkbvegbqbwq',
+        language: 'typescript'
+      },
     };
 
     it('should validate Add Component action', async () => {
@@ -174,7 +178,11 @@ describe('ManifestActions Schema', () => {
         starred: false,
         type: ResearchObjectComponentType.CODE,
         subtype: ResearchObjectComponentCodeSubtype.SOFTWARE_PACKAGE,
-        payload: { path: 'root/external links/', url: 'https://google.com', language: 'typescript' },
+        payload: {
+          path: 'root/external links/',
+          cid: 'bafybeicrsddlvfbbo5s3upvjbtb5flc73iupxfy2kf3rv43kkbvegbqbwq',
+          language: 'typescript'
+        },
       };
 
       const validated = await actionsSchema.safeParseAsync([{ type: 'Add Component', component: invalidComponent }]);

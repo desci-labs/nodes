@@ -7,10 +7,10 @@ import {
   PdfComponent,
   ResearchObjectComponentType,
   ResearchObjectComponentTypeMap,
-  ResearchObjectV1Author,
   ResearchObjectV1Component,
   ResearchObjectV1Dpid,
   isResearchObjectComponentTypeMap,
+  ManifestActions,
 } from '@desci-labs/desci-models';
 import isEqual from 'deep-equal';
 
@@ -31,46 +31,6 @@ export function assertNever(value: never) {
   throw Error('Not Possible');
 }
 
-export type ManifestActions =
-  | { type: 'Add Components'; components: ResearchObjectV1Component[] }
-  | { type: 'Delete Components'; paths: string[] }
-  | { type: 'Rename Component'; path: string; fileName: string }
-  | { type: 'Rename Component Path'; oldPath: string; newPath: string }
-  | {
-      type: 'Update Component';
-      component: ResearchObjectV1Component;
-      componentIndex: number;
-    }
-  | {
-      type: 'Assign Component Type';
-      component: ResearchObjectV1Component;
-      componentTypeMap: ResearchObjectComponentTypeMap;
-    }
-  | { type: 'Set Drive Clock'; time: string }
-  // frontend changes to support
-  | { type: 'Update Title'; title: string }
-  | { type: 'Update Description'; description: string }
-  | { type: 'Update License'; defaultLicense: string }
-  | { type: 'Update ResearchFields'; researchFields: string[] }
-  | { type: 'Add Component'; component: ResearchObjectV1Component }
-  | { type: 'Delete Component'; path: string }
-  | { type: 'Add Contributor'; author: ResearchObjectV1Author }
-  | { type: 'Remove Contributor'; contributorIndex: number }
-  | { type: 'Pin Component'; path: string }
-  | { type: 'UnPin Component'; path: string }
-  | {
-      type: 'Update Component';
-      component: ResearchObjectV1Component;
-      componentIndex: number;
-    }
-  | {
-      type: 'Publish Dpid';
-      dpid: ResearchObjectV1Dpid;
-    }
-  | {
-      type: "Remove Dpid";
-      dpid: ResearchObjectV1Dpid;
-    };
 
 export const getDocumentUpdater = (documentId: DocumentId) => {
   const automergeUrl = getAutomergeUrl(documentId);
