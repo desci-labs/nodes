@@ -368,3 +368,43 @@ export enum ResearchObjectV1AuthorRole {
  */
 export type ResearchObjectComponentTypeMap = Record<FileExtension, ResearchObjectComponentType>;
 export type FileExtension = string;
+
+/** A semi-complete selection of license choices */
+export type License = 
+  | 'CC-BY-4.0'
+  | 'CC-BY'
+  | 'CC-BY-SA-4.0'
+  | 'CC-BY-SA'
+  | 'CC-BY-ND-4.0'
+  | 'CC-BY-ND'
+  | 'CC-BY-NC-4.0'
+  | 'CC-BY-NC'
+  | 'CC-BY-NC-SA-4.0'
+  | 'CC-BY-NC-SA'
+  | 'CC-BY-NC-ND-4.0'
+  | 'CC-BY-NC-ND'
+  | 'CC0-1.0'
+  | 'CC BY'
+  | 'CC BY-SA'
+  | 'CC BY-ND'
+  | 'CC BY-NC'
+  | 'CC BY-NC-SA'
+  | 'CC BY-NC-ND'
+  | 'CC0'
+  | 'GPL-3.0'
+  | 'MIT License'
+  | 'Apache License 2.0'
+  | 'Apache 2.0'
+  | 'Mozilla Public License 2.0'
+  | 'MPL 2.0'
+  | 'MIT'
+  | 'BSD-3-Clause'
+  | 'BSD-2-Clause'
+  | 'Apache-2.0'
+  | 'LGPL-3.0'
+  | 'LGPL-2.1'
+  | 'MPL-2.0'
+  | 'CDDL-1.0'
+  | 'EPL-2.0'
+  | 'AGPL-3.0'
+  | 'Unlicense';
