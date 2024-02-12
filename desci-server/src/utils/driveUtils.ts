@@ -14,6 +14,7 @@ import {
   fillIpfsTree,
   isNodeRoot,
   isResearchObjectComponentTypeMap,
+  ManifestActions,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType, Node } from '@prisma/client';
 
@@ -22,7 +23,7 @@ import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
-import { ManifestActions, NodeUuid } from '../services/manifestRepo.js';
+import { NodeUuid } from '../services/manifestRepo.js';
 import repoService from '../services/repoService.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { ensureUuidEndsWithDot } from '../utils.js';

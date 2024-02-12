@@ -66,6 +66,10 @@ export type ManifestActions =
   | {
       type: 'Publish Dpid';
       dpid: ResearchObjectV1Dpid;
+    }
+  | {
+      type: "Remove Dpid";
+      dpid: ResearchObjectV1Dpid;
     };
 
 export const getDocumentUpdater = (documentId: DocumentId) => {
@@ -253,6 +257,14 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
+      case "Remove Dpid":
+        handle.change(
+          (document) => {
+            removeDpid(document);
+          },
+          { time: Date.now(), message: action.type }
+        );
+        break;
       case 'Pin Component':
         let componentIndex = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
         if (componentIndex && componentIndex != -1) {
@@ -309,8 +321,10 @@ const updateComponentTypeMap = (
   doc: Doc<ResearchObjectDocument>,
   path: string,
   compTypeMap: ResearchObjectComponentTypeMap,
-) => {
-  const currentComponent = doc.manifest.components.find((c) => c.payload?.path === path);
+): void => {
+  const currentComponent = doc.manifest.components.find(
+    (c) => c.payload?.path === path
+  );
   if (!currentComponent) return;
 
   const existingType = currentComponent.type;
@@ -330,30 +344,53 @@ const updateComponentTypeMap = (
   });
 };
 
-const addManifestComponent = (doc: Doc<ResearchObjectDocument>, component: ResearchObjectV1Component) => {
+const addManifestComponent = (
+  doc: Doc<ResearchObjectDocument>,
+  component: ResearchObjectV1Component
+): void => {
   doc.manifest.components.push(component);
 };
 
-const deleteComponent = (doc: Doc<ResearchObjectDocument>, path: string) => {
-  const deleteIdx = doc.manifest.components.findIndex((component) => component?.payload?.path === path);
+const deleteComponent = (
+  doc: Doc<ResearchObjectDocument>,
+  path: string
+): void => {
+  const deleteIdx = doc.manifest.components.findIndex(
+    (component) => component?.payload?.path === path
+  );
   if (deleteIdx !== -1) doc.manifest.components.splice(deleteIdx, 1);
 };
 
-const togglePin = (doc: Doc<ResearchObjectDocument>, componentIndex: number, pin: boolean) => {
+const togglePin = (
+  doc: Doc<ResearchObjectDocument>,
+  componentIndex: number, pin: boolean
+): void => {
   const currentComponent = doc.manifest.components[componentIndex];
   currentComponent.starred = pin;
 };
 
-const addDpid = (doc: Doc<ResearchObjectDocument>, dpid: ResearchObjectV1Dpid) => {
+const addDpid = (
+  doc: Doc<ResearchObjectDocument>,
+  dpid: ResearchObjectV1Dpid
+): void => {
   if (doc.manifest.dpid) return;
   doc.manifest.dpid = dpid;
+};
+
+/** In an unavilable optimistic dPID was written to the manifest, it must
+ * be removed again.
+*/
+const removeDpid = (
+  doc: Doc<ResearchObjectDocument>
+): void => {
+  delete doc.manifest.dpid;
 };
 
 const updateManifestComponent = (
   doc: Doc<ResearchObjectDocument>,
   component: ResearchObjectV1Component,
   componentIndex: number,
-) => {
+): void => {
   if (componentIndex === -1 || componentIndex === undefined) return;
 
   const currentComponent = doc.manifest.components[componentIndex];
@@ -406,7 +443,9 @@ const updateManifestComponent = (
   }
 };
 
-const getTypeDefault = (value: unknown) => {
+type TypeInitialisers = {} | '' | 0 | [];
+
+const getTypeDefault = (value: unknown): TypeInitialisers => {
   if (Array.isArray(value)) return [];
   if (typeof value === 'string') return '';
   if (typeof value === 'number') return 0;
