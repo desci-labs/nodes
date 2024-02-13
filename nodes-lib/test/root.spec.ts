@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
-import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteData, addRawComponent, addPdfComponent, type AddPdfComponentParams, type AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, type RetrieveResponse, type UploadFilesResponse, type ExternalUrl, uploadGithubRepoFromUrl, type PublishResponse, listNodes, addLinkComponent, type AddLinkComponentParams, deleteComponent, updateComponent, changeManifest, updateTitle, updateDescription, updateLicense, updateResearchFields, addContributor, removeContributor } from "../src/api.js";
+import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteData, addPdfComponent, type AddPdfComponentParams, type AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, type RetrieveResponse, type UploadFilesResponse, type ExternalUrl, uploadGithubRepoFromUrl, type PublishResponse, listNodes, addLinkComponent, type AddLinkComponentParams, deleteComponent, updateComponent, changeManifest, updateTitle, updateDescription, updateLicense, updateResearchFields, addContributor, removeContributor, addExternalUnixFsTree, prePublishDraftNode, type CreateDraftParams } from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
 import { dpidPublish } from "../src/chain.js";
@@ -10,12 +10,14 @@ import {
   ResearchObjectComponentDocumentSubtype,
   ResearchObjectComponentCodeSubtype,
   ResearchObjectComponentLinkSubtype,
-  type ResearchObjectV1,
   type License,
   type ResearchField,
   type ResearchObjectV1Author,
-  ResearchObjectV1AuthorRole
+  ResearchObjectV1AuthorRole,
+  ResearchObjectComponentType,
+  ResearchObjectComponentDataSubtype
 } from "@desci-labs/desci-models";
+import { ADDRGETNETWORKPARAMS } from "dns";
 
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
@@ -39,16 +41,10 @@ describe("nodes-lib", () => {
   });
   describe("draft nodes", async () => {
     test("can be created", async () => {
-      const expected = {
-        title: "New Draft Node",
-        defaultLicense: "CC BY",
-        researchFields: [],
-      };
-      const response = await createDraftNode(expected, AUTH_TOKEN);
-      expect(response.ok).toEqual(true);
+      const response = await createBoilerplateNode();
 
       const actual = await getDraftNode(response.node.uuid, AUTH_TOKEN);
-      expect(actual.title).toEqual(expected.title);
+      expect(actual.title).toEqual("My Node");
     });
 
     test("can be listed", async () => {
@@ -126,7 +122,7 @@ describe("nodes-lib", () => {
 
     test("can add link component", async () => {
       const { node: { uuid }} = await createBoilerplateNode();
-      const component: AddLinkComponentParams= {
+      const component: AddLinkComponentParams = {
         name: "my component",
         url: "http://google.com",
         subtype: ResearchObjectComponentLinkSubtype.OTHER,
@@ -603,14 +599,44 @@ describe("nodes-lib", () => {
         });
       });
     });
+
+    describe("external CID", async () => {
+      test("can be added", async () => {
+        const { node: { uuid }} = await createBoilerplateNode();
+        await createNewFolder(
+          {uuid, locationPath: "root", folderName: "catpics"}, AUTH_TOKEN
+        );
+        const catCid = "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u";
+        const addResult = await addExternalUnixFsTree(
+          {
+            uuid,
+            externalCids: [{ 
+              cid: catCid,
+              name: "cat.jpg",
+            }],
+            targetPath: "/catpics",
+            componentType: ResearchObjectComponentType.DATA,
+            componentSubtype: ResearchObjectComponentDataSubtype.IMAGE,
+          },
+          AUTH_TOKEN,
+        );
+
+        expect(addResult.tree[0].contains![0].contains![0]).toMatchObject(expect.objectContaining({
+          cid: catCid,
+          path: "root/catpics/cat.jpg",
+          name: "cat.jpg",
+          external: true,
+        }));
+      });
+    });
   });
 });
 
 const createBoilerplateNode = async () => {
-  const node = {
+  const node: Omit<CreateDraftParams, "links"> = {
     title: "My Node",
-    defaultLicense: "CC BY",
-    researchFields: [],
+    defaultLicense: "CC-BY",
+    researchFields: ["Horticulture"],
   };
 
   return await createDraftNode(node, AUTH_TOKEN);

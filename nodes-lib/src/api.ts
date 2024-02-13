@@ -3,7 +3,7 @@ import axios, {
   type AxiosResponse
 } from "axios";
 import {
-    ResearchObjectComponentType,
+  ResearchObjectComponentType,
   type CodeComponent,
   type DataComponent,
   type DriveObject,
@@ -18,10 +18,10 @@ import {
   type License,
   type ResearchObjectV1Author,
   type ResearchField,
+  type ResearchObjectComponentSubtypes,
 } from "@desci-labs/desci-models";
 import FormData from "form-data";
 import { createReadStream } from "fs";
-import { basename } from "path";
 import type { NodeIDs } from "@desci-labs/desci-codex-lib/dist/src/types.js";
 import { publish } from "./publish.js";
 import type { ResearchObjectDocument } from "./automerge.js";
@@ -33,6 +33,7 @@ const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
 const ROUTES = {
   deleteData: `${NODES_API_URL}/v1/data/delete`,
   updateData: `${NODES_API_URL}/v1/data/update`,
+  updateExternalCid: `${NODES_API_URL}/v1/data/updateExternalCid`,
   /** Append /uuid/manifestCid for tree to fetch */
   retrieveTree: `${NODES_API_URL}/v1/data/retrieveTree`,
   moveData: `${NODES_API_URL}/v1/data/move`,
@@ -53,14 +54,13 @@ type Route = typeof ROUTES[keyof typeof ROUTES];
 
 export type CreateDraftParams = {
   title: string,
-  // Some desci-server code expects arrays to exist
+  // Some desci-server code expects these arrays to exist
   links: {
     pdf: string[],
     metadata: string[],
   },
-  // TODO get license types
-  defaultLicense: string,
-  researchFields: string[],
+  defaultLicense: License,
+  researchFields: ResearchField[],
 };
 
 export type CreateDraftResponse = {
@@ -83,13 +83,9 @@ export const createDraftNode = async (
       metadata: [],
     },
   };
-  const { status, statusText, data } = await axios.post<CreateDraftResponse>(
+  const { data } = await axios.post<CreateDraftResponse>(
     ROUTES.createDraft, payload, { headers: getHeaders(authToken) }
   );
-
-  if (status !== 200) {
-    throwWithReason(ROUTES.createDraft, status, statusText);
-  };
 
   return data;
 };
@@ -125,14 +121,10 @@ export const deleteDraftNode = async (
   uuid: string,
   authToken: string,
 ): Promise<void> => {
-  const { status, statusText } = await axios.delete(
+  return await axios.delete(
     ROUTES.deleteDraft + `/${uuid}`,
     { headers: getHeaders(authToken) }
   );
-
-  if (status !== 200) {
-    throwWithReason(ROUTES.deleteDraft, status, statusText);
-  };
 };
 
 export type NodeResponse = {
@@ -159,14 +151,10 @@ export const getDraftNode = async (
   uuid: string,
   authToken: string,
 ): Promise<NodeResponse> => {
-  const { status, statusText, data } = await axios.get<NodeResponse>(
+  const { data } = await axios.get<NodeResponse>(
     ROUTES.showNode + `/${uuid}`,
     { headers: getHeaders(authToken), }
   );
-
-  if (status !== 200) {
-    throwWithReason(ROUTES.showNode, status, statusText + ` (uuid: ${uuid})`);
-  };
 
   return data;
 };
@@ -200,15 +188,11 @@ export const prePublishDraftNode = async (
   authToken: string,
 ): Promise<PrepublishResponse> => {
   // Compute the draft drive DAG, and update the data bucket CID
-  const { status, statusText, data } = await axios.post<PrepublishResponse>(
+  const { data } = await axios.post<PrepublishResponse>(
     ROUTES.prepublish,
     { uuid },
     { headers: getHeaders(authToken), }
   );
-
-  if (status !== 200) {
-    throwWithReason(ROUTES.publish, status, statusText);
-  };
 
   return data;
 };
@@ -243,16 +227,18 @@ export const publishDraftNode = async (
     ceramicStream: publishResult.ceramicIDs?.streamID,
   };
 
-  const { status, statusText, data } = await axios.post<{ok: boolean}>(
-    ROUTES.publish,
-    pubParams,
-    { headers: getHeaders(authToken), }
-  );
-
-  if (status !== 200) {
-    console.log(`Publish flow has been successful, but backend update failed for uuid ${uuid}.`);
-    throwWithReason(ROUTES.publish, status, statusText);
-  };
+  let data;
+  try {
+    const backendPublishResult = await axios.post<{ok: boolean}>(
+      ROUTES.publish,
+      pubParams,
+      { headers: getHeaders(authToken), }
+    );
+    data = backendPublishResult.data;
+  } catch (e) {
+    console.log(`Publish flow was successful, but backend update failed for uuid ${uuid}.`);
+    throw e;
+  }
 
   return { 
     ...data,
@@ -275,18 +261,14 @@ export const deleteData = async (
   params: DeleteDataParams,
   authToken: string
 ) => {
-  const { status, statusText, data } = await axios.post<DeleteDataResponse>(
+  const { data } = await axios.post<DeleteDataResponse>(
     ROUTES.deleteData,
     {
       ...params,
-      path: ensureAbsolutePath(params.path),
+      path: makeAbsolutePath(params.path),
     },
     { headers: getHeaders(authToken) }
   );
-
-  if (status !== 200) {
-    throwWithReason(ROUTES.deleteData, status, statusText);
-  };
 
   return data;
 };
@@ -306,19 +288,15 @@ export const moveData = async (
   params: MoveDataParams,
   authToken: string,
 ) => {
-  const { status, statusText, data } = await axios.post<MoveDataResponse>(
+  const { data } = await axios.post<MoveDataResponse>(
     ROUTES.moveData,
     {
       ...params,
-      oldPath: ensureAbsolutePath(params.oldPath),
-      newPath: ensureAbsolutePath(params.newPath),
+      oldPath: makeAbsolutePath(params.oldPath),
+      newPath: makeAbsolutePath(params.newPath),
     },
     { headers: getHeaders(authToken) }
   );
-
-  if (status !== 200) {
-    throwWithReason(ROUTES.moveData, status, statusText);
-  };
 
   return data;
 };
@@ -334,13 +312,9 @@ export const retrieveDraftFileTree = async (
   manifestCid: string,
   authToken: string,
 ) => {
-  const { status, statusText, data } = await axios.get<RetrieveResponse>(
+  const { data } = await axios.get<RetrieveResponse>(
     ROUTES.retrieveTree + `/${uuid}/${manifestCid}`, { headers: getHeaders(authToken) }
   );
-
-  if (status !== 200) {
-    throwWithReason(ROUTES.retrieveTree, status, statusText);
-  };
 
   return data;
 };
@@ -366,15 +340,11 @@ export const createNewFolder = async (
   const form = new FormData();
   form.append("uuid", uuid);
   form.append("newFolderName", folderName);
-  form.append("contextPath", ensureAbsolutePath(locationPath));
-  const { status, statusText, data } = await axios.post<CreateFolderResponse>(
+  form.append("contextPath", makeAbsolutePath(locationPath));
+  const { data } = await axios.post<CreateFolderResponse>(
     ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
   );
 
-  if (status !== 200) {
-    throwWithReason(ROUTES.updateData, status, statusText);
-  };
-  
   return data;
 };
 
@@ -405,20 +375,16 @@ export const uploadFiles = async (
   const { targetPath, localFilePaths, uuid } = params;
   const form = new FormData();
   form.append("uuid", uuid);
-  form.append("contextPath", ensureAbsolutePath(targetPath));
+  form.append("contextPath", makeAbsolutePath(targetPath));
 
   localFilePaths.forEach(f => {
     const stream = createReadStream(f);
-    form.append("files", stream, basename(f));
+    form.append("files", stream);
   });
 
-  const { status, statusText, data } = await axios.post<UploadFilesResponse>(
+  const { data } = await axios.post<UploadFilesResponse>(
     ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
   );
-
-  if (status !== 200) {
-    throwWithReason(ROUTES.updateData, status, statusText);
-  };
 
   return data;
 };
@@ -457,7 +423,7 @@ export const uploadPdfFromUrl = async (
   const { uuid, targetPath, externalUrl, componentSubtype } = params;
   const form = new FormData();
   form.append("uuid", uuid);
-  form.append("contextPath", ensureAbsolutePath(targetPath));
+  form.append("contextPath", makeAbsolutePath(targetPath));
   form.append("externalUrl", JSON.stringify(externalUrl));
   form.append("componentType", ResearchObjectComponentType.PDF);
   form.append("componentSubtype", componentSubtype);
@@ -485,12 +451,36 @@ export const uploadGithubRepoFromUrl = async (
   const { uuid, externalUrl, targetPath, componentSubtype } = params;
   const form = new FormData();
   form.append("uuid", uuid);
-  form.append("contextPath", ensureAbsolutePath(targetPath));
+  form.append("contextPath", makeAbsolutePath(targetPath));
   form.append("externalUrl", JSON.stringify(externalUrl));
   form.append("componentType", ResearchObjectComponentType.CODE);
   form.append("componentSubtype", componentSubtype);
   const { data } = await axios.post<UploadFilesResponse>(
     ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
+  );
+  return data;
+};
+
+export type AddExternalTreeParams = {
+  uuid: string,
+  externalCids: { name: string, cid: string }[],
+  targetPath: string,
+  componentType: ResearchObjectComponentType,
+  componentSubtype: ResearchObjectComponentSubtypes,
+};
+
+/**
+ * Add a publicly available UnixFS tree to the drive, without uploading
+ * the content.
+*/
+export const addExternalUnixFsTree = async (
+  params: AddExternalTreeParams,
+  authToken: string,
+): Promise<UploadFilesResponse> => {
+  const { data } = await axios.post<UploadFilesResponse>(
+    ROUTES.updateExternalCid,
+    { ...params, contextPath: makeAbsolutePath(params.targetPath)},
+    { headers: getHeaders(authToken) },
   );
   return data;
 };
@@ -522,13 +512,9 @@ export type IndexedNode = {
 export const getDpidHistory = async (
   uuid: string,
 ): Promise<IndexedNodeVersion[]> => {
-  const { status, statusText, data } = await axios.get<IndexedNode>(
+  const { data } = await axios.get<IndexedNode>(
     ROUTES.dpidHistory + `/${uuid}`
   );
-
-  if (status !== 200) {
-    throwWithReason(ROUTES.dpidHistory, status, statusText);
-  };
 
   return data.versions;
 };
@@ -546,13 +532,9 @@ export type ManifestDocumentResponse = {
 const getManifestDocument = async (
   uuid: string,
 ): Promise<ManifestDocumentResponse> => {
-  const { status, statusText, data } = await axios.get<ManifestDocumentResponse>(
+  const { data } = await axios.get<ManifestDocumentResponse>(
     ROUTES.documents + `/${uuid}`
   );
-
-  if (status !== 200) {
-    throwWithReason(ROUTES.documents, status, statusText);
-  };
 
   return data;
 };
@@ -700,7 +682,7 @@ export const addPdfComponent = async (
     subtype: params.subtype,
     payload: {
       cid: params.cid,
-      path: ensureAbsolutePath(params.pathToFile),
+      path: makeAbsolutePath(params.pathToFile),
     },
     starred: params.starred,
   };
@@ -741,7 +723,7 @@ export const addCodeComponent = async (
     subtype: params.subtype,
     payload: {
       language: params.language,
-      path: ensureAbsolutePath(params.path),
+      path: makeAbsolutePath(params.path),
       cid: params.cid,
     },
     starred: params.starred,
@@ -754,7 +736,7 @@ export const deleteComponent = async (
   path: string,
   authToken: string,
 ): Promise<ManifestDocumentResponse> => await changeManifest(
-  uuid, [{ type: "Delete Component", path: ensureAbsolutePath(path)}], authToken);
+  uuid, [{ type: "Delete Component", path: makeAbsolutePath(path)}], authToken);
 
 export const updateTitle = async (
   uuid: string,
@@ -798,14 +780,6 @@ export const removeContributor = async (
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Remove Contributor", contributorIndex }], authToken);
 
-const throwWithReason = (
-  route: Route,
-  status: number,
-  reason: string
-) => {
-  throw new Error(`Request to ${route} failed (${status}): ${reason}`)
-};
-
 const getHeaders = (token: string, formData: boolean = false) => {
   const headers = {
     "authorization": `Bearer ${token}`,
@@ -814,14 +788,13 @@ const getHeaders = (token: string, formData: boolean = false) => {
   return headers;
 };
 
-const ensureAbsolutePath = (path: string) => {
-  if (path === "root") return "root";
-  // Prevent unexpected extra slashes on dir/file creation
-  if (path === "root/") return "root"
+const makeAbsolutePath = (path: string) => {
+  // Sensible definitions of root
+  if (!path || path === "root" || path === "root/") return "root";
   // Support unix-style absolute paths
   if (path.startsWith("/")) return `root${path}`;
   // What endpoints actually expect
   if (path.startsWith("root/")) return path;
-  // Just add root to other paths for operations to show up in the drive at all
+  // Just add root to other paths
   return `root/${path}`;
 };
