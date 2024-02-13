@@ -155,5 +155,8 @@ main()
     process.exit(1);
   })
   .finally(async () => {
+    console.log('PRISMA DISCONNECT START');
     await prisma.$disconnect();
+    console.log('PRISMA DISCONNECT END');
+    process.exit(0);
   });

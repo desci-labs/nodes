@@ -28,15 +28,15 @@ clean-rec:
 .env: nodes-media/.env desci-repo/.env
 	# Phony target, always runs but is idempotent
 	# Copies example env if not present, and fails until MNEMONIC is set
-	cp --no-clobber .env.example .env || true
+	if [ ! -f .env ]; then cp .env.example .env; fi
 	if ! grep -q MNEMONIC .env; then echo "ERROR: set MNEMONIC in .env"; exit 1; fi
 
 desci-contracts/.env: .env
 	grep "MNEMONIC" .env > desci-contracts/.env
 
 nodes-media/.env:
-	cp nodes-media/.env.example nodes-media/.env
+	if [ ! -f nodes-media/.env ]; then cp nodes-media/.env.example nodes-media/.env; fi
 
 desci-repo/.env:
-	cp desci-repo/.env.example desci-repo/.env
+	if [ ! -f desci-repo/.env ]; then cp desci-repo/.env.example desci-repo/.env; fi
 
