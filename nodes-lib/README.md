@@ -89,13 +89,16 @@ This section outlines the major functionality the library provides. It's not a c
 - `deleteDraftNode`: remove a draft node.
 
 #### Manifest operations
-Pretty self explanatory:
+Pretty self explanatory; these update the top-level metadata fields in the manifest:
 - `updateTitle`
 - `updateDescription`
 - `updateLicense`
 - `updateResearchFields`
+- `addContributor`
+- `removeContributor`
 
 #### File operations
+These functions adds, removes, and organizes files in the drive. Everything operates on absolute drive paths; there are no relative-path operations.
 - `uploadFiles`: upload one or more local files to the node drive.
 - `createNewFolder`: creates an empty folder in the drive, which can be used as a target for uploading/moving files.
 - `moveData`: move a file or directory to a new path in the drive. Note that this covers rename operations.
@@ -105,6 +108,7 @@ Pretty self explanatory:
 These imports automatically create components for attaching metadata, in addition to creating the files in the drive.
 - `uploadPdfFromUrl`: let the backend get a PDF from URL and add it to the drive.
 - `uploadGithubRepoFromUrl`: let the backend download a snapshot of the repo and add it to the drive.
+- `addExternalUnixFsTree`: upload the structure of an external UnixFS tree to the drive, without the actual files. They can then be resolved through regular IPFS means, but the file structure can be browsed in the node.
 
 #### Publishing
 Until a publish operation has been run, the entire content of a node is private.
