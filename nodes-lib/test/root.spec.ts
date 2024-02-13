@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
-import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteData, addRawComponent, addPdfComponent, type AddPdfComponentParams, type AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, type RetrieveResponse, type UploadFilesResponse, type ExternalUrl, uploadGithubRepoFromUrl, type PublishResponse, listNodes, addLinkComponent, type AddLinkComponentParams, deleteComponent, updateComponent, changeManifest, updateTitle, updateDescription, updateLicense, updateResearchFields } from "../src/api.js";
+import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteData, addRawComponent, addPdfComponent, type AddPdfComponentParams, type AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, type RetrieveResponse, type UploadFilesResponse, type ExternalUrl, uploadGithubRepoFromUrl, type PublishResponse, listNodes, addLinkComponent, type AddLinkComponentParams, deleteComponent, updateComponent, changeManifest, updateTitle, updateDescription, updateLicense, updateResearchFields, addContributor, removeContributor } from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
 import { dpidPublish } from "../src/chain.js";
@@ -12,7 +12,9 @@ import {
   ResearchObjectComponentLinkSubtype,
   type ResearchObjectV1,
   type License,
-  type ResearchField
+  type ResearchField,
+  type ResearchObjectV1Author,
+  ResearchObjectV1AuthorRole
 } from "@desci-labs/desci-models";
 
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
@@ -97,6 +99,28 @@ describe("nodes-lib", () => {
         const newResearchFields: ResearchField[] = [ "Bathymetry", "Fisheries Science" ];
         const { document: { manifest }} = await updateResearchFields(uuid, newResearchFields, AUTH_TOKEN);
         expect(manifest.researchFields).toEqual(newResearchFields);
+      });
+
+      test("contributors", async () => {
+        const newContributors: ResearchObjectV1Author[] = [
+          {
+            name: "Dr Jones",
+            role: ResearchObjectV1AuthorRole.AUTHOR,
+          },
+          {
+            name: "Assistant Measly",
+            role: ResearchObjectV1AuthorRole.NODE_STEWARD,
+          }
+        ];
+        await addContributor(uuid, newContributors[0], AUTH_TOKEN);
+        const { document: { manifest }} = await addContributor(
+          uuid, newContributors[1], AUTH_TOKEN
+        );
+        expect(manifest.authors).toEqual(newContributors);
+
+        const { document: { manifest: updatedManifest }} =
+          await removeContributor(uuid, 1, AUTH_TOKEN);
+        expect(updatedManifest.authors).toEqual([newContributors[0]])
       });
     });
 
@@ -193,7 +217,7 @@ describe("nodes-lib", () => {
       expect(node.manifestData.components.length).toEqual(1); // Just data-bucket
     });
 
-    test.only("can update component", async () => {
+    test("can update component", async () => {
       const { node: { uuid }} = await createBoilerplateNode();
       const { document: { manifest }} = await addLinkComponent(
         uuid,
@@ -333,16 +357,25 @@ describe("nodes-lib", () => {
     });
 
     describe("folders", async () => {
-      test("can be created", async () => {
-        const { ok, node: { uuid, manifestUrl }} = await createBoilerplateNode();
-        expect(ok).toEqual(true);
+      const expectedFolderName = "MyFolder";
+      let uuid: string;
+      let manifestUrl: string;
 
-        const expectedFolderName = "MyFolder";
+      beforeAll(async () => {
+        const createRes = await createBoilerplateNode();
+        expect(createRes.ok).toEqual(true);
+
+        uuid = createRes.node.uuid;
+        manifestUrl = createRes.node.manifestUrl;
+
         await createNewFolder({
           uuid,
           locationPath: "root",
           folderName: expectedFolderName
         }, AUTH_TOKEN);
+      });
+
+      test("can be created", async () => {
         const treeResult = await retrieveDraftFileTree(uuid, manifestUrl, AUTH_TOKEN);
         const actualFolderName = treeResult.tree[0].contains![0].name;
 
@@ -350,32 +383,46 @@ describe("nodes-lib", () => {
       });
 
       test("can be moved", async () => {
-        const { ok, node: { uuid }} = await createBoilerplateNode();
-        expect(ok).toEqual(true);
-
+        const otherFolderName = "dir";
         await createNewFolder({
           uuid,
           locationPath: "root",
-          folderName: "MyFolder"
-        }, AUTH_TOKEN);
-        await createNewFolder({
-          uuid,
-          locationPath: "root",
-          folderName: "dir"
+          folderName: otherFolderName,
         }, AUTH_TOKEN);
         const moveResult = await moveData(
-          { uuid, oldPath: "root/MyFolder", newPath: "root/dir/MyFolder" },
-          AUTH_TOKEN
+          {
+            uuid,
+            oldPath: `root/${otherFolderName}`,
+            newPath: `root/${expectedFolderName}/${expectedFolderName}`
+          },
+          AUTH_TOKEN,
         );
 
         const treeResult = await retrieveDraftFileTree(
           uuid,
           moveResult.manifestCid,
-          AUTH_TOKEN
+          AUTH_TOKEN,
         );
 
         const dir = treeResult.tree[0].contains![0];
-        expect(dir.contains![0].name).toEqual("MyFolder");
+        expect(dir.contains![0].name).toEqual(expectedFolderName);
+      });
+
+      test("can be deleted", async () => {
+        const deleteResult = await deleteData(
+          {
+            uuid,
+            path: `root/${expectedFolderName}`
+          },
+          AUTH_TOKEN,
+        );
+        const treeResult = await retrieveDraftFileTree(
+          uuid,
+          deleteResult.manifestCid,
+          AUTH_TOKEN
+        );
+
+        expect(treeResult.tree[0].contains).toEqual([]);
       });
     });
 

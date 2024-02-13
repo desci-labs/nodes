@@ -276,7 +276,12 @@ export const deleteData = async (
   authToken: string
 ) => {
   const { status, statusText, data } = await axios.post<DeleteDataResponse>(
-    ROUTES.deleteData, params, { headers: getHeaders(authToken) }
+    ROUTES.deleteData,
+    {
+      ...params,
+      path: ensureAbsolutePath(params.path),
+    },
+    { headers: getHeaders(authToken) }
   );
 
   if (status !== 200) {
@@ -288,9 +293,7 @@ export const deleteData = async (
 
 export type MoveDataParams = {
   uuid: string,
-  /** Prefix path with `/root` to indicate the absolute path */
   oldPath: string,
-  /** Prefix path with `/root` to indicate the absolute path */
   newPath: string,
 };
 
@@ -304,7 +307,13 @@ export const moveData = async (
   authToken: string,
 ) => {
   const { status, statusText, data } = await axios.post<MoveDataResponse>(
-    ROUTES.moveData, params, { headers: getHeaders(authToken) }
+    ROUTES.moveData,
+    {
+      ...params,
+      oldPath: ensureAbsolutePath(params.oldPath),
+      newPath: ensureAbsolutePath(params.newPath),
+    },
+    { headers: getHeaders(authToken) }
   );
 
   if (status !== 200) {
@@ -357,7 +366,7 @@ export const createNewFolder = async (
   const form = new FormData();
   form.append("uuid", uuid);
   form.append("newFolderName", folderName);
-  form.append("contextPath", locationPath);
+  form.append("contextPath", ensureAbsolutePath(locationPath));
   const { status, statusText, data } = await axios.post<CreateFolderResponse>(
     ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
   );
@@ -396,7 +405,7 @@ export const uploadFiles = async (
   const { targetPath, localFilePaths, uuid } = params;
   const form = new FormData();
   form.append("uuid", uuid);
-  form.append("contextPath", targetPath);
+  form.append("contextPath", ensureAbsolutePath(targetPath));
 
   localFilePaths.forEach(f => {
     const stream = createReadStream(f);
@@ -448,7 +457,7 @@ export const uploadPdfFromUrl = async (
   const { uuid, targetPath, externalUrl, componentSubtype } = params;
   const form = new FormData();
   form.append("uuid", uuid);
-  form.append("contextPath", targetPath);
+  form.append("contextPath", ensureAbsolutePath(targetPath));
   form.append("externalUrl", JSON.stringify(externalUrl));
   form.append("componentType", ResearchObjectComponentType.PDF);
   form.append("componentSubtype", componentSubtype);
@@ -476,7 +485,7 @@ export const uploadGithubRepoFromUrl = async (
   const { uuid, externalUrl, targetPath, componentSubtype } = params;
   const form = new FormData();
   form.append("uuid", uuid);
-  form.append("contextPath", targetPath);
+  form.append("contextPath", ensureAbsolutePath(targetPath));
   form.append("externalUrl", JSON.stringify(externalUrl));
   form.append("componentType", ResearchObjectComponentType.CODE);
   form.append("componentSubtype", componentSubtype);
@@ -691,7 +700,7 @@ export const addPdfComponent = async (
     subtype: params.subtype,
     payload: {
       cid: params.cid,
-      path: params.pathToFile,
+      path: ensureAbsolutePath(params.pathToFile),
     },
     starred: params.starred,
   };
@@ -732,7 +741,7 @@ export const addCodeComponent = async (
     subtype: params.subtype,
     payload: {
       language: params.language,
-      path: params.path,
+      path: ensureAbsolutePath(params.path),
       cid: params.cid,
     },
     starred: params.starred,
@@ -744,8 +753,8 @@ export const deleteComponent = async (
   uuid: string,
   path: string,
   authToken: string,
-): Promise<ManifestDocumentResponse> =>
-  await changeManifest(uuid, [{ type: "Delete Component", path }], authToken);
+): Promise<ManifestDocumentResponse> => await changeManifest(
+  uuid, [{ type: "Delete Component", path: ensureAbsolutePath(path)}], authToken);
 
 export const updateTitle = async (
   uuid: string,
@@ -803,4 +812,16 @@ const getHeaders = (token: string, formData: boolean = false) => {
     ...(formData ? { "content-type": "multipart/form-data" } : {})
   };
   return headers;
+};
+
+const ensureAbsolutePath = (path: string) => {
+  if (path === "root") return "root";
+  // Prevent unexpected extra slashes on dir/file creation
+  if (path === "root/") return "root"
+  // Support unix-style absolute paths
+  if (path.startsWith("/")) return `root${path}`;
+  // What endpoints actually expect
+  if (path.startsWith("root/")) return path;
+  // Just add root to other paths for operations to show up in the drive at all
+  return `root/${path}`;
 };
