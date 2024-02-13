@@ -36,11 +36,11 @@ router.post('/unclaim', [ensureUser], asyncHander(removeClaim));
 router.post('/claimAll', [ensureUser], asyncHander(claimEntryRequirements));
 
 router.post('/comment', [ensureUser], addComment);
-router.post('/reaction', [ensureUser], addReaction);
+router.post('/reaction', [ensureUser], asyncHander(addReaction));
 router.post('/verification', [ensureUser], asyncHander(addVerification));
 
 router.delete('/comment', [ensureUser], removeComment);
-router.delete('/reaction', [ensureUser], removeReaction);
+router.delete('/reaction', [ensureUser], asyncHander(removeReaction));
 router.delete('/verification', [ensureUser], asyncHander(removeVerification));
 
 export default router;

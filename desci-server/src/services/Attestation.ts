@@ -419,6 +419,11 @@ export class AttestationService {
     return prisma.nodeAttestationReaction.create({ data: { authorId, reaction, nodeAttestationId: claimId } });
   }
 
+  async findReaction(filter: Prisma.NodeAttestationReactionWhereInput) {
+    return prisma.nodeAttestationReaction.findFirst({
+      where: filter,
+    });
+  }
   async removeReaction(id: number) {
     return prisma.nodeAttestationReaction.delete({
       where: { id },

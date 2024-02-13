@@ -35,6 +35,6 @@ export const getCommunityRecommendations = async (req: Request, res: Response, _
     return key2 - key1;
   });
 
-  logger.info({ attestations }, 'GetCommunityRecommendations');
+  logger.info({ attestations: attestations.length, communityName }, 'GetCommunityRecommendations');
   return new SuccessResponse(attestations).send(res);
 };
