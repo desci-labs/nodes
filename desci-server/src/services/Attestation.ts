@@ -215,8 +215,24 @@ export class AttestationService {
     return prisma.nodeAttestation.findMany({
       where: { nodeDpid10: dpid },
       include: {
+        community: { select: { name: true, description: true, keywords: true, image_url: true } },
+        attestationVersion: { select: { name: true, description: true, image_url: true } },
+        node: { select: { ownerId: true } },
+        // NodeAttestationReaction: { s},
+        _count: {
+          select: { Annotation: true, NodeAttestationReaction: true, NodeAttestationVerification: true },
+        },
+      },
+    });
+  }
+
+  async getNodeCommunityAttestations(dpid: string, communityId: number) {
+    return prisma.nodeAttestation.findMany({
+      where: { nodeDpid10: dpid, desciCommunityId: communityId },
+      include: {
         community: { select: { name: true, description: true, keywords: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
+        node: { select: { ownerId: true } },
         // NodeAttestationReaction: { s},
         _count: {
           select: { Annotation: true, NodeAttestationReaction: true, NodeAttestationVerification: true },
@@ -375,7 +391,7 @@ export class AttestationService {
 
   async getAllClaimVerfications(nodeAttestationId: number) {
     assert(nodeAttestationId > 0);
-    return prisma.nodeAttestationVerification.findMany({ where: { nodeAttestationId } });
+    return prisma.nodeAttestationVerification.findMany({ where: { nodeAttestationId }, include: { user: true } });
   }
 
   async findClaimById(id: number) {
@@ -437,12 +453,6 @@ export class AttestationService {
     return this.createAnnotation(data);
   }
 
-  // private async removeAnnotation(filter: Prisma.AnnotationWhereUniqueInput) {
-  //   return prisma.annotation.delete({
-  //     where: filter,
-  //   });
-  // }
-
   async removeComment(commentId: number) {
     return prisma.annotation.delete({
       where: { id: commentId },
@@ -450,7 +460,7 @@ export class AttestationService {
   }
 
   async getReactions(filter: Prisma.NodeAttestationReactionWhereInput) {
-    return prisma.nodeAttestationReaction.findMany({ where: filter });
+    return prisma.nodeAttestationReaction.findMany({ where: filter, include: { author: true } });
   }
 
   async getUserClaimReactions(claimId: number, authorId: number) {
@@ -530,7 +540,7 @@ export class AttestationService {
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
       LEFT JOIN "DesciCommunity" DC ON DC.id = A."communityId"
-      LEFT JOIN "CommunitySelectedAttestation" CSA ON CSA."desciCommunityId" = NA."desciCommunityId"
+      LEFT JOIN "CommunitySelectedAttestation" CSA ON CSA."desciCommunityId" = A."communityId"
 	    AND CSA."attestationId" = A.id
     GROUP BY
       A.id,
@@ -564,7 +574,7 @@ export class AttestationService {
       LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
-      LEFT JOIN "CommunitySelectedAttestation" CSA ON CSA."desciCommunityId" = NA."desciCommunityId"
+      LEFT JOIN "CommunitySelectedAttestation" CSA ON CSA."desciCommunityId" = A."communityId"
 	    AND CSA."attestationId" = A.id
      WHERE A."communityId" = ${communityId}
     GROUP BY

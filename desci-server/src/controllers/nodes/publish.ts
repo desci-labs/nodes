@@ -14,6 +14,7 @@ import {
   setCeramicStream,
 } from '../../services/nodeManager.js';
 import { discordNotify } from '../../utils/discordUtils.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 // call node publish service and add job to queue
 export const publish = async (req: Request, res: Response, _next: NextFunction) => {
@@ -55,7 +56,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
     const node = await prisma.node.findFirst({
       where: {
         ownerId: owner.id,
-        uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
       },
     });
 

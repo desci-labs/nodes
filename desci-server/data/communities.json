@@ -55,73 +55,85 @@
       "name": "Scientific Manuscript",
       "description": "The research is formatted as a scientific manuscript",
       "image_url": "https://pub.desci.com/ipfs/bafybeigiq7vxialgowwbw5tsg4ig7kdbl4ee3qhlr7xojybp6yweudts4u",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": false
     },
     {
       "name": "Open Data",
       "description": "The research data is available for review and reuse",
       "image_url": "https://pub.desci.com/ipfs/bafybeie4k6vm6rcuzjfr6f6dtqbe3azmdyplbur7ohtx3z3javq4z6cnyu",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": true
     },
     {
       "name": "Open Code",
       "description": "The research code is available for review and reuse",
       "image_url": "https://pub.desci.com/ipfs/bafybeifhe4vsj7dfsde4zduwczrh7bma2g7b3bpyufhdtb6b2rzbxe4jq4",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": true
     },
     {
       "name": "Ask Me Anything",
       "description": "The author is available to answer questions or receive feedback about the research",
       "image_url": "https://pub.desci.com/ipfs/bafybeifaqbltokc4ip4ly3nly57lcwcuhjbjtjtphafecv4ttu3wjukurq",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": false
     },
     {
       "name": "Reproducibility",
       "description": "The research was conducted in a way that allows others to verify the results",
       "image_url": "https://pub.desci.com/ipfs/bafybeibnk4xbupbclpiqbgjc4kqew6rhmt34crietts4dbv2z2m6zny2c4",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": true
     },
     {
       "name": "Big if True",
       "description": "The research is potentially groundbreaking and should be reviewed by the community",
       "image_url": "https://pub.desci.com/ipfs/bafybeia7qzpqmx4o6uohuul7agsm234wrn5x6hh5ioymwlhsqljsvndede",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": false
     },
     {
       "name": "Commercializable",
       "description": "The research has potential commercial applications or has a commercialization plan",
       "image_url": "https://pub.desci.com/ipfs/bafybeiccbcvjod27qrcpnrmeszmffifpm22z3xbxc2klwsqpbrho54vb3q",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": false
     },
     {
       "name": "Used BOINC",
       "description": "The research was conducted using Berkeley Open Infrastructure for Network Computing",
       "image_url": "https://pub.desci.com/ipfs/bafybeihdimcqybdu4peyhodjamucbxle2u5d63ywlixrhwl6nc5b75b7eu",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": false
     },
     {
       "name": "Used Folding@home",
       "description": "The research was conducted using Folding@home software, which uses the idle resources of personal computers to perform protein folding simulations",
       "image_url": "https://pub.desci.com/ipfs/bafkreicf2zkf47lha22f4hszwsctffnlcjh4tbepqgumnbuf277dwki7ce",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": false
     },
     {
       "name": "Used Rosetta@home",
       "description": "The research was conducted using Rosetta@home software, which uses the idle resources of personal computers to perform protein folding simulations",
       "image_url": "https://pub.desci.com/ipfs/bafkreigibpmiwumddgmkzyjfkddhhfymfq5b6ghdpy7ux3evgu3uxf7s5q",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": false
     },
     {
       "name": "Space Science",
       "description": "The research is related to space science",
       "image_url": "https://pub.desci.com/ipfs/bafybeifm56vo2eslxh5mygh5mxl7jywvp6qgcirn55gsoq4kqpygvxbxau",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": false
     },
     {
       "name": "Longevity Research",
       "description": "The research is related to longevity",
       "image_url": "https://pub.desci.com/ipfs/bafkreihdwoxo3md7pl4spwc3c245o4aksciuvumekpg5qsvd2wtbqkiebu",
-      "communityName": "DeSci Labs"
+      "communityName": "DeSci Labs",
+      "communitySelected": false
     }
   ]
 }

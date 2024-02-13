@@ -116,7 +116,7 @@ jobs:
           # Build and tag the image
           docker build \
             -t $CONTAINER_IMAGE:latest \
-            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod \
              ./desci-repo
 
       # Add additional steps here like scanning of image
@@ -147,10 +147,10 @@ jobs:
         run: |
           # Push image to AWS ECR
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
-          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
+          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:latest
 
       - name: Deploy to EKS (DEV)
         # uses: steebchen/kubectl@v2.0.0
@@ -169,7 +169,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: | # defaults to latest kubectl binary version
           kubectl apply -f desci-repo/kubernetes/deployment.yaml
-          kubectl set image deployment/desci-repo-server desci-repo-server=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} --record
+          kubectl set image deployment/desci-repo-server-prod desci-repo-server-prod=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ github.sha }} --record
 
       - name: Verify EKS Deployment (DEV)
         if: github.ref == 'refs/heads/develop'
@@ -184,4 +184,4 @@ jobs:
       - name: Verify EKS Deployment (PROD)
         if: github.ref == 'refs/heads/main'
         run: |
-          kubectl rollout status deployment/desci-repo-server
+          kubectl rollout status deployment/desci-repo-server-prod

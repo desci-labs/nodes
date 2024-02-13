@@ -3,28 +3,12 @@ import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
 import {
-  NodeRadarItem,
   SuccessResponse,
   asyncMap,
-  attestationService,
   communityService,
   logger as parentLogger,
   resolveLatestNode,
 } from '../../internal.js';
-
-export interface NodeRadar {
-  node: NodeRadarItem & { manifest: Node };
-  engagements: {
-    reactions: number;
-    annotations: number;
-    verifications: number;
-  };
-  verifiedEngagements: {
-    reactions: number;
-    annotations: number;
-    verifications: number;
-  };
-}
 
 const logger = parentLogger.child({ module: 'GET COMMUNITY RADAR' });
 export const getCommunityRadar = async (req: Request, res: Response, next: NextFunction) => {
@@ -51,7 +35,7 @@ export const getCommunityRadar = async (req: Request, res: Response, next: NextF
 
     // todo: get all attestation signals
     return {
-      node,
+      ...node,
       engagements,
       verifiedEngagements,
     };

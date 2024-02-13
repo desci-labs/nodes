@@ -70,7 +70,7 @@ export class AuthFailiureError extends ApiError {
   }
 }
 
-export class BadRequestErrorError extends ApiError {
+export class BadRequestError extends ApiError {
   constructor(message = 'Bad Request') {
     super(ApiErrorType.BAD_REQUEST, message);
   }

@@ -111,10 +111,10 @@ async function main() {
         image_url: attestation.image_url,
       },
     });
-    const version = await prisma.attestationVersion.findFirst({ where: { attestationId: inserted.id } });
+    let version = await prisma.attestationVersion.findFirst({ where: { attestationId: inserted.id } });
     if (!version) {
       console.log('Publish version for', attestation.communityName, ' =>', attestation.name);
-      await prisma.attestationVersion.create({
+      version = await prisma.attestationVersion.create({
         data: {
           name: attestation.name,
           description: attestation.description,
@@ -123,7 +123,27 @@ async function main() {
         },
       });
     }
-    return { ...inserted, versions: version };
+
+    if (attestation.communitySelected === true) {
+      const selected = await prisma.communitySelectedAttestation.findFirst({
+        where: { desciCommunityId: inserted.communityId, attestationId: inserted.id, attestationVersionId: version.id },
+      });
+
+      if (!selected) {
+        console.log(`Add to community entry Attestation`, attestation.name);
+        await prisma.communitySelectedAttestation.create({
+          data: {
+            desciCommunityId: inserted.communityId,
+            attestationId: inserted.id,
+            attestationVersionId: version.id,
+            required: true,
+          },
+        });
+      } else {
+        console.log(`FOUND community entry Attestation`, attestation.name);
+      }
+    }
+    return { ...inserted, versions: version, communitySelected: attestation.communitySelected };
   });
 
   console.log('Attestations SEEDED', inserted);

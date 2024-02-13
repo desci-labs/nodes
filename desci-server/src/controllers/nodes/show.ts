@@ -11,6 +11,7 @@ import { RequestWithNode } from '../../middleware/authorisation.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node) => {
   const ro = Object.assign({}, data);
@@ -70,7 +71,7 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
 
     const discovery = await prisma.node.findFirst({
       where: {
-        uuid: uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
         ownerId,
         isDeleted: false,
       },
@@ -88,7 +89,7 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
       logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
       (discovery as any).manifestData = transformManifestWithHistory((await axios.get(gatewayUrl)).data, discovery);
       // Add draft manifest document
-      const nodeUuid = (uuid + '.') as NodeUuid;
+      const nodeUuid = ensureUuidEndsWithDot(uuid) as NodeUuid;
       const manifest = await repoService.getDraftManifest(nodeUuid);
 
       logger.info({ manifest }, '[SHOW API GET DRAFT MANIFEST]');

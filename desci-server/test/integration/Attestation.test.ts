@@ -111,7 +111,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe('Attestations Service', async () => {
+describe.only('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -509,16 +509,13 @@ describe('Attestations Service', async () => {
 
       const JwtToken = jwt.sign({ email: users[0].email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
       const authHeaderVal = `Bearer ${JwtToken}`;
-      const res = await request(app)
-        .post(`/v1/attestations/claimAll/${desciCommunity.id}`)
-        .set('authorization', authHeaderVal)
-        .send({
-          nodeVersion,
-          nodeDpid: '1',
-          nodeUuid: node.uuid,
-          claimerId: author.id,
-          communityId: desciCommunity.id,
-        });
+      const res = await request(app).post(`/v1/attestations/claimAll`).set('authorization', authHeaderVal).send({
+        nodeVersion,
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        claimerId: author.id,
+        communityId: desciCommunity.id,
+      });
 
       expect(res.status).to.equal(200);
       const claims: NodeAttestation[] = res.body.data;
@@ -581,16 +578,13 @@ describe('Attestations Service', async () => {
 
       const JwtToken = jwt.sign({ email: users[0].email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
       const authHeaderVal = `Bearer ${JwtToken}`;
-      const res = await request(app)
-        .post(`/v1/attestations/claimAll/${desciCommunity.id}`)
-        .set('authorization', authHeaderVal)
-        .send({
-          nodeVersion,
-          nodeDpid: '1',
-          nodeUuid: node.uuid,
-          claimerId: author.id,
-          communityId: desciCommunity.id,
-        });
+      const res = await request(app).post(`/v1/attestations/claimAll`).set('authorization', authHeaderVal).send({
+        nodeVersion,
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        claimerId: author.id,
+        communityId: desciCommunity.id,
+      });
 
       expect(res.status).to.equal(200);
       expect(res.body.data.length).to.equal(1);
@@ -1583,9 +1577,9 @@ describe('Attestations Service', async () => {
     it('should return nodes in radar in ASC order of verified engagements', async () => {
       expect(res.status).to.equal(200);
       expect(apiResponse.length).to.equal(3);
-      expect(apiResponse[0].node.nodeDpid10).to.be.equal('2');
-      expect(apiResponse[1].node.nodeDpid10).to.be.equal('1');
-      expect(apiResponse[2].node.nodeDpid10).to.be.equal('3');
+      expect(apiResponse[0].nodeDpid10).to.be.equal('2');
+      expect(apiResponse[1].nodeDpid10).to.be.equal('1');
+      expect(apiResponse[2].nodeDpid10).to.be.equal('3');
     });
   });
 
@@ -1755,7 +1749,7 @@ describe('Attestations Service', async () => {
       console.log({ allResponse });
 
       res = await request(app)
-        .get(`/v1/attestations/suggestions/${desciCommunity.id}`)
+        .get(`/v1/communities/${desciCommunity.name}/attestations`)
         .set('authorization', authHeaderVal);
       communityResponse = res.body.data;
       console.log({ communityResponse });

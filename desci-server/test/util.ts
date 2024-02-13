@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { expect } from 'chai';
 
 import { prisma } from '../src/client.js';
+import { sendMagicLink } from '../src/services/auth.js';
 import { IpfsDirStructuredInput, IpfsPinnedResult, pinDirectory } from '../src/services/ipfs.js';
 
 const expectThrowsAsync = async (method, errorMessage) => {
@@ -64,3 +65,15 @@ export const createDraftNode = async (data: Prisma.NodeUncheckedCreateInput) => 
     data,
   });
 };
+export async function testingGenerateMagicCode(email: string) {
+  await sendMagicLink(email);
+  const magicLink = await prisma.magicLink.findFirst({
+    where: {
+      email: email,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+  return magicLink?.token;
+}

@@ -8,6 +8,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { getLatestDriveTime } from '../../services/draftTrees.js';
 import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
 import { persistManifest } from './utils.js';
@@ -35,7 +36,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
   if (!node) {
@@ -163,7 +164,7 @@ export async function deleteComponentsFromManifest({ node, pathsToDelete }: Upda
   const response = await repoService.dispatchAction({
     uuid: node.uuid,
     documentId: node.manifestDocumentId as DocumentId,
-    actions: [{ type: 'Delete Components', pathsToDelete }],
+    actions: [{ type: 'Delete Components', paths: pathsToDelete }],
   });
 
   return response?.manifest;

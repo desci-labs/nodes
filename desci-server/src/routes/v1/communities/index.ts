@@ -1,12 +1,21 @@
 import { Router } from 'express';
 
-import { asyncHander, getCommunityFeed, getCommunityRadar, listCommunities } from '../../../internal.js';
-import { ensureUser } from '../../../middleware/permissions.js';
+import {
+  asyncHander,
+  getCommunityDetails,
+  getCommunityFeed,
+  getCommunityRadar,
+  getCommunityRecommendations,
+  listCommunities,
+} from '../../../internal.js';
 
 const router = Router();
 
 // list all communities and curated nodes()
-router.get('/list', [ensureUser], asyncHander(listCommunities));
-router.get('/:communityId/feed', [ensureUser], asyncHander(getCommunityFeed));
-router.get('/:communityId/radar', [ensureUser], asyncHander(getCommunityRadar));
+router.get('/list', [], asyncHander(listCommunities));
+router.get('/:communityName', [], asyncHander(getCommunityDetails));
+router.get('/:communityName/attestations', [], asyncHander(getCommunityRecommendations));
+router.get('/:communityId/feed', [], asyncHander(getCommunityFeed));
+router.get('/:communityId/radar', [], asyncHander(getCommunityRadar));
+
 export default router;

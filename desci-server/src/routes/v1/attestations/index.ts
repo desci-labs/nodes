@@ -10,33 +10,37 @@ import {
   removeVerification,
   getAttestationComments,
   getAllRecommendations,
-  getCommunityRecommendations,
   showNodeAttestations,
   claimAttestation,
   claimEntryRequirements,
   removeClaim,
+  getAttestationReactions,
+  showCommunityClaims,
+  getAttestationVerifications,
 } from '../../../internal.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 
 const router = Router();
 
 router.get('/suggestions/all', [ensureUser], asyncHander(getAllRecommendations));
-router.get('/suggestions/:communityId', [ensureUser], asyncHander(getCommunityRecommendations));
+router.get('/claims/:communityId/:dpid', [ensureUser], asyncHander(showCommunityClaims));
 
+router.get('/:dpid', [], asyncHander(showNodeAttestations));
+router.get('/:claimId/reactions', [], asyncHander(getAttestationReactions));
+router.get('/:claimId/verifications', [], asyncHander(getAttestationVerifications));
 router.get('/:attestationId/version/:attestationVersionId', [], asyncHander(getAttestationComments));
 router.get('/:attestationId/version/:attestationVersionId/comments', [], getAttestationComments);
-router.get('/:dpid', [ensureUser], asyncHander(showNodeAttestations));
 
 router.post('/claim', [ensureUser], asyncHander(claimAttestation));
 router.post('/unclaim', [ensureUser], asyncHander(removeClaim));
-router.post('/claimAll/:communityId', [ensureUser], asyncHander(claimEntryRequirements));
+router.post('/claimAll', [ensureUser], asyncHander(claimEntryRequirements));
 
 router.post('/comment', [ensureUser], addComment);
 router.post('/reaction', [ensureUser], addReaction);
-router.post('/verification', [ensureUser], addVerification);
+router.post('/verification', [ensureUser], asyncHander(addVerification));
 
 router.delete('/comment', [ensureUser], removeComment);
 router.delete('/reaction', [ensureUser], removeReaction);
-router.delete('/verification', [ensureUser], removeVerification);
+router.delete('/verification', [ensureUser], asyncHander(removeVerification));
 
 export default router;

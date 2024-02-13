@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../client.js';
 // import { CustomError } from '../utils/response/custom-error/CustomError';
 import { logger as parentLogger } from '../logger.js';
-import { hideEmail } from '../utils.js';
+import { ensureUuidEndsWithDot, hideEmail } from '../utils.js';
 
 // import { extractAuthToken, extractUserFromToken } from './permissions.js';
 
@@ -34,7 +34,7 @@ export const ensureWriteNodeAccess = async (req: RequestWithUser, res: Response,
   const node = await prisma.node.findFirst({
     where: {
       ownerId: user.id,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
   if (!node) {
@@ -69,7 +69,7 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
   logger.info('[EnsureNodeAccess]:: => ', { email: hideEmail(user.email), uuid });
 
   const node = await prisma.node.findFirst({
-    where: { uuid: uuid.endsWith('.') ? uuid : uuid + '.', ownerId: user.id },
+    where: { uuid: ensureUuidEndsWithDot(uuid), ownerId: user.id },
   });
 
   if (!node) {
@@ -103,7 +103,7 @@ export async function ensureWriteAccessCheck(user: User, uuid: string): Promise<
   const node = await prisma.node.findFirst({
     where: {
       ownerId: user.id,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
   if (!node) {

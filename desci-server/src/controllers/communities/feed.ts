@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { SuccessResponse, asyncMap, communityService, resolveLatestNode } from '../../internal.js';
+import { NotFoundError, SuccessResponse, asyncMap, communityService, resolveLatestNode } from '../../internal.js';
 
 export const getCommunityFeed = async (req: Request, res: Response, next: NextFunction) => {
   const curatedNodes = await communityService.getCuratedNodes(parseInt(req.params.communityId as string));
@@ -13,7 +13,7 @@ export const getCommunityFeed = async (req: Request, res: Response, next: NextFu
       node.nodeDpid10,
     );
     return {
-      node,
+      ...node,
       engagements,
     };
   });
@@ -25,4 +25,14 @@ export const getCommunityFeed = async (req: Request, res: Response, next: NextFu
     return key2 - key1;
   });
   return new SuccessResponse(data).send(res);
+};
+
+export const getCommunityDetails = async (req: Request, res: Response, next: NextFunction) => {
+  const community = await communityService.findCommunityByName(req.params.communityName as string);
+
+  if (!community) throw new NotFoundError('Community not found');
+
+  const engagements = await communityService.getCommunityEngagementSignals(community.id);
+
+  return new SuccessResponse({ community, engagements }).send(res);
 };

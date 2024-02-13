@@ -9,6 +9,7 @@ import {
   SuccessResponse,
   asyncMap,
   attestationService,
+  ensureUuidEndsWithDot,
   logger,
   prisma,
 } from '../../internal.js';
@@ -55,8 +56,8 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
 };
 
 export const claimEntryRequirements = async (req: Request, res: Response, _next: NextFunction) => {
-  const { communityId } = req.params;
-  const { nodeDpid, nodeUuid, nodeVersion, claimerId } = req.body as {
+  // const { communityId } = req.params;
+  const { communityId, nodeDpid, nodeUuid, nodeVersion, claimerId } = req.body as {
     communityId: number;
     nodeVersion: number;
     nodeUuid: string;
@@ -64,15 +65,16 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     claimerId: number;
   };
   logger.info({ communityId, body: req.body });
+  const uuid = ensureUuidEndsWithDot(nodeUuid);
 
-  const entryAttestations = await attestationService.getCommunityEntryAttestations(parseInt(communityId));
+  const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
 
   const claimables = (await asyncMap(entryAttestations, async (attestation) => {
     const claimable = await attestationService.canClaimAttestation({
       attestationId: attestation.attestationId,
       attestationVersion: attestation.attestationVersionId,
       nodeVersion,
-      nodeUuid,
+      nodeUuid: uuid,
       nodeDpid,
       claimerId,
     });
@@ -92,11 +94,12 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
   logger.info({ claims }, 'CLAIM all input');
   const attestations = await attestationService.claimAttestations({
     nodeVersion,
-    nodeUuid,
+    nodeUuid: uuid,
     nodeDpid: nodeDpid.toString(),
     claimerId,
     attestations: claims,
   });
 
+  // attestations = attestations.map((attestation) => _.pick(attestation, ['']));
   return new SuccessResponse(attestations).send(res);
 };

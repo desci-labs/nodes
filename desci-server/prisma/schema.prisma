@@ -180,10 +180,27 @@ model User {
   Annotation                  Annotation[]
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
+  ApiKey                      ApiKey[]
 
   @@index([orcid])
   @@index([walletAddress])
   @@index([pseudonym])
+}
+
+model ApiKey {
+  id         Int       @id @default(autoincrement())
+  keyHashed  String    @unique
+  memo       String
+  createdAt  DateTime  @default(now())
+  lastUsed   DateTime? @updatedAt
+  isActive   Boolean   @default(true)
+  createdIp  String
+  lastUsedIp String?
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+
+  // @@unique([memo, userId])
+  @@index([userId])
 }
 
 model Invite {

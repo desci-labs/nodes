@@ -6,7 +6,7 @@ import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { discoveryLs, getDirectoryTree } from '../services/ipfs.js';
-import { objectPropertyXor, omitKeys } from '../utils.js';
+import { ensureUuidEndsWithDot, objectPropertyXor, omitKeys } from '../utils.js';
 
 import { DRAFT_CID, TimestampMap, draftNodeTreeEntriesToFlatIpfsTree } from './draftTreeUtils.js';
 import {
@@ -55,7 +55,7 @@ export async function generateDataReferences({
 }: GenerateDataReferencesArgs): Promise<
   Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]
 > {
-  nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
+  nodeUuid = ensureUuidEndsWithDot(nodeUuid);
   const isPublished = !!versionId;
   const node = await prisma.node.findFirst({
     where: {
@@ -128,7 +128,7 @@ export async function prepareDataRefs(
   markExternals = false,
   externalCidMapConcat?: ExternalCidMap, // adds externalCidMapConcat to the externalCidMap generated from the nodeUuid
 ): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
-  nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
+  nodeUuid = ensureUuidEndsWithDot(nodeUuid);
   const node = await prisma.node.findFirst({
     where: {
       uuid: nodeUuid,
@@ -182,7 +182,7 @@ export async function prepareDataRefsForDraftTrees(
   nodeUuid: string,
   manifest: ResearchObjectV1,
 ): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
-  nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
+  nodeUuid = ensureUuidEndsWithDot(nodeUuid);
   const node = await prisma.node.findFirst({
     where: {
       uuid: nodeUuid,
@@ -275,7 +275,7 @@ export async function prepareDataRefsExternalCids(
   markExternals = false,
   externalCidMapConcat?: ExternalCidMap, // adds externalCidMapConcat to the externalCidMap generated from the nodeUuid
 ): Promise<Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]> {
-  nodeUuid = nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.';
+  nodeUuid = ensureUuidEndsWithDot(nodeUuid);
   const node = await prisma.node.findFirst({
     where: {
       uuid: nodeUuid,
@@ -352,7 +352,7 @@ export async function validateDataReferences({
   if (nodeUuid.endsWith('.')) nodeUuid = nodeUuid.slice(0, -1);
   const node = await prisma.node.findFirst({
     where: {
-      uuid: nodeUuid + '.',
+      uuid: ensureUuidEndsWithDot(nodeUuid),
     },
   });
   if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);

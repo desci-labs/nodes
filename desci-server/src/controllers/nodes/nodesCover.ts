@@ -7,6 +7,7 @@ import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL } from '../../config/index.j
 import { logger as parentLogger } from '../../logger.js';
 import { cacheNodeMetadata } from '../../services/nodeManager.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 if (!process.env.NODES_MEDIA_SERVER_URL) {
   throw Error('NODES_MEDIA_SERVER_URL not found, add to env file');
@@ -38,9 +39,9 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     logger.info({ version: version }, 'version');
 
     if (!nodeUUID) throw Error('Invalid Node uuid');
-    const uuid = nodeUUID + '.';
+    const uuid = ensureUuidEndsWithDot(nodeUUID);
 
-    const node = await prisma.node.findFirst({ where: { uuid: nodeUUID + '.' } });
+    const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(nodeUUID) } });
     if (!node) throw Error('Node not found');
 
     logger.trace({ version }, `Version: ${version}`);

@@ -1,3 +1,6 @@
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { Node } from '@prisma/client';
+
 import { CommunityRadarNode } from '../../internal.js';
 
 export type NodeRadarItem = {
@@ -6,18 +9,16 @@ export type NodeRadarItem = {
   nodeuuid: string;
 };
 
-export type NodeRadarWithEngagement = {
-  node: NodeRadarItem;
-  engagements: {
-    reactions: number;
-    annotations: number;
-    verifications: number;
-  };
-  verifiedEngagements: {
-    reactions: number;
-    annotations: number;
-    verifications: number;
-  };
+export interface Engagement {
+  reactions: number;
+  annotations: number;
+  verifications: number;
+}
+
+export type NodeRadarWithEngagement = NodeRadarItem & {
+  // node: NodeRadarItem;
+  engagements: Engagement;
+  verifiedEngagements: Engagement;
 };
 
 export type CuratedNodeItem = {
@@ -28,7 +29,18 @@ export type CuratedNodeItem = {
 
 export type CuratedNodeWithEngagement = {
   node: CuratedNodeItem;
+  engagements: Engagement;
+};
+
+export type NodeRadar = NodeRadarItem & {
+  node: Partial<Node>;
+  manifest: ResearchObjectV1;
   engagements: {
+    reactions: number;
+    annotations: number;
+    verifications: number;
+  };
+  verifiedEngagements: {
     reactions: number;
     annotations: number;
     verifications: number;

@@ -20,7 +20,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: desci-repo-server
+  name: desci-repo-server-prod
   labels:
     App: DesciRepoServerProd
 spec:
@@ -55,8 +55,8 @@ spec:
         App: DesciRepoServerProd
     spec:
       containers:
-        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-repo-server:latest
-          name: desci-repo-server
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-repo-server-prod:latest
+          name: desci-repo-server-prod
           command: ['/bin/bash', '-c']
           args:
             - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;

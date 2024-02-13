@@ -7,6 +7,7 @@ import { updateManifestAndAddToIpfs } from '../../services/ipfs.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { cleanManifestForSaving } from '../../utils/manifestDraftUtils.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export const draftUpdate = async (req: Request, res: Response, next: NextFunction) => {
   const { uuid, manifest } = req.body;
@@ -44,7 +45,7 @@ export const draftUpdate = async (req: Request, res: Response, next: NextFunctio
     const node = await prisma.node.findFirst({
       where: {
         ownerId: loggedInUser,
-        uuid: uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
       },
     });
 
