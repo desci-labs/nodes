@@ -60,6 +60,13 @@ describe('ManifestActions Schema', () => {
     });
   });
 
+  describe('Remove Dpid', () => {
+    it('should validate dPID action', () => {
+      const validated = actionsSchema.safeParse([{ type: 'Remove Dpid' }]);
+      expect(validated.success).to.be.true;
+    });
+  });
+
   describe('Validate Description', () => {
     it('should validate description action', () => {
       const validated = actionsSchema.safeParse([{ type: 'Update Description', description: 'No title' }]);
