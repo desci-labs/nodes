@@ -20,7 +20,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe.only('Desci Communities', () => {
+describe('Desci Communities', () => {
   const moonDao = {
     name: 'Moon Dao',
     image_url:
@@ -235,6 +235,7 @@ describe.only('Desci Communities', () => {
       it('should publish new attestation version(2)', async () => {
         const versions = await attestationService.getAttestationVersions(attestation.id);
         assert(versions);
+        // console.log('version 2', versions);
         expect(versions.length).to.be.equal(2);
         expect(versions[1].name).be.equal('Update 1');
         expect(versions[1].description).be.equal(attestation.description);
@@ -250,6 +251,7 @@ describe.only('Desci Communities', () => {
         });
         const versions = await attestationService.getAttestationVersions(attestation.id);
         assert(versions);
+        // console.log('version 3', versions);
         expect(versions.length).to.be.equal(3);
         expect(versions[2].name).be.equal('Update 2');
         expect(versions[2].description).be.equal(attestation.description);
@@ -263,6 +265,7 @@ describe.only('Desci Communities', () => {
           description: 'Version 4 Description',
         });
         const versions = await attestationService.getAttestationVersions(attestation.id);
+        // console.log('version 4', versions);
         assert(versions);
         expect(versions.length).to.be.equal(4);
         expect(versions[3].name).be.equal(attestation.name);
