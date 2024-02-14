@@ -3,6 +3,7 @@ export * from './client.js';
 export * from './core/communities/error.js';
 export * from './core/ApiError.js';
 export * from './core/ApiResponse.js';
+export * from './middleware/index.js';
 export * from './services/Communities.js';
 export * from './services/Attestation.js';
 export * from './utils/asyncHandler.js';

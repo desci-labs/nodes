@@ -17,19 +17,44 @@ import {
   getAttestationReactions,
   showCommunityClaims,
   getAttestationVerifications,
+  validate,
 } from '../../../internal.js';
 import { ensureUser } from '../../../middleware/permissions.js';
+
+import {
+  getAttestationCommentsSchema,
+  getAttestationReactionsSchema,
+  getAttestationVerificationsSchema,
+  showCommunityClaimsSchema,
+  showNodeAttestationsSchema,
+} from './schema.js';
 
 const router = Router();
 
 router.get('/suggestions/all', [ensureUser], asyncHander(getAllRecommendations));
-router.get('/claims/:communityId/:dpid', [ensureUser], asyncHander(showCommunityClaims));
+router.get(
+  '/claims/:communityId/:dpid',
+  [ensureUser, validate(showCommunityClaimsSchema)],
+  asyncHander(showCommunityClaims),
+);
 
-router.get('/:dpid', [], asyncHander(showNodeAttestations));
-router.get('/:claimId/reactions', [], asyncHander(getAttestationReactions));
-router.get('/:claimId/verifications', [], asyncHander(getAttestationVerifications));
-router.get('/:attestationId/version/:attestationVersionId', [], asyncHander(getAttestationComments));
-router.get('/:attestationId/version/:attestationVersionId/comments', [], getAttestationComments);
+router.get('/:dpid', [validate(showNodeAttestationsSchema)], asyncHander(showNodeAttestations));
+router.get('/:claimId/reactions', [validate(getAttestationReactionsSchema)], asyncHander(getAttestationReactions));
+router.get(
+  '/:claimId/verifications',
+  [validate(getAttestationVerificationsSchema)],
+  asyncHander(getAttestationVerifications),
+);
+router.get(
+  '/:attestationId/version/:attestationVersionId',
+  [validate(getAttestationCommentsSchema)],
+  asyncHander(getAttestationComments),
+);
+router.get(
+  '/:attestationId/version/:attestationVersionId/comments',
+  [validate(getAttestationCommentsSchema)],
+  getAttestationComments,
+);
 
 router.post('/claim', [ensureUser], asyncHander(claimAttestation));
 router.post('/unclaim', [ensureUser], asyncHander(removeClaim));

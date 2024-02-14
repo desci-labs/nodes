@@ -33,6 +33,7 @@ export abstract class ApiResponse {
 
   private static sanitize<T extends ApiResponse>(response: T): T {
     const clone: T = {} as T;
+    console.log('SANITIZE', response);
     Object.assign(clone, response);
     delete clone.status;
     for (const field in clone) if (clone[field] === 'undefined') delete clone[field];
@@ -40,7 +41,7 @@ export abstract class ApiResponse {
   }
 }
 
-export class SuccessMessageResponse<T> extends ApiResponse {
+export class SuccessMessageResponse extends ApiResponse {
   constructor(message = 'Success') {
     super(ResponseStatus.SUCCESS, message);
   }
@@ -71,8 +72,11 @@ export class ForbiddenResponse extends ApiResponse {
   }
 }
 
-export class BadRequestResponse extends ApiResponse {
-  constructor(message = 'Bad Request') {
+export class BadRequestResponse<T> extends ApiResponse {
+  constructor(
+    message = 'Bad Request',
+    private error: T,
+  ) {
     super(ResponseStatus.BAD_REQUEST, message);
   }
 }

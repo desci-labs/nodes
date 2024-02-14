@@ -23,6 +23,7 @@ export abstract class ApiError extends Error {
   constructor(
     public type: ApiErrorType,
     public message: string = 'error',
+    public error?: any,
   ) {
     super(type);
   }
@@ -32,7 +33,7 @@ export abstract class ApiError extends Error {
       case ApiErrorType.UNAUTHORIZED:
         return new AuthFailureResponse(err.message).send(res);
       case ApiErrorType.BAD_REQUEST:
-        return new BadRequestResponse(err.message).send(res);
+        return new BadRequestResponse(err.message, err.error).send(res);
       case ApiErrorType.NOT_FOUND:
       case ApiErrorType.NO_DATA:
         return new NotFoundResponse(err.message).send(res);
@@ -71,8 +72,11 @@ export class AuthFailiureError extends ApiError {
 }
 
 export class BadRequestError extends ApiError {
-  constructor(message = 'Bad Request') {
-    super(ApiErrorType.BAD_REQUEST, message);
+  constructor(
+    message = 'Bad Request',
+    private err?: unknown,
+  ) {
+    super(ApiErrorType.BAD_REQUEST, message, err);
   }
 }
 
