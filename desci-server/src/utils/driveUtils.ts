@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   DEFAULT_COMPONENT_TYPE,
   DrivePath,
@@ -21,8 +22,10 @@ import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
-import { getNodeManifestUpdater } from '../services/manifestRepo.js';
+import { ManifestActions, NodeUuid } from '../services/manifestRepo.js';
+import repoService from '../services/repoService.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
+import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
 
@@ -68,7 +71,7 @@ export async function getTreeAndFillDeprecated(
   ownerId?: number,
 ) {
   //NOTE/TODO: Adapted for priv(owner) and public (unauthed), may not work for node sharing users(authed/contributors)
-  const externalCidMap = await generateExternalCidMap(nodeUuid + '.');
+  const externalCidMap = await generateExternalCidMap(ensureUuidEndsWithDot(nodeUuid));
   const tree: RecursiveLsResult[] = await getDirectoryTree(rootCid, externalCidMap);
 
   /*
@@ -83,7 +86,7 @@ export async function getTreeAndFillDeprecated(
             rootCid: rootCid,
             // cid: { in: dirCids },
             node: {
-              uuid: nodeUuid + '.',
+              uuid: ensureUuidEndsWithDot(nodeUuid),
             },
           },
         })
@@ -93,7 +96,7 @@ export async function getTreeAndFillDeprecated(
             // cid: { in: dirCids },
             // rootCid: rootCid,
             node: {
-              uuid: nodeUuid + '.',
+              uuid: ensureUuidEndsWithDot(nodeUuid),
             },
           },
         });
@@ -105,7 +108,7 @@ export async function getTreeAndFillDeprecated(
           where: {
             type: { not: DataType.MANIFEST },
             node: {
-              uuid: nodeUuid + '.',
+              uuid: ensureUuidEndsWithDot(nodeUuid),
             },
           },
         })
@@ -151,10 +154,10 @@ export async function getTreeAndFill(
   }
   const rootCid = dataBucket.payload.cid;
   const externalCidMap = published
-    ? await generateExternalCidMap(nodeUuid + '.', rootCid)
-    : await generateExternalCidMap(nodeUuid + '.');
+    ? await generateExternalCidMap(ensureUuidEndsWithDot(nodeUuid), rootCid)
+    : await generateExternalCidMap(ensureUuidEndsWithDot(nodeUuid));
 
-  const node = await prisma.node.findUnique({ where: { uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.' } });
+  const node = await prisma.node.findUnique({ where: { uuid: ensureUuidEndsWithDot(nodeUuid) } });
 
   const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
   let tree: RecursiveLsResult[] = published
@@ -171,7 +174,7 @@ export async function getTreeAndFill(
       type: { not: DataType.MANIFEST },
       rootCid: rootCid,
       node: {
-        uuid: nodeUuid + '.',
+        uuid: ensureUuidEndsWithDot(nodeUuid),
       },
     },
   });
@@ -179,7 +182,7 @@ export async function getTreeAndFill(
     where: {
       type: { not: DataType.MANIFEST },
       node: {
-        uuid: nodeUuid + '.',
+        uuid: ensureUuidEndsWithDot(nodeUuid),
       },
     },
     include: {
@@ -377,7 +380,17 @@ export interface FirstNestingComponent {
   star?: boolean;
   externalUrl?: string;
 }
-export function addComponentsToManifest(manifest: ResearchObjectV1, firstNestingComponents: FirstNestingComponent[]) {
+
+/**
+ * This function is used to manually update the manifest document by mutating it in playce
+ * @param manifest ResearchObjectV1
+ * @param firstNestingComponents array of components to add to manifest
+ * @returns updated manifest object with newly added components
+ */
+export function DANGEROUSLY_addComponentsToManifest(
+  manifest: ResearchObjectV1,
+  firstNestingComponents: FirstNestingComponent[],
+) {
   //add duplicate path check
   firstNestingComponents.forEach((c) => {
     const comp = {
@@ -398,11 +411,9 @@ export function addComponentsToManifest(manifest: ResearchObjectV1, firstNesting
 }
 
 export async function addComponentsToDraftManifest(node: Node, firstNestingComponents: FirstNestingComponent[]) {
-  const manifestUpdater = getNodeManifestUpdater(node);
-  let updatedManifest: ResearchObjectV1;
   //add duplicate path check
-  for (const entry of firstNestingComponents) {
-    const component = {
+  const components = firstNestingComponents.map((entry) => {
+    return {
       id: randomUUID(),
       name: entry.name,
       ...(entry.componentType && { type: entry.componentType }),
@@ -414,24 +425,34 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
       },
       starred: entry.star || false,
     };
-    try {
-      updatedManifest = await manifestUpdater({ type: 'Add Component', component });
-    } catch (e) {
-      logger.error(e, '[ERROR addComponentsToDraftManifest]');
-    }
+  });
+
+  const actions: ManifestActions[] = [{ type: 'Add Components', components }];
+  try {
+    // updatedManifest = await manifestUpdater({ type: 'Add Components', components });
+    logger.info({ uuid: node.uuid, actions }, '[AddComponentsToDraftManifest]');
+    const response = await repoService.dispatchAction({
+      uuid: node.uuid as NodeUuid,
+      documentId: node.manifestDocumentId as DocumentId,
+      actions,
+    });
+    logger.info({ actions, response }, '[AddComponentsToDraftManifest]');
+    return response?.manifest;
+  } catch (err) {
+    logger.error({ err, actions }, '[ERROR addComponentsToDraftManifest]');
+    return null;
   }
-  return updatedManifest;
 }
 
 export type oldCid = string;
 export type newCid = string;
-export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
-  manifest.components.forEach((c) => {
-    if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
-    if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
-  });
-  return manifest;
-}
+// export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
+//   manifest.components.forEach((c) => {
+//     if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
+//     if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
+//   });
+//   return manifest;
+// }
 
 export type ExternalCidMap = Record<string, { size: number; path: string; directory: boolean }>;
 
@@ -443,7 +464,7 @@ export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
     ? await prisma.publicDataReference.findMany({
         where: {
           node: {
-            uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.',
+            uuid: ensureUuidEndsWithDot(nodeUuid),
           },
           rootCid: dataBucketCid,
           external: true,
@@ -452,7 +473,7 @@ export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
     : await prisma.dataReference.findMany({
         where: {
           node: {
-            uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.',
+            uuid: ensureUuidEndsWithDot(nodeUuid),
           },
           external: true,
         },

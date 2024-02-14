@@ -1,9 +1,10 @@
 // @ts-check
 import 'dotenv/config';
 import 'reflect-metadata';
-import fs from 'fs';
+import * as child from 'child_process';
+// import fs from 'fs';
 import type { Server as HttpServer } from 'http';
-import path from 'path';
+// import path from 'path';
 import { fileURLToPath } from 'url';
 
 import * as Sentry from '@sentry/node';
@@ -14,7 +15,6 @@ import express from 'express';
 import type { Express, Request } from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import morgan from 'morgan';
 import { pinoHttp } from 'pino-http';
 import { v4 } from 'uuid';
 
@@ -28,9 +28,9 @@ import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
 // import SocketServer from './wsServer.js';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
-import { socket as wsSocket } from './repo.js';
+// import { socket as wsSocket } from './repo.js';
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __dirname = path.dirname(__filename);
 
 const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
 const IS_DEV = !ENABLE_TELEMETRY;
@@ -100,23 +100,11 @@ class AppServer {
     this.app.use(cookieParser());
     this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
-    // try {
-    //   const accessLogStream = fs.createWriteStream(path.join(__dirname, '../log/access.log'), {
-    //     flags: 'a',
-    //   });
-    //   this.app.use(morgan('combined', { stream: accessLogStream }));
-    // } catch (err) {
-    //   console.log(err);
-    // }
-
-    // this.app.use(cors());
-    // this.app.use(morgan('combined'));
-
     this.#attachRouteHandlers();
 
     this.app.use(errorHandler);
 
-    this.port = parseInt(process.env.PORT) || 5420;
+    this.port = process.env.PORT ? parseInt(process.env.PORT) : 5420;
     this.server = this.app.listen(this.port, () => {
       this.#isReady = true;
       this.#readyResolvers.forEach((resolve) => resolve(true));
@@ -124,31 +112,31 @@ class AppServer {
     });
 
     // this.socketServer = new SocketServer(this.server, this.port);
-    wsSocket.on('listening', () => {
-      logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
-    });
-    wsSocket.on('connection', async (socket, request) => {
-      try {
-        const token = await extractAuthToken(request as Request);
-        const authUser = await extractUserFromToken(token);
-        if (!authUser) {
-          socket.close(); // Close connection if user is not authorized
-          return;
-        }
-        logger.info(
-          { module: 'WebSocket SERVER', id: authUser.id, name: authUser.name },
-          'WebSocket Connection Authorised',
-        );
-        socket.on('message', (message) => {
-          // Handle incoming messages
-          // console.log(`Received message: ${message}`);
-        });
-        // Additional event listeners (e.g., 'close', 'error') can be set up here
-      } catch (error) {
-        socket.close(); // Close the connection in case of an error
-        logger.error(error, 'Error during WebSocket connection');
-      }
-    });
+    // wsSocket.on('listening', () => {
+    //   logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
+    // });
+    // wsSocket.on('connection', async (socket, request) => {
+    //   try {
+    //     const token = await extractAuthToken(request as Request);
+    //     const authUser = await extractUserFromToken(token);
+    //     if (!authUser) {
+    //       socket.close(); // Close connection if user is not authorized
+    //       return;
+    //     }
+    //     logger.info(
+    //       { module: 'WebSocket SERVER', id: authUser.id, name: authUser.name },
+    //       'WebSocket Connection Authorised',
+    //     );
+    //     socket.on('message', (message) => {
+    //       // Handle incoming messages
+    //       // console.log(`Received message: ${message}`);
+    //     });
+    //     // Additional event listeners (e.g., 'close', 'error') can be set up here
+    //   } catch (error) {
+    //     socket.close(); // Close the connection in case of an error
+    //     logger.error(error, 'Error during WebSocket connection');
+    //   }
+    // });
   }
 
   get httpServer() {
@@ -169,8 +157,13 @@ class AppServer {
     this.app.get('/readyz', (_, res) => {
       res.status(200).json({ status: 'ok' });
     });
-    this.app.get('/id', (_, res) => {
-      res.status(200).json({ id: serverUuid });
+    this.app.get('/version', (req, res) => {
+      const revision = child.execSync('git rev-parse HEAD').toString().trim();
+      // const sha256 = child.execSync('find /app/desci-server/dist -type f -exec sha256sum \\;').toString().trim();
+      res.status(200).json({ revision, npm: process.env.npm_package_version });
+    });
+    this.app.get('/id', (req, res) => {
+      res.status(200).json({ id: serverUuid, affinity: req.cookies['stickie-dev-ingress61'] });
     });
     this.app.get('/orcid', orcidConnect);
     this.app.post('/orcid/next', [ensureUserIfPresent], orcidCheck());

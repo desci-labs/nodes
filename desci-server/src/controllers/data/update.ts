@@ -7,7 +7,7 @@ import { RequestWithNode } from '../../middleware/authorisation.js';
 import { processExternalUrlDataToIpfs } from '../../services/data/externalUrlProcessing.js';
 import { processNewFolder, processS3DataToIpfs } from '../../services/data/processing.js';
 import { IpfsPinnedResult } from '../../services/ipfs.js';
-import { arrayXor } from '../../utils.js';
+import { arrayXor, ensureUuidEndsWithDot } from '../../utils.js';
 export interface UpdateResponse {
   status?: number;
   rootDataCid?: string;
@@ -32,7 +32,7 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
     node = await prisma.node.findFirst({
       where: {
         ownerId: owner.id,
-        uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
       },
     });
   }
@@ -70,7 +70,6 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
       .status(400)
       .json({ error: 'Choose between one of the following; files, new folder, externalUrl or externalCids' });
 
-  // debugger;
   /**
    * temp short circuit for testing
    *  */

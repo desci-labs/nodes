@@ -4,8 +4,10 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { updateManifestAndAddToIpfs } from '../../services/ipfs.js';
-import { NodeUuid, getDraftManifestFromUuid } from '../../services/manifestRepo.js';
+import { NodeUuid } from '../../services/manifestRepo.js';
+import repoService from '../../services/repoService.js';
 import { cleanManifestForSaving } from '../../utils/manifestDraftUtils.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export const draftUpdate = async (req: Request, res: Response, next: NextFunction) => {
   const { uuid, manifest } = req.body;
@@ -43,14 +45,14 @@ export const draftUpdate = async (req: Request, res: Response, next: NextFunctio
     const node = await prisma.node.findFirst({
       where: {
         ownerId: loggedInUser,
-        uuid: uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
       },
     });
 
     let manifestParsed: ResearchObjectV1;
 
     try {
-      manifestParsed = await getDraftManifestFromUuid(node.uuid as NodeUuid);
+      manifestParsed = await repoService.getDraftManifest(node.uuid as NodeUuid); //await getDraftManifestFromUuid(node.uuid as NodeUuid);
     } catch (e) {
       manifestParsed = req.body.manifest as ResearchObjectV1;
     }

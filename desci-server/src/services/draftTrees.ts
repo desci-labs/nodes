@@ -6,6 +6,7 @@ import { logger as parentLogger } from '../logger.js';
 import { generateTimestampMapFromDataRefs } from '../utils/dataRefTools.js';
 import { TimestampMap, ipfsDagToDraftNodeTreeEntries } from '../utils/draftTreeUtils.js';
 import { generateExternalCidMap } from '../utils/driveUtils.js';
+import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { extractRootDagCidFromManifest, getManifestFromNode } from './data/processing.js';
 import { createDuplicateFileError, createMixingExternalDataError } from './data/processingErrors.js';
@@ -118,7 +119,7 @@ export async function ensureUniquePathsDraftTree({
 }
 
 export async function getDraftTreeEntriesByUuid(uuid: NodeUuid) {
-  const node = await prisma.node.findFirst({ where: uuid.endsWith('.') ? { uuid } : { uuid: uuid + '.' } });
+  const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
 
   const treeEntries = await prisma.draftNodeTree.findMany({
     where: {
@@ -145,5 +146,5 @@ export async function getLatestDriveTime(nodeUuid: NodeUuid) {
     },
   });
 
-  return latestDriveTime.updatedAt.getTime().toString();
+  return latestDriveTime?.updatedAt.getTime().toString() ?? new Date().getTime().toString();
 }

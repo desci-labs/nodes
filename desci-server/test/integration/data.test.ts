@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import 'mocha';
+import assert from 'assert';
+
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   DriveObject,
   FileDir,
@@ -25,8 +28,8 @@ import {
   client as ipfs,
   spawnEmptyManifest,
 } from '../../src/services/ipfs.js';
-import { createManifestDocument } from '../../src/services/manifestRepo.js';
-// import { ResearchObjectDocument } from '../../src/types/documents.js';
+import { NodeUuid } from '../../src/services/manifestRepo.js';
+import repoService from '../../src/services/repoService.js';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools.js';
 import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils.js';
 import { addComponentsToDraftManifest } from '../../src/utils/driveUtils.js';
@@ -44,9 +47,21 @@ const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseM
     },
   });
 
-  const documentId = await createManifestDocument({ node, manifest: baseManifest });
+  const response = await repoService.initDraftDocument({
+    uuid: node.uuid as NodeUuid,
+    manifest: baseManifest,
+  });
+
+  if (response?.document && response.documentId) {
+    await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: response.documentId } });
+  }
   const updatedNode = await prisma.node.findFirst({ where: { id: node.id } });
-  return { node: updatedNode || node, documentId };
+  console.log('Draft Node create', response);
+
+  assert(response?.documentId);
+  assert(response?.document);
+
+  return { node: updatedNode || node, documentId: response?.documentId };
 };
 
 describe('Data Controllers', () => {
@@ -233,10 +248,12 @@ describe('Data Controllers', () => {
       let res: request.Response;
       const externalRepoUrl = 'https://github.com/github/dev';
       const externalRepoPath = 'A Repo';
+      let documentId: DocumentId;
 
       before(async () => {
         const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
         node = nodeData.node;
+        documentId = nodeData.documentId;
 
         res = await request(app)
           .post('/v1/data/update')
@@ -246,6 +263,7 @@ describe('Data Controllers', () => {
           .field('contextPath', 'root')
           .field('externalUrl', JSON.stringify({ url: externalRepoUrl, path: externalRepoPath }))
           .field('componentType', ResearchObjectComponentType.CODE);
+        console.log('[Response]::', res.body);
       });
 
       it('should return status 200', () => {
@@ -281,7 +299,7 @@ describe('Data Controllers', () => {
       //   const newDataBucketCid = res.body.manifest.components[0].payload.cid;
       //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
       // });
-      it('should have added a code component to the manifest', () => {
+      it('should have added a code component to the manifest', async () => {
         const newCodeComponent = res.body.manifest.components.find(
           (c) => c.type === ResearchObjectComponentType.CODE && c.payload.path === 'root/' + externalRepoPath,
         );
@@ -291,7 +309,6 @@ describe('Data Controllers', () => {
         const newCodeComponent = res.body.manifest.components.find(
           (c) => c.type === ResearchObjectComponentType.CODE && c.payload.path === 'root/' + externalRepoPath,
         );
-
         expect(newCodeComponent.payload.externalUrl).to.equal(externalRepoUrl);
       });
     });
@@ -390,7 +407,7 @@ describe('Data Controllers', () => {
       const deleteDirPath = 'root/dir/subdir';
 
       before(async () => {
-        let manifest = { ...baseManifest };
+        let manifest: ResearchObjectV1 = { ...baseManifest };
         const exampleDagCid = await spawnExampleDirDag();
         manifest.components[0].payload.cid = exampleDagCid;
         const componentsToAdd = ['dir/subdir', 'dir/subdir/b.txt'].map((path) => ({
@@ -404,7 +421,7 @@ describe('Data Controllers', () => {
         const nodeData = await createDraftNode(user, manifest, baseManifestCid);
         node = nodeData.node;
 
-        manifest = await addComponentsToDraftManifest(node, componentsToAdd);
+        manifest = (await addComponentsToDraftManifest(node, componentsToAdd)) ?? manifest;
         const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
         await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
 
@@ -512,7 +529,7 @@ describe('Data Controllers', () => {
         const nodeData = await createDraftNode(user, baseManifest, baseManifestCid);
         node = nodeData.node;
 
-        manifest = await addComponentsToDraftManifest(node, componentsToAdd);
+        manifest = (await addComponentsToDraftManifest(node, componentsToAdd)) ?? manifest;
         const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
         await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
 
@@ -592,6 +609,7 @@ describe('Data Controllers', () => {
         expect(!!newPathFound).to.equal(true);
       });
       it('should cascade update all manifest component paths that were dependent on the renamed directory', () => {
+        console.log('[LOG]::', res.body.manifest);
         const oldPathContainedComponentFound = res.body.manifest.components.some((c) =>
           c.payload.path.includes(renameDirPath),
         );
@@ -600,6 +618,7 @@ describe('Data Controllers', () => {
         expect(!!containedNewPathFound).to.equal(true);
       });
       it('should rename component card if renameComponent flag is true', () => {
+        console.log('[LOG]::', res.body.manifest);
         const componentCard = res.body.manifest.components.find((c) => c.payload.path === newPath);
         expect(componentCard.name).to.equal('dubdir');
       });
@@ -657,7 +676,7 @@ describe('Data Controllers', () => {
         const nodeData = await createDraftNode(user, manifest, baseManifestCid);
         node = nodeData.node;
 
-        manifest = await addComponentsToDraftManifest(node, componentsToAdd);
+        manifest = (await addComponentsToDraftManifest(node, componentsToAdd)) ?? manifest;
         const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
 
         await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
@@ -741,6 +760,7 @@ describe('Data Controllers', () => {
         const containedNewPathFound = res.body.manifest.components.find(
           (c) => c.payload.path === moveToPath + '/b.txt',
         );
+        console.log('[log];:', oldPathContainedComponentFound, containedNewPathFound, res.body.manifest);
         expect(!!oldPathContainedComponentFound).to.not.equal(true);
         expect(!!containedNewPathFound).to.equal(true);
       });

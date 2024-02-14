@@ -1,11 +1,13 @@
 import fs from 'fs';
 
+import { DocumentId } from '@automerge/automerge-repo';
 import {
   DrivePath,
   IpfsPinnedResult,
   RecursiveLsResult,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
+  ResearchObjectV1,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import { DataType, User, Node, Prisma } from '@prisma/client';
@@ -32,7 +34,8 @@ import {
   saveZipStreamToDisk,
   zipUrlToStream,
 } from '../../utils.js';
-import { NodeUuid, getLatestManifestFromNode, getNodeManifestUpdater } from '../manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../manifestRepo.js';
+import repoService from '../repoService.js';
 
 import {
   filterFirstNestings,
@@ -206,6 +209,7 @@ export async function processExternalUrlDataToIpfs({
       },
     });
 
+    let updatedManifest: ResearchObjectV1;
     if (componentType) {
       /**
        * Automatically create a new component(s) for the files added, to the first nesting.
@@ -222,11 +226,11 @@ export async function processExternalUrlDataToIpfs({
       });
 
       if (firstNestingComponents?.length > 0) {
-        await addComponentsToDraftManifest(node, firstNestingComponents);
+        updatedManifest = await addComponentsToDraftManifest(node, firstNestingComponents);
       }
     }
 
-    const updatedManifest = await getLatestManifestFromNode(ltsNode);
+    updatedManifest = updatedManifest ?? (await repoService.getDraftManifest(ltsNode.uuid as NodeUuid));
 
     // Update existing data references, add new data references.
     const upserts = await updateDataReferences({ node, user, updatedManifest });
@@ -243,8 +247,18 @@ export async function processExternalUrlDataToIpfs({
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    const manifestUpdater = getNodeManifestUpdater(node);
-    await manifestUpdater({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      const response = await repoService.dispatchAction({
+        uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      if (response) {
+        updatedManifest = response.manifest;
+      }
+    } catch (err) {
+      logger.error({ err }, 'ERROR: Set Drive Clock');
+    }
 
     const tree = await getTreeAndFill(updatedManifest, node.uuid, user.id);
 

@@ -1,0 +1,12 @@
+{
+  "watch": [
+    "."
+  ],
+  "ext": ".ts,.js,*",
+  "ignore": [
+    "log/server.log"
+  ],
+  "verbose": true,
+  "exec": "npx kill-port 5484 9232; sleep 5; node -r ts-node/register --inspect=0.0.0.0:9232",
+  "delay": 300
+}

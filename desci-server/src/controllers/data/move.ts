@@ -1,12 +1,15 @@
-import { ResearchObjectV1, ResearchObjectV1Component, isNodeRoot, neutralizePath } from '@desci-labs/desci-models';
+import { DocumentId } from '@automerge/automerge-repo';
+import { ResearchObjectV1, neutralizePath } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
-import { NodeUuid, getNodeManifestUpdater } from '../../services/manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import repoService from '../../services/repoService.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
 import { persistManifest } from './utils.js';
@@ -36,7 +39,7 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
   if (!node) {
@@ -102,8 +105,19 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
     /*
      ** Updates old paths in the manifest component payloads to the new ones, updates the data bucket root CID and any DAG CIDs changed along the way
      */
-    const dispatchChange = getNodeManifestUpdater(node);
-    const updatedManifest = await dispatchChange({ type: 'Rename Component Path', oldPath, newPath });
+    let updatedManifest: ResearchObjectV1;
+
+    try {
+      const response = await repoService.dispatchAction({
+        uuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [{ type: 'Rename Component Path', oldPath, newPath }],
+      });
+      updatedManifest = response ? response.manifest : await getLatestManifestFromNode(node);
+    } catch (err) {
+      logger.error({ err }, '[Source]: Rename Component Path');
+      updatedManifest = await getLatestManifestFromNode(node);
+    }
 
     /*
      ** Prepare updated refs
@@ -158,7 +172,18 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
      * Update drive clock on automerge document
      */
     const latestDriveClock = await getLatestDriveTime(node.uuid as NodeUuid);
-    await dispatchChange({ type: 'Set Drive Clock', time: latestDriveClock });
+    try {
+      const res = await repoService.dispatchAction({
+        uuid,
+        documentId: node.manifestDocumentId as DocumentId,
+        actions: [{ type: 'Set Drive Clock', time: latestDriveClock }],
+      });
+      if (res && res.manifest) {
+        updatedManifest = res.manifest;
+      }
+    } catch (err) {
+      logger.error({ err }, 'Set Drive Clock');
+    }
 
     return res.status(200).json({
       manifest: updatedManifest,
@@ -170,18 +195,3 @@ export const moveData = async (req: Request, res: Response<MoveResponse | ErrorR
   }
   return res.status(400).json({ error: 'failed' });
 };
-
-interface UpdateComponentPathsInManifest {
-  manifest: ResearchObjectV1;
-  oldPath: string;
-  newPath: string;
-}
-
-// export function updateComponentPathsInManifest({ manifest, oldPath, newPath }: UpdateComponentPathsInManifest) {
-//   manifest.components.forEach((c: ResearchObjectV1Component, idx) => {
-//     if (c.payload?.path.startsWith(oldPath + '/') || c.payload.path === oldPath) {
-//       manifest.components[idx].payload.path = c.payload.path.replace(oldPath, newPath);
-//     }
-//   });
-//   return manifest;
-// }

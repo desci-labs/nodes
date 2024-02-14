@@ -9,42 +9,46 @@ import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
 import { logger } from './logger.js';
 import { verifyNodeDocumentAccess } from './services/permissions.js';
 import { ResearchObjectDocument } from './types/documents.js';
+import { ensureUuidEndsWithDot } from './utils.js';
 
-export const socket = new WebSocketServer({ port: 5445, path: '/sync' });
+// export const socket = new WebSocketServer({ port: 5446, path: '/sync' });
 const hostname = os.hostname();
 
-const adapter = new NodeWSServerAdapter(socket);
+// const adapter = new NodeWSServerAdapter(socket);
 const config: RepoConfig = {
-  network: [adapter],
+  network: [],
   storage: new PostgresStorageAdapter(prisma),
   peerId: `storage-server-${hostname}` as PeerId,
   // Since this is a server, we don't share generously — meaning we only sync documents they already
   // know about and can ask for by ID.
   sharePolicy: async (peerId, documentId) => {
-    try {
-      // peer format: `peer-[user#id]:[unique string combination]
-      if (peerId.toString().length < 8) return false;
+    return false;
+    // try {
+    //   // peer format: `peer-[user#id]:[unique string combination]
+    //   if (peerId.toString().length < 8) return false;
 
-      const userId = peerId.split(':')?.[0]?.split('-')?.[1];
-      const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
-      logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
-      return isAuthorised;
-    } catch (err) {
-      logger.error({ err }, 'Error in share policy');
-      return false;
-    }
+    //   const userId = peerId.split(':')?.[0]?.split('-')?.[1];
+    //   const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
+    //   logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
+    //   return isAuthorised;
+    // } catch (err) {
+    //   logger.error({ err }, 'Error in share policy');
+    //   return false;
+    // }
   },
 };
+
 export const backendRepo = new Repo(config);
+
 const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {
   logger.trace({ change: change.handle.documentId, uuid: (await change.handle.doc()).uuid }, 'Document Changed');
   const newTitle = change.patchInfo.after.manifest.title;
   const newCover = change.patchInfo.after.manifest.coverImage;
-  const uuid = change.doc.uuid;
-  logger.info({ uuid: uuid + '.', newTitle }, 'UPDATE NODE');
+  const uuid = ensureUuidEndsWithDot(change.doc.uuid);
+  logger.info({ uuid: uuid, newTitle }, 'UPDATE NODE');
 
   await prisma.node.updateMany({
-    where: { uuid: uuid + '.' },
+    where: { uuid: uuid },
     data: { title: newTitle },
   });
 
@@ -52,9 +56,9 @@ const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocumen
   if (newCover) {
     const coverUrl = process.env.IPFS_RESOLVER_OVERRIDE + newCover;
     await prisma.nodeCover.upsert({
-      where: { nodeUuid_version: { nodeUuid: uuid + '.', version: 0 } },
+      where: { nodeUuid_version: { nodeUuid: uuid, version: 0 } },
       update: { url: coverUrl, cid: newCover as string },
-      create: { nodeUuid: uuid + '.', url: coverUrl, cid: newCover as string },
+      create: { nodeUuid: uuid, url: coverUrl, cid: newCover as string },
     });
   }
 };
