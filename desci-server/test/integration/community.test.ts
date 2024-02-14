@@ -44,6 +44,7 @@ describe('Desci Communities', () => {
   };
 
   before(async () => {
+    await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
     admin = await prisma.user.create({
       data: {
         email: 'admin@desci.com',

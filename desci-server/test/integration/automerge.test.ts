@@ -38,7 +38,7 @@ const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseM
     await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: response.documentId } });
   }
   const updatedNode = await prisma.node.findFirst({ where: { id: node.id } });
-  console.log('Draft Node created', !!response, { response });
+  // console.log('Draft Node created', !!response, { response });
 
   assert(response?.documentId);
   assert(response?.document);
@@ -143,7 +143,7 @@ describe('Automerge Integration', () => {
         documentId: nodeData.documentId,
         actions: [{ type: 'Update ResearchFields', researchFields: ['Science'] }],
       })) as ResearchObjectDocument;
-      console.log('RESEARCH FIELDS', document.manifest);
+      // console.log('RESEARCH FIELDS', document.manifest);
       expect(document.manifest.researchFields).to.be.eql(['Science']);
       expect(document).to.have.deep.nested.property('manifest.researchFields[0]', 'Science');
     });
@@ -164,7 +164,7 @@ describe('Automerge Integration', () => {
 
     it('Reject Invalid Actions', async () => {
       try {
-        console.log('URL', repoServiceUrl, `${repoServiceUrl}/v1/nodes/documents/actions`);
+        // console.log('URL', repoServiceUrl, `${repoServiceUrl}/v1/nodes/documents/actions`);
         await client.post<{ ok: boolean; document: ResearchObjectDocument }>(
           `${repoServiceUrl}/v1/nodes/documents/actions`,
           {
@@ -176,7 +176,7 @@ describe('Automerge Integration', () => {
         // expect(response.status).to.be.equal(400);
       } catch (err) {
         const error = err as AxiosError;
-        console.log('[REJECT ACTIONS DATA]', error.response?.status, error.response?.data);
+        // console.log('[REJECT ACTIONS DATA]', error.response?.status, error.response?.data);
         expect(error).to.be.instanceOf(AxiosError);
         expect(error.response?.data).to.have.property('ok', false);
         expect(error.response?.status).to.be.equal(400);
@@ -195,7 +195,7 @@ describe('Automerge Integration', () => {
         );
       } catch (err) {
         const error = err as AxiosError;
-        console.log('[REJECT ACTIONS DATA]', error.response?.status, error.response?.data);
+        // console.log('[REJECT ACTIONS DATA]', error.response?.status, error.response?.data);
         expect(error).to.be.instanceOf(AxiosError);
         expect(error.response?.data).to.have.property('ok', false);
         expect(error.response?.status).to.be.equal(400);
@@ -211,7 +211,7 @@ describe('Automerge Integration', () => {
         .set('Accept', 'application/json')
         .send(JSON.stringify({ uuid: node.uuid, actions }));
 
-      console.log('[ResponseBODY]::', res.body);
+      // console.log('[ResponseBODY]::', res.body);
       const document = res.body.document;
       expect(document.manifest.title).to.be.equal('Api title');
     });
