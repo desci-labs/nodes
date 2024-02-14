@@ -11,6 +11,7 @@ import tar from 'tar';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import redisClient, { getOrCache } from '../../redisClient.js';
+import { getLatestDriveTime } from '../../services/draftTrees.js';
 import { getDatasetTar } from '../../services/ipfs.js';
 import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
@@ -18,8 +19,6 @@ import { cleanupManifestUrl } from '../../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
-import { getLatestDriveTime } from '../../services/draftTrees.js';
-// import { getLatestManifest } from './utils.js';
 
 export enum DataReferenceSrc {
   PRIVATE = 'private',
@@ -34,7 +33,7 @@ interface RetrieveResponse {
 
 export const retrieveTree = async (req: Request, res: Response<RetrieveResponse | ErrorResponse | string>) => {
   let ownerId = (req as any).user?.id;
-  const manifestCid: string = req.params.manifestCid;
+  const manifestCid: string = req.params.manifestCid; // unused param
   const uuid: string = req.params.nodeUuid;
   const shareId: string = req.params.shareId;
 
@@ -89,11 +88,6 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   if (!node) {
     return res.status(400).send({ error: 'Node not found' });
   }
-
-  // No longer necessary, we can disable this check
-  // if (!manifestCid) {
-  //   return res.status(400).json({ error: 'no manifest CID provided' });
-  // }
 
   if (!uuid) {
     return res.status(400).json({ error: 'no UUID provided' });
