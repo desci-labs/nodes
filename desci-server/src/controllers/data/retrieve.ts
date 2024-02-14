@@ -12,12 +12,13 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import redisClient, { getOrCache } from '../../redisClient.js';
 import { getDatasetTar } from '../../services/ipfs.js';
-import { getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
+import { getLatestDriveTime } from '../../services/draftTrees.js';
 // import { getLatestManifest } from './utils.js';
 
 export enum DataReferenceSrc {
@@ -89,48 +90,19 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     return res.status(400).send({ error: 'Node not found' });
   }
 
-  if (!manifestCid) {
-    return res.status(400).json({ error: 'no manifest CID provided' });
-  }
+  // No longer necessary, we can disable this check
+  // if (!manifestCid) {
+  //   return res.status(400).json({ error: 'no manifest CID provided' });
+  // }
+
   if (!uuid) {
     return res.status(400).json({ error: 'no UUID provided' });
   }
 
-  // TODOD: Pull data references from publishDataReferences table
-  // TODO: Later expand to never require auth from publicDataRefs
-  let dataSource = DataReferenceSrc.PRIVATE;
-  const dataset = await prisma.dataReference.findFirst({
-    where: {
-      type: DataType.MANIFEST,
-      userId: ownerId,
-      cid: manifestCid,
-      node: {
-        uuid: ensureUuidEndsWithDot(uuid),
-      },
-    },
-  });
-  const publicDataset = await prisma.publicDataReference.findFirst({
-    where: {
-      cid: manifestCid,
-      type: DataType.MANIFEST,
-      node: {
-        uuid: ensureUuidEndsWithDot(uuid),
-      },
-    },
-  });
-
-  if (publicDataset) dataSource = DataReferenceSrc.PUBLIC;
-
-  if (!dataset && dataSource === DataReferenceSrc.PRIVATE) {
-    logger.warn(`unauthed access user: ${ownerId}, cid provided: ${manifestCid}, nodeUuid provided: ${uuid}`);
-    return res.status(400).json({ error: 'failed' });
-  }
-
-  // const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath};
-
   try {
     const manifest = await getLatestManifestFromNode(node);
     const filledTree = (await getTreeAndFill(manifest, uuid, ownerId)) ?? [];
+    const latestDriveClock = getLatestDriveTime(node.uuid as NodeUuid);
 
     let tree = findAndPruneNode(filledTree[0], dataPath, depth);
     if (tree?.type === 'file' || tree === undefined) {
@@ -140,7 +112,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
       tree = findAndPruneNode(filledTree[0], poppedDataPath, depth);
     }
 
-    return res.status(200).json({ tree: [tree], date: dataset?.updatedAt.toString() });
+    return res.status(200).json({ tree: [tree], date: await latestDriveClock });
   } catch (err) {
     logger.error({ err }, 'Failed to retrieve tree');
     return res.status(400).json({ error: 'failed' });
