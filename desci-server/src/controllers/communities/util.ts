@@ -21,7 +21,13 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
   }
 
   const selectAttributes = ['manifestUrl', 'ownerId', 'title'];
-  const node: Partial<Node> = _.pick(discovery, selectAttributes);
+  const node: Partial<Node & { versions: number }> = _.pick(discovery, selectAttributes);
+  const publisedVersions = await prisma.nodeVersion.findMany({
+    where: { node: { uuid }, transactionId: { not: null } },
+  });
+  console.log('node', node.id, { publisedVersions });
+  node['versions'] = publisedVersions.length;
+  node['publishedDate'] = publisedVersions[publisedVersions.length - 1].createdAt;
   radar.node = node;
 
   let gatewayUrl = discovery.manifestUrl;

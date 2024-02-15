@@ -33,7 +33,7 @@ export type CuratedNodeWithEngagement = {
 };
 
 export type NodeRadar = NodeRadarItem & {
-  node: Partial<Node>;
+  node: Partial<Node & { versions: number; publishedDate: string }>;
   manifest: ResearchObjectV1;
   engagements: {
     reactions: number;
