@@ -130,6 +130,6 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
     logger.error({ error: e }, 'error');
     // res.status(404).send();
     // example
-    res.status(401).send();
+    res.status(404).send();
   }
 };
