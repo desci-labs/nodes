@@ -18,13 +18,24 @@ import { RequestWithUser } from '../../middleware/authorisation.js';
 export const claimAttestation = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const body = req.body as {
     attestationId: number;
-    attestationVersion: number;
+    // attestationVersion: number;
     nodeVersion: number;
     nodeUuid: string;
     nodeDpid: string;
     claimerId: number;
   };
-  const attestations = await attestationService.claimAttestation(body);
+  const attestationVersions = await attestationService.getAttestationVersions(body.attestationId);
+  const latest = attestationVersions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const attestationVersion = latest[0];
+  logger.info({ body, latest, attestationVersion }, 'CLAIM');
+  const uuid = ensureUuidEndsWithDot(body.nodeUuid);
+
+  const attestations = await attestationService.claimAttestation({
+    ...body,
+    nodeUuid: uuid,
+    attestationVersion: attestationVersion.id,
+  });
+  logger.info({ attestations }, 'CLAIMED');
 
   return new SuccessResponse(attestations).send(res);
 };

@@ -276,7 +276,6 @@ export class AttestationService {
       nodeVersion,
       claimerId,
     });
-
     const claim = await prisma.nodeAttestation.create({
       data,
     });
