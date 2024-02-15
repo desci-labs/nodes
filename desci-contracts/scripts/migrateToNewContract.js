@@ -29,7 +29,8 @@ const convertCidStringToHex = (cid) => {
 //   dpid: BigNumberish;
 // }
 
-const GRAPH_API_URL = "https://graph-goerli-dev.desci.com/subgraphs/name/nodes";
+const GRAPH_API_URL =
+  "https://graph-goerli-stage.desci.com/subgraphs/name/nodes";
 
 const query = async () => {
   const query = `{
@@ -104,7 +105,7 @@ const idToRo = {};
   // write to JSON file
   const fs = require("fs");
   fs.writeFileSync(
-    `migrationData_${new Date().toDateString()}.json`,
+    `migration-data/migrationData_${new Date().toDateString()}.json`,
     JSON.stringify(unified)
   );
 
@@ -129,13 +130,23 @@ const idToRo = {};
   ]);
   await proxy.deployed();
 
-  await proxyDpid.setFee(0);
-
-  const result = await proxy._importChunk(unified, DEFAULT_PREFIX);
-  console.log("result", result);
-
   console.log(
     "[deployResearchObjectMigrated] ResearchObjectMigrated deployed to:",
     proxy.address
   );
+  await proxyDpid.setFee(0);
+
+  // split unified array into chunks
+  const chunkSize = 100;
+  const chunks = [];
+  for (let i = 0; i < unified.length; i += chunkSize) {
+    chunks.push(unified.slice(i, i + chunkSize));
+  }
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    console.log("chunk", i, chunk);
+    const result = await proxy._importChunk(chunk, DEFAULT_PREFIX);
+    console.log("result", result);
+    await new Promise((r) => setTimeout(r, 50));
+  }
 })();

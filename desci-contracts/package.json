@@ -21,7 +21,7 @@
     "graph:deploy-dev-local": "cp subgraph/subgraph.local.yaml subgraph/subgraph.yaml && graph deploy nodes --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020",
     "upgrade:local": "hardhat run scripts/upgradeResearchObject.js --network ganache",
     "stubHardhatAnalytics": "scripts/stubHardhatAnalytics.sh",
-    "flatten": "hardhat flatten | sed '/SPDX/d' > flat.sol"
+    "flatten": "hardhat flatten > temp_flat.sol && awk '!/SPDX_License_Identifier/' temp_flat.sol > flat.sol && rm temp_flat.sol"
   },
   "files": [
     "/.openzeppelin",
