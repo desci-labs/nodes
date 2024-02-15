@@ -31,12 +31,9 @@ import {
   ResearchObjectComponentDataSubtype
 } from "@desci-labs/desci-models";
 
-const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
-const AUTH_TOKEN = process.env.AUTH_TOKEN;
-const PKEY = process.env.PKEY;
-
-if (!AUTH_TOKEN) throw new Error("AUTH_TOKEN unset");
-if (!PKEY) throw new Error("PKEY unset");
+// Disregard env config, as one likely does not want to spam all of this
+// onto a real chain.
+const NODES_API_URL = "http://localhost:5420";
 
 describe("nodes-lib", () => {
   beforeAll(async () => {
@@ -55,7 +52,7 @@ describe("nodes-lib", () => {
     test("can be created", async () => {
       const response = await createBoilerplateNode();
 
-      const actual = await getDraftNode(response.node.uuid, AUTH_TOKEN);
+      const actual = await getDraftNode(response.node.uuid);
       expect(actual.title).toEqual("My Node");
     });
 
@@ -63,7 +60,7 @@ describe("nodes-lib", () => {
       await createBoilerplateNode();
       await createBoilerplateNode();
 
-      const listedNodes = await listNodes(AUTH_TOKEN);
+      const listedNodes = await listNodes();
       // Lazy check that listing returns at least these two nodes
       expect(listedNodes.length).toBeGreaterThan(2);
     });
@@ -71,8 +68,8 @@ describe("nodes-lib", () => {
     test("can be deleted", async () => {
       const { node: { uuid }} = await createBoilerplateNode();
 
-      await deleteDraftNode(uuid, AUTH_TOKEN);
-      await expect(getDraftNode(uuid, AUTH_TOKEN)).rejects.toThrowError("403");
+      await deleteDraftNode(uuid);
+      await expect(getDraftNode(uuid)).rejects.toThrowError("403");
     });
   });
 
@@ -87,25 +84,25 @@ describe("nodes-lib", () => {
 
       test("title", async () => {
         const newTitle = "UNTITLED";
-        const { document: { manifest }} = await updateTitle(uuid, newTitle, AUTH_TOKEN);
+        const { document: { manifest }} = await updateTitle(uuid, newTitle);
         expect(manifest.title).toEqual(newTitle);
       });
 
       test("description", async () => {
         const newDesc = "Oh my what an interesting topic";
-        const { document: { manifest }} = await updateDescription(uuid, newDesc, AUTH_TOKEN);
+        const { document: { manifest }} = await updateDescription(uuid, newDesc);
         expect(manifest.description).toEqual(newDesc);
       });
 
       test("license", async () => {
         const newLicense: License = "Mozilla Public License 2.0";
-        const { document: { manifest }} = await updateLicense(uuid, newLicense, AUTH_TOKEN);
+        const { document: { manifest }} = await updateLicense(uuid, newLicense);
         expect(manifest.defaultLicense).toEqual(newLicense);
       });
 
       test("research fields", async () => {
         const newResearchFields: ResearchField[] = [ "Bathymetry", "Fisheries Science" ];
-        const { document: { manifest }} = await updateResearchFields(uuid, newResearchFields, AUTH_TOKEN);
+        const { document: { manifest }} = await updateResearchFields(uuid, newResearchFields);
         expect(manifest.researchFields).toEqual(newResearchFields);
       });
 
@@ -120,14 +117,14 @@ describe("nodes-lib", () => {
             role: ResearchObjectV1AuthorRole.NODE_STEWARD,
           }
         ];
-        await addContributor(uuid, newContributors[0], AUTH_TOKEN);
+        await addContributor(uuid, newContributors[0]);
         const { document: { manifest }} = await addContributor(
-          uuid, newContributors[1], AUTH_TOKEN
+          uuid, newContributors[1]
         );
         expect(manifest.authors).toEqual(newContributors);
 
         const { document: { manifest: updatedManifest }} =
-          await removeContributor(uuid, 1, AUTH_TOKEN);
+          await removeContributor(uuid, 1);
         expect(updatedManifest.authors).toEqual([newContributors[0]])
       });
     });
@@ -140,8 +137,8 @@ describe("nodes-lib", () => {
         subtype: ResearchObjectComponentLinkSubtype.OTHER,
         starred: false,
       };
-      await addLinkComponent(uuid, component, AUTH_TOKEN);
-      const state = await getDraftNode(uuid, AUTH_TOKEN);
+      await addLinkComponent(uuid, component);
+      const state = await getDraftNode(uuid);
       const actualComponents = state.manifestData.components;
 
       // Data bucket already present, so new component at index 1
@@ -152,14 +149,11 @@ describe("nodes-lib", () => {
     test("can add pdf component", async () => {
       const { node: { uuid }} = await createBoilerplateNode();
       const localFilePaths = [ "test/test.pdf" ];
-      const uploadResult = await uploadFiles(
-        {
-          uuid,
-          targetPath: "root",
-          localFilePaths
-        },
-        AUTH_TOKEN
-      );
+      const uploadResult = await uploadFiles({
+        uuid,
+        targetPath: "root",
+        localFilePaths
+      });
 
       const pdfComponentParams: AddPdfComponentParams = {
         name: "Manuscript",
@@ -168,8 +162,8 @@ describe("nodes-lib", () => {
         cid: uploadResult.tree[0].contains![0].cid,
         starred: true,
       };
-      await addPdfComponent(uuid, pdfComponentParams, AUTH_TOKEN);
-      const state = await getDraftNode(uuid, AUTH_TOKEN);
+      await addPdfComponent(uuid, pdfComponentParams);
+      const state = await getDraftNode(uuid);
       const actualComponents = state.manifestData.components;
 
       // Data bucket already present, so new component at index 1
@@ -180,14 +174,11 @@ describe("nodes-lib", () => {
     test("can add a code component", async () => {
       const { node: { uuid }} = await createBoilerplateNode();
       const localFilePaths = [ "test/root.spec.ts" ];
-      const uploadResult = await uploadFiles(
-        {
-          uuid,
-          targetPath: "root",
-          localFilePaths
-        },
-        AUTH_TOKEN
-      );
+      const uploadResult = await uploadFiles({
+        uuid,
+        targetPath: "root",
+        localFilePaths
+      });
       const uploadedFileCid = uploadResult.tree[0].contains![0].cid;
       const codeComponentParams: AddCodeComponentParams = {
         name: "Tests",
@@ -197,8 +188,8 @@ describe("nodes-lib", () => {
         language: "typescript",
         starred: true,
       };
-      await addCodeComponent(uuid, codeComponentParams, AUTH_TOKEN);
-      const state = await getDraftNode(uuid, AUTH_TOKEN);
+      await addCodeComponent(uuid, codeComponentParams);
+      const state = await getDraftNode(uuid);
       const actualComponents = state.manifestData.components;
 
       // Data bucket already present, so new component at index 1
@@ -217,11 +208,10 @@ describe("nodes-lib", () => {
           subtype: ResearchObjectComponentLinkSubtype.OTHER,
           starred: false,
         },
-        AUTH_TOKEN
       );
 
-      await deleteComponent(uuid, `root/External Links/Link`, AUTH_TOKEN);
-      const node = await getDraftNode(uuid, AUTH_TOKEN);
+      await deleteComponent(uuid, `root/External Links/Link`);
+      const node = await getDraftNode(uuid);
       expect(node.manifestData.components.length).toEqual(1); // Just data-bucket
     });
 
@@ -235,7 +225,6 @@ describe("nodes-lib", () => {
           subtype: ResearchObjectComponentLinkSubtype.OTHER,
           starred: false,
         },
-        AUTH_TOKEN
       );
 
       // Change
@@ -248,10 +237,9 @@ describe("nodes-lib", () => {
           componentIndex: 1,
           component: expectedComponent,
         },
-        AUTH_TOKEN
       );
 
-      const updatedNode = await getDraftNode(uuid, AUTH_TOKEN);
+      const updatedNode = await getDraftNode(uuid);
       const updatedComponent = updatedNode.manifestData.components[1];
       expect(updatedComponent.payload.url).toEqual(expectedComponent.payload.url)
     });
@@ -264,7 +252,7 @@ describe("nodes-lib", () => {
     beforeAll(async () => {
       const { node } = await createBoilerplateNode();
       uuid = node.uuid;
-      publishResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
+      publishResult = await publishDraftNode(uuid);
       expect(publishResult.ok).toEqual(true);
     });
 
@@ -279,7 +267,7 @@ describe("nodes-lib", () => {
       });
 
       test("sets dPID in manifest", async () => {
-        const node = await getDraftNode(uuid, AUTH_TOKEN);
+        const node = await getDraftNode(uuid);
         expect(node.manifestData.dpid).not.toBeUndefined();
         expect(node.manifestData.dpid?.prefix).toEqual("beta");
         expect(node.manifestData.dpid?.id).not.toBeNaN();
@@ -296,7 +284,7 @@ describe("nodes-lib", () => {
       let updateResult: PublishResponse;
 
       beforeAll(async () => {
-        updateResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
+        updateResult = await publishDraftNode(uuid);
         expect(updateResult.ok).toEqual(true);
         // Allow graph node to index
         await sleep(1_500);
@@ -324,13 +312,13 @@ describe("nodes-lib", () => {
       const { node: { uuid }} = await createBoilerplateNode();
 
       // make a dpid-only publish
-      await dpidPublish(uuid, AUTH_TOKEN, false);
+      await dpidPublish(uuid, false);
 
         // Allow graph node to index
       await sleep(1_500);
 
       // make a regular publish
-      const pubResult = await publishDraftNode(uuid, AUTH_TOKEN, PKEY);
+      const pubResult = await publishDraftNode(uuid);
 
         // Allow graph node to index
       await sleep(1_500);
@@ -345,9 +333,9 @@ describe("nodes-lib", () => {
     /** This is not an user feature, but part of error handling during publish */
     test("can remove dPID from manifest", async () => {
       await changeManifest(
-        uuid, [{ type: "Remove Dpid" }], AUTH_TOKEN
+        uuid, [{ type: "Remove Dpid" }]
       );
-      const node = await getDraftNode(uuid, AUTH_TOKEN);
+      const node = await getDraftNode(uuid);
       expect(node.manifestData.dpid).toBeUndefined();
     });
 
@@ -359,7 +347,7 @@ describe("nodes-lib", () => {
         const { ok, node: { uuid }} = await createBoilerplateNode();
         expect(ok).toEqual(true);
 
-        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
+        const treeResult = await retrieveDraftFileTree(uuid);
         expect(treeResult.tree).toHaveLength(1);
       });
     });
@@ -378,11 +366,11 @@ describe("nodes-lib", () => {
           uuid,
           locationPath: "root",
           folderName: expectedFolderName
-        }, AUTH_TOKEN);
+        });
       });
 
       test("can be created", async () => {
-        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
+        const treeResult = await retrieveDraftFileTree(uuid);
         const actualFolderName = treeResult.tree[0].contains![0].name;
 
         expect(actualFolderName).toEqual(expectedFolderName);
@@ -394,17 +382,16 @@ describe("nodes-lib", () => {
           uuid,
           locationPath: "root",
           folderName: otherFolderName,
-        }, AUTH_TOKEN);
+        });
         await moveData(
           {
             uuid,
             oldPath: `root/${otherFolderName}`,
             newPath: `root/${expectedFolderName}/${expectedFolderName}`
           },
-          AUTH_TOKEN,
         );
 
-        const treeResult = await retrieveDraftFileTree(uuid ,AUTH_TOKEN);
+        const treeResult = await retrieveDraftFileTree(uuid);
 
         const dir = treeResult.tree[0].contains![0];
         expect(dir.contains![0].name).toEqual(expectedFolderName);
@@ -416,9 +403,8 @@ describe("nodes-lib", () => {
             uuid,
             path: `root/${expectedFolderName}`
           },
-          AUTH_TOKEN,
         );
-        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
+        const treeResult = await retrieveDraftFileTree(uuid);
 
         expect(treeResult.tree[0].contains).toEqual([]);
       });
@@ -428,16 +414,13 @@ describe("nodes-lib", () => {
       test("can be uploaded", async () => {
         const { node: { uuid }} = await createBoilerplateNode();
         const localFilePaths = [ "package.json", "package-lock.json" ];
-        await uploadFiles(
-          {
-            uuid,
-            targetPath: "root",
-            localFilePaths,
-          },
-          AUTH_TOKEN
-        );
+        await uploadFiles({
+          uuid,
+          targetPath: "root",
+          localFilePaths,
+        });
 
-        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
+        const treeResult = await retrieveDraftFileTree(uuid);
         const driveContent = treeResult.tree[0].contains!;
 
         expect(driveContent.map(driveObject => driveObject.name))
@@ -450,46 +433,40 @@ describe("nodes-lib", () => {
       test("can be moved", async () => {
         const { node: { uuid }} = await createBoilerplateNode();
         const localFilePaths = [ "package.json" ];
-        const uploadResult = await uploadFiles(
-          {
-            uuid,
-            targetPath: "root",
-            localFilePaths,
-          },
-          AUTH_TOKEN
-        );
+        const uploadResult = await uploadFiles({
+          uuid,
+          targetPath: "root",
+          localFilePaths,
+        });
         expect(uploadResult.tree[0].contains![0].path).toEqual("root/package.json");
 
         await moveData({
           uuid,
           oldPath: "root/package.json",
           newPath: "root/json.package",
-        }, AUTH_TOKEN);
+        });
 
-        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
+        const treeResult = await retrieveDraftFileTree(uuid);
         expect(treeResult.tree[0].contains![0].path).toEqual("root/json.package");
       });
 
       test("can be deleted", async () => {
         const { node: { uuid }} = await createBoilerplateNode();
         const localFilePaths = [ "package.json" ];
-        const uploadResult = await uploadFiles(
-          {
-            uuid,
-            targetPath: "root",
-            localFilePaths,
-          },
-          AUTH_TOKEN
-        );
+        const uploadResult = await uploadFiles({
+          uuid,
+          targetPath: "root",
+          localFilePaths,
+        });
 
         expect(uploadResult.tree[0].contains![0].name).toEqual("package.json");
 
         await deleteData({
           uuid,
           path: "root/package.json"
-        }, AUTH_TOKEN);
+        });
 
-        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
+        const treeResult = await retrieveDraftFileTree(uuid);
 
         expect(treeResult.tree[0].contains!.length).toEqual(0);
       });
@@ -504,16 +481,13 @@ describe("nodes-lib", () => {
             url: "https://ipfs.desci.com/ipfs/bafybeiamslevhsvjlnfejg7p2rzk6bncioaapwb3oauu7zqwmfpwko5ho4",
             path: "manuscript.pdf",
           };
-          uploadResult = await uploadPdfFromUrl(
-            {
-              uuid,
-              externalUrl,
-              targetPath: "root",
-              componentSubtype: ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
-            },
-            AUTH_TOKEN,
-          );
-          treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
+          uploadResult = await uploadPdfFromUrl({
+            uuid,
+            externalUrl,
+            targetPath: "root",
+            componentSubtype: ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
+          });
+          treeResult = await retrieveDraftFileTree(uuid);
         });
 
         test("adds file to tree", async () => {
@@ -557,16 +531,13 @@ describe("nodes-lib", () => {
             url: "https://github.com/desci-labs/desci-codex",
             path: "DeSci Codex",
           };
-          await uploadGithubRepoFromUrl(
-            {
-              uuid,
-              externalUrl,
-              targetPath: "root",
-              componentSubtype: ResearchObjectComponentCodeSubtype.SOFTWARE_PACKAGE,
-            },
-            AUTH_TOKEN
-          );
-          treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
+          await uploadGithubRepoFromUrl({
+            uuid,
+            externalUrl,
+            targetPath: "root",
+            componentSubtype: ResearchObjectComponentCodeSubtype.SOFTWARE_PACKAGE,
+          });
+          treeResult = await retrieveDraftFileTree(uuid);
         });
 
         test("adds repo to tree", async () => {
@@ -585,22 +556,19 @@ describe("nodes-lib", () => {
       test("can be added", async () => {
         const { node: { uuid }} = await createBoilerplateNode();
         await createNewFolder(
-          {uuid, locationPath: "root", folderName: "catpics"}, AUTH_TOKEN
+          {uuid, locationPath: "root", folderName: "catpics"}
         );
         const catCid = "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u";
-        const addResult = await addExternalUnixFsTree(
-          {
-            uuid,
-            externalCids: [{ 
-              cid: catCid,
-              name: "cat.jpg",
-            }],
-            targetPath: "/catpics",
-            componentType: ResearchObjectComponentType.DATA,
-            componentSubtype: ResearchObjectComponentDataSubtype.IMAGE,
-          },
-          AUTH_TOKEN,
-        );
+        const addResult = await addExternalUnixFsTree({
+          uuid,
+          externalCids: [{
+            cid: catCid,
+            name: "cat.jpg",
+          }],
+          targetPath: "/catpics",
+          componentType: ResearchObjectComponentType.DATA,
+          componentSubtype: ResearchObjectComponentDataSubtype.IMAGE,
+        });
 
         expect(addResult.tree[0].contains![0].contains![0]).toMatchObject(expect.objectContaining({
           cid: catCid,
@@ -620,5 +588,5 @@ const createBoilerplateNode = async () => {
     researchFields: ["Horticulture"],
   };
 
-  return await createDraftNode(node, AUTH_TOKEN);
+  return await createDraftNode(node);
 }

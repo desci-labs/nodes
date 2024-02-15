@@ -7,9 +7,14 @@ import {
   type NodeIDs,
   queryResearchObject,
   resolveHistory,
+  newCeramicClient,
 } from "@desci-labs/desci-codex-lib/dist/src/index.js";
 import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
 import { convertHexToCID } from "./util/converting.js";
+import {
+  PUBLISH_PKEY,
+  CERAMIC_NODE_URL,
+} from "./config.js";
 
 /**
  * Publish an object modification to Codex. If it's the initial publish, it will be done
@@ -25,10 +30,11 @@ import { convertHexToCID } from "./util/converting.js";
 export const codexPublish = async (
   prepublishResult: PrepublishResponse,
   dpidHistory: IndexedNodeVersion[],
-  privateKey: string,
 ): Promise<NodeIDs> => {
   console.log("[DEBUG]::CODEX starting publish...");
-  const ceramic = await authenticatedCeramicClient(privateKey);
+  const ceramic = await authenticatedCeramicClient(
+    PUBLISH_PKEY.startsWith("0x") ? PUBLISH_PKEY.slice(2) : PUBLISH_PKEY
+  );
   const compose = newComposeClient({ ceramic });
 
   // If we know about a stream already, let's assume we backfilled it initially
@@ -64,7 +70,6 @@ export const codexPublish = async (
     return await codexPublish(
       { ...prepublishResult, ceramicStream: streamID },
       dpidHistory,
-      privateKey
     );
   };
 };
@@ -117,9 +122,7 @@ const backfillNewStream = async (
 export const getPublishedFromCodex = async (
   id: string
 ) => {
-  const ceramic = await authenticatedCeramicClient(
-    process.env.PKEY!
-  );
+  const ceramic = newCeramicClient(CERAMIC_NODE_URL);
 
   const compose = newComposeClient({ ceramic });
   return await queryResearchObject(compose, id);
@@ -128,9 +131,6 @@ export const getPublishedFromCodex = async (
 export const getCodexHistory = async (
   streamID: string
 ) => {
-  const ceramic = await authenticatedCeramicClient(
-    process.env.PKEY!
-  );
-
+  const ceramic = newCeramicClient(CERAMIC_NODE_URL);
   return await resolveHistory(ceramic, streamID);
 };

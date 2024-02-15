@@ -3,27 +3,33 @@ import { DpidRegistry__factory, ResearchObject__factory } from "@desci-labs/desc
 import { SigningKey, formatBytes32String } from "ethers/lib/utils.js";
 import { convertUUIDToHex, getBytesFromCIDString} from "./util/converting.js";
 import { changeManifest, prePublishDraftNode, type PrepublishResponse } from "./api.js"
+import {
+  RO_CONTRACT_ADDRESS,
+  DPID_CONTRACT_ADDRESS,
+  ETHEREUM_RPC_URL,
+  PUBLISH_PKEY,
+  NODES_API_KEY,
+} from "./config.js";
 
 const LOG_CTX = "[nodes-lib::chain]"
-const LC_RO_CONTRACT_ADDRESS = "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707";
-const LC_DPID_CONTRACT_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
 
-const PROVIDER = getDefaultProvider("http://localhost:8545")
 const DEFAULT_DPID_PREFIX_STRING = "beta";
 const DEFAULT_DPID_PREFIX = formatBytes32String(DEFAULT_DPID_PREFIX_STRING);
+
+const ethereumProvider = getDefaultProvider(ETHEREUM_RPC_URL);
 
 const walletFromPkey = (pkey: string): Wallet => {
   pkey = pkey.startsWith("0x") ? pkey : `0x${pkey}`;
   const key = new SigningKey(pkey);
-  return new Wallet(key, PROVIDER);
+  return new Wallet(key, ethereumProvider);
 };
 
-const wallet = walletFromPkey(process.env.PKEY!);
+const wallet = walletFromPkey(PUBLISH_PKEY);
 const researchObject = ResearchObject__factory.connect(
-  LC_RO_CONTRACT_ADDRESS, wallet
+  RO_CONTRACT_ADDRESS, wallet
 );
 const dpidRegistry = DpidRegistry__factory.connect(
-  LC_DPID_CONTRACT_ADDRESS, wallet
+  DPID_CONTRACT_ADDRESS, wallet
 );
 
 export type DpidPublishResult = {
@@ -36,7 +42,6 @@ export type DpidPublishResult = {
  */
 export const dpidPublish = async (
   uuid: string,
-  authToken: string,
   dpidExists: boolean,
 ): Promise<DpidPublishResult> => {
   let reciept: ContractReceipt;
@@ -44,7 +49,7 @@ export const dpidPublish = async (
   if (dpidExists) {
     console.log(`${LOG_CTX} dpid exists for ${uuid}, updating`);
     try {
-      prepubResult = await prePublishDraftNode(uuid, authToken);
+      prepubResult = await prePublishDraftNode(uuid);
       reciept = await updateExistingDpid(uuid, prepubResult.updatedManifestCid);
     } catch(e) {
       const err = e as Error;
@@ -54,7 +59,7 @@ export const dpidPublish = async (
   } else {
     console.log(`${LOG_CTX} no dpid found for ${uuid}, registering new`);
     try {
-      const registrationResult = await registerNewDpid(uuid, authToken);
+      const registrationResult = await registerNewDpid(uuid);
       reciept = registrationResult.reciept;
       prepubResult = registrationResult.prepubResult;
     } catch (e) {
@@ -87,7 +92,6 @@ const updateExistingDpid = async (
  */
 const registerNewDpid = async (
   uuid: string,
-  authToken: string,
 ): Promise<{ reciept: ContractReceipt, prepubResult: PrepublishResponse}> => {
   const optimisticDpid = await getPreliminaryDpid();
   const regFee = await dpidRegistry.getFee();
@@ -98,13 +102,12 @@ const registerNewDpid = async (
       type: "Publish Dpid",
       dpid: { prefix: DEFAULT_DPID_PREFIX_STRING, id: optimisticDpid.toString() }
     }],
-    authToken
   );
 
   let prepubResult: PrepublishResponse;
   let reciept: ContractReceipt;
   try {
-    prepubResult = await prePublishDraftNode(uuid, authToken);
+    prepubResult = await prePublishDraftNode(uuid);
     const cidBytes = getBytesFromCIDString(prepubResult.updatedManifestCid);
     const hexUuid = convertUUIDToHex(uuid);
 
@@ -120,7 +123,7 @@ const registerNewDpid = async (
   } catch (e) {
     console.log(`${LOG_CTX} dPID registration failed, revert optimistic dPID in manifest of ${uuid}`)
     await changeManifest(
-      uuid, [{ type: "Remove Dpid" }], authToken
+      uuid, [{ type: "Remove Dpid" }]
     );
     throw e;
   };

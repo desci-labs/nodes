@@ -16,7 +16,7 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "rm -r dist; tsc",
     "publish": "npm run build && npm publish --access public",
     "test": "vitest --run --config vitest.config.ts",
     "test:debug": "npm run test -- --inspect-brk --no-file-parallelism --test-timeout 99999999"
@@ -26,6 +26,7 @@
     "@desci-labs/desci-models": "^0.2.1",
     "axios": "^1.6.5",
     "cids": "^1.1.9",
+    "dotenv": "^16.4.4",
     "ethers": "^5.7.2",
     "form-data": "^4.0.0",
     "mime-types": "^2.1.35",

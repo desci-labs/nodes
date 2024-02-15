@@ -68,6 +68,11 @@ The other component (`my search engine`) is an external link, which is the one t
 The other top-level fields contain a human-readable title, simple metadata about authorship, relevant research fields, and license information.
 
 ## Usage
+### Configuration
+Copy `.env.example` from this repo to `.env`, and configure the values depending on which environment is being targeted. If installing `nodes-lib` through NPM, set these variables in your host project environment instead.
+
+Some variables have different values depending on environment, re-set them as necessary. Devcluster refers to the docker-compose cluster defined in the root of this repository, which can be started with `./dockerDev.sh`. See further instructions in the [repo root docs](../README.md).
+
 ### Drafts
 A node that's being modified is always in a "draft" state, meaning that the changes are not public. They only become public when the node is published, after which it's possible to view without being authenticated. When new changes are made from this point, they are not publicly available until publish is done again.
 
@@ -76,7 +81,7 @@ Manifests cannot be submitted "whole", as the state of draft manifests are maint
 ### Authentication
 Most functions ineracting with the Nodes backend require authentication, as they work on your private draft node. You can create an API key under your profile at [nodes.desci.com](https://nodes.desci.com). Set this as `AUTH_TOKEN` in your environment.
 
-Publishing to the dPID registry and/or Codex requires a private key. Publishing is done in-library and is not sent to the Nodes backend. Set the environment variable `PKEY` and it will be used in interaction with the dPID registry on-chain, and as your DID in the Codex/Ceramic case.
+Publishing to the dPID registry and/or Codex requires a private key. Publishing is done in-library and is not sent to the Nodes backend. Set the environment variable `NODES_LIB_PUBLISH_PKEY` and it will be used in interaction with the dPID registry on-chain, and as your DID in the Codex/Ceramic case.
 
 ### Summarized API
 This section outlines the major functionality the library provides. It's not a complete rundown of all capabilities, but should be enough to get some inutition for the workflow.

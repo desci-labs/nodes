@@ -26,9 +26,7 @@ import type { NodeIDs } from "@desci-labs/desci-codex-lib/dist/src/types.js";
 import { publish } from "./publish.js";
 import type { ResearchObjectDocument } from "./automerge.js";
 import { randomUUID } from "crypto";
-
-// Set these dynamically in some reasonable fashion
-const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
+import { NODES_API_URL, NODES_API_KEY } from "./config.js";
 
 const ROUTES = {
   deleteData: `${NODES_API_URL}/v1/data/delete`,
@@ -75,7 +73,6 @@ export type CreateDraftResponse = {
 
 export const createDraftNode = async (
   params: Omit<CreateDraftParams, "links">,
-  authToken: string,
 ): Promise<CreateDraftResponse> => {
   const payload: CreateDraftParams = {
     ...params,
@@ -85,7 +82,7 @@ export const createDraftNode = async (
     },
   };
   const { data } = await axios.post<CreateDraftResponse>(
-    ROUTES.createDraft, payload, { headers: getHeaders(authToken) }
+    ROUTES.createDraft, payload, { headers: getHeaders() }
   );
 
   return data;
@@ -109,10 +106,9 @@ export type ListedNode = {
  * List nodes for the authenticated user.
 */
 export const listNodes = async (
-  authToken: string,
 ): Promise<ListedNode[]> => {
   const { data } = await axios.get<{nodes: ListedNode[]}>(
-    ROUTES.listNodes + "/", { headers: getHeaders(authToken) }
+    ROUTES.listNodes + "/", { headers: getHeaders() }
   );
 
   return data.nodes;
@@ -120,11 +116,10 @@ export const listNodes = async (
 
 export const deleteDraftNode = async (
   uuid: string,
-  authToken: string,
 ): Promise<void> => {
   return await axios.delete(
     ROUTES.deleteDraft + `/${uuid}`,
-    { headers: getHeaders(authToken) }
+    { headers: getHeaders() }
   );
 };
 
@@ -150,11 +145,10 @@ export type NodeResponse = {
 
 export const getDraftNode = async (
   uuid: string,
-  authToken: string,
 ): Promise<NodeResponse> => {
   const { data } = await axios.get<NodeResponse>(
     ROUTES.showNode + `/${uuid}`,
-    { headers: getHeaders(authToken), }
+    { headers: getHeaders(), }
   );
 
   return data;
@@ -182,17 +176,16 @@ export type PrepublishResponse = {
  * just tells the backend to prepare for it.
  * 
  * @param uuid - UUID of the node to prepublish.
- * @param authToken - Your API key.
+ * @param  - Your API key.
 */
 export const prePublishDraftNode = async (
   uuid: string,
-  authToken: string,
 ): Promise<PrepublishResponse> => {
   // Compute the draft drive DAG, and update the data bucket CID
   const { data } = await axios.post<PrepublishResponse>(
     ROUTES.prepublish,
     { uuid },
-    { headers: getHeaders(authToken), }
+    { headers: getHeaders(), }
   );
 
   return data;
@@ -215,10 +208,8 @@ export type PublishResponse = {
 
 export const publishDraftNode = async (
   uuid: string,
-  authToken: string,
-  pkey: string,
 ): Promise<PublishResponse> => {
-  const publishResult = await publish(uuid, authToken, pkey);
+  const publishResult = await publish(uuid);
 
   const pubParams: PublishParams = {
     uuid,
@@ -233,7 +224,7 @@ export const publishDraftNode = async (
     const backendPublishResult = await axios.post<{ok: boolean}>(
       ROUTES.publish,
       pubParams,
-      { headers: getHeaders(authToken), }
+      { headers: getHeaders(), }
     );
     data = backendPublishResult.data;
   } catch (e) {
@@ -260,7 +251,6 @@ export type DeleteDataResponse = {
 
 export const deleteData = async (
   params: DeleteDataParams,
-  authToken: string
 ) => {
   const { data } = await axios.post<DeleteDataResponse>(
     ROUTES.deleteData,
@@ -268,7 +258,7 @@ export const deleteData = async (
       ...params,
       path: makeAbsolutePath(params.path),
     },
-    { headers: getHeaders(authToken) }
+    { headers: getHeaders() }
   );
 
   return data;
@@ -287,7 +277,6 @@ export type MoveDataResponse = {
 
 export const moveData = async (
   params: MoveDataParams,
-  authToken: string,
 ) => {
   const { data } = await axios.post<MoveDataResponse>(
     ROUTES.moveData,
@@ -296,7 +285,7 @@ export const moveData = async (
       oldPath: makeAbsolutePath(params.oldPath),
       newPath: makeAbsolutePath(params.newPath),
     },
-    { headers: getHeaders(authToken) }
+    { headers: getHeaders() }
   );
 
   return data;
@@ -310,10 +299,9 @@ export type RetrieveResponse = {
 
 export const retrieveDraftFileTree = async (
   uuid: string,
-  authToken: string,
 ) => {
   const { data } = await axios.get<RetrieveResponse>(
-    ROUTES.retrieveTree + `/${uuid}/tree`, { headers: getHeaders(authToken) }
+    ROUTES.retrieveTree + `/${uuid}/tree`, { headers: getHeaders() }
   );
 
   return data;
@@ -334,7 +322,6 @@ export type CreateFolderResponse = {
 
 export const createNewFolder = async (
   params: CreateFolderParams,
-  authToken: string,
 ) => {
   const { uuid, folderName, locationPath } = params;
   const form = new FormData();
@@ -342,7 +329,7 @@ export const createNewFolder = async (
   form.append("newFolderName", folderName);
   form.append("contextPath", makeAbsolutePath(locationPath));
   const { data } = await axios.post<CreateFolderResponse>(
-    ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
+    ROUTES.updateData, form, { headers: getHeaders(true)}
   );
 
   return data;
@@ -370,7 +357,6 @@ export type UploadFilesResponse = {
 
 export const uploadFiles = async (
   params: UploadParams,
-  authToken: string,
 ): Promise<UploadFilesResponse> => {
   const { targetPath, localFilePaths, uuid } = params;
   const form = new FormData();
@@ -383,7 +369,7 @@ export const uploadFiles = async (
   });
 
   const { data } = await axios.post<UploadFilesResponse>(
-    ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
+    ROUTES.updateData, form, { headers: getHeaders(true)}
   );
 
   return data;
@@ -418,7 +404,6 @@ export type ExternalUrl = {
 */
 export const uploadPdfFromUrl = async (
   params: UploadPdfFromUrlParams,
-  authToken: string,
 ): Promise<UploadFilesResponse> => {
   const { uuid, targetPath, externalUrl, componentSubtype } = params;
   const form = new FormData();
@@ -428,7 +413,7 @@ export const uploadPdfFromUrl = async (
   form.append("componentType", ResearchObjectComponentType.PDF);
   form.append("componentSubtype", componentSubtype);
   const { data } = await axios.post<UploadFilesResponse>(
-    ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
+    ROUTES.updateData, form, { headers: getHeaders(true)}
   );
   return data
 }
@@ -446,7 +431,6 @@ export type UploadGithubRepoFromUrlParams = {
 
 export const uploadGithubRepoFromUrl = async (
   params: UploadGithubRepoFromUrlParams,
-  authToken: string,
 ): Promise<UploadFilesResponse> => {
   const { uuid, externalUrl, targetPath, componentSubtype } = params;
   const form = new FormData();
@@ -456,7 +440,7 @@ export const uploadGithubRepoFromUrl = async (
   form.append("componentType", ResearchObjectComponentType.CODE);
   form.append("componentSubtype", componentSubtype);
   const { data } = await axios.post<UploadFilesResponse>(
-    ROUTES.updateData, form, { headers: getHeaders(authToken, true)}
+    ROUTES.updateData, form, { headers: getHeaders(true)}
   );
   return data;
 };
@@ -475,12 +459,11 @@ export type AddExternalTreeParams = {
 */
 export const addExternalUnixFsTree = async (
   params: AddExternalTreeParams,
-  authToken: string,
 ): Promise<UploadFilesResponse> => {
   const { data } = await axios.post<UploadFilesResponse>(
     ROUTES.updateExternalCid,
     { ...params, contextPath: makeAbsolutePath(params.targetPath)},
-    { headers: getHeaders(authToken) },
+    { headers: getHeaders() },
   );
   return data;
 };
@@ -544,27 +527,26 @@ const getManifestDocument = async (
  * special-purpose functions is easier to use.
  * @param uuid - ID of the node
  * @param actions - series of change actions to perform
- * @param authToken - your API key or session token
+ * @param  - your API key or session token
  * @returns the new state of the manifest document
 */
 export const changeManifest = async (
   uuid: string,
   actions: ManifestActions[],
-  authToken: string,
 ): Promise<ManifestDocumentResponse> => {
   let actionResponse: AxiosResponse<ManifestDocumentResponse, any>;
   try {
     actionResponse = await axios.post<ManifestDocumentResponse>(
       ROUTES.documents + `/${uuid}/actions`,
       { actions },
-      { headers: getHeaders(authToken) }
+      { headers: getHeaders() }
     );
   } catch (e) {
     const err = e as AxiosError
     // Node doesn't have an automerge document, needs initialization
     if (err.status === 400 && err.message.toLowerCase().includes("missing automerge document")) {
       await getManifestDocument(uuid);
-      return await changeManifest(uuid, actions, authToken);
+      return await changeManifest(uuid, actions);
     } else {
       throw e;
     };
@@ -583,19 +565,18 @@ export type ComponentParam =
  * Creates a new component in the node.
  * @param uuid - ID of the node
  * @param params - component to add
- * @param authToken - your API key or session token
+ * @param  - your API key or session token
  * @returns the new state of the manifest document
 */
 export const addRawComponent = async (
   uuid: string,
   params: ComponentParam,
-  authToken: string,
 ): Promise<ManifestDocumentResponse> => {
   const action: ManifestActions = {
     type: "Add Component",
     component: params,
   };
-  return await changeManifest(uuid, [action], authToken);
+  return await changeManifest(uuid, [action]);
 };
 
 /**
@@ -611,7 +592,6 @@ export type UpdateComponentParams = {
 export const updateComponent = async (
   uuid: string,
   params: UpdateComponentParams,
-  authToken: string,
 ): Promise<ManifestDocumentResponse> => {
   const { component, componentIndex } = params;
   const action: ManifestActions = {
@@ -619,7 +599,7 @@ export const updateComponent = async (
     component,
     componentIndex,
   };
-  return await changeManifest(uuid, [action], authToken);
+  return await changeManifest(uuid, [action]);
 };
 
 /** Parameters for adding an external link component to manifest */
@@ -637,7 +617,6 @@ export type AddLinkComponentParams = {
 export const addLinkComponent = async (
   uuid: string,
   params: AddLinkComponentParams,
-  authToken: string,
 ): Promise<ManifestDocumentResponse> => {
   const fullParams: ExternalLinkComponent = {
     id: randomUUID(),
@@ -650,7 +629,7 @@ export const addLinkComponent = async (
     },
     starred: params.starred
   };
-  return await addRawComponent(uuid, fullParams, authToken);
+  return await addRawComponent(uuid, fullParams);
 }
 
 /**
@@ -673,7 +652,6 @@ export type AddPdfComponentParams = {
 export const addPdfComponent = async (
   uuid: string,
   params: AddPdfComponentParams,
-  authToken: string,
 ): Promise<ManifestDocumentResponse> => {
   const fullParams: PdfComponent = {
     id: randomUUID(),
@@ -686,7 +664,7 @@ export const addPdfComponent = async (
     },
     starred: params.starred,
   };
-  return await addRawComponent(uuid, fullParams, authToken);
+  return await addRawComponent(uuid, fullParams);
 };
 
 /**
@@ -714,7 +692,6 @@ export type AddCodeComponentParams = {
 export const addCodeComponent = async (
   uuid: string,
   params: AddCodeComponentParams,
-  authToken: string,
 ): Promise<ManifestDocumentResponse> => {
   const fullParams: CodeComponent = {
     id: randomUUID(),
@@ -728,62 +705,55 @@ export const addCodeComponent = async (
     },
     starred: params.starred,
   };
-  return await addRawComponent(uuid, fullParams, authToken);
+  return await addRawComponent(uuid, fullParams);
 };
 
 export const deleteComponent = async (
   uuid: string,
   path: string,
-  authToken: string,
 ): Promise<ManifestDocumentResponse> => await changeManifest(
-  uuid, [{ type: "Delete Component", path: makeAbsolutePath(path)}], authToken);
+  uuid, [{ type: "Delete Component", path: makeAbsolutePath(path)}]);
 
 export const updateTitle = async (
   uuid: string,
   title: string,
-  authToken: string,
 ): Promise<ManifestDocumentResponse> =>
-  await changeManifest(uuid, [{ type: "Update Title", title }], authToken);
+  await changeManifest(uuid, [{ type: "Update Title", title }]);
 
 export const updateDescription = async (
   uuid: string,
   description: string,
-  authToken: string,
 ): Promise<ManifestDocumentResponse> =>
-  await changeManifest(uuid, [{ type: "Update Description", description }], authToken);
+  await changeManifest(uuid, [{ type: "Update Description", description }]);
 
 export const updateLicense = async (
   uuid: string,
   license: License,
-  authToken: string,
 ): Promise<ManifestDocumentResponse> =>
-  await changeManifest(uuid, [{ type: "Update License", defaultLicense: license }], authToken);
+  await changeManifest(uuid, [{ type: "Update License", defaultLicense: license }]);
 
 export const updateResearchFields = async (
   uuid: string,
   researchFields: ResearchField[],
-  authToken: string,
 ): Promise<ManifestDocumentResponse> =>
-  await changeManifest(uuid, [{ type: "Update ResearchFields", researchFields }], authToken);
+  await changeManifest(uuid, [{ type: "Update ResearchFields", researchFields }]);
 
 export const addContributor = async (
   uuid: string,
   author: ResearchObjectV1Author,
-  authToken: string,
 ): Promise<ManifestDocumentResponse> =>
-  await changeManifest(uuid, [{ type: "Add Contributor", author }], authToken);
+  await changeManifest(uuid, [{ type: "Add Contributor", author }]);
 
 export const removeContributor = async (
   uuid: string,
   contributorIndex: number,
-  authToken: string,
 ): Promise<ManifestDocumentResponse> =>
-  await changeManifest(uuid, [{ type: "Remove Contributor", contributorIndex }], authToken);
+  await changeManifest(uuid, [{ type: "Remove Contributor", contributorIndex }]);
 
-const getHeaders = (token: string, formData: boolean = false) => {
+const getHeaders = (isFormData: boolean = false) => {
   const headers = {
-    "authorization": `Bearer ${token}`,
-    ...(formData ? { "content-type": "multipart/form-data" } : {})
+    "api-key": NODES_API_KEY,
+    ...(isFormData ? { "content-type": "multipart/form-data" } : {})
   };
   return headers;
 };

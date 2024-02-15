@@ -6,18 +6,16 @@ import { PublishError } from "./errors.js";
 
 /**
  * The complete publish flow, including both the dPID registry and Codex.
- *
 */
 export const publish = async (
   uuid: string,
   authToken: string,
-  pkey: string,
 ) => {
   let chainPubResponse: DpidPublishResult;
   let preexistingDpid: boolean;
   try {
     preexistingDpid = await hasDpid(uuid);
-    chainPubResponse = await dpidPublish(uuid, authToken, preexistingDpid);
+    chainPubResponse = await dpidPublish(uuid, preexistingDpid);
   } catch (e) {
     /**
      * dPID registry operations failed. Since we can't know if the prepublish
@@ -38,7 +36,7 @@ export const publish = async (
     const publishHistory = preexistingDpid
       ? await getDpidHistory(uuid)
       : [];
-    ceramicIDs = await codexPublish(chainPubResponse.prepubResult, publishHistory, pkey);
+    ceramicIDs = await codexPublish(chainPubResponse.prepubResult, publishHistory);
   } catch (e) {
     const err = e as Error;
     console.log("Codex publish failed:", err);
