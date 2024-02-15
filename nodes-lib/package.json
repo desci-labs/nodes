@@ -15,9 +15,13 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "files": [
+    "/dist",
+    "/.env.example"
+  ],
   "scripts": {
-    "build": "rm -r dist; tsc",
-    "publish": "npm run build && npm publish --access public",
+    "build": "rm -r dist; tsc --project tsconfig.build.json",
+    "doPublish": "npm run build && npm publish --access public --dry-run",
     "test": "vitest --run --config vitest.config.ts",
     "test:debug": "npm run test -- --inspect-brk --no-file-parallelism --test-timeout 99999999"
   },

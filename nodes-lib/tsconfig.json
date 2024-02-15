@@ -7,7 +7,7 @@
     /** Without strict, we'd error when imported into a project with `strict` */
     "strict": true,
     /** Prevent misbehaving import/export statements */
-    "verbatimModuleSyntax": true,
+    // "verbatimModuleSyntax": true, // desci-contracts acts up
     /** Misbehaving deps: @ceramicnetwork/{codecs,common}, @didtools/{cacao,codecs}, codeco, ipfs-core-types */
     "skipLibCheck": true,
 

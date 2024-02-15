@@ -9,7 +9,6 @@ import { PublishError } from "./errors.js";
 */
 export const publish = async (
   uuid: string,
-  authToken: string,
 ) => {
   let chainPubResponse: DpidPublishResult;
   let preexistingDpid: boolean;
