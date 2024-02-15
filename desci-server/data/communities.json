@@ -8,7 +8,8 @@
         "Scientometrics",
         "Mechanism Design"
       ],
-      "image_url": "https://gridcoin.us/assets/img/grc-title.svg"
+      "image_url": "https://gridcoin.us/assets/img/grc-title.svg",
+      "slug": "gridcoin"
     },
     {
       "name": "Longevist",
@@ -18,7 +19,8 @@
         "Healthspan"
       ],
       "description": "An overlay journal curating the world's most exciting longevity research. Presented in partnership with VitaDAO and DeSci Labs.",
-      "image_url": "https://pub.desci.com/ipfs/bafkreiexlcnfxgmyc23dhgvh4xcuuq62awioqkwcdxqdfk65si6ohr3nty"
+      "image_url": "https://pub.desci.com/ipfs/bafkreiexlcnfxgmyc23dhgvh4xcuuq62awioqkwcdxqdfk65si6ohr3nty",
+      "slug": "longevist"
     },
     {
       "name": "MoonDAO",
@@ -28,7 +30,8 @@
         "Space Exploration",
         "Space Research"
       ],
-      "image_url": "https://pub.desci.com/ipfs/bafkreiditqu5bzfjiodmfn6j4sgnssz5fuzjayi5nrohjxagayydmq2mam"
+      "image_url": "https://pub.desci.com/ipfs/bafkreiditqu5bzfjiodmfn6j4sgnssz5fuzjayi5nrohjxagayydmq2mam",
+      "slug": "moondao"
     },
     {
       "name": "DeSci Foundation",
@@ -38,7 +41,8 @@
         "Mechanism Design"
       ],
       "description": "DeSci Foundation is dedicated to exploring the potential of applying new technologies, incentives, processes, and funding models to the scientific ecosystem.",
-      "image_url": "https://pub.desci.com/ipfs/bafkreidw7vyhsqss7fdf4f5mxacjj3kcq3uymfxsec7z7kypxxdus62nr4"
+      "image_url": "https://pub.desci.com/ipfs/bafkreidw7vyhsqss7fdf4f5mxacjj3kcq3uymfxsec7z7kypxxdus62nr4",
+      "slug": "desci-foundation"
     },
     {
       "name": "DeSci Labs",
@@ -47,7 +51,8 @@
         "Open Source"
       ],
       "description": "DeSci Labs is a technology company focused on building open-source tools for the scientific community.",
-      "image_url": "https://pub.desci.com/ipfs/bafkreifg26ty2flva3fghn3udyuwuje44opuwjufqsbvi5h3c5fmsxz6wy"
+      "image_url": "https://pub.desci.com/ipfs/bafkreifg26ty2flva3fghn3udyuwuje44opuwjufqsbvi5h3c5fmsxz6wy",
+      "slug": "desci-labs"
     }
   ],
   "attestations": [

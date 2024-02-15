@@ -9,7 +9,7 @@ const logger = parentLogger.child({ module: 'LIST COMMUNITIES' });
 export const listCommunities = async (_req: Request, res: Response, _next: NextFunction) => {
   const allCommunities = await communityService.getCommunities();
   const pickedCommunities = allCommunities.map((community) =>
-    _.pick(community, ['id', 'name', 'description', 'image_url', 'keywords']),
+    _.pick(community, ['id', 'name', 'description', 'image_url', 'keywords', 'slug']),
   );
 
   const communities = await asyncMap(pickedCommunities, async (community) => {

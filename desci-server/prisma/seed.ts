@@ -80,11 +80,13 @@ async function main() {
           description: community.description,
           image_url: community.image_url,
           keywords: community.keywords,
+          slug: community.slug,
         },
         update: {
           description: community.description,
           image_url: community.image_url,
           keywords: community.keywords,
+          slug: community.slug,
         },
       }),
     ),

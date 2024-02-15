@@ -24,7 +24,7 @@ export const getAllRecommendations = async (_req: Request, res: Response, _next:
 export const getCommunityRecommendations = async (req: Request, res: Response, _next: NextFunction) => {
   const { communityName } = req.params;
   logger.info({ communityName });
-  const community = await communityService.findCommunityByName(communityName);
+  const community = await communityService.findCommunityByNameOrSlug(communityName);
   if (!community) throw new NotFoundError('Community not found');
   logger.info({ community });
 

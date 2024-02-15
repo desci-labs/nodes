@@ -35,7 +35,7 @@ describe('Desci Communities', () => {
 
   const setupCommunity = async () => {
     await communityService.createCommunity(moonDao);
-    daoCommunity = await communityService.findCommunityByName(moonDao.name);
+    daoCommunity = await communityService.findCommunityByNameOrSlug(moonDao.name);
   };
 
   const tearDownCommunity = async () => {
@@ -70,7 +70,7 @@ describe('Desci Communities', () => {
     // let daoCommunity: DesciCommunity | null;
     // before(async () => {
     //   await communityService.createCommunity(admin.id, moonDao);
-    //   daoCommunity = await communityService.findCommunityByName(moonDao.name);
+    //   daoCommunity = await communityService.findCommunityByNameOrSlug(moonDao.name);
     // });
 
     it('should create a community', async () => {

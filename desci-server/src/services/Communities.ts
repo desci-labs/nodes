@@ -50,8 +50,8 @@ export class CommunityService {
     return prisma.desciCommunity.findMany();
   }
 
-  async findCommunityByName(name: string) {
-    return prisma.desciCommunity.findUnique({ where: { name } });
+  async findCommunityByNameOrSlug(name: string) {
+    return prisma.desciCommunity.findFirst({ where: { OR: [{ name }, { slug: name }] } });
   }
 
   async updateCommunity(name: string, community: Prisma.DesciCommunityUpdateInput) {

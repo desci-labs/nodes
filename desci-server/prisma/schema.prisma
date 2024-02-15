@@ -582,6 +582,7 @@ model DesciCommunity {
   createdAt                    DateTime                       @default(now())
   updatedAt                    DateTime                       @updatedAt
   name                         String                         @unique
+  slug                         String?                        @unique
   image_url                    String?
   description                  String
   keywords                     String[]

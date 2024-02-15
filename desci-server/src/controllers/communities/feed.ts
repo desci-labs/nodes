@@ -36,7 +36,7 @@ export const getCommunityFeed = async (req: Request, res: Response, next: NextFu
 };
 
 export const getCommunityDetails = async (req: Request, res: Response, next: NextFunction) => {
-  const community = await communityService.findCommunityByName(req.params.communityName as string);
+  const community = await communityService.findCommunityByNameOrSlug(req.params.communityName as string);
 
   if (!community) throw new NotFoundError('Community not found');
 
