@@ -34,7 +34,9 @@ const ROUTES = {
   deleteData: `${NODES_API_URL}/v1/data/delete`,
   updateData: `${NODES_API_URL}/v1/data/update`,
   updateExternalCid: `${NODES_API_URL}/v1/data/updateExternalCid`,
-  /** Append /uuid/manifestCid for tree to fetch */
+  /** Append `/uuid/tree` for tree to fetch.
+   * The `tree` string does nothing but satisfy an old param requirement.
+  */
   retrieveTree: `${NODES_API_URL}/v1/data/retrieveTree`,
   moveData: `${NODES_API_URL}/v1/data/move`,
   createDraft: `${NODES_API_URL}/v1/nodes/createDraft`,
@@ -50,7 +52,6 @@ const ROUTES = {
   /** Append /uuid for node to fetch publish history for */
   dpidHistory: `${NODES_API_URL}/v1/pub/versions`,
 } as const;
-type Route = typeof ROUTES[keyof typeof ROUTES];
 
 export type CreateDraftParams = {
   title: string,
@@ -227,7 +228,7 @@ export const publishDraftNode = async (
     ceramicStream: publishResult.ceramicIDs?.streamID,
   };
 
-  let data;
+  let data: { ok: boolean };
   try {
     const backendPublishResult = await axios.post<{ok: boolean}>(
       ROUTES.publish,
@@ -309,11 +310,10 @@ export type RetrieveResponse = {
 
 export const retrieveDraftFileTree = async (
   uuid: string,
-  manifestCid: string,
   authToken: string,
 ) => {
   const { data } = await axios.get<RetrieveResponse>(
-    ROUTES.retrieveTree + `/${uuid}/${manifestCid}`, { headers: getHeaders(authToken) }
+    ROUTES.retrieveTree + `/${uuid}/tree`, { headers: getHeaders(authToken) }
   );
 
   return data;

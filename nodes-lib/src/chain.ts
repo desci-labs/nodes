@@ -1,4 +1,4 @@
-import { Wallet, getDefaultProvider, type ContractReceipt, BigNumber, type ContractTransaction } from "ethers";
+import { Wallet, getDefaultProvider, type ContractReceipt, BigNumber } from "ethers";
 import { DpidRegistry__factory, ResearchObject__factory } from "@desci-labs/desci-contracts/typechain-types/index.js";
 import { SigningKey, formatBytes32String } from "ethers/lib/utils.js";
 import { convertUUIDToHex, getBytesFromCIDString} from "./util/converting.js";

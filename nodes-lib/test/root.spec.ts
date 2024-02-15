@@ -1,6 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
-import { createDraftNode, getDraftNode, publishDraftNode, createNewFolder, retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode, getDpidHistory, deleteData, addPdfComponent, type AddPdfComponentParams, type AddCodeComponentParams, addCodeComponent, uploadPdfFromUrl, type RetrieveResponse, type UploadFilesResponse, type ExternalUrl, uploadGithubRepoFromUrl, type PublishResponse, listNodes, addLinkComponent, type AddLinkComponentParams, deleteComponent, updateComponent, changeManifest, updateTitle, updateDescription, updateLicense, updateResearchFields, addContributor, removeContributor, addExternalUnixFsTree, prePublishDraftNode, type CreateDraftParams } from "../src/api.js";
+import type {
+  AddCodeComponentParams, AddLinkComponentParams, AddPdfComponentParams,
+  CreateDraftParams, ExternalUrl, PublishResponse, RetrieveResponse,
+  UploadFilesResponse,
+} from "../src/api.js"
+import {
+  createDraftNode, getDraftNode, publishDraftNode, createNewFolder,
+  retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode,
+  getDpidHistory, deleteData, addPdfComponent, addCodeComponent,
+  uploadPdfFromUrl, uploadGithubRepoFromUrl, listNodes, addLinkComponent,
+  deleteComponent, updateComponent, changeManifest, updateTitle,
+  updateDescription, updateLicense, updateResearchFields, addContributor,
+  removeContributor, addExternalUnixFsTree,
+} from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
 import { dpidPublish } from "../src/chain.js";
@@ -17,7 +30,6 @@ import {
   ResearchObjectComponentType,
   ResearchObjectComponentDataSubtype
 } from "@desci-labs/desci-models";
-import { ADDRGETNETWORKPARAMS } from "dns";
 
 const NODES_API_URL = process.env.NODES_API_URL || "http://localhost:5420";
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
@@ -344,10 +356,10 @@ describe("nodes-lib", () => {
   describe("data management", async () => {
     describe("trees", async () => {
       test("can be retrieved by owner", async () => {
-        const { ok, node: { uuid, manifestUrl }} = await createBoilerplateNode();
+        const { ok, node: { uuid }} = await createBoilerplateNode();
         expect(ok).toEqual(true);
 
-        const treeResult = await retrieveDraftFileTree(uuid, manifestUrl, AUTH_TOKEN);
+        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
         expect(treeResult.tree).toHaveLength(1);
       });
     });
@@ -355,14 +367,12 @@ describe("nodes-lib", () => {
     describe("folders", async () => {
       const expectedFolderName = "MyFolder";
       let uuid: string;
-      let manifestUrl: string;
 
       beforeAll(async () => {
         const createRes = await createBoilerplateNode();
         expect(createRes.ok).toEqual(true);
 
         uuid = createRes.node.uuid;
-        manifestUrl = createRes.node.manifestUrl;
 
         await createNewFolder({
           uuid,
@@ -372,7 +382,7 @@ describe("nodes-lib", () => {
       });
 
       test("can be created", async () => {
-        const treeResult = await retrieveDraftFileTree(uuid, manifestUrl, AUTH_TOKEN);
+        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
         const actualFolderName = treeResult.tree[0].contains![0].name;
 
         expect(actualFolderName).toEqual(expectedFolderName);
@@ -385,7 +395,7 @@ describe("nodes-lib", () => {
           locationPath: "root",
           folderName: otherFolderName,
         }, AUTH_TOKEN);
-        const moveResult = await moveData(
+        await moveData(
           {
             uuid,
             oldPath: `root/${otherFolderName}`,
@@ -394,29 +404,21 @@ describe("nodes-lib", () => {
           AUTH_TOKEN,
         );
 
-        const treeResult = await retrieveDraftFileTree(
-          uuid,
-          moveResult.manifestCid,
-          AUTH_TOKEN,
-        );
+        const treeResult = await retrieveDraftFileTree(uuid ,AUTH_TOKEN);
 
         const dir = treeResult.tree[0].contains![0];
         expect(dir.contains![0].name).toEqual(expectedFolderName);
       });
 
       test("can be deleted", async () => {
-        const deleteResult = await deleteData(
+        await deleteData(
           {
             uuid,
             path: `root/${expectedFolderName}`
           },
           AUTH_TOKEN,
         );
-        const treeResult = await retrieveDraftFileTree(
-          uuid,
-          deleteResult.manifestCid,
-          AUTH_TOKEN
-        );
+        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
 
         expect(treeResult.tree[0].contains).toEqual([]);
       });
@@ -426,7 +428,7 @@ describe("nodes-lib", () => {
       test("can be uploaded", async () => {
         const { node: { uuid }} = await createBoilerplateNode();
         const localFilePaths = [ "package.json", "package-lock.json" ];
-        const uploadResult = await uploadFiles(
+        await uploadFiles(
           {
             uuid,
             targetPath: "root",
@@ -435,11 +437,7 @@ describe("nodes-lib", () => {
           AUTH_TOKEN
         );
 
-        const treeResult = await retrieveDraftFileTree(
-          uuid,
-          uploadResult.manifestCid,
-          AUTH_TOKEN
-        );
+        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
         const driveContent = treeResult.tree[0].contains!;
 
         expect(driveContent.map(driveObject => driveObject.name))
@@ -462,17 +460,13 @@ describe("nodes-lib", () => {
         );
         expect(uploadResult.tree[0].contains![0].path).toEqual("root/package.json");
 
-        const moveResult = await moveData({
+        await moveData({
           uuid,
           oldPath: "root/package.json",
           newPath: "root/json.package",
         }, AUTH_TOKEN);
 
-        const treeResult = await retrieveDraftFileTree(
-          uuid,
-          moveResult.manifestCid,
-          AUTH_TOKEN
-        );
+        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
         expect(treeResult.tree[0].contains![0].path).toEqual("root/json.package");
       });
 
@@ -490,16 +484,12 @@ describe("nodes-lib", () => {
 
         expect(uploadResult.tree[0].contains![0].name).toEqual("package.json");
 
-        const { manifestCid } = await deleteData({
+        await deleteData({
           uuid,
           path: "root/package.json"
         }, AUTH_TOKEN);
 
-        const treeResult = await retrieveDraftFileTree(
-          uuid,
-          manifestCid,
-          AUTH_TOKEN
-        );
+        const treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
 
         expect(treeResult.tree[0].contains!.length).toEqual(0);
       });
@@ -523,11 +513,7 @@ describe("nodes-lib", () => {
             },
             AUTH_TOKEN,
           );
-          treeResult = await retrieveDraftFileTree(
-            uuid,
-            uploadResult.manifestCid,
-            AUTH_TOKEN,
-          );
+          treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
         });
 
         test("adds file to tree", async () => {
@@ -563,7 +549,6 @@ describe("nodes-lib", () => {
 
       describe("can be uploaded by repo URL", async () => {
         let externalUrl: ExternalUrl;
-        let uploadResult: UploadFilesResponse;
         let treeResult: RetrieveResponse;
         beforeAll(async () => {
           const { node: { uuid}} = await createBoilerplateNode();
@@ -572,7 +557,7 @@ describe("nodes-lib", () => {
             url: "https://github.com/desci-labs/desci-codex",
             path: "DeSci Codex",
           };
-          uploadResult = await uploadGithubRepoFromUrl(
+          await uploadGithubRepoFromUrl(
             {
               uuid,
               externalUrl,
@@ -581,11 +566,7 @@ describe("nodes-lib", () => {
             },
             AUTH_TOKEN
           );
-          treeResult = await retrieveDraftFileTree(
-            uuid,
-            uploadResult.manifestCid,
-            AUTH_TOKEN
-          );
+          treeResult = await retrieveDraftFileTree(uuid, AUTH_TOKEN);
         });
 
         test("adds repo to tree", async () => {
