@@ -1,6 +1,6 @@
 import { Wallet, getDefaultProvider, type ContractReceipt, BigNumber } from "ethers";
-import { DpidRegistry__factory, ResearchObject__factory } from "@desci-labs/desci-contracts/typechain-types/index.js";
 import { SigningKey, formatBytes32String } from "ethers/lib/utils.js";
+import { ResearchObject__factory, DpidRegistry__factory } from "@desci-labs/desci-contracts/typechain-types";
 import { convertUUIDToHex, getBytesFromCIDString} from "./util/converting.js";
 import { changeManifest, prePublishDraftNode, type PrepublishResponse } from "./api.js"
 import {
@@ -8,7 +8,6 @@ import {
   DPID_CONTRACT_ADDRESS,
   ETHEREUM_RPC_URL,
   PUBLISH_PKEY,
-  NODES_API_KEY,
 } from "./config.js";
 
 const LOG_CTX = "[nodes-lib::chain]"
