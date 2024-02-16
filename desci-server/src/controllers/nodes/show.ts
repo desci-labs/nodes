@@ -118,8 +118,6 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
     logger.error({ error: e }, 'error');
     // res.status(404).send();
     // example
-    const discovery = await prisma.node.findFirst();
-    discovery.manifestUrl = `${process.env.SERVER_URL}/v1/ipfs/read/test`;
-    res.send(discovery);
+    res.status(404).send();
   }
 };
