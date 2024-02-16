@@ -1,6 +1,6 @@
-import communitiesData from '../data/communities.json' assert { type: 'json' };
-import researchFieldsData from '../data/fields.json' assert { type: 'json' };
 import { prisma } from '../src/client.js';
+import communitiesData from '../src/data/communities.json' assert { type: 'json' };
+import researchFieldsData from '../src/data/fields.json' assert { type: 'json' };
 import { asyncMap, attestationService, communityService } from '../src/internal.js';
 
 async function main() {

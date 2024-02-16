@@ -1,5 +1,5 @@
-import communitiesData from '../../data/communities.json' assert { type: 'json' };
 import { prisma } from '../client.js';
+import communitiesData from '../data/communities.json';
 import { asyncMap } from '../utils.js';
 
 const main = async () => {
