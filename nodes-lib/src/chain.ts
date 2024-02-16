@@ -1,7 +1,7 @@
 import { Wallet, getDefaultProvider, type ContractReceipt, BigNumber } from "ethers";
 import { SigningKey, formatBytes32String } from "ethers/lib/utils.js";
 import { ResearchObject__factory, DpidRegistry__factory } from "@desci-labs/desci-contracts/typechain-types";
-import { convertUUIDToHex, getBytesFromCIDString} from "./util/converting.js";
+import { convertUUIDToHex, convertCidTo0xHex} from "./util/converting.js";
 import { changeManifest, prePublishDraftNode, type PrepublishResponse } from "./api.js"
 import {
   RO_CONTRACT_ADDRESS,
@@ -77,7 +77,7 @@ const updateExistingDpid = async (
   uuid: string,
   prepubManifestCid: string
 ): Promise<ContractReceipt> => {
-  const cidBytes = getBytesFromCIDString(prepubManifestCid);
+  const cidBytes = convertCidTo0xHex(prepubManifestCid);
   const hexUuid = convertUUIDToHex(uuid);
   
   const tx = await researchObject.updateMetadata(hexUuid, cidBytes);
@@ -107,7 +107,7 @@ const registerNewDpid = async (
   let reciept: ContractReceipt;
   try {
     prepubResult = await prePublishDraftNode(uuid);
-    const cidBytes = getBytesFromCIDString(prepubResult.updatedManifestCid);
+    const cidBytes = convertCidTo0xHex(prepubResult.updatedManifestCid);
     const hexUuid = convertUUIDToHex(uuid);
 
     // Throws if the expected dPID isn't available

@@ -10,7 +10,7 @@ import {
   newCeramicClient,
 } from "@desci-labs/desci-codex-lib/dist/src/index.js";
 import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
-import { convertHexToCID } from "./util/converting.js";
+import { convert0xHexToCid } from "./util/converting.js";
 import {
   PUBLISH_PKEY,
   CERAMIC_NODE_URL,
@@ -104,7 +104,7 @@ const backfillNewStream = async (
             );
 
         const title = "[BACKFILLED]"; // version.title is the title of the event, e.g. "Published"
-        const manifest = convertHexToCID(nextVersion.cid);
+        const manifest = convert0xHexToCid(nextVersion.cid);
         const op =
             streamID === ""
                 ? createResearchObject(compose, { title, manifest })

@@ -18,7 +18,7 @@ import axios from "axios";
 import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
 import { dpidPublish } from "../src/chain.js";
 import { sleep } from "./util.js";
-import { convertHexToCID } from "../src/util/converting.js";
+import { convert0xHexToCid } from "../src/util/converting.js";
 import {
   ResearchObjectComponentDocumentSubtype,
   ResearchObjectComponentCodeSubtype,
@@ -262,7 +262,7 @@ describe("nodes-lib", () => {
         await sleep(1_500);
 
         const historyResult = await getDpidHistory(uuid);
-        const actualCid = convertHexToCID(historyResult[0].cid);
+        const actualCid = convert0xHexToCid(historyResult[0].cid);
         expect(actualCid).toEqual(publishResult.updatedManifestCid);
       });
 
@@ -292,7 +292,7 @@ describe("nodes-lib", () => {
 
       test("updates entry in dpid registry", async () => {
         const historyResult = await getDpidHistory(uuid);
-        const actualCid = convertHexToCID(historyResult[0].cid);
+        const actualCid = convert0xHexToCid(historyResult[0].cid);
         expect(actualCid).toEqual(publishResult.updatedManifestCid);
         expect(historyResult.length).toEqual(2);
       });
