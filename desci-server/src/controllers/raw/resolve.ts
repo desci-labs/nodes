@@ -34,7 +34,7 @@ export const directChainCall = async (decodedUuid: string) => {
   const compiled = process.env.NODE_ENV === 'production' ? goerli : localhost;
   const deployed = process.env.NODE_ENV === 'production' ? goerliInfo : localhostInfo;
   const deployedAddress = deployed.proxies[deployed.proxies.length - 1].address;
-
+  parentLogger.info({ deployedAddress }, '[RESEARCH OBJECT CONTRACT]');
   const researchObjectContract = new ethers.Contract(deployedAddress, compiled.abi, provider);
   // debugger;
   const eventFilter = researchObjectContract.filters.VersionPush();
@@ -94,6 +94,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
   // });
   const deployed = process.env.NODE_ENV === 'production' ? goerliInfo : localhostInfo;
   const deployedAddress = deployed.proxies[0].address;
+  logger.info({ deployedAddress }, '[RESEARCH OBJECT CONTRACT]');
   let graphOk = false;
   let result;
   try {
