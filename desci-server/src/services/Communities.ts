@@ -30,6 +30,8 @@ export class CommunityService {
         hidden: true,
         subtitle: true,
       },
+      orderBy: { name: 'asc' },
+      where: { hidden: false },
     });
   }
 
@@ -51,7 +53,7 @@ export class CommunityService {
   }
 
   async getCommunities() {
-    return prisma.desciCommunity.findMany();
+    return prisma.desciCommunity.findMany({ orderBy: { name: 'asc' }, where: { hidden: false } });
   }
 
   async findCommunityByNameOrSlug(name: string) {
