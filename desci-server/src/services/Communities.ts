@@ -53,10 +53,6 @@ export class CommunityService {
     return prisma.desciCommunity.findMany();
   }
 
-  async getVisibleCommunities() {
-    return prisma.desciCommunity.findMany({ where: { hidden: false } });
-  }
-
   async findCommunityByNameOrSlug(name: string) {
     return prisma.desciCommunity.findFirst({ where: { OR: [{ name }, { slug: name }] } });
   }
