@@ -1,8 +1,9 @@
 import { prisma } from '../src/client.js';
-import communitiesData from '../src/data/communities.json' assert { type: 'json' };
+// import communitiesData from '../src/data/communities.json' assert { type: 'json' };
 import researchFieldsData from '../src/data/fields.json' assert { type: 'json' };
-import { asyncMap, attestationService, communityService } from '../src/internal.js';
-import { seedSocialData } from '../src/scripts/seed-social-data.ts';
+// import { asyncMap, attestationService, communityService } from '../src/internal.js';
+import { seedSocialData } from '../src/scripts/seed-social-data.js';
+
 async function main() {
   await prisma.user.upsert({
     where: {

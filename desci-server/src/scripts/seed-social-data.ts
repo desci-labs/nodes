@@ -111,7 +111,7 @@ export const seedSocialData = async () => {
 
 if (process.env.RUN) {
   seedSocialData()
-    .then((result) => console.log('Communities and Attestations created/updated'))
+    .then(() => console.log('Communities and Attestations created/updated'))
     .catch((err) => console.log('Error running script ', err));
 } else {
   console.log('Must set RUN=1');
