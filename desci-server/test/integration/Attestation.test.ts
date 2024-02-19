@@ -1749,7 +1749,7 @@ describe('Attestations Service', async () => {
       console.log({ allResponse });
 
       res = await request(app)
-        .get(`/v1/communities/${desciCommunity.name}/attestations`)
+        .get(`/v1/communities/${desciCommunity.slug}/attestations`)
         .set('authorization', authHeaderVal);
       communityResponse = res.body.data;
       console.log({ communityResponse });
