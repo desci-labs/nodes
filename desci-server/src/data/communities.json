@@ -2,124 +2,239 @@
   "communities": [
     {
       "name": "Gridcoin",
-      "description": "Gridcoin is dedicated to exploring the potential of applying new technologies, incentives, processes, and funding models to the scientific ecosystem.",
-      "keywords": ["Metascience", "Scientometrics", "Mechanism Design"],
-      "image_url": "https://pub.desci.com/ipfs/bafkreicvyyyigqjpckswkhon2g2e73453pcjjj4slm7ycjojpr43fvrrlq",
-      "slug": "gridcoin"
+      "subtitle": "The cryptocurrency of science",
+      "description": "Gridcoin is an open-source multi-incentive permissionless blockchain that mints and distributes cryptocurrency to various contribution-based and point-accruing systems. It currently distributes currency according to the relative processing power a network participant directs toward data-driven analysis and scientific discovery across the Berkeley Open Infrastructure for Networked Computing and Folding@Home. The Gridcoin blockchain is secured through the proof-of-stake v2 protocol and utilizes several mechanisms to assure network, data, identity, and economic security. Access to Gridcoin’s computational resources is free for any project with data to process while contributors to the Gridcoin network are incentivized with cryptocurrency minted and distributed by the Gridcoin protocol.\n\nBOINC is an open source platform for volunteer computing that lets individuals use their computers & phones to help science research. It is free to use and already home to 30+ projects over a range of scientific disciplines. Examples include protein structure prediction (Rosetta@home), mapping the Milky Way galaxy (Milkyway@home), and tackling problems in public health and clean energy (World Community Grid).",
+      "keywords": [
+        "Computational Research",
+        "Climate Science",
+        "Biomedical Research",
+        "Astronomy",
+        "Astrophysics",
+        "Particle Physics",
+        "Mathematics"
+      ],
+      "image_url": "https://pub.desci.com/ipfs/bafkreie7kxhzpzhsbywcrpgyv5yvy3qxcjsibuxsnsh5olaztl2uvnrzx4",
+      "slug": "gridcoin",
+      "requiredAttestations": ["Reproducibility Enabled", "Used BOINC", "Used Folding@Home"],
+      "members": ["Gridcoin Network"],
+      "links": ["https://gridcoin.us", "https://boinc.berkeley.edu"]
     },
     {
       "name": "Longevist",
-      "keywords": ["Longevity", "Aging", "Healthspan"],
-      "description": "An overlay journal curating the world's most exciting longevity research. Presented in partnership with VitaDAO and DeSci Labs.",
+      "subtitle": "Curating the world's most exciting longevity research",
+      "keywords": ["Longevity", "Biomedicine", "Aging", "Healthspan"],
+      "description": "Supporting VitaDAO's mission to improve healthspan, we endeavour to spotlight the most groundbreaking longevity studies each quarter. Our editorial team utilises a combination of social listening tools, AI, and an expansive network to forge a shortlist of preprint contenders. Our expert panel of Longevist Curators then vote in a quarterly battle royale to establish the cream of the crop.\n\nPreprints have revolutionised scientific publishing by enabling researchers to share their discoveries with the world immediately. However, the sheer volume of preprints being published on a daily basis results in an overwhelming landscape for those eager to keep up with the cutting edge of science.\n\nThis is where The Longevist steps in.\n\nIn addition to curation, The Longevist fosters a space for collaborative discourse, through our peer review platform - The Longevity Decentralised Review - to seamlessly blend expert insights with user-friendly, advanced technology.\n\nWe invite you to join this vibrant community. Dive deep into the latest in longevity science and play a pivotal role in shaping the future narrative of this fascinating field.",
       "image_url": "https://pub.desci.com/ipfs/bafkreiexlcnfxgmyc23dhgvh4xcuuq62awioqkwcdxqdfk65si6ohr3nty",
-      "slug": "longevist"
+      "slug": "longevist",
+      "requiredAttestations": ["Scientific Manuscript", "Longevity Research", "Commercializable"],
+      "members": [
+        "Andrea Maier",
+        "Matthew Kaeberlein",
+        "Claudia Cavadas",
+        "Ming Xu",
+        "Mallar Bhattacharya",
+        "Jenna Bartley",
+        "Charles Brenner",
+        "Marco Demaria",
+        "Adam Freund",
+        "Bernadette Carroll",
+        "Michael Baran",
+        "Eleanor Sheekey",
+        "Matthew Yousefzadeh",
+        "Viktor Korolchuk",
+        "Clara Correia-Melo",
+        "Brad Stanfield",
+        "Shahaf Peleg",
+        "Graeme Hewitt",
+        "Dudley Lamming",
+        "Morten Scheibye-Knudsen",
+        "Joseph Burgoyne",
+        "David Vilchez",
+        "Barry Bentley",
+        "Nicholas Tolwinski",
+        "David Meyer",
+        "Diogo Barardo",
+        "Jan Gruber",
+        "Julien Cherfils"
+      ],
+      "links": ["https://longevist.xyz", "https://vitadao.com"]
     },
     {
       "name": "MoonDAO",
-      "description": "MoonDAO is an international collective of people united by the mission of decentralizing access to space research and exploration.",
-      "keywords": ["Space", "Space Exploration", "Space Research"],
-      "image_url": "https://pub.desci.com/ipfs/bafkreiditqu5bzfjiodmfn6j4sgnssz5fuzjayi5nrohjxagayydmq2mam",
-      "slug": "moondao"
+      "subtitle": "The Internet's space program",
+      "description": "MoonDAO's mission is to create a self-sustaining, self-governing settlement on the Moon by 2030 to act as a launch point for humanity to explore the cosmos.\n\nThe frontier of space represents the greatest opportunity to redefine our civilization. As we step forwards into the unknown, we find ourselves at a crossroads for our future.\n\nMoonDAO believes in a bottom-up approach, where we are united by principles of equality, freedom, pursuit of happiness, justice, privacy, decentralization of power, transparency, private ownership, sustainability, and equal access to opportunity for anyone in the world, regardless of their origin.\n\nWe aim to bring life outside of our home planet for the benefit of human prosperity to all corners of the Earth. Not for the benefit of a few at the expense of others. MoonDAO will act as a hub for scientists, engineers, artists, philosophers, lawyers, and everyday people to come together and collaborate to build an optimistic future for everyone.\n\nMoonDAO will build, fund, and promote public goods that help humanity achieve its mission. This includes projects related to space research, exploration, education, and inspiration. We are nation-agnostic, radically transparent, bottom-up, and open to anyone in the world to own, govern, and work.",
+      "keywords": [
+        "Space",
+        "Astrophysics",
+        "Astronomy",
+        "Moon",
+        "Geology",
+        "Lunar Ecosystem",
+        "Autonomous",
+        "Decentralized",
+        "Governance",
+        "Astronaut",
+        "Cislunar",
+        "Lunar Settlement",
+        "Web3",
+        "DAO",
+        "Lunar Science",
+        "Research",
+        "Infrastructure",
+        "Sustainability",
+        "Transparency",
+        "Privacy",
+        "Accessibility",
+        "Equality",
+        "Peace",
+        "Space Exploration",
+        "Rocket",
+        "Probe",
+        "Robotics",
+        "Spacecraft",
+        "Satellite",
+        "Simulation",
+        "Outreach",
+        "Cryptocurrency",
+        "Internet-native"
+      ],
+      "image_url": "https://pub.desci.com/ipfs/bafkreibpwn3s6e3ftj7sd57x4oe5hkddlzboo7t6a4lh4aarsezq37nsfu",
+      "slug": "moondao",
+      "requiredAttestations": ["Open Data", "Open Code", "Big if True", "Advances Space Travel"],
+      "members": ["Philip Linden", "Pablo Moncada-Larrotiz", "Carla Ostmann", "@Royalty"],
+      "links": ["https://moondao.com", "https://twitter.com/OfficialMoonDAO"]
     },
     {
-      "name": "DeSci Foundation",
-      "keywords": ["Metascience", "Scientometrics", "Mechanism Design"],
-      "description": "DeSci Foundation is dedicated to exploring the potential of applying new technologies, incentives, processes, and funding models to the scientific ecosystem.",
+      "name": "Scientific Advances by DeSci Foundation",
+      "subtitle": "High-quality research across all disciplines",
+      "keywords": ["Original Research", "Open Science", "Reproducibility", "Metascience", "Interdisciplinary"],
+      "description": "All selected contributions can participate in the [DeSci Fund for Scientific Innovation](https://help.artizen.fund/en/articles/8387161-desci-fund-for-scientific-innovation). Outstanding contributions that demonstrate or advance best open science practices are eligible to compete for the DeSci Foundation Open Science Award ($3000).\n\n## Aims and Scope\n\nCurated by the DeSci Foundation, our feed provides a platform for disseminating high-quality research. We select original empirical research, theoretical and methodological contributions, as well as high-quality reviews, perspectives, comments, educational materials and correspondence related to the robustness and trustworthiness of the scientific record.\n\nWe welcome contributions emphasising open science practices, such as open data, open code, preregistered analysis plans, computational reproducibility, and replication studies. We prioritise rigor and transparency in scientific inquiry, aiming to shift the focus from subjective novelty claims or statistical significance to the robustness and reliability of research methodologies.\n\n### Emphasis on Replicability, Robustness, and Transparency:\n\n- Manuscripts reporting empirical research results should prioritize sharing data and code to the extent possible, actively facilitating readers' ability to reproduce and validate results independently.\n- Authors are encouraged to utilize the versionability of DeSci Nodes to enhance transparency throughout the research process, incorporating best practices such as commencing a research project with a detailed analysis plan.\n\n### Cross- and interdisciplinary:\n\n- We welcome contributions from all scientific disciplines and encourage interdisciplinary collaborations, fostering the exchange of open-science practices across fields.\n\n### Metascience:\n\n- Contributions utilizing scientific methodology to study science itself, including replication studies, mechanism design, or philosophy of science, are strongly encouraged.\n\nBy prioritizing open science practices, our feed aims to contribute to a culture of transparency, collaboration, and continuous improvement in scientific research. We believe that this approach will not only enhance the credibility of published research but also foster a community dedicated to advancing the reliability and reproducibility of scientific knowledge.\n\n## Prizes\n\nOutstanding scientific advances that demonstrate or advance best open science practices are eligible to compete for our annual Open Science Award ($3000).\n\nIn addition, the DeSci Foundation has partnered with [Artizen.Fund](https://www.artizen.fund/) to provide $10,000 of matched funding to support scientists’ innovative research via the [DeSci Fund for Scientific Innovation](https://help.artizen.fund/en/articles/8387161-desci-fund-for-scientific-innovation). All contributions selected by this feed are eligible to apply. To participate, create a visual representation of your research called an [Artifact](https://help.artizen.fund/en/articles/6604052-what-are-artifacts). Your Artifact can be any image, video, or gif that captures the spark of inspiration behind your work. Submit your Artifact and project description to https://vote.artizen.fund/submit. Selected contributions will be highlighted with an open-edition NFT. The proceeds from NFT sales and matched funding will be paid to the authors.\n\n## About Us\n\nThe DeSci Foundation is a non-profit organization registered in Geneva, Switzerland. Led by leading scientists and entrepreneurs, our mission is to explore and support improvements in the scientific ecosystem based on insights from meta-science and new opportunities afforded by cutting-edge technologies.",
       "image_url": "https://pub.desci.com/ipfs/bafkreidw7vyhsqss7fdf4f5mxacjj3kcq3uymfxsec7z7kypxxdus62nr4",
-      "slug": "desci-foundation"
+      "slug": "desci-foundation",
+      "requiredAttestations": [
+        "Scientific Manuscript",
+        "Open Data",
+        "Open Code",
+        "DeSci Fund for Scientific Innovation Eligibility"
+      ],
+      "members": [
+        "Philipp Koellinger",
+        "Chris Hill",
+        "Carla Ostmann",
+        "Ellie DeSota",
+        "Erik Van Winkle",
+        "Jon Starr",
+        "James Boyd",
+        "Andre Vacha"
+      ],
+      "links": ["https://descifoundation.org", "https://twitter.com/DeSciFoundation"]
     },
     {
       "name": "DeSci Labs",
-      "keywords": ["Engineering", "Open Source"],
+      "subtitle": "Building tools to grow open science",
+      "keywords": ["Engineering", "Metascience", "Open Source"],
       "description": "DeSci Labs is a technology company focused on building open-source tools for the scientific community.",
-      "image_url": "https://pub.desci.com/ipfs/bafkreifg26ty2flva3fghn3udyuwuje44opuwjufqsbvi5h3c5fmsxz6wy",
-      "slug": "desci-labs"
+      "image_url": "https://pub.desci.com/ipfs/bafkreia64zheao4kyaxi64gw4uwnmckmu3g5ybjyszkwdwgobs3wucxyye",
+      "slug": "desci-labs",
+      "requiredAttestations": ["Open Code", "Open Data"],
+      "members": [
+        "Philipp Koellinger",
+        "Chris Hill",
+        "Carla Ostmann",
+        "Ellie DeSota",
+        "Erik Van Winkle",
+        "Jon Starr",
+        "Andre Vacha",
+        "Sina Iman"
+      ],
+      "links": ["https://desci.com", "https://twitter.com/DeSciLabs"],
+      "hidden": true
     }
   ],
   "attestations": [
     {
       "name": "Scientific Manuscript",
-      "description": "The research is formatted as a scientific manuscript",
+      "description": "Contains an open access scientific manuscript. The manuscript follows common scientific conventions and features a title, abstract, contributor names, body of text, and bibliographic section at the end.",
       "image_url": "https://pub.desci.com/ipfs/bafybeigiq7vxialgowwbw5tsg4ig7kdbl4ee3qhlr7xojybp6yweudts4u",
-      "communityName": "DeSci Labs",
-      "communitySelected": false
+      "communityName": "DeSci Labs"
     },
     {
       "name": "Open Data",
-      "description": "The research data is available for review and reuse",
+      "description": "Digitally-shareable data are publicly available on an open-access repository. The data must have a **persistent identifier and be provided in a format that is time-stamped, immutable, and permanent** (e.g., university repository, a registration on the [Open Science Framework](http://osf.io/), or an independent repository at [www.re3data.org](http://www.re3data.org/)). By publishing your data via DeSci Nodes, you automatically satisfy this requirement.\n\nA data dictionary (for example, a codebook or metadata describing the data) is included with sufficient description for an independent researcher to reproduce the reported analyses and results. Data from the same project that are not needed to reproduce the reported results can be kept private without losing eligibility for the Open Data Badge.\n\nAn open license allowing others to copy, distribute, and make use of the data while allowing the licensor to retain credit and copyright as applicable. Creative Commons has defined several licenses for this purpose, which are described at [www.creativecommons.org/licenses](http://creativecommons.org/licenses). CC0 or CC-BY is strongly recommended.",
       "image_url": "https://pub.desci.com/ipfs/bafybeie4k6vm6rcuzjfr6f6dtqbe3azmdyplbur7ohtx3z3javq4z6cnyu",
-      "communityName": "DeSci Labs",
-      "communitySelected": true
+      "communityName": "DeSci Labs"
     },
     {
       "name": "Open Code",
-      "description": "The research code is available for review and reuse",
+      "description": "Digitally-shareable code is available in this research object.\n\nThe code must be provided in a format that is time-stamped, immutable, and permanent. It must also have associated persistent identifiers.\n\nBy publishing your code with default licensing via DeSci Nodes, you automatically satisfy this requirement.\n\nThe code has an open license allowing others to copy, distribute, and make use of the code while allowing the licensor to retain credit and copyright as applicable.\n\nSufficient explanation is present for an independent researcher to understand how the code is used and relates to the reported methodology, including information about versions of software, systems, and packages.",
       "image_url": "https://pub.desci.com/ipfs/bafybeifhe4vsj7dfsde4zduwczrh7bma2g7b3bpyufhdtb6b2rzbxe4jq4",
-      "communityName": "DeSci Labs",
-      "communitySelected": true
+      "communityName": "DeSci Labs"
     },
     {
       "name": "Ask Me Anything",
-      "description": "The author is available to answer questions or receive feedback about the research",
+      "description": "The author is inviting questions and feedback about the research.",
       "image_url": "https://pub.desci.com/ipfs/bafybeifaqbltokc4ip4ly3nly57lcwcuhjbjtjtphafecv4ttu3wjukurq",
-      "communityName": "DeSci Labs",
-      "communitySelected": false
+      "communityName": "DeSci Labs"
     },
     {
-      "name": "Reproducibility",
-      "description": "The research was conducted in a way that allows others to verify the results",
+      "name": "Reproducibility Enabled",
+      "description": "This research object contains the components required for others to reproduce the results.\n\nIt includes sufficiently detailed descriptions of methods and workflows and provides research artifacts such as data, models, analysis pipelines, or software code necessary to reproduce the results.\n\nFor restricted access data, authors must provide an actionable description of how to access the data for subsequent research.",
       "image_url": "https://pub.desci.com/ipfs/bafybeibnk4xbupbclpiqbgjc4kqew6rhmt34crietts4dbv2z2m6zny2c4",
-      "communityName": "DeSci Labs",
-      "communitySelected": true
+      "communityName": "DeSci Labs"
     },
     {
       "name": "Big if True",
-      "description": "The research is potentially groundbreaking and should be reviewed by the community",
+      "description": "The key findings presented in this research object are potentially groundbreaking and may disrupt certain fields or areas of science, business, and society.",
       "image_url": "https://pub.desci.com/ipfs/bafybeia7qzpqmx4o6uohuul7agsm234wrn5x6hh5ioymwlhsqljsvndede",
-      "communityName": "DeSci Labs",
-      "communitySelected": false
+      "communityName": "DeSci Labs"
     },
     {
       "name": "Commercializable",
-      "description": "The research has potential commercial applications or has a commercialization plan",
+      "description": "The research has potential commercial applications.",
       "image_url": "https://pub.desci.com/ipfs/bafybeiccbcvjod27qrcpnrmeszmffifpm22z3xbxc2klwsqpbrho54vb3q",
-      "communityName": "DeSci Labs",
-      "communitySelected": false
+      "communityName": "DeSci Labs"
     },
     {
       "name": "Used BOINC",
-      "description": "The research was conducted using Berkeley Open Infrastructure for Network Computing",
+      "description": "The research was conducted using Berkeley Open Infrastructure for Network Computing. The publication must provide proof of using the infrastructure in order to get verified.",
       "image_url": "https://pub.desci.com/ipfs/bafybeihdimcqybdu4peyhodjamucbxle2u5d63ywlixrhwl6nc5b75b7eu",
-      "communityName": "DeSci Labs",
-      "communitySelected": false
+      "communityName": "DeSci Labs"
     },
     {
       "name": "Used Folding@home",
-      "description": "The research was conducted using Folding@home software, which uses the idle resources of personal computers to perform protein folding simulations",
+      "description": "The research was conducted using Folding@home software. The publication must provide proof of using the software in order to get verified.",
       "image_url": "https://pub.desci.com/ipfs/bafkreicf2zkf47lha22f4hszwsctffnlcjh4tbepqgumnbuf277dwki7ce",
-      "communityName": "DeSci Labs",
-      "communitySelected": false
+      "communityName": "DeSci Labs"
     },
     {
       "name": "Used Rosetta@home",
       "description": "The research was conducted using Rosetta@home software, which uses the idle resources of personal computers to perform protein folding simulations",
       "image_url": "https://pub.desci.com/ipfs/bafkreigibpmiwumddgmkzyjfkddhhfymfq5b6ghdpy7ux3evgu3uxf7s5q",
-      "communityName": "DeSci Labs",
-      "communitySelected": false
+      "communityName": "DeSci Labs"
     },
     {
-      "name": "Space Science",
-      "description": "The research is related to space science",
+      "name": "Advances Space Travel",
+      "description": "The research outcomes directly or indirectly contribute to addressing key challenges or limitations in space exploration, with the potential to significantly enhance humanity's ability to explore and inhabit space environments.",
       "image_url": "https://pub.desci.com/ipfs/bafybeifm56vo2eslxh5mygh5mxl7jywvp6qgcirn55gsoq4kqpygvxbxau",
-      "communityName": "DeSci Labs",
-      "communitySelected": false
+      "communityName": "DeSci Labs"
     },
     {
       "name": "Longevity Research",
-      "description": "The research is related to longevity",
+      "description": "The key findings presented in this publication are related to, or informative of pathways to increase the human life- and/or health span.",
       "image_url": "https://pub.desci.com/ipfs/bafkreihdwoxo3md7pl4spwc3c245o4aksciuvumekpg5qsvd2wtbqkiebu",
-      "communityName": "DeSci Labs",
-      "communitySelected": false
+      "communityName": "DeSci Labs"
+    },
+    {
+      "name": "Needs More Funding",
+      "description": "The research presented in this (version of the) publication is a milestone in a larger research project that requires additional funding resources for the researchers to implement it fully. The publication provides a detailed project plan outlining the aims, hypothesis, and risks of the overarching project and a way to contact the authors.",
+      "image_url": "https://pub.desci.com/ipfs/bafkreiexlcnfxgmyc23dhgvh4xcuuq62awioqkwcdxqdfk65si6ohr3nty",
+      "communityName": "DeSci Labs"
+    },
+    {
+      "name": "DeSci Fund for Scientific Innovation Eligibility",
+      "description": "This research object is eligible for funding through the DeSci Fund for Scientific Innovation. This means that the original authors have published it on DeSci Nodes and includes a manuscript that meets the Scientific Manuscript attestation requirements. Further, this research follows best open science practices, including sharing artifacts such as data and code alongside manuscripts, conducting research based on pre-registered analysis plans, full transparency about methods used, and making active efforts to enable the reproducibility of the reported results as much as possible.",
+      "image_url": "https://pub.desci.com/ipfs/bafkreifg26ty2flva3fghn3udyuwuje44opuwjufqsbvi5h3c5fmsxz6wy",
+      "communityName": "DeSci Labs"
     }
   ]
 }

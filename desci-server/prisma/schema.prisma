@@ -584,14 +584,19 @@ model DesciCommunity {
   name                         String                         @unique
   slug                         String?                        @unique
   image_url                    String?
+  subtitle                     String? // short description
   description                  String
   keywords                     String[]
+  memberString                 String[] // string list of member names
+  links                        String[] // string list of links
+  hidden                       Boolean                        @default(false)
   members                      User[]
   endorsements                 NodeFeedItemEndorsement[]
   CommunityMember              CommunityMember[]
   Attestation                  Attestation[]
   NodeAttestation              NodeAttestation[]
   CommunitySelectedAttestation CommunitySelectedAttestation[]
+  AttestationTemplate          AttestationTemplate[]
 }
 
 model CommunityMember {
@@ -607,13 +612,15 @@ model CommunityMember {
 
 // Templates for creating a new attestation
 model AttestationTemplate {
-  id          Int           @id @default(autoincrement())
-  name        String        @unique
-  description String
-  image_url   String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  Attestation Attestation[]
+  id               Int             @id @default(autoincrement())
+  name             String          @unique
+  description      String
+  image_url        String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  Attestation      Attestation[]
+  DesciCommunity   DesciCommunity? @relation(fields: [desciCommunityId], references: [id])
+  desciCommunityId Int?
 }
 
 // A factory attestation, these are the base attestations that can be assigned to nodes

@@ -563,7 +563,7 @@ export class AttestationService {
    */
   async listCommunityAttestations(communityId: number) {
     const queryResult = (await prisma.$queryRaw`
-    SELECT
+     SELECT
       A.*,
       COUNT(distinct AN.id)::int AS annotations,
       COUNT(distinct NAR.id)::int AS reactions,
@@ -578,9 +578,9 @@ export class AttestationService {
       LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
-      LEFT JOIN "CommunitySelectedAttestation" CSA ON CSA."desciCommunityId" = A."communityId"
-	    AND CSA."attestationId" = A.id
-     WHERE A."communityId" = ${communityId}
+      LEFT JOIN "CommunitySelectedAttestation" CSA ON CSA."attestationId" = A."id"
+	where 
+		CSA."desciCommunityId" = ${communityId}
     GROUP BY
       A.id,
       CSA.id
