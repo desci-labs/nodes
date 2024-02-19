@@ -30,7 +30,7 @@ export const listCommunities = async (_req: Request, res: Response, _next: NextF
       engagements,
     };
   });
-  logger.info({ communities });
+  logger.info({ communities: communities.length });
 
   new SuccessResponse(communities).send(res);
 };
