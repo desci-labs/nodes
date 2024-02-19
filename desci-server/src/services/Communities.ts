@@ -25,6 +25,9 @@ export class CommunityService {
         name: true,
         image_url: true,
         description: true,
+        links: true,
+        memberString: true,
+        hidden: true,
       },
     });
   }

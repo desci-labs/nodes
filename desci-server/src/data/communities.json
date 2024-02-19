@@ -2,7 +2,7 @@
   "communities": [
     {
       "name": "Gridcoin",
-      "subheader": "The cryptocurrency of science",
+      "subtitle": "The cryptocurrency of science",
       "description": "Gridcoin is an open-source multi-incentive permissionless blockchain that mints and distributes cryptocurrency to various contribution-based and point-accruing systems. It currently distributes currency according to the relative processing power a network participant directs toward data-driven analysis and scientific discovery across the Berkeley Open Infrastructure for Networked Computing and Folding@Home. The Gridcoin blockchain is secured through the proof-of-stake v2 protocol and utilizes several mechanisms to assure network, data, identity, and economic security. Access to Gridcoin’s computational resources is free for any project with data to process while contributors to the Gridcoin network are incentivized with cryptocurrency minted and distributed by the Gridcoin protocol.\n\nBOINC is an open source platform for volunteer computing that lets individuals use their computers & phones to help science research. It is free to use and already home to 30+ projects over a range of scientific disciplines. Examples include protein structure prediction (Rosetta@home), mapping the Milky Way galaxy (Milkyway@home), and tackling problems in public health and clean energy (World Community Grid).",
       "keywords": [
         "Computational Research",
@@ -13,26 +13,55 @@
         "Particle Physics",
         "Mathematics"
       ],
-      "image_url": "https://pub.desci.com/ipfs/bafkreicvyyyigqjpckswkhon2g2e73453pcjjj4slm7ycjojpr43fvrrlq",
+      "image_url": "https://pub.desci.com/ipfs/bafkreie7kxhzpzhsbywcrpgyv5yvy3qxcjsibuxsnsh5olaztl2uvnrzx4",
       "slug": "gridcoin",
       "requiredAttestations": ["Reproducibility Enabled", "Used BOINC", "Used Folding@Home"],
-      "members": "Gridcoin Network",
+      "members": ["Gridcoin Network"],
       "links": ["https://gridcoin.us", "https://boinc.berkeley.edu"]
     },
     {
       "name": "Longevist",
-      "subheader": "Curating the world's most exciting longevity research",
+      "subtitle": "Curating the world's most exciting longevity research",
       "keywords": ["Longevity", "Biomedicine", "Aging", "Healthspan"],
       "description": "Supporting VitaDAO's mission to improve healthspan, we endeavour to spotlight the most groundbreaking longevity studies each quarter. Our editorial team utilises a combination of social listening tools, AI, and an expansive network to forge a shortlist of preprint contenders. Our expert panel of Longevist Curators then vote in a quarterly battle royale to establish the cream of the crop.\n\nPreprints have revolutionised scientific publishing by enabling researchers to share their discoveries with the world immediately. However, the sheer volume of preprints being published on a daily basis results in an overwhelming landscape for those eager to keep up with the cutting edge of science.\n\nThis is where The Longevist steps in.\n\nIn addition to curation, The Longevist fosters a space for collaborative discourse, through our peer review platform - The Longevity Decentralised Review - to seamlessly blend expert insights with user-friendly, advanced technology.\n\nWe invite you to join this vibrant community. Dive deep into the latest in longevity science and play a pivotal role in shaping the future narrative of this fascinating field.",
       "image_url": "https://pub.desci.com/ipfs/bafkreiexlcnfxgmyc23dhgvh4xcuuq62awioqkwcdxqdfk65si6ohr3nty",
       "slug": "longevist",
       "requiredAttestations": ["Scientific Manuscript", "Longevity Research", "Commercializable"],
-      "members": "Andrea Maier, Matthew Kaeberlein, Claudia Cavadas, Ming Xu, Mallar Bhattacharya, Jenna Bartley, Charles Brenner, Marco Demaria, Adam Freund, Bernadette Carroll, Michael Baran, Eleanor Sheekey, Matthew Yousefzadeh, Viktor Korolchuk, Clara Correia-Melo, Brad Stanfield, Shahaf Peleg, Graeme Hewitt, Dudley Lamming, Morten Scheibye-Knudsen, Joseph Burgoyne, David Vilchez, Barry Bentley, Nicholas Tolwinski, David Meyer, Diogo Barardo, Jan Gruber, Julien Cherfils",
+      "members": [
+        "Andrea Maier",
+        "Matthew Kaeberlein",
+        "Claudia Cavadas",
+        "Ming Xu",
+        "Mallar Bhattacharya",
+        "Jenna Bartley",
+        "Charles Brenner",
+        "Marco Demaria",
+        "Adam Freund",
+        "Bernadette Carroll",
+        "Michael Baran",
+        "Eleanor Sheekey",
+        "Matthew Yousefzadeh",
+        "Viktor Korolchuk",
+        "Clara Correia-Melo",
+        "Brad Stanfield",
+        "Shahaf Peleg",
+        "Graeme Hewitt",
+        "Dudley Lamming",
+        "Morten Scheibye-Knudsen",
+        "Joseph Burgoyne",
+        "David Vilchez",
+        "Barry Bentley",
+        "Nicholas Tolwinski",
+        "David Meyer",
+        "Diogo Barardo",
+        "Jan Gruber",
+        "Julien Cherfils"
+      ],
       "links": ["https://longevist.xyz", "https://vitadao.com"]
     },
     {
       "name": "MoonDAO",
-      "subheader": "The Internet's space program",
+      "subtitle": "The Internet's space program",
       "description": "MoonDAO's mission is to create a self-sustaining, self-governing settlement on the Moon by 2030 to act as a launch point for humanity to explore the cosmos.\n\nThe frontier of space represents the greatest opportunity to redefine our civilization. As we step forwards into the unknown, we find ourselves at a crossroads for our future.\n\nMoonDAO believes in a bottom-up approach, where we are united by principles of equality, freedom, pursuit of happiness, justice, privacy, decentralization of power, transparency, private ownership, sustainability, and equal access to opportunity for anyone in the world, regardless of their origin.\n\nWe aim to bring life outside of our home planet for the benefit of human prosperity to all corners of the Earth. Not for the benefit of a few at the expense of others. MoonDAO will act as a hub for scientists, engineers, artists, philosophers, lawyers, and everyday people to come together and collaborate to build an optimistic future for everyone.\n\nMoonDAO will build, fund, and promote public goods that help humanity achieve its mission. This includes projects related to space research, exploration, education, and inspiration. We are nation-agnostic, radically transparent, bottom-up, and open to anyone in the world to own, govern, and work.",
       "keywords": [
         "Space",
@@ -72,12 +101,12 @@
       "image_url": "https://pub.desci.com/ipfs/bafkreibpwn3s6e3ftj7sd57x4oe5hkddlzboo7t6a4lh4aarsezq37nsfu",
       "slug": "moondao",
       "requiredAttestations": ["Open Data", "Open Code", "Big if True", "Advances Space Travel"],
-      "members": "Philip Linden, Pablo Moncada-Larrotiz, Carla Ostmann, @Royalty",
+      "members": ["Philip Linden", "Pablo Moncada-Larrotiz", "Carla Ostmann", "@Royalty"],
       "links": ["https://moondao.com", "https://twitter.com/OfficialMoonDAO"]
     },
     {
       "name": "Scientific Advances by DeSci Foundation",
-      "subheader": "High-quality research across all disciplines",
+      "subtitle": "High-quality research across all disciplines",
       "keywords": ["Original Research", "Open Science", "Reproducibility", "Metascience", "Interdisciplinary"],
       "description": "All selected contributions can participate in the [DeSci Fund for Scientific Innovation](https://help.artizen.fund/en/articles/8387161-desci-fund-for-scientific-innovation). Outstanding contributions that demonstrate or advance best open science practices are eligible to compete for the DeSci Foundation Open Science Award ($3000).\n\n## Aims and Scope\n\nCurated by the DeSci Foundation, our feed provides a platform for disseminating high-quality research. We select original empirical research, theoretical and methodological contributions, as well as high-quality reviews, perspectives, comments, educational materials and correspondence related to the robustness and trustworthiness of the scientific record.\n\nWe welcome contributions emphasising open science practices, such as open data, open code, preregistered analysis plans, computational reproducibility, and replication studies. We prioritise rigor and transparency in scientific inquiry, aiming to shift the focus from subjective novelty claims or statistical significance to the robustness and reliability of research methodologies.\n\n### Emphasis on Replicability, Robustness, and Transparency:\n\n- Manuscripts reporting empirical research results should prioritize sharing data and code to the extent possible, actively facilitating readers' ability to reproduce and validate results independently.\n- Authors are encouraged to utilize the versionability of DeSci Nodes to enhance transparency throughout the research process, incorporating best practices such as commencing a research project with a detailed analysis plan.\n\n### Cross- and interdisciplinary:\n\n- We welcome contributions from all scientific disciplines and encourage interdisciplinary collaborations, fostering the exchange of open-science practices across fields.\n\n### Metascience:\n\n- Contributions utilizing scientific methodology to study science itself, including replication studies, mechanism design, or philosophy of science, are strongly encouraged.\n\nBy prioritizing open science practices, our feed aims to contribute to a culture of transparency, collaboration, and continuous improvement in scientific research. We believe that this approach will not only enhance the credibility of published research but also foster a community dedicated to advancing the reliability and reproducibility of scientific knowledge.\n\n## Prizes\n\nOutstanding scientific advances that demonstrate or advance best open science practices are eligible to compete for our annual Open Science Award ($3000).\n\nIn addition, the DeSci Foundation has partnered with [Artizen.Fund](https://www.artizen.fund/) to provide $10,000 of matched funding to support scientists’ innovative research via the [DeSci Fund for Scientific Innovation](https://help.artizen.fund/en/articles/8387161-desci-fund-for-scientific-innovation). All contributions selected by this feed are eligible to apply. To participate, create a visual representation of your research called an [Artifact](https://help.artizen.fund/en/articles/6604052-what-are-artifacts). Your Artifact can be any image, video, or gif that captures the spark of inspiration behind your work. Submit your Artifact and project description to https://vote.artizen.fund/submit. Selected contributions will be highlighted with an open-edition NFT. The proceeds from NFT sales and matched funding will be paid to the authors.\n\n## About Us\n\nThe DeSci Foundation is a non-profit organization registered in Geneva, Switzerland. Led by leading scientists and entrepreneurs, our mission is to explore and support improvements in the scientific ecosystem based on insights from meta-science and new opportunities afforded by cutting-edge technologies.",
       "image_url": "https://pub.desci.com/ipfs/bafkreidw7vyhsqss7fdf4f5mxacjj3kcq3uymfxsec7z7kypxxdus62nr4",
@@ -88,15 +117,36 @@
         "Open Code",
         "DeSci Fund for Scientific Innovation Eligibility"
       ],
-      "members": "Philipp Koellinger, Chris Hill, Carla Ostmann, Ellie DeSota, Erik Van Winkle, Jon Starr, James Boyd, Andre Vacha",
+      "members": [
+        "Philipp Koellinger",
+        "Chris Hill",
+        "Carla Ostmann",
+        "Ellie DeSota",
+        "Erik Van Winkle",
+        "Jon Starr",
+        "James Boyd",
+        "Andre Vacha"
+      ],
       "links": ["https://descifoundation.org", "https://twitter.com/DeSciFoundation"]
     },
     {
       "name": "DeSci Labs",
+      "subtitle": "Building tools to grow open science",
       "keywords": ["Engineering", "Metascience", "Open Source"],
       "description": "DeSci Labs is a technology company focused on building open-source tools for the scientific community.",
-      "image_url": "https://pub.desci.com/ipfs/bafkreifg26ty2flva3fghn3udyuwuje44opuwjufqsbvi5h3c5fmsxz6wy",
+      "image_url": "https://pub.desci.com/ipfs/bafkreia64zheao4kyaxi64gw4uwnmckmu3g5ybjyszkwdwgobs3wucxyye",
       "slug": "desci-labs",
+      "requiredAttestations": ["Open Code", "Open Data"],
+      "members": [
+        "Philipp Koellinger",
+        "Chris Hill",
+        "Carla Ostmann",
+        "Ellie DeSota",
+        "Erik Van Winkle",
+        "Jon Starr",
+        "Andre Vacha",
+        "Sina Iman"
+      ],
       "links": ["https://desci.com", "https://twitter.com/DeSciLabs"],
       "hidden": true
     }

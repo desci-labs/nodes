@@ -1,8 +1,8 @@
 import { prisma } from '../client.js';
-import communitiesData from '../data/communities.json';
+import communitiesData from '../data/communities.json' assert { type: 'json' };
 import { asyncMap } from '../utils.js';
 
-const main = async () => {
+export const seedSocialData = async () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   // const researchFieldsData = require('../../data/fields.json');
   // const parsedFields: { name: string }[] = researchFieldsData.map((name) => ({ name }));
@@ -14,9 +14,13 @@ const main = async () => {
   const communities = await Promise.all(
     communitiesData['communities'].map((community) =>
       prisma.desciCommunity.upsert({
-        where: { name: community.name },
+        where: { slug: community.slug },
         create: {
           name: community.name,
+          hidden: community.hidden,
+          memberString: community.members,
+          links: community.links,
+          subtitle: community.subtitle,
           description: community.description,
           image_url: community.image_url,
           keywords: community.keywords,
@@ -24,6 +28,10 @@ const main = async () => {
         },
         update: {
           description: community.description,
+          hidden: community.hidden,
+          memberString: community.members,
+          links: community.links,
+          subtitle: community.subtitle,
           image_url: community.image_url,
           keywords: community.keywords,
           slug: community.slug,
@@ -66,36 +74,45 @@ const main = async () => {
       });
     }
 
-    if (attestation.communitySelected === true) {
-      const selected = await prisma.communitySelectedAttestation.findFirst({
-        where: {
-          desciCommunityId: inserted.communityId,
-          attestationId: inserted.id,
-          attestationVersionId: version.id,
-        },
-      });
-
-      if (!selected) {
-        console.log(`Add to community entry Attestation`, attestation.name);
-        await prisma.communitySelectedAttestation.create({
-          data: {
-            desciCommunityId: inserted.communityId,
+    // loop through all communities that have this attestation and add it to their selected attestations
+    for (let i = 0; i < communitiesData['communities'].length; i++) {
+      const community = communitiesData['communities'][i];
+      const communityFromDb = await prisma.desciCommunity.findFirst({ where: { name: community.name } });
+      if (community.requiredAttestations.includes(attestation.name)) {
+        console.log(`Checking community ${community.name} for attestation ${attestation.name}...`);
+        const selected = await prisma.communitySelectedAttestation.findFirst({
+          where: {
             attestationId: inserted.id,
             attestationVersionId: version.id,
-            required: true,
           },
         });
-      } else {
-        console.log(`FOUND community entry Attestation`, attestation.name);
+        if (!selected) {
+          console.log(`Adding to community ${communityFromDb.name}, Attestation: ${attestation.name}`);
+          await prisma.communitySelectedAttestation.create({
+            data: {
+              desciCommunityId: communityFromDb.id,
+              attestationId: inserted.id,
+              attestationVersionId: version.id,
+              required: true,
+            },
+          });
+        } else {
+          console.log(`Community ${communityFromDb.name} already had Attestation: ${attestation.name}`);
+        }
       }
     }
-    return { ...inserted, versions: version, communitySelected: attestation.communitySelected };
+    return { ...inserted, versions: version };
   });
 
   // console.log('Attestations SEEDED', inserted);
   return inserted;
 };
 
-main()
-  .then((result) => console.log('Communities and Attestations created/updated', result))
-  .catch((err) => console.log('Error running script ', err));
+if (process.env.RUN) {
+  seedSocialData()
+    .then((result) => console.log('Communities and Attestations created/updated'))
+    .catch((err) => console.log('Error running script ', err));
+} else {
+  console.log('Must set RUN=1');
+  process.exit(0);
+}

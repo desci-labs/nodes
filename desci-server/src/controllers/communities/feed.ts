@@ -9,6 +9,8 @@ import {
   communityService,
   resolveLatestNode,
 } from '../../internal.js';
+import { logger as parentLogger } from '../../internal.js';
+const logger = parentLogger.child({ module: 'communities/feed.ts' });
 
 export const getCommunityFeed = async (req: Request, res: Response, next: NextFunction) => {
   const curatedNodes = await communityService.getCuratedNodes(parseInt(req.params.communityId as string));
@@ -63,7 +65,7 @@ export const getAllFeeds = async (req: Request, res: Response, next: NextFunctio
     };
   });
 
-  // logger.info({ nodes }, 'CHECK Verification SignalS');
+  logger.info({ nodes }, 'CHECK Verification SignalS');
   let data = await Promise.all(nodes.map(resolveLatestNode));
   // data = data.sort((c1, c2) => c1.engagements.verifications - c2.engagements.verifications);
   data = data.sort((c1, c2) => {
