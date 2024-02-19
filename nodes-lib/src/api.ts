@@ -66,10 +66,10 @@ export type CreateDraftResponse = {
   ok: boolean,
   hash: string,
   uri: string,
-  node: any, // Prisma Node
-  version: any, // Prisma NodeVersion
+  node: NodeResponse,
+  version: NodeVersion,
   documentId: string,
-}
+};
 
 export const createDraftNode = async (
   params: Omit<CreateDraftParams, "links">,
@@ -132,7 +132,6 @@ export type NodeResponse = {
   state: string,
   isFeatured: boolean,
   manifestUrl: string,
-  /** Stringified JSON manifest */
   manifestData: ResearchObjectV1,
   replicationFactor: number,
   ownerId: number,

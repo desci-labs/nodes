@@ -140,7 +140,7 @@ const registerNewDpid = async (
     );
     throw e;
   };
-
+  console.log(`${LOG_CTX} Successfully registered as dPID ${optimisticDpid}`);
   return { reciept, prepubResult };
 };
 
