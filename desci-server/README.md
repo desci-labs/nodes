@@ -19,7 +19,7 @@ modify `desci-server/package.json`
 
 # RUNNING MIGRATIONS: when making changes to schema.prisma, run the following to migrate
 
-DATABASE_URL=postgresql://walter:white@host.docker.internal:5433/boilerplate npx prisma migrate dev
+DATABASE_URL=postgresql://walter:white@localhost:5433/boilerplate npx prisma migrate dev
 
 # THEN
 
