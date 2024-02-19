@@ -84,6 +84,7 @@ export const seedSocialData = async () => {
           where: {
             attestationId: inserted.id,
             attestationVersionId: version.id,
+            desciCommunityId: communityFromDb.id,
           },
         });
         if (!selected) {

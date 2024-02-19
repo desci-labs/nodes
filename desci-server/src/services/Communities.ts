@@ -28,6 +28,7 @@ export class CommunityService {
         links: true,
         memberString: true,
         hidden: true,
+        subtitle: true,
       },
     });
   }
