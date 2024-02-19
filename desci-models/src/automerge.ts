@@ -49,4 +49,9 @@ export type ManifestActions =
       type: 'Publish Dpid';
       dpid: ResearchObjectV1Dpid;
     }
-  | { type: 'Remove Dpid' };
+  | { type: 'Remove Dpid' }
+  |
+    {
+      type: "Update CoverImage";
+      cid: string | undefined;
+    };

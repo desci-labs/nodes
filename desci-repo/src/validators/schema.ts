@@ -77,5 +77,6 @@ export const actionsSchema = z.array(
     z.object({ type: z.literal<Action>('Remove Contributor'), contributorIndex: z.number() }),
     z.object({ type: z.literal<Action>('Pin Component'), componentIndex: z.number() }),
     z.object({ type: z.literal<Action>('UnPin Component'), componentIndex: z.number() }),
+    z.object({ type: z.literal<Action>('Update CoverImage'), cid: z.string().optional() }),
   ]),
 );

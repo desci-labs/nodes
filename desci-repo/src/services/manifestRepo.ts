@@ -264,6 +264,18 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
+      case 'Update CoverImage':
+        handle.change(
+          (document) => {
+            if (!action.cid) {
+              delete document.manifest.coverImage;
+            } else {
+              document.manifest.coverImage = action.cid;
+            }
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
       default:
         assertNever(action);
     }
