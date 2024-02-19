@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@desci-labs/desci-codex-lib": "^1.0.5",
-    "@desci-labs/desci-models": "^0.2.3-nodes-lib-preview",
+    "@desci-labs/desci-models": "^0.2.3-rc1",
     "axios": "^1.6.5",
     "dotenv": "^16.4.4",
     "ethers": "^5.7.2",
