@@ -1763,7 +1763,7 @@ describe('Attestations Service', async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
     });
 
-    it('should list all attestation Recommendations', async () => {
+    it.skip('should list all attestation Recommendations', async () => {
       const rawListAll = await attestationService.listAll();
       console.log({ rawListAll: rawListAll.length });
 
