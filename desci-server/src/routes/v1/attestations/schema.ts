@@ -33,3 +33,32 @@ export const getAttestationCommentsSchema = z.object({
     attestationVersionId: z.coerce.number(),
   }),
 });
+
+export const claimAttestationSchema = z.object({
+  body: z.object({
+    dpid,
+    nodeUuid: z.string(),
+    claimerId: z.coerce.number(),
+    nodeVersion: z.coerce.number(),
+    attestationId: z.coerce.number(),
+  }),
+});
+
+export const removeClaimSchema = z.object({
+  body: z.object({
+    dpid,
+    nodeUuid: z.string(),
+    claimId: z.coerce.number(),
+    // claimerId: z.coerce.number(),
+  }),
+});
+
+export const claimEntrySchema = z.object({
+  body: z.object({
+    dpid,
+    communityId,
+    nodeUuid: z.string(),
+    claimerId: z.coerce.number(),
+    nodeVersion: z.coerce.number(),
+  }),
+});

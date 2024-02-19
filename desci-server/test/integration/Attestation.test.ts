@@ -255,7 +255,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe('Claiming a Desci Community Selected Attestations', () => {
+  describe.only('Claiming a Desci Community Selected Attestations', () => {
     let claim: NodeAttestation;
     let node: Node;
     const nodeVersion = 0;
@@ -342,10 +342,12 @@ describe('Attestations Service', async () => {
         attestationVersion: reproducibilityAttestationVersion.id,
         nodeVersion,
         nodeUuid: node.uuid,
-        nodeDpid: '1',
+        dpid: '1',
         claimerId: node.ownerId,
       });
       expect(res.status).to.equal(200);
+      console.log('CLAIM', claim);
+      claim = res.body.data;
 
       const claimed: NodeAttestation = res.body.data;
       expect(claimed.attestationId).to.equal(reproducibilityAttestation.id);
@@ -360,9 +362,9 @@ describe('Attestations Service', async () => {
     it('should unclaim an attestation (API)', async () => {
       const JwtToken = jwt.sign({ email: users[0].email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
       const authHeaderVal = `Bearer ${JwtToken}`;
+      console.log('UNCLAIM', claim);
       const res = await request(app).post(`/v1/attestations/unclaim`).set('authorization', authHeaderVal).send({
-        attestationId: reproducibilityAttestation.id,
-        attestationVersion: reproducibilityAttestationVersion.id,
+        claimId: claim.id,
         nodeUuid: node.uuid,
         dpid: '1',
         claimerId: node.ownerId,
@@ -511,7 +513,7 @@ describe('Attestations Service', async () => {
       const authHeaderVal = `Bearer ${JwtToken}`;
       const res = await request(app).post(`/v1/attestations/claimAll`).set('authorization', authHeaderVal).send({
         nodeVersion,
-        nodeDpid: '1',
+        dpid: '1',
         nodeUuid: node.uuid,
         claimerId: author.id,
         communityId: desciCommunity.id,
@@ -580,7 +582,7 @@ describe('Attestations Service', async () => {
       const authHeaderVal = `Bearer ${JwtToken}`;
       const res = await request(app).post(`/v1/attestations/claimAll`).set('authorization', authHeaderVal).send({
         nodeVersion,
-        nodeDpid: '1',
+        dpid: '1',
         nodeUuid: node.uuid,
         claimerId: author.id,
         communityId: desciCommunity.id,

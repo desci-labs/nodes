@@ -347,17 +347,25 @@ export class AttestationService {
   async unClaimAttestation(id: number) {
     const claim = await prisma.nodeAttestation.findFirst({ where: { id } });
     if (!claim) throw new ClaimNotFoundError();
-    return prisma.nodeAttestation.delete({ where: { id } });
+    const deleted = await prisma.$transaction([
+      prisma.annotation.deleteMany({ where: { nodeAttestationId: id } }),
+      prisma.nodeAttestationReaction.deleteMany({ where: { nodeAttestationId: id } }),
+      prisma.nodeAttestationVerification.deleteMany({ where: { nodeAttestationId: id } }),
+      prisma.nodeAttestation.delete({ where: { id } }),
+    ]);
+    return deleted[3];
   }
 
   async getNodeCommunityClaims(nodeDpid10: string, desciCommunityId: number) {
     return prisma.nodeAttestation.findMany({ where: { desciCommunityId, nodeDpid10 } });
   }
-  // async getClaimsOnAttestation(nodeDpid10: string, attestationId: number) {
-  //   return prisma.nodeAttestation.findMany({ where: { attestationId, nodeDpid10 } });
-  // }
+
   async getClaimOnAttestationVersion(nodeDpid10: string, attestationId: number, attestationVersionId: number) {
     return prisma.nodeAttestation.findFirst({ where: { attestationId, nodeDpid10, attestationVersionId } });
+  }
+
+  async getClaimOnDpid(id: number, nodeDpid10: string) {
+    return prisma.nodeAttestation.findFirst({ where: { id, nodeDpid10 } });
   }
 
   async verifyClaim(nodeAttestationId: number, userId: number) {

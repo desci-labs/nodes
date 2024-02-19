@@ -22,9 +22,12 @@ import {
 import { ensureUser } from '../../../middleware/permissions.js';
 
 import {
+  claimAttestationSchema,
+  claimEntrySchema,
   getAttestationCommentsSchema,
   getAttestationReactionsSchema,
   getAttestationVerificationsSchema,
+  removeClaimSchema,
   showCommunityClaimsSchema,
   showNodeAttestationsSchema,
 } from './schema.js';
@@ -57,9 +60,9 @@ router.get(
   getAttestationComments,
 );
 
-router.post('/claim', [ensureUser], asyncHander(claimAttestation));
-router.post('/unclaim', [ensureUser], asyncHander(removeClaim));
-router.post('/claimAll', [ensureUser], asyncHander(claimEntryRequirements));
+router.post('/claim', [ensureUser, validate(claimAttestationSchema)], asyncHander(claimAttestation));
+router.post('/unclaim', [ensureUser, validate(removeClaimSchema)], asyncHander(removeClaim));
+router.post('/claimAll', [ensureUser, validate(claimEntrySchema)], asyncHander(claimEntryRequirements));
 
 router.post('/comment', [ensureUser], addComment);
 router.post('/reaction', [ensureUser], asyncHander(addReaction));
