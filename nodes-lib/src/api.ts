@@ -749,6 +749,12 @@ export const removeContributor = async (
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Remove Contributor", contributorIndex }]);
 
+export const updateCoverImage = async (
+  uuid: string,
+  cid: string | undefined,
+): Promise<ManifestDocumentResponse> =>
+  await changeManifest(uuid, [{ type: "Update CoverImage", cid }]);
+
 const getHeaders = (isFormData: boolean = false) => {
   const headers = {
     "api-key": NODES_API_KEY,

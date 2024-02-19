@@ -12,7 +12,7 @@ import {
   uploadPdfFromUrl, uploadGithubRepoFromUrl, listNodes, addLinkComponent,
   deleteComponent, updateComponent, changeManifest, updateTitle,
   updateDescription, updateLicense, updateResearchFields, addContributor,
-  removeContributor, addExternalUnixFsTree,
+  removeContributor, addExternalUnixFsTree, updateCoverImage,
 } from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
@@ -126,6 +126,19 @@ describe("nodes-lib", () => {
         const { document: { manifest: updatedManifest }} =
           await removeContributor(uuid, 1);
         expect(updatedManifest.authors).toEqual([newContributors[0]])
+      });
+
+      describe.only("cover image", async () => {
+        test("can be set", async () => {
+          const coverCid = "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u";
+          const { document: { manifest: updatedManifest } } = await updateCoverImage(uuid, coverCid);
+          expect(updatedManifest.coverImage).toEqual(coverCid);
+        });
+
+        test("can be unset", async () => {
+          const { document: { manifest: updatedManifest } } = await updateCoverImage(uuid, undefined);
+          expect(updatedManifest.coverImage).toBeUndefined();
+        });
       });
     });
 
