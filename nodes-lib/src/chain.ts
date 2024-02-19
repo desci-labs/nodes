@@ -1,6 +1,6 @@
-import { Wallet, getDefaultProvider, type ContractReceipt, BigNumber } from "ethers";
+import { Wallet, getDefaultProvider, type ContractReceipt, BigNumber, Contract } from "ethers";
 import { SigningKey, formatBytes32String } from "ethers/lib/utils.js";
-import { ResearchObject__factory, DpidRegistry__factory } from "@desci-labs/desci-contracts/typechain-types";
+import type { DpidRegistry, ResearchObject } from "@desci-labs/desci-contracts/typechain-types";
 import { convertUUIDToHex, convertCidTo0xHex} from "./util/converting.js";
 import { changeManifest, prePublishDraftNode, type PrepublishResponse } from "./api.js"
 import {
@@ -9,6 +9,15 @@ import {
   ETHEREUM_RPC_URL,
   PUBLISH_PKEY,
 } from "./config.js";
+
+const { default: { abi: researchObjectABI }} = await import(
+  "./abi/ResearchObject.json",
+  { assert: { type: "json" }}
+);
+const { default: { abi: dpidRegistryAbi }} = await import(
+  "./abi/DpidRegistry.json",
+  { assert: { type: "json" }}
+);
 
 const LOG_CTX = "[nodes-lib::chain]"
 
@@ -24,12 +33,17 @@ const walletFromPkey = (pkey: string): Wallet => {
 };
 
 const wallet = walletFromPkey(PUBLISH_PKEY);
-const researchObject = ResearchObject__factory.connect(
-  RO_CONTRACT_ADDRESS, wallet
-);
-const dpidRegistry = DpidRegistry__factory.connect(
-  DPID_CONTRACT_ADDRESS, wallet
-);
+const researchObjectContract = new Contract(
+  RO_CONTRACT_ADDRESS,
+  researchObjectABI,
+  wallet
+) as unknown as ResearchObject;
+
+const dpidRegistryContract = new Contract(
+  DPID_CONTRACT_ADDRESS,
+  dpidRegistryAbi,
+  wallet
+) as unknown as DpidRegistry;
 
 export type DpidPublishResult = {
   prepubResult: PrepublishResponse,
@@ -80,7 +94,7 @@ const updateExistingDpid = async (
   const cidBytes = convertCidTo0xHex(prepubManifestCid);
   const hexUuid = convertUUIDToHex(uuid);
   
-  const tx = await researchObject.updateMetadata(hexUuid, cidBytes);
+  const tx = await researchObjectContract.updateMetadata(hexUuid, cidBytes);
   return await tx.wait();
 };
 
@@ -93,7 +107,7 @@ const registerNewDpid = async (
   uuid: string,
 ): Promise<{ reciept: ContractReceipt, prepubResult: PrepublishResponse}> => {
   const optimisticDpid = await getPreliminaryDpid();
-  const regFee = await dpidRegistry.getFee();
+  const regFee = await dpidRegistryContract.getFee();
 
   await changeManifest(
     uuid,
@@ -111,7 +125,7 @@ const registerNewDpid = async (
     const hexUuid = convertUUIDToHex(uuid);
 
     // Throws if the expected dPID isn't available
-    const tx = await researchObject.mintWithDpid(
+    const tx = await researchObjectContract.mintWithDpid(
         hexUuid,
         cidBytes,
         DEFAULT_DPID_PREFIX,
@@ -135,11 +149,11 @@ const registerNewDpid = async (
  * @returns the next free dPID
  */
 const getPreliminaryDpid = async (): Promise<BigNumber> => {
-  const [nextFreeDpid, _] = await dpidRegistry.getOrganization(DEFAULT_DPID_PREFIX);
+  const [nextFreeDpid, _] = await dpidRegistryContract.getOrganization(DEFAULT_DPID_PREFIX);
   return nextFreeDpid;
 };
 
 export const hasDpid = async (
   uuid: string,
 ): Promise<boolean> =>
-  await researchObject.exists(convertUUIDToHex(uuid));
+  await researchObjectContract.exists(convertUUIDToHex(uuid));

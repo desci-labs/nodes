@@ -17,6 +17,9 @@
     "declarationMap": true,
     "outDir": "dist",
 
+    /** Allow importing ABI's */
+    "resolveJsonModule": true,
+
     /** Misc hygiene */
     "forceConsistentCasingInFileNames": true,
     "noImplicitReturns": true
