@@ -65,13 +65,11 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
 
   const claimSignal = await attestationService.getClaimEngagementSignals(claim.id);
   const totalSignal = claimSignal.annotations + claimSignal.reactions + claimSignal.verifications;
-  console.log('REMOVE CLAIM', { claim, claimSignal, totalSignal });
   const removeOrRevoke =
     totalSignal > 0
       ? await attestationService.revokeAttestation(claim.id)
       : await attestationService.unClaimAttestation(claim.id);
 
-  console.log({ removeOrRevoke });
   logger.info({ removeOrRevoke }, 'Claim Removed|Revoked');
   return new SuccessMessageResponse('Attestation unclaimed').send(res);
 };
@@ -120,6 +118,5 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     attestations: claims,
   });
 
-  // attestations = attestations.map((attestation) => _.pick(attestation, ['']));
   return new SuccessResponse(attestations).send(res);
 };
