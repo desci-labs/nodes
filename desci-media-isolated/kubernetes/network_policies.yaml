@@ -1,0 +1,28 @@
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-backend-pod-to-isolated-media-server-comms
+spec:
+  podSelector:
+    matchLabels:
+      App: NodesIsolatedMediaServerDev
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              allow-from: 'DesciServerDev'
+  policyTypes:
+    - Ingress
+
+
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: deny-egress-from-isolated-media-server
+spec:
+  podSelector:
+    matchLabels:
+      App: NodesIsolatedMediaServerDev
+  egress: []
+  policyTypes:
+    - Egress

@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodes-isolated-media-server-dev
+  labels:
+    App: NodesIsolatedMediaServerDev
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      App: NodesIsolatedMediaServerDev
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        App: NodesIsolatedMediaServerDev
+    spec:
+      containers:
+        - image: {CHANGE}.dkr.ecr.us-east-2.amazonaws.com/nodes-isolated-media-server-dev:production
+          name: nodes-isolated-media-server-dev
+          ports:
+            - containerPort: 7771
+              name: media_isolated
+          resources:
+            limits:
+              cpu: '0.5'
+              memory: 2Gi
+            requests:
+              cpu: 250m
+              memory: 1Gi
+      serviceAccountName: 'default'
