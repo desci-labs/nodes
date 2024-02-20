@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import thumbnails from './thumbnails';
+import thumbnails from './thumbnails.js';
 
 const router = Router();
 

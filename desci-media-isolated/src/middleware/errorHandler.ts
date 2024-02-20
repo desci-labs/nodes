@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { BaseError } from '../utils/customErrors';
+import type { Request, Response, NextFunction } from 'express';
+import { BaseError } from '../utils/customErrors.js';
 
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack);
@@ -9,7 +9,7 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
     statusCode = err.statusCode;
   }
 
-  res.status(statusCode).json({
+  return res.status(statusCode).json({
     message: err.message || 'Something went wrong',
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });

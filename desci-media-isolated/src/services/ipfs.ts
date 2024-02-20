@@ -1,8 +1,8 @@
 import axios from 'axios';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
-import { IPFS_GATEWAY } from '../config';
-import { IpfsConfigurationError } from '../utils/customErrors';
+import { IPFS_GATEWAY } from '../config/index.js';
+import { IpfsConfigurationError } from '../utils/customErrors.js';
 
 export class IpfsService {
   static async saveFile(cid: string, outputPath: string) {

@@ -1,15 +1,18 @@
-import { Request, Response } from 'express';
-import { ThumbnailsService } from '../../services/thumbnails';
+import type { Request, Response } from 'express';
+import { ThumbnailsService } from '../../services/thumbnails.js';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import fs from 'fs';
-import { TEMP_DIR } from '../../config';
-import { BadRequestError, NotFoundError } from '../../utils/customErrors';
+import { TEMP_DIR, THUMBNAIL_OUTPUT_DIR } from '../../config/index.js';
+import { BadRequestError, NotFoundError } from '../../utils/customErrors.js';
 
 export type GenerateThumbnailRequestBody = {
   cid: string;
   fileName: string;
 };
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const BASE_TEMP_DIR = path.resolve(__dirname, '../../..', TEMP_DIR);
 
 export const generateThumbnail = async (req: Request<any, any, GenerateThumbnailRequestBody>, res: Response) => {
@@ -18,8 +21,8 @@ export const generateThumbnail = async (req: Request<any, any, GenerateThumbnail
   if (!fileName) throw new BadRequestError('Missing fileName in request body');
 
   try {
-    const thumbnailPath = await ThumbnailsService.generateThumbnail(cid);
-    const fullThumbnailPath = path.join(BASE_TEMP_DIR, thumbnailPath);
+    const thumbnailPath = await ThumbnailsService.generateThumbnail(cid, fileName);
+    const fullThumbnailPath = path.join(BASE_TEMP_DIR, THUMBNAIL_OUTPUT_DIR, thumbnailPath);
 
     // Check if the file exists before attempting to stream it
     fs.access(fullThumbnailPath, fs.constants.F_OK, (err) => {
@@ -33,9 +36,8 @@ export const generateThumbnail = async (req: Request<any, any, GenerateThumbnail
       readStream.pipe(res);
     });
 
-    // Send the thumbnail as a response
-    res.status(200);
+    return res.status(200);
   } catch (err: any) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
