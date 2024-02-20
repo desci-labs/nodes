@@ -130,29 +130,26 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
     },
   };
 
-  const pdfComponents = pdfHashes.map((d: UrlWithCid) => {
-    const cid = makePublic([d])[0].val;
+  const pdfComponents = (await pdfHashes).map((d: UrlWithCid) => {
     const objectComponent: PdfComponent = {
       id: d.cid,
       name: 'Research Report',
       type: ResearchObjectComponentType.PDF,
       payload: {
-        cid,
+        url: makePublic([d])[0].val,
         annotations: [],
-        path: DRIVE_NODE_ROOT_PATH + '/Research Report',
       },
     };
     return objectComponent;
   });
-  const codeComponents = codeHashes.map((d: UrlWithCid) => {
+  const codeComponents = (await codeHashes).map((d: UrlWithCid) => {
     const objectComponent: CodeComponent = {
       id: d.cid,
       name: 'Code',
       type: ResearchObjectComponentType.CODE,
       payload: {
         language: 'bash',
-        cid: makePublic([d])[0].val,
-        path: DRIVE_NODE_ROOT_PATH + '/Code',
+        code: makePublic([d])[0].val,
       },
     };
     return objectComponent;
@@ -230,30 +227,28 @@ export const downloadFile = async (url: string, key: string): Promise<UrlWithCid
 export const downloadSingleFile = async (url: string): Promise<PdfComponentSingle | CodeComponentSingle> => {
   if (url.indexOf('github.com') > -1) {
     const file = await processUrls('code', getUrlsFromParam([url]))[0];
+
     const component: CodeComponent = {
       id: file.cid,
       name: 'Code',
       type: ResearchObjectComponentType.CODE,
       payload: {
-        cid: makePublic([file])[0].val,
+        url: makePublic([file])[0].val,
         externalUrl: await getGithubExternalUrl(url),
-        path: DRIVE_NODE_ROOT_PATH + '/Code',
       },
     };
 
     return { component, file };
   }
   const file = await processUrls('pdf', getUrlsFromParam([url]))[0];
-  const cid = makePublic([file])[0].val;
+
   const component: PdfComponent = {
     id: file.cid,
     name: 'Research Report',
     type: ResearchObjectComponentType.PDF,
     payload: {
-      url: cid,
-      cid,
+      url: makePublic([file])[0].val,
       annotations: [],
-      path: DRIVE_NODE_ROOT_PATH + '/Research Report',
     },
   };
 

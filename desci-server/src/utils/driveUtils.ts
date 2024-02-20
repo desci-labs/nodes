@@ -14,7 +14,6 @@ import {
   fillIpfsTree,
   isNodeRoot,
   isResearchObjectComponentTypeMap,
-  ManifestActions,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType, Node } from '@prisma/client';
 
@@ -23,7 +22,7 @@ import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
-import { NodeUuid } from '../services/manifestRepo.js';
+import { ManifestActions, NodeUuid } from '../services/manifestRepo.js';
 import repoService from '../services/repoService.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
@@ -352,6 +351,24 @@ export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataT
   return ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
 }
 
+/* 
+Inconsistent use of URL and CID within the manifest payloads, PDFs and Code Repos use .url,
+ others generally use .cid, this helper function fetches the appropriate property
+  */
+export function urlOrCid(cid: string, type: ResearchObjectComponentType) {
+  switch (type) {
+    case ResearchObjectComponentType.PDF:
+    case ResearchObjectComponentType.CODE:
+    case ResearchObjectComponentType.LINK:
+      return { url: cid };
+    case ResearchObjectComponentType.DATA:
+    case ResearchObjectComponentType.DATA_BUCKET:
+      return { cid };
+    default:
+      return { cid };
+  }
+}
+
 export const DRIVE_NODE_ROOT_PATH = 'root';
 
 export interface FirstNestingComponent {
@@ -382,7 +399,7 @@ export function DANGEROUSLY_addComponentsToManifest(
       ...(c.componentType && { type: c.componentType }),
       ...(c.componentSubtype && { subtype: c.componentSubtype }),
       payload: {
-        cid: c.cid,
+        ...urlOrCid(c.cid, c.componentType),
         path: c.path,
         ...(c.externalUrl && { externalUrl: c.externalUrl }),
       },
@@ -402,7 +419,7 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
       ...(entry.componentType && { type: entry.componentType }),
       ...(entry.componentSubtype && { subtype: entry.componentSubtype }),
       payload: {
-        cid: entry.cid,
+        ...urlOrCid(entry.cid, entry.componentType),
         path: entry.path,
         ...(entry.externalUrl && { externalUrl: entry.externalUrl }),
       },

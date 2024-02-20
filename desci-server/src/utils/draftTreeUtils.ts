@@ -47,6 +47,7 @@ interface IpfsDagToDraftNodeTreeEntriesParams {
 export function ipfsDagToDraftNodeTreeEntries({
   ipfsTree,
   node,
+  user,
   timestampMap,
   contextPath,
 }: IpfsDagToDraftNodeTreeEntriesParams): Prisma.DraftNodeTreeCreateManyInput[] {

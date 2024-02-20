@@ -28,14 +28,14 @@ import {
   createManifestPersistFailError,
   createUnhandledError,
 } from './processingErrors.js';
-import { ExternalCid } from '../../controllers/data/updateExternalCid.js';
 
 const logger = parentLogger.child({
   module: 'Services::ExternalCidProcessing',
 });
 
 interface ProcessExternalCidDataToIpfsParams {
-  externalCids: ExternalCid[];
+  // files: any[];
+  externalCids: any;
   user: User;
   node: Node;
   /**
@@ -47,8 +47,8 @@ interface ProcessExternalCidDataToIpfsParams {
 }
 
 /**
- * Processes external CIDs, to pin the file or leafless UnixFS DAG.
-*/
+ * Processes external-url file uploads, currently .pdf URLs and github code repo's
+ */
 export async function processExternalCidDataToIpfs({
   externalCids,
   user,
@@ -58,25 +58,26 @@ export async function processExternalCidDataToIpfs({
   componentSubtype,
 }: ProcessExternalCidDataToIpfsParams) {
   try {
+    // debugger;
     /**
      * Prepare the CIDs for addition, see if they're resolvable and get their sizes and types
      */
     const cidTypesSizes: Record<string, GetExternalSizeAndTypeResult> = {};
-    try {
-      externalCids = externalCids.map(
-        (extCid) => ({ ...extCid, cid: convertToCidV1(extCid.cid) })
-      );
-      for (const extCid of externalCids) {
-        const { isDirectory, size } = await getExternalCidSizeAndType(extCid.cid);
-        if (size !== undefined && isDirectory !== undefined) {
-          cidTypesSizes[extCid.cid] = { size, isDirectory };
-        } else {
-          throw new Error(`Failed to get size and type of external CID: ${extCid}`);
+    if (externalCids && externalCids.length) {
+      try {
+        externalCids = externalCids.map((extCid) => ({ ...extCid, cid: convertToCidV1(extCid.cid) }));
+        for (const extCid of externalCids) {
+          const { isDirectory, size } = await getExternalCidSizeAndType(extCid.cid);
+          if (size !== undefined && isDirectory !== undefined) {
+            cidTypesSizes[extCid.cid] = { size, isDirectory };
+          } else {
+            throw new Error(`Failed to get size and type of external CID: ${extCid}`);
+          }
         }
+      } catch (e: any) {
+        logger.warn(`[UPDATE DAG] External CID Method: ${e}`);
+        throw createIpfsUnresolvableError(`Failed to resolve external CID`);
       }
-    } catch (e: any) {
-      logger.warn(`[UPDATE DAG] External CID Method: ${e}`);
-      throw createIpfsUnresolvableError(`Failed to resolve external CID`);
     }
 
     /**
@@ -236,7 +237,7 @@ export async function processExternalCidDataToIpfs({
   } catch (error) {
     // DB status to failed
     // Socket emit to client
-    logger.error({ error }, 'Error processing external CID to IPFS');
+    logger.error({ error }, 'Error processing S3 data to IPFS');
     const controlledErr = 'type' in error ? error : createUnhandledError(error);
     return { ok: false, value: controlledErr };
   }

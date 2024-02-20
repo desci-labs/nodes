@@ -58,6 +58,7 @@ jobs:
       - name: Run tests
         run: |
           cd desci-server && export DOCKER_BUILDKIT=1 && yarn && yarn test
+          echo "exit code $?"
           if [ $? -ne 0 ]; then
             exit 1
           fi

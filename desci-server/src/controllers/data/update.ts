@@ -6,6 +6,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
 import { processExternalUrlDataToIpfs } from '../../services/data/externalUrlProcessing.js';
 import { processNewFolder, processS3DataToIpfs } from '../../services/data/processing.js';
+import { IpfsPinnedResult } from '../../services/ipfs.js';
 import { arrayXor, ensureUuidEndsWithDot } from '../../utils.js';
 export interface UpdateResponse {
   status?: number;
@@ -58,6 +59,7 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
     return res.status(400).json({ error: 'uuid, manifest, contextPath required' });
   if (externalUrl) externalUrl = JSON.parse(externalUrl);
   if (externalCids) externalCids = JSON.parse(externalCids);
+  let uploaded: IpfsPinnedResult[];
   if (externalCids && Object.entries(externalCids).length > 0)
     return res.status(400).json({ error: 'EXTERNAL CID PASSED IN, use externalCid update route instead' });
 
@@ -78,6 +80,8 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
       user: owner,
       node,
       contextPath,
+      componentType,
+      componentSubtype,
     });
     if (ok) {
       const {
