@@ -626,7 +626,7 @@ model AttestationTemplate {
 // A factory attestation, these are the base attestations that can be assigned to nodes
 model Attestation {
   id                        Int                            @id @default(autoincrement())
-  name                      String                         @unique
+  name                      String                         
   communityId               Int
   description               String
   image_url                 String
@@ -638,6 +638,8 @@ model Attestation {
   AttestationVersion        AttestationVersion[]
   NodeAttestation           NodeAttestation[]
   CommunityEntryAttestation CommunitySelectedAttestation[]
+
+  @@unique([name, communityId])
 }
 
 model AttestationVersion {

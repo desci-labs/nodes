@@ -40,7 +40,6 @@ export const seedSocialData = async () => {
     ),
   );
 
-  // console.log('Communities SEEDED', communities);
   const inserted = await asyncMap(communitiesData['attestations'], async (attestation) => {
     const attestationTemplateAuthorCommunity = communities.find((c) => c.name === attestation.communityName);
     if (!attestationTemplateAuthorCommunity)
@@ -72,7 +71,8 @@ export const seedSocialData = async () => {
 
         const attestationInstance = await prisma.attestation.upsert({
           where: {
-            name: attestation.name,
+            // name: attestation.name,
+            name_communityId: { name: attestation.name, communityId: communityFromDb.id },
           },
           create: {
             communityId: communityFromDb?.id,

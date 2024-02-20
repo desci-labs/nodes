@@ -104,7 +104,7 @@ export class AttestationService {
 
     if (!community) throw new CommunityNotFoundError();
 
-    const existing = await prisma.attestation.findUnique({ where: { name: data.name } });
+    const existing = await prisma.attestation.findFirst({ where: { name: data.name, communityId: data.communityId } });
     if (existing) throw new DuplicateDataError();
 
     const attestation = await prisma.attestation.create({ data: { communityId: community.id, ...data } });
