@@ -1,31 +1,12 @@
 
-FROM docker.io/node:20.9.0-alpine as base
+FROM docker.io/node:20.9.0 as base
 
 # Install dumb-init so we can use it as PID 1
-RUN apk update && apk add --no-cache dumb-init
+# RUN apk update && apk add --no-cache dumb-init
+# RUN apk add --no-cache unoconv ffmpeg imagemagick curl
 
-# No longer using libre office file preview remove soon
-# ARG APP_ROOT=/opt/app-root/src
-# ENV NO_UPDATE_NOTIFIER=true \
-#   PATH="/usr/lib/libreoffice/program:${PATH}" \
-#   PYTHONUNBUFFERED=1
-# WORKDIR ${APP_ROOT}
-
-# # Install LibreOffice & Common Fonts
-# RUN apk --no-cache add bash libreoffice util-linux \
-#   font-droid-nonlatin font-droid ttf-dejavu ttf-freefont ttf-liberation && \
-#   rm -rf /var/cache/apk/*
-
-# # Install Microsoft Core Fonts
-# RUN apk --no-cache add msttcorefonts-installer fontconfig && \
-#   update-ms-fonts && \
-#   fc-cache -f && \
-#   rm -rf /var/cache/apk/*
-
-# # Fix Python/LibreOffice Integration
-# COPY container/libreOffice ${APP_ROOT}/container/libreOffice
-# RUN chmod a+rx ${APP_ROOT}/container/libreOffice/bindPython.sh \
-#   && ${APP_ROOT}/container/libreOffice/bindPython.sh
+RUN apt-get update && apt-get install -y dumb-init unoconv ffmpeg imagemagick curl && \
+    rm -rf /var/lib/apt/lists/*
 
 # NPM Permission Fix
 RUN mkdir -p /.npm
@@ -44,13 +25,14 @@ RUN --mount=type=cache,target=/usr/src/app/.npm \
 
 COPY . .
 
-CMD ["dumb-init", "npx", "ts-node-dev", "--respawn", "--transpile-only", "src/index.ts"]
+# Expose debugger port
+EXPOSE 9277
+
+CMD ["dumb-init", "npx", "tsx","watch", "--inspect=0.0.0.0:9277", "src/index.ts"]
 
 FROM base as production
-
-ENV NODE_ENV production
-
 # Cache mounts for faster builds, prod env for better express perf
+ENV NODE_ENV production
 RUN --mount=type=cache,target=/usr/src/app/.npm \
   npm set cache /usr/src/app/.npm && \
   npm ci --only=production
