@@ -149,7 +149,7 @@ export function convertIpfsTreeToDriveObjectTree(
 
     if (branch.external) branch.accessStatus = AccessStatus.EXTERNAL;
 
-    branch.metadata = inheritMetadata(branch.path, pathToCompMap) as DriveMetadata;
+    branch.metadata = inheritMetadata(branch.path, pathToCompMap);
     branch.starred = component?.starred || false;
     // branch.lastModified = formatDbDate(branch.lastModified) || tempDate; // LEAVE THIS TO FRONTEND
     if (branch.contains && branch.contains.length && branch.type === FileType.DIR) {
@@ -292,8 +292,8 @@ export function inheritMetadata(path: DrivePath, pathToCompMap: Record<DrivePath
 }
 
 export function extractComponentMetadata(component: ResearchObjectV1Component): DriveMetadata {
-  if (!component) return {} as DriveMetadata;
-  const metadata: DriveMetadata = {} as DriveMetadata;
+  if (!component) return {};
+  const metadata: DriveMetadata = {};
   const validMetadataKeys: (keyof DriveMetadata)[] = [
     'title',
     'keywords',
@@ -308,7 +308,7 @@ export function extractComponentMetadata(component: ResearchObjectV1Component): 
     if (k in component.payload) metadata[k] = component.payload[k];
   });
 
-  return metadata as DriveMetadata;
+  return metadata;
 }
 
 export function generatePathCompMap(manifest: ResearchObjectV1): Record<DrivePath, ResearchObjectV1Component> {
@@ -390,7 +390,7 @@ export function createVirtualDrive({
     contains: contains,
     lastModified: lastModified || tempDate,
     accessStatus: accessStatus || AccessStatus.PRIVATE,
-    metadata: metadata || {} as DriveMetadata,
+    metadata: metadata || {},
     cid: cid || '',
     type: type || FileType.DIR,
     parent: parent || null,

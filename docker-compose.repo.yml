@@ -3,7 +3,7 @@ version: "3"
 services:
   desci_repo:
     container_name: "desci_repo"
-    command: yarn dev
+    entrypoint: /bin/sh './scripts/be-node-dev.sh'
     build: ./desci-repo
     env_file:
       - ./desci-repo/.env

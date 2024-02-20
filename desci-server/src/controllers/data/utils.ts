@@ -1,4 +1,4 @@
-import { DRIVE_NODE_ROOT_PATH, DataComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import { DataComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 import axios from 'axios';
 import { v4 as uuid } from 'uuid';
@@ -30,7 +30,6 @@ function addDataToManifest({ manifest, dataFields, rootCid }: UpdatingManifestPa
       cid: rootCid,
       subMetadata: {},
       description: dataFields.description || undefined,
-      path: DRIVE_NODE_ROOT_PATH + `/${dataFields.title}`
     },
   };
   manifest.components.push(newDataComponent);

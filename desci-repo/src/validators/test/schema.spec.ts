@@ -42,28 +42,21 @@ describe('ManifestActions Schema', () => {
 
   describe('Publish Dpid', () => {
     it('should validate dPID action', () => {
-      const validated = actionsSchema.safeParse([{ type: 'Publish Dpid', dpid: { prefix: 'beta', id: '1' } }]);
+      const validated = actionsSchema.safeParse([{ type: 'Publish dPID', dpid: { prefix: 'beta', id: '1' } }]);
       console.log(validated);
       expect(validated.success).to.be.true;
     });
 
     it('should reject invalid dPID action data', () => {
-      const validated = actionsSchema.safeParse([{ type: 'Publish Dpid', dpid: { prefix: 'beta', ids: '1' } }]);
+      const validated = actionsSchema.safeParse([{ type: 'Publish dPID', dpid: { prefix: 'beta', ids: '1' } }]);
       console.log(validated);
       expect(validated.success).to.be.false;
     });
 
     it('should reject invalid dPID action', () => {
-      const validated = actionsSchema.safeParse([{ type: 'Publish Dpid', invalidKey: '' }]);
+      const validated = actionsSchema.safeParse([{ type: 'Publish dPID', invalidKey: '' }]);
       console.log(validated);
       expect(validated.success).to.be.false;
-    });
-  });
-
-  describe('Remove Dpid', () => {
-    it('should validate dPID action', () => {
-      const validated = actionsSchema.safeParse([{ type: 'Remove Dpid' }]);
-      expect(validated.success).to.be.true;
     });
   });
 
@@ -133,11 +126,7 @@ describe('ManifestActions Schema', () => {
       starred: false,
       type: ResearchObjectComponentType.CODE,
       subtype: ResearchObjectComponentCodeSubtype.SOFTWARE_PACKAGE,
-      payload: {
-        path: 'root/external links/',
-        cid: 'bafybeicrsddlvfbbo5s3upvjbtb5flc73iupxfy2kf3rv43kkbvegbqbwq',
-        language: 'typescript'
-      },
+      payload: { path: 'root/external links/', url: 'https://google.com', language: 'typescript' },
     };
 
     it('should validate Add Component action', async () => {
@@ -185,11 +174,7 @@ describe('ManifestActions Schema', () => {
         starred: false,
         type: ResearchObjectComponentType.CODE,
         subtype: ResearchObjectComponentCodeSubtype.SOFTWARE_PACKAGE,
-        payload: {
-          path: 'root/external links/',
-          cid: 'bafybeicrsddlvfbbo5s3upvjbtb5flc73iupxfy2kf3rv43kkbvegbqbwq',
-          language: 'typescript'
-        },
+        payload: { path: 'root/external links/', url: 'https://google.com', language: 'typescript' },
       };
 
       const validated = await actionsSchema.safeParseAsync([{ type: 'Add Component', component: invalidComponent }]);

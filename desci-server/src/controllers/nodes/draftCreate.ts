@@ -267,7 +267,6 @@ export const draftAddComponent = async (req: Request, res: Response, next: NextF
         subtype: componentSubtype,
         payload: {
           url: componentUrl,
-          path: DRIVE_NODE_ROOT_PATH + `/${name}`
         },
       };
       manifestParsed.components.push(linkComponent);

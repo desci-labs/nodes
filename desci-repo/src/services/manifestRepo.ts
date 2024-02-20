@@ -7,10 +7,10 @@ import {
   PdfComponent,
   ResearchObjectComponentType,
   ResearchObjectComponentTypeMap,
+  ResearchObjectV1Author,
   ResearchObjectV1Component,
   ResearchObjectV1Dpid,
   isResearchObjectComponentTypeMap,
-  ManifestActions,
 } from '@desci-labs/desci-models';
 import isEqual from 'deep-equal';
 
@@ -31,6 +31,42 @@ export function assertNever(value: never) {
   throw Error('Not Possible');
 }
 
+export type ManifestActions =
+  | { type: 'Add Components'; components: ResearchObjectV1Component[] }
+  | { type: 'Delete Components'; paths: string[] }
+  | { type: 'Rename Component'; path: string; fileName: string }
+  | { type: 'Rename Component Path'; oldPath: string; newPath: string }
+  | {
+      type: 'Update Component';
+      component: ResearchObjectV1Component;
+      componentIndex: number;
+    }
+  | {
+      type: 'Assign Component Type';
+      component: ResearchObjectV1Component;
+      componentTypeMap: ResearchObjectComponentTypeMap;
+    }
+  | { type: 'Set Drive Clock'; time: string }
+  // frontend changes to support
+  | { type: 'Update Title'; title: string }
+  | { type: 'Update Description'; description: string }
+  | { type: 'Update License'; defaultLicense: string }
+  | { type: 'Update ResearchFields'; researchFields: string[] }
+  | { type: 'Add Component'; component: ResearchObjectV1Component }
+  | { type: 'Delete Component'; path: string }
+  | { type: 'Add Contributor'; author: ResearchObjectV1Author }
+  | { type: 'Remove Contributor'; contributorIndex: number }
+  | { type: 'Pin Component'; path: string }
+  | { type: 'UnPin Component'; path: string }
+  | {
+      type: 'Update Component';
+      component: ResearchObjectV1Component;
+      componentIndex: number;
+    }
+  | {
+      type: 'Publish Dpid';
+      dpid: ResearchObjectV1Dpid;
+    };
 
 export const getDocumentUpdater = (documentId: DocumentId) => {
   const automergeUrl = getAutomergeUrl(documentId);
@@ -217,14 +253,6 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
-      case "Remove Dpid":
-        handle.change(
-          (document) => {
-            removeDpid(document);
-          },
-          { time: Date.now(), message: action.type }
-        );
-        break;
       case 'Pin Component':
         let componentIndex = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
         if (componentIndex && componentIndex != -1) {
@@ -264,18 +292,6 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
-      case 'Update CoverImage':
-        handle.change(
-          (document) => {
-            if (!action.cid) {
-              delete document.manifest.coverImage;
-            } else {
-              document.manifest.coverImage = action.cid;
-            }
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
       default:
         assertNever(action);
     }
@@ -293,10 +309,8 @@ const updateComponentTypeMap = (
   doc: Doc<ResearchObjectDocument>,
   path: string,
   compTypeMap: ResearchObjectComponentTypeMap,
-): void => {
-  const currentComponent = doc.manifest.components.find(
-    (c) => c.payload?.path === path
-  );
+) => {
+  const currentComponent = doc.manifest.components.find((c) => c.payload?.path === path);
   if (!currentComponent) return;
 
   const existingType = currentComponent.type;
@@ -316,53 +330,30 @@ const updateComponentTypeMap = (
   });
 };
 
-const addManifestComponent = (
-  doc: Doc<ResearchObjectDocument>,
-  component: ResearchObjectV1Component
-): void => {
+const addManifestComponent = (doc: Doc<ResearchObjectDocument>, component: ResearchObjectV1Component) => {
   doc.manifest.components.push(component);
 };
 
-const deleteComponent = (
-  doc: Doc<ResearchObjectDocument>,
-  path: string
-): void => {
-  const deleteIdx = doc.manifest.components.findIndex(
-    (component) => component?.payload?.path === path
-  );
+const deleteComponent = (doc: Doc<ResearchObjectDocument>, path: string) => {
+  const deleteIdx = doc.manifest.components.findIndex((component) => component?.payload?.path === path);
   if (deleteIdx !== -1) doc.manifest.components.splice(deleteIdx, 1);
 };
 
-const togglePin = (
-  doc: Doc<ResearchObjectDocument>,
-  componentIndex: number, pin: boolean
-): void => {
+const togglePin = (doc: Doc<ResearchObjectDocument>, componentIndex: number, pin: boolean) => {
   const currentComponent = doc.manifest.components[componentIndex];
   currentComponent.starred = pin;
 };
 
-const addDpid = (
-  doc: Doc<ResearchObjectDocument>,
-  dpid: ResearchObjectV1Dpid
-): void => {
+const addDpid = (doc: Doc<ResearchObjectDocument>, dpid: ResearchObjectV1Dpid) => {
   if (doc.manifest.dpid) return;
   doc.manifest.dpid = dpid;
-};
-
-/** In an unavilable optimistic dPID was written to the manifest, it must
- * be removed again.
-*/
-const removeDpid = (
-  doc: Doc<ResearchObjectDocument>
-): void => {
-  delete doc.manifest.dpid;
 };
 
 const updateManifestComponent = (
   doc: Doc<ResearchObjectDocument>,
   component: ResearchObjectV1Component,
   componentIndex: number,
-): void => {
+) => {
   if (componentIndex === -1 || componentIndex === undefined) return;
 
   const currentComponent = doc.manifest.components[componentIndex];
@@ -415,9 +406,7 @@ const updateManifestComponent = (
   }
 };
 
-type TypeInitialisers = {} | '' | 0 | [];
-
-const getTypeDefault = (value: unknown): TypeInitialisers => {
+const getTypeDefault = (value: unknown) => {
   if (Array.isArray(value)) return [];
   if (typeof value === 'string') return '';
   if (typeof value === 'number') return 0;

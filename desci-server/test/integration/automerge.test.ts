@@ -3,10 +3,7 @@ import 'mocha';
 import assert from 'assert';
 
 import { DocumentId } from '@automerge/automerge-repo';
-import { 
-  ExternalLinkComponent, ResearchObjectComponentType, ResearchObjectV1,
-  ManifestActions
-} from '@desci-labs/desci-models';
+import { ExternalLinkComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Node, User } from '@prisma/client';
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { expect } from 'chai';
@@ -16,6 +13,7 @@ import request from 'supertest';
 import { prisma } from '../../src/client.js';
 import { app } from '../../src/index.js';
 import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
+import { ManifestActions } from '../../src/services/manifestRepo.js';
 import repoService from '../../src/services/repoService.js';
 import { ResearchObjectDocument } from '../../src/types/documents.js';
 import { randomUUID64 } from '../../src/utils.js';

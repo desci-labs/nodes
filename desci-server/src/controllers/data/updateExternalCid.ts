@@ -7,51 +7,25 @@ import { processExternalCidDataToIpfs } from '../../services/data/externalCidPro
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse, UpdateResponse } from './update.js';
-import { ResearchObjectComponentSubtypes, ResearchObjectComponentType } from '@desci-labs/desci-models';
 
-export type ExternalCid = {
-  cid: string,
-  name: string,
-};
-
-export type ExternalCidPayload = {
-  uuid: string,
-  contextPath: string,
-  externalCids: ExternalCid[],
-  componentType: ResearchObjectComponentType,
-  componentSubtype: ResearchObjectComponentSubtypes,
-};
-
-/**
- * Add an external UnixFS tree to the drive, without actually getting the files,
- * by fetching the leafless DAG and pinning it.
-*/
-export const updateExternalCid = async (
-  req: Request<any, any, ExternalCidPayload>,
-  res: Response<UpdateResponse | ErrorResponse>
-) => {
+export const updateExternalCid = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = (req as any).user as User;
-  const {
-    uuid,
-    contextPath,
-    externalCids,
-    componentType,
-    componentSubtype
-  } = req.body;
+  const { uuid, contextPath, componentType, componentSubtype } = req.body;
+  const { externalCids } = req.body;
 
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::UpdateExternalCidController',
     userId: owner.id,
-    uuid,
-    contextPath,
-    componentType,
+    uuid: uuid,
+    contextPath: contextPath,
+    componentType: componentType,
     componentSubtype,
     externalCids,
   });
 
   logger.trace(`[UPDATE DATASET] Updating in context: ${contextPath}`);
-  if (uuid === undefined || contextPath === undefined || !Array.isArray(externalCids))
+  if (uuid === undefined || contextPath === undefined || externalCids === undefined)
     return res.status(400).json({ error: 'uuid, manifest, contextPath required, externalCids required' });
 
   //validate requester owns the node
@@ -61,7 +35,6 @@ export const updateExternalCid = async (
       uuid: ensureUuidEndsWithDot(uuid),
     },
   });
-
   if (!node) {
     logger.warn(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
     return res.status(400).json({ error: 'failed' });
@@ -72,10 +45,10 @@ export const updateExternalCid = async (
     node,
     externalCids,
     contextPath,
-    componentType,
-    componentSubtype
+    // componentType,
+    // componentSubtype,
   });
-
+  debugger;
   if (ok) {
     const {
       manifest: updatedManifest,
