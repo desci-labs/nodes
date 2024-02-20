@@ -15,7 +15,7 @@ CTX="[bootstrapCeramic.sh]"
 set -euo pipefail
 trap catch ERR
 catch() {
-  echo "$CTX script failed -- ensure CODEX_REPO_PATH and TOGGLE_CERAMIC are set in .env"
+  echo "$CTX script failed (are CODEX_REPO_PATH and TOGGLE_CERAMIC set in .env?)"
   exit 1
 }
 
@@ -43,6 +43,13 @@ fi
 
 # Setup desci-codex and deploy composites
 pushd "$CODEX_REPO_PATH"
+
+# Check that the node admin secret is set up, otherwise the model ID's wont be correct
+if [ ! -f "packages/composedb/admin_seed.txt" ]; then
+  echo "$CTX Composites need to be deployed with the ceramic node admin seed for the local node, as the model IDs aren't deterministic otherwise"
+  exit 1
+fi
+
 if [[ ! -d "node_modules" ]]; then
   echo "$CTX installing deps desci-codex..."
   npm ci

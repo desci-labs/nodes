@@ -12,7 +12,7 @@ const requiredConfigVars = [
 
 const unsetVars = requiredConfigVars
   .map(key => ({key, val: process.env[key]}))
-  .filter(({val}) => val === undefined)
+  .filter(({val}) => !val)
   .map(({key}) => key);
 
 if (unsetVars.length > 0) {
