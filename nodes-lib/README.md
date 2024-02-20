@@ -69,7 +69,7 @@ The other top-level fields contain a human-readable title, simple metadata about
 
 ## Usage
 ### Configuration
-Copy `.env.example` from this repo to `.env`, and configure the values depending on which environment is being targeted. If installing `nodes-lib` through NPM, set these variables in your host project environment instead.
+Copy `.env.example` from this repo to `.env`, and configure the values depending on which environment is being targeted. If installing `nodes-lib` through NPM, set these variables in your host project environment instead. Ensure NODES_API_KEY is set.
 
 Some variables have different values depending on environment, re-set them as necessary. Devcluster refers to the docker-compose cluster defined in the root of this repository, which can be started with `./dockerDev.sh`. See further instructions in the [repo root docs](../README.md).
 
