@@ -7,8 +7,9 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const THUMBNAIL_DIMENSIONS = {
-  width: 220,
+  // width: 220,
   height: 300,
+  keepAspect: true,
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,7 +26,7 @@ export class ThumbnailsService {
 
     await IpfsService.saveFile(cid, tempFilePath);
     try {
-      await generateAsync(tempFilePath, exportPath, THUMBNAIL_DIMENSIONS);
+      await generateAsync(tempFilePath, exportPath, { ...THUMBNAIL_DIMENSIONS });
       console.log('Thumbnail generated successfully:', exportPath);
       return thumbnailPath;
     } catch (e) {
@@ -48,6 +49,7 @@ export class ThumbnailsService {
   }
 
   static getThumbnailPath(cid: string) {
-    return `${THUMBNAIL_DIMENSIONS.width}x${THUMBNAIL_DIMENSIONS.height}_${cid}.jpg`;
+    return `h-${THUMBNAIL_DIMENSIONS.height}px_${cid}.jpg`;
+    // return `${THUMBNAIL_DIMENSIONS.width}x${THUMBNAIL_DIMENSIONS.height}_${cid}.jpg`;
   }
 }

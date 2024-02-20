@@ -5,8 +5,11 @@ FROM docker.io/node:20.9.0 as base
 # RUN apk update && apk add --no-cache dumb-init
 # RUN apk add --no-cache unoconv ffmpeg imagemagick curl
 
-RUN apt-get update && apt-get install -y dumb-init unoconv ffmpeg imagemagick curl && \
+RUN apt-get update && apt-get install -y dumb-init ghostscript unoconv ffmpeg imagemagick curl && \
     rm -rf /var/lib/apt/lists/*
+
+# Modify ImageMagick policy to allow PDF processing
+RUN sed -i '/<policy domain="coder" rights="none" pattern="PDF" \/>/c\<policy domain="Undefined" rights="read|write" pattern="PDF" \/>' /etc/ImageMagick-6/policy.xml
 
 # NPM Permission Fix
 RUN mkdir -p /.npm
