@@ -15,7 +15,7 @@ CTX="[bootstrapCeramic.sh]"
 set -euo pipefail
 trap catch ERR
 catch() {
-  echo "$CTX script failed"
+  echo "$CTX script failed -- ensure CODEX_REPO_PATH and TOGGLE_CERAMIC are set in .env"
   exit 1
 }
 

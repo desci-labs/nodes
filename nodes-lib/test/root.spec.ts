@@ -128,7 +128,7 @@ describe("nodes-lib", () => {
         expect(updatedManifest.authors).toEqual([newContributors[0]])
       });
 
-      describe.only("cover image", async () => {
+      describe("cover image", async () => {
         test("can be set", async () => {
           const coverCid = "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u";
           const { document: { manifest: updatedManifest } } = await updateCoverImage(uuid, coverCid);
