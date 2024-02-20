@@ -42,47 +42,69 @@ export const seedSocialData = async () => {
 
   // console.log('Communities SEEDED', communities);
   const inserted = await asyncMap(communitiesData['attestations'], async (attestation) => {
-    const community = communities.find((c) => c.name === attestation.communityName);
-    if (!community) throw new Error(`${attestation.communityName} not found, check seed data and retry`);
-    const inserted = await prisma.attestation.upsert({
+    const attestationTemplateAuthorCommunity = communities.find((c) => c.name === attestation.communityName);
+    if (!attestationTemplateAuthorCommunity)
+      throw new Error(`${attestation.communityName} not found, check seed data and retry`);
+    const attestationTemplate = await prisma.attestationTemplate.upsert({
       where: {
         name: attestation.name,
       },
       create: {
-        communityId: community?.id,
+        desciCommunityId: attestationTemplateAuthorCommunity?.id,
         name: attestation.name,
         description: attestation.description,
         image_url: attestation.image_url,
       },
       update: {
-        communityId: community?.id,
+        desciCommunityId: attestationTemplateAuthorCommunity?.id,
         name: attestation.name,
         description: attestation.description,
         image_url: attestation.image_url,
       },
     });
-    let version = await prisma.attestationVersion.findFirst({ where: { attestationId: inserted.id } });
-    if (!version) {
-      console.log('Publish version for', attestation.communityName, ' =>', attestation.name);
-      version = await prisma.attestationVersion.create({
-        data: {
-          name: attestation.name,
-          description: attestation.description,
-          image_url: attestation.image_url,
-          attestationId: inserted.id,
-        },
-      });
-    }
 
     // loop through all communities that have this attestation and add it to their selected attestations
     for (let i = 0; i < communitiesData['communities'].length; i++) {
       const community = communitiesData['communities'][i];
       const communityFromDb = await prisma.desciCommunity.findFirst({ where: { name: community.name } });
-      if (community.requiredAttestations.includes(attestation.name)) {
-        console.log(`Checking community ${community.name} for attestation ${attestation.name}...`);
+      if (community.requiredAttestations.includes(attestationTemplate.name)) {
+        console.log(`Checking community ${community.name} for attestation ${attestationTemplate.name}...`);
+
+        const attestationInstance = await prisma.attestation.upsert({
+          where: {
+            name: attestation.name,
+          },
+          create: {
+            communityId: communityFromDb?.id,
+            name: attestation.name,
+            description: attestation.description,
+            image_url: attestation.image_url,
+            templateId: attestationTemplate.id,
+          },
+          update: {
+            communityId: communityFromDb?.id,
+            name: attestation.name,
+            description: attestation.description,
+            image_url: attestation.image_url,
+            templateId: attestationTemplate.id,
+          },
+        });
+        let version = await prisma.attestationVersion.findFirst({ where: { attestationId: attestationInstance.id } });
+        if (!version) {
+          console.log('Publish version for', attestation.communityName, ' =>', attestation.name);
+          version = await prisma.attestationVersion.create({
+            data: {
+              name: attestation.name,
+              description: attestation.description,
+              image_url: attestation.image_url,
+              attestationId: attestationInstance.id,
+            },
+          });
+        }
+
         const selected = await prisma.communitySelectedAttestation.findFirst({
           where: {
-            attestationId: inserted.id,
+            attestationId: attestationInstance.id,
             attestationVersionId: version.id,
             desciCommunityId: communityFromDb.id,
           },
@@ -92,7 +114,7 @@ export const seedSocialData = async () => {
           await prisma.communitySelectedAttestation.create({
             data: {
               desciCommunityId: communityFromDb.id,
-              attestationId: inserted.id,
+              attestationId: attestationInstance.id,
               attestationVersionId: version.id,
               required: true,
             },
@@ -102,7 +124,7 @@ export const seedSocialData = async () => {
         }
       }
     }
-    return { ...inserted, versions: version };
+    return { ok: true };
   });
 
   // console.log('Attestations SEEDED', inserted);
