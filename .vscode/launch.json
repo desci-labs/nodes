@@ -51,7 +51,7 @@
       "restart": true,
       "localRoot": "${workspaceFolder}/desci-media-isolated",
       "remoteRoot": "/usr/src/app",
-      "port": 9277,
+      "port": 9777,
       "skipFiles": [
         // Node.js internal core modules
         "<node_internals>/**",
