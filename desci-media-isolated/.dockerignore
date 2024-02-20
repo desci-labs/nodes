@@ -3,4 +3,4 @@ database
 dist
 node_modules
 .git
-.env
+# .env

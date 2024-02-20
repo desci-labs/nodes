@@ -43,6 +43,22 @@
       "address": "localhost",
       "localRoot": "${workspaceFolder}",
       "remoteRoot": "/app"
+    },
+    {
+      "name": "media-isolated tsx",
+      "type": "node",
+      "request": "attach",
+      "restart": true,
+      "localRoot": "${workspaceFolder}/desci-media-isolated",
+      "remoteRoot": "/usr/src/app",
+      "port": 9277,
+      "skipFiles": [
+        // Node.js internal core modules
+        "<node_internals>/**",
+
+        // Ignore all dependencies (optional)
+        "${workspaceFolder}/node_modules/**"
+      ]
     }
   ]
 }
