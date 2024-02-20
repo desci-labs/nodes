@@ -346,6 +346,15 @@ export interface PdfAnnotation extends ResearchObjectComponentAnnotation, Scaled
   __client?: any;
 }
 
+export interface ComponentAnnotation extends ResearchObjectComponentAnnotation, Scaled {
+  move?: boolean;
+  text?: string;
+  title?: string;
+  rects?: COORDP[];
+  __client?: any;
+  path?: string;
+}
+
 export interface ResearchObjectComponentAnnotation {
   id: string;
   authorId?: string;

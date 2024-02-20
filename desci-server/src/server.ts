@@ -23,12 +23,12 @@ import { prisma } from './client.js';
 import routes from './routes/index.js';
 import { orcidConnect } from './controllers/auth/orcid.js';
 import { orcidCheck } from './controllers/auth/orcidNext.js';
+// import SocketServer from './wsServer.js';
+import { NotFoundError } from './internal.js';
 import { logger } from './logger.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
-// import SocketServer from './wsServer.js';
-import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
-// import { socket as wsSocket } from './repo.js';
+
 const __filename = fileURLToPath(import.meta.url);
 // const __dirname = path.dirname(__filename);
 
@@ -102,6 +102,8 @@ class AppServer {
 
     this.#attachRouteHandlers();
 
+    // catch 404 errors and forward to error handler
+    this.app.use((_req, _res, next) => next(new NotFoundError()));
     this.app.use(errorHandler);
 
     this.port = process.env.PORT ? parseInt(process.env.PORT) : 5420;
@@ -110,33 +112,6 @@ class AppServer {
       this.#readyResolvers.forEach((resolve) => resolve(true));
       console.log(`Server running on port ${this.port}`);
     });
-
-    // this.socketServer = new SocketServer(this.server, this.port);
-    // wsSocket.on('listening', () => {
-    //   logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
-    // });
-    // wsSocket.on('connection', async (socket, request) => {
-    //   try {
-    //     const token = await extractAuthToken(request as Request);
-    //     const authUser = await extractUserFromToken(token);
-    //     if (!authUser) {
-    //       socket.close(); // Close connection if user is not authorized
-    //       return;
-    //     }
-    //     logger.info(
-    //       { module: 'WebSocket SERVER', id: authUser.id, name: authUser.name },
-    //       'WebSocket Connection Authorised',
-    //     );
-    //     socket.on('message', (message) => {
-    //       // Handle incoming messages
-    //       // console.log(`Received message: ${message}`);
-    //     });
-    //     // Additional event listeners (e.g., 'close', 'error') can be set up here
-    //   } catch (error) {
-    //     socket.close(); // Close the connection in case of an error
-    //     logger.error(error, 'Error during WebSocket connection');
-    //   }
-    // });
   }
 
   get httpServer() {

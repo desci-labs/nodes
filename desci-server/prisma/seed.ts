@@ -1,8 +1,11 @@
-import researchFieldsData from '../data/fields.json' assert { type: 'json' };
 import { prisma } from '../src/client.js';
+// import communitiesData from '../src/data/communities.json' assert { type: 'json' };
+import researchFieldsData from '../src/data/fields.json' assert { type: 'json' };
+// import { asyncMap, attestationService, communityService } from '../src/internal.js';
+import { seedSocialData } from '../src/scripts/seed-social-data.js';
 
 async function main() {
-  const owner = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: {
       email: 'noreply@desci.com',
     },
@@ -66,6 +69,10 @@ async function main() {
   // });
 
   // console.log({ metascienceVault, genomicsVault, owner });
+  console.log('NODE ENV', process.env.NODE_ENV);
+  if (process.env.NODE_ENV === 'test') return;
+
+  await seedSocialData();
 }
 
 main()
@@ -74,5 +81,8 @@ main()
     process.exit(1);
   })
   .finally(async () => {
+    console.log('PRISMA DISCONNECT START');
     await prisma.$disconnect();
+    console.log('PRISMA DISCONNECT END');
+    process.exit(0);
   });

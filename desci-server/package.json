@@ -20,7 +20,9 @@
     "script:increase-base-drive-storage": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/increase-base-drive-storage.ts",
     "script:testing": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/testing.ts",
     "script:migrate-draft-trees": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/migrate-draft-trees.ts",
-    "script:endorse-dpid": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/endorseDpid.ts",
+    "script:endorse-dpid": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/endorse-dpid.ts",
+    "script:seed-social-data": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/seed-social-data.ts",
+    "script:DESTRUCTIVE-clear-social-data": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/DESTRUCTIVE-clear-social-data.ts",
     "build": "rimraf dist && tsc && yarn copy-files",
     "copy-files": "copyfiles -u 1 src/**/*.cjs dist/",
     "generate": "npx prisma generate",
@@ -115,7 +117,8 @@
     "yauzl": "^2.10.0",
     "yazl": "^2.5.1",
     "zip-a-folder": "^1.1.5",
-    "zlib": "^1.0.5"
+    "zlib": "^1.0.5",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@babel/plugin-syntax-import-assertions": "^7.23.3",
@@ -162,7 +165,7 @@
     "nyc": "^15.1.0",
     "prettier": "^3.1.1",
     "pretty-quick": "^3.1.1",
-    "prisma-dbml-generator": "^0.7.0",
+    "prisma-dbml-generator": "^0.10.0",
     "supertest": "^6.3.3",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^1.1.8",
