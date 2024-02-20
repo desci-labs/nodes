@@ -228,7 +228,7 @@ export class AttestationService {
 
   async getNodeCommunityAttestations(dpid: string, communityId: number) {
     return prisma.nodeAttestation.findMany({
-      where: { nodeDpid10: dpid, desciCommunityId: communityId },
+      where: { nodeDpid10: dpid, desciCommunityId: communityId, revoked: false },
       include: {
         community: { select: { name: true, description: true, keywords: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
@@ -354,6 +354,28 @@ export class AttestationService {
       prisma.nodeAttestation.delete({ where: { id } }),
     ]);
     return deleted[3];
+  }
+
+  async revokeAttestation(id: number) {
+    const claim = await prisma.nodeAttestation.findFirst({ where: { id } });
+    if (!claim) throw new ClaimNotFoundError();
+    const { id: claimId, ...create } = claim;
+    return await prisma.nodeAttestation.upsert({
+      create,
+      update: { revoked: true, revokedAt: new Date().toISOString() },
+      where: { id },
+    });
+  }
+
+  async reClaimAttestation(id: number) {
+    const claim = await prisma.nodeAttestation.findFirst({ where: { id } });
+    if (!claim) throw new ClaimNotFoundError();
+    const { id: claimId, ...create } = claim;
+    return await prisma.nodeAttestation.upsert({
+      create,
+      update: { revoked: false, revokedAt: null },
+      where: { id },
+    });
   }
 
   async getNodeCommunityClaims(nodeDpid10: string, desciCommunityId: number) {
@@ -547,7 +569,7 @@ export class AttestationService {
       DC.keywords AS "communityKeywords"
     FROM
       "Attestation" A
-      LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id
+      LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id AND NA."revoked" = false
       LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
@@ -582,7 +604,7 @@ export class AttestationService {
       END AS "communitySelected"
     FROM
       "Attestation" A
-      LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id
+      LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id AND NA."revoked" = false
       LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
@@ -613,7 +635,7 @@ export class AttestationService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."nodeDpid10" = ${dpid}
+      WHERE t1."nodeDpid10" = ${dpid} AND t1."revoked" = false
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];
@@ -627,6 +649,36 @@ export class AttestationService {
       { reactions: 0, annotations: 0, verifications: 0 },
     );
     return groupedEngagements;
+  }
+  /**
+   * Returns all engagement signals for a claimed attestation
+   * @param claimId
+   * @returns
+   */
+  async getClaimEngagementSignals(claimId: number) {
+    const claim = (await prisma.$queryRaw`
+      SELECT t1.*,
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
+      FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE t1."id" = ${claimId}
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
+
+    const signal = claim.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+    return signal;
   }
 
   /**
@@ -646,7 +698,7 @@ export class AttestationService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."desciCommunityId" = ${communityId} AND t1."nodeDpid10" = ${dpid}
+      WHERE t1."desciCommunityId" = ${communityId} AND t1."nodeDpid10" = ${dpid} AND t1."revoked" = false
       AND
         EXISTS
       (SELECT *
@@ -716,7 +768,7 @@ export class AttestationService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."attestationId" = ${attestationId}
+      WHERE t1."attestationId" = ${attestationId} AND t1."revoked" = false
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];

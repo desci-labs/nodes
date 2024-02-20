@@ -11,6 +11,7 @@ import {
   NodeAttestationReaction,
   NodeAttestationVerification,
   NodeVersion,
+  Prisma,
   User,
 } from '@prisma/client';
 import { assert, expect } from 'chai';
@@ -24,8 +25,10 @@ import {
   CommunityAttestation,
   DuplicateReactionError,
   DuplicateVerificationError,
+  Engagement,
   NodeAttestationFragment,
   NodeRadar,
+  NodeRadarItem,
   VerificationError,
   attestationService,
   communityService,
@@ -255,7 +258,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe.only('Claiming a Desci Community Selected Attestations', () => {
+  describe('Claiming a Desci Community Selected Attestations', () => {
     let claim: NodeAttestation;
     let node: Node;
     const nodeVersion = 0;
@@ -1801,6 +1804,178 @@ describe('Attestations Service', async () => {
 
       expect(desciAttestations.length).to.equal(3);
       expect(desciEngagements).to.equal(13);
+    });
+  });
+
+  describe.only('Revoking NodeAttestation(Claims)', async () => {
+    let claim: NodeAttestation;
+    let claim2: NodeAttestation;
+    let openDataAttestationClaim: NodeAttestation;
+    let openDataAttestationClaim2: NodeAttestation;
+    let node: Node;
+    let node2: Node;
+    const nodeVersion = 0;
+    let reproducibilityAttestationVersion: AttestationVersion;
+    let openDataAttestationVersion: AttestationVersion;
+    let author: User;
+    let author2: User;
+    let authHeaderVal;
+
+    type NodeClaim = NodeAttestation &
+      Omit<NodeRadarItem, 'NodeAttestation'> & {
+        engagements: Engagement;
+        attestationVersion: {
+          name: string;
+          description: string;
+          image_url: string;
+        };
+        community: DesciCommunity;
+        selfAssigned: boolean;
+      };
+
+    before(async () => {
+      node = nodes[0];
+      node2 = nodes[1];
+      author = users[0];
+      author2 = users[1];
+      assert(node.uuid);
+      assert(node2.uuid);
+
+      const JwtToken = jwt.sign({ email: users[0].email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
+      authHeaderVal = `Bearer ${JwtToken}`;
+
+      let versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
+      reproducibilityAttestationVersion = versions[versions.length - 1];
+
+      // add to community entry
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: reproducibilityAttestationVersion.id,
+      });
+
+      versions = await attestationService.getAttestationVersions(openDataAttestation.id);
+      openDataAttestationVersion = versions[versions.length - 1];
+      await attestationService.addCommunitySelectedAttestation({
+        communityId: desciCommunity.id,
+        attestationId: openDataAttestation.id,
+        attestationVersion: openDataAttestationVersion.id,
+      });
+
+      // claim all entry requirements
+      [claim, openDataAttestationClaim] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      [claim2, openDataAttestationClaim2] = await attestationService.claimAttestations({
+        attestations: [
+          {
+            attestationId: reproducibilityAttestation.id,
+            attestationVersion: reproducibilityAttestationVersion.id,
+          },
+          {
+            attestationId: openDataAttestation.id,
+            attestationVersion: openDataAttestationVersion.id,
+          },
+        ],
+        nodeDpid: '2',
+        nodeUuid: node2.uuid,
+        nodeVersion,
+        claimerId: author2.id,
+      });
+
+      // verify both claims for node 1
+      await attestationService.verifyClaim(claim.id, users[1].id);
+      await attestationService.verifyClaim(claim.id, users[2].id);
+      await attestationService.verifyClaim(openDataAttestationClaim.id, users[1].id);
+      await attestationService.createComment({
+        claimId: openDataAttestationClaim.id,
+        authorId: users[2].id,
+        comment: 'I love this game',
+      });
+
+      // verify one claims for node 2 attestations
+      await attestationService.verifyClaim(claim2.id, users[3].id);
+      await attestationService.verifyClaim(claim2.id, users[2].id);
+      await attestationService.createComment({
+        claimId: openDataAttestationClaim2.id,
+        authorId: users[3].id,
+        comment: 'I love this guy',
+      });
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+    });
+
+    it('should revoke node attestation', async () => {
+      const res = await request(app).post(`/v1/attestations/unclaim`).set('authorization', authHeaderVal).send({
+        dpid: '1',
+        nodeUuid: node.uuid,
+        claimId: claim.id,
+      });
+      expect(res.status).to.equal(200);
+
+      const claims = await attestationService.getAllNodeAttestations('1');
+      expect(claims.length).to.equal(2);
+    });
+
+    it('should remove revoked claim engagements from node and community engagement signals', async () => {});
+
+    it('should remove node from radar and curated if an entry attestation claim is revoked', async () => {
+      const res1 = await request(app)
+        .get(`/v1/communities/${desciCommunity.id}/radar`)
+        .set('authorization', authHeaderVal)
+        .field('communityId', desciCommunity.id);
+      const radar = res1.body.data as NodeRadar[];
+      expect(res1.status).to.equal(200);
+      expect(radar.length).to.equal(1);
+      const radarNode = radar[0];
+      expect(radarNode.nodeDpid10).to.be.equal('2');
+      expect(radarNode.nodeuuid).to.be.equal(node2.uuid);
+
+      const res = await request(app)
+        .get(`/v1/communities/${desciCommunity.id}/feed`)
+        .set('authorization', authHeaderVal)
+        .field('communityId', desciCommunity.id);
+
+      const curatedNodes = res.body.data as NodeRadar[];
+      expect(res.status).to.equal(200);
+      expect(curatedNodes.length).to.equal(0);
+    });
+
+    it('should reclaim node attestation', async () => {
+      let res = await request(app).post(`/v1/attestations/claim`).set('authorization', authHeaderVal).send({
+        dpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+        attestationId: reproducibilityAttestation.id,
+      });
+      expect(res.status).to.equal(200);
+
+      const attestations = await attestationService.getAllNodeAttestations('1');
+      expect(attestations.length).to.equal(2);
+
+      res = await request(app).get(`/v1/attestations/${1}`).set('authorization', authHeaderVal);
+      const claims = res.body.data as NodeClaim[];
+      const revoked = claims.find((c) => c.id === claim.id);
+      expect(revoked?.revoked).to.be.false;
+      expect(revoked?.revokedAt).to.be.null;
     });
   });
 });

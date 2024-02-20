@@ -94,7 +94,7 @@ export class CommunityService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."desciCommunityId" = ${communityId}
+      WHERE t1."desciCommunityId" = ${communityId} AND t1."revoked" = false
         AND
         EXISTS
       (SELECT *
@@ -135,7 +135,7 @@ export class CommunityService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."desciCommunityId" = ${communityId}
+      WHERE t1."desciCommunityId" = ${communityId} AND t1."revoked" = false
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];
@@ -169,7 +169,7 @@ export class CommunityService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."desciCommunityId" = ${communityId} AND t1."nodeDpid10" = ${dpid}
+      WHERE t1."desciCommunityId" = ${communityId} AND t1."nodeDpid10" = ${dpid} AND t1."revoked" = false
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];

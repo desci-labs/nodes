@@ -24,12 +24,22 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     dpid: string;
     claimerId: number;
   };
-  // const { body } = await claimAttestationSchema.parseAsync(req);
   const attestationVersions = await attestationService.getAttestationVersions(body.attestationId);
   const latest = attestationVersions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const attestationVersion = latest[0];
   logger.info({ body, latest, attestationVersion }, 'CLAIM');
   const uuid = ensureUuidEndsWithDot(body.nodeUuid);
+
+  const claim = await attestationService.getClaimOnAttestationVersion(
+    body.dpid,
+    body.attestationId,
+    attestationVersion.id,
+  );
+
+  if (claim && claim.revoked) {
+    const reclaimed = await attestationService.reClaimAttestation(claim.id);
+    return new SuccessResponse(reclaimed).send(res);
+  }
 
   const attestations = await attestationService.claimAttestation({
     ...body,
@@ -53,13 +63,20 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
 
   if (node.ownerId !== req.user.id || claim.claimedById !== req.user.id) throw new AuthFailiureError();
 
-  await attestationService.unClaimAttestation(claim.id);
+  const claimSignal = await attestationService.getClaimEngagementSignals(claim.id);
+  const totalSignal = claimSignal.annotations + claimSignal.reactions + claimSignal.verifications;
+  console.log('REMOVE CLAIM', { claim, claimSignal, totalSignal });
+  const removeOrRevoke =
+    totalSignal > 0
+      ? await attestationService.revokeAttestation(claim.id)
+      : await attestationService.unClaimAttestation(claim.id);
 
+  console.log({ removeOrRevoke });
+  logger.info({ removeOrRevoke }, 'Claim Removed|Revoked');
   return new SuccessMessageResponse('Attestation unclaimed').send(res);
 };
 
 export const claimEntryRequirements = async (req: Request, res: Response, _next: NextFunction) => {
-  // const { communityId } = req.params;
   const { communityId, dpid, nodeUuid, nodeVersion, claimerId } = req.body as {
     communityId: number;
     nodeVersion: number;
