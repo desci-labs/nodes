@@ -98,7 +98,7 @@ export async function writeExternalIdToOrcidProfile(userId: number, didAddress: 
       console.log('External ID already added');
       return;
     }
-    debugger;
+    // debugger;
   } catch (error) {
     console.error('Error getting external IDs:', error.response?.data || error.message);
   }

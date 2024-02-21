@@ -39,7 +39,7 @@ export class ThumbnailsService {
     manifestCid?: string;
     // heightPx: HeightPx;
   }): Promise<ThumbnailMap> {
-    debugger;
+    // debugger;
     const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
 
     const manifest = manifestCid ? await getManifestByCid(manifestCid) : await getLatestManifestFromNode(node);

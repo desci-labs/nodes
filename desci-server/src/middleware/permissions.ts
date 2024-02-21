@@ -13,7 +13,7 @@ export enum AuthMethods {
 }
 
 export const ensureUser = async (req: ExpressRequest, res: Response, next: NextFunction) => {
-  debugger;
+  // debugger;
   const token = await extractAuthToken(req);
   const apiKey = await extractApiKey(req);
   const authTokenRetrieval = await extractUserFromToken(token);
