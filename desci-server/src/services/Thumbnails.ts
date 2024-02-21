@@ -6,7 +6,7 @@ import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { getManifestByCid, getManifestFromNode, pinNewFiles } from './data/processing.js';
 import { pinFile } from './ipfs.js';
-import { NodeUuid } from './manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from './manifestRepo.js';
 import repoService from './repoService.js';
 
 const logger = parentLogger.child({
@@ -40,9 +40,9 @@ export class ThumbnailsService {
     // heightPx: HeightPx;
   }): Promise<ThumbnailMap> {
     debugger;
-    const manifest = manifestCid
-      ? await getManifestByCid(manifestCid)
-      : await repoService.getDraftManifest(uuid as NodeUuid);
+    const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
+
+    const manifest = manifestCid ? await getManifestByCid(manifestCid) : await getLatestManifestFromNode(node);
 
     const pinnedComponents = manifest?.components?.filter((c) => c.starred);
 
