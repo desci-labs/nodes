@@ -39,6 +39,7 @@ model Node {
   DraftNodeTree       DraftNodeTree[]
   ceramicStream       String?
   NodeAttestation     NodeAttestation[]
+  NodeThumbnails      NodeThumbnails[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -455,6 +456,16 @@ model NodeCover {
   node     Node    @relation(fields: [nodeUuid], references: [uuid])
 
   @@unique([nodeUuid, version])
+}
+
+model NodeThumbnails {
+  id           Int    @id @default(autoincrement())
+  componentCid String
+  nodeUuid     String
+  thumbnails   Json
+  node         Node   @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, componentCid])
 }
 
 model FriendReferral {
