@@ -9,16 +9,6 @@ import {
   extractUserFromToken,
 } from './permissions.js';
 
-// export const ensureUser = async (req: Request, res: Response, next: NextFunction) => {
-//   const retrievedUser = await retrieveUser(req);
-//   if (!retrievedUser) {
-//     res.status(401).send({ ok: false, message: 'Unauthorized' });
-//     return;
-//   }
-//   (req as any).user = retrievedUser;
-//   next();
-// };
-
 /**
  * Attaches the user to the request (req.user), the difference between this middleware and ensureUser is that this is optional
  * and won't reject with a 401 if not logged in.
