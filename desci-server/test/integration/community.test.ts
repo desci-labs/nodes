@@ -160,7 +160,7 @@ describe('Desci Communities', () => {
       await prisma.$queryRaw`TRUNCATE TABLE "Attestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "AttestationVersion" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "AttestationTemplate" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "communityEntryAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     describe('Create Community Attestation', () => {

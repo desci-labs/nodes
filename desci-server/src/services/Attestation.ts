@@ -544,7 +544,7 @@ export class AttestationService {
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
       LEFT JOIN "DesciCommunity" DC ON DC.id = A."communityId"
-      LEFT JOIN "communityEntryAttestation" CSA ON CSA."desciCommunityId" = A."communityId"
+      LEFT JOIN "CommunityEntryAttestation" CSA ON CSA."desciCommunityId" = A."communityId"
 	    AND CSA."attestationId" = A.id
     GROUP BY
       A.id,
@@ -578,7 +578,7 @@ export class AttestationService {
       LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
-      LEFT JOIN "communityEntryAttestation" CSA ON CSA."attestationId" = A."id"
+      LEFT JOIN "CommunityEntryAttestation" CSA ON CSA."attestationId" = A."id"
 	where 
 		CSA."desciCommunityId" = ${communityId} AND A."communityId" = ${communityId}
     GROUP BY
@@ -642,7 +642,7 @@ export class AttestationService {
       AND
         EXISTS
       (SELECT *
-        from "communityEntryAttestation" c1
+        from "CommunityEntryAttestation" c1
         where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = t1."desciCommunityId")
         GROUP BY
   		t1.id

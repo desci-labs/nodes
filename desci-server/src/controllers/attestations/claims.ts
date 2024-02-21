@@ -79,6 +79,7 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
   const uuid = ensureUuidEndsWithDot(nodeUuid);
 
   const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
+  logger.info({ entryAttestations });
 
   const claimables = (await asyncMap(entryAttestations, async (attestation) => {
     const claimable = await attestationService.canClaimAttestation({
@@ -92,7 +93,6 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     return { ...attestation, claimable };
   })) as (CommunityEntryAttestation & { claimable: boolean })[];
   logger.info({ claimables, communityId });
-  console.log({ claimables });
 
   const claims = claimables
     .filter((entry) => entry.claimable === true)

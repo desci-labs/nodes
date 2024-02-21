@@ -117,20 +117,19 @@ export const seedSocialData = async () => {
         console.log('--- create attestationVersion for', attestationInstance.name, attestationInstance.id);
 
         [attestationVersion] = await prisma.$transaction([
-          prisma.attestationVersion.upsert({
-            where: {},
-            create: {
+          prisma.attestationVersion.create({
+            data: {
               name: attestationInstance.name,
               description: attestationInstance.description,
               image_url: attestationInstance.image_url,
               attestationId: attestationInstance.id,
             },
-            update: {
-              name: attestationInstance.name,
-              description: attestationInstance.description,
-              image_url: attestationInstance.image_url,
-              attestationId: attestationInstance.id,
-            },
+            // update: {
+            //   name: attestationInstance.name,
+            //   description: attestationInstance.description,
+            //   image_url: attestationInstance.image_url,
+            //   attestationId: attestationInstance.id,
+            // },
           }),
         ]);
 
@@ -153,12 +152,7 @@ export const seedSocialData = async () => {
           },
         },
       });
-      console.log(
-        '---  check communityEntryAttestation',
-        selected?.id,
-        selected?.attestationId,
-        selected.desciCommunityId,
-      );
+      console.log('---  check communityEntryAttestation', selected?.id, selected?.attestationId);
 
       if (!selected) {
         console.log(
