@@ -341,6 +341,16 @@ export async function getManifestFromNode(
   }
 }
 
+export async function getManifestByCid(manifestCid: string, queryString?: string): Promise<ResearchObjectV1> {
+  const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid, queryString as string) : null;
+  try {
+    const fetchedManifest = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
+    return fetchedManifest;
+  } catch (e) {
+    throw createIpfsUnresolvableError(`Error fetching manifest from IPFS, manifestCid: ${manifestCid}`);
+  }
+}
+
 export function pathContainsExternalCids(flatTreeMap: Record<DrivePath, RecursiveLsResult>, contextPath: string) {
   // Check if update path contains externals, disable adding to external DAGs
   const pathMatch = flatTreeMap[contextPath];
