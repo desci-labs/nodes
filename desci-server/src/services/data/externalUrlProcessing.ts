@@ -182,7 +182,7 @@ export async function processExternalUrlDataToIpfs({
     const flatUploadedTree = recursiveFlattenTree(uploadedTree);
 
     const parsedContextPath = isCodeRepo ? contextPath + '/' + externalUrl.path : contextPath;
-    const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries({
+    const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = ipfsDagToDraftNodeTreeEntries({
       ipfsTree: flatUploadedTree,
       node,
       user,
@@ -196,7 +196,7 @@ export async function processExternalUrlDataToIpfs({
     logger.info(`Successfully added ${addedEntries.count} entries to DraftNodeTree`);
     // debugger;
 
-    const { filesToAddToDag, filteredFiles } = filterFirstNestings(pinResult);
+    const { filteredFiles } = filterFirstNestings(pinResult);
 
     /**
      * Repull latest node, to avoid stale manifest that may of been modified since last pull

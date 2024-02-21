@@ -104,7 +104,7 @@ export class AttestationService {
 
     if (!community) throw new CommunityNotFoundError();
 
-    const existing = await prisma.attestation.findUnique({ where: { name: data.name } });
+    const existing = await prisma.attestation.findFirst({ where: { name: data.name, communityId: data.communityId } });
     if (existing) throw new DuplicateDataError();
 
     const attestation = await prisma.attestation.create({ data: { communityId: community.id, ...data } });
@@ -178,7 +178,7 @@ export class AttestationService {
     return attestation.AttestationVersion.length;
   }
 
-  async addCommunitySelectedAttestation({
+  async addCommunityEntryAttestation({
     communityId,
     attestationId,
     attestationVersion: version,
@@ -195,12 +195,12 @@ export class AttestationService {
     });
     if (!attestationVersion) throw new AttestationVersionNotFoundError();
 
-    const existingSelection = await prisma.communitySelectedAttestation.findFirst({
+    const existingSelection = await prisma.communityEntryAttestation.findFirst({
       where: { desciCommunityId: communityId, attestationId, attestationVersionId: attestationVersion.id },
     });
     if (existingSelection) throw new DuplicateDataError();
 
-    return prisma.communitySelectedAttestation.create({
+    return prisma.communityEntryAttestation.create({
       data: {
         desciCommunityId: communityId,
         attestationId: attestationVersion.attestationId,
@@ -250,7 +250,7 @@ export class AttestationService {
   async getCommunityEntryAttestations(communityId: number) {
     const community = await communityService.findCommunityById(communityId);
     if (!community) throw new CommunityNotFoundError();
-    return prisma.communitySelectedAttestation.findMany({ where: { desciCommunityId: communityId, required: true } });
+    return prisma.communityEntryAttestation.findMany({ where: { desciCommunityId: communityId, required: true } });
   }
 
   async claimAttestation({
@@ -513,7 +513,14 @@ export class AttestationService {
   async getAllClaimComments(filter: Prisma.AnnotationWhereInput) {
     return prisma.annotation.findMany({
       where: filter,
-      include: { author: true, attestation: { include: { attestationVersion: true } } },
+      include: {
+        author: true,
+        attestation: {
+          include: {
+            attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },
+          },
+        },
+      },
     });
   }
 
@@ -544,7 +551,7 @@ export class AttestationService {
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
       LEFT JOIN "DesciCommunity" DC ON DC.id = A."communityId"
-      LEFT JOIN "CommunitySelectedAttestation" CSA ON CSA."desciCommunityId" = A."communityId"
+      LEFT JOIN "CommunityEntryAttestation" CSA ON CSA."desciCommunityId" = A."communityId"
 	    AND CSA."attestationId" = A.id
     GROUP BY
       A.id,
@@ -563,7 +570,7 @@ export class AttestationService {
    */
   async listCommunityAttestations(communityId: number) {
     const queryResult = (await prisma.$queryRaw`
-    SELECT
+     SELECT
       A.*,
       COUNT(distinct AN.id)::int AS annotations,
       COUNT(distinct NAR.id)::int AS reactions,
@@ -578,9 +585,9 @@ export class AttestationService {
       LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
-      LEFT JOIN "CommunitySelectedAttestation" CSA ON CSA."desciCommunityId" = A."communityId"
-	    AND CSA."attestationId" = A.id
-     WHERE A."communityId" = ${communityId}
+      LEFT JOIN "CommunityEntryAttestation" CSA ON CSA."attestationId" = A."id"
+	where 
+		CSA."desciCommunityId" = ${communityId} AND A."communityId" = ${communityId}
     GROUP BY
       A.id,
       CSA.id
@@ -642,7 +649,7 @@ export class AttestationService {
       AND
         EXISTS
       (SELECT *
-        from "CommunitySelectedAttestation" c1
+        from "CommunityEntryAttestation" c1
         where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = t1."desciCommunityId")
         GROUP BY
   		t1.id

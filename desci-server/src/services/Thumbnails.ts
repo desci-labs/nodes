@@ -2,6 +2,7 @@ import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
+import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { getManifestByCid, getManifestFromNode, pinNewFiles } from './data/processing.js';
 import { pinFile } from './ipfs.js';
@@ -71,7 +72,7 @@ export class ThumbnailsService {
       const desiredSizeThumbnail = thumbnail.thumbnails[HEIGHT_PX];
       if (desiredSizeThumbnail) {
         // If exists, add it to the returned thumbnail map.
-        thumbnailMap[thumbnail.componentCid] = thumbnail.thumbnails;
+        thumbnailMap[thumbnail.componentCid] = thumbnail.thumbnails as Thumbnail;
         // Remove it from the generation map
         delete thumbnailsToGenerate[thumbnail.componentCid];
       }
@@ -79,7 +80,9 @@ export class ThumbnailsService {
 
     // Generate thumbnails for the ones that don't exist
     const generatedThumbnails = await Promise.all(
-      Object.entries(thumbnailsToGenerate).map(([cid, fileName]) => this.generateThumbnail(cid, fileName, HEIGHT_PX)),
+      Object.entries(thumbnailsToGenerate).map(([cid, fileName]) =>
+        this.generateThumbnail(uuid, cid, fileName, HEIGHT_PX),
+      ),
     );
 
     // Add the newly generated ones to the thumbnail map
@@ -91,6 +94,7 @@ export class ThumbnailsService {
   }
 
   private async generateThumbnail(
+    nodeUuid: string,
     cid: CidString,
     componentFileName: string,
     heightPx: HeightPx,
@@ -114,12 +118,18 @@ export class ThumbnailsService {
     const existingThumbnail = await prisma.nodeThumbnails.findFirst({
       where: { componentCid: cid },
     });
-    (await existingThumbnail)
-      ? prisma.nodeThumbnails.update({
-          where: { componentCid: cid },
-          data: { thumbnails: { ...existingThumbnail.thumbnails, [heightPx]: pinned.cid } },
-        })
-      : prisma.nodeThumbnails.create({ data: { componentCid: cid, thumbnails: { [heightPx]: pinned.cid } } });
+
+    if (existingThumbnail) {
+      const thumbnails = existingThumbnail.thumbnails as Thumbnail;
+      await prisma.nodeThumbnails.update({
+        where: { id: existingThumbnail.id },
+        data: { thumbnails: { ...thumbnails, [heightPx]: pinned.cid } },
+      });
+    } else {
+      await prisma.nodeThumbnails.create({
+        data: { nodeUuid: ensureUuidEndsWithDot(nodeUuid), componentCid: cid, thumbnails: { [heightPx]: pinned.cid } },
+      });
+    }
 
     // LATER: Add data ref
 

@@ -589,20 +589,25 @@ model NodeFeedItemEndorsement {
 
 // an organization that endorses work and has members
 model DesciCommunity {
-  id                           Int                            @id @default(autoincrement())
-  createdAt                    DateTime                       @default(now())
-  updatedAt                    DateTime                       @updatedAt
-  name                         String                         @unique
-  slug                         String?                        @unique
-  image_url                    String?
-  description                  String
-  keywords                     String[]
-  members                      User[]
-  endorsements                 NodeFeedItemEndorsement[]
-  CommunityMember              CommunityMember[]
-  Attestation                  Attestation[]
-  NodeAttestation              NodeAttestation[]
-  CommunitySelectedAttestation CommunitySelectedAttestation[]
+  id              Int                       @id @default(autoincrement())
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  name            String                    @unique
+  slug            String?                   @unique
+  image_url       String?
+  subtitle        String? // short description
+  description     String
+  keywords        String[]
+  memberString    String[] // string list of member names
+  links           String[] // string list of links
+  hidden          Boolean                   @default(false)
+  members         User[]
+  endorsements    NodeFeedItemEndorsement[]
+  CommunityMember CommunityMember[]
+  Attestation     Attestation[]
+  NodeAttestation NodeAttestation[]
+  AttestationTemplate       AttestationTemplate[]
+  CommunityEntryAttestation CommunityEntryAttestation[]
 }
 
 model CommunityMember {
@@ -618,47 +623,51 @@ model CommunityMember {
 
 // Templates for creating a new attestation
 model AttestationTemplate {
-  id          Int           @id @default(autoincrement())
-  name        String        @unique
-  description String
-  image_url   String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  Attestation Attestation[]
+  id               Int             @id @default(autoincrement())
+  name             String          @unique
+  description      String
+  image_url        String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  Attestation      Attestation[]
+  DesciCommunity   DesciCommunity? @relation(fields: [desciCommunityId], references: [id])
+  desciCommunityId Int?
 }
 
 // A factory attestation, these are the base attestations that can be assigned to nodes
 model Attestation {
-  id                        Int                            @id @default(autoincrement())
-  name                      String                         @unique
+  id                        Int                         @id @default(autoincrement())
+  name                      String
   communityId               Int
   description               String
   image_url                 String
   templateId                Int?
-  createdAt                 DateTime                       @default(now())
-  updatedAt                 DateTime                       @updatedAt
-  community                 DesciCommunity                 @relation(fields: [communityId], references: [id])
-  template                  AttestationTemplate?           @relation(fields: [templateId], references: [id])
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  community                 DesciCommunity              @relation(fields: [communityId], references: [id])
+  template                  AttestationTemplate?        @relation(fields: [templateId], references: [id])
   AttestationVersion        AttestationVersion[]
   NodeAttestation           NodeAttestation[]
-  CommunityEntryAttestation CommunitySelectedAttestation[]
+  CommunityEntryAttestation CommunityEntryAttestation[]
+
+  @@unique([name, communityId])
 }
 
 model AttestationVersion {
-  id                        Int                            @id @default(autoincrement())
+  id                        Int                         @id @default(autoincrement())
   name                      String
   attestationId             Int
   description               String
   image_url                 String
-  createdAt                 DateTime                       @default(now())
-  updatedAt                 DateTime                       @updatedAt
-  attestation               Attestation                    @relation(fields: [attestationId], references: [id])
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  attestation               Attestation                 @relation(fields: [attestationId], references: [id])
   NodeAttestation           NodeAttestation[]
-  CommunityEntryAttestation CommunitySelectedAttestation[]
+  CommunityEntryAttestation CommunityEntryAttestation[]
 }
 
 // A communities selected attestations, these appear in their radar.
-model CommunitySelectedAttestation {
+model CommunityEntryAttestation {
   id                   Int                @id @default(autoincrement())
   desciCommunityId     Int
   desciCommunity       DesciCommunity     @relation(fields: [desciCommunityId], references: [id])
@@ -669,6 +678,8 @@ model CommunitySelectedAttestation {
   attestationVersion   AttestationVersion @relation(fields: [attestationVersionId], references: [id])
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
+
+  @@unique([attestationId, attestationVersionId, desciCommunityId])
 }
 
 //An attestation assigned to a node

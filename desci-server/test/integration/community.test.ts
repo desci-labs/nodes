@@ -4,7 +4,7 @@ import {
   Attestation,
   // AttestationTemplate,
   AttestationVersion,
-  CommunitySelectedAttestation,
+  CommunityEntryAttestation,
   DesciCommunity,
   User,
 } from '@prisma/client';
@@ -160,7 +160,7 @@ describe('Desci Communities', () => {
       await prisma.$queryRaw`TRUNCATE TABLE "Attestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "AttestationVersion" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "AttestationTemplate" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     describe('Create Community Attestation', () => {
@@ -277,17 +277,17 @@ describe('Desci Communities', () => {
     });
 
     describe('Community Selected Attestation', () => {
-      let selectedAttestation: CommunitySelectedAttestation;
+      let selectedAttestation: CommunityEntryAttestation;
       let version: AttestationVersion;
       let selectedVersion: AttestationVersion;
-      let selectedAttestation2: CommunitySelectedAttestation;
+      let selectedAttestation2: CommunityEntryAttestation;
 
       before(async () => {
         assert(daoCommunity);
         assert(attestation);
         const versions = await attestationService.getAttestationVersions(attestation.id);
         version = versions[versions.length - 1];
-        selectedAttestation = await attestationService.addCommunitySelectedAttestation({
+        selectedAttestation = await attestationService.addCommunityEntryAttestation({
           communityId: daoCommunity.id,
           attestationId: attestation.id,
           attestationVersion: version.id,
@@ -295,7 +295,7 @@ describe('Desci Communities', () => {
 
         const versions2 = await attestationService.getAttestationVersions(attestation2.id);
         selectedVersion = versions2[versions2.length - 1];
-        selectedAttestation2 = await attestationService.addCommunitySelectedAttestation({
+        selectedAttestation2 = await attestationService.addCommunityEntryAttestation({
           communityId: daoCommunity.id,
           attestationId: attestation2.id,
           attestationVersion: selectedVersion.id,
@@ -313,7 +313,7 @@ describe('Desci Communities', () => {
       it('should prevent duplicate community selected attestation', async () => {
         try {
           assert(daoCommunity);
-          await attestationService.addCommunitySelectedAttestation({
+          await attestationService.addCommunityEntryAttestation({
             communityId: daoCommunity.id,
             attestationId: attestation.id,
             attestationVersion: version.id,

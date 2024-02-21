@@ -75,6 +75,11 @@ This is a Typescript types library that describes a spec for Research Objects. I
 This is a NodeJS backend that manages draft Nodes. It maintains a user auth, verifies wallet credentials, offers 2FA to users, and is the main system that orchestrates between microservices. It maintains version history for each update to Nodes. It interfaces with a Graph index to implement the [DPID](https://dpid.org) Resolution Scheme.
 <br><br>
 
+## **nodes-lib**
+
+A library for programmatically interacting with Nodes, basically allowing automation of actions possible in the webapp. See separate documentation in the [README](./nodes-lib/README.md)
+<br><br>
+
 ## **desci-art-viewer**
 
 Nobody knows why this is still here, but it implements a React+Three.js 3d torus that plays [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life) on the surface of the torus. We were totally inspired by [this gif on Wikipedia](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life#/media/File:Trefoil_knot_conways_game_of_life.gif) and it only seems to work on Mac/Linux right now, YMMV.

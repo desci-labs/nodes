@@ -6,7 +6,7 @@ import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { hexToCid } from '../utils.js';
 
-const IPFS_RESOLVER_OVERRIDE = process.env.IPFS_RESOLVER_OVERRIDE || '';
+const IPFS_RESOLVER_OVERRIDE = process.env.IPFS_RESOLVER_OVERRIDE;
 
 export const cleanupManifestUrl = (url: string, gateway?: string) => {
   if (url && (PUBLIC_IPFS_PATH || gateway)) {
