@@ -6,9 +6,9 @@ export const clearSocialData = async () => {
       desciCommunityId: { not: undefined },
     },
   });
-  await prisma.attestation.deleteMany({});
+  await prisma.communityEntryAttestation.deleteMany({});
   await prisma.attestationVersion.deleteMany({});
-  await prisma.communitySelectedAttestation.deleteMany({});
+  await prisma.attestation.deleteMany({});
   await prisma.nodeAttestationReaction.deleteMany({});
   await prisma.nodeAttestationVerification.deleteMany({});
   await prisma.nodeAttestation.deleteMany({});

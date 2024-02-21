@@ -15,7 +15,11 @@
       ],
       "image_url": "https://pub.desci.com/ipfs/bafkreie7kxhzpzhsbywcrpgyv5yvy3qxcjsibuxsnsh5olaztl2uvnrzx4",
       "slug": "gridcoin",
-      "requiredAttestations": ["Reproducibility Enabled", "Used BOINC", "Used Folding@Home"],
+      "requiredAttestations": [
+        "Reproducibility Enabled",
+        "Used BOINC",
+        "Used Folding@home"
+      ],
       "members": ["Gridcoin Network"],
       "links": ["https://gridcoin.us", "https://boinc.berkeley.edu"]
     },

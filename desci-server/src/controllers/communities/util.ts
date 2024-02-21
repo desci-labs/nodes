@@ -35,7 +35,7 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
   try {
     gatewayUrl = cleanupManifestUrl(gatewayUrl);
     logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
-    const manifest = transformManifestWithHistory((await axios.get(gatewayUrl)).data, discovery);
+    const manifest = (await axios.get(gatewayUrl)).data;
     radar.manifest = manifest;
 
     logger.info({ manifest }, '[SHOW API GET DRAFT MANIFEST]');

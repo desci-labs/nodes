@@ -181,7 +181,7 @@ describe('Attestations Service', async () => {
     await prisma.$queryRaw`TRUNCATE TABLE "DesciCommunity" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "Attestation" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "AttestationVersion" CASCADE;`;
-    await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+    await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
@@ -225,7 +225,7 @@ describe('Attestations Service', async () => {
 
     after(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     it('should claim an attestation to a node', () => {
@@ -283,7 +283,7 @@ describe('Attestations Service', async () => {
       reproducibilityClaim = Object.assign({}, claim);
 
       // add to community entry
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: reproducibilityAttestation.id,
         attestationVersion: reproducibilityAttestationVersion.id,
@@ -291,7 +291,7 @@ describe('Attestations Service', async () => {
 
       versions = await attestationService.getAttestationVersions(openDataAttestation.id);
       openDataAttestationVersion = versions[versions.length - 1];
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: openDataAttestation.id,
         attestationVersion: openDataAttestationVersion.id,
@@ -300,7 +300,7 @@ describe('Attestations Service', async () => {
 
     after(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     it('should not add node to community radar', async () => {
@@ -390,7 +390,7 @@ describe('Attestations Service', async () => {
       reproducibilityAttestationVersion = versions[versions.length - 1];
 
       // add to community entry
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: reproducibilityAttestation.id,
         attestationVersion: reproducibilityAttestationVersion.id,
@@ -398,7 +398,7 @@ describe('Attestations Service', async () => {
 
       versions = await attestationService.getAttestationVersions(openDataAttestation.id);
       openDataAttestationVersion = versions[versions.length - 1];
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: openDataAttestation.id,
         attestationVersion: openDataAttestationVersion.id,
@@ -426,7 +426,7 @@ describe('Attestations Service', async () => {
 
     after(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     it('should claim all entry requirements to community radar', async () => {
@@ -493,7 +493,7 @@ describe('Attestations Service', async () => {
       reproducibilityAttestationVersion = versions[versions.length - 1];
 
       // add to community entry
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: reproducibilityAttestation.id,
         attestationVersion: reproducibilityAttestationVersion.id,
@@ -501,7 +501,7 @@ describe('Attestations Service', async () => {
 
       versions = await attestationService.getAttestationVersions(openDataAttestation.id);
       openDataAttestationVersion = versions[versions.length - 1];
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: openDataAttestation.id,
         attestationVersion: openDataAttestationVersion.id,
@@ -524,7 +524,7 @@ describe('Attestations Service', async () => {
 
     after(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     it('should claim all entry requirements to community radar', async () => {
@@ -614,7 +614,7 @@ describe('Attestations Service', async () => {
       });
 
       // add to community entry list
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: reproducibilityAttestation.id,
         attestationVersion: attestationVersion.id,
@@ -623,7 +623,7 @@ describe('Attestations Service', async () => {
 
     after(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     it('should unclaim an attestation from a node', async () => {
@@ -895,7 +895,7 @@ describe('Attestations Service', async () => {
       reproducibilityAttestationVersion = versions[versions.length - 1];
 
       // add to community entry
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: reproducibilityAttestation.id,
         attestationVersion: reproducibilityAttestationVersion.id,
@@ -903,7 +903,7 @@ describe('Attestations Service', async () => {
 
       versions = await attestationService.getAttestationVersions(openDataAttestation.id);
       openDataAttestationVersion = versions[versions.length - 1];
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: openDataAttestation.id,
         attestationVersion: openDataAttestationVersion.id,
@@ -967,7 +967,7 @@ describe('Attestations Service', async () => {
 
     after(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     it('should return curated community nodes', async () => {
@@ -1037,7 +1037,7 @@ describe('Attestations Service', async () => {
       reproducibilityAttestationVersion = versions[versions.length - 1];
 
       // add to community entry
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: reproducibilityAttestation.id,
         attestationVersion: reproducibilityAttestationVersion.id,
@@ -1045,7 +1045,7 @@ describe('Attestations Service', async () => {
 
       versions = await attestationService.getAttestationVersions(openDataAttestation.id);
       openDataAttestationVersion = versions[versions.length - 1];
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: openDataAttestation.id,
         attestationVersion: openDataAttestationVersion.id,
@@ -1127,7 +1127,7 @@ describe('Attestations Service', async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     it('should curate all node impressions across all attestations', async () => {
@@ -1173,7 +1173,7 @@ describe('Attestations Service', async () => {
       localReproducibilityAttestationVersion = versions[versions.length - 1];
 
       // add to community entry
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: reproducibilityAttestation.id,
         attestationVersion: reproducibilityAttestationVersion.id,
@@ -1181,14 +1181,14 @@ describe('Attestations Service', async () => {
 
       versions = await attestationService.getAttestationVersions(openDataAttestation.id);
       openDataAttestationVersion = versions[versions.length - 1];
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: openDataAttestation.id,
         attestationVersion: openDataAttestationVersion.id,
       });
 
       // add to local community entry
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: localCommunity.id,
         attestationId: LocalReproducibilityAttestation.id,
         attestationVersion: localReproducibilityAttestationVersion.id,
@@ -1314,7 +1314,7 @@ describe('Attestations Service', async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     it('should return all node engagement signal across all attestations in a community', async () => {
@@ -1467,7 +1467,7 @@ describe('Attestations Service', async () => {
       let versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
       reproducibilityAttestationVersion = versions[versions.length - 1];
       // add to community entry
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: reproducibilityAttestation.id,
         attestationVersion: reproducibilityAttestationVersion.id,
@@ -1475,7 +1475,7 @@ describe('Attestations Service', async () => {
 
       versions = await attestationService.getAttestationVersions(openDataAttestation.id);
       openDataAttestationVersion = versions[versions.length - 1];
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: openDataAttestation.id,
         attestationVersion: openDataAttestationVersion.id,
@@ -1571,7 +1571,7 @@ describe('Attestations Service', async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     it('should return nodes in radar in ASC order of verified engagements', async () => {
@@ -1760,7 +1760,7 @@ describe('Attestations Service', async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationReaction" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     it.skip('should list all attestation Recommendations', async () => {
