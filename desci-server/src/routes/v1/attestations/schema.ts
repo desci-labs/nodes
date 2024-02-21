@@ -29,7 +29,24 @@ export const getAttestationVerificationsSchema = z.object({
 
 export const getAttestationCommentsSchema = z.object({
   params: z.object({
-    attestationId: z.coerce.number(),
-    attestationVersionId: z.coerce.number(),
+    claimId: z.coerce.number(),
+  }),
+});
+
+export const createCommentSchema = z.object({
+  body: z.object({
+    authorId: z.coerce.number(),
+    claimId: z.coerce.number(),
+    body: z.string(),
+  }),
+});
+
+export const createAnnotationSchema = z.object({
+  body: z.object({
+    authorId: z.coerce.number(),
+    claimId: z.coerce.number(),
+    body: z.coerce.number(),
+    // todo: define highlight shape
+    highlight: z.object({}).optional(),
   }),
 });
