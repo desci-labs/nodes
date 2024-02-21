@@ -31,9 +31,10 @@ export const codexPublish = async (
   prepublishResult: PrepublishResponse,
   dpidHistory: IndexedNodeVersion[],
 ): Promise<NodeIDs> => {
-  console.log("[DEBUG]::CODEX starting publish...");
+  console.log(`[DEBUG]::CODEX starting publish with node ${CERAMIC_NODE_URL}...`);
   const ceramic = await authenticatedCeramicClient(
-    PUBLISH_PKEY.startsWith("0x") ? PUBLISH_PKEY.slice(2) : PUBLISH_PKEY
+    PUBLISH_PKEY.startsWith("0x") ? PUBLISH_PKEY.slice(2) : PUBLISH_PKEY,
+    CERAMIC_NODE_URL,
   );
   const compose = newComposeClient({ ceramic });
 
