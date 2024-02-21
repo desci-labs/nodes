@@ -1,6 +1,8 @@
 # Nodes integration library
 This package allows programmatic interaction with the backend of [DeSci Nodes](https://nodes.desci.com), simplifying creation of research publications by abstracting away a lot of low level detail. In particular, constructing correctly formatted manifest files and handling pinning.
 
+> **Note**
+> If you are just eager to get started, do heed the instructions under the Configuration section first.
 
 ## Core concepts
 Some terms are regularly referred to in the code documentation. When programmatically creating nodes, it's important to understand what these things are for the end results to make sense. The corresponding types for these data structures are available in [desci-models](https://github.com/desci-labs/nodes/blob/develop/desci-models/src/ResearchObject.ts).
@@ -11,7 +13,7 @@ either directly through constant fields, or indirectly through IPLD or web links
 
 Here is an example manifest file, we'll go through it piece by piece.
 ```json
-manifest: {
+{
   "version": "desci-nodes-0.2.0",
   "components": [
     {
@@ -69,9 +71,9 @@ The other top-level fields contain a human-readable title, simple metadata about
 
 ## Usage
 ### Configuration
-Copy `.env.example` from this repo to `.env`, and configure the values depending on which environment is being targeted. If installing `nodes-lib` through NPM, set these variables in your host project environment instead. Ensure NODES_API_KEY is set.
+Copy `.env.example` from this repo to `.env`, and configure the values depending on which environment is being targeted. If installing `nodes-lib` through NPM, set these variables in your host project environment instead.
 
-Some variables have different values depending on environment, re-set them as necessary. Devcluster refers to the docker-compose cluster defined in the root of this repository, which can be started with `./dockerDev.sh`. See further instructions in the [repo root docs](../README.md).
+Some variables have different values depending on environment, re-set them as necessary. A detailed read of the `.env.example` file will be helpful. "Devcluster" refers to the docker-compose cluster defined in the root of this repository, which can be started with `./dockerDev.sh`. See further instructions in the [repo root docs](../README.md).
 
 ### Drafts
 A node that's being modified is always in a "draft" state, meaning that the changes are not public. They only become public when the node is published, after which it's possible to view without being authenticated. When new changes are made from this point, they are not publicly available until publish is done again.
@@ -81,10 +83,11 @@ Manifests cannot be submitted "whole", as the state of draft manifests are maint
 ### Authentication
 Most functions ineracting with the Nodes backend require authentication, as they work on your private draft node. You can create an API key under your profile at [nodes.desci.com](https://nodes.desci.com). Set this as `AUTH_TOKEN` in your environment.
 
-Publishing to the dPID registry and/or Codex requires a private key. Publishing is done in-library and is not sent to the Nodes backend. Set the environment variable `NODES_LIB_PUBLISH_PKEY` and it will be used in interaction with the dPID registry on-chain, and as your DID in the Codex/Ceramic case.
+Publishing to the dPID registry and/or Codex requires a private key. Publishing is done in-library and is not sent to the Nodes backend. Set the environment variable `PUBLISH_PKEY` and it will be used in interaction with the dPID registry on-chain, and as your DID in the Codex/Ceramic case.
 
-### Summarized API
+### Documentation
 This section outlines the major functionality the library provides. It's not a complete rundown of all capabilities, but should be enough to get some inutition for the workflow.
+More detailed docs generated from the code is available in [docs](./docs/index.html)!
 
 #### Node operations
 - `createDraftNode`: initializes a new, empty, private node.

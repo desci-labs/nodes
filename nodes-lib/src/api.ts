@@ -1,5 +1,7 @@
 import axios, {
   AxiosError,
+  AxiosHeaders,
+  AxiosRequestConfig,
   type AxiosResponse
 } from "axios";
 import {
@@ -51,17 +53,27 @@ const ROUTES = {
   dpidHistory: `${NODES_API_URL}/v1/pub/versions`,
 } as const;
 
+/**
+ * Required parameters for creating a new draft node
+*/
 export type CreateDraftParams = {
+  /** Human-readable title of the node */
   title: string,
-  // Some desci-server code expects these arrays to exist
+  /** Must be included for backward compatibility */
   links: {
     pdf: string[],
     metadata: string[],
   },
+  /** The license that should apply to the content of the node */
   defaultLicense: License,
+  /** Research fields the node is associated with */
   researchFields: ResearchField[],
 };
 
+/**
+ * Nodes backend response after creating a draft, containing information
+ * about the state of the draft node.
+*/
 export type CreateDraftResponse = {
   ok: boolean,
   hash: string,
@@ -71,6 +83,11 @@ export type CreateDraftResponse = {
   documentId: string,
 };
 
+/**
+ * Create a new draft node, an empty base for further interaction. A draft
+ * is the target of iterative file uploads, changes to metadata, etc and
+ * remains private until the next call to `publishDraftNode`.
+*/
 export const createDraftNode = async (
   params: Omit<CreateDraftParams, "links">,
 ): Promise<CreateDraftResponse> => {
@@ -88,6 +105,9 @@ export const createDraftNode = async (
   return data;
 };
 
+/**
+ * Information returned when listing user nodes, published and private drafts.
+*/
 export type ListedNode = {
   uuid: string,
   id: string,
@@ -103,7 +123,7 @@ export type ListedNode = {
 };
 
 /**
- * List nodes for the authenticated user.
+ * List all nodes for the authenticated user.
 */
 export const listNodes = async (
 ): Promise<ListedNode[]> => {
@@ -123,6 +143,13 @@ export const deleteDraftNode = async (
   );
 };
 
+/**
+ * Full state of a draft node as the backend is aware.
+ *
+ * Note that the data drive in the manifest, and hence
+ * the manifest CID, may not reflect the actual drive state
+ * until the node is published (or `prePublishDraftNode` is called).
+*/
 export type NodeResponse = {
   id: number,
   createdAt: string,
@@ -142,6 +169,9 @@ export type NodeResponse = {
   ceramicStream?: string,
 };
 
+/**
+ * Get the state of a draft node.
+*/
 export const getDraftNode = async (
   uuid: string,
 ): Promise<NodeResponse> => {
@@ -153,6 +183,9 @@ export const getDraftNode = async (
   return data;
 };
 
+/**
+ * dPID publish history entry for a node.
+*/
 type NodeVersion = {
     id: number;
     manifestUrl: string;
@@ -161,6 +194,10 @@ type NodeVersion = {
     nodeId: number | null;
 };
 
+/**
+ * Response from prepublishing a node, containing the drive CID
+ * computed from draft state.
+*/
 export type PrepublishResponse = {
     ok: boolean;
     updatedManifestCid: string;
@@ -199,12 +236,21 @@ type PublishParams = {
   ceramicStream?: string,
 };
 
+/** Result of publishing a draft node */
 export type PublishResponse = {
+  /** Publish status */
   ok: boolean,
+  /** The new manifest CID, which could have changed from adding the dPID */
   updatedManifestCid: string,
+  /** Ceramic stream and commit IDs from publishing to Codex */
   ceramicIDs?: NodeIDs,
 };
 
+/**
+ * Publish a draft node, meaning to compile the state of the drive into an
+ * actual IPLD DAG, make the IPFS CIDs public, and register the node on
+ * the dPID registry and Codex.
+*/
 export const publishDraftNode = async (
   uuid: string,
 ): Promise<PublishResponse> => {
@@ -238,16 +284,26 @@ export const publishDraftNode = async (
   };
 };
 
+/** Parameters required for deleting a drive entry */
 export type DeleteDataParams = {
+  /** The node to delete from */
   uuid: string,
+  /** (absolute) drive path to delete. Can be a directory. */
   path: string,
 };
 
+/** Response from a delete operation, where components may have been removed */
 export type DeleteDataResponse = {
+  /** The new state of the manifest */
   manifest: ResearchObjectV1;
+  /** New CID of the manifest */
   manifestCid: string;
 };
 
+/**
+ * Delete a file or directory from the drive. This also removes related
+ * component entries in the manifest.
+*/
 export const deleteData = async (
   params: DeleteDataParams,
 ) => {
@@ -263,17 +319,26 @@ export const deleteData = async (
   return data;
 };
 
+/** Parameters required for moving data in the drive */
 export type MoveDataParams = {
+  /** The node to move data in */
   uuid: string,
+  /** The path of the data to move */
   oldPath: string,
+  /** The new location of the data */
   newPath: string,
 };
 
+/** Response from a move operation, where components may have been updated */
 export type MoveDataResponse = {
   manifest: ResearchObjectV1,
   manifestCid: string,
 };
 
+/**
+ * Move a file or directory inside the drive. This will also update related
+ * components associated with the paths.
+*/
 export const moveData = async (
   params: MoveDataParams,
 ) => {
@@ -290,12 +355,21 @@ export const moveData = async (
   return data;
 };
 
+/** Response from retrieving the state of the drive tree */
 export type RetrieveResponse = {
+  /** Status code of the retrieval */
   status?: number;
+  /** Recursive structure describing the drive state */
   tree: DriveObject[];
+  /** The timestamp of latest drive change */
   date: string;
 };
 
+/**
+ * Get the state of the drive tree of a draft node.
+ *
+ * Note this may be different from the published version.
+*/
 export const retrieveDraftFileTree = async (
   uuid: string,
 ) => {
@@ -306,19 +380,31 @@ export const retrieveDraftFileTree = async (
   return data;
 };
 
+/** Parameters required for creating a new directory in the drive */
 export type CreateFolderParams = {
+  /** The node to create a new folder in */
   uuid: string,
+  /** The location of the new folder (UNIX `dirname`) */
   locationPath: string,
+  /** The name of the new folder (UNIX `basename`) */
   folderName: string,
 };
 
+/** Response from creating a new directory */
 export type CreateFolderResponse = {
+  /** The new state of the manifest */
   manifest: ResearchObjectV1,
+  /** The new manifest CID */
   manifestCid: string,
+  /** The new state of the drive tree */
   tree: DriveObject[],
+  /** Timestamp of the change */
   date: string,
 };
 
+/**
+ * Create a new, empty directory in the node drive tree.
+*/
 export const createNewFolder = async (
   params: CreateFolderParams,
 ) => {
@@ -334,9 +420,9 @@ export const createNewFolder = async (
   return data;
 };
 
-/** Params needed to upload a set of files */
+/** Parameters required to upload a set of files */
 export type UploadParams = {
-  /** ID of target node */
+  /** The node to upload files to */
   uuid: string,
   /**
    * Absolute path to target location in drive.
@@ -347,13 +433,26 @@ export type UploadParams = {
   localFilePaths: string[],
 };
 
+/**
+ * Response from uploading files
+*/
 export type UploadFilesResponse = {
+  /** The new state of the manifest */
   manifest: ResearchObjectV1,
+  /** The new manifest CID */
   manifestCid: string,
+  /** The new state of the drive tree */
   tree: DriveObject[],
+  /** Timestamp of the change */
   date: string,
 };
 
+/**
+ * Upload a set of files to the node drive.
+ *
+ * Note that these do not become public until `publishDraftNode` has been
+ * called, even if the node has previously been published.
+*/
 export const uploadFiles = async (
   params: UploadParams,
 ): Promise<UploadFilesResponse> => {
@@ -374,13 +473,13 @@ export const uploadFiles = async (
   return data;
 };
 
-/** Upload an externally hosted PDF file */
+/** Parameters required for uploading an externally hosted PDF file */
 export type UploadPdfFromUrlParams = {
-  /** ID of target node */
+  /** The node to uppload the document to */
   uuid: string,
   /** Web URL to the target document, and its filename */
   externalUrl: ExternalUrl,
-  /** Target path in the drive (folders must exist beforehand) */
+  /** Target path in the drive (folders must already exist) */
   targetPath: string,
   /** What type of document the target file is */
   componentSubtype: ResearchObjectComponentDocumentSubtype,
@@ -393,13 +492,13 @@ export type UploadPdfFromUrlParams = {
 export type ExternalUrl = {
   /** Web URL to the target resource */
   url: string,
-  /** Name of the file or code repo */
+  /** **Name** of the file or code repo (not the full path) */
   path: string,
 };
 
 /**
  * Upload a PDF hosted elsewhere. Backend automatically creates a matching
- * component which allows setting metadata.
+ * component for attaching metadata.
 */
 export const uploadPdfFromUrl = async (
   params: UploadPdfFromUrlParams,
@@ -414,11 +513,12 @@ export const uploadPdfFromUrl = async (
   const { data } = await axios.post<UploadFilesResponse>(
     ROUTES.updateData, form, { headers: getHeaders(true)}
   );
-  return data
+  return data;
 }
 
+/** Parameters required for uploading an external GitHub code repository */
 export type UploadGithubRepoFromUrlParams = {
-  /** ID of target node */
+  /** The node to upload the repo to */
   uuid: string,
   /** Web URL to the target repo, and its name */
   externalUrl: ExternalUrl,
@@ -428,6 +528,10 @@ export type UploadGithubRepoFromUrlParams = {
   componentSubtype: ResearchObjectComponentCodeSubtype,
 };
 
+/**
+ * Clone an entire GitHub repository to the node, effectively creating
+ * an immutable copy of it.
+*/
 export const uploadGithubRepoFromUrl = async (
   params: UploadGithubRepoFromUrlParams,
 ): Promise<UploadFilesResponse> => {
@@ -444,17 +548,24 @@ export const uploadGithubRepoFromUrl = async (
   return data;
 };
 
+/** Parameters requried for adding an externally pinned file or UnixFS tree */
 export type AddExternalTreeParams = {
+  /** The node to add the data to */
   uuid: string,
+  /** Which external CIDs to include, and their associated names in the drive */
   externalCids: { name: string, cid: string }[],
+  /** The absolute path in the drive where the entries should be */
   targetPath: string,
+  /** The type of the imported data */
   componentType: ResearchObjectComponentType,
+  /** The subtype of the imported data */
   componentSubtype: ResearchObjectComponentSubtypes,
 };
 
 /**
- * Add a publicly available UnixFS tree to the drive, without uploading
- * the content.
+ * Add a publicly available file or UnixFS tree CID to the drive, without
+ * the content. This data will not be pinned by the Nodes backend, and
+ * it's availability depends on other pinners.
 */
 export const addExternalUnixFsTree = async (
   params: AddExternalTreeParams,
@@ -491,6 +602,9 @@ export type IndexedNode = {
   versions: IndexedNodeVersion[];
 };
 
+/**
+ * The the dPID publish history for a node.
+*/
 export const getDpidHistory = async (
   uuid: string,
 ): Promise<IndexedNodeVersion[]> => {
@@ -501,16 +615,26 @@ export const getDpidHistory = async (
   return data.versions;
 };
 
+/** Parameters requried for changing the manifest */
 export type ChangeManifestParams = {
+  /** The node to change the manifest of */
   uuid: string,
+  /** One or more actions to perform */
   actions: ManifestActions[],
 };
 
+/** Response from a manifest change request */
 export type ManifestDocumentResponse = {
+  /** The (internal) automerge ID of the manifest */
   documentId: string,
+  /** The state of the manifest document */
   document: ResearchObjectDocument,
 };
 
+/**
+ * Get the raw state of the node manifest. To support multiple clients, the
+ * Nodes backend represents it as an automerge document and not raw JSON.
+*/
 const getManifestDocument = async (
   uuid: string,
 ): Promise<ManifestDocumentResponse> => {
@@ -613,6 +737,9 @@ export type AddLinkComponentParams = {
   starred: boolean,
 };
 
+/**
+ * Add an external link to the node.
+*/
 export const addLinkComponent = async (
   uuid: string,
   params: AddLinkComponentParams,
@@ -648,6 +775,10 @@ export type AddPdfComponentParams = {
   starred: boolean,
 };
 
+/**
+ * Add a PDF component to the manifest, allowing setting metadata on a
+ * PDF file added to the drive.
+*/
 export const addPdfComponent = async (
   uuid: string,
   params: AddPdfComponentParams,
@@ -707,48 +838,56 @@ export const addCodeComponent = async (
   return await addRawComponent(uuid, fullParams);
 };
 
+/** Delete a component from the manifest */
 export const deleteComponent = async (
   uuid: string,
   path: string,
 ): Promise<ManifestDocumentResponse> => await changeManifest(
   uuid, [{ type: "Delete Component", path: makeAbsolutePath(path)}]);
 
+/** Update the node title */
 export const updateTitle = async (
   uuid: string,
   title: string,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Update Title", title }]);
 
+/** Update the node description */
 export const updateDescription = async (
   uuid: string,
   description: string,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Update Description", description }]);
 
+ /** Update the default license of the node */
 export const updateLicense = async (
   uuid: string,
   license: License,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Update License", defaultLicense: license }]);
 
+/** Update the research fields of the node */
 export const updateResearchFields = async (
   uuid: string,
   researchFields: ResearchField[],
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Update ResearchFields", researchFields }]);
 
+/** Add a contributor to the node */
 export const addContributor = async (
   uuid: string,
   author: ResearchObjectV1Author,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Add Contributor", author }]);
 
+/** Remove a contributor from the node */
 export const removeContributor = async (
   uuid: string,
   contributorIndex: number,
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Remove Contributor", contributorIndex }]);
 
+/** Set or unset the cover image of the node */
 export const updateCoverImage = async (
   uuid: string,
   cid: string | undefined,
@@ -763,6 +902,10 @@ const getHeaders = (isFormData: boolean = false) => {
   return headers;
 };
 
+/**
+ * Best-effort way of ensuring reasonable representations of absolute paths
+ * gets wrangled into the `root/`-prefixed string the API's/manifest expect.
+*/
 const makeAbsolutePath = (path: string) => {
   // Sensible definitions of root
   if (!path || path === "root" || path === "root/") return "root";
