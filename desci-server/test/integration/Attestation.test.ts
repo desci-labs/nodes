@@ -1848,7 +1848,7 @@ describe('Attestations Service', async () => {
       reproducibilityAttestationVersion = versions[versions.length - 1];
 
       // add to community entry
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: reproducibilityAttestation.id,
         attestationVersion: reproducibilityAttestationVersion.id,
@@ -1856,7 +1856,7 @@ describe('Attestations Service', async () => {
 
       versions = await attestationService.getAttestationVersions(openDataAttestation.id);
       openDataAttestationVersion = versions[versions.length - 1];
-      await attestationService.addCommunitySelectedAttestation({
+      await attestationService.addCommunityEntryAttestation({
         communityId: desciCommunity.id,
         attestationId: openDataAttestation.id,
         attestationVersion: openDataAttestationVersion.id,
