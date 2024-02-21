@@ -13,13 +13,11 @@ export enum AuthMethods {
 }
 
 export const ensureUser = async (req: ExpressRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
-  const apiKeyHeader = req.headers['api-key'];
-
-  const token = authHeader ? await extractAuthToken(req) : undefined;
-  const apiKey = apiKeyHeader ? await await extractApiKey(req) : undefined;
-  const authTokenRetrieval = authHeader ? await extractUserFromToken(token) : undefined;
-  const apiKeyRetrieval = apiKeyHeader ? await extractUserFromApiKey(apiKey, req.ip) : undefined;
+  debugger;
+  const token = await extractAuthToken(req);
+  const apiKey = await extractApiKey(req);
+  const authTokenRetrieval = await extractUserFromToken(token);
+  const apiKeyRetrieval = await extractUserFromApiKey(apiKey, req.ip);
 
   const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
 

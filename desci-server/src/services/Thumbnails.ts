@@ -54,6 +54,7 @@ export class ThumbnailsService {
     //     map[key] = comp;
     //     return map;
     //   }, {});
+    if (!fileComponents) return {};
 
     const thumbnailsToGenerate: Record<CidString, FileName> = fileComponents?.reduce((map, comp) => {
       const fileName = comp.payload.path.split('/').pop();
@@ -65,7 +66,7 @@ export class ThumbnailsService {
     const thumbnailMap: ThumbnailMap = {};
     // Check which thumbnails already exist
     const existingThumbnailsFound = await prisma.nodeThumbnails.findMany({
-      where: { componentCid: { in: fileComponentCids } },
+      where: { componentCid: { in: fileComponentCids }, nodeUuid: ensureUuidEndsWithDot(uuid) },
     });
     // Check if the desired sizes exist, otherwise add to the generation array
     for (const thumbnail of existingThumbnailsFound) {
