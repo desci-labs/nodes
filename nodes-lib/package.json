@@ -1,0 +1,47 @@
+{
+  "name": "@desci-labs/nodes-lib",
+  "version": "0.0.1",
+  "homepage": "https://github.com/desci-labs/nodes#readme",
+  "description": "Stand-alone client library for interacting with desci-server",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/desci-labs/nodes.git"
+  },
+  "author": "Edvard Hübinette",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/desci-labs/nodes/issues"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "/dist",
+    "/.env.example"
+  ],
+  "scripts": {
+    "build": "rm -r dist; tsc --project tsconfig.build.json",
+    "doPublish": "npm run build && npm publish --access public --dry-run",
+    "test": "vitest --run --config vitest.config.ts",
+    "test:debug": "npm run test -- --inspect-brk --no-file-parallelism --test-timeout 99999999"
+  },
+  "dependencies": {
+    "@desci-labs/desci-codex-lib": "^1.0.5",
+    "@desci-labs/desci-models": "^0.2.3-rc1",
+    "axios": "^1.6.5",
+    "dotenv": "^16.4.4",
+    "ethers": "^5.7.2",
+    "form-data": "^4.0.0",
+    "mime-types": "^2.1.35",
+    "multiformats": "^13.0.1",
+    "url-safe-base64": "^1.3.0"
+  },
+  "devDependencies": {
+    "@desci-labs/desci-contracts": "^0.2.0-rc1",
+    "@types/mime-types": "^2.1.4",
+    "@types/node": "^20.11.5",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.1",
+    "vitest-github-actions-reporter": "^0.11.1"
+  }
+}
