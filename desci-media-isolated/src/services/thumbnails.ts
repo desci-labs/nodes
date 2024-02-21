@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 const BASE_TEMP_DIR = path.resolve(__dirname, '../..', TEMP_DIR);
 
 export class ThumbnailsService {
-  static async generateThumbnail(cid: string, fileName: string) {
+  static async generateThumbnail(cid: string, fileName: string, heightPx: number) {
     const extension = '.' + fileName.split('.').pop();
     if (!extension) throw new BadRequestError('Invalid file name, requires extension');
     const tempFilePath = path.join(BASE_TEMP_DIR, THUMBNAIL_FILES_DIR, `${cid + extension}`);
@@ -26,7 +26,7 @@ export class ThumbnailsService {
 
     await IpfsService.saveFile(cid, tempFilePath);
     try {
-      await generateAsync(tempFilePath, exportPath, { ...THUMBNAIL_DIMENSIONS });
+      await generateAsync(tempFilePath, exportPath, { ...THUMBNAIL_DIMENSIONS, height: heightPx });
       console.log('Thumbnail generated successfully:', exportPath);
       return thumbnailPath;
     } catch (e) {

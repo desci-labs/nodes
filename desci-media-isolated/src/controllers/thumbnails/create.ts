@@ -15,13 +15,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const BASE_TEMP_DIR = path.resolve(__dirname, '../../..', TEMP_DIR);
 
-export const generateThumbnail = async (req: Request<any, any, GenerateThumbnailRequestBody>, res: Response) => {
+export const generateThumbnail = async (
+  req: Request<any, any, GenerateThumbnailRequestBody, { height: number }>,
+  res: Response,
+) => {
   const { cid, fileName } = req.body;
+  const { height = 300 } = req.query;
   if (!cid) throw new BadRequestError('Missing cid in request body');
   if (!fileName) throw new BadRequestError('Missing fileName in request body');
 
   try {
-    const thumbnailPath = await ThumbnailsService.generateThumbnail(cid, fileName);
+    const thumbnailPath = await ThumbnailsService.generateThumbnail(cid, fileName, height);
     const fullThumbnailPath = path.join(BASE_TEMP_DIR, THUMBNAIL_OUTPUT_DIR, thumbnailPath);
 
     // Check if the file exists before attempting to stream it
