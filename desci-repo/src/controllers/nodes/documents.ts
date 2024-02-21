@@ -4,12 +4,13 @@ import { logger } from '../../logger.js';
 import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import { RequestWithNode } from '../../middleware/guard.js';
 import { backendRepo } from '../../repo.js';
-import { ManifestActions, getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
+import { getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
 import { findNodeByUuid, query } from '../../db/index.js';
 import { Doc } from '@automerge/automerge';
 import { ZodError } from 'zod';
 import { actionsSchema } from '../../validators/schema.js';
 import { ensureUuidEndsWithDot } from './utils.js';
+import { ManifestActions } from '@desci-labs/desci-models';
 
 export const createNodeDocument = async function (req: Request, res: Response) {
   logger.info('START [CreateNodeDocument]', req.body, req.params);
