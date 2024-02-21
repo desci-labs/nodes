@@ -78,7 +78,7 @@ export class CommunityService {
    * It uses left outer joins to include all records from the "NodeAttestation" table,
    * even if there are no related records in the other tables. The WHERE clause filters
    * the results based on the "desciCommunityId" column.
-   * The EXISTS subquery checks if there is a matching record in the "CommunitySelectedAttestation" table based on certain conditions.
+   * The EXISTS subquery checks if there is a matching record in the "communityEntryAttestation" table based on certain conditions.
    * Finally, t he results are grouped by the "id" column of the "NodeAttestation" table.
    * @param communityId
    * @returns
@@ -98,7 +98,7 @@ export class CommunityService {
         AND
         EXISTS
       (SELECT *
-        from "CommunitySelectedAttestation" c1
+        from "communityEntryAttestation" c1
         where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = t1."desciCommunityId")
         GROUP BY
   		t1.id

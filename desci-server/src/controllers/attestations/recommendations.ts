@@ -34,6 +34,7 @@ export const getCommunityRecommendations = async (req: Request, res: Response, _
     const key2 = c2.verifications + c2.annotations + c2.reactions;
     return key2 - key1;
   });
+  logger.info({ attestations });
 
   logger.info({ attestations: attestations.length, communityName }, 'GetCommunityRecommendations');
   return new SuccessResponse(attestations).send(res);

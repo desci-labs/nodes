@@ -1,4 +1,4 @@
-import { CommunitySelectedAttestation } from '@prisma/client';
+import { CommunityEntryAttestation } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
@@ -90,7 +90,7 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
       claimerId,
     });
     return { ...attestation, claimable };
-  })) as (CommunitySelectedAttestation & { claimable: boolean })[];
+  })) as (CommunityEntryAttestation & { claimable: boolean })[];
   logger.info({ claimables, communityId });
   console.log({ claimables });
 
