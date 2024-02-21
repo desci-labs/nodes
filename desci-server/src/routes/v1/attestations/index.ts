@@ -22,6 +22,7 @@ import {
 import { ensureUser } from '../../../middleware/permissions.js';
 
 import {
+  createCommentSchema,
   getAttestationCommentsSchema,
   getAttestationReactionsSchema,
   getAttestationVerificationsSchema,
@@ -46,22 +47,13 @@ router.get(
   [validate(getAttestationVerificationsSchema)],
   asyncHander(getAttestationVerifications),
 );
-router.get(
-  '/:attestationId/version/:attestationVersionId',
-  [validate(getAttestationCommentsSchema)],
-  asyncHander(getAttestationComments),
-);
-router.get(
-  '/:attestationId/version/:attestationVersionId/comments',
-  [validate(getAttestationCommentsSchema)],
-  getAttestationComments,
-);
+router.get('/:claimId/comments', [validate(getAttestationCommentsSchema)], asyncHander(getAttestationComments));
 
 router.post('/claim', [ensureUser], asyncHander(claimAttestation));
 router.post('/unclaim', [ensureUser], asyncHander(removeClaim));
 router.post('/claimAll', [ensureUser], asyncHander(claimEntryRequirements));
 
-router.post('/comment', [ensureUser], addComment);
+router.post('/comment', [ensureUser, validate(createCommentSchema)], asyncHander(addComment));
 router.post('/reaction', [ensureUser], asyncHander(addReaction));
 router.post('/verification', [ensureUser], asyncHander(addVerification));
 

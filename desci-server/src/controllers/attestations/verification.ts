@@ -84,7 +84,7 @@ export const getAttestationVerifications = async (req: Request, res: Response, n
   const verifications = await attestationService.getAllClaimVerfications(parseInt(claimId));
 
   const data = verifications.map((verification) => {
-    const author = _.pick(verification.user, ['name', 'orcid']);
+    const author = _.pick(verification.user, ['id', 'name', 'orcid']);
     return { ...verification, authorId: verification.userId, userId: undefined, user: undefined, author };
   });
 

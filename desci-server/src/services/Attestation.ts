@@ -513,7 +513,14 @@ export class AttestationService {
   async getAllClaimComments(filter: Prisma.AnnotationWhereInput) {
     return prisma.annotation.findMany({
       where: filter,
-      include: { author: true, attestation: { include: { attestationVersion: true } } },
+      include: {
+        author: true,
+        attestation: {
+          include: {
+            attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },
+          },
+        },
+      },
     });
   }
 
