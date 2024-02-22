@@ -78,7 +78,8 @@ export class CommunityService {
    * It uses left outer joins to include all records from the "NodeAttestation" table,
    * even if there are no related records in the other tables. The WHERE clause filters
    * the results based on the "desciCommunityId" column.
-   * The EXISTS subquery checks if there is a matching record in the "CommunityEntryAttestation" table based on certain conditions.
+   * The EXISTS subquery checks if there is a matching record in the "CommunityEntryAttestation" table based on
+   * the "NodeAttestation.attestationId", "NodeAttestation.attestationVersionId", "NodeAttestation.desciCommunityId"
    * Finally, t he results are grouped by the "id" column of the "NodeAttestation" table.
    * @param communityId
    * @returns
@@ -104,7 +105,6 @@ export class CommunityService {
   		t1.id
     `) as CommunityRadarNode[];
 
-    // console.log({ selectedClaims });
     const radar = _(selectedClaims)
       .groupBy((x) => x.nodeDpid10)
       .map((value: CommunityRadarNode[], key: string) => ({
@@ -117,6 +117,12 @@ export class CommunityService {
     return radar;
   }
 
+  /**
+   * This methods takes the result of getCommunityRadar and
+   * filter out entries(nodes) whose NodeAttestations don't have atleast on verification
+   * @param communityId
+   * @returns Array<{ NodeAttestation: CommunityRadarNode[]; nodeDpid10: string; nodeuuid: string; }>
+   */
   async getCuratedNodes(communityId: number) {
     const nodesOnRadar = await this.getCommunityRadar(communityId);
     const curated = nodesOnRadar.filter((node) =>
@@ -140,7 +146,6 @@ export class CommunityService {
   		t1.id
     `) as CommunityRadarNode[];
 
-    // console.log({ claims });
     const groupedEngagements = claims.reduce(
       (total, claim) => ({
         reactions: total.reactions + claim.reactions,
@@ -149,7 +154,7 @@ export class CommunityService {
       }),
       { reactions: 0, annotations: 0, verifications: 0 },
     );
-    // console.log({ groupedEngagements });
+
     return groupedEngagements;
   }
 

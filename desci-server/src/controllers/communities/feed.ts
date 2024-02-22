@@ -67,11 +67,20 @@ export const getAllFeeds = async (req: Request, res: Response, next: NextFunctio
 
   logger.info({ nodes }, 'CHECK Verification SignalS');
   let data = await Promise.all(nodes.map(resolveLatestNode));
-  // data = data.sort((c1, c2) => c1.engagements.verifications - c2.engagements.verifications);
-  data = data.sort((c1, c2) => {
-    const key1 = c1.engagements.verifications + c1.engagements.annotations + c1.engagements.reactions;
-    const key2 = c2.engagements.verifications + c2.engagements.annotations + c2.engagements.reactions;
-    return key2 - key1;
+
+  /**
+   * Sort based on engagment metrics/signal (nodes with higher metrics should come first)
+   * or
+   * fallback to last submission/attestation claim date
+   */
+  data = data.sort((entryA, entryB) => {
+    const key1 = entryA.engagements.verifications + entryA.engagements.annotations + entryA.engagements.reactions;
+    const key2 = entryB.engagements.verifications + entryB.engagements.annotations + entryB.engagements.reactions;
+    if (key1 !== key2) return key2 - key1;
+
+    const entryALastClaimedAt = new Date(entryA.NodeAttestation[entryA.NodeAttestation.length - 1].claimedAt).getTime();
+    const entryBlastClaimedAt = new Date(entryB.NodeAttestation[entryB.NodeAttestation.length - 1].claimedAt).getTime();
+    return entryBlastClaimedAt - entryALastClaimedAt;
   });
 
   return new SuccessResponse(data).send(res);
