@@ -7,9 +7,10 @@ import { IpfsConfigurationError } from '../utils/customErrors.js';
 export class IpfsService {
   static async saveFile(cid: string, outputPath: string) {
     if (!IPFS_GATEWAY) {
+      console.log('IPFS_GATEWAY:', IPFS_GATEWAY);
       throw new IpfsConfigurationError('process.env.IPFS_GATEWAY is not defined in environment variables');
     }
-
+    debugger;
     const url = `${IPFS_GATEWAY}/${cid}`;
 
     try {
@@ -17,6 +18,7 @@ export class IpfsService {
         method: 'get',
         url: url,
         responseType: 'stream',
+        timeout: 60000,
       });
 
       await pipeline(response.data, fs.createWriteStream(outputPath));

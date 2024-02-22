@@ -10,6 +10,8 @@ const THUMBNAIL_DIMENSIONS = {
   // width: 220,
   height: 300,
   keepAspect: true,
+  quality: '100',
+  background: 'white',
 };
 
 const __filename = fileURLToPath(import.meta.url);
