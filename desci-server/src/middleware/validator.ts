@@ -11,7 +11,10 @@ export const validate = <T extends z.ZodRawShape>(schema: z.ZodObject<T>) =>
     } catch (err) {
       if (err instanceof ZodError) {
         console.log('Error', err);
-        throw new BadRequestError(err.errors.toString(), err.issues);
+        throw new BadRequestError(
+          err.errors.map((err) => err.message).join(','),
+          err.issues.map((err) => `${err.path[err.path.length - 1]}: ${err.message}`),
+        );
       }
       throw new InternalError(err.toString());
     }

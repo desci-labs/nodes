@@ -3,6 +3,7 @@ import _ from 'lodash';
 
 import {
   BadRequestError,
+  EMOJI_OPTIONS,
   ForbiddenError,
   NotFoundError,
   SuccessMessageResponse,
@@ -40,14 +41,11 @@ type AddReactionResponse = {
   error?: string;
 };
 
-const EMOJI_OPTIONS = ['U+2705', 'U+1F914', 'U+1F440'];
-
 export const addReaction = async (
   req: Request<any, any, AddReactionRequestBody>,
   res: Response<AddReactionResponse>,
 ) => {
   const logger = parentLogger.child({
-    // id: req.id,
     module: 'ATTESTATIONS::addReaction',
     user: (req as any).user,
     body: req.body,
@@ -57,34 +55,21 @@ export const addReaction = async (
   const user = (req as any).user;
 
   logger.trace(`addReaction`);
-  if (!claimId || !reaction) throw new BadRequestError('Claim ID and reaction are required');
-  // return res.status(400).send({ ok: false, error: 'Claim ID is required' });
-  // if (!reaction) return res.status(400).send({ ok: false, error: 'Reaction is required' });
 
-  if (!EMOJI_OPTIONS.includes(reaction)) throw new BadRequestError('Emoji not allowed');
-  await attestationService.createReaction({
+  const data = await attestationService.createReaction({
     claimId: parseInt(claimId),
     userId: user.id,
     reaction,
   });
-  return new SuccessMessageResponse().send(res);
+  new SuccessResponse(data).send(res);
 };
 
 type RemoveReactionBody = {
-  claimId: string;
   reactionId: string;
 };
 
-type RemoveReactionResponse = {
-  ok: boolean;
-  error?: string;
-};
-
-export const removeReaction = async (
-  req: Request<any, any, RemoveReactionBody>,
-  res: Response<RemoveReactionResponse>,
-) => {
-  const { claimId, reactionId } = req.body;
+export const removeReaction = async (req: Request<RemoveReactionBody, any, any>, res: Response) => {
+  const { reactionId } = req.params;
   const user = (req as any).user;
 
   const logger = parentLogger.child({
@@ -94,12 +79,14 @@ export const removeReaction = async (
     body: req.body,
   });
   logger.trace(`removeReaction`);
-  if (!claimId || !reactionId) throw new BadRequestError('ClaimId and reactionId are required');
+  // if (!claimId || !reactionId) throw new BadRequestError('ClaimId and reactionId are required');
 
   const reactionEntry = await attestationService.findReaction({ id: parseInt(reactionId) });
-  if (!reactionEntry) throw new NotFoundError('Reaction not found'); // return res.status(404).send({ ok: false, error: 'Reaction not found' });
   if (reactionEntry.authorId !== user.id) throw new ForbiddenError();
-
-  await attestationService.removeReaction(reactionEntry.id);
-  return new SuccessMessageResponse().send(res);
+  if (!reactionEntry) {
+    new SuccessMessageResponse().send(res); // throw new NotFoundError('Reaction not found'); // return res.status(404).send({ ok: false, error: 'Reaction not found' });
+  } else {
+    await attestationService.removeReaction(reactionEntry.id);
+    new SuccessMessageResponse().send(res);
+  }
 };

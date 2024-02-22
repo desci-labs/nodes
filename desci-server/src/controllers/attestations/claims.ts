@@ -18,7 +18,6 @@ import { RequestWithUser } from '../../middleware/authorisation.js';
 export const claimAttestation = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const body = req.body as {
     attestationId: number;
-    // attestationVersion: number;
     nodeVersion: number;
     nodeUuid: string;
     nodeDpid: string;
@@ -67,7 +66,6 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
 };
 
 export const claimEntryRequirements = async (req: Request, res: Response, _next: NextFunction) => {
-  // const { communityId } = req.params;
   const { communityId, nodeDpid, nodeUuid, nodeVersion, claimerId } = req.body as {
     communityId: number;
     nodeVersion: number;
@@ -75,7 +73,7 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     nodeDpid: string;
     claimerId: number;
   };
-  logger.info({ communityId, body: req.body });
+  logger.info({ communityId, body: req.body }, 'claimEntryRequirements');
   const uuid = ensureUuidEndsWithDot(nodeUuid);
 
   const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
