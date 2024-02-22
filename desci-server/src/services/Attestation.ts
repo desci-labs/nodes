@@ -376,6 +376,10 @@ export class AttestationService {
     return prisma.nodeAttestationVerification.create({ data: { nodeAttestationId, userId } });
   }
 
+  async findVerificationById(id: number) {
+    return prisma.nodeAttestationVerification.findFirst({ where: { id } });
+  }
+
   async removeVerification(id: number, userId: number) {
     const verification = await prisma.nodeAttestationVerification.findFirst({ where: { id, userId } });
     if (!verification) throw new VerificationNotFoundError();
@@ -479,6 +483,10 @@ export class AttestationService {
 
   async getAnnotations(filter: Prisma.AnnotationWhereInput) {
     return prisma.annotation.findMany({ where: filter });
+  }
+
+  async findAnnotationById(id: number) {
+    return prisma.annotation.findUnique({ where: { id } });
   }
 
   async getUserClaimComments(claimId: number, authorId: number) {
