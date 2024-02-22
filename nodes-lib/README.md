@@ -3,6 +3,8 @@ This package allows programmatic interaction with the backend of [DeSci Nodes](h
 
 > **Note**
 > If you are just eager to get started, do heed the instructions under the Configuration section first.
+> API docs are available at [desci-labs.github.io/nodes](https://desci-labs.github.io/nodes).
+> There is a starter project for building an integration project available [here](https://github.com/desci-labs/nodes-integration-template).
 
 ## Core concepts
 Some terms are regularly referred to in the code documentation. When programmatically creating nodes, it's important to understand what these things are for the end results to make sense. The corresponding types for these data structures are available in [desci-models](https://github.com/desci-labs/nodes/blob/develop/desci-models/src/ResearchObject.ts).
@@ -87,7 +89,7 @@ Publishing to the dPID registry and/or Codex requires a private key. Publishing 
 
 ### Documentation
 This section outlines the major functionality the library provides. It's not a complete rundown of all capabilities, but should be enough to get some inutition for the workflow.
-More detailed docs generated from the code is available in [docs](./docs/index.html)!
+More detailed docs generated from the code is available at the [doc site](https://desci-labs.github.io/nodes)!
 
 #### Node operations
 - `createDraftNode`: initializes a new, empty, private node.
