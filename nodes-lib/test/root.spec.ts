@@ -12,7 +12,7 @@ import {
   uploadPdfFromUrl, uploadGithubRepoFromUrl, listNodes, addLinkComponent,
   deleteComponent, updateComponent, changeManifest, updateTitle,
   updateDescription, updateLicense, updateResearchFields, addContributor,
-  removeContributor, addExternalUnixFsTree, updateCoverImage,
+  removeContributor, addExternalCid, updateCoverImage,
 } from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
@@ -60,9 +60,9 @@ describe("nodes-lib", () => {
       await createBoilerplateNode();
       await createBoilerplateNode();
 
-      const listedNodes = await listNodes();
+      const listData = await listNodes();
       // Lazy check that listing returns at least these two nodes
-      expect(listedNodes.length).toBeGreaterThan(2);
+      expect(listData.nodes.length).toBeGreaterThan(2);
     });
 
     test("can be deleted", async () => {
@@ -161,11 +161,11 @@ describe("nodes-lib", () => {
 
     test("can add pdf component", async () => {
       const { node: { uuid }} = await createBoilerplateNode();
-      const localFilePaths = [ "test/test.pdf" ];
+      const files = [ "test/test.pdf" ];
       const uploadResult = await uploadFiles({
         uuid,
-        targetPath: "root",
-        localFilePaths
+        contextPath: "root",
+        files,
       });
 
       const pdfComponentParams: AddPdfComponentParams = {
@@ -186,11 +186,11 @@ describe("nodes-lib", () => {
 
     test("can add a code component", async () => {
       const { node: { uuid }} = await createBoilerplateNode();
-      const localFilePaths = [ "test/root.spec.ts" ];
+      const files = [ "test/root.spec.ts" ];
       const uploadResult = await uploadFiles({
         uuid,
-        targetPath: "root",
-        localFilePaths
+        contextPath: "root",
+        files,
       });
       const uploadedFileCid = uploadResult.tree[0].contains![0].cid;
       const codeComponentParams: AddCodeComponentParams = {
@@ -266,7 +266,6 @@ describe("nodes-lib", () => {
       const { node } = await createBoilerplateNode();
       uuid = node.uuid;
       publishResult = await publishDraftNode(uuid);
-      expect(publishResult.ok).toEqual(true);
     });
 
     describe("new node", async () => {
@@ -275,7 +274,7 @@ describe("nodes-lib", () => {
         await sleep(1_500);
 
         const historyResult = await getDpidHistory(uuid);
-        const actualCid = convert0xHexToCid(historyResult[0].cid);
+        const actualCid = convert0xHexToCid(historyResult.versions[0].cid);
         expect(actualCid).toEqual(publishResult.updatedManifestCid);
       });
 
@@ -294,20 +293,17 @@ describe("nodes-lib", () => {
     });
 
     describe("node update", async () => {
-      let updateResult: PublishResponse;
-
       beforeAll(async () => {
-        updateResult = await publishDraftNode(uuid);
-        expect(updateResult.ok).toEqual(true);
+        await publishDraftNode(uuid);
         // Allow graph node to index
         await sleep(1_500);
       });
 
       test("updates entry in dpid registry", async () => {
         const historyResult = await getDpidHistory(uuid);
-        const actualCid = convert0xHexToCid(historyResult[0].cid);
+        const actualCid = convert0xHexToCid(historyResult.versions[0].cid);
         expect(actualCid).toEqual(publishResult.updatedManifestCid);
-        expect(historyResult.length).toEqual(2);
+        expect(historyResult.versions.length).toEqual(2);
       });
 
       test("publishes to codex stream", async () => {
@@ -339,7 +335,7 @@ describe("nodes-lib", () => {
       // make sure codex history is of equal length
       const dpidHistory = await getDpidHistory(uuid);
       const codexHistory = await getCodexHistory(pubResult.ceramicIDs!.streamID);
-      expect(dpidHistory.length).toEqual(2);
+      expect(dpidHistory.versions.length).toEqual(2);
       expect (codexHistory.length).toEqual(2);
     });
 
@@ -377,8 +373,8 @@ describe("nodes-lib", () => {
 
         await createNewFolder({
           uuid,
-          locationPath: "root",
-          folderName: expectedFolderName
+          contextPath: "root",
+          newFolderName: expectedFolderName
         });
       });
 
@@ -393,8 +389,8 @@ describe("nodes-lib", () => {
         const otherFolderName = "dir";
         await createNewFolder({
           uuid,
-          locationPath: "root",
-          folderName: otherFolderName,
+          contextPath: "root",
+          newFolderName: otherFolderName,
         });
         await moveData(
           {
@@ -426,18 +422,18 @@ describe("nodes-lib", () => {
     describe("files", async () => {
       test("can be uploaded", async () => {
         const { node: { uuid }} = await createBoilerplateNode();
-        const localFilePaths = [ "package.json", "package-lock.json" ];
+        const files = [ "package.json", "package-lock.json" ];
         await uploadFiles({
           uuid,
-          targetPath: "root",
-          localFilePaths,
+          contextPath: "root",
+          files,
         });
 
         const treeResult = await retrieveDraftFileTree(uuid);
         const driveContent = treeResult.tree[0].contains!;
 
         expect(driveContent.map(driveObject => driveObject.name))
-          .toEqual(expect.arrayContaining(localFilePaths));
+          .toEqual(expect.arrayContaining(files));
         driveContent.forEach(driveObject => {
           expect(driveObject.size).toBeGreaterThan(0);
         });
@@ -445,11 +441,11 @@ describe("nodes-lib", () => {
 
       test("can be moved", async () => {
         const { node: { uuid }} = await createBoilerplateNode();
-        const localFilePaths = [ "package.json" ];
+        const files = [ "package.json" ];
         const uploadResult = await uploadFiles({
           uuid,
-          targetPath: "root",
-          localFilePaths,
+          contextPath: "root",
+          files,
         });
         expect(uploadResult.tree[0].contains![0].path).toEqual("root/package.json");
 
@@ -465,11 +461,11 @@ describe("nodes-lib", () => {
 
       test("can be deleted", async () => {
         const { node: { uuid }} = await createBoilerplateNode();
-        const localFilePaths = [ "package.json" ];
+        const files = [ "package.json" ];
         const uploadResult = await uploadFiles({
           uuid,
-          targetPath: "root",
-          localFilePaths,
+          contextPath: "root",
+          files,
         });
 
         expect(uploadResult.tree[0].contains![0].name).toEqual("package.json");
@@ -569,16 +565,16 @@ describe("nodes-lib", () => {
       test("can be added", async () => {
         const { node: { uuid }} = await createBoilerplateNode();
         await createNewFolder(
-          {uuid, locationPath: "root", folderName: "catpics"}
+          {uuid, contextPath: "root", newFolderName: "catpics"}
         );
         const catCid = "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u";
-        const addResult = await addExternalUnixFsTree({
+        const addResult = await addExternalCid({
           uuid,
           externalCids: [{
             cid: catCid,
             name: "cat.jpg",
           }],
-          targetPath: "/catpics",
+          contextPath: "/catpics",
           componentType: ResearchObjectComponentType.DATA,
           componentSubtype: ResearchObjectComponentDataSubtype.IMAGE,
         });

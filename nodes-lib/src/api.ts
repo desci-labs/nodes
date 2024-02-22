@@ -1,8 +1,5 @@
-import axios, {
+import {
   AxiosError,
-  AxiosHeaders,
-  AxiosRequestConfig,
-  type AxiosResponse
 } from "axios";
 import {
   ResearchObjectComponentType,
@@ -29,28 +26,113 @@ import { publish } from "./publish.js";
 import type { ResearchObjectDocument } from "./automerge.js";
 import { randomUUID } from "crypto";
 import { NODES_API_URL, NODES_API_KEY } from "./config.js";
+import { makeRequest } from "./routes.js";
 
-const ROUTES = {
-  deleteData: `${NODES_API_URL}/v1/data/delete`,
-  updateData: `${NODES_API_URL}/v1/data/update`,
-  updateExternalCid: `${NODES_API_URL}/v1/data/updateExternalCid`,
-  /** Append `/uuid/tree` for tree to fetch.
-   * The `tree` string does nothing but satisfy an old param requirement.
+export const ENDPOINTS = {
+  deleteData: {
+    method: "post",
+    route: `${NODES_API_URL}/v1/data/delete`,
+    _payloadT: <DeleteDataParams>{},
+    _responseT: <DeleteDataResponse>{},
+  },
+  uploadFiles: {
+    method: "post",
+    route: `${NODES_API_URL}/v1/data/update`,
+    _payloadT: <UploadParams>{},
+    _responseT: <UploadFilesResponse>{},
+  },
+  uploadExternal: {
+    method: "post",
+    route: `${NODES_API_URL}/v1/data/update`,
+    _payloadT: <UploadPdfFromUrlParams | UploadGithubRepoFromUrlParams>{},
+    _responseT: <UploadFilesResponse>{},
+  },
+  createFolder: {
+    method: "post",
+    route: `${NODES_API_URL}/v1/data/update`,
+    _payloadT: <CreateFolderParams>{},
+    _responseT: <CreateFolderResponse>{},
+  },
+  updateExternalCid: {
+    method: "post",
+    route: `${NODES_API_URL}/v1/data/updateExternalCid`,
+    _payloadT: <AddExternalTreeParams>{},
+    _responseT: <UploadFilesResponse>{},
+  },
+  /** Append `/[uuid]/tree` 
+   * `tree` does nothing but a string needs to be there because of derp routing
   */
-  retrieveTree: `${NODES_API_URL}/v1/data/retrieveTree`,
-  moveData: `${NODES_API_URL}/v1/data/move`,
-  createDraft: `${NODES_API_URL}/v1/nodes/createDraft`,
-  /** Append /uuid with node to delete */
-  deleteDraft: `${NODES_API_URL}/v1/nodes`,
-  /** Append /uuid for node to show */
-  showNode: `${NODES_API_URL}/v1/nodes/objects`,
-  listNodes: `${NODES_API_URL}/v1/nodes`,
-  prepublish: `${NODES_API_URL}/v1/nodes/prepublish`,
-  publish: `${NODES_API_URL}/v1/nodes/publish`,
-  /** Append `/uuid` for fetching document, `/uuid/actions` to mutate */
-  documents: `${NODES_API_URL}/v1/nodes/documents`,
-  /** Append /uuid for node to fetch publish history for */
-  dpidHistory: `${NODES_API_URL}/v1/pub/versions`,
+  retrieveTree: {
+    method: "get",
+    route: `${NODES_API_URL}/v1/data/retrieveTree`,
+    _payloadT: undefined,
+    _responseT: <RetrieveResponse>{},
+  },
+  moveData: {
+    method: "post",
+    route: `${NODES_API_URL}/v1/data/move`,
+    _payloadT: <MoveDataParams>{},
+    _responseT: <MoveDataResponse>{},
+  },
+  createDraft: {
+    method: "post",
+    route: `${NODES_API_URL}/v1/nodes/createDraft`,
+    _payloadT: <CreateDraftParams>{},
+    _responseT: <CreateDraftResponse>{},
+  },
+    /** Append `/[uuid]` */
+  deleteDraft: {
+    method: "delete",
+    route: `${NODES_API_URL}/v1/nodes`,
+    _payloadT: undefined,
+    _responseT: undefined,
+  },
+  /** Append `/[uuid] `*/
+  showNode: {
+    method: "get",
+    route: `${NODES_API_URL}/v1/nodes/objects`,
+    _payloadT: undefined,
+    _responseT: <NodeResponse>{},
+  },
+  listNodes: {
+    method: "get",
+    route: `${NODES_API_URL}/v1/nodes/`,
+    _payloadT: undefined,
+    _responseT: <{ nodes: ListedNode[] }>{},
+  },
+  prepublish: {
+    method: "post",
+    route: `${NODES_API_URL}/v1/nodes/prepublish`,
+    _payloadT: <{ uuid: string }>{},
+    _responseT: <PrepublishResponse>{},
+  },
+  publish: {
+    method: "post",
+    route: `${NODES_API_URL}/v1/nodes/publish`,
+    _payloadT: <PublishParams>{},
+    _responseT: <PublishResponse>{},
+  },
+  /** Append `/[uuid]` */
+  getDocument: {
+    method: "get",
+    route: `${NODES_API_URL}/v1/nodes/documents`,
+    _payloadT: undefined,
+    _responseT: <ManifestDocumentResponse>{},
+  },
+  /** Append `/[uuid]/actions` */
+  changeDocument: {
+    method: "post",
+    route: `${NODES_API_URL}/v1/nodes/documents`,
+    _payloadT: <ChangeManifestParams>{},
+    _responseT: <ManifestDocumentResponse>{},
+  },
+  /** Append `/[uuid] `*/
+  dpidHistory: {
+    method: "get",
+    route: `${NODES_API_URL}/v1/pub/versions`,
+    _payloadT: undefined,
+    _responseT: <IndexedNode>{},
+  },
 } as const;
 
 /**
@@ -90,20 +172,17 @@ export type CreateDraftResponse = {
 */
 export const createDraftNode = async (
   params: Omit<CreateDraftParams, "links">,
-): Promise<CreateDraftResponse> => {
-  const payload: CreateDraftParams = {
+) => await makeRequest(
+  ENDPOINTS.createDraft,
+  getHeaders(),
+  {
     ...params,
     links: {
       pdf: [],
       metadata: [],
     },
-  };
-  const { data } = await axios.post<CreateDraftResponse>(
-    ROUTES.createDraft, payload, { headers: getHeaders() }
-  );
-
-  return data;
-};
+  }
+);
 
 /**
  * Information returned when listing user nodes, published and private drafts.
@@ -126,22 +205,21 @@ export type ListedNode = {
  * List all nodes for the authenticated user.
 */
 export const listNodes = async (
-): Promise<ListedNode[]> => {
-  const { data } = await axios.get<{nodes: ListedNode[]}>(
-    ROUTES.listNodes + "/", { headers: getHeaders() }
-  );
+) => await makeRequest(
+  ENDPOINTS.listNodes,
+  getHeaders(),
+  undefined,
+);
 
-  return data.nodes;
-};
-
+/** Delete a draft node (note this will not prevent public resolution )*/
 export const deleteDraftNode = async (
   uuid: string,
-): Promise<void> => {
-  return await axios.delete(
-    ROUTES.deleteDraft + `/${uuid}`,
-    { headers: getHeaders() }
-  );
-};
+) => await makeRequest(
+  ENDPOINTS.deleteDraft,
+  getHeaders(),
+  undefined,
+  `/${uuid}`,
+);
 
 /**
  * Full state of a draft node as the backend is aware.
@@ -174,14 +252,12 @@ export type NodeResponse = {
 */
 export const getDraftNode = async (
   uuid: string,
-): Promise<NodeResponse> => {
-  const { data } = await axios.get<NodeResponse>(
-    ROUTES.showNode + `/${uuid}`,
-    { headers: getHeaders(), }
-  );
-
-  return data;
-};
+) => await makeRequest(
+  ENDPOINTS.showNode,
+  getHeaders(),
+  undefined,
+  `/${uuid}`
+);
 
 /**
  * dPID publish history entry for a node.
@@ -216,16 +292,11 @@ export type PrepublishResponse = {
 */
 export const prePublishDraftNode = async (
   uuid: string,
-): Promise<PrepublishResponse> => {
-  // Compute the draft drive DAG, and update the data bucket CID
-  const { data } = await axios.post<PrepublishResponse>(
-    ROUTES.prepublish,
-    { uuid },
-    { headers: getHeaders(), }
-  );
-
-  return data;
-};
+) => await makeRequest(
+  ENDPOINTS.prepublish,
+  getHeaders(),
+  { uuid },
+);
 
 type PublishParams = {
   uuid: string,
@@ -238,8 +309,6 @@ type PublishParams = {
 
 /** Result of publishing a draft node */
 export type PublishResponse = {
-  /** Publish status */
-  ok: boolean,
   /** The new manifest CID, which could have changed from adding the dPID */
   updatedManifestCid: string,
   /** Ceramic stream and commit IDs from publishing to Codex */
@@ -264,23 +333,16 @@ export const publishDraftNode = async (
     ceramicStream: publishResult.ceramicIDs?.streamID,
   };
 
-  let data: { ok: boolean };
   try {
-    const backendPublishResult = await axios.post<{ok: boolean}>(
-      ROUTES.publish,
-      pubParams,
-      { headers: getHeaders(), }
-    );
-    data = backendPublishResult.data;
+    await makeRequest(ENDPOINTS.publish, getHeaders(), pubParams);
   } catch (e) {
     console.log(`Publish flow was successful, but backend update failed for uuid ${uuid}.`);
     throw e;
-  }
+  };
 
   return { 
-    ...data,
     ceramicIDs: publishResult.ceramicIDs,
-    updatedManifestCid: publishResult.cid
+    updatedManifestCid: publishResult.cid,
   };
 };
 
@@ -306,18 +368,11 @@ export type DeleteDataResponse = {
 */
 export const deleteData = async (
   params: DeleteDataParams,
-) => {
-  const { data } = await axios.post<DeleteDataResponse>(
-    ROUTES.deleteData,
-    {
-      ...params,
-      path: makeAbsolutePath(params.path),
-    },
-    { headers: getHeaders() }
-  );
-
-  return data;
-};
+) => await makeRequest(
+  ENDPOINTS.deleteData,
+  getHeaders(),
+  params,
+);
 
 /** Parameters required for moving data in the drive */
 export type MoveDataParams = {
@@ -341,19 +396,11 @@ export type MoveDataResponse = {
 */
 export const moveData = async (
   params: MoveDataParams,
-) => {
-  const { data } = await axios.post<MoveDataResponse>(
-    ROUTES.moveData,
-    {
-      ...params,
-      oldPath: makeAbsolutePath(params.oldPath),
-      newPath: makeAbsolutePath(params.newPath),
-    },
-    { headers: getHeaders() }
-  );
-
-  return data;
-};
+) => await makeRequest(
+  ENDPOINTS.moveData,
+  getHeaders(),
+  params,
+);
 
 /** Response from retrieving the state of the drive tree */
 export type RetrieveResponse = {
@@ -372,22 +419,21 @@ export type RetrieveResponse = {
 */
 export const retrieveDraftFileTree = async (
   uuid: string,
-) => {
-  const { data } = await axios.get<RetrieveResponse>(
-    ROUTES.retrieveTree + `/${uuid}/tree`, { headers: getHeaders() }
-  );
-
-  return data;
-};
+) => await makeRequest(
+  ENDPOINTS.retrieveTree,
+  getHeaders(),
+  undefined,
+  `/${uuid}/tree`,
+);
 
 /** Parameters required for creating a new directory in the drive */
 export type CreateFolderParams = {
   /** The node to create a new folder in */
   uuid: string,
   /** The location of the new folder (UNIX `dirname`) */
-  locationPath: string,
+  contextPath: string,
   /** The name of the new folder (UNIX `basename`) */
-  folderName: string,
+  newFolderName: string,
 };
 
 /** Response from creating a new directory */
@@ -408,16 +454,17 @@ export type CreateFolderResponse = {
 export const createNewFolder = async (
   params: CreateFolderParams,
 ) => {
-  const { uuid, folderName, locationPath } = params;
+  const { uuid, newFolderName, contextPath } = params;
   const form = new FormData();
   form.append("uuid", uuid);
-  form.append("newFolderName", folderName);
-  form.append("contextPath", makeAbsolutePath(locationPath));
-  const { data } = await axios.post<CreateFolderResponse>(
-    ROUTES.updateData, form, { headers: getHeaders(true)}
+  form.append("newFolderName", newFolderName);
+  form.append("contextPath", makeAbsolutePath(contextPath));
+  return await makeRequest(
+    ENDPOINTS.createFolder,
+    getHeaders(true),
+    // Formdata equivalent
+    form as unknown as CreateFolderParams,
   );
-
-  return data;
 };
 
 /** Parameters required to upload a set of files */
@@ -428,9 +475,9 @@ export type UploadParams = {
    * Absolute path to target location in drive.
    * Note that folders must already exist.
   */
-  targetPath: string,
+  contextPath: string,
   /** Local paths to files for upload */
-  localFilePaths: string[],
+  files: string[],
 };
 
 /**
@@ -455,22 +502,23 @@ export type UploadFilesResponse = {
 */
 export const uploadFiles = async (
   params: UploadParams,
-): Promise<UploadFilesResponse> => {
-  const { targetPath, localFilePaths, uuid } = params;
+) => {
+  const { contextPath, files, uuid } = params;
   const form = new FormData();
   form.append("uuid", uuid);
-  form.append("contextPath", makeAbsolutePath(targetPath));
+  form.append("contextPath", makeAbsolutePath(contextPath));
 
-  localFilePaths.forEach(f => {
+  files.forEach(f => {
     const stream = createReadStream(f);
     form.append("files", stream);
   });
 
-  const { data } = await axios.post<UploadFilesResponse>(
-    ROUTES.updateData, form, { headers: getHeaders(true)}
+  return await makeRequest(
+    ENDPOINTS.uploadFiles,
+    getHeaders(true),
+    // Formdata equivalent
+    form as unknown as UploadParams
   );
-
-  return data;
 };
 
 /** Parameters required for uploading an externally hosted PDF file */
@@ -502,7 +550,7 @@ export type ExternalUrl = {
 */
 export const uploadPdfFromUrl = async (
   params: UploadPdfFromUrlParams,
-): Promise<UploadFilesResponse> => {
+) => {
   const { uuid, targetPath, externalUrl, componentSubtype } = params;
   const form = new FormData();
   form.append("uuid", uuid);
@@ -510,11 +558,14 @@ export const uploadPdfFromUrl = async (
   form.append("externalUrl", JSON.stringify(externalUrl));
   form.append("componentType", ResearchObjectComponentType.PDF);
   form.append("componentSubtype", componentSubtype);
-  const { data } = await axios.post<UploadFilesResponse>(
-    ROUTES.updateData, form, { headers: getHeaders(true)}
+
+  return await makeRequest(
+    ENDPOINTS.uploadFiles,
+    getHeaders(true),
+    // Formdata equivalent
+    form as unknown as UploadParams,
   );
-  return data;
-}
+};
 
 /** Parameters required for uploading an external GitHub code repository */
 export type UploadGithubRepoFromUrlParams = {
@@ -542,10 +593,12 @@ export const uploadGithubRepoFromUrl = async (
   form.append("externalUrl", JSON.stringify(externalUrl));
   form.append("componentType", ResearchObjectComponentType.CODE);
   form.append("componentSubtype", componentSubtype);
-  const { data } = await axios.post<UploadFilesResponse>(
-    ROUTES.updateData, form, { headers: getHeaders(true)}
+  return await makeRequest(
+    ENDPOINTS.uploadFiles,
+    getHeaders(true),
+    // Formdata equivalent
+    form as unknown as UploadParams,
   );
-  return data;
 };
 
 /** Parameters requried for adding an externally pinned file or UnixFS tree */
@@ -555,7 +608,7 @@ export type AddExternalTreeParams = {
   /** Which external CIDs to include, and their associated names in the drive */
   externalCids: { name: string, cid: string }[],
   /** The absolute path in the drive where the entries should be */
-  targetPath: string,
+  contextPath: string,
   /** The type of the imported data */
   componentType: ResearchObjectComponentType,
   /** The subtype of the imported data */
@@ -567,16 +620,16 @@ export type AddExternalTreeParams = {
  * the content. This data will not be pinned by the Nodes backend, and
  * it's availability depends on other pinners.
 */
-export const addExternalUnixFsTree = async (
+export const addExternalCid = async (
   params: AddExternalTreeParams,
-): Promise<UploadFilesResponse> => {
-  const { data } = await axios.post<UploadFilesResponse>(
-    ROUTES.updateExternalCid,
-    { ...params, contextPath: makeAbsolutePath(params.targetPath)},
-    { headers: getHeaders() },
-  );
-  return data;
-};
+) => await makeRequest(
+  ENDPOINTS.updateExternalCid,
+  getHeaders(),
+  {
+    ...params,
+    contextPath: makeAbsolutePath(params.contextPath),
+  },
+);
 
 /** Historical log entry for a dPID */
 export type IndexedNodeVersion = {
@@ -607,18 +660,15 @@ export type IndexedNode = {
 */
 export const getDpidHistory = async (
   uuid: string,
-): Promise<IndexedNodeVersion[]> => {
-  const { data } = await axios.get<IndexedNode>(
-    ROUTES.dpidHistory + `/${uuid}`
-  );
-
-  return data.versions;
-};
+) => await makeRequest(
+  ENDPOINTS.dpidHistory,
+  getHeaders(),
+  undefined,
+  `/${uuid}`,
+);
 
 /** Parameters requried for changing the manifest */
 export type ChangeManifestParams = {
-  /** The node to change the manifest of */
-  uuid: string,
   /** One or more actions to perform */
   actions: ManifestActions[],
 };
@@ -637,13 +687,12 @@ export type ManifestDocumentResponse = {
 */
 const getManifestDocument = async (
   uuid: string,
-): Promise<ManifestDocumentResponse> => {
-  const { data } = await axios.get<ManifestDocumentResponse>(
-    ROUTES.documents + `/${uuid}`
-  );
-
-  return data;
-};
+) => await makeRequest(
+  ENDPOINTS.getDocument,
+  getHeaders(),
+  undefined,
+  `/${uuid}`
+);
 
 /**
  * Send a generic manifest change to the backend. Normally, one of the
@@ -657,12 +706,13 @@ export const changeManifest = async (
   uuid: string,
   actions: ManifestActions[],
 ): Promise<ManifestDocumentResponse> => {
-  let actionResponse: AxiosResponse<ManifestDocumentResponse, any>;
+  let documentResponse: ManifestDocumentResponse;
   try {
-    actionResponse = await axios.post<ManifestDocumentResponse>(
-      ROUTES.documents + `/${uuid}/actions`,
+    documentResponse = await makeRequest(
+      ENDPOINTS.changeDocument,
+      getHeaders(),
       { actions },
-      { headers: getHeaders() }
+      `/${uuid}/actions`
     );
   } catch (e) {
     const err = e as AxiosError
@@ -675,7 +725,7 @@ export const changeManifest = async (
     };
   };
 
-  return actionResponse.data;
+  return documentResponse;
 };
 
 export type ComponentParam =
@@ -906,7 +956,7 @@ const getHeaders = (isFormData: boolean = false) => {
  * Best-effort way of ensuring reasonable representations of absolute paths
  * gets wrangled into the `root/`-prefixed string the API's/manifest expect.
 */
-const makeAbsolutePath = (path: string) => {
+export const makeAbsolutePath = (path: string) => {
   // Sensible definitions of root
   if (!path || path === "root" || path === "root/") return "root";
   // Support unix-style absolute paths
