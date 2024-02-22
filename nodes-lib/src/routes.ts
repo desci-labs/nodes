@@ -1,6 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 import { ENDPOINTS } from "./api.js";
-
+import { NODES_API_URL as API } from "./config.js";
 /**
  * This function looks like all types are unions, but when called with
  * the parameter `endpoint`, the specific type of that will constrain all
@@ -19,17 +19,18 @@ export async function makeRequest<
   payload: T["_payloadT"],
   routeTail?: string,
 ): Promise<T["_responseT"]> {
+  const url = API + endpoint.route + (routeTail ?? "");
   let res: AxiosResponse<T["_responseT"]>;
   // post is the only method that takes a data payload
   if ( endpoint.method === "post") {
    res = await axios[endpoint.method]<typeof endpoint._responseT>(
-      endpoint.route + (routeTail ?? ""),
+      url,
       payload,
       { headers },
     );
   } else {
    res = await axios[endpoint.method]<typeof endpoint._responseT>(
-      endpoint.route + (routeTail ?? ""),
+      url,
       { headers },
     );
   };

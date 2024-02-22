@@ -25,37 +25,37 @@ import type { NodeIDs } from "@desci-labs/desci-codex-lib/dist/src/types.js";
 import { publish } from "./publish.js";
 import type { ResearchObjectDocument } from "./automerge.js";
 import { randomUUID } from "crypto";
-import { NODES_API_URL, NODES_API_KEY } from "./config.js";
+import { NODES_API_KEY } from "./config.js";
 import { makeRequest } from "./routes.js";
 
 export const ENDPOINTS = {
   deleteData: {
     method: "post",
-    route: `${NODES_API_URL}/v1/data/delete`,
+    route: `/v1/data/delete`,
     _payloadT: <DeleteDataParams>{},
     _responseT: <DeleteDataResponse>{},
   },
   uploadFiles: {
     method: "post",
-    route: `${NODES_API_URL}/v1/data/update`,
+    route: `/v1/data/update`,
     _payloadT: <UploadParams>{},
     _responseT: <UploadFilesResponse>{},
   },
   uploadExternal: {
     method: "post",
-    route: `${NODES_API_URL}/v1/data/update`,
+    route: `/v1/data/update`,
     _payloadT: <UploadPdfFromUrlParams | UploadGithubRepoFromUrlParams>{},
     _responseT: <UploadFilesResponse>{},
   },
   createFolder: {
     method: "post",
-    route: `${NODES_API_URL}/v1/data/update`,
+    route: `/v1/data/update`,
     _payloadT: <CreateFolderParams>{},
     _responseT: <CreateFolderResponse>{},
   },
   updateExternalCid: {
     method: "post",
-    route: `${NODES_API_URL}/v1/data/updateExternalCid`,
+    route: `/v1/data/updateExternalCid`,
     _payloadT: <AddExternalTreeParams>{},
     _responseT: <UploadFilesResponse>{},
   },
@@ -64,72 +64,72 @@ export const ENDPOINTS = {
   */
   retrieveTree: {
     method: "get",
-    route: `${NODES_API_URL}/v1/data/retrieveTree`,
+    route: `/v1/data/retrieveTree`,
     _payloadT: undefined,
     _responseT: <RetrieveResponse>{},
   },
   moveData: {
     method: "post",
-    route: `${NODES_API_URL}/v1/data/move`,
+    route: `/v1/data/move`,
     _payloadT: <MoveDataParams>{},
     _responseT: <MoveDataResponse>{},
   },
   createDraft: {
     method: "post",
-    route: `${NODES_API_URL}/v1/nodes/createDraft`,
+    route: `/v1/nodes/createDraft`,
     _payloadT: <CreateDraftParams>{},
     _responseT: <CreateDraftResponse>{},
   },
     /** Append `/[uuid]` */
   deleteDraft: {
     method: "delete",
-    route: `${NODES_API_URL}/v1/nodes`,
+    route: `/v1/nodes`,
     _payloadT: undefined,
     _responseT: undefined,
   },
   /** Append `/[uuid] `*/
   showNode: {
     method: "get",
-    route: `${NODES_API_URL}/v1/nodes/objects`,
+    route: `/v1/nodes/objects`,
     _payloadT: undefined,
     _responseT: <NodeResponse>{},
   },
   listNodes: {
     method: "get",
-    route: `${NODES_API_URL}/v1/nodes/`,
+    route: `/v1/nodes/`,
     _payloadT: undefined,
     _responseT: <{ nodes: ListedNode[] }>{},
   },
   prepublish: {
     method: "post",
-    route: `${NODES_API_URL}/v1/nodes/prepublish`,
+    route: `/v1/nodes/prepublish`,
     _payloadT: <{ uuid: string }>{},
     _responseT: <PrepublishResponse>{},
   },
   publish: {
     method: "post",
-    route: `${NODES_API_URL}/v1/nodes/publish`,
+    route: `/v1/nodes/publish`,
     _payloadT: <PublishParams>{},
     _responseT: <PublishResponse>{},
   },
   /** Append `/[uuid]` */
   getDocument: {
     method: "get",
-    route: `${NODES_API_URL}/v1/nodes/documents`,
+    route: `/v1/nodes/documents`,
     _payloadT: undefined,
     _responseT: <ManifestDocumentResponse>{},
   },
   /** Append `/[uuid]/actions` */
   changeDocument: {
     method: "post",
-    route: `${NODES_API_URL}/v1/nodes/documents`,
+    route: `/v1/nodes/documents`,
     _payloadT: <ChangeManifestParams>{},
     _responseT: <ManifestDocumentResponse>{},
   },
   /** Append `/[uuid] `*/
   dpidHistory: {
     method: "get",
-    route: `${NODES_API_URL}/v1/pub/versions`,
+    route: `/v1/pub/versions`,
     _payloadT: undefined,
     _responseT: <IndexedNode>{},
   },
