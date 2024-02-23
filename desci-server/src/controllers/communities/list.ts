@@ -25,7 +25,7 @@ export const listCommunities = async (_req: Request, res: Response, _next: NextF
 
   const communities = await asyncMap(pickedCommunities, async (community) => {
     const engagements = await communityService.getCommunityEngagementSignals(community.id);
-    const verifiedEngagements = await communityService.getCommunityEntryAttestationsEngagementSignals(community.id);
+    const verifiedEngagements = await communityService.getCommunityRadarEngagementSignal(community.id);
     return {
       community,
       engagements,

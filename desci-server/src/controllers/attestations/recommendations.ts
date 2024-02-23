@@ -20,8 +20,8 @@ export const getAllRecommendations = async (_req: Request, res: Response, _next:
       communityId: key,
       attestations: value.map((attestation) => ({
         id: attestation.id,
-        communityId: key,
-        communityName: attestation.desciCommunity.name,
+        communityId: value[0].attestation.community.id,
+        communityName: value[0].attestation.community.name,
         attestationId: attestation.attestationId,
         attestationVersionId: attestation.attestationVersionId,
         required: attestation.required,

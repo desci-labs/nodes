@@ -158,7 +158,7 @@ export class CommunityService {
    * @param communityId
    * @returns Promise<{ reactions: number; annotations: number; verifications: number; }>}
    */
-  async getCommunityEntryAttestationsEngagementSignals(communityId: number) {
+  async getCommunityRadarEngagementSignal(communityId: number) {
     const claims = (await prisma.$queryRaw`
       SELECT t1.*,
       count(DISTINCT "Annotation".id)::int AS annotations,
@@ -177,7 +177,15 @@ export class CommunityService {
   		t1.id
     `) as CommunityRadarNode[];
 
-    const groupedEngagements = claims.reduce(
+    const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
+    const signals = _(claims)
+      .groupBy((x) => x.nodeDpid10)
+      .map((value: CommunityRadarNode[], key: string) => value)
+      .filter((attestations) => attestations.length === entryAttestations.length)
+      .flatten()
+      .value();
+
+    const groupedEngagements = signals.reduce(
       (total, claim) => ({
         reactions: total.reactions + claim.reactions,
         annotations: total.annotations + claim.annotations,

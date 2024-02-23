@@ -53,7 +53,7 @@ export const getCommunityDetails = async (req: Request, res: Response, next: Nex
   if (!community) throw new NotFoundError('Community not found');
 
   const engagements = await communityService.getCommunityEngagementSignals(community.id);
-  const verifiedEngagements = await communityService.getCommunityEntryAttestationsEngagementSignals(community.id);
+  const verifiedEngagements = await communityService.getCommunityRadarEngagementSignal(community.id);
 
   // todo: update api return type in web app
   return new SuccessResponse({ community, engagements, verifiedEngagements }).send(res);

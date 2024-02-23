@@ -24,12 +24,12 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
   const selectAttributes = ['manifestUrl', 'ownerId', 'title'];
   const node: Partial<Node & { versions: number }> = _.pick(discovery, selectAttributes);
   const publisedVersions =
-    (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND "transactionId" IS NOT NULL`) as NodeVersion[];
+    (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND "transactionId" IS NOT NULL ORDER BY "createdAt" DESC`) as NodeVersion[];
 
   // const nodeVersions = (await getNodeVersion
-  logger.info('node', discovery.id, { uuid: discovery.uuid, publisedVersions });
+  logger.info({ uuid: discovery.uuid, publisedVersions }, 'Resolve node');
   node['versions'] = publisedVersions.length;
-  node['publishedDate'] = publisedVersions[publisedVersions.length - 1].createdAt;
+  node['publishedDate'] = publisedVersions[0].createdAt;
   radar.node = node;
 
   let gatewayUrl = discovery.manifestUrl;
