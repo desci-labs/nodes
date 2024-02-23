@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { NodeUuid } from '../../internal.js';
+import { logger as parentLogger } from '../../logger.js';
 import { type ThumbnailMap, thumbnailsService } from '../../services/Thumbnails.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -34,6 +35,14 @@ export const thumbnails = async (
   const user = (req as any).user;
   const { uuid, manifestCid } = req.params;
 
+  const logger = parentLogger.child({
+    module: 'NODES::Thumbnails',
+    uuid,
+    manifestCid,
+    userId: user.id,
+  });
+  logger.trace({ fn: 'Retrieving thumbnails' });
+
   if (!uuid) return res.status(400).json({ ok: false, error: 'UUID is required.' });
 
   if (!user && !manifestCid) {
@@ -52,7 +61,7 @@ export const thumbnails = async (
 
     if (!node) return res.status(401).json({ ok: false, error: 'Unauthorized' });
   }
-
+  // debugger;
   const thumbnailMap = await thumbnailsService.getThumbnailsForNode({ uuid: uuid as NodeUuid, manifestCid });
 
   return res.status(200).json({ ok: true, thumbnailMap });

@@ -7,7 +7,6 @@ import { logger as parentLogger } from '../../logger.js';
  * Proxy for the read only IPFS gateway, to allow the isolated media server to access IPFS content, without writability.
  */
 export const ipfsReadGatewayProxy = async (req: Request, res: Response) => {
-  debugger;
   try {
     const logger = parentLogger.child({
       module: 'PROXY::ipfsReadGatewayProxyController',

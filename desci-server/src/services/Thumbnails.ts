@@ -8,6 +8,7 @@ import { getManifestByCid, getManifestFromNode, pinNewFiles } from './data/proce
 import { pinFile } from './ipfs.js';
 import { NodeUuid, getLatestManifestFromNode } from './manifestRepo.js';
 import repoService from './repoService.js';
+import { ResearchObjectComponentType } from '@desci-labs/desci-models';
 
 const logger = parentLogger.child({
   module: 'Services::Thumbnails',
@@ -47,13 +48,11 @@ export class ThumbnailsService {
     const pinnedComponents = manifest?.components?.filter((c) => c.starred);
 
     // Determined by the file extension (can't generate thumbnails for files without extensions)
-    const fileComponents = pinnedComponents?.filter((c) => c.payload.path.split('/').pop().includes('.'));
+    const fileComponents = pinnedComponents?.filter(
+      (c) => c.payload.path.split('/').pop().includes('.') && c.type !== ResearchObjectComponentType.LINK,
+    );
     const fileComponentCids = fileComponents?.map((c) => c.payload.cid || c.payload.url);
-    // const fileComponentCidMap = fileComponents.reduce((map, comp) => {
-    //     const key = comp.payload.cid || comp.payload.url;
-    //     map[key] = comp;
-    //     return map;
-    //   }, {});
+
     if (!fileComponents) return {};
 
     const thumbnailsToGenerate: Record<CidString, FileName> = fileComponents?.reduce((map, comp) => {
