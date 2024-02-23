@@ -585,7 +585,12 @@ export class AttestationService {
             image_url: true,
           },
         },
-        desciCommunity: { select: { name: true } },
+        desciCommunity: { select: { name: true, hidden: true } },
+      },
+      where: {
+        desciCommunity: {
+          hidden: false,
+        },
       },
     });
 
