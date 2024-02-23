@@ -1,6 +1,6 @@
 import assert from 'assert';
 import _ from 'lodash';
-import { AnnotationType, Attestation, Prisma } from '@prisma/client';
+import { AnnotationType, Attestation, NodeVersion, Prisma } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import {
@@ -65,9 +65,8 @@ export class AttestationService {
     if (!attestationVersionEntry) throw new AttestationVersionNotFoundError();
 
     const node = await prisma.node.findFirst({ where: { uuid: nodeUuid } });
-    const publishedNodeVersions = await prisma.nodeVersion.count({
-      where: { nodeId: node.id, transactionId: { not: null } },
-    });
+    const publishedNodeVersions =
+      (await prisma.$queryRaw`SELECT COUNT(*) from "NodeVersion" where "nodeId" = ${node.id} AND "transactionId" IS NOT NULL`) as number;
 
     if (nodeVersion >= publishedNodeVersions) {
       logger.warn({ nodeVersion, publishedNodeVersions }, 'Invalid Node version');
@@ -577,7 +576,7 @@ export class AttestationService {
   async getRecommendedAttestations() {
     const attestations = await prisma.communityEntryAttestation.findMany({
       include: {
-        // attestation: { select: { name: true, description: true } },
+        attestation: { select: { community: true } },
         attestationVersion: {
           select: {
             name: true,
