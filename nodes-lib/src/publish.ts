@@ -33,7 +33,7 @@ export const publish = async (
   try {
     // If the dPID is new, skip checking for history to potentially backfill
     const publishHistory = preexistingDpid
-      ? await getDpidHistory(uuid)
+      ? (await getDpidHistory(uuid)).versions
       : [];
     ceramicIDs = await codexPublish(chainPubResponse.prepubResult, publishHistory);
   } catch (e) {

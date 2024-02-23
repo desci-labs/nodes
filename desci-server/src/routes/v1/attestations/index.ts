@@ -22,7 +22,14 @@ import {
 import { ensureUser } from '../../../middleware/permissions.js';
 
 import {
+  addReactionSchema,
+  addVerificationSchema,
+  claimAttestationSchema,
+  claimEntryAttestationsSchema,
   createCommentSchema,
+  deleteCommentSchema,
+  deleteReactionSchema,
+  deleteVerificationSchema,
   getAttestationCommentsSchema,
   getAttestationReactionsSchema,
   getAttestationVerificationsSchema,
@@ -48,16 +55,20 @@ router.get(
 );
 router.get('/:claimId/comments', [validate(getAttestationCommentsSchema)], asyncHander(getAttestationComments));
 
-router.post('/claim', [ensureUser], asyncHander(claimAttestation));
+router.post('/claim', [ensureUser, validate(claimAttestationSchema)], asyncHander(claimAttestation));
 router.post('/unclaim', [ensureUser], asyncHander(removeClaim));
-router.post('/claimAll', [ensureUser], asyncHander(claimEntryRequirements));
+router.post('/claimAll', [ensureUser, validate(claimEntryAttestationsSchema)], asyncHander(claimEntryRequirements));
 
 router.post('/comment', [ensureUser, validate(createCommentSchema)], asyncHander(addComment));
-router.post('/reaction', [ensureUser], asyncHander(addReaction));
-router.post('/verification', [ensureUser], asyncHander(addVerification));
+router.post('/reaction', [ensureUser, validate(addReactionSchema)], asyncHander(addReaction));
+router.post('/verification', [ensureUser, validate(addVerificationSchema)], asyncHander(addVerification));
 
-router.delete('/comment', [ensureUser], removeComment);
-router.delete('/reaction', [ensureUser], asyncHander(removeReaction));
-router.delete('/verification', [ensureUser], asyncHander(removeVerification));
+router.delete('/comments/:commentId', [ensureUser, validate(deleteCommentSchema)], asyncHander(removeComment));
+router.delete('/reactions/:reactionId', [ensureUser, validate(deleteReactionSchema)], asyncHander(removeReaction));
+router.delete(
+  '/verifications/:verificationId',
+  [ensureUser, validate(deleteVerificationSchema)],
+  asyncHander(removeVerification),
+);
 
 export default router;

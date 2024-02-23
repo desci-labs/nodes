@@ -19,6 +19,7 @@ import {
   VerificationNotFoundError,
 } from '../internal.js';
 import { communityService } from '../internal.js';
+import { logger } from 'ethers';
 
 export type AllAttestation = Attestation & {
   annotations: number;
@@ -67,7 +68,10 @@ export class AttestationService {
     const publishedNodeVersions =
       (await prisma.$queryRaw`SELECT COUNT(*) from "NodeVersion" where "nodeId" = ${node.id} AND "transactionId" IS NOT NULL`) as number;
 
-    if (nodeVersion >= publishedNodeVersions) throw new ClaimError('Invalid Node version');
+    if (nodeVersion >= publishedNodeVersions) {
+      logger.warn({ nodeVersion, publishedNodeVersions }, 'Invalid Node version');
+      // throw new ClaimError('Invalid Node version');
+    }
 
     const claimedBy = await prisma.user.findUnique({ where: { id: claimerId } });
     if (!claimedBy) throw new NoAccessError('ClaimedBy user not found');
@@ -375,6 +379,10 @@ export class AttestationService {
     return prisma.nodeAttestationVerification.create({ data: { nodeAttestationId, userId } });
   }
 
+  async findVerificationById(id: number) {
+    return prisma.nodeAttestationVerification.findFirst({ where: { id } });
+  }
+
   async removeVerification(id: number, userId: number) {
     const verification = await prisma.nodeAttestationVerification.findFirst({ where: { id, userId } });
     if (!verification) throw new VerificationNotFoundError();
@@ -480,6 +488,10 @@ export class AttestationService {
     return prisma.annotation.findMany({ where: filter });
   }
 
+  async findAnnotationById(id: number) {
+    return prisma.annotation.findUnique({ where: { id } });
+  }
+
   async getUserClaimComments(claimId: number, authorId: number) {
     assert(authorId > 0, 'Error: authorId is zero');
     assert(claimId > 0, 'Error: claimId is zero');
@@ -572,7 +584,12 @@ export class AttestationService {
             image_url: true,
           },
         },
-        desciCommunity: { select: { name: true } },
+        desciCommunity: { select: { name: true, hidden: true } },
+      },
+      where: {
+        desciCommunity: {
+          hidden: false,
+        },
       },
     });
 

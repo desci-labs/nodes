@@ -6,6 +6,7 @@ import _ from 'lodash';
 import {
   ForbiddenError,
   NotFoundError,
+  SuccessMessageResponse,
   SuccessResponse,
   attestationService,
   logger as parentLogger,
@@ -42,8 +43,8 @@ type AddCommentResponse = {
   error?: string;
 };
 
-export const removeComment = async (req: Request<any, any, RemoveCommentBody>, res: Response<AddCommentResponse>) => {
-  const { commentId } = req.body;
+export const removeComment = async (req: Request<RemoveCommentBody, any, any>, res: Response<AddCommentResponse>) => {
+  const { commentId } = req.params;
   const user = (req as any).user;
 
   const logger = parentLogger.child({
@@ -53,20 +54,17 @@ export const removeComment = async (req: Request<any, any, RemoveCommentBody>, r
     body: req.body,
   });
   logger.trace(`removeComment`);
-  if (!commentId) return res.status(400).send({ ok: false, error: 'Comment ID is required' });
 
-  try {
-    const comment = await prisma.annotation.findUnique({ where: { id: parseInt(commentId) } });
-    if (!comment) return res.status(404).send({ ok: false, error: 'Comment not found' });
-    if (comment.authorId !== user.id)
-      return res.status(401).send({ ok: false, error: 'Only the owner of the comment can remove it' });
+  // if (!commentId) return res.status(400).send({ ok: false, error: 'Comment ID is required' });
+  const comment = await attestationService.findAnnotationById(parseInt(commentId)); //await prisma.annotation.findUnique({ where: { id: parseInt(commentId) } });
 
-    const removedComment = await attestationService.removeComment(parseInt(commentId));
-
-    return res.status(200).send({ ok: true });
-  } catch (e) {
-    logger.error(e);
-    return res.status(400).send({ ok: false, error: 'Failed to remove reaction' });
+  if (!comment) {
+    // if (comment.authorId !== user.id) throw new ForbiddenError();
+    new SuccessMessageResponse().send(res);
+  } else {
+    if (comment.authorId !== user.id) throw new ForbiddenError();
+    await attestationService.removeComment(parseInt(commentId));
+    new SuccessMessageResponse().send(res);
   }
 };
 

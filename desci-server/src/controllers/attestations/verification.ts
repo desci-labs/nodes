@@ -4,6 +4,7 @@ import _ from 'lodash';
 
 import {
   BadRequestError,
+  ForbiddenError,
   NotFoundError,
   SuccessMessageResponse,
   SuccessResponse,
@@ -12,7 +13,7 @@ import {
 import { logger as parentLogger } from '../../logger.js';
 
 type RemoveVerificationBody = {
-  claimId: string;
+  verificationId: string;
 };
 
 type RemoveVerificationResponse = {
@@ -21,24 +22,31 @@ type RemoveVerificationResponse = {
 };
 
 export const removeVerification = async (
-  req: Request<any, any, RemoveVerificationBody>,
+  req: Request<RemoveVerificationBody, any, any>,
   res: Response<RemoveVerificationResponse>,
 ) => {
-  const { claimId } = req.body;
+  const { verificationId } = req.params;
   const user = (req as any).user;
 
   const logger = parentLogger.child({
     module: 'ATTESTATIONS::removeVerification',
-    user: (req as any).user,
-    body: req.body,
+    user: (req as any).user.id,
+    params: req.params,
   });
   logger.trace(`removeVerification`);
-  if (!claimId) throw new BadRequestError('Claim ID is required');
+  // if (!claimId) throw new BadRequestError('Claim ID is required');
 
-  const verification = await attestationService.getUserClaimVerification(parseInt(claimId), user.id);
-  if (!verification) throw new NotFoundError('Verification not found');
-  await attestationService.removeVerification(verification.id, user.id);
-  return new SuccessMessageResponse('Verification removed').send(res);
+  const verification = await attestationService.findVerificationById(parseInt(verificationId));
+  if (verification.userId !== user.id) {
+    throw new ForbiddenError();
+  }
+
+  if (!verification) {
+    return new SuccessMessageResponse().send(res);
+  } else {
+    await attestationService.removeVerification(verification.id, user.id);
+    return new SuccessMessageResponse().send(res);
+  }
 };
 
 type AddVerificationRequestBody = {
