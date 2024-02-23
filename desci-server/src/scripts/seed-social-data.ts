@@ -107,6 +107,34 @@ export const seedSocialData = async () => {
         attestationVersion.id,
         attestationVersion.attestationId,
       );
+    } else {
+      // UPDATE details of the version
+      [attestationVersion] = await prisma.$transaction([
+        prisma.attestationVersion.upsert({
+          where: { id: attestationVersion.id },
+          create: {
+            name: attestationInstance.name,
+            description: attestationInstance.description,
+            image_url: attestationInstance.image_url,
+            attestationId: attestationInstance.id,
+          },
+          update: {
+            name: attestationInstance.name,
+            description: attestationInstance.description,
+            image_url: attestationInstance.image_url,
+            attestationId: attestationInstance.id,
+          },
+        }),
+      ]);
+
+      console.log(
+        '--- updated attestationVersion for',
+        attestationInstance.name,
+        attestationInstance.id,
+        ' version:',
+        attestationVersion.id,
+        attestationVersion.attestationId,
+      );
     }
 
     return { attestation: attestationInstance, attestationVersion: attestationVersion };
