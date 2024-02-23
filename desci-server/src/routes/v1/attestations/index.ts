@@ -47,7 +47,6 @@ router.get(
 );
 
 router.get('/:dpid', [validate(showNodeAttestationsSchema)], asyncHander(showNodeAttestations));
-// TODO: -> // router.get('/:dpid/signal', [validate(showNodeAttestationsSchema)], asyncHander(showNodeAttestations));
 router.get('/:claimId/reactions', [validate(getAttestationReactionsSchema)], asyncHander(getAttestationReactions));
 router.get(
   '/:claimId/verifications',

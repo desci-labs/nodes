@@ -1,5 +1,5 @@
 import assert from 'assert';
-
+import _ from 'lodash';
 import { AnnotationType, Attestation, Prisma } from '@prisma/client';
 
 import { prisma } from '../client.js';
@@ -570,13 +570,31 @@ export class AttestationService {
     return queryResult;
   }
 
+  async getRecommendedAttestations() {
+    const attestations = await prisma.communityEntryAttestation.findMany({
+      include: {
+        // attestation: { select: { name: true, description: true } },
+        attestationVersion: {
+          select: {
+            name: true,
+            description: true,
+            image_url: true,
+          },
+        },
+        desciCommunity: { select: { name: true } },
+      },
+    });
+
+    return attestations;
+  }
+
   /**
-   * List all community attestations and their engagements metrics across all claimed attestations
+   * Query to return all entry attestations of a community  and their engagements metrics across all claimed attestations
    * Join rows from their community and prefix with ccommunity
    * @param communityId
    * @returns AttestationWithEngagement[]
    */
-  async listCommunityAttestations(communityId: number) {
+  async listCommunityEntryAttestations(communityId: number) {
     const queryResult = (await prisma.$queryRaw`
      SELECT
       A.*,
@@ -595,7 +613,7 @@ export class AttestationService {
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
       LEFT JOIN "CommunityEntryAttestation" CSA ON CSA."attestationId" = A."id"
 	where 
-		CSA."desciCommunityId" = ${communityId} AND A."communityId" = ${communityId}
+		CSA."desciCommunityId" = ${communityId}
     GROUP BY
       A.id,
       CSA.id
@@ -637,7 +655,7 @@ export class AttestationService {
   }
 
   /**
-   * Returns all verification signals for a node across all claimed attestations from a community {communityId}
+   * Returns all verification signals for a node across all claimed entry attestations from a community {communityId}
    * This community verification signal is the number returned for the verification field
    * @param communityId {number}
    * @param dpid {string}
@@ -653,12 +671,12 @@ export class AttestationService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."desciCommunityId" = ${communityId} AND t1."nodeDpid10" = ${dpid}
+      WHERE t1."nodeDpid10" = ${dpid}
       AND
         EXISTS
       (SELECT *
         from "CommunityEntryAttestation" c1
-        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = t1."desciCommunityId")
+        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = ${communityId})
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];
