@@ -18,13 +18,23 @@ export const getCommunityFeed = async (req: Request, res: Response, next: NextFu
   // THIS is necessary because the engagement signal returned from getcuratedNodes
   // accounts for only engagements on community selected attestations
   const nodes = await asyncMap(curatedNodes, async (node) => {
-    const engagements = await communityService.getNodeCommunityEngagementSignals(
-      parseInt(req.params.communityId),
-      node.nodeDpid10,
+    const engagements = await attestationService.getNodeEngagementSignals(node.nodeDpid10);
+    // const verifiedEngagements = await communityService.getNodeVerifiedEngagementsByCommunity(
+    //   node.nodeDpid10,
+    //   parseInt(req.params.communityId),
+    // );
+    const verifiedEngagements = node.NodeAttestation.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
     );
     return {
       ...node,
       engagements,
+      verifiedEngagements,
     };
   });
 
@@ -43,8 +53,10 @@ export const getCommunityDetails = async (req: Request, res: Response, next: Nex
   if (!community) throw new NotFoundError('Community not found');
 
   const engagements = await communityService.getCommunityEngagementSignals(community.id);
+  const verifiedEngagements = await communityService.getCommunityEntryAttestationsEngagementSignals(community.id);
 
-  return new SuccessResponse({ community, engagements }).send(res);
+  // todo: update api return type in web app
+  return new SuccessResponse({ community, engagements, verifiedEngagements }).send(res);
 };
 
 export const getAllFeeds = async (req: Request, res: Response, next: NextFunction) => {

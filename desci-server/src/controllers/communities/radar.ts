@@ -5,6 +5,7 @@ import _ from 'lodash';
 import {
   SuccessResponse,
   asyncMap,
+  attestationService,
   communityService,
   logger as parentLogger,
   resolveLatestNode,
@@ -13,14 +14,15 @@ import {
 const logger = parentLogger.child({ module: 'GET COMMUNITY RADAR' });
 export const getCommunityRadar = async (req: Request, res: Response, next: NextFunction) => {
   const communityRadar = await communityService.getCommunityRadar(parseInt(req.params.communityId as string));
-
+  logger.info({ communityRadar }, 'Radar');
   // THIS is necessary because the engagement signal returned from getCommunityRadar
   // accounts for only engagements on community selected attestations
   const nodes = await asyncMap(communityRadar, async (node) => {
-    const engagements = await communityService.getNodeCommunityEngagementSignals(
-      parseInt(req.params.communityId),
-      node.nodeDpid10,
-    );
+    // const engagements = await communityService.getNodeCommunityEngagementSignals(
+    //   parseInt(req.params.communityId),
+    //   node.nodeDpid10,
+    // );
+    const engagements = await attestationService.getNodeEngagementSignals(node.nodeDpid10);
 
     const verifiedEngagements = node.NodeAttestation.reduce(
       (total, claim) => ({
