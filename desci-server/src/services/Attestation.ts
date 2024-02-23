@@ -19,6 +19,7 @@ import {
   VerificationNotFoundError,
 } from '../internal.js';
 import { communityService } from '../internal.js';
+import { logger } from 'ethers';
 
 export type AllAttestation = Attestation & {
   annotations: number;
@@ -68,7 +69,10 @@ export class AttestationService {
       where: { nodeId: node.id, transactionId: { not: null } },
     });
 
-    if (nodeVersion >= publishedNodeVersions) throw new ClaimError('Invalid Node version');
+    if (nodeVersion >= publishedNodeVersions) {
+      logger.warn({ nodeVersion, publishedNodeVersions }, 'Invalid Node version');
+      // throw new ClaimError('Invalid Node version');
+    }
 
     const claimedBy = await prisma.user.findUnique({ where: { id: claimerId } });
     if (!claimedBy) throw new NoAccessError('ClaimedBy user not found');
