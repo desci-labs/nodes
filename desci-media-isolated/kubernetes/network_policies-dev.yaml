@@ -1,34 +1,34 @@
-# Enable ingress from DesciServer only
+# Enable ingress from DesciServerDev only
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
-  name: allow-backend-pod-to-isolated-media-server-comms
+  name: allow-backend-pod-to-isolated-media-server-dev-comms
 spec:
   podSelector:
     matchLabels:
-      App: DesciMediaIsolated
+      App: DesciMediaIsolatedDev
   ingress:
     - from:
         - podSelector:
             matchLabels:
-              allow-from: 'DesciServer'
+              allow-from: 'DesciServerDev'
   policyTypes:
     - Ingress
 
 
-# Enable egress to DesciServer only
+# Enable egress to DesciServerDev only
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
-  name: allow-egress-to-desciserver-only
+  name: allow-egress-to-desciserverdev-only
 spec:
   podSelector:
     matchLabels:
-      App: DesciMediaIsolated
+      App: DesciMediaIsolatedDev
   egress:
     - to:
         - podSelector:
             matchLabels:
-              allow-from: 'DesciServer'
+              allow-from: 'DesciServerDev'
   policyTypes:
     - Egress
