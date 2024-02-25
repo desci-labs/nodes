@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: desci-media-isolated-dev
+  name: desci-media-isolated
   labels:
-    App: DesciMediaIsolatedDev
+    App: DesciMediaIsolated
 spec:
   replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      App: DesciMediaIsolatedDev
+      App: DesciMediaIsolated
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -18,14 +18,14 @@ spec:
   template:
     metadata:
       labels:
-        App: DesciMediaIsolatedDev
+        App: DesciMediaIsolated
     spec:
       containers:
-        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-media-isolated-dev:production
-          name: desci-media-isolated-dev
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-media-isolated:production
+          name: desci-media-isolated
           ports:
             - containerPort: 7771
-              name: media_isolated_dev
+              name: media_isolated
           resources:
             limits:
               cpu: '0.5'
