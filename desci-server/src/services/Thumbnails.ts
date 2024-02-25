@@ -1,3 +1,4 @@
+import { ResearchObjectComponentType } from '@desci-labs/desci-models';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
@@ -7,8 +8,6 @@ import { ensureUuidEndsWithDot } from '../utils.js';
 import { getManifestByCid, getManifestFromNode, pinNewFiles } from './data/processing.js';
 import { pinFile } from './ipfs.js';
 import { NodeUuid, getLatestManifestFromNode } from './manifestRepo.js';
-import repoService from './repoService.js';
-import { ResearchObjectComponentType } from '@desci-labs/desci-models';
 
 const logger = parentLogger.child({
   module: 'Services::Thumbnails',
@@ -79,7 +78,7 @@ export class ThumbnailsService {
     }
 
     // Generate thumbnails for the ones that don't exist
-    const generatedThumbnails = await Promise.all(
+    const generatedThumbnails = await Promise.allSettled(
       Object.entries(thumbnailsToGenerate).map(([cid, fileName]) =>
         this.generateThumbnail(uuid, cid, fileName, HEIGHT_PX),
       ),
@@ -87,7 +86,9 @@ export class ThumbnailsService {
 
     // Add the newly generated ones to the thumbnail map
     generatedThumbnails.forEach((newThumb) => {
-      thumbnailMap[newThumb.componentCid] = { [HEIGHT_PX]: newThumb.thumbnailCid };
+      if (newThumb.status === 'fulfilled' && 'componentCid' in newThumb.value) {
+        thumbnailMap[newThumb.value.componentCid] = { [HEIGHT_PX]: newThumb.value.thumbnailCid };
+      }
     });
 
     return thumbnailMap;
