@@ -40,7 +40,7 @@ spec:
           name: desci-media-isolated-dev
           ports:
             - containerPort: 7771
-              name: media_isolated_dev
+              name: api
           env:
             - name: PORT
               value: '7771'
