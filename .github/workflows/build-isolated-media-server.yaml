@@ -1,5 +1,6 @@
 # build.yml
 on:
+  workflow_dispatch: # This line enables manual triggers
   push:
     paths:
       - .github/workflows/**
