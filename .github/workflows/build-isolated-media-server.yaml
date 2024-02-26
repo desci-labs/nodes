@@ -11,7 +11,7 @@ on:
 
       # TODO: add demo env
 
-name: Build desci-media-isolated
+name: Build desci-isolated-media-server
 
 # https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
 env:
