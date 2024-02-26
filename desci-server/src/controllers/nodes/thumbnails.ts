@@ -39,7 +39,7 @@ export const thumbnails = async (
     module: 'NODES::Thumbnails',
     uuid,
     manifestCid,
-    userId: user.id,
+    userId: user?.id,
   });
   logger.trace({ fn: 'Retrieving thumbnails' });
 
