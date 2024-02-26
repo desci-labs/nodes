@@ -11,13 +11,14 @@ import tar from 'tar';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import redisClient, { getOrCache } from '../../redisClient.js';
+import { getLatestDriveTime } from '../../services/draftTrees.js';
 import { getDatasetTar } from '../../services/ipfs.js';
-import { getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
-// import { getLatestManifest } from './utils.js';
 
 export enum DataReferenceSrc {
   PRIVATE = 'private',
@@ -32,7 +33,7 @@ interface RetrieveResponse {
 
 export const retrieveTree = async (req: Request, res: Response<RetrieveResponse | ErrorResponse | string>) => {
   let ownerId = (req as any).user?.id;
-  const manifestCid: string = req.params.manifestCid;
+  const manifestCid: string = req.params.manifestCid; // unused param
   const uuid: string = req.params.nodeUuid;
   const shareId: string = req.params.shareId;
 
@@ -57,7 +58,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   let node = await prisma.node.findFirst({
     where: {
       ownerId: ownerId,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
 
@@ -88,48 +89,14 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     return res.status(400).send({ error: 'Node not found' });
   }
 
-  if (!manifestCid) {
-    return res.status(400).json({ error: 'no manifest CID provided' });
-  }
   if (!uuid) {
     return res.status(400).json({ error: 'no UUID provided' });
   }
 
-  // TODOD: Pull data references from publishDataReferences table
-  // TODO: Later expand to never require auth from publicDataRefs
-  let dataSource = DataReferenceSrc.PRIVATE;
-  const dataset = await prisma.dataReference.findFirst({
-    where: {
-      type: DataType.MANIFEST,
-      userId: ownerId,
-      cid: manifestCid,
-      node: {
-        uuid: uuid + '.',
-      },
-    },
-  });
-  const publicDataset = await prisma.publicDataReference.findFirst({
-    where: {
-      cid: manifestCid,
-      type: DataType.MANIFEST,
-      node: {
-        uuid: uuid + '.',
-      },
-    },
-  });
-
-  if (publicDataset) dataSource = DataReferenceSrc.PUBLIC;
-
-  if (!dataset && dataSource === DataReferenceSrc.PRIVATE) {
-    logger.warn(`unauthed access user: ${ownerId}, cid provided: ${manifestCid}, nodeUuid provided: ${uuid}`);
-    return res.status(400).json({ error: 'failed' });
-  }
-
-  // const depthCacheKey = `depth-${depth}-${manifestCid}-${dataPath};
-
   try {
     const manifest = await getLatestManifestFromNode(node);
     const filledTree = (await getTreeAndFill(manifest, uuid, ownerId)) ?? [];
+    const latestDriveClock = getLatestDriveTime(node.uuid as NodeUuid);
 
     let tree = findAndPruneNode(filledTree[0], dataPath, depth);
     if (tree?.type === 'file' || tree === undefined) {
@@ -139,7 +106,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
       tree = findAndPruneNode(filledTree[0], poppedDataPath, depth);
     }
 
-    return res.status(200).json({ tree: [tree], date: dataset?.updatedAt.toString() });
+    return res.status(200).json({ tree: [tree], date: await latestDriveClock });
   } catch (err) {
     logger.error({ err }, 'Failed to retrieve tree');
     return res.status(400).json({ error: 'failed' });
@@ -186,7 +153,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
       type: DataType.MANIFEST,
       cid: manifestCid,
       node: {
-        uuid: uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
       },
     },
   });
@@ -235,7 +202,12 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   } catch (err) {
     logger.warn({ fn: 'pubTree', err }, '[pubTree] error');
     logger.info('[pubTree] Falling back on uncached tree retrieval');
-    return await fetchCb();
+    try {
+      return await fetchCb();
+    } catch (err2) {
+      logger.error({ fn: 'pubTree', err: err2 }, '[pubTree] retrieve retry error');
+      return res.status(400).json({ error: 'failed' });
+    }
   }
 
   const depthTree = await getOrCache(depthCacheKey, async () => {
@@ -280,7 +252,7 @@ export const downloadDataset = async (req: Request, res: Response, next: NextFun
       type: { not: DataType.MANIFEST },
       cid: cid,
       node: {
-        uuid: uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
       },
     },
   });

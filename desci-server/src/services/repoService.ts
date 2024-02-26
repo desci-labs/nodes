@@ -1,11 +1,11 @@
 import { DocumentId } from '@automerge/automerge-repo';
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { ResearchObjectV1, ManifestActions } from '@desci-labs/desci-models';
 import axios, { AxiosInstance } from 'axios';
 
 import { logger as parentLogger } from '../logger.js';
 import { ResearchObjectDocument } from '../types/documents.js';
 
-import { ManifestActions, NodeUuid } from './manifestRepo.js';
+import { NodeUuid } from './manifestRepo.js';
 
 const logger = parentLogger.child({ module: 'Repo Service' });
 
@@ -18,12 +18,11 @@ class RepoService {
   baseUrl: string;
 
   constructor() {
+    if (!process.env.REPO_SERVICE_SECRET_KEY || !process.env.REPO_SERVER_URL)
+      throw new Error('[REPO SERVICE]: env.REPO_SERVER_URL or env.REPO_SERVICE_SECRET_KEY missing');
+
     this.#apiKey = process.env.REPO_SERVICE_SECRET_KEY;
     this.baseUrl = process.env.REPO_SERVER_URL;
-
-    if (!this.#apiKey || !this.baseUrl) {
-      throw new Error('[REPO SERVICE]: env.REPO_SERVER_URL or env.REPO_SERVICE_SECRET_KEY missing');
-    }
 
     logger.info({ url: this.baseUrl }, 'Init Repo Service');
 
@@ -45,6 +44,24 @@ class RepoService {
     } else {
       // logger.info({ response: response.data }, 'Disatch Changes Response');
       return null;
+    }
+  }
+
+  async dispatchChanges(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
+    logger.info({ arg }, 'Disatch Actions');
+    try {
+      const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
+        `${this.baseUrl}/v1/nodes/documents/actions`,
+        arg,
+      );
+      logger.info({ arg, response: response.data }, 'Disatch Actions Response');
+      if (response.status === 200 && response.data.ok) {
+        return response.data.document;
+      } else {
+        return { ok: false, status: response.status, message: response.data };
+      }
+    } catch (err) {
+      return { ok: false, status: err.status, message: err?.response?.data };
     }
   }
 

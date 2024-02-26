@@ -23,7 +23,7 @@ import { NodeUuid } from '../../services/manifestRepo.js';
 import { createNodeDraftBlank } from '../../services/nodeManager.js';
 import repoService from '../../services/repoService.js';
 import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
-import { randomUUID64 } from '../../utils.js';
+import { ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
 
 export const draftCreate = async (req: Request, res: Response, next: NextFunction) => {
   const {
@@ -196,7 +196,7 @@ export const draftAddComponent = async (req: Request, res: Response, next: NextF
     const node = await prisma.node.findFirst({
       where: {
         ownerId: loggedInUser,
-        uuid: uuid + '.',
+        uuid: ensureUuidEndsWithDot(uuid),
       },
     });
 
@@ -267,6 +267,7 @@ export const draftAddComponent = async (req: Request, res: Response, next: NextF
         subtype: componentSubtype,
         payload: {
           url: componentUrl,
+          path: DRIVE_NODE_ROOT_PATH + `/${name}`
         },
       };
       manifestParsed.components.push(linkComponent);

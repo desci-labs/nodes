@@ -1,14 +1,15 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import { query } from '../db/index.js';
 import { logger } from '../logger.js';
 
-export const verifyNodeDocumentAccess = async (userId: number, documentId: string) => {
+export const verifyNodeDocumentAccess = async (userId: number, documentId: DocumentId) => {
   try {
     logger.info({ userId, documentId }, 'START [verifyNodeDocumentAccess]::Node');
     const rows = await query('SELECT * FROM "Node" WHERE "manifestDocumentId" = $1 AND "ownerId" = $2', [
       documentId,
       userId,
     ]);
-    const node = rows[0];
+    const node = rows?.[0];
     logger.info(
       { uuid: node.uuid, userId, ownerId: node.ownerId, documentId: node.manifestDocumentId },
       '[verifyNodeDocumentAccess]::Node',

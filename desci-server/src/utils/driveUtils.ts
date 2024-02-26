@@ -14,6 +14,7 @@ import {
   fillIpfsTree,
   isNodeRoot,
   isResearchObjectComponentTypeMap,
+  ManifestActions,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType, Node } from '@prisma/client';
 
@@ -22,9 +23,10 @@ import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
-import { ManifestActions, NodeUuid } from '../services/manifestRepo.js';
+import { NodeUuid } from '../services/manifestRepo.js';
 import repoService from '../services/repoService.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
+import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
 
@@ -70,7 +72,7 @@ export async function getTreeAndFillDeprecated(
   ownerId?: number,
 ) {
   //NOTE/TODO: Adapted for priv(owner) and public (unauthed), may not work for node sharing users(authed/contributors)
-  const externalCidMap = await generateExternalCidMap(nodeUuid + '.');
+  const externalCidMap = await generateExternalCidMap(ensureUuidEndsWithDot(nodeUuid));
   const tree: RecursiveLsResult[] = await getDirectoryTree(rootCid, externalCidMap);
 
   /*
@@ -85,7 +87,7 @@ export async function getTreeAndFillDeprecated(
             rootCid: rootCid,
             // cid: { in: dirCids },
             node: {
-              uuid: nodeUuid + '.',
+              uuid: ensureUuidEndsWithDot(nodeUuid),
             },
           },
         })
@@ -95,7 +97,7 @@ export async function getTreeAndFillDeprecated(
             // cid: { in: dirCids },
             // rootCid: rootCid,
             node: {
-              uuid: nodeUuid + '.',
+              uuid: ensureUuidEndsWithDot(nodeUuid),
             },
           },
         });
@@ -107,7 +109,7 @@ export async function getTreeAndFillDeprecated(
           where: {
             type: { not: DataType.MANIFEST },
             node: {
-              uuid: nodeUuid + '.',
+              uuid: ensureUuidEndsWithDot(nodeUuid),
             },
           },
         })
@@ -153,10 +155,10 @@ export async function getTreeAndFill(
   }
   const rootCid = dataBucket.payload.cid;
   const externalCidMap = published
-    ? await generateExternalCidMap(nodeUuid + '.', rootCid)
-    : await generateExternalCidMap(nodeUuid + '.');
+    ? await generateExternalCidMap(ensureUuidEndsWithDot(nodeUuid), rootCid)
+    : await generateExternalCidMap(ensureUuidEndsWithDot(nodeUuid));
 
-  const node = await prisma.node.findUnique({ where: { uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.' } });
+  const node = await prisma.node.findUnique({ where: { uuid: ensureUuidEndsWithDot(nodeUuid) } });
 
   const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
   let tree: RecursiveLsResult[] = published
@@ -173,7 +175,7 @@ export async function getTreeAndFill(
       type: { not: DataType.MANIFEST },
       rootCid: rootCid,
       node: {
-        uuid: nodeUuid + '.',
+        uuid: ensureUuidEndsWithDot(nodeUuid),
       },
     },
   });
@@ -181,7 +183,7 @@ export async function getTreeAndFill(
     where: {
       type: { not: DataType.MANIFEST },
       node: {
-        uuid: nodeUuid + '.',
+        uuid: ensureUuidEndsWithDot(nodeUuid),
       },
     },
     include: {
@@ -350,24 +352,6 @@ export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataT
   return ROTypesToPrismaTypes[DEFAULT_COMPONENT_TYPE];
 }
 
-/* 
-Inconsistent use of URL and CID within the manifest payloads, PDFs and Code Repos use .url,
- others generally use .cid, this helper function fetches the appropriate property
-  */
-export function urlOrCid(cid: string, type: ResearchObjectComponentType) {
-  switch (type) {
-    case ResearchObjectComponentType.PDF:
-    case ResearchObjectComponentType.CODE:
-    case ResearchObjectComponentType.LINK:
-      return { url: cid };
-    case ResearchObjectComponentType.DATA:
-    case ResearchObjectComponentType.DATA_BUCKET:
-      return { cid };
-    default:
-      return { cid };
-  }
-}
-
 export const DRIVE_NODE_ROOT_PATH = 'root';
 
 export interface FirstNestingComponent {
@@ -398,7 +382,7 @@ export function DANGEROUSLY_addComponentsToManifest(
       ...(c.componentType && { type: c.componentType }),
       ...(c.componentSubtype && { subtype: c.componentSubtype }),
       payload: {
-        ...urlOrCid(c.cid, c.componentType),
+        cid: c.cid,
         path: c.path,
         ...(c.externalUrl && { externalUrl: c.externalUrl }),
       },
@@ -418,7 +402,7 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
       ...(entry.componentType && { type: entry.componentType }),
       ...(entry.componentSubtype && { subtype: entry.componentSubtype }),
       payload: {
-        ...urlOrCid(entry.cid, entry.componentType),
+        cid: entry.cid,
         path: entry.path,
         ...(entry.externalUrl && { externalUrl: entry.externalUrl }),
       },
@@ -463,7 +447,7 @@ export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
     ? await prisma.publicDataReference.findMany({
         where: {
           node: {
-            uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.',
+            uuid: ensureUuidEndsWithDot(nodeUuid),
           },
           rootCid: dataBucketCid,
           external: true,
@@ -472,7 +456,7 @@ export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
     : await prisma.dataReference.findMany({
         where: {
           node: {
-            uuid: nodeUuid.endsWith('.') ? nodeUuid : nodeUuid + '.',
+            uuid: ensureUuidEndsWithDot(nodeUuid),
           },
           external: true,
         },

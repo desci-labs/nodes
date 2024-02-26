@@ -5,13 +5,19 @@ import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket
 import { WebSocketServer } from 'ws';
 
 import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
-import { logger } from './logger.js';
+import { logger as parentLogger } from './logger.js';
 import { verifyNodeDocumentAccess } from './services/nodes.js';
 import { ResearchObjectDocument } from './types.js';
 import * as db from './db/index.js';
+import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
 
-export const socket = new WebSocketServer({ port: 5445, path: '/sync' });
+export const socket = new WebSocketServer({
+  port: process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 5445,
+  path: '/sync',
+});
 const hostname = os.hostname();
+
+const logger = parentLogger.child({ module: 'repo.ts' });
 
 const adapter = new NodeWSServerAdapter(socket);
 const config: RepoConfig = {
@@ -22,8 +28,17 @@ const config: RepoConfig = {
   // know about and can ask for by ID.
   sharePolicy: async (peerId, documentId) => {
     try {
+      if (!documentId) {
+        logger.warn({ peerId }, 'SharePolicy: Document ID NOT found');
+        return false;
+      } else {
+        logger.trace({ peerId, documentId }, 'SharePolicy: Document found');
+      }
       // peer format: `peer-[user#id]:[unique string combination]
-      if (peerId.toString().length < 8) return false;
+      if (peerId.toString().length < 8) {
+        logger.error({ peerId }, 'SharePolicy: Peer ID invalid');
+        return false;
+      }
 
       const userId = peerId.split(':')?.[0]?.split('-')?.[1];
       const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
@@ -37,11 +52,11 @@ const config: RepoConfig = {
 };
 export const backendRepo = new Repo(config);
 const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {
-  logger.trace({ change: change.handle.documentId, uuid: (await change.handle.doc()).uuid }, 'Document Changed');
+  logger.trace({ change: change.handle.documentId, uuid: change.patchInfo.after.uuid }, 'Document Changed');
   const newTitle = change.patchInfo.after.manifest.title;
   const newCover = change.patchInfo.after.manifest.coverImage;
-  const uuid = change.doc.uuid.endsWith('.') ? change.doc.uuid : change.doc.uuid + '.';
-  logger.info({ uuid: uuid + '.', newTitle }, 'UPDATE NODE');
+  const uuid = ensureUuidEndsWithDot(change.doc.uuid);
+  logger.info({ uuid: uuid, newTitle }, 'UPDATE NODE');
 
   try {
     // TODO: Check if update message is 'UPDATE TITLE'
@@ -61,8 +76,8 @@ const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocumen
       logger.info({ uuid, coverUrl, result }, 'COVER UPDATED');
     }
   } catch (err) {
-    console.error('[Error in DOCUMENT CHANG HANDLER CALLBACK]', err);
-    logger.error(err, '[Error in DOCUMENT CHANG HANDLER CALLBACK]');
+    console.error('[Error in DOCUMENT repo.ts::handleChange CALLBACK]', err);
+    logger.error(err, '[Error in DOCUMENT repo.ts::handleChange CALLBACK]');
   }
 };
 

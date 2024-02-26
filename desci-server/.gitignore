@@ -14,3 +14,5 @@ coverage
 server.log
 
 repo-tmp
+
+queries.sql

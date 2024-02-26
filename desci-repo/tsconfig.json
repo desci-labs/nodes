@@ -29,7 +29,9 @@
       "express": [
         "./src/types/express"
       ]
-    }
+    },
+    "strictNullChecks": true,
+    "exactOptionalPropertyTypes": true
   },
   "include": [
     "./src/**/*.ts",

@@ -4,36 +4,64 @@ import { Response, Request } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { processExternalCidDataToIpfs } from '../../services/data/externalCidProcessing.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse, UpdateResponse } from './update.js';
+import { ResearchObjectComponentSubtypes, ResearchObjectComponentType } from '@desci-labs/desci-models';
 
-export const updateExternalCid = async (req: Request, res: Response<UpdateResponse | ErrorResponse | string>) => {
+export type ExternalCid = {
+  cid: string,
+  name: string,
+};
+
+export type ExternalCidPayload = {
+  uuid: string,
+  contextPath: string,
+  externalCids: ExternalCid[],
+  componentType: ResearchObjectComponentType,
+  componentSubtype: ResearchObjectComponentSubtypes,
+};
+
+/**
+ * Add an external UnixFS tree to the drive, without actually getting the files,
+ * by fetching the leafless DAG and pinning it.
+*/
+export const updateExternalCid = async (
+  req: Request<any, any, ExternalCidPayload>,
+  res: Response<UpdateResponse | ErrorResponse>
+) => {
   const owner = (req as any).user as User;
-  const { uuid, contextPath, componentType, componentSubtype } = req.body;
-  const { externalCids } = req.body;
+  const {
+    uuid,
+    contextPath,
+    externalCids,
+    componentType,
+    componentSubtype
+  } = req.body;
 
   const logger = parentLogger.child({
     // id: req.id,
     module: 'DATA::UpdateExternalCidController',
     userId: owner.id,
-    uuid: uuid,
-    contextPath: contextPath,
-    componentType: componentType,
+    uuid,
+    contextPath,
+    componentType,
     componentSubtype,
     externalCids,
   });
 
   logger.trace(`[UPDATE DATASET] Updating in context: ${contextPath}`);
-  if (uuid === undefined || contextPath === undefined || externalCids === undefined)
+  if (uuid === undefined || contextPath === undefined || !Array.isArray(externalCids))
     return res.status(400).json({ error: 'uuid, manifest, contextPath required, externalCids required' });
 
   //validate requester owns the node
   const node = await prisma.node.findFirst({
     where: {
       ownerId: owner.id,
-      uuid: uuid.endsWith('.') ? uuid : uuid + '.',
+      uuid: ensureUuidEndsWithDot(uuid),
     },
   });
+
   if (!node) {
     logger.warn(`unauthed node user: ${owner}, node uuid provided: ${uuid}`);
     return res.status(400).json({ error: 'failed' });
@@ -44,10 +72,10 @@ export const updateExternalCid = async (req: Request, res: Response<UpdateRespon
     node,
     externalCids,
     contextPath,
-    // componentType,
-    // componentSubtype,
+    componentType,
+    componentSubtype
   });
-  debugger;
+
   if (ok) {
     const {
       manifest: updatedManifest,

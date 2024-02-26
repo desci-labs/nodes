@@ -20,7 +20,6 @@ import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { app } from '../../src/index.js';
-import { backendRepo } from '../../src/repo.js';
 import { migrateIpfsTreeToNodeTree } from '../../src/services/draftTrees.js';
 import {
   addFilesToDag,
@@ -29,8 +28,7 @@ import {
   client as ipfs,
   spawnEmptyManifest,
 } from '../../src/services/ipfs.js';
-import { NodeUuid, getAutomergeUrl } from '../../src/services/manifestRepo.js';
-// import { ResearchObjectDocument } from '../../src/types/documents.js';
+import { NodeUuid } from '../../src/services/manifestRepo.js';
 import repoService from '../../src/services/repoService.js';
 import { validateAndHealDataRefs, validateDataReferences } from '../../src/utils/dataRefTools.js';
 import { draftNodeTreeEntriesToFlatIpfsTree } from '../../src/utils/draftTreeUtils.js';
@@ -302,22 +300,15 @@ describe('Data Controllers', () => {
       //   expect(oldDataBucketCid).to.not.equal(newDataBucketCid);
       // });
       it('should have added a code component to the manifest', async () => {
-        console.log(res.body.manifest);
-        const handle = backendRepo.find(getAutomergeUrl(documentId));
-        const doc = await handle.doc();
-        console.log('Doc', doc);
-
         const newCodeComponent = res.body.manifest.components.find(
           (c) => c.type === ResearchObjectComponentType.CODE && c.payload.path === 'root/' + externalRepoPath,
         );
         expect(!!newCodeComponent).to.equal(true);
       });
       it('should have added the repo url to the new code components payload', () => {
-        console.log('[log]', res.body.manifest);
         const newCodeComponent = res.body.manifest.components.find(
           (c) => c.type === ResearchObjectComponentType.CODE && c.payload.path === 'root/' + externalRepoPath,
         );
-
         expect(newCodeComponent.payload.externalUrl).to.equal(externalRepoUrl);
       });
     });

@@ -3,7 +3,7 @@
 const pg = await import('pg').then((value) => value.default);
 const { Pool } = pg;
 
-console.log('DB', process.env.DATABASE_URL);
+// console.log('DB', process.env.DATABASE_URL);
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
