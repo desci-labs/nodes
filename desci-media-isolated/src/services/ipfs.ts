@@ -10,7 +10,7 @@ export class IpfsService {
       console.log('IPFS_GATEWAY:', IPFS_GATEWAY);
       throw new IpfsConfigurationError('process.env.IPFS_GATEWAY is not defined in environment variables');
     }
-    debugger;
+    // debugger;
     const url = `${IPFS_GATEWAY}/${cid}`;
 
     try {
