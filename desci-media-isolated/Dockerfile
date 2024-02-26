@@ -18,7 +18,16 @@ RUN chown -R 1001:0 /.npm
 # App Setup
 WORKDIR /usr/src/app
 
-COPY package*.json ./
+COPY package*.json .
+COPY tsconfig.json .
+COPY .eslintrc.json .
+COPY ./src .
+COPY . .
+RUN npm i
+RUN npm run build
+RUN chown -R node:node .
+
+EXPOSE 7771
 
 FROM base as dev
 
@@ -31,20 +40,16 @@ COPY . .
 # Expose debugger port
 EXPOSE 9777
 
-CMD ["dumb-init", "npx", "tsx","watch", "--inspect=0.0.0.0:9777", "src/index.ts"]
+CMD ["dumb-init", "npm", "run", "dev"]
 
 FROM base as production
 # Cache mounts for faster builds, prod env for better express perf
 ENV NODE_ENV production
-RUN --mount=type=cache,target=/usr/src/app/.npm \
-  npm set cache /usr/src/app/.npm && \
-  npm ci --only=production
-
+COPY --from=base /usr/src/app/dist ./dist
 
 # 'node' user is created by the node image, prevent perm issues, run with reduced privs
 USER node
-COPY --chown=node:node ./src/ .
-RUN npm run build
+
 
 
 CMD ["dumb-init", "node", "dist/index.js"]

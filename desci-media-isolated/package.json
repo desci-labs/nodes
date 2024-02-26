@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --inspect=0.0.0.0:9777 src/index.ts",
     "build": "tsc"
   },
   "keywords": [],
@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "@types/node": "^20.11.20",
     "@typescript-eslint/eslint-plugin": "^7.0.1",
     "@typescript-eslint/parser": "^7.0.1",
     "eslint": "^8.56.0",

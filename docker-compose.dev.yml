@@ -184,9 +184,11 @@ services:
     container_name: "media_isolated"
     volumes:
       - ./desci-media-isolated:/usr/src/app
+    environment:
+      PORT: 7771
     ports:
       - "9777:9777" # debugger
-      # - "7771:7771" # Uncomment if you want to test the media server from the host machine
+      - "7771:7771" # Uncomment if you want to test the media server from the host machine
     networks:
       - isolated
 

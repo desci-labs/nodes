@@ -12,7 +12,7 @@
 
     /* Language and Environment */
     "outDir": "./dist",
-    "target": "ES2020" /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */,
+    "target": "esnext" /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */,
     // "lib": [],                                        /* Specify a set of bundled library declaration files that describe the target runtime environment. */
     // "jsx": "preserve",                                /* Specify what JSX code is generated. */
     // "experimentalDecorators": true,                   /* Enable experimental support for legacy experimental decorators. */
@@ -105,7 +105,16 @@
 
     /* Completeness */
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
-    "skipLibCheck": true /* Skip type checking all .d.ts files. */
+    "skipLibCheck": true /* Skip type checking all .d.ts files. */,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "resolveJsonModule": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // dagConcat.cjs requires this
+    "allowJs": true
   },
   "ts-node": {
     // Tell ts-node CLI to install the --loader automatically, explained below
