@@ -34,7 +34,7 @@ export const thumbnails = async (
 ) => {
   const user = (req as any).user;
   const { uuid, manifestCid } = req.params;
-
+  // debugger;
   const logger = parentLogger.child({
     module: 'NODES::Thumbnails',
     uuid,

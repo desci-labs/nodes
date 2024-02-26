@@ -105,6 +105,7 @@ export class ThumbnailsService {
       return null;
     }
     // Generate the thumbnail
+    // debugger;
     const thumbnailStream = await axios.post(
       `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/thumbnails?height${heightPx}`,
       { cid: cid, fileName: componentFileName },
@@ -112,7 +113,6 @@ export class ThumbnailsService {
         responseType: 'stream',
       },
     );
-
     // Save it on IPFS
     const pinned = await pinFile(thumbnailStream.data);
     // Save it to the database
