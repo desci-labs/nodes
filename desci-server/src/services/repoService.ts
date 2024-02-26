@@ -4,6 +4,7 @@ import axios, { AxiosInstance } from 'axios';
 
 import { logger as parentLogger } from '../logger.js';
 import { ResearchObjectDocument } from '../types/documents.js';
+import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { NodeUuid } from './manifestRepo.js';
 
@@ -103,6 +104,7 @@ class RepoService {
   async getDraftManifest(uuid: NodeUuid) {
     logger.info({ uuid }, 'Retrieve Draft Document');
     // try {} catch (err) {}
+    // uuid = ensureUuidEndsWithDot(uuid) as NodeUuid;
     try {
       const response = await this.getDraftDocument({ uuid });
       return response ? response.manifest : null;

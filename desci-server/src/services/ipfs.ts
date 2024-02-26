@@ -303,6 +303,14 @@ export async function pinExternalDags(cids: string[]): Promise<string[]> {
   return result;
 }
 
+export const pinFile = async (file: Buffer | Readable | ReadableStream): Promise<IpfsPinnedResult> => {
+  const isOnline = await client.isOnline();
+  logger.debug({ fn: 'pinFile' }, `isOnline: ${isOnline}`);
+
+  const uploaded = await client.add(file, { cidVersion: 1, pin: true });
+  return { ...uploaded, cid: uploaded.cid.toString() };
+};
+
 export interface RecursiveLsResult extends IpfsPinnedResult {
   name: string;
   contains?: RecursiveLsResult[];

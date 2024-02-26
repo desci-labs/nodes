@@ -1,0 +1,6 @@
+config
+database
+dist
+node_modules
+.git
+# .env

@@ -8,8 +8,8 @@ import { pubTree, retrieveTree, deleteData, update, renameData } from '../../con
 import { moveData } from '../../controllers/data/move.js';
 import { updateExternalCid } from '../../controllers/data/updateExternalCid.js';
 import { logger } from '../../logger.js';
+import { attachUser } from '../../middleware/attachUser.js';
 import { ensureNodeAccess, ensureWriteAccessCheck } from '../../middleware/authorisation.js';
-import { attachUser } from '../../middleware/ensureUser.js';
 import { ensureUser } from '../../middleware/permissions.js';
 import { isS3Configured, s3Client } from '../../services/s3.js';
 

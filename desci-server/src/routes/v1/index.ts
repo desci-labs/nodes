@@ -4,6 +4,7 @@ import { generateNonce } from 'siwe';
 import { prisma } from '../../client.js';
 import { queryResearchFields } from '../../controllers/data/index.js';
 import { queryRor } from '../../controllers/proxy/index.js';
+import { ipfsReadGatewayProxy } from '../../controllers/proxy/ipfsReadGateway.js';
 import { nft } from '../../controllers/raw/nft.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
@@ -53,5 +54,6 @@ router.get('/nft/:id', nft);
 router.use('/referral', referral);
 router.get('/researchFields', [ensureUser], queryResearchFields);
 router.get('/ror', [ensureUser], queryRor);
+router.get('/ipfs/:cid', ipfsReadGatewayProxy);
 
 export default router;

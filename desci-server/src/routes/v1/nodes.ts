@@ -22,7 +22,9 @@ import {
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { prepublish } from '../../controllers/nodes/prepublish.js';
+import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
+import { attachUser } from '../../internal.js';
 import { ensureNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
@@ -48,6 +50,7 @@ router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatchDocumentChange);
+router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 

@@ -42,3 +42,6 @@ nodes-media/.env:
 desci-repo/.env:
 	if [ ! -f desci-repo/.env ]; then cp desci-repo/.env.example desci-repo/.env; fi
 
+desci-media-isolated/.env:
+	if [ ! -f desci-media-isolated/.env ]; then cp desci-media-isolated/.env.example desci-media-isolated/.env; fi
+

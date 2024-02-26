@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: desci-media-isolated-dev-service
+  labels:
+    App: DesciMediaIsolatedDev
+spec:
+  type: ClusterIP
+  selector:
+    App: DesciMediaIsolatedDev
+  ports:
+    - name: api
+      port: 7771
+      targetPort: 7771
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: desci-media-isolated-dev
+  labels:
+    App: DesciMediaIsolatedDev
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      App: DesciMediaIsolatedDev
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        App: DesciMediaIsolatedDev
+    spec:
+      containers:
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-media-isolated-dev:production
+          name: desci-media-isolated-dev
+          ports:
+            - containerPort: 7771
+              name: media_isolated_dev
+          env:
+            - name: PORT
+              value: '7771'
+            - name: IPFS_GATEWAY
+              value: 'https://ipfs.desci.com/ipfs'
+          resources:
+            limits:
+              cpu: '0.5'
+              memory: 2Gi
+            requests:
+              cpu: 250m
+              memory: 1Gi
+      serviceAccountName: 'default'

@@ -50,7 +50,6 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
     /**
      * Remove draft node tree entries, add them to the cid prune list
      */
-    // debugger;
     const entriesToDelete = await prisma.draftNodeTree.findMany({
       where: {
         nodeId: node.id,
