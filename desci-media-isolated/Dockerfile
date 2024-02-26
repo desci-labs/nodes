@@ -26,7 +26,11 @@ RUN --mount=type=cache,target=/usr/src/app/.npm \
   npm set cache /usr/src/app/.npm && \
   npm install
 
+
 COPY . .
+
+# Auto create .env from .env.example if it doesn't exist
+RUN if [ ! -f .env ]; then cp .env.example .env; fi
 
 # Expose debugger port
 EXPOSE 9777
