@@ -15,13 +15,21 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
       uuid,
       isDeleted: false,
     },
+    select: {
+      id: true,
+      manifestUrl: true,
+      ownerId: true,
+      uuid: true,
+      title: true,
+      NodeCover: true,
+    },
   });
 
   if (!discovery) {
     logger.warn({ uuid }, 'uuid not found');
   }
 
-  const selectAttributes = ['manifestUrl', 'ownerId', 'title'];
+  const selectAttributes = ['manifestUrl', 'ownerId', 'title', 'NodeCover'];
   const node: Partial<Node & { versions: number }> = _.pick(discovery, selectAttributes);
   const publisedVersions =
     (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND "transactionId" IS NOT NULL ORDER BY "createdAt" DESC`) as NodeVersion[];

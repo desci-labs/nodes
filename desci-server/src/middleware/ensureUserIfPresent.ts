@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
-import { retrieveUser } from './ensureUser.js';
+import { retrieveUser } from './attachUser.js';
 
 export const ensureUserIfPresent = async (req: Request, res: Response, next: NextFunction) => {
   const retrievedUser = await retrieveUser(req);
