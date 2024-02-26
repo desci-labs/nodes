@@ -25,7 +25,7 @@ export class ThumbnailsService {
     const tempFilePath = path.join(BASE_TEMP_DIR, THUMBNAIL_FILES_DIR, `${cid + extension}`);
     const thumbnailPath = this.getThumbnailPath(cid);
     const exportPath = path.join(BASE_TEMP_DIR, THUMBNAIL_OUTPUT_DIR, thumbnailPath);
-
+    // debugger;
     await IpfsService.saveFile(cid, tempFilePath);
     try {
       await generateAsync(tempFilePath, exportPath, { ...THUMBNAIL_DIMENSIONS, height: heightPx });

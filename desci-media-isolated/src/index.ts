@@ -1,10 +1,10 @@
-import dotenv from 'dotenv';
+// import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
 import { errorHandler } from './middleware/errorHandler.js';
 import routes from './routes/index.js';
 
-dotenv.config();
+// dotenv.config();
 
 const app = express();
 console.log('process.env.PORT:', process.env.PORT);
