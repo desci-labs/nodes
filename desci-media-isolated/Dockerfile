@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y dumb-init ghostscript unoconv ffmpeg im
 RUN sed -i '/<policy domain="coder" rights="none" pattern="PDF" \/>/c\<policy domain="Undefined" rights="read|write" pattern="PDF" \/>' /etc/ImageMagick-6/policy.xml
 
 # NPM Permission Fix
-RUN mkdir -p /.npm
-RUN chown -R 1001:0 /.npm
+# RUN mkdir -p /.npm
+# RUN chown -R 1001:0 /.npm
 
 # App Setup
 WORKDIR /usr/src/app

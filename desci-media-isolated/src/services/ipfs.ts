@@ -1,13 +1,13 @@
 import axios from 'axios';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
-import { IPFS_GATEWAY } from '../config/index.js';
 import { IpfsConfigurationError } from '../utils/customErrors.js';
 
+const IPFS_GATEWAY = process.env.IPFS_GATEWAY;
 export class IpfsService {
   static async saveFile(cid: string, outputPath: string) {
     if (!IPFS_GATEWAY) {
-      console.log('IPFS_GATEWAY:', IPFS_GATEWAY);
+      console.log('IPFS_GATEWAY:', process.env.IPFS_GATEWAY);
       throw new IpfsConfigurationError('process.env.IPFS_GATEWAY is not defined in environment variables');
     }
     // debugger;
