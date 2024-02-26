@@ -2,8 +2,6 @@
 FROM docker.io/node:20.9.0 as base
 
 # Install dumb-init so we can use it as PID 1
-# RUN apk update && apk add --no-cache dumb-init
-# RUN apk add --no-cache unoconv ffmpeg imagemagick curl
 
 RUN apt-get update && apt-get install -y dumb-init ghostscript unoconv ffmpeg imagemagick curl && \
     rm -rf /var/lib/apt/lists/*
@@ -11,9 +9,6 @@ RUN apt-get update && apt-get install -y dumb-init ghostscript unoconv ffmpeg im
 # Modify ImageMagick policy to allow PDF processing
 RUN sed -i '/<policy domain="coder" rights="none" pattern="PDF" \/>/c\<policy domain="Undefined" rights="read|write" pattern="PDF" \/>' /etc/ImageMagick-6/policy.xml
 
-# NPM Permission Fix
-# RUN mkdir -p /.npm
-# RUN chown -R 1001:0 /.npm
 
 # App Setup
 WORKDIR /usr/src/app
@@ -30,12 +25,10 @@ RUN --mount=type=cache,target=/usr/src/app/.npm \
 
 COPY . .
 
-# Auto create .env from .env.example if it doesn't exist
-RUN if [ ! -f .env ]; then cp .env.example .env; fi
-
 # Expose debugger port
 EXPOSE 9777
 
+ENTRYPOINT ["/usr/src/app/scripts/containerInitDev.sh"]
 CMD ["dumb-init", "npx", "tsx","watch", "--inspect=0.0.0.0:9777", "src/index.ts"]
 
 FROM base as production
@@ -48,7 +41,7 @@ ENV NODE_ENV production
 # 'node' user is created by the node image, prevent perm issues, run with reduced privs
 RUN mkdir -p /usr/src/app/dist && chown node:node /usr/src/app/dist
 USER node
-COPY --chown=node:node ./src/ .
+COPY --chown=node:node ./src/ ./src/
 USER root
 RUN chown -R node:node /usr/src/app
 USER node
@@ -56,5 +49,5 @@ RUN npm run build && \
     npm prune --production
 
 
-
+ENTRYPOINT ["/usr/src/app/scripts/containerInitProd.sh"]
 CMD ["dumb-init", "node", "dist/index.js"]
