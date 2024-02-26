@@ -33,7 +33,7 @@ spec:
   template:
     metadata:
       labels:
-        App: DesciMediaIsolated
+        App: DesciMediaIsolatedProd
     spec:
       containers:
         - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-media-isolated-prod:production
