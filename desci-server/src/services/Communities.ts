@@ -78,7 +78,8 @@ export class CommunityService {
    * It uses left outer joins to include all records from the "NodeAttestation" table,
    * even if there are no related records in the other tables. The WHERE clause filters
    * the results based on the "desciCommunityId" column.
-   * The EXISTS subquery checks if there is a matching record in the "CommunityEntryAttestation" table based on certain conditions.
+   * The EXISTS subquery checks if there is a matching record in the "CommunityEntryAttestation" table based on
+   * the "NodeAttestation.attestationId", "NodeAttestation.attestationVersionId", "NodeAttestation.desciCommunityId"
    * Finally, t he results are grouped by the "id" column of the "NodeAttestation" table.
    * @param communityId
    * @returns
@@ -94,17 +95,15 @@ export class CommunityService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."desciCommunityId" = ${communityId} AND t1."revoked" = false
-        AND
+      WHERE t1."revoked" = false AND
         EXISTS
       (SELECT *
         from "CommunityEntryAttestation" c1
-        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = t1."desciCommunityId")
+        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = ${communityId})
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];
 
-    // console.log({ selectedClaims });
     const radar = _(selectedClaims)
       .groupBy((x) => x.nodeDpid10)
       .map((value: CommunityRadarNode[], key: string) => ({
@@ -117,6 +116,12 @@ export class CommunityService {
     return radar;
   }
 
+  /**
+   * This methods takes the result of getCommunityRadar and
+   * filter out entries(nodes) whose NodeAttestations don't have atleast on verification
+   * @param communityId
+   * @returns Array<{ NodeAttestation: CommunityRadarNode[]; nodeDpid10: string; nodeuuid: string; }>
+   */
   async getCuratedNodes(communityId: number) {
     const nodesOnRadar = await this.getCommunityRadar(communityId);
     const curated = nodesOnRadar.filter((node) =>
@@ -138,6 +143,98 @@ export class CommunityService {
       WHERE t1."desciCommunityId" = ${communityId} AND t1."revoked" = false
         GROUP BY
   		t1.id
+    `) as CommunityRadarNode[];
+
+    const groupedEngagements = claims.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+
+    return groupedEngagements;
+  }
+
+  /**
+   * Query all NodeAttestation and join their engagmement metrics (reactions, annotations, verifications)
+   * that fall in the subsets of a community's entry attestations
+   * Aggregate all their metrics and return;
+   * @param communityId
+   * @returns Promise<{ reactions: number; annotations: number; verifications: number; }>}
+   */
+  async getCommunityRadarEngagementSignal(communityId: number) {
+    const claims = (await prisma.$queryRaw`
+      SELECT t1.*,
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
+      FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+       WHERE
+        EXISTS
+      (SELECT *
+        from "CommunityEntryAttestation" c1
+        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = ${communityId})
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
+
+    const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
+    const signals = _(claims)
+      .groupBy((x) => x.nodeDpid10)
+      .map((value: CommunityRadarNode[], key: string) => value)
+      .filter((attestations) => attestations.length === entryAttestations.length)
+      .flatten()
+      .value();
+
+    const groupedEngagements = signals.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+    return groupedEngagements;
+  }
+
+  /**
+   * Query all NodeAttestation that fall in the subsets of a community's entry attestations
+   *  by nodeDpid10 and join their engagmement metrics (reactions, annotations, verifications)
+   * Aggregate all their metrics and return;
+   * @param communityId
+   * @returns Promise<{ reactions: number; annotations: number; verifications: number; }>}
+   */
+  async getNodeVerifiedEngagementsByCommunity(dpid: string, communityId: number) {
+    const claims = (await prisma.$queryRaw`
+      SELECT
+          t1.*,
+          count(DISTINCT "Annotation".id) :: int AS annotations,
+          count(DISTINCT "NodeAttestationReaction".id) :: int AS reactions,
+          count(DISTINCT "NodeAttestationVerification".id) :: int AS verifications
+      FROM
+          "NodeAttestation" t1
+          LEFT OUTER JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+          LEFT OUTER JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+          LEFT OUTER JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE
+          t1."nodeDpid10" = ${dpid}
+          AND EXISTS (
+              SELECT
+                  *
+              FROM
+                  "CommunityEntryAttestation" c1
+              WHERE
+                  t1."attestationId" = c1."attestationId"
+                  AND t1."attestationVersionId" = c1."attestationVersionId"
+                  AND c1."desciCommunityId" = ${communityId}
+          )
+      GROUP BY
+          t1.id
     `) as CommunityRadarNode[];
 
     // console.log({ claims });
@@ -195,81 +292,6 @@ export class CommunityService {
 
   private async removeMember(communityId: number, userId: number) {
     return prisma.communityMember.delete({ where: { userId_communityId: { userId, communityId } } });
-  }
-
-  private async createOrFindNodeFeedItem({
-    dPID,
-    nodeFeedItem,
-  }: {
-    dPID: string;
-    nodeFeedItem: Prisma.NodeFeedItemCreateManyInput;
-  }) {
-    const existingFeed = await prisma.nodeFeedItem.findFirst({ where: { nodeDpid10: dPID } });
-    let nodeFeed: NodeFeedItem;
-    if (!existingFeed) {
-      nodeFeed = await prisma.nodeFeedItem.create({ data: nodeFeedItem });
-    }
-    return nodeFeed;
-  }
-
-  private async getNodeFeedByDpid(nodeDpid10: string) {
-    return prisma.nodeFeedItem.findUnique({ where: { nodeDpid10 } });
-  }
-
-  private async endorseNodeByDpid({
-    communityId,
-    dPID,
-    userId,
-    nodeFeedItem,
-  }: {
-    communityId: number;
-    userId: number;
-    dPID: string;
-    nodeFeedItem: Prisma.NodeFeedItemCreateManyInput;
-  }) {
-    const feedItem = await this.createOrFindNodeFeedItem({ nodeFeedItem, dPID });
-    const endorsement = await prisma.nodeFeedItemEndorsement.create({
-      data: { nodeDpid10: dPID, type: '', userId, nodeFeedItemId: feedItem.id, desciCommunityId: communityId },
-    });
-    return endorsement;
-  }
-
-  private async removeEndorsementById(desciCommunityId: number, nodeFeedItemEndorsementId: number) {
-    const endorsement = await prisma.nodeFeedItemEndorsement.findFirst({
-      where: { id: nodeFeedItemEndorsementId, desciCommunityId },
-    });
-    if (endorsement) return prisma.nodeFeedItemEndorsement.delete({ where: { id: nodeFeedItemEndorsementId } });
-    return false;
-  }
-
-  private async removeNodeEndorsementByDpid(desciCommunityId: number, dPID: string) {
-    const endorsement = await prisma.nodeFeedItemEndorsement.findFirst({
-      where: { desciCommunityId, nodeDpid10: dPID },
-    });
-    if (endorsement) {
-      return prisma.nodeFeedItemEndorsement.delete({ where: { id: endorsement.id } });
-    }
-    return true;
-  }
-
-  private async getAllCommunityEndorsements(desciCommunityId: number) {
-    return prisma.nodeFeedItemEndorsement.findMany({ where: { desciCommunityId } });
-  }
-
-  private async getAllUserEndorsements(userId: number) {
-    return prisma.nodeFeedItemEndorsement.findMany({ where: { userId } });
-  }
-
-  private async getAllNodeEndorsementsByDpid(dpid: string) {
-    return prisma.nodeFeedItemEndorsement.findMany({ where: { nodeFeedItem: { nodeDpid10: dpid } } });
-  }
-
-  private async getAllUserCommunityEndorsements(desciCommunityId: number, userId: number) {
-    return prisma.nodeFeedItemEndorsement.findMany({ where: { desciCommunityId, userId } });
-  }
-
-  private async getEndorsmentById(id: number) {
-    return prisma.nodeFeedItemEndorsement.findFirst({ where: { id } });
   }
 }
 

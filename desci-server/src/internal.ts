@@ -7,6 +7,7 @@ export * from './middleware/index.js';
 export * from './services/Communities.js';
 export * from './services/Attestation.js';
 export * from './utils/asyncHandler.js';
+export * from './routes/v1/attestations/schema.js';
 export * from './controllers/communities/index.js';
 export * from './controllers/attestations/index.js';
 export * from './core/ApiResponse.js';

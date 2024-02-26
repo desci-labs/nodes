@@ -202,7 +202,12 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
   } catch (err) {
     logger.warn({ fn: 'pubTree', err }, '[pubTree] error');
     logger.info('[pubTree] Falling back on uncached tree retrieval');
-    return await fetchCb();
+    try {
+      return await fetchCb();
+    } catch (err2) {
+      logger.error({ fn: 'pubTree', err: err2 }, '[pubTree] retrieve retry error');
+      return res.status(400).json({ error: 'failed' });
+    }
   }
 
   const depthTree = await getOrCache(depthCacheKey, async () => {

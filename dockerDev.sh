@@ -18,7 +18,7 @@ assert_command_available() {
 }
 
 init_node() {
-  if [ -z "$NVM_DIR" ]; then
+  if ! printenv NVM_DIR &> /dev/null; then
     echo "[dockerDev] NVM_DIR not set, please install NVM"
     echo "[dockerDev] curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash"
     exit 1
@@ -41,6 +41,7 @@ init_node() {
 assert_command_available "docker"
 assert_command_available "docker-compose"
 assert_command_available "lsof"
+assert_command_available "make"
 
 init_node
 npm i -g hardhat

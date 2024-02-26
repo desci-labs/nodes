@@ -1579,12 +1579,12 @@ describe('Attestations Service', async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
-    it('should return nodes in radar in ASC order of verified engagements', async () => {
+    it('should return nodes in radar in ASC order of verified engagements sorted by last submission/claim date', async () => {
       expect(res.status).to.equal(200);
       expect(apiResponse.length).to.equal(3);
       expect(apiResponse[0].nodeDpid10).to.be.equal('2');
-      expect(apiResponse[1].nodeDpid10).to.be.equal('1');
-      expect(apiResponse[2].nodeDpid10).to.be.equal('3');
+      expect(apiResponse[1].nodeDpid10).to.be.equal('3');
+      expect(apiResponse[2].nodeDpid10).to.be.equal('1');
     });
   });
 

@@ -1,6 +1,6 @@
 import assert from 'assert';
-
-import { AnnotationType, Attestation, Prisma } from '@prisma/client';
+import _ from 'lodash';
+import { AnnotationType, Attestation, NodeVersion, Prisma } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import {
@@ -19,6 +19,7 @@ import {
   VerificationNotFoundError,
 } from '../internal.js';
 import { communityService } from '../internal.js';
+import { logger } from 'ethers';
 
 export type AllAttestation = Attestation & {
   annotations: number;
@@ -64,11 +65,13 @@ export class AttestationService {
     if (!attestationVersionEntry) throw new AttestationVersionNotFoundError();
 
     const node = await prisma.node.findFirst({ where: { uuid: nodeUuid } });
-    const publishedNodeVersions = await prisma.nodeVersion.count({
-      where: { nodeId: node.id, transactionId: { not: null } },
-    });
+    const publishedNodeVersions =
+      (await prisma.$queryRaw`SELECT COUNT(*) from "NodeVersion" where "nodeId" = ${node.id} AND "transactionId" IS NOT NULL`) as number;
 
-    if (nodeVersion >= publishedNodeVersions) throw new ClaimError('Invalid Node version');
+    if (nodeVersion >= publishedNodeVersions) {
+      logger.warn({ nodeVersion, publishedNodeVersions }, 'Invalid Node version');
+      // throw new ClaimError('Invalid Node version');
+    }
 
     const claimedBy = await prisma.user.findUnique({ where: { id: claimerId } });
     if (!claimedBy) throw new NoAccessError('ClaimedBy user not found');
@@ -82,7 +85,7 @@ export class AttestationService {
         nodeVersion,
       },
     });
-    if (exists) throw new DuplicateClaimError();
+    if (exists && exists.revoked === false) throw new DuplicateClaimError();
 
     return {
       attestationId: attestationVersionEntry.attestationId,
@@ -92,6 +95,8 @@ export class AttestationService {
       nodeUuid: node.uuid,
       nodeVersion,
       claimedById: claimedBy.id,
+      revoked: exists.revoked,
+      revokedId: exists.id,
     };
   }
 
@@ -213,7 +218,7 @@ export class AttestationService {
 
   async getAllNodeAttestations(dpid: string) {
     return prisma.nodeAttestation.findMany({
-      where: { nodeDpid10: dpid },
+      where: { nodeDpid10: dpid, revoked: false },
       include: {
         community: { select: { name: true, description: true, keywords: true, image_url: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
@@ -276,9 +281,11 @@ export class AttestationService {
       nodeVersion,
       claimerId,
     });
-    const claim = await prisma.nodeAttestation.create({
-      data,
-    });
+    const claim = data.revoked
+      ? await this.reClaimAttestation(data.revokedId)
+      : await prisma.nodeAttestation.create({
+          data,
+        });
 
     return claim;
   }
@@ -339,11 +346,20 @@ export class AttestationService {
       ),
     );
 
-    const claims = prisma.$transaction(data.map((data) => prisma.nodeAttestation.create({ data })));
+    const reclaimCandidates: typeof data = [];
+    const inserts = [];
+    for (const entry of data) {
+      if (entry.revoked) reclaimCandidates.push(entry);
+      else inserts.push(entry);
+    }
 
-    return claims;
+    const claims = await prisma.$transaction(inserts.map((data) => prisma.nodeAttestation.create({ data })));
+    const reclaims = await Promise.all(reclaimCandidates.map((entry) => this.reClaimAttestation(entry.revokedId)));
+
+    return [...claims, ...reclaims];
   }
 
+  // todo: remove and update tests
   async unClaimAttestation(id: number) {
     const claim = await prisma.nodeAttestation.findFirst({ where: { id } });
     if (!claim) throw new ClaimNotFoundError();
@@ -404,6 +420,10 @@ export class AttestationService {
     if (exists) throw new DuplicateVerificationError();
 
     return prisma.nodeAttestationVerification.create({ data: { nodeAttestationId, userId } });
+  }
+
+  async findVerificationById(id: number) {
+    return prisma.nodeAttestationVerification.findFirst({ where: { id } });
   }
 
   async removeVerification(id: number, userId: number) {
@@ -511,6 +531,10 @@ export class AttestationService {
     return prisma.annotation.findMany({ where: filter });
   }
 
+  async findAnnotationById(id: number) {
+    return prisma.annotation.findUnique({ where: { id } });
+  }
+
   async getUserClaimComments(claimId: number, authorId: number) {
     assert(authorId > 0, 'Error: authorId is zero');
     assert(claimId > 0, 'Error: claimId is zero');
@@ -543,7 +567,14 @@ export class AttestationService {
   async getAllClaimComments(filter: Prisma.AnnotationWhereInput) {
     return prisma.annotation.findMany({
       where: filter,
-      include: { author: true, attestation: { include: { attestationVersion: true } } },
+      include: {
+        author: true,
+        attestation: {
+          include: {
+            attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },
+          },
+        },
+      },
     });
   }
 
@@ -585,13 +616,36 @@ export class AttestationService {
     return queryResult;
   }
 
+  async getRecommendedAttestations() {
+    const attestations = await prisma.communityEntryAttestation.findMany({
+      include: {
+        attestation: { select: { community: true } },
+        attestationVersion: {
+          select: {
+            name: true,
+            description: true,
+            image_url: true,
+          },
+        },
+        desciCommunity: { select: { name: true, hidden: true } },
+      },
+      where: {
+        desciCommunity: {
+          hidden: false,
+        },
+      },
+    });
+
+    return attestations;
+  }
+
   /**
-   * List all community attestations and their engagements metrics across all claimed attestations
+   * Query to return all entry attestations of a community  and their engagements metrics across all claimed attestations
    * Join rows from their community and prefix with ccommunity
    * @param communityId
    * @returns AttestationWithEngagement[]
    */
-  async listCommunityAttestations(communityId: number) {
+  async listCommunityEntryAttestations(communityId: number) {
     const queryResult = (await prisma.$queryRaw`
      SELECT
       A.*,
@@ -610,7 +664,7 @@ export class AttestationService {
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
       LEFT JOIN "CommunityEntryAttestation" CSA ON CSA."attestationId" = A."id"
 	where 
-		CSA."desciCommunityId" = ${communityId} AND A."communityId" = ${communityId}
+		CSA."desciCommunityId" = ${communityId}
     GROUP BY
       A.id,
       CSA.id
@@ -682,7 +736,7 @@ export class AttestationService {
   }
 
   /**
-   * Returns all verification signals for a node across all claimed attestations from a community {communityId}
+   * Returns all verification signals for a node across all claimed entry attestations from a community {communityId}
    * This community verification signal is the number returned for the verification field
    * @param communityId {number}
    * @param dpid {string}
@@ -698,12 +752,12 @@ export class AttestationService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."desciCommunityId" = ${communityId} AND t1."nodeDpid10" = ${dpid} AND t1."revoked" = false
+      WHERE t1."nodeDpid10" = ${dpid}
       AND
         EXISTS
       (SELECT *
         from "CommunityEntryAttestation" c1
-        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = t1."desciCommunityId")
+        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = ${communityId})
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];

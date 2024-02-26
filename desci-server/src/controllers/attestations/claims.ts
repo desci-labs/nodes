@@ -21,7 +21,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     attestationId: number;
     nodeVersion: number;
     nodeUuid: string;
-    dpid: string;
+    nodeDpid: string;
     claimerId: number;
   };
   const attestationVersions = await attestationService.getAttestationVersions(body.attestationId);
@@ -31,7 +31,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
   const uuid = ensureUuidEndsWithDot(body.nodeUuid);
 
   const claim = await attestationService.getClaimOnAttestationVersion(
-    body.dpid,
+    body.nodeDpid,
     body.attestationId,
     attestationVersion.id,
   );
@@ -43,7 +43,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   const attestations = await attestationService.claimAttestation({
     ...body,
-    nodeDpid: body.dpid.toString(),
+    nodeDpid: body.nodeDpid,
     nodeUuid: uuid,
     attestationVersion: attestationVersion.id,
   });
@@ -70,19 +70,19 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
       ? await attestationService.revokeAttestation(claim.id)
       : await attestationService.unClaimAttestation(claim.id);
 
-  logger.info({ removeOrRevoke }, 'Claim Removed|Revoked');
+  logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
   return new SuccessMessageResponse('Attestation unclaimed').send(res);
 };
 
 export const claimEntryRequirements = async (req: Request, res: Response, _next: NextFunction) => {
-  const { communityId, dpid, nodeUuid, nodeVersion, claimerId } = req.body as {
+  const { communityId, nodeDpid, nodeUuid, nodeVersion, claimerId } = req.body as {
     communityId: number;
     nodeVersion: number;
     nodeUuid: string;
-    dpid: string;
+    nodeDpid: string;
     claimerId: number;
   };
-  logger.info({ communityId, body: req.body });
+  logger.info({ communityId, body: req.body }, 'claimEntryRequirements');
   const uuid = ensureUuidEndsWithDot(nodeUuid);
 
   const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
@@ -90,12 +90,12 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
 
   const claimables = (await asyncMap(entryAttestations, async (attestation) => {
     const claimable = await attestationService.canClaimAttestation({
-      attestationId: attestation.attestationId,
-      attestationVersion: attestation.attestationVersionId,
+      nodeDpid,
+      claimerId,
       nodeVersion,
       nodeUuid: uuid,
-      nodeDpid: dpid,
-      claimerId,
+      attestationId: attestation.attestationId,
+      attestationVersion: attestation.attestationVersionId,
     });
     return { ...attestation, claimable };
   })) as (CommunityEntryAttestation & { claimable: boolean })[];
@@ -108,13 +108,12 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
       attestationVersion: claimable.attestationVersionId,
     }));
 
-  console.log({ claims });
   logger.info({ claims }, 'CLAIM all input');
   const attestations = await attestationService.claimAttestations({
+    nodeDpid,
+    claimerId,
     nodeVersion,
     nodeUuid: uuid,
-    nodeDpid: dpid.toString(),
-    claimerId,
     attestations: claims,
   });
 

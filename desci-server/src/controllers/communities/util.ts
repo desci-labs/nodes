@@ -1,10 +1,11 @@
-import { Node } from '@prisma/client';
+import { Node, NodeVersion } from '@prisma/client';
 import axios from 'axios';
 import _ from 'lodash';
 
 import { NodeRadar, ensureUuidEndsWithDot } from '../../internal.js';
-import { NodeUuid, cleanupManifestUrl, logger, prisma, transformManifestWithHistory } from '../../internal.js';
+import { NodeUuid, cleanupManifestUrl, logger, prisma } from '../../internal.js';
 import repoService from '../../services/repoService.js';
+import { getIndexedResearchObjects } from '../../theGraph.js';
 
 export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
   const uuid = ensureUuidEndsWithDot(radar.nodeuuid);
@@ -22,12 +23,13 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
 
   const selectAttributes = ['manifestUrl', 'ownerId', 'title'];
   const node: Partial<Node & { versions: number }> = _.pick(discovery, selectAttributes);
-  const publisedVersions = await prisma.nodeVersion.findMany({
-    where: { node: { uuid }, transactionId: { not: null } },
-  });
-  console.log('node', node.id, { publisedVersions });
+  const publisedVersions =
+    (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND "transactionId" IS NOT NULL ORDER BY "createdAt" DESC`) as NodeVersion[];
+
+  // const nodeVersions = (await getNodeVersion
+  logger.info({ uuid: discovery.uuid, publisedVersions }, 'Resolve node');
   node['versions'] = publisedVersions.length;
-  node['publishedDate'] = publisedVersions[publisedVersions.length - 1].createdAt;
+  node['publishedDate'] = publisedVersions[0].createdAt;
   radar.node = node;
 
   let gatewayUrl = discovery.manifestUrl;
@@ -49,4 +51,12 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
 
   radar.node = { ...radar.node, ...node };
   return radar;
+};
+
+export const getNodeVersion = async (uuid: string) => {
+  try {
+    const { researchObjects } = await getIndexedResearchObjects([uuid]);
+    const result = researchObjects?.[0];
+    return result?.versions?.length ?? 0;
+  } catch (e) {}
 };
