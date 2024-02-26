@@ -1,15 +1,30 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: desci-media-isolated-prod-service
+  labels:
+    App: DesciMediaIsolatedProd
+spec:
+  type: ClusterIP
+  selector:
+    App: DesciMediaIsolatedProd
+  ports:
+    - name: api
+      port: 7771
+      targetPort: 7771
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: desci-media-isolated
+  name: desci-media-isolated-prod
   labels:
-    App: DesciMediaIsolated
+    App: DesciMediaIsolatedProd
 spec:
   replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      App: DesciMediaIsolated
+      App: DesciMediaIsolatedProd
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -21,11 +36,11 @@ spec:
         App: DesciMediaIsolated
     spec:
       containers:
-        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-media-isolated:production
-          name: desci-media-isolated
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-media-isolated-prod:production
+          name: desci-media-isolated-prod
           ports:
             - containerPort: 7771
-              name: media_isolated
+              name: api
           env:
             - name: PORT
               value: '7771'
