@@ -49,5 +49,6 @@ RUN npm run build && \
     npm prune --production
 
 
+COPY --chown=node:node ./scripts/containerInitProd.sh /usr/src/app/scripts/containerInitProd.sh
 ENTRYPOINT ["/usr/src/app/scripts/containerInitProd.sh"]
 CMD ["dumb-init", "node", "dist/index.js"]
