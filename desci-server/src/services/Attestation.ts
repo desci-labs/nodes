@@ -1,12 +1,13 @@
 import assert from 'assert';
+
+import { AnnotationType, Attestation, NodeAttestation, Prisma } from '@prisma/client';
+import { logger } from 'ethers';
 import _ from 'lodash';
-import { AnnotationType, Attestation, NodeVersion, Prisma } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import {
   AttestationNotFoundError,
   AttestationVersionNotFoundError,
-  ClaimError,
   ClaimNotFoundError,
   CommunityNotFoundError,
   CommunityRadarNode,
@@ -19,7 +20,6 @@ import {
   VerificationNotFoundError,
 } from '../internal.js';
 import { communityService } from '../internal.js';
-import { logger } from 'ethers';
 
 export type AllAttestation = Attestation & {
   annotations: number;
@@ -86,6 +86,7 @@ export class AttestationService {
       },
     });
     if (exists && exists.revoked === false) throw new DuplicateClaimError();
+    logger.info({ exists }, '#CheckClaimAttestationQuery');
 
     return {
       attestationId: attestationVersionEntry.attestationId,
@@ -95,8 +96,8 @@ export class AttestationService {
       nodeUuid: node.uuid,
       nodeVersion,
       claimedById: claimedBy.id,
-      revoked: exists.revoked,
-      revokedId: exists.id,
+      revoked: exists?.revoked || false,
+      revokedId: exists?.id,
     };
   }
 
@@ -347,12 +348,13 @@ export class AttestationService {
     );
 
     const reclaimCandidates: typeof data = [];
-    const inserts = [];
+    const inserts: Prisma.NodeAttestationUncheckedCreateInput[] = [];
     for (const entry of data) {
       if (entry.revoked) reclaimCandidates.push(entry);
       else inserts.push(entry);
     }
 
+    logger.info({ reclaimCandidates, inserts }, 'Batch claim');
     const claims = await prisma.$transaction(inserts.map((data) => prisma.nodeAttestation.create({ data })));
     const reclaims = await Promise.all(reclaimCandidates.map((entry) => this.reClaimAttestation(entry.revokedId)));
 
