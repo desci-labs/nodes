@@ -26,6 +26,11 @@ spec:
           ports:
             - containerPort: 7771
               name: media_isolated
+          env:
+            - name: PORT
+              value: '7771'
+            - name: IPFS_GATEWAY
+              value: 'http://host.docker.internal:5420/v1/ipfs'
           resources:
             limits:
               cpu: '0.5'
