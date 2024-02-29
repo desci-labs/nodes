@@ -1,10 +1,11 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { ActionType, Prisma } from '@prisma/client';
+import { ActionType, Prisma, PublishTaskQueueStatus } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { saveInteraction } from '../../services/interactionLog.js';
+import { getManifestByCid } from '../../services/data/processing.js';
+import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import {
   publishResearchObject,
   cacheNodeMetadata,
@@ -32,6 +33,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
     email,
     user: (req as any).user,
   });
+
   if (!uuid || !cid || !manifest) {
     return res.status(404).send({ message: 'uuid, cid, email, and manifest must be valid' });
   }
@@ -64,12 +66,100 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
       logger.warn({ owner, uuid }, `unauthed node user: ${owner}, node uuid provided: ${uuid}`);
       return res.status(400).json({ error: 'failed' });
     }
+
+    const task = await prisma.publishTaskQueue.findFirst({
+      where: { uuid: ensureUuidEndsWithDot(uuid), status: { not: PublishTaskQueueStatus.FAILED } },
+    });
+
+    if (task) return res.status(400).json({ error: 'Not is currenlty being publish' });
+
+    saveInteraction(
+      req,
+      ActionType.PUBLISH_NODE,
+      {
+        cid,
+        dpid: manifest.dpid?.id,
+        userId: owner.id,
+        transactionId,
+        ceramicStream: ceramicStream ?? '',
+        uuid: ensureUuidEndsWithDot(uuid),
+        status: PublishTaskQueueStatus.WAITING,
+      },
+      owner.id,
+    );
+
+    const publishTask = await prisma.publishTaskQueue.create({
+      data: {
+        cid,
+        dpid: manifest.dpid?.id,
+        userId: owner.id,
+        transactionId,
+        ceramicStream: ceramicStream ?? '',
+        uuid: ensureUuidEndsWithDot(uuid),
+        status: PublishTaskQueueStatus.WAITING,
+      },
+    });
+
+    return res.send({
+      ok: true,
+      taskId: publishTask.id,
+    });
+  } catch (err) {
+    logger.error({ err }, '[publish::publish] node-publish-err');
+    return res.status(400).send({ ok: false, error: err.message });
+  }
+};
+
+export const publishHandler = async ({
+  transactionId,
+  userId,
+  ceramicStream,
+  cid,
+  uuid,
+}: {
+  transactionId: string;
+  cid: string;
+  userId: number;
+  uuid: string;
+  ceramicStream: string;
+}) => {
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::publishTask',
+    uuid,
+    cid,
+    transactionId,
+  });
+  try {
+    /**TODO: MOVE TO MIDDLEWARE */
+    const owner = await prisma.user.findFirst({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!owner.id || owner.id < 1) {
+      throw Error('User ID mismatch');
+    }
+
+    const node = await prisma.node.findFirst({
+      where: {
+        ownerId: owner.id,
+        uuid: ensureUuidEndsWithDot(uuid),
+      },
+    });
+
+    if (!node) {
+      logger.warn({ owner, uuid }, `unauthed node user: ${owner}, node uuid provided: ${uuid}`);
+      // return res.status(400).json({ error: 'failed' });
+      throw new Error('Node not found');
+    }
     /**TODO: END MOVE TO MIDDLEWARE */
 
     // update node version
     const latestNodeVersion = await prisma.nodeVersion.findFirst({
       where: {
-        id: nodeVersionId || -1,
+        id: -1,
         nodeId: node.id,
       },
       orderBy: {
@@ -142,7 +232,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
       /**
        * Save a success for configurable service quality tracking purposes
        */
-      await saveInteraction(req, ActionType.PUBLISH_NODE_CID_SUCCESS, {
+      await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_SUCCESS, {
         cidsPayload,
         result: { newPublicDataRefs, dataMirrorJobs },
       });
@@ -151,7 +241,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
       /**
        * Save a failure for configurable service quality tracking purposes
        */
-      await saveInteraction(req, ActionType.PUBLISH_NODE_CID_FAIL, { cidsPayload, error });
+      await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_FAIL, { cidsPayload, error });
       throw error;
     }
 
@@ -159,7 +249,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
      * Publish Step 2:
      * Initiate IPFS storage upload using Estuary
      */
-
+    const manifest = await getManifestByCid(cid);
     const researchObjectToPublish = { uuid, cid, manifest, ownerId: owner.id };
     const sendDiscordNotification = (error) => {
       const manifestSource = manifest as ResearchObjectV1;
@@ -171,7 +261,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
     };
 
     const handleMirrorSuccess = async (publishedResearchObjectResult) => {
-      await saveInteraction(req, ActionType.PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS, {
+      await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS, {
         researchObjectToPublish,
         result: publishedResearchObjectResult,
       });
@@ -179,7 +269,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
       sendDiscordNotification(false);
     };
     const handleMirrorFail = async (error) => {
-      await saveInteraction(req, ActionType.PUBLISH_NODE_RESEARCH_OBJECT_FAIL, {
+      await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_RESEARCH_OBJECT_FAIL, {
         researchObjectToPublish,
         error,
       });
@@ -205,11 +295,9 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
      */
     cacheNodeMetadata(node.uuid, cid);
 
-    return res.send({
-      ok: true,
-    });
+    return true;
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
-    return res.status(400).send({ ok: false, error: err.message });
+    return false; // res.status(400).send({ ok: false, error: err.message });
   }
 };

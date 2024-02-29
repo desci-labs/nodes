@@ -28,6 +28,7 @@ import { NotFoundError } from './internal.js';
 import { logger } from './logger.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { runWorkerUntilStopped } from './workers/publish.js';
 
 const __filename = fileURLToPath(import.meta.url);
 // const __dirname = path.dirname(__filename);
@@ -112,6 +113,9 @@ class AppServer {
       this.#readyResolvers.forEach((resolve) => resolve(true));
       console.log(`Server running on port ${this.port}`);
     });
+
+    // init publish worker
+    this.#initWorker();
   }
 
   get httpServer() {
@@ -205,6 +209,10 @@ class AppServer {
     } else {
       logger.info('[DeSci Nodes] Telemetry disabled');
     }
+  }
+
+  async #initWorker() {
+    await runWorkerUntilStopped();
   }
 }
 
