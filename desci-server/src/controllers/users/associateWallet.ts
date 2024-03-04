@@ -1,16 +1,12 @@
 import { ActionType, Prisma, User } from '@prisma/client';
 import { ethers } from 'ethers';
-import { isAddress } from 'ethers/lib/utils.js';
 import { NextFunction, Request, Response } from 'express';
 import { ErrorTypes, SiweMessage } from 'siwe';
 
 import { prisma } from '../../client.js';
-import { AuthFailiureError, BadRequestError, SuccessResponse } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getUserConsent, saveInteraction } from '../../services/interactionLog.js';
+import { saveInteraction } from '../../services/interactionLog.js';
 import { writeExternalIdToOrcidProfile } from '../../services/user.js';
-import { sendCookie } from '../../utils/sendCookie.js';
-import { generateAccessToken } from '../auth/magic.js';
 
 const createWalletNickname = async (user: Prisma.UserWhereInput) => {
   const count = await prisma.wallet.count({
@@ -198,50 +194,6 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       }
     }
   }
-};
-
-export const walletLogin = async (req: Request, res: Response, next: NextFunction) => {
-  const logger = parentLogger.child({
-    module: 'USERS::WalletLoginController',
-    user: (req as any).user,
-    body: req.body,
-  });
-  // try {
-  const { address, dev } = req.body;
-  logger.info('WALLET LOGIN');
-
-  if (!isAddress(address)) {
-    throw new BadRequestError('missing wallet address', new Error('missing wallet address'));
-  }
-
-  const wallet = await prisma.wallet.findFirst({
-    where: {
-      address: address,
-    },
-  });
-
-  if (!wallet) throw new AuthFailiureError('missing wallet address');
-
-  const user = await prisma.user.findUnique({ where: { id: wallet.userId } });
-  if (!user) throw new AuthFailiureError('Wallet not associated to a user');
-  saveInteraction(
-    req,
-    ActionType.USER_WALLET_CONNECT,
-    {
-      addr: address,
-    },
-    user.id,
-  );
-
-  const token = generateAccessToken({ email: user.email });
-
-  sendCookie(res, token, dev === 'true');
-  // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
-  const termsAccepted = !!(await getUserConsent(user.id));
-  // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
-  new SuccessResponse({ user: { email: user.email, token, termsAccepted } }).send(res);
-
-  saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
 };
 
 const sendGiftTxn = async (user: User, walletAddress: string, addedWalletId: number) => {
