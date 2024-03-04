@@ -16,15 +16,12 @@ import {
   listApiKey,
   check,
 } from '../../controllers/auth/index.js';
-import { walletLogin } from '../../controllers/users/associateWallet.js';
-import { asyncHander } from '../../internal.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
 
 router.get('/check', [ensureUser], check);
 router.post('/login', login);
-router.post('/login/did', asyncHander(walletLogin));
 router.delete('/logout', logout);
 router.get('/profile', [ensureUser], profile);
 router.post('/register', register);
