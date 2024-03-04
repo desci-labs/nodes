@@ -113,13 +113,3 @@ export const removeClaimSchema = z.object({
     claimId: z.coerce.number(),
   }),
 });
-
-export const claimEntrySchema = z.object({
-  body: z.object({
-    dpid,
-    communityId,
-    nodeUuid: z.string(),
-    claimerId: z.coerce.number(),
-    nodeVersion: z.coerce.number(),
-  }),
-});

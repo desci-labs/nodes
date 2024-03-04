@@ -114,7 +114,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe('Attestations Service', async () => {
+describe.only('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -345,7 +345,7 @@ describe('Attestations Service', async () => {
         attestationVersion: reproducibilityAttestationVersion.id,
         nodeVersion,
         nodeUuid: node.uuid,
-        dpid: '1',
+        nodeDpid: '1',
         claimerId: node.ownerId,
       });
       expect(res.status).to.equal(200);
@@ -370,7 +370,7 @@ describe('Attestations Service', async () => {
         claimId: claim.id,
         nodeUuid: node.uuid,
         dpid: '1',
-        claimerId: node.ownerId,
+        // claimerId: node.ownerId,
       });
       expect(res.status).to.equal(200);
       const attestations = await attestationService.getAllNodeAttestations('1');
@@ -516,7 +516,7 @@ describe('Attestations Service', async () => {
       const authHeaderVal = `Bearer ${JwtToken}`;
       const res = await request(app).post(`/v1/attestations/claimAll`).set('authorization', authHeaderVal).send({
         nodeVersion,
-        dpid: '1',
+        nodeDpid: '1',
         nodeUuid: node.uuid,
         claimerId: author.id,
         communityId: desciCommunity.id,
@@ -585,7 +585,7 @@ describe('Attestations Service', async () => {
       const authHeaderVal = `Bearer ${JwtToken}`;
       const res = await request(app).post(`/v1/attestations/claimAll`).set('authorization', authHeaderVal).send({
         nodeVersion,
-        dpid: '1',
+        nodeDpid: '1',
         nodeUuid: node.uuid,
         claimerId: author.id,
         communityId: desciCommunity.id,
@@ -1807,7 +1807,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe.only('Revoking NodeAttestation(Claims)', async () => {
+  describe('Revoking NodeAttestation(Claims)', async () => {
     let claim: NodeAttestation;
     let claim2: NodeAttestation;
     let openDataAttestationClaim: NodeAttestation;
@@ -1919,7 +1919,7 @@ describe('Attestations Service', async () => {
 
     after(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
-      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySelectedAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
     });
 
     it('should revoke node attestation', async () => {
@@ -1931,10 +1931,20 @@ describe('Attestations Service', async () => {
       expect(res.status).to.equal(200);
 
       const claims = await attestationService.getAllNodeAttestations('1');
-      expect(claims.length).to.equal(2);
+      expect(claims.length).to.equal(1);
     });
 
-    it('should remove revoked claim engagements from node and community engagement signals', async () => {});
+    it('should remove revoked claim engagements from node and community engagement signals', async () => {
+      const engagmentSignal = await attestationService.getNodeEngagementSignals('1');
+      expect(engagmentSignal.verifications).to.equal(1);
+      expect(engagmentSignal.annotations).to.equal(1);
+      expect(engagmentSignal.reactions).to.equal(0);
+
+      const communityEngagementSignal = await communityService.getCommunityEngagementSignals(desciCommunity.id);
+      expect(communityEngagementSignal.verifications).to.equal(3);
+      expect(communityEngagementSignal.annotations).to.equal(2);
+      expect(communityEngagementSignal.reactions).to.equal(0);
+    });
 
     it('should remove node from radar and curated if an entry attestation claim is revoked', async () => {
       const res1 = await request(app)
@@ -1960,7 +1970,7 @@ describe('Attestations Service', async () => {
 
     it('should reclaim node attestation', async () => {
       let res = await request(app).post(`/v1/attestations/claim`).set('authorization', authHeaderVal).send({
-        dpid: '1',
+        nodeDpid: '1',
         nodeUuid: node.uuid,
         nodeVersion,
         claimerId: author.id,
