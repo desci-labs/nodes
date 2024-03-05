@@ -33,7 +33,7 @@ export interface ResearchObjectV1 extends ResearchObject {
   /* @deprecated **/
   attributes?: ResearchObjectV1Attributes[];
   /** History for the object. Not part of the manifest, but can be populated
-  * by an pplication */
+   * by an pplication */
   history?: ResearchObjectV1History[];
   /** @deprecated */
   tags?: ResearchObjectV1Tags[];
@@ -68,11 +68,11 @@ export interface ResearchObjectV1Tags {
  *
  * Mainly used through extension. See PdfComponent and DataComponent for
  * example.
-*/
+ */
 export interface ResearchObjectV1Component {
   /** Random UUID to identify the component, because paths and CIDs are
    * neither unique nor stable.
-  */
+   */
   id: string;
   /** Human-readable description of the component. */
   name: string;
@@ -90,7 +90,7 @@ export interface ResearchObjectV1Component {
 
 /**
  * Contributor listing for a research object.
-*/
+ */
 export interface ResearchObjectV1Author {
   /** Name of the contributor */
   name: string;
@@ -111,7 +111,7 @@ export interface ResearchObjectV1History {
   /** does not refer to ResearchObject author for credit purpose, refers to
    * the on-chain identity of the account who made the publication, this
    * should not be stored in manifest and used in client only
-  */
+   */
   author?: any;
   content: string;
   date?: number; // utc seconds
@@ -311,9 +311,9 @@ export interface CodeComponent extends ResearchObjectV1Component {
   payload: CodeComponentPayload & CommonComponentPayload;
 }
 
-/** 
+/**
  * @deprecated remove at will
-*/
+ */
 export interface TerminalComponent extends ResearchObjectV1Component {
   type: ResearchObjectComponentType.TERMINAL;
   payload: {
@@ -346,13 +346,13 @@ export interface PdfAnnotation extends ResearchObjectComponentAnnotation, Scaled
   __client?: any;
 }
 
-export interface ComponentAnnotation extends ResearchObjectComponentAnnotation, Scaled {
+export interface HighlightBlock extends PdfAnnotation {
   move?: boolean;
   text?: string;
   title?: string;
-  rects?: COORDP[];
-  __client?: any;
-  path?: string;
+  image?: string;
+  path: string;
+  rects: COORDP[];
 }
 
 export interface ResearchObjectComponentAnnotation {
@@ -379,7 +379,7 @@ export type ResearchObjectComponentTypeMap = Record<FileExtension, ResearchObjec
 export type FileExtension = string;
 
 /** A semi-complete selection of license choices */
-export type License = 
+export type License =
   | 'CC-BY-4.0'
   | 'CC-BY'
   | 'CC-BY-SA-4.0'
@@ -417,3 +417,4 @@ export type License =
   | 'EPL-2.0'
   | 'AGPL-3.0'
   | 'Unlicense';
+
