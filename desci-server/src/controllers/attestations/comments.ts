@@ -1,18 +1,24 @@
+import { Blob } from 'buffer';
+
 import { HighlightBlock } from '@desci-labs/desci-models';
 import { Annotation, AnnotationType } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import zod from 'zod';
 
+import { PUBLIC_IPFS_PATH } from '../../config/index.js';
 import {
   ForbiddenError,
   NotFoundError,
   SuccessMessageResponse,
   SuccessResponse,
+  asyncMap,
   attestationService,
   createCommentSchema,
   logger as parentLogger,
 } from '../../internal.js';
+import { client } from '../../services/ipfs.js';
+import { base64ToBlob } from '../../utils/upload.js';
 
 export const getAttestationComments = async (req: Request, res: Response, next: NextFunction) => {
   const { claimId } = req.params;
@@ -88,12 +94,23 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
   let annotation: Annotation;
   if (highlights?.length > 0) {
     // TODO: map through highlights and upload base64 to ipfs
+    const processedHighlights = await asyncMap(highlights, async (highlight) => {
+      if (!highlight.image) return highlight;
+      const blob = base64ToBlob(highlight.image);
+      const storedCover = await client.add(blob, { cidVersion: 1 });
+      logger.info(
+        { storedCover, image: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` },
+        'Convert base64ToBlob and upload to ipfs',
+      );
+      return { ...highlight, image: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` };
+    });
+    logger.info({ processedHighlights }, 'processedHighlights');
     annotation = await attestationService.createHighlight({
       claimId: parseInt(claimId.toString()),
       authorId: user.id,
       comment: body,
       links,
-      highlights: highlights as unknown as HighlightBlock[],
+      highlights: processedHighlights as unknown as HighlightBlock[],
     });
   } else {
     annotation = await attestationService.createComment({
@@ -104,5 +121,8 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
     });
   }
 
-  new SuccessResponse(annotation).send(res);
+  new SuccessResponse({
+    ...annotation,
+    highlights: annotation.highlights.map((h) => JSON.parse(h as string)),
+  }).send(res);
 };
