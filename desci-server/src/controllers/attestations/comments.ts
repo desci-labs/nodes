@@ -1,7 +1,8 @@
-import { AnnotationType } from '@prisma/client';
+import { HighlightBlock } from '@desci-labs/desci-models';
+import { Annotation, AnnotationType } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
-// import zod from 'zod';
+import zod from 'zod';
 
 import {
   ForbiddenError,
@@ -9,10 +10,9 @@ import {
   SuccessMessageResponse,
   SuccessResponse,
   attestationService,
+  createCommentSchema,
   logger as parentLogger,
-  prisma,
 } from '../../internal.js';
-// import { createCommentSchema } from '../../routes/v1/attestations/schema.js';
 
 export const getAttestationComments = async (req: Request, res: Response, next: NextFunction) => {
   const { claimId } = req.params;
@@ -21,14 +21,14 @@ export const getAttestationComments = async (req: Request, res: Response, next: 
 
   const comments = await attestationService.getAllClaimComments({
     nodeAttestationId: claim.id,
-    type: AnnotationType.COMMENT,
+    // type: AnnotationType.COMMENT,
   });
 
   const data = comments
     // .filter((comment) => comment.attestation.attestationVersionId === parseInt(attestationVersionId))
     .map((comment) => {
       const author = _.pick(comment.author, ['id', 'name', 'orcid']);
-      return { ...comment, author };
+      return { ...comment, author, highlights: comment.highlights.map((h) => JSON.parse(h as string)) };
     });
 
   return new SuccessResponse(data).send(res);
@@ -68,17 +68,13 @@ export const removeComment = async (req: Request<RemoveCommentBody, any, any>, r
   }
 };
 
-type AddCommentBody = {
-  authorId: string;
-  claimId: string;
-  body: string;
-};
+type AddCommentBody = zod.infer<typeof createCommentSchema>;
 
-export const addComment = async (req: Request<any, any, AddCommentBody>, res: Response<AddCommentResponse>) => {
-  const { authorId, claimId, body } = req.body;
+export const addComment = async (req: Request<any, any, AddCommentBody['body']>, res: Response<AddCommentResponse>) => {
+  const { authorId, claimId, body, highlights, links } = req.body;
   const user = (req as any).user;
 
-  if (parseInt(authorId) !== user.id) throw new ForbiddenError();
+  if (parseInt(authorId.toString()) !== user.id) throw new ForbiddenError();
 
   const logger = parentLogger.child({
     // id: req.id,
@@ -87,12 +83,26 @@ export const addComment = async (req: Request<any, any, AddCommentBody>, res: Re
     body: req.body,
   });
   logger.trace(`addComment`);
-
-  const annotation = await attestationService.createComment({
-    claimId: parseInt(claimId),
-    authorId: user.id,
-    comment: body,
-  });
+  // const validateBody = await createCommentSchema.safeParseAsync(req);
+  // logger.info({ validateBody }, va)
+  let annotation: Annotation;
+  if (highlights?.length > 0) {
+    // TODO: map through highlights and upload base64 to ipfs
+    annotation = await attestationService.createHighlight({
+      claimId: parseInt(claimId.toString()),
+      authorId: user.id,
+      comment: body,
+      links,
+      highlights: highlights as unknown as HighlightBlock[],
+    });
+  } else {
+    annotation = await attestationService.createComment({
+      claimId: parseInt(claimId.toString()),
+      authorId: user.id,
+      comment: body,
+      links,
+    });
+  }
 
   new SuccessResponse(annotation).send(res);
 };

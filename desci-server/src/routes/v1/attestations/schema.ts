@@ -34,22 +34,67 @@ export const getAttestationCommentsSchema = z.object({
   }),
 });
 
-export const createCommentSchema = z.object({
-  body: z.object({
-    authorId: z.coerce.number(),
-    claimId: z.coerce.number(),
-    body: z.string(),
-  }),
-});
+export const dpidPathRegex = /^https:\/\/beta\.dpid\.org\/\d+\/\S+.*/m;
+export const DPID_BASE_PATH = 'https://beta.dpid.org/';
+export const dpidPathSchema = z
+  .string()
+  .url('Link is not a valid Dpid Path')
+  .refine(
+    (link) => {
+      console.log('TEST', { link, test: dpidPathRegex.test(link) });
+      return dpidPathRegex.test(link);
+    },
+    { message: 'Invalid dpid link' },
+  );
 
-export const createAnnotationSchema = z.object({
-  body: z.object({
-    authorId: z.coerce.number(),
-    claimId: z.coerce.number(),
-    body: z.coerce.number(),
-    // todo: define highlight shape
-    highlight: z.object({}).optional(),
-  }),
+const highlightSchema = z
+  .object({
+    id: z.string(),
+    text: z.string().optional(),
+    image: z.string().optional(),
+    path: dpidPathSchema,
+    startX: z.coerce.number(),
+    startY: z.coerce.number(),
+    endX: z.coerce.number(),
+    endY: z.coerce.number(),
+    pageIndex: z.coerce.number(),
+    rects: z.array(
+      z.object({
+        startX: z.coerce.number(),
+        startY: z.coerce.number(),
+        endX: z.coerce.number(),
+        endY: z.coerce.number(),
+        pageIndex: z.coerce.number(),
+      }),
+    ),
+  })
+  .refine(
+    (highlight) =>
+      highlight.startX &&
+      highlight.startY &&
+      highlight.endX &&
+      highlight.endY &&
+      highlight.pageIndex !== null &&
+      highlight.pageIndex !== undefined &&
+      (highlight.text || highlight.image),
+  );
+
+export const createCommentSchema = z.object({
+  body: z
+    .object({
+      authorId: z.coerce.number(),
+      claimId: z.coerce.number(),
+      body: z.string(),
+      links: z
+        .string()
+        .array()
+        .refine((links) => links.every((link) => dpidPathRegex.test(link)))
+        .optional(),
+      highlights: z.array(highlightSchema).optional(),
+    })
+    .refine((comment) => comment.body?.length > 0 || comment.highlights?.length > 0, {
+      message: 'Either Comment body or highlights is required',
+    }),
 });
 
 export const EMOJI_OPTIONS = z.union([z.literal('U+2705'), z.literal('U+1F914'), z.literal('U+1F440')], {
