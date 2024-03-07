@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { logger as parentLogger } from '../../../logger.js';
 import { processS3DataToIpfs } from '../../../services/data/processing.js';
 import { GoogleApiService } from '../../../services/googleApiService.js';
-import { UpdateResponse } from '../update.js';
+import { ErrorResponse, UpdateResponse } from '../update.js';
 
 interface GoogleImportReqBody {
   uuid: string;
@@ -12,7 +12,10 @@ interface GoogleImportReqBody {
   gAuthAccessToken: string; // We can change this to use the oauth backend flow in the future
 }
 
-export const googleImport = async (req: Request<any, any, GoogleImportReqBody>, res: Response) => {
+export const googleImport = async (
+  req: Request<any, any, GoogleImportReqBody>,
+  res: Response<UpdateResponse | ErrorResponse>,
+) => {
   const owner = (req as any).user;
   const node = (req as any).node;
 
@@ -32,7 +35,7 @@ export const googleImport = async (req: Request<any, any, GoogleImportReqBody>, 
   // googleService.exchangeCodeForToken(gAuthAccessToken);
   const fileMd = await googleService.getFileMetadata(googleFileId);
   const fileStream = await googleService.getFileStream(googleFileId);
-  debugger;
+  // debugger;
   const files = [{ originalname: '/' + fileMd.name, content: fileStream, size: fileMd.size }];
   const { ok, value } = await processS3DataToIpfs({
     files,
