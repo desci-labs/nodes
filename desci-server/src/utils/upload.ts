@@ -1,3 +1,5 @@
+import { Blob } from 'buffer';
+
 export const base64ToBlob = (dataURI: string) => {
   function dataURItoBlob(dataURI: string) {
     // convert base64/URLEncoded data component to raw binary data held in a string

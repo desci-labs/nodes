@@ -1,7 +1,5 @@
-import { Blob } from 'buffer';
-
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { Annotation, AnnotationType } from '@prisma/client';
+import { Annotation } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import zod from 'zod';
@@ -30,12 +28,10 @@ export const getAttestationComments = async (req: Request, res: Response, next: 
     // type: AnnotationType.COMMENT,
   });
 
-  const data = comments
-    // .filter((comment) => comment.attestation.attestationVersionId === parseInt(attestationVersionId))
-    .map((comment) => {
-      const author = _.pick(comment.author, ['id', 'name', 'orcid']);
-      return { ...comment, author, highlights: comment.highlights.map((h) => JSON.parse(h as string)) };
-    });
+  const data = comments.map((comment) => {
+    const author = _.pick(comment.author, ['id', 'name', 'orcid']);
+    return { ...comment, author, highlights: comment.highlights.map((h) => JSON.parse(h as string)) };
+  });
 
   return new SuccessResponse(data).send(res);
 };
@@ -61,11 +57,9 @@ export const removeComment = async (req: Request<RemoveCommentBody, any, any>, r
   });
   logger.trace(`removeComment`);
 
-  // if (!commentId) return res.status(400).send({ ok: false, error: 'Comment ID is required' });
   const comment = await attestationService.findAnnotationById(parseInt(commentId)); //await prisma.annotation.findUnique({ where: { id: parseInt(commentId) } });
 
   if (!comment) {
-    // if (comment.authorId !== user.id) throw new ForbiddenError();
     new SuccessMessageResponse().send(res);
   } else {
     if (comment.authorId !== user.id) throw new ForbiddenError();
@@ -89,11 +83,9 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
     body: req.body,
   });
   logger.trace(`addComment`);
-  // const validateBody = await createCommentSchema.safeParseAsync(req);
-  // logger.info({ validateBody }, va)
+
   let annotation: Annotation;
   if (highlights?.length > 0) {
-    // TODO: map through highlights and upload base64 to ipfs
     const processedHighlights = await asyncMap(highlights, async (highlight) => {
       if (!highlight.image) return highlight;
       const blob = base64ToBlob(highlight.image);

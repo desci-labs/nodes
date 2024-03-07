@@ -34,18 +34,12 @@ export const getAttestationCommentsSchema = z.object({
   }),
 });
 
-export const dpidPathRegex = /^https:\/\/beta\.dpid\.org\/\d+\/\S+.*/m;
+export const dpidPathRegex = /^https:\/\/beta\.dpid\.org\/(?<dpid>\d+)\/(?<version>v\d+)\/?(?<path>\S+.*)?/m;
 export const DPID_BASE_PATH = 'https://beta.dpid.org/';
 export const dpidPathSchema = z
   .string()
-  .url('Link is not a valid Dpid Path')
-  .refine(
-    (link) => {
-      console.log('TEST', { link, test: dpidPathRegex.test(link) });
-      return dpidPathRegex.test(link);
-    },
-    { message: 'Invalid dpid link' },
-  );
+  .url()
+  .refine((link) => dpidPathRegex.test(link), { message: 'Invalid dpid link' });
 
 const highlightSchema = z
   .object({
