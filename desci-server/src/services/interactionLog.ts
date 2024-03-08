@@ -13,6 +13,13 @@ export const saveInteraction = async (req: Request, action: ActionType, data: an
   });
 };
 
+export const saveInteractionWithoutReq = async (action: ActionType, data: any, userId?: number) => {
+  logger.info({ fn: 'saveInteractionController' }, 'interactionLog::saveInteraction');
+  return await prisma.interactionLog.create({
+    data: { userId, rep: 0, action, extra: JSON.stringify(data) },
+  });
+};
+
 export const getUserConsent = async (userId?: number) => {
   logger.info({ fn: 'getUserConsent', userId }, 'interactionLog::getUserConsent');
   return await prisma.interactionLog.findFirst({
