@@ -1,7 +1,7 @@
 import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { AnnotationType, Attestation, Prisma } from '@prisma/client';
+import { AnnotationType, Attestation, NodeAttestation, Prisma } from '@prisma/client';
 import { logger } from 'ethers';
 import _ from 'lodash';
 
@@ -86,7 +86,8 @@ export class AttestationService {
         nodeVersion,
       },
     });
-    if (exists) throw new DuplicateClaimError();
+    if (exists && exists.revoked === false) throw new DuplicateClaimError();
+    logger.info({ exists }, '#CheckClaimAttestationQuery');
 
     return {
       attestationId: attestationVersionEntry.attestationId,
@@ -96,6 +97,8 @@ export class AttestationService {
       nodeUuid: node.uuid,
       nodeVersion,
       claimedById: claimedBy.id,
+      revoked: exists?.revoked || false,
+      revokedId: exists?.id,
     };
   }
 
@@ -217,7 +220,7 @@ export class AttestationService {
 
   async getAllNodeAttestations(dpid: string) {
     return prisma.nodeAttestation.findMany({
-      where: { nodeDpid10: dpid },
+      where: { nodeDpid10: dpid, revoked: false },
       include: {
         community: { select: { name: true, description: true, keywords: true, image_url: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
@@ -232,7 +235,7 @@ export class AttestationService {
 
   async getNodeCommunityAttestations(dpid: string, communityId: number) {
     return prisma.nodeAttestation.findMany({
-      where: { nodeDpid10: dpid, desciCommunityId: communityId },
+      where: { nodeDpid10: dpid, desciCommunityId: communityId, revoked: false },
       include: {
         community: { select: { name: true, description: true, keywords: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
@@ -280,9 +283,11 @@ export class AttestationService {
       nodeVersion,
       claimerId,
     });
-    const claim = await prisma.nodeAttestation.create({
-      data,
-    });
+    const claim = data.revoked
+      ? await this.reClaimAttestation(data.revokedId)
+      : await prisma.nodeAttestation.create({
+          data,
+        });
 
     return claim;
   }
@@ -343,25 +348,65 @@ export class AttestationService {
       ),
     );
 
-    const claims = prisma.$transaction(data.map((data) => prisma.nodeAttestation.create({ data })));
+    const reclaimCandidates: typeof data = [];
+    const inserts: Prisma.NodeAttestationUncheckedCreateInput[] = [];
+    for (const entry of data) {
+      if (entry.revoked) reclaimCandidates.push(entry);
+      else inserts.push(entry);
+    }
 
-    return claims;
+    logger.info({ reclaimCandidates, inserts }, 'Batch claim');
+    const claims = await prisma.$transaction(inserts.map((data) => prisma.nodeAttestation.create({ data })));
+    const reclaims = await Promise.all(reclaimCandidates.map((entry) => this.reClaimAttestation(entry.revokedId)));
+
+    return [...claims, ...reclaims];
   }
 
+  // todo: remove and update tests
   async unClaimAttestation(id: number) {
     const claim = await prisma.nodeAttestation.findFirst({ where: { id } });
     if (!claim) throw new ClaimNotFoundError();
-    return prisma.nodeAttestation.delete({ where: { id } });
+    const deleted = await prisma.$transaction([
+      prisma.annotation.deleteMany({ where: { nodeAttestationId: id } }),
+      prisma.nodeAttestationReaction.deleteMany({ where: { nodeAttestationId: id } }),
+      prisma.nodeAttestationVerification.deleteMany({ where: { nodeAttestationId: id } }),
+      prisma.nodeAttestation.delete({ where: { id } }),
+    ]);
+    return deleted[3];
+  }
+
+  async revokeAttestation(id: number) {
+    const claim = await prisma.nodeAttestation.findFirst({ where: { id } });
+    if (!claim) throw new ClaimNotFoundError();
+    const { id: claimId, ...create } = claim;
+    return await prisma.nodeAttestation.upsert({
+      create,
+      update: { revoked: true, revokedAt: new Date().toISOString() },
+      where: { id },
+    });
+  }
+
+  async reClaimAttestation(id: number) {
+    const claim = await prisma.nodeAttestation.findFirst({ where: { id } });
+    if (!claim) throw new ClaimNotFoundError();
+    const { id: claimId, ...create } = claim;
+    return await prisma.nodeAttestation.upsert({
+      create,
+      update: { revoked: false, revokedAt: null },
+      where: { id },
+    });
   }
 
   async getNodeCommunityClaims(nodeDpid10: string, desciCommunityId: number) {
     return prisma.nodeAttestation.findMany({ where: { desciCommunityId, nodeDpid10 } });
   }
-  // async getClaimsOnAttestation(nodeDpid10: string, attestationId: number) {
-  //   return prisma.nodeAttestation.findMany({ where: { attestationId, nodeDpid10 } });
-  // }
+
   async getClaimOnAttestationVersion(nodeDpid10: string, attestationId: number, attestationVersionId: number) {
     return prisma.nodeAttestation.findFirst({ where: { attestationId, nodeDpid10, attestationVersionId } });
+  }
+
+  async getClaimOnDpid(id: number, nodeDpid10: string) {
+    return prisma.nodeAttestation.findFirst({ where: { id, nodeDpid10 } });
   }
 
   async verifyClaim(nodeAttestationId: number, userId: number) {
@@ -583,7 +628,7 @@ export class AttestationService {
       DC.keywords AS "communityKeywords"
     FROM
       "Attestation" A
-      LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id
+      LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id AND NA."revoked" = false
       LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
@@ -641,7 +686,7 @@ export class AttestationService {
       END AS "communitySelected"
     FROM
       "Attestation" A
-      LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id
+      LEFT JOIN "NodeAttestation" NA ON NA."attestationId" = A.id AND NA."revoked" = false
       LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
@@ -672,7 +717,7 @@ export class AttestationService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."nodeDpid10" = ${dpid}
+      WHERE t1."nodeDpid10" = ${dpid} AND t1."revoked" = false
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];
@@ -686,6 +731,36 @@ export class AttestationService {
       { reactions: 0, annotations: 0, verifications: 0 },
     );
     return groupedEngagements;
+  }
+  /**
+   * Returns all engagement signals for a claimed attestation
+   * @param claimId
+   * @returns
+   */
+  async getClaimEngagementSignals(claimId: number) {
+    const claim = (await prisma.$queryRaw`
+      SELECT t1.*,
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
+      FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE t1."id" = ${claimId}
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
+
+    const signal = claim.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+    return signal;
   }
 
   /**
@@ -775,7 +850,7 @@ export class AttestationService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."attestationId" = ${attestationId}
+      WHERE t1."attestationId" = ${attestationId} AND t1."revoked" = false
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];

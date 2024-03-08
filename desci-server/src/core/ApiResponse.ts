@@ -22,7 +22,6 @@ export abstract class ApiResponse {
   ) {}
 
   protected prepare<T extends ApiResponse>(res: Response, response: T, headers: { [key: string]: string }): Response {
-    // console.log('prepare', response);
     for (const [key, value] of Object.entries(headers)) res.append(key, value);
     return res.status(this.status).json(ApiResponse.sanitize(response));
   }
@@ -33,7 +32,6 @@ export abstract class ApiResponse {
 
   private static sanitize<T extends ApiResponse>(response: T): T {
     const clone: T = {} as T;
-    console.log('SANITIZE', response);
     Object.assign(clone, response);
     delete clone.status;
     for (const field in clone) if (clone[field] === 'undefined') delete clone[field];

@@ -40,6 +40,7 @@ model Node {
   ceramicStream       String?
   NodeAttestation     NodeAttestation[]
   NodeThumbnails      NodeThumbnails[]
+  PublishTaskQueue    PublishTaskQueue[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -182,6 +183,7 @@ model User {
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
   ApiKey                      ApiKey[]
+  PublishTaskQueue            PublishTaskQueue[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -698,6 +700,8 @@ model NodeAttestation {
   node                        Node                          @relation(fields: [nodeUuid], references: [uuid])
   nodeVersion                 Int
   claimedAt                   DateTime                      @default(now())
+  revoked                     Boolean                       @default(false)
+  revokedAt                   DateTime?
   Annotation                  Annotation[]
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
@@ -741,6 +745,21 @@ model NodeAttestationVerification {
   @@unique([nodeAttestationId, userId])
 }
 
+model PublishTaskQueue {
+  id            Int                    @id @default(autoincrement())
+  ceramicStream String
+  cid           String
+  dpid          String?
+  userId        Int
+  transactionId String                 @unique
+  uuid          String
+  status        PublishTaskQueueStatus
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  node Node @relation(fields: [uuid], references: [uuid])
+  user User @relation(fields: [userId], references: [id])
+}
+
 enum CommunityMembershipRole {
   ADMIN
   MEMBER
@@ -782,6 +801,7 @@ enum ActionType {
   RETRIEVE_URL_FAIL
   RETREIVE_URL_SUCCESS
   USER_TERMS_CONSENT
+  PUBLISH_NODE
   PUBLISH_NODE_CID_SUCCESS
   PUBLISH_NODE_CID_FAIL
   PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS
@@ -821,6 +841,12 @@ enum PublishState {
   WAITING
   PENDING
   SUCCESS
+  FAILED
+}
+
+enum PublishTaskQueueStatus {
+  WAITING
+  PENDING
   FAILED
 }
 
