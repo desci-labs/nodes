@@ -700,6 +700,8 @@ model NodeAttestation {
   node                        Node                          @relation(fields: [nodeUuid], references: [uuid])
   nodeVersion                 Int
   claimedAt                   DateTime                      @default(now())
+  revoked                     Boolean                       @default(false)
+  revokedAt                   DateTime?
   Annotation                  Annotation[]
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
