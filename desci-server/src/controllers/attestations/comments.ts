@@ -90,10 +90,7 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
       if (!highlight.image) return highlight;
       const blob = base64ToBlob(highlight.image);
       const storedCover = await client.add(blob, { cidVersion: 1 });
-      logger.info(
-        { storedCover, image: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` },
-        'Convert base64ToBlob and upload to ipfs',
-      );
+
       return { ...highlight, image: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` };
     });
     logger.info({ processedHighlights }, 'processedHighlights');
