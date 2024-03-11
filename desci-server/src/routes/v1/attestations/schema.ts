@@ -34,7 +34,7 @@ export const getAttestationCommentsSchema = z.object({
   }),
 });
 
-export const dpidPathRegex = /^https:\/\/beta\.dpid\.org\/(?<dpid>\d+)\/(?<version>v\d+)\/?(?<path>\S+.*)?/m;
+export const dpidPathRegex = /^https:\/\/beta\.dpid\.org\/(?<dpid>\d+)\/(?<version>v\d+)\/(?<path>\S+.*)?/m;
 export const DPID_BASE_PATH = 'https://beta.dpid.org/';
 export const dpidPathSchema = z
   .string()
