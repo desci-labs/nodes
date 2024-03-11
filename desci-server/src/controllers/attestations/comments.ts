@@ -1,18 +1,22 @@
-import { AnnotationType } from '@prisma/client';
+import { HighlightBlock } from '@desci-labs/desci-models';
+import { Annotation } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
-// import zod from 'zod';
+import zod from 'zod';
 
+import { PUBLIC_IPFS_PATH } from '../../config/index.js';
 import {
   ForbiddenError,
   NotFoundError,
   SuccessMessageResponse,
   SuccessResponse,
+  asyncMap,
   attestationService,
+  createCommentSchema,
   logger as parentLogger,
-  prisma,
 } from '../../internal.js';
-// import { createCommentSchema } from '../../routes/v1/attestations/schema.js';
+import { client } from '../../services/ipfs.js';
+import { base64ToBlob } from '../../utils/upload.js';
 
 export const getAttestationComments = async (req: Request, res: Response, next: NextFunction) => {
   const { claimId } = req.params;
@@ -21,15 +25,13 @@ export const getAttestationComments = async (req: Request, res: Response, next: 
 
   const comments = await attestationService.getAllClaimComments({
     nodeAttestationId: claim.id,
-    type: AnnotationType.COMMENT,
+    // type: AnnotationType.COMMENT,
   });
 
-  const data = comments
-    // .filter((comment) => comment.attestation.attestationVersionId === parseInt(attestationVersionId))
-    .map((comment) => {
-      const author = _.pick(comment.author, ['id', 'name', 'orcid']);
-      return { ...comment, author };
-    });
+  const data = comments.map((comment) => {
+    const author = _.pick(comment.author, ['id', 'name', 'orcid']);
+    return { ...comment, author, highlights: comment.highlights.map((h) => JSON.parse(h as string)) };
+  });
 
   return new SuccessResponse(data).send(res);
 };
@@ -55,11 +57,9 @@ export const removeComment = async (req: Request<RemoveCommentBody, any, any>, r
   });
   logger.trace(`removeComment`);
 
-  // if (!commentId) return res.status(400).send({ ok: false, error: 'Comment ID is required' });
   const comment = await attestationService.findAnnotationById(parseInt(commentId)); //await prisma.annotation.findUnique({ where: { id: parseInt(commentId) } });
 
   if (!comment) {
-    // if (comment.authorId !== user.id) throw new ForbiddenError();
     new SuccessMessageResponse().send(res);
   } else {
     if (comment.authorId !== user.id) throw new ForbiddenError();
@@ -68,17 +68,13 @@ export const removeComment = async (req: Request<RemoveCommentBody, any, any>, r
   }
 };
 
-type AddCommentBody = {
-  authorId: string;
-  claimId: string;
-  body: string;
-};
+type AddCommentBody = zod.infer<typeof createCommentSchema>;
 
-export const addComment = async (req: Request<any, any, AddCommentBody>, res: Response<AddCommentResponse>) => {
-  const { authorId, claimId, body } = req.body;
+export const addComment = async (req: Request<any, any, AddCommentBody['body']>, res: Response<AddCommentResponse>) => {
+  const { authorId, claimId, body, highlights, links } = req.body;
   const user = (req as any).user;
 
-  if (parseInt(authorId) !== user.id) throw new ForbiddenError();
+  if (parseInt(authorId.toString()) !== user.id) throw new ForbiddenError();
 
   const logger = parentLogger.child({
     // id: req.id,
@@ -88,11 +84,34 @@ export const addComment = async (req: Request<any, any, AddCommentBody>, res: Re
   });
   logger.trace(`addComment`);
 
-  const annotation = await attestationService.createComment({
-    claimId: parseInt(claimId),
-    authorId: user.id,
-    comment: body,
-  });
+  let annotation: Annotation;
+  if (highlights?.length > 0) {
+    const processedHighlights = await asyncMap(highlights, async (highlight) => {
+      if (!highlight.image) return highlight;
+      const blob = base64ToBlob(highlight.image);
+      const storedCover = await client.add(blob, { cidVersion: 1 });
 
-  new SuccessResponse(annotation).send(res);
+      return { ...highlight, image: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` };
+    });
+    logger.info({ processedHighlights }, 'processedHighlights');
+    annotation = await attestationService.createHighlight({
+      claimId: parseInt(claimId.toString()),
+      authorId: user.id,
+      comment: body,
+      links,
+      highlights: processedHighlights as unknown as HighlightBlock[],
+    });
+  } else {
+    annotation = await attestationService.createComment({
+      claimId: parseInt(claimId.toString()),
+      authorId: user.id,
+      comment: body,
+      links,
+    });
+  }
+
+  new SuccessResponse({
+    ...annotation,
+    highlights: annotation.highlights.map((h) => JSON.parse(h as string)),
+  }).send(res);
 };

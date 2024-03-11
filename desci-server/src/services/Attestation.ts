@@ -1,5 +1,6 @@
 import assert from 'assert';
 
+import { HighlightBlock } from '@desci-labs/desci-models';
 import { AnnotationType, Attestation, NodeAttestation, Prisma } from '@prisma/client';
 import { logger } from 'ethers';
 import _ from 'lodash';
@@ -485,7 +486,17 @@ export class AttestationService {
     return prisma.annotation.create({ data });
   }
 
-  async createComment({ claimId, authorId, comment }: { claimId: number; authorId: number; comment: string }) {
+  async createComment({
+    claimId,
+    authorId,
+    comment,
+    links,
+  }: {
+    claimId: number;
+    authorId: number;
+    comment: string;
+    links: string[];
+  }) {
     assert(authorId > 0, 'Error: authorId is zero');
     assert(claimId > 0, 'Error: claimId is zero');
     const data: Prisma.AnnotationUncheckedCreateInput = {
@@ -493,11 +504,24 @@ export class AttestationService {
       authorId,
       nodeAttestationId: claimId,
       body: comment,
+      links,
     };
     return this.createAnnotation(data);
   }
 
-  async createHighlight({ claimId, authorId, comment }: { claimId: number; authorId: number; comment: string }) {
+  async createHighlight({
+    claimId,
+    authorId,
+    comment,
+    highlights,
+    links,
+  }: {
+    claimId: number;
+    authorId: number;
+    comment: string;
+    links: string[];
+    highlights: HighlightBlock[];
+  }) {
     assert(authorId > 0, 'Error: authorId is zero');
     assert(claimId > 0, 'Error: claimId is zero');
     const data: Prisma.AnnotationUncheckedCreateInput = {
@@ -505,6 +529,8 @@ export class AttestationService {
       authorId,
       nodeAttestationId: claimId,
       body: comment,
+      links,
+      highlights: highlights.map((h) => JSON.stringify(h)),
     };
     return this.createAnnotation(data);
   }

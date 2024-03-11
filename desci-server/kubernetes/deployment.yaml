@@ -77,6 +77,7 @@ spec:
           export ISOLATED_MEDIA_SERVER_URL={{ .Data.ISOLATED_MEDIA_SERVER_URL }}
           export IPFS_READ_ONLY_GATEWAY_SERVER_URL={{ .Data.IPFS_READ_ONLY_GATEWAY_SERVER_URL }}
           export ETHEREUM_RPC_URL={{ .Data.ETHEREUM_RPC_URL }}
+          export GOOGLE_CLIENT_ID={{ .Data.GOOGLE_CLIENT_ID }}
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}

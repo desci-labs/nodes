@@ -714,7 +714,8 @@ model Annotation {
   id                Int             @id @default(autoincrement())
   type              AnnotationType
   body              String
-  highlight         Json?
+  highlights        Json[]          @default([])
+  links             String[]        @default([])
   authorId          Int
   author            User            @relation(fields: [authorId], references: [id])
   nodeAttestationId Int

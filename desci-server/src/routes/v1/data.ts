@@ -4,6 +4,7 @@ import multerS3 from 'multer-s3';
 import { v4 } from 'uuid';
 
 import { diffData } from '../../controllers/data/diff.js';
+import { googleImport } from '../../controllers/data/google/import.js';
 import { pubTree, retrieveTree, deleteData, update, renameData } from '../../controllers/data/index.js';
 import { moveData } from '../../controllers/data/move.js';
 import { updateExternalCid } from '../../controllers/data/updateExternalCid.js';
@@ -75,10 +76,8 @@ router.post('/move', [ensureUser, ensureNodeAccess], moveData);
 router.get('/retrieveTree/:nodeUuid/:manifestCid', [ensureUser], retrieveTree);
 router.get('/retrieveTree/:nodeUuid/:manifestCid/:shareId?', retrieveTree);
 router.get('/pubTree/:nodeUuid/:manifestCid/:rootCid?', pubTree);
-// router.get('/downloadDataset/:nodeUuid/:cid', [ensureUser], downloadDataset);
 router.get('/diff/:nodeUuid/:manifestCidA/:manifestCidB?', [attachUser], diffData);
 
-// must be last
-// router.get('/*', [ensureUser], list);
+router.post('/google/import', [ensureUser, ensureNodeAccess], googleImport);
 
 export default router;
