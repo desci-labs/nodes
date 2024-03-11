@@ -38,6 +38,9 @@ model Node {
   UploadJobs          UploadJobs[]
   DraftNodeTree       DraftNodeTree[]
   ceramicStream       String?
+  NodeAttestation     NodeAttestation[]
+  NodeThumbnails      NodeThumbnails[]
+  PublishTaskQueue    PublishTaskQueue[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -123,57 +126,64 @@ model Wallet {
 }
 
 model User {
-  id                         Int                       @id @default(autoincrement())
-  createdAt                  DateTime                  @default(now())
-  updatedAt                  DateTime                  @updatedAt
-  email                      String                    @unique
-  phoneNumber                String?                   @unique
-  name                       String?
-  website                    String?
-  googleScholarUrl           String?
-  researchInterests          String?
-  gitcoinPassport            String?                   @unique
-  walletAddress              String?                   @unique
-  isPatron                   Boolean                   @default(false)
-  isWarden                   Boolean                   @default(false)
-  isKeeper                   Boolean                   @default(false)
-  pseudonym                  String?                   @unique
-  orcid                      String?                   @unique
+  id                          Int                           @id @default(autoincrement())
+  createdAt                   DateTime                      @default(now())
+  updatedAt                   DateTime                      @updatedAt
+  email                       String                        @unique
+  phoneNumber                 String?                       @unique
+  name                        String?
+  website                     String?
+  googleScholarUrl            String?
+  researchInterests           String?
+  gitcoinPassport             String?                       @unique
+  walletAddress               String?                       @unique
+  isPatron                    Boolean                       @default(false)
+  isWarden                    Boolean                       @default(false)
+  isKeeper                    Boolean                       @default(false)
+  pseudonym                   String?                       @unique
+  orcid                       String?                       @unique
   // rorPid                     String[]              @default([])
   // organization               String[]              @default([])
-  isAdmin                    Boolean                   @default(false)
-  isVerified                 Boolean                   @default(false)
-  verificationCode           String                    @default("")
-  siweNonce                  String                    @default("")
-  authTokens                 AuthToken[]
-  authorInvitesReceived      AuthorInvite[]            @relation("ReceivedAuthorInvites")
-  authorInvitesSent          AuthorInvite[]            @relation("SentAuthorInvites")
-  receivedTransactions       ChainTransaction[]        @relation("ReceivedTransactions")
-  sentTransactions           ChainTransaction[]        @relation("SentTransactions")
-  interactionLogs            InteractionLog[]
-  invitesReceived            Invite[]                  @relation("ReceivedInvites")
-  invitesSent                Invite[]                  @relation("SentInvites")
-  ownedNodes                 Node[]
-  authoredNodes              NodeAuthor[]
-  nodeVotes                  NodeVote[]
-  accessGrants               OauthAccessGrant[]
-  accessTokens               OauthAccessToken[]
-  identities                 UserIdentity[]
-  Waitlist                   Waitlist[]
-  wallets                    Wallet[]
-  canRunCode                 Boolean?                  @default(false)
-  DataReference              DataReference[]
-  CidPruneList               CidPruneList[]
-  PublicDataReference        PublicDataReference[]
-  FriendReferral             FriendReferral[]
-  currentDriveStorageLimitGb Int                       @default(100)
-  maxDriveStorageLimitGb     Int                       @default(500)
-  userOrganizations          UserOrganizations[]
-  NodeFeedItemEndorsement    NodeFeedItemEndorsement[]
-  DesciCommunity             DesciCommunity?           @relation(fields: [desciCommunityId], references: [id])
-  desciCommunityId           Int?
-  ApiKey                     ApiKey[]
-  UploadJobs                 UploadJobs[]
+  isAdmin                     Boolean                       @default(false)
+  isVerified                  Boolean                       @default(false)
+  verificationCode            String                        @default("")
+  siweNonce                   String                        @default("")
+  authTokens                  AuthToken[]
+  authorInvitesReceived       AuthorInvite[]                @relation("ReceivedAuthorInvites")
+  authorInvitesSent           AuthorInvite[]                @relation("SentAuthorInvites")
+  receivedTransactions        ChainTransaction[]            @relation("ReceivedTransactions")
+  sentTransactions            ChainTransaction[]            @relation("SentTransactions")
+  interactionLogs             InteractionLog[]
+  invitesReceived             Invite[]                      @relation("ReceivedInvites")
+  invitesSent                 Invite[]                      @relation("SentInvites")
+  ownedNodes                  Node[]
+  authoredNodes               NodeAuthor[]
+  nodeVotes                   NodeVote[]
+  accessGrants                OauthAccessGrant[]
+  accessTokens                OauthAccessToken[]
+  identities                  UserIdentity[]
+  Waitlist                    Waitlist[]
+  wallets                     Wallet[]
+  canRunCode                  Boolean?                      @default(false)
+  DataReference               DataReference[]
+  CidPruneList                CidPruneList[]
+  PublicDataReference         PublicDataReference[]
+  FriendReferral              FriendReferral[]
+  currentDriveStorageLimitGb  Int                           @default(100)
+  maxDriveStorageLimitGb      Int                           @default(500)
+  userOrganizations           UserOrganizations[]
+  UploadJobs                  UploadJobs[]
+  // DraftNodeTree              DraftNodeTree[]
+  NodeFeedItemEndorsement     NodeFeedItemEndorsement[]
+  DesciCommunity              DesciCommunity?               @relation(fields: [desciCommunityId], references: [id])
+  desciCommunityId            Int?
+  CommunityMember             CommunityMember[]
+  NodeAttestation             NodeAttestation[]
+  Annotation                  Annotation[]
+  NodeAttestationVerification NodeAttestationVerification[]
+  NodeAttestationReaction     NodeAttestationReaction[]
+  ApiKey                      ApiKey[]
+  PublishTaskQueue            PublishTaskQueue[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -191,7 +201,7 @@ model ApiKey {
   lastUsedIp String?
   userId     Int
   user       User      @relation(fields: [userId], references: [id])
-  
+
   // @@unique([memo, userId])
   @@index([userId])
 }
@@ -450,6 +460,16 @@ model NodeCover {
   @@unique([nodeUuid, version])
 }
 
+model NodeThumbnails {
+  id           Int    @id @default(autoincrement())
+  componentCid String
+  nodeUuid     String
+  thumbnails   Json
+  node         Node   @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, componentCid])
+}
+
 model FriendReferral {
   id                     Int                  @id @default(autoincrement())
   uuid                   String               @unique @default(uuid())
@@ -538,6 +558,7 @@ model DraftNodeTree {
 }
 
 // create a model for Node UUIDs, titles, dates, authors, and abstracts
+// NodeFeedItem: Cached entry of a dpid
 model NodeFeedItem {
   id                      Int                       @id @default(autoincrement())
   createdAt               DateTime                  @default(now())
@@ -553,6 +574,7 @@ model NodeFeedItem {
   nodeFeedItemEndorsement NodeFeedItemEndorsement[]
 }
 
+//NodeFeedItemEndorsement: An endorsement of a node feed item from a community
 model NodeFeedItemEndorsement {
   id               Int            @id @default(autoincrement())
   createdAt        DateTime       @default(now())
@@ -569,13 +591,183 @@ model NodeFeedItemEndorsement {
 
 // an organization that endorses work and has members
 model DesciCommunity {
-  id           Int                       @id @default(autoincrement())
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
-  name         String                    @unique
-  description  String
-  members      User[]
-  endorsements NodeFeedItemEndorsement[]
+  id                        Int                         @id @default(autoincrement())
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  name                      String                      @unique
+  slug                      String?                     @unique
+  image_url                 String?
+  subtitle                  String? // short description
+  description               String
+  keywords                  String[]
+  memberString              String[] // string list of member names
+  links                     String[] // string list of links
+  hidden                    Boolean                     @default(false)
+  members                   User[]
+  endorsements              NodeFeedItemEndorsement[]
+  CommunityMember           CommunityMember[]
+  Attestation               Attestation[]
+  NodeAttestation           NodeAttestation[]
+  AttestationTemplate       AttestationTemplate[]
+  CommunityEntryAttestation CommunityEntryAttestation[]
+}
+
+model CommunityMember {
+  id          Int                     @id @default(autoincrement())
+  communityId Int
+  userId      Int
+  role        CommunityMembershipRole
+  user        User                    @relation(fields: [userId], references: [id])
+  community   DesciCommunity          @relation(fields: [communityId], references: [id])
+
+  @@unique([userId, communityId])
+}
+
+// Templates for creating a new attestation
+model AttestationTemplate {
+  id               Int             @id @default(autoincrement())
+  name             String          @unique
+  description      String
+  image_url        String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  Attestation      Attestation[]
+  DesciCommunity   DesciCommunity? @relation(fields: [desciCommunityId], references: [id])
+  desciCommunityId Int?
+}
+
+// A factory attestation, these are the base attestations that can be assigned to nodes
+model Attestation {
+  id                        Int                         @id @default(autoincrement())
+  name                      String
+  communityId               Int
+  description               String
+  image_url                 String
+  templateId                Int?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  community                 DesciCommunity              @relation(fields: [communityId], references: [id])
+  template                  AttestationTemplate?        @relation(fields: [templateId], references: [id])
+  AttestationVersion        AttestationVersion[]
+  NodeAttestation           NodeAttestation[]
+  CommunityEntryAttestation CommunityEntryAttestation[]
+
+  @@unique([name, communityId])
+}
+
+model AttestationVersion {
+  id                        Int                         @id @default(autoincrement())
+  name                      String
+  attestationId             Int
+  description               String
+  image_url                 String
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  attestation               Attestation                 @relation(fields: [attestationId], references: [id])
+  NodeAttestation           NodeAttestation[]
+  CommunityEntryAttestation CommunityEntryAttestation[]
+}
+
+// A communities selected attestations, these appear in their radar.
+model CommunityEntryAttestation {
+  id                   Int                @id @default(autoincrement())
+  desciCommunityId     Int
+  desciCommunity       DesciCommunity     @relation(fields: [desciCommunityId], references: [id])
+  attestationId        Int
+  attestationVersionId Int
+  required             Boolean
+  attestation          Attestation        @relation(fields: [attestationId], references: [id])
+  attestationVersion   AttestationVersion @relation(fields: [attestationVersionId], references: [id])
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@unique([attestationId, attestationVersionId, desciCommunityId])
+}
+
+//An attestation assigned to a node
+model NodeAttestation {
+  id                          Int                           @id @default(autoincrement())
+  attestationId               Int
+  attestation                 Attestation                   @relation(fields: [attestationId], references: [id])
+  attestationVersionId        Int
+  attestationVersion          AttestationVersion            @relation(fields: [attestationVersionId], references: [id])
+  desciCommunityId            Int
+  community                   DesciCommunity                @relation(fields: [desciCommunityId], references: [id])
+  claimedById                 Int
+  claimedBy                   User                          @relation(fields: [claimedById], references: [id])
+  nodeDpid10                  String
+  nodeUuid                    String
+  node                        Node                          @relation(fields: [nodeUuid], references: [uuid])
+  nodeVersion                 Int
+  claimedAt                   DateTime                      @default(now())
+  revoked                     Boolean                       @default(false)
+  revokedAt                   DateTime?
+  Annotation                  Annotation[]
+  NodeAttestationVerification NodeAttestationVerification[]
+  NodeAttestationReaction     NodeAttestationReaction[]
+
+  @@unique([nodeUuid, nodeVersion, attestationId, attestationVersionId])
+}
+
+//Comments on attestations
+model Annotation {
+  id                Int             @id @default(autoincrement())
+  type              AnnotationType
+  body              String
+  highlights        Json[]          @default([])
+  links             String[]        @default([])
+  authorId          Int
+  author            User            @relation(fields: [authorId], references: [id])
+  nodeAttestationId Int
+  attestation       NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
+}
+
+//An emoji reaction to a node
+model NodeAttestationReaction {
+  id                Int             @id @default(autoincrement())
+  reaction          String
+  authorId          Int
+  author            User            @relation(fields: [authorId], references: [id])
+  nodeAttestationId Int
+  attestation       NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
+}
+
+// More prevalent reaction, reputation is staked
+model NodeAttestationVerification {
+  id                Int             @id @default(autoincrement())
+  userId            Int
+  user              User            @relation(fields: [userId], references: [id])
+  nodeAttestationId Int
+  nodeAttestation   NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([nodeAttestationId, userId])
+}
+
+model PublishTaskQueue {
+  id            Int                    @id @default(autoincrement())
+  ceramicStream String
+  cid           String
+  dpid          String?
+  userId        Int
+  transactionId String                 @unique
+  uuid          String
+  status        PublishTaskQueueStatus
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  node Node @relation(fields: [uuid], references: [uuid])
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum CommunityMembershipRole {
+  ADMIN
+  MEMBER
+}
+
+enum AnnotationType {
+  COMMENT
+  HIGHLIGHT
 }
 
 enum UploadType {
@@ -609,6 +801,7 @@ enum ActionType {
   RETRIEVE_URL_FAIL
   RETREIVE_URL_SUCCESS
   USER_TERMS_CONSENT
+  PUBLISH_NODE
   PUBLISH_NODE_CID_SUCCESS
   PUBLISH_NODE_CID_FAIL
   PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS
@@ -648,6 +841,12 @@ enum PublishState {
   WAITING
   PENDING
   SUCCESS
+  FAILED
+}
+
+enum PublishTaskQueueStatus {
+  WAITING
+  PENDING
   FAILED
 }
 

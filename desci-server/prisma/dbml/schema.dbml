@@ -2,35 +2,115 @@
 //// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 //// ------------------------------------------------------
 
-Table Discovery {
+Table Node {
   id Int [pk, increment]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
   title String [not null]
-  state DiscoveryState [not null, default: 'NEW']
+  cid String [not null, default: '']
+  state NodeState [not null, default: 'NEW']
   isFeatured Boolean [not null, default: false]
-  isBreakthrough Boolean [not null, default: false]
   manifestUrl String [not null]
+  restBody Json [not null, default: '{}']
   replicationFactor Int [not null]
-  transactions ChainTransaction [not null]
-  owner User [not null]
   ownerId Int [not null]
-  vault Vault [not null]
-  vaultId Int [not null]
-  authors DiscoveryAuthor [not null]
-  votes DiscoveryVote [not null]
-  reviews DiscoveryReview [not null]
-  versions DiscoveryVersion [not null]
+  uuid String [unique]
+  manifestDocumentId String [not null, default: '']
+  privateShare PrivateShare
+  owner User [not null]
   authorInvites AuthorInvite [not null]
+  transactions ChainTransaction [not null]
+  interactionLogs InteractionLog [not null]
+  authors NodeAuthor [not null]
+  versions NodeVersion [not null]
+  votes NodeVote [not null]
+  DataReference DataReference [not null]
+  PublicDataReference PublicDataReference [not null]
+  CidPruneList CidPruneList [not null]
+  NodeCover NodeCover [not null]
+  isDeleted Boolean [not null, default: false]
+  deletedAt DateTime
+  UploadJobs UploadJobs [not null]
+  DraftNodeTree DraftNodeTree [not null]
+  ceramicStream String
+  NodeAttestation NodeAttestation [not null]
 }
 
-Table DiscoveryVersion {
+Table NodeVersion {
   id Int [pk, increment]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
   manifestUrl String [not null]
-  discovery Discovery
-  discoveryId Int
+  cid String [not null, default: '']
+  transactionId String
+  nodeId Int
+  node Node
+  PublicDataReference PublicDataReference [not null]
+  DataReference DataReference [not null]
+  NodeAttestation NodeAttestation [not null]
+}
+
+Table InteractionLog {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  ip String
+  userAgent String
+  extra String
+  action ActionType
+  userId Int
+  rep Int
+  nodeId Int
+  waitlistId Int
+  node Node
+  user User
+  waitlist Waitlist
+}
+
+Table Session {
+  id String [pk]
+  sid String [unique, not null]
+  data String [not null]
+  expiresAt DateTime [not null]
+}
+
+Table AuthToken {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  accessToken String
+  refreshToken String
+  expiresIn Int
+  tokenId String
+  source AuthTokenSource
+  userId Int [not null]
+  user User [not null]
+}
+
+Table Waitlist {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  email String [unique, not null]
+  userId Int
+  user User
+  interactionLogs InteractionLog [not null]
+}
+
+Table Wallet {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  address String [not null]
+  network String
+  chainId String
+  msgSignature String
+  msgPlain String
+  userId Int
+  nickname String
+  giftTransaction String
+  usedFaucet Boolean [default: false]
+  user User
 }
 
 Table User {
@@ -38,35 +118,69 @@ Table User {
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
   email String [unique, not null]
-  phoneNumber String [unique, not null]
+  phoneNumber String [unique]
   name String
-  walletAddress String
-  isPatron Boolean [not null]
-  isWarden Boolean [not null]
-  isKeeper Boolean [not null]
-  ownedDiscoveries Discovery [not null]
-  authoredDiscoveries DiscoveryAuthor [not null]
-  discoveryVotes DiscoveryVote [not null]
-  reviews DiscoveryReview [not null]
-  reviewVotes DiscoveryReviewVote [not null]
-  invitesSent Invite [not null]
-  invitesReceived Invite [not null]
-  sentTransactions ChainTransaction [not null]
-  receivedTransactions ChainTransaction [not null]
-  authorInvitesSent AuthorInvite [not null]
+  website String
+  googleScholarUrl String
+  researchInterests String
+  gitcoinPassport String [unique]
+  walletAddress String [unique]
+  isPatron Boolean [not null, default: false]
+  isWarden Boolean [not null, default: false]
+  isKeeper Boolean [not null, default: false]
+  pseudonym String [unique]
+  orcid String [unique]
+  isAdmin Boolean [not null, default: false]
+  isVerified Boolean [not null, default: false]
+  verificationCode String [not null, default: '']
+  siweNonce String [not null, default: '']
+  authTokens AuthToken [not null]
   authorInvitesReceived AuthorInvite [not null]
+  authorInvitesSent AuthorInvite [not null]
+  receivedTransactions ChainTransaction [not null]
+  sentTransactions ChainTransaction [not null]
+  interactionLogs InteractionLog [not null]
+  invitesReceived Invite [not null]
+  invitesSent Invite [not null]
+  ownedNodes Node [not null]
+  authoredNodes NodeAuthor [not null]
+  nodeVotes NodeVote [not null]
+  accessGrants OauthAccessGrant [not null]
+  accessTokens OauthAccessToken [not null]
+  identities UserIdentity [not null]
+  Waitlist Waitlist [not null]
+  wallets Wallet [not null]
+  canRunCode Boolean [default: false]
+  DataReference DataReference [not null]
+  CidPruneList CidPruneList [not null]
+  PublicDataReference PublicDataReference [not null]
+  FriendReferral FriendReferral [not null]
+  currentDriveStorageLimitGb Int [not null, default: 100]
+  maxDriveStorageLimitGb Int [not null, default: 500]
+  userOrganizations UserOrganizations [not null]
+  UploadJobs UploadJobs [not null]
+  NodeFeedItemEndorsement NodeFeedItemEndorsement [not null]
+  DesciCommunity DesciCommunity
+  desciCommunityId Int
+  CommunityMember CommunityMember [not null]
+  NodeAttestation NodeAttestation [not null]
+  Annotation Annotation [not null]
+  NodeAttestationVerification NodeAttestationVerification [not null]
 }
 
 Table Invite {
   id Int [pk, increment]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
-  email String [unique, not null]
-  phoneNumber String [unique, not null]
-  sender User [not null]
+  email String
+  phoneNumber String
   senderId Int [not null]
-  receiver User [not null]
-  receiverId Int [not null]
+  receiverId Int
+  inviteCode String [default: 'desci']
+  expired Boolean [not null, default: false]
+  expiredAt DateTime [not null]
+  receiver User
+  sender User [not null]
 }
 
 Table AuthorInvite {
@@ -75,73 +189,38 @@ Table AuthorInvite {
   updatedAt DateTime [not null]
   email String [unique, not null]
   phoneNumber String [unique, not null]
-  discovery Discovery [not null]
-  discoveryId Int [not null]
-  sender User [not null]
   senderId Int [not null]
-  receiver User [not null]
   receiverId Int [not null]
+  nodeId Int [not null]
+  node Node [not null]
+  receiver User [not null]
+  sender User [not null]
 }
 
-Table DiscoveryAuthor {
+Table NodeAuthor {
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
   shares Int [not null]
-  user User [not null]
   userId Int [not null]
-  discovery Discovery [not null]
-  discoveryId Int [not null]
+  nodeId Int [not null]
+  node Node [not null]
+  user User [not null]
 
   indexes {
-    (userId, discoveryId) [pk]
+    (userId, nodeId) [pk]
   }
 }
 
-Table DiscoveryVote {
+Table NodeVote {
   id Int [pk, increment]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
   voteWeight Int [not null]
+  userId Int [not null]
+  nodeId Int [not null]
+  node Node [not null]
+  user User [not null]
   transaction ChainTransaction
-  user User [not null]
-  userId Int [not null]
-  discovery Discovery [not null]
-  discoveryId Int [not null]
-}
-
-Table DiscoveryReview {
-  id Int [pk, increment]
-  createdAt DateTime [default: `now()`, not null]
-  updatedAt DateTime [not null]
-  owner User [not null]
-  ownerId Int [not null]
-  discovery Discovery
-  discoveryId Int
-  votes DiscoveryReviewVote [not null]
-}
-
-Table DiscoveryReviewVote {
-  createdAt DateTime [default: `now()`, not null]
-  updatedAt DateTime [not null]
-  voteWeight Int [not null]
-  user User [not null]
-  userId Int [not null]
-  discoveryReview DiscoveryReview [not null]
-  discoveryReviewId Int [not null]
-
-  indexes {
-    (userId, discoveryReviewId) [pk]
-  }
-}
-
-Table Vault {
-  id Int [pk, increment]
-  createdAt DateTime [default: `now()`, not null]
-  updatedAt DateTime [not null]
-  name String [not null]
-  description String [not null]
-  Discovery Discovery [not null]
-  transactions ChainTransaction [not null]
 }
 
 Table ChainTransaction {
@@ -150,25 +229,486 @@ Table ChainTransaction {
   updatedAt DateTime [not null]
   hash String [not null]
   type ChainTransactionType [not null]
-  discovery Discovery
-  discoveryId Int
-  user User
   userId Int
-  targetUser User
   targetUserId Int
-  vault Vault
-  vaultId Int
-  discoveryVote DiscoveryVote
-  discoveryVoteId Int
+  nodeId Int
+  nodeVoteId Int [unique]
+  node Node
+  nodeVote NodeVote
+  targetUser User
+  user User
+}
+
+Table MagicLink {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  expiresAt DateTime [not null]
+  failedAttempts Int [not null, default: 0]
+  token String [not null]
+  email String [not null]
+}
+
+Table OauthAccessToken {
+  id String [pk]
+  userId Int [not null]
+  applicationId String [not null]
+  token String [unique, not null]
+  refreshToken String [unique]
+  tokenExpiresAt DateTime
+  refreshTokenExpiresAt DateTime
+  scopes Json [not null, default: '[]']
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  application OauthApplication [not null]
+  user User [not null]
+}
+
+Table OauthAccessGrant {
+  id String [pk]
+  userId Int [not null]
+  applicationId String [not null]
+  token String [unique, not null]
+  expiresAt DateTime [not null]
+  redirectUri String [not null]
+  codeChallengeMethod String
+  codeChallenge String
+  scopes Json [not null, default: '[]']
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  application OauthApplication [not null]
+  user User [not null]
+}
+
+Table OauthApplication {
+  id String [pk]
+  name String [not null]
+  clientId String [unique, not null]
+  clientSecret String [not null]
+  redirectUris Json [not null, default: '[]']
+  scopes Json [not null, default: '[]']
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  grants Json [not null, default: '[]']
+  accessGrants OauthAccessGrant [not null]
+  accessTokens OauthAccessToken [not null]
+}
+
+Table UserIdentity {
+  id String [pk]
+  userId Int [not null]
+  provider String [not null]
+  uid String [not null]
+  name String
+  email String
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  user User [not null]
+
+  indexes {
+    (provider, uid) [unique]
+  }
+}
+
+Table DataReference {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  name String
+  description String
+  cid String [not null]
+  root Boolean [not null]
+  rootCid String
+  path String
+  directory Boolean [not null]
+  size Int [not null]
+  type DataType [not null]
+  external Boolean
+  nodeId Int [not null]
+  userId Int [not null]
+  versionId Int
+  node Node [not null]
+  user User [not null]
+  nodeVersion NodeVersion
+}
+
+Table CidPruneList {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  description String [not null]
+  cid String [not null]
+  size Int [not null]
+  type DataType [not null]
+  duration Int [not null, default: 30]
+  deleted Boolean [not null, default: false]
+  directory Boolean [not null]
+  nodeId Int [not null]
+  userId Int [not null]
+  node Node [not null]
+  user User [not null]
+}
+
+Table PublicDataReference {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  name String
+  description String
+  cid String [not null]
+  root Boolean [not null]
+  rootCid String
+  path String
+  directory Boolean [not null]
+  size Int [not null]
+  type DataType [not null]
+  nodeId Int [not null]
+  userId Int
+  versionId Int
+  external Boolean
+  mirrors PublicDataReferenceOnIpfsMirror [not null]
+  node Node [not null]
+  user User
+  nodeVersion NodeVersion
+
+  indexes {
+    (path, versionId) [unique]
+  }
+}
+
+Table IpfsMirror {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  name String [unique, not null]
+  description String
+  website String [not null]
+  PublicDataReference PublicDataReferenceOnIpfsMirror [not null]
+}
+
+Table PublicDataReferenceOnIpfsMirror {
+  dataReferenceId Int [not null]
+  PublicDataReference PublicDataReference [not null]
+  mirrorId Int [not null]
+  mirror IpfsMirror [not null]
+  status PublishState [not null, default: 'WAITING']
+  retryCount Int [not null, default: 0]
+  providerCount Int [not null, default: 0]
+
+  indexes {
+    (dataReferenceId, mirrorId) [pk]
+  }
+}
+
+Table PrivateShare {
+  id Int [pk, increment]
+  shareId String [unique, not null]
+  nodeUUID String [unique, not null]
+  node Node [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table NodeCover {
+  id Int [pk, increment]
+  url String [not null]
+  nodeUuid String [not null]
+  cid String
+  version Int [default: 0]
+  name String
+  node Node [not null]
+
+  indexes {
+    (nodeUuid, version) [unique]
+  }
+}
+
+Table FriendReferral {
+  id Int [pk, increment]
+  uuid String [unique, not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  senderUserId Int [not null]
+  senderUser User
+  receiverEmail String [not null]
+  status FriendReferralStatus [not null]
+  awardedStorage Boolean [not null, default: false]
+  amountAwardedStorageGb Int [not null, default: 0]
+}
+
+Table ResearchFields {
+  id Int [pk, increment]
+  name String [unique, not null]
+}
+
+Table Organization {
+  id String [pk, unique]
+  name String [not null]
+  userOrganizations UserOrganizations [not null]
+
+  indexes {
+    (id) [pk]
+  }
+}
+
+Table UserOrganizations {
+  organizationId String [not null]
+  organization Organization [not null]
+  userId Int [not null]
+  user User [not null]
+
+  indexes {
+    (userId, organizationId) [pk]
+  }
+}
+
+Table OrcidProfile {
+  id Int [pk, increment]
+  orcidId String [unique, not null]
+  updatedAt DateTime [not null]
+  expiresIn DateTime [not null]
+  profile Json [not null]
+}
+
+Table UploadJobs {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  uploadType UploadType [not null]
+  uploadPayload Json [not null]
+  contextPath String [not null]
+  storageReference String
+  totalSize Int
+  totalFiles Int
+  totalDirs Int
+  proccessingStartTime DateTime
+  processingEndTime DateTime
+  processingState ProcessingState
+  nodeId Int [not null]
+  userId Int [not null]
+  node Node [not null]
+  user User [not null]
+}
+
+Table DocumentStore {
+  key String [pk]
+  value Bytes [not null]
+}
+
+Table DraftNodeTree {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  path String [not null]
+  cid String [not null]
+  directory Boolean [not null]
+  size Int [not null]
+  external Boolean [not null]
+  nodeId Int [not null]
+  node Node [not null]
+
+  indexes {
+    (nodeId, path) [unique]
+  }
+}
+
+Table NodeFeedItem {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  nodeUuid String [not null]
+  nodeUuidHex String [not null]
+  nodeDpid10 String [unique, not null]
+  manifestCid String [not null]
+  title String [not null]
+  date DateTime [not null]
+  authors String [not null]
+  abstract String [not null]
+  nodeFeedItemEndorsement NodeFeedItemEndorsement [not null]
+}
+
+Table NodeFeedItemEndorsement {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  nodeDpid10 String [not null]
+  type String [not null]
+  userId Int [not null]
+  nodeFeedItemId Int [not null]
+  desciCommunityId Int [not null]
+  user User [not null]
+  nodeFeedItem NodeFeedItem [not null]
+  desciCommunity DesciCommunity [not null]
+}
+
+Table DesciCommunity {
+  id Int [pk, increment]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  name String [unique, not null]
+  image_url String
+  description String [not null]
+  members User [not null]
+  endorsements NodeFeedItemEndorsement [not null]
+  CommunityMember CommunityMember [not null]
+  Attestation Attestation [not null]
+  NodeAttestation NodeAttestation [not null]
+}
+
+Table CommunityMember {
+  id Int [pk, increment]
+  communityId Int [not null]
+  userId Int [not null]
+  user User [not null]
+  community DesciCommunity [not null]
+  desciCommunityId Int [not null]
+
+  indexes {
+    (userId, communityId) [unique]
+  }
+}
+
+Table AttestationTemplate {
+  id Int [pk, increment]
+  name String [unique, not null]
+  description String [not null]
+  image_url String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  Attestation Attestation [not null]
+}
+
+Table Attestation {
+  id Int [pk, increment]
+  name String [unique, not null]
+  attestationTemplateId Int
+  desciCommunityId Int [not null]
+  description String [not null]
+  image_url String [not null]
+  templateId Int
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  community DesciCommunity [not null]
+  template AttestationTemplate
+  AttestationVersion AttestationVersion [not null]
+  NodeAttestation NodeAttestation [not null]
+}
+
+Table AttestationVersion {
+  id Int [pk, increment]
+  name String [unique, not null]
+  version Int [not null]
+  attestationId Int [not null]
+  description String [not null]
+  image_url String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  attestation Attestation [not null]
+  NodeAttestation NodeAttestation [not null]
+
+  indexes {
+    (attestationId, version) [unique]
+  }
+}
+
+Table NodeAttestation {
+  id Int [pk, increment]
+  attestationId Int [not null]
+  attestation Attestation [not null]
+  attestationVersionId Int [not null]
+  attestationVersion AttestationVersion [not null]
+  desciCommunityId Int [not null]
+  community DesciCommunity [not null]
+  claimedById Int [not null]
+  claimedBy User [not null]
+  claimedOnId Int [not null]
+  claimedOn Node [not null]
+  claimedOnVersionId Int [not null]
+  claimedOnVersion NodeVersion [not null]
+  claimedAt DateTime [default: `now()`, not null]
+  Annotation Annotation [not null]
+  NodeAttestationVerification NodeAttestationVerification [not null]
+
+  indexes {
+    (claimedOnId, claimedOnVersionId, attestationId, attestationVersionId) [unique]
+  }
+}
+
+Table Annotation {
+  id Int [pk, increment]
+  type AnnotationType [not null]
+  body String [not null]
+  highlight Json
+  authorId Int [not null]
+  author User [not null]
+  nodeAttestationId Int [not null]
+  attestation NodeAttestation [not null]
+}
+
+Table NodeAttestationVerification {
+  id Int [pk, increment]
+  userId Int [not null]
+  user User [not null]
+  nodeAttestationId Int [not null]
+  nodeAttestation NodeAttestation [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+
+  indexes {
+    (nodeAttestationId, userId) [unique]
+  }
+}
+
+Enum AnnotationType {
+  COMMENT
+  REACTION
+  HIGHLIGHT
+}
+
+Enum UploadType {
+  REGULAR
+  EXTERNAL_URL
+  EXTERNAL_CID
+}
+
+Enum ProcessingState {
+  STARTED
+  FAILED
+  COMPLETED
+}
+
+Enum FriendReferralStatus {
+  PENDING
+  ACCEPTED
+}
+
+Enum ActionType {
+  ORCID_RETRIEVE
+  USER_LOGIN
+  USER_WALLET_ASSOCIATE
+  USER_WALLET_CONNECT
+  USER_NODE_VOTE
+  WAITLIST_ADD
+  RETRIEVE_URL
+  RETRIEVE_URL_FAIL
+  RETREIVE_URL_SUCCESS
+  USER_TERMS_CONSENT
+  PUBLISH_NODE_CID_SUCCESS
+  PUBLISH_NODE_CID_FAIL
+  PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS
+  PUBLISH_NODE_RESEARCH_OBJECT_FAIL
+  USER_ACTION
+  NEW_REFERRAL
+  ACCEPTED_REFERRAL
 }
 
 Enum ChainTransactionType {
-  DISCOVERY_MINT
-  DISCOVERY_UPDATE
-  DISCOVERY_VOTE
+  NODE_MINT
+  NODE_UPDATE
+  NODE_VOTE
 }
 
-Enum DiscoveryState {
+Enum NodeState {
   NEW
   PENDING_DAO_APPROVAL
   DAO_APPROVED
@@ -177,44 +717,150 @@ Enum DiscoveryState {
   WITHDRAWN
 }
 
-Ref: Discovery.ownerId > User.id
+Enum DataType {
+  DATA_BUCKET
+  MANIFEST
+  UNKNOWN
+  DATASET
+  IMAGES
+  VIDEOS
+  CODE_REPOS
+  DOCUMENT
+}
 
-Ref: Discovery.vaultId > Vault.id
+Enum PublishState {
+  WAITING
+  PENDING
+  SUCCESS
+  FAILED
+}
 
-Ref: DiscoveryVersion.discoveryId > Discovery.id
+Enum AuthTokenSource {
+  ORCID
+}
 
-Ref: Invite.senderId > User.id
+Ref: Node.ownerId > User.id
+
+Ref: NodeVersion.nodeId > Node.id
+
+Ref: InteractionLog.nodeId > Node.id
+
+Ref: InteractionLog.userId > User.id
+
+Ref: InteractionLog.waitlistId > Waitlist.id
+
+Ref: AuthToken.userId > User.id
+
+Ref: Waitlist.userId > User.id
+
+Ref: Wallet.userId > User.id
+
+Ref: User.desciCommunityId > DesciCommunity.id
 
 Ref: Invite.receiverId > User.id
 
-Ref: AuthorInvite.discoveryId > Discovery.id
+Ref: Invite.senderId > User.id
 
-Ref: AuthorInvite.senderId > User.id
+Ref: AuthorInvite.nodeId > Node.id
 
 Ref: AuthorInvite.receiverId > User.id
 
-Ref: DiscoveryAuthor.userId > User.id
+Ref: AuthorInvite.senderId > User.id
 
-Ref: DiscoveryAuthor.discoveryId > Discovery.id
+Ref: NodeAuthor.nodeId > Node.id
 
-Ref: DiscoveryVote.userId > User.id
+Ref: NodeAuthor.userId > User.id
 
-Ref: DiscoveryVote.discoveryId > Discovery.id
+Ref: NodeVote.nodeId > Node.id
 
-Ref: DiscoveryReview.ownerId > User.id
+Ref: NodeVote.userId > User.id
 
-Ref: DiscoveryReview.discoveryId > Discovery.id
+Ref: ChainTransaction.nodeId > Node.id
 
-Ref: DiscoveryReviewVote.userId > User.id
-
-Ref: DiscoveryReviewVote.discoveryReviewId > DiscoveryReview.id
-
-Ref: ChainTransaction.discoveryId > Discovery.id
-
-Ref: ChainTransaction.userId > User.id
+Ref: ChainTransaction.nodeVoteId - NodeVote.id
 
 Ref: ChainTransaction.targetUserId > User.id
 
-Ref: ChainTransaction.vaultId > Vault.id
+Ref: ChainTransaction.userId > User.id
 
-Ref: ChainTransaction.discoveryVoteId - DiscoveryVote.id
+Ref: OauthAccessToken.applicationId > OauthApplication.id
+
+Ref: OauthAccessToken.userId > User.id
+
+Ref: OauthAccessGrant.applicationId > OauthApplication.id
+
+Ref: OauthAccessGrant.userId > User.id
+
+Ref: UserIdentity.userId > User.id
+
+Ref: DataReference.nodeId > Node.id
+
+Ref: DataReference.userId > User.id
+
+Ref: DataReference.versionId > NodeVersion.id
+
+Ref: CidPruneList.nodeId > Node.id
+
+Ref: CidPruneList.userId > User.id
+
+Ref: PublicDataReference.nodeId > Node.id
+
+Ref: PublicDataReference.userId > User.id
+
+Ref: PublicDataReference.versionId > NodeVersion.id
+
+Ref: PublicDataReferenceOnIpfsMirror.dataReferenceId > PublicDataReference.id
+
+Ref: PublicDataReferenceOnIpfsMirror.mirrorId > IpfsMirror.id
+
+Ref: PrivateShare.nodeUUID - Node.uuid
+
+Ref: NodeCover.nodeUuid > Node.uuid
+
+Ref: FriendReferral.senderUserId > User.id
+
+Ref: UserOrganizations.organizationId > Organization.id
+
+Ref: UserOrganizations.userId > User.id
+
+Ref: UploadJobs.nodeId > Node.id
+
+Ref: UploadJobs.userId > User.id
+
+Ref: DraftNodeTree.nodeId > Node.id
+
+Ref: NodeFeedItemEndorsement.userId > User.id
+
+Ref: NodeFeedItemEndorsement.nodeFeedItemId > NodeFeedItem.id
+
+Ref: NodeFeedItemEndorsement.desciCommunityId > DesciCommunity.id
+
+Ref: CommunityMember.userId > User.id
+
+Ref: CommunityMember.desciCommunityId > DesciCommunity.id
+
+Ref: Attestation.desciCommunityId > DesciCommunity.id
+
+Ref: Attestation.attestationTemplateId > AttestationTemplate.id
+
+Ref: AttestationVersion.attestationId > Attestation.id
+
+Ref: NodeAttestation.attestationId > Attestation.id
+
+Ref: NodeAttestation.attestationVersionId > AttestationVersion.id
+
+Ref: NodeAttestation.desciCommunityId > DesciCommunity.id
+
+Ref: NodeAttestation.claimedById > User.id
+
+Ref: NodeAttestation.claimedOnId > Node.id
+
+Ref: NodeAttestation.claimedOnVersionId > NodeVersion.id
+
+Ref: Annotation.authorId > User.id
+
+Ref: Annotation.nodeAttestationId > NodeAttestation.id
+
+Ref: NodeAttestationVerification.userId > User.id
+
+Ref: NodeAttestationVerification.nodeAttestationId > NodeAttestation.id

@@ -9,7 +9,7 @@ import { uploadDataToEstuary } from '../services/estuary.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { generateDataReferences } from '../utils/dataRefTools.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
-import { hexToCid, randomUUID64, asyncMap } from '../utils.js';
+import { hexToCid, randomUUID64, asyncMap, ensureUuidEndsWithDot } from '../utils.js';
 
 import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
 
@@ -55,16 +55,15 @@ export const createNodeDraftBlank = async (
 };
 
 export const setCeramicStream = async (uuid: string, ceramicStream: string) => {
-  logger.debug({ fn: 'setCeramicStream', uuid, ceramicStream}, 'node::setCeramicStream');
-  uuid = uuid.endsWith(".") ? uuid : uuid + ".";
+  logger.debug({ fn: 'setCeramicStream', uuid, ceramicStream }, 'node::setCeramicStream');
+  uuid = ensureUuidEndsWithDot(uuid);
   return await prisma.node.update({
-
     data: {
       ceramicStream,
     },
     where: {
       uuid,
-    }
+    },
   });
 };
 

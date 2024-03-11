@@ -1,11 +1,12 @@
 import { DocumentId } from '@automerge/automerge-repo';
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { ResearchObjectV1, ManifestActions } from '@desci-labs/desci-models';
 import axios, { AxiosInstance } from 'axios';
 
 import { logger as parentLogger } from '../logger.js';
 import { ResearchObjectDocument } from '../types/documents.js';
+import { ensureUuidEndsWithDot } from '../utils.js';
 
-import { ManifestActions, NodeUuid } from './manifestRepo.js';
+import { NodeUuid } from './manifestRepo.js';
 
 const logger = parentLogger.child({ module: 'Repo Service' });
 
@@ -103,6 +104,7 @@ class RepoService {
   async getDraftManifest(uuid: NodeUuid) {
     logger.info({ uuid }, 'Retrieve Draft Document');
     // try {} catch (err) {}
+    // uuid = ensureUuidEndsWithDot(uuid) as NodeUuid;
     try {
       const response = await this.getDraftDocument({ uuid });
       return response ? response.manifest : null;

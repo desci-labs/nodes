@@ -1,10 +1,10 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import { Response } from 'express';
-
+import { ManifestActions } from "@desci-labs/desci-models";
 import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
-import { ManifestActions, NodeUuid } from '../../services/manifestRepo.js';
+import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { getLatestManifest } from '../data/utils.js';
 

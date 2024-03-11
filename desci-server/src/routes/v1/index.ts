@@ -4,11 +4,14 @@ import { generateNonce } from 'siwe';
 import { prisma } from '../../client.js';
 import { queryResearchFields } from '../../controllers/data/index.js';
 import { queryRor } from '../../controllers/proxy/index.js';
+import { ipfsReadGatewayProxy } from '../../controllers/proxy/ipfsReadGateway.js';
 import { nft } from '../../controllers/raw/nft.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
 import admin from './admin.js';
+import attestations from './attestations/index.js';
 import auth from './auth.js';
+import communities from './communities/index.js';
 import data from './data.js';
 import log from './log.js';
 import nodes from './nodes.js';
@@ -44,10 +47,13 @@ router.use('/pub', pub);
 router.use('/data', data);
 router.use('/log', log);
 router.use('/services', services);
+router.use('/communities', communities);
+router.use('/attestations', attestations);
 
 router.get('/nft/:id', nft);
 router.use('/referral', referral);
 router.get('/researchFields', [ensureUser], queryResearchFields);
 router.get('/ror', [ensureUser], queryRor);
+router.get('/ipfs/:cid', ipfsReadGatewayProxy);
 
 export default router;

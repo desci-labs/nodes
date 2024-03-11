@@ -9,7 +9,6 @@ import {
   ResearchObjectV1,
   extractExtension,
   isNodeRoot,
-  isResearchObjectComponentTypeMap,
   neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
@@ -33,7 +32,7 @@ import {
 } from '../../services/ipfs.js';
 import { fetchFileStreamFromS3, isS3Configured } from '../../services/s3.js';
 import { ResearchObjectDocument } from '../../types/documents.js';
-import { prepareDataRefs, prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
+import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 import { DRAFT_CID, DRAFT_DIR_CID, ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
   ExtensionDataTypeMap,
@@ -42,7 +41,6 @@ import {
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
   inheritComponentType,
-  urlOrCid,
 } from '../../utils/driveUtils.js';
 import { EXTENSION_MAP } from '../../utils/extensions.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
@@ -86,8 +84,6 @@ export async function processS3DataToIpfs({
   user,
   node,
   contextPath,
-  componentType,
-  componentSubtype,
 }: ProcessS3DataToIpfsParams): Promise<Either<UpdateResponse, ProcessingError>> {
   let pinResult: IpfsPinnedResult[] = [];
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
@@ -110,7 +106,7 @@ export async function processS3DataToIpfs({
       const root = pinResult[pinResult.length - 1];
       const rootTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
       // debugger;
-      const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = await ipfsDagToDraftNodeTreeEntries({
+      const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = ipfsDagToDraftNodeTreeEntries({
         ipfsTree: rootTree,
         node,
         user,
@@ -336,6 +332,16 @@ export async function getManifestFromNode(
   try {
     const fetchedManifest = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
     return { manifest: fetchedManifest, manifestCid };
+  } catch (e) {
+    throw createIpfsUnresolvableError(`Error fetching manifest from IPFS, manifestCid: ${manifestCid}`);
+  }
+}
+
+export async function getManifestByCid(manifestCid: string, queryString?: string): Promise<ResearchObjectV1> {
+  const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid, queryString as string) : null;
+  try {
+    const fetchedManifest = manifestUrlEntry ? await (await axios.get(manifestUrlEntry)).data : null;
+    return fetchedManifest;
   } catch (e) {
     throw createIpfsUnresolvableError(`Error fetching manifest from IPFS, manifestCid: ${manifestCid}`);
   }
@@ -697,7 +703,7 @@ export async function assignTypeMapInManifest(
         name: compName,
         type: compTypeMap,
         payload: {
-          ...urlOrCid(contextPathNewCid, ResearchObjectComponentType.DATA),
+          cid: contextPathNewCid,
           path: contextPath,
         },
       };
