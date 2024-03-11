@@ -7,6 +7,7 @@ import { queryRor } from '../../controllers/proxy/index.js';
 import { ipfsReadGatewayProxy } from '../../controllers/proxy/ipfsReadGateway.js';
 import { nft } from '../../controllers/raw/nft.js';
 import { ensureUser } from '../../middleware/permissions.js';
+import { sendCookie } from '../../utils/sendCookie.js';
 
 import admin from './admin.js';
 import attestations from './attestations/index.js';
@@ -23,17 +24,18 @@ import waitlist from './waitlist.js';
 
 const router = Router();
 
-router.get('/nonce', [ensureUser], async function (req, res) {
-  const user = req.user;
+router.get('/nonce', [], async function (req, res) {
+  // const user = req.user;
   const nonce = generateNonce();
-  await prisma.user.update({
-    where: {
-      id: user.id,
-    },
-    data: {
-      siweNonce: nonce,
-    },
-  });
+  // await prisma.user.update({
+  //   where: {
+  //     id: user.id,
+  //   },
+  //   data: {
+  //     siweNonce: nonce,
+  //   },
+  // });
+  sendCookie(res, nonce, true, 'siwe');
   res.setHeader('Content-Type', 'text/plain');
   res.status(200).send(nonce);
 });

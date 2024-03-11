@@ -5,7 +5,7 @@ import { NextFunction, Request, Response } from 'express';
 import { ErrorTypes, SiweMessage } from 'siwe';
 
 import { prisma } from '../../client.js';
-import { AuthFailiureError, BadRequestError, SuccessResponse } from '../../internal.js';
+import { AuthFailiureError, BadRequestError, SuccessResponse, extractTokenFromCookie } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getUserConsent, saveInteraction } from '../../services/interactionLog.js';
 import { writeExternalIdToOrcidProfile } from '../../services/user.js';
@@ -39,6 +39,8 @@ export const associateOrcidWallet = async (req: Request, res: Response, next: Ne
       res.status(400).send({ err: 'missing wallet address' });
       return;
     }
+
+    // TODO: check for wallet uniqueness across all accounts
     const doesExist =
       (await prisma.wallet.count({
         where: {
@@ -121,7 +123,9 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
 
     const message = new SiweMessage(req.body.message);
     const fields = await message.validate(req.body.signature);
-    if (fields.nonce !== (req as any).user.siweNonce) {
+    const siweNonce = await extractTokenFromCookie(req, 'siwe');
+    logger.info({ siweNonce }, 'SIWE NONCE');
+    if (fields.nonce !== siweNonce) {
       // console.log(req.session);
       res.status(422).json({
         message: `Invalid nonce.`,
@@ -135,15 +139,15 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       res.status(400).send({ err: 'missing wallet address' });
       return;
     }
-    const doesExist =
-      (await prisma.wallet.count({
-        where: {
-          user,
-          address: walletAddress,
-        },
-      })) > 0;
-    if (doesExist) {
-      res.status(400).send({ err: 'duplicate wallet' });
+
+    const doesExist = await prisma.wallet.findMany({
+      where: {
+        address: walletAddress,
+      },
+    });
+
+    if (doesExist.length > 0) {
+      res.status(400).send({ err: 'duplicate wallet or already associated by another user' });
       return;
     }
 
@@ -207,20 +211,37 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
     body: req.body,
   });
   // try {
-  const { address, dev } = req.body;
+  const { account: walletAddress, message: siweMessage, signature, dev } = req.body;
   logger.info('WALLET LOGIN');
 
-  if (!isAddress(address)) {
+  if (!isAddress(walletAddress)) {
     throw new BadRequestError('missing wallet address', new Error('missing wallet address'));
+  }
+
+  if (!siweMessage) {
+    res.status(422).json({ message: 'Expected prepareMessage object as body.' });
+    return;
+  }
+
+  const message = new SiweMessage(siweMessage);
+  const fields = await message.validate(signature);
+  const siweNonce = await extractTokenFromCookie(req, 'siwe');
+  logger.info({ siweNonce }, 'SIWE NONCE');
+  if (fields.nonce !== siweNonce) {
+    // console.log(req.session);
+    res.status(422).json({
+      message: `Invalid nonce.`,
+    });
+    return;
   }
 
   const wallet = await prisma.wallet.findFirst({
     where: {
-      address: address,
+      address: walletAddress,
     },
   });
 
-  if (!wallet) throw new AuthFailiureError('missing wallet address');
+  if (!wallet) throw new AuthFailiureError('Unrecognised DID credential');
 
   const user = await prisma.user.findUnique({ where: { id: wallet.userId } });
   if (!user) throw new AuthFailiureError('Wallet not associated to a user');
@@ -228,13 +249,14 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
     req,
     ActionType.USER_WALLET_CONNECT,
     {
-      addr: address,
+      addr: walletAddress,
     },
     user.id,
   );
 
   const token = generateAccessToken({ email: user.email });
 
+  // TODO: DELETE SIWE TOKEN FROM COOKIE HEADER
   sendCookie(res, token, dev === 'true');
   // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
   const termsAccepted = !!(await getUserConsent(user.id));
