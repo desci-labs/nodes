@@ -958,11 +958,15 @@ const getHeaders = (isFormData: boolean = false) => {
 */
 export const makeAbsolutePath = (path: string) => {
   // Sensible definitions of root
-  if (!path || path === "root" || path === "root/") return "root";
+  const ROOT_ALIASES = [ "root", "root/", "/" ];
+  if (!path || ROOT_ALIASES.includes(path)) return "root";
+
   // Support unix-style absolute paths
   if (path.startsWith("/")) return `root${path}`;
+
   // What endpoints actually expect
   if (path.startsWith("root/")) return path;
+
   // Just add root to other paths
   return `root/${path}`;
 };
