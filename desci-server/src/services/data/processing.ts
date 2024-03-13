@@ -87,6 +87,7 @@ export async function processS3DataToIpfs({
 }: ProcessS3DataToIpfsParams): Promise<Either<UpdateResponse, ProcessingError>> {
   let pinResult: IpfsPinnedResult[] = [];
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
+  if (contextPath.endsWith('/')) contextPath = contextPath.slice(0, -1);
   try {
     ensureSpaceAvailable(files, user);
 
