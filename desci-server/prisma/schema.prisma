@@ -41,6 +41,7 @@ model Node {
   NodeAttestation     NodeAttestation[]
   NodeThumbnails      NodeThumbnails[]
   PublishTaskQueue    PublishTaskQueue[]
+  NodeContribution    NodeContribution[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -173,7 +174,6 @@ model User {
   maxDriveStorageLimitGb      Int                           @default(500)
   userOrganizations           UserOrganizations[]
   UploadJobs                  UploadJobs[]
-  // DraftNodeTree              DraftNodeTree[]
   NodeFeedItemEndorsement     NodeFeedItemEndorsement[]
   DesciCommunity              DesciCommunity?               @relation(fields: [desciCommunityId], references: [id])
   desciCommunityId            Int?
@@ -184,6 +184,7 @@ model User {
   NodeAttestationReaction     NodeAttestationReaction[]
   ApiKey                      ApiKey[]
   PublishTaskQueue            PublishTaskQueue[]
+  NodeContribution            NodeContribution[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -468,6 +469,22 @@ model NodeThumbnails {
   node         Node   @relation(fields: [nodeUuid], references: [uuid])
 
   @@unique([nodeUuid, componentCid])
+}
+
+// The glue between a manifest contributor entry and a nodes profile
+model NodeContribution {
+  id            Int      @id @default(autoincrement())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  contributorId String   @unique
+  nodeId        Int
+  userId        Int?
+  verified      Boolean  @default(false)
+  email         String
+  node          Node     @relation(fields: [nodeId], references: [id])
+  user          User?    @relation(fields: [userId], references: [id])
+
+  @@unique([contributorId, nodeId, userId])
 }
 
 model FriendReferral {
@@ -756,8 +773,8 @@ model PublishTaskQueue {
   status        PublishTaskQueueStatus
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
-  node Node @relation(fields: [uuid], references: [uuid])
-  user User @relation(fields: [userId], references: [id])
+  node          Node                   @relation(fields: [uuid], references: [uuid])
+  user          User                   @relation(fields: [userId], references: [id])
 }
 
 enum CommunityMembershipRole {
