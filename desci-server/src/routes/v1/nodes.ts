@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { addContributor } from '../../controllers/nodes/contributions/create.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import {
@@ -25,7 +26,7 @@ import { prepublish } from '../../controllers/nodes/prepublish.js';
 import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { attachUser } from '../../internal.js';
-import { ensureNodeAccess } from '../../middleware/authorisation.js';
+import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
@@ -51,6 +52,7 @@ router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatchDocumentChange);
 router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
+router.post('/contributions/:uuid', [attachUser, ensureWriteNodeAccess], addContributor);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 
