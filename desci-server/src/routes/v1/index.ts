@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { generateNonce } from 'siwe';
 
-import { prisma } from '../../client.js';
 import { queryResearchFields } from '../../controllers/data/index.js';
 import { queryRor } from '../../controllers/proxy/index.js';
 import { ipfsReadGatewayProxy } from '../../controllers/proxy/ipfsReadGateway.js';
@@ -25,16 +24,7 @@ import waitlist from './waitlist.js';
 const router = Router();
 
 router.get('/nonce', [], async function (req, res) {
-  // const user = req.user;
   const nonce = generateNonce();
-  // await prisma.user.update({
-  //   where: {
-  //     id: user.id,
-  //   },
-  //   data: {
-  //     siweNonce: nonce,
-  //   },
-  // });
   sendCookie(res, nonce, true, 'siwe');
   res.setHeader('Content-Type', 'text/plain');
   res.status(200).send(nonce);

@@ -13,12 +13,11 @@ export enum AuthMethods {
 }
 
 export const ensureUser = async (req: ExpressRequest, res: Response, next: NextFunction) => {
-  // debugger;
   const token = await extractAuthToken(req);
   const apiKey = await extractApiKey(req);
   const authTokenRetrieval = await extractUserFromToken(token);
   const apiKeyRetrieval = await extractUserFromApiKey(apiKey, req.ip);
-
+  logger.info({ token, authTokenRetrieval }, 'ENSUER USER');
   const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
 
   if (!retrievedUser) {
@@ -34,7 +33,20 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
  * Extract JWT Authorisation token from IncommingRequest
  */
 export const extractAuthToken = async (request: ExpressRequest | Request) => {
-  const token = await extractTokenFromCookie(request, 'auth');
+  let token = await extractTokenFromCookie(request, 'auth');
+
+  if (!token) {
+    // Try to retrieve the token from the header
+    const authHeader = request.headers['authorization'];
+    if (authHeader) {
+      token = authHeader.split(' ')[1];
+    }
+    logger.info({ module: 'Permissions::extractToken', authHeaderLength: authHeader?.length || 0, token }, 'Request');
+
+    // Sanitize null or undefined string tokens passed from frontend
+    if (token === 'null' || token === 'undefined') token = null;
+  }
+
   return token;
 };
 
@@ -46,17 +58,8 @@ export const extractTokenFromCookie = async (request: ExpressRequest | Request, 
   // get from query string
   token = request.url.split(`${tokenName}=`)[1];
   logger.info({ url: request.url, token }, 'got url extract');
+
   if (!token) {
-    // Try to retrieve the token from the header
-    const authHeader = request.headers['authorization'];
-    if (authHeader) {
-      token = authHeader.split(' ')[1];
-    }
-    logger.info({ module: 'Permissions::extractToken', authHeaderLength: authHeader?.length || 0, token }, 'Request');
-
-    // Sanitize null or undefined string tokens passed from frontend
-    if (token === 'null' || 'undefined') token = null;
-
     // If auth token wasn't found in the header, try retrieve from cookies
     if (!token && request['cookies']) {
       token = request['cookies'][tokenName];
@@ -69,11 +72,9 @@ export const extractTokenFromCookie = async (request: ExpressRequest | Request, 
         .split(';')
         .map((entry) => entry.split('='))
         .filter(([key]) => key.trim().toLowerCase() === tokenName)[0];
-      logger.info({ parsedTokenValue, cookie: request.headers['cookie'] }, 'COOKIE');
       token = parsedTokenValue?.[1];
-      // console.log('parsedTokenValue', parsedTokenValue);
     }
-    logger.info({ cookie: request.headers['cookie'] }, 'COOKIE');
+    logger.info({ cookie: request.headers['cookie'], token, tokenName }, 'COOKIE');
   }
   return token;
 };
@@ -96,7 +97,7 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
         return;
       }
 
-      // logger.info({ module: 'ExtractAuthUser', user }, 'User decrypted');
+      logger.info({ module: 'ExtractAuthUser', user, token }, 'User decrypted');
 
       if (!user) {
         resolve(null);

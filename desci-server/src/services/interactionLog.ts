@@ -31,6 +31,17 @@ export const getUserConsent = async (userId?: number) => {
   });
 };
 
+export const getUserPublishConsent = async (userId?: number) => {
+  logger.info({ fn: 'getUserPublishConsent', userId }, 'interactionLog::getUserPublishConsent');
+  return await prisma.interactionLog.findMany({
+    where: {
+      userId,
+      action: ActionType.USER_PUBLISH_CONSENT,
+    },
+    // data: { userId, ip: req.ip, userAgent: req.headers['user-agent'], rep: 0, action, extra: JSON.stringify(data) },
+  });
+};
+
 export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<number> => {
   logger.info({ fn: 'getCountActiveUsersInXDays' }, 'interactionLog::getCountActiveUsersInXDays');
 

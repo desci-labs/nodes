@@ -180,6 +180,7 @@ export async function connectOrcidToUserIfPossible(
         });
       }
       const jwt = generateAccessToken({ email: userFound.email });
+      logger.info({ jwt, userFound }, `USER JWT`);
       return { userFound: true, nodeConnect, jwt };
     } else {
       // we didn't find a user, so we need to prompt for an email verification flow to assign an email to this orcid
