@@ -9,18 +9,20 @@ dataSources:
     network: ganache
     source:
       address: "0x0"
-      abi: ResearchObject
+      abi: ResearchObjectMigrated
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.5
+      apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
-        - ResearchObject
+        - ResearchObjectMigrated
         - ResearchObjectVersion
       abis:
-        - name: ResearchObject
-          file: ../artifacts/contracts/ResearchObject.sol/ResearchObject.json
+        - name: ResearchObjectMigrated
+          file: ../artifacts/contracts/migrated/ResearchObjectMigrated.sol/ResearchObjectMigrated.json
       eventHandlers:
         - event: VersionPush(indexed address,indexed uint256,bytes)
           handler: handleVersionPush
+        - event: VersionPushMigrated(indexed address,indexed uint256,bytes,uint256)
+          handler: handleVersionPushMigrated
       file: ./mapping.ts

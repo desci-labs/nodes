@@ -118,13 +118,19 @@ const idToRo = {};
     proxyDpid.address
   );
 
+  // mv ./.openzeppelin/unknown-1337.json to ./.openzeppelin/unknown-dpid.json
+  fs.renameSync(
+    `.openzeppelin/unknown-1337.json`,
+    `.openzeppelin/unknown-dpid.json`
+  );
+
   const ResearchObjectMigrated = await ethers.getContractFactory(
     "ResearchObjectMigrated"
   );
   console.log(
     "[deployResearchObjectMigrated] Deploying ResearchObjectMigrated..."
   );
-  const DEFAULT_PREFIX = ethers.utils.formatBytes32String("");
+  const DEFAULT_PREFIX = ethers.utils.formatBytes32String("beta");
   const proxy = await upgrades.deployProxy(ResearchObjectMigrated, [
     proxyDpid.address,
   ]);
@@ -132,8 +138,17 @@ const idToRo = {};
 
   console.log(
     "[deployResearchObjectMigrated] ResearchObjectMigrated deployed to:",
-    proxy.address
+    proxy.address,
+    "prefix",
+    DEFAULT_PREFIX
   );
+
+  // mv ./.openzeppelin/unknown-1337.json to ./.openzeppelin/unknown-research-object.json
+  fs.renameSync(
+    `.openzeppelin/unknown-1337.json`,
+    `.openzeppelin/unknown-research-object.json`
+  );
+
   await proxyDpid.setFee(0);
 
   // split unified array into chunks

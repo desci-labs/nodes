@@ -1,5 +1,6 @@
 import { Bytes, BigInt } from "@graphprotocol/graph-ts";
 import { VersionPush } from "./generated/DeSciNodes/ResearchObject";
+import { VersionPushMigrated } from "./generated/DeSciNodes/ResearchObjectMigrated";
 import { ResearchObjectVersion, ResearchObject } from "./generated/schema";
 
 import { encode, decode } from "as-base64";
@@ -55,6 +56,39 @@ export function handleVersionPush(event: VersionPush): void {
   let rov = new ResearchObjectVersion(versionString);
   rov.researchObject = ro.id;
   rov.time = event.block.timestamp;
+  rov.cid = event.params._cid.toHex();
+  rov.from = event.params._from.toHex();
+  rov.save();
+
+  ro.recentCid = rov.cid;
+
+  // let ro = new ResearchObjectVersion(event.transaction.hash.toHex());
+  // ro.tokenURI = `test-${event.params._uuid.toHex()}`;
+  // ro.tokenID = event.params._uuid;
+  // ro.mintTime = event.block.timestamp;
+
+  ro.save();
+}
+
+export function handleVersionPushMigrated(event: VersionPushMigrated): void {
+  const uuid = event.params._uuid;
+  const paddedHexedUUID = padHexedUUID(uuid.toHexString());
+
+  let ro = ResearchObject.load(paddedHexedUUID);
+
+  if (!ro) {
+    ro = new ResearchObject(paddedHexedUUID);
+    ro.owner = event.params._from.toHex();
+    ro.id64 = encode(Bytes.fromBigInt(uuid));
+    ro.id10 = uuid.toString();
+  }
+
+  const versionString =
+    event.transaction.hash.toHexString() +
+    event.params._migration_timestamp.toHexString();
+  let rov = new ResearchObjectVersion(versionString);
+  rov.researchObject = ro.id;
+  rov.time = event.params._migration_timestamp;
   rov.cid = event.params._cid.toHex();
   rov.from = event.params._from.toHex();
   rov.save();

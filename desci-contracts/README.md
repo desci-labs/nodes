@@ -1,9 +1,10 @@
 # Migrating from goerli to local and sepolia
 
 ```
+# Perform DPID migration to LOCALHOST (ganache)
 npx hardhat run scripts/migrateToNewContract.js --network ganache
 
-# ensure PRIVATE_KEY is set with wallet containing enough sepolia eth
+# Deploy to SEPOLIA. Ensure PRIVATE_KEY is set with wallet containing enough sepolia eth
 npx hardhat run scripts/migrateToNewContract.js --network sepoliaDev
 ```
 
