@@ -1,6 +1,6 @@
 import { NodeFeedItem } from '@prisma/client';
-import { Sql } from '@prisma/client/runtime/index.js';
-import { Request, Response, NextFunction } from 'express';
+import { Sql } from '@prisma/client/runtime/library.js';
+import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 // list feeditems that have FeedItemEndorsement of null organization
