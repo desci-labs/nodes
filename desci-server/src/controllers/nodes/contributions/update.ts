@@ -32,7 +32,7 @@ export const updateContributor = async (req: Request, res: Response) => {
   const contribution = await contributorService.getContributionById(contributorId);
   const currentEmail = contribution?.email;
 
-  // Add contributor to the db
+  // Update contributor in the db
   try {
     const contributorUpdated = await contributorService.updateNodeContribution({
       node,
