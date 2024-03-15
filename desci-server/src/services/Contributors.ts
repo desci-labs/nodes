@@ -16,11 +16,12 @@ export type Contribution = {
 class ContributorService {
   private logger = parentLogger.child({ module: 'Services::ContributorsService' });
 
-  async addNodeContribution(node: Node, nodeOwner: User, contributorId: string, email: string) {
+  async addNodeContribution(node: Node, nodeOwner: User, contributorId: string, email: string, orcid?: string) {
     // Check if contributor is already registered
     const registeredContributor = await prisma.user.findUnique({ where: { email } });
-
-    const autoVerified = nodeOwner.email === email;
+    const userHasOrcidValidated = nodeOwner.orcid !== undefined && nodeOwner.orcid !== null;
+    const contributionOrcidMatchesUser = userHasOrcidValidated && orcid === nodeOwner.orcid;
+    const autoVerified = nodeOwner.email === email || contributionOrcidMatchesUser;
     return prisma.nodeContribution.create({
       data: {
         contributorId,
@@ -35,7 +36,7 @@ class ContributorService {
   // async retrieveContributionsForNode(node: Node, contributorIds: string[]): Promise<NodeContributorMap> {
   async retrieveContributionsForNode(node: Node): Promise<NodeContributorMap> {
     const contributions = await prisma.nodeContribution.findMany({
-      where: { nodeId: node.id, contributorId: { in: contributorIds }, userId: { not: null } },
+      where: { nodeId: node.id, userId: { not: null } },
       // where: { nodeId: node.id, contributorId: { in: contributorIds }, userId: { not: null } },
       include: { user: true },
     });

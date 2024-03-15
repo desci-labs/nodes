@@ -10,7 +10,7 @@ export const addContributor = async (req: Request, res: Response) => {
   if (!node || !user)
     throw Error('Middleware not properly setup for addContributor controller, requires req.node and req.user');
 
-  const { contributorId } = req.body;
+  const { contributorId, orcid } = req.body;
   let { email } = req.body;
   email = email.toLowerCase();
 
@@ -20,6 +20,7 @@ export const addContributor = async (req: Request, res: Response) => {
     uuid: node.uuid,
     user: (req as any).user,
     nodeId: node.id,
+    orcid,
   });
 
   if (!contributorId || !email) {
@@ -28,7 +29,7 @@ export const addContributor = async (req: Request, res: Response) => {
 
   // Add contributor to the db
   try {
-    const contributorAdded = await contributorService.addNodeContribution(node, user, contributorId, email);
+    const contributorAdded = await contributorService.addNodeContribution(node, user, contributorId, email, orcid);
     if (contributorAdded) {
       logger.info({ contributorAdded }, 'Contributor added successfully');
       return res.status(200).json({ message: 'Contributor added successfully' });
