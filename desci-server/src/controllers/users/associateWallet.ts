@@ -1,11 +1,17 @@
 import { ActionType, Prisma, User } from '@prisma/client';
 import { ethers } from 'ethers';
-import { isAddress } from 'ethers/lib/utils.js';
+import { getAddress, isAddress } from 'ethers/lib/utils.js';
 import { NextFunction, Request, Response } from 'express';
 import { ErrorTypes, SiweMessage } from 'siwe';
 
 import { prisma } from '../../client.js';
-import { AuthFailiureError, BadRequestError, SuccessResponse, extractTokenFromCookie } from '../../internal.js';
+import {
+  AuthFailureError,
+  BadRequestError,
+  ForbiddenError,
+  SuccessResponse,
+  extractTokenFromCookie,
+} from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getUserConsent, saveInteraction } from '../../services/interactionLog.js';
 import { writeExternalIdToOrcidProfile } from '../../services/user.js';
@@ -121,9 +127,14 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       return;
     }
 
+    const user = (req as any).user;
+    const walletAddress = req.body.walletAddress;
+
     const message = new SiweMessage(req.body.message);
     const fields = await message.validate(req.body.signature);
     const siweNonce = await extractTokenFromCookie(req, 'siwe');
+    const validateAddress = getAddress(fields.address);
+
     logger.info({ siweNonce }, 'SIWE NONCE');
     if (fields.nonce !== siweNonce) {
       // console.log(req.session);
@@ -133,12 +144,9 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    const user = (req as any).user;
-    const { walletAddress } = req.body;
-    if (!walletAddress) {
-      res.status(400).send({ err: 'missing wallet address' });
-      return;
-    }
+    if (getAddress(walletAddress) !== validateAddress) throw new AuthFailureError('Unrecognised DID credential');
+
+    logger.info({ walletAddress, validateAddress }, 'SIWE ADDRESS');
 
     const doesExist = await prisma.wallet.findMany({
       where: {
@@ -168,11 +176,11 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       try {
         const hash = await sendGiftTxn(user, walletAddress, addWallet.id);
         res.send({ ok: true, gift: hash });
+        return;
       } catch (err) {
         logger.error({ err }, 'Error sending gift txn');
       }
       res.send({ ok: true });
-      // req.session.save(() => res.status(200).send({ ok: true }));
     } catch (err) {
       logger.error({ err }, 'Error associating wallet to user');
       res.status(500).send({ err });
@@ -211,12 +219,8 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
     body: req.body,
   });
   // try {
-  const { account: walletAddress, message: siweMessage, signature, dev } = req.body;
+  const { account, message: siweMessage, signature, dev } = req.body;
   logger.info('WALLET LOGIN');
-
-  if (!isAddress(walletAddress)) {
-    throw new BadRequestError('missing wallet address', new Error('missing wallet address'));
-  }
 
   if (!siweMessage) {
     res.status(422).json({ message: 'Expected prepareMessage object as body.' });
@@ -226,13 +230,24 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
   const message = new SiweMessage(siweMessage);
   const fields = await message.validate(signature);
   const siweNonce = await extractTokenFromCookie(req, 'siwe');
+  const validateAddress = getAddress(fields.address);
+
   logger.info({ siweNonce }, 'SIWE NONCE');
   if (fields.nonce !== siweNonce) {
-    // console.log(req.session);
-    res.status(422).json({
-      message: `Invalid nonce.`,
-    });
-    return;
+    throw new ForbiddenError('Invalid Nonce');
+  }
+
+  logger.info(
+    { fieldAddress: fields.address, validateAddress, original: account, address: getAddress(account) },
+    'WALLET ADDRESS',
+  );
+
+  if (getAddress(account) !== validateAddress) throw new AuthFailureError('Unrecognised DID credential');
+
+  const walletAddress = account;
+
+  if (!isAddress(walletAddress)) {
+    throw new BadRequestError('missing wallet address', new Error('missing wallet address'));
   }
 
   const wallet = await prisma.wallet.findFirst({
@@ -241,10 +256,10 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
     },
   });
 
-  if (!wallet) throw new AuthFailiureError('Unrecognised DID credential');
+  if (!wallet) throw new AuthFailureError('Unrecognised DID credential');
 
   const user = await prisma.user.findUnique({ where: { id: wallet.userId } });
-  if (!user) throw new AuthFailiureError('Wallet not associated to a user');
+  if (!user) throw new AuthFailureError('Wallet not associated to a user');
   saveInteraction(
     req,
     ActionType.USER_WALLET_CONNECT,
