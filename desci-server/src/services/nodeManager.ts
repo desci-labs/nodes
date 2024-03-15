@@ -72,7 +72,6 @@ export const createPublicDataRefs = async (
   userId: number | undefined,
   versionId: number | undefined,
 ) => {
-  debugger;
   const dataWithVersions = data.map((d) => ({ ...d, versionId }));
   const publicDataRefRes = await prisma.publicDataReference.createMany({
     data: dataWithVersions,
