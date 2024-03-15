@@ -481,6 +481,7 @@ model NodeContribution {
   userId        Int?
   verified      Boolean  @default(false)
   email         String
+  orcid         String?
   node          Node     @relation(fields: [nodeId], references: [id])
   user          User?    @relation(fields: [userId], references: [id])
 
