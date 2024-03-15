@@ -108,7 +108,8 @@ class ContributorService {
 
     const contributionOrcidMatchesUser = userHasOrcidValidated && contribution.orcid === user.orcid;
     const contributorEmailMatchesUser = user.email === contribution.email;
-    const verified = contributorEmailMatchesUser || contributionOrcidMatchesUser;
+    const contributionUserIdMatchesUser = user.id === contribution.userId;
+    const verified = contributorEmailMatchesUser || contributionOrcidMatchesUser || contributionUserIdMatchesUser;
     if (verified) {
       const updated = await prisma.nodeContribution.update({
         where: { id: contribution.id },
