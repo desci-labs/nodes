@@ -15,15 +15,37 @@ export type Contribution = {
   verified: boolean;
 };
 
+export type AddNodeContributionParams = {
+  node: Node;
+  nodeOwner: User;
+  contributorId: string;
+  email?: string;
+  orcid?: string;
+  userId?: number;
+};
+
 class ContributorService {
   private logger = parentLogger.child({ module: 'Services::ContributorsService' });
 
-  async addNodeContribution(node: Node, nodeOwner: User, contributorId: string, email: string, orcid?: string) {
+  async addNodeContribution({
+    node,
+    nodeOwner,
+    contributorId,
+    email,
+    orcid,
+    userId,
+  }: AddNodeContributionParams): Promise<NodeContribution> {
     // Check if contributor is already registered
-    const registeredContributor = await prisma.user.findUnique({ where: { email } });
+    let registeredContributor;
+    if (email) registeredContributor = await prisma.user.findUnique({ where: { email } });
+    if (orcid) registeredContributor = await prisma.user.findUnique({ where: { orcid } });
+    if (userId !== undefined || userId !== null)
+      registeredContributor = await prisma.user.findUnique({ where: { id: userId } });
+
     const userHasOrcidValidated = nodeOwner.orcid !== undefined && nodeOwner.orcid !== null;
     const contributionOrcidMatchesUser = userHasOrcidValidated && orcid === nodeOwner.orcid;
-    const autoVerified = nodeOwner.email === email || contributionOrcidMatchesUser;
+    const userIsOwner = userId === nodeOwner.id;
+    const autoVerified = nodeOwner.email === email || contributionOrcidMatchesUser || userIsOwner;
     return prisma.nodeContribution.create({
       data: {
         contributorId,
