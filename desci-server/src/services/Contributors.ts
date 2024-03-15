@@ -1,4 +1,6 @@
-import { Node, User } from '@prisma/client';
+import { error } from 'console';
+
+import { Node, NodeContribution, User } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
@@ -61,6 +63,27 @@ class ContributorService {
     const { researchObjects } = await getIndexedResearchObjects(nodeUuids); // <-- Array of research objects, convert .id to b64 to retrieve uuid
     debugger;
     return [];
+  }
+
+  async verifyContribution(user: User, contributorId: string): Promise<boolean> {
+    if (!contributorId) throw Error('contributorId required');
+    const contribution = await prisma.nodeContribution.findUnique({ where: { contributorId } });
+    if (!contribution) throw Error('Invalid contributorId');
+
+    const userHasOrcidValidated = user.orcid !== undefined && user.orcid !== null;
+
+    const contributionOrcidMatchesUser = userHasOrcidValidated && contribution.orcid === user.orcid;
+    const contributorEmailMatchesUser = user.email === contribution.email;
+    const verified = contributorEmailMatchesUser || contributionOrcidMatchesUser;
+    if (verified) {
+      const updated = await prisma.nodeContribution.update({
+        where: { id: contribution.id },
+        data: { verified: true },
+      });
+      if (updated) return true;
+    }
+
+    return false;
   }
 }
 
