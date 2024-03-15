@@ -31,6 +31,7 @@ import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { attachUser } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
+import { updateContributor } from '../../controllers/nodes/contributions/update.js';
 
 const router = Router();
 
@@ -56,6 +57,7 @@ router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatchDocumentChange);
 router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
 router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addContributor);
+router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], updateContributor);
 router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/node/:uuid', [], getNodeContributions);
 router.patch('/contributions/verify', [ensureUser], verifyContribution);

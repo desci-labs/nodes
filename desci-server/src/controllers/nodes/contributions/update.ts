@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { logger as parentLogger } from '../../../logger.js';
 import { contributorService } from '../../../services/Contributors.js';
 
-export const addContributor = async (req: Request, res: Response) => {
+export const updateContributor = async (req: Request, res: Response) => {
   const node = (req as any).node;
   const user = (req as any).user;
 
@@ -15,7 +15,7 @@ export const addContributor = async (req: Request, res: Response) => {
   if (email) email = email.toLowerCase();
 
   const logger = parentLogger.child({
-    module: 'Contributors::createController',
+    module: 'Contributors::updateContributorController',
     body: req.body,
     uuid: node.uuid,
     user: (req as any).user,
@@ -28,10 +28,13 @@ export const addContributor = async (req: Request, res: Response) => {
   if (!userId && !email && !orcid) {
     return res.status(400).json({ error: 'userId, Email or Orcid required' });
   }
-  // debugger;
+
+  const contribution = await contributorService.getContributionById(contributorId);
+  const currentEmail = contribution?.email;
+
   // Add contributor to the db
   try {
-    const contributorAdded = await contributorService.addNodeContribution({
+    const contributorUpdated = await contributorService.updateNodeContribution({
       node,
       nodeOwner: user,
       contributorId,
@@ -39,18 +42,19 @@ export const addContributor = async (req: Request, res: Response) => {
       orcid,
       userId,
     });
-    if (contributorAdded) {
-      logger.info({ contributorAdded }, 'Contributor added successfully');
-      return res.status(200).json({ message: 'Contributor added successfully' });
+    if (contributorUpdated) {
+      logger.info({ contributorUpdated }, 'Contributor updated successfully');
+      // Future:
+      if (currentEmail !== email) {
+        // If email was changed, send a new email.
+        // Fire off an email -> make it count as a friend referral
+      }
+      return res.status(200).json({ message: 'Contributor updated successfully' });
     }
   } catch (e) {
-    logger.error({ e }, 'Failed to add contributor');
-    return res.status(500).json({ error: 'Failed to add contributor' });
+    logger.error({ e }, 'Failed to update contributor');
+    return res.status(500).json({ error: 'Failed to update contributor' });
   }
-
-  // Future:
-  // Gen a priv link
-  // Fire off an email -> make it count as a friend referral
 
   return res.status(500).json({ error: 'Something went wrong' });
 };

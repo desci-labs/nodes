@@ -51,11 +51,73 @@ class ContributorService {
       data: {
         contributorId,
         email,
+        orcid,
         verified: autoVerified,
         nodeId: node.id,
         ...(registeredContributor && { userId: registeredContributor.id }),
       },
     });
+  }
+
+  /**
+   *  For changing the contributions email/orcid/userId, can only be done if the contribution is not yet verified.
+   */
+  async updateNodeContribution({
+    node,
+    nodeOwner,
+    contributorId,
+    email,
+    orcid,
+    userId,
+  }: AddNodeContributionParams): Promise<NodeContribution> {
+    // Check if contribution is already verified
+    let registeredContributor;
+    if (email) registeredContributor = await prisma.user.findUnique({ where: { email } });
+    if (orcid) registeredContributor = await prisma.user.findUnique({ where: { orcid } });
+    if (userId !== undefined || userId !== null)
+      registeredContributor = await prisma.user.findUnique({ where: { id: userId } });
+
+    const existingContribution = await prisma.nodeContribution.findFirst({
+      where: { contributorId, nodeId: node.id },
+    });
+    if (!existingContribution) throw Error('Contribution not found');
+    // Don't allow updating if already verified
+    if (existingContribution.verified) throw Error('Contributor already verified');
+
+    const userHasOrcidValidated = nodeOwner.orcid !== undefined && nodeOwner.orcid !== null;
+    const contributionOrcidMatchesUser = userHasOrcidValidated && orcid === nodeOwner.orcid;
+    const userIsOwner = userId === nodeOwner.id;
+    const autoVerified = nodeOwner.email === email || contributionOrcidMatchesUser || userIsOwner;
+
+    // Revoke priv share link for old email
+
+    return prisma.nodeContribution.update({
+      where: {
+        id: existingContribution.id,
+      },
+      data: {
+        email,
+        orcid,
+        nodeId: node.id,
+        verified: autoVerified,
+        ...(registeredContributor && { userId: registeredContributor.id }),
+      },
+    });
+  }
+
+  async removeContributor(contributorId: string, nodeId: number): Promise<boolean> {
+    const contribution = await prisma.nodeContribution.findFirst({ where: { contributorId, nodeId } });
+    if (!contribution) throw Error('Contribution not found');
+
+    // Revoke priv share link
+
+    const removed = await prisma.nodeContribution.delete({
+      where: { id: contribution.id },
+    });
+
+    if (removed) return true;
+
+    return false;
   }
 
   // async retrieveContributionsForNode(node: Node, contributorIds: string[]): Promise<NodeContributorMap> {
@@ -119,6 +181,10 @@ class ContributorService {
     }
 
     return false;
+  }
+
+  async getContributionById(contributorId: string): Promise<NodeContribution> {
+    return prisma.nodeContribution.findUnique({ where: { contributorId } });
   }
 }
 
