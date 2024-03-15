@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { addContributor } from '../../controllers/nodes/contributions/create.js';
+import { deleteContributor } from '../../controllers/nodes/contributions/delete.js';
 import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
 import { getUserContributions } from '../../controllers/nodes/contributions/getUserContributions.js';
 import { updateContributor } from '../../controllers/nodes/contributions/update.js';
@@ -32,7 +33,6 @@ import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { attachUser } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
-import { deleteContributor } from '../../controllers/nodes/contributions/delete.js';
 
 const router = Router();
 
