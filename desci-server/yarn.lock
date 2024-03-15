@@ -17511,10 +17511,10 @@ uri-js@^4.2.2:
   dependencies:
     punycode "^2.1.0"
 
-url-safe-base64@^1.2.0:
-  version "1.3.0"
-  resolved "https://registry.yarnpkg.com/url-safe-base64/-/url-safe-base64-1.3.0.tgz#b2571c6941e426583cd2e9982816d200e0bffe2e"
-  integrity sha512-MasquJt1L8/W996LP1BSsDL6UbApCv0Xal0eeeXUIfNXPEj3zM82XETcQSdurbmCmbeJnqRlhszHnWQzMiAZeQ==
+url-safe-base64@1.2.0:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/url-safe-base64/-/url-safe-base64-1.2.0.tgz#eb3cbfa89901c9d50e691c88a4d0f7a8d74482e4"
+  integrity sha512-F6LUjoQiTpMWzOQGVHE0jqoOgTkE+mwg82So5dC1AifmxqpTMg8LE5AterdJZ8yvfrL3fBj7TRiu9Yz+bGUX4g==
 
 url-template@^2.0.8:
   version "2.0.8"
