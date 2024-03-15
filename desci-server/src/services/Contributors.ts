@@ -5,6 +5,7 @@ import { Node, NodeContribution, User } from '@prisma/client';
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
+import { hexToCid } from '../utils.js';
 
 type ContributorId = string;
 export type NodeContributorMap = Record<ContributorId, { name: string; verified: boolean }>;
@@ -76,15 +77,23 @@ class ContributorService {
     }, {});
   }
 
-  async retrieveContributionsForUser(user: User): Promise<Contribution[]> {
+  async retrieveContributionsForUser(user: User): Promise<{ uuid: string; manifestCid: string }[]> {
     const contributions = await prisma.nodeContribution.findMany({
       where: { userId: user.id },
       include: { node: true },
     });
     const nodeUuids = contributions.map((contribution) => contribution.node.uuid);
     const { researchObjects } = await getIndexedResearchObjects(nodeUuids); // <-- Array of research objects, convert .id to b64 to retrieve uuid
-    debugger;
-    return [];
+    const NodesWithManifestCids = researchObjects.map((ro) => {
+      // convert hex string to integer
+      const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
+      // convert integer to hex
+      const nodeUuid = nodeUuidInt.toString('base64url');
+
+      return { uuid: nodeUuid, manifestCid: hexToCid(ro.recentCid) };
+    });
+    // debugger;
+    return NodesWithManifestCids || [];
   }
 
   async verifyContribution(user: User, contributorId: string): Promise<boolean> {
