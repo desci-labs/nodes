@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { addContributor } from '../../controllers/nodes/contributions/create.js';
 import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
 import { getUserContributions } from '../../controllers/nodes/contributions/getUserContributions.js';
+import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import {
@@ -54,9 +55,10 @@ router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatchDocumentChange);
 router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
-router.post('/contributions/:uuid', [attachUser, ensureWriteNodeAccess], addContributor);
+router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addContributor);
 router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/node/:uuid', [], getNodeContributions);
+router.patch('/contributions/verify', [ensureUser], verifyContribution);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 

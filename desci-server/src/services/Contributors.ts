@@ -70,6 +70,9 @@ class ContributorService {
     const contribution = await prisma.nodeContribution.findUnique({ where: { contributorId } });
     if (!contribution) throw Error('Invalid contributorId');
 
+    const contributionPointsToUser = contribution.email === user.email || contribution.orcid === user.orcid;
+    if (!contributionPointsToUser) throw Error('Unauthorized to verify contribution');
+
     const userHasOrcidValidated = user.orcid !== undefined && user.orcid !== null;
 
     const contributionOrcidMatchesUser = userHasOrcidValidated && contribution.orcid === user.orcid;
