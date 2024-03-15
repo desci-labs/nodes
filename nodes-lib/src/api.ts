@@ -305,6 +305,7 @@ type PublishParams = {
   transactionId?: string,
   nodeVersionId?: string,
   ceramicStream?: string,
+  commitId?: string,
 };
 
 /** Result of publishing a draft node */
@@ -331,6 +332,7 @@ export const publishDraftNode = async (
     manifest: publishResult.manifest,
     transactionId: publishResult.transactionId,
     ceramicStream: publishResult.ceramicIDs?.streamID,
+    commitId: publishResult.ceramicIDs?.commitID,
   };
 
   try {

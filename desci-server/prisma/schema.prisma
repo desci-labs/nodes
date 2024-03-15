@@ -54,6 +54,7 @@ model NodeVersion {
   manifestUrl         String
   cid                 String                @default("")
   transactionId       String?
+  commitId            String?
   nodeId              Int?
   node                Node?                 @relation(fields: [nodeId], references: [id])
   PublicDataReference PublicDataReference[]
@@ -771,6 +772,7 @@ model NodeAttestationVerification {
 model PublishTaskQueue {
   id            Int                    @id @default(autoincrement())
   ceramicStream String
+  commitId      String
   cid           String
   dpid          String?
   userId        Int

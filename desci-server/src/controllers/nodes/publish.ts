@@ -1,5 +1,5 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { ActionType, Prisma, PublishTaskQueueStatus } from '@prisma/client';
+import { ActionType, Prisma, PublishTaskQueueStatus, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
@@ -17,11 +17,40 @@ import {
 import { discordNotify } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
+
+export type PublishReqBody = {
+  uuid: string,
+  cid: string,
+  manifest: ResearchObjectV1,
+  transactionId: string,
+  ceramicStream?: string,
+  commitId?: string,
+};
+
+export type PublishRequest = Request<
+  never,
+  never,
+  PublishReqBody
+> & {
+  user: User; // added by auth middleware
+};
+
+export type PublishResBody = {
+  ok: boolean,
+  taskId: number,
+} | {
+  error: string,
+};
+
 // call node publish service and add job to queue
-export const publish = async (req: Request, res: Response, _next: NextFunction) => {
-  const { uuid, cid, manifest, transactionId, nodeVersionId, ceramicStream } = req.body;
+export const publish = async (
+  req: PublishRequest,
+  res: Response<PublishResBody>,
+  _next: NextFunction
+) => {
+  const { uuid, cid, manifest, transactionId, ceramicStream, commitId } = req.body;
   // debugger;
-  const email = (req as any).user.email;
+  const email = req.user.email;
   const logger = parentLogger.child({
     // id: req.id,
     module: 'NODE::publishController',
@@ -30,18 +59,24 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
     cid,
     manifest,
     transactionId,
+    ceramicStream,
+    commitId,
     email,
-    user: (req as any).user,
+    user: req.user,
   });
 
   if (!uuid || !cid || !manifest) {
-    return res.status(404).send({ message: 'uuid, cid, email, and manifest must be valid' });
-  }
+    return res.status(404).send({ error: 'uuid, cid, email, and manifest must be valid' });
+  };
 
   if (email === undefined || email === null) {
     // Prevent any issues with prisma findFirst with undefined fields
-    return res.status(401).send({ message: 'email must be valid' });
-  }
+    return res.status(401).send({ error: 'email must be valid' });
+  };
+
+  if (!(ceramicStream && commitId)) {
+    logger.warn({ uuid }, `[publish] called with unexpected stream (${ceramicStream}) and/org commit (${commitId})`);
+  };
 
   try {
     /**TODO: MOVE TO MIDDLEWARE */
@@ -78,10 +113,11 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
       ActionType.PUBLISH_NODE,
       {
         cid,
-        dpid: manifest.dpid?.id,
+        dpid: manifest.dpid.id,
         userId: owner.id,
         transactionId,
         ceramicStream: ceramicStream ?? '',
+        commitId: commitId ?? '',
         uuid: ensureUuidEndsWithDot(uuid),
         status: PublishTaskQueueStatus.WAITING,
       },
@@ -91,10 +127,11 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
     const publishTask = await prisma.publishTaskQueue.create({
       data: {
         cid,
-        dpid: manifest.dpid?.id,
+        dpid: manifest.dpid.id,
         userId: owner.id,
         transactionId,
         ceramicStream: ceramicStream ?? '',
+        commitId: commitId ?? '',
         uuid: ensureUuidEndsWithDot(uuid),
         status: PublishTaskQueueStatus.WAITING,
       },
@@ -114,6 +151,7 @@ export const publishHandler = async ({
   transactionId,
   userId,
   ceramicStream,
+  commitId,
   cid,
   uuid,
 }: {
@@ -122,6 +160,7 @@ export const publishHandler = async ({
   userId: number;
   uuid: string;
   ceramicStream: string;
+  commitId: string;
 }) => {
   const logger = parentLogger.child({
     // id: req.id,
@@ -176,23 +215,24 @@ export const publishHandler = async ({
       },
       update: {
         transactionId,
+        commitId,
       },
       create: {
         nodeId: node.id,
         manifestUrl: cid,
         transactionId,
+        commitId,
       },
     });
 
-    if (process.env.TOGGLE_CERAMIC === '1') {
-      if (ceramicStream) {
-        logger.trace(`[ceramic] setting streamID on node`);
-        await setCeramicStream(uuid, ceramicStream);
-      } else {
-        // Likely feature toggle is active in backend, but not in frontend
-        logger.warn(`[ceramic] wanted to set streamID for ${node.uuid} but request did not contain one`);
-      }
-    }
+    // Prevent removing the stream info if subsequent publish request is missing it
+    if (ceramicStream) {
+      logger.trace(`[ceramic] setting streamID ${ceramicStream} on node ${uuid}`);
+      await setCeramicStream(uuid, ceramicStream);
+    } else {
+      // Likely feature toggle is active in backend, but not in frontend
+      logger.warn(`[ceramic] wanted to set streamID for ${node.uuid} but request did not contain one`);
+    };
 
     logger.trace(`[publish::publish] nodeUuid=${node.uuid}, manifestCid=${cid}, transaction=${transactionId}`);
 
