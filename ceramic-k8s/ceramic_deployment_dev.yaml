@@ -32,7 +32,7 @@ spec:
         App: JsCeramicDev
     spec:
       containers:
-        - image: ceramicnetwork/js-ceramic:3.2.0
+        - image: ceramicnetwork/js-ceramic:5.3.0
           name: js-ceramic-dev
           command: ["/bin/bash", "-c"]
           args:
