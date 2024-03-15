@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "es2020", // Set to at least ES2017 to allow top-level await
+    "module": "esnext", // Supports dynamic imports and top-level await
+    "strict": true, // Enable all strict type-checking options
+    "esModuleInterop": true, // Enables module interop compatibility
+    "skipLibCheck": true, // Skip type checking of all declaration files (*.d.ts)
+    "forceConsistentCasingInFileNames": true, // Disallow inconsistently-cased references
+    "moduleResolution": "node", // Choose the style of module resolution
+    "resolveJsonModule": true, // Allow JSON modules to be imported
+    "baseUrl": ".", // Base directory to resolve non-relative module names
+    "outDir": "./dist", // Specify an output folder for all emitted files
+    "paths": {
+      // Specify paths for module resolution
+      "*": ["node_modules/*", "src/types/*"]
+    }
+  },
+  "include": [
+    "scripts/finishMigrationFromSnapshot.ts" // Include all files in the src folder for compilation
+  ],
+  "exclude": [
+    "node_modules", // Exclude the node_modules folder from compilation
+    "**/*.spec.ts" // Exclude test files
+  ]
+}

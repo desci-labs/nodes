@@ -1,4 +1,4 @@
-const { ethers, upgrades } = require("hardhat");
+const { ethers, upgrades, hardhatArguments } = require("hardhat");
 /**
  * Migrate dpid registry + researchobject states from another network/contract to a new target network/contract
  *
@@ -70,6 +70,10 @@ const getDpidRegistryData = async () => {
   return data;
 };
 
+const networkName = hardhatArguments.network;
+
+console.log({ networkName });
+
 const idToDpid = {};
 const idToRo = {};
 (async () => {
@@ -119,10 +123,22 @@ const idToRo = {};
   );
 
   // mv ./.openzeppelin/unknown-1337.json to ./.openzeppelin/unknown-dpid.json
-  fs.renameSync(
-    `.openzeppelin/unknown-1337.json`,
-    `.openzeppelin/unknown-dpid.json`
-  );
+  if (networkName === "sepoliaDev") {
+    fs.renameSync(
+      `.openzeppelin/unknown-11155111.json`,
+      `.openzeppelin/sepoliaDev-dpid.json`
+    );
+  } else if (networkName === "sepoliaProd") {
+    fs.renameSync(
+      `.openzeppelin/unknown-11155111.json`,
+      `.openzeppelin/sepoliaProd-dpid.json`
+    );
+  } else {
+    fs.renameSync(
+      `.openzeppelin/unknown-1337.json`,
+      `.openzeppelin/unknown-dpid.json`
+    );
+  }
 
   const ResearchObjectMigrated = await ethers.getContractFactory(
     "ResearchObjectMigrated"
@@ -144,10 +160,22 @@ const idToRo = {};
   );
 
   // mv ./.openzeppelin/unknown-1337.json to ./.openzeppelin/unknown-research-object.json
-  fs.renameSync(
-    `.openzeppelin/unknown-1337.json`,
-    `.openzeppelin/unknown-research-object.json`
-  );
+  if (networkName === "sepoliaDev") {
+    fs.renameSync(
+      `.openzeppelin/unknown-11155111.json`,
+      `.openzeppelin/sepoliaDev-research-object.json`
+    );
+  } else if (networkName === "sepoliaProd") {
+    fs.renameSync(
+      `.openzeppelin/unknown-11155111.json`,
+      `.openzeppelin/sepoliaProd-research-object.json`
+    );
+  } else {
+    fs.renameSync(
+      `.openzeppelin/unknown-1337.json`,
+      `.openzeppelin/unknown-research-object.json`
+    );
+  }
 
   await proxyDpid.setFee(0);
 
