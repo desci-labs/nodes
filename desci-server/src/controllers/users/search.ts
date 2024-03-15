@@ -14,7 +14,7 @@ export const searchProfiles = async (req: Request, res: Response) => {
   if (name.toString().length < 2) return res.status(400).json({ error: 'Name query must be at least 2 characters' });
 
   try {
-    const profiles = await prisma.user.findMany({ where: { name: { startsWith: name as string } } });
+    const profiles = await prisma.user.findMany({ where: { name: { contains: name as string, mode: 'insensitive' } } });
 
     if (profiles) {
       const profilesReturn = profiles.map((profile) => ({ name: profile.name, id: profile.id }));
