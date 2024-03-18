@@ -473,17 +473,19 @@ model NodeThumbnails {
 
 // The glue between a manifest contributor entry and a nodes profile
 model NodeContribution {
-  id            Int      @id @default(autoincrement())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  contributorId String   @unique
+  id            Int       @id @default(autoincrement())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  contributorId String    @unique
   nodeId        Int
   userId        Int?
-  verified      Boolean  @default(false)
+  verified      Boolean   @default(false)
   email         String?
   orcid         String?
-  node          Node     @relation(fields: [nodeId], references: [id])
-  user          User?    @relation(fields: [userId], references: [id])
+  deleted       Boolean   @default(false)
+  deletedAt     DateTime?
+  node          Node      @relation(fields: [nodeId], references: [id])
+  user          User?     @relation(fields: [userId], references: [id])
 
   @@unique([contributorId, nodeId, userId])
 }

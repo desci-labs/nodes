@@ -6,6 +6,7 @@ import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { hexToCid } from '../utils.js';
+import { register } from 'module';
 
 type ContributorId = string;
 export type NodeContributorMap = Record<ContributorId, { name: string; verified: boolean }>;
@@ -111,8 +112,9 @@ class ContributorService {
 
     // Revoke priv share link
 
-    const removed = await prisma.nodeContribution.delete({
+    const removed = await prisma.nodeContribution.update({
       where: { id: contribution.id },
+      data: { deleted: true, deletedAt: new Date() },
     });
 
     if (removed) return true;
@@ -134,6 +136,8 @@ class ContributorService {
         name: contributor.user.name,
         verified: contributor.verified,
         userId: contributor.user.id,
+        deleted: contributor.deleted,
+        deletedAt: contributor.deletedAt,
       };
       return acc;
     }, {});
@@ -145,7 +149,7 @@ class ContributorService {
       include: { node: true },
     });
     const nodeUuids = contributions.map((contribution) => contribution.node.uuid);
-    const { researchObjects } = await getIndexedResearchObjects(nodeUuids); // <-- Array of research objects, convert .id to b64 to retrieve uuid
+    const { researchObjects } = await getIndexedResearchObjects(nodeUuids);
     const NodesWithManifestCids = researchObjects.map((ro) => {
       // convert hex string to integer
       const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
