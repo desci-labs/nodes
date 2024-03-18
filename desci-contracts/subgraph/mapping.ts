@@ -52,15 +52,25 @@ export function handleVersionPush(event: VersionPush): void {
     ro.id10 = uuid.toString();
   }
 
+  // if (
+  //   event.block.timestamp.toI32() <= 1710542028 &&
+  //   event.transactionLogIndex.toI32() != 0
+  // ) {
   const versionString = event.transaction.hash.toHexString();
   let rov = new ResearchObjectVersion(versionString);
   rov.researchObject = ro.id;
   rov.time = event.block.timestamp;
   rov.cid = event.params._cid.toHex();
   rov.from = event.params._from.toHex();
-  rov.save();
+  rov.transactionIndex = event.transactionLogIndex;
+  rov.blockNumber = event.block.number;
+  // rov.logIndex = event.logIndex;
+  if (rov.time != BigInt.fromString("1710542028")) {
+    rov.save();
+  }
 
   ro.recentCid = rov.cid;
+  // }
 
   // let ro = new ResearchObjectVersion(event.transaction.hash.toHex());
   // ro.tokenURI = `test-${event.params._uuid.toHex()}`;
@@ -83,9 +93,7 @@ export function handleVersionPushMigrated(event: VersionPushMigrated): void {
     ro.id10 = uuid.toString();
   }
 
-  const versionString =
-    event.transaction.hash.toHexString() +
-    event.params._migration_timestamp.toHexString();
+  const versionString = event.transaction.hash.toHexString();
   let rov = new ResearchObjectVersion(versionString);
   rov.researchObject = ro.id;
   rov.time = event.params._migration_timestamp;

@@ -89,7 +89,7 @@ module.exports = {
         : {
             mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
           },
-      gasPrice: 104639623622,
+      gasPrice: "auto",
     },
     sepoliaProd: {
       chainId: 11155111,

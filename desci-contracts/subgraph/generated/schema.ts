@@ -108,6 +108,57 @@ export class ResearchObjectVersion extends Entity {
   set researchObject(value: string) {
     this.set("researchObject", Value.fromString(value));
   }
+
+  get transactionIndex(): BigInt | null {
+    let value = this.get("transactionIndex");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set transactionIndex(value: BigInt | null) {
+    if (!value) {
+      this.unset("transactionIndex");
+    } else {
+      this.set("transactionIndex", Value.fromBigInt(<BigInt>value));
+    }
+  }
+
+  get blockNumber(): BigInt | null {
+    let value = this.get("blockNumber");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set blockNumber(value: BigInt | null) {
+    if (!value) {
+      this.unset("blockNumber");
+    } else {
+      this.set("blockNumber", Value.fromBigInt(<BigInt>value));
+    }
+  }
+
+  get logIndex(): BigInt | null {
+    let value = this.get("logIndex");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set logIndex(value: BigInt | null) {
+    if (!value) {
+      this.unset("logIndex");
+    } else {
+      this.set("logIndex", Value.fromBigInt(<BigInt>value));
+    }
+  }
 }
 
 export class ResearchObject extends Entity {

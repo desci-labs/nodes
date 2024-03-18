@@ -8,9 +8,9 @@ dataSources:
     name: DeSciNodes
     network: sepolia
     source:
-      address: "0x41198b022A912A0133cF8CefcE114F1af65daFAB"
+      address: "0xbddc15A55339fCedb56b72Bb32eC65A0eFaC7540"
       abi: ResearchObjectMigrated
-      startBlock: 5482387
+      startBlock: 5493728
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.6

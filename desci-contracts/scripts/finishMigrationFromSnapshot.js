@@ -10,7 +10,8 @@
 const { ethers, upgrades, hardhatArguments } = require("hardhat");
 const { SigningKey } = require("ethers/lib/utils");
 const { Wallet, getDefaultProvider, Contract } = require("ethers");
-const ETHEREUM_RPC_URL = "https://1rpc.io/sepolia";
+const ETHEREUM_RPC_URL =
+  "https://eth-sepolia.g.alchemy.com/v2/Dg4eT90opKOFZ7w-YCxVwX9O-sriKn0N";
 const ethereumProvider = getDefaultProvider(ETHEREUM_RPC_URL);
 
 const researchObjectABI =
@@ -34,8 +35,8 @@ const walletFromPkey = (pkey) => {
 
 const wallet = walletFromPkey(process.env.PRIVATE_KEY);
 
-const RO_CONTRACT_ADDRESS = "0x41198b022a912a0133cf8cefce114f1af65dafab";
-const DPID_CONTRACT_ADDRESS = "0xb9F1b29d9435Ff4772F57067C927367B337B0456";
+const RO_CONTRACT_ADDRESS = "0xbddc15A55339fCedb56b72Bb32eC65A0eFaC7540";
+const DPID_CONTRACT_ADDRESS = "0xAA77454C456265C6d2542b356289BA2BaAbA7BAa";
 
 const DEFAULT_PREFIX = ethers.utils.formatBytes32String("beta");
 
@@ -55,12 +56,12 @@ const DEFAULT_PREFIX = ethers.utils.formatBytes32String("beta");
   );
 
   // split unified array into chunks
-  const chunkSize = 100;
+  const chunkSize = 1;
   const chunks = [];
-  for (let i = 103; i < unified.length; i += chunkSize) {
+  for (let i = 0; i < unified.length; i += chunkSize) {
     chunks.push(unified.slice(i, i + chunkSize));
   }
-  for (let i = 0; i < chunks.length; i++) {
+  for (let i = 188; i < chunks.length; i++) {
     const chunk = chunks[i];
     console.log("chunk", i, chunk);
     const result = await researchObjectContract._importChunk(
