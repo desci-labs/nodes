@@ -21,7 +21,6 @@ model Node {
   ownerId             Int
   uuid                String?               @unique @default(uuid())
   manifestDocumentId  String                @default("")
-  privateShare        PrivateShare?
   owner               User                  @relation(fields: [ownerId], references: [id])
   authorInvites       AuthorInvite[]
   transactions        ChainTransaction[]
@@ -42,6 +41,7 @@ model Node {
   NodeThumbnails      NodeThumbnails[]
   PublishTaskQueue    PublishTaskQueue[]
   NodeContribution    NodeContribution[]
+  PrivateShare        PrivateShare[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -441,11 +441,13 @@ model PublicDataReferenceOnIpfsMirror {
 model PrivateShare {
   id        Int      @id @default(autoincrement())
   shareId   String   @unique
-  nodeUUID  String   @unique
+  nodeUUID  String
+  memo      String?
   node      Node     @relation(fields: [nodeUUID], references: [uuid])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([nodeUUID])
   @@index([shareId])
 }
 
