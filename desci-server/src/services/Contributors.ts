@@ -6,7 +6,7 @@ import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { hexToCid } from '../utils.js';
-import { register } from 'module';
+import ShortUniqueId from 'short-unique-id';
 
 type ContributorId = string;
 export type NodeContributorMap = Record<ContributorId, { name: string; verified: boolean }>;
@@ -25,6 +25,8 @@ export type AddNodeContributionParams = {
   orcid?: string;
   userId?: number;
 };
+
+const PRIV_SHARE_CONTRIBUTION_PREFIX = 'C-';
 
 class ContributorService {
   private logger = parentLogger.child({ module: 'Services::ContributorsService' });
@@ -107,7 +109,10 @@ class ContributorService {
   }
 
   async removeContributor(contributorId: string, nodeId: number): Promise<boolean> {
-    const contribution = await prisma.nodeContribution.findFirst({ where: { contributorId, nodeId } });
+    const contribution = await prisma.nodeContribution.findFirst({
+      where: { contributorId, nodeId },
+      include: { node: true },
+    });
     if (!contribution) throw Error('Contribution not found');
 
     // Revoke priv share link
@@ -116,6 +121,8 @@ class ContributorService {
       where: { id: contribution.id },
       data: { deleted: true, deletedAt: new Date() },
     });
+
+    this.removePrivShareCodeForContribution(removed, contribution.node);
 
     if (removed) return true;
 
@@ -185,6 +192,35 @@ class ContributorService {
     }
 
     return false;
+  }
+
+  async generatePrivShareCodeForContribution(contribution: NodeContribution, node: Node): Promise<null | string> {
+    if (!contribution.email) return null;
+    const privShare = await prisma.privateShare.findFirst({
+      where: { nodeUUID: node.uuid, memo: PRIV_SHARE_CONTRIBUTION_PREFIX + contribution.email },
+    });
+
+    if (privShare) return privShare.shareId;
+
+    const shareCode = new ShortUniqueId.default({ length: 10 });
+    const newPrivShare = await prisma.privateShare.create({
+      data: {
+        nodeUUID: node.uuid,
+        shareId: shareCode as unknown as string,
+        memo: PRIV_SHARE_CONTRIBUTION_PREFIX + contribution.email,
+      },
+    });
+
+    return newPrivShare.shareId;
+  }
+
+  async removePrivShareCodeForContribution(contribution: NodeContribution, node: Node): Promise<void> {
+    if (!contribution.email) return;
+    const privShare = await prisma.privateShare.findFirst({
+      where: { nodeUUID: node.uuid, memo: PRIV_SHARE_CONTRIBUTION_PREFIX + contribution.email },
+    });
+
+    if (privShare) await prisma.privateShare.delete({ where: { id: privShare.id } });
   }
 
   async getContributionById(contributorId: string): Promise<NodeContribution> {

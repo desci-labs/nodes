@@ -39,18 +39,20 @@ export const addContributor = async (req: Request, res: Response) => {
       orcid,
       userId,
     });
-    if (contributorAdded) {
-      logger.info({ contributorAdded }, 'Contributor added successfully');
-      return res.status(200).json({ message: 'Contributor added successfully' });
+    if (!contributorAdded) throw Error('Failed to add contributor');
+    if (user.id !== contributorAdded.userId) {
+      // Generate a share code for the contributor if it's the node owner themselves
+      const shareCode = await contributorService.generatePrivShareCodeForContribution(contributorAdded, node);
+
+      // Future:
+      // Fire off an email -> make it count as a friend referral
     }
+    logger.info({ contributorAdded }, 'Contributor added successfully');
+    return res.status(200).json({ message: 'Contributor added successfully' });
   } catch (e) {
     logger.error({ e }, 'Failed to add contributor');
     return res.status(500).json({ error: 'Failed to add contributor' });
   }
-
-  // Future:
-  // Gen a priv link
-  // Fire off an email -> make it count as a friend referral
 
   return res.status(500).json({ error: 'Something went wrong' });
 };
