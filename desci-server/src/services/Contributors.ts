@@ -84,6 +84,12 @@ class ContributorService {
       where: { contributorId, nodeId: node.id },
     });
     if (!existingContribution) throw Error('Contribution not found');
+    const currentContributorEmail = existingContribution.email;
+    if (currentContributorEmail !== email) {
+      // Revoke priv share link for old email
+      this.removePrivShareCodeForContribution(existingContribution, node);
+    }
+
     // Don't allow updating if already verified
     if (existingContribution.verified) throw Error('Contributor already verified');
 
@@ -221,6 +227,16 @@ class ContributorService {
     });
 
     if (privShare) await prisma.privateShare.delete({ where: { id: privShare.id } });
+  }
+
+  async getShareCodeForContribution(contribution: NodeContribution, node: Node): Promise<null | string> {
+    if (!contribution.email) return null;
+    const privShare = await prisma.privateShare.findFirst({
+      where: { nodeUUID: node.uuid, memo: PRIV_SHARE_CONTRIBUTION_PREFIX + contribution.email },
+    });
+
+    if (privShare) return privShare.shareId;
+    return null;
   }
 
   async getContributionById(contributorId: string): Promise<NodeContribution> {
