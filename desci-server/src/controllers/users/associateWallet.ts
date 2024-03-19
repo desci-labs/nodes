@@ -15,7 +15,7 @@ import {
 import { logger as parentLogger } from '../../logger.js';
 import { getUserConsent, saveInteraction } from '../../services/interactionLog.js';
 import { writeExternalIdToOrcidProfile } from '../../services/user.js';
-import { sendCookie } from '../../utils/sendCookie.js';
+import { removeCookie, sendCookie } from '../../utils/sendCookie.js';
 import { generateAccessToken } from '../auth/magic.js';
 
 const createWalletNickname = async (user: Prisma.UserWhereInput) => {
@@ -128,12 +128,12 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
     }
 
     const user = (req as any).user;
-    const walletAddress = req.body.walletAddress;
+    // const walletAddress = req.body.walletAddress;
 
     const message = new SiweMessage(req.body.message);
     const fields = await message.validate(req.body.signature);
     const siweNonce = await extractTokenFromCookie(req, 'siwe');
-    const validateAddress = getAddress(fields.address);
+    const walletAddress = getAddress(fields.address);
 
     logger.info({ siweNonce }, 'SIWE NONCE');
     if (fields.nonce !== siweNonce) {
@@ -144,9 +144,9 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    if (getAddress(walletAddress) !== validateAddress) throw new AuthFailureError('Unrecognised DID credential');
+    // if (getAddress(walletAddress) !== validateAddress) throw new AuthFailureError('Unrecognised DID credential');
 
-    logger.info({ walletAddress, validateAddress }, 'SIWE ADDRESS');
+    logger.info({ walletAddress, address: fields.address }, 'SIWE ADDRESS');
 
     const doesExist = await prisma.wallet.findMany({
       where: {
@@ -219,7 +219,7 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
     body: req.body,
   });
   // try {
-  const { account, message: siweMessage, signature, dev } = req.body;
+  const { message: siweMessage, signature, dev } = req.body;
   logger.info('WALLET LOGIN');
 
   if (!siweMessage) {
@@ -230,29 +230,21 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
   const message = new SiweMessage(siweMessage);
   const fields = await message.validate(signature);
   const siweNonce = await extractTokenFromCookie(req, 'siwe');
-  const validateAddress = getAddress(fields.address);
+  const account = getAddress(fields.address);
 
   logger.info({ siweNonce }, 'SIWE NONCE');
   if (fields.nonce !== siweNonce) {
     throw new ForbiddenError('Invalid Nonce');
   }
 
-  logger.info(
-    { fieldAddress: fields.address, validateAddress, original: account, address: getAddress(account) },
-    'WALLET ADDRESS',
-  );
-
-  if (getAddress(account) !== validateAddress) throw new AuthFailureError('Unrecognised DID credential');
-
-  const walletAddress = account;
-
-  if (!isAddress(walletAddress)) {
-    throw new BadRequestError('missing wallet address', new Error('missing wallet address'));
-  }
+  logger.info({ fieldAddress: fields.address, account, address: getAddress(account) }, 'WALLET ADDRESS');
 
   const wallet = await prisma.wallet.findFirst({
     where: {
-      address: walletAddress,
+      // This is necessary because associate wallet stored lowercase public
+      // key sent from request payload rather
+      // than the checksum address extracted from siwe signature
+      address: { in: [account, account.toLowerCase()] },
     },
   });
 
@@ -264,7 +256,7 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
     req,
     ActionType.USER_WALLET_CONNECT,
     {
-      addr: walletAddress,
+      addr: account,
     },
     user.id,
   );
@@ -272,6 +264,7 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
   const token = generateAccessToken({ email: user.email });
 
   // TODO: DELETE SIWE TOKEN FROM COOKIE HEADER
+  removeCookie(res, 'siwe');
   sendCookie(res, token, dev === 'true');
   // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
   const termsAccepted = !!(await getUserConsent(user.id));
