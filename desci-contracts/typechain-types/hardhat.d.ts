@@ -81,9 +81,17 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IDpidRegistry__factory>;
     getContractFactory(
+      name: "ResearchObjectMigrated",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ResearchObjectMigrated__factory>;
+    getContractFactory(
       name: "ResearchObject",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.ResearchObject__factory>;
+    getContractFactory(
+      name: "ResearchObjectV2",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ResearchObjectV2__factory>;
     getContractFactory(
       name: "TestERC721",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -92,6 +100,10 @@ declare module "hardhat/types/runtime" {
       name: "VersionedERC721",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.VersionedERC721__factory>;
+    getContractFactory(
+      name: "VersionedERC721V2",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.VersionedERC721V2__factory>;
 
     getContractAt(
       name: "OwnableUpgradeable",
@@ -179,10 +191,20 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IDpidRegistry>;
     getContractAt(
+      name: "ResearchObjectMigrated",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ResearchObjectMigrated>;
+    getContractAt(
       name: "ResearchObject",
       address: string,
       signer?: ethers.Signer
     ): Promise<Contracts.ResearchObject>;
+    getContractAt(
+      name: "ResearchObjectV2",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ResearchObjectV2>;
     getContractAt(
       name: "TestERC721",
       address: string,
@@ -193,6 +215,11 @@ declare module "hardhat/types/runtime" {
       address: string,
       signer?: ethers.Signer
     ): Promise<Contracts.VersionedERC721>;
+    getContractAt(
+      name: "VersionedERC721V2",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.VersionedERC721V2>;
 
     // default types
     getContractFactory(

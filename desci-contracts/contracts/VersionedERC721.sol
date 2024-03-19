@@ -9,10 +9,10 @@ contract VersionedERC721 is Initializable, ERC721Upgradeable {
 
     event VersionPush(address indexed _from, uint256 indexed _uuid, bytes _cid);
 
-    function __VersionedERC721_init(string memory name, string memory symbol)
-        public
-        onlyInitializing
-    {
+    function __VersionedERC721_init(
+        string memory name,
+        string memory symbol
+    ) public onlyInitializing {
         ERC721Upgradeable.__ERC721_init(name, symbol);
     }
 
@@ -21,10 +21,10 @@ contract VersionedERC721 is Initializable, ERC721Upgradeable {
     }
 
     // The owner can add Metadata, but never remove it
-    function updateMetadata(uint256 tokenId, bytes memory cid)
-        public
-        onlyHolder(tokenId)
-    {
+    function updateMetadata(
+        uint256 tokenId,
+        bytes memory cid
+    ) public onlyHolder(tokenId) {
         _metadata[tokenId] = cid;
         emit VersionPush(_msgSender(), tokenId, cid);
     }

@@ -1,0 +1,88 @@
+/**
+ * Note: couldn't get this to run correctly with project config, so converted to .js, leaving for history
+ * run this like
+ * npx ts-node --project scripts/tsconfig.script.json scripts/finishMigrationFromSnapshot.ts
+ */
+
+const { ethers, upgrades, hardhatArguments } = require("hardhat");
+import type { DpidRegistry, ResearchObjectMigrated } from "../typechain-types";
+import { SigningKey } from "ethers/lib/utils.js";
+import { Wallet, getDefaultProvider, Contract } from "ethers";
+const ETHEREUM_RPC_URL = "https://1rpc.io/sepolia";
+const ethereumProvider = getDefaultProvider(ETHEREUM_RPC_URL);
+const {
+  default: { abi: researchObjectABI },
+} = await import(
+  "../artifacts/contracts/migrated/ResearchObjectMigrated.sol/ResearchObjectMigrated.json",
+  { assert: { type: "json" } }
+);
+const {
+  default: { abi: dpidRegistryAbi },
+} = await import("../artifacts/contracts/DpidRegistry.sol/DpidRegistry.json", {
+  assert: { type: "json" },
+});
+
+/**
+ * Given a deployed contract (DpidRegistry + ResearchObject), load a snapshot into it via the ResearchObjectMigrated tool
+ */
+
+const networkName = hardhatArguments.network;
+
+console.log({ networkName });
+
+const walletFromPkey = (pkey: string): Wallet => {
+  pkey = pkey.startsWith("0x") ? pkey : `0x${pkey}`;
+  const key = new SigningKey(pkey);
+  return new Wallet(key, ethereumProvider);
+};
+
+const wallet = walletFromPkey(process.env.PRIVATE_KEY!);
+
+const RO_CONTRACT_ADDRESS = "0x41198b022a912a0133cf8cefce114f1af65dafab";
+const DPID_CONTRACT_ADDRESS = "0xb9F1b29d9435Ff4772F57067C927367B337B0456";
+
+const DEFAULT_PREFIX = ethers.utils.formatBytes32String("beta");
+
+interface MigrationDataStruct {
+  from: string;
+  uuid: string;
+  cid: string;
+  timestamp: number;
+  dpid: string;
+}
+
+(async () => {
+  const unified = (await import(
+    "../migration-data/migrationData_Thu Mar 14 2024.json",
+    { assert: { type: "json" } }
+  )) as MigrationDataStruct[];
+
+  const researchObjectContract = new Contract(
+    RO_CONTRACT_ADDRESS,
+    researchObjectABI,
+    wallet
+  ) as unknown as ResearchObjectMigrated;
+
+  const dpidRegistryContract = new Contract(
+    DPID_CONTRACT_ADDRESS,
+    dpidRegistryAbi,
+    wallet
+  ) as unknown as DpidRegistry;
+
+  // split unified array into chunks
+  const chunkSize = 100;
+  const chunks: MigrationDataStruct[][] = [];
+  for (let i = 0; i < unified.length; i += chunkSize) {
+    chunks.push(unified.slice(i, i + chunkSize));
+  }
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    console.log("chunk", i, chunk);
+    const result = await researchObjectContract._importChunk(
+      chunk,
+      DEFAULT_PREFIX
+    );
+    console.log("result", result);
+    await new Promise((r) => setTimeout(r, 50));
+  }
+})();

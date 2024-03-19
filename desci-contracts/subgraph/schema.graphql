@@ -4,6 +4,9 @@ type ResearchObjectVersion @entity {
   cid: String!
   from: String!
   researchObject: ResearchObject!
+  transactionIndex: BigInt
+  blockNumber: BigInt
+  logIndex: BigInt
 }
 
 type ResearchObject @entity {

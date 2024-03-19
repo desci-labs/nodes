@@ -32,6 +32,12 @@ export class ResearchObjectVersion extends Entity {
     }
   }
 
+  static loadInBlock(id: string): ResearchObjectVersion | null {
+    return changetype<ResearchObjectVersion | null>(
+      store.get_in_block("ResearchObjectVersion", id)
+    );
+  }
+
   static load(id: string): ResearchObjectVersion | null {
     return changetype<ResearchObjectVersion | null>(
       store.get("ResearchObjectVersion", id)
@@ -40,7 +46,11 @@ export class ResearchObjectVersion extends Entity {
 
   get id(): string {
     let value = this.get("id");
-    return value!.toString();
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
   }
 
   set id(value: string) {
@@ -49,7 +59,11 @@ export class ResearchObjectVersion extends Entity {
 
   get time(): BigInt {
     let value = this.get("time");
-    return value!.toBigInt();
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBigInt();
+    }
   }
 
   set time(value: BigInt) {
@@ -58,7 +72,11 @@ export class ResearchObjectVersion extends Entity {
 
   get cid(): string {
     let value = this.get("cid");
-    return value!.toString();
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
   }
 
   set cid(value: string) {
@@ -67,7 +85,11 @@ export class ResearchObjectVersion extends Entity {
 
   get from(): string {
     let value = this.get("from");
-    return value!.toString();
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
   }
 
   set from(value: string) {
@@ -76,11 +98,66 @@ export class ResearchObjectVersion extends Entity {
 
   get researchObject(): string {
     let value = this.get("researchObject");
-    return value!.toString();
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
   }
 
   set researchObject(value: string) {
     this.set("researchObject", Value.fromString(value));
+  }
+
+  get transactionIndex(): BigInt | null {
+    let value = this.get("transactionIndex");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set transactionIndex(value: BigInt | null) {
+    if (!value) {
+      this.unset("transactionIndex");
+    } else {
+      this.set("transactionIndex", Value.fromBigInt(<BigInt>value));
+    }
+  }
+
+  get blockNumber(): BigInt | null {
+    let value = this.get("blockNumber");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set blockNumber(value: BigInt | null) {
+    if (!value) {
+      this.unset("blockNumber");
+    } else {
+      this.set("blockNumber", Value.fromBigInt(<BigInt>value));
+    }
+  }
+
+  get logIndex(): BigInt | null {
+    let value = this.get("logIndex");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set logIndex(value: BigInt | null) {
+    if (!value) {
+      this.unset("logIndex");
+    } else {
+      this.set("logIndex", Value.fromBigInt(<BigInt>value));
+    }
   }
 }
 
@@ -102,13 +179,23 @@ export class ResearchObject extends Entity {
     }
   }
 
+  static loadInBlock(id: string): ResearchObject | null {
+    return changetype<ResearchObject | null>(
+      store.get_in_block("ResearchObject", id)
+    );
+  }
+
   static load(id: string): ResearchObject | null {
     return changetype<ResearchObject | null>(store.get("ResearchObject", id));
   }
 
   get id(): string {
     let value = this.get("id");
-    return value!.toString();
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
   }
 
   set id(value: string) {
@@ -117,7 +204,11 @@ export class ResearchObject extends Entity {
 
   get id64(): string {
     let value = this.get("id64");
-    return value!.toString();
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
   }
 
   set id64(value: string) {
@@ -126,7 +217,11 @@ export class ResearchObject extends Entity {
 
   get id10(): string {
     let value = this.get("id10");
-    return value!.toString();
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
   }
 
   set id10(value: string) {
@@ -135,7 +230,11 @@ export class ResearchObject extends Entity {
 
   get owner(): string {
     let value = this.get("owner");
-    return value!.toString();
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
   }
 
   set owner(value: string) {
@@ -144,19 +243,40 @@ export class ResearchObject extends Entity {
 
   get recentCid(): string {
     let value = this.get("recentCid");
-    return value!.toString();
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toString();
+    }
   }
 
   set recentCid(value: string) {
     this.set("recentCid", Value.fromString(value));
   }
 
-  get versions(): Array<string> {
-    let value = this.get("versions");
-    return value!.toStringArray();
+  get versions(): ResearchObjectVersionLoader {
+    return new ResearchObjectVersionLoader(
+      "ResearchObject",
+      this.get("id")!.toString(),
+      "versions"
+    );
+  }
+}
+
+export class ResearchObjectVersionLoader extends Entity {
+  _entity: string;
+  _field: string;
+  _id: string;
+
+  constructor(entity: string, id: string, field: string) {
+    super();
+    this._entity = entity;
+    this._id = id;
+    this._field = field;
   }
 
-  set versions(value: Array<string>) {
-    this.set("versions", Value.fromStringArray(value));
+  load(): ResearchObjectVersion[] {
+    let value = store.loadRelated(this._entity, this._id, this._field);
+    return changetype<ResearchObjectVersion[]>(value);
   }
 }
