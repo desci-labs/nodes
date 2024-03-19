@@ -6,6 +6,7 @@ import AWS from 'aws-sdk';
 
 import { prisma as client } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
+import { MagicCodeEmailHtml } from '../templates/emails/MagicCode.js';
 import createRandomCode from '../utils/createRandomCode.js';
 import { hideEmail } from '../utils.js';
 
@@ -127,6 +128,7 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
 
     const url = `${env.DAPP_URL}/web/login?e=${email}&c=${token}`;
     const goodIp = ip?.length > 0 && ip !== '::1' && ip !== '127.0.0.1' && ip !== 'localhost';
+    const emailHtml = MagicCodeEmailHtml({ magicCode: token });
     const msg = {
       to: email, // Change to your recipient
       from: 'no-reply@desci.com', // Change to your verified sender
@@ -136,11 +138,7 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
           ? `\n\n (sent from ip: ${ip} -- if you weren't logging in, please forward this email to info@desci.com)`
           : ''
       }`,
-      html: `Welcome to DeSci Nodes, to access your account use the following code<br/><br/><a href="${url}" target="_blank">Login Now</a><br/><br/>Verification Code: ${token}${
-        goodIp
-          ? `<br/><br/><span style="font-size:10px">sent from ip address: ${ip} if you weren't logging in, please forward this email to info@desci.com</span>`
-          : ''
-      }`,
+      html: emailHtml,
     };
 
     const params = {

@@ -10,6 +10,7 @@ import {
   Text,
   Button,
   Section,
+  render,
 } from '@react-email/components';
 import * as React from 'react';
 
@@ -39,6 +40,7 @@ export const MagicCodeEmail = ({ magicCode }: MagicCodeEmailProps) => (
 );
 
 export default MagicCodeEmail;
+export const MagicCodeEmailHtml = ({ magicCode }: MagicCodeEmailProps) => render(MagicCodeEmail({ magicCode }));
 
 const main = {
   backgroundColor: '#ffffff',
