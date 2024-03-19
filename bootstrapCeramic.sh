@@ -59,9 +59,4 @@ echo "$CTX deploying composites..."
 npm run --workspace packages/composedb deployComposites
 popd
 
-echo "$CTX composites deployed! Copying composite runtime definition to local-data/ceramic..."
-cp \
-  "$CODEX_REPO_PATH/packages/composedb/src/__generated__/definition.js" \
-  local-data/ceramic/definition.js
-
 echo "$CTX Done! Re-run this script if local state is cleaned."

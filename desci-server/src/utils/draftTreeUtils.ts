@@ -10,7 +10,7 @@ import {
 import { encode, prepare } from '@ipld/dag-pb';
 import { DraftNodeTree, Node, Prisma, User } from '@prisma/client';
 import CID from 'cids';
-import UnixFS from 'ipfs-unixfs';
+import { UnixFS }from 'ipfs-unixfs';
 import DagPb from 'ipld-dag-pb';
 import type { DAGLink as DAGLinkType } from 'ipld-dag-pb';
 
