@@ -8,7 +8,8 @@ const BaseProvider = ({ children }: { children: JSX.Element }) => {
         theme: {
           extend: {
             colors: {
-              primary: '#77dde4',
+              primary: '#28aac4;',
+              'primary-hover': '#77dde4',
             },
           },
         },
