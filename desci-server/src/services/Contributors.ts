@@ -1,12 +1,12 @@
 import { error } from 'console';
 
 import { Node, NodeContribution, User } from '@prisma/client';
+import ShortUniqueId from 'short-unique-id';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { hexToCid } from '../utils.js';
-import ShortUniqueId from 'short-unique-id';
 
 type ContributorId = string;
 export type NodeContributorMap = Record<ContributorId, { name: string; verified: boolean }>;
