@@ -16,7 +16,7 @@ import * as React from 'react';
 
 import MainLayout from './MainLayout.js';
 
-interface MagicCodeEmailProps {
+export interface MagicCodeEmailProps {
   magicCode: string;
 }
 
@@ -40,7 +40,6 @@ export const MagicCodeEmail = ({ magicCode }: MagicCodeEmailProps) => (
 );
 
 export default MagicCodeEmail;
-export const MagicCodeEmailHtml = ({ magicCode }: MagicCodeEmailProps) => render(MagicCodeEmail({ magicCode }));
 
 const main = {
   backgroundColor: '#ffffff',

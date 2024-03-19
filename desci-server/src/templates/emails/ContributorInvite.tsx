@@ -16,7 +16,7 @@ import * as React from 'react';
 
 import MainLayout from './MainLayout.js';
 
-interface ContributorInviteEmailProps {
+export interface ContributorInviteEmailProps {
   inviter: string;
   nodeUuid: string;
   contributorId: string;
@@ -35,7 +35,7 @@ export const ContributorInvite = ({
   contributorId,
   newUser,
 }: ContributorInviteEmailProps) => {
-  if (nodeUuid.endsWith('.') || nodeUuid.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
+  if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
   const privShareUrl = `https://nodes.desci.com/node/${nodeUuid}?shareId=${privShareCode}`;
   const contributorUrl = `https://nodes.desci.com/node/${nodeUuid}/contributors/${contributorId}?shareId=${privShareCode}`;
   return (
@@ -84,15 +84,6 @@ export const ContributorInvite = ({
 };
 
 export default ContributorInvite;
-
-export const ContributorInviteEmailHtml = ({
-  inviter,
-  nodeUuid,
-  privShareCode,
-  contributorId,
-  newUser,
-}: ContributorInviteEmailProps) =>
-  render(ContributorInvite({ inviter, nodeUuid, privShareCode, contributorId, newUser }));
 
 const main = {
   backgroundColor: '#ffffff',
