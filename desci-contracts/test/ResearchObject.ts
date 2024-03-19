@@ -10,8 +10,7 @@ import {
 import "@nomiclabs/hardhat-waffle";
 import { ResearchObject__factory, ResearchObject } from "../typechain-types";
 import { randomBytes } from "crypto";
-// import { formatBytes32String } from "ethers/lib/utils";
-import * as CID from "cids";
+import { convertCidStringToHex } from "./lib/utils";
 
 describe("ResearchObject", function () {
   let accounts: Signer[];
@@ -145,18 +144,18 @@ describe("ResearchObject", function () {
 });
 
 const getBytes = () => {
-  const rootStrHex = new CID(
-    "bafybeiexeicryslhwnydxpffx6tv2lz6jg4orcm4pi2val53v4ig77i7ri"
-  ).toString("base16");
+  const rootStrHex = convertCidStringToHex(
+    "bafkreiepot62powegf7tt73gyiz24facsdloywggattt2asz5y4eaqhkyi"
+  );
   const hexEncoded =
     "0x" + (rootStrHex.length % 2 == 0 ? rootStrHex : "0" + rootStrHex);
   return hexEncoded;
 };
 
 const getBytes2 = () => {
-  const rootStrHex = new CID(
+  const rootStrHex = convertCidStringToHex(
     "bafybeidockyyycgrbwzacxknscvewla4ymlr4k54mbqc3ttsiq62ws2fqu"
-  ).toString("base16");
+  );
   const hexEncoded =
     "0x" + (rootStrHex.length % 2 == 0 ? rootStrHex : "0" + rootStrHex);
   return hexEncoded;

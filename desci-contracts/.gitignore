@@ -8,5 +8,6 @@ frontend/*
 subgraph/subgraph.yaml
 build
 .openzeppelin/unknown-*.json
+.openzeppelin/migration-complete.json
 *.dbg.json
 flat.sol

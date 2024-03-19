@@ -1,10 +1,26 @@
+# Migrating from goerli to local and sepolia
+
+```
+# Perform DPID migration to LOCALHOST (ganache)
+npx hardhat run scripts/migrateToNewContract.js --network ganache
+
+# Deploy to SEPOLIA. Ensure PRIVATE_KEY is set with wallet containing enough sepolia eth
+npx hardhat run scripts/migrateToNewContract.js --network sepoliaDev
+```
+
 # Running Locally
+
 ======================
+
 # Step 1: Start local chain (Only if making contract changes locally, otherwise you can point to Kovan testnet)
+
 ========================================================
+
 # Run local Optimism Docker (network: optimistic)
+
 Make sure local Docker Desktop app is running
 Instructions: https://community.optimism.io/docs/developers/build/dev-node/
+
 ```
 # the command to start (in the optimism/ops folder)
 docker-compose -f docker-compose-nobuild.yml up
@@ -17,6 +33,7 @@ L1 (Ethereum) node: http://localhost:9545
 L2 (Optimism) node: http://localhost:8545
 
 # Step 2: Deploy new version of contracts locally
+
 ```
 npx hardhat run scripts/deployResearchObject.js --network ganache
 
@@ -29,6 +46,7 @@ Contract addresses are stored in .openzeppelin/unknown-CHAINID.json (or mainnet.
 ABIs are stored in artifacts/ResearchObject.sol/ResearchObject.json
 
 # Step 3 (Optional): Deploy to staging (running our own private test chain)
+
 ```
 # ensure logged into AWS using aws-cli
 yarn docker:build
@@ -36,15 +54,19 @@ yarn docker:push
 ```
 
 # Tip: run tests
+
 npx hardhat test
 
 # Tip: flatten for remix dev
+
 npx hardhat flatten
 
 # TypeScript / TypeChain
+
 ```
 npx hardhat typechain
 ```
+
 You should see TypeScript support for the contracts (i.e. ResearchObject, etc) for Hardhat Tests and anywhere the contract is called (desci-dapp, desci-server, contract tests)
 To support IDE autocompletion of smart contract calls from TypeScript we use TypeChain to generate types
 These types are shipped to desci-contracts/typechain-types as specified in hardhat.config.ts
