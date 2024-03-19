@@ -10,6 +10,7 @@ import {
   Text,
   Button,
   Section,
+  render,
 } from '@react-email/components';
 import * as React from 'react';
 
@@ -27,7 +28,7 @@ const NEW_USER_TEXT = `Sign up on Desci Nodes to confirm your contribution to en
 const EXISTING_USER_TEXT = `Confirm your contribution to ensure
 you're credited for your work.`;
 
-export const ContributorInviteNew = ({
+export const ContributorInvite = ({
   inviter,
   nodeUuid,
   privShareCode,
@@ -82,7 +83,16 @@ export const ContributorInviteNew = ({
   );
 };
 
-export default ContributorInviteNew;
+export default ContributorInvite;
+
+export const ContributorInviteEmailHtml = ({
+  inviter,
+  nodeUuid,
+  privShareCode,
+  contributorId,
+  newUser,
+}: ContributorInviteEmailProps) =>
+  render(ContributorInvite({ inviter, nodeUuid, privShareCode, contributorId, newUser }));
 
 const main = {
   backgroundColor: '#ffffff',
