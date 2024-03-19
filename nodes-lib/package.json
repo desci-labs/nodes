@@ -27,7 +27,7 @@
     "docs": "typedoc src/index.ts"
   },
   "dependencies": {
-    "@desci-labs/desci-codex-lib": "^1.0.5",
+    "@desci-labs/desci-codex-lib": "^1.1.6",
     "@desci-labs/desci-models": "^0.2.3-rc1",
     "axios": "^1.6.5",
     "dotenv": "^16.4.4",

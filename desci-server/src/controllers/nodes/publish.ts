@@ -106,7 +106,7 @@ export const publish = async (
       where: { uuid: ensureUuidEndsWithDot(uuid), status: { not: PublishTaskQueueStatus.FAILED } },
     });
 
-    if (task) return res.status(400).json({ error: 'Not is currenlty being publish' });
+    if (task) return res.status(400).json({ error: 'Node publishing in progress' });
 
     saveInteraction(
       req,
