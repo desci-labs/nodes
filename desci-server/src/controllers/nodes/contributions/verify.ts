@@ -6,14 +6,10 @@ import { contributorService } from '../../../services/Contributors.js';
 
 export type VerifyContributionReqBody = {
   contributorId: string;
-  email?: string;
-  orcid?: string;
-  userId?: number;
 };
 
 export type VerifyContributionRequest = Request<never, never, VerifyContributionReqBody> & {
   user: User; // added by auth middleware
-  node: Node; // added by ensureWriteAccess middleware
 };
 
 export type VerifyContributionResBody =
