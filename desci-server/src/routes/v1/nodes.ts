@@ -1,5 +1,11 @@
 import { Router } from 'express';
 
+import { addContributor } from '../../controllers/nodes/contributions/create.js';
+import { deleteContributor } from '../../controllers/nodes/contributions/delete.js';
+import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
+import { getUserContributions } from '../../controllers/nodes/contributions/getUserContributions.js';
+import { updateContributor } from '../../controllers/nodes/contributions/update.js';
+import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import {
@@ -25,7 +31,7 @@ import { prepublish } from '../../controllers/nodes/prepublish.js';
 import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { attachUser } from '../../internal.js';
-import { ensureNodeAccess } from '../../middleware/authorisation.js';
+import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
@@ -51,6 +57,12 @@ router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatchDocumentChange);
 router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
+router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addContributor);
+router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], updateContributor);
+router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], deleteContributor);
+router.get('/contributions/user/:userId', [], getUserContributions);
+router.get('/contributions/node/:uuid', [attachUser], getNodeContributions);
+router.patch('/contributions/verify', [ensureUser], verifyContribution);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 

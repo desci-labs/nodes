@@ -12,7 +12,6 @@ interface ExpectedBody {
     googleScholarUrl?: string;
     rorPid?: string[];
     organization: Organization[];
-    orcid?: string;
   };
 }
 
@@ -38,17 +37,12 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
     const updatedProfile = {} as {
       name?: string;
       googleScholarUrl?: string;
-      orcid?: string;
       rorPid?: string[];
       organization?: string;
       email?: string;
     };
 
     updatedProfile.name = profile.name;
-
-    if (profile?.orcid) {
-      updatedProfile.orcid = profile.orcid;
-    }
 
     if (profile?.organization) {
       const userOrgs = await prisma.userOrganizations.findMany({ where: { userId: user.id } });

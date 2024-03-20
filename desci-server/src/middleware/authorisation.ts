@@ -19,7 +19,8 @@ export interface RequestWithNode extends RequestWithUser {
 export const ensureWriteNodeAccess = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   // Comes after ensureUser middleware, or if formdata fields are used, it should come after the middleware processing the formdata.
   const user = req.user;
-  const { uuid } = req.body;
+  const uuid = req.body?.uuid || req.query?.uuid || req.params?.uuid;
+
   const logger = parentLogger.child({
     module: 'MIDDLEWARE::ensureWriteAccess',
     user: { id: user.id },
