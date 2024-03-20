@@ -62,6 +62,7 @@ jobs:
 
       - name: Deploy desci-media-isolated to EKS (STAGING)
         run: | # defaults to latest kubectl binary version
+          kubectl apply -f desci-media-isolated/kubernetes/deployment_staging.yaml
           kubectl set image deployment/desci-media-isolated-staging desci-media-isolated-staging=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_ISOLATED-staging:${{ github.sha }} --record
 
       - name: Verify desci-media-isolated KS Deployment (STAGING)
@@ -114,6 +115,7 @@ jobs:
 
       - name: Deploy nodes-media-server to EKS (STAGING)
         run: | # defaults to latest kubectl binary version
+          kubectl apply -f nodes-media/kubernetes/deployment_staging.yaml
           kubectl set image deployment/nodes-media-server-staging nodes-media-server-staging=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_MEDIA-staging:${{ github.sha }} --record
 
       - name: Verify nodes-media-server KS Deployment (STAGING)
