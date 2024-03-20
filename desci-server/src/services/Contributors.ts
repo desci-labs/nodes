@@ -7,10 +7,20 @@ import { getIndexedResearchObjects } from '../theGraph.js';
 import { hexToCid } from '../utils.js';
 
 type ContributorId = string;
-export type NodeContributorMap = Record<
-  ContributorId,
-  { name: string | undefined; verified: boolean; userId: number; deleted: boolean; deletedAt: string }
->;
+
+export type NodeContributorMap = Record<ContributorId, NodeContributor>;
+export type NodeContributorMapAuthed = Record<ContributorId, NodeContributorAuthed>;
+export interface NodeContributor {
+  name: string | undefined;
+  verified: boolean;
+  userId: number;
+  deleted: boolean;
+  deletedAt: string;
+}
+export interface NodeContributorAuthed extends NodeContributor {
+  email?: string;
+  orcid?: string;
+}
 
 export type UserContribution = { uuid: string; manifestCid: string };
 
@@ -138,7 +148,11 @@ class ContributorService {
     return false;
   }
 
-  async retrieveContributionsForNode(node: Node, contributorIds: string[]): Promise<NodeContributorMap> {
+  async retrieveContributionsForNode(
+    node: Node,
+    contributorIds: string[],
+    authedMode = false,
+  ): Promise<NodeContributorMap | NodeContributorMapAuthed> {
     const contributions = await prisma.nodeContribution.findMany({
       where: { nodeId: node.id, contributorId: { in: contributorIds } },
       include: { user: true },
@@ -151,6 +165,7 @@ class ContributorService {
         userId: contributor.user?.id,
         deleted: contributor.deleted,
         deletedAt: contributor.deletedAt,
+        ...(authedMode && { email: contributor.email, orcid: contributor.orcid }),
       };
       return acc;
     }, {});

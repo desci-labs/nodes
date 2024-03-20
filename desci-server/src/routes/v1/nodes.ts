@@ -61,7 +61,7 @@ router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addCont
 router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], updateContributor);
 router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], deleteContributor);
 router.get('/contributions/user/:userId', [], getUserContributions);
-router.get('/contributions/node/:uuid', [], getNodeContributions);
+router.get('/contributions/node/:uuid', [attachUser], getNodeContributions);
 router.patch('/contributions/verify', [ensureUser], verifyContribution);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
