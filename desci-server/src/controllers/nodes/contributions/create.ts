@@ -1,15 +1,37 @@
+import { Node, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import { Request, Response } from 'express';
 
 import { logger as parentLogger } from '../../../logger.js';
 import { contributorService } from '../../../services/Contributors.js';
-import { ContributorInviteEmailHtml } from '../../../templates/emails/ContributorInvite.js';
+import { ContributorInviteEmailHtml } from '../../../templates/emails/utils/emailRenderer.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-export const addContributor = async (req: Request, res: Response) => {
-  const node = (req as any).node;
-  const user = (req as any).user;
+export type AddContributorReqBody = {
+  contributorId: string;
+  email?: string;
+  orcid?: string;
+  userId?: number;
+};
+
+export type AddContributorRequest = Request<never, never, AddContributorReqBody> & {
+  user: User; // added by auth middleware
+  node: Node; // added by ensureWriteAccess middleware
+};
+
+export type AddContributorResBody =
+  | {
+      ok: boolean;
+      message: string;
+    }
+  | {
+      error: string;
+    };
+
+export const addContributor = async (req: AddContributorRequest, res: Response<AddContributorResBody>) => {
+  const node = req.node;
+  const user = req.user;
 
   if (!node || !user)
     throw Error('Middleware not properly setup for addContributor controller, requires req.node and req.user');
@@ -17,12 +39,11 @@ export const addContributor = async (req: Request, res: Response) => {
   const { contributorId, orcid, userId } = req.body;
   let { email } = req.body;
   if (email) email = email.toLowerCase();
-
   const logger = parentLogger.child({
     module: 'Contributors::createController',
     body: req.body,
     uuid: node.uuid,
-    user: (req as any).user,
+    user: req.user,
     nodeId: node.id,
   });
 
@@ -68,7 +89,7 @@ export const addContributor = async (req: Request, res: Response) => {
       sgMail.send(emailMsg);
     }
     logger.info({ contributorAdded }, 'Contributor added successfully');
-    return res.status(200).json({ message: 'Contributor added successfully' });
+    return res.status(200).json({ ok: true, message: 'Contributor added successfully' });
   } catch (e) {
     logger.error({ e }, 'Failed to add contributor');
     return res.status(500).json({ error: 'Failed to add contributor' });

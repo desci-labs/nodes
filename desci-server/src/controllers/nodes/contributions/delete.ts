@@ -1,11 +1,30 @@
+import { Node, User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { logger as parentLogger } from '../../../logger.js';
 import { contributorService } from '../../../services/Contributors.js';
 
-export const deleteContributor = async (req: Request, res: Response) => {
-  const node = (req as any).node;
-  const user = (req as any).user;
+export type DeleteContributorReqBody = {
+  contributorId: string;
+};
+
+export type DeleteContributorRequest = Request<never, never, DeleteContributorReqBody> & {
+  user: User; // added by auth middleware
+  node: Node; // added by ensureWriteAccess middleware
+};
+
+export type DeleteContributorResBody =
+  | {
+      ok: boolean;
+      message: string;
+    }
+  | {
+      error: string;
+    };
+
+export const deleteContributor = async (req: DeleteContributorRequest, res: Response<DeleteContributorResBody>) => {
+  const node = req.node;
+  const user = req.user;
 
   if (!node || !user)
     throw Error('Middleware not properly setup for addContributor controller, requires req.node and req.user');
@@ -29,7 +48,7 @@ export const deleteContributor = async (req: Request, res: Response) => {
     const contributorRemoved = await contributorService.removeContributor(contributorId, node.id);
     if (contributorRemoved) {
       logger.info('Contributor deleted successfully');
-      return res.status(200).json({ message: 'Contributor deleted successfully' });
+      return res.status(200).json({ ok: true, message: 'Contributor deleted successfully' });
     }
   } catch (e) {
     logger.error({ e }, 'Failed to delete contributor');

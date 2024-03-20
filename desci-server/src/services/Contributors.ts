@@ -12,6 +12,8 @@ export type NodeContributorMap = Record<
   { name: string | undefined; verified: boolean; userId: number; deleted: boolean; deletedAt: string }
 >;
 
+export type UserContribution = { uuid: string; manifestCid: string };
+
 export type Contribution = {
   nodeUuid: string;
   contributorId: string;
@@ -154,12 +156,13 @@ class ContributorService {
     }, {});
   }
 
-  async retrieveContributionsForUser(user: User): Promise<{ uuid: string; manifestCid: string }[]> {
+  async retrieveContributionsForUser(user: User): Promise<UserContribution[]> {
     const contributions = await prisma.nodeContribution.findMany({
       where: { userId: user.id },
       include: { node: true },
     });
     const nodeUuids = contributions.map((contribution) => contribution.node.uuid);
+    // Filter out for published works
     const { researchObjects } = await getIndexedResearchObjects(nodeUuids);
     const NodesWithManifestCids = researchObjects.map((ro) => {
       // convert hex string to integer

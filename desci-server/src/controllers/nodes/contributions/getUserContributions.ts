@@ -2,9 +2,27 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { contributorService } from '../../../services/Contributors.js';
+import { UserContribution, contributorService } from '../../../services/Contributors.js';
 
-export const getUserContributions = async (req: Request, res: Response) => {
+export type GetUserContributionsReqBody = {
+  contributorIds: string[];
+};
+
+export type GetUserContributionsRequest = Request<never, never, GetUserContributionsReqBody>;
+
+export type GetUserContributionsResBody =
+  | {
+      ok: boolean;
+      userContributions: UserContribution[];
+    }
+  | {
+      error: string;
+    };
+
+export const getUserContributions = async (
+  req: GetUserContributionsRequest,
+  res: Response<GetUserContributionsResBody>,
+) => {
   const { userId } = req.params;
 
   const logger = parentLogger.child({
@@ -22,7 +40,7 @@ export const getUserContributions = async (req: Request, res: Response) => {
     const userContributions = await contributorService.retrieveContributionsForUser(user);
     if (userContributions) {
       logger.info({ totalContributions: userContributions.length }, 'Contributions retrieved successfully');
-      return res.status(200).json({ userContributions });
+      return res.status(200).json({ ok: true, userContributions });
     }
   } catch (e) {
     logger.error({ e }, 'Failed to retrieve user contributions');

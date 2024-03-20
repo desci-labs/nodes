@@ -31,7 +31,7 @@ export const MagicCodeEmail = ({ magicCode }: MagicCodeEmailProps) => (
             Your magic code is ready!
           </Heading>
           <Section className="mx-auto w-fit my-5 bg-opacity-90 backdrop-blur-xl rounded-md px-14 py-3" align="center">
-            <Text className="text-lg text-center tracking-[0.3em]">{magicCode}</Text>
+            <Text className="text-lg text-center tracking-[0.3em]">{magicCode}420420</Text>
           </Section>
         </Container>
       </Body>

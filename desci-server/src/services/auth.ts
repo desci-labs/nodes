@@ -6,7 +6,7 @@ import AWS from 'aws-sdk';
 
 import { prisma as client } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
-import { MagicCodeEmailHtml } from '../templates/emails/MagicCode.js';
+import { MagicCodeEmailHtml } from '../templates/emails/utils/emailRenderer.js';
 import createRandomCode from '../utils/createRandomCode.js';
 import { hideEmail } from '../utils.js';
 

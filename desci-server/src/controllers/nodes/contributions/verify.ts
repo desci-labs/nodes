@@ -1,9 +1,31 @@
+import { Node, User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { logger as parentLogger } from '../../../logger.js';
 import { contributorService } from '../../../services/Contributors.js';
 
-export const verifyContribution = async (req: Request, res: Response) => {
+export type VerifyContributionReqBody = {
+  contributorId: string;
+  email?: string;
+  orcid?: string;
+  userId?: number;
+};
+
+export type VerifyContributionRequest = Request<never, never, VerifyContributionReqBody> & {
+  user: User; // added by auth middleware
+  node: Node; // added by ensureWriteAccess middleware
+};
+
+export type VerifyContributionResBody =
+  | {
+      ok: boolean;
+      message: string;
+    }
+  | {
+      error: string;
+    };
+
+export const verifyContribution = async (req: VerifyContributionRequest, res: Response<VerifyContributionResBody>) => {
   const user = (req as any).user;
 
   if (!user) throw Error('Middleware not properly setup for verifyContribution controller, requires req.user');
@@ -25,7 +47,7 @@ export const verifyContribution = async (req: Request, res: Response) => {
     const verified = await contributorService.verifyContribution(user, contributorId);
     if (verified) {
       logger.info('Contribution verified successfully');
-      return res.status(200).json({ message: 'Contribution verified successfully' });
+      return res.status(200).json({ ok: true, message: 'Contribution verified successfully' });
     }
   } catch (e) {
     logger.error({ e }, 'Failed to verify contributor');
