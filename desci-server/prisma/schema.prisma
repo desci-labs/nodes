@@ -482,6 +482,7 @@ model NodeContribution {
   nodeId        Int
   userId        Int?
   verified      Boolean   @default(false)
+  denied        Boolean   @default(false)
   email         String?
   orcid         String?
   deleted       Boolean   @default(false)
