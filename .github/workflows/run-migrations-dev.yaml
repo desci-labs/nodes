@@ -48,4 +48,4 @@ jobs:
       - name: Migrate DB (DEV)
         if: github.ref == 'refs/heads/develop'
         run: |
-          kubectl exec -it $(kubectl get pods -l app=desci-server-dev -o jsonpath="{.items[0].metadata.name}") -- source /vault/secrets/config && npx prisma migrate deploy
+          kubectl exec -it $(kubectl get pods -l App=DesciServerDev -o jsonpath="{.items[0].metadata.name}") -- source /vault/secrets/config && npx prisma migrate deploy
