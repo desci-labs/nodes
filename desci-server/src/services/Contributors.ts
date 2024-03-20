@@ -1,5 +1,3 @@
-import { error } from 'console';
-
 import { Node, NodeContribution, User } from '@prisma/client';
 import ShortUniqueId from 'short-unique-id';
 
@@ -9,7 +7,10 @@ import { getIndexedResearchObjects } from '../theGraph.js';
 import { hexToCid } from '../utils.js';
 
 type ContributorId = string;
-export type NodeContributorMap = Record<ContributorId, { name: string; verified: boolean }>;
+export type NodeContributorMap = Record<
+  ContributorId,
+  { name: string | undefined; verified: boolean; userId: number; deleted: boolean; deletedAt: string }
+>;
 
 export type Contribution = {
   nodeUuid: string;
@@ -135,20 +136,17 @@ class ContributorService {
     return false;
   }
 
-  // async retrieveContributionsForNode(node: Node, contributorIds: string[]): Promise<NodeContributorMap> {
-  async retrieveContributionsForNode(node: Node): Promise<NodeContributorMap> {
+  async retrieveContributionsForNode(node: Node, contributorIds: string[]): Promise<NodeContributorMap> {
     const contributions = await prisma.nodeContribution.findMany({
-      where: { nodeId: node.id, userId: { not: null } },
-      // where: { nodeId: node.id, contributorId: { in: contributorIds }, userId: { not: null } },
+      where: { nodeId: node.id, contributorId: { in: contributorIds } },
       include: { user: true },
     });
-    // TODO: Add flag for published/non published, filter out depending on auth
 
     return contributions.reduce((acc, contributor) => {
       acc[contributor.contributorId] = {
-        name: contributor.user.name,
-        verified: contributor.verified,
-        userId: contributor.user.id,
+        name: contributor.user?.name,
+        verified: !!contributor.verified,
+        userId: contributor.user?.id,
         deleted: contributor.deleted,
         deletedAt: contributor.deletedAt,
       };

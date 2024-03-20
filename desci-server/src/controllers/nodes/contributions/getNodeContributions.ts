@@ -2,10 +2,28 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { contributorService } from '../../../services/Contributors.js';
+import { NodeContributorMap, contributorService } from '../../../services/Contributors.js';
 import { ensureUuidEndsWithDot } from '../../../utils.js';
 
-export const getNodeContributions = async (req: Request, res: Response) => {
+export type GetNodeContributionsReqBody = {
+  contributorIds: string[];
+};
+
+export type GetNodeContributionsRequest = Request<never, never, GetNodeContributionsReqBody>;
+
+export type GetNodeContributionsResBody =
+  | {
+      ok: boolean;
+      nodeContributions: NodeContributorMap;
+    }
+  | {
+      error: string;
+    };
+
+export const getNodeContributions = async (
+  req: GetNodeContributionsRequest,
+  res: Response<GetNodeContributionsResBody>,
+) => {
   const { uuid } = req.params;
   const { contributorIds } = req.body;
 
@@ -25,11 +43,13 @@ export const getNodeContributions = async (req: Request, res: Response) => {
 
   try {
     const node = await prisma.node.findUnique({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
-    // const nodeContributions = await contributorService.retrieveContributionsForNode(node, contributorIds);
-    const nodeContributions = await contributorService.retrieveContributionsForNode(node);
+    const nodeContributions: NodeContributorMap = await contributorService.retrieveContributionsForNode(
+      node,
+      contributorIds,
+    );
     if (nodeContributions) {
       logger.info({ totalContributions: nodeContributions.length }, 'Contributions retrieved successfully');
-      return res.status(200).json({ nodeContributions });
+      return res.status(200).json({ ok: true, nodeContributions });
     }
   } catch (e) {
     logger.error({ e }, 'Failed to retrieve node contributions');
