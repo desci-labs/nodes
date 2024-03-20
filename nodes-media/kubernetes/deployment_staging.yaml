@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodes-media-server-staging
+  labels:
+    App: NodesMediaServerStaging
+spec:
+  replicas: 2
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      App: NodesMediaServerStaging
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-status: 'update'
+        vault.hashicorp.com/role: app-vault-reader
+        vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/staging/db
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secrets/desci-server/staging/app" -}}
+          echo "sourcing"; 
+          export AWS_ACCESS_KEY_ID={{ .Data.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY={{ .Data.AWS_SECRET_ACCESS_KEY }}
+          export IPFS_NODE_URL={{ .Data.IPFS_NODE_URL }}
+          export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
+          {{- end -}}
+      labels:
+        App: NodesMediaServerStaging
+    spec:
+      containers:
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/nodes-media-server-staging:latest
+          name: nodes-media-server-staging
+          command: ['/bin/bash', '-c']
+          args:
+            - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
+          ports:
+            - containerPort: 5454
+          resources:
+            limits:
+              cpu: '0.5'
+              memory: 2Gi
+            requests:
+              cpu: 250m
+              memory: 1Gi
+      serviceAccountName: 'vault-auth'

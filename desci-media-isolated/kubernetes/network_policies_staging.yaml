@@ -2,16 +2,16 @@
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
-  name: allow-backend-pod-to-isolated-media-server-comms
+  name: allow-backend-pod-to-isolated-media-server-comms-staging
 spec:
   podSelector:
     matchLabels:
-      App: DesciMediaIsolated
+      App: DesciMediaIsolatedStaging
   ingress:
     - from:
         - podSelector:
             matchLabels:
-              allow-from: 'DesciServer'
+              allow-from: 'DesciServerStaging'
   policyTypes:
     - Ingress
 ---
@@ -19,15 +19,15 @@ spec:
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
-  name: allow-egress-to-desciserver-only
+  name: allow-egress-to-desciserver-only-staging
 spec:
   podSelector:
     matchLabels:
-      App: DesciMediaIsolated
+      App: DesciMediaIsolatedStaging
   egress:
     - to:
         - podSelector:
             matchLabels:
-              allow-from: 'DesciServer'
+              allow-from: 'DesciServerStaging'
   policyTypes:
     - Egress

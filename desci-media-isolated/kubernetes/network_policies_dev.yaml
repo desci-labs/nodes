@@ -14,8 +14,7 @@ spec:
               allow-from: 'DesciServerDev'
   policyTypes:
     - Ingress
-
-
+---
 # Enable egress to DesciServerDev only
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1

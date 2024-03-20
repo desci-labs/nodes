@@ -50,7 +50,7 @@ open "http://127.0.0.1:8200"
 Made changes to `kubernetes/*.yml`? Need to _update environment variable?_
 
 ```bash
-kubectl apply -f ./kubernetes/deployment_production.yaml
+kubectl apply -f ./kubernetes/deployment_prod.yaml
 
 # debug pod with bash
 POD_ID=$(kubectl get pods --no-headers=true | awk '{print $1}' | head -n 1)
