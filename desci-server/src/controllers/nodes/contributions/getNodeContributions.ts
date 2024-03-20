@@ -9,7 +9,7 @@ export type GetNodeContributionsReqBody = {
   contributorIds: string[];
 };
 
-export type GetNodeContributionsRequest = Request<never, never, GetNodeContributionsReqBody>;
+export type GetNodeContributionsRequest = Request<{ uuid: string }, never, GetNodeContributionsReqBody>;
 
 export type GetNodeContributionsResBody =
   | {
