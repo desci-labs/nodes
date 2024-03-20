@@ -17,10 +17,6 @@ jobs:
     name: Migrate database (DEV)
     runs-on: ubuntu-latest
     steps:
-      - uses: hashicorp/setup-terraform@v1
-      - name: Checkout
-        uses: actions/checkout@master
-
       # Add steps here like linting, testing, minification, etc.
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
