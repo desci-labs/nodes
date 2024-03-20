@@ -191,7 +191,7 @@ jobs:
       - name: Deploy to EKS (PROD)
         if: github.ref == 'refs/heads/main'
         run: | # defaults to latest kubectl binary version
-          kubectl apply -f desci-server/kubernetes/deployment.yaml
+          kubectl apply -f desci-server/kubernetes/deployment_production.yaml
           kubectl set image deployment/desci-server desci-server=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} --record
 
       - name: Verify EKS Deployment (DEV)
