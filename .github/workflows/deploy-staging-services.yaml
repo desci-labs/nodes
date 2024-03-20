@@ -20,6 +20,10 @@ jobs:
     name: Build and deploy desci-isolated-media-server STAGING
     runs-on: ubuntu-latest
     steps:
+      - uses: hashicorp/setup-terraform@v1
+      - name: Checkout
+        uses: actions/checkout@master
+
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
         with:
@@ -73,6 +77,10 @@ jobs:
     name: Build and deploy nodes-media STAGING
     runs-on: ubuntu-latest
     steps:
+      - uses: hashicorp/setup-terraform@v1
+      - name: Checkout
+        uses: actions/checkout@master
+
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
         with:
@@ -126,7 +134,10 @@ jobs:
     name: Build and deploy desci-repo STAGING
     runs-on: ubuntu-latest
     steps:
-      # Add steps here like linting, testing, minification, etc.
+      - uses: hashicorp/setup-terraform@v1
+      - name: Checkout
+        uses: actions/checkout@master
+
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
         with:
@@ -185,7 +196,10 @@ jobs:
     name: Build and deploy desci-server STAGING
     runs-on: ubuntu-latest
     steps:
-      # Add steps here like linting, testing, minification, etc.
+      - uses: hashicorp/setup-terraform@v1
+      - name: Checkout
+        uses: actions/checkout@master
+
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
         with:
