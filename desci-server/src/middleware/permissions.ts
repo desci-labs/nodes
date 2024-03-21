@@ -17,7 +17,7 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
   const apiKey = await extractApiKey(req);
   const authTokenRetrieval = await extractUserFromToken(token);
   const apiKeyRetrieval = await extractUserFromApiKey(apiKey, req.ip);
-  logger.info({ token, authTokenRetrieval }, 'ENSUER USER');
+  // logger.info({ token, authTokenRetrieval }, 'ENSUER USER');
   const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
 
   if (!retrievedUser) {
@@ -41,7 +41,7 @@ export const extractAuthToken = async (request: ExpressRequest | Request) => {
     if (authHeader) {
       token = authHeader.split(' ')[1];
     }
-    logger.info({ module: 'Permissions::extractToken', authHeaderLength: authHeader?.length || 0, token }, 'Request');
+    logger.info({ module: 'Permissions::extractToken', authHeaderLength: authHeader?.length || 0 }, 'Request');
 
     // Sanitize null or undefined string tokens passed from frontend
     if (token === 'null' || token === 'undefined') token = null;
@@ -74,7 +74,7 @@ export const extractTokenFromCookie = async (request: ExpressRequest | Request, 
         .filter(([key]) => key.trim().toLowerCase() === tokenName)[0];
       token = parsedTokenValue?.[1];
     }
-    logger.info({ cookie: request.headers['cookie'], token, tokenName }, 'COOKIE');
+    logger.info({ tokenFound: !!token, tokenName }, 'COOKIE');
   }
   return token;
 };
@@ -97,7 +97,7 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
         return;
       }
 
-      logger.info({ module: 'ExtractAuthUser', user, token }, 'User decrypted');
+      logger.info({ module: 'ExtractAuthUser', user, tokenFound: !!token }, 'User decrypted');
 
       if (!user) {
         resolve(null);

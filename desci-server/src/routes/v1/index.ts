@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { generateNonce } from 'siwe';
 
+import { prisma } from '../../client.js';
 import { queryResearchFields } from '../../controllers/data/index.js';
 import { queryRor } from '../../controllers/proxy/index.js';
 import { ipfsReadGatewayProxy } from '../../controllers/proxy/ipfsReadGateway.js';
 import { nft } from '../../controllers/raw/nft.js';
+import { asyncHander } from '../../internal.js';
 import { ensureUser } from '../../middleware/permissions.js';
-import { sendCookie } from '../../utils/sendCookie.js';
 
 import admin from './admin.js';
 import attestations from './attestations/index.js';
@@ -23,12 +24,24 @@ import waitlist from './waitlist.js';
 
 const router = Router();
 
-router.get('/nonce', [], async function (req, res) {
-  const nonce = generateNonce();
-  sendCookie(res, nonce, true, 'siwe');
-  res.setHeader('Content-Type', 'text/plain');
-  res.status(200).send(nonce);
-});
+router.get(
+  '/nonce',
+  [ensureUser],
+  asyncHander(async function (req, res) {
+    const nonce = generateNonce();
+    const user = (req as any).user;
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        siweNonce: nonce,
+      },
+    });
+    res.setHeader('Content-Type', 'text/plain');
+    res.status(200).send(nonce);
+  }),
+);
 
 router.use('/admin', admin);
 router.use('/auth', auth);
