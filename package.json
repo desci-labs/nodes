@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "gaxios": "^6.3.0",
-    "googleapis": "^133.0.0"
-  }
-}

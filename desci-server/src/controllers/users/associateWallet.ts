@@ -128,8 +128,6 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
     }
 
     const user = (req as any).user;
-    // const walletAddress = req.body.walletAddress;
-
     const message = new SiweMessage(req.body.message);
     const fields = await message.validate(req.body.signature);
     const siweNonce = await extractTokenFromCookie(req, 'siwe');
@@ -143,8 +141,6 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       });
       return;
     }
-
-    // if (getAddress(walletAddress) !== validateAddress) throw new AuthFailureError('Unrecognised DID credential');
 
     logger.info({ walletAddress, address: fields.address }, 'SIWE ADDRESS');
 
@@ -186,14 +182,6 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       res.status(500).send({ err });
     }
   } catch (e) {
-    await prisma.user.update({
-      where: {
-        id: (req as any).user.id,
-      },
-      data: {
-        siweNonce: '',
-      },
-    });
     logger.error({ err: e }, 'Error associating wallet to user');
     switch (e) {
       case ErrorTypes.EXPIRED_MESSAGE: {
@@ -263,8 +251,6 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
 
   const token = generateAccessToken({ email: user.email });
 
-  // TODO: DELETE SIWE TOKEN FROM COOKIE HEADER
-  removeCookie(res, 'siwe');
   sendCookie(res, token, dev === 'true');
   // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
   const termsAccepted = !!(await getUserConsent(user.id));
