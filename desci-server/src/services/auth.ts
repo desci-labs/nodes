@@ -128,7 +128,7 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
 
     const url = `${env.DAPP_URL}/web/login?e=${email}&c=${token}`;
     const goodIp = ip?.length > 0 && ip !== '::1' && ip !== '127.0.0.1' && ip !== 'localhost';
-    const emailHtml = MagicCodeEmailHtml({ magicCode: token });
+    const emailHtml = MagicCodeEmailHtml({ magicCode: token, ip: goodIp ? ip : '' });
     const msg = {
       to: email, // Change to your recipient
       from: 'no-reply@desci.com', // Change to your verified sender

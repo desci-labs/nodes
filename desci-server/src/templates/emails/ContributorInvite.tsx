@@ -62,7 +62,7 @@ export const ContributorInvite = ({
                   padding: '10px 20px',
                   marginRight: '10px',
                   // backdropFilter: 'blur(20px)',
-                  background: '#28aac485',
+                  background: '#28aac4',
                   // backgroundOpacity: '0.5',
                 }}
               >
@@ -71,7 +71,7 @@ export const ContributorInvite = ({
               <Button
                 href={contributorUrl}
                 className="backdrop-blur-2xl rounded-sm"
-                style={{ color: 'white', padding: '10px 20px', background: '#28aac485' }}
+                style={{ color: 'white', padding: '10px 20px', background: '#28aac4' }}
               >
                 Verify Contribution
               </Button>
@@ -98,7 +98,7 @@ const container = {
 };
 
 const h1 = {
-  color: '#ffffff',
+  color: '#000000',
   fontSize: '30px',
   fontWeight: '700',
   margin: '30px 0',
