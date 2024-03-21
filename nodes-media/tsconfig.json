@@ -24,7 +24,8 @@
         ],
         "baseUrl": "src/",
         "noImplicitReturns": true,
-        "noFallthroughCasesInSwitch": true
+        "noFallthroughCasesInSwitch": true,
+        "skipLibCheck": true
     },
     "include": [
         "./src/**/*.tsx",

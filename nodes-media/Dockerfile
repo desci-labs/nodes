@@ -1,4 +1,4 @@
-FROM node:16.16.0
+FROM node:18.17.0
 
 VOLUME /root/.yarn
 
