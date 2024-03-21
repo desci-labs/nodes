@@ -251,6 +251,7 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
 
   const token = generateAccessToken({ email: user.email });
 
+  removeCookie(res, 'siwe');
   sendCookie(res, token, dev === 'true');
   // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
   const termsAccepted = !!(await getUserConsent(user.id));
