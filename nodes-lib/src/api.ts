@@ -21,7 +21,7 @@ import {
 } from "@desci-labs/desci-models";
 import FormData from "form-data";
 import { createReadStream } from "fs";
-import type { NodeIDs } from "@desci-labs/desci-codex-lib/dist/src/types.js";
+import type { NodeIDs } from "@desci-labs/desci-codex-lib";
 import { publish } from "./publish.js";
 import type { ResearchObjectDocument } from "./automerge.js";
 import { randomUUID } from "crypto";
