@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
 
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
@@ -79,7 +79,7 @@ jobs:
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
 
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
@@ -136,7 +136,7 @@ jobs:
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
 
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
@@ -198,7 +198,7 @@ jobs:
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
 
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
