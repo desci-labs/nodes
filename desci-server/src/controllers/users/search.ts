@@ -1,13 +1,30 @@
+import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 
-export const searchProfiles = async (req: Request, res: Response) => {
+export type SearchProfilesRequest = Request<never, never, never, { name: string }> & {
+  user: User; // added by auth middleware
+};
+
+export type SearchProfilesResBody =
+  | {
+      profiles: UserProfile[];
+    }
+  | {
+      error: string;
+    };
+
+export type UserProfile = { name: string; id: number };
+
+export const searchProfiles = async (req: SearchProfilesRequest, res: Response<SearchProfilesResBody>) => {
+  const user = req.user;
   const { name } = req.query;
   const logger = parentLogger.child({
     module: 'Users::searchProfiles',
     body: req.body,
+    userId: user.id,
     name,
   });
 
@@ -17,7 +34,7 @@ export const searchProfiles = async (req: Request, res: Response) => {
     const profiles = await prisma.user.findMany({ where: { name: { contains: name as string, mode: 'insensitive' } } });
 
     if (profiles) {
-      const profilesReturn = profiles.map((profile) => ({ name: profile.name, id: profile.id }));
+      const profilesReturn: UserProfile[] = profiles.map((profile) => ({ name: profile.name, id: profile.id }));
       return res.status(200).json({ profiles: profilesReturn });
     }
   } catch (e) {
