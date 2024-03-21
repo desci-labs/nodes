@@ -7,21 +7,14 @@ import {
   neutralizePath,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
-import { encode, prepare } from '@ipld/dag-pb';
+import { createLink, createNode, encode, prepare, type PBLink } from '@ipld/dag-pb';
 import { DraftNodeTree, Node, Prisma, User } from '@prisma/client';
-import CID from 'cids';
 import { UnixFS }from 'ipfs-unixfs';
-import DagPb from 'ipld-dag-pb';
-import type { DAGLink as DAGLinkType } from 'ipld-dag-pb';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { client } from '../services/ipfs.js';
-// import * as multiformats from 'multiformats';
-// const dagPb = require('@ipld/dag-pb');
-// console.log('[IMPORT]', DagPbImport);
-// const { default: DagPb } = DagPbImport;
-const { DAGNode, DAGLink } = DagPb;
+import { CID } from 'multiformats';
 
 const logger = parentLogger.child({
   module: 'Utils::DraftTreeUtils',
@@ -174,7 +167,7 @@ export async function dagifyAndAddDbTreeToIpfs(nodeId: number): Promise<string> 
         ];
       }
 
-      const links: DAGLinkType[] = [];
+      const links: PBLink[] = [];
       // Create a new UnixFS instance for a directory
       const unixFsEntry = new UnixFS({ type: 'directory' });
 
@@ -183,9 +176,9 @@ export async function dagifyAndAddDbTreeToIpfs(nodeId: number): Promise<string> 
         // logger.debug(`Child CID: ${childCid}`); // debugging
 
         try {
-          const cidV1 = new CID(childCid);
+          const cid = CID.parse(childCid);
           // Create a new DAGLink
-          const link = new DAGLink(child.name, child.size, cidV1);
+          const link = createLink(child.name, child.size, cid);
           links.push(link);
         } catch (error) {
           logger.error({ error, childCid }, 'Error creating CID or DAGLink');
@@ -196,7 +189,7 @@ export async function dagifyAndAddDbTreeToIpfs(nodeId: number): Promise<string> 
       // Serialize the UnixFS entry to a buffer
       const buffer = unixFsEntry.marshal();
       // Create a new DAGNode with the serialized UnixFS entry
-      const dagNode = new DAGNode(buffer, links);
+      const dagNode = createNode(buffer, links);
       // Add the DAGNode to IPFS and return its CID
       const cid = await addDagNodeToIpfs(dagNode);
       return cid.toString();
