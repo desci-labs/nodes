@@ -5,7 +5,7 @@ import { base32 } from "multiformats/bases/base32";
 import { CID } from "multiformats/cid";
 
 export const convertUUIDToHex = (uuid: string) => {
-  const decoded = decode(uuid + ".");
+  const decoded = decode(uuid);
   const buffer = Base64Binary.decodeArrayBuffer(decoded).slice(0, 32);
   let base64UuidToBase16 = Buffer.from(buffer).toString("hex");
   base64UuidToBase16 = "0x" + (base64UuidToBase16.length % 2 == 0

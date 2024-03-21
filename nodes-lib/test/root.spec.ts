@@ -294,6 +294,8 @@ describe("nodes-lib", () => {
 
     describe("node update", async () => {
       beforeAll(async () => {
+        // async publish errors on re-publish before it finishes
+        await sleep(5_000);
         await publishDraftNode(uuid);
         // Allow graph node to index
         await sleep(1_500);

@@ -6,12 +6,12 @@ import { createWriteStream, existsSync, mkdirSync } from 'fs';
 import { promisify } from 'util';
 import * as stream from 'stream';
 import path from 'path';
-import * as ipfs from 'ipfs-http-client';
+import { create } from 'kubo-rpc-client';
 import { PUBLIC_IPFS_PATH } from 'config';
 import { readFile } from 'fs/promises';
 import * as im from 'imagemagick';
 
-const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
+const client = create({ url: process.env.IPFS_NODE_URL });
 
 const finished = promisify(stream.finished);
 const convertAsync = promisify(im.convert);
