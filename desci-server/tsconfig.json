@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "module": "nodenext",
-    
+
     /**
      * Implied by "module: nodenext":
      * "moduleResolution": "nodenext",
@@ -12,10 +12,7 @@
     // Recommended by docs, but a lot of errors
     // "verbatimModuleSyntax": true,
 
-    "lib": [
-      "esnext",
-      "dom"
-    ],
+    "lib": ["esnext", "dom"],
     "outDir": "./dist",
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -31,13 +28,9 @@
       // Overrides a built-in Response type
       "express": ["./src/types/express"]
     },
+    "jsx": "react"
   },
-  "include": [
-    "./src/**/*.tsx",
-    "./src/**/*.ts",
-    "./src/**/*.cjs",
-    "src/utils/dagConcat.ts"
-  ],
+  "include": ["./src/**/*.tsx", "./src/**/*.ts", "./src/**/*.cjs", "src/utils/dagConcat.ts"],
   "exclude": ["test/**/*.ts"],
   "compileOnSave": true
 }

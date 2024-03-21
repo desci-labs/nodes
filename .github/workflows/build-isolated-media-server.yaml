@@ -102,11 +102,13 @@ jobs:
         # uses: steebchen/kubectl@v2.0.0
         if: github.ref == 'refs/heads/develop'
         run: | # defaults to latest kubectl binary version
+          kubectl apply -f desci-media-isolated/kubernetes/deployment_dev.yaml
           kubectl set image deployment/desci-media-isolated-dev desci-media-isolated-dev=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} --record
 
       - name: Deploy to EKS (PROD)
         if: github.ref == 'refs/heads/main'
         run: | # defaults to latest kubectl binary version
+          kubectl apply -f desci-media-isolated/kubernetes/deployment_prod.yaml
           kubectl set image deployment/desci-media-isolated-prod desci-media-isolated-prod=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ github.sha }} --record
 
       - name: Verify EKS Deployment (DEV)

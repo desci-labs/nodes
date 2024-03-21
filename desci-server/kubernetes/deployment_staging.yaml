@@ -1,15 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: desci-server-staging
+spec:
+  selector:
+    App: DesciServerStaging
+  ports:
+    - port: 80
+      targetPort: 5420
+  type: LoadBalancer
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: desci-server
+  name: desci-server-staging
   labels:
-    App: DesciServer
+    App: DesciServerStaging
 spec:
-  replicas: 12
+  replicas: 6
   revisionHistoryLimit: 8
   selector:
     matchLabels:
-      App: DesciServer
+      App: DesciServerStaging
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -82,11 +94,11 @@ spec:
           echo "appfinish";
           {{- end -}}
       labels:
-        App: DesciServer
+        App: DesciServerStaging
     spec:
       containers:
-        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-server:latest
-          name: desci-server
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-server-staging:latest
+          name: desci-server-staging
           command: ['/bin/bash', '-c']
           args:
             - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
