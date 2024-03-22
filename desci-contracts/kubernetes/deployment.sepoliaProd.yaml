@@ -1,0 +1,100 @@
+#  CREATE DATABASE "graph-sepolia-prod" WITH ENCODING='UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;
+apiVersion: v1
+kind: Service
+metadata:
+  name: graph-node-prod-ext-sepolia
+spec:
+  selector:
+    App: GraphNodeSepoliaProd
+  ports:
+    - name: graphql
+      port: 80
+      targetPort: 8000
+  type: LoadBalancer
+  # loadBalancerSourceRanges:
+  #   - "103.21.244.0/22"
+  #   - "103.22.200.0/22"
+  #   - "103.31.4.0/22"
+  #   - "104.16.0.0/13"
+  #   - "104.24.0.0/14"
+  #   - "108.162.192.0/18"
+  #   - "131.0.72.0/22"
+  #   - "141.101.64.0/18"
+  #   - "162.158.0.0/15"
+  #   - "172.64.0.0/13"
+  #   - "173.245.48.0/20"
+  #   - "188.114.96.0/20"
+  #   - "190.93.240.0/20"
+  #   - "197.234.240.0/22"
+  #   - "198.41.128.0/17"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: graph-node-sepolia-prod-internal
+spec:
+  selector:
+    App: GraphNodeSepoliaProd
+  ports:
+    - name: graphql
+      port: 8000
+      targetPort: 8000
+    - name: admin
+      port: 8020
+      targetPort: 8020
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graph-node-sepolia-prod
+  labels:
+    App: GraphNodeSepoliaProd
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      App: GraphNodeSepoliaProd
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-status: "update"
+        vault.hashicorp.com/role: app-vault-reader
+        vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/graph-node-sepolia-prod
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secrets/desci-server/graph-node-sepolia-prod" -}}
+            export postgres_host={{ .Data.postgres_host }}
+            export postgres_user={{ .Data.postgres_user }}
+            export postgres_pass={{ .Data.postgres_pass }}
+            export postgres_db={{ .Data.postgres_db }}
+            export ipfs={{ .Data.ipfs }}
+            export ethereum={{ .Data.ethereum }}
+            export GRAPH_LOG=info
+          {{- end -}}
+      labels:
+        App: GraphNodeSepoliaProd
+    spec:
+      containers:
+        - image: graphprotocol/graph-node
+          name: graph-node-sepolia-prod
+          command: ["/bin/bash", "-c"]
+          args:
+            - echo "SOURCING ENV"; source /vault/secrets/config; start;
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              cpu: "1.0"
+              memory: 2Gi
+            requests:
+              cpu: 500m
+              memory: 1Gi
+      serviceAccountName: "vault-auth"
