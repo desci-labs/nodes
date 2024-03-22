@@ -101,7 +101,7 @@ module.exports = {
         : {
             mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
           },
-      gasPrice: 200000000000,
+      gasPrice: "auto",
     },
   },
   react: {
