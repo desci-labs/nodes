@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { NodeContributorAuthed, NodeContributorMap, contributorService } from '../../../services/Contributors.js';
+import { NodeContributorMap, NodeContributorMapAuthed, contributorService } from '../../../services/Contributors.js';
 import { ensureUuidEndsWithDot } from '../../../utils.js';
 
 export type GetNodeContributionsReqBody = {
@@ -17,7 +17,7 @@ export type GetNodeContributionsRequest = Request<{ uuid: string }, never, GetNo
 export type GetNodeContributionsResBody =
   | {
       ok: boolean;
-      nodeContributions: NodeContributorMap | NodeContributorAuthed;
+      nodeContributions: NodeContributorMap | NodeContributorMapAuthed;
     }
   | {
       error: string;
@@ -48,7 +48,7 @@ export const getNodeContributions = async (
   try {
     const node = await prisma.node.findUnique({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
     const authedMode = !!user && user.id === node?.ownerId;
-    const nodeContributions: NodeContributorMap | NodeContributorAuthed =
+    const nodeContributions: NodeContributorMap | NodeContributorMapAuthed =
       await contributorService.retrieveContributionsForNode(node, contributorIds, authedMode);
     if (nodeContributions) {
       logger.info({ totalContributions: nodeContributions.length }, 'Contributions retrieved successfully');
