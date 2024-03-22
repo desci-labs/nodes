@@ -25,7 +25,12 @@ export const createPrivateShare = async (req: Request, res: Response, next: Next
   const shareUUID = new ShortUniqueId.default({ length: 10 });
   const shareId = shareUUID() as string;
 
-  let privateShare = await prisma.privateShare.findFirst({ where: { nodeUUID: ensureUuidEndsWithDot(uuid) } });
+  let privateShare = await prisma.privateShare.findFirst({
+    where: {
+      nodeUUID: ensureUuidEndsWithDot(uuid),
+      OR: [{ memo: null }, { memo: '' }],
+    },
+  });
 
   if (privateShare) {
     res.send({ ok: true, shareId: privateShare.shareId });
@@ -54,7 +59,12 @@ export const getPrivateShare = async (req: Request, res: Response, next: NextFun
       throw new Error('Node not found');
     }
 
-    const privateShare = await prisma.privateShare.findFirst({ where: { nodeUUID: ensureUuidEndsWithDot(uuid) } });
+    const privateShare = await prisma.privateShare.findFirst({
+      where: {
+        nodeUUID: ensureUuidEndsWithDot(uuid),
+        OR: [{ memo: null }, { memo: '' }],
+      },
+    });
 
     if (!privateShare) {
       throw new Error('Private share link does not exists.');
@@ -98,7 +108,17 @@ export const revokePrivateShare = async (req: Request, res: Response, next: Next
       throw new Error('Node not found');
     }
 
-    await prisma.privateShare.delete({ where: { nodeUUID: ensureUuidEndsWithDot(uuid) } });
+    const privateShare = await prisma.privateShare.findFirst({
+      where: {
+        nodeUUID: ensureUuidEndsWithDot(uuid),
+        OR: [{ memo: null }, { memo: '' }],
+      },
+    });
+
+    if (privateShare)
+      await prisma.privateShare.delete({
+        where: { id: privateShare.id },
+      });
 
     res.send({ ok: true });
   } catch (e) {

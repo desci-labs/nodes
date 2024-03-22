@@ -1,4 +1,4 @@
-import { type NodeIDs } from "@desci-labs/desci-codex-lib/dist/src/index.js";
+import { type NodeIDs } from "@desci-labs/desci-codex-lib";
 import { getDpidHistory } from "./api.js";
 import { dpidPublish, hasDpid, type DpidPublishResult } from "./chain.js";
 import { codexPublish } from "./codex.js";

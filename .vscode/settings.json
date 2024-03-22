@@ -1,7 +1,17 @@
 {
   "explorer.compactFolders": false,
   "files.exclude": {
-    "**/node_modules/**": false
+    "**/node_modules/**": true
+  },
+  "editor.formatOnSave": true, // Tell VSCode to format files on save
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "typescript.format.enable": false,
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    }
   },
   "yaml.schemas": {
     "https://gitpod.io/schemas/gitpod-schema.json": "file:///workspace/desci-nodes/.gitpod.yml"
@@ -19,8 +29,15 @@
     "tw\\.[^`]+`([^`]*)`", // tw.xxx<xxx>`...`
     "tw\\(.*?\\).*?`([^`]*)" // tw(Component)<xxx>`...`
   ],
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "editor.formatOnSave": true,
+  "solidity.packageDefaultDependenciesContractsDirectory": "./desci-contracts/node_modules",
+  "solidity.remappingsUnix": [
+    "@openzeppelin/=./desci-contracts/node_modules/@openzeppelin/",
+    "hardhat/=./desci-contracts/node_modules/hardhat/"
+  ],
+  "[solidity]": {
+    "editor.defaultFormatter": "JuanBlanco.solidity",
+    "editor.formatOnSave": true
+  },
   "[prisma]": {
     "editor.defaultFormatter": "Prisma.prisma"
   },

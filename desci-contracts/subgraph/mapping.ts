@@ -1,5 +1,6 @@
-import { Bytes, BigInt } from "@graphprotocol/graph-ts";
+import { Bytes, BigInt, TypedMapEntry, Value } from "@graphprotocol/graph-ts";
 import { VersionPush } from "./generated/DeSciNodes/ResearchObject";
+import { VersionPushMigrated } from "./generated/DeSciNodes/ResearchObjectMigrated";
 import { ResearchObjectVersion, ResearchObject } from "./generated/schema";
 
 import { encode, decode } from "as-base64";
@@ -38,7 +39,67 @@ function padHexedUUID(hexString: string): string {
   return newHex;
 }
 
+function hasMatchingEntry(
+  entries: TypedMapEntry<string, Value>[],
+  cid: string,
+  time: BigInt
+): boolean {
+  for (let i = 0; i < entries.length; i++) {
+    if (
+      entries[i].value.toString().includes(cid) &&
+      entries[i].value.toString().includes(time.toString())
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function handleVersionPush(event: VersionPush): void {
+  const uuid = event.params._uuid;
+  const paddedHexedUUID = padHexedUUID(uuid.toHexString());
+
+  let ro = ResearchObject.load(paddedHexedUUID);
+
+  if (!ro) {
+    ro = new ResearchObject(paddedHexedUUID);
+    ro.owner = event.params._from.toHex();
+    ro.id64 = encode(Bytes.fromBigInt(uuid));
+    ro.id10 = uuid.toString();
+  }
+
+  // if (
+  //   event.block.timestamp.toI32() <= 1710542028 &&
+  //   event.transactionLogIndex.toI32() != 0
+  // ) {
+  const versionString = event.transaction.hash.toHexString();
+  let rov = new ResearchObjectVersion(versionString);
+
+  rov.researchObject = ro.id;
+  rov.time = event.block.timestamp;
+  rov.cid = event.params._cid.toHex();
+  rov.from = event.params._from.toHex();
+  rov.transactionIndex = event.transactionLogIndex;
+  rov.blockNumber = event.block.number;
+  // rov.logIndex = event.logIndex;
+  // if (rov.time != BigInt.fromString("1708966848")) {
+  if (!hasMatchingEntry(ro.versions.entries, rov.cid, rov.time)) {
+    rov.save();
+  }
+  // }
+
+  ro.recentCid = rov.cid;
+  // }
+
+  // let ro = new ResearchObjectVersion(event.transaction.hash.toHex());
+  // ro.tokenURI = `test-${event.params._uuid.toHex()}`;
+  // ro.tokenID = event.params._uuid;
+  // ro.mintTime = event.block.timestamp;
+
+  ro.save();
+}
+
+export function handleVersionPushMigrated(event: VersionPushMigrated): void {
   const uuid = event.params._uuid;
   const paddedHexedUUID = padHexedUUID(uuid.toHexString());
 
@@ -54,7 +115,7 @@ export function handleVersionPush(event: VersionPush): void {
   const versionString = event.transaction.hash.toHexString();
   let rov = new ResearchObjectVersion(versionString);
   rov.researchObject = ro.id;
-  rov.time = event.block.timestamp;
+  rov.time = event.params._migration_timestamp;
   rov.cid = event.params._cid.toHex();
   rov.from = event.params._from.toHex();
   rov.save();

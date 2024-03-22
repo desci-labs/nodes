@@ -9,7 +9,7 @@ async function getTree(path?: string) {
   console.log('get tree for path', path);
   const target = `${url}${path ? `&dataPath=${path}` : ''}`;
   const res = await fetch(target);
-  const { tree } = await res.json();
+  const { tree } = await res.json() as { tree: unknown };
   return tree;
 }
 

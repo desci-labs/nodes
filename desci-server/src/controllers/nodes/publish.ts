@@ -1,10 +1,11 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { ActionType, Prisma } from '@prisma/client';
+import { ActionType, Prisma, PublishTaskQueueStatus, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { saveInteraction } from '../../services/interactionLog.js';
+import { getManifestByCid } from '../../services/data/processing.js';
+import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import {
   publishResearchObject,
   cacheNodeMetadata,
@@ -16,11 +17,40 @@ import {
 import { discordNotify } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
+
+export type PublishReqBody = {
+  uuid: string,
+  cid: string,
+  manifest: ResearchObjectV1,
+  transactionId: string,
+  ceramicStream?: string,
+  commitId?: string,
+};
+
+export type PublishRequest = Request<
+  never,
+  never,
+  PublishReqBody
+> & {
+  user: User; // added by auth middleware
+};
+
+export type PublishResBody = {
+  ok: boolean,
+  taskId: number,
+} | {
+  error: string,
+};
+
 // call node publish service and add job to queue
-export const publish = async (req: Request, res: Response, _next: NextFunction) => {
-  const { uuid, cid, manifest, transactionId, nodeVersionId, ceramicStream } = req.body;
+export const publish = async (
+  req: PublishRequest,
+  res: Response<PublishResBody>,
+  _next: NextFunction
+) => {
+  const { uuid, cid, manifest, transactionId, ceramicStream, commitId } = req.body;
   // debugger;
-  const email = (req as any).user.email;
+  const email = req.user.email;
   const logger = parentLogger.child({
     // id: req.id,
     module: 'NODE::publishController',
@@ -29,17 +59,24 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
     cid,
     manifest,
     transactionId,
+    ceramicStream,
+    commitId,
     email,
-    user: (req as any).user,
+    user: req.user,
   });
+
   if (!uuid || !cid || !manifest) {
-    return res.status(404).send({ message: 'uuid, cid, email, and manifest must be valid' });
-  }
+    return res.status(404).send({ error: 'uuid, cid, email, and manifest must be valid' });
+  };
 
   if (email === undefined || email === null) {
     // Prevent any issues with prisma findFirst with undefined fields
-    return res.status(401).send({ message: 'email must be valid' });
-  }
+    return res.status(401).send({ error: 'email must be valid' });
+  };
+
+  if (!(ceramicStream && commitId)) {
+    logger.warn({ uuid }, `[publish] called with unexpected stream (${ceramicStream}) and/org commit (${commitId})`);
+  };
 
   try {
     /**TODO: MOVE TO MIDDLEWARE */
@@ -64,12 +101,104 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
       logger.warn({ owner, uuid }, `unauthed node user: ${owner}, node uuid provided: ${uuid}`);
       return res.status(400).json({ error: 'failed' });
     }
+
+    const task = await prisma.publishTaskQueue.findFirst({
+      where: { uuid: ensureUuidEndsWithDot(uuid), status: { not: PublishTaskQueueStatus.FAILED } },
+    });
+
+    if (task) return res.status(400).json({ error: 'Node publishing in progress' });
+
+    saveInteraction(
+      req,
+      ActionType.PUBLISH_NODE,
+      {
+        cid,
+        dpid: manifest.dpid.id,
+        userId: owner.id,
+        transactionId,
+        ceramicStream: ceramicStream ?? '',
+        commitId: commitId ?? '',
+        uuid: ensureUuidEndsWithDot(uuid),
+        status: PublishTaskQueueStatus.WAITING,
+      },
+      owner.id,
+    );
+
+    const publishTask = await prisma.publishTaskQueue.create({
+      data: {
+        cid,
+        dpid: manifest.dpid.id,
+        userId: owner.id,
+        transactionId,
+        ceramicStream: ceramicStream ?? '',
+        commitId: commitId ?? '',
+        uuid: ensureUuidEndsWithDot(uuid),
+        status: PublishTaskQueueStatus.WAITING,
+      },
+    });
+
+    return res.send({
+      ok: true,
+      taskId: publishTask.id,
+    });
+  } catch (err) {
+    logger.error({ err }, '[publish::publish] node-publish-err');
+    return res.status(400).send({ ok: false, error: err.message });
+  }
+};
+
+export const publishHandler = async ({
+  transactionId,
+  userId,
+  ceramicStream,
+  commitId,
+  cid,
+  uuid,
+}: {
+  transactionId: string;
+  cid: string;
+  userId: number;
+  uuid: string;
+  ceramicStream: string;
+  commitId: string;
+}) => {
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::publishTask',
+    uuid,
+    cid,
+    transactionId,
+  });
+  try {
+    /**TODO: MOVE TO MIDDLEWARE */
+    const owner = await prisma.user.findFirst({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!owner.id || owner.id < 1) {
+      throw Error('User ID mismatch');
+    }
+
+    const node = await prisma.node.findFirst({
+      where: {
+        ownerId: owner.id,
+        uuid: ensureUuidEndsWithDot(uuid),
+      },
+    });
+
+    if (!node) {
+      logger.warn({ owner, uuid }, `unauthed node user: ${owner}, node uuid provided: ${uuid}`);
+      // return res.status(400).json({ error: 'failed' });
+      throw new Error('Node not found');
+    }
     /**TODO: END MOVE TO MIDDLEWARE */
 
     // update node version
     const latestNodeVersion = await prisma.nodeVersion.findFirst({
       where: {
-        id: nodeVersionId || -1,
+        id: -1,
         nodeId: node.id,
       },
       orderBy: {
@@ -86,23 +215,24 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
       },
       update: {
         transactionId,
+        commitId,
       },
       create: {
         nodeId: node.id,
         manifestUrl: cid,
         transactionId,
+        commitId,
       },
     });
 
-    if (process.env.TOGGLE_CERAMIC === '1') {
-      if (ceramicStream) {
-        logger.trace(`[ceramic] setting streamID on node`);
-        await setCeramicStream(uuid, ceramicStream);
-      } else {
-        // Likely feature toggle is active in backend, but not in frontend
-        logger.warn(`[ceramic] wanted to set streamID for ${node.uuid} but request did not contain one`);
-      }
-    }
+    // Prevent removing the stream info if subsequent publish request is missing it
+    if (ceramicStream) {
+      logger.trace(`[ceramic] setting streamID ${ceramicStream} on node ${uuid}`);
+      await setCeramicStream(uuid, ceramicStream);
+    } else {
+      // Likely feature toggle is active in backend, but not in frontend
+      logger.warn(`[ceramic] wanted to set streamID for ${node.uuid} but request did not contain one`);
+    };
 
     logger.trace(`[publish::publish] nodeUuid=${node.uuid}, manifestCid=${cid}, transaction=${transactionId}`);
 
@@ -142,7 +272,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
       /**
        * Save a success for configurable service quality tracking purposes
        */
-      await saveInteraction(req, ActionType.PUBLISH_NODE_CID_SUCCESS, {
+      await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_SUCCESS, {
         cidsPayload,
         result: { newPublicDataRefs, dataMirrorJobs },
       });
@@ -151,7 +281,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
       /**
        * Save a failure for configurable service quality tracking purposes
        */
-      await saveInteraction(req, ActionType.PUBLISH_NODE_CID_FAIL, { cidsPayload, error });
+      await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_FAIL, { cidsPayload, error });
       throw error;
     }
 
@@ -159,7 +289,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
      * Publish Step 2:
      * Initiate IPFS storage upload using Estuary
      */
-
+    const manifest = await getManifestByCid(cid);
     const researchObjectToPublish = { uuid, cid, manifest, ownerId: owner.id };
     const sendDiscordNotification = (error) => {
       const manifestSource = manifest as ResearchObjectV1;
@@ -171,7 +301,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
     };
 
     const handleMirrorSuccess = async (publishedResearchObjectResult) => {
-      await saveInteraction(req, ActionType.PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS, {
+      await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS, {
         researchObjectToPublish,
         result: publishedResearchObjectResult,
       });
@@ -179,7 +309,7 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
       sendDiscordNotification(false);
     };
     const handleMirrorFail = async (error) => {
-      await saveInteraction(req, ActionType.PUBLISH_NODE_RESEARCH_OBJECT_FAIL, {
+      await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_RESEARCH_OBJECT_FAIL, {
         researchObjectToPublish,
         error,
       });
@@ -205,11 +335,9 @@ export const publish = async (req: Request, res: Response, _next: NextFunction) 
      */
     cacheNodeMetadata(node.uuid, cid);
 
-    return res.send({
-      ok: true,
-    });
+    return true;
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
-    return res.status(400).send({ ok: false, error: err.message });
+    return false; // res.status(400).send({ ok: false, error: err.message });
   }
 };

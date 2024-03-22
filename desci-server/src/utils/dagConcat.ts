@@ -1,7 +1,7 @@
 //Thanks to https://github.com/webrecorder/ipfs-composite-files
 /* eslint-disable @typescript-eslint/no-var-requires */
 import { encode, decode, prepare } from '@ipld/dag-pb';
-import UnixFS from 'ipfs-unixfs';
+import { UnixFS } from 'ipfs-unixfs';
 import { CID } from 'multiformats';
 import { code as rawCode } from 'multiformats/codecs/raw';
 
@@ -32,7 +32,7 @@ export async function getSize(ipfs, cid, allowDir = false) {
   } else if (!unixfs.isDirectory()) {
     return unixfs.fileSize();
   } else {
-    return unixfs.blockSizes.reduce((a, b) => a + b, 0);
+    return unixfs.blockSizes.reduce((a, b) => a + b, BigInt(0));
   }
 }
 

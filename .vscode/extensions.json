@@ -1,9 +1,10 @@
 {
-    "recommendations": [
-        "bradlc.vscode-tailwindcss",
-        "juanblanco.solidity",
-        "esbenp.prettier-vscode",
-        "prisma.prisma",
-        "rbbit.typescript-hero"
-    ]
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "juanblanco.solidity",
+    "esbenp.prettier-vscode",
+    "prisma.prisma",
+    "eamodio.gitlens",
+    "ms-vscode.makefile-tools"
+  ]
 }

@@ -21,7 +21,6 @@ model Node {
   ownerId             Int
   uuid                String?               @unique @default(uuid())
   manifestDocumentId  String                @default("")
-  privateShare        PrivateShare?
   owner               User                  @relation(fields: [ownerId], references: [id])
   authorInvites       AuthorInvite[]
   transactions        ChainTransaction[]
@@ -40,6 +39,9 @@ model Node {
   ceramicStream       String?
   NodeAttestation     NodeAttestation[]
   NodeThumbnails      NodeThumbnails[]
+  PublishTaskQueue    PublishTaskQueue[]
+  NodeContribution    NodeContribution[]
+  PrivateShare        PrivateShare[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -52,6 +54,7 @@ model NodeVersion {
   manifestUrl         String
   cid                 String                @default("")
   transactionId       String?
+  commitId            String?
   nodeId              Int?
   node                Node?                 @relation(fields: [nodeId], references: [id])
   PublicDataReference PublicDataReference[]
@@ -172,7 +175,6 @@ model User {
   maxDriveStorageLimitGb      Int                           @default(500)
   userOrganizations           UserOrganizations[]
   UploadJobs                  UploadJobs[]
-  // DraftNodeTree              DraftNodeTree[]
   NodeFeedItemEndorsement     NodeFeedItemEndorsement[]
   DesciCommunity              DesciCommunity?               @relation(fields: [desciCommunityId], references: [id])
   desciCommunityId            Int?
@@ -182,6 +184,8 @@ model User {
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
   ApiKey                      ApiKey[]
+  PublishTaskQueue            PublishTaskQueue[]
+  NodeContribution            NodeContribution[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -438,11 +442,13 @@ model PublicDataReferenceOnIpfsMirror {
 model PrivateShare {
   id        Int      @id @default(autoincrement())
   shareId   String   @unique
-  nodeUUID  String   @unique
+  nodeUUID  String
+  memo      String?
   node      Node     @relation(fields: [nodeUUID], references: [uuid])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([nodeUUID])
   @@index([shareId])
 }
 
@@ -466,6 +472,26 @@ model NodeThumbnails {
   node         Node   @relation(fields: [nodeUuid], references: [uuid])
 
   @@unique([nodeUuid, componentCid])
+}
+
+// The glue between a manifest contributor entry and a nodes profile
+model NodeContribution {
+  id            Int       @id @default(autoincrement())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  contributorId String    @unique
+  nodeId        Int
+  userId        Int?
+  verified      Boolean   @default(false)
+  denied        Boolean   @default(false)
+  email         String?
+  orcid         String?
+  deleted       Boolean   @default(false)
+  deletedAt     DateTime?
+  node          Node      @relation(fields: [nodeId], references: [id])
+  user          User?     @relation(fields: [userId], references: [id])
+
+  @@unique([contributorId, nodeId, userId])
 }
 
 model FriendReferral {
@@ -589,23 +615,23 @@ model NodeFeedItemEndorsement {
 
 // an organization that endorses work and has members
 model DesciCommunity {
-  id              Int                       @id @default(autoincrement())
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
-  name            String                    @unique
-  slug            String?                   @unique
-  image_url       String?
-  subtitle        String? // short description
-  description     String
-  keywords        String[]
-  memberString    String[] // string list of member names
-  links           String[] // string list of links
-  hidden          Boolean                   @default(false)
-  members         User[]
-  endorsements    NodeFeedItemEndorsement[]
-  CommunityMember CommunityMember[]
-  Attestation     Attestation[]
-  NodeAttestation NodeAttestation[]
+  id                        Int                         @id @default(autoincrement())
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  name                      String                      @unique
+  slug                      String?                     @unique
+  image_url                 String?
+  subtitle                  String? // short description
+  description               String
+  keywords                  String[]
+  memberString              String[] // string list of member names
+  links                     String[] // string list of links
+  hidden                    Boolean                     @default(false)
+  members                   User[]
+  endorsements              NodeFeedItemEndorsement[]
+  CommunityMember           CommunityMember[]
+  Attestation               Attestation[]
+  NodeAttestation           NodeAttestation[]
   AttestationTemplate       AttestationTemplate[]
   CommunityEntryAttestation CommunityEntryAttestation[]
 }
@@ -698,6 +724,8 @@ model NodeAttestation {
   node                        Node                          @relation(fields: [nodeUuid], references: [uuid])
   nodeVersion                 Int
   claimedAt                   DateTime                      @default(now())
+  revoked                     Boolean                       @default(false)
+  revokedAt                   DateTime?
   Annotation                  Annotation[]
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
@@ -710,7 +738,8 @@ model Annotation {
   id                Int             @id @default(autoincrement())
   type              AnnotationType
   body              String
-  highlight         Json?
+  highlights        Json[]          @default([])
+  links             String[]        @default([])
   authorId          Int
   author            User            @relation(fields: [authorId], references: [id])
   nodeAttestationId Int
@@ -738,6 +767,22 @@ model NodeAttestationVerification {
   updatedAt         DateTime        @updatedAt
 
   @@unique([nodeAttestationId, userId])
+}
+
+model PublishTaskQueue {
+  id            Int                    @id @default(autoincrement())
+  ceramicStream String
+  commitId      String
+  cid           String
+  dpid          String?
+  userId        Int
+  transactionId String                 @unique
+  uuid          String
+  status        PublishTaskQueueStatus
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  node          Node                   @relation(fields: [uuid], references: [uuid])
+  user          User                   @relation(fields: [userId], references: [id])
 }
 
 enum CommunityMembershipRole {
@@ -781,6 +826,7 @@ enum ActionType {
   RETRIEVE_URL_FAIL
   RETREIVE_URL_SUCCESS
   USER_TERMS_CONSENT
+  PUBLISH_NODE
   PUBLISH_NODE_CID_SUCCESS
   PUBLISH_NODE_CID_FAIL
   PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS
@@ -820,6 +866,12 @@ enum PublishState {
   WAITING
   PENDING
   SUCCESS
+  FAILED
+}
+
+enum PublishTaskQueueStatus {
+  WAITING
+  PENDING
   FAILED
 }
 

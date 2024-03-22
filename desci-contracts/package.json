@@ -2,14 +2,15 @@
   "name": "@desci-labs/desci-contracts",
   "description": "Smart contracts implementing DeSci Nodes on-chain state and logic",
   "version": "0.2.0",
-  "license": "BSD-4-Clause",
+  "license": "MIT",
   "scripts": {
-    "test": "hardhat test",
+    "test": "hardhat clean && hardhat test",
     "build": "hardhat compile --network ganache",
     "docker:build": "docker build -t desci-hardhat-node .",
     "docker:push": "docker tag desci-hardhat-node:latest 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest && docker push 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest",
     "deploy:ganache": "yarn stubHardhatAnalytics && rm -f ./.openzeppelin/unknown-1337.json ; rm -f ./.openzeppelin/unknown-research-object.json ; hardhat run scripts/deployResearchObject.js --network ganache && mv ./.openzeppelin/unknown-1337.json ./.openzeppelin/unknown-research-object.json",
     "deploy:dpid:ganache": "yarn stubHardhatAnalytics && rm -f ./.openzeppelin/unknown-1337.json ; rm -f ./.openzeppelin/unknown-dpid.json ; hardhat run scripts/deployDpidRegistry.js --network ganache  && mv ./.openzeppelin/unknown-1337.json ./.openzeppelin/unknown-dpid.json",
+    "migrate": "hardhat run scripts/migrateToNewContract.js --network ganache && touch ./.openzeppelin/migration-complete.json",
     "graph:codegen": "graph codegen subgraph/subgraph.yaml -o subgraph/generated",
     "graph:build": "graph build subgraph/subgraph.yaml",
     "graph:create-local": "graph create nodes --node http://127.0.0.1:8020",
@@ -20,7 +21,7 @@
     "graph:deploy-dev-local": "cp subgraph/subgraph.local.yaml subgraph/subgraph.yaml && graph deploy nodes --ipfs http://127.0.0.1:5001 --node http://127.0.0.1:8020",
     "upgrade:local": "hardhat run scripts/upgradeResearchObject.js --network ganache",
     "stubHardhatAnalytics": "scripts/stubHardhatAnalytics.sh",
-    "flatten": "hardhat flatten | sed '/SPDX/d' > flat.sol"
+    "flatten": "hardhat flatten > temp_flat.sol && awk '!/SPDX_License_Identifier/' temp_flat.sol > flat.sol && rm temp_flat.sol"
   },
   "files": [
     "/.openzeppelin",
@@ -58,6 +59,6 @@
     "@openzeppelin/contracts": "^4.8.1",
     "cids": "^1.1.9",
     "dotenv": "^10.0.0",
-    "openzeppelin-solidity": "https://github.com/OpenZeppelin/openzeppelin-contracts#dc739dcbe34fb0c7b15c4e197c6ba3fe9b0c8946"
+    "openzeppelin-solidity": "git+https://github.com/OpenZeppelin/openzeppelin-contracts#dc739dcbe34fb0c7b15c4e197c6ba3fe9b0c8946"
   }
 }

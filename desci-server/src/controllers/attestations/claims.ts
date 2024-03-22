@@ -14,6 +14,7 @@ import {
   prisma,
 } from '../../internal.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
+import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
 
 export const claimAttestation = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const body = req.body as {
@@ -29,8 +30,20 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
   logger.info({ body, latest, attestationVersion }, 'CLAIM');
   const uuid = ensureUuidEndsWithDot(body.nodeUuid);
 
+  const claim = await attestationService.getClaimOnAttestationVersion(
+    body.nodeDpid,
+    body.attestationId,
+    attestationVersion.id,
+  );
+
+  if (claim && claim.revoked) {
+    const reclaimed = await attestationService.reClaimAttestation(claim.id);
+    return new SuccessResponse(reclaimed).send(res);
+  }
+
   const attestations = await attestationService.claimAttestation({
     ...body,
+    nodeDpid: body.nodeDpid,
     nodeUuid: uuid,
     attestationVersion: attestationVersion.id,
   });
@@ -40,28 +53,24 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 };
 
 export const removeClaim = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
-  const body = req.body as {
-    attestationId: number;
-    attestationVersion: number;
-    dpid: string;
-    nodeUuid: string;
-    claimerId: number;
-  };
+  const { body } = await removeClaimSchema.parseAsync(req);
 
   const node = await prisma.node.findFirst({ where: { uuid: body.nodeUuid } });
   if (!node) throw new NotFoundError('Node not found');
-  if (node.ownerId !== req.user.id || body.claimerId !== req.user.id) throw new AuthFailiureError();
 
-  const claim = await attestationService.getClaimOnAttestationVersion(
-    body.dpid,
-    body.attestationId,
-    body.attestationVersion,
-  );
-
+  const claim = await attestationService.getClaimOnDpid(body.claimId, body.dpid.toString());
   if (!claim) throw new NotFoundError();
 
-  await attestationService.unClaimAttestation(claim.id);
+  if (node.ownerId !== req.user.id || claim.claimedById !== req.user.id) throw new AuthFailiureError();
 
+  const claimSignal = await attestationService.getClaimEngagementSignals(claim.id);
+  const totalSignal = claimSignal.annotations + claimSignal.reactions + claimSignal.verifications;
+  const removeOrRevoke =
+    totalSignal > 0
+      ? await attestationService.revokeAttestation(claim.id)
+      : await attestationService.unClaimAttestation(claim.id);
+
+  logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
   return new SuccessMessageResponse('Attestation unclaimed').send(res);
 };
 
@@ -81,12 +90,12 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
 
   const claimables = (await asyncMap(entryAttestations, async (attestation) => {
     const claimable = await attestationService.canClaimAttestation({
-      attestationId: attestation.attestationId,
-      attestationVersion: attestation.attestationVersionId,
-      nodeVersion,
-      nodeUuid: uuid,
       nodeDpid,
       claimerId,
+      nodeVersion,
+      nodeUuid: uuid,
+      attestationId: attestation.attestationId,
+      attestationVersion: attestation.attestationVersionId,
     });
     return { ...attestation, claimable };
   })) as (CommunityEntryAttestation & { claimable: boolean })[];
@@ -99,16 +108,14 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
       attestationVersion: claimable.attestationVersionId,
     }));
 
-  console.log({ claims });
   logger.info({ claims }, 'CLAIM all input');
   const attestations = await attestationService.claimAttestations({
+    nodeDpid,
+    claimerId,
     nodeVersion,
     nodeUuid: uuid,
-    nodeDpid: nodeDpid.toString(),
-    claimerId,
     attestations: claims,
   });
 
-  // attestations = attestations.map((attestation) => _.pick(attestation, ['']));
   return new SuccessResponse(attestations).send(res);
 };

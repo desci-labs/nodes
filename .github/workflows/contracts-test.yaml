@@ -1,0 +1,40 @@
+# build.yml
+on:
+  # pull_request:
+  #   paths:
+  #   - .github/workflows/**
+  #   - desci-models/**
+  push:
+    paths:
+      - .github/workflows/**
+      - desci-contracts/**
+
+name: Test desci-contracts
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    # container:
+    #   image: ubuntu:latest
+    #   options: --user 1001
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up the environment
+        # Replace this line with the appropriate setup for your project
+        # Examples:
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          check-latest: false
+          cache: "yarn"
+          cache-dependency-path: "desci-contracts/yarn.lock"
+
+      - name: Install dependencies
+        run: cd desci-contracts && npm i -g yarn && yarn && yarn build
+
+      - name: Run tests
+        run: |
+          cd desci-contracts && npx hardhat clean && yarn test

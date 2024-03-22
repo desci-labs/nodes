@@ -1,0 +1,29 @@
+specVersion: 0.0.4
+description: Graph node for DeSci Nodes
+repository: https://github.com/desci-labs/nodes
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: DeSciNodes
+    network: sepolia
+    source:
+      address: "0x1fA4c72680af35FE1eb7345509E39498be6Ce03b"
+      abi: ResearchObjectMigrated
+      startBlock: 5530308
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - ResearchObjectMigrated
+        - ResearchObjectVersion
+      abis:
+        - name: ResearchObjectMigrated
+          file: ../artifacts/contracts/migrated/ResearchObjectMigrated.sol/ResearchObjectMigrated.json
+      eventHandlers:
+        - event: VersionPush(indexed address,indexed uint256,bytes)
+          handler: handleVersionPush
+        - event: VersionPushMigrated(indexed address,indexed uint256,bytes,uint256)
+          handler: handleVersionPushMigrated
+      file: ./mapping.ts

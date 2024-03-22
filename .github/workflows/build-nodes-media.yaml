@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
 
       # Add steps here like linting, testing, minification, etc.
       - id: install-aws-cli
@@ -101,11 +101,13 @@ jobs:
         # uses: steebchen/kubectl@v2.0.0
         if: github.ref == 'refs/heads/develop'
         run: | # defaults to latest kubectl binary version
+          kubectl apply -f nodes-media/kubernetes/deployment_dev.yaml
           kubectl set image deployment/nodes-media-server-dev nodes-media-server-dev=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} --record
 
       - name: Deploy to EKS (PROD)
         if: github.ref == 'refs/heads/main'
         run: | # defaults to latest kubectl binary version
+          kubectl apply -f nodes-media/kubernetes/deployment_prod.yaml
           kubectl set image deployment/nodes-media-server nodes-media-server=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} --record
 
       - name: Verify EKS Deployment (DEV)

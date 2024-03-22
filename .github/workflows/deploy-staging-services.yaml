@@ -1,0 +1,259 @@
+on: workflow_dispatch
+
+name: Deploy API services STAGING
+
+# https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
+env:
+  AWS_DEFAULT_REGION: us-east-2
+  AWS_DEFAULT_OUTPUT: json
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  CONTAINER_IMAGE: desci-server
+  CONTAINER_IMAGE_REPO: desci-repo-server
+  CONTAINER_IMAGE_MEDIA: nodes-media-server
+  CONTAINER_IMAGE_ISOLATED: desci-media-isolated
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  build-isolated-media-server:
+    name: Build and deploy desci-isolated-media-server STAGING
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hashicorp/setup-terraform@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - id: install-aws-cli
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 1
+
+      - uses: prepor/action-aws-iam-authenticator@master
+      - run: aws-iam-authenticator version
+
+      - name: Install Kubectl
+        run: |
+          #$(curl -Ls https://dl.k8s.io/release/stable.txt)
+          version=v1.23.6
+          echo "using kubectl@$version"
+          curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          mkdir $HOME/.kube
+          sudo apt-get update
+          sudo apt-get install less
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+          aws sts get-caller-identity
+          kubectl describe deployments
+
+      - name: Build and tag desci-media-isolated image (STAGING)
+        run: |
+          # Build and tag the image
+          docker build \
+            -t $CONTAINER_IMAGE_ISOLATED-staging:latest \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_ISOLATED-staging \
+             ./desci-media-isolated
+
+      - name: Push desci-media-isolated (STAGING)
+        run: |
+          # Push image to AWS ECR
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          docker tag $CONTAINER_IMAGE_ISOLATED-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_ISOLATED-staging:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE_ISOLATED-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_ISOLATED-staging:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_ISOLATED-staging:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_ISOLATED-staging:latest
+
+      - name: Deploy desci-media-isolated to EKS (STAGING)
+        run: | # defaults to latest kubectl binary version
+          kubectl apply -f desci-media-isolated/kubernetes/deployment_staging.yaml
+          kubectl set image deployment/desci-media-isolated-staging desci-media-isolated-staging=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_ISOLATED-staging:${{ github.sha }} --record
+
+      - name: Verify desci-media-isolated KS Deployment (STAGING)
+        run: |
+          kubectl rollout status deployment/desci-media-isolated-staging
+
+  build-media-server:
+    name: Build and deploy nodes-media STAGING
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hashicorp/setup-terraform@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - id: install-aws-cli
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 1
+
+      - uses: prepor/action-aws-iam-authenticator@master
+      - run: aws-iam-authenticator version
+
+      - name: Install Kubectl
+        run: |
+          #$(curl -Ls https://dl.k8s.io/release/stable.txt)
+          version=v1.23.6
+          echo "using kubectl@$version"
+          curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          mkdir $HOME/.kube
+          sudo apt-get update
+          sudo apt-get install less
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+          aws sts get-caller-identity
+          kubectl describe deployments
+
+      - name: Build and tag nodes-media-server image (STAGING)
+        run: |
+          # Build and tag the image
+          docker build \
+            -t $CONTAINER_IMAGE_MEDIA-staging:latest \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_MEDIA-staging \
+             ./nodes-media
+
+      - name: Push nodes-media-server (STAGING)
+        run: |
+          # Push image to AWS ECR
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          docker tag $CONTAINER_IMAGE_MEDIA-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_MEDIA-staging:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE_MEDIA-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_MEDIA-staging:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_MEDIA-staging:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_MEDIA-staging:latest
+
+      - name: Deploy nodes-media-server to EKS (STAGING)
+        run: | # defaults to latest kubectl binary version
+          kubectl apply -f nodes-media/kubernetes/deployment_staging.yaml
+          kubectl set image deployment/nodes-media-server-staging nodes-media-server-staging=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_MEDIA-staging:${{ github.sha }} --record
+
+      - name: Verify nodes-media-server KS Deployment (STAGING)
+        run: |
+          kubectl rollout status deployment/nodes-media-server-staging
+
+  build-repo-server:
+    name: Build and deploy desci-repo STAGING
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hashicorp/setup-terraform@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - id: install-aws-cli
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 1
+
+      - uses: prepor/action-aws-iam-authenticator@master
+      - run: aws-iam-authenticator version
+
+      - name: Install Kubectl
+        run: |
+          #$(curl -Ls https://dl.k8s.io/release/stable.txt)
+          version=v1.23.6
+          echo "using kubectl@$version"
+          curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          mkdir $HOME/.kube
+          sudo apt-get update
+          sudo apt-get install less
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+          aws sts get-caller-identity
+          kubectl describe deployments
+
+      - name: Stub contract
+        run: |
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
+
+      - name: Build and tag desci-repo-staging image (STAGING)
+        run: |
+          # Build and tag the image
+          docker build \
+            -t $CONTAINER_IMAGE_REPO-staging:latest \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_REPO-staging \
+             ./desci-repo
+
+      - name: Push desci-repo (STAGING)
+        run: |
+          # Push image to AWS ECR
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          docker tag $CONTAINER_IMAGE_REPO-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_REPO-staging:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE_REPO-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_REPO-staging:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_REPO-staging:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_REPO-staging:latest
+
+      - name: Deploy to EKS (STAGING)
+        run: | # defaults to latest kubectl binary version
+          kubectl apply -f desci-repo/kubernetes/deployment_staging.yaml
+          kubectl set image deployment/desci-repo-server-staging desci-repo-server-staging=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_REPO-staging:${{ github.sha }} --record
+
+      - name: Verify EKS Deployment (STAGING)
+        run: |
+          kubectl rollout status deployment/desci-repo-server-staging
+
+  build-nodes-server:
+    name: Build and deploy desci-server STAGING
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hashicorp/setup-terraform@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - id: install-aws-cli
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 1
+
+      - uses: prepor/action-aws-iam-authenticator@master
+      - run: aws-iam-authenticator version
+
+      - name: Install Kubectl
+        run: |
+          #$(curl -Ls https://dl.k8s.io/release/stable.txt)
+          version=v1.23.6
+          echo "using kubectl@$version"
+          curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          mkdir $HOME/.kube
+          sudo apt-get update
+          sudo apt-get install less
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+          aws sts get-caller-identity
+          kubectl describe deployments
+
+      - name: Stub contract
+        run: |
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
+          echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
+
+      - name: Build and tag the image (STAGING)
+        run: |
+          # Build and tag the image
+          docker build \
+            -t $CONTAINER_IMAGE-staging:latest \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging \
+             .
+
+      # Add additional steps here like scanning of image
+
+      # Only push to registry on staging
+      - name: Push (STAGING)
+        run: |
+          # Push image to AWS ECR
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          docker tag $CONTAINER_IMAGE-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging:latest
+
+      - name: Deploy to EKS (STAGING)
+        # uses: steebchen/kubectl@v2.0.0
+        run: | # defaults to latest kubectl binary version
+          kubectl apply -f desci-server/kubernetes/deployment_staging.yaml
+          kubectl set image deployment/desci-server-staging desci-server-staging=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging:${{ github.sha }} --record
+
+      - name: Verify EKS Deployment (STAGING)'
+        run: |
+          kubectl rollout status deployment/desci-server-staging

@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: desci-server-staging
+spec:
+  selector:
+    App: DesciServerStaging
+  ports:
+    - port: 80
+      targetPort: 5420
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: desci-server-staging
+  labels:
+    App: DesciServerStaging
+spec:
+  replicas: 6
+  revisionHistoryLimit: 8
+  selector:
+    matchLabels:
+      App: DesciServerStaging
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-status: 'update'
+        vault.hashicorp.com/role: app-vault-reader
+        vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/staging/db
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secrets/desci-server/staging/db" -}}
+          export PG_HOST={{ .Data.host }}
+          export PG_PORT={{ .Data.port }}
+          export POSTGRES_USER={{ .Data.user }}
+          export POSTGRES_PASSWORD={{ .Data.password }}
+          export POSTGRES_DB={{ .Data.db }}
+          export DATABASE_URL={{ .Data.url }}
+          export IPFS_NODE_URL="http://ipfs-gateway-staging-internal.default.svc.cluster.local:5001"
+          export NODE_ENV=production
+          echo "dbset"; 
+          {{- end -}}
+          {{- with secret "secrets/desci-server/staging/app" -}}
+          echo "appstart"; 
+          export JWT_SECRET={{ .Data.JWT_SECRET }}
+          export JWT_EXPIRATION=15m
+          export SESSION_KEY={{ .Data.SESSION_KEY }}
+          export COOKIE_DOMAIN={{ .Data.COOKIE_DOMAIN }}
+          export ORCID_API_DOMAIN={{ .Data.ORCID_API_DOMAIN }}
+          export ORCID_CLIENT_ID={{ .Data.ORCID_CLIENT_ID }}
+          export ORCID_CLIENT_SECRET={{ .Data.ORCID_CLIENT_SECRET }}
+          export ARWEAVE_ENABLED=0
+          export ARWEAVE_HOST=
+          export ARWEAVE_PORT=1984
+          export ARWEAVE_PROTOCOL=http
+          export ARWEAVE_PUBKEY=
+          export ARWAVE_SECRET_PRIVATE_KEY_SECRET=
+          export REDIS_HOST={{ .Data.REDIS_HOST }}
+          export REDIS_PORT={{ .Data.REDIS_PORT }}
+          export REDIS_URL={{ .Data.REDIS_URL }}
+          export SERVER_URL={{ .Data.SERVER_URL }}
+          export DAPP_URL={{ .Data.DAPP_URL }}
+          export SENDGRID_API_KEY={{ .Data.SENDGRID_API_KEY }}
+          export SHOULD_SEND_EMAIL=true
+          export AWS_ACCESS_KEY_ID={{ .Data.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY={{ .Data.AWS_SECRET_ACCESS_KEY }}
+          export AWS_S3_BUCKET_NAME={{ .Data.AWS_S3_BUCKET_NAME }}
+          export AWS_S3_BUCKET_REGION={{ .Data.AWS_S3_BUCKET_REGION }}
+          export THEGRAPH_API_URL=http://graph-sepolia-prod.desci.com/subgraphs/name/nodes
+          export HOT_WALLET_KEY={{ .Data.HOT_WALLET_KEY }}
+          export CSO_CLASSIFIER_API={{ .Data.CSO_CLASSIFIER_API }}
+          export VSCODE_ACCESS_TOKEN={{ .Data.VSCODE_ACCESS_TOKEN }}
+          export NODES_MEDIA_SERVER_URL={{ .Data.NODES_MEDIA_SERVER_URL }}
+          export OTEL_SERVICE_NAME={{ .Data.OTEL_SERVICE_NAME }}
+          export HONEYCOMB_API_KEY={{ .Data.HONEYCOMB_API_KEY }}
+          export DISCORD_NOTIFICATIONS_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}
+          export PUBLIC_IPFS_RESOLVER={{ .Data.PUBLIC_IPFS_RESOLVER }}
+          export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
+          export ESTUARY_API_KEY={{ .Data.ESTUARY_API_KEY }}
+          export ESTUARY_API_URL={{ .Data.ESTUARY_API_URL }}
+          export REPO_SERVER_URL={{ .Data.REPO_SERVER_URL }}
+          export REPO_SERVICE_SECRET_KEY={{ .Data.REPO_SERVICE_SECRET_KEY }}
+          export ISOLATED_MEDIA_SERVER_URL={{ .Data.ISOLATED_MEDIA_SERVER_URL }}
+          export IPFS_READ_ONLY_GATEWAY_SERVER_URL={{ .Data.IPFS_READ_ONLY_GATEWAY_SERVER_URL }}
+          export ETHEREUM_RPC_URL={{ .Data.ETHEREUM_RPC_URL }}
+          export GOOGLE_CLIENT_ID={{ .Data.GOOGLE_CLIENT_ID }}
+          export DEBUG_TEST=0;
+          echo "appfinish";
+          {{- end -}}
+      labels:
+        App: DesciServerStaging
+    spec:
+      containers:
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-server-staging:latest
+          name: desci-server-staging
+          command: ['/bin/bash', '-c']
+          args:
+            - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
+          ports:
+            - containerPort: 5420
+              name: server-api
+          resources:
+            limits:
+              cpu: '1.0'
+              memory: 5Gi
+            requests:
+              cpu: '0.8'
+              memory: 5Gi
+          # restart pod after failureThreshold*periodSeconds total seconds
+          livenessProbe:
+            httpGet:
+              path: /
+              port: server-api
+            failureThreshold: 80
+            periodSeconds: 3
+          # temporarily stop sending traffic to pod after failureThreshold*periodSeconds total seconds
+          readinessProbe:
+            httpGet:
+              path: /
+              port: server-api
+            failureThreshold: 3
+            periodSeconds: 1
+          # wait for pod to start for failureThreshold*periodSeconds total seconds
+          startupProbe:
+            httpGet:
+              path: /
+              port: server-api
+            failureThreshold: 200
+            periodSeconds: 1
+      serviceAccountName: 'vault-auth'
