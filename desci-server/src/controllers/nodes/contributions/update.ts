@@ -81,6 +81,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
       // Future:
       if (currentEmail !== email && email !== user.email) {
         // If email was changed, send a new email.
+        logger.info({ contributorId, recipient: email }, 'Firing off contributor invite email for updated contributor');
 
         const shareCode = await contributorService.generatePrivShareCodeForContribution(contributorUpdated, node);
         // Fire off an email -> make it count as a friend referral

@@ -74,7 +74,10 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
     }
 
     if (user.id !== contributorAdded.userId && email) {
-      logger.info({ contributorId, recipient: email }, 'Firing off contributor invite email');
+      logger.info(
+        { contributorId, recipient: email },
+        'Firing off contributor invite email for newly invited contributor',
+      );
       // Generate a share code for the contributor if it's the node owner themselves
       const shareCode = await contributorService.generatePrivShareCodeForContribution(contributorAdded, node);
 
