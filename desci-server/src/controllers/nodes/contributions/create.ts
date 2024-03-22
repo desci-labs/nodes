@@ -2,6 +2,7 @@ import { Node, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import { Request, Response } from 'express';
 
+import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { contributorService } from '../../../services/Contributors.js';
 import { ContributorInviteEmailHtml } from '../../../templates/emails/utils/emailRenderer.js';
@@ -65,7 +66,18 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
       userId,
     });
     if (!contributorAdded) throw Error('Failed to add contributor');
-    if (user.id !== contributorAdded.userId && contributorAdded.email) {
+
+    if (!email && contributorAdded.userId !== undefined) {
+      // If the contributor being added has an existing account, their email is available on their profile.
+      const invitedContributor = await prisma.user.findUnique({ where: { id: contributorAdded.userId } });
+      if (invitedContributor?.email) email = invitedContributor.email;
+    }
+
+    if (user.id !== contributorAdded.userId && email) {
+      logger.info(
+        { contributorId, recipient: email },
+        'Firing off contributor invite email for newly invited contributor',
+      );
       // Generate a share code for the contributor if it's the node owner themselves
       const shareCode = await contributorService.generatePrivShareCodeForContribution(contributorAdded, node);
 
