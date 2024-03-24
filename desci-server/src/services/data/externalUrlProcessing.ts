@@ -3,6 +3,7 @@ import fs from 'fs';
 import { DocumentId } from '@automerge/automerge-repo';
 import {
   DrivePath,
+  FileType,
   IpfsPinnedResult,
   RecursiveLsResult,
   ResearchObjectComponentSubtypes,
@@ -81,6 +82,7 @@ export async function processExternalUrlDataToIpfs({
   componentType,
   componentSubtype,
 }: ProcessExternalUrlDataToIpfsParams) {
+  // debugger;
   let pinResult: IpfsPinnedResult[] = [];
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   try {
@@ -155,7 +157,7 @@ export async function processExternalUrlDataToIpfs({
     // Pin new files, add draftNodeTree entries
     if (externalUrlFiles?.length) {
       // External URL non-repo
-      pinResult = await pinNewFiles(externalUrlFiles, true);
+      pinResult = await pinNewFiles(externalUrlFiles, false);
     } else if (zipPath?.length > 0) {
       const outputPath = zipPath.replace('.zip', '');
       logger.debug({ outputPath }, 'Starting unzipping to output directory');
@@ -171,11 +173,15 @@ export async function processExternalUrlDataToIpfs({
     // debugger;
     const root = pinResult[pinResult.length - 1];
     const isCodeRepo = zipPath.length > 0;
-    let uploadedTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
+    let uploadedTree;
     if (isCodeRepo) {
+      uploadedTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
       // Overrides the path name of the root directory
       const rootName = externalUrl.path;
       uploadedTree = [{ ...root, type: 'dir', name: rootName, contains: uploadedTree }];
+    } else {
+      const fileUploaded = pinResult[0];
+      uploadedTree = [{ ...fileUploaded, type: FileType.FILE, path: 'root/' + fileUploaded.path }];
     }
 
     // Prepare draft node tree entires
@@ -183,7 +189,7 @@ export async function processExternalUrlDataToIpfs({
 
     const parsedContextPath = isCodeRepo ? contextPath + '/' + externalUrl.path : contextPath;
     const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = ipfsDagToDraftNodeTreeEntries({
-      ipfsTree: flatUploadedTree,
+      ipfsTree: flatUploadedTree as RecursiveLsResult[],
       node,
       user,
       contextPath: parsedContextPath,
