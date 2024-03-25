@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 const MEDIA_SERVER_API_KEY = process.env.MEDIA_SECRET_KEY;
 
 export const ensureApiKey = async (req: Request, res: Response, next: NextFunction) => {

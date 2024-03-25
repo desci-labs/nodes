@@ -1,0 +1,29 @@
+on:
+  pull_request:
+    paths:
+      - .github/workflows/check-media.yml
+      - nodes-media/**
+jobs:
+  check-media:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          check-latest: false
+          cache: "yarn"
+          cache-dependency-path: "nodes-media/yarn.lock"
+
+      - name: Install dependencies
+        run: |
+          cd nodes-media
+          yarn
+
+      - name: Build project
+        run: |
+          cd nodes-media
+          npx tsc --noEmit

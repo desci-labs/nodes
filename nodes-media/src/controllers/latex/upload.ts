@@ -1,6 +1,6 @@
 import { join, resolve } from 'path';
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import latex from 'node-latex';
 
 const upload = function (req: Request, res: Response) {
@@ -15,7 +15,7 @@ const upload = function (req: Request, res: Response) {
   const buf = new Buffer(req.body.foo.toString('utf8'), 'base64');
   const text = buf.toString();
 
-  const pdf = latex(text, options);
+  const pdf = latex.default(text, options);
 
   pdf.pipe(res);
   pdf.on('error', (err) => {
