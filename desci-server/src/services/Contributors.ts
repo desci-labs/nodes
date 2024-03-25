@@ -1,10 +1,12 @@
+import { format } from 'path';
+
 import { Node, NodeContribution, User } from '@prisma/client';
 import ShortUniqueId from 'short-unique-id';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
-import { hexToCid } from '../utils.js';
+import { formatOrcidString, hexToCid } from '../utils.js';
 
 type ContributorId = string;
 
@@ -52,6 +54,7 @@ class ContributorService {
     orcid,
     userId,
   }: AddNodeContributionParams): Promise<NodeContribution> {
+    if (orcid) orcid = formatOrcidString(orcid); // Ensure hyphenated
     // Check if contributor is already registered
     let registeredContributor;
     if (email) registeredContributor = await prisma.user.findUnique({ where: { email } });
@@ -86,6 +89,7 @@ class ContributorService {
     orcid,
     userId,
   }: AddNodeContributionParams): Promise<NodeContribution> {
+    if (orcid) orcid = formatOrcidString(orcid); // Ensure hyphenated
     // Check if contribution is already verified
     let registeredContributor;
     if (email) registeredContributor = await prisma.user.findUnique({ where: { email } });
