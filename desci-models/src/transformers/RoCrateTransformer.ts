@@ -81,7 +81,7 @@ export class RoCrateTransformer implements BaseTransformer {
     const mainEntity = crate['@graph'].find((entity: any) => entity['@type'] === 'Dataset');
 
     const authors = mainEntity.creator?.map((creator: any) => ({
-      id: Date.now(),
+      id: Date.now().toString(),
       name: creator.name,
       orcid: creator['@id'].startsWith('https://orcid.org/') ? creator['@id'] : undefined,
       googleScholar: creator['@id'].startsWith('https://scholar.google.com/') ? creator['@id'] : undefined,
@@ -154,7 +154,7 @@ export class RoCrateTransformer implements BaseTransformer {
   }
 
   private mapAuthor(author: ResearchObjectV1Author): any {
-    const id = formatOrcid(author.orcid) || author.googleScholar || Date.now();
+    const id = formatOrcid(author.orcid) || author.googleScholar || Date.now().toString();
     return {
       ...(id ? { '@id': id } : {}),
       '@type': 'Person',
