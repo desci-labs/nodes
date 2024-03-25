@@ -69,7 +69,10 @@ export const getOrcidRecord = async (orcid: string, accessToken: string): Promis
       Authorization: `Bearer ${accessToken}`,
     },
   };
-  logger.info({ fn: 'getOrcidRecord', orcid }, `Fetching OrcId Record for ${orcid}`);
+  logger.info(
+    { fn: 'getOrcidRecord', orcid, orcidDomain: process.env.ORCID_API_DOMAIN },
+    `Fetching OrcId Record for ${orcid}`,
+  );
   const { data } = await axios(config);
   logger.info({ fn: 'getOrcidRecord', orcid, data }, `Received OrcId Record data`);
 

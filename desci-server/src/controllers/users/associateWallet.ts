@@ -1,12 +1,23 @@
 import { ActionType, Prisma, User } from '@prisma/client';
 import { ethers } from 'ethers';
+import { getAddress, isAddress } from 'ethers/lib/utils.js';
 import { NextFunction, Request, Response } from 'express';
-import { ErrorTypes, SiweMessage } from 'siwe';
+import { ErrorTypes, SiweMessage, generateNonce } from 'siwe';
 
 import { prisma } from '../../client.js';
+import {
+  AuthFailureError,
+  BadRequestError,
+  ForbiddenError,
+  SuccessMessageResponse,
+  SuccessResponse,
+  extractTokenFromCookie,
+} from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
-import { saveInteraction } from '../../services/interactionLog.js';
+import { getUserConsent, saveInteraction } from '../../services/interactionLog.js';
 import { writeExternalIdToOrcidProfile } from '../../services/user.js';
+import { removeCookie, sendCookie } from '../../utils/sendCookie.js';
+import { generateAccessToken } from '../auth/magic.js';
 
 const createWalletNickname = async (user: Prisma.UserWhereInput) => {
   const count = await prisma.wallet.count({
@@ -35,6 +46,8 @@ export const associateOrcidWallet = async (req: Request, res: Response, next: Ne
       res.status(400).send({ err: 'missing wallet address' });
       return;
     }
+
+    // TODO: check for wallet uniqueness across all accounts
     const doesExist =
       (await prisma.wallet.count({
         where: {
@@ -115,9 +128,14 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       return;
     }
 
+    const user = (req as any).user;
     const message = new SiweMessage(req.body.message);
     const fields = await message.validate(req.body.signature);
-    if (fields.nonce !== (req as any).user.siweNonce) {
+    // const siweNonce = (req.user).nonce;
+    const walletAddress = getAddress(fields.address);
+
+    logger.info({ user, fields }, 'SIWE NONCE');
+    if (fields.nonce !== user.siweNonce) {
       // console.log(req.session);
       res.status(422).json({
         message: `Invalid nonce.`,
@@ -125,21 +143,16 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    const user = (req as any).user;
-    const { walletAddress } = req.body;
-    if (!walletAddress) {
-      res.status(400).send({ err: 'missing wallet address' });
-      return;
-    }
-    const doesExist =
-      (await prisma.wallet.count({
-        where: {
-          user,
-          address: walletAddress,
-        },
-      })) > 0;
-    if (doesExist) {
-      res.status(400).send({ err: 'duplicate wallet' });
+    logger.info({ walletAddress, address: fields.address }, 'SIWE ADDRESS');
+
+    const doesExist = await prisma.wallet.findMany({
+      where: {
+        address: walletAddress,
+      },
+    });
+
+    if (doesExist.length > 0) {
+      res.status(400).send({ err: 'duplicate wallet or already associated by another user' });
       return;
     }
 
@@ -147,6 +160,16 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       const addWallet = await prisma.wallet.create({
         data: { address: walletAddress, userId: user.id, nickname: await createWalletNickname(user) },
       });
+
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          siweNonce: '',
+        },
+      });
+
       saveInteraction(
         req,
         ActionType.USER_WALLET_ASSOCIATE,
@@ -160,24 +183,16 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       try {
         const hash = await sendGiftTxn(user, walletAddress, addWallet.id);
         res.send({ ok: true, gift: hash });
+        return;
       } catch (err) {
         logger.error({ err }, 'Error sending gift txn');
       }
       res.send({ ok: true });
-      // req.session.save(() => res.status(200).send({ ok: true }));
     } catch (err) {
       logger.error({ err }, 'Error associating wallet to user');
       res.status(500).send({ err });
     }
   } catch (e) {
-    await prisma.user.update({
-      where: {
-        id: (req as any).user.id,
-      },
-      data: {
-        siweNonce: '',
-      },
-    });
     logger.error({ err: e }, 'Error associating wallet to user');
     switch (e) {
       case ErrorTypes.EXPIRED_MESSAGE: {
@@ -194,6 +209,95 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
       }
     }
   }
+};
+
+export const walletNonce = async (req: Request, res: Response, next: NextFunction) => {
+  const logger = parentLogger.child({
+    module: 'USERS::WalletLoginController',
+    user: (req as any).user,
+    params: req.params,
+  });
+  const { walletAddress } = req.params;
+
+  logger.info('GENERATE NONCE');
+
+  const wallet = await prisma.wallet.findFirst({
+    where: { address: { equals: walletAddress, mode: 'insensitive' } },
+  });
+  if (!wallet) throw new ForbiddenError('Wallet address not found');
+  const nonce = generateNonce();
+  await prisma.user.update({ where: { id: wallet.userId }, data: { siweNonce: nonce } });
+  new SuccessResponse({ nonce }).send(res);
+};
+
+export const walletLogin = async (req: Request, res: Response, next: NextFunction) => {
+  const logger = parentLogger.child({
+    module: 'USERS::WalletLoginController',
+    user: (req as any).user,
+    body: req.body,
+  });
+  // try {
+  const { message: siweMessage, signature, dev } = req.body;
+
+  logger.info('WALLET LOGIN');
+
+  if (!siweMessage) {
+    throw new BadRequestError('Missing siwe message ', { message: 'Expected prepareMessage object as body.' });
+  }
+
+  const message = new SiweMessage(siweMessage);
+  const fields = await message.validate(signature);
+  // const siweNonce = // await extractTokenFromCookie(req, 'siwe');
+  const account = getAddress(fields.address);
+
+  const wallet = await prisma.wallet.findFirst({
+    where: {
+      // This is necessary because associate wallet stored lowercase public
+      // key sent from request payload rather
+      // than the checksum address extracted from siwe signature
+      address: { equals: account, mode: 'insensitive' },
+    },
+  });
+
+  if (!wallet) throw new AuthFailureError('Unrecognised DID credential');
+
+  const user = await prisma.user.findUnique({ where: { id: wallet.userId } });
+  if (!user) throw new AuthFailureError('Wallet not associated to a user');
+
+  // logger.info({ siweNonce }, 'SIWE NONCE');
+  if (fields.nonce !== user.siweNonce) {
+    throw new ForbiddenError('Invalid Nonce');
+  }
+
+  logger.info({ fieldAddress: fields.address, account, address: getAddress(account) }, 'WALLET ADDRESS');
+
+  await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+    data: {
+      siweNonce: '',
+    },
+  });
+
+  saveInteraction(
+    req,
+    ActionType.USER_WALLET_CONNECT,
+    {
+      addr: account,
+    },
+    user.id,
+  );
+
+  const token = generateAccessToken({ email: user.email });
+
+  sendCookie(res, token, dev === 'true');
+  // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
+  const termsAccepted = !!(await getUserConsent(user.id));
+  // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
+  new SuccessResponse({ user: { email: user.email, token, termsAccepted } }).send(res);
+
+  saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
 };
 
 const sendGiftTxn = async (user: User, walletAddress: string, addedWalletId: number) => {

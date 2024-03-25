@@ -834,6 +834,7 @@ enum ActionType {
   USER_ACTION
   NEW_REFERRAL
   ACCEPTED_REFERRAL
+  USER_PUBLISH_CONSENT
 }
 
 enum ChainTransactionType {

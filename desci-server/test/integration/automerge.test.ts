@@ -3,9 +3,11 @@ import 'mocha';
 import assert from 'assert';
 
 import { DocumentId } from '@automerge/automerge-repo';
-import { 
-  ExternalLinkComponent, ResearchObjectComponentType, ResearchObjectV1,
-  ManifestActions
+import {
+  ExternalLinkComponent,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+  ManifestActions,
 } from '@desci-labs/desci-models';
 import { Node, User } from '@prisma/client';
 import axios, { AxiosError, AxiosInstance } from 'axios';
