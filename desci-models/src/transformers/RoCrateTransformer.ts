@@ -154,7 +154,7 @@ export class RoCrateTransformer implements BaseTransformer {
   }
 
   private mapAuthor(author: ResearchObjectV1Author): any {
-    const id = formatOrcid(author.orcid) || author.googleScholar;
+    const id = formatOrcid(author.orcid) || author.googleScholar || Date.now();
     return {
       ...(id ? { '@id': id } : {}),
       '@type': 'Person',
