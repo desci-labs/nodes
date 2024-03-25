@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { orcidRegex } from '../../utils.js';
+import { formatOrcidString, orcidRegex } from '../../utils.js';
 
 export type SearchProfilesRequest = Request<never, never, never, { name?: string; orcid?: string }> & {
   user: User; // added by auth middleware
@@ -20,8 +20,10 @@ export type SearchProfilesResBody =
 export type UserProfile = { name: string; id: number; orcid?: string };
 
 export const searchProfiles = async (req: SearchProfilesRequest, res: Response<SearchProfilesResBody>) => {
+  debugger;
   const user = req.user;
-  const { name, orcid } = req.query;
+  const { name } = req.query;
+  const { orcid } = req.query;
   const logger = parentLogger.child({
     module: 'Users::searchProfiles',
     body: req.body,
@@ -36,7 +38,9 @@ export const searchProfiles = async (req: SearchProfilesRequest, res: Response<S
       .status(400)
       .json({ error: 'Invalid orcid id, orcid must follow either 123456780000 or 1234-4567-8000-0000 format.' });
 
-  if (name.toString().length < 2 && !orcid)
+  if (orcid) formatOrcidString(orcid); // Ensure hyphenated
+
+  if (name?.toString().length < 2 && !orcid)
     return res.status(400).json({ error: 'Name query must be at least 2 characters' });
 
   try {
