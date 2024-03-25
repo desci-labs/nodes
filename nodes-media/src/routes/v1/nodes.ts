@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import cover from 'controllers/nodes/cover';
-import { ensureApiKey } from 'middleware/ensureApiKey';
+import { ensureApiKey } from '../../middleware/ensureApiKey.js';
+import cover from '../../controllers/nodes/cover.js';
 
 const router = Router();
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
+import upload from '../../controllers/latex/upload.js';
+import compile from '../../controllers/latex/compile.js';
 
-import compile from 'controllers/latex/compile';
-import upload from 'controllers/latex/upload';
 const router = Router();
 
 router.post('/upload', upload);

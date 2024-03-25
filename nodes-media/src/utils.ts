@@ -1,4 +1,4 @@
-import { PUBLIC_IPFS_PATH } from 'config';
+import { PUBLIC_IPFS_PATH } from './config/index.js';
 
 export const cleanupManifestUrl = (url: string, gateway?: string) => {
   if (url && (PUBLIC_IPFS_PATH || gateway)) {
