@@ -92,6 +92,8 @@ export interface ResearchObjectV1Component {
  * Contributor listing for a research object.
  */
 export interface ResearchObjectV1Author {
+  /** Random UUID to identify the contributor */
+  id: string;
   /** Name of the contributor */
   name: string;
   /** Orcid handle of the contributor */
@@ -417,4 +419,3 @@ export type License =
   | 'EPL-2.0'
   | 'AGPL-3.0'
   | 'Unlicense';
-
