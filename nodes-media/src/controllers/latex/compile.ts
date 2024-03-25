@@ -1,11 +1,11 @@
 import fs from 'fs';
 import { join } from 'path';
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import temp from 'temp';
 
-import parser from './log-parser';
-import compileTex from './tex-compiler';
+import parser from './log-parser.js';
+import compileTex from './tex-compiler.js';
 const compile = function (req: Request, res: Response) {
   try {
     const buf = new Buffer(req.body.foo.toString('utf8'), 'base64');
@@ -19,7 +19,7 @@ const compile = function (req: Request, res: Response) {
 
     compileTex(path + '/' + name, 'pdflatex')
       .catch((error) => {
-        /** */
+        console.error(`tex compilation failed: ${JSON.stringify(error)}`);
       })
       .then(function (results) {
         const start = async () => {
