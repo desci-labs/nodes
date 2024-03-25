@@ -92,8 +92,10 @@ export interface ResearchObjectV1Component {
  * Contributor listing for a research object.
  */
 export interface ResearchObjectV1Author {
-  /** Random UUID to identify the contributor */
-  id: string;
+  /** Random UUID to identify the contributor - optional for compatability with old models
+   * Going forwards assignment is best practice.
+   */
+  id?: string;
   /** Name of the contributor */
   name: string;
   /** Orcid handle of the contributor */
