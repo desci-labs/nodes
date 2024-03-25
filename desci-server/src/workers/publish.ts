@@ -15,7 +15,7 @@ const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || 'http://host.docker.int
 
 if (!ETHEREUM_RPC_URL) throw new Error('Env var` ETHEREUM_RPC_URL` not set');
 
-const logger = parentLogger.child({ module: 'PUBLISH WORKER ' });
+const logger = parentLogger.child({ module: 'publish.ts_PUBLISH_WORKER' });
 
 const checkTransaction = async (transactionId: string, uuid: string) => {
   const provider = ethers.getDefaultProvider(ETHEREUM_RPC_URL);
@@ -37,34 +37,40 @@ const checkTransaction = async (transactionId: string, uuid: string) => {
 async function processPublishQueue() {
   const task = await dequeueTask();
 
-  if (!task) return ProcessOutcome.EmptyQueue;
+  logger.info({ task }, 'publish::processPublishQueue task info');
+
+  if (!task) {
+    logger.info('publish::processPublishQueue Empty Queue');
+    return ProcessOutcome.EmptyQueue;
+  }
 
   try {
     const txStatus = await checkTransaction(task.transactionId, task.uuid);
+    logger.info({ txStatus }, 'publish::processPublishQueue txStatus');
     if (txStatus === 1) {
       // todo: dispatch publish task
       publishHandler(task)
         .then((published) => {
-          logger.info({ task, published }, 'PUBLISH SUCCESS');
+          logger.info({ task, published }, 'publish::processPublishQueue PUBLISH SUCCESS');
         })
         .catch((err) => {
-          logger.info({ task, err }, 'PUBLISH FAILED');
+          logger.info({ task, err }, 'publish::processPublishQueue PUBLISH FAILED');
         });
       // todo: dequeue task
       await prisma.publishTaskQueue.delete({ where: { id: task.id } });
     } else if (txStatus === 0) {
       await prisma.publishTaskQueue.update({ where: { id: task.id }, data: { status: PublishTaskQueueStatus.FAILED } });
-      logger.info({ txStatus }, 'PUBLISH TX Receipt');
+      logger.info({ txStatus }, 'publish::processPublishQueue PUBLISH TX Receipt');
     } else {
       await prisma.publishTaskQueue.update({
         where: { id: task.id },
         data: { status: PublishTaskQueueStatus.PENDING },
       });
-      logger.info({ txStatus }, 'PUBLISH TX Might be stuck');
+      logger.info({ txStatus }, 'publish::processPublishQueue PUBLISH TX Might be stuck');
     }
     return ProcessOutcome.TaskCompleted;
   } catch (err) {
-    logger.error({ err }, 'ProcessPublishQueue::ERROR');
+    logger.error({ err }, 'publish::processPublishQueue ProcessPublishQueue::ERROR');
     return ProcessOutcome.Error;
   }
 }
