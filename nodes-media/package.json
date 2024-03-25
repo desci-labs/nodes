@@ -1,15 +1,12 @@
 {
   "name": "@desci-labs/nodes-media",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Resolve open access data, transcode media, translate LaTeX to PDF",
-  "engines": {
-    "node": ">=16"
-  },
   "type": "module",
   "scripts": {
     "dev": "tsx watch --inspect=0.0.0.0:9230 ./src/index.ts",
     "build": "rimraf dist && tsc",
-    "start": "NODE_PATH=./dist node ./dist/index.js",
+    "start": "node ./dist/index.js",
     "docker:dev": "docker-compose --file docker-compose.yml --file docker-compose.dev.yml --compatibility up --build",
     "prepare": "",
     "lint": "eslint --max-warnings 0 --ext .js,ts src",
