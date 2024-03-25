@@ -223,24 +223,24 @@ async function publishCid(job: Prisma.PublicDataReferenceCreateManyInput): Promi
   });
 
   try {
-    const targetCid = dataRef.cid;
-    const buffer = await resolveIpfsData(targetCid);
+    // const targetCid = dataRef.cid;
+    // const buffer = await resolveIpfsData(targetCid);
     logger.debug({ fn: 'publishCid', job }, `[nodeManager::publishCid] [DATA BUFFER]`);
-    const cid = undefined;
+    // const cid = undefined;
     // const { cid, providers } = await uploadDataToEstuary(targetCid, buffer);
     // // console.log('Target CID uploaded', targetCid, cid);
-    // await prisma.publicDataReferenceOnIpfsMirror.update({
-    //   data: { status: 'SUCCESS', providerCount: providers.length },
-    //   where: {
-    //     dataReferenceId_mirrorId: {
-    //       dataReferenceId: dataRef.id,
-    //       mirrorId: ESTUARY_MIRROR_ID,
-    //     },
-    //   },
-    // });
+    await prisma.publicDataReferenceOnIpfsMirror.update({
+      data: { status: 'SUCCESS', providerCount: 1 },
+      where: {
+        dataReferenceId_mirrorId: {
+          dataReferenceId: dataRef.id,
+          mirrorId: ESTUARY_MIRROR_ID,
+        },
+      },
+    });
     // console.log('targetCid:end', targetCid, cid);
 
-    return cid && cid.length > 0;
+    return true;
   } catch (err) {
     logger.error(
       { fn: 'publishCid', job, err },

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import 'reflect-metadata';
 import fs from 'fs';
-import path from 'path';
+import path, { dirname } from 'path';
 
 import * as Sentry from '@sentry/node';
 import bodyParser from 'body-parser';
@@ -9,8 +9,11 @@ import express from 'express';
 import fileupload from 'express-fileupload';
 import morgan from 'morgan';
 
-import routes from './routes';
+import routes from './routes/index.js';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 export const app = express();
 
 const ENABLE_SENTRY = process.env.NODE_ENV === 'production';

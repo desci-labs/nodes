@@ -4,11 +4,7 @@ import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { UserContribution, contributorService } from '../../../services/Contributors.js';
 
-export type GetUserContributionsReqBody = {
-  contributorIds: string[];
-};
-
-export type GetUserContributionsRequest = Request<never, never, GetUserContributionsReqBody>;
+export type GetUserContributionsRequest = Request<never, never, { userId: number }>;
 
 export type GetUserContributionsResBody =
   | {

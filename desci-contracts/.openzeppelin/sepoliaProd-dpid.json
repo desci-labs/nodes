@@ -6,7 +6,7 @@
   },
   "proxies": [
     {
-      "address": "0x2513563cF5ab7604B98f521a856b35970B2262c7",
+      "address": "0x0215242e85D7c480bEAb862cEb9AD6829C1D74E7",
       "txHash": "0xbb7a965fffe819d92298ebef23413f144e64c1319303d3392424b9fc149d9769",
       "kind": "transparent"
     }

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
-import latex from './latex';
-import nodes from './nodes';
+import latex from './latex.js';
+import nodes from './nodes.js';
 
 const router = Router();
 

@@ -17,7 +17,7 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
   const apiKey = await extractApiKey(req);
   const authTokenRetrieval = await extractUserFromToken(token);
   const apiKeyRetrieval = await extractUserFromApiKey(apiKey, req.ip);
-
+  // logger.info({ token, authTokenRetrieval }, 'ENSUER USER');
   const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
 
   if (!retrievedUser) {
@@ -33,33 +33,48 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
  * Extract JWT Authorisation token from IncommingRequest
  */
 export const extractAuthToken = async (request: ExpressRequest | Request) => {
-  let token: string | undefined;
-  // get from query string
-  token = request.url.split('auth=')[1];
-  // logger.info({ url: request.url, token }, 'got url extract');
+  let token = await extractTokenFromCookie(request, 'auth');
+
   if (!token) {
-    // Try to retrieve the token from the auth header
+    // Try to retrieve the token from the header
     const authHeader = request.headers['authorization'];
     if (authHeader) {
       token = authHeader.split(' ')[1];
     }
-    logger.info({ module: 'Permissions::extractAuthToken', authHeaderLength: authHeader?.length || 0 }, 'Request');
+    logger.info({ module: 'Permissions::extractToken', authHeaderLength: authHeader?.length || 0 }, 'Request');
 
+    // Sanitize null or undefined string tokens passed from frontend
+    if (token === 'null' || token === 'undefined') token = null;
+  }
+
+  return token;
+};
+
+/**
+ * Extract Any token from IncommingRequest (Auth Bearer or Cookie or Cookies)
+ */
+export const extractTokenFromCookie = async (request: ExpressRequest | Request, tokenName: string) => {
+  let token: string | undefined;
+  // get from query string
+  token = request.url.split(`${tokenName}=`)[1];
+  logger.info({ url: request.url, token }, 'got url extract');
+
+  if (!token) {
     // If auth token wasn't found in the header, try retrieve from cookies
     if (!token && request['cookies']) {
-      token = request['cookies']['auth'];
+      token = request['cookies'][tokenName];
     }
 
-    // If Auth token is null and request.headers.cookie is valid, attempt to parse auth token from cookie
+    // If token is null and request.headers.cookie is valid, attempt to parse auth token from cookie
     // Request.Headers.Cookie is of the format `auth=tokenvalue; path=/`
     if (!token && request.headers['cookie']) {
       const parsedTokenValue = request.headers['cookie']
         .split(';')
         .map((entry) => entry.split('='))
-        .filter(([key]) => key.trim().toLowerCase() === 'auth')[0];
+        .filter(([key]) => key.trim().toLowerCase() === tokenName)[0];
       token = parsedTokenValue?.[1];
-      // console.log('parsedTokenValue', parsedTokenValue);
     }
+    logger.info({ tokenFound: !!token, tokenName }, 'COOKIE');
   }
   return token;
 };
@@ -82,7 +97,7 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
         return;
       }
 
-      // logger.info({ module: 'ExtractAuthUser', user }, 'User decrypted');
+      logger.info({ module: 'ExtractAuthUser', user, tokenFound: !!token }, 'User decrypted');
 
       if (!user) {
         resolve(null);
