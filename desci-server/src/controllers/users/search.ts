@@ -16,7 +16,7 @@ export type SearchProfilesResBody =
       error: string;
     };
 
-export type UserProfile = { name: string; id: number };
+export type UserProfile = { name: string; id: number; orcid?: string };
 
 export const searchProfiles = async (req: SearchProfilesRequest, res: Response<SearchProfilesResBody>) => {
   const user = req.user;
@@ -34,7 +34,11 @@ export const searchProfiles = async (req: SearchProfilesRequest, res: Response<S
     const profiles = await prisma.user.findMany({ where: { name: { contains: name as string, mode: 'insensitive' } } });
 
     if (profiles) {
-      const profilesReturn: UserProfile[] = profiles.map((profile) => ({ name: profile.name, id: profile.id }));
+      const profilesReturn: UserProfile[] = profiles.map((profile) => ({
+        name: profile.name,
+        id: profile.id,
+        ...(profile.orcid && { orcid: profile.orcid }),
+      }));
       return res.status(200).json({ profiles: profilesReturn });
     }
   } catch (e) {
