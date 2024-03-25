@@ -216,9 +216,7 @@ const sendGiftTxn = async (user: User, walletAddress: string, addedWalletId: num
       let provider;
       try {
         provider = new ethers.providers.JsonRpcProvider(
-          process.env.NODE_ENV === 'production'
-            ? 'https://eth-goerli.g.alchemy.com/v2/ZeIzCAJyPpRnTtPNSmddHGF-q2yp-2Uy'
-            : 'http://host.docker.internal:8545',
+          process.env.NODE_ENV === 'production' ? process.env.ETHEREUM_RPC_URL : 'http://host.docker.internal:8545',
         );
         const bn = await provider.getBlockNumber();
 
