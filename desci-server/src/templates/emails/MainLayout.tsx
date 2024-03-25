@@ -22,8 +22,9 @@ import BaseProvider from './BaseProvider.js';
 export const emailAssetsBaseUrl = 'https://ipfs.desci.com/ipfs';
 const cubertBkg = 'bafkreih6yx7ywj7trvpp45vergrnytad7ezsku75tefyro4qrrcfrrmrt4';
 const labsLogo = 'bafkreifvb7tleo5jaidjjf6lfjxb5bpjbs2nswp47bi7zh3hxbpc6fjyf4';
+const defaultFooterMsg = "If you didn't request this email, there's nothing to worry about, you can safely ignore it.";
 
-const MainLayout = ({ children }: { children: JSX.Element }) => {
+const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.Element; footerMsg?: string }) => {
   return (
     <BaseProvider>
       <Html>
@@ -39,14 +40,16 @@ const MainLayout = ({ children }: { children: JSX.Element }) => {
             fontStyle="normal"
           />
         </Head>
-        <Body className="text-white">
+        <Body className="text-black">
           <Container
-            style={{
-              backgroundImage: `url('${emailAssetsBaseUrl}/${cubertBkg}')`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-            }}
+            style={
+              {
+                // backgroundImage: `url('${emailAssetsBaseUrl}/${cubertBkg}')`,
+                // backgroundSize: 'cover',
+                // backgroundPosition: 'center',
+                // backgroundRepeat: 'no-repeat',
+              }
+            }
             className="relative w-full h-fit bg-opacity-50"
           >
             <Container className="backdrop-blur-2xl bg-opacity-50">
@@ -56,17 +59,23 @@ const MainLayout = ({ children }: { children: JSX.Element }) => {
                   width="193"
                   height="60"
                   alt="Desci Labs"
-                  className="m-auto"
+                  className="m-auto invert"
                 />
               </Section>
               <Section>{children}</Section>
               <Text className="pl-3" style={{ color: 'gray' }}>
-                If you didn't request this email, there's nothing to worry about, you can safely ignore it.
+                {footerMsg}
               </Text>
               <Row>
                 <Column className="">
                   <Link href="https://desci.com" target="_blank" rel="noopener noreferrer">
-                    <Img src={`${emailAssetsBaseUrl}/${labsLogo}`} width="135" height="42" alt="Desci Labs" />
+                    <Img
+                      src={`${emailAssetsBaseUrl}/${labsLogo}`}
+                      width="135"
+                      height="42"
+                      alt="Desci Labs"
+                      className="invert"
+                    />
                   </Link>
                 </Column>
                 <Column className="ml-auto border border-orange w-full pr-3 text-right">

@@ -35,8 +35,12 @@ const walletFromPkey = (pkey) => {
 
 const wallet = walletFromPkey(process.env.PRIVATE_KEY);
 
-const RO_CONTRACT_ADDRESS = "0xbddc15A55339fCedb56b72Bb32eC65A0eFaC7540";
-const DPID_CONTRACT_ADDRESS = "0xAA77454C456265C6d2542b356289BA2BaAbA7BAa";
+// const RO_CONTRACT_ADDRESS = "0xbddc15A55339fCedb56b72Bb32eC65A0eFaC7540";
+// const DPID_CONTRACT_ADDRESS = "0xAA77454C456265C6d2542b356289BA2BaAbA7BAa";
+// const RO_CONTRACT_ADDRESS = "0xbddc15A55339fCedb56b72Bb32eC65A0eFaC7540";
+// const DPID_CONTRACT_ADDRESS = "0x3D7BEaC4925a59B7cce2f6Ca6D2b50C1E4822759";
+const RO_CONTRACT_ADDRESS = "0x1fA4c72680af35FE1eb7345509E39498be6Ce03b";
+const DPID_CONTRACT_ADDRESS = "0x0215242e85D7c480bEAb862cEb9AD6829C1D74E7";
 
 const DEFAULT_PREFIX = ethers.utils.formatBytes32String("beta");
 
@@ -61,7 +65,7 @@ const DEFAULT_PREFIX = ethers.utils.formatBytes32String("beta");
   for (let i = 0; i < unified.length; i += chunkSize) {
     chunks.push(unified.slice(i, i + chunkSize));
   }
-  for (let i = 188; i < chunks.length; i++) {
+  for (let i = 64; i < chunks.length; i++) {
     const chunk = chunks[i];
     console.log("chunk", i, chunk);
     const result = await researchObjectContract._importChunk(

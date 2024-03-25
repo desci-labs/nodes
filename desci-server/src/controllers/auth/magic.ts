@@ -17,6 +17,7 @@ export const generateAccessToken = (payload) => {
 
 export const oneYear = 1000 * 60 * 60 * 24 * 365;
 export const oneDay = 1000 * 60 * 60 * 24;
+export const oneMinute = 1000 * 60;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
   if (process.env.NODE_ENV === 'production') {
     logger.info({ fn: 'magic', email: req.body.email }, `magic link requested`);

@@ -185,7 +185,7 @@ const idToRo = {};
   for (let i = 0; i < unified.length; i += chunkSize) {
     chunks.push(unified.slice(i, i + chunkSize));
   }
-  for (let i = 43; i < chunks.length; i++) {
+  for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
     console.log("chunk", i, chunk);
     const result = await proxy._importChunk(chunk, DEFAULT_PREFIX, {

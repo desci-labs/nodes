@@ -25,12 +25,16 @@ import {
   getPrivateShare,
   getCoverImage,
   deleteNode,
+  publishConsentSchema,
+  publishConsent,
+  checkUserPublishConsent,
+  checkPublishConsentSchema,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { prepublish } from '../../controllers/nodes/prepublish.js';
 import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
-import { attachUser } from '../../internal.js';
+import { asyncHander, attachUser, validate } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
@@ -47,6 +51,12 @@ router.get('/', [ensureUser], list);
 router.post('/doi', [ensureUser], retrieveDoi);
 router.get('/pdf', proxyPdf);
 router.post('/consent', [], consent);
+router.post('/consent/publish', [ensureUser, validate(publishConsentSchema)], asyncHander(publishConsent));
+router.get(
+  '/consent/publish/:uuid',
+  [ensureUser, validate(checkPublishConsentSchema)],
+  asyncHander(checkUserPublishConsent),
+);
 router.post('/terms', [ensureUser], consent);
 router.get('/share/verify/:shareId', checkPrivateShareId);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);

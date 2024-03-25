@@ -35,14 +35,19 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up the environment
         # Replace this line with the appropriate setup for your project
         # Examples:
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version-file: ".nvmrc"
+          check-latest: false
+          cache: "yarn"
+          cache-dependency-path: |
+            desci-models/yarn.lock
+            desci-server/yarn.lock
 
       - name: Set up docker-compose
         run: |
@@ -73,7 +78,7 @@ jobs:
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
 
       # Add steps here like linting, testing, minification, etc.
       - id: install-aws-cli

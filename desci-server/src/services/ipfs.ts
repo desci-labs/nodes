@@ -1,5 +1,3 @@
-import fs from 'fs';
-import https from 'https';
 import { Readable } from 'stream';
 
 import {
@@ -9,17 +7,16 @@ import {
   type ResearchObjectV1,
   type ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
-import * as dagPb from '@ipld/dag-pb';
 import type { PBNode } from '@ipld/dag-pb';
+import * as dagPb from "@ipld/dag-pb";
 import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import axios from 'axios';
-import * as ipfs from 'ipfs-http-client';
-import { CID as CID2, globSource } from 'ipfs-http-client';
-import UnixFS from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
 import { flatten, uniq } from 'lodash-es';
 import * as multiformats from 'multiformats';
 import { code as rawCode } from 'multiformats/codecs/raw';
+import { create, CID, globSource } from 'kubo-rpc-client'
+import { UnixFS } from 'ipfs-unixfs';
 
 import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
@@ -48,14 +45,10 @@ export interface UrlWithCid {
 }
 
 // connect to a different API
-export const client = ipfs.create({ url: process.env.IPFS_NODE_URL });
-export const readerClient = ipfs.create({ url: PUBLIC_IPFS_PATH });
+export const client = create({ url: process.env.IPFS_NODE_URL });
+export const readerClient = create({ url: PUBLIC_IPFS_PATH });
 
-const caBundle = fs.readFileSync('ssl/sealstorage-bundle.crt');
-const agent = new https.Agent({ ca: caBundle });
-// const PUBLIC_IPFS_RESOLVER = process.env.PUBLIC_IPFS_RESOLVER;
-const PUBLIC_IPFS_RESOLVER = 'https://maritime.sealstorage.io';
-export const publicIpfs = ipfs.create({ url: PUBLIC_IPFS_RESOLVER, agent, apiPath: '/ipfs/api/v0' });
+export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0' });
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
 const INTERNAL_IPFS_TIMEOUT = 30000;
@@ -644,7 +637,7 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
   }
 }
 
-export const getDag = async (cid: ipfs.CID) => {
+export const getDag = async (cid: CID) => {
   const dag = await client.dag.get(cid);
   return dag;
 };
@@ -654,7 +647,7 @@ export const getDatasetTar = async (cid) => {
   return files;
 };
 
-export const getDataset = async (cid) => {
+export const getDataset = async (cid: CID) => {
   const files = [];
   for await (const file of client.get(cid)) {
     files.push(file);
@@ -680,7 +673,7 @@ export const getFilesAndPaths = async (tree: RecursiveLsResult) => {
   return filesAndPaths;
 };
 
-export const isDir = async (cid: string): Promise<boolean> => {
+export const isDir = async (cid: CID): Promise<boolean> => {
   try {
     const files = await client.ls(cid);
 
@@ -704,7 +697,7 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
   const dagCidsToBeReset = [];
   //                  CID(String): DAGNode     - cached to prevent duplicate calls
   const dagsLoaded: Record<string, PBNode> = {};
-  dagCidsToBeReset.push(CID2.parse(rootCid));
+  dagCidsToBeReset.push(CID.parse(rootCid));
   const stagingDagNames = contextPath.split('/');
   if (contextPath.length) {
     for (let i = 0; i < stagingDagNames.length; i++) {
@@ -773,7 +766,7 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
   const dagCidsToBeReset = [];
   //                  CID(String): DAGNode     - cached to prevent duplicate calls
   const dagsLoaded: Record<string, PBNode> = {};
-  dagCidsToBeReset.push(CID2.parse(rootCid));
+  dagCidsToBeReset.push(CID.parse(rootCid));
   const stagingDagNames = contextPath.split('/');
   if (contextPath.length) {
     for (let i = 0; i < stagingDagNames.length; i++) {
@@ -862,7 +855,7 @@ export const renameFileInDag = async (rootCid: string, contextPath: string, link
   const dagCidsToBeReset = [];
   //                  CID(String): DAGNode     - cached to prevent duplicate calls
   const dagsLoaded: Record<string, PBNode> = {};
-  dagCidsToBeReset.push(CID2.parse(rootCid));
+  dagCidsToBeReset.push(CID.parse(rootCid));
   const stagingDagNames = contextPath.split('/');
   if (contextPath.length) {
     for (let i = 0; i < stagingDagNames.length; i++) {
@@ -1011,8 +1004,8 @@ export async function getExternalCidSizeAndType(cid: string) {
       if (fSize) {
         size = fSize;
       } else {
-        size = unixFs.blockSizes.reduce((a, b) => a + b, 0);
-      }
+        size = unixFs.blockSizes.reduce((a, b) => a + b, BigInt(0));
+      };
     }
     if (isDirectory !== undefined && size !== undefined) return { isDirectory, size };
     throw new Error(`Failed to resolve CID or determine file size/type for cid: ${cid}`);
@@ -1084,14 +1077,14 @@ export enum CidSource {
 // Note: when using this function the result can be impacted by the resolvers uptime
 export async function checkCidSrc(cid: string, assumeExternal = false) {
   try {
-    const internalStat = await client.block.stat(CID2.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
+    const internalStat = await client.block.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
     if (internalStat) return CidSource.INTERNAL;
   } catch (err) {
     if (assumeExternal) return CidSource.EXTERNAL;
   }
 
   try {
-    const externalStat = await publicIpfs.block.stat(CID2.parse(cid), { timeout: EXTERNAL_IPFS_TIMEOUT });
+    const externalStat = await publicIpfs.block.stat(CID.parse(cid), { timeout: EXTERNAL_IPFS_TIMEOUT });
     if (externalStat) return CidSource.EXTERNAL;
   } catch (err) {
     logger.warn(

@@ -21,7 +21,7 @@ import {
 } from "@desci-labs/desci-models";
 import FormData from "form-data";
 import { createReadStream } from "fs";
-import type { NodeIDs } from "@desci-labs/desci-codex-lib/dist/src/types.js";
+import type { NodeIDs } from "@desci-labs/desci-codex-lib";
 import { publish } from "./publish.js";
 import type { ResearchObjectDocument } from "./automerge.js";
 import { randomUUID } from "crypto";
@@ -305,6 +305,7 @@ type PublishParams = {
   transactionId?: string,
   nodeVersionId?: string,
   ceramicStream?: string,
+  commitId?: string,
 };
 
 /** Result of publishing a draft node */
@@ -331,6 +332,7 @@ export const publishDraftNode = async (
     manifest: publishResult.manifest,
     transactionId: publishResult.transactionId,
     ceramicStream: publishResult.ceramicIDs?.streamID,
+    commitId: publishResult.ceramicIDs?.commitID,
   };
 
   try {

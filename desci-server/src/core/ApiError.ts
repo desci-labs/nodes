@@ -12,7 +12,7 @@ import {
 
 export enum ApiErrorType {
   BAD_REQUEST = 'BadRequestError',
-  UNAUTHORIZED = 'AuthFailiureError',
+  UNAUTHORIZED = 'AuthFailureError',
   INTERNAL = 'InternalError',
   NOT_FOUND = 'NotFoundError',
   NO_DATA = 'NotDataError',
@@ -65,7 +65,7 @@ export abstract class ApiError extends Error {
   }
 }
 
-export class AuthFailiureError extends ApiError {
+export class AuthFailureError extends ApiError {
   constructor(message = 'Invalid Credentials') {
     super(ApiErrorType.UNAUTHORIZED, message);
   }

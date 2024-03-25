@@ -1,0 +1,15 @@
+
+# 
+depcheck:
+  ignoreMatches:
+    # use is not detected properly
+    - "crypto"
+    # used in scripts
+    - "kill-port"
+    - "pretty-quick"
+    - "@commitlint/*"
+    # used implicitly
+    - "@opentelemetry/*"
+    - "@honeycombio/*"
+    - "pino-pretty"
+    - "eslint-plugin-*"

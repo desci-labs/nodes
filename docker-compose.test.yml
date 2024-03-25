@@ -1,5 +1,5 @@
 version: "3"
-
+name: test
 services:
   nodes_test_db:
     container_name: "nodes_test_db"

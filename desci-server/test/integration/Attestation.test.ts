@@ -764,6 +764,7 @@ describe('Attestations Service', async () => {
       });
 
       comment = await attestationService.createComment({
+        links: [],
         claimId: claim.id,
         authorId: users[1].id,
         comment: 'Love the attestation',
@@ -955,6 +956,7 @@ describe('Attestations Service', async () => {
       await attestationService.verifyClaim(claim.id, users[2].id);
       await attestationService.verifyClaim(openDataAttestationClaim.id, users[1].id);
       await attestationService.createComment({
+        links: [],
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
@@ -964,6 +966,7 @@ describe('Attestations Service', async () => {
       await attestationService.verifyClaim(claim2.id, users[3].id);
       await attestationService.verifyClaim(claim2.id, users[2].id);
       await attestationService.createComment({
+        links: [],
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
@@ -1107,6 +1110,7 @@ describe('Attestations Service', async () => {
         userId: users[1].id,
       });
       await attestationService.createComment({
+        links: [],
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
@@ -1116,6 +1120,7 @@ describe('Attestations Service', async () => {
       await attestationService.verifyClaim(claim2.id, users[3].id);
       await attestationService.verifyClaim(claim2.id, users[2].id);
       await attestationService.createComment({
+        links: [],
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
@@ -1268,6 +1273,7 @@ describe('Attestations Service', async () => {
         userId: users[1].id,
       });
       await attestationService.createComment({
+        links: [],
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
@@ -1278,11 +1284,13 @@ describe('Attestations Service', async () => {
       await attestationService.verifyClaim(claim2.id, users[2].id);
       await attestationService.verifyClaim(fairMetadataAttestationClaim2.id, users[2].id);
       await attestationService.createComment({
+        links: [],
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
       });
       await attestationService.createComment({
+        links: [],
         claimId: fairMetadataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
@@ -1301,6 +1309,7 @@ describe('Attestations Service', async () => {
       // engagments for local community
       await attestationService.verifyClaim(localClaim.id, users[1].id);
       await attestationService.createComment({
+        links: [],
         claimId: localClaim.id,
         authorId: users[3].id,
         comment: 'I love this guy',
@@ -1696,6 +1705,7 @@ describe('Attestations Service', async () => {
         userId: users[1].id,
       });
       await attestationService.createComment({
+        links: [],
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
@@ -1706,11 +1716,13 @@ describe('Attestations Service', async () => {
       await attestationService.verifyClaim(claim2.id, users[2].id);
       await attestationService.verifyClaim(fairMetadataAttestationClaim2.id, users[2].id);
       await attestationService.createComment({
+        links: [],
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
       });
       await attestationService.createComment({
+        links: [],
         claimId: fairMetadataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
@@ -1729,6 +1741,7 @@ describe('Attestations Service', async () => {
       // engagments for local community
       await attestationService.verifyClaim(localClaim.id, users[1].id);
       await attestationService.createComment({
+        links: [],
         claimId: localClaim.id,
         authorId: users[3].id,
         comment: 'I love this guy',
@@ -1902,6 +1915,7 @@ describe('Attestations Service', async () => {
       await attestationService.verifyClaim(claim.id, users[2].id);
       await attestationService.verifyClaim(openDataAttestationClaim.id, users[1].id);
       await attestationService.createComment({
+        links: [],
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
@@ -1911,6 +1925,7 @@ describe('Attestations Service', async () => {
       await attestationService.verifyClaim(claim2.id, users[3].id);
       await attestationService.verifyClaim(claim2.id, users[2].id);
       await attestationService.createComment({
+        links: [],
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',

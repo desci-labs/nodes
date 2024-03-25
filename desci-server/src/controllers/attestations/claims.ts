@@ -3,7 +3,7 @@ import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
 import {
-  AuthFailiureError,
+  AuthFailureError,
   NotFoundError,
   SuccessMessageResponse,
   SuccessResponse,
@@ -61,7 +61,7 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
   const claim = await attestationService.getClaimOnDpid(body.claimId, body.dpid.toString());
   if (!claim) throw new NotFoundError();
 
-  if (node.ownerId !== req.user.id || claim.claimedById !== req.user.id) throw new AuthFailiureError();
+  if (node.ownerId !== req.user.id || claim.claimedById !== req.user.id) throw new AuthFailureError();
 
   const claimSignal = await attestationService.getClaimEngagementSignals(claim.id);
   const totalSignal = claimSignal.annotations + claimSignal.reactions + claimSignal.verifications;

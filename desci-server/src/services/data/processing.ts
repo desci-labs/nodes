@@ -59,6 +59,7 @@ import {
   createNotEnoughSpaceError,
   createUnhandledError,
 } from './processingErrors.js';
+import { CID } from 'multiformats';
 
 interface ProcessS3DataToIpfsParams {
   files: any[];
@@ -87,6 +88,7 @@ export async function processS3DataToIpfs({
 }: ProcessS3DataToIpfsParams): Promise<Either<UpdateResponse, ProcessingError>> {
   let pinResult: IpfsPinnedResult[] = [];
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
+  if (contextPath.endsWith('/')) contextPath = contextPath.slice(0, -1);
   try {
     ensureSpaceAvailable(files, user);
 
@@ -638,7 +640,7 @@ export async function handleCleanupOnMidProcessingError({
       size: e.size || 0,
       nodeId: node.id,
       userId: user.id,
-      directory: await isDir(e.cid),
+      directory: await isDir(CID.parse(e.cid)),
     };
   });
   const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });

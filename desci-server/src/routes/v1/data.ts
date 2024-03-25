@@ -22,7 +22,7 @@ const upload = isS3Configured
         // Ensure write access before uploading
         if (!(req as any).node) {
           const user = (req as any).user;
-          const { ok, node } = await ensureWriteAccessCheck(user, req.body.uuid);
+          const { ok, node } = await ensureWriteAccessCheck(user, (req as any).body.uuid);
           if (ok) {
             (req as any).node = node;
           } else {

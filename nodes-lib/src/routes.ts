@@ -1,6 +1,21 @@
-import axios, { AxiosResponse } from "axios";
+import axios, { AxiosError, AxiosResponse } from "axios";
 import { ENDPOINTS } from "./api.js";
 import { NODES_API_URL as API } from "./config.js";
+
+// Default error serialization is huuuge due to circular refs
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const err = error as AxiosError;
+    console.log(`
+      ${err.name}: ${err.message}:
+      ${err.config?.method} to ${err.config?.url} got ${err.response?.status}:${err.response?.statusText}
+      Body: ${JSON.stringify(err.response?.data)}
+    `);
+    return Promise.reject(new Error(err.message))
+  },
+);
+
 /**
  * This function looks like all types are unions, but when called with
  * the parameter `endpoint`, the specific type of that will constrain all

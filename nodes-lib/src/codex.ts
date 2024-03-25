@@ -8,7 +8,7 @@ import {
   queryResearchObject,
   resolveHistory,
   newCeramicClient,
-} from "@desci-labs/desci-codex-lib/dist/src/index.js";
+} from "@desci-labs/desci-codex-lib";
 import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
 import { convert0xHexToCid } from "./util/converting.js";
 import {
@@ -59,6 +59,7 @@ export const codexPublish = async (
     const ro = await createResearchObject(compose, {
       title: prepublishResult.updatedManifest.title || "",
       manifest: prepublishResult.updatedManifestCid,
+      license: prepublishResult.updatedManifest.defaultLicense || "",
     });
     console.log(
       `[DEBUG]::CODEX published to new stream ${ro.streamID} with commit ${ro.commitID}`
@@ -105,10 +106,11 @@ const backfillNewStream = async (
             );
 
         const title = "[BACKFILLED]"; // version.title is the title of the event, e.g. "Published"
+        const license = "[BACKFILLED]";
         const manifest = convert0xHexToCid(nextVersion.cid);
         const op =
             streamID === ""
-                ? createResearchObject(compose, { title, manifest })
+                ? createResearchObject(compose, { title, manifest, license })
                 : updateResearchObject(compose, { id: streamID, title, manifest });
         return op;
     };
