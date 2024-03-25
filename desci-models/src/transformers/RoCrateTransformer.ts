@@ -81,6 +81,7 @@ export class RoCrateTransformer implements BaseTransformer {
     const mainEntity = crate['@graph'].find((entity: any) => entity['@type'] === 'Dataset');
 
     const authors = mainEntity.creator?.map((creator: any) => ({
+      id: Date.now(),
       name: creator.name,
       orcid: creator['@id'].startsWith('https://orcid.org/') ? creator['@id'] : undefined,
       googleScholar: creator['@id'].startsWith('https://scholar.google.com/') ? creator['@id'] : undefined,
