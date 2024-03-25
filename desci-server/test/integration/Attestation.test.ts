@@ -768,7 +768,6 @@ describe('Attestations Service', async () => {
         claimId: claim.id,
         authorId: users[1].id,
         comment: 'Love the attestation',
-        links: [],
       });
     });
 
@@ -961,7 +960,6 @@ describe('Attestations Service', async () => {
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
-        links: [],
       });
 
       // verify one claims for node 2 attestations
@@ -972,7 +970,6 @@ describe('Attestations Service', async () => {
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
-        links: [],
       });
     });
 
@@ -1117,7 +1114,6 @@ describe('Attestations Service', async () => {
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
-        links: [],
       });
 
       // verify one claims for node 2 attestations
@@ -1128,7 +1124,6 @@ describe('Attestations Service', async () => {
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
-        links: [],
       });
       await attestationService.createReaction({
         claimId: claim2.id,
@@ -1282,7 +1277,6 @@ describe('Attestations Service', async () => {
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
-        links: [],
       });
 
       // verify one claims for node 2 attestations
@@ -1294,14 +1288,12 @@ describe('Attestations Service', async () => {
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
-        links: [],
       });
       await attestationService.createComment({
         links: [],
         claimId: fairMetadataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
-        links: [],
       });
       await attestationService.createReaction({
         claimId: claim2.id,
@@ -1321,7 +1313,6 @@ describe('Attestations Service', async () => {
         claimId: localClaim.id,
         authorId: users[3].id,
         comment: 'I love this guy',
-        links: [],
       });
       await attestationService.createReaction({
         claimId: localClaim.id,
@@ -1718,7 +1709,6 @@ describe('Attestations Service', async () => {
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
-        links: [],
       });
 
       // verify one claims for node 2 attestations
@@ -1730,14 +1720,12 @@ describe('Attestations Service', async () => {
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
-        links: [],
       });
       await attestationService.createComment({
         links: [],
         claimId: fairMetadataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
-        links: [],
       });
       await attestationService.createReaction({
         claimId: claim2.id,
@@ -1757,7 +1745,6 @@ describe('Attestations Service', async () => {
         claimId: localClaim.id,
         authorId: users[3].id,
         comment: 'I love this guy',
-        links: [],
       });
       await attestationService.createReaction({
         claimId: localClaim.id,
@@ -1932,7 +1919,6 @@ describe('Attestations Service', async () => {
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
-        links: [],
       });
 
       // verify one claims for node 2 attestations
@@ -1943,7 +1929,6 @@ describe('Attestations Service', async () => {
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
-        links: [],
       });
     });
 
