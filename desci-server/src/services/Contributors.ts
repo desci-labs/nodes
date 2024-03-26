@@ -248,9 +248,16 @@ class ContributorService {
   }
 
   async removePrivShareCodeForContribution(contribution: NodeContribution, node: Node): Promise<void> {
-    if (!contribution.email) return;
+    if (!contribution.email && !contribution.userId) return;
+    let email = contribution.email;
+    if (!email) {
+      // Extract the email from the userId
+      const user = await prisma.user.findUnique({ where: { id: contribution.userId } });
+      if (!user) return;
+      email = user.email;
+    }
     const privShare = await prisma.privateShare.findFirst({
-      where: { nodeUUID: node.uuid, memo: PRIV_SHARE_CONTRIBUTION_PREFIX + contribution.email },
+      where: { nodeUUID: node.uuid, memo: PRIV_SHARE_CONTRIBUTION_PREFIX + email },
     });
 
     if (privShare) await prisma.privateShare.delete({ where: { id: privShare.id } });
