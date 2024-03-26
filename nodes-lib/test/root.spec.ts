@@ -30,16 +30,24 @@ import {
   ResearchObjectComponentType,
   ResearchObjectComponentDataSubtype
 } from "@desci-labs/desci-models";
+import { signerFromPkey } from "../src/util/signing.js";
+import { getConfig, setApiKey } from "../src/config/index.js";
 
-// Disregard env config, as one likely does not want to spam all of this
-// onto a real chain.
-const NODES_API_URL = "http://localhost:5420";
+const TEST_PKEY = "f1d695d35c0987579c9e43e2e068f9f95775e7fd3958797b52d780aa8914e167";
+const testSigner = signerFromPkey(TEST_PKEY);
+
+if (!process.env.NODESLIB_API_KEY) {
+  throw new Error("NODESLIB_API_KEY not set; cannot run tests.")
+} else {
+  setApiKey(process.env.NODESLIB_API_KEY);
+};
 
 describe("nodes-lib", () => {
   beforeAll(async () => {
+    const apiUrl = getConfig().apiUrl;
     try {
-      console.log(`Checking server reachable at ${NODES_API_URL}...`);
-      await axios.get(NODES_API_URL);
+      console.log(`Checking server reachable at ${apiUrl}...`);
+      await axios.get(apiUrl);
       console.log("Server is reachable");
     } catch (e) {
       console.error(
@@ -265,7 +273,7 @@ describe("nodes-lib", () => {
     beforeAll(async () => {
       const { node } = await createBoilerplateNode();
       uuid = node.uuid;
-      publishResult = await publishDraftNode(uuid);
+      publishResult = await publishDraftNode(uuid, testSigner);
     });
 
     describe("new node", async () => {
@@ -296,7 +304,7 @@ describe("nodes-lib", () => {
       beforeAll(async () => {
         // async publish errors on re-publish before it finishes
         await sleep(5_000);
-        await publishDraftNode(uuid);
+        await publishDraftNode(uuid, testSigner);
         // Allow graph node to index
         await sleep(1_500);
       });
@@ -323,13 +331,13 @@ describe("nodes-lib", () => {
       const { node: { uuid }} = await createBoilerplateNode();
 
       // make a dpid-only publish
-      await dpidPublish(uuid, false);
+      await dpidPublish(uuid, false, testSigner);
 
         // Allow graph node to index
       await sleep(1_500);
 
       // make a regular publish
-      const pubResult = await publishDraftNode(uuid);
+      const pubResult = await publishDraftNode(uuid, testSigner);
 
         // Allow graph node to index
       await sleep(1_500);

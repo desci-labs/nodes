@@ -25,8 +25,9 @@ import type { NodeIDs } from "@desci-labs/desci-codex-lib";
 import { publish } from "./publish.js";
 import type { ResearchObjectDocument } from "./automerge.js";
 import { randomUUID } from "crypto";
-import { NODES_API_KEY } from "./config.js";
+import { getConfig } from "./config/index.js";
 import { makeRequest } from "./routes.js";
+import { Signer, providers } from "ethers";
 
 export const ENDPOINTS = {
   deleteData: {
@@ -263,11 +264,11 @@ export const getDraftNode = async (
  * dPID publish history entry for a node.
 */
 type NodeVersion = {
-    id: number;
-    manifestUrl: string;
-    cid: string;
-    transactionId: string | null;
-    nodeId: number | null;
+  id: number;
+  manifestUrl: string;
+  cid: string;
+  transactionId: string | null;
+  nodeId: number | null;
 };
 
 /**
@@ -275,11 +276,15 @@ type NodeVersion = {
  * computed from draft state.
 */
 export type PrepublishResponse = {
-    ok: boolean;
-    updatedManifestCid: string;
-    updatedManifest: ResearchObjectV1;
-    version?: NodeVersion;
-    ceramicStream?: string;
+  ok: boolean;
+  updatedManifestCid: string;
+  updatedManifest: ResearchObjectV1;
+  version?: NodeVersion;
+  ceramicStream?: string;
+};
+
+export type PublishConfiguration = {
+  signer: Signer
 };
 
 /**
@@ -310,21 +315,30 @@ type PublishParams = {
 
 /** Result of publishing a draft node */
 export type PublishResponse = {
+  /** The updated manifest */
+  updatedManifest: ResearchObjectV1,
   /** The new manifest CID, which could have changed from adding the dPID */
   updatedManifestCid: string,
   /** Ceramic stream and commit IDs from publishing to Codex */
   ceramicIDs?: NodeIDs,
+  /** dPID transaction ID */
+  dpidTxId?: string
 };
 
 /**
  * Publish a draft node, meaning to compile the state of the drive into an
  * actual IPLD DAG, make the IPFS CIDs public, and register the node on
  * the dPID registry and Codex.
+ *
+ * @param uuid - UUID of node to publish
+ * @param signer - Signer to use for publish, if not set with env
 */
 export const publishDraftNode = async (
   uuid: string,
+  signer: Signer | providers.JsonRpcSigner,
+  skipCodex = false,
 ): Promise<PublishResponse> => {
-  const publishResult = await publish(uuid);
+  const publishResult = await publish(uuid, signer, skipCodex);
 
   const pubParams: PublishParams = {
     uuid,
@@ -344,6 +358,8 @@ export const publishDraftNode = async (
 
   return { 
     ceramicIDs: publishResult.ceramicIDs,
+    dpidTxId: publishResult.transactionId,
+    updatedManifest: publishResult.manifest,
     updatedManifestCid: publishResult.cid,
   };
 };
@@ -948,7 +964,7 @@ export const updateCoverImage = async (
 
 const getHeaders = (isFormData: boolean = false) => {
   const headers = {
-    "api-key": NODES_API_KEY,
+    "api-key": getConfig().apiKey,
     ...(isFormData ? { "content-type": "multipart/form-data" } : {})
   };
   return headers;

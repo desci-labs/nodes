@@ -1,49 +1,20 @@
-import { Wallet, getDefaultProvider, type ContractReceipt, BigNumber, Contract } from "ethers";
-import { SigningKey, formatBytes32String } from "ethers/lib/utils.js";
-import type { DpidRegistry, ResearchObject } from "@desci-labs/desci-contracts/typechain-types";
+import { BigNumber, ContractReceipt, Signer, providers } from "ethers";
 import { convertUUIDToHex, convertCidTo0xHex} from "./util/converting.js";
 import { changeManifest, prePublishDraftNode, type PrepublishResponse } from "./api.js"
-import {
-  RO_CONTRACT_ADDRESS,
-  DPID_CONTRACT_ADDRESS,
-  ETHEREUM_RPC_URL,
-  PUBLISH_PKEY,
-} from "./config.js";
-
-const { default: { abi: researchObjectABI }} = await import(
-  "./abi/ResearchObject.json",
-  { assert: { type: "json" }}
-);
-const { default: { abi: dpidRegistryAbi }} = await import(
-  "./abi/DpidRegistry.json",
-  { assert: { type: "json" }}
-);
+import { getConfig } from "./config/index.js";
+import { formatBytes32String } from "ethers/lib/utils.js";
+import { SigMaker } from "./config/chain.js";
 
 const LOG_CTX = "[nodes-lib::chain]"
 
 const DEFAULT_DPID_PREFIX_STRING = "beta";
 const DEFAULT_DPID_PREFIX = formatBytes32String(DEFAULT_DPID_PREFIX_STRING);
 
-const ethereumProvider = getDefaultProvider(ETHEREUM_RPC_URL);
+const researchObjectContract = (signer: SigMaker) =>
+  getConfig().chainConfig.researchObjectConnector(signer);
 
-const walletFromPkey = (pkey: string): Wallet => {
-  pkey = pkey.startsWith("0x") ? pkey : `0x${pkey}`;
-  const key = new SigningKey(pkey);
-  return new Wallet(key, ethereumProvider);
-};
-
-const wallet = walletFromPkey(PUBLISH_PKEY);
-const researchObjectContract = new Contract(
-  RO_CONTRACT_ADDRESS,
-  researchObjectABI,
-  wallet
-) as unknown as ResearchObject;
-
-const dpidRegistryContract = new Contract(
-  DPID_CONTRACT_ADDRESS,
-  dpidRegistryAbi,
-  wallet
-) as unknown as DpidRegistry;
+const dpidRegistryContract = (signer: SigMaker) =>
+  getConfig().chainConfig.dpidRegistryConnector(signer);
 
 export type DpidPublishResult = {
   prepubResult: PrepublishResponse,
@@ -56,6 +27,7 @@ export type DpidPublishResult = {
 export const dpidPublish = async (
   uuid: string,
   dpidExists: boolean,
+  signer: Signer | providers.JsonRpcSigner,
 ): Promise<DpidPublishResult> => {
   let reciept: ContractReceipt;
   let prepubResult: PrepublishResponse;
@@ -63,7 +35,7 @@ export const dpidPublish = async (
     console.log(`${LOG_CTX} dpid exists for ${uuid}, updating`);
     try {
       prepubResult = await prePublishDraftNode(uuid);
-      reciept = await updateExistingDpid(uuid, prepubResult.updatedManifestCid);
+      reciept = await updateExistingDpid(uuid, prepubResult.updatedManifestCid, signer);
     } catch(e) {
       const err = e as Error;
       console.log(`${LOG_CTX} Failed updating dpid for uuid ${uuid}: ${err.message}`);
@@ -72,7 +44,7 @@ export const dpidPublish = async (
   } else {
     console.log(`${LOG_CTX} no dpid found for ${uuid}, registering new`);
     try {
-      const registrationResult = await registerNewDpid(uuid);
+      const registrationResult = await registerNewDpid(uuid, signer);
       reciept = registrationResult.reciept;
       prepubResult = registrationResult.prepubResult;
     } catch (e) {
@@ -89,13 +61,14 @@ export const dpidPublish = async (
  */
 const updateExistingDpid = async (
   uuid: string,
-  prepubManifestCid: string
+  prepubManifestCid: string,
+  signer: Signer | providers.JsonRpcSigner,
 ): Promise<ContractReceipt> => {
   const cidBytes = convertCidTo0xHex(prepubManifestCid);
   const hexUuid = convertUUIDToHex(uuid);
   
-  const tx = await researchObjectContract.updateMetadata(hexUuid, cidBytes);
-  return await tx.wait();
+  const tx = await researchObjectContract(signer).updateMetadata(hexUuid, cidBytes);
+  return await tx.wait()
 };
 
 /**
@@ -105,9 +78,10 @@ const updateExistingDpid = async (
  */
 const registerNewDpid = async (
   uuid: string,
+  signer: Signer | providers.JsonRpcSigner,
 ): Promise<{ reciept: ContractReceipt, prepubResult: PrepublishResponse}> => {
-  const optimisticDpid = await getPreliminaryDpid();
-  const regFee = await dpidRegistryContract.getFee();
+  const optimisticDpid = await getPreliminaryDpid(signer);
+  const regFee = await dpidRegistryContract(signer).getFee();
 
   await changeManifest(
     uuid,
@@ -125,7 +99,7 @@ const registerNewDpid = async (
     const hexUuid = convertUUIDToHex(uuid);
 
     // Throws if the expected dPID isn't available
-    const tx = await researchObjectContract.mintWithDpid(
+    const tx = await researchObjectContract(signer).mintWithDpid(
         hexUuid,
         cidBytes,
         DEFAULT_DPID_PREFIX,
@@ -148,12 +122,16 @@ const registerNewDpid = async (
  * Get the next dPID up for minting, for creating an optimistic manifest.
  * @returns the next free dPID
  */
-const getPreliminaryDpid = async (): Promise<BigNumber> => {
-  const [nextFreeDpid, _] = await dpidRegistryContract.getOrganization(DEFAULT_DPID_PREFIX);
+const getPreliminaryDpid = async (
+  signer: Signer | providers.JsonRpcSigner,
+): Promise<BigNumber> => {
+  const [nextFreeDpid, _] = await dpidRegistryContract(signer)
+    .getOrganization(DEFAULT_DPID_PREFIX);
   return nextFreeDpid;
 };
 
 export const hasDpid = async (
   uuid: string,
+  signer: Signer | providers.JsonRpcSigner
 ): Promise<boolean> =>
-  await researchObjectContract.exists(convertUUIDToHex(uuid));
+  await researchObjectContract(signer).exists(convertUUIDToHex(uuid));

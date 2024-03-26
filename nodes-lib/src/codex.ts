@@ -1,5 +1,4 @@
 import {
-  authenticatedCeramicClient,
   createResearchObject,
   newComposeClient,
   updateResearchObject,
@@ -11,11 +10,12 @@ import {
 } from "@desci-labs/desci-codex-lib";
 import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
 import { convert0xHexToCid } from "./util/converting.js";
-import {
-  PUBLISH_PKEY,
-  CERAMIC_NODE_URL,
-} from "./config.js";
+import { getConfig } from "./config/index.js";
+import { Signer } from "ethers";
+import { EthereumWebAuth, getAccountId } from "@didtools/pkh-ethereum";
+import { DIDSession } from "did-session";
 
+const LOG_CTX = "[nodes-lib::codex]";
 /**
  * Publish an object modification to Codex. If it's the initial publish, it will be done
  * onto a new stream. If there is a known existing stream for the object, the update is
@@ -30,24 +30,27 @@ import {
 export const codexPublish = async (
   prepublishResult: PrepublishResponse,
   dpidHistory: IndexedNodeVersion[],
+  signer: Signer,
 ): Promise<NodeIDs> => {
-  console.log(`[DEBUG]::CODEX starting publish with node ${CERAMIC_NODE_URL}...`);
-  const ceramic = await authenticatedCeramicClient(
-    PUBLISH_PKEY.startsWith("0x") ? PUBLISH_PKEY.slice(2) : PUBLISH_PKEY,
-    CERAMIC_NODE_URL,
-  );
+  const nodeUrl = getConfig().ceramicNodeUrl;
+  console.log(LOG_CTX, `starting publish with node ${nodeUrl}...`);
+  const ceramic = newCeramicClient(nodeUrl);
   const compose = newComposeClient({ ceramic });
+
+  // Wrangle a DID out of the signer for Ceramic auth
+  const did = await sessionFromSigner(signer, compose.resources);
+  compose.setDID(did);
 
   // If we know about a stream already, let's assume we backfilled it initially
   if (prepublishResult.ceramicStream) {
-    console.log(`[DEBUG]::CODEX publishing to known stream ${prepublishResult.ceramicStream}...`);
+    console.log(LOG_CTX, `publishing to known stream ${prepublishResult.ceramicStream}...`);
     const ro = await updateResearchObject(compose, {
       id: prepublishResult.ceramicStream,
       title: prepublishResult.updatedManifest.title,
       manifest: prepublishResult.updatedManifestCid,
     });
     console.log(
-      `[DEBUG]::CODEX successfully updated ${ro.streamID} with commit ${ro.commitID}`
+      `[nodes-lib::codex] successfully updated ${ro.streamID} with commit ${ro.commitID}`
     );
     return { streamID: ro.streamID, commitID: ro.commitID };
   };
@@ -55,23 +58,26 @@ export const codexPublish = async (
   // Otherwise, create a new stream, potentially backfilling it with
   // earlier updates.
   if (dpidHistory.length === 0) {
-    console.log("[DEBUG]::CODEX publishing to new stream...");
+    console.log(LOG_CTX, "publishing to new stream...");
     const ro = await createResearchObject(compose, {
       title: prepublishResult.updatedManifest.title || "",
       manifest: prepublishResult.updatedManifestCid,
       license: prepublishResult.updatedManifest.defaultLicense || "",
     });
     console.log(
-      `[DEBUG]::CODEX published to new stream ${ro.streamID} with commit ${ro.commitID}`
+      LOG_CTX,
+      `published to new stream ${ro.streamID} with commit ${ro.commitID}`
     );
     return { streamID: ro.streamID, commitID: ro.commitID };
   } else {
-    console.log("[DEBUG]::CODEX backfilling new stream to mirror history...");
+    console.log(LOG_CTX, "backfilling new stream to mirror history...");
     const streamID = await backfillNewStream(compose, dpidHistory);
-    console.log("[DEBUG]::CODEX backfill done, recursing to append latest event...");
+
+    console.log(LOG_CTX, "backfill done, recursing to append latest event...");
     return await codexPublish(
       { ...prepublishResult, ceramicStream: streamID },
       dpidHistory,
+      signer,
     );
   };
 };
@@ -87,45 +93,47 @@ const backfillNewStream = async (
     compose: ComposeClient,
     versions: IndexedNodeVersion[]
 ): Promise<string> => {
-    console.log(
-        `[DEBUG]::CODEX starting backfill migration for versions:\n${JSON.stringify(
-            versions,
-            undefined,
-            2
-        )}`
-    );
-    const backfillSequential = async (
-        prevPromise: Promise<NodeIDs>,
-        nextVersion: IndexedNodeVersion,
-        ix: number
-    ): Promise<NodeIDs> => {
-        const { streamID, commitID } = await prevPromise;
-        streamID &&
-            console.log(
-                `[DEBUG]::CODEX backfilled version ${ix} into ${streamID} with commit ${commitID}`
-            );
+  console.log(
+    LOG_CTX,
+    `starting backfill migration for versions:\n${JSON.stringify(
+      versions,
+      undefined,
+      2
+    )}`
+  );
+  const backfillSequential = async (
+    prevPromise: Promise<NodeIDs>,
+    nextVersion: IndexedNodeVersion,
+    ix: number
+  ): Promise<NodeIDs> => {
+    const { streamID, commitID } = await prevPromise;
+    streamID &&
+      console.log(
+        LOG_CTX,
+        `backfilled version ${ix} into ${streamID} with commit ${commitID}`
+      );
 
-        const title = "[BACKFILLED]"; // version.title is the title of the event, e.g. "Published"
-        const license = "[BACKFILLED]";
-        const manifest = convert0xHexToCid(nextVersion.cid);
-        const op =
-            streamID === ""
-                ? createResearchObject(compose, { title, manifest, license })
-                : updateResearchObject(compose, { id: streamID, title, manifest });
-        return op;
-    };
+    const title = "[BACKFILLED]"; // version.title is the title of the event, e.g. "Published"
+    const license = "[BACKFILLED]";
+    const manifest = convert0xHexToCid(nextVersion.cid);
+    const op =
+      streamID === ""
+        ? createResearchObject(compose, { title, manifest, license })
+        : updateResearchObject(compose, { id: streamID, title, manifest });
+    return op;
+  };
 
-    const { streamID } = await versions.reduce(
-        backfillSequential,
-        Promise.resolve({ streamID: "", commitID: "" })
-    );
-    return streamID;
+  const { streamID } = await versions.reduce(
+    backfillSequential,
+    Promise.resolve({ streamID: "", commitID: "" })
+  );
+  return streamID;
 };
 
 export const getPublishedFromCodex = async (
   id: string
 ) => {
-  const ceramic = newCeramicClient(CERAMIC_NODE_URL);
+  const ceramic = newCeramicClient(getConfig().ceramicNodeUrl);
 
   const compose = newComposeClient({ ceramic });
   return await queryResearchObject(compose, id);
@@ -134,6 +142,16 @@ export const getPublishedFromCodex = async (
 export const getCodexHistory = async (
   streamID: string
 ) => {
-  const ceramic = newCeramicClient(CERAMIC_NODE_URL);
+  const ceramic = newCeramicClient(getConfig().ceramicNodeUrl);
   return await resolveHistory(ceramic, streamID);
+};
+
+const sessionFromSigner = async (
+  signer: Signer,
+  resources: string[],
+) => {
+  const accountId = await getAccountId(signer, await signer.getAddress());
+  const authMethod = await EthereumWebAuth.getAuthMethod(signer, accountId)
+  const session = await DIDSession.authorize(authMethod, { resources });
+  return session.did;
 };
