@@ -40,13 +40,20 @@ console.log(`[nodes-lib::config] initialising with nodes-dev config. Use setConf
 export const setApiKey = (apiKey: string) => {
   config.apiKey = apiKey;
 };
+
 export const setConfig = (newConfig: Config): void => {
+  const confWithRedactedKey = JSON.stringify(
+    { ...newConfig, apiKey: newConfig.apiKey?.slice(0, 5) + "..."},
+    undefined, 2
+  );
+  console.log(`[nodes-lib::config] setting new config: \n${confWithRedactedKey}`);
+
   config = newConfig;
 };
+
 export const getConfig = () => {
   if (!config.apiKey) {
-    console.log("[nodes-lib::config] config.apiKey is unset; non-public API requests will fail!")
-    throw new Error("Configuration error; no apiKey set.");
+    console.log("[nodes-lib::config] config.apiKey is unset; non-public API requests will fail unless running in browser with auth cookies!")
   };
   return config as Required<Config>;
 };
