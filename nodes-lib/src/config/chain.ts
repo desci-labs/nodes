@@ -16,13 +16,12 @@ import devDpidInfo from "@desci-labs/desci-contracts/.openzeppelin/sepoliaDev-dp
 import prodRoInfo from "@desci-labs/desci-contracts/.openzeppelin/sepoliaProd-research-object.json";
 import prodDpidInfo from "@desci-labs/desci-contracts/.openzeppelin/sepoliaProd-dpid.json";
 
-export type SigMaker = Signer | providers.JsonRpcSigner;
 export type NodesContract =
   | ResearchObject
   | ResearchObjectV2
   | DpidRegistry;
 export type ContractConnector<T extends NodesContract> =
-  (signer: SigMaker) => T;
+  (signer: Signer) => T;
 
 export type ChainConfig = {
   rpcUrl: string,

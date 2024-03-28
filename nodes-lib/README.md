@@ -73,9 +73,16 @@ The other top-level fields contain a human-readable title, simple metadata about
 
 ## Usage
 ### Configuration
-Copy `.env.example` from this repo to `.env`, and configure the values depending on which environment is being targeted. If installing `nodes-lib` through NPM, set these variables in your host project environment instead.
+By default, the library defaults to interacting with the nodes dev environment. This is the right place to fiddle around! Working against the dev environment means:
+- Nodes will only resolve on https://nodes-dev.desci.com
+- dPID registration transactions will be done against a testing contract
+- Ceramic publishing is done on the Clay testnet
 
-Some variables have different values depending on environment, re-set them as necessary. A detailed read of the `.env.example` file will be helpful. "Devcluster" refers to the docker-compose cluster defined in the root of this repository, which can be started with `./dockerDev.sh`. See further instructions in the [repo root docs](../README.md).
+Configure your intended environment by calling the `setConfig` function. If you're not doing something very avant-garde, you can likely just pass a standard config instance like `CONFIG.local`. Otherwise, build up your own config object.
+
+Note that your API key must be set manually by calling `setApiKey`, find more information in the Authentication section.
+
+The `CONFIG.local` preset refers to a locally running docker-compose cluster as defined in the root of this repository, which can be started with `./dockerDev.sh`. See further instructions in the [repo root docs](../README.md).
 
 ### Drafts
 A node that's being modified is always in a "draft" state, meaning that the changes are not public. They only become public when the node is published, after which it's possible to view without being authenticated. When new changes are made from this point, they are not publicly available until publish is done again.
@@ -83,9 +90,11 @@ A node that's being modified is always in a "draft" state, meaning that the chan
 Manifests cannot be submitted "whole", as the state of draft manifests are maintained internally as [automerge CRDT documents](https://automerge.org/). Hence, one needs to send change chunks so that the lib submitted changes can be interspersed with simultaneous webapp edits. This means that your calls will more or less instantly be reflected in the webapp.
 
 ### Authentication
-Most functions ineracting with the Nodes backend require authentication, as they work on your private draft node. You can create an API key under your profile at [nodes.desci.com](https://nodes.desci.com). Set this as `AUTH_TOKEN` in your environment.
+Most functions ineracting with the Nodes backend require authentication, as they work on your private draft node. You can create an API key under your profile at [nodes.desci.com](https://nodes.desci.com). Set this using the `setApiKey` function.
 
-Publishing to the dPID registry and/or Codex requires a private key. Publishing is done in-library and is not sent to the Nodes backend. Set the environment variable `PUBLISH_PKEY` and it will be used in interaction with the dPID registry on-chain, and as your DID in the Codex/Ceramic case.
+Publishing to the dPID registry and/or Codex requires some type of cryptographic signing mechanism. The relevant functions take a `signer` argument, to which you can pass either a signer instance from Metamask, or use the helper function`signerFromPkey` to create one from a raw private key.
+
+Note that publishing is done locally, so your key is not sent to the Nodes backend.
 
 ### Documentation
 This section outlines the major functionality the library provides. It's not a complete rundown of all capabilities, but should be enough to get some inutition for the workflow.

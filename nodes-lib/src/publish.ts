@@ -10,14 +10,14 @@ import { Signer, providers } from "ethers";
 */
 export const publish = async (
   uuid: string,
-  signer: Signer | providers.JsonRpcSigner,
+  provider: providers.Web3Provider,
   skipCodex: boolean = false,
 ) => {
   let chainPubResponse: DpidPublishResult;
   let preexistingDpid: boolean;
   try {
-    preexistingDpid = await hasDpid(uuid, signer);
-    chainPubResponse = await dpidPublish(uuid, preexistingDpid, signer);
+    preexistingDpid = await hasDpid(uuid, provider);
+    chainPubResponse = await dpidPublish(uuid, preexistingDpid, provider);
   } catch (e) {
     /**
      * dPID registry operations failed. Since we can't know if the prepublish
@@ -49,7 +49,7 @@ export const publish = async (
     const publishHistory = preexistingDpid
       ? (await getDpidHistory(uuid)).versions
       : [];
-    ceramicIDs = await codexPublish(chainPubResponse.prepubResult, publishHistory, signer);
+    ceramicIDs = await codexPublish(chainPubResponse.prepubResult, publishHistory, provider);
   } catch (e) {
     const err = e as Error;
     console.log("Codex publish failed:", err);

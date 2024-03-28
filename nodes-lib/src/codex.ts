@@ -11,7 +11,7 @@ import {
 import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
 import { convert0xHexToCid } from "./util/converting.js";
 import { getConfig } from "./config/index.js";
-import { Signer } from "ethers";
+import { Signer, providers } from "ethers";
 import { EthereumWebAuth, getAccountId } from "@didtools/pkh-ethereum";
 import { DIDSession } from "did-session";
 
@@ -30,7 +30,7 @@ const LOG_CTX = "[nodes-lib::codex]";
 export const codexPublish = async (
   prepublishResult: PrepublishResponse,
   dpidHistory: IndexedNodeVersion[],
-  signer: Signer,
+  provider: providers.Web3Provider,
 ): Promise<NodeIDs> => {
   const nodeUrl = getConfig().ceramicNodeUrl;
   console.log(LOG_CTX, `starting publish with node ${nodeUrl}...`);
@@ -38,7 +38,7 @@ export const codexPublish = async (
   const compose = newComposeClient({ ceramic });
 
   // Wrangle a DID out of the signer for Ceramic auth
-  const did = await sessionFromSigner(signer, compose.resources);
+  const did = await sessionFromProvider(provider, compose.resources);
   compose.setDID(did);
 
   // If we know about a stream already, let's assume we backfilled it initially
@@ -77,7 +77,7 @@ export const codexPublish = async (
     return await codexPublish(
       { ...prepublishResult, ceramicStream: streamID },
       dpidHistory,
-      signer,
+      provider,
     );
   };
 };
@@ -146,12 +146,13 @@ export const getCodexHistory = async (
   return await resolveHistory(ceramic, streamID);
 };
 
-const sessionFromSigner = async (
-  signer: Signer,
+const sessionFromProvider = async (
+  provider: providers.Web3Provider,
   resources: string[],
 ) => {
-  const accountId = await getAccountId(signer, await signer.getAddress());
-  const authMethod = await EthereumWebAuth.getAuthMethod(signer, accountId)
+  const externalProvider = provider.provider;
+  const accountId = await getAccountId(externalProvider, await provider.getSigner().getAddress());
+  const authMethod = await EthereumWebAuth.getAuthMethod(externalProvider, accountId)
   const session = await DIDSession.authorize(authMethod, { resources });
   return session.did;
 };

@@ -38,12 +38,18 @@ let config: Config = CONFIGS.dev;
 console.log(`[nodes-lib::config] initialising with nodes-dev config. Use setConfig and setApiKey to change this: \n${JSON.stringify(CONFIGS.dev, undefined, 2)}`);
 
 export const setApiKey = (apiKey: string) => {
+  console.log(`[nodes-lib::config] setting new apiKey: \n${apiKey.slice(0, 5) + "..."}`);
   config.apiKey = apiKey;
 };
 
 export const setConfig = (newConfig: Config): void => {
   const confWithRedactedKey = JSON.stringify(
-    { ...newConfig, apiKey: newConfig.apiKey?.slice(0, 5) + "..."},
+    { 
+      ...newConfig,
+      apiKey: newConfig.apiKey
+        ? newConfig.apiKey?.slice(0, 5) + "..."
+        : "[unset]",
+    },
     undefined, 2
   );
   console.log(`[nodes-lib::config] setting new config: \n${confWithRedactedKey}`);

@@ -331,14 +331,14 @@ export type PublishResponse = {
  * the dPID registry and Codex.
  *
  * @param uuid - UUID of node to publish
- * @param signer - Signer to use for publish, if not set with env
+ * @param provider - Signer to use for publish, if not set with env
 */
 export const publishDraftNode = async (
   uuid: string,
-  signer: Signer | providers.JsonRpcSigner,
+  provider: providers.Web3Provider,
   skipCodex = false,
 ): Promise<PublishResponse> => {
-  const publishResult = await publish(uuid, signer, skipCodex);
+  const publishResult = await publish(uuid, provider, skipCodex);
 
   const pubParams: PublishParams = {
     uuid,
