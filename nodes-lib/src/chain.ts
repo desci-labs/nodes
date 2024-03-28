@@ -26,7 +26,7 @@ export type DpidPublishResult = {
 export const dpidPublish = async (
   uuid: string,
   dpidExists: boolean,
-  provider: providers.Web3Provider,
+  signer: Signer,
 ): Promise<DpidPublishResult> => {
   let reciept: ContractReceipt;
   let prepubResult: PrepublishResponse;
@@ -34,7 +34,7 @@ export const dpidPublish = async (
     console.log(`${LOG_CTX} dpid exists for ${uuid}, updating`);
     try {
       prepubResult = await prePublishDraftNode(uuid);
-      reciept = await updateExistingDpid(uuid, prepubResult.updatedManifestCid, provider);
+      reciept = await updateExistingDpid(uuid, prepubResult.updatedManifestCid, signer);
     } catch(e) {
       const err = e as Error;
       console.log(`${LOG_CTX} Failed updating dpid for uuid ${uuid}: ${err.message}`);
@@ -43,7 +43,7 @@ export const dpidPublish = async (
   } else {
     console.log(`${LOG_CTX} no dpid found for ${uuid}, registering new`);
     try {
-      const registrationResult = await registerNewDpid(uuid, provider);
+      const registrationResult = await registerNewDpid(uuid, signer);
       reciept = registrationResult.reciept;
       prepubResult = registrationResult.prepubResult;
     } catch (e) {
@@ -61,12 +61,12 @@ export const dpidPublish = async (
 const updateExistingDpid = async (
   uuid: string,
   prepubManifestCid: string,
-  provider: providers.Web3Provider,
+  signer: Signer,
 ): Promise<ContractReceipt> => {
   const cidBytes = convertCidTo0xHex(prepubManifestCid);
   const hexUuid = convertUUIDToHex(uuid);
   
-  const tx = await researchObjectContract(provider.getSigner()).updateMetadata(hexUuid, cidBytes);
+  const tx = await researchObjectContract(signer).updateMetadata(hexUuid, cidBytes);
   return await tx.wait()
 };
 
@@ -77,10 +77,10 @@ const updateExistingDpid = async (
  */
 const registerNewDpid = async (
   uuid: string,
-  provider: providers.Web3Provider,
+  signer: Signer,
 ): Promise<{ reciept: ContractReceipt, prepubResult: PrepublishResponse}> => {
-  const optimisticDpid = await getPreliminaryDpid(provider);
-  const regFee = await dpidRegistryContract(provider.getSigner()).getFee();
+  const optimisticDpid = await getPreliminaryDpid(signer);
+  const regFee = await dpidRegistryContract(signer).getFee();
 
   await changeManifest(
     uuid,
@@ -98,7 +98,7 @@ const registerNewDpid = async (
     const hexUuid = convertUUIDToHex(uuid);
 
     // Throws if the expected dPID isn't available
-    const tx = await researchObjectContract(provider.getSigner()).mintWithDpid(
+    const tx = await researchObjectContract(signer).mintWithDpid(
         hexUuid,
         cidBytes,
         DEFAULT_DPID_PREFIX,
@@ -122,15 +122,15 @@ const registerNewDpid = async (
  * @returns the next free dPID
  */
 const getPreliminaryDpid = async (
-  provider: providers.Web3Provider,
+  signer: Signer,
 ): Promise<BigNumber> => {
-  const [nextFreeDpid, _] = await dpidRegistryContract(provider.getSigner())
+  const [nextFreeDpid, _] = await dpidRegistryContract(signer)
     .getOrganization(DEFAULT_DPID_PREFIX);
   return nextFreeDpid;
 };
 
 export const hasDpid = async (
   uuid: string,
-  provider: providers.Web3Provider
+  signer: Signer
 ): Promise<boolean> =>
-  await researchObjectContract(provider.getSigner()).exists(convertUUIDToHex(uuid));
+  await researchObjectContract(signer).exists(convertUUIDToHex(uuid));

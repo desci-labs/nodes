@@ -30,7 +30,7 @@ const LOG_CTX = "[nodes-lib::codex]";
 export const codexPublish = async (
   prepublishResult: PrepublishResponse,
   dpidHistory: IndexedNodeVersion[],
-  provider: providers.Web3Provider,
+  signer: Signer,
 ): Promise<NodeIDs> => {
   const nodeUrl = getConfig().ceramicNodeUrl;
   console.log(LOG_CTX, `starting publish with node ${nodeUrl}...`);
@@ -38,7 +38,7 @@ export const codexPublish = async (
   const compose = newComposeClient({ ceramic });
 
   // Wrangle a DID out of the signer for Ceramic auth
-  const did = await sessionFromProvider(provider, compose.resources);
+  const did = await sessionFromSigner(signer, compose.resources);
   compose.setDID(did);
 
   // If we know about a stream already, let's assume we backfilled it initially
@@ -77,7 +77,7 @@ export const codexPublish = async (
     return await codexPublish(
       { ...prepublishResult, ceramicStream: streamID },
       dpidHistory,
-      provider,
+      signer,
     );
   };
 };
@@ -146,13 +146,24 @@ export const getCodexHistory = async (
   return await resolveHistory(ceramic, streamID);
 };
 
-const sessionFromProvider = async (
-  provider: providers.Web3Provider,
+const sessionFromSigner = async (
+  signer: Signer,
   resources: string[],
 ) => {
-  const externalProvider = provider.provider;
-  const accountId = await getAccountId(externalProvider, await provider.getSigner().getAddress());
-  const authMethod = await EthereumWebAuth.getAuthMethod(externalProvider, accountId)
-  const session = await DIDSession.authorize(authMethod, { resources });
+  // Fuckery to get the inner provider for a metamask signer
+  const externalProvider = (signer.provider as providers.Web3Provider)?.provider;
+
+  const accountId = await getAccountId(
+    externalProvider ?? signer,
+    await signer.getAddress()
+  );
+  const authMethod = await EthereumWebAuth.getAuthMethod(
+    externalProvider ?? signer,
+    accountId
+  );
+  const session = await DIDSession.authorize(
+    authMethod,
+    { resources }
+  );
   return session.did;
 };

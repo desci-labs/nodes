@@ -10,7 +10,7 @@ import { Signer, providers } from "ethers";
 */
 export const publish = async (
   uuid: string,
-  provider: providers.Web3Provider,
+  provider: Signer,
   skipCodex: boolean = false,
 ) => {
   let chainPubResponse: DpidPublishResult;
