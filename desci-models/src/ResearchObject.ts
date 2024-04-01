@@ -350,14 +350,31 @@ export interface PdfAnnotation extends ResearchObjectComponentAnnotation, Scaled
   __client?: any;
 }
 
-export interface HighlightBlock extends PdfAnnotation {
+export interface PdfHighlightBlock extends PdfAnnotation {
   move?: boolean;
   text?: string;
   title?: string;
   image?: string;
   path: string;
   rects: COORDP[];
+  kind: 'pdf';
 }
+
+export interface CodeAnnotation extends ResearchObjectComponentAnnotation {
+  path: string;
+  text?: string;
+  title?: string;
+  image?: string;
+  cid?: string;
+  startLine: number;
+  endLine: number;
+  language: string;
+}
+
+export interface CodeHighlightBlock extends CodeAnnotation {
+  kind: 'code';
+}
+export type HighlightBlock = CodeHighlightBlock | PdfHighlightBlock;
 
 export interface ResearchObjectComponentAnnotation {
   id: string;

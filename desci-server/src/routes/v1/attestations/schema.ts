@@ -43,6 +43,7 @@ export const dpidPathSchema = z
   .url()
   .refine((link) => dpidPathRegex.test(link), { message: 'Invalid dpid link' });
 
+// TODO: UPDATE TO A UNION OF CodeHighlightBlock and PdfHighlightBlock
 const highlightSchema = z
   .object({
     id: z.string(),
