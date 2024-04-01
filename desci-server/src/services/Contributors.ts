@@ -221,9 +221,16 @@ class ContributorService {
   }
 
   async generatePrivShareCodeForContribution(contribution: NodeContribution, node: Node): Promise<null | string> {
-    if (!contribution.email) return null;
+    if (!contribution.email && !contribution.userId) return null;
+    let email = contribution.email;
+    if (!email) {
+      // Extract the email from the userId
+      const user = await prisma.user.findUnique({ where: { id: contribution.userId } });
+      if (!user) return null;
+      email = user.email;
+    }
     const privShare = await prisma.privateShare.findFirst({
-      where: { nodeUUID: node.uuid, memo: PRIV_SHARE_CONTRIBUTION_PREFIX + contribution.email },
+      where: { nodeUUID: node.uuid, memo: PRIV_SHARE_CONTRIBUTION_PREFIX + email },
     });
 
     if (privShare) return privShare.shareId;
@@ -232,8 +239,8 @@ class ContributorService {
     const newPrivShare = await prisma.privateShare.create({
       data: {
         nodeUUID: node.uuid,
-        shareId: shareCode as unknown as string,
-        memo: PRIV_SHARE_CONTRIBUTION_PREFIX + contribution.email,
+        shareId: shareCode() as string,
+        memo: PRIV_SHARE_CONTRIBUTION_PREFIX + email,
       },
     });
 
@@ -241,18 +248,32 @@ class ContributorService {
   }
 
   async removePrivShareCodeForContribution(contribution: NodeContribution, node: Node): Promise<void> {
-    if (!contribution.email) return;
+    if (!contribution.email && !contribution.userId) return;
+    let email = contribution.email;
+    if (!email) {
+      // Extract the email from the userId
+      const user = await prisma.user.findUnique({ where: { id: contribution.userId } });
+      if (!user) return;
+      email = user.email;
+    }
     const privShare = await prisma.privateShare.findFirst({
-      where: { nodeUUID: node.uuid, memo: PRIV_SHARE_CONTRIBUTION_PREFIX + contribution.email },
+      where: { nodeUUID: node.uuid, memo: PRIV_SHARE_CONTRIBUTION_PREFIX + email },
     });
 
     if (privShare) await prisma.privateShare.delete({ where: { id: privShare.id } });
   }
 
   async getShareCodeForContribution(contribution: NodeContribution, node: Node): Promise<null | string> {
-    if (!contribution.email) return null;
+    if (!contribution.email && !contribution.userId) return null;
+    let email = contribution.email;
+    if (!email) {
+      // Extract the email from the userId
+      const user = await prisma.user.findUnique({ where: { id: contribution.userId } });
+      if (!user) return null;
+      email = user.email;
+    }
     const privShare = await prisma.privateShare.findFirst({
-      where: { nodeUUID: node.uuid, memo: PRIV_SHARE_CONTRIBUTION_PREFIX + contribution.email },
+      where: { nodeUUID: node.uuid, memo: PRIV_SHARE_CONTRIBUTION_PREFIX + email },
     });
 
     if (privShare) return privShare.shareId;
