@@ -44,7 +44,7 @@ export const dpidPathSchema = z
   .refine((link) => dpidPathRegex.test(link), { message: 'Invalid dpid link' });
 
 // TODO: UPDATE TO A UNION OF CodeHighlightBlock and PdfHighlightBlock
-const highlightSchema = z
+const pdfHighlightSchema = z
   .object({
     id: z.string(),
     text: z.string().optional(),
@@ -64,6 +64,7 @@ const highlightSchema = z
         pageIndex: z.coerce.number(),
       }),
     ),
+    kind: z.literal('pdf'),
   })
   .refine(
     (highlight) =>
@@ -74,24 +75,39 @@ const highlightSchema = z
       highlight.pageIndex !== null &&
       highlight.pageIndex !== undefined &&
       (highlight.text || highlight.image),
+    { message: 'Invalid Pdf highlight block' },
   );
 
+const codeHighlightSchema = z.object({
+  id: z.string(),
+  text: z.string().optional(),
+  path: dpidPathSchema,
+  cid: z.string(),
+  startLine: z.coerce.number(),
+  endLine: z.coerce.number(),
+  language: z.string(),
+  kind: z.literal('code'),
+});
+
+const highlightBlockSchema = z.union([pdfHighlightSchema, codeHighlightSchema]);
+const commentSchema = z
+  .object({
+    authorId: z.coerce.number(),
+    claimId: z.coerce.number(),
+    body: z.string(),
+    links: z
+      .string()
+      .array()
+      .refine((links) => links.every((link) => dpidPathRegex.test(link)))
+      .optional(),
+    highlights: z.array(highlightBlockSchema).optional(),
+  })
+  .refine((comment) => comment.body?.length > 0 || !!comment?.highlights?.length, {
+    message: 'Either Comment body or highlights is required',
+  });
+
 export const createCommentSchema = z.object({
-  body: z
-    .object({
-      authorId: z.coerce.number(),
-      claimId: z.coerce.number(),
-      body: z.string(),
-      links: z
-        .string()
-        .array()
-        .refine((links) => links.every((link) => dpidPathRegex.test(link)))
-        .optional(),
-      highlights: z.array(highlightSchema).optional(),
-    })
-    .refine((comment) => comment.body?.length > 0 || comment.highlights?.length > 0, {
-      message: 'Either Comment body or highlights is required',
-    }),
+  body: commentSchema,
 });
 
 export const EMOJI_OPTIONS = z.union([z.literal('U+2705'), z.literal('U+1F914'), z.literal('U+1F440')], {

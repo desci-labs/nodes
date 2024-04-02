@@ -351,9 +351,6 @@ export interface PdfAnnotation extends ResearchObjectComponentAnnotation, Scaled
 }
 
 export interface PdfHighlightBlock extends PdfAnnotation {
-  move?: boolean;
-  text?: string;
-  title?: string;
   image?: string;
   path: string;
   rects: COORDP[];
@@ -363,9 +360,7 @@ export interface PdfHighlightBlock extends PdfAnnotation {
 export interface CodeAnnotation extends ResearchObjectComponentAnnotation {
   path: string;
   text?: string;
-  title?: string;
-  image?: string;
-  cid?: string;
+  cid: string;
   startLine: number;
   endLine: number;
   language: string;
