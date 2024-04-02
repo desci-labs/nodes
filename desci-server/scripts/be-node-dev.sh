@@ -1,10 +1,10 @@
 #!/bin/sh
 echo "Install bash and execute 'wait-for-it.sh' script"
-apt-get add bash
+apt-get install bash
 
 # Exit on error
 set -e
-./desci-server/scripts/wait-for-it.sh $PG_HOST:5432 --timeout=5 --strict -- echo "postgres up and running"
+./desci-server/scripts/wait-for-it.sh $PG_HOST:5433 --timeout=5 --strict -- echo "postgres up and running"
 
 # npm run migration:run
 # npm run seed:run
