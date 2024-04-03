@@ -96,3 +96,46 @@ export async function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEF
     throw e;
   }
 }
+
+class SingleNodeLockService {
+  private nodeId: string;
+  private isReady: boolean;
+  private MAX_LOCK_TIME = 60 * 60; // 1 hour
+
+  constructor(id: string) {
+    this.nodeId = id;
+    if (redisClient.isOpen) {
+      this.isReady = true;
+    } else {
+      redisClient.on('ready', () => {
+        this.isReady = true;
+        logger.info({ ready: redisClient.isReady, open: redisClient.isOpen }, 'REDIS CLIENT IS READY');
+      });
+      redisClient.on('open', () => {
+        this.isReady = true;
+        logger.info({ ready: redisClient.isReady, open: redisClient.isOpen }, 'REDIS CLIENT IS OPEN');
+      });
+    }
+    logger.info({ ready: redisClient.isReady, open: redisClient.isOpen }, 'INIT SingleNodeLockService');
+  }
+
+  async aquireLock(key: string, lockTime = this.MAX_LOCK_TIME) {
+    logger.info({ ready: this.isReady, open: redisClient.isOpen }, 'ACQUIRE LOCK');
+    if (!this.isReady) return false;
+    const result = await redisClient.set(key, 'true', { NX: true, EX: lockTime });
+    logger.info({ result, key }, 'ACQUIRE LOCK');
+    if (result) {
+      return true;
+    }
+    return false;
+  }
+
+  async freeLock(key: string) {
+    logger.info({ key }, 'FREE LOCK');
+    return await redisClient.del(key);
+  }
+
+  // TODO: implement clean up method to free up locks on server crash
+}
+
+export const lockService = new SingleNodeLockService('');

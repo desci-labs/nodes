@@ -1,9 +1,11 @@
-import { PublishTaskQueueStatus } from '@prisma/client';
+import { PublishTaskQueue, PublishTaskQueueStatus } from '@prisma/client';
 import { ethers } from 'ethers';
 
 import { prisma } from '../client.js';
 import { publishHandler } from '../controllers/nodes/publish.js';
 import { logger as parentLogger } from '../logger.js';
+import { lockService } from '../redisClient.js';
+import { randomUUID64 } from '../utils.js';
 
 enum ProcessOutcome {
   EmptyQueue,
@@ -34,9 +36,8 @@ const checkTransaction = async (transactionId: string, uuid: string) => {
   return tx?.status;
 };
 
-async function processPublishQueue() {
-  const task = await dequeueTask();
-
+async function processPublishQueue(workerId = '') {
+  const task = await dequeueTask(workerId);
   if (!task) return ProcessOutcome.EmptyQueue;
 
   try {
@@ -44,37 +45,53 @@ async function processPublishQueue() {
     if (txStatus === 1) {
       // todo: dispatch publish task
       publishHandler(task)
-        .then((published) => {
+        .then(async (published) => {
           logger.info({ task, published }, 'PUBLISH SUCCESS');
+          lockService.freeLock(task.transactionId);
         })
         .catch((err) => {
           logger.info({ task, err }, 'PUBLISH FAILED');
+          lockService.freeLock(task.transactionId);
         });
-      // todo: dequeue task
       await prisma.publishTaskQueue.delete({ where: { id: task.id } });
     } else if (txStatus === 0) {
       await prisma.publishTaskQueue.update({ where: { id: task.id }, data: { status: PublishTaskQueueStatus.FAILED } });
+      lockService.freeLock(task.transactionId);
       logger.info({ txStatus }, 'PUBLISH TX Receipt');
     } else {
       await prisma.publishTaskQueue.update({
         where: { id: task.id },
         data: { status: PublishTaskQueueStatus.PENDING },
       });
+      lockService.freeLock(task.transactionId);
       logger.info({ txStatus }, 'PUBLISH TX Might be stuck');
     }
     return ProcessOutcome.TaskCompleted;
   } catch (err) {
     logger.error({ err }, 'ProcessPublishQueue::ERROR');
     return ProcessOutcome.Error;
+  } finally {
+    lockService.freeLock(task.transactionId);
   }
 }
 
-const dequeueTask = async () => {
-  let task = await prisma.publishTaskQueue.findFirst({ where: { status: PublishTaskQueueStatus.WAITING } });
-  if (!task) {
-    task = await prisma.publishTaskQueue.findFirst({ where: { status: PublishTaskQueueStatus.PENDING } });
+const dequeueTask = async (workerId = '') => {
+  let freeTask: PublishTaskQueue;
+  let tasks = await prisma.publishTaskQueue.findMany({ where: { status: PublishTaskQueueStatus.WAITING }, take: 5 });
+  if (!tasks.length) {
+    tasks = await prisma.publishTaskQueue.findMany({ where: { status: PublishTaskQueueStatus.PENDING }, take: 5 });
   }
-  return task;
+  logger.info({ tasks, workerId }, 'TASKS');
+  for (const task of tasks) {
+    const taskLock = await lockService.aquireLock(task.transactionId);
+    logger.info({ taskLock, task, workerId }, 'ATTEMPT TO ACQUIRE LOCK');
+    if (taskLock) {
+      freeTask = task;
+      break;
+    }
+  }
+  logger.info({ freeTask, workerId }, 'DEQUEUE TASK');
+  return freeTask;
 };
 
 const delay = async (timeMs: number) => {
@@ -82,9 +99,11 @@ const delay = async (timeMs: number) => {
 };
 
 export async function runWorkerUntilStopped() {
+  // TODO: add logging of work issued id and server instance kubctl id
+  const workerId = randomUUID64();
   while (true) {
-    const outcome = await processPublishQueue();
-    console.log('Processed Queue', outcome);
+    const outcome = await processPublishQueue(workerId);
+    logger.info({ outcome, workerId }, 'Processed Queue');
     switch (outcome) {
       case ProcessOutcome.EmptyQueue:
         await delay(10000);

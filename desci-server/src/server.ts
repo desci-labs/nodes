@@ -212,7 +212,9 @@ class AppServer {
   }
 
   async #initWorker() {
-    await runWorkerUntilStopped();
+    await Promise.all([runWorkerUntilStopped(), runWorkerUntilStopped()]);
+    // TODO: remove after testing
+    // await runWorkerUntilStopped();
   }
 }
 
