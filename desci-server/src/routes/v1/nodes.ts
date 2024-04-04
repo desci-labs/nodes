@@ -37,6 +37,7 @@ import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { asyncHander, attachUser, validate } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
+import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
 
 const router = Router();
 
@@ -67,11 +68,12 @@ router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatchDocumentChange);
 router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
-router.post('/contributions/node/:uuid', [attachUser], getNodeContributions);
+router.get('/contributions/node/:uuid', [attachUser], getNodeContributions);
 router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addContributor);
 router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], updateContributor);
 router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], deleteContributor);
 router.get('/contributions/user/:userId', [], getUserContributions);
+router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 router.patch('/contributions/verify', [ensureUser], verifyContribution);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
