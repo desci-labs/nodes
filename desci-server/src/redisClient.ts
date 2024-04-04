@@ -44,9 +44,9 @@ redisClient.on('error', (err) => {
 });
 
 // gracefully shutdown
-process.on('exit', () => {
-  redisClient.quit();
-});
+// process.on('exit', () => {
+//   redisClient.quit();
+// });
 
 export default redisClient;
 
@@ -98,12 +98,11 @@ export async function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEF
 }
 
 class SingleNodeLockService {
-  private nodeId: string;
   private isReady: boolean;
   private MAX_LOCK_TIME = 60 * 60; // 1 hour
+  private activeLocks: Set<string>;
 
-  constructor(id: string) {
-    this.nodeId = id;
+  constructor() {
     if (redisClient.isOpen) {
       this.isReady = true;
     } else {
@@ -111,20 +110,18 @@ class SingleNodeLockService {
         this.isReady = true;
         logger.info({ ready: redisClient.isReady, open: redisClient.isOpen }, 'REDIS CLIENT IS READY');
       });
-      redisClient.on('open', () => {
-        this.isReady = true;
-        logger.info({ ready: redisClient.isReady, open: redisClient.isOpen }, 'REDIS CLIENT IS OPEN');
-      });
     }
     logger.info({ ready: redisClient.isReady, open: redisClient.isOpen }, 'INIT SingleNodeLockService');
+    this.activeLocks = new Set();
   }
 
   async aquireLock(key: string, lockTime = this.MAX_LOCK_TIME) {
-    logger.info({ ready: this.isReady, open: redisClient.isOpen }, 'ACQUIRE LOCK');
+    logger.info({ ready: this.isReady, open: redisClient.isOpen }, 'START ACQUIRE LOCK');
     if (!this.isReady) return false;
     const result = await redisClient.set(key, 'true', { NX: true, EX: lockTime });
-    logger.info({ result, key }, 'ACQUIRE LOCK');
+    logger.info({ result, key }, ' END ACQUIRE LOCK');
     if (result) {
+      this.activeLocks.add(key);
       return true;
     }
     return false;
@@ -132,10 +129,32 @@ class SingleNodeLockService {
 
   async freeLock(key: string) {
     logger.info({ key }, 'FREE LOCK');
+    this.activeLocks.delete(key);
     return await redisClient.del(key);
   }
 
-  // TODO: implement clean up method to free up locks on server crash
+  freeLocks() {
+    logger.info({ locks: [...this.activeLocks] }, 'FREE ALL LOCKS');
+    this.activeLocks.forEach((key) => redisClient.del(key));
+  }
 }
 
-export const lockService = new SingleNodeLockService('');
+export const lockService = new SingleNodeLockService();
+
+process.on('exit', () => {
+  lockService.freeLocks();
+  redisClient.quit();
+});
+
+// catches ctrl+c event
+process.on('SIGINT', () => {
+  lockService.freeLocks();
+});
+
+// catches "kill pid" (for example: nodemon restart)
+process.on('SIGUSR1', () => {
+  lockService.freeLocks();
+});
+process.on('SIGUSR2', () => {
+  lockService.freeLocks();
+});

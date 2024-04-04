@@ -43,21 +43,20 @@ async function processPublishQueue(workerId = '') {
   try {
     const txStatus = await checkTransaction(task.transactionId, task.uuid);
     if (txStatus === 1) {
-      // todo: dispatch publish task
       publishHandler(task)
         .then(async (published) => {
-          logger.info({ task, published }, 'PUBLISH SUCCESS');
+          logger.info({ task, published }, 'PUBLISH HANDLER SUCCESS');
           lockService.freeLock(task.transactionId);
         })
         .catch((err) => {
-          logger.info({ task, err }, 'PUBLISH FAILED');
+          logger.info({ task, err }, 'PUBLISH HANDLER ERROR');
           lockService.freeLock(task.transactionId);
         });
       await prisma.publishTaskQueue.delete({ where: { id: task.id } });
     } else if (txStatus === 0) {
       await prisma.publishTaskQueue.update({ where: { id: task.id }, data: { status: PublishTaskQueueStatus.FAILED } });
       lockService.freeLock(task.transactionId);
-      logger.info({ txStatus }, 'PUBLISH TX Receipt');
+      logger.info({ txStatus }, 'PUBLISH TX FAILED');
     } else {
       await prisma.publishTaskQueue.update({
         where: { id: task.id },
@@ -76,7 +75,7 @@ async function processPublishQueue(workerId = '') {
 }
 
 const dequeueTask = async (workerId = '') => {
-  let freeTask: PublishTaskQueue;
+  let nextTask: PublishTaskQueue;
   let tasks = await prisma.publishTaskQueue.findMany({ where: { status: PublishTaskQueueStatus.WAITING }, take: 5 });
   if (!tasks.length) {
     tasks = await prisma.publishTaskQueue.findMany({ where: { status: PublishTaskQueueStatus.PENDING }, take: 5 });
@@ -86,12 +85,12 @@ const dequeueTask = async (workerId = '') => {
     const taskLock = await lockService.aquireLock(task.transactionId);
     logger.info({ taskLock, task, workerId }, 'ATTEMPT TO ACQUIRE LOCK');
     if (taskLock) {
-      freeTask = task;
+      nextTask = task;
       break;
     }
   }
-  logger.info({ freeTask, workerId }, 'DEQUEUE TASK');
-  return freeTask;
+  logger.info({ nextTask, workerId }, 'DEQUEUE TASK');
+  return nextTask;
 };
 
 const delay = async (timeMs: number) => {
@@ -99,7 +98,7 @@ const delay = async (timeMs: number) => {
 };
 
 export async function runWorkerUntilStopped() {
-  // TODO: add logging of work issued id and server instance kubctl id
+  // TODO: use server instance k8s pod id
   const workerId = randomUUID64();
   while (true) {
     const outcome = await processPublishQueue(workerId);
