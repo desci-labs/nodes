@@ -15,8 +15,8 @@ export const publish = async (
 ) => {
   let chainPubResponse: DpidPublishResult;
   let preexistingDpid: boolean;
-  try {
     preexistingDpid = await hasDpid(uuid, provider);
+  try {
     chainPubResponse = await dpidPublish(uuid, preexistingDpid, provider);
   } catch (e) {
     /**

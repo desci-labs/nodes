@@ -99,11 +99,11 @@ const registerNewDpid = async (
 
     // Throws if the expected dPID isn't available
     const tx = await researchObjectContract(signer).mintWithDpid(
-        hexUuid,
-        cidBytes,
-        DEFAULT_DPID_PREFIX,
-        optimisticDpid,
-        { value: regFee, gasLimit: 350000 }
+      hexUuid,
+      cidBytes,
+      DEFAULT_DPID_PREFIX,
+      optimisticDpid,
+      { value: regFee, gasLimit: 350000 }
     );
     reciept = await tx.wait();
   } catch (e) {

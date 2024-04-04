@@ -31,17 +31,17 @@ import {
   ResearchObjectComponentDataSubtype
 } from "@desci-labs/desci-models";
 import { signerFromPkey } from "../src/util/signing.js";
-import { getNodesLibInternalConfig, setApiKey } from "../src/config/index.js";
+import { NODESLIB_CONFIGS, getNodesLibInternalConfig, setApiKey, setNodesLibConfig } from "../src/index.js";
 
-const TEST_PKEY = "f1d695d35c0987579c9e43e2e068f9f95775e7fd3958797b52d780aa8914e167";
+// Pre-funded ganache account
+const TEST_PKEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+// Pre-seeded for noreply user in local environment
+const TEST_API_KEY = "agu+zEH30gwm77C+Em4scbzdiYOnv8uSvA0qr2XAj5k=";
+
+// Prisma seeds test DB's with an API key for noreply@desci.com
+setNodesLibConfig(NODESLIB_CONFIGS.local);
+setApiKey(TEST_API_KEY);
 const testSigner = signerFromPkey(TEST_PKEY);
-
-if (!process.env.NODESLIB_API_KEY) {
-  throw new Error("NODESLIB_API_KEY not set; cannot run tests.")
-} else {
-  setApiKey(process.env.NODESLIB_API_KEY);
-};
-
 
 describe("nodes-lib", () => {
   beforeAll(async () => {
