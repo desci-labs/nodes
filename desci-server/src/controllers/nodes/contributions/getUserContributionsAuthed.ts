@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 
 import { logger as parentLogger } from '../../../logger.js';
-import { NodeContributorMap, UserContribution, contributorService } from '../../../services/Contributors.js';
-import { User } from '@sentry/node';
+import { NodeContributorMap, contributorService } from '../../../services/Contributors.js';
+import { User } from '@prisma/client';
+
 
 export type GetNodeContributionsAuthedRequest = Request & {
   user: User; // Added by the ensureUser middleware

@@ -207,7 +207,7 @@ class ContributorService {
           { orcid: user.orcid }
         ]
       },
-      include: { node: true },
+      include: { node: true, user: true },
     });
     return contributions.reduce((acc, contributor) => {
       acc[contributor.contributorId] = {
