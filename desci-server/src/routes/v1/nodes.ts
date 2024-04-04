@@ -68,7 +68,7 @@ router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatchDocumentChange);
 router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
-router.get('/contributions/node/:uuid', [attachUser], getNodeContributions);
+router.post('/contributions/node/:uuid', [attachUser], getNodeContributions);
 router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addContributor);
 router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], updateContributor);
 router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], deleteContributor);
