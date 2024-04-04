@@ -1,8 +1,6 @@
 .PHONY: install build clean seed
 
 seed: install
-	# npx hardhat run scripts/migrateToNewContract.js --network ganache
-	# scripts/seed.sh "dpid migration" "migration-complete.json" "migrate"
 	scripts/seed.sh "dpid registry" "unknown-dpid.json" "deploy:dpid:ganache"
 	scripts/seed.sh "research object" "unknown-research-object.json" "deploy:ganache"
 

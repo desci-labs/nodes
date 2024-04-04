@@ -28,7 +28,7 @@ check() {
   done
 
   echo "[seed:$CONTRACT_NAME] deployment found, killing ganache..."
-  pkill -f "npm exec ganache" || echo "[seed:$CONTRACT_NAME] ganache not running"
+  pkill -f ".bin/ganache" || echo "[seed:$CONTRACT_NAME] ganache not running"
   echo "[seed:$CONTRACT_NAME] ganache killed"
 }
 
