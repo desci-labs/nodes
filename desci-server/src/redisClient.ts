@@ -158,3 +158,7 @@ process.on('SIGUSR1', () => {
 process.on('SIGUSR2', () => {
   lockService.freeLocks();
 });
+
+process.on('uncaughtException', () => {
+  lockService.freeLocks();
+});
