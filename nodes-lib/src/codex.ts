@@ -10,10 +10,9 @@ import {
 } from "@desci-labs/desci-codex-lib";
 import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
 import { convert0xHexToCid } from "./util/converting.js";
-import { getConfig } from "./config/index.js";
-import { Signer, providers } from "ethers";
-import { EthereumWebAuth, getAccountId } from "@didtools/pkh-ethereum";
-import { DIDSession } from "did-session";
+import { getNodesLibInternalConfig } from "./config/index.js";
+import { Signer } from "ethers";
+import { authorizedSessionDidFromSigner } from "./util/signing.js";
 
 const LOG_CTX = "[nodes-lib::codex]";
 /**
@@ -32,13 +31,14 @@ export const codexPublish = async (
   dpidHistory: IndexedNodeVersion[],
   signer: Signer,
 ): Promise<NodeIDs> => {
-  const nodeUrl = getConfig().ceramicNodeUrl;
+  const nodeUrl = getNodesLibInternalConfig().ceramicNodeUrl;
   console.log(LOG_CTX, `starting publish with node ${nodeUrl}...`);
+
   const ceramic = newCeramicClient(nodeUrl);
   const compose = newComposeClient({ ceramic });
 
   // Wrangle a DID out of the signer for Ceramic auth
-  const did = await sessionFromSigner(signer, compose.resources);
+  const did = await authorizedSessionDidFromSigner(signer, compose.resources);
   compose.setDID(did);
 
   // If we know about a stream already, let's assume we backfilled it initially
@@ -130,40 +130,24 @@ const backfillNewStream = async (
   return streamID;
 };
 
+/**
+ * Get the state of a research object as published on Codex.
+*/
 export const getPublishedFromCodex = async (
   id: string
 ) => {
-  const ceramic = newCeramicClient(getConfig().ceramicNodeUrl);
-
+  const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
   const compose = newComposeClient({ ceramic });
+
   return await queryResearchObject(compose, id);
 };
 
+/**
+ * Get the historical events for a given stream.
+*/
 export const getCodexHistory = async (
   streamID: string
 ) => {
-  const ceramic = newCeramicClient(getConfig().ceramicNodeUrl);
+  const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
   return await resolveHistory(ceramic, streamID);
-};
-
-const sessionFromSigner = async (
-  signer: Signer,
-  resources: string[],
-) => {
-  // Fuckery to get the inner provider for a metamask signer
-  const externalProvider = (signer.provider as providers.Web3Provider)?.provider;
-
-  const accountId = await getAccountId(
-    externalProvider ?? signer,
-    await signer.getAddress()
-  );
-  const authMethod = await EthereumWebAuth.getAuthMethod(
-    externalProvider ?? signer,
-    accountId
-  );
-  const session = await DIDSession.authorize(
-    authMethod,
-    { resources }
-  );
-  return session.did;
 };

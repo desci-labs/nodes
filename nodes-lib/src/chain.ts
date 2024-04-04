@@ -1,7 +1,7 @@
 import { BigNumber, ContractReceipt, Signer, providers } from "ethers";
 import { convertUUIDToHex, convertCidTo0xHex} from "./util/converting.js";
 import { changeManifest, prePublishDraftNode, type PrepublishResponse } from "./api.js"
-import { getConfig } from "./config/index.js";
+import { getNodesLibInternalConfig } from "./config/index.js";
 import { formatBytes32String } from "ethers/lib/utils.js";
 
 const LOG_CTX = "[nodes-lib::chain]"
@@ -10,10 +10,10 @@ const DEFAULT_DPID_PREFIX_STRING = "beta";
 const DEFAULT_DPID_PREFIX = formatBytes32String(DEFAULT_DPID_PREFIX_STRING);
 
 const researchObjectContract = (signer: Signer) =>
-  getConfig().chainConfig.researchObjectConnector(signer);
+  getNodesLibInternalConfig().chainConfig.researchObjectConnector(signer);
 
 const dpidRegistryContract = (signer: Signer) =>
-  getConfig().chainConfig.dpidRegistryConnector(signer);
+  getNodesLibInternalConfig().chainConfig.dpidRegistryConnector(signer);
 
 export type DpidPublishResult = {
   prepubResult: PrepublishResponse,

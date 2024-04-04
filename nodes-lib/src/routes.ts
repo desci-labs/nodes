@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosResponse } from "axios";
 import { ENDPOINTS } from "./api.js";
-import { getConfig } from "./config/index.js";
+import { getNodesLibInternalConfig } from "./config/index.js";
 
 // Default error serialization is huuuge due to circular refs
 axios.interceptors.response.use(
@@ -34,7 +34,7 @@ export async function makeRequest<
   payload: T["_payloadT"],
   routeTail?: string,
 ): Promise<T["_responseT"]> {
-  const url = getConfig().apiUrl + endpoint.route + (routeTail ?? "");
+  const url = getNodesLibInternalConfig().apiUrl + endpoint.route + (routeTail ?? "");
   let res: AxiosResponse<T["_responseT"]>;
   // post is the only method that takes a data payload
   if ( endpoint.method === "post") {

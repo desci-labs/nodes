@@ -31,7 +31,7 @@ import {
   ResearchObjectComponentDataSubtype
 } from "@desci-labs/desci-models";
 import { signerFromPkey } from "../src/util/signing.js";
-import { getConfig, setApiKey } from "../src/config/index.js";
+import { getNodesLibInternalConfig, setApiKey } from "../src/config/index.js";
 
 const TEST_PKEY = "f1d695d35c0987579c9e43e2e068f9f95775e7fd3958797b52d780aa8914e167";
 const testSigner = signerFromPkey(TEST_PKEY);
@@ -42,9 +42,10 @@ if (!process.env.NODESLIB_API_KEY) {
   setApiKey(process.env.NODESLIB_API_KEY);
 };
 
+
 describe("nodes-lib", () => {
   beforeAll(async () => {
-    const apiUrl = getConfig().apiUrl;
+    const apiUrl = getNodesLibInternalConfig().apiUrl;
     try {
       console.log(`Checking server reachable at ${apiUrl}...`);
       await axios.get(apiUrl);

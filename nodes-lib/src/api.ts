@@ -25,9 +25,9 @@ import type { NodeIDs } from "@desci-labs/desci-codex-lib";
 import { publish } from "./publish.js";
 import type { ResearchObjectDocument } from "./automerge.js";
 import { randomUUID } from "crypto";
-import { getConfig } from "./config/index.js";
+import { getNodesLibInternalConfig } from "./config/index.js";
 import { makeRequest } from "./routes.js";
-import { Signer, providers } from "ethers";
+import { Signer } from "ethers";
 
 export const ENDPOINTS = {
   deleteData: {
@@ -964,7 +964,7 @@ export const updateCoverImage = async (
 
 const getHeaders = (isFormData: boolean = false) => {
   const headers = {
-    "api-key": getConfig().apiKey,
+    "api-key": getNodesLibInternalConfig().apiKey,
     ...(isFormData ? { "content-type": "multipart/form-data" } : {})
   };
   return headers;

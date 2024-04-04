@@ -1,5 +1,5 @@
 import { 
-    DpidRegistry,
+  DpidRegistry,
   DpidRegistry__factory,
   ResearchObject,
   ResearchObjectV2,
@@ -9,19 +9,19 @@ import {
 import { Signer, providers } from "ethers";
 import { type NodesEnv } from "./index.js";
 
-import localRoInfo from "@desci-labs/desci-contracts/.openzeppelin/unknown-research-object.json";
-import localDpidInfo from "@desci-labs/desci-contracts/.openzeppelin/unknown-dpid.json";
-import devRoInfo from "@desci-labs/desci-contracts/.openzeppelin/sepoliaDev-research-object.json";
-import devDpidInfo from "@desci-labs/desci-contracts/.openzeppelin/sepoliaDev-dpid.json";
-import prodRoInfo from "@desci-labs/desci-contracts/.openzeppelin/sepoliaProd-research-object.json";
-import prodDpidInfo from "@desci-labs/desci-contracts/.openzeppelin/sepoliaProd-dpid.json";
+import localRoInfo from "@desci-labs/desci-contracts/.openzeppelin/unknown-research-object.json" assert { type: "json"};
+import localDpidInfo from "@desci-labs/desci-contracts/.openzeppelin/unknown-dpid.json" assert { type: "json"};
+import devRoInfo from "@desci-labs/desci-contracts/.openzeppelin/sepoliaDev-research-object.json" assert { type: "json"};
+import devDpidInfo from "@desci-labs/desci-contracts/.openzeppelin/sepoliaDev-dpid.json" assert { type: "json"};
+import prodRoInfo from "@desci-labs/desci-contracts/.openzeppelin/sepoliaProd-research-object.json" assert { type: "json"};
+import prodDpidInfo from "@desci-labs/desci-contracts/.openzeppelin/sepoliaProd-dpid.json" assert { type: "json"};
 
 export type NodesContract =
   | ResearchObject
   | ResearchObjectV2
   | DpidRegistry;
 export type ContractConnector<T extends NodesContract> =
-  (signer: Signer) => T;
+  (signerOrProvider: Signer | providers.Provider) => T;
 
 export type ChainConfig = {
   rpcUrl: string,
@@ -32,35 +32,35 @@ export type ChainConfig = {
 export const CHAIN_CONFIGS = {
   local: {
     rpcUrl: "http://localhost:8545",
-    researchObjectConnector: signer => ResearchObject__factory.connect(
+    researchObjectConnector: signerOrProvider => ResearchObject__factory.connect(
       localRoInfo.proxies.at(0)!.address,
-      signer
+      signerOrProvider
     ),
-    dpidRegistryConnector: signer => DpidRegistry__factory.connect(
+    dpidRegistryConnector: signerOrProvider => DpidRegistry__factory.connect(
       localDpidInfo.proxies.at(0)!.address,
-      signer
+      signerOrProvider
     ),
   },
   dev: {
     rpcUrl: "https://eth-sepolia.g.alchemy.com/v2/demo",
-    researchObjectConnector: signer => ResearchObjectV2__factory.connect(
+    researchObjectConnector: signerOrProvider => ResearchObjectV2__factory.connect(
       devRoInfo.proxies.at(0)!.address,
-      signer
+      signerOrProvider
     ),
-    dpidRegistryConnector: signer => DpidRegistry__factory.connect(
+    dpidRegistryConnector: signerOrProvider => DpidRegistry__factory.connect(
       devDpidInfo.proxies.at(0)!.address,
-      signer
+      signerOrProvider
     ),
   },
   prod: {
     rpcUrl: "https://eth-sepolia.g.alchemy.com/v2/demo",
-    researchObjectConnector: signer => ResearchObjectV2__factory.connect(
+    researchObjectConnector: signerOrProvider => ResearchObjectV2__factory.connect(
       prodRoInfo.proxies.at(0)!.address,
-      signer
+      signerOrProvider
     ),
-    dpidRegistryConnector: signer => DpidRegistry__factory.connect(
+    dpidRegistryConnector: signerOrProvider => DpidRegistry__factory.connect(
       prodDpidInfo.proxies.at(0)!.address,
-      signer
+      signerOrProvider
     ),
   },
 } as const satisfies { [Env in NodesEnv]: ChainConfig };

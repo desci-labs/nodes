@@ -78,11 +78,11 @@ By default, the library defaults to interacting with the nodes dev environment. 
 - dPID registration transactions will be done against a testing contract
 - Ceramic publishing is done on the Clay testnet
 
-Configure your intended environment by calling the `setConfig` function. If you're not doing something very avant-garde, you can likely just pass a standard config instance like `CONFIG.local`. Otherwise, build up your own config object.
+Configure your intended environment by calling the `setConfig` function. If you're not doing something very avant-garde, you can likely just pass a standard config instance like `NODESLIB_CONFIGS.local`. Otherwise, build up your own config object.
 
 Note that your API key must be set manually by calling `setApiKey`, find more information in the Authentication section.
 
-The `CONFIG.local` preset refers to a locally running docker-compose cluster as defined in the root of this repository, which can be started with `./dockerDev.sh`. See further instructions in the [repo root docs](../README.md).
+The `NODESLIB_CONFIGS.local` preset refers to a locally running docker-compose cluster as defined in the root of this repository, which can be started with `./dockerDev.sh`. See further instructions in the [repo root docs](../README.md).
 
 ### Drafts
 A node that's being modified is always in a "draft" state, meaning that the changes are not public. They only become public when the node is published, after which it's possible to view without being authenticated. When new changes are made from this point, they are not publicly available until publish is done again.
