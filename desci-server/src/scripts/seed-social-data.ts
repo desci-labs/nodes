@@ -219,6 +219,6 @@ if (process.env.RUN) {
     .then(() => console.log('Communities and Attestations created/updated'))
     .catch((err) => console.log('Error running script ', err));
 } else {
-  console.log('Must set RUN=1');
+  console.log('Must set RUN=1 to activate seeding of social data, skipping...');
   process.exit(0);
 }

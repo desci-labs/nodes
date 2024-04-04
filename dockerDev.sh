@@ -60,6 +60,10 @@ for volDir in $(grep -o "local-data/[a-z_]*" docker-compose.dev.yml); do
   mkdir -p "$volDir"
 done
 
+# Start the ceramic service and it's dependencies to deploy models, before
+# kicking off the rest of the cluster
+./bootstrapCeramic.sh
+
 # Default to empty if unset
 ADDITIONAL_FLAGS=${ADDITIONAL_FLAGS:-""}
 echo "[dockerDev] PWD=$PWD"
