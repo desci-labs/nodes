@@ -70,11 +70,11 @@ router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatch
 router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
 router.post('/contributions/node/:uuid', [attachUser], getNodeContributions);
 router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addContributor);
+router.patch('/contributions/verify', [ensureUser], verifyContribution);
 router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], updateContributor);
 router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], deleteContributor);
 router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
-router.patch('/contributions/verify', [ensureUser], verifyContribution);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 
