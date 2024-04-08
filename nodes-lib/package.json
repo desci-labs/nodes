@@ -1,6 +1,6 @@
 {
   "name": "@desci-labs/nodes-lib",
-  "version": "0.0.5-rc4",
+  "version": "0.0.5-rc6",
   "homepage": "https://github.com/desci-labs/nodes#readme",
   "description": "Stand-alone client library for interacting with desci-server",
   "repository": {
@@ -16,8 +16,7 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "files": [
-    "/dist",
-    "/.env.example"
+    "dist"
   ],
   "scripts": {
     "build": "rm -r dist; tsc --project tsconfig.build.json",
@@ -28,7 +27,7 @@
   },
   "dependencies": {
     "@desci-labs/desci-codex-lib": "^1.1.7-rc0",
-    "@desci-labs/desci-contracts": "^0.2.3-rc1",
+    "@desci-labs/desci-contracts": "^0.2.3-rc3",
     "@desci-labs/desci-models": "^0.2.3-rc1",
     "@didtools/cacao": "^3.0.1",
     "@didtools/pkh-ethereum": "^0.5.0",
