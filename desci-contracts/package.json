@@ -1,11 +1,11 @@
 {
   "name": "@desci-labs/desci-contracts",
   "description": "Smart contracts implementing DeSci Nodes on-chain state and logic",
-  "version": "0.2.3-rc1",
+  "version": "0.2.3-rc3",
   "license": "MIT",
   "scripts": {
     "test": "hardhat clean && hardhat test",
-    "build": "hardhat compile --network ganache",
+    "build": "hardhat compile --network ganache && rm -rf dist && tsc && cp -r .openzeppelin dist",
     "docker:build": "docker build -t desci-hardhat-node .",
     "docker:push": "docker tag desci-hardhat-node:latest 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest && docker push 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest",
     "deploy:ganache": "yarn stubHardhatAnalytics && hardhat run scripts/deployResearchObject.js --network ganache",
@@ -24,9 +24,10 @@
     "flatten": "hardhat flatten > temp_flat.sol && awk '!/SPDX_License_Identifier/' temp_flat.sol > flat.sol && rm temp_flat.sol"
   },
   "files": [
-    "/.openzeppelin",
-    "/typechain-types"
+    "dist"
   ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "devDependencies": {
     "@graphprotocol/graph-cli": "^0.59.0",
     "@graphprotocol/graph-ts": "^0.32.0",
