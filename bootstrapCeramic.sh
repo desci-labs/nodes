@@ -10,12 +10,14 @@
 # There is no damage trying to run this multiple times in a row; it's
 # idempotent.
 
-CTX="[bootstrapCeramic.sh]"
-
 set -euo pipefail
+
+CTX="[bootstrapCeramic.sh]"
+WAS_RUNNING=0
+
 trap catch ERR
 catch() {
-  echo "$CTX script failed"
+  echo "$CTX script failed! Have you set CERAMIC_ADMIN_SEED in .env?"
   if [ "$WAS_RUNNING" -eq "0" ]; then
     docker compose --project-name desci down
   fi
