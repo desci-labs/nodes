@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosResponse } from "axios";
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import { ENDPOINTS } from "./api.js";
 import { getNodesLibInternalConfig } from "./config/index.js";
 
@@ -36,17 +36,26 @@ export async function makeRequest<
 ): Promise<T["_responseT"]> {
   const url = getNodesLibInternalConfig().apiUrl + endpoint.route + (routeTail ?? "");
   let res: AxiosResponse<T["_responseT"]>;
+  const config: AxiosRequestConfig = {
+    headers,
+    withCredentials: true,
+  };
+
+  if (window !== undefined && localStorage.getItem("auth")) {
+    config.headers!.Authorization = `Bearer ${localStorage.getItem("auth")}`;
+  };
+
   // post is the only method that takes a data payload
-  if ( endpoint.method === "post") {
+  if (endpoint.method === "post") {
    res = await axios[endpoint.method]<typeof endpoint._responseT>(
       url,
       payload,
-      { headers, withCredentials: true },
+      config,
     );
   } else {
    res = await axios[endpoint.method]<typeof endpoint._responseT>(
       url,
-      { headers, withCredentials: true },
+      config,
     );
   };
   return res.data;
