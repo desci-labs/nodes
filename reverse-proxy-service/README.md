@@ -27,7 +27,7 @@ docker build . -t proxy-service
 docker run --network=host -e PROXY_MAPPING_EXAMPLE="https://example.com" proxy-service
 ```
 
-Regardless of which mode, the service listens on port 5555. It can be tested by sending a request:
+Regardless of which mode, the service listens on port 5678. It can be tested by sending a request:
 ```shell
-curl http://localhost:5555/example
+curl http://localhost:5678/example
 ```

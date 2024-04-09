@@ -1,10 +1,10 @@
 # build.yml
 on:
-  workflow_dispatch: # This line enables manual triggers
+  workflow_dispatch:
   push:
     paths:
       - reverse-proxy-service/**
-    branches: # array of glob patterns matching against refs/heads. Optional; defaults to all
+    branches:
       - develop
       - main
 
@@ -56,38 +56,27 @@ jobs:
         run: |
           # Build and tag the image
           docker build \
-            --target production -t $CONTAINER_IMAGE-dev:production \
-            --target production -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev \
-             ./$CONTAINER_IMAGE
-
-      - name: Build and tag the image (PROD)
-        if: github.ref == 'refs/heads/main'
-        run: |
-          # Build and tag the image
-          docker build \
-            --target production -t $CONTAINER_IMAGE-prod:production \
+            --target production -t $CONTAINER_IMAGE:production \
             --target production -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
              ./$CONTAINER_IMAGE
 
-      # Only push to registry on master
       - name: Push (DEV)
         if: github.ref == 'refs/heads/develop'
         run: |
           # Push image to AWS ECR
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE-dev:production $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
-          docker tag $CONTAINER_IMAGE-dev:production $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:production
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:production
+          docker tag $CONTAINER_IMAGE:production $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE:production $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:production
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:production
 
-      - name: Push (PROD)
-        if: github.ref == 'refs/heads/main'
+      - name: Deploy to EKS (DEV)
+        if: github.ref == 'refs/heads/develop'
+        run: | # defaults to latest kubectl binary version
+          kubectl apply -f $CONTAINER_IMAGE/deployment.yaml
+          kubectl set image deployment/reverse-proxy-service reverse-proxy-service=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} --record
+
+      - name: Verify EKS Deployment (DEV)
+        if: github.ref == 'refs/heads/develop'
         run: |
-          # Push image to AWS ECR
-          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE-prod:production $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ github.sha }}
-          docker tag $CONTAINER_IMAGE-prod:production $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:production
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ github.sha }}
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:production
-
-      # TODO: deploy where?
+          kubectl rollout status deployment/reverse-proxy-service

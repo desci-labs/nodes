@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: reverse-proxy-service
+  labels:
+    App: ReverseProxyService
+spec:
+  type: ClusterIP
+  selector:
+    App: ReverseProxyService
+  ports:
+    - name: api
+      port: 5678
+      targetPort: 5678
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reverse-proxy-service
+  labels:
+    App: ReverseProxyService
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      App: ReverseProxyService
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-status: 'update'
+        vault.hashicorp.com/role: app-vault-reader
+        vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/production/db
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secrets/desci-server/production/" -}}
+          echo "sourcing"; 
+          export PROXY_MAPPING_SEPOLIA={{ .Data.PROXY_MAPPING_SEPOLIA }}
+
+          {{- end -}}
+      labels:
+        App: ReverseProxyService
+    spec:
+      containers:
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/reverse-proxy-service:latest
+          name: reverse-proxy-service
+          command: ['/bin/bash', '-c']
+          args:
+            - echo "SOURCING ENV"; source /vault/secrets/config; node ./dist/index.js;
+          ports:
+            - containerPort: 5678
+              name: api
+          resources:
+            limits:
+              cpu: '2'
+              memory: 16Gi
+            requests:
+              cpu: '1'
+              memory: 8Gi
+      serviceAccountName: 'vault-auth'

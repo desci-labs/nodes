@@ -29,6 +29,6 @@ USER node
 
 COPY --chown=node:node ./dist/ .
 
-EXPOSE 5555
+EXPOSE 5678
 
 CMD [ "dumb-init", "node", "dist/index.js"]
