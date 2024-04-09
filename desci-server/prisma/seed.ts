@@ -3,7 +3,7 @@ import researchFieldsData from '../src/data/fields.json' assert { type: 'json' }
 import { seedSocialData } from '../src/scripts/seed-social-data.js';
 
 async function main() {
-  await prisma.user.upsert({
+  const { id: userId }= await prisma.user.upsert({
     where: {
       email: 'noreply@desci.com',
     },
@@ -15,6 +15,22 @@ async function main() {
       isPatron: false,
       isWarden: false,
       isKeeper: false,
+    },
+  });
+
+  await prisma.apiKey.upsert({
+    where: {
+      keyHashed: "yMcm5OwIUcmh98cmpDhCZArwRV+8Q14XIOs2LhKQ6fY=",
+    },
+    update: {},
+    create: {
+      keyHashed: "yMcm5OwIUcmh98cmpDhCZArwRV+8Q14XIOs2LhKQ6fY=",
+      memo: "nodes-lib tests",
+      createdAt: "2023-01-01T00:00:00.000Z",
+      lastUsed: "2023-01-01T00:00:00.000Z",
+      isActive: true,
+      createdIp: "192.168.0.1",
+      userId,
     },
   });
 

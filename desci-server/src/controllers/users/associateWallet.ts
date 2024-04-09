@@ -43,9 +43,21 @@ export const associateOrcidWallet = async (req: Request, res: Response, next: Ne
     const user = (req as any).user;
     const { did } = req.body;
     if (!did) {
-      res.status(400).send({ err: 'missing wallet address' });
+      res.status(400).send({ err: 'orcid DID not provided' });
       return;
     }
+
+    const ORCID_NICKNAME = 'ORCID';
+    const hasOrcidWallet = await prisma.wallet.count({
+      where: {
+        user,
+        nickname: ORCID_NICKNAME,
+      },
+    });
+    if (hasOrcidWallet > 0) {
+      res.status(202).send({ message: 'orcid DID already registered to this user' });
+      return;
+    };
 
     // TODO: check for wallet uniqueness across all accounts
     const doesExist =
@@ -55,20 +67,9 @@ export const associateOrcidWallet = async (req: Request, res: Response, next: Ne
         },
       })) > 0;
     if (doesExist) {
-      res.status(400).send({ err: 'duplicate DID (global)' });
+      res.status(400).send({ err: 'orcid DID already register to some other' });
       return;
-    }
-    const ORCID_NICKNAME = 'ORCID';
-    const hasOrcidWallet = await prisma.wallet.count({
-      where: {
-        user,
-        nickname: ORCID_NICKNAME,
-      },
-    });
-    if (hasOrcidWallet > 0) {
-      res.status(400).send({ err: 'orcid DID already registered' });
-      return;
-    }
+    };
 
     try {
       const addWallet = await prisma.wallet.create({
@@ -101,9 +102,8 @@ export const associateOrcidWallet = async (req: Request, res: Response, next: Ne
       } catch (err) {
         logger.error({ err }, 'Error sending orcid DID txn');
       }
-      res.send({ ok: true });
+      res.status(201).send({ ok: true });
       return;
-      // req.session.save(() => res.status(200).send({ ok: true }));
     } catch (err) {
       logger.error({ err }, 'Error associating orcid DID to user #1');
       res.status(500).send({ err });
