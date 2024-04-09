@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "test": "hardhat clean && hardhat test",
-    "build": "hardhat compile --network ganache && rm -rf dist && tsc && cp -r .openzeppelin dist",
+    "build": "hardhat compile --network ganache",
+    "makePackage": "rm -rf dist && tsc && cp -r .openzeppelin dist",
     "docker:build": "docker build -t desci-hardhat-node .",
     "docker:push": "docker tag desci-hardhat-node:latest 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest && docker push 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest",
     "deploy:ganache": "yarn stubHardhatAnalytics && hardhat run scripts/deployResearchObject.js --network ganache",
