@@ -1,4 +1,4 @@
-FROM node:18.17.0-bookworm
+FROM node:18.20.0-bullseye
 
 VOLUME /root/.yarn
 
