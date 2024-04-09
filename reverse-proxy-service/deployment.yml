@@ -20,7 +20,7 @@ metadata:
   labels:
     App: ReverseProxyService
 spec:
-  replicas: 1
+  replicas: 2
   revisionHistoryLimit: 2
   selector:
     matchLabels:
@@ -57,9 +57,31 @@ spec:
               name: api
           resources:
             limits:
-              cpu: '2'
-              memory: 16Gi
+              cpu: '1'
+              memory: 2Gi
             requests:
               cpu: '1'
-              memory: 8Gi
+              memory: 2Gi
+          # restart pod after failureThreshold*periodSeconds total seconds
+          livenessProbe:
+            httpGet:
+              path: /
+              port: server-api
+            failureThreshold: 80
+            periodSeconds: 3
+          # temporarily stop sending traffic to pod after failureThreshold*periodSeconds total seconds
+          readinessProbe:
+            httpGet:
+              path: /
+              port: server-api
+            failureThreshold: 3
+            periodSeconds: 1
+          # wait for pod to start for failureThreshold*periodSeconds total seconds
+          startupProbe:
+            httpGet:
+              path: /
+              port: server-api
+            failureThreshold: 200
+            periodSeconds: 1
+
       serviceAccountName: 'vault-auth'

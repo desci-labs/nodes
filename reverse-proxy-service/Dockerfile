@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/usr/src/app/.npm \
 ENV NODE_ENV production
 USER node
 
-COPY --chown=node:node ./dist/ .
+COPY --chown=node:node --from=builder /usr/src/app/dist ./dist
 
 EXPOSE 5678
 
