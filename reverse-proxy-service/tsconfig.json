@@ -7,13 +7,10 @@
     "strict": true,
     /** Prevent misbehaving import/export statements */
     "verbatimModuleSyntax": true,
-    /** Misbehaving deps: @ceramicnetwork/{codecs,common}, @didtools/{cacao,codecs}, codeco, ipfs-core-types */
-    // "skipLibCheck": true,
 
     /** Import friendliness */
     "declaration": true,
     "sourceMap": true,
-    "declarationMap": true,
     "outDir": "dist"
   }
 }
