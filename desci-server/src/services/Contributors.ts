@@ -195,12 +195,38 @@ class ContributorService {
     return NodesWithManifestCids || [];
   }
 
+  /**
+   * Retrieve a map of all nodes an authed user has contributed to, to enable checks such as canVerify on the frontend
+   */
+  async retrieveUserContributionMap(user: User): Promise<NodeContributorMap> {
+    const contributions = await prisma.nodeContribution.findMany({
+      where: {
+        OR: [
+          { userId: user.id },
+          { email: user.email },
+          { orcid: user.orcid }
+        ]
+      },
+      include: { node: true, user: true },
+    });
+    return contributions.reduce((acc, contributor) => {
+      acc[contributor.contributorId] = {
+        name: contributor.user?.name,
+        verified: !!contributor.verified,
+        userId: contributor.user?.id,
+        deleted: contributor.deleted,
+        deletedAt: contributor.deletedAt,
+      };
+      return acc;
+    }, {});
+  }
+
   async verifyContribution(user: User, contributorId: string): Promise<boolean> {
     if (!contributorId) throw Error('contributorId required');
     const contribution = await prisma.nodeContribution.findUnique({ where: { contributorId } });
     if (!contribution) throw Error('Invalid contributorId');
 
-    const contributionPointsToUser = contribution.email === user.email || contribution.orcid === user.orcid;
+    const contributionPointsToUser = contribution.email === user.email || contribution.orcid === user.orcid || contribution.userId === user.id;
     if (!contributionPointsToUser) throw Error('Unauthorized to verify contribution');
 
     const userHasOrcidValidated = user.orcid !== undefined && user.orcid !== null;

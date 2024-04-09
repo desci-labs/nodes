@@ -3,18 +3,21 @@ import { getDpidHistory } from "./api.js";
 import { dpidPublish, hasDpid, type DpidPublishResult } from "./chain.js";
 import { codexPublish } from "./codex.js";
 import { PublishError } from "./errors.js";
+import { Signer, providers } from "ethers";
 
 /**
  * The complete publish flow, including both the dPID registry and Codex.
 */
 export const publish = async (
   uuid: string,
+  provider: Signer,
+  skipCodex: boolean = false,
 ) => {
   let chainPubResponse: DpidPublishResult;
   let preexistingDpid: boolean;
+    preexistingDpid = await hasDpid(uuid, provider);
   try {
-    preexistingDpid = await hasDpid(uuid);
-    chainPubResponse = await dpidPublish(uuid, preexistingDpid);
+    chainPubResponse = await dpidPublish(uuid, preexistingDpid, provider);
   } catch (e) {
     /**
      * dPID registry operations failed. Since we can't know if the prepublish
@@ -25,8 +28,19 @@ export const publish = async (
     throw new PublishError({
       name: "DPID_PUBLISH_ERROR",
       message: "dPID registration failed",
-      cause: err,
+      cause: JSON.stringify(err, undefined, 2),
     });
+  };
+
+  const dpidResult = {
+    manifest: chainPubResponse.prepubResult.updatedManifest,
+    cid: chainPubResponse.prepubResult.updatedManifestCid,
+    transactionId: chainPubResponse.reciept.transactionHash,
+    ceramicIDs: undefined,
+  };
+
+  if (skipCodex) {
+    return dpidResult;
   };
 
   let ceramicIDs: NodeIDs | undefined;
@@ -35,7 +49,7 @@ export const publish = async (
     const publishHistory = preexistingDpid
       ? (await getDpidHistory(uuid)).versions
       : [];
-    ceramicIDs = await codexPublish(chainPubResponse.prepubResult, publishHistory);
+    ceramicIDs = await codexPublish(chainPubResponse.prepubResult, publishHistory, provider);
   } catch (e) {
     const err = e as Error;
     console.log("Codex publish failed:", err);
@@ -43,9 +57,7 @@ export const publish = async (
   };
 
   return {
-    manifest: chainPubResponse.prepubResult.updatedManifest,
-    cid: chainPubResponse.prepubResult.updatedManifestCid,
-    ceramicIDs: ceramicIDs,
-    transactionId: chainPubResponse.reciept.transactionHash,
+    ...dpidResult,
+    ceramicIDs,
   };
 };

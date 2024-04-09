@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "target": "es2020",
+    "strict": true,
+
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    "outDir": "dist"
+  },
+  "include": [
+    "index.ts",
+    ".openzeppelin/*.json",
+    "typechain-types/**/*.ts"
+  ]
+}

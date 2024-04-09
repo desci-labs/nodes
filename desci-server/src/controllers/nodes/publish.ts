@@ -264,8 +264,10 @@ export const publishHandler = async ({
       /**
        * Create a job per mirror in order to track the status of the upload
        * There can be multiple mirrors per node, right now there is just Estuary
+       *
+       * NOTE: uncomment when reactivating public ref mirroring
+       const dataMirrorJobs = await createDataMirrorJobs(cidsRequiredForPublish, owner.id);
        */
-      const dataMirrorJobs = await createDataMirrorJobs(cidsRequiredForPublish, owner.id);
 
       // TODO: update public data refs to link versionId
 
@@ -274,7 +276,7 @@ export const publishHandler = async ({
        */
       await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_SUCCESS, {
         cidsPayload,
-        result: { newPublicDataRefs, dataMirrorJobs },
+        result: { newPublicDataRefs },
       });
     } catch (error) {
       logger.error({ error }, `[publish::publish] error=${error}`);
@@ -290,8 +292,8 @@ export const publishHandler = async ({
      * Initiate IPFS storage upload using Estuary
      */
     const manifest = await getManifestByCid(cid);
-    const researchObjectToPublish = { uuid, cid, manifest, ownerId: owner.id };
-    const sendDiscordNotification = (error) => {
+    // const researchObjectToPublish = { uuid, cid, manifest, ownerId: owner.id };
+    const sendDiscordNotification = (error: boolean) => {
       const manifestSource = manifest as ResearchObjectV1;
       discordNotify(
         `https://${manifestSource.dpid?.prefix}.dpid.org/${manifestSource.dpid?.id}${
@@ -300,6 +302,8 @@ export const publishHandler = async ({
       );
     };
 
+    /**
+     * NOTE: uncomment when reactivating public ref mirroring
     const handleMirrorSuccess = async (publishedResearchObjectResult) => {
       await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS, {
         researchObjectToPublish,
@@ -329,6 +333,8 @@ export const publishHandler = async ({
 
     // trigger ipfs storage upload, but don't wait for it to finish, will happen async
     publishResearchObject(publicDataReferences).then(handleMirrorSuccess).catch(handleMirrorFail);
+    */
+    sendDiscordNotification(false);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
@@ -338,6 +344,6 @@ export const publishHandler = async ({
     return true;
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
-    return false; // res.status(400).send({ ok: false, error: err.message });
+    return false;
   }
 };

@@ -17,7 +17,6 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
   const apiKey = await extractApiKey(req);
   const authTokenRetrieval = await extractUserFromToken(token);
   const apiKeyRetrieval = await extractUserFromApiKey(apiKey, req.ip);
-  // logger.info({ token, authTokenRetrieval }, 'ENSUER USER');
   const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
 
   if (!retrievedUser) {
@@ -128,6 +127,8 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
  */
 export const extractApiKey = async (request: ExpressRequest | Request) => {
   const apiKeyHeader = request.headers['api-key'];
+  logger.info({ module: 'Permissions::extractApiKey', apiKeyLength: apiKeyHeader?.length || 0 }, 'Request');
+
   return apiKeyHeader;
 };
 
