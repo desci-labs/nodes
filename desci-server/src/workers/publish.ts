@@ -1,3 +1,5 @@
+import os from 'os';
+
 import { PublishTaskQueue, PublishTaskQueueStatus } from '@prisma/client';
 import { ethers } from 'ethers';
 
@@ -5,7 +7,6 @@ import { prisma } from '../client.js';
 import { publishHandler } from '../controllers/nodes/publish.js';
 import { logger as parentLogger } from '../logger.js';
 import { lockService } from '../redisClient.js';
-import { randomUUID64 } from '../utils.js';
 
 enum ProcessOutcome {
   EmptyQueue,
@@ -17,27 +18,19 @@ const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || 'http://host.docker.int
 
 if (!ETHEREUM_RPC_URL) throw new Error('Env var` ETHEREUM_RPC_URL` not set');
 
-const logger = parentLogger.child({ module: 'PUBLISH WORKER ' });
+const hostname = os.hostname();
+const logger = parentLogger.child({ module: 'PUBLISH WORKER', hostname });
 
 const checkTransaction = async (transactionId: string, uuid: string) => {
   const provider = ethers.getDefaultProvider(ETHEREUM_RPC_URL);
-  logger.info(
-    {
-      uuid,
-      transactionId,
-      ETHEREUM_RPC_URL,
-    },
-    'TX::check transaction',
-  );
 
-  console.log('NETWORK', await provider.getNetwork());
   const tx = await provider.getTransactionReceipt(transactionId);
-  console.log('TX::Receipt', { tx });
+  logger.info({ tx, uuid, transactionId, ETHEREUM_RPC_URL, network: await provider.getNetwork() }, 'TX::Receipt');
   return tx?.status;
 };
 
-async function processPublishQueue(workerId = '') {
-  const task = await dequeueTask(workerId);
+async function processPublishQueue() {
+  const task = await dequeueTask();
   if (!task) return ProcessOutcome.EmptyQueue;
 
   try {
@@ -63,7 +56,7 @@ async function processPublishQueue(workerId = '') {
         data: { status: PublishTaskQueueStatus.PENDING },
       });
       lockService.freeLock(task.transactionId);
-      logger.info({ txStatus }, 'PUBLISH TX Might be stuck');
+      logger.info({ txStatus, task }, 'PUBLISH TX STILL PENDING');
     }
     return ProcessOutcome.TaskCompleted;
   } catch (err) {
@@ -74,22 +67,22 @@ async function processPublishQueue(workerId = '') {
   }
 }
 
-const dequeueTask = async (workerId = '') => {
+const dequeueTask = async () => {
   let nextTask: PublishTaskQueue;
   let tasks = await prisma.publishTaskQueue.findMany({ where: { status: PublishTaskQueueStatus.WAITING }, take: 5 });
   if (!tasks.length) {
     tasks = await prisma.publishTaskQueue.findMany({ where: { status: PublishTaskQueueStatus.PENDING }, take: 5 });
   }
-  logger.info({ tasks, workerId }, 'TASKS');
+  logger.info({ tasks }, 'TASKS');
   for (const task of tasks) {
     const taskLock = await lockService.aquireLock(task.transactionId);
-    logger.info({ taskLock, task, workerId }, 'ATTEMPT TO ACQUIRE LOCK');
+    logger.info({ taskLock, task }, 'ATTEMPT TO ACQUIRE LOCK');
     if (taskLock) {
       nextTask = task;
       break;
     }
   }
-  logger.info({ nextTask, workerId }, 'DEQUEUE TASK');
+  logger.info({ nextTask }, 'DEQUEUE TASK');
   return nextTask;
 };
 
@@ -98,11 +91,9 @@ const delay = async (timeMs: number) => {
 };
 
 export async function runWorkerUntilStopped() {
-  // TODO: use server instance k8s pod id
-  const workerId = randomUUID64();
   while (true) {
-    const outcome = await processPublishQueue(workerId);
-    logger.info({ outcome, workerId }, 'Processed Queue');
+    const outcome = await processPublishQueue();
+    logger.info({ outcome }, 'Processed Queue');
     switch (outcome) {
       case ProcessOutcome.EmptyQueue:
         await delay(10000);
