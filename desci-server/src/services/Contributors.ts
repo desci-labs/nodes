@@ -94,13 +94,15 @@ class ContributorService {
     let registeredContributor;
     if (email) registeredContributor = await prisma.user.findUnique({ where: { email } });
     if (orcid) registeredContributor = await prisma.user.findUnique({ where: { orcid } });
-    if (userId !== undefined || userId !== null)
-      registeredContributor = await prisma.user.findUnique({ where: { id: userId } });
+    debugger;
+    if (userId) registeredContributor = await prisma.user.findUnique({ where: { id: userId } });
 
     const existingContribution = await prisma.nodeContribution.findFirst({
       where: { contributorId, nodeId: node.id },
     });
-    if (!existingContribution) throw Error('Contribution not found');
+    if (!existingContribution) {
+      return this.addNodeContribution({ node, nodeOwner, contributorId, email, orcid, userId });
+    }
     const currentContributorEmail = existingContribution.email;
     if (currentContributorEmail !== email) {
       // Revoke priv share link for old email
@@ -201,11 +203,7 @@ class ContributorService {
   async retrieveUserContributionMap(user: User): Promise<NodeContributorMap> {
     const contributions = await prisma.nodeContribution.findMany({
       where: {
-        OR: [
-          { userId: user.id },
-          { email: user.email },
-          { orcid: user.orcid }
-        ]
+        OR: [{ userId: user.id }, { email: user.email }, { orcid: user.orcid }],
       },
       include: { node: true, user: true },
     });
@@ -226,7 +224,8 @@ class ContributorService {
     const contribution = await prisma.nodeContribution.findUnique({ where: { contributorId } });
     if (!contribution) throw Error('Invalid contributorId');
 
-    const contributionPointsToUser = contribution.email === user.email || contribution.orcid === user.orcid || contribution.userId === user.id;
+    const contributionPointsToUser =
+      contribution.email === user.email || contribution.orcid === user.orcid || contribution.userId === user.id;
     if (!contributionPointsToUser) throw Error('Unauthorized to verify contribution');
 
     const userHasOrcidValidated = user.orcid !== undefined && user.orcid !== null;
