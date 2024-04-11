@@ -21,14 +21,15 @@ const logger = parentLogger.child({ module: 'PUBLISH WORKER ' });
 
 const checkTransaction = async (transactionId: string, uuid: string) => {
   const provider = ethers.getDefaultProvider(ETHEREUM_RPC_URL);
-  logger.info(
-    {
-      uuid,
-      transactionId,
-      ETHEREUM_RPC_URL,
-    },
-    'TX::check transaction',
-  );
+  if (!process.env.MUTE_PUBLISH_WORKER)
+    logger.info(
+      {
+        uuid,
+        transactionId,
+        ETHEREUM_RPC_URL,
+      },
+      'TX::check transaction',
+    );
 
   console.log('NETWORK', await provider.getNetwork());
   const tx = await provider.getTransactionReceipt(transactionId);
@@ -45,7 +46,7 @@ async function processPublishQueue(workerId = '') {
     if (txStatus === 1) {
       publishHandler(task)
         .then(async (published) => {
-          logger.info({ task, published }, 'PUBLISH HANDLER SUCCESS');
+          if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ task, published }, 'PUBLISH HANDLER SUCCESS');
           lockService.freeLock(task.transactionId);
         })
         .catch((err) => {
@@ -56,7 +57,7 @@ async function processPublishQueue(workerId = '') {
     } else if (txStatus === 0) {
       await prisma.publishTaskQueue.update({ where: { id: task.id }, data: { status: PublishTaskQueueStatus.FAILED } });
       lockService.freeLock(task.transactionId);
-      logger.info({ txStatus }, 'PUBLISH TX FAILED');
+      if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ txStatus }, 'PUBLISH TX FAILED');
     } else {
       await prisma.publishTaskQueue.update({
         where: { id: task.id },
@@ -80,7 +81,7 @@ const dequeueTask = async (workerId = '') => {
   if (!tasks.length) {
     tasks = await prisma.publishTaskQueue.findMany({ where: { status: PublishTaskQueueStatus.PENDING }, take: 5 });
   }
-  logger.info({ tasks, workerId }, 'TASKS');
+  if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ tasks, workerId }, 'TASKS');
   for (const task of tasks) {
     const taskLock = await lockService.aquireLock(task.transactionId);
     logger.info({ taskLock, task, workerId }, 'ATTEMPT TO ACQUIRE LOCK');
@@ -89,7 +90,7 @@ const dequeueTask = async (workerId = '') => {
       break;
     }
   }
-  logger.info({ nextTask, workerId }, 'DEQUEUE TASK');
+  if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ nextTask, workerId }, 'DEQUEUE TASK');
   return nextTask;
 };
 
@@ -102,7 +103,7 @@ export async function runWorkerUntilStopped() {
   const workerId = randomUUID64();
   while (true) {
     const outcome = await processPublishQueue(workerId);
-    logger.info({ outcome, workerId }, 'Processed Queue');
+    if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ outcome, workerId }, 'Processed Queue');
     switch (outcome) {
       case ProcessOutcome.EmptyQueue:
         await delay(10000);
