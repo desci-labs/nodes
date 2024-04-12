@@ -7,6 +7,7 @@ import {
   queryResearchObject,
   resolveHistory,
   newCeramicClient,
+  streams,
 } from "@desci-labs/desci-codex-lib";
 import type { IndexedNodeVersion, PrepublishResponse } from "./api.js";
 import { convert0xHexToCid } from "./util/converting.js";
@@ -160,4 +161,14 @@ export const getCodexHistory = async (
 ) => {
   const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
   return await resolveHistory(ceramic, streamID);
+};
+
+/**
+ * Get the raw stream state for a streamID.
+*/
+export const getRawState = async (
+  streamID: string
+) => {
+  const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
+  return await streams.loadID(ceramic, streamID);
 };

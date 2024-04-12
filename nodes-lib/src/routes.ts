@@ -41,7 +41,8 @@ export async function makeRequest<
     withCredentials: true,
   };
 
-  if (window !== undefined && localStorage.getItem("auth")) {
+  // Can't check against undefined if variable doesn't exist
+  if (typeof window !== "undefined" && localStorage.getItem("auth")) {
     config.headers!.Authorization = `Bearer ${localStorage.getItem("auth")}`;
   };
 
