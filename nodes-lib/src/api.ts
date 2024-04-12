@@ -332,6 +332,8 @@ export type PublishResponse = {
  *
  * @param uuid - UUID of node to publish
  * @param signer - Signer to use for publish, if not set with env
+ * @throws (@link WrongOwnerError) if signer address isn't research object token owner
+ * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
 */
 export const publishDraftNode = async (
   uuid: string,

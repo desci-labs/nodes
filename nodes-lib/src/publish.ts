@@ -1,37 +1,24 @@
 import { type NodeIDs } from "@desci-labs/desci-codex-lib";
 import { getDpidHistory } from "./api.js";
-import { dpidPublish, hasDpid, type DpidPublishResult } from "./chain.js";
+import { dpidPublish, hasDpid } from "./chain.js";
 import { codexPublish } from "./codex.js";
-import { PublishError } from "./errors.js";
-import { Signer, providers } from "ethers";
+import { Signer } from "ethers";
 
 /**
  * The complete publish flow, including both the dPID registry and Codex.
+ *
+ * @throws (@link WrongOwnerError) if signer address isn't token owner
+ * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
 */
 export const publish = async (
   uuid: string,
   provider: Signer,
   skipCodex: boolean = false,
 ) => {
-  let chainPubResponse: DpidPublishResult;
-  let preexistingDpid: boolean;
-    preexistingDpid = await hasDpid(uuid, provider);
-  try {
-    chainPubResponse = await dpidPublish(uuid, preexistingDpid, provider);
-  } catch (e) {
-    /**
-     * dPID registry operations failed. Since we can't know if the prepublish
-     * results will be the same next time around, skip doing ceramic publish
-     * to avoid historical drift.
-     */
-    const err = e as Error;
-    throw new PublishError({
-      name: "DPID_PUBLISH_ERROR",
-      message: "dPID registration failed",
-      cause: JSON.stringify(err, undefined, 2),
-    });
-  };
+  const preexistingDpid = await hasDpid(uuid, provider);
 
+  // Throws on ownership check or dpid publish/update failure
+  const chainPubResponse = await dpidPublish(uuid, preexistingDpid, provider);
   const dpidResult = {
     manifest: chainPubResponse.prepubResult.updatedManifest,
     cid: chainPubResponse.prepubResult.updatedManifestCid,

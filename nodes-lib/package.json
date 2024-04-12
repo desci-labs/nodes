@@ -1,6 +1,6 @@
 {
   "name": "@desci-labs/nodes-lib",
-  "version": "0.0.5-rc8",
+  "version": "0.0.5-rc9",
   "homepage": "https://github.com/desci-labs/nodes#readme",
   "description": "Stand-alone client library for interacting with desci-server",
   "repository": {
@@ -44,6 +44,7 @@
   "devDependencies": {
     "@types/mime-types": "^2.1.4",
     "@types/node": "^20.11.5",
+    "dids": "^5.0.2",
     "typedoc": "^0.25.8",
     "typescript": "^5.3.3",
     "vitest": "^1.2.1",
