@@ -82,11 +82,7 @@ const dequeueTask = async () => {
   if (!tasks.length) {
     tasks = await prisma.publishTaskQueue.findMany({ where: { status: PublishTaskQueueStatus.PENDING }, take: 5 });
   }
-<<<<<<< HEAD
-  if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ tasks, workerId }, 'TASKS');
-=======
-  logger.info({ tasks }, 'TASKS');
->>>>>>> b16b8f8d574c613e0c0fb620c9d101b6ac8ddded
+  if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ tasks }, 'TASKS');
   for (const task of tasks) {
     const taskLock = await lockService.aquireLock(task.transactionId);
     logger.info({ taskLock, task }, 'ATTEMPT TO ACQUIRE LOCK');
@@ -95,11 +91,7 @@ const dequeueTask = async () => {
       break;
     }
   }
-<<<<<<< HEAD
-  if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ nextTask, workerId }, 'DEQUEUE TASK');
-=======
-  logger.info({ nextTask }, 'DEQUEUE TASK');
->>>>>>> b16b8f8d574c613e0c0fb620c9d101b6ac8ddded
+  if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ nextTask }, 'DEQUEUE TASK');
   return nextTask;
 };
 
@@ -109,13 +101,8 @@ const delay = async (timeMs: number) => {
 
 export async function runWorkerUntilStopped() {
   while (true) {
-<<<<<<< HEAD
-    const outcome = await processPublishQueue(workerId);
-    if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ outcome, workerId }, 'Processed Queue');
-=======
     const outcome = await processPublishQueue();
-    logger.info({ outcome }, 'Processed Queue');
->>>>>>> b16b8f8d574c613e0c0fb620c9d101b6ac8ddded
+    if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ outcome }, 'Processed Queue');
     switch (outcome) {
       case ProcessOutcome.EmptyQueue:
         await delay(10000);
