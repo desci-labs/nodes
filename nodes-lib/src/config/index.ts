@@ -1,3 +1,4 @@
+import { getResources } from "@desci-labs/desci-codex-lib";
 import { CHAIN_CONFIGS, ChainConfig } from "./chain.js";
 
 export type NodesEnv =
@@ -76,3 +77,5 @@ export const setNodesLibConfig = (newConfig: Config): void => {
 export const getNodesLibInternalConfig = () => {
   return config as Required<Config>;
 };
+
+export { getResources };

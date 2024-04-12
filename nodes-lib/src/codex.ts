@@ -170,5 +170,5 @@ export const getRawState = async (
   streamID: string
 ) => {
   const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
-  return await streams.loadID(ceramic, streamID);
+  return await streams.loadID(ceramic, streams.StreamID.fromString(streamID));
 };

@@ -32,7 +32,7 @@ import {
 } from "@desci-labs/desci-models";
 import { authorizedSessionDidFromSigner, signerFromPkey } from "../src/util/signing.js";
 import { NODESLIB_CONFIGS, getNodesLibInternalConfig, setApiKey, setNodesLibConfig } from "../src/index.js";
-import { newComposeClient, getResources } from "@desci-labs/desci-codex-lib";
+import { getResources } from "@desci-labs/desci-codex-lib";
 
 // Pre-funded ganache account
 const TEST_PKEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
