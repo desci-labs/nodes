@@ -9,6 +9,5 @@
   "verbose": true,
   "exec": "node -r ts-node/register --inspect=0.0.0.0",
   "delay": 300,
-  "signal": "SIGTERM",
-  "exitcrash": true
+  "signal": "SIGTERM"
 }

@@ -172,10 +172,10 @@ process.on('SIGUSR2', () => {
 
 process.on('uncaughtException', (err) => {
   logger.info({ errMsg: err.message, err }, 'Process caught uncaughtException');
-  process.exit(1);
+  // process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   logger.info({ promise, reason }, 'Process caught unhandledRejection');
-  process.exit(1);
+  // process.exit(1);
 });
