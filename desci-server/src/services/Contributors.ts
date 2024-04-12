@@ -59,8 +59,8 @@ class ContributorService {
     let registeredContributor;
     if (email) registeredContributor = await prisma.user.findUnique({ where: { email } });
     if (orcid) registeredContributor = await prisma.user.findUnique({ where: { orcid } });
-    if (userId !== undefined || userId !== null)
-      registeredContributor = await prisma.user.findUnique({ where: { id: userId } });
+    // debugger;
+    if (userId) registeredContributor = await prisma.user.findUnique({ where: { id: userId } });
 
     const userHasOrcidValidated = nodeOwner.orcid !== undefined && nodeOwner.orcid !== null;
     const contributionOrcidMatchesUser = userHasOrcidValidated && orcid === nodeOwner.orcid;
@@ -94,7 +94,6 @@ class ContributorService {
     let registeredContributor;
     if (email) registeredContributor = await prisma.user.findUnique({ where: { email } });
     if (orcid) registeredContributor = await prisma.user.findUnique({ where: { orcid } });
-    debugger;
     if (userId) registeredContributor = await prisma.user.findUnique({ where: { id: userId } });
 
     const existingContribution = await prisma.nodeContribution.findFirst({
