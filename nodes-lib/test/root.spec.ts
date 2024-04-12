@@ -310,6 +310,15 @@ describe("nodes-lib", () => {
         expect(controller).toEqual(did.parent);
         expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
       });
+
+      test("can optionally derive DID from just a signer", async () => {
+        const { node } = await createBoilerplateNode();
+        const result = await publishDraftNode(node.uuid, testSigner);
+        const streamState = await getRawState(result.ceramicIDs!.streamID);
+        const controller = streamState.state.metadata.controllers.at(0);
+        const signerAddress = (await testSigner.getAddress()).toLowerCase();
+        expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
+      });
     });
 
     describe("node update", async () => {
@@ -346,7 +355,7 @@ describe("nodes-lib", () => {
       await dpidPublish(uuid, false, testSigner);
 
         // Allow graph node to index
-      await sleep(1_500);
+      await sleep(2_500);
 
       // make a regular publish
       const pubResult = await publishDraftNode(uuid, testSigner, did);
