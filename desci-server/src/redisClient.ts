@@ -1,8 +1,13 @@
+import os from 'os';
+
 import { createClient } from 'redis';
 
 import { logger as parentLogger } from './logger.js';
+
+const hostname = os.hostname();
 const logger = parentLogger.child({
   module: 'RedisClient',
+  hostname,
 });
 
 const redisClient = createClient({
@@ -99,7 +104,7 @@ export async function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEF
 
 class SingleNodeLockService {
   private isReady: boolean;
-  private MAX_LOCK_TIME = 60 * 60; // 1 hour
+  private MAX_LOCK_TIME = process.env.MAX_LOCK_TIME ? parseInt(process.env.MAX_LOCK_TIME) : 60 * 60; // 1 hour
   private activeLocks: Set<string>;
 
   constructor() {
@@ -119,7 +124,7 @@ class SingleNodeLockService {
     logger.info({ ready: this.isReady, open: redisClient.isOpen }, 'START ACQUIRE LOCK');
     if (!this.isReady) return false;
     const result = await redisClient.set(key, 'true', { NX: true, EX: lockTime });
-    logger.info({ result, key }, ' END ACQUIRE LOCK');
+    logger.info({ result, key }, 'END ACQUIRE LOCK');
     if (result) {
       this.activeLocks.add(key);
       return true;
