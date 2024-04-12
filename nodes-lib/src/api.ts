@@ -28,6 +28,7 @@ import { randomUUID } from "crypto";
 import { getNodesLibInternalConfig } from "./config/index.js";
 import { makeRequest } from "./routes.js";
 import { Signer } from "ethers";
+import { type DID } from "dids";
 
 export const ENDPOINTS = {
   deleteData: {
@@ -338,9 +339,9 @@ export type PublishResponse = {
 export const publishDraftNode = async (
   uuid: string,
   signer: Signer,
-  skipCodex = false,
+  did?: DID,
 ): Promise<PublishResponse> => {
-  const publishResult = await publish(uuid, signer, skipCodex);
+  const publishResult = await publish(uuid, signer, did);
 
   const pubParams: PublishParams = {
     uuid,

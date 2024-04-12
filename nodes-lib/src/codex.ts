@@ -13,6 +13,7 @@ import { convert0xHexToCid } from "./util/converting.js";
 import { getNodesLibInternalConfig } from "./config/index.js";
 import { Signer } from "ethers";
 import { authorizedSessionDidFromSigner } from "./util/signing.js";
+import { type DID } from"dids";
 
 const LOG_CTX = "[nodes-lib::codex]";
 /**
@@ -22,14 +23,14 @@ const LOG_CTX = "[nodes-lib::codex]";
  * it's backfilled onto a new one.
  *
  * @param prepublishResult - The new modification to publish
- * @param versions - Previous versions of the object, to potentially migrate
- * @param existingStream - A known stream for this object
+ * @param dpidHistory - Previous versions of the object, to potentially migrate
+ * @param didOrSigner - A DID from an authenticated DIDSession, or a signer.
  * @returns the stream ID of the object
  */
 export const codexPublish = async (
   prepublishResult: PrepublishResponse,
   dpidHistory: IndexedNodeVersion[],
-  signer: Signer,
+  didOrSigner: DID | Signer,
 ): Promise<NodeIDs> => {
   const nodeUrl = getNodesLibInternalConfig().ceramicNodeUrl;
   console.log(LOG_CTX, `starting publish with node ${nodeUrl}...`);
@@ -37,9 +38,14 @@ export const codexPublish = async (
   const ceramic = newCeramicClient(nodeUrl);
   const compose = newComposeClient({ ceramic });
 
-  // Wrangle a DID out of the signer for Ceramic auth
-  const did = await authorizedSessionDidFromSigner(signer, compose.resources);
-  compose.setDID(did);
+  if (didOrSigner instanceof Signer) {
+    compose.setDID(
+      // Wrangle a DID out of the signer for Ceramic auth
+      await authorizedSessionDidFromSigner(didOrSigner, compose.resources)
+    );
+  } else {
+    compose.setDID(didOrSigner);
+  };
 
   // If we know about a stream already, let's assume we backfilled it initially
   if (prepublishResult.ceramicStream) {
@@ -73,12 +79,16 @@ export const codexPublish = async (
     console.log(LOG_CTX, "backfilling new stream to mirror history...");
     const streamID = await backfillNewStream(compose, dpidHistory);
 
-    console.log(LOG_CTX, "backfill done, recursing to append latest event...");
-    return await codexPublish(
-      { ...prepublishResult, ceramicStream: streamID },
-      dpidHistory,
-      signer,
+    console.log(LOG_CTX, "backfill done, appending latest event...");
+    const ro = await updateResearchObject(compose, {
+      id: streamID,
+      title: prepublishResult.updatedManifest.title,
+      manifest: prepublishResult.updatedManifestCid,
+    });
+    console.log(
+      `[nodes-lib::codex] successfully updated ${ro.streamID} with commit ${ro.commitID}`
     );
+    return { streamID: ro.streamID, commitID: ro.commitID };
   };
 };
 
