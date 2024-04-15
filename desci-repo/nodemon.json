@@ -7,7 +7,6 @@
     "log/server.log"
   ],
   "verbose": true,
-  "exec": "node -r ts-node/register --inspect=0.0.0.0:9232",
-  "delay": 300,
-  "signal": "SIGTERM"
+  "exec": "npx kill-port 5484 9232; sleep 5; node -r ts-node/register --inspect=0.0.0.0:9232",
+  "delay": 300
 }
