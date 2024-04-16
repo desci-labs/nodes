@@ -66,6 +66,10 @@ const app = express();
 Object.entries(mapping)
   .forEach(([alias, target]) => app.use(alias, createProxy(target)));
 
+app.use("/healthcheck", (_req, res) => {
+  res.send("I'm doing OK");
+});
+
 app.use(
   (req, res) => {
     console.log(`Got request for unmapped path ${req.url}, responding 404.`);
