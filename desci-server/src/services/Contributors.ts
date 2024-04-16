@@ -30,10 +30,10 @@ export interface NodeContributorAuthed extends NodeContributor {
 export type UserContribution = {
   uuid: string;
   manifestCid: string;
-  title: string;
+  title?: string;
   versions: number;
-  coverImageCid: string | IpldUrl;
-  dpid: ResearchObjectV1Dpid;
+  coverImageCid?: string | IpldUrl;
+  dpid?: ResearchObjectV1Dpid;
   publishDate: string;
 };
 
