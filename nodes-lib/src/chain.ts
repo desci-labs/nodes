@@ -1,8 +1,9 @@
-import { BigNumber, ContractReceipt, Signer, providers } from "ethers";
+import { BigNumber, ContractReceipt, Signer } from "ethers";
 import { convertUUIDToHex, convertCidTo0xHex} from "./util/converting.js";
 import { changeManifest, prePublishDraftNode, type PrepublishResponse } from "./api.js"
 import { getNodesLibInternalConfig } from "./config/index.js";
 import { formatBytes32String } from "ethers/lib/utils.js";
+import { DpidRegistrationError, DpidUpdateError, WrongOwnerError } from "./errors.js";
 
 const LOG_CTX = "[nodes-lib::chain]"
 
@@ -22,6 +23,9 @@ export type DpidPublishResult = {
 
 /**
  * Publish a node to the dPID registry contract.
+ *
+ * @throws (@link WrongOwnerError) if signer address isn't token owner
+ * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
  */
 export const dpidPublish = async (
   uuid: string,
@@ -30,15 +34,32 @@ export const dpidPublish = async (
 ): Promise<DpidPublishResult> => {
   let reciept: ContractReceipt;
   let prepubResult: PrepublishResponse;
+
   if (dpidExists) {
-    console.log(`${LOG_CTX} dpid exists for ${uuid}, updating`);
+    console.log(`${LOG_CTX} dpid exists for ${uuid}, checking token ownership`);
+    const signingAddress = (await signer.getAddress()).toLowerCase();
+    const researchObjectOwner = await getResearchObjectOwner(uuid, signer);
+
+    if (signingAddress !== researchObjectOwner) {
+      throw new WrongOwnerError({
+        name: "WRONG_OWNER_ERROR",
+        message: "Credentials do not match the research object token owner",
+        cause: { expected: researchObjectOwner, actual: signingAddress },
+      });
+    };
+
+    console.log(`${LOG_CTX} owner looks OK, trying to update dpid`);
     try {
       prepubResult = await prePublishDraftNode(uuid);
       reciept = await updateExistingDpid(uuid, prepubResult.updatedManifestCid, signer);
     } catch(e) {
-      const err = e as Error;
-      console.log(`${LOG_CTX} Failed updating dpid for uuid ${uuid}: ${err.message}`);
-      throw err;
+      const cause = e as Error;
+      console.log(`${LOG_CTX} Failed updating dpid for uuid ${uuid}: ${JSON.stringify(cause, undefined, 2)}`);
+      throw new DpidUpdateError({
+        name: "DPID_UPDATE_ERROR",
+        message: "dPID update failed",
+        cause,
+      });
     };
   } else {
     console.log(`${LOG_CTX} no dpid found for ${uuid}, registering new`);
@@ -47,9 +68,13 @@ export const dpidPublish = async (
       reciept = registrationResult.reciept;
       prepubResult = registrationResult.prepubResult;
     } catch (e) {
-      const err = e as Error;
-      console.log(`${LOG_CTX} Failed registering new dpid for uuid ${uuid}: ${err.message}`);
-      throw err;
+      const cause = e as Error;
+      console.log(`${LOG_CTX} Failed registering new dpid for uuid ${uuid}: ${JSON.stringify(cause, undefined, 2)}`);
+      throw new DpidRegistrationError({
+        name: "DPID_REGISTRATION_ERROR",
+        message: "dPID registration failed",
+        cause,
+      });
     };
   };
   return { prepubResult, reciept };
@@ -131,6 +156,12 @@ const getPreliminaryDpid = async (
 
 export const hasDpid = async (
   uuid: string,
-  signer: Signer
+  signer: Signer,
 ): Promise<boolean> =>
   await researchObjectContract(signer).exists(convertUUIDToHex(uuid));
+
+export const getResearchObjectOwner = async (
+  uuid: string,
+  signer: Signer,
+): Promise<string> =>
+  (await researchObjectContract(signer).ownerOf(convertUUIDToHex(uuid))).toLowerCase();;

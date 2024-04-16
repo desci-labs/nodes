@@ -15,7 +15,7 @@ import {
   removeContributor, addExternalCid, updateCoverImage,
 } from "../src/api.js";
 import axios from "axios";
-import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
+import { getCodexHistory, getPublishedFromCodex, getRawState } from "../src/codex.js";
 import { dpidPublish } from "../src/chain.js";
 import { sleep } from "./util.js";
 import { convert0xHexToCid } from "../src/util/converting.js";
@@ -30,8 +30,9 @@ import {
   ResearchObjectComponentType,
   ResearchObjectComponentDataSubtype
 } from "@desci-labs/desci-models";
-import { signerFromPkey } from "../src/util/signing.js";
+import { authorizedSessionDidFromSigner, signerFromPkey } from "../src/util/signing.js";
 import { NODESLIB_CONFIGS, getNodesLibInternalConfig, setApiKey, setNodesLibConfig } from "../src/index.js";
+import { getResources } from "@desci-labs/desci-codex-lib";
 
 // Pre-funded ganache account
 const TEST_PKEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
@@ -270,11 +271,12 @@ describe("nodes-lib", () => {
   describe("publishing ", async () => {
     let uuid: string;
     let publishResult: PublishResponse;
+    const did = await authorizedSessionDidFromSigner(testSigner, getResources());
 
     beforeAll(async () => {
       const { node } = await createBoilerplateNode();
       uuid = node.uuid;
-      publishResult = await publishDraftNode(uuid, testSigner);
+      publishResult = await publishDraftNode(uuid, testSigner, did);
     });
 
     describe("new node", async () => {
@@ -299,13 +301,31 @@ describe("nodes-lib", () => {
         const ceramicObject = await getPublishedFromCodex(publishResult.ceramicIDs!.streamID);
         expect(ceramicObject?.manifest).toEqual(publishResult.updatedManifestCid);
       });
+
+      test("has a CACAO from the passed DID", async () => {
+        const streamState = await getRawState(publishResult.ceramicIDs!.streamID);
+        const controller = streamState.state.metadata.controllers.at(0);
+        const signerAddress = (await testSigner.getAddress()).toLowerCase();
+
+        expect(controller).toEqual(did.parent);
+        expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
+      });
+
+      test("can optionally derive DID from just a signer", async () => {
+        const { node } = await createBoilerplateNode();
+        const result = await publishDraftNode(node.uuid, testSigner);
+        const streamState = await getRawState(result.ceramicIDs!.streamID);
+        const controller = streamState.state.metadata.controllers.at(0);
+        const signerAddress = (await testSigner.getAddress()).toLowerCase();
+        expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
+      });
     });
 
     describe("node update", async () => {
       beforeAll(async () => {
         // async publish errors on re-publish before it finishes
         await sleep(5_000);
-        await publishDraftNode(uuid, testSigner);
+        await publishDraftNode(uuid, testSigner, did);
         // Allow graph node to index
         await sleep(1_500);
       });
@@ -335,10 +355,10 @@ describe("nodes-lib", () => {
       await dpidPublish(uuid, false, testSigner);
 
         // Allow graph node to index
-      await sleep(1_500);
+      await sleep(2_500);
 
       // make a regular publish
-      const pubResult = await publishDraftNode(uuid, testSigner);
+      const pubResult = await publishDraftNode(uuid, testSigner, did);
 
         // Allow graph node to index
       await sleep(1_500);

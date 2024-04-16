@@ -28,6 +28,7 @@ import { randomUUID } from "crypto";
 import { getNodesLibInternalConfig } from "./config/index.js";
 import { makeRequest } from "./routes.js";
 import { Signer } from "ethers";
+import { type DID } from "dids";
 
 export const ENDPOINTS = {
   deleteData: {
@@ -332,13 +333,15 @@ export type PublishResponse = {
  *
  * @param uuid - UUID of node to publish
  * @param signer - Signer to use for publish, if not set with env
+ * @throws (@link WrongOwnerError) if signer address isn't research object token owner
+ * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
 */
 export const publishDraftNode = async (
   uuid: string,
   signer: Signer,
-  skipCodex = false,
+  did?: DID,
 ): Promise<PublishResponse> => {
-  const publishResult = await publish(uuid, signer, skipCodex);
+  const publishResult = await publish(uuid, signer, did);
 
   const pubParams: PublishParams = {
     uuid,
