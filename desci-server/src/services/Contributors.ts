@@ -1,5 +1,6 @@
 import { format } from 'path';
 
+import { IpldUrl, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
 import { Node, NodeContribution, User } from '@prisma/client';
 import ShortUniqueId from 'short-unique-id';
 
@@ -7,6 +8,8 @@ import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { formatOrcidString, hexToCid } from '../utils.js';
+
+import { getManifestByCid } from './data/processing.js';
 
 type ContributorId = string;
 
@@ -24,7 +27,15 @@ export interface NodeContributorAuthed extends NodeContributor {
   orcid?: string;
 }
 
-export type UserContribution = { uuid: string; manifestCid: string };
+export type UserContribution = {
+  uuid: string;
+  manifestCid: string;
+  title: string;
+  versions: number;
+  coverImageCid: string | IpldUrl;
+  dpid: ResearchObjectV1Dpid;
+  publishDate: string;
+};
 
 export type Contribution = {
   nodeUuid: string;
@@ -184,16 +195,28 @@ class ContributorService {
     const nodeUuids = contributions.map((contribution) => contribution.node.uuid);
     // Filter out for published works
     const { researchObjects } = await getIndexedResearchObjects(nodeUuids);
-    const NodesWithManifestCids = researchObjects.map((ro) => {
-      // convert hex string to integer
-      const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
-      // convert integer to hex
-      const nodeUuid = nodeUuidInt.toString('base64url');
+    const filledContributions = await Promise.all(
+      researchObjects.map(async (ro) => {
+        // convert hex string to integer
+        const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
+        // convert integer to hex
+        const nodeUuid = nodeUuidInt.toString('base64url');
+        const manifestCid = hexToCid(ro.recentCid);
+        const latestManifest = await getManifestByCid(manifestCid);
 
-      return { uuid: nodeUuid, manifestCid: hexToCid(ro.recentCid) };
-    });
+        return {
+          uuid: nodeUuid,
+          manifestCid,
+          title: latestManifest.title,
+          versions: ro.versions.length,
+          coverImageCid: latestManifest.coverImage,
+          dpid: latestManifest.dpid,
+          publishDate: ro.versions[0].time,
+        };
+      }),
+    );
     // debugger;
-    return NodesWithManifestCids || [];
+    return filledContributions || [];
   }
 
   /**
