@@ -2085,7 +2085,7 @@ describe('Attestations Service', async () => {
       });
       memberAuthHeaderVal1 = `Bearer ${MemberJwtToken1}`;
 
-      MemberJwtToken2 = jwt.sign({ email: members[0].user.email }, process.env.JWT_SECRET!, {
+      MemberJwtToken2 = jwt.sign({ email: members[1].user.email }, process.env.JWT_SECRET!, {
         expiresIn: '1y',
       });
       memberAuthHeaderVal2 = `Bearer ${MemberJwtToken2}`;
@@ -2127,8 +2127,8 @@ describe('Attestations Service', async () => {
 
       const verifications = await attestationService.getAllClaimVerfications(openCodeClaim.id);
       expect(verifications.length).to.equal(2);
-      expect(verifications[0].userId).to.equal(members[0].userId);
-      expect(verifications[1].userId).to.equal(members[1].userId);
+      expect(verifications.some((v) => v.userId === members[0].userId)).to.equal(true);
+      expect(verifications.some((v) => v.userId === members[1].userId)).to.equal(true);
     });
 
     it.skip('should prevent double verification of Node Attestation(Claim)', async () => {
