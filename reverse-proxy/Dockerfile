@@ -1,6 +1,6 @@
 FROM node:20.12.1-alpine3.18 AS base
 
-RUN apk update && apk add --no-cache dumb-init
+RUN apk update && apk add --no-cache dumb-init bash
 
 WORKDIR /usr/src/app
 
