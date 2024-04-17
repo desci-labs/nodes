@@ -29,7 +29,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: public-reverse-proxy-prod
+                name: public-reverse-proxy-prod-service
                 port:
                   number: 80
 ---
