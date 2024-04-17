@@ -2090,7 +2090,7 @@ describe('Attestations Service', async () => {
       });
       memberAuthHeaderVal2 = `Bearer ${MemberJwtToken2}`;
 
-      UserJwtToken = jwt.sign({ email: members[0].user.email }, process.env.JWT_SECRET!, {
+      UserJwtToken = jwt.sign({ email: users[1].email }, process.env.JWT_SECRET!, {
         expiresIn: '1y',
       });
       UserAuthHeaderVal = `Bearer ${UserJwtToken}`;
@@ -2117,6 +2117,13 @@ describe('Attestations Service', async () => {
       });
       expect(res.statusCode).to.equal(200);
 
+      const verifications = await attestationService.getAllClaimVerfications(openCodeClaim.id);
+      expect(verifications.length).to.equal(2);
+      expect(verifications.some((v) => v.userId === members[0].userId)).to.equal(true);
+      expect(verifications.some((v) => v.userId === members[1].userId)).to.equal(true);
+    });
+
+    it('should prevent non-authorized users from verifying a protected attestation(claim)', async () => {
       const userVerificationResponse = await request(app)
         .post(`/v1/attestations/verification`)
         .set('authorization', UserAuthHeaderVal)
