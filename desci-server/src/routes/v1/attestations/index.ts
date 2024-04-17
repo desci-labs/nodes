@@ -18,6 +18,7 @@ import {
   showCommunityClaims,
   getAttestationVerifications,
   validate,
+  getValidatedRecommendations,
 } from '../../../internal.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 
@@ -41,6 +42,7 @@ import {
 const router = Router();
 
 router.get('/suggestions/all', [ensureUser], asyncHander(getAllRecommendations));
+router.get('/suggestions/protected', [ensureUser], asyncHander(getValidatedRecommendations));
 router.get(
   '/claims/:communityId/:dpid',
   [ensureUser, validate(showCommunityClaimsSchema)],

@@ -66,5 +66,23 @@ export const getValidatedAttestations = async (req: Request, res: Response, _nex
     communityId: community.id,
     protected: true,
   });
-  return new SuccessResponse(attestations).send(res);
+  const response = _.map(attestations, (attestation) => ({
+    ...attestation,
+    AttestationVersion: attestation.AttestationVersion[0],
+  }));
+  return new SuccessResponse(response).send(res);
+};
+
+export const getValidatedRecommendations = async (req: Request, res: Response, _next: NextFunction) => {
+  const attestations = await attestationService.getProtectedAttestations({
+    protected: true,
+  });
+  const response = _.map(attestations, (attestation) => ({
+    ...attestation,
+    community: undefined,
+    communityName: attestation.community.name,
+    AttestationVersion: attestation.AttestationVersion[0],
+  }));
+  logger.info({ attestations }, 'getValidatedRecommendations');
+  return new SuccessResponse(response).send(res);
 };

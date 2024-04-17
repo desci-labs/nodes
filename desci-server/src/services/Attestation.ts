@@ -568,7 +568,17 @@ export class AttestationService {
   }
 
   async getCommunityAttestations(filter: Prisma.AttestationWhereInput) {
-    return prisma.attestation.findMany({ where: filter, include: { AttestationVersion: true } });
+    return prisma.attestation.findMany({
+      where: filter,
+      include: { AttestationVersion: { orderBy: { createdAt: 'desc' } } },
+    });
+  }
+
+  async getProtectedAttestations(filter: Prisma.AttestationWhereInput) {
+    return prisma.attestation.findMany({
+      where: filter,
+      include: { community: true, AttestationVersion: { orderBy: { createdAt: 'desc' } } },
+    });
   }
 
   async findAnnotationById(id: number) {
