@@ -79,7 +79,6 @@ spec:
           export ETHEREUM_RPC_URL={{ .Data.ETHEREUM_RPC_URL }}
           export GOOGLE_CLIENT_ID={{ .Data.GOOGLE_CLIENT_ID }}
           export DEBUG_TEST=0;
-          export MAX_LOCK_TIME={{ .Data.MAX_LOCK_TIME }}
           echo "appfinish";
           {{- end -}}
       labels:

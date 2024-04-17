@@ -80,7 +80,6 @@ spec:
           export GOOGLE_CLIENT_ID={{ .Data.GOOGLE_CLIENT_ID }}
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
-          export MAX_LOCK_TIME={{ .Data.MAX_LOCK_TIME }}
           echo "appfinish";
           {{- end -}}
       labels:
