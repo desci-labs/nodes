@@ -20,11 +20,11 @@ export type SharedNode = {
   shareKey: string;
 };
 
-export type GetSharedNodesRequest = Request<never, never> & {
+export type ListSharedNodesRequest = Request<never, never> & {
   user: User; // added by auth middleware
 };
 
-export type GetSharedNodesResBody =
+export type ListSharedNodesResBody =
   | {
       ok: boolean;
       sharedNodes: SharedNode[];
@@ -33,13 +33,13 @@ export type GetSharedNodesResBody =
       error: string;
     };
 
-export const getSharedNodes = async (req: GetSharedNodesRequest, res: Response<GetSharedNodesResBody>) => {
+export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response<ListSharedNodesResBody>) => {
   const user = req.user;
 
-  if (!user) throw Error('Middleware not properly setup for getSharedNodes controller, requires req.user');
+  if (!user) throw Error('Middleware not properly setup for ListSharedNodes controller, requires req.user');
 
   const logger = parentLogger.child({
-    module: 'PrivateShare::GetSharedNodesController',
+    module: 'PrivateShare::ListSharedNodesController',
     body: req.body,
     userId: user.id,
   });
