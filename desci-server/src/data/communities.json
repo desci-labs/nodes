@@ -291,6 +291,7 @@
       "name": "Open Code",
       "description": "Digitally-shareable code is available in this research object.\n\nThe code must be provided in a format that is time-stamped, immutable, and permanent. It must also have associated persistent identifiers.\n\nBy publishing your code with default licensing via DeSci Nodes, you automatically satisfy this requirement.\n\nThe code has an open license allowing others to copy, distribute, and make use of the code while allowing the licensor to retain credit and copyright as applicable.\n\nSufficient explanation is present for an independent researcher to understand how the code is used and relates to the reported methodology, including information about versions of software, systems, and packages.",
       "image_url": "https://pub.desci.com/ipfs/bafkreif64vgztwiq2xfebdgzkkca34kt2k675l5ejmx42qa4fyb622yh3q",
+      "verified_image_url": "https://pub.desci.com/ipfs/bafkreibp3pbr2bjivubnbffffcrjuwa55yfoyakv5cni3ncez4txnqqqry",
       "communityName": "DeSci Foundation",
       "protected": true
     },
@@ -298,6 +299,7 @@
       "name": "Open Data",
       "description": "Digitally-shareable code is available in this research object. The code must be provided in a format that is time-stamped, immutable, and permanent. It must also have associated persistent identifiers. By publishing your code with default licensing via DeSci Nodes, you automatically satisfy this requirement. The code has an open license allowing others to copy, distribute, and make use of the code while allowing the licensor to retain credit and copyright as applicable. Sufficient explanation is present for an independent researcher to understand how the code is used and relates to the reported methodology, including information about versions of software, systems, and packages.",
       "image_url": "https://pub.desci.com/ipfs/bafkreif64vgztwiq2xfebdgzkkca34kt2k675l5ejmx42qa4fyb622yh3q",
+      "verified_image_url": "https://pub.desci.com/ipfs/bafkreiepmzi4xryvri7bgbsulnumeu5toh7dagjo7njanc54zjuslzccny",
       "communityName": "DeSci Foundation",
       "protected": true
     }

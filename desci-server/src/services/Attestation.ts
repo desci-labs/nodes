@@ -223,9 +223,9 @@ export class AttestationService {
       where: { nodeDpid10: dpid, revoked: false },
       include: {
         community: { select: { name: true, description: true, keywords: true, image_url: true } },
+        attestation: { select: { protected: true, verified_image_url: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
         node: { select: { ownerId: true } },
-        // NodeAttestationReaction: { s},
         _count: {
           select: { Annotation: true, NodeAttestationReaction: true, NodeAttestationVerification: true },
         },
@@ -238,6 +238,7 @@ export class AttestationService {
       where: { nodeDpid10: dpid, desciCommunityId: communityId, revoked: false },
       include: {
         community: { select: { name: true, description: true, keywords: true } },
+        attestation: { select: { protected: true, verified_image_url: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
         node: { select: { ownerId: true } },
         // NodeAttestationReaction: { s},
