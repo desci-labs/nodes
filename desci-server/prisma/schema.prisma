@@ -668,6 +668,7 @@ model Attestation {
   description               String
   image_url                 String
   templateId                Int?
+  protected                 Boolean                     @default(false)
   createdAt                 DateTime                    @default(now())
   updatedAt                 DateTime                    @updatedAt
   community                 DesciCommunity              @relation(fields: [communityId], references: [id])

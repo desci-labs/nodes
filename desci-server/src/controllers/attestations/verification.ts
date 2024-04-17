@@ -73,8 +73,6 @@ export const addVerification = async (
   });
   logger.trace(`addVerification`);
 
-  if (!claimId) throw new BadRequestError('Claim ID is required');
-
   await attestationService.verifyClaim(parseInt(claimId), user.id);
   return new SuccessMessageResponse().send(res);
 };

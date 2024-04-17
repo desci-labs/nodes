@@ -416,6 +416,14 @@ export class AttestationService {
     const claim = await this.findClaimById(nodeAttestationId);
     if (!claim) throw new ClaimNotFoundError();
 
+    const attestation = await this.findAttestationById(claim.attestationId);
+    if (attestation.protected) {
+      const member = await prisma.communityMember.findUnique({
+        where: { userId_communityId: { userId, communityId: attestation.communityId } },
+      });
+      if (!member) throw new NoAccessError('Only Community members are allowed');
+    }
+
     const node = await prisma.node.findFirst({ where: { uuid: claim.nodeUuid } });
     if (node.ownerId === userId) throw new VerificationError('Node author cannot verify claim');
 
@@ -557,6 +565,10 @@ export class AttestationService {
 
   async getAnnotations(filter: Prisma.AnnotationWhereInput) {
     return prisma.annotation.findMany({ where: filter });
+  }
+
+  async getCommunityAttestations(filter: Prisma.AttestationWhereInput) {
+    return prisma.attestation.findMany({ where: filter, include: { AttestationVersion: true } });
   }
 
   async findAnnotationById(id: number) {

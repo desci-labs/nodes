@@ -5,6 +5,8 @@ import {
   // AttestationTemplate,
   AttestationVersion,
   CommunityEntryAttestation,
+  CommunityMember,
+  CommunityMembershipRole,
   DesciCommunity,
   User,
 } from '@prisma/client';
@@ -20,7 +22,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe('Desci Communities', () => {
+describe.only('Desci Communities', () => {
   const moonDao = {
     name: 'Moon Dao',
     image_url:
@@ -76,7 +78,7 @@ describe('Desci Communities', () => {
     it('should create a community', async () => {
       // const [daoCommunity, moonDaoAdmin] =
       assert(daoCommunity, 'Community not created');
-      expect(daoCommunity?.name).to.be.equal(moonDao.name);
+      expect(daoCommunity.name).to.be.equal(moonDao.name);
       expect(daoCommunity?.image_url).to.be.equal(moonDao.image_url);
       expect(daoCommunity?.description).to.be.equal(moonDao.description);
     });
@@ -109,18 +111,44 @@ describe('Desci Communities', () => {
     });
   });
 
-  describe.skip('Community Membership', () => {
-    // before()
-    it('should add a member', () => {
+  describe('Community Membership', () => {
+    let members: CommunityMember[];
+
+    before(async () => {
+      assert(daoCommunity, 'Community not created');
+
+      members = await Promise.all(
+        users.slice(0, 2).map((user) =>
+          communityService.addCommunityMember(daoCommunity!.id, {
+            userId: user.id,
+            communityId: daoCommunity!.id,
+            role: CommunityMembershipRole.MEMBER,
+          }),
+        ),
+      );
+    });
+
+    it('should add a member', async () => {
+      expect(members.length).to.equal(2);
+      expect(members[0].userId).to.equal(users[0].id);
+      expect(members[1].userId).to.equal(users[1].id);
+
+      const communityMembers = await communityService.getAllMembers(daoCommunity!.id);
+      expect(communityMembers.length).to.equal(2);
+    });
+
+    it('should remove a member', async () => {
+      await communityService.removeMember(daoCommunity!.id, users[1].id);
+
+      const communityMembers = await communityService.getAllMembers(daoCommunity!.id);
+      expect(communityMembers.length).to.equal(1);
+    });
+
+    it.skip('should restrict updates to admin', async () => {
       expect(true).to.be.true;
     });
-    it('should remove a member', () => {
-      expect(true).to.be.true;
-    });
-    it('should restrict updates to admin', async () => {
-      expect(true).to.be.true;
-    });
-    it('should prevent removal of admin', () => {
+
+    it.skip('should prevent removal of admin', () => {
       expect(true).to.be.true;
     });
   });

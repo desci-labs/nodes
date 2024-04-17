@@ -15,18 +15,36 @@
       ],
       "image_url": "https://pub.desci.com/ipfs/bafkreie7kxhzpzhsbywcrpgyv5yvy3qxcjsibuxsnsh5olaztl2uvnrzx4",
       "slug": "gridcoin",
-      "requiredAttestations": ["Reproducibility Enabled", "Used BOINC", "Used Folding@home"],
-      "members": ["Gridcoin Network"],
-      "links": ["https://gridcoin.us", "https://boinc.berkeley.edu"]
+      "requiredAttestations": [
+        "Reproducibility Enabled",
+        "Used BOINC",
+        "Used Folding@home"
+      ],
+      "members": [
+        "Gridcoin Network"
+      ],
+      "links": [
+        "https://gridcoin.us",
+        "https://boinc.berkeley.edu"
+      ]
     },
     {
       "name": "Longevist",
       "subtitle": "Curating the world's most exciting longevity research",
-      "keywords": ["Longevity", "Biomedicine", "Aging", "Healthspan"],
+      "keywords": [
+        "Longevity",
+        "Biomedicine",
+        "Aging",
+        "Healthspan"
+      ],
       "description": "Supporting VitaDAO's mission to improve healthspan, we endeavour to spotlight the most groundbreaking longevity studies each quarter. Our editorial team utilises a combination of social listening tools, AI, and an expansive network to forge a shortlist of preprint contenders. Our expert panel of Longevist Curators then vote in a quarterly battle royale to establish the cream of the crop.\n\nPreprints have revolutionised scientific publishing by enabling researchers to share their discoveries with the world immediately. However, the sheer volume of preprints being published on a daily basis results in an overwhelming landscape for those eager to keep up with the cutting edge of science.\n\nThis is where The Longevist steps in.\n\nIn addition to curation, The Longevist fosters a space for collaborative discourse, through our peer review platform - The Longevity Decentralised Review - to seamlessly blend expert insights with user-friendly, advanced technology.\n\nWe invite you to join this vibrant community. Dive deep into the latest in longevity science and play a pivotal role in shaping the future narrative of this fascinating field.",
       "image_url": "https://pub.desci.com/ipfs/bafkreiexlcnfxgmyc23dhgvh4xcuuq62awioqkwcdxqdfk65si6ohr3nty",
       "slug": "longevist",
-      "requiredAttestations": ["Scientific Manuscript", "Longevity Research", "Commercializable"],
+      "requiredAttestations": [
+        "Scientific Manuscript",
+        "Longevity Research",
+        "Commercializable"
+      ],
       "members": [
         "Andrea Maier",
         "Matthew Kaeberlein",
@@ -57,7 +75,10 @@
         "Jan Gruber",
         "Julien Cherfils"
       ],
-      "links": ["https://longevist.xyz", "https://vitadao.com"]
+      "links": [
+        "https://longevist.xyz",
+        "https://vitadao.com"
+      ]
     },
     {
       "name": "MoonDAO",
@@ -100,18 +121,40 @@
       ],
       "image_url": "https://pub.desci.com/ipfs/bafkreibpwn3s6e3ftj7sd57x4oe5hkddlzboo7t6a4lh4aarsezq37nsfu",
       "slug": "moondao",
-      "requiredAttestations": ["Open Data", "Open Code", "Big if True", "Advances Space Travel"],
-      "members": ["Philip Linden", "Pablo Moncada-Larrotiz", "Carla Ostmann", "@Royalty"],
-      "links": ["https://moondao.com", "https://twitter.com/OfficialMoonDAO"]
+      "requiredAttestations": [
+        "Open Data",
+        "Open Code",
+        "Big if True",
+        "Advances Space Travel"
+      ],
+      "members": [
+        "Philip Linden",
+        "Pablo Moncada-Larrotiz",
+        "Carla Ostmann",
+        "@Royalty"
+      ],
+      "links": [
+        "https://moondao.com",
+        "https://twitter.com/OfficialMoonDAO"
+      ]
     },
     {
       "name": "DeSci Foundation",
       "subtitle": "Scientific Advances",
-      "keywords": ["Original Research", "Open Science", "Reproducibility", "Metascience", "Interdisciplinary"],
+      "keywords": [
+        "Original Research",
+        "Open Science",
+        "Reproducibility",
+        "Metascience",
+        "Interdisciplinary"
+      ],
       "description": "All selected contributions can participate in the [DeSci Fund for Scientific Innovation](https://help.artizen.fund/en/articles/8387161-desci-fund-for-scientific-innovation). Outstanding contributions that demonstrate or advance best open science practices are eligible to compete for the DeSci Foundation Open Science Award.\n\n## Aims and Scope\n\nCurated by the DeSci Foundation, our feed provides a platform for disseminating high-quality research. We select original empirical research, theoretical and methodological contributions, as well as high-quality reviews, perspectives, comments, educational materials and correspondence related to the robustness and trustworthiness of the scientific record.\n\nWe welcome contributions emphasising open science practices, such as open data, open code, preregistered analysis plans, computational reproducibility, and replication studies. We prioritise rigor and transparency in scientific inquiry, aiming to shift the focus from subjective novelty claims or statistical significance to the robustness and reliability of research methodologies.\n\n### Emphasis on Replicability, Robustness, and Transparency\n\n- Manuscripts reporting empirical research results should prioritize sharing data and code to the extent possible, actively facilitating readers' ability to reproduce and validate results independently.\n- Authors are encouraged to utilize the versionability of DeSci Nodes to enhance transparency throughout the research process, incorporating best practices such as commencing a research project with a detailed analysis plan.\n\n### Cross and interdisciplinary\n\n- We welcome contributions from all scientific disciplines and encourage interdisciplinary collaborations, fostering the exchange of open-science practices across fields.\n\n### Metascience\n\n- Contributions utilizing scientific methodology to study science itself, including replication studies, mechanism design, or philosophy of science, are strongly encouraged.\n\nBy prioritizing open science practices, our feed aims to contribute to a culture of transparency, collaboration, and continuous improvement in scientific research. We believe that this approach will not only enhance the credibility of published research but also foster a community dedicated to advancing the reliability and reproducibility of scientific knowledge.\n\n## Prizes\n\nOutstanding scientific advances that demonstrate or advance best open science practices are eligible to compete for our annual Open Science Award ($3000).\n\nIn addition, the DeSci Foundation has partnered with [Artizen.Fund](https://www.artizen.fund/) to provide $10,000 of matched funding to support scientists’ innovative research via the [DeSci Fund for Scientific Innovation](https://help.artizen.fund/en/articles/8387161-desci-fund-for-scientific-innovation). All contributions selected by this feed are eligible to apply. To participate, create a visual representation of your research called an [Artifact](https://help.artizen.fund/en/articles/6604052-what-are-artifacts). Your Artifact can be any image, video, or gif that captures the spark of inspiration behind your work. Submit your Artifact and project description to https://vote.artizen.fund/submit. Selected contributions will be highlighted with an open-edition NFT. The proceeds from NFT sales and matched funding will be paid to the authors.\n\n## About Us\n\nThe DeSci Foundation is a non-profit organization registered in Geneva, Switzerland. Led by leading scientists and entrepreneurs, our mission is to explore and support improvements in the scientific ecosystem based on insights from meta-science and new opportunities afforded by cutting-edge technologies.",
       "image_url": "https://pub.desci.com/ipfs/bafkreidw7vyhsqss7fdf4f5mxacjj3kcq3uymfxsec7z7kypxxdus62nr4",
       "slug": "desci-foundation",
-      "requiredAttestations": ["Scientific Manuscript", "DeSci Fund for Scientific Innovation Eligibility"],
+      "requiredAttestations": [
+        "Scientific Manuscript",
+        "DeSci Fund for Scientific Innovation Eligibility"
+      ],
       "members": [
         "Philipp Koellinger",
         "Chris Hill",
@@ -122,16 +165,26 @@
         "James Boyd",
         "Andre Vacha"
       ],
-      "links": ["https://descifoundation.org", "https://twitter.com/DeSciFoundation"]
+      "links": [
+        "https://descifoundation.org",
+        "https://twitter.com/DeSciFoundation"
+      ]
     },
     {
       "name": "DeSci Labs",
       "subtitle": "Building tools to grow open science",
-      "keywords": ["Engineering", "Metascience", "Open Source"],
+      "keywords": [
+        "Engineering",
+        "Metascience",
+        "Open Source"
+      ],
       "description": "DeSci Labs is a technology company focused on building open-source tools for the scientific community.",
       "image_url": "https://pub.desci.com/ipfs/bafkreia64zheao4kyaxi64gw4uwnmckmu3g5ybjyszkwdwgobs3wucxyye",
       "slug": "desci-labs",
-      "requiredAttestations": ["Open Code", "Open Data"],
+      "requiredAttestations": [
+        "Open Code",
+        "Open Data"
+      ],
       "members": [
         "Philipp Koellinger",
         "Chris Hill",
@@ -142,7 +195,10 @@
         "Andre Vacha",
         "Sina Iman"
       ],
-      "links": ["https://desci.com", "https://twitter.com/DeSciLabs"],
+      "links": [
+        "https://desci.com",
+        "https://twitter.com/DeSciLabs"
+      ],
       "hidden": true
     }
   ],
@@ -230,6 +286,20 @@
       "description": "The [DeSci Fund for Scientific Innovation](https://help.artizen.fund/en/articles/8387161-desci-fund-for-scientific-innovation) is dedicated to advancing the future of science through the power of decentralized infrastructure. By participating in this competition, authors can earn financial rewards. Emphasizing the importance of open access and collaboration, this fund supports projects that utilize DeSci Nodes to share original scientific research with the world. We aim to empower both established researchers and citizen scientists in their endeavors, fostering an ecosystem where scientific discovery is transparent, reproducible, and accessible to all. By backing initiatives that harness DeSci Nodes for everything from hypothesis registration to data sharing and manuscript publication, we’re not just funding projects; we’re investing in a more open, collaborative, and efficient scientific future.\n\n## Eligibility Requirements\n\nTo qualify for the DeSci Fund, your project must adhere to the following criteria:\n\n- _DeSci Nodes Usage_: Projects must actively utilize DeSci Nodes for sharing research results and artifacts publicly, including a scientific manuscript that was written and submitted by the original authors. Manuscripts can be as long or short as appropriate, but they must be a PDF file containing a title on the first page, author names listed right below the title on a separate line, an abstract, a main text body, and a bibliography section titled “References” or “Bibliography” at the end. These formatting guidelines are required to enable Google Scholar to index your work. Submissions from all fields of science are welcome.\n\n- _Open Science Emphasis_: Projects should follow best open science practices to the best of their ability, including sharing artifacts such as data and code alongside manuscript, conducting research based on pre-registered analysis plans, full transparency about methods used, and making active efforts to enable the reproducibility of the reported results as much as possible. \n\n- _Innovative Research Focus_: Preference is given to projects offering novel, ambitious scientific research or technology.\n\n## Participation\n\nTo participate, create a visual representation of your research called an Artifact. Your Artifact can be any image, video, or gif that captures the spark of inspiration behind your work. Submit your Artifact and project description to [https://vote.artizen.fund/submit](https://vote.artizen.fund/submit). Selected contributions will be highlighted with an open-edition NFT. The proceeds from NFT sales and matched funding will be paid to the authors.",
       "image_url": "https://pub.desci.com/ipfs/bafkreihd6qhs445uq3tlool44h3lhcoan2cexa3y3ivk7pkrd4rjeheiye",
       "communityName": "DeSci Labs"
+    },
+    {
+      "name": "Open Code",
+      "description": "Digitally-shareable code is available in this research object.\n\nThe code must be provided in a format that is time-stamped, immutable, and permanent. It must also have associated persistent identifiers.\n\nBy publishing your code with default licensing via DeSci Nodes, you automatically satisfy this requirement.\n\nThe code has an open license allowing others to copy, distribute, and make use of the code while allowing the licensor to retain credit and copyright as applicable.\n\nSufficient explanation is present for an independent researcher to understand how the code is used and relates to the reported methodology, including information about versions of software, systems, and packages.",
+      "image_url": "https://pub.desci.com/ipfs/bafkreif64vgztwiq2xfebdgzkkca34kt2k675l5ejmx42qa4fyb622yh3q",
+      "communityName": "DeSci Foundation",
+      "protected": true
+    },
+    {
+      "name": "Open Data",
+      "description": "Digitally-shareable code is available in this research object. The code must be provided in a format that is time-stamped, immutable, and permanent. It must also have associated persistent identifiers. By publishing your code with default licensing via DeSci Nodes, you automatically satisfy this requirement. The code has an open license allowing others to copy, distribute, and make use of the code while allowing the licensor to retain credit and copyright as applicable. Sufficient explanation is present for an independent researcher to understand how the code is used and relates to the reported methodology, including information about versions of software, systems, and packages.",
+      "image_url": "https://pub.desci.com/ipfs/bafkreif64vgztwiq2xfebdgzkkca34kt2k675l5ejmx42qa4fyb622yh3q",
+      "communityName": "DeSci Foundation",
+      "protected": true
     }
   ]
 }
