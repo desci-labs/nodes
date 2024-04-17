@@ -133,7 +133,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe.only('Attestations Service', async () => {
+describe('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -2103,17 +2103,17 @@ describe.only('Attestations Service', async () => {
       // await prisma.$queryRaw`TRUNCATE TABLE "CommunityMember" CASCADE;`;
     });
 
-    it('should only members verify a node attestation(claim)', async () => {
+    it('should allow only members verify a node attestation(claim)', async () => {
       let res = await request(app)
         .post(`/v1/attestations/verification`)
         .set('authorization', memberAuthHeaderVal1)
         .send({
-          claimerId: author.id,
+          claimId: author.id,
         });
       expect(res.statusCode).to.equal(200);
 
       res = await request(app).post(`/v1/attestations/verification`).set('authorization', memberAuthHeaderVal2).send({
-        claimerId: author.id,
+        claimId: author.id,
       });
       expect(res.statusCode).to.equal(200);
 
@@ -2121,7 +2121,7 @@ describe.only('Attestations Service', async () => {
         .post(`/v1/attestations/verification`)
         .set('authorization', UserAuthHeaderVal)
         .send({
-          claimerId: author.id,
+          claimId: author.id,
         });
       expect(userVerificationResponse.statusCode).to.equal(401);
 
