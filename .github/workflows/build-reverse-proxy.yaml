@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - reverse-proxy-service/**
+      - reverse-proxy/**
     branches:
       - develop
       - main
@@ -65,7 +65,7 @@ jobs:
         run: |
           # Build and tag the image
           docker build \
-            -t $CONTAINER_IMAGE-production:latest \
+            -t $CONTAINER_IMAGE-prod:latest \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod \
              ./$CONTAINER_IMAGE
 
