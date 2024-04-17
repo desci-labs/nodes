@@ -176,8 +176,10 @@ describe.only('Attestations Service', async () => {
       ),
     );
 
+    users = await createUsers(10);
+
     // add Members to open
-    const mock_users = await createUsers(2);
+    const mock_users = users.slice(8);
     desciCommunityMembers = await Promise.all(
       mock_users.map((user) =>
         communityService.addCommunityMember(desciCommunity.id, {
@@ -188,7 +190,6 @@ describe.only('Attestations Service', async () => {
       ),
     );
 
-    users = await createUsers(10);
     // console.log({ users });
 
     const baseManifest = await spawnEmptyManifest();
