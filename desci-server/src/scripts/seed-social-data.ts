@@ -55,6 +55,8 @@ export const seedSocialData = async () => {
           name: attestation.name,
           description: attestation.description,
           image_url: attestation.image_url,
+          protected: attestation.protected ?? false,
+          verified_image_url: attestation.verified_image_url,
           // templateId: attestation.id,
         },
         update: {
@@ -62,7 +64,8 @@ export const seedSocialData = async () => {
           name: attestation.name,
           description: attestation.description,
           image_url: attestation.image_url,
-          // templateId: attestation.id,
+          protected: attestation.protected ?? false,
+          verified_image_url: attestation.verified_image_url,
         },
       }),
     ]);
