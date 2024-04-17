@@ -23,6 +23,15 @@ const logger = parentLogger.child({ module: 'PUBLISH WORKER', hostname });
 
 const checkTransaction = async (transactionId: string, uuid: string) => {
   const provider = ethers.getDefaultProvider(ETHEREUM_RPC_URL);
+  if (!process.env.MUTE_PUBLISH_WORKER)
+    logger.info(
+      {
+        uuid,
+        transactionId,
+        ETHEREUM_RPC_URL,
+      },
+      'TX::check transaction',
+    );
 
   const tx = await provider.getTransactionReceipt(transactionId);
   logger.info({ tx, uuid, transactionId, ETHEREUM_RPC_URL, network: await provider.getNetwork() }, 'TX::Receipt');
@@ -38,7 +47,7 @@ async function processPublishQueue() {
     if (txStatus === 1) {
       publishHandler(task)
         .then(async (published) => {
-          logger.info({ task, published }, 'PUBLISH HANDLER SUCCESS');
+          if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ task, published }, 'PUBLISH HANDLER SUCCESS');
           lockService.freeLock(task.transactionId);
         })
         .catch((err) => {
@@ -49,7 +58,7 @@ async function processPublishQueue() {
     } else if (txStatus === 0) {
       await prisma.publishTaskQueue.update({ where: { id: task.id }, data: { status: PublishTaskQueueStatus.FAILED } });
       lockService.freeLock(task.transactionId);
-      logger.info({ txStatus }, 'PUBLISH TX FAILED');
+      if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ txStatus }, 'PUBLISH TX FAILED');
     } else {
       await prisma.publishTaskQueue.update({
         where: { id: task.id },
@@ -73,7 +82,7 @@ const dequeueTask = async () => {
   if (!tasks.length) {
     tasks = await prisma.publishTaskQueue.findMany({ where: { status: PublishTaskQueueStatus.PENDING }, take: 5 });
   }
-  logger.info({ tasks }, 'TASKS');
+  if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ tasks }, 'TASKS');
   for (const task of tasks) {
     const taskLock = await lockService.aquireLock(task.transactionId);
     logger.info({ taskLock, task }, 'ATTEMPT TO ACQUIRE LOCK');
@@ -82,7 +91,7 @@ const dequeueTask = async () => {
       break;
     }
   }
-  logger.info({ nextTask }, 'DEQUEUE TASK');
+  if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ nextTask }, 'DEQUEUE TASK');
   return nextTask;
 };
 
@@ -93,7 +102,7 @@ const delay = async (timeMs: number) => {
 export async function runWorkerUntilStopped() {
   while (true) {
     const outcome = await processPublishQueue();
-    logger.info({ outcome }, 'Processed Queue');
+    if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ outcome }, 'Processed Queue');
     switch (outcome) {
       case ProcessOutcome.EmptyQueue:
         await delay(10000);

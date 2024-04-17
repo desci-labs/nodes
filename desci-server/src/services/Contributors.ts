@@ -1,5 +1,6 @@
 import { format } from 'path';
 
+import { IpldUrl, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
 import { Node, NodeContribution, User } from '@prisma/client';
 import ShortUniqueId from 'short-unique-id';
 
@@ -7,6 +8,8 @@ import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { formatOrcidString, hexToCid } from '../utils.js';
+
+import { getManifestByCid } from './data/processing.js';
 
 type ContributorId = string;
 
@@ -24,7 +27,15 @@ export interface NodeContributorAuthed extends NodeContributor {
   orcid?: string;
 }
 
-export type UserContribution = { uuid: string; manifestCid: string };
+export type UserContribution = {
+  uuid: string;
+  manifestCid: string;
+  title?: string;
+  versions: number;
+  coverImageCid?: string | IpldUrl;
+  dpid?: ResearchObjectV1Dpid;
+  publishDate: string;
+};
 
 export type Contribution = {
   nodeUuid: string;
@@ -59,8 +70,8 @@ class ContributorService {
     let registeredContributor;
     if (email) registeredContributor = await prisma.user.findUnique({ where: { email } });
     if (orcid) registeredContributor = await prisma.user.findUnique({ where: { orcid } });
-    if (userId !== undefined || userId !== null)
-      registeredContributor = await prisma.user.findUnique({ where: { id: userId } });
+    // debugger;
+    if (userId) registeredContributor = await prisma.user.findUnique({ where: { id: userId } });
 
     const userHasOrcidValidated = nodeOwner.orcid !== undefined && nodeOwner.orcid !== null;
     const contributionOrcidMatchesUser = userHasOrcidValidated && orcid === nodeOwner.orcid;
@@ -94,13 +105,14 @@ class ContributorService {
     let registeredContributor;
     if (email) registeredContributor = await prisma.user.findUnique({ where: { email } });
     if (orcid) registeredContributor = await prisma.user.findUnique({ where: { orcid } });
-    if (userId !== undefined || userId !== null)
-      registeredContributor = await prisma.user.findUnique({ where: { id: userId } });
+    if (userId) registeredContributor = await prisma.user.findUnique({ where: { id: userId } });
 
     const existingContribution = await prisma.nodeContribution.findFirst({
       where: { contributorId, nodeId: node.id },
     });
-    if (!existingContribution) throw Error('Contribution not found');
+    if (!existingContribution) {
+      return this.addNodeContribution({ node, nodeOwner, contributorId, email, orcid, userId });
+    }
     const currentContributorEmail = existingContribution.email;
     if (currentContributorEmail !== email) {
       // Revoke priv share link for old email
@@ -183,16 +195,28 @@ class ContributorService {
     const nodeUuids = contributions.map((contribution) => contribution.node.uuid);
     // Filter out for published works
     const { researchObjects } = await getIndexedResearchObjects(nodeUuids);
-    const NodesWithManifestCids = researchObjects.map((ro) => {
-      // convert hex string to integer
-      const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
-      // convert integer to hex
-      const nodeUuid = nodeUuidInt.toString('base64url');
+    const filledContributions = await Promise.all(
+      researchObjects.map(async (ro) => {
+        // convert hex string to integer
+        const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
+        // convert integer to hex
+        const nodeUuid = nodeUuidInt.toString('base64url');
+        const manifestCid = hexToCid(ro.recentCid);
+        const latestManifest = await getManifestByCid(manifestCid);
 
-      return { uuid: nodeUuid, manifestCid: hexToCid(ro.recentCid) };
-    });
+        return {
+          uuid: nodeUuid,
+          manifestCid,
+          title: latestManifest.title,
+          versions: ro.versions.length,
+          coverImageCid: latestManifest.coverImage,
+          dpid: latestManifest.dpid,
+          publishDate: ro.versions[0].time,
+        };
+      }),
+    );
     // debugger;
-    return NodesWithManifestCids || [];
+    return filledContributions || [];
   }
 
   /**
@@ -201,11 +225,7 @@ class ContributorService {
   async retrieveUserContributionMap(user: User): Promise<NodeContributorMap> {
     const contributions = await prisma.nodeContribution.findMany({
       where: {
-        OR: [
-          { userId: user.id },
-          { email: user.email },
-          { orcid: user.orcid }
-        ]
+        OR: [{ userId: user.id }, { email: user.email }, { orcid: user.orcid }],
       },
       include: { node: true, user: true },
     });
@@ -226,7 +246,8 @@ class ContributorService {
     const contribution = await prisma.nodeContribution.findUnique({ where: { contributorId } });
     if (!contribution) throw Error('Invalid contributorId');
 
-    const contributionPointsToUser = contribution.email === user.email || contribution.orcid === user.orcid || contribution.userId === user.id;
+    const contributionPointsToUser =
+      contribution.email === user.email || contribution.orcid === user.orcid || contribution.userId === user.id;
     if (!contributionPointsToUser) throw Error('Unauthorized to verify contribution');
 
     const userHasOrcidValidated = user.orcid !== undefined && user.orcid !== null;

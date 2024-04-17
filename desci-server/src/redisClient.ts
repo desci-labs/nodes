@@ -147,23 +147,40 @@ class SingleNodeLockService {
 export const lockService = new SingleNodeLockService();
 
 process.on('exit', () => {
+  logger.info('Process caught exit');
   lockService.freeLocks();
   redisClient.quit();
 });
 
 // catches ctrl+c event
 process.on('SIGINT', () => {
-  lockService.freeLocks();
+  logger.info('Process caught SIGINT');
+  process.exit(1);
 });
 
-// catches "kill pid" (for example: nodemon restart)
-process.on('SIGUSR1', () => {
-  lockService.freeLocks();
+process.on('SIGTERM', () => {
+  logger.info('Process caught SIGTERM');
+  process.exit(1);
 });
+
+// probably not used since its normally starting node debugger
+// process.on('SIGUSR1', () => {
+//   logger.info('Process caught SIGUSR1');
+//   // process.exit(1);
+// });
+
+// default kill signal for nodemon
 process.on('SIGUSR2', () => {
-  lockService.freeLocks();
+  logger.info('Process caught SIGUSR2');
+  process.exit(1);
 });
 
-process.on('uncaughtException', () => {
-  lockService.freeLocks();
+process.on('uncaughtException', (err) => {
+  logger.info({ errMsg: err.message, err }, 'Process caught uncaughtException');
+  // process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.info({ promise, reason }, 'Process caught unhandledRejection');
+  // process.exit(1);
 });

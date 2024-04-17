@@ -1,16 +1,14 @@
-
-
-export class BaseError<T extends string> extends Error {
-  name: T;
+class BaseError<Name extends string, Cause> extends Error {
+  name: Name;
   message: string;
-  cause: any;
+  cause: Cause;
 
   constructor({
     name, message, cause
   }: {
-    name: T,
+    name: Name,
     message: string,
-    cause?: any,
+    cause: Cause,
   }) {
     super();
     this.name = name;
@@ -19,4 +17,8 @@ export class BaseError<T extends string> extends Error {
   };
 };
 
-export class PublishError extends BaseError<"DPID_PUBLISH_ERROR"> {};
+export class DpidUpdateError extends BaseError<"DPID_UPDATE_ERROR", Error> {};
+export class DpidRegistrationError extends BaseError<"DPID_REGISTRATION_ERROR", Error> {};
+export class WrongOwnerError extends BaseError<
+  "WRONG_OWNER_ERROR", { expected: string, actual: string }
+> {};

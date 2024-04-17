@@ -98,7 +98,14 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
         html: emailHtml,
       };
 
-      sgMail.send(emailMsg);
+      if (process.env.NODE_ENV === 'production') {
+        sgMail.send(emailMsg);
+      } else {
+        logger.info(
+          { nodeEnv: process.env.NODE_ENV },
+          'Skipping add contributor email send in non-production environment',
+        );
+      }
     }
     logger.info({ contributorAdded }, 'Contributor added successfully');
     return res.status(200).json({ ok: true, message: 'Contributor added successfully' });
