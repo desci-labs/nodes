@@ -1,0 +1,16 @@
+{
+  /** https://www.typescriptlang.org/docs/handbook/modules/guides/choosing-compiler-options.html */
+  "compilerOptions": {
+    /** Maximise compatibility with ESM/cjs and importer `moduleResolution: bundler` setting */
+    "module": "nodenext",
+    /** Without strict, we'd error when imported into a project with `strict` */
+    "strict": true,
+    /** Prevent misbehaving import/export statements */
+    "verbatimModuleSyntax": true,
+
+    /** Import friendliness */
+    "declaration": true,
+    "sourceMap": true,
+    "outDir": "dist"
+  }
+}
