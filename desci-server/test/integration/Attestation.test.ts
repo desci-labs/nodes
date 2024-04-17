@@ -2108,12 +2108,12 @@ describe('Attestations Service', async () => {
         .post(`/v1/attestations/verification`)
         .set('authorization', memberAuthHeaderVal1)
         .send({
-          claimId: author.id,
+          claimId: openCodeClaim.id,
         });
       expect(res.statusCode).to.equal(200);
 
       res = await request(app).post(`/v1/attestations/verification`).set('authorization', memberAuthHeaderVal2).send({
-        claimId: author.id,
+        claimId: openCodeClaim.id,
       });
       expect(res.statusCode).to.equal(200);
 
@@ -2121,7 +2121,7 @@ describe('Attestations Service', async () => {
         .post(`/v1/attestations/verification`)
         .set('authorization', UserAuthHeaderVal)
         .send({
-          claimId: author.id,
+          claimId: openCodeClaim.id,
         });
       expect(userVerificationResponse.statusCode).to.equal(401);
 
