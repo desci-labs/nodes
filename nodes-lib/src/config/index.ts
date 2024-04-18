@@ -4,6 +4,7 @@ import { CHAIN_CONFIGS, ChainConfig } from "./chain.js";
 export type NodesEnv =
   | "local"
   | "dev"
+  | "staging"
   | "prod";
 
 export type Config = {
@@ -25,6 +26,12 @@ export const NODESLIB_CONFIGS = {
     apiKey: undefined,
     ceramicNodeUrl: "https://ceramic-dev.desci.com",
     chainConfig: CHAIN_CONFIGS.dev,
+  },
+  staging: {
+    apiUrl: "https://nodes-api-staging.desci.com",
+    apiKey: undefined,
+    ceramicNodeUrl: "https://ceramic-dev.desci.com",
+    chainConfig: CHAIN_CONFIGS.dev, // also using the dev sepolia contracts
   },
   prod: {
     apiUrl: "https://nodes-api.desci.com",
