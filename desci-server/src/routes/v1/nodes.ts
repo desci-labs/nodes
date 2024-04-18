@@ -4,6 +4,7 @@ import { addContributor } from '../../controllers/nodes/contributions/create.js'
 import { deleteContributor } from '../../controllers/nodes/contributions/delete.js';
 import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
 import { getUserContributions } from '../../controllers/nodes/contributions/getUserContributions.js';
+import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
 import { updateContributor } from '../../controllers/nodes/contributions/update.js';
 import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
@@ -32,12 +33,12 @@ import {
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { prepublish } from '../../controllers/nodes/prepublish.js';
+import { listSharedNodes } from '../../controllers/nodes/sharedNodes.js';
 import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { asyncHander, attachUser, validate } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
-import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
 
 const router = Router();
 
@@ -60,6 +61,7 @@ router.get(
 );
 router.post('/terms', [ensureUser], consent);
 router.get('/share/verify/:shareId', checkPrivateShareId);
+router.get('/share', [ensureUser], listSharedNodes);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);
 router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);

@@ -27,7 +27,7 @@ export const deleteContributor = async (req: DeleteContributorRequest, res: Resp
   const user = req.user;
 
   if (!node || !user)
-    throw Error('Middleware not properly setup for addContributor controller, requires req.node and req.user');
+    throw Error('Middleware not properly setup for deleteContributor controller, requires req.node and req.user');
 
   const { contributorId } = req.body;
 

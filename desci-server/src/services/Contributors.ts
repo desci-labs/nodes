@@ -52,7 +52,7 @@ export type AddNodeContributionParams = {
   userId?: number;
 };
 
-const PRIV_SHARE_CONTRIBUTION_PREFIX = 'C-';
+export const PRIV_SHARE_CONTRIBUTION_PREFIX = 'C-';
 
 class ContributorService {
   private logger = parentLogger.child({ module: 'Services::ContributorsService' });
