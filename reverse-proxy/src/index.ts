@@ -1,23 +1,19 @@
 import express from 'express';
 import { ServerResponse } from 'http';
-import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createProxyMiddleware, responseInterceptor } from 'http-proxy-middleware';
+import { buildMappingFromEnv, getSensitiveStrings, redactSensitive } from './util.js';
 
 const SENSIBLE_KEY_REGEX = '^\/[a-zA-Z0-9_-]+';
 const rSensibleKey = RegExp(SENSIBLE_KEY_REGEX);
 
-type Mapping = Record<string, string>;
-
-const mapping: Mapping = Object.fromEntries(
-  Object.entries(process.env as { [s:string]: string } )
-  .filter(([k, _]) => k.startsWith("PROXY_MAPPING_"))
-  .map(([k, v]) => [k.replace("PROXY_MAPPING_", ""), v])
-  .map(([k, v]) => ["/" + k.toLowerCase(), v])
-);
+const mapping = buildMappingFromEnv();
 
 console.log(
   "Raw mapping configuration loaded:\n",
   JSON.stringify(mapping, undefined, 2)
 );
+
+const sensitiveStrings = getSensitiveStrings(mapping);
 
 /** 
  * Checks that a single mapping has a sensible key and that the
@@ -49,16 +45,21 @@ const createProxy = (target: string) => createProxyMiddleware({
   pathRewrite: { [SENSIBLE_KEY_REGEX]: "" },
   // Log each proxy call to console
   logger: console,
+  // Disable automatically sending response, handled by responseInterceptor
+  selfHandleResponse: true,
   on: {
-    error: (_err, _req, res) => {
-      if (res instanceof ServerResponse) {
-        res.writeHead(500, {
-          'Content-Type': 'text/plain',
-        });
-        res.end('Something went wrong while proxying the request');
-      };
+    error: (_err, _req, res) => (res as ServerResponse)
+      .writeHead(500, { 'Content-Type': 'text/plain' })
+      .end('Something went wrong while proxying the request'),
+    proxyRes: responseInterceptor(
+      async (responseBuffer, proxyRes, _req, res) => {
+        res.statusCode = proxyRes.statusCode ?? 200;
+        return redactSensitive(
+          sensitiveStrings,
+          responseBuffer.toString("utf8")
+        );
+      }),
     },
-  }
 });
 
 const app = express();
@@ -73,8 +74,8 @@ app.use("/healthcheck", (_req, res) => {
 app.use(
   (req, res) => {
     console.log(`Got request for unmapped path ${req.url}, responding 404.`);
-    return res.status(404).json(`No route found for ${req.url}`)
-  }
+    res.writeHead(404, `No route found for ${req.url}`).end();
+  },
 );
 
 app.listen(5678);
