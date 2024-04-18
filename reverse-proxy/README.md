@@ -15,6 +15,12 @@ So, in general, the pattern is `PROXY_MAPPING_[redirect key]=[redirect target]`.
 | `/example`      | https://example.com      |
 | `/example/cats` | https://example.com/cats |
 
+
+## Washing responses
+Some targets (looking at you, Alchemy) return the URL secrets in the response body. Since this is target-dependent, you need to add detection code in `getSensitiveStrings` if this applies to a new proxy target.
+
+The request interceptor automatically washes all response bodies that goes back to the client by replacing instances of all these sensitive strings with `[redacted]`.
+
 ## Running
 Run in development mode:
 ```shell
