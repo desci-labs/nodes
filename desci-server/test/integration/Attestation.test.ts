@@ -2046,7 +2046,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe.only('Protected Attestation Verification', async () => {
+  describe('Protected Attestation Verification', async () => {
     let openCodeClaim: NodeAttestation;
     let openDataClaim: NodeAttestation;
     let node: Node;
