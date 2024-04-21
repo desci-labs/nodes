@@ -51,13 +51,15 @@ class OrcidApiService {
     const manifestCid = hexToCid(researchObject.recentCid);
     const latestManifest = await getManifestByCid(manifestCid);
     const nodeVersion = researchObject.versions.length;
-    const claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
+    let claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
+    claims = claims.filter((claim) => claim.verifications > 0);
 
     const putCode = orcidPutCode?.putcode; // '1917594';;
     let data = generateWorkRecord({ manifest: latestManifest, nodeVersion, claims, putCode });
     data = data.replace(/\\"/g, '"');
 
     try {
+      logger.info({ latestManifest, manifestCid, data }, 'WORK DATA');
       const response = await fetch(`${this.baseUrl}/${orcid}/work${putCode ? '/' + putCode : ''}`, {
         method: putCode ? 'PUT' : 'POST',
         headers: {
@@ -146,7 +148,7 @@ const generateWorkRecord = ({
     `<common:title>${manifest.title}</common:title>
     </work:title>
     <work:type>data-set</work:type>
-    ${manifest.description ? `<work:short-description>${manifest.description}</work:short-description>` : ''}
+    ${manifest.description.trim() ? `<work:short-description>${manifest.description}</work:short-description>` : ''}
     ${generateExternalIds({ manifest, claims, version: nodeVersion })}
     ${generateContributors(manifest.authors ?? [])}
     </work:work>
