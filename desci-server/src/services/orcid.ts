@@ -1,11 +1,5 @@
-// expose Orcid api class
-// init http client with default headers and api key
-// expose api for adding work record to researchers orcid profile
-// save put key in node table
-// expose api to update orcid record
-
-import { ResearchObjectV1, ResearchObjectV1Author, ResearchObjectV1AuthorRole } from '@desci-labs/desci-models';
-import axios, { AxiosInstance } from 'axios';
+import { ResearchObjectV1, ResearchObjectV1Author } from '@desci-labs/desci-models';
+import { AuthTokenSource, ORCIDRecord } from '@prisma/client';
 
 import { logger as parentLogger, prisma } from '../internal.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
@@ -23,27 +17,34 @@ class OrcidApiService {
   baseUrl: string;
 
   constructor() {
-    if (!process.env.ORCID_API_DOMAIN) throw new Error('[ORCID SERVICE]: ORCID_API_DOMAIN env is missing');
-
-    // this.#apiKey = process.env.ORCID_API_SECRET;
+    if (!process.env.ORCID_API_DOMAIN) throw new Error('[OrcidApiService]: ORCID_API_DOMAIN env is missing');
     this.baseUrl = `https://api.${process.env.ORCID_API_DOMAIN}/v3.0`;
 
     logger.info({ url: this.baseUrl }, 'Init ORCID Service');
   }
 
-  private async getAccessToken(orcid: string) {
-    const profile = await prisma.orcidProfile.findUnique({ where: { orcidId: orcid }, select: { expiresIn: true } });
-    // check if token has expired, refresh
+  private async getAccessToken(userId: number) {
+    const authToken = await prisma.authToken.findFirst({
+      where: {
+        userId,
+        source: AuthTokenSource.ORCID,
+      },
+    });
+    if (!authToken) {
+      throw new Error('User does not have an orcid auth token');
+    }
+    // todo: refresh token if necessary
 
-    const token = 'b527e775-aac0-4e19-bc80-fa830e674b97';
-
-    return token;
+    return authToken.accessToken;
   }
 
   async postWorkRecord(nodeUuid: string, orcid: string) {
     // TODO: get auth token from orcid profile
-    // todo: refresh token if necessary
-    const authToken = await this.getAccessToken(orcid);
+    const user = await prisma.user.findUnique({ where: { orcid } });
+    const authToken = await this.getAccessToken(user.id);
+    const orcidPutCode = await prisma.orcidPutCodes.findFirst({
+      where: { uuid: nodeUuid, orcid, userId: user.id, record: ORCIDRecord.WORK },
+    });
 
     const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
     const researchObject = researchObjects[0];
@@ -51,13 +52,10 @@ class OrcidApiService {
     const latestManifest = await getManifestByCid(manifestCid);
     const nodeVersion = researchObject.versions.length;
     const claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
-    // logger.info({ researchObject, manifestCid, latestManifest, nodeVersion, claims }, 'POST WORK RECORD');
-    // check if node (user) table has existing orcidPutCode
-    const putCode = '1917594';
 
+    const putCode = orcidPutCode?.putcode; // '1917594';;
     let data = generateWorkRecord({ manifest: latestManifest, nodeVersion, claims, putCode });
     data = data.replace(/\\"/g, '"');
-    logger.info({ data }, 'REQUEST BODY');
 
     try {
       const response = await fetch(`${this.baseUrl}/${orcid}/work${putCode ? '/' + putCode : ''}`, {
@@ -73,7 +71,6 @@ class OrcidApiService {
 
       logger.info(
         {
-          // headers: ,
           status: response.status,
           statusText: response.statusText,
           putCode,
@@ -81,24 +78,45 @@ class OrcidApiService {
           claims: claims.length,
           orcid,
         },
-        'orcid api response',
+        'ORCID API RESPONSE',
       );
 
-      const location = response.headers.get('Location');
-      let returnedCode = location?.split(' ')?.[1];
+      if ([200, 201].includes(response.status)) {
+        const location = response.headers.get('Location');
+        let returnedCode = location?.split(' ')?.[1];
 
-      if (!returnedCode) {
-        const body = await response.text();
-        const matches = body.match(PUTCODE_REGEX);
-        logger.info({ matches }, 'Regex match');
-        returnedCode = matches.groups?.code;
-      }
+        if (!returnedCode) {
+          const body = await response.text();
+          const matches = body.match(PUTCODE_REGEX);
+          logger.info({ matches, body }, 'Regex match');
+          returnedCode = matches?.groups?.code || putCode;
+        }
 
-      if (response.status === 201) {
-        // todo: INSERT put-code into node table
-        logger.info({ status: response.status, returnedCode }, 'ORCID PROFILE CREATED');
-      } else if (response.status === 200) {
-        logger.info({ status: response.status, returnedCode }, 'ORCID PROFILE UPDATED');
+        await prisma.orcidPutCodes.upsert({
+          where: {
+            orcid_record_uuid: {
+              orcid,
+              record: ORCIDRecord.WORK,
+              uuid: nodeUuid,
+            },
+          },
+          update: {
+            orcid,
+            uuid: nodeUuid,
+            putcode: returnedCode,
+            record: ORCIDRecord.WORK,
+          },
+          create: {
+            orcid,
+            uuid: nodeUuid,
+            userId: user.id,
+            putcode: returnedCode,
+            record: ORCIDRecord.WORK,
+          },
+        });
+        logger.info({ nodeUuid, userId: user.id, status: response.status, returnedCode }, 'ORCID PROFILE UPDATED');
+      } else {
+        logger.info({ status: response.status, body: await response.text() }, 'ORCID API ERROR');
       }
     } catch (err) {
       logger.info({ err }, 'Error Response');
@@ -146,6 +164,7 @@ const generateExternalIds = ({
   claims: Claim[];
 }) => {
   const externalIdPath = `<common:external-ids>${manifest.components
+    .filter((component) => component.starred === true)
     .map((component) => {
       const url = `${process.env.DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${version}/${component.payload?.path ?? ''}`;
       const title = component.payload?.title || component.name;
