@@ -10,6 +10,7 @@ import { getManifestByCid } from './data/processing.js';
 
 const PUTCODE_REGEX = /put-code=.*?(?<code>\d+)/m;
 
+const ORCID_DOMAIN = process.env.ORCID_API_DOMAIN || 'sandbox.orcid.org';
 type Claim = Awaited<ReturnType<typeof attestationService.getProtectedNodeClaims>>[number];
 const logger = parentLogger.child({ module: 'ORCIDApiService' });
 
@@ -17,8 +18,8 @@ class OrcidApiService {
   baseUrl: string;
 
   constructor() {
-    if (!process.env.ORCID_API_DOMAIN) throw new Error('[OrcidApiService]: ORCID_API_DOMAIN env is missing');
-    this.baseUrl = `https://api.${process.env.ORCID_API_DOMAIN}/v3.0`;
+    if (!ORCID_DOMAIN) throw new Error('[OrcidApiService]: ORCID_API_DOMAIN env is missing');
+    this.baseUrl = `https://api.${ORCID_DOMAIN}/v3.0`;
 
     logger.info({ url: this.baseUrl }, 'Init ORCID Service');
   }
@@ -204,9 +205,9 @@ const generateContributors = (authors: ResearchObjectV1Author[]) => {
             ${
               author.orcid
                 ? `<common:contributor-orcid>
-                <common:uri>https://${process.env.ORCID_API_DOMAIN}/${author.orcid}</common:uri>
+                <common:uri>https://${ORCID_DOMAIN}/${author.orcid}</common:uri>
                 <common:path>${author.orcid}</common:path>
-                <common:host>${process.env.ORCID_API_DOMAIN}</common:host>
+                <common:host>${ORCID_DOMAIN}</common:host>
               </common:contributor-orcid>`
                 : ``
             }
