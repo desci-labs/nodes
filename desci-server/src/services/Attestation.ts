@@ -1,7 +1,7 @@
 import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { AnnotationType, Attestation, NodeAttestation, Prisma } from '@prisma/client';
+import { AnnotationType, Attestation, Prisma } from '@prisma/client';
 import { logger } from 'ethers';
 import _ from 'lodash';
 
@@ -231,6 +231,34 @@ export class AttestationService {
         },
       },
     });
+  }
+
+  async getProtectedNodeClaims(dpid: string) {
+    const data = await prisma.nodeAttestation.findMany({
+      where: { nodeDpid10: dpid, revoked: false },
+      include: {
+        community: { select: { name: true } },
+        attestation: { select: { protected: true } },
+        attestationVersion: { select: { name: true, description: true, image_url: true } },
+        _count: {
+          select: { NodeAttestationVerification: true },
+        },
+      },
+    });
+
+    const protectedClaims = _(data)
+      .filter((claim) => claim.attestation.protected === true)
+      .map((claim) => ({
+        id: claim.id,
+        name: claim.attestationVersion.name,
+        description: claim.attestationVersion.description,
+        image_url: claim.attestationVersion.image_url,
+        verifications: claim._count.NodeAttestationVerification,
+        community: claim.community.name,
+      }))
+      .value();
+
+    return protectedClaims;
   }
 
   async getNodeCommunityAttestations(dpid: string, communityId: number) {
