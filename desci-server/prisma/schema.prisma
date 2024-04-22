@@ -42,6 +42,7 @@ model Node {
   PublishTaskQueue    PublishTaskQueue[]
   NodeContribution    NodeContribution[]
   PrivateShare        PrivateShare[]
+  OrcidPutCodes       OrcidPutCodes[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -186,6 +187,7 @@ model User {
   ApiKey                      ApiKey[]
   PublishTaskQueue            PublishTaskQueue[]
   NodeContribution            NodeContribution[]
+  OrcidPutCodes               OrcidPutCodes[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -785,6 +787,26 @@ model PublishTaskQueue {
   updatedAt     DateTime               @updatedAt
   node          Node                   @relation(fields: [uuid], references: [uuid])
   user          User                   @relation(fields: [userId], references: [id])
+}
+
+model OrcidPutCodes {
+  id      Int         @id @default(autoincrement())
+  orcid   String
+  putcode String?
+  record  ORCIDRecord
+  userId  Int
+  uuid    String
+  user    User        @relation(fields: [userId], references: [id])
+  Node    Node        @relation(fields: [uuid], references: [uuid])
+
+  @@unique([orcid, record, uuid])
+}
+
+enum ORCIDRecord {
+  WORK
+  QUALIFICATION
+  EDUCATION
+  EMPLOYMENT
 }
 
 enum CommunityMembershipRole {

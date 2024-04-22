@@ -14,40 +14,34 @@ import {
   createDataMirrorJobs,
   setCeramicStream,
 } from '../../services/nodeManager.js';
+import orcidApiService from '../../services/orcid.js';
 import { discordNotify } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
-
 export type PublishReqBody = {
-  uuid: string,
-  cid: string,
-  manifest: ResearchObjectV1,
-  transactionId: string,
-  ceramicStream?: string,
-  commitId?: string,
+  uuid: string;
+  cid: string;
+  manifest: ResearchObjectV1;
+  transactionId: string;
+  ceramicStream?: string;
+  commitId?: string;
 };
 
-export type PublishRequest = Request<
-  never,
-  never,
-  PublishReqBody
-> & {
+export type PublishRequest = Request<never, never, PublishReqBody> & {
   user: User; // added by auth middleware
 };
 
-export type PublishResBody = {
-  ok: boolean,
-  taskId: number,
-} | {
-  error: string,
-};
+export type PublishResBody =
+  | {
+      ok: boolean;
+      taskId: number;
+    }
+  | {
+      error: string;
+    };
 
 // call node publish service and add job to queue
-export const publish = async (
-  req: PublishRequest,
-  res: Response<PublishResBody>,
-  _next: NextFunction
-) => {
+export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
   const { uuid, cid, manifest, transactionId, ceramicStream, commitId } = req.body;
   // debugger;
   const email = req.user.email;
@@ -67,16 +61,16 @@ export const publish = async (
 
   if (!uuid || !cid || !manifest) {
     return res.status(404).send({ error: 'uuid, cid, email, and manifest must be valid' });
-  };
+  }
 
   if (email === undefined || email === null) {
     // Prevent any issues with prisma findFirst with undefined fields
     return res.status(401).send({ error: 'email must be valid' });
-  };
+  }
 
   if (!(ceramicStream && commitId)) {
     logger.warn({ uuid }, `[publish] called with unexpected stream (${ceramicStream}) and/org commit (${commitId})`);
-  };
+  }
 
   try {
     /**TODO: MOVE TO MIDDLEWARE */
@@ -232,7 +226,7 @@ export const publishHandler = async ({
     } else {
       // Likely feature toggle is active in backend, but not in frontend
       logger.warn(`[ceramic] wanted to set streamID for ${node.uuid} but request did not contain one`);
-    };
+    }
 
     logger.trace(`[publish::publish] nodeUuid=${node.uuid}, manifestCid=${cid}, transaction=${transactionId}`);
 
@@ -335,6 +329,11 @@ export const publishHandler = async ({
     publishResearchObject(publicDataReferences).then(handleMirrorSuccess).catch(handleMirrorFail);
     */
     sendDiscordNotification(false);
+
+    /**
+     * Update ORCID Profile
+     */
+    if (owner.orcid) orcidApiService.postWorkRecord(node.uuid, owner.orcid);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
