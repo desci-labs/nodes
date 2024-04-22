@@ -40,7 +40,6 @@ class OrcidApiService {
   }
 
   async postWorkRecord(nodeUuid: string, orcid: string) {
-    // TODO: get auth token from orcid profile
     const user = await prisma.user.findUnique({ where: { orcid } });
     const authToken = await this.getAccessToken(user.id);
     const orcidPutCode = await prisma.orcidPutCodes.findFirst({
@@ -55,12 +54,12 @@ class OrcidApiService {
     let claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
     claims = claims.filter((claim) => claim.verifications > 0);
 
-    const putCode = orcidPutCode?.putcode; // '1917594';;
+    const putCode = orcidPutCode?.putcode;
     let data = generateWorkRecord({ manifest: latestManifest, nodeVersion, claims, putCode });
     data = data.replace(/\\"/g, '"');
 
     try {
-      logger.info({ latestManifest, manifestCid, data }, 'WORK DATA');
+      logger.info({ latestManifest, manifestCid, data, orcidPutCode, putCode }, 'WORK DATA');
       const response = await fetch(`${this.baseUrl}/${orcid}/work${putCode ? '/' + putCode : ''}`, {
         method: putCode ? 'PUT' : 'POST',
         headers: {
@@ -119,7 +118,7 @@ class OrcidApiService {
         });
         logger.info({ nodeUuid, userId: user.id, status: response.status, returnedCode }, 'ORCID PROFILE UPDATED');
       } else {
-        logger.info({ status: response.status, body: await response.text() }, 'ORCID API ERROR');
+        logger.info({ status: response.status, response, body: await response.text() }, 'ORCID API ERROR');
       }
     } catch (err) {
       logger.info({ err }, 'Error Response');
@@ -141,20 +140,20 @@ const generateWorkRecord = ({
   claims: Claim[];
   putCode?: string;
 }) => {
-  return (
-    '<?xml version="1.0" encoding="UTF-8"?><work:work xmlns:common="http://www.orcid.org/ns/common" xmlns:work="http://www.orcid.org/ns/work" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.orcid.org/ns/work /work-3.0.xsd" put-code="' +
-    putCode +
-    '" > ' +
-    '<work:title>' +
-    `<common:title>${manifest.title}</common:title>
+  return '<?xml version="1.0" encoding="UTF-8"?><work:work xmlns:common="http://www.orcid.org/ns/common" xmlns:work="http://www.orcid.org/ns/work" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.orcid.org/ns/work /work-3.0.xsd" ' +
+    putCode
+    ? 'put-code="' + putCode + '"'
+    : '' +
+        ' > ' +
+        '<work:title>' +
+        `<common:title>${manifest.title}</common:title>
     </work:title>
     <work:type>data-set</work:type>
     ${manifest.description.trim() ? `<work:short-description>${manifest.description}</work:short-description>` : ''}
     ${generateExternalIds({ manifest, claims, version: nodeVersion })}
     ${generateContributors(manifest.authors ?? [])}
     </work:work>
-    `
-  );
+    `;
 };
 
 const generateExternalIds = ({
