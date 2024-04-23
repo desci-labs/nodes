@@ -240,25 +240,37 @@ export async function setOrcidForUser(
       });
       logger.trace({ fn: 'setOrcidForUser' }, 'updated user');
       const exists = await client.authToken.findFirst({ where: { userId, source: AuthTokenSource.ORCID } });
-      await client.authToken.upsert({
-        where: {
-          id: exists.id,
-        },
-        create: {
-          accessToken: auth.accessToken,
-          refreshToken: auth.refreshToken,
-          expiresIn: auth.expiresIn,
-          userId,
-          source: AuthTokenSource.ORCID,
-        },
-        update: {
-          accessToken: auth.accessToken,
-          refreshToken: auth.refreshToken,
-          expiresIn: auth.expiresIn,
-          userId,
-          source: AuthTokenSource.ORCID,
-        },
-      });
+      if (exists) {
+        await client.authToken.upsert({
+          where: {
+            id: exists.id,
+          },
+          create: {
+            accessToken: auth.accessToken,
+            refreshToken: auth.refreshToken,
+            expiresIn: auth.expiresIn,
+            userId,
+            source: AuthTokenSource.ORCID,
+          },
+          update: {
+            accessToken: auth.accessToken,
+            refreshToken: auth.refreshToken,
+            expiresIn: auth.expiresIn,
+            userId,
+            source: AuthTokenSource.ORCID,
+          },
+        });
+      } else {
+        await client.authToken.create({
+          data: {
+            accessToken: auth.accessToken,
+            refreshToken: auth.refreshToken,
+            expiresIn: auth.expiresIn,
+            userId,
+            source: AuthTokenSource.ORCID,
+          },
+        });
+      }
       logger.trace({ fn: 'setOrcidForUser' }, 'added auth token');
     } else {
       logger.trace({ fn: 'setOrcidForUser' }, 'no user found');
