@@ -40,28 +40,30 @@ class OrcidApiService {
   }
 
   async postWorkRecord(nodeUuid: string, orcid: string) {
-    const user = await prisma.user.findUnique({ where: { orcid } });
-    const authToken = await this.getAccessToken(user.id);
-    const orcidPutCode = await prisma.orcidPutCodes.findFirst({
-      where: { uuid: nodeUuid, orcid, userId: user.id, record: ORCIDRecord.WORK },
-    });
-
-    const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
-    const researchObject = researchObjects[0];
-    const manifestCid = hexToCid(researchObject.recentCid);
-    const latestManifest = await getManifestByCid(manifestCid);
-    const nodeVersion = researchObject.versions.length;
-    let claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
-    claims = claims.filter((claim) => claim.verifications > 0);
-
-    const putCode = orcidPutCode?.putcode;
-    let data = generateWorkRecord({ manifest: latestManifest, nodeVersion, claims, putCode });
-    data = data.replace(/\\"/g, '"');
-
     try {
-      logger.info({ latestManifest, manifestCid, data, orcidPutCode, putCode }, 'WORK DATA');
-      const response = await fetch(`${this.baseUrl}/${orcid}/work${putCode ? '/' + putCode : ''}`, {
-        method: putCode ? 'PUT' : 'POST',
+      const user = await prisma.user.findUnique({ where: { orcid } });
+      const authToken = await this.getAccessToken(user.id);
+      const orcidPutCode = await prisma.orcidPutCodes.findFirst({
+        where: { uuid: nodeUuid, orcid, userId: user.id, record: ORCIDRecord.WORK },
+      });
+
+      const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
+      const researchObject = researchObjects[0];
+      const manifestCid = hexToCid(researchObject.recentCid);
+      const latestManifest = await getManifestByCid(manifestCid);
+      const nodeVersion = researchObject.versions.length;
+      let claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
+      claims = claims.filter((claim) => claim.verifications > 0);
+
+      const putCode = orcidPutCode?.putcode;
+      let data = generateWorkRecord({ manifest: latestManifest, nodeVersion, claims, putCode });
+      data = data.replace(/\\"/g, '"');
+
+      const url = `${this.baseUrl}/${orcid}/work${putCode ? '/' + putCode : ''}`;
+      const method = putCode ? 'PUT' : 'POST';
+      logger.info({ latestManifest, manifestCid, data, orcidPutCode, putCode, url, method }, 'WORK DATA');
+      const response = await fetch(url, {
+        method,
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/xml',
@@ -84,38 +86,36 @@ class OrcidApiService {
       );
 
       if ([200, 201].includes(response.status)) {
-        const location = response.headers.get('Location');
-        let returnedCode = location?.split(' ')?.[1];
+        const location = response.headers.get('Location')?.split('/');
+        const returnedCode = location?.[location.length - 1];
+        response.headers.forEach((header, key) => logger.info({ key, header }, 'Response header'));
+        logger.info({ location }, 'RESPONSE HEADER Location');
 
-        if (!returnedCode) {
-          const body = await response.text();
-          const matches = body.match(PUTCODE_REGEX);
-          logger.info({ matches, body }, 'Regex match');
-          returnedCode = matches?.groups?.code || putCode;
+        if (returnedCode) {
+          await prisma.orcidPutCodes.upsert({
+            where: {
+              orcid_record_uuid: {
+                orcid,
+                record: ORCIDRecord.WORK,
+                uuid: nodeUuid,
+              },
+            },
+            update: {
+              orcid,
+              uuid: nodeUuid,
+              putcode: returnedCode,
+              record: ORCIDRecord.WORK,
+            },
+            create: {
+              orcid,
+              uuid: nodeUuid,
+              userId: user.id,
+              putcode: returnedCode,
+              record: ORCIDRecord.WORK,
+            },
+          });
         }
 
-        await prisma.orcidPutCodes.upsert({
-          where: {
-            orcid_record_uuid: {
-              orcid,
-              record: ORCIDRecord.WORK,
-              uuid: nodeUuid,
-            },
-          },
-          update: {
-            orcid,
-            uuid: nodeUuid,
-            putcode: returnedCode,
-            record: ORCIDRecord.WORK,
-          },
-          create: {
-            orcid,
-            uuid: nodeUuid,
-            userId: user.id,
-            putcode: returnedCode,
-            record: ORCIDRecord.WORK,
-          },
-        });
         logger.info({ nodeUuid, userId: user.id, status: response.status, returnedCode }, 'ORCID PROFILE UPDATED');
       } else {
         logger.info({ status: response.status, response, body: await response.text() }, 'ORCID API ERROR');
@@ -140,20 +140,22 @@ const generateWorkRecord = ({
   claims: Claim[];
   putCode?: string;
 }) => {
-  return '<?xml version="1.0" encoding="UTF-8"?><work:work xmlns:common="http://www.orcid.org/ns/common" xmlns:work="http://www.orcid.org/ns/work" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.orcid.org/ns/work /work-3.0.xsd" ' +
-    putCode
-    ? 'put-code="' + putCode + '"'
-    : '' +
-        ' > ' +
-        '<work:title>' +
-        `<common:title>${manifest.title}</common:title>
+  const codeAttr = putCode ? 'put-code="' + putCode + '"' : '';
+  logger.info({ codeAttr }, 'CODE ATTR');
+  return (
+    '<work:work xmlns:common="http://www.orcid.org/ns/common" xmlns:work="http://www.orcid.org/ns/work" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.orcid.org/ns/work https://raw.githubusercontent.com/ORCID/orcid-model/master/src/main/resources/record_3.0/work-3.0.xsd" ' +
+    codeAttr +
+    '> ' +
+    '<work:title>' +
+    `<common:title>${manifest.title}</common:title>
     </work:title>
+    ${manifest?.description?.trim() ? `<work:short-description>${manifest.description}</work:short-description>` : ''}
     <work:type>data-set</work:type>
-    ${manifest.description.trim() ? `<work:short-description>${manifest.description}</work:short-description>` : ''}
     ${generateExternalIds({ manifest, claims, version: nodeVersion })}
     ${generateContributors(manifest.authors ?? [])}
     </work:work>
-    `;
+    `
+  );
 };
 
 const generateExternalIds = ({
@@ -165,14 +167,21 @@ const generateExternalIds = ({
   manifest: ResearchObjectV1;
   claims: Claim[];
 }) => {
-  const externalIdPath = `<common:external-ids>${manifest.components
+  const dataRoot = `${process.env.DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${version}/root`;
+  const externalIdPath = `<common:external-ids>
+  <common:external-id>
+            <common:external-id-type>uri</common:external-id-type>
+            <common:external-id-value>${dataRoot}</common:external-id-value>
+            <common:external-id-url>${dataRoot}</common:external-id-url>
+            <common:external-id-relationship>self</common:external-id-relationship>
+        </common:external-id>
+  ${manifest.components
     .filter((component) => component.starred === true)
     .map((component) => {
       const url = `${process.env.DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${version}/${component.payload?.path ?? ''}`;
-      const title = component.payload?.title || component.name;
       return `<common:external-id>
             <common:external-id-type>uri</common:external-id-type>
-            <common:external-id-value>${title}</common:external-id-value>
+            <common:external-id-value>${url}</common:external-id-value>
             <common:external-id-url>${url}</common:external-id-url>
             <common:external-id-relationship>self</common:external-id-relationship>
         </common:external-id>`;
