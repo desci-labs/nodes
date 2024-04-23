@@ -25,7 +25,7 @@ class OrcidApiService {
   }
 
   private async getAccessToken(userId: number) {
-    const authToken = await prisma.authToken.findFirst({
+    let authToken = await prisma.authToken.findFirst({
       where: {
         userId,
         source: AuthTokenSource.ORCID,
@@ -34,7 +34,43 @@ class OrcidApiService {
     if (!authToken) {
       throw new Error('User does not have an orcid auth token');
     }
+
     // todo: refresh token if necessary
+    try {
+      const url = `https://${ORCID_DOMAIN}/oauth/token?client_id=${process.env.ORCID_CLIENT_ID!}&client_secret=${process
+        .env
+        .ORCID_CLIENT_SECRET!}&grant_type=refresh_token&refresh_token=${authToken.refreshToken}&revoke_old=true&redirect_uri=${process.env.DAPP_URL}/orcid/capture`;
+      logger.info({ url }, 'REFRESH TOKEN');
+      const response = await fetch(url, {
+        method: 'post',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+      if (response.status === 200) {
+        const data = (await response.json()) as {
+          access_token: string;
+          token_type: string;
+          refresh_token: string;
+          expires_in: number;
+          scope: string;
+          name: string;
+          orcid: string;
+        };
+        authToken = await prisma.authToken.upsert({
+          where: { id: authToken.id },
+          update: { refreshToken: data.refresh_token, expiresIn: data.expires_in, accessToken: data.access_token },
+          create: {
+            refreshToken: data.refresh_token,
+            expiresIn: data.expires_in,
+            accessToken: data.access_token,
+            source: AuthTokenSource.ORCID,
+            userId: authToken.userId,
+          },
+        });
+      }
+      logger.info({ status: response.status, statusText: response.statusText }, 'REFRESH TOKEN RESPONSE');
+    } catch (err) {
+      logger.info({ err }, 'ORCID REFRESH TOKEN ERROR');
+    }
 
     return authToken.accessToken;
   }
