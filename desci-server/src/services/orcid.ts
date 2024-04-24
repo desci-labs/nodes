@@ -30,6 +30,7 @@ class OrcidApiService {
         userId,
         source: AuthTokenSource.ORCID,
       },
+      orderBy: { updatedAt: 'desc' },
     });
     if (!authToken) {
       throw new Error('User does not have an orcid auth token');
