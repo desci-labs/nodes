@@ -3,6 +3,7 @@ import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
+import { getLatestManifestFromNode } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { PRIV_SHARE_CONTRIBUTION_PREFIX } from '../../services/Contributors.js';
 import { getManifestFromNode } from '../../services/data/processing.js';
@@ -76,7 +77,7 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
     const filledSharedNodes = await Promise.all(
       privSharedNodes.map(async (priv) => {
         const { node } = priv;
-        const { manifest: latestManifest } = await getManifestFromNode(node);
+        const latestManifest = await getLatestManifestFromNode(node);
         const publishedEntry = publishedNodesMap[node.uuid];
 
         return {
