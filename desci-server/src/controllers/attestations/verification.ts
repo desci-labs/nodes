@@ -9,8 +9,11 @@ import {
   SuccessMessageResponse,
   SuccessResponse,
   attestationService,
+  ensureUuidEndsWithDot,
+  prisma,
 } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
+import orcidApiService from '../../services/orcid.js';
 
 type RemoveVerificationBody = {
   verificationId: string;
@@ -73,7 +76,21 @@ export const addVerification = async (
   });
   logger.trace(`addVerification`);
 
+  const claim = await attestationService.findClaimById(parseInt(claimId));
+
   await attestationService.verifyClaim(parseInt(claimId), user.id);
+
+  const attestation = await attestationService.findAttestationById(claim.attestationId);
+
+  if (attestation.protected) {
+    /**
+     * Update ORCID Profile
+     */
+    const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(claim.nodeUuid) } });
+    const owner = await prisma.user.findFirst({ where: { id: node.ownerId } });
+    if (owner.orcid) await orcidApiService.postWorkRecord(node.uuid, owner.orcid);
+  }
+
   return new SuccessMessageResponse().send(res);
 };
 

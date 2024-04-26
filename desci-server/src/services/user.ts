@@ -239,7 +239,8 @@ export async function setOrcidForUser(
         },
       });
       logger.trace({ fn: 'setOrcidForUser' }, 'updated user');
-      const authTokenInsert = await client.authToken.create({
+
+      await client.authToken.create({
         data: {
           accessToken: auth.accessToken,
           refreshToken: auth.refreshToken,
