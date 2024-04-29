@@ -68,7 +68,10 @@ class OrcidApiService {
           },
         });
       }
-      logger.info({ status: response.status, statusText: response.statusText }, 'REFRESH TOKEN RESPONSE');
+      logger.info(
+        { status: response.status, statusText: response.statusText, message: await response.json() },
+        'REFRESH TOKEN RESPONSE',
+      );
     } catch (err) {
       logger.info({ err }, 'ORCID REFRESH TOKEN ERROR');
     }
