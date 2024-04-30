@@ -245,7 +245,7 @@ describe('Attestations Service', async () => {
     await tearDown();
   });
 
-  describe.only('Claiming an Attestation', () => {
+  describe('Claiming an Attestation', () => {
     let claim: NodeAttestation;
     let node: Node;
     const nodeVersion = 0;
