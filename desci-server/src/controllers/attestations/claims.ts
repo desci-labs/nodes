@@ -1,4 +1,5 @@
 import { CommunityEntryAttestation } from '@prisma/client';
+import sgMail from '@sendgrid/mail';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
@@ -15,6 +16,8 @@ import {
 } from '../../internal.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export const claimAttestation = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const body = req.body as {
@@ -48,6 +51,34 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     attestationVersion: attestationVersion.id,
   });
   logger.info({ attestations }, 'CLAIMED');
+
+  // notifiy community members if attestation is protected
+  // new attestations should be trigger notification of org members if protected
+  const attestation = await attestationService.findAttestationById(body.attestationId);
+  if (attestation.protected) {
+    const members = await prisma.communityMember.findMany({
+      where: { communityId: attestation.communityId },
+      include: { user: { select: { email: true } } },
+    });
+
+    const messages = members.map((member) => ({
+      to: member.user.email,
+      from: 'no-reply@desci.com',
+      subject: `[nodes.desci.com] ${attestationVersion.name} claimed on DPID://${body.nodeDpid}/v${body.nodeVersion + 1}`,
+      text: `${req.user.name} just claimed ${attestationVersion.name} on ${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}`,
+      html: '',
+    }));
+
+    await Promise.all(
+      messages.map((message) => {
+        if (process.env.NODE_ENV === 'production') {
+          sgMail.send(message);
+        } else {
+          logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject);
+        }
+      }),
+    );
+  }
 
   return new SuccessResponse(attestations).send(res);
 };
