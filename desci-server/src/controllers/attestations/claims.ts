@@ -128,7 +128,14 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
       attestationId: attestation.attestationId,
       attestationVersion: attestation.attestationVersionId,
     });
-    return { ...attestation, claimable };
+
+    const previousClaim = await attestationService.getClaimOnAttestationVersion(
+      nodeDpid,
+      attestation.attestationId,
+      attestation.attestationVersionId,
+    );
+
+    return { ...attestation, claimable: claimable && (!previousClaim || previousClaim.revoked) };
   })) as (CommunityEntryAttestation & { claimable: boolean })[];
   logger.info({ claimables, communityId });
 

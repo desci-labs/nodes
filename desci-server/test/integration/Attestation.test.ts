@@ -245,12 +245,14 @@ describe('Attestations Service', async () => {
     await tearDown();
   });
 
-  describe('Claiming an Attestation', () => {
+  describe.only('Claiming an Attestation', () => {
     let claim: NodeAttestation;
     let node: Node;
     const nodeVersion = 0;
     let attestationVersion: AttestationVersion;
     let author: User;
+
+    let nodeVersion2: NodeVersion, UserJwtToken: string, UserAuthHeaderVal: string;
 
     before(async () => {
       node = nodes[0];
@@ -266,11 +268,24 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author.id,
       });
+
+      // publish new node version
+      nodeVersion2 = await prisma.nodeVersion.create({
+        data: { nodeId: node.id, manifestUrl: node.manifestUrl, transactionId: randomUUID64() },
+      });
+
+      UserJwtToken = jwt.sign({ email: users[0].email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      UserAuthHeaderVal = `Bearer ${UserJwtToken}`;
     });
 
     after(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
+
+      // clean up (delete new node version entry)
+      await prisma.nodeVersion.delete({ where: { id: nodeVersion2.id } });
     });
 
     it('should claim an attestation to a node', () => {
@@ -297,6 +312,33 @@ describe('Attestations Service', async () => {
       });
       // console.log('CAN CLAIM', canClaim);
       expect(canClaim).to.be.false;
+    });
+
+    it('should prevent double claim on new version if old claim is not revoked', async () => {
+      assert(node.uuid);
+
+      // create request to claim node on new version using both claim and claimAll apis
+      let res = await request(app).post(`/v1/attestations/claim`).set('authorization', UserAuthHeaderVal).send({
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion: 1,
+        claimerId: author.id,
+        attestationId: reproducibilityAttestation.id,
+      });
+      expect(res.status).to.equal(200);
+
+      res = await request(app).post(`/v1/attestations/claimAll`).set('authorization', UserAuthHeaderVal).send({
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion: 1,
+        claimerId: author.id,
+        communityId: reproducibilityAttestation.communityId,
+      });
+      expect(res.status).to.equal(200);
+
+      // verify only one claim exists on the old version of the node
+      const attestations = await attestationService.getAllNodeAttestations('1');
+      expect(attestations.length).to.equal(2);
     });
   });
 
