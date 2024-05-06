@@ -29,8 +29,9 @@ export class PdfManipulationService {
     const tempFilePath = path.join(BASE_TEMP_DIR, PDF_FILES_DIR, `${taskId}.pdf`); // Saved pdf to manipulate
     const outputPdfFileName = this.getPdfPath(PDF_JOB_TYPE.ADD_COVER, cid);
     const outputFullPath = path.join(BASE_TEMP_DIR, PDF_OUTPUT_DIR, outputPdfFileName);
-    // debugger;
-    await IpfsService.saveFile(cid, tempFilePath);
+    debugger;
+    await IpfsService.saveFile(cid, tempFilePath); //failing
+    debugger;
     try {
       // Proccess the pdf file to add the cover page
       const pdfBytes = await readFileToBuffer(tempFilePath);

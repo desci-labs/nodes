@@ -26,13 +26,14 @@ export const generatePdfCover = async (
 ) => {
   const { cid, doi, dpid, title } = req.body;
   const { header = true, headerAllPages = false } = req.query;
-  if (!cid) throw new BadRequestError('Missing cid in request body');
-  if (!doi) throw new BadRequestError('Missing doi in request body');
-  if (!doi) throw new BadRequestError('Missing title in request body');
-
-  const generationTaskId = crypto.randomUUID();
-
+  debugger;
   try {
+    if (!cid) throw new BadRequestError('Missing cid in request body');
+    if (!doi) throw new BadRequestError('Missing doi in request body');
+    if (!title) throw new BadRequestError('Missing title in request body');
+
+    const generationTaskId = crypto.randomUUID();
+
     const pdfPath = await PdfManipulationService.addPdfCover({ taskId: generationTaskId, cid, doi, dpid, title });
     const fullPdfPath = path.join(BASE_TEMP_DIR, PDF_OUTPUT_DIR, pdfPath);
 
