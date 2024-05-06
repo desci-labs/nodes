@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import * as fsp from 'fs/promises';
 import { fileURLToPath } from 'url';
-import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { PDFDocument, PDFFont, PDFPage, StandardFonts } from 'pdf-lib';
 import { readFileToBuffer } from '../utils/utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,9 +29,9 @@ export class PdfManipulationService {
     const tempFilePath = path.join(BASE_TEMP_DIR, PDF_FILES_DIR, `${taskId}.pdf`); // Saved pdf to manipulate
     const outputPdfFileName = this.getPdfPath(PDF_JOB_TYPE.ADD_COVER, cid);
     const outputFullPath = path.join(BASE_TEMP_DIR, PDF_OUTPUT_DIR, outputPdfFileName);
-    debugger;
+    // debugger;
     await IpfsService.saveFile(cid, tempFilePath); //failing
-    debugger;
+    // debugger;
     try {
       // Proccess the pdf file to add the cover page
       const pdfBytes = await readFileToBuffer(tempFilePath);
@@ -41,13 +41,32 @@ export class PdfManipulationService {
       const newPage = pdfDoc.insertPage(0);
       const { width, height } = newPage.getSize();
 
+      /*
+       * Header
+       */
       const topHeader = `DOI ${doi} all code and data is available here`;
-
+      const headerSize = 12;
       newPage.drawText(topHeader, {
         x: 10,
-        y: 5,
+        y: height - 20,
         size: 12,
       });
+
+      /*
+       * Title
+       */
+      const titleSize = 30;
+      // const textWidth = helveticaFont.widthOfTextAtSize(title, titleSize);
+      // const textHeight = helveticaFont.heightAtSize(titleSize);
+
+      // newPage.drawText(title, {
+      //   x: (width - textWidth) / 2,
+      //   y: height / 2 + textHeight / 2,
+      //   size: titleSize,
+      //   font: helveticaFont,
+      // });
+
+      this.drawCenteredMultilineText(newPage, title, helveticaFont, titleSize, width, height);
 
       const pdfBytesMod = await pdfDoc.save();
       await fsp.writeFile(outputFullPath, pdfBytesMod);
@@ -77,5 +96,48 @@ export class PdfManipulationService {
 
   static getPdfPath(jobType: PDF_JOB_TYPE, generationTaskId: string) {
     return `${jobType}-${generationTaskId}.pdf`;
+  }
+
+  static drawCenteredMultilineText(
+    page: PDFPage,
+    text: string,
+    font: PDFFont,
+    fontSize: number,
+    width: number,
+    height: number,
+  ): void {
+    const lines: string[] = [];
+    const words = text.split(' ');
+    let currentLine = '';
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const prospectiveLine = currentLine ? currentLine + ' ' + word : word;
+      const prospectiveLineWidth: number = font.widthOfTextAtSize(prospectiveLine, fontSize);
+
+      if (prospectiveLineWidth <= width) {
+        currentLine = prospectiveLine;
+      } else {
+        lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    const textHeight = font.heightAtSize(fontSize);
+    const totalHeight = lines.length * textHeight;
+    const startY = (height - totalHeight) / 2;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lineWidth = font.widthOfTextAtSize(line, fontSize);
+      const x = (width - lineWidth) / 2;
+      const y = startY + i * textHeight;
+
+      page.drawText(line, { x, y, size: fontSize, font });
+    }
   }
 }
