@@ -26,7 +26,6 @@ export const generatePdfCover = async (
 ) => {
   const { cid, doi, dpid, title } = req.body;
   const { header = true, headerAllPages = false } = req.query;
-  debugger;
   try {
     if (!cid) throw new BadRequestError('Missing cid in request body');
     if (!doi) throw new BadRequestError('Missing doi in request body');

@@ -6,7 +6,7 @@ if [ ! -f /usr/src/app/.env ]; then
 fi
 
 # Ensure temp directories exist
-mkdir -p /usr/src/app/.temp/files /usr/src/app/.temp/thumbnails
+mkdir -p /usr/src/app/.temp/files /usr/src/app/.temp/thumbnails /usr/src/app/.temp/files/pdf /usr/src/app/.temp/pdf
 
 
 echo "Running npm install to install any package changes..."

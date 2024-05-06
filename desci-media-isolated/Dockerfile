@@ -25,6 +25,7 @@ RUN --mount=type=cache,target=/usr/src/app/.npm \
 
 COPY . .
 
+
 # Expose debugger port
 EXPOSE 9777
 
