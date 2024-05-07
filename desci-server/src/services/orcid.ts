@@ -25,13 +25,15 @@ class OrcidApiService {
   }
 
   private async getAccessToken(userId: number) {
-    let authToken = await prisma.authToken.findFirst({
+    const authTokens = await prisma.authToken.findMany({
       where: {
         userId,
         source: AuthTokenSource.ORCID,
       },
       orderBy: { updatedAt: 'desc' },
     });
+    let authToken = authTokens[0];
+    logger.info({ authTokens, authToken }, 'AUTH TOKEN RETRIEVED');
     if (!authToken) {
       throw new Error('User does not have an orcid auth token');
     }
@@ -67,8 +69,13 @@ class OrcidApiService {
             userId: authToken.userId,
           },
         });
+        logger.info({ status: response.status, statusText: response.statusText, data }, 'REFRESH TOKEN RESPONSE');
+      } else {
+        logger.info(
+          { status: response.status, statusText: response.statusText, BODY: await response.json() },
+          'REFRESH TOKEN ERROR',
+        );
       }
-      logger.info({ status: response.status, statusText: response.statusText }, 'REFRESH TOKEN RESPONSE');
     } catch (err) {
       logger.info({ err }, 'ORCID REFRESH TOKEN ERROR');
     }
