@@ -45,10 +45,23 @@ export const removeVerification = async (
   }
 
   if (!verification) {
-    return new SuccessMessageResponse().send(res);
+    new SuccessMessageResponse().send(res);
   } else {
     await attestationService.removeVerification(verification.id, user.id);
-    return new SuccessMessageResponse().send(res);
+
+    new SuccessMessageResponse().send(res);
+
+    const claim = await attestationService.findClaimById(verification.nodeAttestationId);
+    const attestation = await attestationService.findAttestationById(claim.attestationId);
+
+    if (attestation.protected) {
+      /**
+       * Update ORCID Profile
+       */
+      const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(claim.nodeUuid) } });
+      const owner = await prisma.user.findFirst({ where: { id: node.ownerId } });
+      if (owner.orcid) await orcidApiService.postWorkRecord(node.uuid, owner.orcid);
+    }
   }
 };
 
