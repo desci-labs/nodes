@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 const BASE_TEMP_DIR = path.resolve(__dirname, '../..', TEMP_DIR);
 
 export class PdfManipulationService {
-  static async addPdfCover({ taskId, cid, title, doi, dpid }: AddPdfCoverParams) {
+  static async addPdfCover({ taskId, cid, title, doi, dpid, codeAvailableDpid, dataAvailableDpid }: AddPdfCoverParams) {
     const tempFilePath = path.join(BASE_TEMP_DIR, PDF_FILES_DIR, `${taskId}.pdf`); // Saved pdf to manipulate
     const outputPdfFileName = this.getPdfPath(PDF_JOB_TYPE.ADD_COVER, cid);
     const outputFullPath = path.join(BASE_TEMP_DIR, PDF_OUTPUT_DIR, outputPdfFileName);
@@ -72,33 +72,44 @@ export class PdfManipulationService {
       /*
        * Badges
        */
-      const codeBadgeBytes = await pdfDoc.embedPng(
-        await readFileToBuffer(path.join(__dirname, '../../public/static/code-available.png')),
-      );
-      const dataBadgeBytes = await pdfDoc.embedPng(
-        await readFileToBuffer(path.join(__dirname, '../../public/static/data-available.png')),
-      );
-      const codeBadge: PdfImageObject = {
-        content: codeBadgeBytes,
-        width: 125,
-        height: 125,
-        hyperlink: `https://www.doi.org/${doi}`,
-      };
-      const dataBadge: PdfImageObject = {
-        content: dataBadgeBytes,
-        width: 125,
-        height: 125,
-        hyperlink: `https://www.doi.org/${doi}2`,
-      };
+      const badges: PdfImageObject[] = [];
+      if (codeAvailableDpid) {
+        const codeBadgeBytes = await pdfDoc.embedPng(
+          await readFileToBuffer(path.join(__dirname, '../../public/static/code-available.png')),
+        );
 
-      this.drawCenteredImages({
-        page: newPage,
-        images: [codeBadge, dataBadge],
-        pageWidth: width,
-        pageHeight: height,
-        positionY: 0.75,
-        gap: 20,
-      });
+        const codeBadge: PdfImageObject = {
+          content: codeBadgeBytes,
+          width: 125,
+          height: 125,
+          hyperlink: codeAvailableDpid,
+        };
+        badges.push(codeBadge);
+      }
+      if (dataAvailableDpid) {
+        const dataBadgeBytes = await pdfDoc.embedPng(
+          await readFileToBuffer(path.join(__dirname, '../../public/static/data-available.png')),
+        );
+
+        const dataBadge: PdfImageObject = {
+          content: dataBadgeBytes,
+          width: 125,
+          height: 125,
+          hyperlink: dataAvailableDpid,
+        };
+        badges.push(dataBadge);
+      }
+
+      if (badges.length) {
+        this.drawCenteredImages({
+          page: newPage,
+          images: badges,
+          pageWidth: width,
+          pageHeight: height,
+          positionY: 0.75,
+          gap: 20,
+        });
+      }
 
       const pdfBytesMod = await pdfDoc.save();
       await fsp.writeFile(outputFullPath, pdfBytesMod);

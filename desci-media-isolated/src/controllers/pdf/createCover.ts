@@ -11,6 +11,8 @@ export type GeneratePdfCoverRequestBody = {
   doi: string;
   title: string;
   dpid?: string;
+  codeAvailableDpid?: string;
+  dataAvailableDpid?: string;
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -24,7 +26,7 @@ export const generatePdfCover = async (
   req: Request<any, any, GeneratePdfCoverRequestBody, { header: boolean; headerAllPages: boolean }>,
   res: Response,
 ) => {
-  const { cid, doi, dpid, title } = req.body;
+  const { cid, doi, dpid, title, codeAvailableDpid, dataAvailableDpid } = req.body;
   const { header = true, headerAllPages = false } = req.query;
   try {
     if (!cid) throw new BadRequestError('Missing cid in request body');
@@ -33,7 +35,15 @@ export const generatePdfCover = async (
 
     const generationTaskId = crypto.randomUUID();
 
-    const pdfPath = await PdfManipulationService.addPdfCover({ taskId: generationTaskId, cid, doi, dpid, title });
+    const pdfPath = await PdfManipulationService.addPdfCover({
+      taskId: generationTaskId,
+      cid,
+      doi,
+      dpid,
+      title,
+      codeAvailableDpid,
+      dataAvailableDpid,
+    });
     const fullPdfPath = path.join(BASE_TEMP_DIR, PDF_OUTPUT_DIR, pdfPath);
 
     // Check if the file exists before attempting to stream it

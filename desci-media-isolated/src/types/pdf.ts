@@ -10,6 +10,8 @@ export interface AddPdfCoverParams {
   title: string;
   doi: string;
   dpid?: string;
+  codeAvailableDpid?: string;
+  dataAvailableDpid?: string;
 }
 
 export interface DrawCenteredHelperParams {
