@@ -32,6 +32,7 @@ export interface DrawCenteredHelperParams {
   width: number;
   height: number;
   paddingX?: number;
+  positionY?: number; // 0-1, vertical alignment, e.g. 0.5 is the center.
 }
 
 export class PdfManipulationService {
@@ -56,25 +57,22 @@ export class PdfManipulationService {
        */
       const topHeader = `DOI ${doi} all code and data is available here`;
       const headerSize = 12;
-      newPage.drawText(topHeader, {
-        x: 10,
-        y: height - 20,
-        size: 12,
+
+      this.drawCenteredMultilineText({
+        page: newPage,
+        text: topHeader,
+        font: helveticaFont,
+        fontSize: headerSize,
+        width,
+        height,
+        paddingX: 5,
+        positionY: 0.01,
       });
 
       /*
        * Title
        */
       const titleSize = 30;
-      // const textWidth = helveticaFont.widthOfTextAtSize(title, titleSize);
-      // const textHeight = helveticaFont.heightAtSize(titleSize);
-
-      // newPage.drawText(title, {
-      //   x: (width - textWidth) / 2,
-      //   y: height / 2 + textHeight / 2,
-      //   size: titleSize,
-      //   font: helveticaFont,
-      // });
 
       this.drawCenteredMultilineText({
         page: newPage,
@@ -124,7 +122,9 @@ export class PdfManipulationService {
     width,
     height,
     paddingX = 0,
+    positionY = 0.5,
   }: DrawCenteredHelperParams): void {
+    // debugger
     const lines: string[] = [];
     const words = text.split(' ');
     let currentLine = '';
@@ -150,7 +150,7 @@ export class PdfManipulationService {
 
     const textHeight = font.heightAtSize(fontSize);
     const totalHeight = lines.length * textHeight;
-    const startY = height / 2 - totalHeight / 2;
+    const startY = height * (1 - positionY) - totalHeight / 2;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
