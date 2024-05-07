@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import * as fsp from 'fs/promises';
 import { fileURLToPath } from 'url';
-import { PDFDocument, PDFFont, PDFImage, PDFPage, StandardFonts } from 'pdf-lib';
+import { PDFArray, PDFDict, PDFDocument, PDFFont, PDFImage, PDFName, PDFPage, PDFString, StandardFonts } from 'pdf-lib';
 import { readFileToBuffer } from '../utils/utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,12 +33,14 @@ export interface DrawCenteredHelperParams {
   height: number;
   paddingX?: number;
   positionY?: number; // 0-1, vertical alignment, e.g. 0.5 is the center.
+  hyperlink?: string;
 }
 
 interface PdfImageObject {
   content: PDFImage;
   width: number;
   height: number;
+  hyperlink?: string;
 }
 export interface DrawCenteredImagesParams {
   page: PDFPage;
@@ -82,6 +84,7 @@ export class PdfManipulationService {
         height,
         paddingX: 5,
         positionY: 0.01,
+        hyperlink: `https://www.doi.org`,
       });
 
       /*
@@ -112,11 +115,13 @@ export class PdfManipulationService {
         content: codeBadgeBytes,
         width: 125,
         height: 125,
+        hyperlink: `https://www.doi.org/${doi}`,
       };
       const dataBadge: PdfImageObject = {
         content: dataBadgeBytes,
         width: 125,
         height: 125,
+        hyperlink: `https://www.doi.org/${doi}2`,
       };
 
       this.drawCenteredImages({
@@ -158,7 +163,7 @@ export class PdfManipulationService {
     return `${jobType}-${generationTaskId}.pdf`;
   }
 
-  static drawCenteredMultilineText({
+  static async drawCenteredMultilineText({
     page,
     text,
     font,
@@ -167,8 +172,8 @@ export class PdfManipulationService {
     height,
     paddingX = 0,
     positionY = 0.5,
-  }: DrawCenteredHelperParams): void {
-    // debugger
+    hyperlink,
+  }: DrawCenteredHelperParams): Promise<void> {
     const lines: string[] = [];
     const words = text.split(' ');
     let currentLine = '';
@@ -203,10 +208,33 @@ export class PdfManipulationService {
       const y = startY + i * textHeight;
 
       page.drawText(line, { x, y, size: fontSize, font });
+
+      if (hyperlink && i === 0) {
+        const linkAnnotation = page.doc.context.obj({
+          Type: 'Annot',
+          Subtype: 'Link',
+          Rect: [x, y, x + lineWidth, y + textHeight],
+          Border: [0, 0, 2],
+          C: [0, 0, 1],
+          A: {
+            Type: 'Action',
+            S: 'URI',
+            URI: PDFString.of(hyperlink),
+          },
+        }) as PDFDict;
+
+        const linkAnnotationRef = page.doc.context.register(linkAnnotation);
+
+        const annotations = page.node.Annots() as PDFArray | undefined;
+        const annotationsArray = annotations ?? page.doc.context.obj([]);
+        annotationsArray.push(linkAnnotationRef);
+
+        page.node.set(PDFName.of('Annots'), annotationsArray);
+      }
     }
   }
 
-  static drawCenteredImages({
+  static async drawCenteredImages({
     page,
     images,
     pageWidth,
@@ -214,7 +242,7 @@ export class PdfManipulationService {
     paddingX = 0,
     gap = 0,
     positionY = 0.5,
-  }: DrawCenteredImagesParams): void {
+  }: DrawCenteredImagesParams): Promise<void> {
     const availableWidth = pageWidth - 2 * paddingX;
 
     const rows: PdfImageObject[][] = [];
@@ -257,6 +285,29 @@ export class PdfManipulationService {
           width: image.width,
           height: image.height,
         });
+
+        if (image.hyperlink) {
+          const linkAnnotation = page.doc.context.obj({
+            Type: 'Annot',
+            Subtype: 'Link',
+            Rect: [x, y, x + image.width, y + image.height],
+            Border: [0, 0, 2],
+            C: [0, 0, 1],
+            A: {
+              Type: 'Action',
+              S: 'URI',
+              URI: PDFString.of(image.hyperlink),
+            },
+          }) as PDFDict;
+
+          const linkAnnotationRef = page.doc.context.register(linkAnnotation);
+
+          const annotations = page.node.Annots() as PDFArray | undefined;
+          const annotationsArray = annotations ?? page.doc.context.obj([]);
+          annotationsArray.push(linkAnnotationRef);
+
+          page.node.set(PDFName.of('Annots'), annotationsArray);
+        }
 
         currentX += image.width + gap;
       }
