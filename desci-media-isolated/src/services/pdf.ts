@@ -5,52 +5,19 @@ import path from 'path';
 import fs from 'fs';
 import * as fsp from 'fs/promises';
 import { fileURLToPath } from 'url';
-import { PDFArray, PDFDict, PDFDocument, PDFFont, PDFImage, PDFName, PDFPage, PDFString, StandardFonts } from 'pdf-lib';
+import { PDFArray, PDFDict, PDFDocument, PDFName, PDFString, StandardFonts } from 'pdf-lib';
 import { readFileToBuffer } from '../utils/utils.js';
+import {
+  PDF_JOB_TYPE,
+  type AddPdfCoverParams,
+  type DrawCenteredHelperParams,
+  type DrawCenteredImagesParams,
+  type PdfImageObject,
+} from '../types/pdf.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const BASE_TEMP_DIR = path.resolve(__dirname, '../..', TEMP_DIR);
-
-export enum PDF_JOB_TYPE {
-  ADD_COVER = 'cover',
-}
-
-export interface AddPdfCoverParams {
-  taskId: string;
-  cid: string;
-  title: string;
-  doi: string;
-  dpid?: string;
-}
-
-export interface DrawCenteredHelperParams {
-  page: PDFPage;
-  text: string;
-  font: PDFFont;
-  fontSize: number;
-  width: number;
-  height: number;
-  paddingX?: number;
-  positionY?: number; // 0-1, vertical alignment, e.g. 0.5 is the center.
-  hyperlink?: string;
-}
-
-interface PdfImageObject {
-  content: PDFImage;
-  width: number;
-  height: number;
-  hyperlink?: string;
-}
-export interface DrawCenteredImagesParams {
-  page: PDFPage;
-  images: PdfImageObject[];
-  pageWidth: number;
-  pageHeight: number;
-  paddingX?: number;
-  gap?: number; // Gap between images if multiple are passed into the array.
-  positionY?: number; // 0-1, vertical alignment, e.g. 0.5 is the center.
-}
 
 export class PdfManipulationService {
   static async addPdfCover({ taskId, cid, title, doi, dpid }: AddPdfCoverParams) {
