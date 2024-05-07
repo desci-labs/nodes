@@ -10,6 +10,7 @@ import { getManifestByCid } from './data/processing.js';
 
 const PUTCODE_REGEX = /put-code=.*?(?<code>\d+)/m;
 
+const DPID_URL_OVERRIDE = process.env.DPID_URL_OVERRIDE || 'https://dev-beta.dpid.org';
 const ORCID_DOMAIN = process.env.ORCID_API_DOMAIN || 'sandbox.orcid.org';
 type Claim = Awaited<ReturnType<typeof attestationService.getProtectedNodeClaims>>[number];
 const logger = parentLogger.child({ module: 'ORCIDApiService' });
@@ -32,20 +33,22 @@ class OrcidApiService {
       },
       orderBy: { updatedAt: 'desc' },
     });
+    logger.info(authToken, 'AUTH TOKEN RETRIEVED');
     if (!authToken) {
       throw new Error('User does not have an orcid auth token');
     }
 
     // todo: refresh token if necessary
     try {
-      const url = `https://${ORCID_DOMAIN}/oauth/token?client_id=${process.env.ORCID_CLIENT_ID!}&client_secret=${process
-        .env
-        .ORCID_CLIENT_SECRET!}&grant_type=refresh_token&refresh_token=${authToken.refreshToken}&revoke_old=true&redirect_uri=${process.env.DAPP_URL}/orcid/capture`;
+      const url = `https://${ORCID_DOMAIN}/oauth/token`;
       logger.info({ url }, 'REFRESH TOKEN');
       const response = await fetch(url, {
         method: 'post',
+        body: `client_id=${process.env.ORCID_CLIENT_ID!}&client_secret=${process.env
+          .ORCID_CLIENT_SECRET!}&grant_type=refresh_token&refresh_token=${authToken.refreshToken}&revoke_old=true`,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
+
       if (response.status === 200) {
         const data = (await response.json()) as {
           access_token: string;
@@ -204,7 +207,7 @@ const generateExternalIds = ({
   manifest: ResearchObjectV1;
   claims: Claim[];
 }) => {
-  const dataRoot = `${process.env.DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${version}/root`;
+  const dataRoot = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${version}/root`;
   const externalIdPath = `<common:external-ids>
   <common:external-id>
             <common:external-id-type>uri</common:external-id-type>
@@ -215,7 +218,7 @@ const generateExternalIds = ({
   ${manifest.components
     .filter((component) => component.starred === true)
     .map((component) => {
-      const url = `${process.env.DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${version}/${component.payload?.path ?? ''}`;
+      const url = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${version}/${component.payload?.path ?? ''}`;
       return `<common:external-id>
             <common:external-id-type>uri</common:external-id-type>
             <common:external-id-value>${url}</common:external-id-value>
@@ -230,7 +233,7 @@ const generateExternalIds = ({
 
         return `<common:external-id>
             <common:external-id-type>uri</common:external-id-type>
-            <common:external-id-value>${claim.name} by ${claim.community}</common:external-id-value>
+            <common:external-id-value>${claim.name} by ${claim.community} on DPID://${manifest.dpid.id}</common:external-id-value>
             <common:external-id-url>${url}</common:external-id-url>
             <common:external-id-relationship>self</common:external-id-relationship>
         </common:external-id>`;

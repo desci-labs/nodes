@@ -44,13 +44,13 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     return new SuccessResponse(reclaimed).send(res);
   }
 
-  const attestations = await attestationService.claimAttestation({
+  const nodeClaim = await attestationService.claimAttestation({
     ...body,
     nodeDpid: body.nodeDpid,
     nodeUuid: uuid,
     attestationVersion: attestationVersion.id,
   });
-  logger.info({ attestations }, 'CLAIMED');
+  logger.info({ nodeClaim }, 'CLAIMED');
 
   // notifiy community members if attestation is protected
   // new attestations should be trigger notification of org members if protected
@@ -65,7 +65,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
       to: member.user.email,
       from: 'no-reply@desci.com',
       subject: `[nodes.desci.com] ${attestationVersion.name} claimed on DPID://${body.nodeDpid}/v${body.nodeVersion + 1}`,
-      text: `${req.user.name} just claimed ${attestationVersion.name} on ${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}`,
+      text: `${req.user.name} just claimed ${attestationVersion.name} on ${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}?claim=${nodeClaim.id}`,
       html: '',
     }));
 
@@ -80,7 +80,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     );
   }
 
-  return new SuccessResponse(attestations).send(res);
+  return new SuccessResponse(nodeClaim).send(res);
 };
 
 export const removeClaim = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
