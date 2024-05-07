@@ -78,7 +78,7 @@ By default, the library defaults to interacting with the nodes dev environment. 
 - dPID registration transactions will be done against a testing contract
 - Ceramic publishing is done on the Clay testnet
 
-Configure your intended environment by calling the `setConfig` function. If you're not doing something very avant-garde, you can likely just pass a standard config instance like `NODESLIB_CONFIGS.local`. Otherwise, build up your own config object.
+Configure your intended environment by calling the `setNodesLibConfig` function. If you're not doing something very avant-garde, you can likely just pass a standard config instance like `NODESLIB_CONFIGS.local`. Otherwise, build up your own config object.
 
 Note that your API key must be set manually by calling `setApiKey`, find more information in the Authentication section.
 
