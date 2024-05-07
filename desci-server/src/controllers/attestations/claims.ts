@@ -1,4 +1,5 @@
 import { CommunityEntryAttestation } from '@prisma/client';
+import sgMail from '@sendgrid/mail';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
@@ -15,6 +16,8 @@ import {
 } from '../../internal.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export const claimAttestation = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const body = req.body as {
@@ -41,15 +44,43 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     return new SuccessResponse(reclaimed).send(res);
   }
 
-  const attestations = await attestationService.claimAttestation({
+  const nodeClaim = await attestationService.claimAttestation({
     ...body,
     nodeDpid: body.nodeDpid,
     nodeUuid: uuid,
     attestationVersion: attestationVersion.id,
   });
-  logger.info({ attestations }, 'CLAIMED');
+  logger.info({ nodeClaim }, 'CLAIMED');
 
-  return new SuccessResponse(attestations).send(res);
+  // notifiy community members if attestation is protected
+  // new attestations should be trigger notification of org members if protected
+  const attestation = await attestationService.findAttestationById(body.attestationId);
+  if (attestation.protected) {
+    const members = await prisma.communityMember.findMany({
+      where: { communityId: attestation.communityId },
+      include: { user: { select: { email: true } } },
+    });
+
+    const messages = members.map((member) => ({
+      to: member.user.email,
+      from: 'no-reply@desci.com',
+      subject: `[nodes.desci.com] ${attestationVersion.name} claimed on DPID://${body.nodeDpid}/v${body.nodeVersion + 1}`,
+      text: `${req.user.name} just claimed ${attestationVersion.name} on ${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}?claim=${nodeClaim.id}`,
+      html: '',
+    }));
+
+    await Promise.all(
+      messages.map((message) => {
+        if (process.env.NODE_ENV === 'production') {
+          sgMail.send(message);
+        } else {
+          logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject);
+        }
+      }),
+    );
+  }
+
+  return new SuccessResponse(nodeClaim).send(res);
 };
 
 export const removeClaim = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
@@ -97,7 +128,14 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
       attestationId: attestation.attestationId,
       attestationVersion: attestation.attestationVersionId,
     });
-    return { ...attestation, claimable };
+
+    const previousClaim = await attestationService.getClaimOnAttestationVersion(
+      nodeDpid,
+      attestation.attestationId,
+      attestation.attestationVersionId,
+    );
+
+    return { ...attestation, claimable: claimable && (!previousClaim || previousClaim.revoked) };
   })) as (CommunityEntryAttestation & { claimable: boolean })[];
   logger.info({ claimables, communityId });
 
