@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import * as fsp from 'fs/promises';
 import { fileURLToPath } from 'url';
-import { PDFDocument, PDFFont, PDFPage, StandardFonts } from 'pdf-lib';
+import { PDFDocument, PDFFont, PDFImage, PDFPage, StandardFonts } from 'pdf-lib';
 import { readFileToBuffer } from '../utils/utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -32,6 +32,21 @@ export interface DrawCenteredHelperParams {
   width: number;
   height: number;
   paddingX?: number;
+  positionY?: number; // 0-1, vertical alignment, e.g. 0.5 is the center.
+}
+
+interface PdfImageObject {
+  content: PDFImage;
+  width: number;
+  height: number;
+}
+export interface DrawCenteredImagesParams {
+  page: PDFPage;
+  images: PdfImageObject[];
+  pageWidth: number;
+  pageHeight: number;
+  paddingX?: number;
+  gap?: number; // Gap between images if multiple are passed into the array.
   positionY?: number; // 0-1, vertical alignment, e.g. 0.5 is the center.
 }
 
@@ -82,6 +97,35 @@ export class PdfManipulationService {
         width,
         height,
         paddingX: 20,
+      });
+
+      /*
+       * Badges
+       */
+      const codeBadgeBytes = await pdfDoc.embedPng(
+        await readFileToBuffer(path.join(__dirname, '../../public/static/code-available.png')),
+      );
+      const dataBadgeBytes = await pdfDoc.embedPng(
+        await readFileToBuffer(path.join(__dirname, '../../public/static/data-available.png')),
+      );
+      const codeBadge: PdfImageObject = {
+        content: codeBadgeBytes,
+        width: 125,
+        height: 125,
+      };
+      const dataBadge: PdfImageObject = {
+        content: dataBadgeBytes,
+        width: 125,
+        height: 125,
+      };
+
+      this.drawCenteredImages({
+        page: newPage,
+        images: [codeBadge, dataBadge],
+        pageWidth: width,
+        pageHeight: height,
+        positionY: 0.75,
+        gap: 20,
       });
 
       const pdfBytesMod = await pdfDoc.save();
@@ -159,6 +203,65 @@ export class PdfManipulationService {
       const y = startY + i * textHeight;
 
       page.drawText(line, { x, y, size: fontSize, font });
+    }
+  }
+
+  static drawCenteredImages({
+    page,
+    images,
+    pageWidth,
+    pageHeight,
+    paddingX = 0,
+    gap = 0,
+    positionY = 0.5,
+  }: DrawCenteredImagesParams): void {
+    const availableWidth = pageWidth - 2 * paddingX;
+
+    const rows: PdfImageObject[][] = [];
+    let currentRow: PdfImageObject[] = [];
+    let currentRowWidth = 0;
+
+    for (const image of images) {
+      if (currentRowWidth + image.width + (currentRow.length > 0 ? gap : 0) > availableWidth) {
+        rows.push(currentRow);
+        currentRow = [];
+        currentRowWidth = 0;
+      }
+      currentRow.push(image);
+      currentRowWidth += image.width + (currentRow.length > 1 ? gap : 0);
+    }
+
+    if (currentRow.length > 0) {
+      rows.push(currentRow);
+    }
+
+    const rowHeights = rows.map((row) => Math.max(...row.map((image) => image.height)));
+    const totalHeight = rowHeights.reduce((sum, height) => sum + height, 0) + (rows.length - 1) * gap;
+    const startY = pageHeight * (1 - positionY) - totalHeight / 2;
+
+    let currentY = startY;
+
+    for (const row of rows) {
+      const rowWidth = row.reduce((sum, image) => sum + image.width, 0) + (row.length - 1) * gap;
+      let currentX = paddingX + (availableWidth - rowWidth) / 2;
+
+      const rowHeight = Math.max(...row.map((image) => image.height));
+
+      for (const image of row) {
+        const x = currentX;
+        const y = currentY + (rowHeight - image.height) / 2;
+
+        page.drawImage(image.content, {
+          x,
+          y,
+          width: image.width,
+          height: image.height,
+        });
+
+        currentX += image.width + gap;
+      }
+
+      currentY += rowHeight + gap;
     }
   }
 }
