@@ -61,6 +61,7 @@ export const preparePublishPackage = async (
     if (!node) return res.status(404).json({ ok: false, error: 'Node not found' });
 
     const manifest = await getManifestByCid(manifestCid);
+    const title = manifest.title;
 
     const dpid = manifest?.dpid.id;
 
@@ -72,6 +73,7 @@ export const preparePublishPackage = async (
       node,
       doi,
       dpid,
+      title,
     });
 
     return res.status(200).json({ ok: true, distPdfCid });

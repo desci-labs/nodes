@@ -13,6 +13,7 @@ export type PrepareDistributionPdfParams = {
   node: Node; // Title extraction for now
   doi: string; // Temporary till we have DOI system operational
   dpid: string;
+  title: string;
 };
 
 type PrepareDistributionPdfResult = {
@@ -28,6 +29,7 @@ class PublishPackageService {
     dataAvailableDpid,
     node,
     doi,
+    title,
   }: PrepareDistributionPdfParams): Promise<PrepareDistributionPdfResult> {
     // Check if distro PDF already exists
     const existingDistributionPdf = await prisma.distributionPdfs.findFirst({
@@ -46,7 +48,7 @@ class PublishPackageService {
     // Generate the PDF with the cover
     const coverPdfStream = await axios.post(
       `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/pdf/addCover`,
-      { cid: pdfCid, doi, title: node.title, codeAvailableDpid, dataAvailableDpid },
+      { cid: pdfCid, doi, title, codeAvailableDpid, dataAvailableDpid },
       {
         responseType: 'stream',
       },
