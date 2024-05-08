@@ -68,12 +68,17 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
       text: `${req.user.name} just claimed ${attestationVersion.name} on ${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}?claim=${nodeClaim.id}`,
       html: '',
     }));
-    logger.info({ members: messages, NODE_ENV: process.env.NODE_ENV }, '[EMAIL]:: ATTESTATION EMAIL');
-    if (process.env.NODE_ENV === 'production') {
-      const response = await sgMail.send(messages);
-      logger.info(response, '[EMAIL]:: Response');
-    } else {
-      messages.forEach((message) => logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject));
+
+    try {
+      logger.info({ members: messages, NODE_ENV: process.env.NODE_ENV }, '[EMAIL]:: ATTESTATION EMAIL');
+      if (process.env.NODE_ENV === 'production') {
+        const response = await sgMail.send(messages);
+        logger.info(response, '[EMAIL]:: Response');
+      } else {
+        messages.forEach((message) => logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject));
+      }
+    } catch (err) {
+      logger.info({ err }, '[EMAIL]::ERROR');
     }
   }
 
