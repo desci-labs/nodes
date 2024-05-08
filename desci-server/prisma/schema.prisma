@@ -43,6 +43,7 @@ model Node {
   NodeContribution    NodeContribution[]
   PrivateShare        PrivateShare[]
   OrcidPutCodes       OrcidPutCodes[]
+  DistributionPdfs    DistributionPdfs[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -474,6 +475,16 @@ model NodeThumbnails {
   node         Node   @relation(fields: [nodeUuid], references: [uuid])
 
   @@unique([nodeUuid, componentCid])
+}
+
+model DistributionPdfs {
+  id             Int    @id @default(autoincrement())
+  originalPdfCid String
+  nodeUuid       String
+  distPdfCid     String
+  node           Node   @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, originalPdfCid])
 }
 
 // The glue between a manifest contributor entry and a nodes profile
