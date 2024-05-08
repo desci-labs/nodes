@@ -50,11 +50,11 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     nodeUuid: uuid,
     attestationVersion: attestationVersion.id,
   });
-  logger.info({ nodeClaim }, 'CLAIMED');
 
   // notifiy community members if attestation is protected
   // new attestations should be trigger notification of org members if protected
   const attestation = await attestationService.findAttestationById(body.attestationId);
+  logger.info({ nodeClaim, attestation }, 'CLAIMED');
   if (attestation.protected) {
     const members = await prisma.communityMember.findMany({
       where: { communityId: attestation.communityId },
@@ -68,16 +68,13 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
       text: `${req.user.name} just claimed ${attestationVersion.name} on ${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}?claim=${nodeClaim.id}`,
       html: '',
     }));
-
-    await Promise.all(
-      messages.map((message) => {
-        if (process.env.NODE_ENV === 'production') {
-          sgMail.send(message);
-        } else {
-          logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject);
-        }
-      }),
-    );
+    logger.info({ members: messages, NODE_ENV: process.env.NODE_ENV }, '[EMAIL]:: ATTESTATION EMAIL');
+    if (process.env.NODE_ENV === 'production') {
+      const response = await sgMail.send(messages);
+      logger.info(response, '[EMAIL]:: Response');
+    } else {
+      messages.forEach((message) => logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject));
+    }
   }
 
   return new SuccessResponse(nodeClaim).send(res);
