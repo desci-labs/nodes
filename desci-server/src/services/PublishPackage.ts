@@ -12,6 +12,7 @@ export type PrepareDistributionPdfParams = {
   dataAvailableDpid?: string;
   node: Node; // Title extraction for now
   doi: string; // Temporary till we have DOI system operational
+  dpid: string;
 };
 
 type PrepareDistributionPdfResult = {
@@ -21,7 +22,7 @@ type PrepareDistributionPdfResult = {
 class PublishPackageService {
   private logger = parentLogger.child({ module: 'Services::PublishPackageService' });
 
-  private async prepareDistributionPdf({
+  async prepareDistributionPdf({
     pdfCid,
     codeAvailableDpid,
     dataAvailableDpid,
