@@ -34,10 +34,7 @@ class OrcidApiService {
       orderBy: { updatedAt: 'desc' },
     });
     let authToken = authTokens[0];
-    logger.info(
-      { tokenDate: authToken.createdAt, updatedAt: authToken.updatedAt, tokenLength: authTokens.length },
-      'AUTH TOKEN RETRIEVED',
-    );
+    logger.info({ authTokens, authToken }, 'AUTH TOKEN RETRIEVED');
     if (!authToken) {
       throw new Error('User does not have an orcid auth token');
     }
@@ -45,7 +42,7 @@ class OrcidApiService {
     // todo: refresh token if necessary
     try {
       const url = `https://${ORCID_DOMAIN}/oauth/token`;
-
+      logger.info({ url }, 'REFRESH TOKEN');
       const response = await fetch(url, {
         method: 'post',
         body: `client_id=${process.env.ORCID_CLIENT_ID!}&client_secret=${process.env
