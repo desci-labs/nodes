@@ -1,6 +1,6 @@
 import { render } from '@react-email/components';
 
-import { AttestationClaimedEmailProps } from '../AttestationClaimed.js';
+import AttestationClaimedEmail, { AttestationClaimedEmailProps } from '../AttestationClaimed.js';
 import ContributorInvite, { ContributorInviteEmailProps } from '../ContributorInvite.js';
 import MagicCodeEmail, { MagicCodeEmailProps } from '../MagicCode.js';
 
@@ -16,4 +16,4 @@ export const ContributorInviteEmailHtml = ({
 export const MagicCodeEmailHtml = ({ magicCode, ip }: MagicCodeEmailProps) => render(MagicCodeEmail({ magicCode }));
 
 export const AttestationClaimedEmailHtml = (props: AttestationClaimedEmailProps) =>
-  render(AttestationClaimedEmailHtml(props));
+  render(AttestationClaimedEmail(props));
