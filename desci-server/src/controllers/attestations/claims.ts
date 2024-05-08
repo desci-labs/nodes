@@ -16,6 +16,7 @@ import {
 } from '../../internal.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
+import { AttestationClaimedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -66,7 +67,13 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
       from: 'no-reply@desci.com',
       subject: `[nodes.desci.com] ${attestationVersion.name} claimed on DPID://${body.nodeDpid}/v${body.nodeVersion + 1}`,
       text: `${req.user.name} just claimed ${attestationVersion.name} on ${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}?claim=${nodeClaim.id}`,
-      html: '',
+      html: AttestationClaimedEmailHtml({
+        dpid: body.nodeDpid,
+        attestationName: attestationVersion.name,
+        communityName: attestationVersion.name,
+        userName: req.user.name,
+        dpidPath: `${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}?claim=${nodeClaim.id}`,
+      }),
     }));
 
     try {
