@@ -3,12 +3,15 @@ import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
 import {
+  AuthFailureResponse,
   BadRequestError,
   ForbiddenError,
   NotFoundError,
+  RequestWithUser,
   SuccessMessageResponse,
   SuccessResponse,
   attestationService,
+  communityService,
   ensureUuidEndsWithDot,
   prisma,
 } from '../../internal.js';
@@ -125,4 +128,19 @@ export const getAttestationVerifications = async (req: Request, res: Response, n
   });
 
   return new SuccessResponse(data).send(res);
+};
+
+export const canVerifyClaim = async (req: RequestWithUser, res: Response) => {
+  const logger = parentLogger.child({
+    module: 'ATTESTATIONS::canVerify',
+  });
+  const userId = req.user.id;
+  const claimId = parseInt(req.params.claimId);
+
+  const claim = await attestationService.findClaimById(claimId);
+  const isMember = await communityService.findMemberByUserId(claim.desciCommunityId, userId);
+
+  logger.info({ userId: req.user.id, claimId, community: claim.desciCommunityId }, 'Claim Verification check');
+  if (!isMember) new SuccessResponse({ ok: false }).send(res);
+  else new SuccessResponse({ ok: true }).send(res);
 };
