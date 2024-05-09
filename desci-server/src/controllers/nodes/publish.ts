@@ -331,11 +331,6 @@ export const publishHandler = async ({
     sendDiscordNotification(false);
 
     /**
-     * Update ORCID Profile
-     */
-    if (owner.orcid) orcidApiService.postWorkRecord(node.uuid, owner.orcid);
-
-    /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
      */
     cacheNodeMetadata(node.uuid, cid);
