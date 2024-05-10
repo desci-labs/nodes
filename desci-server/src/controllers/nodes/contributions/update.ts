@@ -89,7 +89,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
           nodeUuid: node.uuid,
           privShareCode: shareCode,
           contributorId: contributorUpdated.contributorId,
-          newUser: contributorUpdated.userId !== undefined,
+          newUser: contributorUpdated.userId === undefined,
         });
         const emailMsg = {
           to: email,

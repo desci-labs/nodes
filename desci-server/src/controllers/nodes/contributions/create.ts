@@ -78,7 +78,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
         { contributorId, recipient: email },
         'Firing off contributor invite email for newly invited contributor',
       );
-      debugger;
+      // debugger;
       // Generate a share code for the contributor if it's the node owner themselves
       const shareCode = await contributorService.generatePrivShareCodeForContribution(contributorAdded, node);
       // Future: make it count as a friend referral
@@ -87,7 +87,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
         nodeUuid: node.uuid,
         privShareCode: shareCode,
         contributorId: contributorAdded.contributorId,
-        newUser: contributorAdded.userId !== undefined,
+        newUser: contributorAdded.userId === undefined,
       });
       const emailMsg = {
         to: email,
