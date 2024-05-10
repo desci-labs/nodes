@@ -5,6 +5,16 @@ import { google, drive_v3 } from 'googleapis';
 
 import { logger as parentLogger } from '../logger.js';
 
+export const googleDocsExportMap = {
+  'application/vnd.google-apps.document': 'application/pdf',
+  'application/vnd.google-apps.spreadsheet': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
+
+export const googleDocsMimeExtensionConversionMap = {
+  'application/vnd.google-apps.document': 'pdf',
+  'application/vnd.google-apps.spreadsheet': 'xlsx',
+};
+
 export class GoogleApiService {
   private oauth2Client;
   private driveClient: drive_v3.Drive;
@@ -38,6 +48,26 @@ export class GoogleApiService {
       return response.data;
     } catch (error) {
       this.logger.error({ docId, error }, 'Failed to get file stream');
+
+      throw error;
+    }
+  }
+
+  /**
+   * Files using googles proprietary document formats need to be exported, so far supports google word docs and sheets.
+   */
+  async exportFile(docId: string, mimeType: string): Promise<Readable> {
+    try {
+      const response: GaxiosResponse<Readable> = await this.driveClient.files.export(
+        {
+          fileId: docId,
+          mimeType: mimeType,
+        },
+        { responseType: 'stream' },
+      );
+      return response.data;
+    } catch (error) {
+      this.logger.error({ docId, mimeType, error }, 'Failed to export file');
       throw error;
     }
   }
@@ -58,7 +88,6 @@ export class GoogleApiService {
   async exchangeCodeForToken(code: string): Promise<void> {
     try {
       const { tokens } = await this.oauth2Client.getToken(code);
-      debugger;
       this.oauth2Client.setCredentials(tokens);
       this.logger.info('Successfully exchanged code for tokens');
     } catch (error) {
