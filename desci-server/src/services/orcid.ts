@@ -447,7 +447,7 @@ const generateClaimWorkRecord = ({
   const description = `${claim.name} Attestation`;
   const [month, day, year] = publicationDate.split('-');
   const externalUrl = `${process.env.DPID_URL_OVERRIDE}/${manifest.dpid.id}/attestation/${claim.id}`;
-  const dataRoot = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${nodeVersion}/root`;
+  const dataRoot = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${nodeVersion}`;
   logger.info({ codeAttr, workType, publicationDate, day, month, year, externalUrl }, 'CODE ATTR');
   return (
     '<work:work xmlns:common="http://www.orcid.org/ns/common" xmlns:work="http://www.orcid.org/ns/work" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.orcid.org/ns/work https://raw.githubusercontent.com/ORCID/orcid-model/master/src/main/resources/record_3.0/work-3.0.xsd" ' +
@@ -499,7 +499,7 @@ const generateRootWorkRecord = ({
   const codeAttr = putCode ? 'put-code="' + putCode + '"' : '';
   const workType = 'preprint';
   const [month, day, year] = publicationDate.split('-');
-  const dataRoot = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${nodeVersion}/root`;
+  const dataRoot = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${nodeVersion}`;
   logger.info({ codeAttr, publicationDate, dataRoot }, 'CODE ATTR');
   return (
     '<work:work xmlns:common="http://www.orcid.org/ns/common" xmlns:work="http://www.orcid.org/ns/work" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.orcid.org/ns/work https://raw.githubusercontent.com/ORCID/orcid-model/master/src/main/resources/record_3.0/work-3.0.xsd" ' +
