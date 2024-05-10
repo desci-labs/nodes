@@ -42,7 +42,8 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   if (claim && claim.revoked) {
     const reclaimed = await attestationService.reClaimAttestation(claim.id);
-    return new SuccessResponse(reclaimed).send(res);
+    new SuccessResponse(reclaimed).send(res);
+    return;
   }
 
   const nodeClaim = await attestationService.claimAttestation({
@@ -91,6 +92,8 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
       logger.info({ err }, '[EMAIL]::ERROR');
     }
   }
+
+  return;
 };
 
 export const removeClaim = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
