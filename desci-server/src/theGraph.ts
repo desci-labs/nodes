@@ -7,6 +7,20 @@ import axios from 'axios';
 import { logger } from './logger.js';
 import { decodeBase64UrlSafeToHex } from './utils.js';
 
+export interface IndexedResearchObject {
+  id: string;
+  id10: string;
+  owner: string;
+  recentCid: string;
+  versions: IndexedResearchObjectVersion[];
+}
+
+export interface IndexedResearchObjectVersion {
+  cid: string;
+  id: string;
+  time: string;
+}
+
 export const getIndexedResearchObjects = async (urlSafe64s: string[]) => {
   const hex = urlSafe64s.map(decodeBase64UrlSafeToHex).map((h) => `0x${h}`);
   logger.info({ hex, urlSafe64s }, 'getIndexedResearchObjects');

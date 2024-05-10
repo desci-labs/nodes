@@ -255,6 +255,7 @@ export class AttestationService {
         image_url: claim.attestationVersion.image_url,
         verifications: claim._count.NodeAttestationVerification,
         community: claim.community.name,
+        nodeVersion: claim.nodeVersion,
       }))
       .value();
 

@@ -63,7 +63,8 @@ export const removeVerification = async (
        */
       const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(claim.nodeUuid) } });
       const owner = await prisma.user.findFirst({ where: { id: node.ownerId } });
-      if (owner.orcid) await orcidApiService.postWorkRecord(node.uuid, owner.orcid);
+      if (owner.orcid)
+        await orcidApiService.removeClaimRecord({ claimId: claim.id, nodeUuid: node.uuid, orcid: owner.orcid });
     }
   }
 };

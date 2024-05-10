@@ -733,6 +733,7 @@ model NodeAttestation {
   Annotation                  Annotation[]
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
+  OrcidPutCodes               OrcidPutCodes[]
 
   @@unique([nodeUuid, nodeVersion, attestationId, attestationVersionId])
 }
@@ -790,16 +791,19 @@ model PublishTaskQueue {
 }
 
 model OrcidPutCodes {
-  id      Int         @id @default(autoincrement())
-  orcid   String
-  putcode String?
-  record  ORCIDRecord
-  userId  Int
-  uuid    String
-  user    User        @relation(fields: [userId], references: [id])
-  Node    Node        @relation(fields: [uuid], references: [uuid])
+  id        Int              @id @default(autoincrement())
+  orcid     String
+  putcode   String?
+  reference PutcodeReference @default(PREPRINT)
+  claimId   Int?
+  record    ORCIDRecord
+  userId    Int
+  uuid      String
+  claim     NodeAttestation? @relation(fields: [claimId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
+  Node      Node             @relation(fields: [uuid], references: [uuid])
 
-  @@unique([orcid, record, uuid])
+  @@unique([orcid, uuid, reference])
 }
 
 enum ORCIDRecord {
@@ -807,6 +811,12 @@ enum ORCIDRecord {
   QUALIFICATION
   EDUCATION
   EMPLOYMENT
+}
+
+enum PutcodeReference {
+  DATASET
+  SOFTWARE
+  PREPRINT
 }
 
 enum CommunityMembershipRole {
