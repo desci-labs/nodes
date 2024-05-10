@@ -56,6 +56,9 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
   // new attestations should be trigger notification of org members if protected
   const attestation = await attestationService.findAttestationById(body.attestationId);
   logger.info({ nodeClaim, attestation }, 'CLAIMED');
+
+  new SuccessResponse(nodeClaim).send(res);
+
   if (attestation.protected) {
     const members = await prisma.communityMember.findMany({
       where: { communityId: attestation.communityId },
@@ -88,8 +91,6 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
       logger.info({ err }, '[EMAIL]::ERROR');
     }
   }
-
-  return new SuccessResponse(nodeClaim).send(res);
 };
 
 export const removeClaim = async (req: RequestWithUser, res: Response, _next: NextFunction) => {

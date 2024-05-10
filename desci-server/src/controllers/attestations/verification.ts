@@ -99,6 +99,8 @@ export const addVerification = async (
 
   const attestation = await attestationService.findAttestationById(claim.attestationId);
 
+  new SuccessMessageResponse().send(res);
+
   if (attestation.protected) {
     /**
      * Update ORCID Profile
@@ -107,8 +109,6 @@ export const addVerification = async (
     const owner = await prisma.user.findFirst({ where: { id: node.ownerId } });
     if (owner.orcid) await orcidApiService.postWorkRecord(node.uuid, owner.orcid);
   }
-
-  return new SuccessMessageResponse().send(res);
 };
 
 export const getAttestationVerifications = async (req: Request, res: Response, next: NextFunction) => {
