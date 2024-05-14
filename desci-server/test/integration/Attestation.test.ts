@@ -5,6 +5,7 @@ import {
   Annotation,
   Attestation,
   AttestationVersion,
+  AuthTokenSource,
   CommunityMember,
   CommunityMembershipRole,
   DesciCommunity,
@@ -18,6 +19,7 @@ import {
 } from '@prisma/client';
 import { assert, expect } from 'chai';
 import jwt from 'jsonwebtoken';
+import nock from 'nock';
 import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
@@ -133,7 +135,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe('Attestations Service', async () => {
+describe.only('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -2105,6 +2107,8 @@ describe('Attestations Service', async () => {
       MemberJwtToken2: string,
       memberAuthHeaderVal1: string,
       memberAuthHeaderVal2: string;
+    const mockPutCode = '1926486';
+    const ORCID_ID = '0000-0000-1111-090X';
 
     before(async () => {
       node = nodes[0];
@@ -2119,6 +2123,26 @@ describe('Attestations Service', async () => {
         nodeUuid: node.uuid,
         nodeVersion,
         claimerId: author.id,
+      });
+
+      // add oricd to user profile
+      await prisma.user.update({
+        where: {
+          id: author.id,
+        },
+        data: {
+          orcid: ORCID_ID,
+        },
+      });
+
+      // insert mock orcid auth token
+      await prisma.authToken.create({
+        data: {
+          source: AuthTokenSource.ORCID,
+          accessToken: 'mock-access-token',
+          userId: author.id,
+          refreshToken: 'refresh-token',
+        },
       });
 
       members = await communityService.getAllMembers(desciCommunity.id);
@@ -2146,6 +2170,22 @@ describe('Attestations Service', async () => {
     });
 
     it('should allow only members verify a node attestation(claim)', async () => {
+      let scope = nock('https://api.sandbox.orcid.org/v3.0')
+        .post(`${ORCID_ID}/work`)
+        .once()
+        .reply(201, '', { location: `https://api.sandbox.orcid.org/v3.0/${ORCID_ID}/work/${mockPutCode}` });
+
+      nock(`https://sandbox.orcid.org/oauth/token`).post(`${ORCID_ID}/work`).twice().reply(200, {
+        access_token: 'access-token',
+        token_type: 'auth',
+        refresh_token: 'refresh-token',
+        expires_in: 3599,
+        scope: '',
+        name: '',
+        orcid: ORCID_ID,
+      });
+
+      console.log('VERIFICATION HTTPS MOCK', scope);
       let res = await request(app)
         .post(`/v1/attestations/verification`)
         .set('authorization', memberAuthHeaderVal1)
@@ -2153,6 +2193,8 @@ describe('Attestations Service', async () => {
           claimId: openCodeClaim.id,
         });
       expect(res.statusCode).to.equal(200);
+
+      scope = nock('https://api.sandbox.orcid.org/v3.0').put(`${ORCID_ID}/work/${mockPutCode}`).once().reply(200);
 
       res = await request(app).post(`/v1/attestations/verification`).set('authorization', memberAuthHeaderVal2).send({
         claimId: openCodeClaim.id,
