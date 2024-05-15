@@ -2090,7 +2090,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe('Protected Attestation Verification', async () => {
+  describe.only('Protected Attestation Verification', async () => {
     let openCodeClaim: NodeAttestation;
     let openDataClaim: NodeAttestation;
     let node: Node;
@@ -2167,10 +2167,12 @@ describe('Attestations Service', async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
       // await prisma.$queryRaw`TRUNCATE TABLE "CommunityMember" CASCADE;`;
+
+      nock.restore();
     });
 
     it('should allow only members verify a node attestation(claim)', async () => {
-      let scope = nock('https://api.sandbox.orcid.org/v3.0')
+      const scope1 = nock('https://api.sandbox.orcid.org/v3.0')
         .post(`${ORCID_ID}/work`)
         .once()
         .reply(201, '', { location: `https://api.sandbox.orcid.org/v3.0/${ORCID_ID}/work/${mockPutCode}` });
@@ -2185,7 +2187,7 @@ describe('Attestations Service', async () => {
         orcid: ORCID_ID,
       });
 
-      console.log('VERIFICATION HTTPS MOCK', scope);
+      console.log('VERIFICATION HTTPS MOCK', scope1);
       let res = await request(app)
         .post(`/v1/attestations/verification`)
         .set('authorization', memberAuthHeaderVal1)
@@ -2194,12 +2196,22 @@ describe('Attestations Service', async () => {
         });
       expect(res.statusCode).to.equal(200);
 
-      scope = nock('https://api.sandbox.orcid.org/v3.0').put(`${ORCID_ID}/work/${mockPutCode}`).once().reply(200);
+      setTimeout(() => {
+        scope1.isDone();
+      }, 100);
+
+      const scope2 = nock('https://api.sandbox.orcid.org/v3.0')
+        .put(`${ORCID_ID}/work/${mockPutCode}`)
+        .once()
+        .reply(200);
 
       res = await request(app).post(`/v1/attestations/verification`).set('authorization', memberAuthHeaderVal2).send({
         claimId: openCodeClaim.id,
       });
       expect(res.statusCode).to.equal(200);
+      setTimeout(() => {
+        scope2.isDone();
+      }, 100);
 
       const verifications = await attestationService.getAllClaimVerfications(openCodeClaim.id);
       expect(verifications.length).to.equal(2);
