@@ -2187,7 +2187,6 @@ describe('Attestations Service', async () => {
         orcid: ORCID_ID,
       });
 
-      console.log('VERIFICATION HTTPS MOCK', scope1);
       let res = await request(app)
         .post(`/v1/attestations/verification`)
         .set('authorization', memberAuthHeaderVal1)
@@ -2210,7 +2209,7 @@ describe('Attestations Service', async () => {
         claimId: openCodeClaim.id,
       });
       expect(res.statusCode).to.equal(200);
-      scope2.isDone();
+      scope3.isDone();
       // setTimeout(() => {
       // }, 100);
 
@@ -2218,6 +2217,10 @@ describe('Attestations Service', async () => {
       expect(verifications.length).to.equal(2);
       expect(verifications.some((v) => v.userId === members[0].userId)).to.equal(true);
       expect(verifications.some((v) => v.userId === members[1].userId)).to.equal(true);
+
+      console.log('INTERCEPTOR SCOPE', scope1);
+      console.log('INTERCEPTOR SCOPE', scope2);
+      console.log('INTERCEPTOR SCOPE', scope3);
     });
 
     it('should prevent non-authorized users from verifying a protected attestation(claim)', async () => {
