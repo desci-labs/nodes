@@ -2109,6 +2109,7 @@ describe('Attestations Service', async () => {
       memberAuthHeaderVal2: string;
     const mockPutCode = '1926486';
     const ORCID_ID = '0000-0000-1111-090X';
+    const NOCK_URL = new URL('https://api.sandbox.orcid.org');
 
     before(async () => {
       node = nodes[0];
@@ -2172,12 +2173,12 @@ describe('Attestations Service', async () => {
     });
 
     it('should allow only members verify a node attestation(claim)', async () => {
-      const scope1 = nock('https://api.sandbox.orcid.org/v3.0')
-        .post(`${ORCID_ID}/work`)
+      const scope1 = nock(NOCK_URL)
+        .post(`/v3.0/${ORCID_ID}/work`)
         .once()
         .reply(201, '', { location: `https://api.sandbox.orcid.org/v3.0/${ORCID_ID}/work/${mockPutCode}` });
 
-      const scope2 = nock(`https://sandbox.orcid.org/oauth/token`).post(`${ORCID_ID}/work`).twice().reply(200, {
+      const scope2 = nock(new URL('https://sandbox.orcid.org')).post(`/oauth/token`).twice().reply(200, {
         access_token: 'access-token',
         token_type: 'auth',
         refresh_token: 'refresh-token',
@@ -2200,10 +2201,7 @@ describe('Attestations Service', async () => {
       // setTimeout(() => {
       // }, 100);
 
-      const scope3 = nock('https://api.sandbox.orcid.org/v3.0')
-        .put(`${ORCID_ID}/work/${mockPutCode}`)
-        .once()
-        .reply(200);
+      const scope3 = nock(NOCK_URL).put(`/v3.0/${ORCID_ID}/work/${mockPutCode}`).once().reply(200);
 
       res = await request(app).post(`/v1/attestations/verification`).set('authorization', memberAuthHeaderVal2).send({
         claimId: openCodeClaim.id,
