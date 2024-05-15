@@ -135,7 +135,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe.only('Attestations Service', async () => {
+describe('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
