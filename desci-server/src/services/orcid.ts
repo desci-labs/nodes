@@ -15,6 +15,11 @@ const ORCID_DOMAIN = process.env.ORCID_API_DOMAIN || 'sandbox.orcid.org';
 type Claim = Awaited<ReturnType<typeof attestationService.getProtectedNodeClaims>>[number];
 const logger = parentLogger.child({ module: 'ORCIDApiService' });
 
+/**
+ * Service class for interfacing with ORCID /works API
+ * Handles updating orcid work profile entries for users with orcid
+ * linked to their profiles
+ */
 class OrcidApiService {
   baseUrl: string;
 
@@ -25,6 +30,12 @@ class OrcidApiService {
     logger.info({ url: this.baseUrl }, 'Init ORCID Service');
   }
 
+  /**
+   * Query user orcid access token from the database and refreshes
+   * tokens if needed and update database entry valid token
+   * @param userId unique user identifier
+   * @returns a valid access token string
+   */
   private async getAccessToken(userId: number) {
     const authTokens = await prisma.authToken.findMany({
       where: {
@@ -88,6 +99,16 @@ class OrcidApiService {
     return authToken.accessToken;
   }
 
+  /**
+   * Remove an attestation from user's ORCID work profile
+   * If user has no verified protected attestations, remove research node
+   * work entry
+   * @param {Object} argument - The claim argument to process
+   * @param {number} argument.claimId - The ID of the node attestation to remove
+   * @param {string} argument.nodeUuid - The uuid of the research node
+   * @param {string} argument.orcid - The ORCID identifier of the user
+   * @returns
+   */
   async removeClaimRecord({ claimId, nodeUuid, orcid }: { claimId: number; nodeUuid: string; orcid: string }) {
     const putCode = await prisma.orcidPutCodes.findFirst({
       where: {
@@ -132,6 +153,15 @@ class OrcidApiService {
     logger.info({ userId: user.id, CLAIMS: claims.length, nodeUuid }, '[ORCID::DELETE]:: FINISH');
   }
 
+  /**
+   * Execute http request to remove ORCID work entry
+   * and remove the associated putCode from the database
+   * @param {Object} argument - The claim argument to process
+   * @param {string} argument.orcid - The ORCID identifier of the user
+   * @param {number} argument.putCode - The ORCID /work record putCode
+   * @param {string} argument.authToken - A valid user orcid access token
+   * @returns
+   */
   async removeWorkRecord({ putCode, authToken, orcid }: { orcid: string; putCode: OrcidPutCodes; authToken: string }) {
     const code = putCode.putcode;
     const url = `${this.baseUrl}/${orcid}/work${code ? '/' + code : ''}`;
@@ -172,6 +202,14 @@ class OrcidApiService {
     );
   }
 
+  /**
+   * Update ORCID work summary of a user
+   * Retrieve a validated protected attestations and post each as a work entry
+   * Retrieve Research Node with uuid {nodeUuid} and post a work entry
+   * @param nodeUuid - Research node uuid
+   * @param orcid - ORCID identifier
+   * @returns
+   */
   async postWorkRecord(nodeUuid: string, orcid: string) {
     try {
       const user = await prisma.user.findUnique({ where: { orcid } });
@@ -225,6 +263,18 @@ class OrcidApiService {
     }
   }
 
+  /**
+   * Execute http request to post/update ORCID work entry for a node
+   * and insert/update the associated putCode in the database
+   * @param {Object} argument - The Research Node details object
+   * @param {Object} argument.manifest - The node's manifest
+   * @param {string} argument.publicationDate - The last publish datetime string in rfc3339 format
+   * @param {string} argument.uuid - Unique uuid identifier of the node to update
+   * @param {number} argument.userId - ID of the user (node owner)
+   * @param {string} argument.authToken - A valid user orcid access token
+   * @param {string} argument.orcid - The ORCID identifier of the user
+   * @param {number} argument.nodeVersion - The latest version of the research node
+   */
   async putNodeWorkRecord({
     manifest,
     publicationDate,
@@ -248,7 +298,7 @@ class OrcidApiService {
       });
       const putCode = orcidPutCode?.putcode;
 
-      let data = generateRootWorkRecord({ manifest, publicationDate, nodeVersion, putCode });
+      let data = generateNodeWorkRecord({ manifest, publicationDate, nodeVersion, putCode });
       data = data.replace(/\\"/g, '"');
 
       const url = `${this.baseUrl}/${orcid}/work${putCode ? '/' + putCode : ''}`;
@@ -316,6 +366,19 @@ class OrcidApiService {
     }
   }
 
+  /**
+   * Execute http request to post/update ORCID work entry for an attestation
+   * and insert/update the associated putCode in the database
+   * @param {Object} argument - The Research Node details object
+   * @param {string} argument.authToken - A valid user orcid access token
+   * @param {Object} argument.claim - The claim object retrieved from the database
+   * @param {Object} argument.manifest - The node's manifest
+   * @param {number} argument.nodeVersion - The latest version of the research node
+   * @param {string} argument.orcid - The ORCID identifier of the user
+   * @param {string} argument.publicationDate - The last publish datetime string in rfc3339 format
+   * @param {string} argument.uuid - Unique uuid identifier of the node to update
+   * @param {number} argument.userId - ID of the user (node owner)
+   */
   async putClaimWorkRecord({
     manifest,
     publicationDate,
@@ -421,9 +484,16 @@ class OrcidApiService {
   }
 }
 
-const orcidApiService = new OrcidApiService();
-export default orcidApiService;
-
+/**
+ * Generate an ORCID work summary xml string based for an attestation/claim
+ * Model Reference https://github.com/ORCID/orcid-model/blob/master/src/main/resources/record_3.0/work-3.0.xsd
+ * @param {Object} argument - The Research Node details object
+ * @param {Object} argument.claim - The claim object retrieved from the database
+ * @param {Object} argument.manifest - The node's manifest
+ * @param {number} argument.nodeVersion - The latest version of the research node
+ * @param {string} argument.publicationDate - The last publish datetime string in rfc3339 format
+ * @param {number=} argument.putCode - The ORCID /work record putCode
+ */
 const generateClaimWorkRecord = ({
   manifest,
   putCode,
@@ -483,9 +553,20 @@ const generateClaimWorkRecord = ({
     `
   );
 };
+
 const zeropad = (data: string) => (data.length < 2 ? `0${data}` : data);
 
-const generateRootWorkRecord = ({
+/**
+ * Generate an ORCID work summary xml string based for a research Node
+ * Model Reference https://github.com/ORCID/orcid-model/blob/master/src/main/resources/record_3.0/work-3.0.xsd
+ * @param {Object} argument - The Research Node details object
+ * @param {Object} argument.manifest - The node's manifest
+ * @param {number} argument.nodeVersion - The latest version of the research node
+ * @param {string} argument.publicationDate - The last publish datetime string in rfc3339 format
+ * @param {number=} argument.putCode - The ORCID /work record putCode
+ * @returns {string}  xml string of the constructed work summary data
+ */
+const generateNodeWorkRecord = ({
   manifest,
   nodeVersion,
   putCode,
@@ -495,7 +576,7 @@ const generateRootWorkRecord = ({
   nodeVersion: number;
   putCode?: string;
   publicationDate: string;
-}) => {
+}): string => {
   const codeAttr = putCode ? 'put-code="' + putCode + '"' : '';
   const workType = 'preprint';
   const [month, day, year] = publicationDate.split('-');
@@ -530,7 +611,13 @@ const generateRootWorkRecord = ({
   );
 };
 
-const generateContributors = (authors: ResearchObjectV1Author[]) => {
+/**
+ * Generate an ORCID work contributors xml string
+ * Model Reference https://github.com/ORCID/orcid-model/blob/master/src/main/resources/record_3.0/work-3.0.xsd#L160
+ * @param authors[] - A list of ResearchObjectV1Author entries
+ * @returns {string} xml string of the constructed contributor data
+ */
+const generateContributors = (authors: ResearchObjectV1Author[]): string => {
   const contributors =
     authors?.length > 0
       ? `<work:contributors>
@@ -558,3 +645,6 @@ const generateContributors = (authors: ResearchObjectV1Author[]) => {
       : ``;
   return contributors;
 };
+
+const orcidApiService = new OrcidApiService();
+export default orcidApiService;
