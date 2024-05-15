@@ -2177,7 +2177,7 @@ describe('Attestations Service', async () => {
         .once()
         .reply(201, '', { location: `https://api.sandbox.orcid.org/v3.0/${ORCID_ID}/work/${mockPutCode}` });
 
-      nock(`https://sandbox.orcid.org/oauth/token`).post(`${ORCID_ID}/work`).twice().reply(200, {
+      const scope2 = nock(`https://sandbox.orcid.org/oauth/token`).post(`${ORCID_ID}/work`).twice().reply(200, {
         access_token: 'access-token',
         token_type: 'auth',
         refresh_token: 'refresh-token',
@@ -2196,11 +2196,12 @@ describe('Attestations Service', async () => {
         });
       expect(res.statusCode).to.equal(200);
 
-      setTimeout(() => {
-        scope1.isDone();
-      }, 100);
+      scope1.isDone();
+      scope2.isDone();
+      // setTimeout(() => {
+      // }, 100);
 
-      const scope2 = nock('https://api.sandbox.orcid.org/v3.0')
+      const scope3 = nock('https://api.sandbox.orcid.org/v3.0')
         .put(`${ORCID_ID}/work/${mockPutCode}`)
         .once()
         .reply(200);
@@ -2209,9 +2210,9 @@ describe('Attestations Service', async () => {
         claimId: openCodeClaim.id,
       });
       expect(res.statusCode).to.equal(200);
-      setTimeout(() => {
-        scope2.isDone();
-      }, 100);
+      scope2.isDone();
+      // setTimeout(() => {
+      // }, 100);
 
       const verifications = await attestationService.getAllClaimVerfications(openCodeClaim.id);
       expect(verifications.length).to.equal(2);
