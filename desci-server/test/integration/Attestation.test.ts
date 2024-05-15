@@ -2188,6 +2188,7 @@ describe('Attestations Service', async () => {
         orcid: ORCID_ID,
       });
 
+      console.log('ACTIVE MOCKS', nock.activeMocks());
       let res = await request(app)
         .post(`/v1/attestations/verification`)
         .set('authorization', memberAuthHeaderVal1)
@@ -2196,8 +2197,6 @@ describe('Attestations Service', async () => {
         });
       expect(res.statusCode).to.equal(200);
 
-      scope1.isDone();
-      scope2.isDone();
       // setTimeout(() => {
       // }, 100);
 
@@ -2207,7 +2206,7 @@ describe('Attestations Service', async () => {
         claimId: openCodeClaim.id,
       });
       expect(res.statusCode).to.equal(200);
-      scope3.isDone();
+
       // setTimeout(() => {
       // }, 100);
 
@@ -2216,6 +2215,10 @@ describe('Attestations Service', async () => {
       expect(verifications.some((v) => v.userId === members[0].userId)).to.equal(true);
       expect(verifications.some((v) => v.userId === members[1].userId)).to.equal(true);
 
+      console.log('Pending MOCKS', nock.pendingMocks());
+      scope1.done();
+      scope2.done();
+      scope3.done();
       console.log('INTERCEPTOR SCOPE', scope1);
       console.log('INTERCEPTOR SCOPE', scope2);
       console.log('INTERCEPTOR SCOPE', scope3);

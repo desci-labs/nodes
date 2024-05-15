@@ -87,13 +87,13 @@ class OrcidApiService {
         });
         logger.info({ status: response.status, statusText: response.statusText, data }, 'REFRESH TOKEN RESPONSE');
       } else {
-        logger.info(
+        logger.error(
           { status: response.status, statusText: response.statusText, BODY: await response.json() },
           'REFRESH TOKEN ERROR',
         );
       }
     } catch (err) {
-      logger.info({ err }, 'ORCID REFRESH TOKEN ERROR');
+      logger.error({ err }, 'ORCID REFRESH TOKEN ERROR');
     }
 
     return authToken.accessToken;
@@ -362,7 +362,7 @@ class OrcidApiService {
         );
       }
     } catch (err) {
-      logger.info({ err }, '[ORCID_API_SERVICE]::NODE API Error Response');
+      logger.error({ err }, '[ORCID_API_SERVICE]::NODE API Error Response');
     }
   }
 
@@ -473,13 +473,13 @@ class OrcidApiService {
           'ORCID CLAIM RECORD UPDATED',
         );
       } else {
-        logger.info(
+        logger.error(
           { status: response.status, response, body: await response.text() },
           '[ORCID_API_SERVICE]::ORCID CLAIM API ERROR',
         );
       }
     } catch (err) {
-      logger.info({ err }, '[ORCID_API_SERVICE]::CLAIM API Error Response');
+      logger.error({ err }, '[ORCID_API_SERVICE]::CLAIM API Error Response');
     }
   }
 }
