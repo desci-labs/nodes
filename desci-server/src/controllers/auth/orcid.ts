@@ -74,7 +74,7 @@ export const getOrcidRecord = async (orcid: string, accessToken: string): Promis
     `Fetching OrcId Record for ${orcid}`,
   );
   const { data } = await axios(config);
-  logger.info({ fn: 'getOrcidRecord', orcid, data }, `Received OrcId Record data`);
+  logger.info({ fn: 'getOrcidRecord', orcid }, `Received OrcId Record data`);
 
   return data as OrcIdRecordData;
 };
