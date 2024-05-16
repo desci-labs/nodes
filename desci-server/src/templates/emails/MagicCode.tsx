@@ -1,16 +1,12 @@
 import {
   Body,
   Container,
-  Column,
   Head,
   Heading,
   Html,
   Preview,
-  Row,
   Text,
-  Button,
   Section,
-  render,
 } from '@react-email/components';
 import * as React from 'react';
 
@@ -29,7 +25,7 @@ export const MagicCodeEmail = ({ magicCode, ip }: MagicCodeEmailProps) => (
   >
     <Html>
       <Head />
-      <Preview>Confirm your contribution</Preview>
+      <Preview>Confirm your identity</Preview>
       <Body style={main}>
         <Container style={container}>
           <Heading style={h1} className="text-center !text-black">
