@@ -14,6 +14,9 @@ export const convertHexToUUID = (hex: string): string => {
   return base64safe;
 };
 
+// usage: npx tsx scripts/fix-dpid.ts 211
+// where 211 is the dpid to fix
+
 const dpid = process.argv[2];
 const fixDpid = async () => {
   logger.info({ fixDpid: dpid });
