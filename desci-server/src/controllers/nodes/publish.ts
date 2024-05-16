@@ -296,13 +296,6 @@ export const publishHandler = async ({
       discordNotify(`${targetDpidUrl}/${manifestSource.dpid?.id}${error ? ' (note: estuary-err)' : ''}`);
     };
 
-    // run fix dpid method
-    if (targetDpidUrl) {
-      await fixDpid(manifest.dpid.id);
-    } else {
-      logger.warn('DPID URL not set, skipping dpid fix');
-    }
-
     /**
      * NOTE: uncomment when reactivating public ref mirroring
     const handleMirrorSuccess = async (publishedResearchObjectResult) => {
