@@ -38,8 +38,9 @@ export const ContributorInvite = ({
   newUser,
 }: ContributorInviteEmailProps) => {
   if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
+  inviter = inviter || 'A user';
   const privShareUrl = `${DAPP_URL}/node/${nodeUuid}?shareId=${privShareCode}`;
-  const contributorUrl = `${DAPP_URL}/node/${nodeUuid}/contributors/${contributorId}?shareId=${privShareCode}`;
+  const contributorUrl = `${DAPP_URL}/node/${nodeUuid}/contributors/${contributorId}?shareId=${privShareCode}&src=inv`;
   return (
     <MainLayout>
       <Html>
