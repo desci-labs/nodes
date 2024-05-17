@@ -16,6 +16,7 @@ import {
   setCeramicStream,
 } from '../../services/nodeManager.js';
 import orcidApiService from '../../services/orcid.js';
+import { publishServices } from '../../services/PublishServices.js';
 import { discordNotify } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -295,6 +296,9 @@ export const publishHandler = async ({
       const manifestSource = manifest as ResearchObjectV1;
       discordNotify(`${targetDpidUrl}/${manifestSource.dpid?.id}${error ? ' (note: estuary-err)' : ''}`);
     };
+
+    // Send an email update to all contributors
+    await publishServices.sendVersionUpdateEmailToAllContributors({ node });
 
     /**
      * NOTE: uncomment when reactivating public ref mirroring
