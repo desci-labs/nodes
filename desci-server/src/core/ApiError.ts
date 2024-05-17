@@ -1,6 +1,7 @@
 import { Response } from 'express';
 
 import { AttestationError, AttestationErrorType } from '../internal.js';
+import { DoiError, DoiErrorType } from '../services/Doi.js';
 
 import {
   AuthFailureResponse,
@@ -57,6 +58,16 @@ export abstract class ApiError extends Error {
         case AttestationErrorType.NOT_FOUND:
         case AttestationErrorType.NO_DATA:
           return new NotFoundResponse(err.message).send(res);
+        default:
+          return new InternalErrorResponse(err.message).send(res);
+      }
+    } else if (err instanceof DoiError) {
+      switch (err.type) {
+        case DoiErrorType.BAD_METADATA:
+        case DoiErrorType.NO_MANUSCRIPT:
+        case DoiErrorType.INCOMPLETE_ATTESTATIONS:
+        case DoiErrorType.DUPLICATE_MINT:
+          return new BadRequestResponse(err.message, err).send(res);
         default:
           return new InternalErrorResponse(err.message).send(res);
       }

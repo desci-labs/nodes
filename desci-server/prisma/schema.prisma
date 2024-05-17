@@ -43,6 +43,7 @@ model Node {
   NodeContribution    NodeContribution[]
   PrivateShare        PrivateShare[]
   OrcidPutCodes       OrcidPutCodes[]
+  DoiRecord          DoiRecord[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -804,6 +805,16 @@ model OrcidPutCodes {
   Node      Node             @relation(fields: [uuid], references: [uuid])
 
   @@unique([orcid, uuid, reference])
+}
+
+model DoiRecord {
+  id        Int      @id @default(autoincrement())
+  doi       String   @unique
+  dpid      String   @unique
+  uuid      String   @unique
+  node      Node     @relation(fields: [uuid], references: [uuid])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum ORCIDRecord {
