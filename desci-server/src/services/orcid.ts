@@ -516,7 +516,7 @@ const generateClaimWorkRecord = ({
 
   const description = `${claim.name} Attestation`;
   const [month, day, year] = publicationDate.split('-');
-  const externalUrl = `${process.env.DPID_URL_OVERRIDE}/${manifest.dpid.id}/attestation/${claim.id}`;
+  const externalUrl = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/attestation/${claim.id}`;
   const dataRoot = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${nodeVersion}`;
   logger.info({ codeAttr, workType, publicationDate, day, month, year, externalUrl }, 'CODE ATTR');
   return (
@@ -537,13 +537,13 @@ const generateClaimWorkRecord = ({
     <common:external-ids>
       <common:external-id>
         <common:external-id-type>uri</common:external-id-type>
-        <common:external-id-value>${claim.name} URL</common:external-id-value>
+        <common:external-id-value>${claim.name} Root ${dataRoot}</common:external-id-value>
         <common:external-id-url>${dataRoot}</common:external-id-url>
         <common:external-id-relationship>self</common:external-id-relationship>
       </common:external-id>
       <common:external-id>
             <common:external-id-type>uri</common:external-id-type>
-            <common:external-id-value>${claim.name} by ${claim.community}</common:external-id-value>
+            <common:external-id-value>${externalUrl}</common:external-id-value>
             <common:external-id-url>${externalUrl}</common:external-id-url>
             <common:external-id-relationship>part-of</common:external-id-relationship>
         </common:external-id>
