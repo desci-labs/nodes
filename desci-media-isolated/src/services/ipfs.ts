@@ -11,7 +11,7 @@ export class IpfsService {
       throw new IpfsConfigurationError('process.env.IPFS_GATEWAY is not defined in environment variables');
     }
     const url = `${IPFS_GATEWAY}/${cid}`;
-    debugger;
+
     try {
       const response = await axios({
         method: 'get',

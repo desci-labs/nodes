@@ -58,15 +58,55 @@ export class PdfManipulationService {
        * Title
        */
       const titleSize = 30;
+      const titlePosY = 0.4;
 
-      this.drawCenteredMultilineText({
+      const titleLines = await this.drawCenteredMultilineText({
         page: newPage,
         text: title,
         font: helveticaFont,
         fontSize: titleSize,
         width,
         height,
-        paddingX: 20,
+        positionY: titlePosY,
+        paddingX: 100,
+      });
+
+      /*
+       * Authors
+       */
+      const authors = 'M. Ansdell, J. Williams, N. van der Marel, J. Carpenter, G. Guidi';
+      const authorsSize = 20;
+      const titleHeight = titleLines.length * helveticaFont.heightAtSize(titleSize);
+      const authorsPosY = titlePosY + titleHeight / height;
+
+      const authorsLines = await this.drawCenteredMultilineText({
+        page: newPage,
+        text: authors,
+        font: helveticaFont,
+        fontSize: authorsSize,
+        width,
+        height,
+        paddingX: 100,
+        positionY: authorsPosY,
+      });
+
+      /*
+       * Center Text (Artifacts available here)
+       */
+      const centeredText = 'Data and/or code available at:';
+      const centeredTextSize = 16;
+      const authorsHeight = authorsLines.length * helveticaFont.heightAtSize(authorsSize);
+      const centeredTextPosY = authorsPosY + authorsHeight / height + 0.02;
+
+      this.drawCenteredMultilineText({
+        page: newPage,
+        text: centeredText,
+        font: helveticaFont,
+        fontSize: centeredTextSize,
+        width,
+        height,
+        paddingX: 100,
+        positionY: centeredTextPosY,
       });
 
       /*
@@ -151,7 +191,7 @@ export class PdfManipulationService {
     paddingX = 0,
     positionY = 0.5,
     hyperlink,
-  }: DrawCenteredHelperParams): Promise<void> {
+  }: DrawCenteredHelperParams): Promise<string[]> {
     const lines: string[] = [];
     const words = text.split(' ');
     let currentLine = '';
@@ -210,6 +250,7 @@ export class PdfManipulationService {
         page.node.set(PDFName.of('Annots'), annotationsArray);
       }
     }
+    return lines;
   }
 
   static async drawCenteredImages({
