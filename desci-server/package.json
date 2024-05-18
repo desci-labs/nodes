@@ -21,6 +21,7 @@
     "script:testing": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/testing.ts",
     "script:migrate-draft-trees": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/migrate-draft-trees.ts",
     "script:endorse-dpid": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/endorse-dpid.ts",
+    "script:fix-dpid": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/fix-dpid.ts",
     "script:seed-social-data": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/seed-social-data.ts",
     "script:DESTRUCTIVE-clear-social-data": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/DESTRUCTIVE-clear-social-data.ts",
     "script:seed-community-member": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/seed-community-members.ts",

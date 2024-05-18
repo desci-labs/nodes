@@ -7,6 +7,8 @@ import { prisma } from '../client.js';
 import { publishHandler } from '../controllers/nodes/publish.js';
 import { logger as parentLogger } from '../logger.js';
 import { lockService } from '../redisClient.js';
+import { getManifestByCid } from '../services/data/processing.js';
+import { fixDpid, getTargetDpidUrl } from '../services/fixDpid.js';
 
 enum ProcessOutcome {
   EmptyQueue,
@@ -48,6 +50,16 @@ async function processPublishQueue() {
       publishHandler(task)
         .then(async (published) => {
           if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ task, published }, 'PUBLISH HANDLER SUCCESS');
+          // run fix dpid method
+
+          const targetDpidUrl = getTargetDpidUrl();
+
+          if (targetDpidUrl) {
+            await fixDpid(task.dpid);
+          } else {
+            logger.warn('DPID URL not set, skipping dpid fix');
+          }
+
           lockService.freeLock(task.transactionId);
         })
         .catch((err) => {

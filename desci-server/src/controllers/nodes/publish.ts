@@ -5,6 +5,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getManifestByCid } from '../../services/data/processing.js';
+import { fixDpid, getTargetDpidUrl } from '../../services/fixDpid.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import {
   publishResearchObject,
@@ -286,14 +287,13 @@ export const publishHandler = async ({
      * Initiate IPFS storage upload using Estuary
      */
     const manifest = await getManifestByCid(cid);
+
+    const targetDpidUrl = getTargetDpidUrl();
+
     // const researchObjectToPublish = { uuid, cid, manifest, ownerId: owner.id };
     const sendDiscordNotification = (error: boolean) => {
       const manifestSource = manifest as ResearchObjectV1;
-      discordNotify(
-        `https://${manifestSource.dpid?.prefix}.dpid.org/${manifestSource.dpid?.id}${
-          error ? ' (note: estuary-err)' : ''
-        }`,
-      );
+      discordNotify(`${targetDpidUrl}/${manifestSource.dpid?.id}${error ? ' (note: estuary-err)' : ''}`);
     };
 
     /**
@@ -329,11 +329,6 @@ export const publishHandler = async ({
     publishResearchObject(publicDataReferences).then(handleMirrorSuccess).catch(handleMirrorFail);
     */
     sendDiscordNotification(false);
-
-    /**
-     * Update ORCID Profile
-     */
-    if (owner.orcid) orcidApiService.postWorkRecord(node.uuid, owner.orcid);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version

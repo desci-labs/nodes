@@ -6,6 +6,7 @@ export type NodesContract =
   | tc.ResearchObject
   | tc.ResearchObjectV2
   | tc.DpidRegistry;
+
 export type ContractConnector<T extends NodesContract> =
   (signerOrProvider: Signer | providers.Provider) => T;
 
@@ -28,7 +29,7 @@ export const CHAIN_CONFIGS = {
   local: {
     chainId: "1337",
     rpcUrl: "http://localhost:8545",
-    researchObjectConnector: signerOrProvider => tc.ResearchObject__factory.connect(
+    researchObjectConnector: signerOrProvider => tc.ResearchObjectV2__factory.connect(
       contracts.localRoInfo.proxies.at(0)!.address,
       signerOrProvider
     ),
@@ -39,7 +40,19 @@ export const CHAIN_CONFIGS = {
   },
   dev: {
     chainId: "11155111",
-    rpcUrl: "https://eth-sepolia.g.alchemy.com/v2/demo",
+    rpcUrl: "https://reverse-proxy-dev.desci.com/rpc_sepolia",
+    researchObjectConnector: signerOrProvider => tc.ResearchObjectV2__factory.connect(
+      contracts.devRoInfo.proxies.at(0)!.address,
+      signerOrProvider
+    ),
+    dpidRegistryConnector: signerOrProvider => tc.DpidRegistry__factory.connect(
+      contracts.devDpidInfo.proxies.at(0)!.address,
+      signerOrProvider
+    ),
+  },
+  staging: {
+    chainId: "11155111",
+    rpcUrl: "https://reverse-proxy-staging.desci.com/rpc_sepolia",
     researchObjectConnector: signerOrProvider => tc.ResearchObjectV2__factory.connect(
       contracts.devRoInfo.proxies.at(0)!.address,
       signerOrProvider
@@ -51,7 +64,7 @@ export const CHAIN_CONFIGS = {
   },
   prod: {
     chainId: "11155111",
-    rpcUrl: "https://eth-sepolia.g.alchemy.com/v2/demo",
+    rpcUrl: "https://reverse-proxy-prod.desci.com/rpc_sepolia",
     researchObjectConnector: signerOrProvider => tc.ResearchObjectV2__factory.connect(
       contracts.prodRoInfo.proxies.at(0)!.address,
       signerOrProvider
