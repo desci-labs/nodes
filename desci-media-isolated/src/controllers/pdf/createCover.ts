@@ -13,6 +13,9 @@ export type GeneratePdfCoverRequestBody = {
   dpid?: string;
   codeAvailableDpid?: string;
   dataAvailableDpid?: string;
+  authors?: string[];
+  license: string;
+  publishDate: string;
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,15 +26,21 @@ const BASE_TEMP_DIR = path.resolve(__dirname, '../../..', TEMP_DIR);
  * Generates a cover page inserting a DOI and a DPID link for a PDF file provided via its CID
  */
 export const generatePdfCover = async (
-  req: Request<any, any, GeneratePdfCoverRequestBody, { header: boolean; headerAllPages: boolean }>,
+  req: Request<
+    any,
+    any,
+    GeneratePdfCoverRequestBody,
+    { header?: boolean; headerAllPages?: boolean; authorLimit?: number }
+  >,
   res: Response,
 ) => {
-  const { cid, doi, dpid, title, codeAvailableDpid, dataAvailableDpid } = req.body;
-  const { header = true, headerAllPages = false } = req.query;
+  const { cid, doi, dpid, title, codeAvailableDpid, dataAvailableDpid, license, publishDate, authors } = req.body;
+  const { header = true, headerAllPages = false, authorLimit } = req.query;
   try {
     if (!cid) throw new BadRequestError('Missing cid in request body');
     if (!doi) throw new BadRequestError('Missing doi in request body');
-    if (!title) throw new BadRequestError('Missing title in request body');
+    if (!license) throw new BadRequestError('Missing license in request body');
+    if (!publishDate) throw new BadRequestError('Missing publishDate in request body');
 
     const generationTaskId = crypto.randomUUID();
 
@@ -43,6 +52,10 @@ export const generatePdfCover = async (
       title,
       codeAvailableDpid,
       dataAvailableDpid,
+      license,
+      authors,
+      publishDate,
+      authorLimit,
     });
     const fullPdfPath = path.join(BASE_TEMP_DIR, PDF_OUTPUT_DIR, pdfPath);
 

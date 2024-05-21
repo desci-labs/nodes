@@ -1,4 +1,4 @@
-import type { PDFFont, PDFImage, PDFPage } from 'pdf-lib';
+import type { PDFFont, PDFImage, PDFPage, Color } from 'pdf-lib';
 
 export enum PDF_JOB_TYPE {
   ADD_COVER = 'cover',
@@ -12,6 +12,11 @@ export interface AddPdfCoverParams {
   dpid?: string;
   codeAvailableDpid?: string;
   dataAvailableDpid?: string;
+  reprodEnabledDpid?: string;
+  authors?: string[];
+  authorLimit?: number;
+  license: string;
+  publishDate: string;
 }
 
 export interface DrawCenteredHelperParams {
@@ -24,6 +29,7 @@ export interface DrawCenteredHelperParams {
   paddingX?: number;
   positionY?: number; // 0-1, vertical alignment, e.g. 0.5 is the center.
   hyperlink?: string;
+  color?: Color;
 }
 
 export interface PdfImageObject {
@@ -31,6 +37,9 @@ export interface PdfImageObject {
   width: number;
   height: number;
   hyperlink?: string;
+  text?: string;
+  textWidth?: number;
+  textHeight?: number;
 }
 export interface DrawCenteredImagesParams {
   page: PDFPage;
@@ -40,4 +49,6 @@ export interface DrawCenteredImagesParams {
   paddingX?: number;
   gap?: number; // Gap between images if multiple are passed into the array.
   positionY?: number; // 0-1, vertical alignment, e.g. 0.5 is the center.
+  annotateImage?: boolean; // renders image.text besides it
+  font?: PDFFont;
 }
