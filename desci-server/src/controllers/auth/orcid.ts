@@ -74,7 +74,7 @@ export const getOrcidRecord = async (orcid: string, accessToken: string): Promis
     `Fetching OrcId Record for ${orcid}`,
   );
   const { data } = await axios(config);
-  logger.info({ fn: 'getOrcidRecord', orcid, data }, `Received OrcId Record data`);
+  logger.info({ fn: 'getOrcidRecord', orcid }, `Received OrcId Record data`);
 
   return data as OrcIdRecordData;
 };
@@ -105,6 +105,7 @@ const getAllOrcData = async ({ queryCode, redirectUri }: { queryCode: string; re
   const orcRecord = await getOrcidRecord(orcAuthResponse.data['orcid'], orcAuthResponse.data['access_token']);
   logger.info({ fn: 'getAllOrcData', orcRecord }, 'Received OrcId Data');
 
+  // TODO: save access/refresh token into orcid profile table
   const orcAuthData = {
     orcid: orcAuthResponse.data['orcid'],
     orcidAccessToken: orcAuthResponse.data['access_token'],

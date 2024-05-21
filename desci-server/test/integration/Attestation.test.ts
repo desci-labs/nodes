@@ -5,6 +5,8 @@ import {
   Annotation,
   Attestation,
   AttestationVersion,
+  CommunityMember,
+  CommunityMembershipRole,
   DesciCommunity,
   Node,
   NodeAttestation,
@@ -93,6 +95,23 @@ const attestationData2 = [
   },
 ];
 
+const protectedAttestations = [
+  {
+    name: 'Open Code',
+    description:
+      'Digitally-shareable code is available in this research object.\n\nThe code must be provided in a format that is time-stamped, immutable, and permanent. It must also have associated persistent identifiers.\n\nBy publishing your code with default licensing via DeSci Nodes, you automatically satisfy this requirement.\n\nThe code has an open license allowing others to copy, distribute, and make use of the code while allowing the licensor to retain credit and copyright as applicable.\n\nSufficient explanation is present for an independent researcher to understand how the code is used and relates to the reported methodology, including information about versions of software, systems, and packages.',
+    image_url: 'https://pub.desci.com/ipfs/bafkreicwcj7drcyvkhvlva53qbjcrqbh6kuyr6zjdxb5sc4ehe7hxb43qu',
+    protected: true,
+  },
+  {
+    name: 'Open Data',
+    description:
+      'Digitally-shareable data are publicly available on an open-access repository. The data must have a **persistent identifier and be provided in a format that is time-stamped, immutable, and permanent** (e.g., university repository, a registration on the [Open Science Framework](http://osf.io/), or an independent repository at [www.re3data.org](http://www.re3data.org/)). By publishing your data via DeSci Nodes, you automatically satisfy this requirement.\n\nA data dictionary (for example, a codebook or metadata describing the data) is included with sufficient description for an independent researcher to reproduce the reported analyses and results. Data from the same project that are not needed to reproduce the reported results can be kept private without losing eligibility for the Open Data Badge.\n\nAn open license allowing others to copy, distribute, and make use of the data while allowing the licensor to retain credit and copyright as applicable. Creative Commons has defined several licenses for this purpose, which are described at [www.creativecommons.org/licenses](http://creativecommons.org/licenses). CC0 or CC-BY is strongly recommended.',
+    image_url: 'https://pub.desci.com/ipfs/bafkreia5ajqjlrhydhvwrwipfnpxl4otvr6777r3xm37fq2thh6l6ds7wq',
+    protected: true,
+  },
+];
+
 const nodesData = [
   {
     title: 'Node1 title',
@@ -121,6 +140,7 @@ describe('Attestations Service', async () => {
   let nodes: Node[];
   let nodeVersions: NodeVersion[];
   let desciCommunity: DesciCommunity;
+  let desciCommunityMembers: CommunityMember[];
   let localCommunity: DesciCommunity;
   let reproducibilityAttestation: Attestation;
   let openDataAttestation: Attestation;
@@ -129,6 +149,10 @@ describe('Attestations Service', async () => {
   let LocalReproducibilityAttestation: Attestation;
   let LocalOpenDataAttestation: Attestation;
   let LocalFairMetadataAttestation: Attestation;
+
+  // protected attestation declaration
+  let protectedOpenData: Attestation;
+  let protectedOpenCode: Attestation;
 
   const setup = async () => {
     // Create communities
@@ -145,9 +169,27 @@ describe('Attestations Service', async () => {
     [LocalReproducibilityAttestation, LocalOpenDataAttestation, LocalFairMetadataAttestation] = await Promise.all(
       attestationData2.map((data) => attestationService.create({ communityId: localCommunity.id as number, ...data })),
     );
-    // console.log({ LocalReproducibilityAttestation, LocalOpenDataAttestation, LocalFairMetadataAttestation });
+
+    [protectedOpenCode, protectedOpenData] = await Promise.all(
+      protectedAttestations.map((data) =>
+        attestationService.create({ communityId: desciCommunity.id as number, ...data }),
+      ),
+    );
 
     users = await createUsers(10);
+
+    // add Members to open
+    const mock_users = users.slice(8);
+    desciCommunityMembers = await Promise.all(
+      mock_users.map((user) =>
+        communityService.addCommunityMember(desciCommunity.id, {
+          userId: user.id,
+          role: CommunityMembershipRole.MEMBER,
+          communityId: desciCommunity.id,
+        }),
+      ),
+    );
+
     // console.log({ users });
 
     const baseManifest = await spawnEmptyManifest();
@@ -210,6 +252,8 @@ describe('Attestations Service', async () => {
     let attestationVersion: AttestationVersion;
     let author: User;
 
+    let nodeVersion2: NodeVersion, UserJwtToken: string, UserAuthHeaderVal: string;
+
     before(async () => {
       node = nodes[0];
       author = users[0];
@@ -224,11 +268,24 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author.id,
       });
+
+      // publish new node version
+      nodeVersion2 = await prisma.nodeVersion.create({
+        data: { nodeId: node.id, manifestUrl: node.manifestUrl, transactionId: randomUUID64() },
+      });
+
+      UserJwtToken = jwt.sign({ email: users[0].email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      UserAuthHeaderVal = `Bearer ${UserJwtToken}`;
     });
 
     after(async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "CommunityEntryAttestation" CASCADE;`;
+
+      // clean up (delete new node version entry)
+      await prisma.nodeVersion.delete({ where: { id: nodeVersion2.id } });
     });
 
     it('should claim an attestation to a node', () => {
@@ -255,6 +312,33 @@ describe('Attestations Service', async () => {
       });
       // console.log('CAN CLAIM', canClaim);
       expect(canClaim).to.be.false;
+    });
+
+    it('should prevent double claim on new version if old claim is not revoked', async () => {
+      assert(node.uuid);
+
+      // create request to claim node on new version using both claim and claimAll apis
+      let res = await request(app).post(`/v1/attestations/claim`).set('authorization', UserAuthHeaderVal).send({
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion: 1,
+        claimerId: author.id,
+        attestationId: reproducibilityAttestation.id,
+      });
+      expect(res.status).to.equal(200);
+
+      res = await request(app).post(`/v1/attestations/claimAll`).set('authorization', UserAuthHeaderVal).send({
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion: 1,
+        claimerId: author.id,
+        communityId: reproducibilityAttestation.communityId,
+      });
+      expect(res.status).to.equal(200);
+
+      // verify only one claim exists on the old version of the node
+      const attestations = await attestationService.getAllNodeAttestations('1');
+      expect(attestations.length).to.equal(2);
     });
   });
 
@@ -2001,6 +2085,143 @@ describe('Attestations Service', async () => {
       const revoked = claims.find((c) => c.id === claim.id);
       expect(revoked?.revoked).to.be.false;
       expect(revoked?.revokedAt).to.be.null;
+    });
+  });
+
+  describe('Protected Attestation Verification', async () => {
+    let openCodeClaim: NodeAttestation;
+    let openDataClaim: NodeAttestation;
+    let node: Node;
+    const nodeVersion = 0;
+    let attestationVersion: AttestationVersion;
+    let author: User;
+    let verification: NodeAttestationVerification;
+    let members: (CommunityMember & {
+      user: User;
+    })[];
+    let UserJwtToken: string,
+      UserAuthHeaderVal: string,
+      MemberJwtToken1: string,
+      MemberJwtToken2: string,
+      memberAuthHeaderVal1: string,
+      memberAuthHeaderVal2: string;
+
+    before(async () => {
+      node = nodes[0];
+      author = users[0];
+      assert(node.uuid);
+      const versions = await attestationService.getAttestationVersions(protectedOpenCode.id);
+      attestationVersion = versions[versions.length - 1];
+      openCodeClaim = await attestationService.claimAttestation({
+        attestationId: protectedOpenCode.id,
+        attestationVersion: attestationVersion.id,
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      members = await communityService.getAllMembers(desciCommunity.id);
+      MemberJwtToken1 = jwt.sign({ email: members[0].user.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      memberAuthHeaderVal1 = `Bearer ${MemberJwtToken1}`;
+
+      MemberJwtToken2 = jwt.sign({ email: members[1].user.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      memberAuthHeaderVal2 = `Bearer ${MemberJwtToken2}`;
+
+      UserJwtToken = jwt.sign({ email: users[1].email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      UserAuthHeaderVal = `Bearer ${UserJwtToken}`;
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
+      // await prisma.$queryRaw`TRUNCATE TABLE "CommunityMember" CASCADE;`;
+    });
+
+    it('should allow only members verify a node attestation(claim)', async () => {
+      let res = await request(app)
+        .post(`/v1/attestations/verification`)
+        .set('authorization', memberAuthHeaderVal1)
+        .send({
+          claimId: openCodeClaim.id,
+        });
+      expect(res.statusCode).to.equal(200);
+
+      res = await request(app).post(`/v1/attestations/verification`).set('authorization', memberAuthHeaderVal2).send({
+        claimId: openCodeClaim.id,
+      });
+      expect(res.statusCode).to.equal(200);
+
+      const verifications = await attestationService.getAllClaimVerfications(openCodeClaim.id);
+      expect(verifications.length).to.equal(2);
+      expect(verifications.some((v) => v.userId === members[0].userId)).to.equal(true);
+      expect(verifications.some((v) => v.userId === members[1].userId)).to.equal(true);
+    });
+
+    it('should prevent non-authorized users from verifying a protected attestation(claim)', async () => {
+      const userVerificationResponse = await request(app)
+        .post(`/v1/attestations/verification`)
+        .set('authorization', UserAuthHeaderVal)
+        .send({
+          claimId: openCodeClaim.id,
+        });
+      expect(userVerificationResponse.statusCode).to.equal(401);
+
+      const verifications = await attestationService.getAllClaimVerfications(openCodeClaim.id);
+      expect(verifications.length).to.equal(2);
+      expect(verifications.some((v) => v.userId === members[0].userId)).to.equal(true);
+      expect(verifications.some((v) => v.userId === members[1].userId)).to.equal(true);
+    });
+
+    it.skip('should prevent double verification of Node Attestation(Claim)', async () => {
+      try {
+        await attestationService.verifyClaim(openCodeClaim.id, users[1].id);
+      } catch (err) {
+        expect(err).to.be.instanceOf(DuplicateVerificationError);
+      }
+    });
+
+    it.skip('should restrict author from verifying their claim', async () => {
+      try {
+        assert(author.id === node.ownerId);
+        await attestationService.verifyClaim(openCodeClaim.id, author.id);
+      } catch (err) {
+        expect(err).to.be.instanceOf(VerificationError);
+      }
+    });
+
+    it.skip('should remove verification', async () => {
+      const removedVerification = await attestationService.removeVerification(verification.id, users[1].id);
+      expect(removedVerification).to.not.be.null;
+      expect(removedVerification).to.not.be.undefined;
+      expect(removedVerification.id).to.equal(verification.id);
+
+      const voidVerification = await attestationService.getUserClaimVerification(openCodeClaim.id, users[1].id);
+      expect(voidVerification).to.be.null;
+    });
+
+    it.skip('should allow multiple users verify a node attestation(claim)', async () => {
+      const user2Verification = await attestationService.verifyClaim(openCodeClaim.id, users[2].id);
+      expect(user2Verification.nodeAttestationId).to.be.equal(openCodeClaim.id);
+      expect(user2Verification.userId).to.be.equal(users[2].id);
+
+      const user3Verification = await attestationService.verifyClaim(openCodeClaim.id, users[3].id);
+      expect(user3Verification.nodeAttestationId).to.be.equal(openCodeClaim.id);
+      expect(user3Verification.userId).to.be.equal(users[3].id);
+
+      const verifications = await attestationService.getAllClaimVerfications(openCodeClaim.id);
+      expect(verifications.length).to.be.equal(2);
+
+      assert(node.uuid);
+      const nodeVerifications = await attestationService.getAllNodeVerfications(node.uuid);
+      expect(nodeVerifications.length).to.be.equal(2);
     });
   });
 });

@@ -60,16 +60,16 @@ export const checkUserPublishConsent = async (req: Request, res: Response, next:
   const { uuid } = req.params;
 
   let consents = await getUserPublishConsent(user.id);
-  logger.info({ consents, user: user.id }, 'USER_PUBLISH_CONSENT');
+  logger.info({ consents: consents.length, user: user.id }, 'USER_PUBLISH_CONSENT');
   consents = consents.filter((consent) => {
     const data = JSON.parse(consent.extra);
     const consentUuid = ensureUuidEndsWithDot(data?.uuid ?? '');
-    logger.info({ consent, data, consentUuid, uuid }, 'USER_PUBLISH_CONSENT');
+    logger.info({ consent: consents.length, data, consentUuid, uuid }, 'USER_PUBLISH_CONSENT');
     if (consentUuid === ensureUuidEndsWithDot(uuid)) return true;
     return false;
   });
 
-  logger.info({ consents }, 'FILTERED:USER_PUBLISH_CONSENT');
+  logger.info({ consents: consents.length }, 'FILTERED:USER_PUBLISH_CONSENT');
   const consent = consents[consents.length - 1];
   const extra = consent?.extra ? JSON.parse(consent.extra) : {};
   logger.info({ consent, extra }, 'USER_PUBLISH_CONSENT');

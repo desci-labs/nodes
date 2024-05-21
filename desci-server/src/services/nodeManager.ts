@@ -5,7 +5,6 @@ import axios from 'axios';
 import { prisma } from '../client.js';
 import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
-import { uploadDataToEstuary } from '../services/estuary.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { generateDataReferences } from '../utils/dataRefTools.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';

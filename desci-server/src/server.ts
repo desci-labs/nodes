@@ -65,7 +65,6 @@ class AppServer {
   app: Express;
   server: HttpServer;
   port: number;
-  // socketServer: SocketServer;
 
   constructor() {
     this.app = express();
@@ -212,6 +211,8 @@ class AppServer {
   }
 
   async #initWorker() {
+    // TODO: remove after testing
+    // await Promise.all([runWorkerUntilStopped(), runWorkerUntilStopped()]);
     await runWorkerUntilStopped();
   }
 }

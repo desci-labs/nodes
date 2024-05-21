@@ -77,8 +77,12 @@ This is a NodeJS backend that manages draft Nodes. It maintains a user auth, ver
 
 ## **nodes-lib**
 
-A library for programmatically interacting with Nodes, basically allowing automation of actions possible in the webapp. See separate documentation in the [README](./nodes-lib/README.md)
+A library for programmatically interacting with Nodes, basically allowing automation of actions possible in the webapp. See separate documentation in the [README](./nodes-lib/README.md).
 <br><br>
+
+## **reverse-proxy-service**
+
+A tiny service for proxying route segments to given target URL's, allowing hiding many target destinations under aliases on one domain. See docs in [README](./reverse-proxy-service/README.md).
 
 ## **desci-art-viewer**
 

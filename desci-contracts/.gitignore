@@ -11,3 +11,4 @@ build
 .openzeppelin/migration-complete.json
 *.dbg.json
 flat.sol
+dist

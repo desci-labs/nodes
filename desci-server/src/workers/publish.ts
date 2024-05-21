@@ -1,9 +1,14 @@
-import { PublishTaskQueueStatus } from '@prisma/client';
+import os from 'os';
+
+import { PublishTaskQueue, PublishTaskQueueStatus } from '@prisma/client';
 import { ethers } from 'ethers';
 
 import { prisma } from '../client.js';
 import { publishHandler } from '../controllers/nodes/publish.js';
 import { logger as parentLogger } from '../logger.js';
+import { lockService } from '../redisClient.js';
+import { getManifestByCid } from '../services/data/processing.js';
+import { fixDpid, getTargetDpidUrl } from '../services/fixDpid.js';
 
 enum ProcessOutcome {
   EmptyQueue,
@@ -15,72 +20,92 @@ const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || 'http://host.docker.int
 
 if (!ETHEREUM_RPC_URL) throw new Error('Env var` ETHEREUM_RPC_URL` not set');
 
-const logger = parentLogger.child({ module: 'publish.ts_PUBLISH_WORKER' });
+const hostname = os.hostname();
+const logger = parentLogger.child({ module: 'PUBLISH WORKER', hostname });
 
 const checkTransaction = async (transactionId: string, uuid: string) => {
   const provider = ethers.getDefaultProvider(ETHEREUM_RPC_URL);
-  logger.info(
-    {
-      uuid,
-      transactionId,
-      ETHEREUM_RPC_URL,
-    },
-    'TX::check transaction',
-  );
+  if (!process.env.MUTE_PUBLISH_WORKER)
+    logger.info(
+      {
+        uuid,
+        transactionId,
+        ETHEREUM_RPC_URL,
+      },
+      'TX::check transaction',
+    );
 
-  console.log('NETWORK', await provider.getNetwork());
   const tx = await provider.getTransactionReceipt(transactionId);
-  console.log('TX::Receipt', { tx });
+  logger.info({ tx, uuid, transactionId, ETHEREUM_RPC_URL, network: await provider.getNetwork() }, 'TX::Receipt');
   return tx?.status;
 };
 
 async function processPublishQueue() {
   const task = await dequeueTask();
-
-  logger.info({ task }, 'publish::processPublishQueue task info');
-
-  if (!task) {
-    logger.info('publish::processPublishQueue Empty Queue');
-    return ProcessOutcome.EmptyQueue;
-  }
+  if (!task) return ProcessOutcome.EmptyQueue;
 
   try {
     const txStatus = await checkTransaction(task.transactionId, task.uuid);
     logger.info({ txStatus }, 'publish::processPublishQueue txStatus');
     if (txStatus === 1) {
-      // todo: dispatch publish task
       publishHandler(task)
-        .then((published) => {
-          logger.info({ task, published }, 'publish::processPublishQueue PUBLISH SUCCESS');
+        .then(async (published) => {
+          if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ task, published }, 'PUBLISH HANDLER SUCCESS');
+          // run fix dpid method
+
+          const targetDpidUrl = getTargetDpidUrl();
+
+          if (targetDpidUrl) {
+            await fixDpid(task.dpid);
+          } else {
+            logger.warn('DPID URL not set, skipping dpid fix');
+          }
+
+          lockService.freeLock(task.transactionId);
         })
         .catch((err) => {
-          logger.info({ task, err }, 'publish::processPublishQueue PUBLISH FAILED');
+          logger.info({ task, err }, 'PUBLISH HANDLER ERROR');
+          lockService.freeLock(task.transactionId);
         });
-      // todo: dequeue task
       await prisma.publishTaskQueue.delete({ where: { id: task.id } });
     } else if (txStatus === 0) {
       await prisma.publishTaskQueue.update({ where: { id: task.id }, data: { status: PublishTaskQueueStatus.FAILED } });
-      logger.info({ txStatus }, 'publish::processPublishQueue PUBLISH TX Receipt');
+      lockService.freeLock(task.transactionId);
+      if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ txStatus }, 'PUBLISH TX FAILED');
     } else {
       await prisma.publishTaskQueue.update({
         where: { id: task.id },
         data: { status: PublishTaskQueueStatus.PENDING },
       });
-      logger.info({ txStatus }, 'publish::processPublishQueue PUBLISH TX Might be stuck');
+      lockService.freeLock(task.transactionId);
+      logger.info({ txStatus, task }, 'PUBLISH TX STILL PENDING');
     }
     return ProcessOutcome.TaskCompleted;
   } catch (err) {
     logger.error({ err }, 'publish::processPublishQueue ProcessPublishQueue::ERROR');
     return ProcessOutcome.Error;
+  } finally {
+    lockService.freeLock(task.transactionId);
   }
 }
 
 const dequeueTask = async () => {
-  let task = await prisma.publishTaskQueue.findFirst({ where: { status: PublishTaskQueueStatus.WAITING } });
-  if (!task) {
-    task = await prisma.publishTaskQueue.findFirst({ where: { status: PublishTaskQueueStatus.PENDING } });
+  let nextTask: PublishTaskQueue;
+  let tasks = await prisma.publishTaskQueue.findMany({ where: { status: PublishTaskQueueStatus.WAITING }, take: 5 });
+  if (!tasks.length) {
+    tasks = await prisma.publishTaskQueue.findMany({ where: { status: PublishTaskQueueStatus.PENDING }, take: 5 });
   }
-  return task;
+  if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ tasks }, 'TASKS');
+  for (const task of tasks) {
+    const taskLock = await lockService.aquireLock(task.transactionId);
+    logger.info({ taskLock, task }, 'ATTEMPT TO ACQUIRE LOCK');
+    if (taskLock) {
+      nextTask = task;
+      break;
+    }
+  }
+  if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ nextTask }, 'DEQUEUE TASK');
+  return nextTask;
 };
 
 const delay = async (timeMs: number) => {
@@ -90,7 +115,7 @@ const delay = async (timeMs: number) => {
 export async function runWorkerUntilStopped() {
   while (true) {
     const outcome = await processPublishQueue();
-    console.log('Processed Queue', outcome);
+    if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ outcome }, 'Processed Queue');
     switch (outcome) {
       case ProcessOutcome.EmptyQueue:
         await delay(10000);

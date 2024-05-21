@@ -5,6 +5,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getManifestByCid } from '../../services/data/processing.js';
+import { fixDpid, getTargetDpidUrl } from '../../services/fixDpid.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import {
   publishResearchObject,
@@ -14,40 +15,34 @@ import {
   createDataMirrorJobs,
   setCeramicStream,
 } from '../../services/nodeManager.js';
+import orcidApiService from '../../services/orcid.js';
 import { discordNotify } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
-
 export type PublishReqBody = {
-  uuid: string,
-  cid: string,
-  manifest: ResearchObjectV1,
-  transactionId: string,
-  ceramicStream?: string,
-  commitId?: string,
+  uuid: string;
+  cid: string;
+  manifest: ResearchObjectV1;
+  transactionId: string;
+  ceramicStream?: string;
+  commitId?: string;
 };
 
-export type PublishRequest = Request<
-  never,
-  never,
-  PublishReqBody
-> & {
+export type PublishRequest = Request<never, never, PublishReqBody> & {
   user: User; // added by auth middleware
 };
 
-export type PublishResBody = {
-  ok: boolean,
-  taskId: number,
-} | {
-  error: string,
-};
+export type PublishResBody =
+  | {
+      ok: boolean;
+      taskId: number;
+    }
+  | {
+      error: string;
+    };
 
 // call node publish service and add job to queue
-export const publish = async (
-  req: PublishRequest,
-  res: Response<PublishResBody>,
-  _next: NextFunction
-) => {
+export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
   const { uuid, cid, manifest, transactionId, ceramicStream, commitId } = req.body;
   // debugger;
   const email = req.user.email;
@@ -67,16 +62,16 @@ export const publish = async (
 
   if (!uuid || !cid || !manifest) {
     return res.status(404).send({ error: 'uuid, cid, email, and manifest must be valid' });
-  };
+  }
 
   if (email === undefined || email === null) {
     // Prevent any issues with prisma findFirst with undefined fields
     return res.status(401).send({ error: 'email must be valid' });
-  };
+  }
 
   if (!(ceramicStream && commitId)) {
     logger.warn({ uuid }, `[publish] called with unexpected stream (${ceramicStream}) and/org commit (${commitId})`);
-  };
+  }
 
   try {
     /**TODO: MOVE TO MIDDLEWARE */
@@ -232,7 +227,7 @@ export const publishHandler = async ({
     } else {
       // Likely feature toggle is active in backend, but not in frontend
       logger.warn(`[ceramic] wanted to set streamID for ${node.uuid} but request did not contain one`);
-    };
+    }
 
     logger.trace(`[publish::publish] nodeUuid=${node.uuid}, manifestCid=${cid}, transaction=${transactionId}`);
 
@@ -264,8 +259,10 @@ export const publishHandler = async ({
       /**
        * Create a job per mirror in order to track the status of the upload
        * There can be multiple mirrors per node, right now there is just Estuary
+       *
+       * NOTE: uncomment when reactivating public ref mirroring
+       const dataMirrorJobs = await createDataMirrorJobs(cidsRequiredForPublish, owner.id);
        */
-      const dataMirrorJobs = await createDataMirrorJobs(cidsRequiredForPublish, owner.id);
 
       // TODO: update public data refs to link versionId
 
@@ -274,7 +271,7 @@ export const publishHandler = async ({
        */
       await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_SUCCESS, {
         cidsPayload,
-        result: { newPublicDataRefs, dataMirrorJobs },
+        result: { newPublicDataRefs },
       });
     } catch (error) {
       logger.error({ error }, `[publish::publish] error=${error}`);
@@ -290,16 +287,17 @@ export const publishHandler = async ({
      * Initiate IPFS storage upload using Estuary
      */
     const manifest = await getManifestByCid(cid);
-    const researchObjectToPublish = { uuid, cid, manifest, ownerId: owner.id };
-    const sendDiscordNotification = (error) => {
+
+    const targetDpidUrl = getTargetDpidUrl();
+
+    // const researchObjectToPublish = { uuid, cid, manifest, ownerId: owner.id };
+    const sendDiscordNotification = (error: boolean) => {
       const manifestSource = manifest as ResearchObjectV1;
-      discordNotify(
-        `https://${manifestSource.dpid?.prefix}.dpid.org/${manifestSource.dpid?.id}${
-          error ? ' (note: estuary-err)' : ''
-        }`,
-      );
+      discordNotify(`${targetDpidUrl}/${manifestSource.dpid?.id}${error ? ' (note: estuary-err)' : ''}`);
     };
 
+    /**
+     * NOTE: uncomment when reactivating public ref mirroring
     const handleMirrorSuccess = async (publishedResearchObjectResult) => {
       await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_RESEARCH_OBJECT_SUCCESS, {
         researchObjectToPublish,
@@ -329,6 +327,8 @@ export const publishHandler = async ({
 
     // trigger ipfs storage upload, but don't wait for it to finish, will happen async
     publishResearchObject(publicDataReferences).then(handleMirrorSuccess).catch(handleMirrorFail);
+    */
+    sendDiscordNotification(false);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
@@ -338,6 +338,6 @@ export const publishHandler = async ({
     return true;
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
-    return false; // res.status(400).send({ ok: false, error: err.message });
+    return false;
   }
 };

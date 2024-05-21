@@ -4,6 +4,7 @@ import { addContributor } from '../../controllers/nodes/contributions/create.js'
 import { deleteContributor } from '../../controllers/nodes/contributions/delete.js';
 import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
 import { getUserContributions } from '../../controllers/nodes/contributions/getUserContributions.js';
+import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
 import { updateContributor } from '../../controllers/nodes/contributions/update.js';
 import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
@@ -32,6 +33,7 @@ import {
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { prepublish } from '../../controllers/nodes/prepublish.js';
+import { listSharedNodes } from '../../controllers/nodes/sharedNodes.js';
 import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { asyncHander, attachUser, validate } from '../../internal.js';
@@ -59,6 +61,7 @@ router.get(
 );
 router.post('/terms', [ensureUser], consent);
 router.get('/share/verify/:shareId', checkPrivateShareId);
+router.get('/share', [ensureUser], listSharedNodes);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);
 router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
@@ -67,12 +70,13 @@ router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatchDocumentChange);
 router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
+router.post('/contributions/node/:uuid', [attachUser], getNodeContributions);
 router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addContributor);
+router.patch('/contributions/verify', [ensureUser], verifyContribution);
 router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], updateContributor);
 router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], deleteContributor);
 router.get('/contributions/user/:userId', [], getUserContributions);
-router.get('/contributions/node/:uuid', [attachUser], getNodeContributions);
-router.patch('/contributions/verify', [ensureUser], verifyContribution);
+router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 

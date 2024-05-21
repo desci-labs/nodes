@@ -2,7 +2,11 @@ import { Request, Response } from 'express';
 
 import { logger as parentLogger } from '../../../logger.js';
 import { processS3DataToIpfs } from '../../../services/data/processing.js';
-import { GoogleApiService } from '../../../services/googleApiService.js';
+import {
+  GoogleApiService,
+  googleDocsExportMap,
+  googleDocsMimeExtensionConversionMap,
+} from '../../../services/googleApiService.js';
 import { ErrorResponse, UpdateResponse } from '../update.js';
 
 interface GoogleImportReqBody {
@@ -34,9 +38,20 @@ export const googleImport = async (
   const googleService = new GoogleApiService(gAuthAccessToken);
   // googleService.exchangeCodeForToken(gAuthAccessToken);
   const fileMd = await googleService.getFileMetadata(googleFileId);
-  const fileStream = await googleService.getFileStream(googleFileId);
+
+  const isGoogleDoc = googleDocsExportMap.hasOwnProperty(fileMd.mimeType);
+  let fileStream;
+  let fileName = fileMd.name;
+
+  if (isGoogleDoc) {
+    const exportMimeType = googleDocsExportMap[fileMd.mimeType];
+    fileStream = await googleService.exportFile(googleFileId, exportMimeType);
+    fileName = fileMd.name + '.' + googleDocsMimeExtensionConversionMap[fileMd.mimeType];
+  } else {
+    fileStream = await googleService.getFileStream(googleFileId);
+  }
   // debugger;
-  const files = [{ originalname: '/' + fileMd.name, content: fileStream, size: fileMd.size }];
+  const files = [{ originalname: '/' + fileName, content: fileStream, size: fileMd.size }];
   const { ok, value } = await processS3DataToIpfs({
     files,
     user: owner,

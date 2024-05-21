@@ -87,7 +87,7 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
   let annotation: Annotation;
   if (highlights?.length > 0) {
     const processedHighlights = await asyncMap(highlights, async (highlight) => {
-      if (!highlight.image) return highlight;
+      if (!('image' in highlight)) return highlight;
       const blob = base64ToBlob(highlight.image);
       const storedCover = await client.add(blob, { cidVersion: 1 });
 

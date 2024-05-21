@@ -92,6 +92,10 @@ export interface ResearchObjectV1Component {
  * Contributor listing for a research object.
  */
 export interface ResearchObjectV1Author {
+  /** Random UUID to identify the contributor - optional for compatability with old models
+   * Going forwards assignment is best practice.
+   */
+  id?: string;
   /** Name of the contributor */
   name: string;
   /** Orcid handle of the contributor */
@@ -346,14 +350,26 @@ export interface PdfAnnotation extends ResearchObjectComponentAnnotation, Scaled
   __client?: any;
 }
 
-export interface HighlightBlock extends PdfAnnotation {
-  move?: boolean;
-  text?: string;
-  title?: string;
+export interface PdfHighlightBlock extends PdfAnnotation {
   image?: string;
   path: string;
   rects: COORDP[];
+  kind: 'pdf';
 }
+
+export interface CodeAnnotation extends ResearchObjectComponentAnnotation {
+  path: string;
+  text?: string;
+  cid: string;
+  startLine: number;
+  endLine: number;
+  language: string;
+}
+
+export interface CodeHighlightBlock extends CodeAnnotation {
+  kind: 'code';
+}
+export type HighlightBlock = CodeHighlightBlock | PdfHighlightBlock;
 
 export interface ResearchObjectComponentAnnotation {
   id: string;
@@ -417,4 +433,3 @@ export type License =
   | 'EPL-2.0'
   | 'AGPL-3.0'
   | 'Unlicense';
-

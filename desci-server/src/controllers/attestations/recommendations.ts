@@ -54,3 +54,35 @@ export const getCommunityRecommendations = async (req: Request, res: Response, _
   logger.info({ attestations: attestations.length, communityName }, 'GetCommunityRecommendations');
   return new SuccessResponse(attestations).send(res);
 };
+
+export const getValidatedAttestations = async (req: Request, res: Response, _next: NextFunction) => {
+  const { communityName } = req.params;
+  logger.info({ communityName });
+  const community = await communityService.findCommunityByNameOrSlug(communityName);
+  if (!community) throw new NotFoundError('Community not found');
+  logger.info({ community });
+
+  const attestations = await attestationService.getCommunityAttestations({
+    communityId: community.id,
+    protected: true,
+  });
+  const response = _.map(attestations, (attestation) => ({
+    ...attestation,
+    AttestationVersion: attestation.AttestationVersion[0],
+  }));
+  return new SuccessResponse(response).send(res);
+};
+
+export const getValidatedRecommendations = async (req: Request, res: Response, _next: NextFunction) => {
+  const attestations = await attestationService.getProtectedAttestations({
+    protected: true,
+  });
+  const response = _.map(attestations, (attestation) => ({
+    ...attestation,
+    community: undefined,
+    communityName: attestation.community.name,
+    AttestationVersion: attestation.AttestationVersion[0],
+  }));
+  logger.info({ attestations }, 'getValidatedRecommendations');
+  return new SuccessResponse(response).send(res);
+};

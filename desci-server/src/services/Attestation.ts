@@ -1,7 +1,7 @@
 import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { AnnotationType, Attestation, NodeAttestation, Prisma } from '@prisma/client';
+import { AnnotationType, Attestation, Prisma } from '@prisma/client';
 import { logger } from 'ethers';
 import _ from 'lodash';
 
@@ -223,9 +223,9 @@ export class AttestationService {
       where: { nodeDpid10: dpid, revoked: false },
       include: {
         community: { select: { name: true, description: true, keywords: true, image_url: true } },
+        attestation: { select: { protected: true, verified_image_url: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
         node: { select: { ownerId: true } },
-        // NodeAttestationReaction: { s},
         _count: {
           select: { Annotation: true, NodeAttestationReaction: true, NodeAttestationVerification: true },
         },
@@ -233,11 +233,41 @@ export class AttestationService {
     });
   }
 
+  async getProtectedNodeClaims(dpid: string) {
+    const data = await prisma.nodeAttestation.findMany({
+      where: { nodeDpid10: dpid, revoked: false },
+      include: {
+        community: { select: { name: true } },
+        attestation: { select: { protected: true } },
+        attestationVersion: { select: { name: true, description: true, image_url: true } },
+        _count: {
+          select: { NodeAttestationVerification: true },
+        },
+      },
+    });
+
+    const protectedClaims = _(data)
+      .filter((claim) => claim.attestation.protected === true)
+      .map((claim) => ({
+        id: claim.id,
+        name: claim.attestationVersion.name,
+        description: claim.attestationVersion.description,
+        image_url: claim.attestationVersion.image_url,
+        verifications: claim._count.NodeAttestationVerification,
+        community: claim.community.name,
+        nodeVersion: claim.nodeVersion,
+      }))
+      .value();
+
+    return protectedClaims;
+  }
+
   async getNodeCommunityAttestations(dpid: string, communityId: number) {
     return prisma.nodeAttestation.findMany({
       where: { nodeDpid10: dpid, desciCommunityId: communityId, revoked: false },
       include: {
         community: { select: { name: true, description: true, keywords: true } },
+        attestation: { select: { protected: true, verified_image_url: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
         node: { select: { ownerId: true } },
         // NodeAttestationReaction: { s},
@@ -416,6 +446,14 @@ export class AttestationService {
     const claim = await this.findClaimById(nodeAttestationId);
     if (!claim) throw new ClaimNotFoundError();
 
+    const attestation = await this.findAttestationById(claim.attestationId);
+    if (attestation.protected) {
+      const member = await prisma.communityMember.findUnique({
+        where: { userId_communityId: { userId, communityId: attestation.communityId } },
+      });
+      if (!member) throw new NoAccessError('Only Community members are allowed');
+    }
+
     const node = await prisma.node.findFirst({ where: { uuid: claim.nodeUuid } });
     if (node.ownerId === userId) throw new VerificationError('Node author cannot verify claim');
 
@@ -557,6 +595,20 @@ export class AttestationService {
 
   async getAnnotations(filter: Prisma.AnnotationWhereInput) {
     return prisma.annotation.findMany({ where: filter });
+  }
+
+  async getCommunityAttestations(filter: Prisma.AttestationWhereInput) {
+    return prisma.attestation.findMany({
+      where: filter,
+      include: { AttestationVersion: { orderBy: { createdAt: 'desc' } } },
+    });
+  }
+
+  async getProtectedAttestations(filter: Prisma.AttestationWhereInput) {
+    return prisma.attestation.findMany({
+      where: filter,
+      include: { community: true, AttestationVersion: { orderBy: { createdAt: 'desc' } } },
+    });
   }
 
   async findAnnotationById(id: number) {

@@ -42,7 +42,7 @@ export class CommunityService {
     });
   }
 
-  private async addCommunityMember(communityId: number, data: Prisma.CommunityMemberCreateManyInput) {
+  async addCommunityMember(communityId: number, data: Prisma.CommunityMemberCreateManyInput) {
     const existingMember = await this.findMemberByUserId(communityId, data.userId);
     if (existingMember) return existingMember;
     return prisma.communityMember.create({ data: data });
@@ -282,15 +282,18 @@ export class CommunityService {
     return groupedEngagements;
   }
 
-  private async getAllMembers(communityId: number) {
-    return await prisma.communityMember.findMany({ where: { communityId, role: CommunityMembershipRole.MEMBER } });
+  async getAllMembers(communityId: number) {
+    return await prisma.communityMember.findMany({
+      where: { communityId, role: CommunityMembershipRole.MEMBER },
+      include: { user: true },
+    });
   }
 
-  private async findMemberByUserId(communityId: number, userId: number) {
+  async findMemberByUserId(communityId: number, userId: number) {
     return await prisma.communityMember.findUnique({ where: { userId_communityId: { userId, communityId } } });
   }
 
-  private async removeMember(communityId: number, userId: number) {
+  async removeMember(communityId: number, userId: number) {
     return prisma.communityMember.delete({ where: { userId_communityId: { userId, communityId } } });
   }
 }

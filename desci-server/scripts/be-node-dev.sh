@@ -1,6 +1,6 @@
 #!/bin/sh
 echo "Install bash and execute 'wait-for-it.sh' script"
-apt-get add bash
+apt-get install bash
 
 # Exit on error
 set -e

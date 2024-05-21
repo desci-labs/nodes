@@ -48,26 +48,19 @@ spec:
               cpu: "0.6"
               memory: 4Gi
           # # restart pod after failureThreshold*periodSeconds total seconds
-          # livenessProbe:
-          #   httpGet:
-          #     path: /
-          #     port: server-api
-          #   failureThreshold: 80
-          #   periodSeconds: 3
-          # # temporarily stop sending traffic to pod after failureThreshold*periodSeconds total seconds
-          # readinessProbe:
-          #   httpGet:
-          #     path: /
-          #     port: server-api
-          #   failureThreshold: 3
-          #   periodSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /api/v0/node/healthcheck
+              port: http-api
+            failureThreshold: 10
+            periodSeconds: 5
           # # wait for pod to start for failureThreshold*periodSeconds total seconds
-          # startupProbe:
-          #   httpGet:
-          #     path: /
-          #     port: server-api
-          #   failureThreshold: 200
-          #   periodSeconds: 1
+          startupProbe:
+            httpGet:
+              path: /api/v0/node/healthcheck
+              port: http-api
+            failureThreshold: 60
+            periodSeconds: 1
 
       serviceAccountName: "vault-auth"
 ---

@@ -7,6 +7,7 @@ import {
   getCommunityFeed,
   getCommunityRadar,
   getCommunityRecommendations,
+  getValidatedAttestations,
   listCommunities,
   validate,
 } from '../../../internal.js';
@@ -24,6 +25,13 @@ router.get(
   [validate(getCommunityDetailsSchema)],
   asyncHander(getCommunityRecommendations),
 );
+
+router.get(
+  '/:communityName/validatedAttestations',
+  [validate(getCommunityDetailsSchema)],
+  asyncHander(getValidatedAttestations),
+);
+
 router.get('/:communityId/feed', [validate(getCommunityFeedSchema)], asyncHander(getCommunityFeed));
 router.get('/:communityId/radar', [validate(getCommunityFeedSchema)], asyncHander(getCommunityRadar));
 

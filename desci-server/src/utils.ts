@@ -236,3 +236,23 @@ export function omitKeys(obj: Record<string, any>, filterList: string[]): Record
     .filter((key) => !filterList.includes(key))
     .reduce((newObj, key) => ({ ...newObj, [key]: obj[key] }), {});
 }
+
+/**
+ * Accepts either 16 digits or 4 groups of 4 digits separated by hyphens.
+ * e.g. 0000-0000-0000-0000
+ * or 0000000000000000
+ */
+export const orcidRegex: RegExp = /^\d{4}-?\d{4}-?\d{4}-?\d{3}[\dX]$/;
+
+/**
+ * Converts a non hyphenated orcid ID to hyphenated format.
+ */
+export function formatOrcidString(orcidId: string): string {
+  // Remove any existing hyphens from the input string
+  const orcidWithoutHyphens = orcidId.replace(/-/g, '');
+
+  // Insert hyphens at the appropriate positions
+  const formattedOrcid = orcidWithoutHyphens.replace(/(\d{4})(\d{4})(\d{4})(\d{3}[\dX])/, '$1-$2-$3-$4');
+
+  return formattedOrcid;
+}

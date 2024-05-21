@@ -55,6 +55,8 @@ export const seedSocialData = async () => {
           name: attestation.name,
           description: attestation.description,
           image_url: attestation.image_url,
+          protected: attestation.protected ?? false,
+          verified_image_url: attestation.verified_image_url,
           // templateId: attestation.id,
         },
         update: {
@@ -62,7 +64,8 @@ export const seedSocialData = async () => {
           name: attestation.name,
           description: attestation.description,
           image_url: attestation.image_url,
-          // templateId: attestation.id,
+          protected: attestation.protected ?? false,
+          verified_image_url: attestation.verified_image_url,
         },
       }),
     ]);
@@ -219,6 +222,6 @@ if (process.env.RUN) {
     .then(() => console.log('Communities and Attestations created/updated'))
     .catch((err) => console.log('Error running script ', err));
 } else {
-  console.log('Must set RUN=1');
+  console.log('Must set RUN=1 to activate seeding of social data, skipping...');
   process.exit(0);
 }

@@ -131,7 +131,7 @@ export async function connectOrcidToUserIfPossible(
 ) {
   logger.info({ fn: 'connectOrcidToUserIfPossible', orcid, accessTokenPresent: !!accessToken }, `doing orcid lookup`);
   const orcidRecord = await orcidLookup(orcid, accessToken);
-  logger.info({ fn: 'connectOrcidToUserIfPossible', orcidRecord, orcid }, `found orcid record`);
+  logger.info({ fn: 'connectOrcidToUserIfPossible', orcid }, `found orcid record`);
 
   // if the orcid in the access token doesn't match, we must fail the process because the requestor is not guaranteed to be the owner of the orcid
   if (orcidRecord['orcid-identifier'].path !== orcid) {
@@ -151,8 +151,8 @@ export async function connectOrcidToUserIfPossible(
     // we are already email auth'd, we have only one to check
     logger.info({ fn: 'orcidCheck', user }, `Requesting user ${user}`);
     if (!user.orcid || user.orcid === orcid) {
-      let nodeConnect;
-      // debugger;
+      let nodeConnect: Awaited<ReturnType<typeof setOrcidForUser>>;
+      debugger;
       if (!user.orcid || !(await isAuthTokenSetForUser(user.id))) {
         nodeConnect = await setOrcidForUser(user.id, orcid, {
           accessToken,
@@ -167,21 +167,18 @@ export async function connectOrcidToUserIfPossible(
     }
   } else {
     // we are not email auth'd, we have to check all users for this orcid
-    logger.info({ fn: 'orcidCheck' }, `Orcid first time login, no associated email`);
     const userFound = await getUserByOrcId(orcid);
     if (userFound) {
-      let nodeConnect;
-      // debugger;
-      if (!userFound.orcid || !(await isAuthTokenSetForUser(userFound.id))) {
-        nodeConnect = await setOrcidForUser(userFound.id, orcid, {
-          accessToken,
-          refreshToken,
-          expiresIn,
-        });
-      }
+      logger.info({ fn: 'orcidCheck' }, `Orcid fresh login, No exisiting auth `);
+      const nodeConnect = await setOrcidForUser(userFound.id, orcid, {
+        accessToken,
+        refreshToken,
+        expiresIn,
+      });
       const jwt = generateAccessToken({ email: userFound.email });
       return { userFound: true, nodeConnect, jwt };
     } else {
+      logger.info({ reason: 'No associated user found, prompt for email' }, 'OrcidCheck');
       // we didn't find a user, so we need to prompt for an email verification flow to assign an email to this orcid
       return { error: 'need to attach email', code: 3, userFound: false, promptEmail: true };
     }
@@ -239,7 +236,8 @@ export async function setOrcidForUser(
         },
       });
       logger.trace({ fn: 'setOrcidForUser' }, 'updated user');
-      const authTokenInsert = await client.authToken.create({
+
+      await client.authToken.create({
         data: {
           accessToken: auth.accessToken,
           refreshToken: auth.refreshToken,

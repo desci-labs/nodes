@@ -10,12 +10,17 @@
 # There is no damage trying to run this multiple times in a row; it's
 # idempotent.
 
-CTX="[bootstrapCeramic.sh]"
-
 set -euo pipefail
+
+CTX="[bootstrapCeramic.sh]"
+WAS_RUNNING=0
+
 trap catch ERR
 catch() {
-  echo "$CTX script failed (are CODEX_REPO_PATH and TOGGLE_CERAMIC set in .env?)"
+  echo "$CTX script failed! Have you set CERAMIC_ADMIN_SEED in .env?"
+  if [ "$WAS_RUNNING" -eq "0" ]; then
+    docker compose --project-name desci down
+  fi
   exit 1
 }
 
@@ -25,38 +30,48 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-# Assert desci-codex repo available
-CODEX_REPO_PATH=$(grep "CODEX_REPO_PATH" .env | cut -d"=" -f2)
-if [[ -z "$CODEX_REPO_PATH" ]]; then
-  echo "$CTX CODEX_REPO_PATH not set in .env, aborting!"
+# Make sure we have the admin seed in env so modelIDs make sense
+CERAMIC_ADMIN_SEED=$(grep "CERAMIC_ADMIN_SEED" .env | cut -d"=" -f2)
+if [[ -z "$CERAMIC_ADMIN_SEED" ]]; then
+  echo "$CTX CERAMIC_ADMIN_SEED must be set in env, as the modelID's aren't deterministic otherwise."
   exit 1
-else
-  echo "$CTX Found codex repo path: $CODEX_REPO_PATH"
 fi
 
-# Assert ceramic service is running
+# Check if ceramic service is already running
+WAS_RUNNING=0
 RUNNING_SERVICES=$(docker compose --project-name desci ps --services)
 if ! grep -q ceramic <<<"$RUNNING_SERVICES"; then
-  echo "$CTX the ceramic compose service doesn't seem to be running, aborting!"
-  exit 1
+  echo "$CTX the ceramic compose service doesn't seem to be running, starting..."
+  docker compose \
+    -f docker-compose.dev.yml \
+    -f docker-compose.yml \
+    --project-name desci \
+    up ceramic \
+    --detach
+  sleep 5
+else
+  echo "$CTX Ceramic service already running, won't touch compose services..."
+  WAS_RUNNING=1
 fi
 
-# Setup desci-codex and deploy composites
-pushd "$CODEX_REPO_PATH"
+echo "$CTX Downloading the runtime definition file for the composeDB models..."
+curl -L --output .composedbRuntimeDefinition.json \
+  https://raw.githubusercontent.com/desci-labs/desci-codex/main/packages/composedb/src/__generated__/definition.json
 
-# Check that the node admin secret is set up, otherwise the model ID's wont be correct
-if [ ! -f "packages/composedb/admin_seed.txt" ]; then
-  echo "$CTX Composites need to be deployed with the ceramic node admin seed for the local node, as the model IDs aren't deterministic otherwise"
-  exit 1
-fi
+echo "$CTX Deploying composites to ceramic node..."
+npx --yes @composedb/cli composite:deploy \
+  .composedbRuntimeDefinition.json \
+  --ceramic-url="http://localhost:7007" \
+  --did-private-key="$CERAMIC_ADMIN_SEED"
 
-if [[ ! -d "node_modules" ]]; then
-  echo "$CTX installing deps desci-codex..."
-  npm ci
-fi
+sleep 5
+echo "$CTX Deployment all good, probably!"
 
-echo "$CTX deploying composites..."
-npm run --workspace packages/composedb deployComposites
-popd
+if [ "$WAS_RUNNING" -eq "0" ]; then
+  echo "$CTX Shutting down ceramic service..."
+  docker compose --project-name desci down
+else
+  echo "$CTX Leaving compose services up as they were already running when we started."
+fi 
 
-echo "$CTX Done! Re-run this script if local state is cleaned."
+echo "$CTX Done! You need to run me again if local data is wiped."

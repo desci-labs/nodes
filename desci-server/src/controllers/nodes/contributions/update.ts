@@ -33,7 +33,6 @@ export type UpdateContributorResBody =
 export const updateContributor = async (req: UpdateContributorRequest, res: Response<UpdateContributorResBody>) => {
   const node = req.node;
   const user = req.user;
-
   if (!node || !user)
     throw Error('Middleware not properly setup for addContributor controller, requires req.node and req.user');
 
@@ -90,7 +89,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
           nodeUuid: node.uuid,
           privShareCode: shareCode,
           contributorId: contributorUpdated.contributorId,
-          newUser: contributorUpdated.userId !== undefined,
+          newUser: contributorUpdated.userId === undefined,
         });
         const emailMsg = {
           to: email,
@@ -101,7 +100,14 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
           html: emailHtml,
         };
 
-        sgMail.send(emailMsg);
+        if (process.env.NODE_ENV === 'production') {
+          sgMail.send(emailMsg);
+        } else {
+          logger.info(
+            { nodeEnv: process.env.NODE_ENV },
+            'Skipping update contributor email send in non-production environment',
+          );
+        }
       }
       return res.status(200).json({ ok: true, message: 'Contributor updated successfully' });
     }

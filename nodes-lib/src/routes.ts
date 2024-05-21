@@ -1,6 +1,6 @@
-import axios, { AxiosError, AxiosResponse } from "axios";
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import { ENDPOINTS } from "./api.js";
-import { NODES_API_URL as API } from "./config.js";
+import { getNodesLibInternalConfig } from "./config/index.js";
 
 // Default error serialization is huuuge due to circular refs
 axios.interceptors.response.use(
@@ -34,19 +34,29 @@ export async function makeRequest<
   payload: T["_payloadT"],
   routeTail?: string,
 ): Promise<T["_responseT"]> {
-  const url = API + endpoint.route + (routeTail ?? "");
+  const url = getNodesLibInternalConfig().apiUrl + endpoint.route + (routeTail ?? "");
   let res: AxiosResponse<T["_responseT"]>;
+  const config: AxiosRequestConfig = {
+    headers,
+    withCredentials: true,
+  };
+
+  // Can't check against undefined if variable doesn't exist
+  if (typeof window !== "undefined" && localStorage.getItem("auth")) {
+    config.headers!.Authorization = `Bearer ${localStorage.getItem("auth")}`;
+  };
+
   // post is the only method that takes a data payload
-  if ( endpoint.method === "post") {
+  if (endpoint.method === "post") {
    res = await axios[endpoint.method]<typeof endpoint._responseT>(
       url,
       payload,
-      { headers },
+      config,
     );
   } else {
    res = await axios[endpoint.method]<typeof endpoint._responseT>(
       url,
-      { headers },
+      config,
     );
   };
   return res.data;

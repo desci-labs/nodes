@@ -1,8 +1,13 @@
+import os from 'os';
+
 import { createClient } from 'redis';
 
 import { logger as parentLogger } from './logger.js';
+
+const hostname = os.hostname();
 const logger = parentLogger.child({
   module: 'RedisClient',
+  hostname,
 });
 
 const redisClient = createClient({
@@ -44,9 +49,9 @@ redisClient.on('error', (err) => {
 });
 
 // gracefully shutdown
-process.on('exit', () => {
-  redisClient.quit();
-});
+// process.on('exit', () => {
+//   redisClient.quit();
+// });
 
 export default redisClient;
 
@@ -96,3 +101,86 @@ export async function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEF
     throw e;
   }
 }
+
+class SingleNodeLockService {
+  private isReady: boolean;
+  private MAX_LOCK_TIME = process.env.MAX_LOCK_TIME ? parseInt(process.env.MAX_LOCK_TIME) : 60 * 60; // 1 hour
+  private activeLocks: Set<string>;
+
+  constructor() {
+    if (redisClient.isOpen) {
+      this.isReady = true;
+    } else {
+      redisClient.on('ready', () => {
+        this.isReady = true;
+        logger.info({ ready: redisClient.isReady, open: redisClient.isOpen }, 'REDIS CLIENT IS READY');
+      });
+    }
+    logger.info({ ready: redisClient.isReady, open: redisClient.isOpen }, 'INIT SingleNodeLockService');
+    this.activeLocks = new Set();
+  }
+
+  async aquireLock(key: string, lockTime = this.MAX_LOCK_TIME) {
+    logger.info({ ready: this.isReady, open: redisClient.isOpen }, 'START ACQUIRE LOCK');
+    if (!this.isReady) return false;
+    const result = await redisClient.set(key, 'true', { NX: true, EX: lockTime });
+    logger.info({ result, key }, 'END ACQUIRE LOCK');
+    if (result) {
+      this.activeLocks.add(key);
+      return true;
+    }
+    return false;
+  }
+
+  async freeLock(key: string) {
+    logger.info({ key }, 'FREE LOCK');
+    this.activeLocks.delete(key);
+    return await redisClient.del(key);
+  }
+
+  freeLocks() {
+    logger.info({ locks: [...this.activeLocks] }, 'FREE ALL LOCKS');
+    this.activeLocks.forEach((key) => redisClient.del(key));
+  }
+}
+
+export const lockService = new SingleNodeLockService();
+
+process.on('exit', () => {
+  logger.info('Process caught exit');
+  lockService.freeLocks();
+  redisClient.quit();
+});
+
+// catches ctrl+c event
+process.on('SIGINT', () => {
+  logger.info('Process caught SIGINT');
+  process.exit(1);
+});
+
+process.on('SIGTERM', () => {
+  logger.info('Process caught SIGTERM');
+  process.exit(1);
+});
+
+// probably not used since its normally starting node debugger
+// process.on('SIGUSR1', () => {
+//   logger.info('Process caught SIGUSR1');
+//   // process.exit(1);
+// });
+
+// default kill signal for nodemon
+process.on('SIGUSR2', () => {
+  logger.info('Process caught SIGUSR2');
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  logger.info({ errMsg: err.message, err }, 'Process caught uncaughtException');
+  // process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.info({ promise, reason }, 'Process caught unhandledRejection');
+  // process.exit(1);
+});

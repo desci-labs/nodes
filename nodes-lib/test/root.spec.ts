@@ -15,7 +15,7 @@ import {
   removeContributor, addExternalCid, updateCoverImage,
 } from "../src/api.js";
 import axios from "axios";
-import { getCodexHistory, getPublishedFromCodex } from "../src/codex.js";
+import { getCodexHistory, getPublishedFromCodex, getRawState } from "../src/codex.js";
 import { dpidPublish } from "../src/chain.js";
 import { sleep } from "./util.js";
 import { convert0xHexToCid } from "../src/util/converting.js";
@@ -30,16 +30,26 @@ import {
   ResearchObjectComponentType,
   ResearchObjectComponentDataSubtype
 } from "@desci-labs/desci-models";
+import { authorizedSessionDidFromSigner, signerFromPkey } from "../src/util/signing.js";
+import { NODESLIB_CONFIGS, getNodesLibInternalConfig, setApiKey, setNodesLibConfig } from "../src/index.js";
+import { getResources } from "@desci-labs/desci-codex-lib";
 
-// Disregard env config, as one likely does not want to spam all of this
-// onto a real chain.
-const NODES_API_URL = "http://localhost:5420";
+// Pre-funded ganache account
+const TEST_PKEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+// Pre-seeded for noreply user in local environment
+const TEST_API_KEY = "agu+zEH30gwm77C+Em4scbzdiYOnv8uSvA0qr2XAj5k=";
+
+// Prisma seeds test DB's with an API key for noreply@desci.com
+setNodesLibConfig(NODESLIB_CONFIGS.local);
+setApiKey(TEST_API_KEY);
+const testSigner = signerFromPkey(TEST_PKEY);
 
 describe("nodes-lib", () => {
   beforeAll(async () => {
+    const apiUrl = getNodesLibInternalConfig().apiUrl;
     try {
-      console.log(`Checking server reachable at ${NODES_API_URL}...`);
-      await axios.get(NODES_API_URL);
+      console.log(`Checking server reachable at ${apiUrl}...`);
+      await axios.get(apiUrl);
       console.log("Server is reachable");
     } catch (e) {
       console.error(
@@ -261,11 +271,12 @@ describe("nodes-lib", () => {
   describe("publishing ", async () => {
     let uuid: string;
     let publishResult: PublishResponse;
+    const did = await authorizedSessionDidFromSigner(testSigner, getResources());
 
     beforeAll(async () => {
       const { node } = await createBoilerplateNode();
       uuid = node.uuid;
-      publishResult = await publishDraftNode(uuid);
+      publishResult = await publishDraftNode(uuid, testSigner, did);
     });
 
     describe("new node", async () => {
@@ -290,13 +301,31 @@ describe("nodes-lib", () => {
         const ceramicObject = await getPublishedFromCodex(publishResult.ceramicIDs!.streamID);
         expect(ceramicObject?.manifest).toEqual(publishResult.updatedManifestCid);
       });
+
+      test("has a CACAO from the passed DID", async () => {
+        const streamState = await getRawState(publishResult.ceramicIDs!.streamID);
+        const controller = streamState.state.metadata.controllers.at(0);
+        const signerAddress = (await testSigner.getAddress()).toLowerCase();
+
+        expect(controller).toEqual(did.parent);
+        expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
+      });
+
+      test("can optionally derive DID from just a signer", async () => {
+        const { node } = await createBoilerplateNode();
+        const result = await publishDraftNode(node.uuid, testSigner);
+        const streamState = await getRawState(result.ceramicIDs!.streamID);
+        const controller = streamState.state.metadata.controllers.at(0);
+        const signerAddress = (await testSigner.getAddress()).toLowerCase();
+        expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
+      });
     });
 
     describe("node update", async () => {
       beforeAll(async () => {
         // async publish errors on re-publish before it finishes
         await sleep(5_000);
-        await publishDraftNode(uuid);
+        await publishDraftNode(uuid, testSigner, did);
         // Allow graph node to index
         await sleep(1_500);
       });
@@ -323,13 +352,13 @@ describe("nodes-lib", () => {
       const { node: { uuid }} = await createBoilerplateNode();
 
       // make a dpid-only publish
-      await dpidPublish(uuid, false);
+      await dpidPublish(uuid, false, testSigner);
 
         // Allow graph node to index
-      await sleep(1_500);
+      await sleep(2_500);
 
       // make a regular publish
-      const pubResult = await publishDraftNode(uuid);
+      const pubResult = await publishDraftNode(uuid, testSigner, did);
 
         // Allow graph node to index
       await sleep(1_500);

@@ -78,16 +78,16 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
         { contributorId, recipient: email },
         'Firing off contributor invite email for newly invited contributor',
       );
+      // debugger;
       // Generate a share code for the contributor if it's the node owner themselves
       const shareCode = await contributorService.generatePrivShareCodeForContribution(contributorAdded, node);
-
       // Future: make it count as a friend referral
       const emailHtml = ContributorInviteEmailHtml({
         inviter: user.name,
         nodeUuid: node.uuid,
         privShareCode: shareCode,
         contributorId: contributorAdded.contributorId,
-        newUser: contributorAdded.userId !== undefined,
+        newUser: contributorAdded.userId === undefined,
       });
       const emailMsg = {
         to: email,
@@ -98,7 +98,14 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
         html: emailHtml,
       };
 
-      sgMail.send(emailMsg);
+      if (process.env.NODE_ENV === 'production') {
+        sgMail.send(emailMsg);
+      } else {
+        logger.info(
+          { nodeEnv: process.env.NODE_ENV },
+          'Skipping add contributor email send in non-production environment',
+        );
+      }
     }
     logger.info({ contributorAdded }, 'Contributor added successfully');
     return res.status(200).json({ ok: true, message: 'Contributor added successfully' });

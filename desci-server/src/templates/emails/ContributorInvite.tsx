@@ -28,6 +28,8 @@ const NEW_USER_TEXT = `Sign up on Desci Nodes to confirm your contribution to en
 const EXISTING_USER_TEXT = `Confirm your contribution to ensure
 you're credited for your work.`;
 
+const DAPP_URL = process.env.DAPP_URL || 'http://localhost:3000';
+
 export const ContributorInvite = ({
   inviter,
   nodeUuid,
@@ -36,8 +38,9 @@ export const ContributorInvite = ({
   newUser,
 }: ContributorInviteEmailProps) => {
   if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
-  const privShareUrl = `https://nodes.desci.com/node/${nodeUuid}?shareId=${privShareCode}`;
-  const contributorUrl = `https://nodes.desci.com/node/${nodeUuid}/contributors/${contributorId}?shareId=${privShareCode}`;
+  inviter = inviter || 'A user';
+  const privShareUrl = `${DAPP_URL}/node/${nodeUuid}?shareId=${privShareCode}`;
+  const contributorUrl = `${DAPP_URL}/node/${nodeUuid}/contributors/${contributorId}?shareId=${privShareCode}&src=inv`;
   return (
     <MainLayout>
       <Html>

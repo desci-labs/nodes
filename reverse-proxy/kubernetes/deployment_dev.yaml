@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: public-reverse-proxy-dev-service
+  labels:
+    App: ReverseProxyDev
+spec:
+  type: LoadBalancer
+  selector:
+    App: ReverseProxyDev
+  ports:
+    - protocol: TCP
+      name: api
+      port: 80
+      targetPort: 5678
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: reverse-proxy-dev-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+    - host: reverse-proxy-dev.desci.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: public-reverse-proxy-dev-service
+                port:
+                  number: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reverse-proxy-dev
+  labels:
+    App: ReverseProxyDev
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      App: ReverseProxyDev
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-status: 'update'
+        vault.hashicorp.com/role: app-vault-reader
+        vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/dev/db
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secrets/desci-server/dev/db" -}}
+          echo "sourcing";
+          export PROXY_MAPPING_RPC_SEPOLIA={{ .Data.PROXY_MAPPING_RPC_SEPOLIA }}
+          export PROXY_MAPPING_RPC_MAINNET={{ .Data.PROXY_MAPPING_RPC_MAINNET }}
+
+          {{- end -}}
+      labels:
+        App: ReverseProxyDev
+    spec:
+      containers:
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/reverse-proxy-dev:latest
+          name: reverse-proxy-dev
+          command: ['/bin/bash', '-c']
+          args:
+            - echo "SOURCING ENV"; source /vault/secrets/config; dumb-init node dist/index.js;
+          ports:
+            - containerPort: 5678
+              name: api
+          resources:
+            limits:
+              cpu: '1'
+              memory: 2Gi
+            requests:
+              cpu: '1'
+              memory: 2Gi
+          # restart pod after failureThreshold*periodSeconds total seconds
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: api
+            failureThreshold: 10
+            periodSeconds: 3
+      serviceAccountName: 'vault-auth'
