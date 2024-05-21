@@ -1,12 +1,13 @@
-import crypto from 'node:crypto';
-
 import {
   PdfComponent,
   ResearchObjectComponentDocumentSubtype,
   ResearchObjectComponentType,
 } from '@desci-labs/desci-models';
 import { PrismaClient } from '@prisma/client';
+import { v4 } from 'uuid';
 
+import { DuplicateMintError, NoManuscriptError, BadManifestError, AttestationsError } from '../core/doi/error.js';
+import { logger } from '../logger.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js';
 import { ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 
@@ -69,8 +70,9 @@ export class DoiService {
     const { dpid, uuid } = await this.checkMintability(nodeUuid);
     // todo: handle over logic to cross-ref api service for minting DOIs
     // mint new doi
-    const doiSuffix = crypto.randomBytes(8 - dpid.length);
+    const doiSuffix = v4().substring(0, 8);
     const doi = `https://doi.org/10.555/${doiSuffix}`;
+    logger.info({ doiSuffix, doi, uuid }, 'MINT DOI');
     return await this.dbClient.doiRecord.create({
       data: {
         uuid,
@@ -80,47 +82,9 @@ export class DoiService {
     });
   }
 
-  async checkDataOrCode(dpid: string) {}
-}
-
-export enum DoiErrorType {
-  DUPLICATE_MINT = 'DuplicateDoiError',
-  NO_MANUSCRIPT = 'NoManuscriptError',
-  BAD_METADATA = 'InvalidManifestError',
-  INCOMPLETE_ATTESTATIONS = 'ForbiddenError',
-}
-
-export class DoiError extends Error {
-  name = 'DoiValidationError';
-
-  constructor(
-    public type: DoiErrorType,
-    public message: string = 'Doi Error',
-  ) {
-    super(type);
-  }
-}
-
-export class BadManifestError extends DoiError {
-  constructor(message = 'Title, Abstract or Contributors is missing') {
-    super(DoiErrorType.BAD_METADATA, message);
-  }
-}
-
-export class NoManuscriptError extends DoiError {
-  constructor(message = 'Node has no manuscript') {
-    super(DoiErrorType.NO_MANUSCRIPT, message);
-  }
-}
-
-export class AttestationsError extends DoiError {
-  constructor(message = 'All required attestations are not claimed or verified!') {
-    super(DoiErrorType.INCOMPLETE_ATTESTATIONS, message);
-  }
-}
-
-export class DuplicateMintError extends DoiError {
-  constructor(message = 'DOI already minted for node') {
-    super(DoiErrorType.DUPLICATE_MINT, message);
+  async getDoiByDpidOrUuid(identifier: string) {
+    return this.dbClient.doiRecord.findFirst({
+      where: { OR: [{ dpid: identifier }, { uuid: ensureUuidEndsWithDot(identifier) }] },
+    });
   }
 }
