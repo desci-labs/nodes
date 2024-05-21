@@ -1,7 +1,6 @@
 import { Response } from 'express';
 
 import { AttestationError, AttestationErrorType } from '../internal.js';
-import { DoiError, DoiErrorType } from '../services/Doi.js';
 
 import {
   AuthFailureResponse,
@@ -10,6 +9,7 @@ import {
   InternalErrorResponse,
   NotFoundResponse,
 } from './ApiResponse.js';
+import { DoiError, DoiErrorType } from './doi/error.js';
 
 export enum ApiErrorType {
   BAD_REQUEST = 'BadRequestError',
