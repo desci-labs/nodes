@@ -1,8 +1,11 @@
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
+import { getIndexedResearchObjects } from '../theGraph.js';
+import { hexToCid } from '../utils.js';
 
 import { pinFile } from './ipfs.js';
 
@@ -12,8 +15,8 @@ export type PrepareDistributionPdfParams = {
   dataAvailableDpid?: string;
   node: Node; // Title extraction for now
   doi: string; // Temporary till we have DOI system operational
-  dpid: string;
-  title: string;
+  manifest: ResearchObjectV1;
+  manifestCid: string;
 };
 
 type PrepareDistributionPdfResult = {
@@ -29,7 +32,8 @@ class PublishPackageService {
     dataAvailableDpid,
     node,
     doi,
-    title,
+    manifest,
+    manifestCid,
   }: PrepareDistributionPdfParams): Promise<PrepareDistributionPdfResult> {
     // Check if distro PDF already exists
     const existingDistributionPdf = await prisma.distributionPdfs.findFirst({
@@ -45,10 +49,17 @@ class PublishPackageService {
       return null;
     }
 
+    const title = manifest.title;
+    const dpid = manifest.dpid.id;
+    const license = manifest.defaultLicense;
+    const publishTime = await this.retrieveBlockTimeByManifestCid(node.uuid, manifestCid);
+    const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);
+    const authors = manifest.authors?.map((author) => author.name);
+
     // Generate the PDF with the cover
     const coverPdfStream = await axios.post(
       `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/pdf/addCover`,
-      { cid: pdfCid, doi, title, codeAvailableDpid, dataAvailableDpid },
+      { cid: pdfCid, doi, title, codeAvailableDpid, dataAvailableDpid, dpid, license, publishDate, authors },
       {
         responseType: 'stream',
       },
@@ -66,6 +77,44 @@ class PublishPackageService {
     // Return the CID
     return { pdfCid: pinned.cid };
   }
+
+  async retrieveBlockTimeByManifestCid(uuid: string, manifestCid: string) {
+    const { researchObjects } = await getIndexedResearchObjects([uuid]);
+    if (!researchObjects.length)
+      this.logger.warn({ fn: 'retrieveBlockTimeByManifestCid' }, `No research objects found for nodeUuid ${uuid}`);
+    const indexedNode = researchObjects[0];
+    const targetVersion = indexedNode.versions.find((v) => hexToCid(v.cid) === manifestCid);
+    if (!targetVersion) {
+      this.logger.warn(
+        { fn: 'retrieveBlockTimeByManifestCid', uuid, manifestCid },
+        `No version match was found for nodeUuid/manifestCid`,
+      );
+      return '-1';
+    }
+    return targetVersion.time;
+  }
+
+  static convertUnixTimestampToDate(unixTimestamp: string): string {
+    const date = new Date(Number(unixTimestamp) * 1000);
+    const formattedDate = date.toLocaleString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return formattedDate;
+  }
 }
 
 export const publishPackageService = new PublishPackageService();
+
+export type GeneratePdfCoverRequestBody = {
+  cid: string;
+  doi: string;
+  title: string;
+  dpid?: string;
+  codeAvailableDpid?: string;
+  dataAvailableDpid?: string;
+  authors?: string[];
+  license: string;
+  publishDate: string;
+};

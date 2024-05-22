@@ -44,6 +44,7 @@ export const preparePublishPackage = async (
     codeAvailableDpid,
     dataAvailableDpid,
   });
+  debugger;
   logger.trace({ fn: 'Retrieving Publish Package' });
 
   if (!nodeUuid) return res.status(400).json({ ok: false, error: 'nodeUuid is required.' });
@@ -61,9 +62,6 @@ export const preparePublishPackage = async (
     if (!node) return res.status(404).json({ ok: false, error: 'Node not found' });
 
     const manifest = await getManifestByCid(manifestCid);
-    const title = manifest.title;
-
-    const dpid = manifest?.dpid.id;
 
     // debugger;
     const { pdfCid: distPdfCid } = await publishPackageService.prepareDistributionPdf({
@@ -72,8 +70,8 @@ export const preparePublishPackage = async (
       dataAvailableDpid,
       node,
       doi,
-      dpid,
-      title,
+      manifest,
+      manifestCid,
     });
 
     return res.status(200).json({ ok: true, distPdfCid });
