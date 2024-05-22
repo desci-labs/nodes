@@ -4,7 +4,7 @@
   "version": "0.2.3-rc3",
   "license": "MIT",
   "scripts": {
-    "test": "hardhat clean && hardhat test",
+    "test": "hardhat clean && hardhat test test/DpidAliasRegistry.ts",
     "build": "hardhat compile --network ganache",
     "makePackage": "rm -rf dist && tsc && cp -r .openzeppelin dist",
     "docker:build": "docker build -t desci-hardhat-node .",
@@ -40,6 +40,7 @@
     "@typechain/ethers-v5": "^9.0.0",
     "@typechain/hardhat": "^4.0.0",
     "@types/chai": "^4.2.21",
+    "@types/chai-as-promised": "^7.1.8",
     "@types/mocha": "^9.0.0",
     "@types/node": "^16.4.10",
     "as-base64": "^0.2.0",
@@ -60,5 +61,8 @@
     "ts-node": "^10.1.0",
     "typechain": "^7.0.0",
     "typescript": "^4.3.5"
+  },
+  "dependencies": {
+    "chai-as-promised": "^7.1.2"
   }
 }

@@ -39,6 +39,9 @@ module.exports = {
     // alternative is to use ganache for more than running contract tests
     hardhat: {
       chainId: 1337,
+      accounts: {
+        mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
+      },
     },
     optimism: {
       url: "http://127.0.0.1:8545",
