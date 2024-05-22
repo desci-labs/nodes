@@ -47,7 +47,7 @@ class PublishPackageService {
 
     const title = manifest.title;
     const dpid = manifest.dpid.id;
-    const license = manifest.defaultLicense;
+    const license = PublishPackageService.extractManuscriptLicense(manifest, pdfCid);
     const publishTime = await publishServices.retrieveBlockTimeByManifestCid(node.uuid, manifestCid);
     const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);
     const authors = manifest.authors?.map((author) => author.name);
@@ -96,6 +96,13 @@ class PublishPackageService {
       year: 'numeric',
     });
     return formattedDate;
+  }
+
+  static extractManuscriptLicense(manifest: ResearchObjectV1, manuscriptCid): string {
+    const manuscriptComponent = manifest.components?.find(
+      (c) => c.payload.url === manuscriptCid || c.payload.cid === manuscriptCid,
+    );
+    return manuscriptComponent.payload.licenseType ?? manifest.defaultLicense;
   }
 }
 
