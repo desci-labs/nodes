@@ -9,14 +9,23 @@ export interface NodeUpdatedEmailProps {
   nodeUuid: string;
   nodeDpid: string;
   versionUpdate: string;
+  manuscriptCid: string;
 }
 
 const DAPP_URL = process.env.DAPP_URL || 'http://localhost:3000';
 
-export const NodeUpdated = ({ nodeOwner, nodeTitle, nodeUuid, nodeDpid, versionUpdate }: NodeUpdatedEmailProps) => {
+export const NodeUpdated = ({
+  nodeOwner,
+  nodeTitle,
+  nodeUuid,
+  nodeDpid,
+  versionUpdate,
+  manuscriptCid,
+}: NodeUpdatedEmailProps) => {
   if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
   nodeOwner = nodeOwner || 'The node owner';
   const nodeUrl = `${DAPP_URL}/dpid/${nodeDpid}/${versionUpdate}`;
+  const manuscriptUrl = `${process.env.IPFS_RESOLVER_OVERRIDE}/${manuscriptCid}`;
   return (
     <MainLayout>
       <Html>
@@ -44,6 +53,18 @@ export const NodeUpdated = ({ nodeOwner, nodeTitle, nodeUuid, nodeDpid, versionU
                 }}
               >
                 View Version {versionUpdate}
+              </Button>
+              <Button
+                href={manuscriptUrl}
+                className="backdrop-blur-2xl rounded-sm"
+                style={{
+                  color: 'white',
+                  padding: '10px 20px',
+                  marginRight: '10px',
+                  background: '#28aac4',
+                }}
+              >
+                View Manuscript
               </Button>
             </Section>
           </Container>

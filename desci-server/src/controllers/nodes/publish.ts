@@ -298,7 +298,7 @@ export const publishHandler = async ({
     };
 
     // Send an email update to all contributors
-    await publishServices.sendVersionUpdateEmailToAllContributors({ node });
+    // await publishServices.sendVersionUpdateEmailToAllContributors({ node });
 
     /**
      * NOTE: uncomment when reactivating public ref mirroring

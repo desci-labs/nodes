@@ -17,7 +17,7 @@ const logger = parentLogger.child({
 });
 
 export class PublishServices {
-  async sendVersionUpdateEmailToAllContributors({ node }: { node: Node }) {
+  async sendVersionUpdateEmailToAllContributors({ node, manuscriptCid }: { node: Node; manuscriptCid: string }) {
     const contributors = await contributorService.retrieveAllVerifiedContributionsForNode(node);
     const nodeOwner = await prisma.user.findUnique({ where: { id: node.ownerId } });
     const manifest = await getLatestManifestFromNode(node);
@@ -38,6 +38,7 @@ export class PublishServices {
         nodeTitle: node.title,
         nodeDpid: dpid,
         versionUpdate: versionPublished,
+        manuscriptCid: manuscriptCid,
       });
 
       const emailMsg = {

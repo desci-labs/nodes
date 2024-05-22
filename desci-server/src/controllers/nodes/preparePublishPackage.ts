@@ -4,6 +4,7 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getManifestByCid } from '../../services/data/processing.js';
 import { publishPackageService } from '../../services/PublishPackage.js';
+import { publishServices } from '../../services/PublishServices.js';
 import { CidString } from '../../services/Thumbnails.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -67,6 +68,9 @@ export const preparePublishPackage = async (
       manifest,
       manifestCid,
     });
+
+    // Fire off email to all contributors
+    await publishServices.sendVersionUpdateEmailToAllContributors({ node, manuscriptCid: distPdfCid });
 
     return res.status(200).json({ ok: true, distPdfCid });
   } catch (e) {
