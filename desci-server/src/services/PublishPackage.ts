@@ -4,11 +4,10 @@ import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
-import { getIndexedResearchObjects } from '../theGraph.js';
-import { hexToCid } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { pinFile } from './ipfs.js';
+import { publishServices } from './PublishServices.js';
 
 export type PrepareDistributionPdfParams = {
   pdfCid: string;
@@ -49,7 +48,7 @@ class PublishPackageService {
     const title = manifest.title;
     const dpid = manifest.dpid.id;
     const license = manifest.defaultLicense;
-    const publishTime = await this.retrieveBlockTimeByManifestCid(node.uuid, manifestCid);
+    const publishTime = await publishServices.retrieveBlockTimeByManifestCid(node.uuid, manifestCid);
     const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);
     const authors = manifest.authors?.map((author) => author.name);
 
@@ -87,22 +86,6 @@ class PublishPackageService {
 
     // Return the CID
     return { pdfCid: pinned.cid };
-  }
-
-  async retrieveBlockTimeByManifestCid(uuid: string, manifestCid: string) {
-    const { researchObjects } = await getIndexedResearchObjects([uuid]);
-    if (!researchObjects.length)
-      this.logger.warn({ fn: 'retrieveBlockTimeByManifestCid' }, `No research objects found for nodeUuid ${uuid}`);
-    const indexedNode = researchObjects[0];
-    const targetVersion = indexedNode.versions.find((v) => hexToCid(v.cid) === manifestCid);
-    if (!targetVersion) {
-      this.logger.warn(
-        { fn: 'retrieveBlockTimeByManifestCid', uuid, manifestCid },
-        `No version match was found for nodeUuid/manifestCid`,
-      );
-      return '-1';
-    }
-    return targetVersion.time;
   }
 
   static convertUnixTimestampToDate(unixTimestamp: string): string {

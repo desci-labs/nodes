@@ -2,9 +2,10 @@ import { Node } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
 import { prisma } from '../client.js';
-import { getNodeVersion } from '../internal.js';
+import { getNodeVersion, hexToCid } from '../internal.js';
 import { logger as parentLogger } from '../logger.js';
 import { NodeUpdatedEmailHtml } from '../templates/emails/utils/emailRenderer.js';
+import { getIndexedResearchObjects } from '../theGraph.js';
 
 import { contributorService } from './Contributors.js';
 import { getLatestManifestFromNode } from './manifestRepo.js';
@@ -60,6 +61,22 @@ export class PublishServices {
     }
 
     return true;
+  }
+
+  async retrieveBlockTimeByManifestCid(uuid: string, manifestCid: string) {
+    const { researchObjects } = await getIndexedResearchObjects([uuid]);
+    if (!researchObjects.length)
+      logger.warn({ fn: 'retrieveBlockTimeByManifestCid' }, `No research objects found for nodeUuid ${uuid}`);
+    const indexedNode = researchObjects[0];
+    const targetVersion = indexedNode.versions.find((v) => hexToCid(v.cid) === manifestCid);
+    if (!targetVersion) {
+      logger.warn(
+        { fn: 'retrieveBlockTimeByManifestCid', uuid, manifestCid },
+        `No version match was found for nodeUuid/manifestCid`,
+      );
+      return '-1';
+    }
+    return targetVersion.time;
   }
 }
 
