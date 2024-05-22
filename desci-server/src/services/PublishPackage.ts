@@ -7,12 +7,11 @@ import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { hexToCid } from '../utils.js';
 
+import { attestationService } from './Attestation.js';
 import { pinFile } from './ipfs.js';
 
 export type PrepareDistributionPdfParams = {
   pdfCid: string;
-  codeAvailableDpid?: string;
-  dataAvailableDpid?: string;
   node: Node; // Title extraction for now
   doi: string; // Temporary till we have DOI system operational
   manifest: ResearchObjectV1;
@@ -28,8 +27,6 @@ class PublishPackageService {
 
   async prepareDistributionPdf({
     pdfCid,
-    codeAvailableDpid,
-    dataAvailableDpid,
     node,
     doi,
     manifest,
@@ -56,10 +53,24 @@ class PublishPackageService {
     const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);
     const authors = manifest.authors?.map((author) => author.name);
 
+    const attestations = await attestationService.getAllNodeAttestations(dpid);
+
+    const openCodeAttestation = attestations.find((a) => a.attestationId === 15);
+    const openDataAttestation = attestations.find((a) => a.attestationId === 16);
+
+    const attestationLinks = {
+      ...(openCodeAttestation && {
+        codeAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${openCodeAttestation.id}`,
+      }),
+      ...(openDataAttestation && {
+        dataAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${openDataAttestation.id}`,
+      }),
+    };
+
     // Generate the PDF with the cover
     const coverPdfStream = await axios.post(
       `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/pdf/addCover`,
-      { cid: pdfCid, doi, title, codeAvailableDpid, dataAvailableDpid, dpid, license, publishDate, authors },
+      { cid: pdfCid, doi, title, ...attestationLinks, dpid, license, publishDate, authors },
       {
         responseType: 'stream',
       },

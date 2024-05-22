@@ -13,8 +13,6 @@ export type PreparePublishPackageReqBodyParams = {
   doi: string; // temp till DOI system is operational
   dpid: string;
   nodeUuid: string;
-  codeAvailableDpid?: string;
-  dataAvailableDpid?: string;
 };
 
 type PreparePublishPackageResponse = {
@@ -35,16 +33,14 @@ export const preparePublishPackage = async (
   req: Request<any, any, PreparePublishPackageReqBodyParams>,
   res: Response<PreparePublishPackageResponse | PreparePublishPackageErrorResponse>,
 ) => {
-  const { pdfCid, doi, nodeUuid, codeAvailableDpid, dataAvailableDpid, manifestCid } = req.body;
+  const { pdfCid, doi, nodeUuid, manifestCid } = req.body;
   const logger = parentLogger.child({
     module: 'NODES::PreparePublishPackageController',
     pdfCid,
     doi,
     nodeUuid,
-    codeAvailableDpid,
-    dataAvailableDpid,
   });
-  debugger;
+  // debugger;
   logger.trace({ fn: 'Retrieving Publish Package' });
 
   if (!nodeUuid) return res.status(400).json({ ok: false, error: 'nodeUuid is required.' });
@@ -62,12 +58,10 @@ export const preparePublishPackage = async (
     if (!node) return res.status(404).json({ ok: false, error: 'Node not found' });
 
     const manifest = await getManifestByCid(manifestCid);
-
+    if (!manifest) return res.status(404).json({ ok: false, error: 'Manifest not found' });
     // debugger;
     const { pdfCid: distPdfCid } = await publishPackageService.prepareDistributionPdf({
       pdfCid,
-      codeAvailableDpid,
-      dataAvailableDpid,
       node,
       doi,
       manifest,
