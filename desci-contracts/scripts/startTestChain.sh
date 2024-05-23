@@ -32,6 +32,11 @@ checkTestDeployments() {
         echo "[startTestChain] deploying RO contract..."
         yarn deploy:ganache
     fi
+
+    if ! scripts/checkTestDeployments.sh ".openzeppelin/unknown-dpid-alias-registry.json"; then
+        echo "[startTestChain] deploying dpid alias registry..."
+        yarn deploy:alias:ganache
+    fi
 }
 
 waitForPostgres() {
