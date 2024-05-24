@@ -36,6 +36,7 @@ class PublishPackageService {
       where: { originalPdfCid: pdfCid, manifestCid },
     });
 
+    // debugger;
     if (existingDistributionPdf) {
       return { pdfCid: existingDistributionPdf.distPdfCid };
     }
@@ -44,7 +45,6 @@ class PublishPackageService {
       this.logger.error('process.env.ISOLATED_MEDIA_SERVER_URL is not defined');
       return null;
     }
-
     const title = manifest.title;
     const dpid = manifest.dpid.id;
     const license = PublishPackageService.extractManuscriptLicense(manifest, pdfCid);
@@ -100,9 +100,9 @@ class PublishPackageService {
 
   static extractManuscriptLicense(manifest: ResearchObjectV1, manuscriptCid): string {
     const manuscriptComponent = manifest.components?.find(
-      (c) => c.payload.url === manuscriptCid || c.payload.cid === manuscriptCid,
+      (c) => c.payload?.url === manuscriptCid || c.payload?.cid === manuscriptCid,
     );
-    return manuscriptComponent.payload.licenseType ?? manifest.defaultLicense;
+    return manuscriptComponent?.payload?.licenseType ?? manifest.defaultLicense;
   }
 }
 
