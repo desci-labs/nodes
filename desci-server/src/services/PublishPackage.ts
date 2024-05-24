@@ -33,7 +33,7 @@ class PublishPackageService {
   }: PrepareDistributionPdfParams): Promise<PrepareDistributionPdfResult> {
     // Check if distro PDF already exists
     const existingDistributionPdf = await prisma.distributionPdfs.findFirst({
-      where: { originalPdfCid: pdfCid },
+      where: { originalPdfCid: pdfCid, manifestCid },
     });
 
     if (existingDistributionPdf) {
@@ -79,7 +79,7 @@ class PublishPackageService {
 
     // Save it to the database
     await prisma.distributionPdfs.create({
-      data: { originalPdfCid: pdfCid, distPdfCid: pinned.cid, nodeUuid: node.uuid },
+      data: { originalPdfCid: pdfCid, distPdfCid: pinned.cid, nodeUuid: node.uuid, manifestCid },
     });
 
     // LATER: Add data ref

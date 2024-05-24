@@ -480,11 +480,12 @@ model NodeThumbnails {
 model DistributionPdfs {
   id             Int    @id @default(autoincrement())
   originalPdfCid String
+  manifestCid    String
   nodeUuid       String
   distPdfCid     String
   node           Node   @relation(fields: [nodeUuid], references: [uuid])
 
-  @@unique([nodeUuid, originalPdfCid])
+  @@unique([nodeUuid, originalPdfCid, manifestCid])
 }
 
 // The glue between a manifest contributor entry and a nodes profile
