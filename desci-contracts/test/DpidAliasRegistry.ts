@@ -136,7 +136,7 @@ describe("dPID", () => {
           versions: [
             {
               cid: "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku",
-              timestamp: 1716369952,
+              time: 1716369952,
             },
           ],
         };
@@ -158,7 +158,7 @@ describe("dPID", () => {
           expect(legacyEntry.owner).to.equal(migrationEntry.owner);
           expect(legacyEntry.versions.length).to.equal(1);
           expect(legacyEntry.versions[0].cid).to.equal("bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku");
-          expect(legacyEntry.versions[0].timestamp).to.equal(1716369952);
+          expect(legacyEntry.versions[0].time).to.equal(1716369952);
         });
 
         it("emits an event on success", () => {

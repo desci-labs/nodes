@@ -18,11 +18,11 @@ import { Listener, Provider } from "@ethersproject/providers";
 import { TypedEventFilter, TypedEvent, TypedListener, OnEvent } from "./common";
 
 export declare namespace DpidAliasRegistry {
-  export type LegacyVersionStruct = { cid: string; timestamp: BigNumberish };
+  export type LegacyVersionStruct = { cid: string; time: BigNumberish };
 
   export type LegacyVersionStructOutput = [string, BigNumber] & {
     cid: string;
-    timestamp: BigNumber;
+    time: BigNumber;
   };
 
   export type LegacyDpidEntryStruct = {
@@ -43,7 +43,7 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
   contractName: "DpidAliasRegistry";
   functions: {
     "__DpidAliasRegistry_init(uint256)": FunctionFragment;
-    "_firstDpid()": FunctionFragment;
+    "firstDpid()": FunctionFragment;
     "importLegacyDpid(uint256,(address,(string,uint256)[]))": FunctionFragment;
     "legacy(uint256)": FunctionFragment;
     "legacyLookup(uint256)": FunctionFragment;
@@ -61,10 +61,7 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
     functionFragment: "__DpidAliasRegistry_init",
     values: [BigNumberish]
   ): string;
-  encodeFunctionData(
-    functionFragment: "_firstDpid",
-    values?: undefined
-  ): string;
+  encodeFunctionData(functionFragment: "firstDpid", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "importLegacyDpid",
     values: [BigNumberish, DpidAliasRegistry.LegacyDpidEntryStruct]
@@ -105,7 +102,7 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
     functionFragment: "__DpidAliasRegistry_init",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "_firstDpid", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "firstDpid", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "importLegacyDpid",
     data: BytesLike
@@ -210,11 +207,11 @@ export interface DpidAliasRegistry extends BaseContract {
 
   functions: {
     __DpidAliasRegistry_init(
-      firstDpid: BigNumberish,
+      _firstDpid: BigNumberish,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<ContractTransaction>;
 
-    _firstDpid(overrides?: CallOverrides): Promise<[BigNumber]>;
+    firstDpid(overrides?: CallOverrides): Promise<[BigNumber]>;
 
     importLegacyDpid(
       dpid: BigNumberish,
@@ -262,11 +259,11 @@ export interface DpidAliasRegistry extends BaseContract {
   };
 
   __DpidAliasRegistry_init(
-    firstDpid: BigNumberish,
+    _firstDpid: BigNumberish,
     overrides?: Overrides & { from?: string | Promise<string> }
   ): Promise<ContractTransaction>;
 
-  _firstDpid(overrides?: CallOverrides): Promise<BigNumber>;
+  firstDpid(overrides?: CallOverrides): Promise<BigNumber>;
 
   importLegacyDpid(
     dpid: BigNumberish,
@@ -311,11 +308,11 @@ export interface DpidAliasRegistry extends BaseContract {
 
   callStatic: {
     __DpidAliasRegistry_init(
-      firstDpid: BigNumberish,
+      _firstDpid: BigNumberish,
       overrides?: CallOverrides
     ): Promise<void>;
 
-    _firstDpid(overrides?: CallOverrides): Promise<BigNumber>;
+    firstDpid(overrides?: CallOverrides): Promise<BigNumber>;
 
     importLegacyDpid(
       dpid: BigNumberish,
@@ -388,11 +385,11 @@ export interface DpidAliasRegistry extends BaseContract {
 
   estimateGas: {
     __DpidAliasRegistry_init(
-      firstDpid: BigNumberish,
+      _firstDpid: BigNumberish,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<BigNumber>;
 
-    _firstDpid(overrides?: CallOverrides): Promise<BigNumber>;
+    firstDpid(overrides?: CallOverrides): Promise<BigNumber>;
 
     importLegacyDpid(
       dpid: BigNumberish,
@@ -438,11 +435,11 @@ export interface DpidAliasRegistry extends BaseContract {
 
   populateTransaction: {
     __DpidAliasRegistry_init(
-      firstDpid: BigNumberish,
+      _firstDpid: BigNumberish,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<PopulatedTransaction>;
 
-    _firstDpid(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+    firstDpid(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     importLegacyDpid(
       dpid: BigNumberish,

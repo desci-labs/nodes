@@ -1,7 +1,7 @@
 {
   "name": "@desci-labs/desci-contracts",
   "description": "Smart contracts implementing DeSci Nodes on-chain state and logic",
-  "version": "0.2.4",
+  "version": "0.2.5-rc2",
   "license": "MIT",
   "scripts": {
     "test": "hardhat clean && hardhat test",

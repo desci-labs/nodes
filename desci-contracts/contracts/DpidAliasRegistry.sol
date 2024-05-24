@@ -4,7 +4,10 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract DpidAliasRegistry is OwnableUpgradeable {
-    uint256 public _firstDpid;
+    // Only written at time of initialization
+    uint256 public firstDpid;
+
+    // Incremented on each dPID mint
     uint256 public nextDpid;
 
     // dpid => codex streamID
@@ -16,10 +19,10 @@ contract DpidAliasRegistry is OwnableUpgradeable {
         _disableInitializers();
     }
 
-    function __DpidAliasRegistry_init(uint256 firstDpid) public initializer {
+    function __DpidAliasRegistry_init(uint256 _firstDpid) public initializer {
         OwnableUpgradeable.__Ownable_init();
-        firstDpid = firstDpid;
-        nextDpid = firstDpid;
+        firstDpid = _firstDpid;
+        nextDpid = _firstDpid;
     }
 
     /**
@@ -56,7 +59,7 @@ contract DpidAliasRegistry is OwnableUpgradeable {
 
     struct LegacyVersion {
         string cid;
-        uint256 timestamp;
+        uint256 time;
     }
 
     struct LegacyDpidEntry {
@@ -104,7 +107,7 @@ contract DpidAliasRegistry is OwnableUpgradeable {
         // Assert that this dPID has not been set in the main registry
         require(bytes(registry[dpid]).length == 0, "dpid already upgraded");
         // Assert that the tx was made by the owner of the imported entry
-        require(legacy[dpid].owner == tx.origin, "unauthorized dpid upgrade");
+        require(legacy[dpid].owner == msg.sender, "unauthorized dpid upgrade");
 
         // Reclaim old dpid
         registry[dpid] = streamId;

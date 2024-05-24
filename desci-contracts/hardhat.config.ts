@@ -35,8 +35,6 @@ module.exports = {
     coinmarketcap: process.env.COINMARKETCAP_API_KEY,
   },
   networks: {
-    // NOTE: hardhat node has a bug with websockets: https://github.com/nomiclabs/hardhat/issues/588
-    // alternative is to use ganache for more than running contract tests
     hardhat: {
       chainId: 1337,
       accounts: {
