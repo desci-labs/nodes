@@ -30,6 +30,7 @@ export interface DrawCenteredHelperParams {
   positionY?: number; // 0-1, vertical alignment, e.g. 0.5 is the center.
   hyperlink?: string;
   color?: Color;
+  hyperlinkColor: Color;
 }
 
 export interface PdfImageObject {

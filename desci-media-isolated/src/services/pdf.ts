@@ -243,8 +243,8 @@ export class PdfManipulationService {
     height,
     paddingX = 0,
     positionY = 0.5,
-    hyperlink,
     color = rgb(0, 0, 0),
+    hyperlinkColor = rgb(0, 0, 1),
   }: DrawCenteredHelperParams): Promise<string[]> {
     const lines: string[] = [];
     const words = text.split(' ');
@@ -284,7 +284,42 @@ export class PdfManipulationService {
       const x = paddingX + (availableWidth - lineWidth) / 2;
       const y = startY + i * textHeight;
 
-      page.drawText(line, { x, y, size: fontSize, font, color });
+      const urlPattern = /(https?:\/\/[\w./%-]+)/g;
+      let match;
+      let textIndex = 0;
+
+      while ((match = urlPattern.exec(line)) !== null) {
+        const url = match[0];
+        const urlStartIndex = match.index;
+        const urlEndIndex = urlStartIndex + url.length;
+
+        // Text before the URL
+        const textBeforeUrl = line.slice(textIndex, urlStartIndex);
+        page.drawText(textBeforeUrl, {
+          x: x + font.widthOfTextAtSize(line.slice(0, textIndex), fontSize),
+          y,
+          size: fontSize,
+          font,
+          color,
+        });
+
+        // URL text
+        const urlWidth = font.widthOfTextAtSize(url, fontSize);
+        const urlX = x + font.widthOfTextAtSize(line.slice(0, urlStartIndex), fontSize);
+        page.drawText(url, { x: urlX, y, size: fontSize, font, color: hyperlinkColor });
+
+        textIndex = urlEndIndex;
+      }
+
+      // Text after URL
+      const textAfterUrl = line.slice(textIndex);
+      page.drawText(textAfterUrl, {
+        x: x + font.widthOfTextAtSize(line.slice(0, textIndex), fontSize),
+        y,
+        size: fontSize,
+        font,
+        color,
+      });
 
       minX = Math.min(minX, x);
       maxX = Math.max(maxX, x + lineWidth);
@@ -292,7 +327,11 @@ export class PdfManipulationService {
       maxY = Math.max(maxY, y + textHeight);
     }
 
-    if (hyperlink) {
+    const urlPattern = /(https?:\/\/[\w./%-]+)/g;
+    let match;
+
+    while ((match = urlPattern.exec(text)) !== null) {
+      const url = match[0];
       const linkAnnotation = page.doc.context.obj({
         Type: 'Annot',
         Subtype: 'Link',
@@ -302,7 +341,7 @@ export class PdfManipulationService {
         A: {
           Type: 'Action',
           S: 'URI',
-          URI: PDFString.of(hyperlink),
+          URI: PDFString.of(url),
         },
       }) as PDFDict;
 
