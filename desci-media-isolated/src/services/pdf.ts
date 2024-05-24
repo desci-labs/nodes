@@ -273,6 +273,11 @@ export class PdfManipulationService {
     const totalHeight = lines.length * textHeight;
     const startY = height * (1 - positionY) - totalHeight / 2;
 
+    let minX = width;
+    let maxX = 0;
+    let minY = height;
+    let maxY = 0;
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const lineWidth = font.widthOfTextAtSize(line, fontSize);
@@ -281,29 +286,35 @@ export class PdfManipulationService {
 
       page.drawText(line, { x, y, size: fontSize, font, color });
 
-      if (hyperlink && i === 0) {
-        const linkAnnotation = page.doc.context.obj({
-          Type: 'Annot',
-          Subtype: 'Link',
-          Rect: [x, y, x + lineWidth, y + textHeight],
-          Border: [0, 0, 2],
-          C: [0, 0, 1],
-          A: {
-            Type: 'Action',
-            S: 'URI',
-            URI: PDFString.of(hyperlink),
-          },
-        }) as PDFDict;
-
-        const linkAnnotationRef = page.doc.context.register(linkAnnotation);
-
-        const annotations = page.node.Annots() as PDFArray | undefined;
-        const annotationsArray = annotations ?? page.doc.context.obj([]);
-        annotationsArray.push(linkAnnotationRef);
-
-        page.node.set(PDFName.of('Annots'), annotationsArray);
-      }
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x + lineWidth);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y + textHeight);
     }
+
+    if (hyperlink) {
+      const linkAnnotation = page.doc.context.obj({
+        Type: 'Annot',
+        Subtype: 'Link',
+        Rect: [minX, minY, maxX, maxY],
+        Border: [0, 0, 2],
+        C: [0, 0, 1],
+        A: {
+          Type: 'Action',
+          S: 'URI',
+          URI: PDFString.of(hyperlink),
+        },
+      }) as PDFDict;
+
+      const linkAnnotationRef = page.doc.context.register(linkAnnotation);
+
+      const annotations = page.node.Annots() as PDFArray | undefined;
+      const annotationsArray = annotations ?? page.doc.context.obj([]);
+      annotationsArray.push(linkAnnotationRef);
+
+      page.node.set(PDFName.of('Annots'), annotationsArray);
+    }
+
     return lines;
   }
 
