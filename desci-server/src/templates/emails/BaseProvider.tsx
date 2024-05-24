@@ -1,7 +1,7 @@
 import { Tailwind } from '@react-email/components';
 import React from 'react';
 
-const BaseProvider = ({ children }: { children: JSX.Element }) => {
+export const BaseProvider = ({ children }: { children: JSX.Element }) => {
   return (
     <Tailwind
       config={{
@@ -19,5 +19,3 @@ const BaseProvider = ({ children }: { children: JSX.Element }) => {
     </Tailwind>
   );
 };
-
-export default BaseProvider;
