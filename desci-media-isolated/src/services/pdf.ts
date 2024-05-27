@@ -82,7 +82,7 @@ export class PdfManipulationService {
       const topHeader = `Research object ${nodeUrl}, this version posted ${publishDate}. The copyright holder for this research object (which was not certified by peer review) is the author/funder, who has granted DeSci Labs a non-exclsuive license to display the research object in perpetuity. It is made available under a${
         licenseStartsWithVowel ? 'n' : ''
       } ${license} license.`;
-      const headerSize = 12;
+      const headerSize = 10;
 
       this.drawCenteredMultilineText({
         page: newPage,
@@ -99,7 +99,7 @@ export class PdfManipulationService {
       /*
        * Title
        */
-      const titleSize = 30;
+      const titleSize = 24;
       const titlePosY = 0.35;
 
       const titleLines = await this.drawCenteredMultilineText({
@@ -117,7 +117,7 @@ export class PdfManipulationService {
        * Authors
        */
       const authorsProcessed = this.formatAuthors(authors || [], authorLimit);
-      const authorsSize = 18;
+      const authorsSize = 14;
       const titleHeight = titleLines.length * interMediumFont.heightAtSize(titleSize);
       const authorsPosY = titlePosY + titleHeight / height;
 
@@ -136,7 +136,7 @@ export class PdfManipulationService {
        * Center Text (Artifacts available here)
        */
       const centeredText = 'Data and/or code available at:';
-      const centeredTextSize = 20;
+      const centeredTextSize = 14;
       const authorsHeight = authorsLines.length * interMediumFont.heightAtSize(authorsSize);
       const centeredTextPosY = authorsPosY + authorsHeight / height + 0.1;
 
@@ -154,7 +154,7 @@ export class PdfManipulationService {
       /*
        * NODE URL
        */
-      const doiUrlSize = 20;
+      const doiUrlSize = 14;
       const centeredTextHeight = interRegularFont.heightAtSize(centeredTextSize);
       const doiUrlPosY = centeredTextPosY + centeredTextHeight / height + 0.01;
       const doiUrlColor = rgb(0, 0, 1);
