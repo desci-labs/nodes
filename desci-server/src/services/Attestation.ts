@@ -102,6 +102,16 @@ export class AttestationService {
     };
   }
 
+  async checkUserIsMember(userId: number, communityId: number) {
+    // const attestation = await this.findAttestationById(claim.attestationId);
+    const member = await prisma.communityMember.findUnique({
+      where: { userId_communityId: { userId, communityId } },
+    });
+    if (!member) throw new NoAccessError('Only Community members are allowed');
+
+    return true;
+  }
+
   async #publishVersion(attestationVersion: Prisma.AttestationVersionUncheckedCreateInput) {
     return prisma.attestationVersion.create({ data: attestationVersion });
   }
@@ -448,10 +458,7 @@ export class AttestationService {
 
     const attestation = await this.findAttestationById(claim.attestationId);
     if (attestation.protected) {
-      const member = await prisma.communityMember.findUnique({
-        where: { userId_communityId: { userId, communityId: attestation.communityId } },
-      });
-      if (!member) throw new NoAccessError('Only Community members are allowed');
+      await this.checkUserIsMember(userId, claim.desciCommunityId);
     }
 
     const node = await prisma.node.findFirst({ where: { uuid: claim.nodeUuid } });
@@ -506,6 +513,11 @@ export class AttestationService {
 
     if (duplicate) throw new DuplicateReactionError();
 
+    const attestation = await this.findAttestationById(claim.attestationId);
+    if (attestation.protected) {
+      await this.checkUserIsMember(authorId, claim.desciCommunityId);
+    }
+
     return prisma.nodeAttestationReaction.create({ data: { authorId, reaction, nodeAttestationId: claimId } });
   }
 
@@ -537,6 +549,15 @@ export class AttestationService {
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
     assert(claimId > 0, 'Error: claimId is zero');
+
+    const claim = await this.findClaimById(claimId);
+    if (!claim) throw new ClaimNotFoundError();
+
+    const attestation = await this.findAttestationById(claim.attestationId);
+    if (attestation.protected) {
+      await this.checkUserIsMember(authorId, attestation.communityId);
+    }
+
     const data: Prisma.AnnotationUncheckedCreateInput = {
       type: AnnotationType.COMMENT,
       authorId,
@@ -562,6 +583,15 @@ export class AttestationService {
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
     assert(claimId > 0, 'Error: claimId is zero');
+
+    const claim = await this.findClaimById(claimId);
+    if (!claim) throw new ClaimNotFoundError();
+
+    const attestation = await this.findAttestationById(claim.attestationId);
+    if (attestation.protected) {
+      await this.checkUserIsMember(authorId, attestation.communityId);
+    }
+
     const data: Prisma.AnnotationUncheckedCreateInput = {
       type: AnnotationType.HIGHLIGHT,
       authorId,
