@@ -16,7 +16,7 @@ export type UpdateContributorReqBody = {
   userId?: number;
 };
 
-export type UpdateContributorRequest = Request<never, never, UpdateContributorReqBody> & {
+export type UpdateContributorRequest = Request<{ silent: boolean }, never, UpdateContributorReqBody> & {
   user: User; // added by auth middleware
   node: Node; // added by ensureWriteAccess middleware
 };
@@ -37,6 +37,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
     throw Error('Middleware not properly setup for addContributor controller, requires req.node and req.user');
 
   const { contributorId, orcid, userId } = req.body;
+  const { silent } = req.params;
   let { email } = req.body;
   if (email) email = email.toLowerCase();
 
@@ -100,7 +101,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
           html: emailHtml,
         };
 
-        if (process.env.NODE_ENV === 'production') {
+        if (process.env.NODE_ENV === 'production' && !silent) {
           sgMail.send(emailMsg);
         } else {
           logger.info(

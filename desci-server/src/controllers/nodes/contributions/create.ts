@@ -16,7 +16,8 @@ export type AddContributorReqBody = {
   userId?: number;
 };
 
-export type AddContributorRequest = Request<never, never, AddContributorReqBody> & {
+// Silent refers to inviting a contributor without sending an email
+export type AddContributorRequest = Request<{ silent: boolean }, never, AddContributorReqBody> & {
   user: User; // added by auth middleware
   node: Node; // added by ensureWriteAccess middleware
 };
@@ -38,6 +39,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
     throw Error('Middleware not properly setup for addContributor controller, requires req.node and req.user');
 
   const { contributorId, orcid, userId } = req.body;
+  const { silent } = req.params;
   let { email } = req.body;
   if (email) email = email.toLowerCase();
   const logger = parentLogger.child({
@@ -98,7 +100,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
         html: emailHtml,
       };
 
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === 'production' && !silent) {
         sgMail.send(emailMsg);
       } else {
         logger.info(
