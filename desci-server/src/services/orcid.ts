@@ -10,7 +10,7 @@ import { getManifestByCid } from './data/processing.js';
 
 // const PUTCODE_REGEX = /put-code=.*?(?<code>\d+)/m;
 
-const DPID_URL_OVERRIDE = process.env.DPID_URL_OVERRIDE || 'https://dev-beta.dpid.org';
+const DPID_URL_OVERRIDE = process.env.DPID_URL_OVERRIDE || 'https://beta.dpid.org';
 const ORCID_DOMAIN = process.env.ORCID_API_DOMAIN || 'sandbox.orcid.org';
 type Claim = Awaited<ReturnType<typeof attestationService.getProtectedNodeClaims>>[number];
 const logger = parentLogger.child({ module: 'ORCIDApiService' });
