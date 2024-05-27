@@ -11,7 +11,7 @@ import { ensureUuidEndsWithDot } from '../../utils.js';
 export type PreparePublishPackageReqBodyParams = {
   manifestCid: string;
   pdfCid: string;
-  doi: string; // temp till DOI system is operational
+  doi?: string; // temp till DOI system is operational
   dpid: string;
   nodeUuid: string;
 };
@@ -45,7 +45,7 @@ export const preparePublishPackage = async (
   logger.trace({ fn: 'Retrieving Publish Package' });
 
   if (!nodeUuid) return res.status(400).json({ ok: false, error: 'nodeUuid is required.' });
-  if (!doi) return res.status(400).json({ ok: false, error: 'doi is required.' });
+  // if (!doi) return res.status(400).json({ ok: false, error: 'doi is required.' });
   if (!pdfCid) return res.status(400).json({ ok: false, error: 'pdfCid is required.' });
   if (!manifestCid) return res.status(400).json({ ok: false, error: 'manifestCid is required.' });
 

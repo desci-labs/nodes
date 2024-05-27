@@ -12,7 +12,7 @@ import { publishServices } from './PublishServices.js';
 export type PrepareDistributionPdfParams = {
   pdfCid: string;
   node: Node; // Title extraction for now
-  doi: string; // Temporary till we have DOI system operational
+  doi?: string; // Temporary till we have DOI system operational
   manifest: ResearchObjectV1;
   manifestCid: string;
 };
@@ -47,6 +47,11 @@ class PublishPackageService {
     }
     const title = manifest.title;
     const dpid = manifest.dpid.id;
+    if (dpid === undefined) {
+      this.logger.warn({ dpid, nodeId: node.id }, 'Failed generating a publish package for node, dpid is undefined');
+      throw new Error('DPID is undefined');
+    }
+
     const license = PublishPackageService.extractManuscriptLicense(manifest, pdfCid);
     const publishTime = await publishServices.retrieveBlockTimeByManifestCid(node.uuid, manifestCid);
     const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);

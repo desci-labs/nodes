@@ -8,9 +8,9 @@ import { PdfManipulationService } from '../../services/pdf.js';
 
 export type GeneratePdfCoverRequestBody = {
   cid: string;
-  doi: string;
+  doi?: string; // Optional, will use DPID if unavailable
   title: string;
-  dpid?: string;
+  dpid: string;
   codeAvailableDpid?: string;
   dataAvailableDpid?: string;
   authors?: string[];
@@ -38,7 +38,7 @@ export const generatePdfCover = async (
   const { header = true, headerAllPages = false, authorLimit } = req.query;
   try {
     if (!cid) throw new BadRequestError('Missing cid in request body');
-    if (!doi) throw new BadRequestError('Missing doi in request body');
+    if (!dpid) throw new BadRequestError('Missing dpid in request body');
     if (!license) throw new BadRequestError('Missing license in request body');
     if (!publishDate) throw new BadRequestError('Missing publishDate in request body');
 

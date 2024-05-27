@@ -8,8 +8,8 @@ export interface AddPdfCoverParams {
   taskId: string;
   cid: string;
   title: string;
-  doi: string;
-  dpid?: string;
+  doi?: string;
+  dpid: string;
   codeAvailableDpid?: string;
   dataAvailableDpid?: string;
   reprodEnabledDpid?: string;

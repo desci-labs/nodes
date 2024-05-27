@@ -33,6 +33,7 @@ export class PdfManipulationService {
     license,
     publishDate,
   }: AddPdfCoverParams) {
+    const usingDoi = doi ? true : false;
     const tempFilePath = path.join(BASE_TEMP_DIR, PDF_FILES_DIR, `${taskId}.pdf`); // Saved pdf to manipulate
     const outputPdfFileName = this.getPdfPath(PDF_JOB_TYPE.ADD_COVER, cid);
     const outputFullPath = path.join(BASE_TEMP_DIR, PDF_OUTPUT_DIR, outputPdfFileName);
@@ -52,7 +53,8 @@ export class PdfManipulationService {
        * Header
        */
       const licenseStartsWithVowel = startsWithVowel(license);
-      const topHeader = `Research object https://doi.org/${doi}, this version posted ${publishDate}. The copyright holder for this research object (which was not certified by peer review) is the author/funder, who has granted DeSci Labs a non-exclsuive license to display the research object in perpetuity. It is made available under a${
+      const nodeUrl = usingDoi ? `https://doi.org/${doi}` : `https://beta.dpid.org/${dpid}`;
+      const topHeader = `Research object ${nodeUrl}, this version posted ${publishDate}. The copyright holder for this research object (which was not certified by peer review) is the author/funder, who has granted DeSci Labs a non-exclsuive license to display the research object in perpetuity. It is made available under a${
         licenseStartsWithVowel ? 'n' : ''
       } ${license} license.`;
       const headerSize = 12;
@@ -66,7 +68,7 @@ export class PdfManipulationService {
         height,
         paddingX: 15,
         positionY: 0.04,
-        hyperlink: `https://doi.org/${doi}`,
+        hyperlink: nodeUrl,
       });
 
       /*
@@ -125,9 +127,8 @@ export class PdfManipulationService {
       });
 
       /*
-       * DOI URL
+       * NODE URL
        */
-      const doiUrl = `https://doi.org/${doi}`;
       const doiUrlSize = 20;
       const centeredTextHeight = helveticaFont.heightAtSize(centeredTextSize);
       const doiUrlPosY = centeredTextPosY + centeredTextHeight / height + 0.01;
@@ -135,14 +136,14 @@ export class PdfManipulationService {
 
       this.drawCenteredMultilineText({
         page: newPage,
-        text: doiUrl,
+        text: nodeUrl,
         font: helveticaFont,
         fontSize: doiUrlSize,
         width,
         height,
         paddingX: 100,
         positionY: doiUrlPosY,
-        hyperlink: doiUrl,
+        hyperlink: nodeUrl,
         color: doiUrlColor,
       });
 
