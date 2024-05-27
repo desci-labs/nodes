@@ -14,6 +14,7 @@ import {
   type DrawCenteredImagesParams,
   type PdfImageObject,
 } from '../types/pdf.js';
+import fontkit from 'pdflib-fontkit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,7 +45,31 @@ export class PdfManipulationService {
       // Proccess the pdf file to add the cover page
       const pdfBytes = await readFileToBuffer(tempFilePath);
       const pdfDoc = await PDFDocument.load(pdfBytes);
-      const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+      /**
+       * Load Fonts
+       */
+
+      // Enable custom font loading
+      pdfDoc.registerFontkit(fontkit);
+
+      // Satoshi Bold
+      const satoshiBoldBytes = await fs.promises.readFile(
+        path.join(__dirname, '../../public/static/fonts/Satoshi-Bold.ttf'),
+      );
+      const satoshiBoldFont = await pdfDoc.embedFont(satoshiBoldBytes);
+
+      // Inter Medium
+      const interMediumBytes = await fs.promises.readFile(
+        path.join(__dirname, '../../public/static/fonts/Inter-Medium.ttf'),
+      );
+      const interMediumFont = await pdfDoc.embedFont(interMediumBytes);
+
+      // Inter Regular
+      const interRegularBytes = await fs.promises.readFile(
+        path.join(__dirname, '../../public/static/fonts/Inter-Regular.ttf'),
+      );
+      const interRegularFont = await pdfDoc.embedFont(interRegularBytes);
 
       const newPage = pdfDoc.insertPage(0);
       const { width, height } = newPage.getSize();
@@ -62,7 +87,7 @@ export class PdfManipulationService {
       this.drawCenteredMultilineText({
         page: newPage,
         text: topHeader,
-        font: helveticaFont,
+        font: interRegularFont,
         fontSize: headerSize,
         width,
         height,
@@ -80,7 +105,7 @@ export class PdfManipulationService {
       const titleLines = await this.drawCenteredMultilineText({
         page: newPage,
         text: title,
-        font: helveticaFont,
+        font: satoshiBoldFont,
         fontSize: titleSize,
         width,
         height,
@@ -93,13 +118,13 @@ export class PdfManipulationService {
        */
       const authorsProcessed = this.formatAuthors(authors || [], authorLimit);
       const authorsSize = 18;
-      const titleHeight = titleLines.length * helveticaFont.heightAtSize(titleSize);
+      const titleHeight = titleLines.length * interMediumFont.heightAtSize(titleSize);
       const authorsPosY = titlePosY + titleHeight / height;
 
       const authorsLines = await this.drawCenteredMultilineText({
         page: newPage,
         text: authorsProcessed,
-        font: helveticaFont,
+        font: interMediumFont,
         fontSize: authorsSize,
         width,
         height,
@@ -112,13 +137,13 @@ export class PdfManipulationService {
        */
       const centeredText = 'Data and/or code available at:';
       const centeredTextSize = 20;
-      const authorsHeight = authorsLines.length * helveticaFont.heightAtSize(authorsSize);
+      const authorsHeight = authorsLines.length * interMediumFont.heightAtSize(authorsSize);
       const centeredTextPosY = authorsPosY + authorsHeight / height + 0.1;
 
       this.drawCenteredMultilineText({
         page: newPage,
         text: centeredText,
-        font: helveticaFont,
+        font: interRegularFont,
         fontSize: centeredTextSize,
         width,
         height,
@@ -130,14 +155,14 @@ export class PdfManipulationService {
        * NODE URL
        */
       const doiUrlSize = 20;
-      const centeredTextHeight = helveticaFont.heightAtSize(centeredTextSize);
+      const centeredTextHeight = interRegularFont.heightAtSize(centeredTextSize);
       const doiUrlPosY = centeredTextPosY + centeredTextHeight / height + 0.01;
       const doiUrlColor = rgb(0, 0, 1);
 
       this.drawCenteredMultilineText({
         page: newPage,
         text: nodeUrl,
-        font: helveticaFont,
+        font: interRegularFont,
         fontSize: doiUrlSize,
         width,
         height,
@@ -187,7 +212,7 @@ export class PdfManipulationService {
         this.drawCenteredMultilineText({
           page: newPage,
           text: claimedBadgesTitle,
-          font: helveticaFont,
+          font: interRegularFont,
           fontSize: claimedBadgesTitleSize,
           width,
           height,
@@ -203,6 +228,7 @@ export class PdfManipulationService {
           positionY: claimedBadgesTitlePosY + claimedBadgesTitleSize / height + 0.04,
           gap: 20,
           annotateImage: true,
+          font: interRegularFont,
         });
       }
       const pdfBytesMod = await pdfDoc.save();
