@@ -2181,7 +2181,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe.only('Protected Attestation Review', async () => {
+  describe('Protected Attestation Review', async () => {
     let openCodeClaim: NodeAttestation;
     let openDataClaim: NodeAttestation;
     let node: Node;
@@ -2238,18 +2238,23 @@ describe('Attestations Service', async () => {
     });
 
     it('should allow only community members review/comment a claimed attestation', async () => {
-      let res = await request(app).post(`/v1/attestations/comment`).set('authorization', memberAuthHeaderVal1).send({
-        author: members[0].id,
+      let body = {
+        authorId: members[0].userId,
         claimId: openCodeClaim.id,
         body: 'review 1',
-      });
+      };
+      let res = await request(app)
+        .post(`/v1/attestations/comment`)
+        .set('authorization', memberAuthHeaderVal1)
+        .send(body);
       expect(res.statusCode).to.equal(200);
 
-      res = await request(app).post(`/v1/attestations/comment`).set('authorization', memberAuthHeaderVal2).send({
+      body = {
+        authorId: members[1].userId,
         claimId: openCodeClaim.id,
-        author: members[1].id,
         body: 'review 2',
-      });
+      };
+      res = await request(app).post(`/v1/attestations/comment`).set('authorization', memberAuthHeaderVal2).send(body);
       expect(res.statusCode).to.equal(200);
 
       const comments = await attestationService.getAllClaimComments({ nodeAttestationId: openCodeClaim.id });
@@ -2258,17 +2263,19 @@ describe('Attestations Service', async () => {
       expect(comments.some((v) => v.authorId === members[1].userId)).to.equal(true);
     });
 
-    it('should prevent non-authorized users from reviewing a protected attestation(claim)', async () => {
+    it('should prevent non community members from reviewing a protected attestation(claim)', async () => {
       const apiResponse = await request(app)
         .post(`/v1/attestations/comment`)
         .set('authorization', UserAuthHeaderVal)
         .send({
-          claimId: openDataClaim.id,
+          authorId: users[1].id,
+          claimId: openCodeClaim.id,
+          body: 'review 1',
         });
       expect(apiResponse.statusCode).to.equal(401);
 
-      const comments = await attestationService.getAllClaimComments({ nodeAttestationId: openDataClaim.id });
-      expect(comments.length).to.equal(0);
+      const comments = await attestationService.getAllClaimComments({ nodeAttestationId: openCodeClaim.id });
+      expect(comments.length).to.equal(2);
     });
   });
 });

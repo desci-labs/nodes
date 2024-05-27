@@ -2,7 +2,6 @@ import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
 import { AnnotationType, Attestation, Prisma } from '@prisma/client';
-import { logger } from 'ethers';
 import _ from 'lodash';
 
 import { prisma } from '../client.js';
@@ -19,6 +18,7 @@ import {
   NoAccessError,
   VerificationError,
   VerificationNotFoundError,
+  logger,
 } from '../internal.js';
 import { communityService } from '../internal.js';
 
@@ -107,6 +107,7 @@ export class AttestationService {
     const member = await prisma.communityMember.findUnique({
       where: { userId_communityId: { userId, communityId } },
     });
+    logger.error({ member, userId, communityId }, 'Check community member');
     if (!member) throw new NoAccessError('Only Community members are allowed');
 
     return true;
