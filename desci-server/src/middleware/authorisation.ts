@@ -73,6 +73,7 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
     where: { uuid: ensureUuidEndsWithDot(uuid), ownerId: user.id },
   });
 
+  logger.info({ uuid, node }, 'NodeAccess');
   if (!node) {
     res.status(400).send({ ok: false, message: `Node: ${uuid} not found` });
     return;
