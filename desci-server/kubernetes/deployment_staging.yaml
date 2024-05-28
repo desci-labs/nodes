@@ -55,6 +55,7 @@ spec:
           export ORCID_API_DOMAIN={{ .Data.ORCID_API_DOMAIN }}
           export ORCID_CLIENT_ID={{ .Data.ORCID_CLIENT_ID }}
           export ORCID_CLIENT_SECRET={{ .Data.ORCID_CLIENT_SECRET }}
+          export DPID_URL_OVERRIDE={{ .Data.DPID_URL_OVERRIDE }}
           export ARWEAVE_ENABLED=0
           export ARWEAVE_HOST=
           export ARWEAVE_PORT=1984
