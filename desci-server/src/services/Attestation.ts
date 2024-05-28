@@ -102,15 +102,15 @@ export class AttestationService {
     };
   }
 
-  async checkUserIsMember(userId: number, communityId: number) {
-    // const attestation = await this.findAttestationById(claim.attestationId);
+  async assertUserIsMember(userId: number, communityId: number) {
     const member = await prisma.communityMember.findUnique({
       where: { userId_communityId: { userId, communityId } },
     });
-    logger.error({ member, userId, communityId }, 'Check community member');
-    if (!member) throw new NoAccessError('Only Community members are allowed');
 
-    return true;
+    if (!member) {
+      logger.error({ userId, communityId }, 'UnAuthorized Verify Attestation Call');
+      throw new NoAccessError('Only Community members are allowed');
+    }
   }
 
   async #publishVersion(attestationVersion: Prisma.AttestationVersionUncheckedCreateInput) {
@@ -459,7 +459,7 @@ export class AttestationService {
 
     const attestation = await this.findAttestationById(claim.attestationId);
     if (attestation.protected) {
-      await this.checkUserIsMember(userId, claim.desciCommunityId);
+      await this.assertUserIsMember(userId, claim.desciCommunityId);
     }
 
     const node = await prisma.node.findFirst({ where: { uuid: claim.nodeUuid } });
@@ -516,7 +516,7 @@ export class AttestationService {
 
     const attestation = await this.findAttestationById(claim.attestationId);
     if (attestation.protected) {
-      await this.checkUserIsMember(authorId, claim.desciCommunityId);
+      await this.assertUserIsMember(authorId, claim.desciCommunityId);
     }
 
     return prisma.nodeAttestationReaction.create({ data: { authorId, reaction, nodeAttestationId: claimId } });
@@ -556,7 +556,7 @@ export class AttestationService {
 
     const attestation = await this.findAttestationById(claim.attestationId);
     if (attestation.protected) {
-      await this.checkUserIsMember(authorId, attestation.communityId);
+      await this.assertUserIsMember(authorId, attestation.communityId);
     }
 
     const data: Prisma.AnnotationUncheckedCreateInput = {
@@ -590,7 +590,7 @@ export class AttestationService {
 
     const attestation = await this.findAttestationById(claim.attestationId);
     if (attestation.protected) {
-      await this.checkUserIsMember(authorId, attestation.communityId);
+      await this.assertUserIsMember(authorId, attestation.communityId);
     }
 
     const data: Prisma.AnnotationUncheckedCreateInput = {
