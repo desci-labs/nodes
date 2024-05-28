@@ -1,12 +1,10 @@
+import { ActionType } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 // import { Attestation, NodeAttestation } from '@prisma/client';
 import _ from 'lodash';
 
 import {
-  AuthFailureResponse,
-  BadRequestError,
   ForbiddenError,
-  NotFoundError,
   RequestWithUser,
   SuccessMessageResponse,
   SuccessResponse,
@@ -16,6 +14,7 @@ import {
   prisma,
 } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
+import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import orcidApiService from '../../services/orcid.js';
 
 type RemoveVerificationBody = {
@@ -51,7 +50,10 @@ export const removeVerification = async (
     new SuccessMessageResponse().send(res);
   } else {
     await attestationService.removeVerification(verification.id, user.id);
-
+    await saveInteraction(req, ActionType.UNVERIFY_ATTESTATION, {
+      claimId: verification.nodeAttestationId,
+      userId: user.id,
+    });
     new SuccessMessageResponse().send(res);
 
     const claim = await attestationService.findClaimById(verification.nodeAttestationId);
@@ -96,6 +98,7 @@ export const addVerification = async (
   const claim = await attestationService.findClaimById(parseInt(claimId));
 
   await attestationService.verifyClaim(parseInt(claimId), user.id);
+  await saveInteraction(req, ActionType.VERIFY_ATTESTATION, { claimId: claimId, userId: user.id });
 
   const attestation = await attestationService.findAttestationById(claim.attestationId);
 
@@ -108,6 +111,12 @@ export const addVerification = async (
     const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(claim.nodeUuid) } });
     const owner = await prisma.user.findFirst({ where: { id: node.ownerId } });
     if (owner.orcid) await orcidApiService.postWorkRecord(node.uuid, owner.orcid);
+    await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
+      ownerId: owner.id,
+      orcid: owner.orcid,
+      uuid: node.uuid,
+      claimId,
+    });
   }
 };
 
