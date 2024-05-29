@@ -89,11 +89,11 @@ describe("dPID", () => {
 
   describe("alias registry", () => {
     const STREAM_A = "kjzl6kcym7w8y7i5ugaq9a3vlm7hhuaf4bpl5o5qykeh4qtsa12c6rb5ekw6aaa";
-    
+
     describe("entry", () => {
       let tx: ContractTransaction;
       let res: ContractReceipt;
-      
+
       before(async () => {
         tx = await dpidAliasRegistry.mintDpid(STREAM_A);
         res = await tx.wait();
@@ -129,7 +129,7 @@ describe("dPID", () => {
 
     describe("legacy entry", () => {
       let migrationEntry: DpidAliasRegistry.LegacyDpidEntryStruct;
-        
+
       before(async () => {
         migrationEntry = {
           owner: user1.address, // of dpid owner
@@ -141,7 +141,7 @@ describe("dPID", () => {
           ],
         };
       });
-      
+
       describe("import", () => {
         let successReceipt: ContractReceipt;
 
@@ -154,7 +154,7 @@ describe("dPID", () => {
 
         it("can be resolved", async () => {
           const legacyEntry = await dpidAliasRegistry.legacyLookup(0);
-  
+
           expect(legacyEntry.owner).to.equal(migrationEntry.owner);
           expect(legacyEntry.versions.length).to.equal(1);
           expect(legacyEntry.versions[0].cid).to.equal("bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku");
@@ -170,15 +170,15 @@ describe("dPID", () => {
           expect(dpid).to.equal(0);
           expect(owner).to.equal(user1.address);
         });
-  
+
         it("can NOT be done by others", async () => {
           const doImport = async () => await dpidAliasRegistry
             .importLegacyDpid(1, migrationEntry);
-  
+
           await expect(doImport()).to.be.rejectedWith("caller is not the owner");
         });
       });
-      
+
       describe("upgrade", () => {
         let successReceipt: ContractReceipt;
 
@@ -186,7 +186,7 @@ describe("dPID", () => {
           const doUpgrade = async () => await dpidAliasRegistry
             .connect(user2)
             .upgradeDpid(0, STREAM_A);
-          
+
           await expect(doUpgrade()).to.be.rejectedWith("unauthorized dpid upgrade");
         });
 
@@ -202,14 +202,14 @@ describe("dPID", () => {
           const tx = await dpidAliasRegistry.upgradeDpid(0, STREAM_A);
           successReceipt = await tx.wait();
 
-          const upgradedEntry = await dpidAliasRegistry.lookup(0);
+          const upgradedEntry = await dpidAliasRegistry.resolve(0);
           expect(upgradedEntry).to.equal(STREAM_A);
         });
 
         it("cannot be done twice", async () => {
           const doSecondUpgrade = async () =>
             await dpidAliasRegistry.upgradeDpid(0, STREAM_A);
-          
+
           await expect(doSecondUpgrade()).to.be.rejectedWith("dpid already upgraded");
         });
 

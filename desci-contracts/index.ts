@@ -15,4 +15,7 @@ export const contracts = {
   prodRoInfo,
   prodDpidInfo,
   localDpidAliasInfo,
+  // TODO update as soon as deployment is done
+  devDpidAliasInfo: localDpidAliasInfo,
+  prodDpidAliasInfo: localDpidAliasInfo,
 };
