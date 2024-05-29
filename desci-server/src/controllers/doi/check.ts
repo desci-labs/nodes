@@ -1,12 +1,17 @@
 import { Request, Response } from 'express';
 
-import { BadRequestError, SuccessMessageResponse, SuccessResponse, doiService } from '../../internal.js';
+import { BadRequestError, SuccessMessageResponse, SuccessResponse, doiService, logger } from '../../internal.js';
 
 export const checkMintability = async (req: Request, res: Response) => {
   const { uuid } = req.params;
   if (!uuid) throw new BadRequestError();
-  await doiService.checkMintability(uuid);
-  new SuccessMessageResponse().send(res);
+  try {
+    await doiService.checkMintability(uuid);
+    new SuccessResponse(true).send(res);
+  } catch (err) {
+    logger.error(err, 'module:: checkMintability');
+    new SuccessResponse(false).send(res);
+  }
 };
 
 export const getDoi = async (req: Request, res: Response) => {

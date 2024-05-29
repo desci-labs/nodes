@@ -12,6 +12,7 @@ import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js
 import { ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
+import { communityService } from './Communities.js';
 import { getManifestByCid } from './data/processing.js';
 
 export class DoiService {
@@ -35,7 +36,11 @@ export class DoiService {
     researchObject.versions.reverse();
     // const nodeVersion = researchObject.versions.length;
 
-    const doiAttestations = await attestationService.getProtectedAttestations({ protected: true });
+    const doiAttestations = await attestationService.getProtectedAttestations({
+      protected: true,
+      community: { slug: 'desci-foundation' },
+    });
+    logger.info(doiAttestations, 'DOI Requirements');
     let claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
     claims = claims.filter((claim) => claim.verifications > 0);
     const hasDataOrCode = claims.length > 0;
