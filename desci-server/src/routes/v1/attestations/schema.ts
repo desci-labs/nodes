@@ -128,12 +128,6 @@ export const addVerificationSchema = z.object({
   }),
 });
 
-export const canVerificationSchema = z.object({
-  params: z.object({
-    claimId: z.coerce.number(),
-  }),
-});
-
 export const deleteCommentSchema = z.object({
   params: z.object({ commentId: z.coerce.number() }),
 });

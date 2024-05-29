@@ -10,7 +10,7 @@ import { getManifestByCid } from './data/processing.js';
 
 // const PUTCODE_REGEX = /put-code=.*?(?<code>\d+)/m;
 
-const DPID_URL_OVERRIDE = process.env.DPID_URL_OVERRIDE || 'https://dev-beta.dpid.org';
+const DPID_URL_OVERRIDE = process.env.DPID_URL_OVERRIDE || 'https://beta.dpid.org';
 const ORCID_DOMAIN = process.env.ORCID_API_DOMAIN || 'sandbox.orcid.org';
 type Claim = Awaited<ReturnType<typeof attestationService.getProtectedNodeClaims>>[number];
 const logger = parentLogger.child({ module: 'ORCIDApiService' });
@@ -85,7 +85,21 @@ class OrcidApiService {
             userId: authToken.userId,
           },
         });
-        logger.info({ status: response.status, statusText: response.statusText, data }, 'REFRESH TOKEN RESPONSE');
+        logger.info(
+          {
+            status: response.status,
+            statusText: response.statusText,
+            data: {
+              name: data.name,
+              scope: data.scope,
+              token_type: data.token_type,
+              orcid: data.orcid,
+              refreshToken: !!data.refresh_token,
+              accessToken: !!data.access_token,
+            },
+          },
+          'REFRESH TOKEN RESPONSE',
+        );
       } else {
         logger.info(
           { status: response.status, statusText: response.statusText, BODY: await response.json() },
@@ -230,13 +244,15 @@ class OrcidApiService {
 
       const latestVersion = researchObject.versions[researchObject.versions.length - 1];
       const publicationDate = new Date(parseInt(latestVersion.time) * 1000).toLocaleDateString().replaceAll('/', '-');
+      const contributorsXml = generateContributors(latestManifest.authors ?? [], orcid);
       const nodeRecordPromise = this.putNodeWorkRecord({
         orcid,
         authToken,
         uuid: nodeUuid,
-        userId: user.id,
         nodeVersion,
         publicationDate,
+        contributorsXml,
+        userId: user.id,
         manifest: latestManifest,
       });
       const claimRecordPromises = claims.map((claim) => {
@@ -250,6 +266,7 @@ class OrcidApiService {
           publicationDate,
           orcid,
           authToken,
+          contributorsXml,
           uuid: nodeUuid,
           userId: user.id,
           nodeVersion: claimedVersionNumber,
@@ -283,6 +300,7 @@ class OrcidApiService {
     authToken,
     orcid,
     nodeVersion,
+    contributorsXml,
   }: {
     manifest: ResearchObjectV1;
     publicationDate: string;
@@ -291,6 +309,7 @@ class OrcidApiService {
     authToken: string;
     orcid: string;
     nodeVersion: number;
+    contributorsXml: string;
   }) {
     try {
       const orcidPutCode = await prisma.orcidPutCodes.findUnique({
@@ -298,7 +317,7 @@ class OrcidApiService {
       });
       const putCode = orcidPutCode?.putcode;
 
-      let data = generateNodeWorkRecord({ manifest, publicationDate, nodeVersion, putCode });
+      let data = generateNodeWorkRecord({ manifest, publicationDate, nodeVersion, putCode, contributorsXml });
       data = data.replace(/\\"/g, '"');
 
       const url = `${this.baseUrl}/${orcid}/work${putCode ? '/' + putCode : ''}`;
@@ -388,8 +407,10 @@ class OrcidApiService {
     orcid,
     claim,
     nodeVersion,
+    contributorsXml,
   }: {
     claim: Claim;
+    contributorsXml: string;
     manifest: ResearchObjectV1;
     nodeVersion: number;
     publicationDate: string;
@@ -410,7 +431,14 @@ class OrcidApiService {
       });
       const putCode = orcidPutCode?.putcode;
 
-      let data = generateClaimWorkRecord({ nodeVersion, manifest, publicationDate, claim, putCode });
+      let data = generateClaimWorkRecord({
+        nodeVersion,
+        manifest,
+        publicationDate,
+        claim,
+        putCode,
+        contributorsXml,
+      });
       data = data.replace(/\\"/g, '"');
 
       const url = `${this.baseUrl}/${orcid}/work${putCode ? '/' + putCode : ''}`;
@@ -500,9 +528,11 @@ const generateClaimWorkRecord = ({
   claim,
   nodeVersion,
   publicationDate,
+  contributorsXml,
 }: {
   manifest: ResearchObjectV1;
   claim: Claim;
+  contributorsXml: string;
   putCode?: string;
   nodeVersion: number;
   publicationDate: string;
@@ -514,9 +544,9 @@ const generateClaimWorkRecord = ({
       ? 'data-set'
       : 'preprint';
 
-  const description = `${claim.name} Attestation`;
+  const description = `${claim.name} availability verified`;
   const [month, day, year] = publicationDate.split('-');
-  const externalUrl = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/attestation/${claim.id}`;
+  const externalUrl = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${nodeVersion}/attestation/${claim.id}`;
   const dataRoot = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${nodeVersion}`;
   logger.info({ codeAttr, workType, publicationDate, day, month, year, externalUrl }, 'CODE ATTR');
   return (
@@ -525,7 +555,6 @@ const generateClaimWorkRecord = ({
     '> ' +
     '<work:title>' +
     ` <common:title>${manifest.title}</common:title>
-      <common:subtitle>${description}</common:subtitle>
     </work:title>
     <work:short-description>${description}</work:short-description>
     <work:type>${workType}</work:type>
@@ -548,7 +577,8 @@ const generateClaimWorkRecord = ({
             <common:external-id-relationship>part-of</common:external-id-relationship>
         </common:external-id>
     </common:external-ids>
-    ${generateContributors(manifest.authors ?? [])}
+    <common:url>${externalUrl}</common:url>
+    ${contributorsXml}
     </work:work>
     `
   );
@@ -571,11 +601,13 @@ const generateNodeWorkRecord = ({
   nodeVersion,
   putCode,
   publicationDate,
+  contributorsXml,
 }: {
   manifest: ResearchObjectV1;
   nodeVersion: number;
   putCode?: string;
   publicationDate: string;
+  contributorsXml: string;
 }): string => {
   const codeAttr = putCode ? 'put-code="' + putCode + '"' : '';
   const workType = 'preprint';
@@ -588,9 +620,7 @@ const generateNodeWorkRecord = ({
     '> ' +
     '<work:title>' +
     ` <common:title>${manifest.title}</common:title>
-      ${manifest.description.trim() ? `<common:subtitle>${manifest.description.trim()}</common:subtitle>` : ``}
     </work:title>
-    ${manifest?.description?.trim() ? `<work:short-description>${manifest.description}</work:short-description>` : ``}
     <work:type>${workType}</work:type>
     <common:publication-date>
       <common:year>${year}</common:year>
@@ -605,7 +635,8 @@ const generateNodeWorkRecord = ({
         <common:external-id-relationship>self</common:external-id-relationship>
       </common:external-id>
     </common:external-ids>
-    ${generateContributors(manifest.authors ?? [])}
+    <common:url>${dataRoot}</common:url>
+    ${contributorsXml}
     </work:work>
     `
   );
@@ -617,11 +648,20 @@ const generateNodeWorkRecord = ({
  * @param authors[] - A list of ResearchObjectV1Author entries
  * @returns {string} xml string of the constructed contributor data
  */
-const generateContributors = (authors: ResearchObjectV1Author[]): string => {
+const generateContributors = (authors: ResearchObjectV1Author[], ownerOrcid: string): string => {
+  authors.reverse();
+
+  const authorIndex = authors.findIndex((author) => author.orcid === ownerOrcid);
+  if (authorIndex !== -1 && authorIndex !== 0) {
+    const mainAuthor = authors.splice(authorIndex, 1);
+    authors.unshift(mainAuthor[0]);
+  }
+
   const contributors =
     authors?.length > 0
       ? `<work:contributors>
     ${authors
+      .filter((author) => !!author.name)
       .map((author, idx) => {
         return `<work:contributor>
             ${

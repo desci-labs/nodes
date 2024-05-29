@@ -13,6 +13,7 @@ env:
   CONTAINER_IMAGE_REPO: desci-repo-server
   CONTAINER_IMAGE_MEDIA: nodes-media-server
   CONTAINER_IMAGE_ISOLATED: desci-media-isolated
+  CONTAINER_IMAGE_PROXY: "reverse-proxy"
   DOCKER_BUILDKIT: 1
 
 jobs:
@@ -294,23 +295,23 @@ jobs:
         run: |
           # Build and tag the image
           docker build \
-            -t $CONTAINER_IMAGE-staging:latest \
-            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging \
-             ./$CONTAINER_IMAGE
+            -t $CONTAINER_IMAGE_PROXY-staging:latest \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_PROXY-staging \
+             ./$CONTAINER_IMAGE_PROXY
 
       - name: Push (STAGING)
         run: |
           # Push image to AWS ECR
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging:${{ github.sha }}
-          docker tag $CONTAINER_IMAGE-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging:latest
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging:${{ github.sha }}
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging:latest
+          docker tag $CONTAINER_IMAGE_PROXY-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_PROXY-staging:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE_PROXY-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_PROXY-staging:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_PROXY-staging:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_PROXY-staging:latest
       
       - name: Deploy to EKS (STAGING)
         run: | # defaults to latest kubectl binary version
-          kubectl apply -f $CONTAINER_IMAGE/deployment.yaml
-          kubectl set image deployment/reverse-proxy-staging reverse-proxy-staging=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-staging:${{ github.sha }} --record
+          kubectl apply -f $CONTAINER_IMAGE_PROXY/deployment.yaml
+          kubectl set image deployment/reverse-proxy-staging reverse-proxy-staging=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_PROXY-staging:${{ github.sha }} --record
 
       - name: Verify EKS Deployment (STAGING)
         run: |
