@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 
-import { BadRequestError, SuccessMessageResponse, SuccessResponse, doiService, logger } from '../../internal.js';
+import { DoiError } from '../../core/doi/error.js';
+import { BadRequestError, SuccessResponse, doiService, logger } from '../../internal.js';
 
 export const checkMintability = async (req: Request, res: Response) => {
   const { uuid } = req.params;
@@ -10,6 +11,9 @@ export const checkMintability = async (req: Request, res: Response) => {
     new SuccessResponse(true).send(res);
   } catch (err) {
     logger.error(err, 'module:: checkMintability');
+    if (!(err instanceof DoiError)) {
+      // TODO: Sentry error reporting
+    }
     new SuccessResponse(false).send(res);
   }
 };

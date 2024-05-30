@@ -29,7 +29,7 @@ export class NoManuscriptError extends DoiError {
 }
 
 export class AttestationsError extends DoiError {
-  constructor(message = 'All required attestations are not claimed or verified!') {
+  constructor(message = 'All required attestations are not claimed or verified') {
     super(DoiErrorType.INCOMPLETE_ATTESTATIONS, message);
   }
 }

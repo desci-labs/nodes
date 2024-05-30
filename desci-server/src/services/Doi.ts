@@ -2,6 +2,7 @@ import {
   PdfComponent,
   ResearchObjectComponentDocumentSubtype,
   ResearchObjectComponentType,
+  ResearchObjectV1,
 } from '@desci-labs/desci-models';
 import { PrismaClient } from '@prisma/client';
 import { v4 } from 'uuid';
@@ -12,9 +13,11 @@ import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js
 import { ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
-import { communityService } from './Communities.js';
 import { getManifestByCid } from './data/processing.js';
 
+const DOI_PREFIX = process.env.DOI_PREFIX;
+
+if (!DOI_PREFIX) throw new Error('env DOI_PREFIX is missing!');
 export class DoiService {
   dbClient: PrismaClient;
 
@@ -22,11 +25,50 @@ export class DoiService {
     this.dbClient = prismaClient;
   }
 
+  async assertIsFirstDoi(uuid: string) {
+    const exists = await this.dbClient.doiRecord.findUnique({ where: { uuid } });
+    if (exists) throw new DuplicateMintError();
+  }
+
+  async assertHasValidatedAttestations(manifest: ResearchObjectV1) {
+    const doiAttestations = await attestationService.getProtectedAttestations({
+      protected: true,
+      community: { slug: 'desci-foundation' },
+    });
+    logger.info(doiAttestations, 'DOI Requirements');
+    let claims = await attestationService.getProtectedNodeClaims(manifest.dpid.id);
+    claims = claims.filter((claim) => claim.verifications > 0);
+
+    const hasClaimedRequiredAttestations = doiAttestations.every((attestation) =>
+      claims.find((claim) => claim.attestationId === attestation.id),
+    );
+    if (!hasClaimedRequiredAttestations) throw new AttestationsError();
+  }
+
+  assertHasValidManuscript(manifest: ResearchObjectV1) {
+    const manuscript =
+      manifest &&
+      manifest.components.find(
+        (component) =>
+          component.type === ResearchObjectComponentType.PDF &&
+          (component as PdfComponent).subtype === ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
+      );
+    if (!manuscript) {
+      throw new NoManuscriptError();
+    }
+  }
+
+  assertValidManifest(manifest: ResearchObjectV1) {
+    const hasTitle = manifest.title.trim().length > 0;
+    const hasAbstract = manifest.description.trim().length > 0;
+    const hasContributors = manifest.authors.length > 0;
+    if (!hasTitle || !hasAbstract || !hasContributors) throw new BadManifestError();
+  }
+
   async checkMintability(nodeUuid: string) {
     const uuid = ensureUuidEndsWithDot(nodeUuid);
     // check if node has claimed doi already
-    const exists = await this.dbClient.doiRecord.findUnique({ where: { uuid } });
-    if (exists) throw new DuplicateMintError();
+    await this.assertIsFirstDoi(uuid);
 
     // retrieve node manifest/metadata
     const { researchObjects } = await getIndexedResearchObjects([uuid]);
@@ -34,39 +76,14 @@ export class DoiService {
     const manifestCid = hexToCid(researchObject.recentCid);
     const latestManifest = await getManifestByCid(manifestCid);
     researchObject.versions.reverse();
-    // const nodeVersion = researchObject.versions.length;
-
-    const doiAttestations = await attestationService.getProtectedAttestations({
-      protected: true,
-      community: { slug: 'desci-foundation' },
-    });
-    logger.info(doiAttestations, 'DOI Requirements');
-    let claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
-    claims = claims.filter((claim) => claim.verifications > 0);
-    const hasDataOrCode = claims.length > 0;
 
     // check if manuscript is included
-    const manuscript =
-      latestManifest &&
-      latestManifest.components.find(
-        (component) =>
-          component.type === ResearchObjectComponentType.PDF &&
-          (component as PdfComponent).subtype === ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
-      );
-    if (!manuscript && !hasDataOrCode) {
-      throw new NoManuscriptError();
-    }
+    this.assertHasValidManuscript(latestManifest);
 
     // validate title, abstract and contributors
-    const hasTitle = latestManifest.title.trim().length > 0;
-    const hasAbstract = latestManifest.description.trim().length > 0;
-    const hasContributors = latestManifest.authors.length > 0;
-    if (!hasTitle || !hasAbstract || !hasContributors) throw new BadManifestError();
+    this.assertValidManifest(latestManifest);
 
-    const hasClaimedRequiredAttestations = doiAttestations.every((attestation) =>
-      claims.find((claim) => claim.attestationId === attestation.id),
-    );
-    if (!hasClaimedRequiredAttestations) throw new AttestationsError();
+    await this.assertHasValidatedAttestations(latestManifest);
 
     return { dpid: latestManifest.dpid.id, uuid };
   }
@@ -76,7 +93,7 @@ export class DoiService {
     // todo: handle over logic to cross-ref api service for minting DOIs
     // mint new doi
     const doiSuffix = v4().substring(0, 8);
-    const doi = `https://doi.org/10.555/${doiSuffix}`;
+    const doi = `${DOI_PREFIX}/${doiSuffix}`;
     logger.info({ doiSuffix, doi, uuid }, 'MINT DOI');
     return await this.dbClient.doiRecord.create({
       data: {
