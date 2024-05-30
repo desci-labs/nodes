@@ -8,6 +8,7 @@ import {
 } from "../typechain-types";
 import { TransactionReceipt } from "@ethersproject/abstract-provider";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { receiveMessageOnPort } from "worker_threads";
 
 use(chaiAsPromised);
 
@@ -37,7 +38,7 @@ describe("dPID", () => {
         FIRST_DPID // firstDpid
       ],
       {
-        initializer: "__DpidAliasRegistry_init"
+        initializer: "initialize",
       }
     ) as DpidAliasRegistry;
     await dpidAliasRegistry.deployed();
@@ -56,11 +57,10 @@ describe("dPID", () => {
       reciept = await dpidAliasRegistry.deployTransaction.wait();
       proxyAddress = reciept.contractAddress;
       implAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
-      proxyAdmin = await upgrades.erc1967.getAdminAddress(proxyAddress);
 
       console.log({
         implAddress,
-        proxyAdmin,
+        proxyAddress,
         implOwner: await dpidAliasRegistry.owner(),
       })
     });
@@ -76,9 +76,9 @@ describe("dPID", () => {
       expect(proxyAddress).not.to.equal(implAddress);
     });
 
-    it("deploys implementation with proxy admin as owner", async () => {
+    it("deploys implementation with proxy owner as owner", async () => {
       const registryOwner = await dpidAliasRegistry.owner();
-      expect(registryOwner).to.equal(proxyAdmin);
+      expect(registryOwner).to.equal(owner.address);
     });
 
     it("respects initializer dpid offset", async () => {
@@ -181,11 +181,12 @@ describe("dPID", () => {
 
       describe("upgrade", () => {
         let successReceipt: ContractReceipt;
+        const STREAM_C = "kjzl6kcym7w8y7i5ugaq9a3vlm7hhuaf4bpl5o5qykeh4qtsa12c6rb5ekw6ccc";
 
         it("can NOT be done by others", async () => {
           const doUpgrade = async () => await dpidAliasRegistry
             .connect(user2)
-            .upgradeDpid(0, STREAM_A);
+            .upgradeDpid(0, STREAM_C);
 
           await expect(doUpgrade()).to.be.rejectedWith("unauthorized dpid upgrade");
         });
@@ -193,22 +194,22 @@ describe("dPID", () => {
         it("can NOT be done by contract owner", async () => {
           const doUpgrade = async () => await dpidAliasRegistry
             .connect(owner)
-            .upgradeDpid(0, STREAM_A);
+            .upgradeDpid(0, STREAM_C);
 
           await expect(doUpgrade()).to.be.rejectedWith("unauthorized dpid upgrade");
         });
 
         it("can be done by dpid owner", async () => {
-          const tx = await dpidAliasRegistry.upgradeDpid(0, STREAM_A);
+          const tx = await dpidAliasRegistry.upgradeDpid(0, STREAM_C);
           successReceipt = await tx.wait();
 
           const upgradedEntry = await dpidAliasRegistry.resolve(0);
-          expect(upgradedEntry).to.equal(STREAM_A);
+          expect(upgradedEntry).to.equal(STREAM_C);
         });
 
         it("cannot be done twice", async () => {
           const doSecondUpgrade = async () =>
-            await dpidAliasRegistry.upgradeDpid(0, STREAM_A);
+            await dpidAliasRegistry.upgradeDpid(0, STREAM_C);
 
           await expect(doSecondUpgrade()).to.be.rejectedWith("dpid already upgraded");
         });
@@ -219,7 +220,7 @@ describe("dPID", () => {
 
           expect(event.event).to.equal("UpgradedDpid");
           expect(dpid).to.equal(0);
-          expect(streamId).to.equal(STREAM_A);
+          expect(streamId).to.equal(STREAM_C);
         });
       });
     });

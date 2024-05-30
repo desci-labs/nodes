@@ -11,7 +11,7 @@
     "docker:push": "docker tag desci-hardhat-node:latest 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest && docker push 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest",
     "deploy:ganache": "yarn stubHardhatAnalytics && hardhat run scripts/deployResearchObject.js --network ganache",
     "deploy:dpid:ganache": "yarn stubHardhatAnalytics && hardhat run scripts/deployDpidRegistry.js --network ganache",
-    "deploy:alias:ganache": "yarn stubHardhatAnalytics && hardhat run scripts/deployDpidAliasRegistry.js --network ganache",
+    "deploy:alias:ganache": "yarn stubHardhatAnalytics && export FIRST_DPID=500 && hardhat run scripts/deployDpidAliasRegistry.js --network ganache",
     "migrate": "hardhat run scripts/migrateToNewContract.js --network ganache && touch ./.openzeppelin/migration-complete.json",
     "graph:codegen": "graph codegen subgraph/subgraph.yaml -o subgraph/generated",
     "graph:build": "graph build subgraph/subgraph.yaml",

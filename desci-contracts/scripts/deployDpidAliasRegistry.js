@@ -1,9 +1,11 @@
 const { ethers, upgrades } = require("hardhat");
 const fs = require('fs');
 
-const FIRST_DPID = 500;
+const FIRST_DPID = process.env.FIRST_DPID;
+if (FIRST_DPID === undefined) {
+  throw new Error("FIRST_DPID unset");
+};
 
-console.log(process.cwd())
 async function main() {
   fs.rmSync(".openzeppelin/unknown-dpid-alias-registry.json", { force: true });
   fs.rmSync(".openzeppelin/unknown-1337.json", { force: true });
@@ -16,7 +18,7 @@ async function main() {
       FIRST_DPID // firstDpid
     ],
     {
-      initializer: "__DpidAliasRegistry_init"
+      initializer: "initialize"
     }
   );
   await proxy.deployed();

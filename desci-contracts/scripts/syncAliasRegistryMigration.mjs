@@ -3,28 +3,14 @@ const { ethers, hardhatArguments } = hardhat;
 import axios from "axios";
 import { writeFileSync } from "fs";
 
-const FIRST_DPID = process.env.FIRST_DPID;
-if (FIRST_DPID === undefined) {
-  throw new Error("FIRST_DPID unset");
-};
-
-const ENV = process.env.ENV;
-if (ENV === undefined) {
-  throw new Error("ENV unset");
-};
-
-let dpidApi;
-if (ENV === "dev") {
-  dpidApi = "dev-beta";
-} else if (ENV === "prod") {
-  dpidApi = "beta";
-} else {
-  throw new Error(`Env "${ENV} unknown (use "dev" or "prod")`);
+const REGISTRY_ADDRESS = process.env.REGISTRY_ADDRESS;
+if (REGISTRY_ADDRESS === undefined) {
+  throw new Error("REGISTRY_ADDRESS unset");
 };
 
 const getDpidPage = async (page) => {
   const { data } = await axios.get(
-    `https://${dpidApi}.dpid.org/api/v1/dpid?size=100&page=${page}`
+    `https://dev-beta.dpid.org/api/v1/dpid?size=100&page=${page}`
   );
   return data;
 };
@@ -38,38 +24,29 @@ const toImportEntry = (dpid) => [
   {
     owner: dpid.researchObject.owner,
     versions: dpid.researchObject.versions.map(v => ({cid: v.cid, time: v.time}))
-  },
+  }
 ];
 
 const importEntries = allDpids.map(toImportEntry);
 
 const DpidAliasRegistryFactory = await ethers.getContractFactory("DpidAliasRegistry");
+const registry = DpidAliasRegistryFactory
+  .attach(REGISTRY_ADDRESS);
 
-const registry = await upgrades.deployProxy(
-  DpidAliasRegistryFactory,
-  [
-    FIRST_DPID
-  ],
-  {
-    initializer: "initialize"
-  }
-);
-
-await registry.deployed();
-console.log(`📃 Contract deployed to ${registry.address}`);
-
-const results = {
-  address: registry.address,
-  dpids: [],
-};
+const results = [];
 let totalGas = 0;
 const startTime = Date.now();
 
 for (const [ dpid, entry ] of importEntries) {
-  console.log(`📥 Importing dPID ${dpid}...`)
-  const tx = await registry.importLegacyDpid(dpid, entry);
-  const receipt = await tx.wait();
-  totalGas += ethers.BigNumber.from(receipt.gasUsed).toNumber();
+  const [owner, versions] = await registry.legacyLookup(dpid);
+  const notImported = owner === "0x0000000000000000000000000000000000000000";
+
+  if (notImported) {
+    console.log(`❗ dPID ${dpid} not found, importing...`);
+    const tx = await registry.importLegacyDpid(dpid, entry);
+    const receipt = await tx.wait();
+    totalGas += ethers.BigNumber.from(receipt.gasUsed).toNumber();
+  };
 
   const fromContract = await registry.legacyLookup(dpid);
 
@@ -103,20 +80,13 @@ for (const [ dpid, entry ] of importEntries) {
       validationError = true;
     };
   };
-  results.dpids.push({ dpid, owner: imported.owner, versions: imported.versions, importError: validationError });
+
+
+  results.push({ dpid, owner: imported.owner, versions: imported.versions, importError: validationError });
 };
 
-const failures = results.dpids.filter(r => r.validationError);
-console.log(`🚦 dPIDs which failed validation: ${JSON.stringify(failures)}`)
-
-const missingNumbers = [];
-for (let i = 0; i < importEntries.length; i++) {
-  if (!allDpids.find(e => e.dpid === i.toString())) {
-    missingNumbers.push(i);
-  };
-};
-
-console.log(`❓ dPID's missing from original set: ${JSON.stringify(missingNumbers)}`)
+const failures = results.filter(r => r.validationError);
+console.log(`🚦 dPIDs which failed validation (manually import to overwrite): ${JSON.stringify(failures)}`)
 
 const duration = Math.ceil((Date.now() - startTime) / 1000);
 console.log(`🏁 migration done in ${duration}s for a total of ${totalGas} gas`)
