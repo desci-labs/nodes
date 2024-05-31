@@ -8,11 +8,8 @@ import {
 } from "../typechain-types";
 import { TransactionReceipt } from "@ethersproject/abstract-provider";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { receiveMessageOnPort } from "worker_threads";
 
 use(chaiAsPromised);
-
-const FIRST_DPID = hhe.BigNumber.from(100);
 
 describe("dPID", () => {
   let _accounts: SignerWithAddress[];
@@ -34,24 +31,18 @@ describe("dPID", () => {
 
     dpidAliasRegistry = await upgrades.deployProxy(
       DpidAliasRegistryFactory,
-      [
-        FIRST_DPID // firstDpid
-      ],
+      [],
       {
         initializer: "initialize",
       }
     ) as DpidAliasRegistry;
     await dpidAliasRegistry.deployed();
-
-    // Default instance to non-owner user
-    dpidAliasRegistry = dpidAliasRegistry.connect(user1);
   });
 
   describe("deployment", () => {
     let reciept: TransactionReceipt;
     let proxyAddress: string;
     let implAddress: string;
-    let proxyAdmin: string;
 
     before(async () => {
       reciept = await dpidAliasRegistry.deployTransaction.wait();
@@ -81,20 +72,46 @@ describe("dPID", () => {
       expect(registryOwner).to.equal(owner.address);
     });
 
-    it("respects initializer dpid offset", async () => {
-      const nextDpid = await dpidAliasRegistry.nextDpid();
-      expect(nextDpid).to.equal(FIRST_DPID);
-    })
+    it("deploys contract in paused state", async () => {
+      const isPaused = await dpidAliasRegistry.paused();
+      expect(isPaused).to.equal(true);
+    });
   });
 
   describe("alias registry", () => {
     const STREAM_A = "kjzl6kcym7w8y7i5ugaq9a3vlm7hhuaf4bpl5o5qykeh4qtsa12c6rb5ekw6aaa";
+
+    describe("admin", () => {
+      it("can set nextDpid when paused", async () => {
+        const tx = await dpidAliasRegistry.setNextDpid(100);
+        await tx.wait();
+        const nextDpid = await dpidAliasRegistry.nextDpid();
+        expect(nextDpid).to.equal(100);
+      });
+
+      it("can unpause contract", async () => {
+        const tx = await dpidAliasRegistry.unpause();
+        await tx.wait();
+        const isPaused = await dpidAliasRegistry.paused();
+        expect(isPaused).to.equal(false);
+      });
+
+      it("can NOT set nextDpid when unpaused", async () => {
+        const liveResetNextDpid = async () => {
+          const tx = await dpidAliasRegistry.setNextDpid(500);
+          await tx.wait();
+        };
+        await expect(liveResetNextDpid()).to.be.rejectedWith("Pausable: not paused");
+      });
+    });
 
     describe("entry", () => {
       let tx: ContractTransaction;
       let res: ContractReceipt;
 
       before(async () => {
+        // Default instance to non-owner user
+        dpidAliasRegistry = dpidAliasRegistry.connect(user1);
         tx = await dpidAliasRegistry.mintDpid(STREAM_A);
         res = await tx.wait();
       });

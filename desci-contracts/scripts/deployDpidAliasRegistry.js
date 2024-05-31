@@ -14,14 +14,18 @@ async function main() {
   console.log("[deployDpidAliasRegistry] Deploying DpidAliasRegistry...");
   const proxy = await upgrades.deployProxy(
     DpidAliasRegistry,
-    [
-      FIRST_DPID // firstDpid
-    ],
+    [],
     {
       initializer: "initialize"
     }
   );
   await proxy.deployed();
+
+  let tx = await proxy.setNextDpid(FIRST_DPID);
+  await tx.wait();
+  tx = await proxy.unpause();
+  await tx.wait();
+
   console.log("[deployDpidRegistry] DpidAliasRegistry deployed to:", proxy.address);
 
   fs.renameSync(

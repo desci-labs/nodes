@@ -43,26 +43,28 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
   contractName: "DpidAliasRegistry";
   functions: {
     "find(string)": FunctionFragment;
-    "firstDpid()": FunctionFragment;
     "freezeMigration()": FunctionFragment;
     "importLegacyDpid(uint256,(address,(string,uint256)[]))": FunctionFragment;
-    "initialize(uint256)": FunctionFragment;
+    "initialize()": FunctionFragment;
     "legacy(uint256)": FunctionFragment;
     "legacyLookup(uint256)": FunctionFragment;
     "migrationFrozen()": FunctionFragment;
     "mintDpid(string)": FunctionFragment;
     "nextDpid()": FunctionFragment;
     "owner()": FunctionFragment;
+    "pause()": FunctionFragment;
+    "paused()": FunctionFragment;
     "registry(uint256)": FunctionFragment;
     "renounceOwnership()": FunctionFragment;
     "resolve(uint256)": FunctionFragment;
     "reverseRegistry(string)": FunctionFragment;
+    "setNextDpid(uint256)": FunctionFragment;
     "transferOwnership(address)": FunctionFragment;
+    "unpause()": FunctionFragment;
     "upgradeDpid(uint256,string)": FunctionFragment;
   };
 
   encodeFunctionData(functionFragment: "find", values: [string]): string;
-  encodeFunctionData(functionFragment: "firstDpid", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "freezeMigration",
     values?: undefined
@@ -73,7 +75,7 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "initialize",
-    values: [BigNumberish]
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "legacy",
@@ -90,6 +92,8 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
   encodeFunctionData(functionFragment: "mintDpid", values: [string]): string;
   encodeFunctionData(functionFragment: "nextDpid", values?: undefined): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
+  encodeFunctionData(functionFragment: "pause", values?: undefined): string;
+  encodeFunctionData(functionFragment: "paused", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "registry",
     values: [BigNumberish]
@@ -107,16 +111,20 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
     values: [string]
   ): string;
   encodeFunctionData(
+    functionFragment: "setNextDpid",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [string]
   ): string;
+  encodeFunctionData(functionFragment: "unpause", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "upgradeDpid",
     values: [BigNumberish, string]
   ): string;
 
   decodeFunctionResult(functionFragment: "find", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "firstDpid", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "freezeMigration",
     data: BytesLike
@@ -138,6 +146,8 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
   decodeFunctionResult(functionFragment: "mintDpid", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "nextDpid", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "pause", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "paused", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "registry", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
@@ -149,9 +159,14 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "setNextDpid",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "transferOwnership",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "unpause", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "upgradeDpid",
     data: BytesLike
@@ -162,6 +177,8 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
     "ImportedDpid(uint256,tuple)": EventFragment;
     "Initialized(uint8)": EventFragment;
     "OwnershipTransferred(address,address)": EventFragment;
+    "Paused(address)": EventFragment;
+    "Unpaused(address)": EventFragment;
     "UpgradedDpid(uint256,string)": EventFragment;
   };
 
@@ -169,6 +186,8 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
   getEvent(nameOrSignatureOrTopic: "ImportedDpid"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "Initialized"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "OwnershipTransferred"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "Paused"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "Unpaused"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "UpgradedDpid"): EventFragment;
 }
 
@@ -197,6 +216,14 @@ export type OwnershipTransferredEvent = TypedEvent<
 
 export type OwnershipTransferredEventFilter =
   TypedEventFilter<OwnershipTransferredEvent>;
+
+export type PausedEvent = TypedEvent<[string], { account: string }>;
+
+export type PausedEventFilter = TypedEventFilter<PausedEvent>;
+
+export type UnpausedEvent = TypedEvent<[string], { account: string }>;
+
+export type UnpausedEventFilter = TypedEventFilter<UnpausedEvent>;
 
 export type UpgradedDpidEvent = TypedEvent<
   [BigNumber, string],
@@ -235,8 +262,6 @@ export interface DpidAliasRegistry extends BaseContract {
   functions: {
     find(streamId: string, overrides?: CallOverrides): Promise<[BigNumber]>;
 
-    firstDpid(overrides?: CallOverrides): Promise<[BigNumber]>;
-
     freezeMigration(
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<ContractTransaction>;
@@ -248,7 +273,6 @@ export interface DpidAliasRegistry extends BaseContract {
     ): Promise<ContractTransaction>;
 
     initialize(
-      _firstDpid: BigNumberish,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<ContractTransaction>;
 
@@ -273,6 +297,12 @@ export interface DpidAliasRegistry extends BaseContract {
 
     owner(overrides?: CallOverrides): Promise<[string]>;
 
+    pause(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<ContractTransaction>;
+
+    paused(overrides?: CallOverrides): Promise<[boolean]>;
+
     registry(arg0: BigNumberish, overrides?: CallOverrides): Promise<[string]>;
 
     renounceOwnership(
@@ -286,8 +316,17 @@ export interface DpidAliasRegistry extends BaseContract {
       overrides?: CallOverrides
     ): Promise<[BigNumber]>;
 
+    setNextDpid(
+      _nextDpid: BigNumberish,
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<ContractTransaction>;
+
     transferOwnership(
       newOwner: string,
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<ContractTransaction>;
+
+    unpause(
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<ContractTransaction>;
 
@@ -300,8 +339,6 @@ export interface DpidAliasRegistry extends BaseContract {
 
   find(streamId: string, overrides?: CallOverrides): Promise<BigNumber>;
 
-  firstDpid(overrides?: CallOverrides): Promise<BigNumber>;
-
   freezeMigration(
     overrides?: Overrides & { from?: string | Promise<string> }
   ): Promise<ContractTransaction>;
@@ -313,7 +350,6 @@ export interface DpidAliasRegistry extends BaseContract {
   ): Promise<ContractTransaction>;
 
   initialize(
-    _firstDpid: BigNumberish,
     overrides?: Overrides & { from?: string | Promise<string> }
   ): Promise<ContractTransaction>;
 
@@ -335,6 +371,12 @@ export interface DpidAliasRegistry extends BaseContract {
 
   owner(overrides?: CallOverrides): Promise<string>;
 
+  pause(
+    overrides?: Overrides & { from?: string | Promise<string> }
+  ): Promise<ContractTransaction>;
+
+  paused(overrides?: CallOverrides): Promise<boolean>;
+
   registry(arg0: BigNumberish, overrides?: CallOverrides): Promise<string>;
 
   renounceOwnership(
@@ -345,8 +387,17 @@ export interface DpidAliasRegistry extends BaseContract {
 
   reverseRegistry(arg0: string, overrides?: CallOverrides): Promise<BigNumber>;
 
+  setNextDpid(
+    _nextDpid: BigNumberish,
+    overrides?: Overrides & { from?: string | Promise<string> }
+  ): Promise<ContractTransaction>;
+
   transferOwnership(
     newOwner: string,
+    overrides?: Overrides & { from?: string | Promise<string> }
+  ): Promise<ContractTransaction>;
+
+  unpause(
     overrides?: Overrides & { from?: string | Promise<string> }
   ): Promise<ContractTransaction>;
 
@@ -359,8 +410,6 @@ export interface DpidAliasRegistry extends BaseContract {
   callStatic: {
     find(streamId: string, overrides?: CallOverrides): Promise<BigNumber>;
 
-    firstDpid(overrides?: CallOverrides): Promise<BigNumber>;
-
     freezeMigration(overrides?: CallOverrides): Promise<void>;
 
     importLegacyDpid(
@@ -369,10 +418,7 @@ export interface DpidAliasRegistry extends BaseContract {
       overrides?: CallOverrides
     ): Promise<void>;
 
-    initialize(
-      _firstDpid: BigNumberish,
-      overrides?: CallOverrides
-    ): Promise<void>;
+    initialize(overrides?: CallOverrides): Promise<void>;
 
     legacy(arg0: BigNumberish, overrides?: CallOverrides): Promise<string>;
 
@@ -389,6 +435,10 @@ export interface DpidAliasRegistry extends BaseContract {
 
     owner(overrides?: CallOverrides): Promise<string>;
 
+    pause(overrides?: CallOverrides): Promise<void>;
+
+    paused(overrides?: CallOverrides): Promise<boolean>;
+
     registry(arg0: BigNumberish, overrides?: CallOverrides): Promise<string>;
 
     renounceOwnership(overrides?: CallOverrides): Promise<void>;
@@ -400,10 +450,17 @@ export interface DpidAliasRegistry extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
+    setNextDpid(
+      _nextDpid: BigNumberish,
+      overrides?: CallOverrides
+    ): Promise<void>;
+
     transferOwnership(
       newOwner: string,
       overrides?: CallOverrides
     ): Promise<void>;
+
+    unpause(overrides?: CallOverrides): Promise<void>;
 
     upgradeDpid(
       dpid: BigNumberish,
@@ -437,6 +494,12 @@ export interface DpidAliasRegistry extends BaseContract {
       newOwner?: string | null
     ): OwnershipTransferredEventFilter;
 
+    "Paused(address)"(account?: null): PausedEventFilter;
+    Paused(account?: null): PausedEventFilter;
+
+    "Unpaused(address)"(account?: null): UnpausedEventFilter;
+    Unpaused(account?: null): UnpausedEventFilter;
+
     "UpgradedDpid(uint256,string)"(
       dpid?: null,
       streamId?: null
@@ -446,8 +509,6 @@ export interface DpidAliasRegistry extends BaseContract {
 
   estimateGas: {
     find(streamId: string, overrides?: CallOverrides): Promise<BigNumber>;
-
-    firstDpid(overrides?: CallOverrides): Promise<BigNumber>;
 
     freezeMigration(
       overrides?: Overrides & { from?: string | Promise<string> }
@@ -460,7 +521,6 @@ export interface DpidAliasRegistry extends BaseContract {
     ): Promise<BigNumber>;
 
     initialize(
-      _firstDpid: BigNumberish,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<BigNumber>;
 
@@ -482,6 +542,12 @@ export interface DpidAliasRegistry extends BaseContract {
 
     owner(overrides?: CallOverrides): Promise<BigNumber>;
 
+    pause(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<BigNumber>;
+
+    paused(overrides?: CallOverrides): Promise<BigNumber>;
+
     registry(arg0: BigNumberish, overrides?: CallOverrides): Promise<BigNumber>;
 
     renounceOwnership(
@@ -495,8 +561,17 @@ export interface DpidAliasRegistry extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
+    setNextDpid(
+      _nextDpid: BigNumberish,
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<BigNumber>;
+
     transferOwnership(
       newOwner: string,
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<BigNumber>;
+
+    unpause(
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<BigNumber>;
 
@@ -513,8 +588,6 @@ export interface DpidAliasRegistry extends BaseContract {
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
-    firstDpid(overrides?: CallOverrides): Promise<PopulatedTransaction>;
-
     freezeMigration(
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<PopulatedTransaction>;
@@ -526,7 +599,6 @@ export interface DpidAliasRegistry extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     initialize(
-      _firstDpid: BigNumberish,
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<PopulatedTransaction>;
 
@@ -551,6 +623,12 @@ export interface DpidAliasRegistry extends BaseContract {
 
     owner(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
+    pause(
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<PopulatedTransaction>;
+
+    paused(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
     registry(
       arg0: BigNumberish,
       overrides?: CallOverrides
@@ -570,8 +648,17 @@ export interface DpidAliasRegistry extends BaseContract {
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
+    setNextDpid(
+      _nextDpid: BigNumberish,
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<PopulatedTransaction>;
+
     transferOwnership(
       newOwner: string,
+      overrides?: Overrides & { from?: string | Promise<string> }
+    ): Promise<PopulatedTransaction>;
+
+    unpause(
       overrides?: Overrides & { from?: string | Promise<string> }
     ): Promise<PopulatedTransaction>;
 

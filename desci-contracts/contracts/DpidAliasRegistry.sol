@@ -1,12 +1,11 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract DpidAliasRegistry is OwnableUpgradeable {
-    // Starting point of new aliases (set at initialization)
-    uint256 public firstDpid;
-
+contract DpidAliasRegistry is Initializable, OwnableUpgradeable, PausableUpgradeable {
     // Incremented on each dPID mint
     uint256 public nextDpid;
 
@@ -24,10 +23,12 @@ contract DpidAliasRegistry is OwnableUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(uint256 _firstDpid) public initializer {
+    function initialize() public initializer {
         OwnableUpgradeable.__Ownable_init();
-        firstDpid = _firstDpid;
-        nextDpid = _firstDpid;
+        PausableUpgradeable.__Pausable_init();
+
+        // Pause to allow owner to set nextDpid before activating minting
+        _pause();
     }
 
     /**
@@ -75,7 +76,7 @@ contract DpidAliasRegistry is OwnableUpgradeable {
      */
     function mintDpid(
         string calldata streamId
-    ) public onlyUnaliasedStream(streamId) returns(uint256) {
+    ) public onlyUnaliasedStream(streamId) whenNotPaused returns(uint256) {
         uint256 thisDpid = nextDpid;
 
         // map this dPID to the passed stream ID
@@ -167,7 +168,7 @@ contract DpidAliasRegistry is OwnableUpgradeable {
     function upgradeDpid(
         uint256 dpid,
         string calldata streamId
-    ) public onlyUnaliasedStream(streamId) {
+    ) public onlyUnaliasedStream(streamId) whenNotPaused {
         // Assert that this dPID has not been set in the main registry
         require(bytes(registry[dpid]).length == 0, "dpid already upgraded");
 
@@ -201,6 +202,8 @@ contract DpidAliasRegistry is OwnableUpgradeable {
      * the registry. This allows overwriting to correct migration errors,
      * but can be locked for further imports.
      *
+     * Note: this can be called when the contract is paused
+     *
      * @param dpid the dPID to import
      * @param entry the historical and ownership information
      */
@@ -216,8 +219,33 @@ contract DpidAliasRegistry is OwnableUpgradeable {
     /**
      * This permanently blocks importing/overwriting legacy dPID entries,
      * effectively freezing history.
+     *
+     * Note: this is irreversible
      */
     function freezeMigration() public onlyOwner {
         migrationFrozen = true;
+    }
+
+    /**
+     * When the contract is paused, the owner can correct the next dPID.
+     * This is useful for making a seamless switch between new and old
+     * contracts.
+     */
+    function setNextDpid(uint256 _nextDpid) public onlyOwner whenPaused {
+        nextDpid = _nextDpid;
+    }
+
+    /**
+     * Pause minting new dPID's
+     */
+    function pause() public onlyOwner whenNotPaused {
+        _pause();
+    }
+
+    /**
+     * Resume minting of new dPID's
+     */
+    function unpause() public onlyOwner whenPaused {
+        _unpause();
     }
 }
