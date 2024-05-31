@@ -91,7 +91,6 @@ spec:
           export IPFS_READ_ONLY_GATEWAY_SERVER_URL={{ .Data.IPFS_READ_ONLY_GATEWAY_SERVER_URL }}
           export ETHEREUM_RPC_URL={{ .Data.ETHEREUM_RPC_URL }}
           export GOOGLE_CLIENT_ID={{ .Data.GOOGLE_CLIENT_ID }}
-          export DOI_PREFIX={{ .Data.DOI_PREFIX }}
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
