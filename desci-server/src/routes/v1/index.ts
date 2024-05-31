@@ -14,7 +14,6 @@ import attestations from './attestations/index.js';
 import auth from './auth.js';
 import communities from './communities/index.js';
 import data from './data.js';
-import doi from './doi.js';
 import log from './log.js';
 import nodes from './nodes.js';
 import pub from './pub.js';
@@ -55,7 +54,6 @@ router.use('/log', log);
 router.use('/services', services);
 router.use('/communities', communities);
 router.use('/attestations', attestations);
-router.use('/doi', doi);
 
 router.get('/nft/:id', nft);
 router.use('/referral', referral);
