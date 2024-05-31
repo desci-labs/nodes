@@ -145,6 +145,7 @@
     "eslint-plugin-prettier": "^5.0.1",
     "lint-staged": "^11.1.2",
     "mocha": "^10.2.0",
+    "nock": "^13.5.4",
     "nodemon": "^2.0.22",
     "nyc": "^15.1.0",
     "prettier": "^3.1.1",

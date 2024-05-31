@@ -5,6 +5,7 @@ import {
   Annotation,
   Attestation,
   AttestationVersion,
+  AuthTokenSource,
   CommunityMember,
   CommunityMembershipRole,
   DesciCommunity,
@@ -18,6 +19,7 @@ import {
 } from '@prisma/client';
 import { assert, expect } from 'chai';
 import jwt from 'jsonwebtoken';
+import nock from 'nock';
 import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
@@ -2088,7 +2090,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe('Protected Attestation Verification', async () => {
+  describe.only('Protected Attestation Verification', async () => {
     let openCodeClaim: NodeAttestation;
     let openDataClaim: NodeAttestation;
     let node: Node;
@@ -2105,6 +2107,9 @@ describe('Attestations Service', async () => {
       MemberJwtToken2: string,
       memberAuthHeaderVal1: string,
       memberAuthHeaderVal2: string;
+    const mockPutCode = '1926486';
+    const ORCID_ID = '0000-0000-1111-090X';
+    const NOCK_URL = new URL('https://api.sandbox.orcid.org');
 
     before(async () => {
       node = nodes[0];
@@ -2119,6 +2124,26 @@ describe('Attestations Service', async () => {
         nodeUuid: node.uuid,
         nodeVersion,
         claimerId: author.id,
+      });
+
+      // add oricd to user profile
+      await prisma.user.update({
+        where: {
+          id: author.id,
+        },
+        data: {
+          orcid: ORCID_ID,
+        },
+      });
+
+      // insert mock orcid auth token
+      await prisma.authToken.create({
+        data: {
+          source: AuthTokenSource.ORCID,
+          accessToken: 'mock-access-token',
+          userId: author.id,
+          refreshToken: 'refresh-token',
+        },
       });
 
       members = await communityService.getAllMembers(desciCommunity.id);
@@ -2143,9 +2168,27 @@ describe('Attestations Service', async () => {
       await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
       // await prisma.$queryRaw`TRUNCATE TABLE "CommunityMember" CASCADE;`;
+
+      nock.restore();
     });
 
     it('should allow only members verify a node attestation(claim)', async () => {
+      const scope1 = nock(NOCK_URL)
+        .post(`/v3.0/${ORCID_ID}/work`)
+        .once()
+        .reply(201, '', { location: `https://api.sandbox.orcid.org/v3.0/${ORCID_ID}/work/${mockPutCode}` });
+
+      const scope2 = nock(new URL('https://sandbox.orcid.org')).post(`/oauth/token`).twice().reply(200, {
+        access_token: 'access-token',
+        token_type: 'auth',
+        refresh_token: 'refresh-token',
+        expires_in: 3599,
+        scope: '',
+        name: '',
+        orcid: ORCID_ID,
+      });
+
+      console.log('ACTIVE MOCKS', nock.activeMocks());
       let res = await request(app)
         .post(`/v1/attestations/verification`)
         .set('authorization', memberAuthHeaderVal1)
@@ -2154,15 +2197,31 @@ describe('Attestations Service', async () => {
         });
       expect(res.statusCode).to.equal(200);
 
+      // setTimeout(() => {
+      // }, 100);
+
+      const scope3 = nock(NOCK_URL).put(`/v3.0/${ORCID_ID}/work/${mockPutCode}`).once().reply(200);
+
       res = await request(app).post(`/v1/attestations/verification`).set('authorization', memberAuthHeaderVal2).send({
         claimId: openCodeClaim.id,
       });
       expect(res.statusCode).to.equal(200);
 
+      // setTimeout(() => {
+      // }, 100);
+
       const verifications = await attestationService.getAllClaimVerfications(openCodeClaim.id);
       expect(verifications.length).to.equal(2);
       expect(verifications.some((v) => v.userId === members[0].userId)).to.equal(true);
       expect(verifications.some((v) => v.userId === members[1].userId)).to.equal(true);
+
+      console.log('Pending MOCKS', nock.pendingMocks());
+      scope1.done();
+      scope2.done();
+      scope3.done();
+      console.log('INTERCEPTOR SCOPE', scope1);
+      console.log('INTERCEPTOR SCOPE', scope2);
+      console.log('INTERCEPTOR SCOPE', scope3);
     });
 
     it('should prevent non-authorized users from verifying a protected attestation(claim)', async () => {
