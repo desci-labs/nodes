@@ -44,6 +44,7 @@ model Node {
   PrivateShare        PrivateShare[]
   OrcidPutCodes       OrcidPutCodes[]
   DistributionPdfs    DistributionPdfs[]
+  PdfPreviews         PdfPreviews[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -478,14 +479,26 @@ model NodeThumbnails {
 }
 
 model DistributionPdfs {
-  id             Int    @id @default(autoincrement())
-  originalPdfCid String
-  manifestCid    String
-  nodeUuid       String
-  distPdfCid     String
-  node           Node   @relation(fields: [nodeUuid], references: [uuid])
+  id                        Int     @id @default(autoincrement())
+  originalPdfCid            String
+  manifestCid               String
+  nodeUuid                  String
+  distPdfCid                String
+  contentPagePreviewCid     String?
+  frontmatterPagePreviewCid String?
+  node                      Node    @relation(fields: [nodeUuid], references: [uuid])
 
   @@unique([nodeUuid, originalPdfCid, manifestCid])
+}
+
+model PdfPreviews {
+  id         Int    @id @default(autoincrement())
+  nodeUuid   String
+  pdfCid     String @unique
+  previewMap Json
+  node       Node   @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, pdfCid])
 }
 
 // The glue between a manifest contributor entry and a nodes profile
