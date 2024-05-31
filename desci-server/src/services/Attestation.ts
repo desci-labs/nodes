@@ -266,11 +266,16 @@ export class AttestationService {
         image_url: claim.attestationVersion.image_url,
         verifications: claim._count.NodeAttestationVerification,
         community: claim.community.name,
+        attestationId: claim.attestationId,
         nodeVersion: claim.nodeVersion,
       }))
       .value();
 
     return protectedClaims;
+  }
+
+  async getDoiMintingPrerequisites() {
+    // todo()
   }
 
   async getNodeCommunityAttestations(dpid: string, communityId: number) {
