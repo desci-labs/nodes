@@ -14,6 +14,7 @@ import {
 } from '@desci-labs/desci-models';
 import { User, Node, DataType, Prisma } from '@prisma/client';
 import axios from 'axios';
+import { CID } from 'multiformats';
 import { v4 } from 'uuid';
 
 import { prisma } from '../../client.js';
@@ -59,7 +60,6 @@ import {
   createNotEnoughSpaceError,
   createUnhandledError,
 } from './processingErrors.js';
-import { CID } from 'multiformats';
 
 interface ProcessS3DataToIpfsParams {
   files: any[];
