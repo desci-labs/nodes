@@ -13,7 +13,7 @@ use(chaiAsPromised);
 
 describe("dPID", () => {
   let _accounts: SignerWithAddress[];
-  let owner: SignerWithAddress;
+  let deployerAddress: SignerWithAddress;
   let user1: SignerWithAddress;
   let user2: SignerWithAddress;
   let DpidAliasRegistryFactory: DpidAliasRegistry__factory;
@@ -21,7 +21,7 @@ describe("dPID", () => {
 
   before( async () => {
     _accounts = await hhe.getSigners()
-    owner = _accounts[0];
+    deployerAddress = _accounts[0];
     user1 = _accounts[1];
     user2 = _accounts[2];
 
@@ -53,7 +53,7 @@ describe("dPID", () => {
         implAddress,
         proxyAddress,
         implOwner: await dpidAliasRegistry.owner(),
-      })
+      });
     });
 
     it("costs a reasonable amount of gas", async () => {
@@ -67,9 +67,16 @@ describe("dPID", () => {
       expect(proxyAddress).not.to.equal(implAddress);
     });
 
+    it("allows deployer to call ownership transfer of ProxyAdmin contract", async () => {
+      // re-set to self
+      const doTransfer = async () =>
+        await upgrades.admin.transferProxyAdminOwnership(proxyAddress, deployerAddress);
+      await expect(doTransfer()).not.to.be.rejected;
+    });
+
     it("deploys implementation with proxy owner as owner", async () => {
       const registryOwner = await dpidAliasRegistry.owner();
-      expect(registryOwner).to.equal(owner.address);
+      expect(registryOwner).to.equal(deployerAddress.address);
     });
 
     it("deploys contract in paused state", async () => {
@@ -164,7 +171,7 @@ describe("dPID", () => {
 
         it("can be done by contract owner", async () => {
           const tx = await dpidAliasRegistry
-            .connect(owner)
+            .connect(deployerAddress)
             .importLegacyDpid(0, migrationEntry);
           successReceipt = await tx.wait();
         });
@@ -210,7 +217,7 @@ describe("dPID", () => {
 
         it("can NOT be done by contract owner", async () => {
           const doUpgrade = async () => await dpidAliasRegistry
-            .connect(owner)
+            .connect(deployerAddress)
             .upgradeDpid(0, STREAM_C);
 
           await expect(doUpgrade()).to.be.rejectedWith("unauthorized dpid upgrade");

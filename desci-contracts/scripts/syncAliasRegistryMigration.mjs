@@ -1,3 +1,22 @@
+/**
+ * ALIAS REGISTRY MIGRATION SYNC
+ *
+ * For an already deployed alias registry, import missing delta of legacy dPID
+ * entries from the dpid.org API. This script is idempotent, and can hance be
+ * run many times. Existing entries are just validated, not edited.
+ *
+ * The script performs the following actions:
+ * - If an entry is missing, it is imported.
+ * - All entries, old and new, are be validated against the dPID API.
+ * - Owner address and full version history is checked.
+ * - If an entry fails validate, a warning is printed. The issue is not fixed.
+ * - Manually running import of the failing dPID overwrites the erroneous entry.
+ *
+ *
+ * Required arguments (env variables):
+ * 1. REGISTRY_ADDRESS - Address of existing alias registry (proxy) contract
+ * 2. ENV - Environment to sync legacy entires from ("dev" or "prod")
+ */
 import hardhat from "hardhat";
 const { ethers, hardhatArguments } = hardhat;
 import axios from "axios";
@@ -8,9 +27,23 @@ if (REGISTRY_ADDRESS === undefined) {
   throw new Error("REGISTRY_ADDRESS unset");
 };
 
+const ENV = process.env.ENV;
+if (ENV === undefined) {
+  throw new Error("ENV unset");
+};
+
+let dpidApi;
+if (ENV === "dev") {
+  dpidApi = "dev-beta";
+} else if (ENV === "prod") {
+  dpidApi = "beta";
+} else {
+  throw new Error(`Env "${ENV} unknown (use "dev" or "prod")`);
+};
+
 const getDpidPage = async (page) => {
   const { data } = await axios.get(
-    `https://dev-beta.dpid.org/api/v1/dpid?size=100&page=${page}`
+    `https://${dpidApi}.dpid.org/api/v1/dpid?size=100&page=${page}`
   );
   return data;
 };
@@ -23,7 +56,7 @@ const toImportEntry = (dpid) => [
   dpid.dpid,
   {
     owner: dpid.researchObject.owner,
-    versions: dpid.researchObject.versions.map(v => ({cid: v.cid, time: v.time}))
+    versions: dpid.researchObject.versions.map(v => ({cid: v.cid, time: v.time})),
   }
 ];
 
@@ -53,7 +86,7 @@ for (const [ dpid, entry ] of importEntries) {
   const imported = {
     dpid,
     owner: fromContract[0],
-    versions: fromContract[1].map(([cid, time]) => ({cid, time: ethers.BigNumber.from(time).toNumber() }))
+    versions: fromContract[1].map(([cid, time]) => ({cid, time: ethers.BigNumber.from(time).toNumber() })),
   };
 
   console.log(`🔎 Verifying dPID ${dpid}:`);
@@ -81,17 +114,16 @@ for (const [ dpid, entry ] of importEntries) {
     };
   };
 
-
   results.push({ dpid, owner: imported.owner, versions: imported.versions, importError: validationError });
 };
 
 const failures = results.filter(r => r.validationError);
-console.log(`🚦 dPIDs which failed validation (manually import to overwrite): ${JSON.stringify(failures)}`)
+console.log(`🚦 dPIDs which failed validation (manually import to overwrite): ${JSON.stringify(failures)}`);
 
 const duration = Math.ceil((Date.now() - startTime) / 1000);
-console.log(`🏁 migration done in ${duration}s for a total of ${totalGas} gas`)
+console.log(`🏁 sync done in ${duration}s for a total of ${totalGas} gas`);
 
 const dateString = new Date().toUTCString().replaceAll(" ", "_");
-const logFilePath = `migration-data/aliasRegistry_${dateString}.json`;
+const logFilePath = `migration-data/aliasRegistrySync_${dateString}.json`;
 writeFileSync(logFilePath, JSON.stringify(results, undefined, 2));
 console.log(`📝 migration data written to ${logFilePath}`);

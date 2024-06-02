@@ -1,12 +1,30 @@
+/**
+ * ALIAS REGISTRY MIGRATION
+ *
+ * Deploys a new dPID alias registry, through proxy. Imports existing dPID's as
+ * legacy entries, and validates the correctness of these imports afterward.
+ * If the imports are interrupted, it can be continued using the syncAliasRegistryMigration.mjs
+ * script. The registry is initialized in a paused state, meaning minting new dPID's
+ * is disabled, but imports and other administration like configuring the dPID
+ * counter can still be done.
+ *
+ * The script performs the following actions:
+ * - Deploys new instance of the registry
+ * - Imports legacy dPID's, validating correctness
+ * - Immediately pauses minting of new dPID's
+ *
+ * Steps required to fully activate:
+ * - Admin calls `setNextDpid` to whatever is the next when legacy contract is disabled
+ * - Admin calls `unpause` to allow minting new dPID's
+ *
+ * Required arguments (env variables):
+ * 1. PRIVATE_KEY - Owner/admin identity (see hardhat.config.ts)
+ * 2. ENV - Environment to sync legacy entires from ("dev" or "prod")
+ */
 import hardhat from "hardhat";
 const { ethers, hardhatArguments } = hardhat;
 import axios from "axios";
 import { writeFileSync } from "fs";
-
-const FIRST_DPID = process.env.FIRST_DPID;
-if (FIRST_DPID === undefined) {
-  throw new Error("FIRST_DPID unset");
-};
 
 const ENV = process.env.ENV;
 if (ENV === undefined) {
@@ -37,7 +55,7 @@ const toImportEntry = (dpid) => [
   dpid.dpid,
   {
     owner: dpid.researchObject.owner,
-    versions: dpid.researchObject.versions.map(v => ({cid: v.cid, time: v.time}))
+    versions: dpid.researchObject.versions.map(v => ({cid: v.cid, time: v.time})),
   },
 ];
 
@@ -47,11 +65,9 @@ const DpidAliasRegistryFactory = await ethers.getContractFactory("DpidAliasRegis
 
 const registry = await upgrades.deployProxy(
   DpidAliasRegistryFactory,
-  [
-    FIRST_DPID
-  ],
+  [],
   {
-    initializer: "initialize"
+    initializer: "initialize",
   }
 );
 
@@ -76,7 +92,7 @@ for (const [ dpid, entry ] of importEntries) {
   const imported = {
     dpid,
     owner: fromContract[0],
-    versions: fromContract[1].map(([cid, time]) => ({cid, time: ethers.BigNumber.from(time).toNumber() }))
+    versions: fromContract[1].map(([cid, time]) => ({cid, time: ethers.BigNumber.from(time).toNumber() })),
   };
 
   console.log(`🔎 Verifying dPID ${dpid}:`);
@@ -116,10 +132,10 @@ for (let i = 0; i < importEntries.length; i++) {
   };
 };
 
-console.log(`❓ dPID's missing from original set: ${JSON.stringify(missingNumbers)}`)
+console.log(`❓ dPID's missing from original set: ${JSON.stringify(missingNumbers)}`);
 
 const duration = Math.ceil((Date.now() - startTime) / 1000);
-console.log(`🏁 migration done in ${duration}s for a total of ${totalGas} gas`)
+console.log(`🏁 migration done in ${duration}s for a total of ${totalGas} gas`);
 
 const dateString = new Date().toUTCString().replaceAll(" ", "_");
 const logFilePath = `migration-data/aliasRegistry_${dateString}.json`;
