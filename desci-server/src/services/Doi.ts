@@ -1,16 +1,11 @@
-import {
-  PdfComponent,
-  ResearchObjectComponentDocumentSubtype,
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-} from '@desci-labs/desci-models';
+import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { PrismaClient } from '@prisma/client';
 import { v4 } from 'uuid';
 
-import { DuplicateMintError, NoManuscriptError, BadManifestError, AttestationsError } from '../core/doi/error.js';
+import { DuplicateMintError, BadManifestError, AttestationsError } from '../core/doi/error.js';
 import { logger } from '../logger.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js';
-import { ensureUuidEndsWithDot, hexToCid } from '../utils.js';
+import { asyncMap, ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { WorkSelectOptions } from './crossRef/definitions.js';
@@ -28,14 +23,13 @@ export class DoiService {
     this.dbClient = prismaClient;
   }
 
-  async assertIsFirstDoi(uuid: string) {
-    const exists = await this.dbClient.doiRecord.findUnique({ where: { uuid } });
-    if (exists) throw new DuplicateMintError();
+  async assertIsFirstDoi(dpid: string) {
+    const isFirstDoi = await this.isFirstDoi(dpid); // await this.dbClient.doiRecord.findUnique({ where: { doi } });
+    if (!isFirstDoi) throw new DuplicateMintError();
   }
 
-  async isFirstDoi(uuid: string) {
-    const exists = await this.dbClient.doiRecord.findUnique({ where: { uuid } });
-    // if (exists) throw new DuplicateMintError();
+  async isFirstDoi(dpid: string) {
+    const exists = await this.dbClient.doiRecord.findUnique({ where: { dpid } });
     return !exists;
   }
 
@@ -54,17 +48,26 @@ export class DoiService {
     if (!hasClaimedRequiredAttestations) throw new AttestationsError();
   }
 
-  assertHasValidManuscript(manifest: ResearchObjectV1) {
-    const manuscript =
-      manifest &&
-      manifest.components.find(
-        (component) =>
-          component.type === ResearchObjectComponentType.PDF &&
-          (component as PdfComponent).subtype === ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
-      );
-    if (!manuscript) {
-      throw new NoManuscriptError();
-    }
+  async extractManuscriptDoi(manuscripts: PdfComponent[]) {
+    const manuscriptDois = await asyncMap(manuscripts, async (component) => {
+      const manuscriptTitle =
+        component.name.replace(/\.pdf/g, '') ||
+        component.payload.title ||
+        component.payload.path.split('/').pop().replace(/\.pdf/g, '');
+      // check if manuscripts have doi assigned already
+      const works = await crossRefClient.listWorks({
+        rows: 5,
+        select: [WorkSelectOptions.DOI, WorkSelectOptions.TITLE, WorkSelectOptions.AUTHOR],
+        queryTitle: manuscriptTitle,
+      });
+      const doi = works?.data?.message?.items.find((item) => item.title === manuscriptTitle);
+      logger.info({ status: works.ok, manuscript: manuscriptTitle, doi }, 'Search Manuscripts');
+
+      if (!doi) return null;
+      return { doi, component };
+    });
+
+    return manuscriptDois.filter(Boolean);
   }
 
   assertValidManifest(manifest: ResearchObjectV1) {
@@ -87,37 +90,34 @@ export class DoiService {
 
     // check if node has claimed doi already
     // check with dpid instead or dpid/path/to/manuscript or dpid/path/to/file
-    await this.assertIsFirstDoi(latestManifest.dpid.id || uuid);
+    await this.assertIsFirstDoi(latestManifest.dpid.id);
 
     // extract manuscripts
-    const manuscriptTitle = 'Guidelines for Evaluating the Comparability of Down-Sampled GWAS Summary Statistics';
-    // check if manuscripts have doi assigned already
-    const works = await crossRefClient.listWorks({
-      rows: 1,
-      select: [WorkSelectOptions.DOI, WorkSelectOptions.TITLE, WorkSelectOptions.AUTHOR],
-      queryTitle: manuscriptTitle,
-    });
-    const doi = works?.data?.message?.items.find((item) => item.title === manuscriptTitle);
-    logger.info(works, 'Search Manuscript');
-    logger.info(doi, 'Existing DOI');
-    // * if none has doi
-    // * - check if root node has validatedAttestations
-    // * - if not return silently
-    // * - return { dpid }
+    const manuscripts = latestManifest.components.filter(
+      (component) =>
+        component.type === ResearchObjectComponentType.PDF ||
+        component.name.endsWith('.pdf') ||
+        component.payload?.path?.endsWith('.pdf'),
+    ) as PdfComponent[];
+    logger.info(manuscripts, 'MANUSCRIPTS');
 
-    // manuscript has doi
-    // check validated attributes
-    // * if yes
-    // ** assertValidManifest
-    // * return { dpid }
+    if (manuscripts.length > 0) {
+      const existingDois = await this.extractManuscriptDoi(manuscripts);
 
-    // check if manuscript is included
-    this.assertHasValidManuscript(latestManifest);
+      logger.info(existingDois, 'Existing DOI');
+      if (existingDois.length) {
+        throw new DuplicateMintError(
+          'Duplicate Manuscript DOI: ' +
+            existingDois.map((entry) => `${entry.component.name} - DOI: ${entry.doi}`).join(),
+        );
+      }
+    }
+
+    // Validate node has claimed all necessary attestations
+    await this.assertHasValidatedAttestations(latestManifest);
 
     // validate title, abstract and contributors
     this.assertValidManifest(latestManifest);
-
-    await this.assertHasValidatedAttestations(latestManifest);
 
     return { dpid: latestManifest.dpid.id, uuid };
   }

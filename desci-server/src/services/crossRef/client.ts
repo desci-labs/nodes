@@ -1,4 +1,5 @@
 import { logger as parentLogger } from '../../logger.js';
+import { ONE_DAY_TTL, getFromCache, setToCache } from '../../redisClient.js';
 
 import { CrossRefHttpResponse, Items, QueryWorkParams, Work } from './definitions.js';
 import { keysToDotsAndDashses } from './utils.js';
@@ -91,11 +92,17 @@ class CrossRefClient {
   }
 
   async performFetch<T>(request: Request) {
+    const responseFromCache = await getFromCache<T>(request.url);
+    logger.info(responseFromCache, 'DOI From Cache');
+    if (responseFromCache) return { ok: true, status: 200, data: responseFromCache };
+
     const response = (await fetch(request)) as CrossRefHttpResponse<T>;
     response.data = undefined;
     if (response.ok && response.status === 200) {
       if (response.headers.get('content-type').includes('application/json')) {
         response.data = (await response.json()) as T;
+        logger.info(response.ok, 'SET TO CACHE');
+        await setToCache(request.url, response.data, ONE_DAY_TTL);
       }
     }
     return response;
