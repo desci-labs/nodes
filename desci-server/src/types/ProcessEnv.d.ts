@@ -10,5 +10,8 @@ declare namespace NodeJS {
     JWT_SECRET: string;
     JWT_EXPIRATION: string;
     MAX_LOCK_TIME: string;
+    CROSS_REF_API: string;
+    CROSS_REF_EMAIL: string;
+    CROSS_REF_API_KEY: string;
   }
 }

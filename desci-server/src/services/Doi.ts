@@ -13,7 +13,10 @@ import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js
 import { ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
+import { WorkSelectOptions } from './crossRef/definitions.js';
 import { getManifestByCid } from './data/processing.js';
+
+import { crossRefClient } from './index.js';
 
 const DOI_PREFIX = process.env.DOI_PREFIX;
 
@@ -41,7 +44,7 @@ export class DoiService {
       protected: true,
       community: { slug: 'desci-foundation' },
     });
-    logger.info(doiAttestations, 'DOI Requirements');
+    // logger.info(doiAttestations, 'DOI Requirements');
     let claims = await attestationService.getProtectedNodeClaims(manifest.dpid.id);
     claims = claims.filter((claim) => claim.verifications > 0);
 
@@ -87,8 +90,16 @@ export class DoiService {
     await this.assertIsFirstDoi(latestManifest.dpid.id || uuid);
 
     // extract manuscripts
-
+    const manuscriptTitle = 'Guidelines for Evaluating the Comparability of Down-Sampled GWAS Summary Statistics';
     // check if manuscripts have doi assigned already
+    const works = await crossRefClient.listWorks({
+      rows: 1,
+      select: [WorkSelectOptions.DOI, WorkSelectOptions.TITLE, WorkSelectOptions.AUTHOR],
+      queryTitle: manuscriptTitle,
+    });
+    const doi = works?.data?.message?.items.find((item) => item.title === manuscriptTitle);
+    logger.info(works, 'Search Manuscript');
+    logger.info(doi, 'Existing DOI');
     // * if none has doi
     // * - check if root node has validatedAttestations
     // * - if not return silently
