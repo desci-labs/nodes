@@ -30,6 +30,12 @@ export class DoiService {
     if (exists) throw new DuplicateMintError();
   }
 
+  async isFirstDoi(uuid: string) {
+    const exists = await this.dbClient.doiRecord.findUnique({ where: { uuid } });
+    // if (exists) throw new DuplicateMintError();
+    return !exists;
+  }
+
   async assertHasValidatedAttestations(manifest: ResearchObjectV1) {
     const doiAttestations = await attestationService.getProtectedAttestations({
       protected: true,
@@ -65,10 +71,9 @@ export class DoiService {
     if (!hasTitle || !hasAbstract || !hasContributors) throw new BadManifestError();
   }
 
+  // check mintability for either root node or manuscript
   async checkMintability(nodeUuid: string) {
     const uuid = ensureUuidEndsWithDot(nodeUuid);
-    // check if node has claimed doi already
-    await this.assertIsFirstDoi(uuid);
 
     // retrieve node manifest/metadata
     const { researchObjects } = await getIndexedResearchObjects([uuid]);
@@ -76,6 +81,24 @@ export class DoiService {
     const manifestCid = hexToCid(researchObject.recentCid);
     const latestManifest = await getManifestByCid(manifestCid);
     researchObject.versions.reverse();
+
+    // check if node has claimed doi already
+    // check with dpid instead or dpid/path/to/manuscript or dpid/path/to/file
+    await this.assertIsFirstDoi(latestManifest.dpid.id || uuid);
+
+    // extract manuscripts
+
+    // check if manuscripts have doi assigned already
+    // * if none has doi
+    // * - check if root node has validatedAttestations
+    // * - if not return silently
+    // * - return { dpid }
+
+    // manuscript has doi
+    // check validated attributes
+    // * if yes
+    // ** assertValidManifest
+    // * return { dpid }
 
     // check if manuscript is included
     this.assertHasValidManuscript(latestManifest);
