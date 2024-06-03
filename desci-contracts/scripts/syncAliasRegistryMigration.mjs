@@ -16,6 +16,7 @@
  * Required arguments (env variables):
  * 1. REGISTRY_ADDRESS - Address of existing alias registry (proxy) contract
  * 2. ENV - Environment to sync legacy entires from ("dev" or "prod")
+ * 3. PRIVATE_KEY - Admin pkey, to allow calling onlyOwner methods
  */
 import hardhat from "hardhat";
 const { ethers, hardhatArguments } = hardhat;
@@ -89,11 +90,23 @@ for (const [ dpid, entry ] of importEntries) {
     versions: fromContract[1].map(([cid, time]) => ({cid, time: ethers.BigNumber.from(time).toNumber() })),
   };
 
-  console.log(`🔎 Verifying dPID ${dpid}:`);
-
   const originalDpid = allDpids.find(e => e.dpid === dpid);
   const originalOwner = originalDpid.researchObject.owner;
   const originalVersions = originalDpid.researchObject.versions;
+
+  if (imported.versions.length < originalVersions.length) {
+    console.log(`👷 Found new versions of dPID ${dpid}, updating import...`);
+    const tx = await registry.importLegacyDpid(dpid, entry);
+    const receipt = await tx.wait();
+    totalGas += ethers.BigNumber.from(receipt.gasUsed).toNumber();
+
+    // Refresh information from contract after updating
+    const refreshedFromContract = await registry.legacyLookup(dpid);
+    imported.owner = refreshedFromContract[0];
+    imported.versions = refreshedFromContract[1].map(([cid, time]) => ({cid, time: ethers.BigNumber.from(time).toNumber() }));
+  };
+
+  console.log(`🔎 Verifying dPID ${dpid}:`);
 
   let validationError = false;
 
@@ -103,27 +116,33 @@ for (const [ dpid, entry ] of importEntries) {
 
   console.log(`   - History:`)
   for (let i = 0; i < originalVersions.length; i++) {
-    console.log(`     - v${i}:`)
-    const cidCorrect = originalVersions[i].cid === imported.versions[i].cid;
-    const timeCorrect = originalVersions[i].time === imported.versions[i].time;
+    if (!imported.versions[i]) {
+      console.log(`     - v${i}: (missing in imported history)`);
+    } else {
+      console.log(`     - v${i}:`);
+    };
+
+    const cidCorrect = originalVersions[i].cid === imported.versions[i]?.cid;
+    const timeCorrect = originalVersions[i].time === imported.versions[i]?.time;
 
     console.log(`       - cid:  ${cidCorrect ? "✅" : "❌"} (${originalVersions[i].cid})`);
     console.log(`       - time: ${timeCorrect ? "✅" : "❌"} (${originalVersions[i].time})`);
+
     if (!(cidCorrect && timeCorrect)) {
       validationError = true;
     };
   };
 
-  results.push({ dpid, owner: imported.owner, versions: imported.versions, importError: validationError });
+  results.push({ dpid, owner: imported.owner, versions: imported.versions, validationError });
 };
 
 const failures = results.filter(r => r.validationError);
-console.log(`🚦 dPIDs which failed validation (manually import to overwrite): ${JSON.stringify(failures)}`);
+console.log(`🚦 dPIDs which failed validation (manually import to overwrite): ${JSON.stringify(failures, undefined, 2)}`);
 
 const duration = Math.ceil((Date.now() - startTime) / 1000);
 console.log(`🏁 sync done in ${duration}s for a total of ${totalGas} gas`);
 
 const dateString = new Date().toUTCString().replaceAll(" ", "_");
-const logFilePath = `migration-data/aliasRegistrySync_${dateString}.json`;
+const logFilePath = `migration-data/aliasRegistrySync_${ENV}_${dateString}.json`;
 writeFileSync(logFilePath, JSON.stringify(results, undefined, 2));
 console.log(`📝 migration data written to ${logFilePath}`);

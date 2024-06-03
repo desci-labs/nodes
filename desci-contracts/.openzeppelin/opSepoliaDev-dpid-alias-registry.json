@@ -1,0 +1,209 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0x64f1dE5b953135c5cEC03DB2B99ffcA0fe11eF88",
+    "txHash": "0xa1134fbf6b5e3bdfc450beafff59cfb7c3e978014396d52775a304dca2bffb97"
+  },
+  "proxies": [
+    {
+      "address": "0x7906AC53C2F59d0Eb36dC126336322d25Da15B62",
+      "txHash": "0xf583111b6d255339f06748889e3adbf9fc313bcdad0480b22f4767b179c673d7",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "e48cadec43394f09ce202bd07138068396bd5f4bf01fcb81e0856ebd63ce19bc": {
+      "address": "0x5f8ffCbAeAB5F7749bc3Cb333e634265C2D3DF22",
+      "txHash": "0x996f85a02d3bd579767511ed14a00ebe74ef6ba40319f09f049ad32797dc8d0f",
+      "layout": {
+        "solcVersion": "0.8.4",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "_paused",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_bool",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol:29"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol:116"
+          },
+          {
+            "label": "nextDpid",
+            "offset": 0,
+            "slot": "151",
+            "type": "t_uint256",
+            "contract": "DpidAliasRegistry",
+            "src": "contracts/DpidAliasRegistry.sol:10"
+          },
+          {
+            "label": "migrationFrozen",
+            "offset": 0,
+            "slot": "152",
+            "type": "t_bool",
+            "contract": "DpidAliasRegistry",
+            "src": "contracts/DpidAliasRegistry.sol:13"
+          },
+          {
+            "label": "registry",
+            "offset": 0,
+            "slot": "153",
+            "type": "t_mapping(t_uint256,t_string_storage)",
+            "contract": "DpidAliasRegistry",
+            "src": "contracts/DpidAliasRegistry.sol:16"
+          },
+          {
+            "label": "reverseRegistry",
+            "offset": 0,
+            "slot": "154",
+            "type": "t_mapping(t_string_memory_ptr,t_uint256)",
+            "contract": "DpidAliasRegistry",
+            "src": "contracts/DpidAliasRegistry.sol:19"
+          },
+          {
+            "label": "legacy",
+            "offset": 0,
+            "slot": "155",
+            "type": "t_mapping(t_uint256,t_struct(LegacyDpidEntry)845_storage)",
+            "contract": "DpidAliasRegistry",
+            "src": "contracts/DpidAliasRegistry.sol:128"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_struct(LegacyVersion)838_storage)dyn_storage": {
+            "label": "struct DpidAliasRegistry.LegacyVersion[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_string_memory_ptr,t_uint256)": {
+            "label": "mapping(string => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_string_storage)": {
+            "label": "mapping(uint256 => string)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(LegacyDpidEntry)845_storage)": {
+            "label": "mapping(uint256 => struct DpidAliasRegistry.LegacyDpidEntry)",
+            "numberOfBytes": "32"
+          },
+          "t_string_memory_ptr": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(LegacyDpidEntry)845_storage": {
+            "label": "struct DpidAliasRegistry.LegacyDpidEntry",
+            "members": [
+              {
+                "label": "owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "versions",
+                "type": "t_array(t_struct(LegacyVersion)838_storage)dyn_storage",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_struct(LegacyVersion)838_storage": {
+            "label": "struct DpidAliasRegistry.LegacyVersion",
+            "members": [
+              {
+                "label": "cid",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "time",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {}
+      }
+    }
+  }
+}

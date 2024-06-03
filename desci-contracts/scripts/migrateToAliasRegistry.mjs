@@ -119,7 +119,7 @@ for (const [ dpid, entry ] of importEntries) {
       validationError = true;
     };
   };
-  results.dpids.push({ dpid, owner: imported.owner, versions: imported.versions, importError: validationError });
+  results.dpids.push({ dpid, owner: imported.owner, versions: imported.versions, validationError });
 };
 
 const failures = results.dpids.filter(r => r.validationError);
@@ -138,6 +138,6 @@ const duration = Math.ceil((Date.now() - startTime) / 1000);
 console.log(`🏁 migration done in ${duration}s for a total of ${totalGas} gas`);
 
 const dateString = new Date().toUTCString().replaceAll(" ", "_");
-const logFilePath = `migration-data/aliasRegistry_${dateString}.json`;
+const logFilePath = `migration-data/aliasRegistry_${ENV}_${dateString}.json`;
 writeFileSync(logFilePath, JSON.stringify(results, undefined, 2));
 console.log(`📝 migration data written to ${logFilePath}`);
