@@ -9,6 +9,7 @@ import { updateContributor } from '../../controllers/nodes/contributions/update.
 import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { feed } from '../../controllers/nodes/feed.js';
+import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
 import {
   show,
   draftUpdate,
@@ -79,6 +80,7 @@ router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], delet
 router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 router.post('/distribution', preparePublishPackage);
+router.post('/distribution/preview', [ensureUser], frontmatterPreview);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 
