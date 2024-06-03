@@ -11,7 +11,7 @@ type FrontmatterPreviewQueryParams = {
 
 type FrontmatterPreviewReqBodyParams = {
   uuid: string;
-  originalPdfCid: string;
+  pdfCid: string;
 };
 
 type FrontmatterPreviewResponse = {
@@ -35,7 +35,7 @@ export const frontmatterPreview = async (
   res: Response<FrontmatterPreviewResponse | FrontmatterPreviewErrorResponse>,
 ) => {
   const user = (req as any).user;
-  const { uuid, originalPdfCid } = req.body;
+  const { uuid, pdfCid } = req.body;
   const { contentPageOnly } = req.params;
   const logger = parentLogger.child({
     module: 'NODES::FrontmatterPreview',
@@ -46,7 +46,7 @@ export const frontmatterPreview = async (
   logger.trace({ fn: 'Retrieving frontmatter previews' });
 
   if (!uuid) return res.status(400).json({ ok: false, error: 'UUID is required.' });
-  if (!originalPdfCid) return res.status(400).json({ ok: false, error: 'originalPdfCid is required.' });
+  if (!pdfCid) return res.status(400).json({ ok: false, error: 'pdfCid is required.' });
 
   if (user) {
     // Check if user owns node, if requesting previews
@@ -60,12 +60,8 @@ export const frontmatterPreview = async (
     if (!node) return res.status(401).json({ ok: false, error: 'Unauthorized' });
   }
 
-  const previewMap = publishPackageService.generatePdfPreview(
-    originalPdfCid,
-    1000,
-    [1, 2],
-    ensureUuidEndsWithDot(uuid),
-  );
-
+  debugger;
+  const previewMap = await publishPackageService.generatePdfPreview(pdfCid, 1000, [1, 2], ensureUuidEndsWithDot(uuid));
+  // debugger;
   return res.status(200).json({ ok: true, frontmatterPageCid: previewMap[1], contentPageCid: previewMap[2] });
 };

@@ -123,10 +123,11 @@ class PublishPackageService {
       return null;
     }
 
+    debugger;
     // Generate the preview
     const previewResponse = await axios.post(
-      `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/pdf/preview?height=${heightPx}`,
-      { pdfCid: pdfCid, pageNums },
+      `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/pdf/previews?height=${heightPx}`,
+      { cid: pdfCid, pages: pageNums },
       {
         responseType: 'json',
       },

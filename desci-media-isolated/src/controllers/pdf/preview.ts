@@ -19,6 +19,7 @@ export const generatePreview = async (
   req: Request<any, any, GeneratePreviewRequestBody, { height: number }>,
   res: Response,
 ) => {
+  debugger;
   const { cid, pages } = req.body;
   const { height = 1000 } = req.query;
 
