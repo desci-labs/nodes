@@ -4,10 +4,12 @@ import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
+import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { pinFile } from './ipfs.js';
 import { publishServices } from './PublishServices.js';
+import { CidString, HeightPx } from './Thumbnails.js';
 
 export type PrepareDistributionPdfParams = {
   pdfCid: string;
@@ -109,6 +111,62 @@ class PublishPackageService {
     );
     return manuscriptComponent?.payload?.licenseType ?? manifest.defaultLicense;
   }
+
+  async generatePdfPreview(
+    pdfCid: CidString,
+    heightPx: HeightPx,
+    pageNums: PageNumber[],
+    nodeUuid: string,
+  ): Promise<PreviewMap> {
+    if (process.env.ISOLATED_MEDIA_SERVER_URL === undefined) {
+      this.logger.error('process.env.ISOLATED_MEDIA_SERVER_URL is not defined');
+      return null;
+    }
+
+    // Generate the preview
+    const previewResponse = await axios.post(
+      `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/pdf/preview?height=${heightPx}`,
+      { pdfCid: pdfCid, pageNums },
+      {
+        responseType: 'json',
+      },
+    );
+
+    const previewStreams = previewResponse.data;
+
+    const previews: { pageNumber: number; cid: string }[] = [];
+    const previewMap: PreviewMap = {};
+
+    for (let i = 0; i < previewStreams.length; i++) {
+      const pageNumber = pageNums[i];
+      const previewStream = previewStreams[i];
+
+      // Save it on IPFS
+      const pinned = await pinFile(previewStream);
+
+      previews.push({ pageNumber, cid: pinned.cid });
+      previewMap[pageNumber] = pinned.cid;
+    }
+
+    // Save it to the database
+    const existingPreviews = await prisma.pdfPreviews.findFirst({
+      where: { pdfCid, nodeUuid },
+    });
+
+    if (existingPreviews) {
+      await prisma.pdfPreviews.update({
+        where: { id: existingPreviews.id },
+        data: { previewMap },
+      });
+    } else {
+      await prisma.pdfPreviews.create({
+        data: { nodeUuid: ensureUuidEndsWithDot(nodeUuid), pdfCid, previewMap },
+      });
+    }
+
+    // LATER: Add data ref
+    return previewMap;
+  }
 }
 
 export const publishPackageService = new PublishPackageService();
@@ -124,3 +182,11 @@ export type GeneratePdfCoverRequestBody = {
   license: string;
   publishDate: string;
 };
+
+export enum PREVIEW_TYPE {
+  FRONTMATTER = 'frontmatter',
+  CONTENT = 'content',
+}
+
+export type PageNumber = number;
+export type PreviewMap = Record<PageNumber, CidString>;

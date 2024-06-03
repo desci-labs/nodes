@@ -478,6 +478,7 @@ model NodeThumbnails {
   @@unique([nodeUuid, componentCid])
 }
 
+// PDFs generated in prepub flow
 model DistributionPdfs {
   id                        Int     @id @default(autoincrement())
   originalPdfCid            String
@@ -491,6 +492,7 @@ model DistributionPdfs {
   @@unique([nodeUuid, originalPdfCid, manifestCid])
 }
 
+// Preview images of distribution PDFs created in prepub flow (first and second pages)
 model PdfPreviews {
   id         Int    @id @default(autoincrement())
   nodeUuid   String
