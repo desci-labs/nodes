@@ -11,3 +11,9 @@ export const getCommunityFeedSchema = z.object({
     communityId: z.coerce.number(),
   }),
 });
+
+export const memberGuardSchema = z.object({
+  params: z.object({
+    communityId: z.coerce.number(),
+  }),
+});

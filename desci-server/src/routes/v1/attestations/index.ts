@@ -19,7 +19,6 @@ import {
   getAttestationVerifications,
   validate,
   getValidatedRecommendations,
-  canVerifyClaim,
 } from '../../../internal.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 
@@ -38,7 +37,6 @@ import {
   showCommunityClaimsSchema,
   showNodeAttestationsSchema,
   claimEntryAttestationsSchema,
-  canVerificationSchema,
 } from './schema.js';
 
 const router = Router();
@@ -67,7 +65,6 @@ router.post('/claimAll', [ensureUser, validate(claimEntryAttestationsSchema)], a
 router.post('/comment', [ensureUser, validate(createCommentSchema)], asyncHander(addComment));
 router.post('/reaction', [ensureUser, validate(addReactionSchema)], asyncHander(addReaction));
 router.post('/verification', [ensureUser, validate(addVerificationSchema)], asyncHander(addVerification));
-router.post('/verification/check/:claimId', [ensureUser, validate(canVerificationSchema)], asyncHander(canVerifyClaim));
 
 router.delete('/comments/:commentId', [ensureUser, validate(deleteCommentSchema)], asyncHander(removeComment));
 router.delete('/reactions/:reactionId', [ensureUser, validate(deleteReactionSchema)], asyncHander(removeReaction));

@@ -2179,49 +2179,103 @@ describe('Attestations Service', async () => {
       expect(verifications.some((v) => v.userId === members[0].userId)).to.equal(true);
       expect(verifications.some((v) => v.userId === members[1].userId)).to.equal(true);
     });
+  });
 
-    it.skip('should prevent double verification of Node Attestation(Claim)', async () => {
-      try {
-        await attestationService.verifyClaim(openCodeClaim.id, users[1].id);
-      } catch (err) {
-        expect(err).to.be.instanceOf(DuplicateVerificationError);
-      }
-    });
+  describe('Protected Attestation Review', async () => {
+    let openCodeClaim: NodeAttestation;
+    let openDataClaim: NodeAttestation;
+    let node: Node;
+    const nodeVersion = 0;
+    let attestationVersion: AttestationVersion;
+    let author: User;
+    let members: (CommunityMember & {
+      user: User;
+    })[];
+    let UserJwtToken: string,
+      UserAuthHeaderVal: string,
+      MemberJwtToken1: string,
+      MemberJwtToken2: string,
+      memberAuthHeaderVal1: string,
+      memberAuthHeaderVal2: string;
 
-    it.skip('should restrict author from verifying their claim', async () => {
-      try {
-        assert(author.id === node.ownerId);
-        await attestationService.verifyClaim(openCodeClaim.id, author.id);
-      } catch (err) {
-        expect(err).to.be.instanceOf(VerificationError);
-      }
-    });
-
-    it.skip('should remove verification', async () => {
-      const removedVerification = await attestationService.removeVerification(verification.id, users[1].id);
-      expect(removedVerification).to.not.be.null;
-      expect(removedVerification).to.not.be.undefined;
-      expect(removedVerification.id).to.equal(verification.id);
-
-      const voidVerification = await attestationService.getUserClaimVerification(openCodeClaim.id, users[1].id);
-      expect(voidVerification).to.be.null;
-    });
-
-    it.skip('should allow multiple users verify a node attestation(claim)', async () => {
-      const user2Verification = await attestationService.verifyClaim(openCodeClaim.id, users[2].id);
-      expect(user2Verification.nodeAttestationId).to.be.equal(openCodeClaim.id);
-      expect(user2Verification.userId).to.be.equal(users[2].id);
-
-      const user3Verification = await attestationService.verifyClaim(openCodeClaim.id, users[3].id);
-      expect(user3Verification.nodeAttestationId).to.be.equal(openCodeClaim.id);
-      expect(user3Verification.userId).to.be.equal(users[3].id);
-
-      const verifications = await attestationService.getAllClaimVerfications(openCodeClaim.id);
-      expect(verifications.length).to.be.equal(2);
-
+    before(async () => {
+      node = nodes[0];
+      author = users[0];
       assert(node.uuid);
-      const nodeVerifications = await attestationService.getAllNodeVerfications(node.uuid);
-      expect(nodeVerifications.length).to.be.equal(2);
+      const versions = await attestationService.getAttestationVersions(protectedOpenCode.id);
+      attestationVersion = versions[versions.length - 1];
+      openCodeClaim = await attestationService.claimAttestation({
+        attestationId: protectedOpenCode.id,
+        attestationVersion: attestationVersion.id,
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      members = await communityService.getAllMembers(desciCommunity.id);
+      MemberJwtToken1 = jwt.sign({ email: members[0].user.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      memberAuthHeaderVal1 = `Bearer ${MemberJwtToken1}`;
+
+      MemberJwtToken2 = jwt.sign({ email: members[1].user.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      memberAuthHeaderVal2 = `Bearer ${MemberJwtToken2}`;
+
+      UserJwtToken = jwt.sign({ email: users[1].email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      UserAuthHeaderVal = `Bearer ${UserJwtToken}`;
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestationVerification" CASCADE;`;
+      // await prisma.$queryRaw`TRUNCATE TABLE "CommunityMember" CASCADE;`;
+    });
+
+    it('should allow only community members review/comment a claimed attestation', async () => {
+      let body = {
+        authorId: members[0].userId,
+        claimId: openCodeClaim.id,
+        body: 'review 1',
+      };
+      let res = await request(app)
+        .post(`/v1/attestations/comment`)
+        .set('authorization', memberAuthHeaderVal1)
+        .send(body);
+      expect(res.statusCode).to.equal(200);
+
+      body = {
+        authorId: members[1].userId,
+        claimId: openCodeClaim.id,
+        body: 'review 2',
+      };
+      res = await request(app).post(`/v1/attestations/comment`).set('authorization', memberAuthHeaderVal2).send(body);
+      expect(res.statusCode).to.equal(200);
+
+      const comments = await attestationService.getAllClaimComments({ nodeAttestationId: openCodeClaim.id });
+      expect(comments.length).to.equal(2);
+      expect(comments.some((v) => v.authorId === members[0].userId && v.body)).to.equal(true);
+      expect(comments.some((v) => v.authorId === members[1].userId)).to.equal(true);
+    });
+
+    it('should prevent non community members from reviewing a protected attestation(claim)', async () => {
+      const apiResponse = await request(app)
+        .post(`/v1/attestations/comment`)
+        .set('authorization', UserAuthHeaderVal)
+        .send({
+          authorId: users[1].id,
+          claimId: openCodeClaim.id,
+          body: 'review 1',
+        });
+      expect(apiResponse.statusCode).to.equal(401);
+
+      const comments = await attestationService.getAllClaimComments({ nodeAttestationId: openCodeClaim.id });
+      expect(comments.length).to.equal(2);
     });
   });
 });

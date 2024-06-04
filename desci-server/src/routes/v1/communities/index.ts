@@ -2,6 +2,8 @@ import { Router } from 'express';
 
 import {
   asyncHander,
+  checkMemberGuard,
+  ensureUser,
   getAllFeeds,
   getCommunityDetails,
   getCommunityFeed,
@@ -12,7 +14,7 @@ import {
   validate,
 } from '../../../internal.js';
 
-import { getCommunityDetailsSchema, getCommunityFeedSchema } from './schema.js';
+import { getCommunityDetailsSchema, getCommunityFeedSchema, memberGuardSchema } from './schema.js';
 
 const router = Router();
 
@@ -34,5 +36,7 @@ router.get(
 
 router.get('/:communityId/feed', [validate(getCommunityFeedSchema)], asyncHander(getCommunityFeed));
 router.get('/:communityId/radar', [validate(getCommunityFeedSchema)], asyncHander(getCommunityRadar));
+
+router.post('/:communityId/memberGuard', [ensureUser, validate(memberGuardSchema)], asyncHander(checkMemberGuard));
 
 export default router;

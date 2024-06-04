@@ -128,10 +128,17 @@ export async function processExternalUrlDataToIpfs({
          */
         if (componentType === ResearchObjectComponentType.PDF) {
           const url = externalUrl.url;
-          const res = await axios.get(url, { responseType: 'arraybuffer' });
-          const buffer = Buffer.from(res.data, 'binary');
-          externalUrlFiles = [{ path: externalUrl.path, content: buffer }];
-          externalUrlTotalSizeBytes = buffer.length;
+          const response = await axios.head(url);
+          const contentType = response.headers['content-type'];
+
+          if (contentType === 'application/pdf') {
+            const res = await axios.get(url, { responseType: 'arraybuffer' });
+            const buffer = Buffer.from(res.data, 'binary');
+            externalUrlFiles = [{ path: externalUrl.path, content: buffer }];
+            externalUrlTotalSizeBytes = buffer.length;
+          } else {
+            throw new Error('Invalid file type. Only PDF files are supported.');
+          }
         }
       } catch (e) {
         logger.warn(
