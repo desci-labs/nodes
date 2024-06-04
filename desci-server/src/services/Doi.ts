@@ -105,16 +105,15 @@ export class DoiService {
       const existingDois = await this.extractManuscriptDoi(manuscripts);
 
       logger.info(existingDois, 'Existing DOI');
+      // does manuscript(s) already have a DOI
       if (existingDois.length) {
-        throw new DuplicateMintError(
-          'Duplicate Manuscript DOI: ' +
-            existingDois.map((entry) => `${entry.component.name} - DOI: ${entry.doi}`).join(),
-        );
+        // Validate node has claimed all necessary attestations
+        await this.assertHasValidatedAttestations(latestManifest);
       }
+    } else {
+      // Validate node has claimed all necessary attestations
+      await this.assertHasValidatedAttestations(latestManifest);
     }
-
-    // Validate node has claimed all necessary attestations
-    await this.assertHasValidatedAttestations(latestManifest);
 
     // validate title, abstract and contributors
     this.assertValidManifest(latestManifest);
