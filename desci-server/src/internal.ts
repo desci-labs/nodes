@@ -1,6 +1,7 @@
 export * from './logger.js';
 export * from './client.js';
 export * from './core/communities/error.js';
+export * from './services/index.js';
 export * from './core/ApiError.js';
 export * from './core/ApiResponse.js';
 export * from './middleware/index.js';
@@ -10,6 +11,7 @@ export * from './utils/asyncHandler.js';
 export * from './routes/v1/attestations/schema.js';
 export * from './controllers/communities/index.js';
 export * from './controllers/attestations/index.js';
+export * from './controllers/doi/index.js';
 export * from './core/ApiResponse.js';
 export * from './utils/manifest.js';
 export * from './services/repoService.js';
