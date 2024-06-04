@@ -507,7 +507,6 @@ class OrcidApiService {
       if ([200, 201].includes(response.status)) {
         const location = response.headers.get('Location')?.split('/');
         const returnedCode = location?.[location.length - 1];
-        // response.headers.forEach((header, key) => logger.info({ key, header }, 'Response header'));
         logger.info({ location }, 'RESPONSE HEADER Location');
 
         if (returnedCode) {
