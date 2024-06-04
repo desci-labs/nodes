@@ -1,8 +1,7 @@
 import type { Request, Response } from 'express';
-import { ThumbnailsService } from '../../services/thumbnails.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
+import fs from 'fs/promises';
 import { TEMP_DIR, THUMBNAIL_OUTPUT_DIR } from '../../config/index.js';
 import { BadRequestError, NotFoundError } from '../../utils/customErrors.js';
 import { PdfManipulationService } from '../../services/pdf.js';
@@ -27,29 +26,22 @@ export const generatePreview = async (
   if (!pages) throw new BadRequestError('Missing pages number array in request body');
 
   try {
+    // debugger;
     const previewPaths = await PdfManipulationService.generatePdfPreviews(cid, `${cid}.pdf`, pages, height);
-    const previewStreams: fs.ReadStream[] = [];
-
+    const previewBuffers: Buffer[] = [];
     for (const previewPath of previewPaths) {
       const fullPreviewPath = path.join(BASE_TEMP_DIR, THUMBNAIL_OUTPUT_DIR, previewPath);
 
-      // Check if the file exists before attempting to stream it
-      await new Promise<void>((resolve, reject) => {
-        fs.access(fullPreviewPath, fs.constants.F_OK, (err) => {
-          if (err) {
-            reject(new NotFoundError(`Preview not found for file with cid: ${cid}, path: ${previewPath}`));
-          } else {
-            resolve();
-          }
-        });
-      });
-
-      const readStream = fs.createReadStream(fullPreviewPath);
-      previewStreams.push(readStream);
+      try {
+        const previewBuffer = await fs.readFile(fullPreviewPath);
+        previewBuffers.push(previewBuffer);
+      } catch (err) {
+        throw new NotFoundError(`Preview not found for file with cid: ${cid}, path: ${previewPath}`);
+      }
     }
 
     res.setHeader('Content-Type', 'application/json');
-    res.status(200).json(previewStreams);
+    res.status(200).json(previewBuffers);
   } catch (err: any) {
     return res.status(500).json({ message: err.message });
   }
