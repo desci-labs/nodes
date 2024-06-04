@@ -1,7 +1,7 @@
 {
   "explorer.compactFolders": false,
   "files.exclude": {
-    "**/node_modules/**": false
+    "**/node_modules/**": true
   },
   "editor.formatOnSave": true, // Tell VSCode to format files on save
   "editor.defaultFormatter": "esbenp.prettier-vscode",

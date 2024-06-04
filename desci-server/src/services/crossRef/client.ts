@@ -4,16 +4,19 @@ import { ONE_DAY_TTL, getFromCache, setToCache } from '../../redisClient.js';
 import { CrossRefHttpResponse, Items, QueryWorkParams, Work } from './definitions.js';
 import { keysToDotsAndDashses } from './utils.js';
 
-const logger = parentLogger.child({ module: '[CrossRefClient' });
+const logger = parentLogger.child({ module: '[CrossRefClient]' });
 
 export const delay = async (timeMs: number) => {
   return new Promise((resolve) => setTimeout(resolve, timeMs));
 };
 
+/**
+ * A wrapper http client for querying, caching and parsing requests
+ * from the CrossRef Rest Api https://www.crossref.org/documentation/retrieve-metadata/rest-api/
+ * Initialize constructor with CrossRef Api url https://api.crossref.org, Api token and a polite Mail
+ */
 class CrossRefClient {
   baseurl: string;
-  // private apiToken: string;
-  // private mailto: string;
 
   constructor(
     baseUrl: string,
@@ -27,6 +30,10 @@ class CrossRefClient {
     this.baseurl = baseUrl;
   }
 
+  /**
+   * Returns a list of all works (journal articles,
+   * conference proceedings, books, components, etc),
+   */
   async listWorks(query: QueryWorkParams = undefined) {
     let params: { [k: string]: any } = query;
     let url = `${this.baseurl}/works?`;
@@ -110,5 +117,3 @@ class CrossRefClient {
 }
 
 export default CrossRefClient;
-
-// const formatKeys
