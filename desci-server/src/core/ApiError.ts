@@ -47,7 +47,7 @@ export abstract class ApiError extends Error {
     }
   }
 
-  public static transform(err: Error, res): Response {
+  public static transform(err: Error, res: Response): Response {
     if (err instanceof AttestationError) {
       switch (err.type) {
         case AttestationErrorType.DUPLICATE:
@@ -72,6 +72,7 @@ export abstract class ApiError extends Error {
           return new InternalErrorResponse(err.message).send(res);
       }
     }
+    return new InternalErrorResponse(err.message).send(res);
   }
 }
 
