@@ -1,8 +1,9 @@
-import { PDF_FILES_DIR, PDF_OUTPUT_DIR, TEMP_DIR } from '../config/index.js';
+import { PDF_FILES_DIR, PDF_OUTPUT_DIR, TEMP_DIR, THUMBNAIL_FILES_DIR, THUMBNAIL_OUTPUT_DIR } from '../config/index.js';
 import { IpfsService } from './ipfs.js';
-import { UnhandledError } from '../utils/customErrors.js';
+import { BadRequestError, UnhandledError } from '../utils/customErrors.js';
 import path from 'path';
 import fs from 'fs';
+import { fromPath } from 'pdf2pic';
 import * as fsp from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFString, StandardFonts, rgb } from 'pdf-lib';
@@ -491,5 +492,53 @@ export class PdfManipulationService {
     });
 
     return exceedsLimit ? `${formattedAuthors.join(', ')}, et al.` : formattedAuthors.join(', ');
+  }
+
+  static async generatePdfPreviews(pdfCid: string, fileName: string, pageNumbers: number[], heightPx: number) {
+    const extension = '.' + fileName.split('.').pop();
+    if (!extension) throw new BadRequestError('Invalid file name, requires extension');
+    const tempFilePath = path.join(BASE_TEMP_DIR, THUMBNAIL_FILES_DIR, `${pdfCid + extension}`);
+    const previewPaths: string[] = [];
+
+    await IpfsService.saveFile(pdfCid, tempFilePath);
+
+    try {
+      const converter = fromPath(tempFilePath, {
+        saveFilename: `${pdfCid}_preview`,
+        savePath: path.join(BASE_TEMP_DIR, THUMBNAIL_OUTPUT_DIR),
+        format: 'jpg',
+        height: heightPx,
+        preserveAspectRatio: true,
+      });
+
+      for (const pageNumber of pageNumbers) {
+        const previewPath = this.getPreviewPath(pdfCid, pageNumber, heightPx);
+        await converter(pageNumber).then((result) => {
+          if (result.path) {
+            fs.renameSync(result.path, path.join(BASE_TEMP_DIR, THUMBNAIL_OUTPUT_DIR, previewPath));
+          } else {
+            throw new Error(`Preview path is undefined for page ${pageNumber}`);
+          }
+        });
+        previewPaths.push(previewPath);
+      }
+
+      console.log('Previews generated successfully:', previewPaths);
+      return previewPaths;
+    } catch (e) {
+      console.error(e);
+      throw new UnhandledError(`Failed generating previews for file with pdfCid: ${pdfCid}`);
+    } finally {
+      // The initially saved file is removed, however the generated previews remain. Further cleanup can be done for the generated previews.
+      try {
+        await fs.promises.unlink(tempFilePath);
+        console.log(`Temporary file ${tempFilePath} deleted successfully.`);
+      } catch (cleanupError) {
+        console.error(`Failed to delete temporary file ${tempFilePath}:`, cleanupError);
+      }
+    }
+  }
+  static getPreviewPath(cid: string, pageNumber: number, height: number) {
+    return `h-${height}px_${cid}_${pageNumber}.jpg`;
   }
 }
