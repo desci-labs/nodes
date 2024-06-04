@@ -5,16 +5,19 @@ import { type NodesEnv } from "./index.js";
 export type NodesContract =
   | tc.ResearchObject
   | tc.ResearchObjectV2
-  | tc.DpidRegistry;
+  | tc.DpidRegistry
+  | tc.DpidAliasRegistry;
 
 export type ContractConnector<T extends NodesContract> =
   (signerOrProvider: Signer | providers.Provider) => T;
 
 export type ChainID =
-  | "1337"
-  | "11155111";
+  | "1337" // local
+  | "11155111" // sepolia
+  | "11155420" // optimism sepolia
+  | "10"; // optimism mainnet
 
-export type ChainConfig = {
+export type LegacyChainConfig = {
   /** Decimal chain ID */
   chainId: ChainID,
   /** RPC URL to use for communication */
@@ -25,7 +28,16 @@ export type ChainConfig = {
   dpidRegistryConnector: ContractConnector<tc.DpidRegistry>,
 };
 
-export const CHAIN_CONFIGS = {
+export type ChainConfig = {
+  /** Decimal chain ID */
+  chainId: ChainID,
+  /** RPC URL to use for communication */
+  rpcUrl: string,
+  /** Given a signer or provider, create a contract instance */
+  dpidAliasRegistryConnector: ContractConnector<tc.DpidAliasRegistry>,
+};
+
+export const LEGACY_CHAIN_CONFIGS = {
   local: {
     chainId: "1337",
     rpcUrl: "http://localhost:8545",
@@ -74,4 +86,40 @@ export const CHAIN_CONFIGS = {
       signerOrProvider
     ),
   },
-} as const satisfies { [Env in NodesEnv]: ChainConfig };
+} as const satisfies { [Env in NodesEnv]: LegacyChainConfig };
+
+export const CHAIN_CONFIGS = {
+  local: {
+    chainId: "1337",
+    rpcUrl: "http://localhost:8545",
+    dpidAliasRegistryConnector: signerOrProvider => tc.DpidAliasRegistry__factory.connect(
+      contracts.localDpidAliasInfo.proxies.at(0)!.address,
+      signerOrProvider,
+    ),
+  },
+  dev: {
+    chainId: "11155420",
+    rpcUrl: "https://reverse-proxy-dev.desci.com/rpc_opt_sepolia",
+    dpidAliasRegistryConnector: signerOrProvider => tc.DpidAliasRegistry__factory.connect(
+      contracts.devDpidAliasInfo.proxies.at(0)!.address,
+      signerOrProvider,
+    ),
+  },
+  staging: {
+    chainId: "11155420",
+    rpcUrl: "https://reverse-proxy-staging.desci.com/rpc_opt_sepolia",
+    dpidAliasRegistryConnector: signerOrProvider => tc.DpidAliasRegistry__factory.connect(
+      contracts.devDpidAliasInfo.proxies.at(0)!.address,
+      signerOrProvider,
+    ),
+  },
+  prod: {
+    chainId: "10",
+    rpcUrl: "https://reverse-proxy-prod.desci.com/rpc_opt_mainnet",
+    dpidAliasRegistryConnector: signerOrProvider => tc.DpidAliasRegistry__factory.connect(
+      "NOT_DEPLOYED",//contracts.prodDpidAliasInfo.proxies.at(0)!.address,
+      signerOrProvider,
+    ),
+  }
+    
+} as const satisfies { [Env in NodesEnv]: ChainConfig};

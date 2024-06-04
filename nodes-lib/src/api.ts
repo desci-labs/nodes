@@ -22,13 +22,15 @@ import {
 import FormData from "form-data";
 import { createReadStream } from "fs";
 import type { NodeIDs } from "@desci-labs/desci-codex-lib";
-import { publish } from "./publish.js";
+import { legacyPublish, publish } from "./publish.js";
 import type { ResearchObjectDocument } from "./automerge.js";
 import { randomUUID } from "crypto";
 import { getNodesLibInternalConfig } from "./config/index.js";
 import { makeRequest } from "./routes.js";
 import { Signer } from "ethers";
 import { type DID } from "dids";
+import { getFullState } from "./codex.js";
+import { convertUUIDToDecimal } from "./util/converting.js";
 
 export const ENDPOINTS = {
   deleteData: {
@@ -127,6 +129,12 @@ export const ENDPOINTS = {
     route: `/v1/nodes/documents`,
     _payloadT: <ChangeManifestParams>{},
     _responseT: <ManifestDocumentResponse>{},
+  },
+  createDpid: {
+    method: "post",
+    route: `/v1/nodes/createDpid`,
+    _payloadT: <{ uuid: string }>{},
+    _responseT: <{ dpid: number }>{},
   },
   /** Append `/[uuid] `*/
   dpidHistory: {
@@ -327,6 +335,77 @@ export type PublishResponse = {
 };
 
 /**
+ * Publish a node, meaning compile the state of the drive into an actual
+ * IPLD DAG, make the IPFS CID's public, publish the references to Codex
+ * and create a dPID alias for it.
+ *
+ * @param uuid - UUID of the node to publish
+ * @param didOrSigner - authenticated did-session DID, or a generic signer
+*/
+export const publishNode = async (
+  uuid: string,
+  didOrSigner: DID | Signer,
+): Promise<PublishResponse> => {
+  const publishResult = await publish(uuid, didOrSigner);
+  const pubParams: PublishParams = {
+    uuid,
+    cid: publishResult.cid,
+    manifest: publishResult.manifest,
+    ceramicStream: publishResult.ceramicIDs.streamID,
+    commitId: publishResult.ceramicIDs.commitID,
+    // required in DB & this string is used to detect non-tx's in publish worker
+    transactionId: "ceramic",
+  };
+
+  try {
+    await makeRequest(ENDPOINTS.publish, getHeaders(), pubParams);
+  } catch (e) {
+    console.log(`Publish successful, but backend update failed for node ${uuid}`);
+    throw e;
+  };
+
+  let dpid;
+  try {
+    dpid = await createDpid(uuid);
+    await changeManifest(
+      uuid,
+      [{
+        type: "Publish Dpid",
+        dpid: { prefix: "", id: dpid.toString() }
+      }],
+    );
+  } catch (e) {
+    console.log(`Failed to create dPID alias for node ${uuid}...`);
+  };
+
+  return {
+    ceramicIDs: publishResult.ceramicIDs,
+    updatedManifest: publishResult.manifest,
+    updatedManifestCid: publishResult.cid,
+  };
+};
+
+/**
+ * Create a new dPID in the alias registry. Only possible to do once per node.
+ *
+ * @param uuid - UUID of the node to mint a dPID
+ * @throws on dPID minting failure
+*/
+export const createDpid = async (
+  uuid: string,
+): Promise<number> => {
+  let dpid: number;
+  try {
+    const res = await makeRequest(ENDPOINTS.createDpid, getHeaders(), { uuid });
+    dpid = res.dpid;
+  } catch (e) {
+    console.log(`Couldn't create dPID alias for node ${uuid}`)
+    throw e;
+  };
+  return dpid;
+};
+
+/**
  * Publish a draft node, meaning to compile the state of the drive into an
  * actual IPLD DAG, make the IPFS CIDs public, and register the node on
  * the dPID registry and Codex.
@@ -335,13 +414,14 @@ export type PublishResponse = {
  * @param signer - Signer to use for publish, if not set with env
  * @throws (@link WrongOwnerError) if signer address isn't research object token owner
  * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
+ * @depreated use publishNode instead, as this function uses the old on-chain registry
 */
 export const publishDraftNode = async (
   uuid: string,
   signer: Signer,
   did?: DID,
 ): Promise<PublishResponse> => {
-  const publishResult = await publish(uuid, signer, did);
+  const publishResult = await legacyPublish(uuid, signer, did);
 
   const pubParams: PublishParams = {
     uuid,
@@ -656,8 +736,6 @@ export const addExternalCid = async (
 export type IndexedNodeVersion = {
   /** Manifest CID in EVM format */
   cid: string;
-  /** Transaction ID of the update event */
-  id: string;
   /** Epoch timestamp of the update*/
   time: string;
 };
@@ -676,8 +754,35 @@ export type IndexedNode = {
   versions: IndexedNodeVersion[];
 };
 
+export const getPublishHistory = async (
+  uuid: string,
+): Promise<IndexedNode> => {
+  const { ceramicStream,} = await getDraftNode(uuid);
+
+  if (!ceramicStream) {
+    return await getDpidHistory(uuid);
+  };
+
+  const resolved = await getFullState(ceramicStream);
+  const versions = resolved.events.map(e => ({
+    cid: e.cid.toString(),
+    time: e.timestamp?.toString() || "", // May happen if commit is not anchored
+  }));
+
+  const indexedNode: IndexedNode = {
+    id: uuid,
+    id10: convertUUIDToDecimal(uuid),
+    owner: resolved.owner,
+    recentCid: resolved.manifest,
+    versions,
+  };
+
+  return indexedNode;
+};
+
 /**
- * The the dPID publish history for a node.
+ * Get the dPID publish history for a node.
+ * @deprecated use getPublishHistory
 */
 export const getDpidHistory = async (
   uuid: string,

@@ -1,9 +1,46 @@
 import { type NodeIDs } from "@desci-labs/desci-codex-lib";
-import { getDpidHistory } from "./api.js";
-import { dpidPublish, hasDpid } from "./chain.js";
+import { IndexedNodeVersion, getDpidHistory, getDraftNode, prePublishDraftNode } from "./api.js";
+import { dpidPublish, hasDpid, lookupLegacyDpid } from "./chain.js";
 import { codexPublish } from "./codex.js";
 import { Signer } from "ethers";
 import { type DID } from "dids";
+import { bnToString } from "./util/converting.js";
+
+/**
+ * Publish node to Codex, potentially migrating history from dPID token.
+ * Does *not* automatically register a dPID in the alias registry.
+ */
+export const publish = async (
+  uuid: string,
+  didOrSigner: DID | Signer,
+) => {
+  const node = await getDraftNode(uuid);
+  const prepubResult = await prePublishDraftNode(uuid);
+  const dpid = node.manifestData.dpid?.id;
+
+  // We know about a dPID, but not about a stream => should backfill history
+  const hasHistory = 
+    (dpid !== undefined) && (prepubResult.ceramicStream === undefined);
+
+  let history: IndexedNodeVersion[] = [];
+  if (hasHistory) {
+    const legacyEntry = await lookupLegacyDpid(parseInt(dpid));
+    // Wrangle BigNumber timestamp to string epoch
+    history = legacyEntry.versions.map(
+      ({ cid, time }) => ({ cid, time: bnToString(time) })
+    );
+  };
+
+  // Performs backfill migration if there is no stream on record, otherwise
+  // we can send the empty history array and avoid the history query
+  const ceramicIDs = await codexPublish(prepubResult, history, didOrSigner);
+
+  return {
+    cid: prepubResult.updatedManifestCid,
+    manifest: prepubResult.updatedManifest,
+    ceramicIDs,
+  };
+};
 
 /**
  * The complete publish flow, including both the dPID registry and Codex.
@@ -14,8 +51,9 @@ import { type DID } from "dids";
  *
  * @throws (@link WrongOwnerError) if signer address isn't token owner
  * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
+ * @deprecated
 */
-export const publish = async (
+export const legacyPublish = async (
   uuid: string,
   signer: Signer,
   did?: DID,
