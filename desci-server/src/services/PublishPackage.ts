@@ -123,7 +123,7 @@ class PublishPackageService {
       return null;
     }
 
-    debugger;
+    // debugger;
     // Generate the preview
     const previewResponse = await axios.post(
       `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/pdf/previews?height=${heightPx}`,
@@ -141,7 +141,7 @@ class PublishPackageService {
     for (let i = 0; i < previewStreams.length; i++) {
       const pageNumber = pageNums[i];
       const previewStream = previewStreams[i];
-
+      debugger;
       // Save it on IPFS
       const pinned = await pinFile(previewStream);
 

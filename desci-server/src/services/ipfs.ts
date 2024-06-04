@@ -8,15 +8,15 @@ import {
   type ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
 import type { PBNode } from '@ipld/dag-pb';
-import * as dagPb from "@ipld/dag-pb";
+import * as dagPb from '@ipld/dag-pb';
 import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import axios from 'axios';
+import { UnixFS } from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
+import { create, CID, globSource } from 'kubo-rpc-client';
 import { flatten, uniq } from 'lodash-es';
 import * as multiformats from 'multiformats';
 import { code as rawCode } from 'multiformats/codecs/raw';
-import { create, CID, globSource } from 'kubo-rpc-client'
-import { UnixFS } from 'ipfs-unixfs';
 
 import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
@@ -300,8 +300,8 @@ export const pinFile = async (file: Buffer | Readable | ReadableStream): Promise
   const isOnline = await client.isOnline();
   logger.debug({ fn: 'pinFile' }, `isOnline: ${isOnline}`);
 
-  const uploaded = await client.add(file, { cidVersion: 1, pin: true });
-  return { ...uploaded, cid: uploaded.cid.toString() };
+  const uploadedFile = await client.add(file, { cidVersion: 1, pin: true });
+  return { ...uploadedFile, cid: uploadedFile.cid.toString() };
 };
 
 export interface RecursiveLsResult extends IpfsPinnedResult {
@@ -1005,7 +1005,7 @@ export async function getExternalCidSizeAndType(cid: string) {
         size = fSize;
       } else {
         size = unixFs.blockSizes.reduce((a, b) => a + b, BigInt(0));
-      };
+      }
     }
     if (isDirectory !== undefined && size !== undefined) return { isDirectory, size };
     throw new Error(`Failed to resolve CID or determine file size/type for cid: ${cid}`);
