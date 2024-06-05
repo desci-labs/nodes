@@ -244,6 +244,8 @@ export interface PdfComponentPayload {
   cid: string;
   /** Annotations on the document */
   annotations?: PdfAnnotation[];
+  /** DOI of the pdf or manuscript */
+  doi?: string;
 }
 
 export interface ExternalLinkComponentPayload {
