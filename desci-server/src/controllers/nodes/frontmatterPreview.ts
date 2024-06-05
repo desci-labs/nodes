@@ -60,7 +60,7 @@ export const frontmatterPreview = async (
     if (!node) return res.status(401).json({ ok: false, error: 'Unauthorized' });
   }
 
-  debugger;
+  // debugger;
   const previewMap = await publishPackageService.generatePdfPreview(pdfCid, 1000, [1, 2], ensureUuidEndsWithDot(uuid));
   // debugger;
   return res.status(200).json({ ok: true, frontmatterPageCid: previewMap[1], contentPageCid: previewMap[2] });

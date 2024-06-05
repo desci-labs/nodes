@@ -509,6 +509,7 @@ export class PdfManipulationService {
         format: 'jpg',
         height: heightPx,
         preserveAspectRatio: true,
+        density: 300,
       });
 
       for (const pageNumber of pageNumbers) {

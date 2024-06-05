@@ -135,17 +135,15 @@ class PublishPackageService {
 
     const previewStreams = previewResponse.data;
 
-    const previews: { pageNumber: number; cid: string }[] = [];
     const previewMap: PreviewMap = {};
 
     for (let i = 0; i < previewStreams.length; i++) {
       const pageNumber = pageNums[i];
+      // debugger;
       const previewStream = previewStreams[i];
-      debugger;
       // Save it on IPFS
-      const pinned = await pinFile(previewStream);
+      const pinned = await pinFile(previewStream.data);
 
-      previews.push({ pageNumber, cid: pinned.cid });
       previewMap[pageNumber] = pinned.cid;
     }
 
