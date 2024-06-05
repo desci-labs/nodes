@@ -201,14 +201,6 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
-      case 'Update Component':
-        handle.change(
-          (document) => {
-            updateManifestComponent(document, action.component, action.componentIndex);
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
       case 'Publish Dpid':
         handle.change(
           (document) => {

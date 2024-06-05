@@ -39,7 +39,7 @@ class RepoService {
       `${this.baseUrl}/v1/nodes/documents/dispatch`,
       arg,
     );
-    logger.info({ arg, response: response.data }, 'Disatch Changes Response');
+    logger.info({ arg, ok: response.data.ok }, 'Disatch Changes Response');
     if (response.status === 200 && response.data.ok) {
       return response.data.document;
     } else {
@@ -90,7 +90,7 @@ class RepoService {
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
         `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}`,
       );
-      logger.info({ response: response.data }, 'Draft Retrieval Response');
+      logger.info({ response: response.status }, 'Draft Retrieval Response');
       if (response.status === 200 && response.data.ok) {
         return response.data.document;
       } else {
