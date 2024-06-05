@@ -5,7 +5,7 @@ import { DoiService } from './Doi.js';
 
 export const doiService = new DoiService(prisma);
 export const crossRefClient = new CrossRefClient(
-  process.env.CROSS_REF_API,
-  process.env.CROSS_REF_API_KEY,
-  process.env.CROSS_REF_EMAIL,
+  process.env.CROSSREF_API,
+  process.env.CROSSREF_API_KEY,
+  process.env.CROSSREF_EMAIL,
 );
