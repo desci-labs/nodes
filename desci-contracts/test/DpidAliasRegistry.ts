@@ -206,18 +206,11 @@ describe("dPID", () => {
       describe("upgrade", () => {
         let successReceipt: ContractReceipt;
         const STREAM_C = "kjzl6kcym7w8y7i5ugaq9a3vlm7hhuaf4bpl5o5qykeh4qtsa12c6rb5ekw6ccc";
+        const STREAM_D = "kjzl6kcym7w8y7i5ugaq9a3vlm7hhuaf4bpl5o5qykeh4qtsa12c6rb5ekw6ddd";
 
-        it("can NOT be done by others", async () => {
+        it("can NOT be done by randos", async () => {
           const doUpgrade = async () => await dpidAliasRegistry
             .connect(user2)
-            .upgradeDpid(0, STREAM_C);
-
-          await expect(doUpgrade()).to.be.rejectedWith("unauthorized dpid upgrade");
-        });
-
-        it("can NOT be done by contract owner", async () => {
-          const doUpgrade = async () => await dpidAliasRegistry
-            .connect(deployerAddress)
             .upgradeDpid(0, STREAM_C);
 
           await expect(doUpgrade()).to.be.rejectedWith("unauthorized dpid upgrade");
@@ -236,6 +229,14 @@ describe("dPID", () => {
             await dpidAliasRegistry.upgradeDpid(0, STREAM_C);
 
           await expect(doSecondUpgrade()).to.be.rejectedWith("dpid already upgraded");
+        });
+
+        it("can be fixed by contract owner", async () => {
+          const doUpgrade = async () => await dpidAliasRegistry
+            .connect(deployerAddress)
+            .upgradeDpid(0, STREAM_C);
+
+          await expect(doUpgrade()).to.not.be.rejectedWith("unauthorized dpid upgrade");
         });
 
         it("emits an event", async () => {

@@ -41,13 +41,6 @@ module.exports = {
         mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
       },
     },
-    optimism: {
-      url: "http://127.0.0.1:8545",
-      chainId: 17,
-      accounts: {
-        mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
-      },
-    },
     ganache: {
       chainId: 1337,
       saveDeployments: true,
@@ -102,6 +95,30 @@ module.exports = {
         : {
             mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
           },
+      gasPrice: "auto",
+    },
+    optimism: {
+      chainId: 10,
+      live: true,
+      saveDeployments: true,
+      url: "https://reverse-proxy-dev.desci.com/rpc_opt_mainnet",
+      accounts: process.env.PRIVATE_KEY
+       ? [ process.env.PRIVATE_KEY ]
+       : {
+           mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
+         },
+      gasPrice: "auto",
+    },
+    optimismSepolia: {
+      chainId: 11155420,
+      live: true,
+      saveDeployments: true,
+      url: "https://opt-sepolia.g.alchemy.com/v2/vr-m5h17EAZPdtt88rpvkMy8kwo1-iig", //https://reverse-proxy-dev.desci.com/rpc_opt_sepolia",
+      accounts: process.env.PRIVATE_KEY
+       ? [ process.env.PRIVATE_KEY ]
+       : {
+           mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
+         },
       gasPrice: "auto",
     },
   },

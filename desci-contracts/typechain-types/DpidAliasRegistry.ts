@@ -43,12 +43,10 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
   contractName: "DpidAliasRegistry";
   functions: {
     "find(string)": FunctionFragment;
-    "freezeMigration()": FunctionFragment;
     "importLegacyDpid(uint256,(address,(string,uint256)[]))": FunctionFragment;
     "initialize()": FunctionFragment;
     "legacy(uint256)": FunctionFragment;
     "legacyLookup(uint256)": FunctionFragment;
-    "migrationFrozen()": FunctionFragment;
     "mintDpid(string)": FunctionFragment;
     "nextDpid()": FunctionFragment;
     "owner()": FunctionFragment;
@@ -66,10 +64,6 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
 
   encodeFunctionData(functionFragment: "find", values: [string]): string;
   encodeFunctionData(
-    functionFragment: "freezeMigration",
-    values?: undefined
-  ): string;
-  encodeFunctionData(
     functionFragment: "importLegacyDpid",
     values: [BigNumberish, DpidAliasRegistry.LegacyDpidEntryStruct]
   ): string;
@@ -84,10 +78,6 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
   encodeFunctionData(
     functionFragment: "legacyLookup",
     values: [BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "migrationFrozen",
-    values?: undefined
   ): string;
   encodeFunctionData(functionFragment: "mintDpid", values: [string]): string;
   encodeFunctionData(functionFragment: "nextDpid", values?: undefined): string;
@@ -126,10 +116,6 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
 
   decodeFunctionResult(functionFragment: "find", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "freezeMigration",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "importLegacyDpid",
     data: BytesLike
   ): Result;
@@ -137,10 +123,6 @@ export interface DpidAliasRegistryInterface extends utils.Interface {
   decodeFunctionResult(functionFragment: "legacy", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "legacyLookup",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "migrationFrozen",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "mintDpid", data: BytesLike): Result;
@@ -262,10 +244,6 @@ export interface DpidAliasRegistry extends BaseContract {
   functions: {
     find(streamId: string, overrides?: CallOverrides): Promise<[BigNumber]>;
 
-    freezeMigration(
-      overrides?: Overrides & { from?: string | Promise<string> }
-    ): Promise<ContractTransaction>;
-
     importLegacyDpid(
       dpid: BigNumberish,
       entry: DpidAliasRegistry.LegacyDpidEntryStruct,
@@ -285,8 +263,6 @@ export interface DpidAliasRegistry extends BaseContract {
       dpid: BigNumberish,
       overrides?: CallOverrides
     ): Promise<[DpidAliasRegistry.LegacyDpidEntryStructOutput]>;
-
-    migrationFrozen(overrides?: CallOverrides): Promise<[boolean]>;
 
     mintDpid(
       streamId: string,
@@ -339,10 +315,6 @@ export interface DpidAliasRegistry extends BaseContract {
 
   find(streamId: string, overrides?: CallOverrides): Promise<BigNumber>;
 
-  freezeMigration(
-    overrides?: Overrides & { from?: string | Promise<string> }
-  ): Promise<ContractTransaction>;
-
   importLegacyDpid(
     dpid: BigNumberish,
     entry: DpidAliasRegistry.LegacyDpidEntryStruct,
@@ -359,8 +331,6 @@ export interface DpidAliasRegistry extends BaseContract {
     dpid: BigNumberish,
     overrides?: CallOverrides
   ): Promise<DpidAliasRegistry.LegacyDpidEntryStructOutput>;
-
-  migrationFrozen(overrides?: CallOverrides): Promise<boolean>;
 
   mintDpid(
     streamId: string,
@@ -410,8 +380,6 @@ export interface DpidAliasRegistry extends BaseContract {
   callStatic: {
     find(streamId: string, overrides?: CallOverrides): Promise<BigNumber>;
 
-    freezeMigration(overrides?: CallOverrides): Promise<void>;
-
     importLegacyDpid(
       dpid: BigNumberish,
       entry: DpidAliasRegistry.LegacyDpidEntryStruct,
@@ -426,8 +394,6 @@ export interface DpidAliasRegistry extends BaseContract {
       dpid: BigNumberish,
       overrides?: CallOverrides
     ): Promise<DpidAliasRegistry.LegacyDpidEntryStructOutput>;
-
-    migrationFrozen(overrides?: CallOverrides): Promise<boolean>;
 
     mintDpid(streamId: string, overrides?: CallOverrides): Promise<BigNumber>;
 
@@ -510,10 +476,6 @@ export interface DpidAliasRegistry extends BaseContract {
   estimateGas: {
     find(streamId: string, overrides?: CallOverrides): Promise<BigNumber>;
 
-    freezeMigration(
-      overrides?: Overrides & { from?: string | Promise<string> }
-    ): Promise<BigNumber>;
-
     importLegacyDpid(
       dpid: BigNumberish,
       entry: DpidAliasRegistry.LegacyDpidEntryStruct,
@@ -530,8 +492,6 @@ export interface DpidAliasRegistry extends BaseContract {
       dpid: BigNumberish,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
-
-    migrationFrozen(overrides?: CallOverrides): Promise<BigNumber>;
 
     mintDpid(
       streamId: string,
@@ -588,10 +548,6 @@ export interface DpidAliasRegistry extends BaseContract {
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
-    freezeMigration(
-      overrides?: Overrides & { from?: string | Promise<string> }
-    ): Promise<PopulatedTransaction>;
-
     importLegacyDpid(
       dpid: BigNumberish,
       entry: DpidAliasRegistry.LegacyDpidEntryStruct,
@@ -611,8 +567,6 @@ export interface DpidAliasRegistry extends BaseContract {
       dpid: BigNumberish,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
-
-    migrationFrozen(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     mintDpid(
       streamId: string,

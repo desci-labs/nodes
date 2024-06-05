@@ -9,13 +9,10 @@ contract DpidAliasRegistry is Initializable, OwnableUpgradeable, PausableUpgrade
     // Incremented on each dPID mint
     uint256 public nextDpid;
 
-    // When this is set to true, further edits of the legacy entries are blocked
-    bool public migrationFrozen;
-
     // dpid => codex streamID (resolve dPID)
     mapping(uint256 => string) public registry;
 
-    // codex streamID => dpid (check for existing aliases)
+    // codex streamID => dpid (check for existing alias)
     mapping(string => uint256) public reverseRegistry;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -162,6 +159,14 @@ contract DpidAliasRegistry is Initializable, OwnableUpgradeable, PausableUpgrade
      * which is why the legacy entires are kept to ensure continued deterministic
      * resolution of versions as they were originally created.
      *
+     * Contract owner can bypass these two limitations, allowing both mending of
+     * incorrect upgrades and automating upgrades for legacy dPID holders.
+     * Associated quirk: when re-upgrading a dPID, the overwritten streamID will
+     * still be present in the reverse mapping, preventing it to be assigned a dPID.
+     * This stream is assumed to regardlessly be incorrect, because a re-upgrade
+     * was chosen.
+     *
+     *
      * @param dpid the dPID to upgrade
      * @param streamId the stream representing that same dPID
      */
@@ -169,11 +174,19 @@ contract DpidAliasRegistry is Initializable, OwnableUpgradeable, PausableUpgrade
         uint256 dpid,
         string calldata streamId
     ) public onlyUnaliasedStream(streamId) whenNotPaused {
-        // Assert that this dPID has not been set in the main registry
-        require(bytes(registry[dpid]).length == 0, "dpid already upgraded");
+        // Assert that this dPID has not been set in the main registry.
+        // Allow contract owner bypass to fix broken upgrades.
+        require(
+            bytes(registry[dpid]).length == 0 || msg.sender == owner(),
+            "dpid already upgraded"
+        );
 
-        // Assert that the tx was made by the owner of the imported entry
-        require(legacy[dpid].owner == msg.sender, "unauthorized dpid upgrade");
+        // Assert that the tx was made by the owner of the imported entry.
+        // Allow contract owner bypass to automate upgrades.
+        require(
+            legacy[dpid].owner == msg.sender || msg.sender == owner(),
+            "unauthorized dpid upgrade"
+        );
 
         // Reclaim old dpid
         registry[dpid] = streamId;
@@ -211,19 +224,8 @@ contract DpidAliasRegistry is Initializable, OwnableUpgradeable, PausableUpgrade
         uint256 dpid,
         LegacyDpidEntry calldata entry
     ) public onlyOwner {
-        require(migrationFrozen == false, "migration is frozen");
         legacy[dpid] = entry;
         emit ImportedDpid(dpid, entry);
-    }
-
-    /**
-     * This permanently blocks importing/overwriting legacy dPID entries,
-     * effectively freezing history.
-     *
-     * Note: this is irreversible
-     */
-    function freezeMigration() public onlyOwner {
-        migrationFrozen = true;
     }
 
     /**

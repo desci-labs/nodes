@@ -1,5 +1,5 @@
 {
-  "address": "0x7906AC53C2F59d0Eb36dC126336322d25Da15B62",
+  "address": "0x2Ea4Ee2Af79495e045EBe925aC67d755520877e7",
   "dpids": [
     {
       "dpid": "0",
@@ -4870,6 +4870,32 @@
         {
           "cid": "bafkreib23oradn74sxmdji6ofw4iffliheytyq7kq3ge3bnz2tooz764cu",
           "time": 1717160400
+        }
+      ],
+      "validationError": false
+    },
+    {
+      "dpid": "247",
+      "owner": "0x371e269bff1aaA342b43b74Cf1Ad9789BaF183F7",
+      "versions": [
+        {
+          "cid": "bafkreiakdqljwmvvzkmwjrgkto4meyyghrl3tigocnoapejdquuiigy2si",
+          "time": 1718012544
+        },
+        {
+          "cid": "bafkreiehku747l4loyvugbfby55tig4qjgyj66ujbcpuohucktx6dg72k4",
+          "time": 1718015760
+        }
+      ],
+      "validationError": false
+    },
+    {
+      "dpid": "248",
+      "owner": "0x371e269bff1aaA342b43b74Cf1Ad9789BaF183F7",
+      "versions": [
+        {
+          "cid": "bafkreic65zfq5ryxtmxtei3264qafrmcdyysxnmxl2krldoaitrjymogta",
+          "time": 1718017368
         }
       ],
       "validationError": false

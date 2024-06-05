@@ -1,20 +1,20 @@
 {
   "manifestVersion": "3.2",
   "admin": {
-    "address": "0x64f1dE5b953135c5cEC03DB2B99ffcA0fe11eF88",
-    "txHash": "0xa1134fbf6b5e3bdfc450beafff59cfb7c3e978014396d52775a304dca2bffb97"
+    "address": "0x280685c10281F16b4A8585810f695E293B6097eB",
+    "txHash": "0x5d600bd4cc7f920597350266a6d3840c9d938b6bf5f0d0ccde77117fd2c95ea0"
   },
   "proxies": [
     {
-      "address": "0x7906AC53C2F59d0Eb36dC126336322d25Da15B62",
-      "txHash": "0xf583111b6d255339f06748889e3adbf9fc313bcdad0480b22f4767b179c673d7",
+      "address": "0x2Ea4Ee2Af79495e045EBe925aC67d755520877e7",
+      "txHash": "0x32b16b14970350db7db8bdc9da8c7ddffa389f5678e810f3d3208cb277b76a1c",
       "kind": "transparent"
     }
   ],
   "impls": {
-    "e48cadec43394f09ce202bd07138068396bd5f4bf01fcb81e0856ebd63ce19bc": {
-      "address": "0x5f8ffCbAeAB5F7749bc3Cb333e634265C2D3DF22",
-      "txHash": "0x996f85a02d3bd579767511ed14a00ebe74ef6ba40319f09f049ad32797dc8d0f",
+    "a230b5b705959d3e3e4fc01d0b0da971f2e249681ed6a78165280ba33db100b5": {
+      "address": "0x682c122e535aB4637AA6d8DCCCa106CA89831918",
+      "txHash": "0x6e925112f68a35e6e8a9ba70f88cab98bc88e3de0e64f5f4d398efb8aaab1721",
       "layout": {
         "solcVersion": "0.8.4",
         "storage": [
@@ -84,36 +84,28 @@
             "src": "contracts/DpidAliasRegistry.sol:10"
           },
           {
-            "label": "migrationFrozen",
+            "label": "registry",
             "offset": 0,
             "slot": "152",
-            "type": "t_bool",
+            "type": "t_mapping(t_uint256,t_string_storage)",
             "contract": "DpidAliasRegistry",
             "src": "contracts/DpidAliasRegistry.sol:13"
           },
           {
-            "label": "registry",
+            "label": "reverseRegistry",
             "offset": 0,
             "slot": "153",
-            "type": "t_mapping(t_uint256,t_string_storage)",
+            "type": "t_mapping(t_string_memory_ptr,t_uint256)",
             "contract": "DpidAliasRegistry",
             "src": "contracts/DpidAliasRegistry.sol:16"
           },
           {
-            "label": "reverseRegistry",
-            "offset": 0,
-            "slot": "154",
-            "type": "t_mapping(t_string_memory_ptr,t_uint256)",
-            "contract": "DpidAliasRegistry",
-            "src": "contracts/DpidAliasRegistry.sol:19"
-          },
-          {
             "label": "legacy",
             "offset": 0,
-            "slot": "155",
-            "type": "t_mapping(t_uint256,t_struct(LegacyDpidEntry)845_storage)",
+            "slot": "154",
+            "type": "t_mapping(t_uint256,t_struct(LegacyDpidEntry)843_storage)",
             "contract": "DpidAliasRegistry",
-            "src": "contracts/DpidAliasRegistry.sol:128"
+            "src": "contracts/DpidAliasRegistry.sol:125"
           }
         ],
         "types": {
@@ -121,7 +113,7 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_array(t_struct(LegacyVersion)838_storage)dyn_storage": {
+          "t_array(t_struct(LegacyVersion)836_storage)dyn_storage": {
             "label": "struct DpidAliasRegistry.LegacyVersion[]",
             "numberOfBytes": "32"
           },
@@ -145,7 +137,7 @@
             "label": "mapping(uint256 => string)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(LegacyDpidEntry)845_storage)": {
+          "t_mapping(t_uint256,t_struct(LegacyDpidEntry)843_storage)": {
             "label": "mapping(uint256 => struct DpidAliasRegistry.LegacyDpidEntry)",
             "numberOfBytes": "32"
           },
@@ -157,7 +149,7 @@
             "label": "string",
             "numberOfBytes": "32"
           },
-          "t_struct(LegacyDpidEntry)845_storage": {
+          "t_struct(LegacyDpidEntry)843_storage": {
             "label": "struct DpidAliasRegistry.LegacyDpidEntry",
             "members": [
               {
@@ -168,14 +160,14 @@
               },
               {
                 "label": "versions",
-                "type": "t_array(t_struct(LegacyVersion)838_storage)dyn_storage",
+                "type": "t_array(t_struct(LegacyVersion)836_storage)dyn_storage",
                 "offset": 0,
                 "slot": "1"
               }
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(LegacyVersion)838_storage": {
+          "t_struct(LegacyVersion)836_storage": {
             "label": "struct DpidAliasRegistry.LegacyVersion",
             "members": [
               {
