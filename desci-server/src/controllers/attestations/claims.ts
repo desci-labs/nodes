@@ -43,6 +43,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   if (claim && claim.revoked) {
     const reclaimed = await attestationService.reClaimAttestation(claim.id);
+    await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: reclaimed.id });
     new SuccessResponse(reclaimed).send(res);
     return;
   }
