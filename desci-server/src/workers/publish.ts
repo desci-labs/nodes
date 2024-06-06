@@ -114,19 +114,23 @@ const delay = async (timeMs: number) => {
 
 export async function runWorkerUntilStopped() {
   while (true) {
-    const outcome = await processPublishQueue();
-    if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ outcome }, 'Processed Queue');
-    switch (outcome) {
-      case ProcessOutcome.EmptyQueue:
-        await delay(10000);
-        break;
-      case ProcessOutcome.Error:
-        await delay(1000);
-        break;
-      case ProcessOutcome.TaskCompleted:
-        break;
-      default:
-        logger.error({ outcome }, 'UNREACHABLE CODE REACHED, CHECK IMMEDIATELY');
+    try {
+      const outcome = await processPublishQueue();
+      if (!process.env.MUTE_PUBLISH_WORKER) logger.info({ outcome }, 'Processed Queue');
+      switch (outcome) {
+        case ProcessOutcome.EmptyQueue:
+          await delay(10000);
+          break;
+        case ProcessOutcome.Error:
+          await delay(1000);
+          break;
+        case ProcessOutcome.TaskCompleted:
+          break;
+        default:
+          logger.error({ outcome }, 'UNREACHABLE CODE REACHED, CHECK IMMEDIATELY');
+      }
+    } catch (e) {
+      logger.error({ e }, 'PUBLISH WORKER LOOP ERROR');
     }
   }
 }
