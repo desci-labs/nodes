@@ -36,6 +36,7 @@ export type ManifestActions =
   | { type: 'Update ResearchFields'; researchFields: string[] }
   | { type: 'Add Component'; component: ResearchObjectV1Component }
   | { type: 'Upsert Component'; component: ResearchObjectV1Component }
+  | { type: 'Upsert Components'; component: ResearchObjectV1Component[] }
   | { type: 'Delete Component'; path: string }
   | { type: 'Add Contributor'; author: ResearchObjectV1Author }
   | { type: 'Remove Contributor'; contributorIndex: number }
