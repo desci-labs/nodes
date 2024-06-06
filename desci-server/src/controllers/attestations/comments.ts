@@ -116,9 +116,8 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
       comment: body,
       links,
     });
-    await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
   }
-
+  await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
   new SuccessResponse({
     ...annotation,
     highlights: annotation.highlights.map((h) => JSON.parse(h as string)),

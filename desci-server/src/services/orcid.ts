@@ -187,7 +187,6 @@ class OrcidApiService {
       },
       'ORCID API DELETE RECORD',
     );
-    // todo: simulate an error case and handle properly
     const response = await fetch(url, {
       method: 'DELETE',
       headers: {
@@ -202,7 +201,6 @@ class OrcidApiService {
       await saveInteractionWithoutReq(ActionType.REMOVE_ORCID_WORK_RECORD, {
         orcid,
       });
-
       await prisma.orcidPutCodes.delete({
         where: {
           id: putCode.id,
@@ -392,7 +390,6 @@ class OrcidApiService {
           uuid,
           putCode: returnedCode,
         });
-
         logger.info(
           { uuid, userId, status: response.status, returnedCode, reference: PutcodeReference.PREPRINT },
           '[ORCID_API_SERVICE]:: Node Record UPDATED',
@@ -507,6 +504,7 @@ class OrcidApiService {
       if ([200, 201].includes(response.status)) {
         const location = response.headers.get('Location')?.split('/');
         const returnedCode = location?.[location.length - 1];
+        // response.headers.forEach((header, key) => logger.info({ key, header }, 'Response header'));
         logger.info({ location }, 'RESPONSE HEADER Location');
 
         if (returnedCode) {
@@ -528,6 +526,7 @@ class OrcidApiService {
             },
           });
         }
+
         await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
           userId,
           orcid,
@@ -553,7 +552,6 @@ class OrcidApiService {
         logger.info({ status: response.status, response, body }, '[ORCID_API_SERVICE]::ORCID CLAIM API ERROR');
       }
     } catch (err) {
-      logger.info({ err }, '[ORCID_API_SERVICE]::CLAIM API Error Response');
       await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
         userId,
         orcid,
@@ -561,6 +559,7 @@ class OrcidApiService {
         claimId: claim.id,
         error: err,
       });
+      logger.info({ err }, '[ORCID_API_SERVICE]::CLAIM API Error Response');
     }
   }
 }

@@ -54,7 +54,9 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     nodeUuid: uuid,
     attestationVersion: attestationVersion.id,
   });
+
   await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: nodeClaim.id });
+
   // notifiy community members if attestation is protected
   // new attestations should be trigger notification of org members if protected
   const attestation = await attestationService.findAttestationById(body.attestationId);
@@ -119,7 +121,7 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
   await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
 
   logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
-  new SuccessMessageResponse('Attestation unclaimed').send(res);
+  return new SuccessMessageResponse('Attestation unclaimed').send(res);
 };
 
 export const claimEntryRequirements = async (req: Request, res: Response, _next: NextFunction) => {
@@ -178,5 +180,6 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     claimerId,
     claims: attestations.map((att) => att.id),
   });
+
   return new SuccessResponse(attestations).send(res);
 };

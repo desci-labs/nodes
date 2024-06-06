@@ -48,10 +48,12 @@ export const removeVerification = async (
     new SuccessMessageResponse().send(res);
   } else {
     await attestationService.removeVerification(verification.id, user.id);
+
     await saveInteraction(req, ActionType.UNVERIFY_ATTESTATION, {
       claimId: verification.nodeAttestationId,
       userId: user.id,
     });
+
     new SuccessMessageResponse().send(res);
 
     const claim = await attestationService.findClaimById(verification.nodeAttestationId);
@@ -98,10 +100,9 @@ export const addVerification = async (
   await attestationService.verifyClaim(parseInt(claimId), user.id);
   await saveInteraction(req, ActionType.VERIFY_ATTESTATION, { claimId: claimId, userId: user.id });
 
-  const attestation = await attestationService.findAttestationById(claim.attestationId);
-
   new SuccessMessageResponse().send(res);
 
+  const attestation = await attestationService.findAttestationById(claim.attestationId);
   if (attestation.protected) {
     /**
      * Update ORCID Profile
