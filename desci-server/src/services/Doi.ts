@@ -24,7 +24,7 @@ export class DoiService {
   }
 
   async assertIsFirstDoi(dpid: string) {
-    const isFirstDoi = await this.isFirstDoi(dpid); // await this.dbClient.doiRecord.findUnique({ where: { doi } });
+    const isFirstDoi = await this.isFirstDoi(dpid);
     if (!isFirstDoi) throw new DuplicateMintError();
   }
 
