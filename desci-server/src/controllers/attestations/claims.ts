@@ -1,4 +1,4 @@
-import { ActionType, CommunityEntryAttestation } from '@prisma/client';
+import { CommunityEntryAttestation } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
@@ -16,7 +16,6 @@ import {
 } from '../../internal.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
-import { saveInteraction } from '../../services/interactionLog.js';
 import { AttestationClaimedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -43,7 +42,6 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   if (claim && claim.revoked) {
     const reclaimed = await attestationService.reClaimAttestation(claim.id);
-    await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: reclaimed.id });
     new SuccessResponse(reclaimed).send(res);
     return;
   }
@@ -54,7 +52,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     nodeUuid: uuid,
     attestationVersion: attestationVersion.id,
   });
-  await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: nodeClaim.id });
+
   // notifiy community members if attestation is protected
   // new attestations should be trigger notification of org members if protected
   const attestation = await attestationService.findAttestationById(body.attestationId);
@@ -116,10 +114,8 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
       ? await attestationService.revokeAttestation(claim.id)
       : await attestationService.unClaimAttestation(claim.id);
 
-  await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
-
   logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
-  new SuccessMessageResponse('Attestation unclaimed').send(res);
+  return new SuccessMessageResponse('Attestation unclaimed').send(res);
 };
 
 export const claimEntryRequirements = async (req: Request, res: Response, _next: NextFunction) => {
@@ -172,11 +168,5 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     attestations: claims,
   });
 
-  await saveInteraction(req, ActionType.CLAIM_ENTRY_ATTESTATIONS, {
-    communityId,
-    nodeDpid,
-    claimerId,
-    claims: attestations.map((att) => att.id),
-  });
   return new SuccessResponse(attestations).send(res);
 };
