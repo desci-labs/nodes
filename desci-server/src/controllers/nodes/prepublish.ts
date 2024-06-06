@@ -1,6 +1,6 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { NodeVersion } from '@prisma/client';
-import { Response } from 'express';
+import { NextFunction, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
@@ -30,7 +30,7 @@ export interface PrepublishErrorResponse {
 /**
  * DAGifies the drafts current DB tree state, adds the structure to IPFS (No Files Pinned, Folders staged), and updates the manifest data bucket CID.
  */
-export const prepublish = async (req: RequestWithNode, res: Response<PrepublishResponse>) => {
+export const prepublish = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const owner = req.user;
   const node = req.node;
   const { uuid } = req.body;

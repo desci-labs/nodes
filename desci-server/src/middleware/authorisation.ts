@@ -46,8 +46,8 @@ export const ensureWriteNodeAccess = async (req: RequestWithUser, res: Response,
   return next();
 };
 
-export const ensureNodeAccess = async (req: Request, res: Response, next: NextFunction) => {
-  const user = (req as RequestWithUser).user;
+export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+  const user = req.user;
   const uuid = req.body?.uuid || req.query?.uuid || req.params?.uuid;
   const logger = parentLogger.child({
     module: 'MIDDLEWARE::ensureNodeAccess',
@@ -60,7 +60,7 @@ export const ensureNodeAccess = async (req: Request, res: Response, next: NextFu
     res.status(401).send({ ok: false, message: 'Unauthorized' });
     return;
   }
-  (req as RequestWithUser).user = user;
+  req.user = user;
 
   if (!uuid) {
     logger.error({ uuid: req.body.uuid, body: req.body }, 'No UUID Found');
