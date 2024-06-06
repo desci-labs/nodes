@@ -266,6 +266,7 @@ export class AttestationService {
         image_url: claim.attestationVersion.image_url,
         verifications: claim._count.NodeAttestationVerification,
         community: claim.community.name,
+        attestationId: claim.attestationId,
         nodeVersion: claim.nodeVersion,
       }))
       .value();
@@ -288,12 +289,6 @@ export class AttestationService {
       },
     });
   }
-
-  // async getAllCommunityAttestations(communityId: number) {
-  //   const community = await communityService.findCommunityById(communityId);
-  //   if (!community) throw new CommunityNotFoundError();
-  //   return prisma.attestation.findMany({ where: { communityId: communityId } });
-  // }
 
   async getCommunityEntryAttestations(communityId: number) {
     const community = await communityService.findCommunityById(communityId);

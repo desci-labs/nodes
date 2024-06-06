@@ -56,6 +56,7 @@ redisClient.on('error', (err) => {
 export default redisClient;
 
 const DEFAULT_TTL = 60 * 60 * 24 * 7; // 1 week
+export const ONE_DAY_TTL = 60 * 60 * 24; // 1 week
 
 export async function getFromCache<T>(key: string): Promise<T | null> {
   let clientAvailable = true;
