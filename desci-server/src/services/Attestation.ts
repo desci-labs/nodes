@@ -2,7 +2,6 @@ import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
 import { AnnotationType, Attestation, Prisma } from '@prisma/client';
-import { logger } from 'ethers';
 import _ from 'lodash';
 
 import { prisma } from '../client.js';
@@ -19,6 +18,7 @@ import {
   NoAccessError,
   VerificationError,
   VerificationNotFoundError,
+  logger,
 } from '../internal.js';
 import { communityService } from '../internal.js';
 
@@ -100,6 +100,17 @@ export class AttestationService {
       revoked: exists?.revoked || false,
       revokedId: exists?.id,
     };
+  }
+
+  async assertUserIsMember(userId: number, communityId: number) {
+    const member = await prisma.communityMember.findUnique({
+      where: { userId_communityId: { userId, communityId } },
+    });
+
+    if (!member) {
+      logger.error({ userId, communityId }, 'UnAuthorized Verify Attestation Call');
+      throw new NoAccessError('Only Community members are allowed');
+    }
   }
 
   async #publishVersion(attestationVersion: Prisma.AttestationVersionUncheckedCreateInput) {
@@ -255,6 +266,7 @@ export class AttestationService {
         image_url: claim.attestationVersion.image_url,
         verifications: claim._count.NodeAttestationVerification,
         community: claim.community.name,
+        attestationId: claim.attestationId,
         nodeVersion: claim.nodeVersion,
       }))
       .value();
@@ -277,12 +289,6 @@ export class AttestationService {
       },
     });
   }
-
-  // async getAllCommunityAttestations(communityId: number) {
-  //   const community = await communityService.findCommunityById(communityId);
-  //   if (!community) throw new CommunityNotFoundError();
-  //   return prisma.attestation.findMany({ where: { communityId: communityId } });
-  // }
 
   async getCommunityEntryAttestations(communityId: number) {
     const community = await communityService.findCommunityById(communityId);
@@ -448,10 +454,7 @@ export class AttestationService {
 
     const attestation = await this.findAttestationById(claim.attestationId);
     if (attestation.protected) {
-      const member = await prisma.communityMember.findUnique({
-        where: { userId_communityId: { userId, communityId: attestation.communityId } },
-      });
-      if (!member) throw new NoAccessError('Only Community members are allowed');
+      await this.assertUserIsMember(userId, claim.desciCommunityId);
     }
 
     const node = await prisma.node.findFirst({ where: { uuid: claim.nodeUuid } });
@@ -506,6 +509,11 @@ export class AttestationService {
 
     if (duplicate) throw new DuplicateReactionError();
 
+    const attestation = await this.findAttestationById(claim.attestationId);
+    if (attestation.protected) {
+      await this.assertUserIsMember(authorId, claim.desciCommunityId);
+    }
+
     return prisma.nodeAttestationReaction.create({ data: { authorId, reaction, nodeAttestationId: claimId } });
   }
 
@@ -537,6 +545,15 @@ export class AttestationService {
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
     assert(claimId > 0, 'Error: claimId is zero');
+
+    const claim = await this.findClaimById(claimId);
+    if (!claim) throw new ClaimNotFoundError();
+
+    const attestation = await this.findAttestationById(claim.attestationId);
+    if (attestation.protected) {
+      await this.assertUserIsMember(authorId, attestation.communityId);
+    }
+
     const data: Prisma.AnnotationUncheckedCreateInput = {
       type: AnnotationType.COMMENT,
       authorId,
@@ -562,6 +579,15 @@ export class AttestationService {
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
     assert(claimId > 0, 'Error: claimId is zero');
+
+    const claim = await this.findClaimById(claimId);
+    if (!claim) throw new ClaimNotFoundError();
+
+    const attestation = await this.findAttestationById(claim.attestationId);
+    if (attestation.protected) {
+      await this.assertUserIsMember(authorId, attestation.communityId);
+    }
+
     const data: Prisma.AnnotationUncheckedCreateInput = {
       type: AnnotationType.HIGHLIGHT,
       authorId,

@@ -1,27 +1,23 @@
-import { url } from 'inspector';
 
 import {
   Body,
   Container,
   Column,
   Head,
-  Heading,
   Html,
   Img,
   Link,
-  Preview,
   Row,
   Section,
   Text,
   Font,
 } from '@react-email/components';
 import React from 'react';
+import { BaseProvider } from './BaseProvider.js';
 
-import BaseProvider from './BaseProvider.js';
-
-export const emailAssetsBaseUrl = 'https://ipfs.desci.com/ipfs';
-const cubertBkg = 'bafkreih6yx7ywj7trvpp45vergrnytad7ezsku75tefyro4qrrcfrrmrt4';
-const labsLogo = 'bafkreifvb7tleo5jaidjjf6lfjxb5bpjbs2nswp47bi7zh3hxbpc6fjyf4';
+export const emailAssetsBaseUrl = 'https://pub.desci.com/ipfs';
+// const cubertBkg = 'bafkreih6yx7ywj7trvpp45vergrnytad7ezsku75tefyro4qrrcfrrmrt4';
+const labsLogo = 'bafkreie2jto3flk2r43yt545xrasftbsc2atp5eb7qcbsmhacm26k4wiz4';
 const defaultFooterMsg = "If you didn't request this email, there's nothing to worry about, you can safely ignore it.";
 
 const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.Element; footerMsg?: string }) => {
@@ -55,11 +51,11 @@ const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.
             <Container className="backdrop-blur-2xl bg-opacity-50">
               <Section className="h-full backdrop-blur-lg w-full" align="center">
                 <Img
-                  src={`${emailAssetsBaseUrl}/${labsLogo}`}
+                  src={ `${emailAssetsBaseUrl}/${labsLogo}` }
                   width="193"
                   height="60"
                   alt="Desci Labs"
-                  className="m-auto invert"
+                  className="m-auto invert mix-blend-difference"
                 />
               </Section>
               <Section>{children}</Section>
@@ -70,11 +66,11 @@ const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.
                 <Column className="">
                   <Link href="https://desci.com" target="_blank" rel="noopener noreferrer">
                     <Img
-                      src={`${emailAssetsBaseUrl}/${labsLogo}`}
+                      src={ `${emailAssetsBaseUrl}/${labsLogo}` }
                       width="135"
                       height="42"
                       alt="Desci Labs"
-                      className="invert"
+                      className="invert mix-blend-difference"
                     />
                   </Link>
                 </Column>
