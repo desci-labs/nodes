@@ -18,7 +18,7 @@ export interface ToApiResponse {
 export abstract class ApiResponse {
   constructor(
     private status: ResponseStatus,
-    message: string,
+    private message: string,
   ) {}
 
   protected prepare<T extends ApiResponse>(res: Response, response: T, headers: { [key: string]: string }): Response {
@@ -40,8 +40,8 @@ export abstract class ApiResponse {
 }
 
 export class SuccessMessageResponse extends ApiResponse {
-  constructor(message = 'Success') {
-    super(ResponseStatus.SUCCESS, message);
+  constructor(_message = '') {
+    super(ResponseStatus.SUCCESS, undefined);
   }
 }
 
