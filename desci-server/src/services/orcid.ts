@@ -1,5 +1,5 @@
 import { ResearchObjectV1, ResearchObjectV1Author } from '@desci-labs/desci-models';
-import { ActionType, AuthTokenSource, ORCIDRecord, OrcidPutCodes, PutcodeReference } from '@prisma/client';
+import { AuthTokenSource, ORCIDRecord, OrcidPutCodes, PutcodeReference } from '@prisma/client';
 
 import { logger as parentLogger, prisma } from '../internal.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js';
@@ -7,7 +7,6 @@ import { hexToCid } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { getManifestByCid } from './data/processing.js';
-import { saveInteractionWithoutReq } from './interactionLog.js';
 
 // const PUTCODE_REGEX = /put-code=.*?(?<code>\d+)/m;
 
@@ -187,7 +186,6 @@ class OrcidApiService {
       },
       'ORCID API DELETE RECORD',
     );
-    // todo: simulate an error case and handle properly
     const response = await fetch(url, {
       method: 'DELETE',
       headers: {
@@ -198,38 +196,24 @@ class OrcidApiService {
       },
     });
 
-    if (response.ok) {
-      await saveInteractionWithoutReq(ActionType.REMOVE_ORCID_WORK_RECORD, {
-        orcid,
-      });
+    await prisma.orcidPutCodes.delete({
+      where: {
+        id: putCode.id,
+      },
+    });
 
-      await prisma.orcidPutCodes.delete({
-        where: {
-          id: putCode.id,
-        },
-      });
-
-      logger.info(
-        {
-          status: response.status,
-          statusText: response.statusText,
-          orcid,
-          putCode: {
-            code: putCode.putcode,
-            reference: putCode.reference,
-          },
-        },
-        'ORCID RECORD DELETED',
-      );
-    } else {
-      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-        orcid,
-        putCode,
+    logger.info(
+      {
         status: response.status,
-        error: await response.json(),
-      });
-      logger.error({ orcid, putCode, status: response.status }, 'Error: REMOVE ORCID WORK RECORD');
-    }
+        statusText: response.statusText,
+        orcid,
+        putCode: {
+          code: putCode.putcode,
+          reference: putCode.reference,
+        },
+      },
+      'ORCID RECORD DELETED',
+    );
   }
 
   /**
@@ -386,35 +370,17 @@ class OrcidApiService {
             },
           });
         }
-        await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
-          userId,
-          orcid,
-          uuid,
-          putCode: returnedCode,
-        });
-
         logger.info(
           { uuid, userId, status: response.status, returnedCode, reference: PutcodeReference.PREPRINT },
           '[ORCID_API_SERVICE]:: Node Record UPDATED',
         );
       } else {
-        const body = await response.text();
-        await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-          userId,
-          orcid,
-          uuid,
-          statusCode: response.status,
-          error: body,
-        });
-        logger.info({ status: response.status, response, body }, '[ORCID_API_SERVICE]::ORCID NODE API ERROR');
+        logger.info(
+          { status: response.status, response, body: await response.text() },
+          '[ORCID_API_SERVICE]::ORCID NODE API ERROR',
+        );
       }
     } catch (err) {
-      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-        userId,
-        orcid,
-        uuid,
-        error: err,
-      });
       logger.info({ err }, '[ORCID_API_SERVICE]::NODE API Error Response');
     }
   }
@@ -507,6 +473,7 @@ class OrcidApiService {
       if ([200, 201].includes(response.status)) {
         const location = response.headers.get('Location')?.split('/');
         const returnedCode = location?.[location.length - 1];
+        // response.headers.forEach((header, key) => logger.info({ key, header }, 'Response header'));
         logger.info({ location }, 'RESPONSE HEADER Location');
 
         if (returnedCode) {
@@ -528,39 +495,19 @@ class OrcidApiService {
             },
           });
         }
-        await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
-          userId,
-          orcid,
-          uuid,
-          claimId: claim.id,
-          putCode: returnedCode,
-        });
 
         logger.info(
           { uuid, claimId: claim.id, userId, status: response.status, returnedCode, reference: putCodeReference },
           'ORCID CLAIM RECORD UPDATED',
         );
       } else {
-        const body = await response.text();
-        await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-          userId,
-          orcid,
-          uuid,
-          claimId: claim.id,
-          statusCode: response.status,
-          error: body,
-        });
-        logger.info({ status: response.status, response, body }, '[ORCID_API_SERVICE]::ORCID CLAIM API ERROR');
+        logger.info(
+          { status: response.status, response, body: await response.text() },
+          '[ORCID_API_SERVICE]::ORCID CLAIM API ERROR',
+        );
       }
     } catch (err) {
       logger.info({ err }, '[ORCID_API_SERVICE]::CLAIM API Error Response');
-      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-        userId,
-        orcid,
-        uuid,
-        claimId: claim.id,
-        error: err,
-      });
     }
   }
 }
