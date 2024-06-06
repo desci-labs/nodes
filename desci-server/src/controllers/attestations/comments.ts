@@ -1,5 +1,5 @@
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { Annotation } from '@prisma/client';
+import { ActionType, Annotation } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import zod from 'zod';
@@ -15,6 +15,7 @@ import {
   createCommentSchema,
   logger as parentLogger,
 } from '../../internal.js';
+import { saveInteraction } from '../../services/interactionLog.js';
 import { client } from '../../services/ipfs.js';
 import { base64ToBlob } from '../../utils/upload.js';
 
@@ -64,6 +65,12 @@ export const removeComment = async (req: Request<RemoveCommentBody, any, any>, r
   } else {
     if (comment.authorId !== user.id) throw new ForbiddenError();
     await attestationService.removeComment(parseInt(commentId));
+    await saveInteraction(req, ActionType.REMOVE_COMMENT, {
+      commentId,
+      claimId: comment.nodeAttestationId,
+      authorId: comment.authorId,
+      userId: user.id,
+    });
     new SuccessMessageResponse().send(res);
   }
 };
@@ -101,6 +108,7 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
       links,
       highlights: processedHighlights as unknown as HighlightBlock[],
     });
+    await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
   } else {
     annotation = await attestationService.createComment({
       claimId: parseInt(claimId.toString()),
@@ -108,6 +116,7 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
       comment: body,
       links,
     });
+    await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
   }
 
   new SuccessResponse({
