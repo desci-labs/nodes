@@ -502,7 +502,7 @@ export function predefineComponentsForPinnedFiles({
       cid: file.cid,
       componentType: componentType || extractComponentTypeFromTypeMap(neutralFullPath, componentTypeMap),
       componentSubtype,
-      ...(star && { starred: star }),
+      ...(star && { star: true }),
       ...(externalUrl && { externalUrl: externalUrl.url }),
     };
   });
