@@ -216,6 +216,16 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
+      case 'Upsert Components':
+        action.components.forEach((component) => {
+          handle.change(
+            (document) => {
+              upsertManifestComponent(document, component);
+            },
+            { time: Date.now(), message: 'Upsert Component' },
+          );
+        });
+        break;
       case 'Publish Dpid':
         handle.change(
           (document) => {
