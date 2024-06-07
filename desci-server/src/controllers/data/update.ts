@@ -28,7 +28,6 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
   let { contextPath } = req.body;
   // debugger;
   if (contextPath.endsWith('/')) contextPath = contextPath.slice(0, -1);
-  debugger;
   // temp workaround for non-file uploads
   if (!node) {
     node = await prisma.node.findFirst({

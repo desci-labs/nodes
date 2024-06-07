@@ -139,7 +139,7 @@ export async function processS3DataToIpfs({
     // const ltsManifest = await getLatestManifestFromNode(ltsNode);
     let updatedManifest = await repoService.getDraftManifest(ltsNode.uuid as NodeUuid);
 
-    const { filteredFiles } = filterFirstNestings(pinResult);
+    const { filteredFiles } = filterFirstNestings(pinResult.slice(0, -1));
 
     if (componentTypeMap) {
       /**
@@ -148,6 +148,7 @@ export async function processS3DataToIpfs({
        * Only needs to happen if a predefined component type is to be added
        */
       if (autoStar) {
+        // debugger;
         const firstNestingComponents = predefineComponentsForPinnedFiles({
           pinnedFirstNestingFiles: filteredFiles,
           contextPath,
