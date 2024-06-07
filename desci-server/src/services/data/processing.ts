@@ -7,6 +7,7 @@ import {
   ResearchObjectComponentType,
   ResearchObjectComponentTypeMap,
   ResearchObjectV1,
+  extractComponentTypeFromTypeMap,
   extractExtension,
   isNodeRoot,
   neutralizePath,
@@ -42,6 +43,7 @@ import {
   generateManifestPathsToDbTypeMap,
   getTreeAndFill,
   inheritComponentType,
+  prepareFirstNestingComponents,
 } from '../../utils/driveUtils.js';
 import { EXTENSION_MAP } from '../../utils/extensions.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
@@ -71,6 +73,7 @@ interface ProcessS3DataToIpfsParams {
   contextPath: string;
   componentType?: ResearchObjectComponentType;
   componentSubtype?: ResearchObjectComponentSubtypes;
+  autoStar?: boolean;
 }
 
 const logger = parentLogger.child({
@@ -85,6 +88,7 @@ export async function processS3DataToIpfs({
   user,
   node,
   contextPath,
+  autoStar,
 }: ProcessS3DataToIpfsParams): Promise<Either<UpdateResponse, ProcessingError>> {
   let pinResult: IpfsPinnedResult[] = [];
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
@@ -135,18 +139,28 @@ export async function processS3DataToIpfs({
     // const ltsManifest = await getLatestManifestFromNode(ltsNode);
     let updatedManifest = await repoService.getDraftManifest(ltsNode.uuid as NodeUuid);
 
+    const { filteredFiles } = filterFirstNestings(pinResult);
+
     if (componentTypeMap) {
       /**
        * Automatically create a new component(s) for the files added, to the first nesting.
        * It doesn't need to create a new component for every file, only the first nested ones, as inheritance takes care of the children files.
        * Only needs to happen if a predefined component type is to be added
        */
-      // const firstNestingComponents = predefineComponentsForPinnedFiles({
-      //   pinnedFirstNestingFiles: filteredFiles,
-      //   contextPath,
-      //   componentType,
-      //   componentSubtype,
-      // });
+      if (autoStar) {
+        const firstNestingComponents = predefineComponentsForPinnedFiles({
+          pinnedFirstNestingFiles: filteredFiles,
+          contextPath,
+          componentTypeMap,
+          star: true,
+        });
+        const preparedComponents = prepareFirstNestingComponents(firstNestingComponents);
+        updatedManifest = await repoService.dispatchAction({
+          type: 'Upsert Components',
+          components: preparedComponents,
+        });
+      }
+
       updatedManifest = await assignTypeMapInManifest(node, updatedManifest, componentTypeMap, contextPath, DRAFT_CID);
       logger.info({ updatedManifest }, 'assignTypeMapInManifest');
     }
@@ -459,9 +473,11 @@ export function updateManifestDataBucket({ manifest, newRootCid }: UpdatingManif
 interface PredefineComponentsForPinnedFilesParams {
   pinnedFirstNestingFiles: IpfsPinnedResult[];
   contextPath: string;
-  componentType: ResearchObjectComponentType;
+  componentTypeMap?: ResearchObjectComponentTypeMap;
+  componentType?: ResearchObjectComponentType;
   componentSubtype?: ResearchObjectComponentSubtypes;
   externalUrl?: { url: string; path: string };
+  star?: boolean;
 }
 
 /**
@@ -472,7 +488,9 @@ export function predefineComponentsForPinnedFiles({
   contextPath,
   componentType,
   componentSubtype,
+  componentTypeMap = {},
   externalUrl,
+  star,
 }: PredefineComponentsForPinnedFilesParams): FirstNestingComponent[] {
   const firstNestingComponents: FirstNestingComponent[] = pinnedFirstNestingFiles.map((file) => {
     const neutralFullPath = contextPath + '/' + file.path;
@@ -482,9 +500,9 @@ export function predefineComponentsForPinnedFiles({
       name: name,
       path: neutralFullPath,
       cid: file.cid,
-      componentType,
+      componentType: componentType || extractComponentTypeFromTypeMap(neutralFullPath, componentTypeMap),
       componentSubtype,
-      // star: true, // removed; starring by default was unpopular
+      ...(star && { starred: star }),
       ...(externalUrl && { externalUrl: externalUrl.url }),
     };
   });

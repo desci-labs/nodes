@@ -24,11 +24,11 @@ export interface ErrorResponse {
 export const update = async (req: RequestWithNode, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = req.user;
   let node = req.node;
-  const { uuid, manifest: draftManifest, componentType, componentSubtype, newFolderName } = req.body;
+  const { uuid, manifest: draftManifest, componentType, componentSubtype, newFolderName, autoStar } = req.body;
   let { contextPath } = req.body;
   // debugger;
   if (contextPath.endsWith('/')) contextPath = contextPath.slice(0, -1);
-
+  debugger;
   // temp workaround for non-file uploads
   if (!node) {
     node = await prisma.node.findFirst({
@@ -54,6 +54,7 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
     newFolderName,
     externalUrl,
     externalCids,
+    autoStar,
     files: req.files,
   });
   logger.trace(`[UPDATE DATASET] Updating in context: ${contextPath}`);
@@ -82,6 +83,7 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
       user: owner,
       node,
       contextPath,
+      autoStar,
     });
     if (ok) {
       const {
