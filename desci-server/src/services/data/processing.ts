@@ -155,10 +155,18 @@ export async function processS3DataToIpfs({
           star: true,
         });
         const preparedComponents = prepareFirstNestingComponents(firstNestingComponents);
-        updatedManifest = await repoService.dispatchAction({
-          type: 'Upsert Components',
-          components: preparedComponents,
+
+        const updatedDoc = await repoService.dispatchAction({
+          uuid: node.uuid as NodeUuid,
+          documentId: node.manifestDocumentId as DocumentId,
+          actions: [
+            {
+              type: 'Upsert Components',
+              component: preparedComponents,
+            },
+          ],
         });
+        updatedManifest = updatedDoc.manifest;
       }
 
       updatedManifest = await assignTypeMapInManifest(node, updatedManifest, componentTypeMap, contextPath, DRAFT_CID);
