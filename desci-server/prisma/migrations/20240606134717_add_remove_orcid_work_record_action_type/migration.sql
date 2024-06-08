@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "ActionType" ADD VALUE 'REMOVE_ORCID_WORK_RECORD';
