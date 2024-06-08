@@ -113,6 +113,7 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
       contextPath,
       componentType,
       componentSubtype,
+      autoStar,
     });
     if (ok) {
       const {
