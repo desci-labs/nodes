@@ -217,7 +217,7 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
         );
         break;
       case 'Upsert Components':
-        action.component.forEach((component) => {
+        action.components.forEach((component) => {
           handle.change(
             (document) => {
               upsertManifestComponent(document, component);
