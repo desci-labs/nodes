@@ -163,7 +163,7 @@ export async function processS3DataToIpfs({
           actions: [
             {
               type: 'Upsert Components',
-              component: preparedComponents,
+              components: preparedComponents,
             },
           ],
         });
