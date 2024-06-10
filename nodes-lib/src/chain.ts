@@ -1,4 +1,4 @@
-import { BigNumber, ContractReceipt, Signer, providers, utils } from "ethers";
+import { BigNumber, ContractReceipt, Signer, ethers, providers, utils } from "ethers";
 import { convertUUIDToHex, convertCidTo0xHex} from "./util/converting.js";
 import { changeManifest, prePublishDraftNode, type PrepublishResponse } from "./api.js"
 import { getNodesLibInternalConfig } from "./config/index.js";
@@ -46,7 +46,7 @@ export const dpidPublish = async (
   if (dpidExists) {
     console.log(`${LOG_CTX} dpid exists for ${uuid}, checking token ownership`);
     const signingAddress = (await signer.getAddress()).toLowerCase();
-    const researchObjectOwner = await getResearchObjectOwner(uuid, signer);
+    const researchObjectOwner = await getTokenOwner(uuid, signer);
 
     if (signingAddress !== researchObjectOwner) {
       throw new WrongOwnerError({
@@ -109,6 +109,16 @@ export const createDpidAlias = async (
   return { dpid, receipt };
 };
 
+export const upgradeDpidAlias = async (
+  streamId: string,
+  dpid: number,
+  signer: Signer,
+): Promise<ContractReceipt> => {
+  const tx = await dpidAliasRegistryWriter(signer)
+    .upgradeDpid(BigNumber.from(dpid), streamId);
+  return await tx.wait();
+};
+
 /**
  * Lookup the history of a legacy dPID in the new alias registry.
  */
@@ -119,6 +129,31 @@ export const lookupLegacyDpid = async (
     getNodesLibInternalConfig().chainConfig.rpcUrl
   );
   return await dpidAliasRegistryReader(provider).legacyLookup(dpid);
+};
+
+/**
+ * Resolve codex streamID for a dPID alias.
+*/
+export const lookupDpid = async (
+  dpid: number
+): Promise<string> => {
+  const provider = new providers.JsonRpcProvider(
+    getNodesLibInternalConfig().chainConfig.rpcUrl
+  );
+  return await dpidAliasRegistryReader(provider).resolve(dpid);
+};
+
+/**
+ * Find the dPID alias of a given streamID, a reverse lookup.
+*/
+export const findDpid = async (
+  streamId: string,
+): Promise<number> => {
+  const provider = new providers.JsonRpcProvider(
+    getNodesLibInternalConfig().chainConfig.rpcUrl
+  );
+  const dpidBn = await dpidAliasRegistryReader(provider).find(streamId);
+  return ethers.BigNumber.from(dpidBn).toNumber();
 };
 
 /**
@@ -141,7 +176,7 @@ const updateExistingDpid = async (
  * Optimistically create a manifest with the next available dPID,
  * and try to register it as such.
  * @throws on dpid registration failure.
- * @deprecated
+ * @deprecated use createDpidAlias
  */
 const registerNewDpid = async (
   uuid: string,
@@ -210,8 +245,17 @@ export const hasDpid = async (
 /**
  * @deprecated
  */
-export const getResearchObjectOwner = async (
+export const getTokenOwner = async (
   uuid: string,
   signer: Signer,
 ): Promise<string> =>
   (await researchObjectWriter(signer).ownerOf(convertUUIDToHex(uuid))).toLowerCase();;
+
+
+/**
+ * Get the research object token ID for a given (legacy) dPID
+*/
+export const getTokenId = async (
+  dpid: number,
+  signer: Signer,
+): Promise<BigNumber> => await dpidRegistryWriter(signer).get("beta", dpid);
