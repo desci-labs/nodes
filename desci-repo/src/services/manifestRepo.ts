@@ -31,7 +31,6 @@ export function assertNever(value: never) {
   throw Error('Not Possible');
 }
 
-
 export const getDocumentUpdater = (documentId: DocumentId) => {
   const automergeUrl = getAutomergeUrl(documentId);
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
@@ -209,6 +208,24 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
+      case 'Upsert Component':
+        handle.change(
+          (document) => {
+            upsertManifestComponent(document, action.component);
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
+      case 'Upsert Components':
+        action.components.forEach((component) => {
+          handle.change(
+            (document) => {
+              upsertManifestComponent(document, component);
+            },
+            { time: Date.now(), message: 'Upsert Component' },
+          );
+        });
+        break;
       case 'Publish Dpid':
         handle.change(
           (document) => {
@@ -217,12 +234,12 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
-      case "Remove Dpid":
+      case 'Remove Dpid':
         handle.change(
           (document) => {
             removeDpid(document);
           },
-          { time: Date.now(), message: action.type }
+          { time: Date.now(), message: action.type },
         );
         break;
       case 'Pin Component':
@@ -294,9 +311,7 @@ const updateComponentTypeMap = (
   path: string,
   compTypeMap: ResearchObjectComponentTypeMap,
 ): void => {
-  const currentComponent = doc.manifest.components.find(
-    (c) => c.payload?.path === path
-  );
+  const currentComponent = doc.manifest.components.find((c) => c.payload?.path === path);
   if (!currentComponent) return;
 
   const existingType = currentComponent.type;
@@ -316,45 +331,29 @@ const updateComponentTypeMap = (
   });
 };
 
-const addManifestComponent = (
-  doc: Doc<ResearchObjectDocument>,
-  component: ResearchObjectV1Component
-): void => {
+const addManifestComponent = (doc: Doc<ResearchObjectDocument>, component: ResearchObjectV1Component): void => {
   doc.manifest.components.push(component);
 };
 
-const deleteComponent = (
-  doc: Doc<ResearchObjectDocument>,
-  path: string
-): void => {
-  const deleteIdx = doc.manifest.components.findIndex(
-    (component) => component?.payload?.path === path
-  );
+const deleteComponent = (doc: Doc<ResearchObjectDocument>, path: string): void => {
+  const deleteIdx = doc.manifest.components.findIndex((component) => component?.payload?.path === path);
   if (deleteIdx !== -1) doc.manifest.components.splice(deleteIdx, 1);
 };
 
-const togglePin = (
-  doc: Doc<ResearchObjectDocument>,
-  componentIndex: number, pin: boolean
-): void => {
+const togglePin = (doc: Doc<ResearchObjectDocument>, componentIndex: number, pin: boolean): void => {
   const currentComponent = doc.manifest.components[componentIndex];
   currentComponent.starred = pin;
 };
 
-const addDpid = (
-  doc: Doc<ResearchObjectDocument>,
-  dpid: ResearchObjectV1Dpid
-): void => {
+const addDpid = (doc: Doc<ResearchObjectDocument>, dpid: ResearchObjectV1Dpid): void => {
   if (doc.manifest.dpid) return;
   doc.manifest.dpid = dpid;
 };
 
-/** In an unavilable optimistic dPID was written to the manifest, it must
+/** In an unavailable optimistic dPID was written to the manifest, it must
  * be removed again.
-*/
-const removeDpid = (
-  doc: Doc<ResearchObjectDocument>
-): void => {
+ */
+const removeDpid = (doc: Doc<ResearchObjectDocument>): void => {
   delete doc.manifest.dpid;
 };
 
@@ -412,6 +411,25 @@ const updateManifestComponent = (
       if (!currentPayload[key]) currentPayload[key] = getTypeDefault(value);
       currentPayload[key] = value;
     });
+  }
+};
+
+const upsertManifestComponent = (doc: Doc<ResearchObjectDocument>, component: ResearchObjectV1Component): void => {
+  // Check for existing component
+  const existingComponentIndex = doc.manifest.components.findIndex(
+    (c) => c.id === component.id || c.payload?.path === component.payload?.path,
+  );
+  // Apply changess
+  if (existingComponentIndex !== -1) {
+    const existingComponent = doc.manifest.components[existingComponentIndex];
+    doc.manifest.components[existingComponentIndex] = {
+      ...existingComponent,
+      ...component,
+      payload: { ...existingComponent.payload, ...component.payload },
+    };
+  } else {
+    // Push the component
+    doc.manifest.components.push(component);
   }
 };
 
