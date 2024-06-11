@@ -109,7 +109,7 @@ export interface ResearchObjectV1Author {
   /** GitHub profile of the contributor */
   github?: string;
   /** Desci Nodes user id */
-  nodesUserId?: string;
+  nodesUserId?: number;
 }
 
 export interface ResearchObjectV1History {
