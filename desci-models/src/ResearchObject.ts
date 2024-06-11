@@ -108,6 +108,8 @@ export interface ResearchObjectV1Author {
   organizations?: ResearchObjectV1Organization[];
   /** GitHub profile of the contributor */
   github?: string;
+  /** Desci Nodes user id */
+  nodesUserId?: string;
 }
 
 export interface ResearchObjectV1History {

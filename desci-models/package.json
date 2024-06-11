@@ -1,6 +1,6 @@
 {
   "name": "@desci-labs/desci-models",
-  "version": "0.2.7-rc3",
+  "version": "0.2.7-rc4",
   "description": "Data models for DeSci Nodes",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,7 +15,7 @@
   "scripts": {
     "test": "mocha -r ts-node/register --inspect tests/**/*.test.ts",
     "coverage": "nyc -r lcov -e .ts -x \"*.test.ts\" npm run test",
-    "build": "tsc",
+    "build": "tsc && npm run generate",
     "doPublish": "npm publish --access public",
     "generate": "ts-interface-builder src/ResearchObject.ts src/RoCrate.ts --ignore-generics"
   },
