@@ -9,6 +9,7 @@ import { updateContributor } from '../../controllers/nodes/contributions/update.
 import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { feed } from '../../controllers/nodes/feed.js';
+import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
 import {
   show,
   draftUpdate,
@@ -32,6 +33,7 @@ import {
   checkPublishConsentSchema,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
+import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
 import { prepublish } from '../../controllers/nodes/prepublish.js';
 import { listSharedNodes } from '../../controllers/nodes/sharedNodes.js';
 import { thumbnails } from '../../controllers/nodes/thumbnails.js';
@@ -77,6 +79,8 @@ router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], update
 router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], deleteContributor);
 router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
+router.post('/distribution', preparePublishPackage);
+router.post('/distribution/preview', [ensureUser], frontmatterPreview);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 

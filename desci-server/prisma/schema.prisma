@@ -43,6 +43,8 @@ model Node {
   NodeContribution    NodeContribution[]
   PrivateShare        PrivateShare[]
   OrcidPutCodes       OrcidPutCodes[]
+  DistributionPdfs    DistributionPdfs[]
+  PdfPreviews         PdfPreviews[]
   DoiRecord           DoiRecord[]
 
   @@index([ownerId])
@@ -475,6 +477,31 @@ model NodeThumbnails {
   node         Node   @relation(fields: [nodeUuid], references: [uuid])
 
   @@unique([nodeUuid, componentCid])
+}
+
+// PDFs generated in prepub flow
+model DistributionPdfs {
+  id                        Int     @id @default(autoincrement())
+  originalPdfCid            String
+  manifestCid               String
+  nodeUuid                  String
+  distPdfCid                String
+  contentPagePreviewCid     String?
+  frontmatterPagePreviewCid String?
+  node                      Node    @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, originalPdfCid, manifestCid])
+}
+
+// Preview images of distribution PDFs created in prepub flow (first and second pages)
+model PdfPreviews {
+  id         Int    @id @default(autoincrement())
+  nodeUuid   String
+  pdfCid     String @unique
+  previewMap Json
+  node       Node   @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, pdfCid])
 }
 
 // The glue between a manifest contributor entry and a nodes profile
