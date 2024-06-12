@@ -5,7 +5,6 @@ import * as child from 'child_process';
 // import fs from 'fs';
 import type { Server as HttpServer } from 'http';
 // import path from 'path';
-import { fileURLToPath } from 'url';
 
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
@@ -24,13 +23,12 @@ import routes from './routes/index.js';
 import { orcidConnect } from './controllers/auth/orcid.js';
 import { orcidCheck } from './controllers/auth/orcidNext.js';
 // import SocketServer from './wsServer.js';
-import { NotFoundError } from './internal.js';
-import { logger } from './logger.js';
+import { NotFoundError, RequestWithUser, extractAuthToken, extractUserFromToken } from './internal.js';
+import { als, logger } from './logger.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { runWorkerUntilStopped } from './workers/publish.js';
 
-const __filename = fileURLToPath(import.meta.url);
 // const __dirname = path.dirname(__filename);
 
 const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
@@ -88,6 +86,30 @@ class AppServer {
         // }
       }
       next();
+    });
+
+    // // attach user info to every request
+    this.app.use(async (req: RequestWithUser, res, next) => {
+      const token = await extractAuthToken(req);
+
+      if (!token) {
+        req.userAuth = 'anonymous';
+      } else {
+        const user = await extractUserFromToken(token);
+        req.userAuth = `${user?.id}`;
+      }
+
+      next();
+    });
+
+    // attach trace id to every request
+    this.app.use((req: RequestWithUser, res, next) => {
+      req.traceId = v4();
+      res.header('X-Desci-Trace-Id', req.traceId);
+
+      als.run({ traceId: req.traceId, timing: [new Date()], userAuth: req.userAuth }, () => {
+        next();
+      });
     });
 
     this.#attachProxies();
@@ -162,6 +184,11 @@ class AppServer {
     this.app.use(
       pinoHttp({
         logger,
+        customProps: (req: RequestWithUser, res) => ({
+          userAuth: req.userAuth,
+          traceId: (als.getStore() as any)?.traceId,
+          http: true,
+        }),
         serializers: {
           res: (res) => {
             if (IS_DEV) {
