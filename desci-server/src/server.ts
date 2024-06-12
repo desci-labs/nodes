@@ -187,7 +187,7 @@ class AppServer {
         customProps: (req: RequestWithUser, res) => ({
           userAuth: req.userAuth,
           traceId: (als.getStore() as any)?.traceId,
-          http: true,
+          http: 1,
         }),
         serializers: {
           res: (res) => {

@@ -16,7 +16,6 @@ yarn run migrate
 npx prisma db seed
 
 # import required images from ipfs to local
-echo "Hi"
 chmod +x ./scripts/import-ipfs-content.sh
 ./scripts/import-ipfs-content.sh 
 
