@@ -21,21 +21,21 @@ type ShowNodeAttestationsResponse = {
 };
 
 export const showNodeAttestations = async (
-  req: Request<{ dpid: string }>,
+  req: Request<{ uuid: string }>,
   res: Response<ShowNodeAttestationsResponse>,
 ) => {
-  const { dpid } = req.params;
+  const { uuid } = req.params;
 
   const logger = parentLogger.child({
     module: 'ATTESTATIONS::showNodeAttestationsController',
     user: (req as any).user,
-    dpid,
+    uuid,
   });
   logger.trace(`showNodeAttestations`);
 
-  if (!dpid) throw new BadRequestError('DPID is required');
+  if (!uuid) throw new BadRequestError('uuid is required');
 
-  let attestations = await attestationService.getAllNodeAttestations(dpid);
+  let attestations = await attestationService.getAllNodeAttestations(uuid);
   attestations = attestations.map((att) => ({
     ...att,
     _count: undefined,

@@ -751,7 +751,7 @@ model NodeAttestation {
   community                   DesciCommunity                @relation(fields: [desciCommunityId], references: [id])
   claimedById                 Int
   claimedBy                   User                          @relation(fields: [claimedById], references: [id])
-  nodeDpid10                  String
+  nodeDpid10                  String?
   nodeUuid                    String
   node                        Node                          @relation(fields: [nodeUuid], references: [uuid])
   nodeVersion                 Int

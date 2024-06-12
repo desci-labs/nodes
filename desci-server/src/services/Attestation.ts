@@ -18,6 +18,7 @@ import {
   NoAccessError,
   VerificationError,
   VerificationNotFoundError,
+  ensureUuidEndsWithDot,
   logger,
 } from '../internal.js';
 import { communityService } from '../internal.js';
@@ -229,9 +230,9 @@ export class AttestationService {
     });
   }
 
-  async getAllNodeAttestations(dpid: string) {
+  async getAllNodeAttestations(uuid: string) {
     return prisma.nodeAttestation.findMany({
-      where: { nodeDpid10: dpid, revoked: false },
+      where: { nodeUuid: ensureUuidEndsWithDot(uuid), revoked: false },
       include: {
         community: { select: { name: true, description: true, keywords: true, image_url: true } },
         attestation: { select: { protected: true, verified_image_url: true } },
