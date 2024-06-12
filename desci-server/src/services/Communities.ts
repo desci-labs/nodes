@@ -95,7 +95,7 @@ export class CommunityService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."revoked" = false AND
+      WHERE t1."revoked" = false AND t1."nodeDpid10" IS NOT NULL AND
         EXISTS
       (SELECT *
         from "CommunityEntryAttestation" c1

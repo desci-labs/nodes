@@ -446,6 +446,10 @@ export class AttestationService {
     return prisma.nodeAttestation.findFirst({ where: { id, nodeDpid10 } });
   }
 
+  async getClaimOnUuid(id: number, nodeUuid: string) {
+    return prisma.nodeAttestation.findFirst({ where: { id, nodeUuid } });
+  }
+
   async verifyClaim(nodeAttestationId: number, userId: number) {
     assert(nodeAttestationId > 0, 'Error: nodeAttestationId is Zero');
     assert(userId > 0, 'Error: userId is Zero');
