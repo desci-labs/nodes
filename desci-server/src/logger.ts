@@ -43,7 +43,8 @@ export const logger = pino({
           .filter((a) => a.includes('file:///') && !(a.includes('/dist/logger.') || a.includes('/src/logger.')))[0]
           .split('(')[1]
           .split(')')[0]
-          .replace('file:///app/desci-server/src/', '');
+          .replace('file:///app/desci-server/src/', '')
+          .replace('file:///app/dist/', '');
       } catch (err) {
         // callerFilePath = '-unknown-';
       }
