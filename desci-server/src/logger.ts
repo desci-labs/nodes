@@ -40,7 +40,7 @@ export const logger = pino({
       let callerFilePath;
       try {
         callerFilePath = stack
-          .filter((a) => a.includes('file:///') && !a.includes('src/logger.ts'))[0]
+          .filter((a) => a.includes('file:///') && !a.includes('src/logger.'))[0]
           .split('(')[1]
           .split(')')[0]
           .replace('file:///app/desci-server/src/', '');
