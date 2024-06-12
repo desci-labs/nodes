@@ -188,6 +188,7 @@ class AppServer {
           userAuth: req.userAuth,
           traceId: (als.getStore() as any)?.traceId,
           http: 1,
+          remoteAddress: getRemoteAddress(req),
         }),
         serializers: {
           res: (res) => {
@@ -243,5 +244,12 @@ class AppServer {
     await runWorkerUntilStopped();
   }
 }
-
+function getRemoteAddress(req) {
+  const xForwardedFor = req.headers['x-forwarded-for'];
+  if (xForwardedFor) {
+    return xForwardedFor.split(',')[0].trim();
+  } else {
+    return req.socket.remoteAddress;
+  }
+}
 export const server = new AppServer();
