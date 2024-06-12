@@ -30,7 +30,9 @@ import { makeRequest } from "./routes.js";
 import { Signer } from "ethers";
 import { type DID } from "dids";
 import { getFullState } from "./codex.js";
-import { convertUUIDToDecimal } from "./util/converting.js";
+import { bnToString, convertUUIDToDecimal } from "./util/converting.js";
+import { lookupLegacyDpid } from "./chain.js";
+import { NoSuchEntryError } from "./errors.js";
 
 export const ENDPOINTS = {
   deleteData: {
@@ -255,6 +257,7 @@ export type NodeResponse = {
   isDeleted: boolean,
   manifestDocumentId: string,
   ceramicStream?: string,
+  dpidAlias?: number,
 };
 
 /**
@@ -289,7 +292,7 @@ export type PrepublishResponse = {
   updatedManifestCid: string;
   updatedManifest: ResearchObjectV1;
   version?: NodeVersion;
-  ceramicStream?: string;
+  ceramicStream: string | null;
 };
 
 export type PublishConfiguration = {
@@ -353,8 +356,6 @@ export const publishNode = async (
     manifest: publishResult.manifest,
     ceramicStream: publishResult.ceramicIDs.streamID,
     commitId: publishResult.ceramicIDs.commitID,
-    // required in DB & this string is used to detect non-tx's in publish worker
-    transactionId: "ceramic",
   };
 
   try {
@@ -362,20 +363,6 @@ export const publishNode = async (
   } catch (e) {
     console.log(`Publish successful, but backend update failed for node ${uuid}`);
     throw e;
-  };
-
-  let dpid;
-  try {
-    dpid = await createDpid(uuid);
-    await changeManifest(
-      uuid,
-      [{
-        type: "Publish Dpid",
-        dpid: { prefix: "", id: dpid.toString() }
-      }],
-    );
-  } catch (e) {
-    console.log(`Failed to create dPID alias for node ${uuid}...`);
   };
 
   return {
@@ -754,13 +741,17 @@ export type IndexedNode = {
   versions: IndexedNodeVersion[];
 };
 
+/**
+ * Get the codex publish history for a given node.
+ * Note: calling this right after publish may fail
+ * since the publish operation may not have finished.
+*/
 export const getPublishHistory = async (
   uuid: string,
 ): Promise<IndexedNode> => {
-  const { ceramicStream,} = await getDraftNode(uuid);
-
+  const { ceramicStream } = await getDraftNode(uuid);
   if (!ceramicStream) {
-    return await getDpidHistory(uuid);
+    throw new Error(`No known stream for node ${uuid}`);
   };
 
   const resolved = await getFullState(ceramicStream);
@@ -772,7 +763,7 @@ export const getPublishHistory = async (
   const indexedNode: IndexedNode = {
     id: uuid,
     id10: convertUUIDToDecimal(uuid),
-    owner: resolved.owner,
+    owner: resolved.owner.id,
     recentCid: resolved.manifest,
     versions,
   };
@@ -781,8 +772,31 @@ export const getPublishHistory = async (
 };
 
 /**
+ * Lookup the history of a legacy dPID in the alias registry.
+ * @throws (@link NoSuchEntryError) if no such legacy entry exists
+*/
+export const getLegacyHistory = async (
+  dpid: number,
+): Promise<IndexedNodeVersion[]> => {
+  const legacyEntry = await lookupLegacyDpid(dpid);
+
+  if (legacyEntry.versions.length === 0) {
+    throw new NoSuchEntryError({
+      name: "NO_SUCH_ENTRY_ERROR",
+      message: "No legacy history exists for this dPID",
+    });
+  };
+
+  const nodeVersions = legacyEntry.versions.map(
+    ({ cid, time }) => ({ cid, time: bnToString(time) })
+  );
+
+  return nodeVersions;
+};
+
+/**
  * Get the dPID publish history for a node.
- * @deprecated use getPublishHistory
+ * @deprecated use getPublishHistory or getLegacyHistory when using new contracts
 */
 export const getDpidHistory = async (
   uuid: string,

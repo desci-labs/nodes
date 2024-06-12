@@ -1,10 +1,19 @@
 import { type NodeIDs } from "@desci-labs/desci-codex-lib";
-import { IndexedNodeVersion, getDpidHistory, getDraftNode, prePublishDraftNode } from "./api.js";
-import { dpidPublish, hasDpid, lookupLegacyDpid } from "./chain.js";
+import { 
+  IndexedNodeVersion,
+  getDpidHistory,
+  getDraftNode,
+  getLegacyHistory,
+  prePublishDraftNode,
+} from "./api.js";
+import {
+  dpidPublish,
+  hasDpid,
+} from "./chain.js";
 import { codexPublish } from "./codex.js";
 import { Signer } from "ethers";
 import { type DID } from "dids";
-import { bnToString } from "./util/converting.js";
+import { NoSuchEntryError } from "./errors.js";
 
 /**
  * Publish node to Codex, potentially migrating history from dPID token.
@@ -16,24 +25,24 @@ export const publish = async (
 ) => {
   const node = await getDraftNode(uuid);
   const prepubResult = await prePublishDraftNode(uuid);
-  const dpid = node.manifestData.dpid?.id;
+  const manifestDpid = node.manifestData.dpid?.id;
 
-  // We know about a dPID, but not about a stream => should backfill history
-  const hasHistory = 
-    (dpid !== undefined) && (prepubResult.ceramicStream === undefined);
+  const hasDpidInManifest = manifestDpid !== undefined;
+  const hasStreamOnRecord = prepubResult.ceramicStream !== null;
+  const shouldDoMigration = hasDpidInManifest && !hasStreamOnRecord;
 
-  let history: IndexedNodeVersion[] = [];
-  if (hasHistory) {
-    const legacyEntry = await lookupLegacyDpid(parseInt(dpid));
-    // Wrangle BigNumber timestamp to string epoch
-    history = legacyEntry.versions.map(
-      ({ cid, time }) => ({ cid, time: bnToString(time) })
-    );
+  let legacyHistory: IndexedNodeVersion[] = [];
+  if (shouldDoMigration) {
+    legacyHistory = await findLegacyHistory(uuid, parseInt(manifestDpid));
   };
 
   // Performs backfill migration if there is no stream on record, otherwise
   // we can send the empty history array and avoid the history query
-  const ceramicIDs = await codexPublish(prepubResult, history, didOrSigner);
+  const ceramicIDs = await codexPublish(
+    prepubResult,
+    legacyHistory,
+    didOrSigner
+  );
 
   return {
     cid: prepubResult.updatedManifestCid,
@@ -86,4 +95,31 @@ export const legacyPublish = async (
     ...dpidResult,
     ceramicIDs,
   };
+};
+
+/**
+ * Looks for legacy history for a dPID, starting with the new contract's
+ * legacy mapping, falling back to querying the nodes backend for subgraph
+ * indexed updates.
+ *
+ * For public environments, the former should always be enough, but it
+ * doesn't work for testing migration etc because that logic relies on
+ * looking up things only published in the legacy registry.
+ *
+ * This fallback logic can be cleaned up when the old contracts are paused,
+ * since the data migration to the alias registry can be made final.
+*/
+const findLegacyHistory = async (
+  uuid: string,
+  dpid: number,
+): Promise<IndexedNodeVersion[]> => {
+  try {
+    return await getLegacyHistory(dpid);
+  } catch (e) {
+    if (!(e instanceof NoSuchEntryError)) {
+      throw e;
+    };
+  };
+
+  return (await getDpidHistory(uuid)).versions;
 };
