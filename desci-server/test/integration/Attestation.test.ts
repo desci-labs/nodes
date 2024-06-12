@@ -337,7 +337,7 @@ describe('Attestations Service', async () => {
       expect(res.status).to.equal(200);
 
       // verify only one claim exists on the old version of the node
-      const attestations = await attestationService.getAllNodeAttestations('1');
+      const attestations = await attestationService.getAllNodeAttestations(node.uuid);
       expect(attestations.length).to.equal(2);
     });
   });
@@ -1508,7 +1508,7 @@ describe('Attestations Service', async () => {
     it('should show DPID 1 node attestations(API)', async () => {
       const JwtToken = jwt.sign({ email: users[0].email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
       const authHeaderVal = `Bearer ${JwtToken}`;
-      const res = await request(app).get(`/v1/attestations/${1}`).set('authorization', authHeaderVal);
+      const res = await request(app).get(`/v1/attestations/${node1.uuid}`).set('authorization', authHeaderVal);
       const attestations: NodeAttestationFragment[] = res.body.data;
       console.log(attestations);
       expect(attestations.length).to.be.equal(3);
@@ -1518,7 +1518,7 @@ describe('Attestations Service', async () => {
     it('should show DPID 2 node attestations(API)', async () => {
       const JwtToken = jwt.sign({ email: users[0].email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
       const authHeaderVal = `Bearer ${JwtToken}`;
-      const res = await request(app).get(`/v1/attestations/${2}`).set('authorization', authHeaderVal);
+      const res = await request(app).get(`/v1/attestations/${node2.uuid}`).set('authorization', authHeaderVal);
       const attestations: NodeAttestationFragment[] = res.body.data;
       expect(attestations.length).to.be.equal(4);
     });
@@ -2029,7 +2029,7 @@ describe('Attestations Service', async () => {
       });
       expect(res.status).to.equal(200);
 
-      const claims = await attestationService.getAllNodeAttestations('1');
+      const claims = await attestationService.getAllNodeAttestations(node.uuid);
       expect(claims.length).to.equal(1);
     });
 
@@ -2077,7 +2077,7 @@ describe('Attestations Service', async () => {
       });
       expect(res.status).to.equal(200);
 
-      const attestations = await attestationService.getAllNodeAttestations('1');
+      const attestations = await attestationService.getAllNodeAttestations(node.uuid);
       expect(attestations.length).to.equal(2);
 
       res = await request(app).get(`/v1/attestations/${1}`).set('authorization', authHeaderVal);
