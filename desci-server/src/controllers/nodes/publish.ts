@@ -14,11 +14,6 @@ import {
   setCeramicStream,
   setDpidAlias,
 } from '../../services/nodeManager.js';
-<<<<<<< HEAD
-import orcidApiService from '../../services/orcid.js';
-import { publishServices } from '../../services/PublishServices.js';
-=======
->>>>>>> a91865b (server: refactor publish flow, default to dpid alias registry unless overridden)
 import { discordNotify } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 import { getOrCreateDpid, upgradeDpid } from './createDpid.js';
