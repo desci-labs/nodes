@@ -1635,10 +1635,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@desci-labs/desci-contracts@0.2.5-rc3":
-  version "0.2.5-rc3"
-  resolved "https://registry.yarnpkg.com/@desci-labs/desci-contracts/-/desci-contracts-0.2.5-rc3.tgz#bd9f0b221bf4df295855a50853f35161ce6d066e"
-  integrity sha512-+b0TTZCZjceCw5DuVqCxu9LlkHBMvF5PHw2Q/5N+cuveb2YMtPcj+TlVAEfsi+HcgAiagqaUKWI9903Kf8X1IA==
+"@desci-labs/desci-contracts@0.2.5-rc6":
+  version "0.2.5-rc6"
+  resolved "https://registry.yarnpkg.com/@desci-labs/desci-contracts/-/desci-contracts-0.2.5-rc6.tgz#5c95b517865beeed45630c40c389a9b28d89f39a"
+  integrity sha512-SoPFZ6RnhtlqISuV5fJ+YbiTbmuIMwYxm4Htg+ePj8flTe6iWbW9Ddj1Bo9y0XmRasgfrR8DTnbdNAnyX95Pdw==
 
 "@desci-labs/desci-models@0.2.7-rc3":
   version "0.2.7-rc3"
