@@ -33,45 +33,59 @@ export const logger = pino({
   },
   hooks: {
     logMethod: function (inputArgs, method) {
-      //get caller
-      const stack = new Error().stack.split('\n');
-      // find first line that is not from this file
-
-      let callerFilePath;
       try {
-        callerFilePath = stack
-          .filter((a) => a.includes('file:///') && !(a.includes('/dist/logger.') || a.includes('/src/logger.')))[0]
-          .split('(')[1]
-          .split(')')[0]
-          .replace('file:///app/desci-server/src/', '')
-          .replace('file:///app/dist/', '');
-      } catch (err) {
-        // callerFilePath = '-unknown-';
-      }
+        //get caller
+        const stack = new Error().stack.split('\n');
+        // find first line that is not from this file
 
-      const target = typeof inputArgs[0] == 'string' ? 1 : 0;
-      const newInputArgs = [...inputArgs];
-      if (!newInputArgs[target]) {
-        newInputArgs[target] = {};
-      }
+        let callerFilePath;
+        try {
+          const intermediate = stack.filter(
+            (a) => a.includes('file:///') && !(a.includes('/dist/logger.') || a.includes('/src/logger.')),
+          )[0];
 
-      newInputArgs[target]['caller'] = callerFilePath;
-
-      newInputArgs[target]['userAuth'] = (als.getStore() as any)?.userAuth;
-
-      const traceId = (als.getStore() as any)?.traceId;
-      if (traceId) {
-        newInputArgs[target]['traceId'] = traceId;
-
-        const timingArray = (als.getStore() as any)?.timing;
-        if (timingArray) {
-          newInputArgs[target]['traceIndex'] = timingArray.length;
-          newInputArgs[target]['traceDelta'] = Date.now() - timingArray[timingArray.length - 1];
+          if (intermediate) {
+            callerFilePath = intermediate
+              .split('(')[1]
+              .split(')')[0]
+              .replace('file:///app/desci-server/src/', '')
+              .replace('file:///app/dist/', '');
+          }
+        } catch (err) {
+          // callerFilePath = '-unknown-';
         }
-        (als.getStore() as any)?.timing.push(Date.now());
-      }
 
-      return method.apply(this, [...newInputArgs]);
+        const target = typeof inputArgs[0] == 'string' ? 1 : 0;
+        const newInputArgs = [...inputArgs];
+        if (typeof newInputArgs[target] !== 'object') {
+          const rawValue = newInputArgs[target];
+          newInputArgs[target] = { rawValue };
+        }
+        if (!newInputArgs[target]) {
+          newInputArgs[target] = {};
+        }
+
+        newInputArgs[target]['caller'] = callerFilePath;
+
+        newInputArgs[target]['userAuth'] = (als.getStore() as any)?.userAuth;
+
+        const traceId = (als.getStore() as any)?.traceId;
+        if (traceId) {
+          newInputArgs[target]['traceId'] = traceId;
+
+          const timingArray = (als.getStore() as any)?.timing;
+          if (timingArray) {
+            newInputArgs[target]['traceIndex'] = timingArray.length;
+            newInputArgs[target]['traceDelta'] = Date.now() - timingArray[timingArray.length - 1];
+          }
+          (als.getStore() as any)?.timing.push(Date.now());
+        }
+
+        return method.apply(this, [...newInputArgs]);
+      } catch (err) {
+        // logger.error({ err }, 'error in logMethod hook');
+        return method.apply(this, inputArgs);
+      }
     },
   },
   transport:
