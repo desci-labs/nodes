@@ -54,7 +54,6 @@ services:
       - "5420:5420"
       - "9228:9228"
       - "9277:9277"
-      - "9228:9228"
       - "5555:5555"
     extra_hosts:
       - host.docker.internal:host-gateway
