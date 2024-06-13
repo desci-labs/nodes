@@ -17,7 +17,10 @@ yarn run migrate
 npx prisma db seed
 
 # update prisma client in desci-repo in case it not initialized properly
-cp node_modules/.prisma/*/* ../desci-repo/node_modules/.prisma/
+mkdir -p ../desci-repo/node_modules/.prisma/
+cp -r node_modules/.prisma ../desci-repo/node_modules/.prisma/
 
 (npx prisma studio &)
-npm run test:destructive:debug
+# uncomment for local debug
+# npm run test:destructive:debug
+npm run test:destructive
