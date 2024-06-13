@@ -55,14 +55,20 @@ export const logger = pino({
           // callerFilePath = '-unknown-';
         }
 
-        const target = typeof inputArgs[0] == 'string' ? 1 : 0;
-        const newInputArgs = [...inputArgs];
-        if (typeof newInputArgs[target] !== 'object') {
-          const rawValue = newInputArgs[target];
-          newInputArgs[target] = { rawValue };
-        }
+        let target = typeof inputArgs[0] == 'string' ? 1 : 0;
+        let newInputArgs = [...inputArgs];
+
         if (!newInputArgs[target]) {
           newInputArgs[target] = {};
+        } else if (typeof newInputArgs[target] !== 'object') {
+          const rawValue = {};
+          rawValue['stringLogs'] = inputArgs;
+
+          rawValue['error'] =
+            'this means your pino log statement is incorrectly formatted, check the order of the arguments';
+          target = 0;
+          newInputArgs[target] = { rawValue };
+          newInputArgs = [newInputArgs[0], inputArgs[0]];
         }
 
         newInputArgs[target]['caller'] = callerFilePath;
