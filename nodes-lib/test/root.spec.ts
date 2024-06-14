@@ -329,7 +329,7 @@ describe("nodes-lib", () => {
         await sleep(5_000);
         await publishDraftNode(uuid, testSigner, did);
         // Allow graph node to index
-        await sleep(1_500);
+        await sleep(2_500);
       });
 
       test("updates entry in dpid registry", async () => {
@@ -370,7 +370,7 @@ describe("nodes-lib", () => {
       const codexHistory = await getCodexHistory(pubResult.ceramicIDs!.streamID);
       expect(dpidHistory.versions.length).toEqual(2);
       expect (codexHistory.length).toEqual(2);
-    });
+    }, { timeout: 10_000});
 
     /** This is not an user feature, but part of error handling during publish */
     test("can remove dPID from manifest", async () => {
@@ -448,6 +448,7 @@ describe("nodes-lib", () => {
       beforeAll(async () => {
         nodeStateBefore = await getDraftNode(uuid);
         updateResult = await publishNode(uuid, did);
+        await sleep(1000);
       });
 
       test("updates most recent state", async () => {
