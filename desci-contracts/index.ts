@@ -17,6 +17,6 @@ export const contracts = {
   prodDpidInfo,
   localDpidAliasInfo,
   devDpidAliasInfo,
-  // TODO update as soon as deployment is done
-  prodDpidAliasInfo: localDpidAliasInfo,
+  // TODO update when opt mainnet contracts are deployed
+  prodDpidAliasInfo: { proxies: [ { address: "NOT_DEPLOYED" }]},
 };

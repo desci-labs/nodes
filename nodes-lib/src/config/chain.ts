@@ -117,7 +117,7 @@ export const CHAIN_CONFIGS = {
     chainId: "10",
     rpcUrl: "https://reverse-proxy-prod.desci.com/rpc_opt_mainnet",
     dpidAliasRegistryConnector: signerOrProvider => tc.DpidAliasRegistry__factory.connect(
-      "NOT_DEPLOYED",//contracts.prodDpidAliasInfo.proxies.at(0)!.address,
+      contracts.prodDpidAliasInfo.proxies.at(0)!.address,
       signerOrProvider,
     ),
   }
