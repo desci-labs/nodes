@@ -323,6 +323,7 @@ type PublishParams = {
   nodeVersionId?: string,
   ceramicStream?: string,
   commitId?: string,
+  useNewPublish: boolean,
 };
 
 /** Result of publishing a draft node */
@@ -356,6 +357,7 @@ export const publishNode = async (
     manifest: publishResult.manifest,
     ceramicStream: publishResult.ceramicIDs.streamID,
     commitId: publishResult.ceramicIDs.commitID,
+    useNewPublish: true,
   };
 
   try {
@@ -417,6 +419,7 @@ export const publishDraftNode = async (
     transactionId: publishResult.transactionId,
     ceramicStream: publishResult.ceramicIDs?.streamID,
     commitId: publishResult.ceramicIDs?.commitID,
+    useNewPublish: false,
   };
 
   try {

@@ -383,7 +383,7 @@ describe("nodes-lib", () => {
 
   });
 
-  describe.only("publishing ", async () => {
+  describe("publishing ", async () => {
     let uuid: string;
     let publishResult: PublishResponse;
     const did = await authorizedSessionDidFromSigner(testSigner, getResources());
@@ -490,6 +490,7 @@ describe("nodes-lib", () => {
 
         // make a regular publish
         pubResult = await publishNode(uuid, did);
+        await sleep(1000);
       });
 
       test("migrates history to new stream", async () => {

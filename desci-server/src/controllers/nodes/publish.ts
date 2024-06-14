@@ -25,6 +25,7 @@ export type PublishReqBody = {
   transactionId: string;
   ceramicStream?: string;
   commitId?: string;
+  useNewPublish: boolean;
 };
 
 export type PublishRequest = Request<never, never, PublishReqBody> & {
@@ -41,8 +42,12 @@ export type PublishResBody =
     };
 
 // call node publish service and add job to queue
-export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
-  const { uuid, cid, manifest, transactionId, ceramicStream, commitId } = req.body;
+export const publish = async (
+  req: PublishRequest,
+  res: Response<PublishResBody>,
+  _next: NextFunction
+) => {
+  const { uuid, cid, manifest, transactionId, ceramicStream, commitId, useNewPublish } = req.body;
   // debugger;
   const email = req.user.email;
   const logger = parentLogger.child({
@@ -57,6 +62,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     commitId,
     email,
     user: req.user,
+    useNewPublish,
   });
 
   if (!uuid || !cid || !manifest) {
@@ -105,8 +111,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
 
     let publishTask: PublishTaskQueue | undefined;
 
-    // Do synchronous publish if the caller passed stream information
-    if (!process.env.FALLBACK_LEGACY_DPID) {
+    if (useNewPublish) {
       await syncPublish(
         ceramicStream,
         commitId,
@@ -154,7 +159,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
     return res.status(400).send({ ok: false, error: err.message });
-  }
+  };
 };
 
 /**
