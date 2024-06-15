@@ -83,6 +83,10 @@ spec:
           export CROSSREF_API={{ .Data.CROSSREF_API }}
           export CROSSREF_API_KEY={{ .Data.CROSSREF_API_KEY }}
           export CROSSREF_EMAIL={{ .Data.CROSSREF_EMAIL }}
+          export CROSSREF_DOI_URL={{ .Data.CROSSREF_DOI_URL }}
+          export CROSSREF_LOGIN={{ .Data.CROSSREF_LOGIN }}
+          export CROSSREF_PASSWORD={{ .Data.CROSSREF_PASSWORD }}
+          export CROSSREF_METADATA_API={{ .Data.CROSSREF_METADATA_API }}
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";

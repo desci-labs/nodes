@@ -1,3 +1,8 @@
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import FormData from 'form-data';
+import fetch from 'node-fetch';
+import { default as Remixml } from 'remixml';
+
 import { logger as parentLogger } from '../../logger.js';
 import { ONE_DAY_TTL, getFromCache, setToCache } from '../../redisClient.js';
 
@@ -9,6 +14,70 @@ const logger = parentLogger.child({ module: '[CrossRefClient]' });
 export const delay = async (timeMs: number) => {
   return new Promise((resolve) => setTimeout(resolve, timeMs));
 };
+
+const metadataTemplate = `<?xml version="1.0" encoding="UTF-8"?>
+<doi_batch xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.crossref.org/schema/5.3.1 https://www.crossref.org/schemas/crossref5.3.1.xsd"
+  xmlns="http://www.crossref.org/schema/5.3.1"
+  xmlns:jats="http://www.ncbi.nlm.nih.gov/JATS1"
+  xmlns:fr="http://www.crossref.org/fundref.xsd"
+  xmlns:mml="http://www.w3.org/1998/Math/MathML" version="5.3.1">
+  <head>
+    <doi_batch_id>none</doi_batch_id>
+    <timestamp>&_.timestamp;</timestamp>
+    <depositor>
+      <depositor_name>&depositor.name;</depositor_name>
+      <email_address>&depositor.email;</email_address>
+    </depositor>
+    <registrant>&_.registrant;</registrant>
+  </head>
+  <body>
+    <posted_content type="preprint">
+      <group_title>&_.title;</group_title>
+      <contributors>
+        <for in="_.contributors" mkmapping="">
+          <person_name sequence="first" contributor_role="author">
+            <given_name>&_.name;</given_name>
+            <surname>&_.surname;</surname>
+            <ORCID authenticated="true">&_.orcid;</ORCID>
+          </person_name>
+        </for>
+      </contributors>
+      <titles>
+        <title>&_.title;</title>
+      </titles>
+      <posted_date>
+        <month>&publishedDate.month;</month>
+        <day>&publishedDate.day;</day>
+        <year>&publishedDate.year;</year>
+      </posted_date>
+      <acceptance_date>
+        <month>&publishedDate.month;</month>
+        <day>&publishedDate.day;</day>
+        <year>&publishedDate.year;</year>
+      </acceptance_date>
+      <institution>
+        <institution_name>Crossref</institution_name>
+        <institution_id type="ror">https://ror.org/02twcfp32</institution_id>
+        <institution_id type="isni">https://www.isni.org/0000000405062673</institution_id>
+        <institution_id type="wikidata">https://www.wikidata.org/entity/Q5188229</institution_id>
+
+        <institution_acronym>CR</institution_acronym>
+        <institution_place>Lynnfield, MA</institution_place>
+        <institution_department>Feline Outreach</institution_department>
+      </institution>
+      <item_number>&_.dpid;</item_number>
+      <program xmlns="http://www.crossref.org/AccessIndicators.xsd">
+        <free_to_read start_date="&publishedDate.startDate;"/>
+        <license_ref>http://example.org/license_page.html</license_ref>
+      </program>
+      <doi_data>
+        <doi>&_.doi;</doi>
+        <resource>&_.doiResource;</resource>
+      </doi_data>
+    </posted_content>
+  </body>
+</doi_batch>
+`;
 
 /**
  * A wrapper http client for querying, caching and parsing requests
@@ -98,12 +167,73 @@ class CrossRefClient {
     }
   }
 
+  async postMetadata(query: { manifest: ResearchObjectV1; doi: string }) {
+    const param = {
+      _: {
+        timestamp: Date.now(),
+        dpid: query.manifest.dpid.id,
+        doi: query.doi,
+        doiResource: `https://dev-beta.dpid.org/${query.manifest.dpid.id}`,
+        title: query.manifest.title,
+        registrant: 'Desci Labs',
+        contributors: query.manifest.authors.map((author) => ({
+          name: author.name.split(' ')[0],
+          surname: author.name.split(' ').slice(1)?.join(' ') || '-',
+          orcid: `https://${process.env.ORCID_API_DOMAIN}/${author.orcid}`,
+        })),
+      },
+      depositor: {
+        name: 'Desci Labs',
+        email: 'admin@desci.com',
+      },
+      publishedDate: {
+        day: 25,
+        month: '06',
+        year: 2024,
+        startDate: '2024-06-05',
+      },
+    };
+
+    const metadata = Remixml.parse2txt(metadataTemplate, param);
+
+    const url = `${process.env.CROSSREF_METADATA_API}?operation=doMDUpload&login_id=${process.env.CROSSREF_LOGIN || 'dslb'}&login_passwd=${process.env.CROSSREF_PASSWORD || 'pgz6wze1fmg-RPN_qkv'}`;
+    logger.info({ param, metadata, url }, 'METADATA TO POST');
+    const buffer = Buffer.from(metadata, 'utf8');
+    const filename = `dpid_${param._.dpid}_upload_xml.xml`;
+    // save file for debugging purposes
+    // await fs.writeFile(path.join(process.cwd(), filename), buffer);
+    const form = new FormData();
+    form.append('fname', filename);
+    form.append('file', buffer, { filename });
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        body: form,
+        headers: {
+          Accept: '*/*',
+        },
+      });
+      logger.info({ STATUS: response.status, message: response.statusText }, 'Response');
+      const body = await response.text();
+      logger.info({ body }, 'BODY');
+
+      if (!response.ok || response.status !== 200) {
+        return { ok: false, message: body };
+      }
+      return { ok: true };
+    } catch (error) {
+      logger.error(error, 'Post metadata Api Error');
+      return { ok: false };
+    }
+  }
+
   async performFetch<T>(request: Request) {
     const responseFromCache = await getFromCache<T>(request.url);
     logger.info(responseFromCache, 'DOI From Cache');
     if (responseFromCache) return { ok: true, status: 200, data: responseFromCache };
 
-    const response = (await fetch(request)) as CrossRefHttpResponse<T>;
+    const response = (await global.fetch(request)) as CrossRefHttpResponse<T>;
     response.data = undefined;
     if (response.ok && response.status === 200) {
       if (response.headers.get('content-type').includes('application/json')) {

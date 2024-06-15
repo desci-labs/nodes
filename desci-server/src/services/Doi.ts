@@ -2,7 +2,7 @@ import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@de
 import { PrismaClient } from '@prisma/client';
 import { v4 } from 'uuid';
 
-import { DuplicateMintError, BadManifestError, AttestationsError } from '../core/doi/error.js';
+import { DuplicateMintError, BadManifestError, AttestationsError, MintError } from '../core/doi/error.js';
 import { logger } from '../logger.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js';
 import { asyncMap, ensureUuidEndsWithDot, hexToCid } from '../utils.js';
@@ -72,7 +72,7 @@ export class DoiService {
 
   assertValidManifest(manifest: ResearchObjectV1) {
     const hasTitle = manifest.title.trim().length > 0;
-    const hasAbstract = manifest.description.trim().length > 0;
+    const hasAbstract = manifest?.description.trim().length > 0;
     const hasContributors = manifest.authors.length > 0;
     if (!hasTitle || !hasAbstract || !hasContributors) throw new BadManifestError();
   }
@@ -118,16 +118,21 @@ export class DoiService {
     // validate title, abstract and contributors
     this.assertValidManifest(latestManifest);
 
-    return { dpid: latestManifest.dpid.id, uuid };
+    return { dpid: latestManifest.dpid.id, uuid, manifest: latestManifest };
   }
 
   async mintDoi(nodeUuid: string) {
-    const { dpid, uuid } = await this.checkMintability(nodeUuid);
-    // todo: handle over logic to cross-ref api service for minting DOIs
+    const { dpid, uuid, manifest } = await this.checkMintability(nodeUuid);
     // mint new doi
     const doiSuffix = v4().substring(0, 8);
     const doi = `${DOI_PREFIX}/${doiSuffix}`;
-    logger.info({ doiSuffix, doi, uuid }, 'MINT DOI');
+    // todo: handle over logic to cross-ref api service for minting DOIs
+    const metadataResponse = await crossRefClient.postMetadata({ manifest, doi });
+    if (!metadataResponse.ok) {
+      throw new MintError(metadataResponse.message || 'A doi could not be registered for this node');
+    }
+
+    logger.info({ doiSuffix, doi, uuid, metadataResponse }, 'MINT DOI');
     return await this.dbClient.doiRecord.create({
       data: {
         uuid,
