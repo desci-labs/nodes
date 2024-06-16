@@ -3,6 +3,10 @@ import { type Response } from 'express';
 import { oneDay, oneMinute, oneYear } from '../controllers/auth/magic.js';
 import { logger } from '../logger.js';
 
+/**
+ * To enable a wildcard auth cookie that works across all subdomains, we need to modify the auth cookie name for each domain.
+ */
+
 const AUTH_COOKIE_DOMAIN_MAPPING = {
   'https://nodes-api.desci.com': 'auth',
   'https://nodes-api-dev.desci.com': 'auth-dev',
