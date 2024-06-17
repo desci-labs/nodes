@@ -2,9 +2,12 @@ import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import FormData from 'form-data';
 import fetch from 'node-fetch';
 import { default as Remixml } from 'remixml';
+import { v4 } from 'uuid';
 
+import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { ONE_DAY_TTL, getFromCache, setToCache } from '../../redisClient.js';
+import { asyncMap } from '../../utils.js';
 
 import { CrossRefHttpResponse, Items, QueryWorkParams, Work } from './definitions.js';
 import { keysToDotsAndDashses } from './utils.js';
@@ -22,7 +25,7 @@ const metadataTemplate = `<?xml version="1.0" encoding="UTF-8"?>
   xmlns:fr="http://www.crossref.org/fundref.xsd"
   xmlns:mml="http://www.w3.org/1998/Math/MathML" version="5.3.1">
   <head>
-    <doi_batch_id>none</doi_batch_id>
+    <doi_batch_id>&_.submissionId;</doi_batch_id>
     <timestamp>&_.timestamp;</timestamp>
     <depositor>
       <depositor_name>&depositor.name;</depositor_name>
@@ -38,7 +41,26 @@ const metadataTemplate = `<?xml version="1.0" encoding="UTF-8"?>
           <person_name sequence="first" contributor_role="author">
             <given_name>&_.name;</given_name>
             <surname>&_.surname;</surname>
-            <ORCID authenticated="true">&_.orcid;</ORCID>
+            <if expr="_.affiliations">
+              <affiliations>
+                <for in="_.affiliations" mkmapping="">
+                  <institution>
+                    <institution_id type="ror">&_.id;</institution_id>
+                  </institution>
+                  <institution>
+                    <institution_name>&_.name;</institution_name>
+                  </institution>
+                </for>
+              </affiliations>
+            </if>
+            <if expr="_.orcid">
+              <if expr="_.isAuthenticated == true">
+                <ORCID authenticated="true">&_.orcid;</ORCID>
+              </if>
+              <else>
+                <ORCID authenticated="false">&_.orcid;</ORCID>
+              </else>
+            </if>
           </person_name>
         </for>
       </contributors>
@@ -55,21 +77,7 @@ const metadataTemplate = `<?xml version="1.0" encoding="UTF-8"?>
         <day>&publishedDate.day;</day>
         <year>&publishedDate.year;</year>
       </acceptance_date>
-      <institution>
-        <institution_name>Crossref</institution_name>
-        <institution_id type="ror">https://ror.org/02twcfp32</institution_id>
-        <institution_id type="isni">https://www.isni.org/0000000405062673</institution_id>
-        <institution_id type="wikidata">https://www.wikidata.org/entity/Q5188229</institution_id>
-
-        <institution_acronym>CR</institution_acronym>
-        <institution_place>Lynnfield, MA</institution_place>
-        <institution_department>Feline Outreach</institution_department>
-      </institution>
       <item_number>&_.dpid;</item_number>
-      <program xmlns="http://www.crossref.org/AccessIndicators.xsd">
-        <free_to_read start_date="&publishedDate.startDate;"/>
-        <license_ref>http://example.org/license_page.html</license_ref>
-      </program>
       <doi_data>
         <doi>&_.doi;</doi>
         <resource>&_.doiResource;</resource>
@@ -79,6 +87,11 @@ const metadataTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 </doi_batch>
 `;
 
+type PublicationDate = {
+  day: string;
+  month: string;
+  year: string;
+};
 /**
  * A wrapper http client for querying, caching and parsing requests
  * from the CrossRef Rest Api https://www.crossref.org/documentation/retrieve-metadata/rest-api/
@@ -167,31 +180,48 @@ class CrossRefClient {
     }
   }
 
-  async postMetadata(query: { manifest: ResearchObjectV1; doi: string }) {
+  async postMetadata(query: { manifest: ResearchObjectV1; doi: string; publicationDate: PublicationDate }) {
+    const contributors = await asyncMap(query.manifest.authors ?? [], async (author) => {
+      const user = author.orcid ? await prisma.user.findUnique({ where: { orcid: author.orcid } }) : null;
+      logger.info({ user: { orcid: user?.orcid } });
+      const affiliations = user
+        ? (
+            await prisma.userOrganizations.findMany({ where: { userId: user.id }, include: { organization: true } })
+          )?.map((org) => ({ name: org.organization.name, id: org.organization.id }))
+        : author?.organizations?.map((org) => ({ name: org.name }));
+
+      return {
+        name: author.name.split(' ')[0],
+        surname: author.name.split(' ').slice(1)?.join(' ') || '-',
+
+        // don't substitute with `sandbox.orcid.org`, the submission will be rejected
+        // due to schema errors
+        orcid: `https://orcid.org/${author.orcid}`,
+
+        isAuthenticated: !!user,
+        // crossref schema only allows a maximum of one affiliation per contributor
+        ...(affiliations?.length > 0 && { affiliations: affiliations.slice(0, 1) }),
+      };
+    });
+
+    const submissionId = v4();
+
     const param = {
       _: {
+        submissionId,
         timestamp: Date.now(),
         dpid: query.manifest.dpid.id,
         doi: query.doi,
-        doiResource: `https://dev-beta.dpid.org/${query.manifest.dpid.id}`,
+        doiResource: `${process.env.DPID_URL_OVERRIDE}/${query.manifest.dpid.id}`,
         title: query.manifest.title,
-        registrant: 'Desci Labs',
-        contributors: query.manifest.authors.map((author) => ({
-          name: author.name.split(' ')[0],
-          surname: author.name.split(' ').slice(1)?.join(' ') || '-',
-          orcid: `https://${process.env.ORCID_API_DOMAIN}/${author.orcid}`,
-        })),
+        registrant: 'DeSci Labs AG',
+        contributors,
       },
       depositor: {
-        name: 'Desci Labs',
-        email: 'admin@desci.com',
+        name: 'DeSci Labs AG',
+        email: process.env.CROSSREF_EMAIL,
       },
-      publishedDate: {
-        day: 25,
-        month: '06',
-        year: 2024,
-        startDate: '2024-06-05',
-      },
+      publishedDate: query.publicationDate,
     };
 
     const metadata = Remixml.parse2txt(metadataTemplate, param);
@@ -199,7 +229,10 @@ class CrossRefClient {
     const url = `${process.env.CROSSREF_METADATA_API}?operation=doMDUpload&login_id=${process.env.CROSSREF_LOGIN || 'dslb'}&login_passwd=${process.env.CROSSREF_PASSWORD || 'pgz6wze1fmg-RPN_qkv'}`;
     logger.info({ param, metadata, url }, 'METADATA TO POST');
     const buffer = Buffer.from(metadata, 'utf8');
-    const filename = `dpid_${param._.dpid}_upload_xml.xml`;
+
+    // prefix filename with `@` as seen from the crossref documentation
+    // https://www.crossref.org/documentation/register-maintain-records/direct-deposit-xml/https-post/#00230
+    const filename = `@dpid_${param._.dpid}_upload_xml.xml`;
     // save file for debugging purposes
     // await fs.writeFile(path.join(process.cwd(), filename), buffer);
     const form = new FormData();
@@ -221,10 +254,10 @@ class CrossRefClient {
       if (!response.ok || response.status !== 200) {
         return { ok: false, message: body };
       }
-      return { ok: true };
+      return { ok: true, submissionId };
     } catch (error) {
       logger.error(error, 'Post metadata Api Error');
-      return { ok: false };
+      return { ok: false, submissionId };
     }
   }
 

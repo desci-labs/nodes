@@ -118,20 +118,31 @@ export class DoiService {
     // validate title, abstract and contributors
     this.assertValidManifest(latestManifest);
 
-    return { dpid: latestManifest.dpid.id, uuid, manifest: latestManifest };
+    return { dpid: latestManifest.dpid.id, uuid, manifest: latestManifest, researchObject };
   }
 
   async mintDoi(nodeUuid: string) {
-    const { dpid, uuid, manifest } = await this.checkMintability(nodeUuid);
+    const { dpid, uuid, manifest, researchObject } = await this.checkMintability(nodeUuid);
     // mint new doi
     const doiSuffix = v4().substring(0, 8);
     const doi = `${DOI_PREFIX}/${doiSuffix}`;
-    // todo: handle over logic to cross-ref api service for minting DOIs
-    const metadataResponse = await crossRefClient.postMetadata({ manifest, doi });
+
+    const latestVersion = researchObject.versions[researchObject.versions.length - 1];
+    const publicationDate = new Date(parseInt(latestVersion.time) * 1000).toLocaleDateString().replaceAll('/', '-');
+
+    const [month, day, year] = publicationDate.split('-');
+
+    const metadataResponse = await crossRefClient.postMetadata({
+      manifest,
+      doi,
+      publicationDate: { day, month, year },
+    });
+
     if (!metadataResponse.ok) {
       throw new MintError(metadataResponse.message || 'A doi could not be registered for this node');
     }
 
+    // todo: add submissionId and doi to DoiSubmissionLog table to keep track of status
     logger.info({ doiSuffix, doi, uuid, metadataResponse }, 'MINT DOI');
     return await this.dbClient.doiRecord.create({
       data: {

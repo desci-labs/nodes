@@ -87,6 +87,7 @@ spec:
           export CROSSREF_LOGIN={{ .Data.CROSSREF_LOGIN }}
           export CROSSREF_PASSWORD={{ .Data.CROSSREF_PASSWORD }}
           export CROSSREF_METADATA_API={{ .Data.CROSSREF_METADATA_API }}
+          export CROSSREF_ADMIN_API={{ .Data.CROSSREF_ADMIN_API }}
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";
