@@ -2080,7 +2080,7 @@ describe('Attestations Service', async () => {
       const attestations = await attestationService.getAllNodeAttestations(node.uuid);
       expect(attestations.length).to.equal(2);
 
-      res = await request(app).get(`/v1/attestations/${1}`).set('authorization', authHeaderVal);
+      res = await request(app).get(`/v1/attestations/${node.uuid}`).set('authorization', authHeaderVal);
       const claims = res.body.data as NodeClaim[];
       const revoked = claims.find((c) => c.id === claim.id);
       expect(revoked?.revoked).to.be.false;
