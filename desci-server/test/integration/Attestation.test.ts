@@ -1508,7 +1508,7 @@ describe('Attestations Service', async () => {
     it('should show DPID 1 node attestations(API)', async () => {
       const JwtToken = jwt.sign({ email: users[0].email }, process.env.JWT_SECRET!, { expiresIn: '1y' });
       const authHeaderVal = `Bearer ${JwtToken}`;
-      const res = await request(app).get(`/v1/attestations/${node1.uuid}`).set('authorization', authHeaderVal);
+      const res = await request(app).get(`/v1/attestations/${node.uuid}`).set('authorization', authHeaderVal);
       const attestations: NodeAttestationFragment[] = res.body.data;
       console.log(attestations);
       expect(attestations.length).to.be.equal(3);
