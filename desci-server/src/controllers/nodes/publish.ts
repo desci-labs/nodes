@@ -112,6 +112,10 @@ export const publish = async (
     let publishTask: PublishTaskQueue | undefined;
 
     if (useNewPublish) {
+      logger.info(
+        {ceramicStream, commitId, uuid, owner: owner.id},
+        "Triggering new publish flow"
+      );
       await syncPublish(
         ceramicStream,
         commitId,

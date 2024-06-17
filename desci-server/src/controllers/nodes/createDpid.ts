@@ -3,8 +3,10 @@ import { ethers } from "ethers";
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from "../../middleware/authorisation.js";
 import { contracts, typechain as tc } from "@desci-labs/desci-contracts";
-import { DpidMintedEvent, UpgradedDpidEvent } from "@desci-labs/desci-contracts/dist/typechain-types/DpidAliasRegistry.js";
+import { DpidAliasRegistry, type DpidMintedEvent } from "@desci-labs/desci-contracts/dist/typechain-types/DpidAliasRegistry.js";
 import { setDpidAlias } from "../../services/nodeManager.js";
+import { newCeramicClient, resolveHistory } from "@desci-labs/desci-codex-lib";
+import { Logger } from "pino";
 
 type DpidResponse = DpidSuccessResponse | DpidErrorResponse;
 export type DpidSuccessResponse = {
@@ -15,15 +17,17 @@ export type DpidErrorResponse = {
   error: string;
 };
 
+const CERAMIC_API = process.env.CERAMIC_API;
+
 /** Not secret: pre-seeded ganache account for local dev */
 const GANACHE_PKEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
 let aliasRegistryAddress: string;
-const url = process.env.SERVER_URL;
+const apiServerUrl = process.env.SERVER_URL;
 
-if (url.includes("localhost")) {
+if (apiServerUrl.includes("localhost")) {
   aliasRegistryAddress = contracts.localDpidAliasInfo.proxies.at(0).address;
-} else if (url.includes("dev") || url.includes("staging")) {
+} else if (apiServerUrl.includes("dev") || apiServerUrl.includes("staging")) {
   aliasRegistryAddress = contracts.devDpidAliasInfo.proxies.at(0).address;
 } else if (process.env.NODE_ENV === "production") {
   aliasRegistryAddress = contracts.prodDpidAliasInfo.proxies.at(0).address;
@@ -48,12 +52,12 @@ export const createDpid = async (req: RequestWithNode, res: Response<DpidRespons
 
   if (!process.env.HOT_WALLET_KEY) {
     logger.error("hot wallet not configured");
-    return res.status(500).json({ error: "dpid registration not available" });
+    return res.status(500).json({ error: "registration not available: no hot wallet configured" });
   };
 
   if (!process.env.ETHEREUM_RPC_URL) {
     logger.error("ethereum RPC endpoint not configured");
-    return res.status(500).json({ error: "dpid registration not available" });
+    return res.status(503).json({ error: "registration not available: no RPC configured" });
   };
 
   try {
@@ -82,7 +86,7 @@ export const getOrCreateDpid = async (
 
   await provider.ready;
   const wallet = new ethers.Wallet(
-    url.includes("localhost") ? GANACHE_PKEY : process.env.HOT_WALLET_KEY,
+    apiServerUrl.includes("localhost") ? GANACHE_PKEY : process.env.HOT_WALLET_KEY,
     provider,
   );
 
@@ -91,6 +95,7 @@ export const getOrCreateDpid = async (
     wallet,
   );
 
+  // Not exists will return the zero value, i.e. 0
   const checkDpid = await dpidAliasRegistry.find(streamId);
   const existingDpid = ethers.BigNumber.from(checkDpid).toNumber();
 
@@ -139,7 +144,7 @@ export const upgradeDpid = async (
 
   await provider.ready;
   const wallet = new ethers.Wallet(
-    url.includes("localhost") ? GANACHE_PKEY : process.env.REGISTRY_OWNER_PKEY,
+    apiServerUrl.includes("localhost") ? GANACHE_PKEY : process.env.REGISTRY_OWNER_PKEY,
     provider,
   );
 
@@ -147,6 +152,14 @@ export const upgradeDpid = async (
     aliasRegistryAddress,
     wallet,
   );
+
+  if (!compareHistory(dpid, ceramicStream, dpidAliasRegistry, logger)) {
+    logger.warn(
+      { dpid, ceramicStream },
+      "version histories disagree; refusing to upgrade dPID",
+    );
+    throw new Error("dPID history mismatch");
+  };
 
   const tx = await dpidAliasRegistry.upgradeDpid(dpid, ceramicStream);
   await tx.wait();
@@ -157,3 +170,52 @@ export const upgradeDpid = async (
 
   return dpid;
 };
+
+/**
+ * Makes sure the passed stream history matches the sequence of
+ * CID's as they were imported into the alias registry contract.
+ * This should be checked before upgrading a dPID, to make sure
+ * the new stream accurately represents the publish history.
+*/
+const compareHistory = async (
+  dpid: number,
+  ceramicStream: string,
+  registry: DpidAliasRegistry,
+  logger: Logger
+) => {
+  if (!CERAMIC_API) {
+    throw new Error("CERAMIC_API not configured");
+  };
+
+  const client = newCeramicClient(CERAMIC_API);
+  const [_owner, legacyVersions] = await registry.legacyLookup(dpid);
+
+  const streamEvents = await resolveHistory(client, ceramicStream)
+  const streamStates = await Promise.all(streamEvents
+    .map(s => s.commit)
+    .map(c => client.loadStream(c))
+  );
+
+  // Stream could have one or more additional entries
+  if (legacyVersions.length < streamStates.length) {
+    logger.error(
+      "Stream history shorter than legacy history",
+      { legacyVersions, streamStates}
+    );
+    return false;
+  };
+
+  for (const [i, streamState] of streamStates.entries()) {
+    // Cant compare timestamp because anchor time WILL differ
+    const expectedCid = legacyVersions[i][0];
+    if (expectedCid !== streamState.content.manifest) {
+      logger.error(
+        "Manifest CID mismatch between legacy and stream history",
+        { legacyVersions, streamStates}
+      );
+      return false;
+    };
+  };
+
+  return true;
+}
