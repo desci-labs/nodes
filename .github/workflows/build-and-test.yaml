@@ -54,7 +54,7 @@ jobs:
           docker info
 
       - name: Install dependencies
-        run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn && cd ../desci-repo && yarn
+        run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn && cd ../desci-repo && yarn --ignore-engines
 
       - name: Stub contract
         run: |
@@ -63,7 +63,7 @@ jobs:
 
       - name: Run tests
         run: |
-          cd desci-server && export DOCKER_BUILDKIT=1 && yarn && yarn test
+          cd desci-server && export DOCKER_BUILDKIT=1 && yarn --ignore-engines && yarn test
           if [ $? -ne 0 ]; then
             exit 1
           fi
