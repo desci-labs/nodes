@@ -2,12 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 
 import { logger } from '../../logger.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 /**
  * Get all versions of research object from index (publicView)
  */
 export const versions = async (req: Request, res: Response, next: NextFunction) => {
-  const uuid = req.params.uuid;
+  const uuid = ensureUuidEndsWithDot(req.params.uuid);
   let graphOk = false;
   let result;
   try {

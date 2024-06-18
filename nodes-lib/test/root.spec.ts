@@ -2,7 +2,7 @@
 import { test, describe, beforeAll, expect } from "vitest";
 import type {
   AddCodeComponentParams, AddLinkComponentParams, AddPdfComponentParams,
-  CreateDraftParams, ExternalUrl, PublishResponse, RetrieveResponse,
+  CreateDraftParams, ExternalUrl, NodeResponse, PublishResponse, RetrieveResponse,
   UploadFilesResponse,
 } from "../src/api.js"
 import {
@@ -13,10 +13,11 @@ import {
   deleteComponent, updateComponent, changeManifest, updateTitle,
   updateDescription, updateLicense, updateResearchFields, addContributor,
   removeContributor, addExternalCid, updateCoverImage,
+  publishNode,
 } from "../src/api.js";
 import axios from "axios";
-import { getCodexHistory, getPublishedFromCodex, getRawState } from "../src/codex.js";
-import { dpidPublish } from "../src/chain.js";
+import { getCodexHistory, getCurrentState, getRawState } from "../src/codex.js";
+import { dpidPublish, findDpid } from "../src/chain.js";
 import { sleep } from "./util.js";
 import { convert0xHexToCid } from "../src/util/converting.js";
 import {
@@ -33,6 +34,8 @@ import {
 import { authorizedSessionDidFromSigner, signerFromPkey } from "../src/util/signing.js";
 import { NODESLIB_CONFIGS, getNodesLibInternalConfig, setApiKey, setNodesLibConfig } from "../src/index.js";
 import { getResources } from "@desci-labs/desci-codex-lib";
+import { contracts, typechain as tc } from "@desci-labs/desci-contracts";
+import { Wallet, providers } from "ethers";
 
 // Pre-funded ganache account
 const TEST_PKEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
@@ -56,7 +59,7 @@ describe("nodes-lib", () => {
         "Failed to connect to desci-server; is the service running?",
       );
       process.exit(1);
-    }
+    };
   });
   describe("draft nodes", async () => {
     test("can be created", async () => {
@@ -268,7 +271,7 @@ describe("nodes-lib", () => {
     });
   });
 
-  describe("publishing ", async () => {
+  describe("legacy publishing ", async () => {
     let uuid: string;
     let publishResult: PublishResponse;
     const did = await authorizedSessionDidFromSigner(testSigner, getResources());
@@ -298,7 +301,7 @@ describe("nodes-lib", () => {
 
       test("to codex", async () => {
         expect(publishResult.ceramicIDs).not.toBeUndefined();
-        const ceramicObject = await getPublishedFromCodex(publishResult.ceramicIDs!.streamID);
+        const ceramicObject = await getCurrentState(publishResult.ceramicIDs!.streamID);
         expect(ceramicObject?.manifest).toEqual(publishResult.updatedManifestCid);
       });
 
@@ -327,7 +330,7 @@ describe("nodes-lib", () => {
         await sleep(5_000);
         await publishDraftNode(uuid, testSigner, did);
         // Allow graph node to index
-        await sleep(1_500);
+        await sleep(2_500);
       });
 
       test("updates entry in dpid registry", async () => {
@@ -340,7 +343,7 @@ describe("nodes-lib", () => {
       test("publishes to codex stream", async () => {
         expect(publishResult.ceramicIDs).not.toBeUndefined();
 
-        const ceramicObject = await getPublishedFromCodex(publishResult.ceramicIDs!.streamID);
+        const ceramicObject = await getCurrentState(publishResult.ceramicIDs!.streamID);
         expect(ceramicObject?.manifest).toEqual(publishResult.updatedManifestCid);
 
         const ceramicHistory = await getCodexHistory(publishResult.ceramicIDs!.streamID);
@@ -361,16 +364,186 @@ describe("nodes-lib", () => {
       const pubResult = await publishDraftNode(uuid, testSigner, did);
 
         // Allow graph node to index
-      await sleep(1_500);
+      await sleep(5_000);
 
       // make sure codex history is of equal length
       const dpidHistory = await getDpidHistory(uuid);
       const codexHistory = await getCodexHistory(pubResult.ceramicIDs!.streamID);
       expect(dpidHistory.versions.length).toEqual(2);
       expect (codexHistory.length).toEqual(2);
-    });
+    }, { timeout: 10_000});
 
     /** This is not an user feature, but part of error handling during publish */
+    test("can remove dPID from manifest", async () => {
+      await changeManifest(
+        uuid, [{ type: "Remove Dpid" }]
+      );
+      const node = await getDraftNode(uuid);
+      expect(node.manifestData.dpid).toBeUndefined();
+    });
+
+  });
+
+  describe("publishing ", async () => {
+    let uuid: string;
+    let publishResult: PublishResponse;
+    const did = await authorizedSessionDidFromSigner(testSigner, getResources());
+
+    beforeAll(async () => {
+      const { node } = await createBoilerplateNode();
+      uuid = node.uuid;
+      publishResult = await publishNode(uuid, did);
+    });
+
+    describe("new node", async () => {
+      test("to codex", async () => {
+        expect(publishResult.ceramicIDs).not.toBeUndefined();
+        const ceramicObject = await getCurrentState(publishResult.ceramicIDs!.streamID);
+        expect(ceramicObject?.manifest).toEqual(publishResult.updatedManifestCid);
+      });
+
+      test("has a new version", async () => {
+        const history = await getCodexHistory(publishResult.ceramicIDs!.streamID);
+        expect(history.length).toEqual(1);
+      });
+
+      test("does NOT set dPID in manifest", async () => {
+        const node = await getDraftNode(uuid);
+        expect(node.manifestData.dpid).toBeUndefined();
+      });
+
+      test("has a CACAO from the passed DID", async () => {
+        const streamState = await getRawState(publishResult.ceramicIDs!.streamID);
+        const controller = streamState.state.metadata.controllers.at(0);
+        const signerAddress = (await testSigner.getAddress()).toLowerCase();
+
+        expect(controller).toEqual(did.parent);
+        expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
+      });
+
+      test("can optionally derive DID from just a signer", async () => {
+        const { node } = await createBoilerplateNode();
+        const result = await publishNode(node.uuid, testSigner);
+        const streamState = await getRawState(result.ceramicIDs!.streamID);
+        const controller = streamState.state.metadata.controllers.at(0);
+        const signerAddress = (await testSigner.getAddress()).toLowerCase();
+        expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
+      });
+
+      test("tracks streamID with node state", async () => {
+        const node = await getDraftNode(uuid);
+        expect(node.ceramicStream).toEqual(publishResult.ceramicIDs?.streamID);
+      });
+
+      test("tracks new dpid alias with node state", async () => {
+        const node = await getDraftNode(uuid);
+        const dpidAlias = await findDpid(node.ceramicStream!);
+        expect(node.dpidAlias).toEqual(dpidAlias);
+      });
+    });
+
+    describe("node update", async () => {
+      let updateResult: PublishResponse;
+      let nodeStateBefore: NodeResponse;
+
+      beforeAll(async () => {
+        nodeStateBefore = await getDraftNode(uuid);
+        updateResult = await publishNode(uuid, did);
+        await sleep(1000);
+      });
+
+      test("updates most recent state", async () => {
+        const ceramicObject = await getCurrentState(updateResult.ceramicIDs!.streamID);
+        expect(ceramicObject?.manifest).toEqual(updateResult.updatedManifestCid);
+      });
+
+      test("adds a new version", async () => {
+        const ceramicHistory = await getCodexHistory(updateResult.ceramicIDs!.streamID);
+        expect(ceramicHistory.length).toEqual(2);
+      });
+
+      test("does not change the tracked streamID", async () => {
+        const node = await getDraftNode(uuid);
+        expect(node.ceramicStream).toEqual(nodeStateBefore.ceramicStream);
+      });
+
+      test("does not mint a new dPID alias", async () => {
+        const node = await getDraftNode(uuid);
+        expect(node.dpidAlias).toEqual(nodeStateBefore.dpidAlias);
+      });
+    });
+
+    describe("node with legacy history", async () => {
+      let uuid: string;
+      let pubResult: PublishResponse;
+      let legacyDpid: number;
+
+      beforeAll(async () => {
+        const { node } = await createBoilerplateNode();
+        uuid = node.uuid;
+
+        // make a dpid-only publish
+        const { prepubResult: { updatedManifest, updatedManifestCid }} = await dpidPublish(
+          uuid, false, testSigner
+        );
+
+          // Allow graph node to index
+        await sleep(2_500);
+
+        legacyDpid = parseInt(updatedManifest.dpid!.id);
+
+        // Import as legacy entry (i.e., fake migration step)
+        // Publish uses this to validate history before migrating dPID
+        const wallet = new Wallet(
+          TEST_PKEY,
+          new providers.JsonRpcProvider(getNodesLibInternalConfig().chainConfig.rpcUrl),
+        );
+        const aliasRegistry = tc.DpidAliasRegistry__factory.connect(
+          contracts.localDpidAliasInfo.proxies.at(0)!.address,
+          wallet,
+        );
+        const tx = await aliasRegistry.importLegacyDpid(
+          legacyDpid,
+          {
+            owner: await testSigner.getAddress(),
+            versions: [
+              {
+                cid: updatedManifestCid,
+                time: 1337 // Import fn can't validate this anyway
+              },
+            ],
+          },
+        );
+        await tx.wait();
+
+        // make a regular publish
+        pubResult = await publishNode(uuid, did);
+        await sleep(1000);
+      });
+
+      test("migrates history to new stream", async () => {
+        // legacy registry only knows about the first update
+        const dpidHistory = await getDpidHistory(uuid);
+        expect(dpidHistory.versions.length).toEqual(1);
+
+        // codex history has the legacy and the new update
+        const codexHistory = await getCodexHistory(pubResult.ceramicIDs!.streamID);
+        expect (codexHistory.length).toEqual(2);
+      });
+
+      test("tracks streamID with node state", async () => {
+        const node = await getDraftNode(uuid);
+        expect(node.ceramicStream).toEqual(pubResult.ceramicIDs?.streamID);
+      });
+
+      test("tracks upgraded dpid alias with node state", async () => {
+        const node = await getDraftNode(uuid);
+        const dpidAlias = await findDpid(node.ceramicStream!);
+        expect(dpidAlias).toEqual(legacyDpid);
+      });
+    });
+
+    /** This is not an user feature, but part of error handling during legacy publish */
     test("can remove dPID from manifest", async () => {
       await changeManifest(
         uuid, [{ type: "Remove Dpid" }]

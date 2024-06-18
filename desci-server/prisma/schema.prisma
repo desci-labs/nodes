@@ -46,6 +46,7 @@ model Node {
   DistributionPdfs    DistributionPdfs[]
   PdfPreviews         PdfPreviews[]
   DoiRecord           DoiRecord[]
+  dpidAlias           Int?
 
   @@index([ownerId])
   @@index([uuid])
