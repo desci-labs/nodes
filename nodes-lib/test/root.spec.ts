@@ -14,11 +14,10 @@ import {
   updateDescription, updateLicense, updateResearchFields, addContributor,
   removeContributor, addExternalCid, updateCoverImage,
   publishNode,
-  getPublishHistory,
 } from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getCurrentState, getRawState } from "../src/codex.js";
-import { dpidPublish, findDpid, lookupLegacyDpid } from "../src/chain.js";
+import { dpidPublish, findDpid } from "../src/chain.js";
 import { sleep } from "./util.js";
 import { convert0xHexToCid } from "../src/util/converting.js";
 import {
@@ -35,6 +34,8 @@ import {
 import { authorizedSessionDidFromSigner, signerFromPkey } from "../src/util/signing.js";
 import { NODESLIB_CONFIGS, getNodesLibInternalConfig, setApiKey, setNodesLibConfig } from "../src/index.js";
 import { getResources } from "@desci-labs/desci-codex-lib";
+import { contracts, typechain as tc } from "@desci-labs/desci-contracts";
+import { Wallet, providers } from "ethers";
 
 // Pre-funded ganache account
 const TEST_PKEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
@@ -482,12 +483,38 @@ describe("nodes-lib", () => {
         uuid = node.uuid;
 
         // make a dpid-only publish
-        const { prepubResult: { updatedManifest }} = await dpidPublish(uuid, false, testSigner);
-
-        legacyDpid = parseInt(updatedManifest.dpid!.id);
+        const { prepubResult: { updatedManifest, updatedManifestCid }} = await dpidPublish(
+          uuid, false, testSigner
+        );
 
           // Allow graph node to index
         await sleep(2_500);
+
+        legacyDpid = parseInt(updatedManifest.dpid!.id);
+
+        // Import as legacy entry (i.e., fake migration step)
+        // Publish uses this to validate history before migrating dPID
+        const wallet = new Wallet(
+          TEST_PKEY,
+          new providers.JsonRpcProvider(getNodesLibInternalConfig().chainConfig.rpcUrl),
+        );
+        const aliasRegistry = tc.DpidAliasRegistry__factory.connect(
+          contracts.localDpidAliasInfo.proxies.at(0)!.address,
+          wallet,
+        );
+        const tx = await aliasRegistry.importLegacyDpid(
+          legacyDpid,
+          {
+            owner: await testSigner.getAddress(),
+            versions: [
+              {
+                cid: updatedManifestCid,
+                time: 1337 // Import fn can't validate this anyway
+              },
+            ],
+          },
+        );
+        await tx.wait();
 
         // make a regular publish
         pubResult = await publishNode(uuid, did);

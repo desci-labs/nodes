@@ -15,6 +15,7 @@ import { getNodesLibInternalConfig } from "./config/index.js";
 import { Signer } from "ethers";
 import { authorizedSessionDidFromSigner } from "./util/signing.js";
 import { type DID } from"dids";
+import { CID } from "multiformats";
 
 const LOG_CTX = "[nodes-lib::codex]";
 /**
@@ -126,7 +127,19 @@ const backfillNewStream = async (
 
     const title = "[BACKFILLED]"; // version.title is the title of the event, e.g. "Published"
     const license = "[BACKFILLED]";
-    const manifest = convert0xHexToCid(nextVersion.cid);
+
+    // When pulling history from new contract legacy entries, the CID
+    // is cleartext. Otherwise, it needs to be decoded from hex.
+    let manifest: string;
+    try {
+      // If this works, it was a plaintext CID
+      manifest = CID.parse(nextVersion.cid).toString();
+    } catch (e) {
+      // Otherwise, fall back to hex decoding old style representation
+      console.log(LOG_CTX, `got non-plaintext CID for backfill: ${nextVersion.cid}`);
+      manifest = convert0xHexToCid(nextVersion.cid);
+    };
+
     const op =
       streamID === ""
         ? createResearchObject(compose, { title, manifest, license })

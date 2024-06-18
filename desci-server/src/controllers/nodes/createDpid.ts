@@ -18,13 +18,13 @@ export type DpidErrorResponse = {
 };
 
 const CERAMIC_API_URLS = {
-  local: "http://localhost:7007",
+  local: "http://host.docker.internal:7007",
   dev: "https://ceramic-dev.desci.com",
   prod: "https://ceramic-prod.desci.com",
 } as const;
 
 const OPTIMISM_RPC_URLS = {
-  local: "http://localhost:8545",
+  local: "http://host.docker.internal:8545",
   dev: "https://reverse-proxy-dev.desci.com/rpc_opt_sepolia",
   prod: "https://reverse-proxy-prod.desci.com/rpc_opt_mainnet",
 } as const;
@@ -55,6 +55,8 @@ if (apiServerUrl.includes("localhost")) {
   console.error("Cannot derive contract address due to ambiguous environment");
   throw new Error("Ambiguous environment");
 };
+
+console.log("Using new publish configuration:", { aliasRegistryAddress, optimismRpcUrl, ceramicApiUrl });
 
 export const createDpid = async (req: RequestWithNode, res: Response<DpidResponse>) => {
   const owner = req.user;
@@ -148,6 +150,7 @@ export const upgradeDpid = async (
   const logger = parentLogger.child({
     module: "NODE::upgradeDpid",
     ceramicStream,
+    dpid,
   });
 
   const provider = new ethers.providers.JsonRpcProvider(optimismRpcUrl);
@@ -167,7 +170,10 @@ export const upgradeDpid = async (
     wallet,
   );
 
-  if (!compareHistory(dpid, ceramicStream, dpidAliasRegistry, logger)) {
+  const historyValid = await validateHistory(
+    dpid, ceramicStream, dpidAliasRegistry, logger
+  );
+  if (!historyValid) {
     logger.warn(
       { dpid, ceramicStream },
       "version histories disagree; refusing to upgrade dPID",
@@ -191,41 +197,47 @@ export const upgradeDpid = async (
  * This should be checked before upgrading a dPID, to make sure
  * the new stream accurately represents the publish history.
 */
-const compareHistory = async (
+const validateHistory = async (
   dpid: number,
   ceramicStream: string,
   registry: DpidAliasRegistry,
   logger: Logger
 ) => {
   const client = newCeramicClient(ceramicApiUrl);
-  const [_owner, legacyVersions] = await registry.legacyLookup(dpid);
+  const legacyEntry = await registry.legacyLookup(dpid);
 
   const streamEvents = await resolveHistory(client, ceramicStream)
   const streamStates = await Promise.all(streamEvents
     .map(s => s.commit)
-    .map(c => client.loadStream(c))
+    .map(c => client.loadStream(c).then(state => state.content))
   );
 
+  const [_owner, legacyVersions ] = legacyEntry;
+
   // Stream could have one or more additional entries
-  if (legacyVersions.length < streamStates.length) {
+  if (legacyVersions.length > streamStates.length) {
     logger.error(
-      "Stream history shorter than legacy history",
-      { legacyVersions, streamStates}
+      { legacyVersions, streamStates },
+      "Stream has shorter history than legacy dPID",
     );
     return false;
   };
 
-  for (const [i, streamState] of streamStates.entries()) {
+  for (const [i, legacyVersion] of legacyVersions.entries()) {
     // Cant compare timestamp because anchor time WILL differ
-    const expectedCid = legacyVersions[i][0];
-    if (expectedCid !== streamState.content.manifest) {
+    const expectedCid = legacyVersion[0];
+    if (expectedCid !== streamStates[i].manifest) {
       logger.error(
+        { legacyVersions, streamStates},
         "Manifest CID mismatch between legacy and stream history",
-        { legacyVersions, streamStates}
       );
       return false;
     };
   };
 
+  logger.info(
+    { dpid, ceramicStream },
+    "Legacy and stream history check passed",
+  );
   return true;
 }
