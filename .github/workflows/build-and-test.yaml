@@ -54,7 +54,7 @@ jobs:
           docker info
 
       - name: Install dependencies
-        run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn && cd ../desci-repo && yarn --ignore-engines
+        run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn --ignore-engines && cd ../desci-repo && yarn
 
       - name: Stub contract
         run: |
