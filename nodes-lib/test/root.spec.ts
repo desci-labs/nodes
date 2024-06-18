@@ -363,7 +363,7 @@ describe("nodes-lib", () => {
       const pubResult = await publishDraftNode(uuid, testSigner, did);
 
         // Allow graph node to index
-      await sleep(2_500);
+      await sleep(5_000);
 
       // make sure codex history is of equal length
       const dpidHistory = await getDpidHistory(uuid);

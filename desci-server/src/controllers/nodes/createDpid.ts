@@ -17,20 +17,43 @@ export type DpidErrorResponse = {
   error: string;
 };
 
-const CERAMIC_API = process.env.CERAMIC_API;
+const CERAMIC_API_URLS = {
+  local: "http://localhost:7007",
+  dev: "https://ceramic-dev.desci.com",
+  prod: "https://ceramic-prod.desci.com",
+} as const;
+
+const OPTIMISM_RPC_URLS = {
+  local: "http://localhost:8545",
+  dev: "https://reverse-proxy-dev.desci.com/rpc_opt_sepolia",
+  prod: "https://reverse-proxy-prod.desci.com/rpc_opt_mainnet",
+} as const;
 
 /** Not secret: pre-seeded ganache account for local dev */
 const GANACHE_PKEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
-let aliasRegistryAddress: string;
 const apiServerUrl = process.env.SERVER_URL;
+
+/** Manually set in this module since the envvar needs to support OG ethereum during migration */
+let optimismRpcUrl: string;
+let aliasRegistryAddress: string;
+let ceramicApiUrl: string;
 
 if (apiServerUrl.includes("localhost")) {
   aliasRegistryAddress = contracts.localDpidAliasInfo.proxies.at(0).address;
+  ceramicApiUrl = CERAMIC_API_URLS.local;
+  optimismRpcUrl = OPTIMISM_RPC_URLS.local;
 } else if (apiServerUrl.includes("dev") || apiServerUrl.includes("staging")) {
   aliasRegistryAddress = contracts.devDpidAliasInfo.proxies.at(0).address;
+  ceramicApiUrl = CERAMIC_API_URLS.dev;
+  optimismRpcUrl = OPTIMISM_RPC_URLS.dev;
 } else if (process.env.NODE_ENV === "production") {
   aliasRegistryAddress = contracts.prodDpidAliasInfo.proxies.at(0).address;
+  ceramicApiUrl = CERAMIC_API_URLS.prod;
+  optimismRpcUrl = OPTIMISM_RPC_URLS.prod;
+} else {
+  console.error("Cannot derive contract address due to ambiguous environment");
+  throw new Error("Ambiguous environment");
 };
 
 export const createDpid = async (req: RequestWithNode, res: Response<DpidResponse>) => {
@@ -55,11 +78,6 @@ export const createDpid = async (req: RequestWithNode, res: Response<DpidRespons
     return res.status(500).json({ error: "registration not available: no hot wallet configured" });
   };
 
-  if (!process.env.ETHEREUM_RPC_URL) {
-    logger.error("ethereum RPC endpoint not configured");
-    return res.status(503).json({ error: "registration not available: no RPC configured" });
-  };
-
   try {
     const dpid = await getOrCreateDpid(node.ceramicStream);
     if (!node.dpidAlias) {
@@ -80,9 +98,7 @@ export const getOrCreateDpid = async (
     ceramicStream: streamId,
   });
 
-  const provider = new ethers.providers.JsonRpcProvider(
-    process.env.ETHEREUM_RPC_URL
-  );
+  const provider = new ethers.providers.JsonRpcProvider(optimismRpcUrl);
 
   await provider.ready;
   const wallet = new ethers.Wallet(
@@ -134,9 +150,7 @@ export const upgradeDpid = async (
     ceramicStream,
   });
 
-  const provider = new ethers.providers.JsonRpcProvider(
-    process.env.ETHEREUM_RPC_URL
-  );
+  const provider = new ethers.providers.JsonRpcProvider(optimismRpcUrl);
 
   if (!process.env.REGISTRY_OWNER_PKEY) {
     throw new Error("REGISTRY_OWNER_PKEY missing, cannot upgrade dpid");
@@ -183,11 +197,7 @@ const compareHistory = async (
   registry: DpidAliasRegistry,
   logger: Logger
 ) => {
-  if (!CERAMIC_API) {
-    throw new Error("CERAMIC_API not configured");
-  };
-
-  const client = newCeramicClient(CERAMIC_API);
+  const client = newCeramicClient(ceramicApiUrl);
   const [_owner, legacyVersions] = await registry.legacyLookup(dpid);
 
   const streamEvents = await resolveHistory(client, ceramicStream)
