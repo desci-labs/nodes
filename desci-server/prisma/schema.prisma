@@ -835,13 +835,26 @@ model OrcidPutCodes {
 }
 
 model DoiRecord {
-  id        Int      @id @default(autoincrement())
-  doi       String   @unique
-  dpid      String   @unique
-  uuid      String
-  node      Node     @relation(fields: [uuid], references: [uuid])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int                  @id @default(autoincrement())
+  doi           String               @unique
+  dpid          String               @unique // remove unique constrant
+  // add dpid or resource path the doi is registered for
+  uuid          String
+  node          Node                 @relation(fields: [uuid], references: [uuid])
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  DoiSubmission DoiSubmissionQueue[]
+}
+
+model DoiSubmissionQueue {
+  id           Int       @id @default(autoincrement())
+  batchId      String    @unique
+  createdAt    DateTime  @default(now())
+  doiRecordId  Int
+  doi          DoiRecord @relation(fields: [doiRecordId], references: [id])
+  notification Json?
+  status       DoiStatus @default(PENDING)
+  updatedAt    DateTime  @updatedAt
 }
 
 enum ORCIDRecord {
@@ -960,4 +973,10 @@ enum PublishTaskQueueStatus {
 
 enum AuthTokenSource {
   ORCID
+}
+
+enum DoiStatus {
+  PENDING
+  FAILED
+  SUCCESS
 }

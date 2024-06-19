@@ -1,5 +1,5 @@
 import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
-import { PrismaClient } from '@prisma/client';
+import { DoiStatus, DoiSubmissionQueue, Prisma, PrismaClient } from '@prisma/client';
 import { v4 } from 'uuid';
 
 import { DuplicateMintError, BadManifestError, AttestationsError, MintError } from '../core/doi/error.js';
@@ -132,30 +132,62 @@ export class DoiService {
 
     const [month, day, year] = publicationDate.split('-');
 
-    const metadataResponse = await crossRefClient.postMetadata({
+    const metadataResponse = await crossRefClient.registerDoi({
       manifest,
       doi,
       publicationDate: { day, month, year },
     });
 
     if (!metadataResponse.ok) {
-      throw new MintError(metadataResponse.message || 'A doi could not be registered for this node');
+      throw new MintError("We couldn't register a DOI for this research object");
     }
 
     // todo: add submissionId and doi to DoiSubmissionLog table to keep track of status
-    logger.info({ doiSuffix, doi, uuid, metadataResponse }, 'MINT DOI');
-    return await this.dbClient.doiRecord.create({
+    logger.info({ doiSuffix, doi, uuid, metadataResponse }, 'DOI SUBMITTED');
+
+    // todo:
+    const doiRecord = await this.dbClient.doiRecord.create({
       data: {
         uuid,
         dpid,
         doi,
       },
     });
+    // only create doi if submission status is success
+    const submission = await crossRefClient.addSubmissiontoQueue({
+      doi: doiRecord.id,
+      batchId: metadataResponse.batchId,
+    });
+
+    // return submission queue data
+    return submission;
   }
 
   async getDoiByDpidOrUuid(identifier: string) {
     return this.dbClient.doiRecord.findFirst({
       where: { OR: [{ dpid: identifier }, { uuid: ensureUuidEndsWithDot(identifier) }] },
     });
+  }
+
+  async hasPendingSubmission(uuid: string) {
+    const pending = await this.dbClient.doiRecord.findFirst({
+      where: { uuid: ensureUuidEndsWithDot(uuid) },
+      include: { DoiSubmission: { where: { status: DoiStatus.PENDING } } },
+    });
+
+    return pending.DoiSubmission.length > 0 ? true : false;
+  }
+
+  async getPendingSubmission(batchId: string) {
+    return await this.dbClient.doiSubmissionQueue.findFirst({
+      where: { batchId, status: DoiStatus.PENDING },
+    });
+  }
+
+  async updateSubmission(
+    filter: Prisma.DoiSubmissionQueueWhereInput,
+    data: Prisma.DoiSubmissionQueueUncheckedUpdateManyInput,
+  ) {
+    return await this.dbClient.doiSubmissionQueue.updateMany({ where: filter, data });
   }
 }

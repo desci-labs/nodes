@@ -9,7 +9,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { ONE_DAY_TTL, getFromCache, setToCache } from '../../redisClient.js';
 import { asyncMap } from '../../utils.js';
 
-import { CrossRefHttpResponse, Items, QueryWorkParams, Work } from './definitions.js';
+import { CrossRefHttpResponse, Items, QueryWorkParams, RegisterDoiResponse, Work } from './definitions.js';
 import { keysToDotsAndDashses } from './utils.js';
 
 const logger = parentLogger.child({ module: '[CrossRefClient]' });
@@ -25,7 +25,7 @@ const metadataTemplate = `<?xml version="1.0" encoding="UTF-8"?>
   xmlns:fr="http://www.crossref.org/fundref.xsd"
   xmlns:mml="http://www.w3.org/1998/Math/MathML" version="5.3.1">
   <head>
-    <doi_batch_id>&_.submissionId;</doi_batch_id>
+    <doi_batch_id>&_.batchId;</doi_batch_id>
     <timestamp>&_.timestamp;</timestamp>
     <depositor>
       <depositor_name>&depositor.name;</depositor_name>
@@ -180,7 +180,16 @@ class CrossRefClient {
     }
   }
 
-  async postMetadata(query: { manifest: ResearchObjectV1; doi: string; publicationDate: PublicationDate }) {
+  // check if there's a pending submission for a dpid
+  async getPendingSubmission(dpid: string) {
+    // todo: retrieve doi whose submission log is pending
+  }
+
+  async registerDoi(query: {
+    manifest: ResearchObjectV1;
+    doi: string;
+    publicationDate: PublicationDate;
+  }): Promise<RegisterDoiResponse> {
     const contributors = await asyncMap(query.manifest.authors ?? [], async (author) => {
       const user = author.orcid ? await prisma.user.findUnique({ where: { orcid: author.orcid } }) : null;
       logger.info({ user: { orcid: user?.orcid } });
@@ -204,11 +213,11 @@ class CrossRefClient {
       };
     });
 
-    const submissionId = v4();
+    const batchId = v4();
 
     const param = {
       _: {
-        submissionId,
+        batchId,
         timestamp: Date.now(),
         dpid: query.manifest.dpid.id,
         doi: query.doi,
@@ -232,7 +241,7 @@ class CrossRefClient {
 
     // prefix filename with `@` as seen from the crossref documentation
     // https://www.crossref.org/documentation/register-maintain-records/direct-deposit-xml/https-post/#00230
-    const filename = `@dpid_${param._.dpid}_upload_xml.xml`;
+    const filename = `dpid_${param._.dpid}_upload.xml`;
     // save file for debugging purposes
     // await fs.writeFile(path.join(process.cwd(), filename), buffer);
     const form = new FormData();
@@ -252,12 +261,14 @@ class CrossRefClient {
       logger.info({ body }, 'BODY');
 
       if (!response.ok || response.status !== 200) {
-        return { ok: false, message: body };
+        // attach custom alert here
+        logger.error(body, 'METADATA SUBMISSION ERROR');
+        return { ok: false };
       }
-      return { ok: true, submissionId };
+      return { ok: true, batchId };
     } catch (error) {
       logger.error(error, 'Post metadata Api Error');
-      return { ok: false, submissionId };
+      return { ok: false };
     }
   }
 
@@ -277,6 +288,40 @@ class CrossRefClient {
     }
     return response;
   }
+
+  async addSubmissiontoQueue({ doi, batchId }: { doi: number; batchId: string }) {
+    // check if there is no pending submission log
+    return await prisma.doiSubmissionQueue.create({ data: { doiRecordId: doi, batchId } });
+  }
+
+  async retrieveSubmission(retrieveUrl: string) {
+    // retrieve submission log whose batchId == param.['CROSSREF-EXTERNAL-ID']
+    // update with notifiication payload
+    // query submssion payload from param.CROSSREF-RETRIEVE-URL
+    // only create doi if submission status is success
+
+    const response = (await fetch(retrieveUrl).then((res) => res.json())) as NotificationResult;
+    logger.info(response, 'CROSSREF NOTIFICATION: retrieveSubmission');
+    // return interprete the response from the api to determine if the
+    // submission status has either `success | pending | failed`
+    return { success: true, pending: true, failure: true };
+  }
 }
 
 export default CrossRefClient;
+
+type NotificationResult = {
+  id: number;
+  status: string;
+  completed: string | null;
+  serviced: string;
+  notifyEndpoint: string;
+  notifyPayloadId: string;
+  notifyPayloadExpiration: string;
+  internalTrackingId: string;
+  externalTrackingId: string;
+  recordCreated: string;
+  recordUpdated: string | null;
+};
+
+// TODO: run yarn generate

@@ -88,6 +88,8 @@ spec:
           export CROSSREF_PASSWORD={{ .Data.CROSSREF_PASSWORD }}
           export CROSSREF_METADATA_API={{ .Data.CROSSREF_METADATA_API }}
           export CROSSREF_ADMIN_API={{ .Data.CROSSREF_ADMIN_API }}
+          export CROSSREF_NOTIFY_ENDPOINT={{ .Data.CROSSREF_NOTIFY_ENDPOINT }}
+          export CROSSREF_NOTIFY_CALLBACK_PATH={{ .Data.CROSSREF_NOTIFY_CALLBACK_PATH }}
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
