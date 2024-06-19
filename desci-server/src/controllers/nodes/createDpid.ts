@@ -106,7 +106,9 @@ export const getOrCreateDpid = async (streamId: string): Promise<number> => {
 
   await provider.ready;
   const wallet = new ethers.Wallet(
-    apiServerUrl.includes('localhost') ? GANACHE_PKEY : process.env.HOT_WALLET_KEY,
+    apiServerUrl.includes('localhost') || apiServerUrl.includes('host.docker.internal')
+      ? GANACHE_PKEY
+      : process.env.HOT_WALLET_KEY,
     provider,
   );
 
@@ -157,7 +159,9 @@ export const upgradeDpid = async (dpid: number, ceramicStream: string): Promise<
 
   await provider.ready;
   const wallet = new ethers.Wallet(
-    apiServerUrl.includes('localhost') ? GANACHE_PKEY : process.env.REGISTRY_OWNER_PKEY,
+    apiServerUrl.includes('localhost') || apiServerUrl.includes('host.docker.internal')
+      ? GANACHE_PKEY
+      : process.env.REGISTRY_OWNER_PKEY,
     provider,
   );
 
