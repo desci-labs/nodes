@@ -41,7 +41,21 @@ export type PublishResBody =
   | {
       error: string;
     };
-
+async function updateAssociatedAttestations(nodeUuid: string, dpid: string) {
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::publishController',
+  });
+  logger.info({ nodeUuid, dpid }, `[updateAssociatedAttestations]`);
+  return await prisma.nodeAttestation.updateMany({
+    where: {
+      nodeUuid,
+    },
+    data: {
+      nodeDpid10: dpid,
+    },
+  });
+}
 // call node publish service and add job to queue
 export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
   const { uuid, cid, manifest, transactionId, ceramicStream, commitId } = req.body;
@@ -132,7 +146,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
         status: PublishTaskQueueStatus.WAITING,
       },
     });
-
+    updateAssociatedAttestations(node.uuid, manifest.dpid.id);
     return res.send({
       ok: true,
       taskId: publishTask.id,
