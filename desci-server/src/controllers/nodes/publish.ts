@@ -1,5 +1,6 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { ActionType, Prisma, PublishTaskQueueStatus, User } from '@prisma/client';
+import { logger } from 'ethers';
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
@@ -41,6 +42,18 @@ export type PublishResBody =
   | {
       error: string;
     };
+
+async function updateAssociatedAttestations(nodeUuid: string, dpid: string) {
+  logger.info({ nodeUuid, dpid }, `[updateAssociatedAttestations]`);
+  return await prisma.nodeAttestation.updateMany({
+    where: {
+      nodeUuid,
+    },
+    data: {
+      nodeDpid10: dpid,
+    },
+  });
+}
 
 // call node publish service and add job to queue
 export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
@@ -132,6 +145,9 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
         status: PublishTaskQueueStatus.WAITING,
       },
     });
+
+    // add dpid10 to all attestations associated with this node
+    updateAssociatedAttestations(node.uuid, manifest.dpid.id);
 
     return res.send({
       ok: true,
