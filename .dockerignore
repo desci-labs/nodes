@@ -1,11 +1,12 @@
+**/node_modules
+**/dist
+**/.vscode
+desci-server/log
 config
 dist
-./node_modules
 .git
 .env
 desci-art-viewer
 desci-dapp
-desci-server/node_modules
 local-data
 database
-desci-server/log

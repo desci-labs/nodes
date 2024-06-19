@@ -62,7 +62,8 @@ spec:
           echo "sourcing";
           export PROXY_MAPPING_RPC_SEPOLIA={{ .Data.PROXY_MAPPING_RPC_SEPOLIA }}
           export PROXY_MAPPING_RPC_MAINNET={{ .Data.PROXY_MAPPING_RPC_MAINNET }}
-
+          export PROXY_MAPPING_RPC_OPT_SEPOLIA={{ .Data.PROXY_MAPPING_RPC_OPT_SEPOLIA }}
+          export PROXY_MAPPING_RPC_OPT_MAINNET={{ .Data.PROXY_MAPPING_RPC_OPT_MAINNET }}
           {{- end -}}
       labels:
         App: ReverseProxyStaging

@@ -1,5 +1,4 @@
-import { Signer, Wallet, getDefaultProvider, providers } from "ethers";
-import { SigningKey } from "ethers/lib/utils.js";
+import { Signer, Wallet, utils, getDefaultProvider, providers } from "ethers";
 import { getNodesLibInternalConfig } from "../config/index.js";
 import { AuthMethod, AuthMethodOpts, Cacao, SiweMessage } from "@didtools/cacao";
 import { EthereumWebAuth, normalizeAccountId } from "@didtools/pkh-ethereum";
@@ -11,9 +10,9 @@ export const signerFromPkey = (pkey: string): Signer =>
   walletFromPkey(pkey);
 
 const walletFromPkey = (pkey: string): Wallet => {
-  const provider = getDefaultProvider(getNodesLibInternalConfig().chainConfig.rpcUrl);
+  const provider = getDefaultProvider(getNodesLibInternalConfig().legacyChainConfig.rpcUrl);
   const paddedPkey = ensurePkeyPadding(pkey);
-  const key = new SigningKey(paddedPkey);
+  const key = new utils.SigningKey(paddedPkey);
   return new Wallet(key, provider);
 };
 

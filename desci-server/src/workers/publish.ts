@@ -7,7 +7,6 @@ import { prisma } from '../client.js';
 import { publishHandler } from '../controllers/nodes/publish.js';
 import { logger as parentLogger } from '../logger.js';
 import { lockService } from '../redisClient.js';
-import { getManifestByCid } from '../services/data/processing.js';
 import { fixDpid, getTargetDpidUrl } from '../services/fixDpid.js';
 
 enum ProcessOutcome {
@@ -25,7 +24,7 @@ const logger = parentLogger.child({ module: 'PUBLISH WORKER', hostname });
 
 const checkTransaction = async (transactionId: string, uuid: string) => {
   const provider = ethers.getDefaultProvider(ETHEREUM_RPC_URL);
-  if (!process.env.MUTE_PUBLISH_WORKER)
+  if (!process.env.MUTE_PUBLISH_WORKER) {
     logger.info(
       {
         uuid,
@@ -34,6 +33,7 @@ const checkTransaction = async (transactionId: string, uuid: string) => {
       },
       'TX::check transaction',
     );
+  };
 
   const tx = await provider.getTransactionReceipt(transactionId);
   logger.info({ tx, uuid, transactionId, ETHEREUM_RPC_URL, network: await provider.getNetwork() }, 'TX::Receipt');
@@ -58,8 +58,7 @@ async function processPublishQueue() {
             await fixDpid(task.dpid);
           } else {
             logger.warn('DPID URL not set, skipping dpid fix');
-          }
-
+          };
           lockService.freeLock(task.transactionId);
         })
         .catch((err) => {

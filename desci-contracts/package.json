@@ -1,7 +1,7 @@
 {
   "name": "@desci-labs/desci-contracts",
   "description": "Smart contracts implementing DeSci Nodes on-chain state and logic",
-  "version": "0.2.3-rc3",
+  "version": "0.2.5-rc7",
   "license": "MIT",
   "scripts": {
     "test": "hardhat clean && hardhat test",
@@ -11,6 +11,7 @@
     "docker:push": "docker tag desci-hardhat-node:latest 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest && docker push 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-hardhat-node:latest",
     "deploy:ganache": "yarn stubHardhatAnalytics && hardhat run scripts/deployResearchObject.js --network ganache",
     "deploy:dpid:ganache": "yarn stubHardhatAnalytics && hardhat run scripts/deployDpidRegistry.js --network ganache",
+    "deploy:alias:ganache": "yarn stubHardhatAnalytics && export FIRST_DPID=500 && hardhat run scripts/alias-registry/deployDpidAliasRegistry.js --network ganache",
     "migrate": "hardhat run scripts/migrateToNewContract.js --network ganache && touch ./.openzeppelin/migration-complete.json",
     "graph:codegen": "graph codegen subgraph/subgraph.yaml -o subgraph/generated",
     "graph:build": "graph build subgraph/subgraph.yaml",
@@ -40,10 +41,12 @@
     "@typechain/ethers-v5": "^9.0.0",
     "@typechain/hardhat": "^4.0.0",
     "@types/chai": "^4.2.21",
+    "@types/chai-as-promised": "^7.1.8",
     "@types/mocha": "^9.0.0",
     "@types/node": "^16.4.10",
     "as-base64": "^0.2.0",
     "chai": "^4.3.4",
+    "chai-as-promised": "^7.1.2",
     "cids": "^1.1.9",
     "dotenv": "^10.0.0",
     "ethereum-waffle": "^3.4.0",
@@ -60,5 +63,6 @@
     "ts-node": "^10.1.0",
     "typechain": "^7.0.0",
     "typescript": "^4.3.5"
-  }
+  },
+  "dependencies": {}
 }
