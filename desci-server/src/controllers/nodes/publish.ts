@@ -16,6 +16,7 @@ import {
 } from '../../services/nodeManager.js';
 import { discordNotify } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
+
 import { getOrCreateDpid, upgradeDpid } from './createDpid.js';
 
 export type PublishReqBody = {
@@ -40,13 +41,23 @@ export type PublishResBody =
   | {
       error: string;
     };
-
+async function updateAssociatedAttestations(nodeUuid: string, dpid: string) {
+  const logger = parentLogger.child({
+    // id: req.id,
+    module: 'NODE::publishController',
+  });
+  logger.info({ nodeUuid, dpid }, `[updateAssociatedAttestations]`);
+  return await prisma.nodeAttestation.updateMany({
+    where: {
+      nodeUuid,
+    },
+    data: {
+      nodeDpid10: dpid,
+    },
+  });
+}
 // call node publish service and add job to queue
-export const publish = async (
-  req: PublishRequest,
-  res: Response<PublishResBody>,
-  _next: NextFunction
-) => {
+export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
   const { uuid, cid, manifest, transactionId, ceramicStream, commitId, useNewPublish } = req.body;
   // debugger;
   const email = req.user.email;
@@ -112,19 +123,8 @@ export const publish = async (
     let publishTask: PublishTaskQueue | undefined;
 
     if (useNewPublish) {
-      logger.info(
-        {ceramicStream, commitId, uuid, owner: owner.id},
-        "Triggering new publish flow"
-      );
-      await syncPublish(
-        ceramicStream,
-        commitId,
-        node,
-        owner,
-        cid,
-        uuid,
-        manifest,
-      );
+      logger.info({ ceramicStream, commitId, uuid, owner: owner.id }, 'Triggering new publish flow');
+      await syncPublish(ceramicStream, commitId, node, owner, cid, uuid, manifest);
     } else {
       publishTask = await prisma.publishTaskQueue.create({
         data: {
@@ -138,7 +138,7 @@ export const publish = async (
           status: PublishTaskQueueStatus.WAITING,
         },
       });
-    };
+    }
 
     saveInteraction(
       req,
@@ -156,6 +156,7 @@ export const publish = async (
       owner.id,
     );
 
+    updateAssociatedAttestations(node.uuid, manifest.dpid.id);
     return res.send({
       ok: true,
       taskId: publishTask?.id,
@@ -163,7 +164,7 @@ export const publish = async (
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
     return res.status(400).send({ ok: false, error: err.message });
-  };
+  }
 };
 
 /**
@@ -176,7 +177,7 @@ export const publish = async (
  *
  * Semantically, these can both be made fire-and-forget promises if we can
  * manage without instantly having the dPID alias available in this function.
-*/
+ */
 const syncPublish = async (
   ceramicStream: string,
   commitId: string,
@@ -200,14 +201,12 @@ const syncPublish = async (
       nodeId: node.id,
     },
     orderBy: {
-      id: "desc",
+      id: 'desc',
     },
   });
 
   // Prevent duplicating the NodeVersion entry if the latest version is the same as the one we're trying to publish, as a draft save is triggered before publishing
-  const latestNodeVersionId = latestNodeVersion?.manifestUrl === cid
-    ? latestNodeVersion.id
-    : -1;
+  const latestNodeVersionId = latestNodeVersion?.manifestUrl === cid ? latestNodeVersion.id : -1;
 
   const nodeVersion = await prisma.nodeVersion.upsert({
     where: {
@@ -233,7 +232,7 @@ const syncPublish = async (
       `[publish:publish] stream on record does not match passed streamID`,
       { database: node.ceramicStream, ceramicStream },
     );
-  };
+  }
 
   const legacyDpid = manifest.dpid?.id ? parseInt(manifest.dpid.id) : undefined;
   let dpidAlias: number = node.dpidAlias;
@@ -245,11 +244,8 @@ const syncPublish = async (
     // The only reason this isn't just fire-and-forget is that we want the dpid
     // for the discord notification, which won't be available otherwise for
     // first time publishes.
-    promises.push(
-      createOrUpgradeDpidAlias(legacyDpid, ceramicStream, uuid)
-      .then(dpid => dpidAlias = dpid)
-    );
-  };
+    promises.push(createOrUpgradeDpidAlias(legacyDpid, ceramicStream, uuid).then((dpid) => (dpidAlias = dpid)));
+  }
 
   promises.push(
     handlePublicDataRefs({
@@ -258,7 +254,7 @@ const syncPublish = async (
       manifestCid: cid,
       nodeVersionId: nodeVersion.id,
       nodeUuid: node.uuid,
-    })
+    }),
   );
 
   await Promise.all(promises);
@@ -277,7 +273,7 @@ const syncPublish = async (
 /**
  * Creates new dPID if legacyDpid is falsy, otherwise tries to upgrade
  * the dPID by binding the stream in the alias registry for that dPID.
-*/
+ */
 const createOrUpgradeDpidAlias = async (
   legacyDpid: number | undefined,
   ceramicStream: string,
@@ -290,29 +286,21 @@ const createOrUpgradeDpidAlias = async (
   } else {
     // Will nicely return the existing dpid if this is called multiple times
     dpidAlias = await getOrCreateDpid(ceramicStream);
-  };
+  }
   await setDpidAlias(uuid, dpidAlias);
   return dpidAlias;
 };
 
 type PublishData = {
-  nodeId: number,
-  nodeUuid: string,
-  userId: number,
-  manifestCid: string,
-  nodeVersionId: number,
+  nodeId: number;
+  nodeUuid: string;
+  userId: number;
+  manifestCid: string;
+  nodeVersionId: number;
 };
 
-const handlePublicDataRefs = async (
-  params: PublishData,
-): Promise<void> => {
-  const {
-    nodeId,
-    nodeUuid,
-    userId,
-    manifestCid,
-    nodeVersionId,
-  } = params;
+const handlePublicDataRefs = async (params: PublishData): Promise<void> => {
+  const { nodeId, nodeUuid, userId, manifestCid, nodeVersionId } = params;
 
   const logger = parentLogger.child({
     module: 'NODE::handlePublicDataRefs',
@@ -329,47 +317,31 @@ const handlePublicDataRefs = async (
     /***
      * Traverse the DAG structure to find all relevant CIDs and get relevant info for indexing
      */
-    cidsRequiredForPublish = await getAllCidsRequiredForPublish(
-      manifestCid,
-      nodeUuid,
-      userId,
-      nodeId,
-      nodeVersionId
-    );
+    cidsRequiredForPublish = await getAllCidsRequiredForPublish(manifestCid, nodeUuid, userId, nodeId, nodeVersionId);
 
     /**
      * Index the DAGs from IPFS in order to avoid recurrent IPFS calls when requesting data in the future
      */
-    const newPublicDataRefs = await createPublicDataRefs(
-      cidsRequiredForPublish,
-      userId,
-      nodeVersionId,
-    );
+    const newPublicDataRefs = await createPublicDataRefs(cidsRequiredForPublish, userId, nodeVersionId);
 
     /**
      * Save a success for configurable service quality tracking purposes
      */
-    await saveInteractionWithoutReq(
-      ActionType.PUBLISH_NODE_CID_SUCCESS,
-      {
-        params,
-        result: { newPublicDataRefs },
-      }
-    );
+    await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_SUCCESS, {
+      params,
+      result: { newPublicDataRefs },
+    });
   } catch (error) {
     logger.error({ error }, `[publish::publish] error=${error}`);
     /**
      * Save a failure for configurable service quality tracking purposes
      */
-    await saveInteractionWithoutReq(
-      ActionType.PUBLISH_NODE_CID_FAIL,
-      {
-        params,
-        error
-      }
-    );
+    await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_FAIL, {
+      params,
+      error,
+    });
     throw error;
-  };
+  }
 };
 
 export const publishHandler = async ({
@@ -462,11 +434,11 @@ export const publishHandler = async ({
     logger.trace(`[publish::publish] nodeUuid=${node.uuid}, manifestCid=${cid}, transaction=${transactionId}`);
 
     await handlePublicDataRefs({
-        nodeId: node.id,
-        nodeUuid: node.uuid,
-        userId: owner.id,
-        manifestCid: cid,
-        nodeVersionId: nodeVersion.id,
+      nodeId: node.id,
+      nodeUuid: node.uuid,
+      userId: owner.id,
+      manifestCid: cid,
+      nodeVersionId: nodeVersion.id,
     });
 
     const manifest = await getManifestByCid(cid);
