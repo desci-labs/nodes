@@ -4,7 +4,7 @@ import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
-import { ensureUuidEndsWithDot } from '../utils.js';
+import { ensureUuidEndsWithDot, toKebabCase } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { pinFile } from './ipfs.js';
@@ -70,10 +70,10 @@ class PublishPackageService {
 
     const attestationLinks = {
       ...(openCodeAttestation && {
-        codeAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${openCodeAttestation.id}`,
+        codeAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${toKebabCase(openCodeAttestation.attestationVersion.name)}`,
       }),
       ...(openDataAttestation && {
-        dataAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${openDataAttestation.id}`,
+        dataAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${toKebabCase(openDataAttestation.attestationVersion.name)}`,
       }),
     };
 
@@ -100,6 +100,7 @@ class PublishPackageService {
   }
 
   static convertUnixTimestampToDate(unixTimestamp: string): string {
+    debugger
     const date = new Date(Number(unixTimestamp) * 1000);
     const formattedDate = date.toLocaleString('en-US', {
       month: 'long',
