@@ -19,8 +19,8 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
   const ipfsQuery = req.query.g;
 
   // implement paging
-  const page = req.query.page || 1;
-  const limit = req.query.limit || 20;
+  const page: number = req.query.page ? parseInt(req.query.page as string) : 1;
+  const limit: number = req.query.limit ? parseInt(req.query.limit as string) : 20;
 
   logger.info({
     body: req.body,
@@ -45,7 +45,7 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
       isDeleted: false,
     },
     orderBy: { updatedAt: 'desc' },
-    limit: limit,
+    take: limit,
     skip: (page - 1) * limit,
   });
 

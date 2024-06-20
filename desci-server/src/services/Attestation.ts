@@ -83,7 +83,7 @@ export class AttestationService {
         attestationId,
         attestationVersionId: attestationVersionEntry.id,
         desciCommunityId: attestationVersionEntry.attestation.communityId,
-        nodeUuid: nodeUuid,
+        nodeUuid,
         nodeVersion,
       },
     });
