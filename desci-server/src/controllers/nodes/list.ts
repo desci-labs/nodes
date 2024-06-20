@@ -18,6 +18,10 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
   const ipfsQuery = req.query.g;
 
+  // implement paging
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 20;
+
   logger.info({
     body: req.body,
     user: (req as any).user,
@@ -41,6 +45,8 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
       isDeleted: false,
     },
     orderBy: { updatedAt: 'desc' },
+    limit: limit,
+    skip: (page - 1) * limit,
   });
 
   // transition UUID
