@@ -2,15 +2,12 @@ import { ResearchObjectV1, DriveObject } from '@desci-labs/desci-models';
 import { Response } from 'express';
 
 import { prisma } from '../../client.js';
-import { metadataClient } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
-import { MetadataResponse } from '../../services/AutomatedMetadata.js';
 import { processExternalUrlDataToIpfs } from '../../services/data/externalUrlProcessing.js';
 import { processNewFolder, processS3DataToIpfs } from '../../services/data/processing.js';
 import { arrayXor, ensureUuidEndsWithDot } from '../../utils.js';
 
-import { isDoiLink } from './utils.js';
 export interface UpdateResponse {
   status?: number;
   rootDataCid?: string;
@@ -28,15 +25,7 @@ export interface ErrorResponse {
 export const update = async (req: RequestWithNode, res: Response<UpdateResponse | ErrorResponse | string>) => {
   const owner = req.user;
   let node = req.node;
-  const {
-    uuid,
-    manifest: draftManifest,
-    componentType,
-    componentSubtype,
-    newFolderName,
-    autoStar,
-    prepublication,
-  } = req.body;
+  const { uuid, manifest: draftManifest, componentType, componentSubtype, newFolderName, autoStar } = req.body;
   let { contextPath } = req.body;
   // debugger;
   if (contextPath.endsWith('/')) contextPath = contextPath.slice(0, -1);
@@ -117,18 +106,6 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
       return res.status(value.status).json({ status: value.status, error: value.message });
     }
   } else if (externalUrl && externalUrl?.url?.length) {
-    let metadata: MetadataResponse;
-    // if doi is passed in, try to retrieve pdf download url and pass it as external url
-    if (prepublication && isDoiLink(externalUrl?.url)) {
-      // pre-cache automated metadata response
-      metadata = await metadataClient.getResourceMetadata({ doi: externalUrl?.url });
-
-      if (metadata && metadata.pdfUrl) {
-        externalUrl.url = metadata.pdfUrl;
-      } else {
-        return res.status(404).json({ status: 404, error: 'Could not retrieve pdf metadata' });
-      }
-    }
     // external url case
     const { ok, value } = await processExternalUrlDataToIpfs({
       user: owner,
@@ -147,18 +124,6 @@ export const update = async (req: RequestWithNode, res: Response<UpdateResponse 
         tree: tree,
         date: date,
       } = value as UpdateResponse;
-
-      if (prepublication) {
-        // pre-cache automated metadata response
-        // const metadata = await metadataClient.getResourceMetadata({ doi: externalUrl?.url });
-
-        if (metadata) {
-          await metadataClient.automateMetadata(metadata, {
-            uuid: node.uuid,
-            documentId: node.manifestDocumentId,
-          });
-        }
-      }
 
       return res.status(200).json({
         rootDataCid: newRootCidString,

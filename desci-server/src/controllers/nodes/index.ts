@@ -11,3 +11,4 @@ export * from './prepublish.js';
 export * from './share.js';
 export * from './nodesCover.js';
 export * from './manager.js';
+export * from './metadata.js';

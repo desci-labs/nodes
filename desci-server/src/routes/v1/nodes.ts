@@ -7,6 +7,7 @@ import { getUserContributions } from '../../controllers/nodes/contributions/getU
 import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
 import { updateContributor } from '../../controllers/nodes/contributions/update.js';
 import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
+import { createDpid } from '../../controllers/nodes/createDpid.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
@@ -31,6 +32,10 @@ import {
   publishConsent,
   checkUserPublishConsent,
   checkPublishConsentSchema,
+  automateMetadata,
+  generateMetadata,
+  automateMetadataSchema,
+  generateMetadataSchema,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
@@ -41,7 +46,6 @@ import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { asyncHander, attachUser, validate } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
-import { createDpid } from '../../controllers/nodes/createDpid.js';
 
 const router = Router();
 
@@ -83,6 +87,12 @@ router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
+router.post(
+  '/:uuid/automate-metadata',
+  [ensureUser, ensureNodeAccess, validate(automateMetadataSchema)],
+  automateMetadata,
+);
+router.post('/generate-metadata', [ensureUser, validate(generateMetadataSchema)], generateMetadata);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 

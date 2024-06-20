@@ -2210,10 +2210,10 @@
   resolved "https://registry.yarnpkg.com/@desci-labs/desci-contracts/-/desci-contracts-0.2.5-rc7.tgz#a8a49c9518107305be712bcbdbb352faa4057a44"
   integrity sha512-W1hf+mv5KWnqCuXX3uBiBsll+iMD82GJbsGs3huzH6qY2TySVFUCLov017B0RGz2Ap1WRB9w7h3o9CEwDuV5lQ==
 
-"@desci-labs/desci-models@^0.2.7-rc5":
-  version "0.2.7-rc5"
-  resolved "https://registry.yarnpkg.com/@desci-labs/desci-models/-/desci-models-0.2.7-rc5.tgz#fec8cd3372eaa22fd727d87fa8967a7c093e6d5f"
-  integrity sha512-mA3rpgaWfDAxO6BXejijP+mvmzvVTHPQ/vEyWkzeZ/V8DGUHzcScYAa6W5RD5mWRmFIAXGAg/zQuwaxw7PaOSg==
+"@desci-labs/desci-models@^0.2.7-rc6":
+  version "0.2.7-rc6"
+  resolved "https://registry.yarnpkg.com/@desci-labs/desci-models/-/desci-models-0.2.7-rc6.tgz#f7f7fed6dc6acda3a90650d1977fa3acb4c2a2a4"
+  integrity sha512-A1eWbHJqbs9YEnsJzOzgRdoCpsBzlYa4yacXApBmZmVHk6EwqtMJRjwAsQ0/YIQcLbyYCptSenPXhOSlw4FESw==
   dependencies:
     jsonld "^8.1.1"
     schema-dts "^1.1.2"

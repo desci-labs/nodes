@@ -918,6 +918,7 @@ enum ActionType {
   UPDATE_ORCID_RECORD
   REMOVE_ORCID_WORK_RECORD
   ORCID_API_ERROR
+  AUTOMATE_METADATA
 }
 
 enum ChainTransactionType {

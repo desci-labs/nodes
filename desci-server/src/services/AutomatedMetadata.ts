@@ -18,7 +18,7 @@ export type MetadataParam = {
 };
 
 export type AutomatedMetadataResponse = {
-  output: {
+  output: Array<{
     creator: {
       [k in string]: {
         '@id': string;
@@ -41,7 +41,7 @@ export type AutomatedMetadataResponse = {
     }>;
     oa_url: string | null;
     title: string;
-  };
+  }>;
 };
 
 export type MetadataResponse = {
@@ -85,16 +85,16 @@ export class AutomatedMetadataClient {
     if (query.doi) {
       body.doi = query.doi;
     }
-    logger.info(body, 'API INFO');
+    logger.info({ body }, 'API INFO');
 
     // config.body = body;
 
     const url = `${this.baseurl}/invoke-script`;
-    logger.info(url, 'url params');
+    logger.info({ url }, 'url params');
     const config: RequestInit = {
       method: 'POST',
       mode: 'cors',
-      headers: {},
+      headers: { Accept: '*/*', 'content-type': 'application/json' },
       body: JSON.stringify(body),
     };
 
@@ -115,12 +115,12 @@ export class AutomatedMetadataClient {
 
   async performFetch<T>(request: Request, cacheKey: string): Promise<T> {
     const responseFromCache = await getFromCache<T>(request.url);
-    logger.info(responseFromCache, 'METADATA From Cache');
+    logger.info({ responseFromCache, request: request.headers, cacheKey }, 'METADATA From Cache');
     if (responseFromCache) return responseFromCache;
 
     const response = (await fetch(request)) as Response;
     let data: T;
-
+    logger.info({ status: response.status, header: response.headers.get('content-type') }, 'RESPONSE FROM METADATA');
     if (response.ok && response.status === 200) {
       if (response.headers.get('content-type')?.includes('application/json')) {
         data = (await response.json()) as T;
@@ -128,20 +128,24 @@ export class AutomatedMetadataClient {
         await setToCache(cacheKey, data, ONE_DAY_TTL);
         return data;
       }
+    } else {
+      logger.info({ body: await response.text() }, 'ERROR RESPONSE');
     }
     return null as T;
   }
 
   transformResponse(data: AutomatedMetadataResponse): MetadataResponse {
-    const authors = data.output?.creator
-      ? Object.entries(data.output.creator).map(([name, creator]) => ({
-          orcid: creator['@id'],
+    const output = data.output?.[0];
+
+    const authors = output?.creator
+      ? Object.entries(output.creator).map(([name, creator]) => ({
           affiliation: creator.affiliation,
           name,
+          ...(creator['@id'] && { orcid: creator['@id'] }),
         }))
       : [];
-    const keywords = data.output?.keywords ? data.output.keywords.map((keyword) => keyword.display_name) : [];
-    const metadata: MetadataResponse = { authors, keywords, title: data.output.title, pdfUrl: data.output.oa_url };
+    const keywords = output?.keywords ? output.keywords.map((keyword) => keyword.display_name) : [];
+    const metadata: MetadataResponse = { authors, keywords, title: output.title, pdfUrl: output.oa_url };
     logger.info(metadata, 'METADATA');
     return metadata;
   }

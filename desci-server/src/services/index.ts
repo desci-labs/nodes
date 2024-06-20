@@ -11,6 +11,7 @@ export const crossRefClient = new CrossRefClient(
   process.env.CROSSREF_EMAIL,
 );
 export const metadataClient = new AutomatedMetadataClient(
-  process.env.AUTOMATED_METADATA_API,
+  // 'process.env.AUTOMATED_METADATA_API',
+  'http://host.docker.internal:5005',
   process.env.AUTOMATED_METADATA_API_KEY,
 );

@@ -1,19 +1,10 @@
-import { DocumentId } from '@automerge/automerge-repo';
-import {
-  ManifestActions,
-  ResearchObjectComponentSubtypes,
-  ResearchObjectComponentType,
-  ResearchObjectV1Author,
-  ResearchObjectV1AuthorRole,
-} from '@desci-labs/desci-models';
+import { ResearchObjectComponentSubtypes, ResearchObjectComponentType } from '@desci-labs/desci-models';
 import { User } from '@prisma/client';
 import { Response, Request } from 'express';
 
 import { prisma } from '../../client.js';
-import { SuccessResponse, metadataClient } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { processExternalCidDataToIpfs } from '../../services/data/externalCidProcessing.js';
-import repoService from '../../services/repoService.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse, UpdateResponse } from './update.js';
@@ -29,7 +20,6 @@ export type ExternalCidPayload = {
   externalCids: ExternalCid[];
   componentType: ResearchObjectComponentType;
   componentSubtype: ResearchObjectComponentSubtypes;
-  prepublication?: boolean;
 };
 
 /**
@@ -41,7 +31,7 @@ export const updateExternalCid = async (
   res: Response<UpdateResponse | ErrorResponse>,
 ) => {
   const owner = (req as any).user as User;
-  const { uuid, contextPath, externalCids, componentType, componentSubtype, prepublication } = req.body;
+  const { uuid, contextPath, externalCids, componentType, componentSubtype } = req.body;
 
   const logger = parentLogger.child({
     // id: req.id,
@@ -88,17 +78,6 @@ export const updateExternalCid = async (
       date: date,
     } = value as UpdateResponse;
 
-    if (prepublication) {
-      // pre-cache automated metadata response
-      const metadata = await metadataClient.getResourceMetadata({ cid: externalCids[0].cid });
-
-      if (metadata) {
-        await metadataClient.automateMetadata(metadata, {
-          uuid: node.uuid,
-          documentId: node.manifestDocumentId as DocumentId,
-        });
-      }
-    }
     return res.status(200).json({
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,
