@@ -45,8 +45,8 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
       isDeleted: false,
     },
     orderBy: { updatedAt: 'desc' },
-    take: limit,
-    skip: (page - 1) * limit,
+    // take: limit,
+    // skip: (page - 1) * limit,
   });
 
   // transition UUID
