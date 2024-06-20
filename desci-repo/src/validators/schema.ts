@@ -65,7 +65,7 @@ type Action = ManifestActions["type"];
 export const actionsSchema = z.array(
   z.discriminatedUnion('type', [
     z.object({ type: z.literal<Action>('Publish Dpid'), dpid: dpid }),
-    z.object({ type: z.literal<Action>('Remove Dpid')}),
+    z.object({ type: z.literal<Action>('Remove Dpid') }),
     z.object({ type: z.literal<Action>('Update Title'), title: z.string() }),
     z.object({ type: z.literal<Action>('Update Description'), description: z.string() }),
     z.object({ type: z.literal<Action>('Update License'), defaultLicense: z.string() }),
@@ -74,6 +74,7 @@ export const actionsSchema = z.array(
     z.object({ type: z.literal<Action>('Delete Component'), path: z.string() }),
     z.object({ type: z.literal<Action>('Update Component'), component: componentSchema }),
     z.object({ type: z.literal<Action>('Add Contributor'), author: contributor }),
+    z.object({ type: z.literal<Action>('Add Contributors'), contributors: z.array(contributor) }),
     z.object({ type: z.literal<Action>('Remove Contributor'), contributorIndex: z.number() }),
     z.object({ type: z.literal<Action>('Pin Component'), componentIndex: z.number() }),
     z.object({ type: z.literal<Action>('UnPin Component'), componentIndex: z.number() }),

@@ -136,7 +136,7 @@ describe('ManifestActions Schema', () => {
       payload: {
         path: 'root/external links/',
         cid: 'bafybeicrsddlvfbbo5s3upvjbtb5flc73iupxfy2kf3rv43kkbvegbqbwq',
-        language: 'typescript'
+        language: 'typescript',
       },
     };
 
@@ -188,7 +188,7 @@ describe('ManifestActions Schema', () => {
         payload: {
           path: 'root/external links/',
           cid: 'bafybeicrsddlvfbbo5s3upvjbtb5flc73iupxfy2kf3rv43kkbvegbqbwq',
-          language: 'typescript'
+          language: 'typescript',
         },
       };
 
@@ -228,6 +228,12 @@ describe('ManifestActions Schema', () => {
 
     it('should validate Add Contributor', async () => {
       const validated = await actionsSchema.safeParseAsync([{ type: 'Add Contributor', author }]);
+      console.log(validated.success ? validated.data : validated.error);
+      expect(validated.success).to.be.true;
+    });
+
+    it('should validate Add Contributors', async () => {
+      const validated = await actionsSchema.safeParseAsync([{ type: 'Add Contributors', contributors: [author] }]);
       console.log(validated.success ? validated.data : validated.error);
       expect(validated.success).to.be.true;
     });
