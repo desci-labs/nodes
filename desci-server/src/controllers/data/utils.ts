@@ -1,4 +1,9 @@
-import { DRIVE_NODE_ROOT_PATH, DataComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
+import {
+  DRIVE_NODE_ROOT_PATH,
+  DataComponent,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+} from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 import axios from 'axios';
 import { v4 as uuid } from 'uuid';
@@ -30,7 +35,7 @@ function addDataToManifest({ manifest, dataFields, rootCid }: UpdatingManifestPa
       cid: rootCid,
       subMetadata: {},
       description: dataFields.description || undefined,
-      path: DRIVE_NODE_ROOT_PATH + `/${dataFields.title}`
+      path: DRIVE_NODE_ROOT_PATH + `/${dataFields.title}`,
     },
   };
   manifest.components.push(newDataComponent);
@@ -101,4 +106,15 @@ export function separateFileNameAndExtension(fileName: string): {
   const extension = splitName.length > 1 ? splitName.pop() : '';
   const name = splitName.join('.');
   return { fileName: name, extension };
+}
+
+export const DOI_REGEX = /(https:\/\/doi.org\/)?(?<doi>10.\d{4,9}\/[-._;()/:A-Z0-9]+$)/i;
+export function isDoiLink(url: string): boolean {
+  try {
+    const matches = url.match(DOI_REGEX);
+    console.log('matches', matches);
+    return DOI_REGEX.test(url);
+  } catch (e) {
+    return false;
+  }
 }

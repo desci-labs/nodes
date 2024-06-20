@@ -13,5 +13,7 @@ declare namespace NodeJS {
     CROSSREF_API: string;
     CROSSREF_EMAIL: string;
     CROSSREF_API_KEY: string;
+    AUTOMATED_METADATA_API: string;
+    AUTOMATED_METADATA_API_KEY: string;
   }
 }

@@ -1,5 +1,10 @@
+import { DocumentId } from '@automerge/automerge-repo';
+import { ManifestActions, ResearchObjectV1Author, ResearchObjectV1AuthorRole } from '@desci-labs/desci-models';
+
 import { logger as parentLogger } from '../logger.js';
 import { ONE_DAY_TTL, getFromCache, setToCache } from '../redisClient.js';
+
+import repoService from './repoService.js';
 
 const logger = parentLogger.child({ module: '[AutomatedMetadataClient]' });
 
@@ -39,7 +44,7 @@ export type AutomatedMetadataResponse = {
   };
 };
 
-type MetadataResponse = {
+export type MetadataResponse = {
   authors: Array<{ orcid: string; name: string; affiliation: string }>;
   title: string;
   pdfUrl: string | null;
@@ -51,7 +56,7 @@ type MetadataResponse = {
  * from the CrossRef Rest Api https://www.crossref.org/documentation/retrieve-metadata/rest-api/
  * Initialize constructor with CrossRef Api url https://api.crossref.org, Api token and a polite Mail
  */
-class AutomatedMetadataClient {
+export class AutomatedMetadataClient {
   baseurl: string;
 
   constructor(
@@ -119,7 +124,7 @@ class AutomatedMetadataClient {
     if (response.ok && response.status === 200) {
       if (response.headers.get('content-type')?.includes('application/json')) {
         data = (await response.json()) as T;
-        logger.info(response.ok, 'SET TO CACHE');
+        logger.info(data, 'SET TO CACHE');
         await setToCache(cacheKey, data, ONE_DAY_TTL);
         return data;
       }
@@ -140,6 +145,34 @@ class AutomatedMetadataClient {
     logger.info(metadata, 'METADATA');
     return metadata;
   }
-}
 
-export default AutomatedMetadataClient;
+  async automateMetadata(metadata: MetadataResponse, node: { uuid: string; documentId: string }) {
+    const actions: ManifestActions[] = [];
+    if (metadata.title) {
+      actions.push({ type: 'Update Title', title: metadata.title });
+    }
+
+    if (metadata.authors) {
+      actions.push({
+        type: 'Add Contributors',
+        contributors: metadata.authors.map(
+          (author) =>
+            ({
+              name: author.name,
+              orcid: author.orcid,
+              role: ResearchObjectV1AuthorRole.AUTHOR,
+              organisations: [{ id: author.affiliation, name: author.affiliation }],
+            }) as ResearchObjectV1Author,
+        ),
+      }); //
+    }
+
+    const response = await repoService.dispatchAction({
+      uuid: node.uuid,
+      documentId: node.documentId as DocumentId,
+      actions,
+    });
+    logger.info(response, 'AUTOMATE METADATA');
+    return response;
+  }
+}
