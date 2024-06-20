@@ -1,4 +1,4 @@
-FROM node:18.20.0-bullseye
+FROM node:22.0.0-bullseye
 
 VOLUME /root/.yarn
 
