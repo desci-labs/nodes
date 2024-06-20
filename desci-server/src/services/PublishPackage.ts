@@ -57,9 +57,11 @@ class PublishPackageService {
     }
 
     const license = PublishPackageService.extractManuscriptLicense(manifest, pdfCid);
+    // const paddedTimestamp = unixTimestamp.padEnd(13, '0');
     const publishTime = demoMode
-      ? Date.now().toString().slice(0, 8)
+      ? Date.now().toString().slice(0, 10)
       : await publishServices.retrieveBlockTimeByManifestCid(node.uuid, manifestCid);
+
     const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);
     const authors = manifest.authors?.map((author) => author.name);
 
@@ -100,7 +102,6 @@ class PublishPackageService {
   }
 
   static convertUnixTimestampToDate(unixTimestamp: string): string {
-    debugger;
     const date = new Date(Number(unixTimestamp) * 1000);
     const formattedDate = date.toLocaleString('en-US', {
       month: 'long',
