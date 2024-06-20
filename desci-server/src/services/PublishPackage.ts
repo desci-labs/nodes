@@ -65,8 +65,8 @@ class PublishPackageService {
 
     const attestations = await attestationService.getAllNodeAttestations(node.uuid);
 
-    const openCodeAttestation = attestations.find((a) => a.attestationId === 15);
-    const openDataAttestation = attestations.find((a) => a.attestationId === 16);
+    const openCodeAttestation = attestations.find((a) => a.attestationVersion.name === 'Open Code');
+    const openDataAttestation = attestations.find((a) => a.attestationVersion.name === 'Open Data');
 
     const attestationLinks = {
       ...(openCodeAttestation && {
@@ -100,7 +100,7 @@ class PublishPackageService {
   }
 
   static convertUnixTimestampToDate(unixTimestamp: string): string {
-    debugger
+    debugger;
     const date = new Date(Number(unixTimestamp) * 1000);
     const formattedDate = date.toLocaleString('en-US', {
       month: 'long',
