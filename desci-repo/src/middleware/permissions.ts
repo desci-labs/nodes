@@ -33,7 +33,7 @@ const AUTH_COOKIE_DOMAIN_MAPPING = {
 
 // auth, auth-stage, auth-dev
 export const AUTH_COOKIE_FIELDNAME =
-  AUTH_COOKIE_DOMAIN_MAPPING[process.env.DESCI_SERVER_URL || 'https://nodes-api.desci.com'] || 'auth';
+  AUTH_COOKIE_DOMAIN_MAPPING[process.env.SERVER_URL || 'https://nodes-api.desci.com'] || 'auth';
 
 /**
  * Extract JWT Authorisation token from IncommingRequest
