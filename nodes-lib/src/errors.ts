@@ -1,14 +1,14 @@
 class BaseError<Name extends string, Cause> extends Error {
   name: Name;
   message: string;
-  cause: Cause;
+  cause?: Cause;
 
   constructor({
     name, message, cause
   }: {
     name: Name,
     message: string,
-    cause: Cause,
+    cause?: Cause,
   }) {
     super();
     this.name = name;
@@ -22,3 +22,4 @@ export class DpidRegistrationError extends BaseError<"DPID_REGISTRATION_ERROR", 
 export class WrongOwnerError extends BaseError<
   "WRONG_OWNER_ERROR", { expected: string, actual: string }
 > {};
+export class NoSuchEntryError extends BaseError<"NO_SUCH_ENTRY_ERROR", Error> {};

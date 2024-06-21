@@ -63,6 +63,7 @@ spec:
           export AWS_S3_BUCKET_REGION={{ .Data.AWS_S3_BUCKET_REGION }}
           export THEGRAPH_API_URL={{ .Data.THEGRAPH_API_URL }}
           export HOT_WALLET_KEY={{ .Data.HOT_WALLET_KEY }}
+          export REGISTRY_OWNER_PKEY={{ .Data.REGISTRY_OWNER_PKEY }}
           export CSO_CLASSIFIER_API={{ .Data.CSO_CLASSIFIER_API }}
           export VSCODE_ACCESS_TOKEN={{ .Data.VSCODE_ACCESS_TOKEN }}
           export NODES_MEDIA_SERVER_URL={{ .Data.NODES_MEDIA_SERVER_URL }}

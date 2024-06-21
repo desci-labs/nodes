@@ -106,7 +106,7 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
   const node = await prisma.node.findFirst({ where: { uuid: body.nodeUuid } });
   if (!node) throw new NotFoundError('Node not found');
 
-  const claim = await attestationService.getClaimOnDpid(body.claimId, body.dpid.toString());
+  const claim = await attestationService.getClaimOnUuid(body.claimId, body.nodeUuid);
   if (!claim) throw new NotFoundError();
 
   if (node.ownerId !== req.user.id || claim.claimedById !== req.user.id) throw new AuthFailureError();

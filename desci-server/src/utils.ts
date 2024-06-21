@@ -256,3 +256,18 @@ export function formatOrcidString(orcidId: string): string {
 
   return formattedOrcid;
 }
+
+export function toKebabCase(name: string) {
+  const lowercaseName = name.toLowerCase();
+
+  // Replace spaces, underscores, and dashes with a single dash
+  const dashedName = lowercaseName.replace(/[\s_-]+/g, '-');
+
+  // Remove any non-alphanumeric characters except dashes
+  const urlSafeName = dashedName.replace(/[^a-z0-9-]/g, '');
+
+  // Remove any leading or trailing dashes
+  const trimmedName = urlSafeName.replace(/^-+|-+$/g, '');
+
+  return trimmedName;
+}

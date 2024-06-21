@@ -6,6 +6,7 @@ import { prisma } from '../client.js';
 import { hashApiKey } from '../controllers/auth/utils.js';
 import { logger } from '../logger.js';
 import { getUserByEmail, getUserByOrcId } from '../services/user.js';
+import { AUTH_COOKIE_FIELDNAME } from '../utils/sendCookie.js';
 
 export enum AuthMethods {
   AUTH_TOKEN = 'AUTH_TOKEN',
@@ -32,7 +33,7 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
  * Extract JWT Authorisation token from IncommingRequest
  */
 export const extractAuthToken = async (request: ExpressRequest | Request) => {
-  let token = await extractTokenFromCookie(request, 'auth');
+  let token = await extractTokenFromCookie(request, AUTH_COOKIE_FIELDNAME);
 
   if (!token) {
     // Try to retrieve the token from the header

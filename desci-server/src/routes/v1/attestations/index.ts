@@ -1,7 +1,6 @@
 import { Router } from 'express';
 
 import {
-  asyncHandler,
   addComment,
   addReaction,
   addVerification,
@@ -19,6 +18,7 @@ import {
   getAttestationVerifications,
   validate,
   getValidatedRecommendations,
+  asyncHandler,
 } from '../../../internal.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 
@@ -49,7 +49,7 @@ router.get(
   asyncHandler(showCommunityClaims),
 );
 
-router.get('/:dpid', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
+router.get('/:uuid', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
 router.get('/:claimId/reactions', [validate(getAttestationReactionsSchema)], asyncHandler(getAttestationReactions));
 router.get(
   '/:claimId/verifications',

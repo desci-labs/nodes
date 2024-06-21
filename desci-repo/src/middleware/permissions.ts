@@ -25,6 +25,16 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
   }
 };
 
+const AUTH_COOKIE_DOMAIN_MAPPING = {
+  'https://nodes-api.desci.com': 'auth',
+  'https://nodes-api-dev.desci.com': 'auth-dev',
+  'https://nodes-api-stage.desci.com': 'auth-stage',
+};
+
+// auth, auth-stage, auth-dev
+export const AUTH_COOKIE_FIELDNAME =
+  AUTH_COOKIE_DOMAIN_MAPPING[process.env.SERVER_URL || 'https://nodes-api.desci.com'] || 'auth';
+
 /**
  * Extract JWT Authorisation token from IncommingRequest
  */
@@ -43,7 +53,7 @@ export const extractAuthToken = async (request: ExpressRequest | Request) => {
 
     // If auth token wasn't found in the header, try retrieve from cookies
     if (!token && request['cookies']) {
-      token = request['cookies']['auth'];
+      token = request['cookies'][AUTH_COOKIE_FIELDNAME];
     }
 
     // If Auth token is null and request.headers.cookie is valid, attempt to parse auth token from cookie
