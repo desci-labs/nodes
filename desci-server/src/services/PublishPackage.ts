@@ -4,7 +4,7 @@ import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
-import { ensureUuidEndsWithDot } from '../utils.js';
+import { ensureUuidEndsWithDot, toKebabCase } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { pinFile } from './ipfs.js';
@@ -47,29 +47,35 @@ class PublishPackageService {
       this.logger.error('process.env.ISOLATED_MEDIA_SERVER_URL is not defined');
       return null;
     }
+    // debugger;
     const title = manifest.title;
-    const dpid = manifest.dpid.id;
+    const demoMode = manifest?.dpid?.id === undefined;
+    const dpid = !demoMode ? manifest?.dpid?.id : 'UNPUBLISHED_DEMO';
     if (dpid === undefined) {
       this.logger.warn({ dpid, nodeId: node.id }, 'Failed generating a publish package for node, dpid is undefined');
       throw new Error('DPID is undefined');
     }
 
     const license = PublishPackageService.extractManuscriptLicense(manifest, pdfCid);
-    const publishTime = await publishServices.retrieveBlockTimeByManifestCid(node.uuid, manifestCid);
+    // const paddedTimestamp = unixTimestamp.padEnd(13, '0');
+    const publishTime = demoMode
+      ? Date.now().toString().slice(0, 10)
+      : await publishServices.retrieveBlockTimeByManifestCid(node.uuid, manifestCid);
+
     const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);
     const authors = manifest.authors?.map((author) => author.name);
 
-    const attestations = await attestationService.getAllNodeAttestations(dpid);
+    const attestations = await attestationService.getAllNodeAttestations(node.uuid);
 
-    const openCodeAttestation = attestations.find((a) => a.attestationId === 15);
-    const openDataAttestation = attestations.find((a) => a.attestationId === 16);
+    const openCodeAttestation = attestations.find((a) => a.attestationVersion.name === 'Open Code');
+    const openDataAttestation = attestations.find((a) => a.attestationVersion.name === 'Open Data');
 
     const attestationLinks = {
       ...(openCodeAttestation && {
-        codeAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${openCodeAttestation.id}`,
+        codeAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${toKebabCase(openCodeAttestation.attestationVersion.name)}`,
       }),
       ...(openDataAttestation && {
-        dataAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${openDataAttestation.id}`,
+        dataAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${toKebabCase(openDataAttestation.attestationVersion.name)}`,
       }),
     };
 

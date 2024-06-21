@@ -41,6 +41,7 @@ export type ManifestActions =
   | { type: 'Add Contributor'; author: ResearchObjectV1Author }
   | { type: 'Add Contributors'; contributors: ResearchObjectV1Author[] }
   | { type: 'Remove Contributor'; contributorIndex: number }
+  | { type: 'Add Contributors'; contributors: ResearchObjectV1Author[] }
   | { type: 'Pin Component'; path: string }
   | { type: 'UnPin Component'; path: string }
   | {
