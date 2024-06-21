@@ -1,5 +1,10 @@
 import { DocumentId } from '@automerge/automerge-repo';
-import { CommonComponentPayload, PdfComponent, ResearchObjectComponentType } from '@desci-labs/desci-models';
+import {
+  CommonComponentPayload,
+  PdfComponent,
+  PdfComponentPayload,
+  ResearchObjectComponentType,
+} from '@desci-labs/desci-models';
 import { NextFunction, Request, Response } from 'express';
 
 import { DoiError } from '../../core/doi/error.js';
@@ -77,7 +82,9 @@ export const attachDoi = async (req: RequestWithNode, res: Response, _next: Next
     select: [WorkSelectOptions.DOI, WorkSelectOptions.TITLE, WorkSelectOptions.AUTHOR],
   });
 
-  const doi = works?.data?.message?.items.find((item) => item.title.some((t) => t === queryTitle));
+  const doi = works?.data?.message?.items.find((item) =>
+    item.title.some((t) => t.toLowerCase() === queryTitle.toLowerCase()),
+  );
 
   logger.info({ doi, queryTitle }, 'DOI Response');
 
@@ -92,7 +99,7 @@ export const attachDoi = async (req: RequestWithNode, res: Response, _next: Next
     actions: [
       {
         type: 'Update Component',
-        component: { ...component, payload: { ...component.payload, doi: doi.DOI } },
+        component: { ...component, payload: { ...component.payload, doi: [doi.DOI] } as PdfComponentPayload },
         componentIndex,
       },
     ],

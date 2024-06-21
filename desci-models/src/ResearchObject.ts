@@ -247,7 +247,7 @@ export interface PdfComponentPayload {
   /** Annotations on the document */
   annotations?: PdfAnnotation[];
   /** DOI of the pdf or manuscript */
-  doi?: string;
+  doi?: string[];
 }
 
 export interface ExternalLinkComponentPayload {
