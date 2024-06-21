@@ -92,7 +92,7 @@ export interface ResearchObjectV1Component {
  * Contributor listing for a research object.
  */
 export interface ResearchObjectV1Author {
-  /** Random UUID to identify the contributor - optional for compatability with old models
+  /** Random UUID to identify the contributor - optional for compatibility with old models
    * Going forwards assignment is best practice.
    */
   id?: string;
@@ -108,6 +108,8 @@ export interface ResearchObjectV1Author {
   organizations?: ResearchObjectV1Organization[];
   /** GitHub profile of the contributor */
   github?: string;
+  /** Desci Nodes user id */
+  nodesUserId?: number;
 }
 
 export interface ResearchObjectV1History {

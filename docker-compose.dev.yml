@@ -52,7 +52,7 @@ services:
       - .env
     ports:
       - "5420:5420"
-      - "9229:9229"
+      - "9228:9228"
       - "9277:9277"
       - "5555:5555"
     extra_hosts:
@@ -203,11 +203,14 @@ services:
       context: ./desci-media-isolated
       target: dev
     container_name: "media_isolated"
+    extra_hosts:
+      - host.docker.internal:host-gateway
     volumes:
       - ./desci-media-isolated:/usr/src/app
     ports:
       - "9777:9777" # debugger
-      # - "7771:7771" # Uncomment if you want to test the media server from the host machine
+      - "7771:7771" # Uncomment if you want to test the media server from the host machine
+
 
   # desci_nodes_backend_test:
   #   container_name: 'be_test_boilerplate'

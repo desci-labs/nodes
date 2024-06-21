@@ -9,12 +9,12 @@ import {
 } from '@desci-labs/desci-models';
 import { createLink, createNode, encode, prepare, type PBLink } from '@ipld/dag-pb';
 import { DraftNodeTree, Node, Prisma, User } from '@prisma/client';
-import { UnixFS }from 'ipfs-unixfs';
+import { UnixFS } from 'ipfs-unixfs';
+import { CID } from 'multiformats';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { client } from '../services/ipfs.js';
-import { CID } from 'multiformats';
 
 const logger = parentLogger.child({
   module: 'Utils::DraftTreeUtils',

@@ -393,6 +393,26 @@ export function DANGEROUSLY_addComponentsToManifest(
   return manifest;
 }
 
+export function prepareFirstNestingComponents(firstNestingComponents: FirstNestingComponent[]) {
+  const preparedComponents: ResearchObjectV1Component[] = [];
+  firstNestingComponents.forEach((c) => {
+    const comp = {
+      id: randomUUID(),
+      name: c.name,
+      ...(c.componentType && { type: c.componentType }),
+      ...(c.componentSubtype && { subtype: c.componentSubtype }),
+      payload: {
+        cid: c.cid,
+        path: c.path,
+        ...(c.externalUrl && { externalUrl: c.externalUrl }),
+      },
+      starred: c.star || false,
+    };
+    preparedComponents.push(comp);
+  });
+  return preparedComponents;
+}
+
 export async function addComponentsToDraftManifest(node: Node, firstNestingComponents: FirstNestingComponent[]) {
   //add duplicate path check
   const components = firstNestingComponents.map((entry) => {

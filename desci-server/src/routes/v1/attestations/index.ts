@@ -49,7 +49,7 @@ router.get(
   asyncHander(showCommunityClaims),
 );
 
-router.get('/:dpid', [validate(showNodeAttestationsSchema)], asyncHander(showNodeAttestations));
+router.get('/:uuid', [validate(showNodeAttestationsSchema)], asyncHander(showNodeAttestations));
 router.get('/:claimId/reactions', [validate(getAttestationReactionsSchema)], asyncHander(getAttestationReactions));
 router.get(
   '/:claimId/verifications',

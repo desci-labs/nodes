@@ -14,6 +14,11 @@ chmod -R 777 /app/node_modules/prisma
 cd desci-server
 yarn run migrate
 npx prisma db seed
+
+# import required images from ipfs to local
+chmod +x ./scripts/import-ipfs-content.sh
+./scripts/import-ipfs-content.sh 
+
 # note: for local dev, you can probably import dpid 46 using the following script, however it doesn't work due to local IPFS client not being open to the public (swarm key)
 # when you set NODE_ENV=prod, it uses the public IPFS reader. Need to adjust this for local dev so we can properly import in the future
 # NODE_ENV=prod OPERATION=fillPublic USER_EMAIL=noreply@desci.com NODE_UUID=pOV6-0ZN8k8Nlb3iJ7BHgbHt4V_xt-H-dUbRQCLKl78. npm run script:fix-data-refs

@@ -4,14 +4,14 @@
  * multi-client application for editing the manifest.
  *
  * @package
-*/
+ */
 
 import {
   ResearchObjectComponentTypeMap,
   ResearchObjectV1Author,
   ResearchObjectV1Component,
-  ResearchObjectV1Dpid
-} from "./ResearchObject";
+  ResearchObjectV1Dpid,
+} from './ResearchObject';
 
 export type ManifestActions =
   | { type: 'Add Components'; components: ResearchObjectV1Component[] }
@@ -35,9 +35,12 @@ export type ManifestActions =
   | { type: 'Update License'; defaultLicense: string }
   | { type: 'Update ResearchFields'; researchFields: string[] }
   | { type: 'Add Component'; component: ResearchObjectV1Component }
+  | { type: 'Upsert Component'; component: ResearchObjectV1Component }
+  | { type: 'Upsert Components'; components: ResearchObjectV1Component[] }
   | { type: 'Delete Component'; path: string }
   | { type: 'Add Contributor'; author: ResearchObjectV1Author }
   | { type: 'Remove Contributor'; contributorIndex: number }
+  | { type: 'Add Contributors'; contributors: ResearchObjectV1Author[] }
   | { type: 'Pin Component'; path: string }
   | { type: 'UnPin Component'; path: string }
   | {
@@ -50,8 +53,7 @@ export type ManifestActions =
       dpid: ResearchObjectV1Dpid;
     }
   | { type: 'Remove Dpid' }
-  |
-    {
-      type: "Update CoverImage";
+  | {
+      type: 'Update CoverImage';
       cid: string | undefined;
     };

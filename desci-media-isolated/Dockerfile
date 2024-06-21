@@ -3,7 +3,7 @@ FROM docker.io/node:20.9.0 as base
 
 # Install dumb-init so we can use it as PID 1
 
-RUN apt-get update && apt-get install -y dumb-init ghostscript unoconv ffmpeg imagemagick curl && \
+RUN apt-get update && apt-get install -y dumb-init ghostscript unoconv ffmpeg imagemagick graphicsmagick curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Modify ImageMagick policy to allow PDF processing
@@ -24,6 +24,7 @@ RUN --mount=type=cache,target=/usr/src/app/.npm \
 
 
 COPY . .
+
 
 # Expose debugger port
 EXPOSE 9777

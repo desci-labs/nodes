@@ -69,6 +69,7 @@ interface ProcessExternalUrlDataToIpfsParams {
   contextPath: string;
   componentType?: ResearchObjectComponentType;
   componentSubtype?: ResearchObjectComponentSubtypes;
+  autoStar?: boolean;
 }
 
 /**
@@ -81,6 +82,7 @@ export async function processExternalUrlDataToIpfs({
   contextPath,
   componentType,
   componentSubtype,
+  autoStar,
 }: ProcessExternalUrlDataToIpfsParams) {
   // debugger;
   let pinResult: IpfsPinnedResult[] = [];
@@ -236,6 +238,7 @@ export async function processExternalUrlDataToIpfs({
         componentType,
         componentSubtype,
         externalUrl,
+        star: autoStar,
       });
 
       if (firstNestingComponents?.length > 0) {

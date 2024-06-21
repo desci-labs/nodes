@@ -40,7 +40,7 @@ export abstract class ApiResponse {
 }
 
 export class SuccessMessageResponse extends ApiResponse {
-  constructor(_message = '') {
+  constructor(message = '') {
     super(ResponseStatus.SUCCESS, undefined);
   }
 }
@@ -48,7 +48,7 @@ export class SuccessMessageResponse extends ApiResponse {
 export class SuccessResponse<T> extends ApiResponse {
   constructor(
     private data: T,
-    message = 'Success',
+    message = '',
   ) {
     super(ResponseStatus.SUCCESS, message);
   }

@@ -1,4 +1,4 @@
-import { CommunityEntryAttestation } from '@prisma/client';
+import { ActionType, CommunityEntryAttestation } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
@@ -16,6 +16,7 @@ import {
 } from '../../internal.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
+import { saveInteraction } from '../../services/interactionLog.js';
 import { AttestationClaimedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -42,6 +43,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   if (claim && claim.revoked) {
     const reclaimed = await attestationService.reClaimAttestation(claim.id);
+    await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: reclaimed.id });
     new SuccessResponse(reclaimed).send(res);
     return;
   }
@@ -52,6 +54,8 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     nodeUuid: uuid,
     attestationVersion: attestationVersion.id,
   });
+
+  await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: nodeClaim.id });
 
   // notifiy community members if attestation is protected
   // new attestations should be trigger notification of org members if protected
@@ -102,7 +106,7 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
   const node = await prisma.node.findFirst({ where: { uuid: body.nodeUuid } });
   if (!node) throw new NotFoundError('Node not found');
 
-  const claim = await attestationService.getClaimOnDpid(body.claimId, body.dpid.toString());
+  const claim = await attestationService.getClaimOnUuid(body.claimId, body.nodeUuid);
   if (!claim) throw new NotFoundError();
 
   if (node.ownerId !== req.user.id || claim.claimedById !== req.user.id) throw new AuthFailureError();
@@ -113,6 +117,8 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
     totalSignal > 0
       ? await attestationService.revokeAttestation(claim.id)
       : await attestationService.unClaimAttestation(claim.id);
+
+  await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
 
   logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
   return new SuccessMessageResponse('Attestation unclaimed').send(res);
@@ -166,6 +172,13 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     nodeVersion,
     nodeUuid: uuid,
     attestations: claims,
+  });
+
+  await saveInteraction(req, ActionType.CLAIM_ENTRY_ATTESTATIONS, {
+    communityId,
+    nodeDpid,
+    claimerId,
+    claims: attestations.map((att) => att.id),
   });
 
   return new SuccessResponse(attestations).send(res);

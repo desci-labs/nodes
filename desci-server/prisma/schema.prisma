@@ -43,7 +43,10 @@ model Node {
   NodeContribution    NodeContribution[]
   PrivateShare        PrivateShare[]
   OrcidPutCodes       OrcidPutCodes[]
+  DistributionPdfs    DistributionPdfs[]
+  PdfPreviews         PdfPreviews[]
   DoiRecord           DoiRecord[]
+  dpidAlias           Int?
 
   @@index([ownerId])
   @@index([uuid])
@@ -477,6 +480,31 @@ model NodeThumbnails {
   @@unique([nodeUuid, componentCid])
 }
 
+// PDFs generated in prepub flow
+model DistributionPdfs {
+  id                        Int     @id @default(autoincrement())
+  originalPdfCid            String
+  manifestCid               String
+  nodeUuid                  String
+  distPdfCid                String
+  contentPagePreviewCid     String?
+  frontmatterPagePreviewCid String?
+  node                      Node    @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, originalPdfCid, manifestCid])
+}
+
+// Preview images of distribution PDFs created in prepub flow (first and second pages)
+model PdfPreviews {
+  id         Int    @id @default(autoincrement())
+  nodeUuid   String
+  pdfCid     String @unique
+  previewMap Json
+  node       Node   @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, pdfCid])
+}
+
 // The glue between a manifest contributor entry and a nodes profile
 model NodeContribution {
   id            Int       @id @default(autoincrement())
@@ -724,7 +752,7 @@ model NodeAttestation {
   community                   DesciCommunity                @relation(fields: [desciCommunityId], references: [id])
   claimedById                 Int
   claimedBy                   User                          @relation(fields: [claimedById], references: [id])
-  nodeDpid10                  String
+  nodeDpid10                  String?
   nodeUuid                    String
   node                        Node                          @relation(fields: [nodeUuid], references: [uuid])
   nodeVersion                 Int
@@ -880,6 +908,16 @@ enum ActionType {
   NEW_REFERRAL
   ACCEPTED_REFERRAL
   USER_PUBLISH_CONSENT
+  CLAIM_ATTESTATION
+  REVOKE_CLAIM
+  CLAIM_ENTRY_ATTESTATIONS
+  ADD_COMMENT
+  REMOVE_COMMENT
+  VERIFY_ATTESTATION
+  UNVERIFY_ATTESTATION
+  UPDATE_ORCID_RECORD
+  REMOVE_ORCID_WORK_RECORD
+  ORCID_API_ERROR
 }
 
 enum ChainTransactionType {

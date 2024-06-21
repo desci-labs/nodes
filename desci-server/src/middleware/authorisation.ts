@@ -10,6 +10,8 @@ import { ensureUuidEndsWithDot, hideEmail } from '../utils.js';
 
 export interface RequestWithUser extends Request {
   user: User;
+  userAuth?: any;
+  traceId?: string;
 }
 
 export interface RequestWithNode extends RequestWithUser {

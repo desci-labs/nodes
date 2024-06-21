@@ -12,3 +12,4 @@ build
 *.dbg.json
 flat.sol
 dist
+.vscode
