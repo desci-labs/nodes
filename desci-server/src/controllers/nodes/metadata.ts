@@ -3,7 +3,14 @@ import { ActionType } from '@prisma/client';
 import { NextFunction, Response } from 'express';
 import { z } from 'zod';
 
-import { BadRequestError, RequestWithNode, SuccessResponse, metadataClient } from '../../internal.js';
+import {
+  BadRequestError,
+  InternalError,
+  RequestWithNode,
+  SuccessMessageResponse,
+  SuccessResponse,
+  metadataClient,
+} from '../../internal.js';
 import { MetadataResponse } from '../../services/AutomatedMetadata.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { isDoiLink } from '../data/utils.js';
@@ -36,9 +43,10 @@ export const automateMetadata = async (req: RequestWithNode, res: Response, _nex
       documentId: node.manifestDocumentId as DocumentId,
     });
 
-    await saveInteraction(req, ActionType.AUTOMATE_METADATA, { uuid: node.uuid });
+    if (!response) throw new InternalError('Ran into an error while applying metadata');
+    // await saveInteraction(req, ActionType.AUTOMATE_METADATA, { uuid: node.uuid });
 
-    new SuccessResponse(response.manifest).send(res);
+    new SuccessMessageResponse().send(res);
   } else {
     throw new BadRequestError();
   }
