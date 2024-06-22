@@ -70,7 +70,7 @@ export const preparePublishPackage = async (
     });
 
     // Fire off email to all contributors
-    await publishServices.sendVersionUpdateEmailToAllContributors({ node, manuscriptCid: distPdfCid });
+    // await publishServices.sendVersionUpdateEmailToAllContributors({ node, manuscriptCid: distPdfCid });
 
     return res.status(200).json({ ok: true, distPdfCid });
   } catch (e) {
