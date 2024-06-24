@@ -53,7 +53,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
 
   const component = latestManifest.components[componentIndex] as PdfComponent;
 
-  if (component.payload.doi) throw new ForbiddenError(`${component.subtype || component.type} already has a DOI`);
+  // if (component.payload.doi) throw new ForbiddenError(`${component.subtype || component.type} already has a DOI`);
 
   const queryTitle =
     component.payload.path.split('/').pop().replace(/\.pdf/g, '') ||
@@ -88,7 +88,10 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
   // }
 
   // pull metadata from AM service
-  metadata = await metadataClient.getResourceMetadata({ cid: component.payload.cid });
+  metadata = await metadataClient.getResourceMetadata({
+    cid: component.payload.cid,
+    doi: doi || component.payload.doi[0],
+  });
 
   // todo: pull metadata from crossrefClient#getDoiMetadata
   // const doiMetadata = await crossRefClient.getDoiMetadata('');

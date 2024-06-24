@@ -158,7 +158,8 @@ export class AutomatedMetadataClient {
           ...(creator['@id'] && creator['@id'].toLowerCase() !== 'none' && { orcid: creator['@id'] }),
         }))
       : [];
-    const keywords = output?.keywords ? output.keywords.map((keyword) => keyword.display_name) : [];
+    const keywords =
+      output?.keywords && Array.isArray(output.keywords) ? output.keywords.map((keyword) => keyword.display_name) : [];
     const metadata: MetadataResponse = {
       authors,
       keywords,
@@ -166,7 +167,7 @@ export class AutomatedMetadataClient {
       pdfUrl: output.oa_url,
       abstract: output.abstract ?? '',
     };
-    logger.info(metadata, 'METADATA');
+
     return metadata;
   }
 

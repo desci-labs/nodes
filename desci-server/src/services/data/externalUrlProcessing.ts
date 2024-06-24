@@ -60,7 +60,7 @@ const logger = parentLogger.child({
 
 interface ProcessExternalUrlDataToIpfsParams {
   // files: any[];
-  externalUrl: any;
+  externalUrl: { path: string; url: string; doi?: string };
   user: User;
   node: Node;
   /**
@@ -243,6 +243,34 @@ export async function processExternalUrlDataToIpfs({
 
       if (firstNestingComponents?.length > 0) {
         updatedManifest = await addComponentsToDraftManifest(node, firstNestingComponents);
+      }
+
+      logger.info({ EXTERNAL_DOI: externalUrl }, 'External URL DOI');
+      if (componentType === ResearchObjectComponentType.PDF && externalUrl.doi) {
+        const componentIndex = updatedManifest.components.findIndex(
+          (comp) => comp.type === ResearchObjectComponentType.PDF,
+        );
+        const comp = updatedManifest.components[componentIndex];
+        const res = await repoService.dispatchAction({
+          uuid: node.uuid,
+          documentId: node.manifestDocumentId as DocumentId,
+          actions: [
+            {
+              type: 'Update Component',
+              component: {
+                ...comp,
+                payload: {
+                  ...comp.payload,
+                  ...(externalUrl.doi && {
+                    doi: [externalUrl.doi],
+                  }),
+                },
+              },
+              componentIndex,
+            },
+          ],
+        });
+        updatedManifest = res.manifest;
       }
     }
 
