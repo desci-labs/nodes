@@ -1,12 +1,12 @@
 {
   "name": "@desci-labs/desci-models",
-  "version": "0.2.7-rc5",
+  "version": "0.2.9",
   "description": "Data models for DeSci Nodes",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/desci-labs/nodes.git",
+    "url": "git+https://github.com/desci-labs/nodes.git",
     "directory": "desci-models"
   },
   "files": [
@@ -16,7 +16,7 @@
     "test": "mocha -r ts-node/register --inspect tests/**/*.test.ts",
     "coverage": "nyc -r lcov -e .ts -x \"*.test.ts\" npm run test",
     "build": "tsc && npm run generate",
-    "doPublish": "npm publish --access public",
+    "doPublish": "npm run build && npm publish --access public",
     "generate": "ts-interface-builder src/ResearchObject.ts src/RoCrate.ts --ignore-generics"
   },
   "author": "",

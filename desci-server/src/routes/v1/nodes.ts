@@ -7,6 +7,7 @@ import { getUserContributions } from '../../controllers/nodes/contributions/getU
 import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
 import { updateContributor } from '../../controllers/nodes/contributions/update.js';
 import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
+import { createDpid } from '../../controllers/nodes/createDpid.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
@@ -31,6 +32,7 @@ import {
   publishConsent,
   checkUserPublishConsent,
   checkPublishConsentSchema,
+  automateManuscriptDoi,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
@@ -38,10 +40,9 @@ import { prepublish } from '../../controllers/nodes/prepublish.js';
 import { listSharedNodes } from '../../controllers/nodes/sharedNodes.js';
 import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
-import { asyncHander, attachUser, validate } from '../../internal.js';
+import { asyncHander, attachDoiSchema, attachUser, validate } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
-import { createDpid } from '../../controllers/nodes/createDpid.js';
 import { getDraftNodeStats } from '../../controllers/nodes/getDraftNodeStats.js';
 import { getPublishedNodeStats } from '../../controllers/nodes/getPublishedNodeStats.js';
 import { checkIfPublishedNode } from '../../controllers/nodes/checkIfPublishedNode.js';
@@ -96,6 +97,13 @@ router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
+
+// doi automation
+router.post(
+  '/attachManuscriptDoi',
+  [ensureUser, ensureNodeAccess, validate(attachDoiSchema)],
+  asyncHander(automateManuscriptDoi),
+);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 
