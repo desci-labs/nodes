@@ -1,7 +1,6 @@
 import { Router } from 'express';
 
 import { asyncHander, checkMintability, ensureNodeAccess, ensureUser, getDoi, mintDoi } from '../../internal.js';
-
 const router = Router();
 
 router.post('/check/:uuid', [ensureUser, ensureNodeAccess], asyncHander(checkMintability));

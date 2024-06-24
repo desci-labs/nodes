@@ -12,3 +12,4 @@ export * from './share.js';
 export * from './nodesCover.js';
 export * from './manager.js';
 export * from './metadata.js';
+export * from './doi.js';

@@ -36,6 +36,7 @@ import {
   generateMetadata,
   automateMetadataSchema,
   generateMetadataSchema,
+  automateManuscriptDoi,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
@@ -43,7 +44,7 @@ import { prepublish } from '../../controllers/nodes/prepublish.js';
 import { listSharedNodes } from '../../controllers/nodes/sharedNodes.js';
 import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
-import { asyncHander, attachUser, validate } from '../../internal.js';
+import { asyncHander, attachDoiSchema, attachUser, validate } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
@@ -93,6 +94,13 @@ router.post(
   automateMetadata,
 );
 router.post('/generate-metadata', [ensureUser, validate(generateMetadataSchema)], generateMetadata);
+
+// doi automation
+router.post(
+  '/attachManuscriptDoi',
+  [ensureUser, ensureNodeAccess, validate(attachDoiSchema)],
+  asyncHander(automateManuscriptDoi),
+);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 
