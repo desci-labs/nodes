@@ -88,7 +88,9 @@ export const checkIfPublishedNode = async (
 
   const hex = `0x${decodeBase64UrlSafeToHex(node.uuid)}`;
   const result = indexMap[hex];
-  const manifest: ResearchObjectV1 = result?.recentCid ? await resolveNodeManifest(result?.recentCid, ipfsQuery) : null;
+  const manifest: ResearchObjectV1 = result?.recentCid
+    ? await resolveNodeManifest(result?.recentCid, ipfsQuery as string)
+    : null;
   const o = {
     ...node,
     uuid: node?.uuid.replaceAll('.', ''),
