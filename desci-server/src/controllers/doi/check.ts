@@ -99,7 +99,7 @@ export const attachDoi = async (req: RequestWithNode, res: Response, _next: Next
     actions: [
       {
         type: 'Update Component',
-        component: { ...component, payload: { ...component.payload, doi: [doi.DOI] } as PdfComponentPayload },
+        component: { ...component, payload: { ...component.payload, doi: doi.DOI } as PdfComponentPayload },
         componentIndex,
       },
     ],
