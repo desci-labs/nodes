@@ -77,7 +77,10 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     actions: [
       {
         type: 'Update Component',
-        component: { ...component, payload: { ...component.payload, doi: [doi.DOI] } as PdfComponentPayload },
+        component: {
+          ...component,
+          payload: { ...component.payload, doi: component.payload.doi.concat(doi.DOI) } as PdfComponentPayload,
+        },
         componentIndex,
       },
     ],
