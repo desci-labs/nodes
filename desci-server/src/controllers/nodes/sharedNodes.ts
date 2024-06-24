@@ -46,11 +46,12 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
   });
 
   if (!user.email) {
-    logger.warn('User does not have an email, no nodes can be shared with the user.');
+    logger.warn({}, 'User does not have an email, no nodes can be shared with the user.');
     return res.status(500).json({ error: 'User does not have an email' });
   }
 
   try {
+    logger.trace({}, 'Retrieving shared nodes for user');
     const privSharedNodes = await prisma.privateShare.findMany({
       where: {
         memo: `${PRIV_SHARE_CONTRIBUTION_PREFIX}${user.email}`,
@@ -60,12 +61,17 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
       },
     });
 
+    logger.trace({ privSharedNodesLength: privSharedNodes.length }, 'Shared nodes retrieved successfully');
+
     if (privSharedNodes?.length === 0) {
       return res.status(200).json({ ok: true, sharedNodes: [] });
     }
 
     const nodeUuids = privSharedNodes.map((priv) => priv.node.uuid);
     const { researchObjects } = await getIndexedResearchObjects(nodeUuids);
+
+    logger.trace({ researchObjectsLength: researchObjects.length }, 'Research objects retrieved successfully');
+
     const publishedNodesMap = researchObjects.reduce((acc, ro) => {
       // convert hex string to integer
       const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
@@ -73,6 +79,11 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
       const nodeUuid = nodeUuidInt.toString('base64url');
       acc[nodeUuid] = ro;
     }, {});
+
+    logger.trace(
+      { publishedNodesMapKeyLength: Object.keys(publishedNodesMap).length },
+      'Published nodes map created successfully',
+    );
 
     const filledSharedNodes = await Promise.all(
       privSharedNodes.map(async (priv) => {
@@ -93,6 +104,7 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
         };
       }),
     );
+    logger.trace({ filledSharedNodesLength: filledSharedNodes.length }, 'Shared nodes filled successfully');
 
     if (filledSharedNodes) {
       logger.info({ totalSharedNodesFound: filledSharedNodes.length }, 'Shared nodes retrieved successfully');
