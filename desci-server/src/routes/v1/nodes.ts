@@ -5,8 +5,10 @@ import { deleteContributor } from '../../controllers/nodes/contributions/delete.
 import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
 import { getUserContributions } from '../../controllers/nodes/contributions/getUserContributions.js';
 import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
+import { emailPublishPackage } from '../../controllers/nodes/contributions/prepubEmail.js';
 import { updateContributor } from '../../controllers/nodes/contributions/update.js';
 import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
+import { createDpid } from '../../controllers/nodes/createDpid.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
@@ -41,7 +43,6 @@ import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { asyncHander, attachUser, validate } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
-import { createDpid } from '../../controllers/nodes/createDpid.js';
 
 const router = Router();
 
@@ -83,6 +84,7 @@ router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
+router.post('/distribution/email', [ensureUser], emailPublishPackage);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 

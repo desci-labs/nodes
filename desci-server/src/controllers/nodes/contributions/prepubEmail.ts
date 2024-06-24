@@ -1,3 +1,4 @@
+import { User } from '@prisma/client';
 import type { Request, Response } from 'express';
 
 import { prisma } from '../../../client.js';
@@ -25,9 +26,10 @@ type EmailPublishPackageErrorResponse = {
  * Generates a prepublish package for a published node (at the moment just the distro PDF)
  */
 export const emailPublishPackage = async (
-  req: Request<{ emailAllContributors?: boolean }, any, EmailPublishPackageReqBodyParams>,
+  req: Request<{ emailAllContributors?: boolean }, any, EmailPublishPackageReqBodyParams> & { user: User },
   res: Response<EmailPublishPackageResponse | EmailPublishPackageErrorResponse>,
 ) => {
+  const user = req.user;
   const { prepubDistPdfCid, nodeUuid } = req.body;
   const { emailAllContributors } = req.query;
   const logger = parentLogger.child({
@@ -35,6 +37,7 @@ export const emailPublishPackage = async (
     prepubDistPdfCid,
     emailAllContributors,
     nodeUuid,
+    userId: user.id,
   });
   // debugger;
   logger.trace({ fn: 'Distributing Publish Package' });
@@ -46,6 +49,7 @@ export const emailPublishPackage = async (
     const node = await prisma.node.findFirst({
       where: {
         uuid: ensureUuidEndsWithDot(nodeUuid),
+        ownerId: user.id,
       },
     });
 
