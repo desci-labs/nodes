@@ -181,6 +181,7 @@ class ContributorService {
         userId: contributor.user?.id,
         deleted: contributor.deleted,
         deletedAt: contributor.deletedAt,
+        ...(authedMode && { inviteSent: contributor.inviteSent }),
         ...(authedMode && { email: contributor.email, orcid: contributor.orcid }),
       };
       return acc;
