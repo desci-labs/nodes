@@ -19,3 +19,8 @@ const toDotsAndDashes = (str: string) => {
   str = str.replace(/[A-Z]/g, (match) => match.toLowerCase());
   return str;
 };
+
+export const getOrcidFromURL = (orcid: string) => {
+  const url = new URL(orcid);
+  return url.pathname.replace('/', '');
+};

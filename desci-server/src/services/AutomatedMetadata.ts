@@ -19,7 +19,7 @@ export type MetadataParam = {
 
 export type AutomatedMetadataResponse = {
   output: Array<{
-    creator: {
+    creator?: {
       [k in string]: {
         '@id': string;
         affiliation: string;
@@ -28,9 +28,18 @@ export type AutomatedMetadataResponse = {
         ror: string;
       };
     };
-    datePublished: [number, number, number]; // [year, month, day]
-    keywords: Array<{ display_name: string; id: string; score: number }>;
-    license: Array<{
+    authors?: {
+      [k in string]: {
+        '@id': string;
+        affiliation: string;
+        name: string;
+        role: string;
+        ror: string;
+      };
+    };
+    datePublished?: [number, number, number]; // [year, month, day]
+    keywords?: Array<{ display_name: string; id: string; score: number }>;
+    license?: Array<{
       url: string;
       'content-version': string;
       'delay-in-days': number;
@@ -40,12 +49,14 @@ export type AutomatedMetadataResponse = {
         timestamp: number;
       };
     }>;
-    oa_url: string | null;
+    abstract?: string;
+    oa_url?: string | null;
     title: string;
   }>;
 };
 
 export type MetadataResponse = {
+  abstract?: string;
   authors: Array<{ orcid: string; name: string; affiliations: { name: string; id: string }[] }>;
   title: string;
   pdfUrl: string | null;
@@ -136,17 +147,25 @@ export class AutomatedMetadataClient {
   }
 
   transformResponse(data: AutomatedMetadataResponse): MetadataResponse {
-    const output = data.output?.[0];
+    logger.info({ data }, 'TRANSFORM');
+    const output = Array.isArray(data.output) ? data.output?.[0] : data.output;
 
-    const authors = output?.creator
-      ? Object.entries(output.creator).map(([name, creator]) => ({
+    const contributors = output?.authors || output?.creator;
+    const authors = contributors
+      ? Object.entries(contributors).map(([name, creator]) => ({
           affiliations: [{ name: creator.affiliation, id: creator.ror }],
           name,
-          ...(creator['@id'] && { orcid: creator['@id'] }),
+          ...(creator['@id'] && creator['@id'].toLowerCase() !== 'none' && { orcid: creator['@id'] }),
         }))
       : [];
     const keywords = output?.keywords ? output.keywords.map((keyword) => keyword.display_name) : [];
-    const metadata: MetadataResponse = { authors, keywords, title: output.title, pdfUrl: output.oa_url };
+    const metadata: MetadataResponse = {
+      authors,
+      keywords,
+      title: output.title,
+      pdfUrl: output.oa_url,
+      abstract: output.abstract ?? '',
+    };
     logger.info(metadata, 'METADATA');
     return metadata;
   }
