@@ -79,12 +79,14 @@ export const checkNodeAccess = async (
     return;
   }
 
-  const privSharedNode = await prisma.privateShare.findFirst({
-    where: {
-      memo: `${PRIV_SHARE_CONTRIBUTION_PREFIX}${owner.email}`,
-      nodeUUID: node.uuid,
-    },
-  });
+  const privSharedNode = owner
+    ? await prisma.privateShare.findFirst({
+        where: {
+          memo: `${PRIV_SHARE_CONTRIBUTION_PREFIX}${owner?.email}`,
+          nodeUUID: node.uuid,
+        },
+      })
+    : undefined;
 
   // transition UUID
   const indexMap = {};
@@ -116,7 +118,7 @@ export const checkNodeAccess = async (
 
   const enhancedNode: NodeWithDpid = o;
 
-  const isOwner = owner.id === enhancedNode.ownerId;
+  const isOwner = owner?.id === enhancedNode.ownerId;
   const latestDraftVersion = await prisma.nodeVersion.findFirst({
     where: {
       nodeId: node.id,

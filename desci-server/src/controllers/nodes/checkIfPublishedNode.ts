@@ -32,8 +32,15 @@ type GetPublishedNodeResponse = {
   indexInfo?: IndexedResearchObject;
 };
 
-export const checkIfPublishedNode = async (req: Request<any, any, any>, res: Response<GetPublishedNodeResponse>) => {
-  const owner = (req as any).user;
+type GetPublishedNodeErrorResponse = {
+  ok: false;
+  message: string;
+};
+
+export const checkIfPublishedNode = async (
+  req: Request<any, any, any>,
+  res: Response<GetPublishedNodeResponse | GetPublishedNodeErrorResponse>,
+) => {
   const ipfsQuery = req.query.g;
 
   logger.info({
@@ -55,7 +62,6 @@ export const checkIfPublishedNode = async (req: Request<any, any, any>, res: Res
       NodeCover: true,
     },
     where: {
-      ownerId: owner.id,
       isDeleted: false,
       uuid: ensureUuidEndsWithDot(req.params.uuid),
     },
@@ -64,6 +70,11 @@ export const checkIfPublishedNode = async (req: Request<any, any, any>, res: Res
   // transition UUID
   const indexMap = {};
 
+  if (!node) {
+    res.status(404).send({ ok: false, message: 'Node not found' });
+    return;
+  }
+
   try {
     const uuids = node.uuid;
     const indexed = await getIndexedResearchObjects([uuids]);
@@ -71,16 +82,16 @@ export const checkIfPublishedNode = async (req: Request<any, any, any>, res: Res
       indexMap[e.id] = e;
     });
   } catch (err) {
-    logger.error({ err: err.message }, '[ERROR] graph index lookup fail');
+    logger.error({ err }, '[ERROR] graph index lookup fail');
     // todo: try on chain direct (current method doesnt support batch, so fix that and add here)
   }
 
   const hex = `0x${decodeBase64UrlSafeToHex(node.uuid)}`;
   const result = indexMap[hex];
-  const manifest: ResearchObjectV1 = result?.recentCid ? await resolveNodeManifest(result?.recentCid) : null;
+  const manifest: ResearchObjectV1 = result?.recentCid ? await resolveNodeManifest(result?.recentCid, ipfsQuery) : null;
   const o = {
     ...node,
-    uuid: node.uuid.replaceAll('.', ''),
+    uuid: node?.uuid.replaceAll('.', ''),
     isPublished: !!indexMap[hex],
     index: indexMap[hex],
     dpid: manifest?.dpid,
