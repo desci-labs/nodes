@@ -56,12 +56,16 @@ export const emailPublishPackage = async (
     });
     if (!distPdfEntry) return res.status(404).json({ ok: false, error: 'Distribution PDF not found' });
 
-    // Fire off email to all contributors
-    await publishServices.sendVersionUpdateEmailToAllContributors({ node, manuscriptCid: prepubDistPdfCid });
+    // Fire off email
+    await publishServices.sendVersionUpdateEmailToAllContributors({
+      node,
+      manuscriptCid: prepubDistPdfCid,
+      ownerOnly: !emailAllContributors,
+    });
 
     return res.status(200).json({ ok: true });
   } catch (e) {
     logger.error({ error: e.message });
-    return res.status(500).json({ ok: false, error: 'Failed sending distribution package' });
+    return res.status(500).json({ ok: false, error: 'Failed sending distribution package email' });
   }
 };

@@ -1,4 +1,4 @@
-import { Node } from '@prisma/client';
+import { Node, NodeContribution, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
 import { prisma } from '../client.js';
@@ -17,8 +17,18 @@ const logger = parentLogger.child({
 });
 
 export class PublishServices {
-  async sendVersionUpdateEmailToAllContributors({ node, manuscriptCid }: { node: Node; manuscriptCid: string }) {
-    const contributors = await contributorService.retrieveAllVerifiedContributionsForNode(node);
+  async sendVersionUpdateEmailToAllContributors({
+    node,
+    manuscriptCid,
+    ownerOnly,
+    verifiedOnly = false,
+  }: {
+    node: Node;
+    manuscriptCid: string;
+    ownerOnly?: boolean;
+    verifiedOnly?: boolean;
+  }) {
+    const contributors = ownerOnly ? [] : await contributorService.retrieveAllContributionsForNode(node, verifiedOnly);
     const nodeOwner = await prisma.user.findUnique({ where: { id: node.ownerId } });
     const manifest = await getLatestManifestFromNode(node);
     const dpid = manifest.dpid?.id;
@@ -29,6 +39,15 @@ export class PublishServices {
         { nodeUuid: node.uuid, 'manifest.dpid': manifest?.dpid, nodeOwner, totalContributors: contributors.length },
         'Failed to retrieve DPID for node, emails not sent during publish update.',
       );
+    }
+
+    const ownerEmailIncluded = contributors.find((c) => c.email === nodeOwner.email);
+    if (!ownerEmailIncluded) {
+      // Add the owner to the email list incase they forgot to add themselves as a contributor
+      const ownerContributor = { email: nodeOwner.email, name: nodeOwner.name } as unknown as NodeContribution & {
+        user: User;
+      };
+      contributors.push(ownerContributor);
     }
 
     const emailPromises = contributors.map((contributor) => {
@@ -52,7 +71,7 @@ export class PublishServices {
       return emailMsg;
     });
 
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.SHOULD_SEND_EMAIL && process.env.SENDGRID_API_KEY) {
       await Promise.allSettled(emailPromises.map((emailMsg) => sgMail.send(emailMsg)));
     } else {
       logger.info(
