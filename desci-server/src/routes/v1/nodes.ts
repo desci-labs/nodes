@@ -42,11 +42,24 @@ import { asyncHander, attachUser, validate } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
 import { createDpid } from '../../controllers/nodes/createDpid.js';
+import { getDraftNodeStats } from '../../controllers/nodes/getDraftNodeStats.js';
+import { getPublishedNodeStats } from '../../controllers/nodes/getPublishedNodeStats.js';
+import { checkIfPublishedNode } from '../../controllers/nodes/checkIfPublishedNode.js';
+import { checkNodeAccess } from '../../controllers/nodes/checkNodeAccess.js';
+import { searchNodes } from '../../controllers/nodes/searchNodes.js';
+import { getPublishedNodes } from '../../controllers/nodes/getPublishedNodes.js';
 
 const router = Router();
 
 router.post('/prepublish', [ensureUser, ensureNodeAccess], prepublish);
 router.post('/publish', [ensureUser], publish);
+router.get('/stats', [ensureUser], getDraftNodeStats);
+router.get('/stats/published', [ensureUser], getPublishedNodeStats);
+router.get('/published/list', [ensureUser], getPublishedNodes);
+router.get('/published/:uuid', [ensureUser], checkIfPublishedNode);
+router.get('/access/:uuid', [ensureUser], checkNodeAccess);
+router.post('/search/:query', [ensureUser], searchNodes);
+
 router.post('/createDpid', [ensureUser, ensureWriteNodeAccess], createDpid);
 router.post('/createDraft', [ensureUser], draftCreate);
 // is this api deprecated?
