@@ -25,6 +25,7 @@ export type AutomatedMetadataResponse = {
         affiliation: string;
         name: string;
         role: string;
+        ror: string;
       };
     };
     datePublished: [number, number, number]; // [year, month, day]
@@ -45,7 +46,7 @@ export type AutomatedMetadataResponse = {
 };
 
 export type MetadataResponse = {
-  authors: Array<{ orcid: string; name: string; affiliation: string }>;
+  authors: Array<{ orcid: string; name: string; affiliations: { name: string; id: string }[] }>;
   title: string;
   pdfUrl: string | null;
   keywords: string[];
@@ -139,7 +140,7 @@ export class AutomatedMetadataClient {
 
     const authors = output?.creator
       ? Object.entries(output.creator).map(([name, creator]) => ({
-          affiliation: creator.affiliation,
+          affiliations: [{ name: creator.affiliation, id: creator.ror }],
           name,
           ...(creator['@id'] && { orcid: creator['@id'] }),
         }))
@@ -165,7 +166,7 @@ export class AutomatedMetadataClient {
               name: author.name,
               orcid: author.orcid,
               role: ResearchObjectV1AuthorRole.AUTHOR,
-              organisations: [{ id: author.affiliation, name: author.affiliation }],
+              organisations: author.affiliations, // [{ id: author.affiliation, name: author.affiliation }],
             }) as ResearchObjectV1Author,
         ),
       }); //

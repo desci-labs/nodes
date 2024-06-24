@@ -1,9 +1,11 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import {
   CommonComponentPayload,
+  ManifestActions,
   PdfComponent,
   PdfComponentPayload,
   ResearchObjectComponentType,
+  ResearchObjectV1AuthorRole,
 } from '@desci-labs/desci-models';
 import { NextFunction, Response } from 'express';
 import { z } from 'zod';
@@ -18,7 +20,8 @@ import {
   getLatestManifestFromNode,
   logger as parentLogger,
 } from '../../internal.js';
-import { WorkSelectOptions } from '../../services/crossRef/definitions.js';
+import { MetadataResponse } from '../../services/AutomatedMetadata.js';
+import { Work, WorkSelectOptions } from '../../services/crossRef/definitions.js';
 import repoService from '../../services/repoService.js';
 
 export const attachDoiSchema = z.object({
@@ -29,10 +32,11 @@ export const attachDoiSchema = z.object({
 });
 
 export const automateManuscriptDoi = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
-  const { uuid, path } = req.body;
+  const { uuid, path, prepublication } = req.body;
 
   const logger = parentLogger.child({
     module: 'DOI::AttachDOI',
+    body: req.body,
   });
 
   const node = req.node;
@@ -60,6 +64,8 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     select: [WorkSelectOptions.DOI, WorkSelectOptions.TITLE, WorkSelectOptions.AUTHOR],
   });
 
+  logger.info({ works }, 'Works Response');
+
   const doi = works?.data?.message?.items.find((item) =>
     item.title.some((t) => t.toLowerCase() === queryTitle.toLowerCase()),
   );
@@ -71,22 +77,63 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     throw new NotFoundError('DOI not found');
   }
 
+  // todo: pull metadata from crossrefClient#getDoiMetadata
+
+  const actions: ManifestActions[] = [
+    {
+      type: 'Update Component',
+      component: {
+        ...component,
+        payload: {
+          ...component.payload,
+          doi: component.payload?.doi ? component.payload.doi.concat([doi.DOI]) : [doi.DOI],
+        } as PdfComponentPayload,
+      },
+      componentIndex,
+    },
+  ];
+
+  if (prepublication) {
+    const { title, authors } = transformWorkToMetadata(doi);
+    actions.push({ type: 'Update Title', title });
+    if (authors.length > 0) {
+      actions.push({
+        type: 'Add Contributors',
+        contributors: authors.map((author) => ({
+          name: author.name,
+          role: ResearchObjectV1AuthorRole.AUTHOR,
+          ...(author.affiliations.length > 0 && { organizations: author.affiliations }),
+          ...(author.orcid && { orcid: author.orcid }),
+        })),
+      });
+    }
+  }
+
+  logger.info({ actions }, 'Automate DOI actions');
+
   const response = await repoService.dispatchAction({
     uuid,
     documentId: node.manifestDocumentId as DocumentId,
-    actions: [
-      {
-        type: 'Update Component',
-        component: {
-          ...component,
-          payload: { ...component.payload, doi: component.payload.doi.concat(doi.DOI) } as PdfComponentPayload,
-        },
-        componentIndex,
-      },
-    ],
+    actions,
   });
 
-  logger.info(response.manifest.components[componentIndex], 'component updated');
+  logger.info({ response: response.manifest.components[componentIndex] }, 'component updated');
 
   new SuccessResponse(true).send(res);
+};
+
+const formatOrcidUrl = (orcid: string) => {
+  const url = new URL(orcid);
+  return url.pathname.replace('/', '');
+};
+
+const transformWorkToMetadata = (work: Work): MetadataResponse => {
+  const title = work.title[0];
+  const authors = work.author.map((author) => ({
+    orcid: author.ORCID ? formatOrcidUrl(author.ORCID) : null,
+    name: author.given ? `${author.given} ${author.family}`.trim() : author.name,
+    affiliations: author.affiliation.map((org) => ({ name: org.name, id: '' })),
+  }));
+
+  return { title, authors, pdfUrl: '', keywords: [] };
 };
