@@ -247,6 +247,7 @@ export interface PdfComponentPayload {
   /** Annotations on the document */
   annotations?: PdfAnnotation[];
   /** DOI of the pdf or manuscript */
+  /** Store an optional list of associated DOIs */
   doi?: string[];
 }
 
