@@ -12,6 +12,15 @@ export type EmailPublishPackageReqBodyParams = {
   nodeUuid: string;
 };
 
+export type EmailPublishPackageRequest = Request<
+  never,
+  never,
+  EmailPublishPackageReqBodyParams,
+  { emailAllContributors?: boolean }
+> & {
+  user: User; // Added by the ensureUser middleware
+};
+
 type EmailPublishPackageResponse = {
   ok: true;
 };
@@ -26,7 +35,7 @@ type EmailPublishPackageErrorResponse = {
  * Generates a prepublish package for a published node (at the moment just the distro PDF)
  */
 export const emailPublishPackage = async (
-  req: Request<{ emailAllContributors?: boolean }, any, EmailPublishPackageReqBodyParams> & { user: User },
+  req: EmailPublishPackageRequest,
   res: Response<EmailPublishPackageResponse | EmailPublishPackageErrorResponse>,
 ) => {
   const user = req.user;

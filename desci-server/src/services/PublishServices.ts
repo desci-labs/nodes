@@ -68,11 +68,21 @@ export class PublishServices {
         html: emailHtml,
       };
 
-      return emailMsg;
+      return { contributor, emailMsg };
     });
 
     if (process.env.SHOULD_SEND_EMAIL && process.env.SENDGRID_API_KEY) {
-      await Promise.allSettled(emailPromises.map((emailMsg) => sgMail.send(emailMsg)));
+      await Promise.allSettled(
+        emailPromises.map((emailEntry) => {
+          // if (emailEntry.contributor.id !== undefined) {
+          //   prisma.nodeContribution.update({
+          //     where: { id: emailEntry.contributor.id },
+          //     data: { inviteSent: true },
+          //   });
+          // }
+          return sgMail.send(emailEntry.emailMsg);
+        }),
+      );
     } else {
       logger.info(
         { nodeEnv: process.env.NODE_ENV },
