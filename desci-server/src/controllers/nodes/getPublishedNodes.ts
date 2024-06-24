@@ -1,32 +1,27 @@
 // import { randomBytes } from 'crypto';
 
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { ResearchObjectV1, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { resolveNodeManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getIndexedResearchObjects } from '../../theGraph.js';
+import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
 import { asyncMap, decodeBase64UrlSafeToHex, randomUUID64 } from '../../utils.js';
+import { Node } from '@prisma/client';
 
 const logger = parentLogger.child({
-  module: 'NODE::listController',
+  module: 'NODE::getPublishedNodes',
 });
-
-export const list = async (req: Request, res: Response, next: NextFunction) => {
+// type NodeWithDpid =  { dpid?: ResearchObjectV1Dpid; isPublished: boolean; index?: IndexedResearchObject };
+export const getPublishedNodes = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
   const ipfsQuery = req.query.g;
 
   // implement paging
   const page: number = req.query.page ? parseInt(req.query.page as string) : 1;
-  const limit: number = req.query.limit ? parseInt(req.query.limit as string) : 10;
-
-  logger.info({
-    body: req.body,
-    user: (req as any).user,
-    ipfsQuery,
-  });
+  const limit: number = req.query.limit ? parseInt(req.query.limit as string) : 20;
 
   let nodes = await prisma.node.findMany({
     select: {
@@ -43,47 +38,13 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
     where: {
       ownerId: owner.id,
       isDeleted: false,
+      ceramicStream: {
+        not: null,
+      },
     },
     orderBy: { updatedAt: 'desc' },
-    take: limit,
-    skip: (page - 1) * limit,
   });
-
-  // transition UUID
-  const ns = nodes.filter((a) => !a.uuid);
-  if (ns.length) {
-    await Promise.all(
-      ns.map(
-        async (n) =>
-          await prisma.node.update({
-            where: {
-              id: n.id,
-            },
-            data: {
-              uuid: randomUUID64(),
-            },
-          }),
-      ),
-    );
-    nodes = await prisma.node.findMany({
-      select: {
-        uuid: true,
-        id: true,
-        createdAt: true,
-        updatedAt: true,
-        ownerId: true,
-        title: true,
-        manifestUrl: true,
-        cid: true,
-        NodeCover: true,
-      },
-      where: {
-        ownerId: owner.id,
-        isDeleted: false,
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
-  }
+  logger.info({ nodes }, 'nodeess');
   const indexMap = {};
 
   try {
@@ -97,7 +58,7 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
     // todo: try on chain direct (current method doesnt support batch, so fix that and add here)
   }
 
-  nodes = await asyncMap(nodes, async (n) => {
+  let foundNodes = await asyncMap(nodes, async (n) => {
     const hex = `0x${decodeBase64UrlSafeToHex(n.uuid)}`;
     const result = indexMap[hex];
     const manifest: ResearchObjectV1 = result?.recentCid
@@ -115,5 +76,10 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
     return o;
   });
 
-  res.send({ nodes });
+  logger.info({ foundNodes }, 'foundNodes');
+
+  foundNodes = foundNodes.filter((n) => n.isPublished);
+  foundNodes = foundNodes.slice((page - 1) * limit, page * limit);
+
+  res.send({ nodes: foundNodes });
 };
