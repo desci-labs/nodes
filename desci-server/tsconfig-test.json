@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    /**
+     * Implied by "module: nodenext":
+     * "moduleResolution": "nodenext",
+     * "esModuleInterop": true,
+     */
+    "target": "esnext",
+    // Recommended by docs, but a lot of errors
+    // "verbatimModuleSyntax": true,
+    "lib": [
+      "esnext",
+      "dom"
+    ],
+    "noEmit": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "resolveJsonModule": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    // dagConcat.cjs requires this
+    "allowJs": true,
+    "inlineSourceMap": true,
+    "paths": {
+      // Overrides a built-in Response type
+      "express": [
+        "./src/types/express"
+      ]
+    },
+    "jsx": "react"
+  },
+  "include": [
+    "test/**/*.ts"
+  ],
+  "compileOnSave": true
+}
