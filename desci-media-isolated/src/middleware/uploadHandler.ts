@@ -22,9 +22,12 @@ const upload = multer({ storage: storage });
 
 // Middleware to determine if it's a file upload or JSON request
 export const uploadHandler = (req: Request, res: Response, next: NextFunction) => {
-  if (req.is('multipart/form-data')) {
-    upload.single('file')(req, res, next);
-  } else {
+  upload.single('file')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ error: 'File upload error' });
+    } else if (err) {
+      return res.status(500).json({ error: 'Server error during file upload' });
+    }
     next();
-  }
+  });
 };

@@ -24,19 +24,17 @@ const __dirname = path.dirname(__filename);
 const BASE_TEMP_DIR = path.resolve(__dirname, '../../..', TEMP_DIR);
 
 export const generateThumbnail = async (req: GenerateThumbnailRequest, res: Response) => {
-  const { cid, fileName } = req.body;
+  const { cid } = req.body;
   const height = parseInt(req.query.height || '300');
-
-  const finalFileName = fileName || (req.file && req.file.originalname);
-  if (!finalFileName) throw new BadRequestError('Missing fileName in request body or file upload');
 
   try {
     let thumbnailPath: string;
 
     if (cid) {
-      thumbnailPath = await ThumbnailsService.generateThumbnailFromCid(cid, finalFileName, height);
+      if (!req.body.fileName) throw new BadRequestError('fileName is required when using cid');
+      thumbnailPath = await ThumbnailsService.generateThumbnailFromCid(cid, req.body.fileName, height);
     } else if (req.file) {
-      thumbnailPath = await ThumbnailsService.generateThumbnailFromFile(req.file.path, finalFileName, height);
+      thumbnailPath = await ThumbnailsService.generateThumbnailFromFile(req.file.path, req.file.originalname, height);
     } else {
       throw new BadRequestError('Either cid or file is required');
     }
@@ -45,14 +43,12 @@ export const generateThumbnail = async (req: GenerateThumbnailRequest, res: Resp
 
     fs.access(fullThumbnailPath, fs.constants.F_OK, (err) => {
       if (err) {
-        throw new NotFoundError(`Thumbnail not found for file: ${finalFileName}`);
+        throw new NotFoundError(`Thumbnail not found for file`);
       }
       res.setHeader('Content-Type', 'image/png');
       const readStream = fs.createReadStream(fullThumbnailPath);
       readStream.pipe(res);
     });
-
-    return res.status(200);
   } catch (err: any) {
     return res.status(500).json({ message: err.message });
   }
