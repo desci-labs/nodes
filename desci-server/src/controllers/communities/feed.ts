@@ -19,10 +19,7 @@ export const getCommunityFeed = async (req: Request, res: Response, next: NextFu
   // accounts for only engagements on community selected attestations
   const nodes = await asyncMap(curatedNodes, async (node) => {
     const engagements = await attestationService.getNodeEngagementSignals(node.nodeDpid10);
-    // const verifiedEngagements = await communityService.getNodeVerifiedEngagementsByCommunity(
-    //   node.nodeDpid10,
-    //   parseInt(req.params.communityId),
-    // );
+
     const verifiedEngagements = node.NodeAttestation.reduce(
       (total, claim) => ({
         reactions: total.reactions + claim.reactions,
@@ -79,7 +76,6 @@ export const getAllFeeds = async (req: Request, res: Response, next: NextFunctio
     };
   });
 
-  logger.info({ nodes }, 'CHECK Verification SignalS');
   let data = await Promise.all(nodes.map(resolveLatestNode));
 
   /**
