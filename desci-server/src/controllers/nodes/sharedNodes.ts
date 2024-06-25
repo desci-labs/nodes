@@ -80,8 +80,9 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
         const nodeUuid = nodeUuidInt.toString('base64url');
         acc[nodeUuid] = ro;
       } catch (e) {
-        logger.error({ e, message: e?.message }, 'Failed to convert hex string to integer');
+        logger.error({ acc, ro, e, message: e?.message }, 'Failed to convert hex string to integer');
       }
+      return acc;
     }, {});
 
     logger.trace(
