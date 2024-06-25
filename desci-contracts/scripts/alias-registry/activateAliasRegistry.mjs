@@ -1,25 +1,14 @@
 /**
- * ALIAS REGISTRY MIGRATION
+ * ALIAS REGISTRY ACTIVATION
  *
- * Deploys a new dPID alias registry, through proxy. Imports existing dPID's as
- * legacy entries, and validates the correctness of these imports afterward.
- * If the imports are interrupted, it can be continued using the syncAliasRegistryMigration.mjs
- * script. The registry is initialized in a paused state, meaning minting new dPID's
- * is disabled, but imports and other administration like configuring the dPID
- * counter can still be done.
- *
- * The script performs the following actions:
- * - Deploys new instance of the registry
- * - Imports legacy dPID's, validating correctness
- * - Immediately pauses minting of new dPID's
- *
- * Steps required to fully activate:
- * - Admin calls `setNextDpid` to whatever is the next when legacy contract is disabled
- * - Admin calls `unpause` to allow minting new dPID's
+ * Activates a dPID alias contract, by setting the next available dPID and
+ * unpausing it. The old contract needs to be paused, so no overlapping dPID's
+ * are minted. Alternatively, set the next dPID with some gap in between.
  *
  * Required arguments (env variables):
- * 1. PRIVATE_KEY - Owner/admin identity (see hardhat.config.ts)
- * 2. ENV - Environment to sync legacy entires from ("dev" or "prod")
+ * 1. REGISTRY_ADDRESS - Address of existing alias registry (proxy) contract
+ * 2. PRIVATE_KEY - Owner/admin identity (see hardhat.config.ts)
+ * 2. NEXT_DPID - The next mintable dPID
  */
 import hardhat from "hardhat";
 const { ethers, hardhatArguments } = hardhat;
