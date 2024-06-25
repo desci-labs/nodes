@@ -11,16 +11,16 @@ import { getIndexedResearchObjects } from '../../theGraph.js';
 import { asyncMap, decodeBase64UrlSafeToHex, randomUUID64 } from '../../utils.js';
 
 const logger = parentLogger.child({
-  module: 'NODE::listController',
+  module: 'NODE::searchNodesController',
 });
 
-export const list = async (req: Request, res: Response, next: NextFunction) => {
+export const searchNodes = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
   const ipfsQuery = req.query.g;
 
   // implement paging
   const page: number = req.query.page ? parseInt(req.query.page as string) : 1;
-  const limit: number = req.query.limit ? parseInt(req.query.limit as string) : 10;
+  const limit: number = req.query.limit ? parseInt(req.query.limit as string) : 20;
 
   logger.info({
     body: req.body,
@@ -43,47 +43,16 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
     where: {
       ownerId: owner.id,
       isDeleted: false,
+      title: {
+        contains: req.params.query,
+        mode: 'insensitive',
+      },
     },
     orderBy: { updatedAt: 'desc' },
     take: limit,
     skip: (page - 1) * limit,
   });
 
-  // transition UUID
-  const ns = nodes.filter((a) => !a.uuid);
-  if (ns.length) {
-    await Promise.all(
-      ns.map(
-        async (n) =>
-          await prisma.node.update({
-            where: {
-              id: n.id,
-            },
-            data: {
-              uuid: randomUUID64(),
-            },
-          }),
-      ),
-    );
-    nodes = await prisma.node.findMany({
-      select: {
-        uuid: true,
-        id: true,
-        createdAt: true,
-        updatedAt: true,
-        ownerId: true,
-        title: true,
-        manifestUrl: true,
-        cid: true,
-        NodeCover: true,
-      },
-      where: {
-        ownerId: owner.id,
-        isDeleted: false,
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
-  }
   const indexMap = {};
 
   try {
@@ -100,9 +69,7 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
   nodes = await asyncMap(nodes, async (n) => {
     const hex = `0x${decodeBase64UrlSafeToHex(n.uuid)}`;
     const result = indexMap[hex];
-    const manifest: ResearchObjectV1 = result?.recentCid
-      ? await resolveNodeManifest(result?.recentCid, ipfsQuery as string)
-      : null;
+    const manifest: ResearchObjectV1 = result?.recentCid ? await resolveNodeManifest(result?.recentCid) : null;
     const o = {
       ...n,
       uuid: n.uuid.replaceAll('.', ''),
