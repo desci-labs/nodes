@@ -102,7 +102,6 @@ jobs:
           sudo apt-get install less
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
           aws sts get-caller-identity
-          kubectl describe deployments
 
       # - name: Check Docker Version
       #   run: docker --version
@@ -204,7 +203,6 @@ jobs:
           sudo apt-get install less
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
           aws sts get-caller-identity
-          kubectl describe deployments
 
       - name: Deploy to EKS (DEV)
         # uses: steebchen/kubectl@v2.0.0
