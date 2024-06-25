@@ -73,11 +73,15 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
     logger.trace({ researchObjectsLength: researchObjects.length }, 'Research objects retrieved successfully');
 
     const publishedNodesMap = researchObjects.reduce((acc, ro) => {
-      // convert hex string to integer
-      const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
-      // convert integer to hex
-      const nodeUuid = nodeUuidInt.toString('base64url');
-      acc[nodeUuid] = ro;
+      try {
+        // convert hex string to integer
+        const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
+        // convert integer to hex
+        const nodeUuid = nodeUuidInt.toString('base64url');
+        acc[nodeUuid] = ro;
+      } catch (e) {
+        logger.error({ e, message: e?.message }, 'Failed to convert hex string to integer');
+      }
     }, {});
 
     logger.trace(
@@ -111,7 +115,7 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
       return res.status(200).json({ ok: true, sharedNodes: filledSharedNodes });
     }
   } catch (e) {
-    logger.error({ e }, 'Failed to retrieve shared nodes for user');
+    logger.error({ e, message: e?.message }, 'Failed to retrieve shared nodes for user');
     return res.status(500).json({ error: 'Failed to retrieve shared nodes' });
   }
 
