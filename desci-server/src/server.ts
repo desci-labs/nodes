@@ -122,10 +122,6 @@ class AppServer {
     this.app.use(cookieParser());
     this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
-    this.app.get('/test-update', (_req, res) => {
-      res.status(200).json({ status: 'ok', updated: true });
-    });
-
     this.#attachRouteHandlers();
 
     // catch 404 errors and forward to error handler
