@@ -48,14 +48,12 @@ export class ThumbnailsService {
       console.error(e);
       throw new UnhandledError(`Failed generating thumbnail for file: ${identifier}`);
     } finally {
-      // Only delete the temp file if it's not the original uploaded file
-      if (!tempFilePath.includes(THUMBNAIL_FILES_DIR)) {
-        try {
-          await fs.promises.unlink(tempFilePath);
-          console.log(`Temporary file ${tempFilePath} deleted successfully.`);
-        } catch (cleanupError) {
-          console.error(`Failed to delete temporary file ${tempFilePath}:`, cleanupError);
-        }
+      // Cleanup initially uploaded file
+      try {
+        await fs.promises.unlink(tempFilePath);
+        console.log(`Temporary file ${tempFilePath} deleted successfully.`);
+      } catch (cleanupError) {
+        console.error(`Failed to delete temporary file ${tempFilePath}:`, cleanupError);
       }
     }
   }
