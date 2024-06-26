@@ -42,7 +42,8 @@ ENV NODE_ENV production
 # 'node' user is created by the node image, prevent perm issues, run with reduced privs
 RUN mkdir -p /usr/src/app/dist && chown node:node /usr/src/app/dist
 USER node
-COPY --chown=node:node ./src/ ./src/
+COPY --chown=node:node ./src/ ./src/  
+COPY --chown=node:node ./public/ ./public/  
 USER root
 RUN chown -R node:node /usr/src/app
 USER node
