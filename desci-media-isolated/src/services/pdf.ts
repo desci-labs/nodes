@@ -16,10 +16,13 @@ import {
   type PdfImageObject,
 } from '../types/pdf.js';
 import fontkit from 'pdflib-fontkit';
+import { logger as parentLogger } from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const BASE_TEMP_DIR = path.resolve(__dirname, '../..', TEMP_DIR);
+
+const logger = parentLogger.child({ module: 'PDF Manipulation Service' });
 
 export class PdfManipulationService {
   static async addPdfCover({
@@ -235,10 +238,10 @@ export class PdfManipulationService {
       const pdfBytesMod = await pdfDoc.save();
       await fsp.writeFile(outputFullPath, pdfBytesMod);
 
-      console.log('Cover page generated successfully:', outputFullPath);
+      logger.info('Cover page generated successfully:', outputFullPath);
       return outputPdfFileName;
     } catch (e) {
-      console.error(e);
+      logger.error({ e }, 'Failed generating cover page for PDF');
       throw new UnhandledError(
         `Failed generating cover page for file with cid: ${cid}, with temp file path: ${tempFilePath}`,
       );
@@ -247,13 +250,13 @@ export class PdfManipulationService {
       try {
         await fs.unlink(tempFilePath, (err) => {
           if (err) {
-            console.error(err, `Failed to cleanup temporary file: ${tempFilePath}`);
+            logger.error({ err }, `Failed to cleanup temporary file: ${tempFilePath}`);
             return;
           }
-          console.log(`Temporary file ${tempFilePath} deleted successfully.`);
+          logger.info(`Temporary file ${tempFilePath} deleted successfully.`);
         });
       } catch (cleanupError) {
-        console.error(`Failed to delete temporary file ${tempFilePath}:`, cleanupError);
+        logger.error({ cleanupError, tempFilePath }, `Failed to delete temporary file ${tempFilePath}`);
       }
     }
   }
@@ -524,18 +527,18 @@ export class PdfManipulationService {
         previewPaths.push(previewPath);
       }
 
-      console.log('Previews generated successfully:', previewPaths);
+      logger.info({ previewPaths }, 'Previews generated successfully');
       return previewPaths;
     } catch (e) {
-      console.error(e);
+      logger.error({ e }, 'Failed generating previews for PDF');
       throw new UnhandledError(`Failed generating previews for file with pdfCid: ${pdfCid}`);
     } finally {
       // The initially saved file is removed, however the generated previews remain. Further cleanup can be done for the generated previews.
       try {
         await fs.promises.unlink(tempFilePath);
-        console.log(`Temporary file ${tempFilePath} deleted successfully.`);
+        logger.trace(`Temporary file ${tempFilePath} deleted successfully.`);
       } catch (cleanupError) {
-        console.error(`Failed to delete temporary file ${tempFilePath}:`, cleanupError);
+        logger.error({ cleanupError, tempFilePath }, `Failed to delete temporary file ${tempFilePath}`);
       }
     }
   }

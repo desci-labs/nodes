@@ -5,6 +5,9 @@ import { BadRequestError, UnhandledError } from '../utils/customErrors.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { logger as parentLogger } from '../utils/logger.js';
+
+const logger = parentLogger.child({ module: 'Thumbnail Generation Service' });
 
 const THUMBNAIL_DIMENSIONS = {
   height: 300,
@@ -42,19 +45,19 @@ export class ThumbnailsService {
 
     try {
       await generateAsync(tempFilePath, exportPath, { ...THUMBNAIL_DIMENSIONS, height: heightPx });
-      console.log('Thumbnail generated successfully:', exportPath);
+      logger.info({ exportPath }, `Thumbnail generated successfully: ${exportPath}`);
       return thumbnailPath;
     } catch (e) {
-      console.error(e);
+      logger.error({ e }, `Failed generating thumbnail for file: ${identifier}`);
       throw new UnhandledError(`Failed generating thumbnail for file: ${identifier}`);
     } finally {
       // Only delete the temp file if it's not the original uploaded file
       if (!tempFilePath.includes(THUMBNAIL_FILES_DIR)) {
         try {
           await fs.promises.unlink(tempFilePath);
-          console.log(`Temporary file ${tempFilePath} deleted successfully.`);
+          logger.trace(`Temporary file ${tempFilePath} deleted successfully.`);
         } catch (cleanupError) {
-          console.error(`Failed to delete temporary file ${tempFilePath}:`, cleanupError);
+          logger.error({ cleanupError, tempFilePath }, `Failed to delete temporary file ${tempFilePath}`);
         }
       }
     }
