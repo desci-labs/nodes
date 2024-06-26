@@ -43,12 +43,16 @@ export class PdfManipulationService {
     const outputPdfFileName = this.getPdfPath(PDF_JOB_TYPE.ADD_COVER, cid);
     const outputFullPath = path.join(BASE_TEMP_DIR, PDF_OUTPUT_DIR, outputPdfFileName);
     // debugger;
+    logger.trace({ cid, tempFilePath }, 'Saving PDF from IPFS onto disk for processing');
     await IpfsService.saveFile(cid, tempFilePath);
+
     // debugger;
     try {
+      logger.trace({ taskId }, 'Loading PDF for processing');
       // Proccess the pdf file to add the cover page
       const pdfBytes = await readFileToBuffer(tempFilePath);
       const pdfDoc = await PDFDocument.load(pdfBytes);
+      logger.trace({ taskId }, 'PDF Doc Loaded');
 
       /**
        * Load Fonts
@@ -235,10 +239,12 @@ export class PdfManipulationService {
           font: interRegularFont,
         });
       }
+      logger.trace({ taskId }, 'Saving PDF with cover page added');
+
       const pdfBytesMod = await pdfDoc.save();
       await fsp.writeFile(outputFullPath, pdfBytesMod);
 
-      logger.info('Cover page generated successfully:', outputFullPath);
+      logger.info({ taskId, outputFullPath }, 'Cover page generated successfully');
       return outputPdfFileName;
     } catch (e) {
       logger.error({ e }, 'Failed generating cover page for PDF');
@@ -248,6 +254,7 @@ export class PdfManipulationService {
     } finally {
       // The initially saved file is removed, however the generated pdf remains. Further cleanup can be done for the generated pdf result.
       try {
+        logger.trace({ taskId }, 'Cleaning up original PDF');
         await fs.unlink(tempFilePath, (err) => {
           if (err) {
             logger.error({ err }, `Failed to cleanup temporary file: ${tempFilePath}`);
