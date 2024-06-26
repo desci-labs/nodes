@@ -97,7 +97,7 @@ router.post('/generate-metadata', [ensureUser, validate(generateMetadataSchema)]
 
 // doi automation
 router.post(
-  '/:uuid/attachManuscriptDoi',
+  '/:uuid/automate-manuscript',
   [ensureUser, ensureNodeAccess, validate(attachDoiSchema)],
   asyncHander(automateManuscriptDoi),
 );

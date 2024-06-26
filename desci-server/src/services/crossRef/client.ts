@@ -104,7 +104,7 @@ class CrossRefClient {
    */
   async getDoiMetadata(doi: string) {
     const params: { [k: string]: any } = {};
-    let url = `https://www.crossref.org/openurl/?pid=myemail@crossref.org&format=unixref&id=${doi}`;
+    let url = `https://www.crossref.org/openurl/?pid=${this._mailto}&format=unixref&id=${doi}`;
     const config: RequestInit = {
       method: 'GET',
       mode: 'cors',

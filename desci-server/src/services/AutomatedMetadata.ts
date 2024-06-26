@@ -184,9 +184,9 @@ export class AutomatedMetadataClient {
           (author) =>
             ({
               name: author.name,
-              orcid: author.orcid,
               role: ResearchObjectV1AuthorRole.AUTHOR,
-              organisations: author.affiliations, // [{ id: author.affiliation, name: author.affiliation }],
+              ...(author.affiliations.length > 0 && { organizations: author.affiliations }),
+              ...(author.orcid && { orcid: author.orcid }),
             }) as ResearchObjectV1Author,
         ),
       }); //

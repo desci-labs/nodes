@@ -82,11 +82,6 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     metadata = transformWorkToMetadata(matchFound);
   }
 
-  // if (!(works.ok && matchFound)) {
-  //   logger.info({ data: works?.data?.message?.items }, 'DOI Not Found');
-  //   throw new NotFoundError('DOI not found');
-  // }
-
   // pull metadata from AM service
   metadata = await metadataClient.getResourceMetadata({
     cid: component.payload.cid,
@@ -114,10 +109,10 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     });
   }
 
-  if (metadata?.abstract) {
+  if (metadata?.abstract.trim()) {
     actions.push({
       type: 'Update Description',
-      description: metadata.abstract,
+      description: metadata.abstract.trim(),
     });
   }
 
