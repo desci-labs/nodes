@@ -57,7 +57,7 @@
     "@automerge/automerge-repo-network-websocket": "^1.0.19",
     "@aws-sdk/client-s3": "^3.537.0",
     "@desci-labs/desci-codex-lib": "^1.1.7",
-    "@desci-labs/desci-contracts": "0.2.5-rc7",
+    "@desci-labs/desci-contracts": "^0.2.6",
     "@desci-labs/desci-models": "0.2.9",
     "@honeycombio/opentelemetry-node": "^0.3.2",
     "@ipld/dag-pb": "^4.0.0",

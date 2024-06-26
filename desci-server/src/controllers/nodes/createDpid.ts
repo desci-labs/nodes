@@ -29,8 +29,8 @@ const CERAMIC_API_URLS = {
 
 const OPTIMISM_RPC_URLS = {
   local: 'http://host.docker.internal:8545',
-  dev: 'https://reverse-proxy-dev.desci.com/rpc_opt_sepolia',
-  prod: 'https://reverse-proxy-prod.desci.com/rpc_opt_mainnet',
+  opSepolia: 'https://reverse-proxy-dev.desci.com/rpc_opt_sepolia',
+  opMainnet: 'https://reverse-proxy-prod.desci.com/rpc_opt_mainnet',
 } as const;
 
 /** Not secret: pre-seeded ganache account for local dev */
@@ -50,11 +50,11 @@ if (apiServerUrl.includes('localhost') || apiServerUrl.includes('host.docker.int
 } else if (apiServerUrl.includes('dev') || apiServerUrl.includes('staging')) {
   aliasRegistryAddress = contracts.devDpidAliasInfo.proxies.at(0).address;
   ceramicApiUrl = CERAMIC_API_URLS.dev;
-  optimismRpcUrl = OPTIMISM_RPC_URLS.dev;
+  optimismRpcUrl = OPTIMISM_RPC_URLS.opSepolia;
 } else if (process.env.NODE_ENV === 'production') {
   aliasRegistryAddress = contracts.prodDpidAliasInfo.proxies.at(0).address;
   ceramicApiUrl = CERAMIC_API_URLS.prod;
-  optimismRpcUrl = OPTIMISM_RPC_URLS.prod;
+  optimismRpcUrl = OPTIMISM_RPC_URLS.opSepolia;
 } else {
   console.error('Cannot derive contract address due to ambiguous environment');
   throw new Error('Ambiguous environment');
