@@ -109,12 +109,12 @@ export const CHAIN_CONFIGS = {
     chainId: "11155420",
     rpcUrl: "https://reverse-proxy-staging.desci.com/rpc_opt_sepolia",
     dpidAliasRegistryConnector: signerOrProvider => tc.DpidAliasRegistry__factory.connect(
-      contracts.devDpidAliasInfo.proxies[0].address,
+      contracts.prodDpidAliasInfo.proxies[0].address, // also uses prod contracts
       signerOrProvider,
     ),
   },
   prod: {
-    chainId: "10",
+    chainId: "11155420",
     rpcUrl: "https://reverse-proxy-prod.desci.com/rpc_opt_sepolia",
     dpidAliasRegistryConnector: signerOrProvider => tc.DpidAliasRegistry__factory.connect(
       contracts.prodDpidAliasInfo.proxies[0].address,
