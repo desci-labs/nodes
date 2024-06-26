@@ -40,7 +40,8 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
   node['publishedDate'] = publisedVersions[0].createdAt;
   radar.node = node;
 
-  let gatewayUrl = discovery.manifestUrl;
+  logger.info({ publisedVersions }, 'publisedVersions');
+  let gatewayUrl = publisedVersions[0].manifestUrl; // discovery.manifestUrl;
 
   try {
     gatewayUrl = cleanupManifestUrl(gatewayUrl);
@@ -48,9 +49,7 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
     const manifest = (await axios.get(gatewayUrl)).data;
     radar.manifest = manifest;
 
-    logger.info({ manifest }, '[SHOW API GET DRAFT MANIFEST]');
-
-    logger.info({}, 'Retrive DraftManifest For /SHOW');
+    logger.info({ manifest }, '[SHOW API GET LAST PUBLISHED MANIFEST]');
   } catch (err) {
     const manifest = await repoService.getDraftManifest(uuid as NodeUuid);
     radar.manifest = manifest;

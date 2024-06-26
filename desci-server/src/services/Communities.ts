@@ -2,7 +2,7 @@ import { Attestation, CommunityMembershipRole, NodeAttestation, NodeFeedItem, Pr
 import _ from 'lodash';
 
 import { prisma } from '../client.js';
-import { DuplicateDataError } from '../internal.js';
+import { DuplicateDataError, logger } from '../internal.js';
 import { attestationService } from '../internal.js';
 
 export type CommunityRadarNode = NodeAttestation & { annotations: number; reactions: number; verifications: number };
@@ -124,9 +124,11 @@ export class CommunityService {
    */
   async getCuratedNodes(communityId: number) {
     const nodesOnRadar = await this.getCommunityRadar(communityId);
+    logger.info({ nodesOnRadar, communityId }, 'Radar');
     const curated = nodesOnRadar.filter((node) =>
       node.NodeAttestation.every((attestation) => attestation.verifications > 0),
     );
+    logger.info({ curated, communityId }, 'CURATED');
     return curated;
   }
 
