@@ -2,12 +2,15 @@ import axios from 'axios';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
 import { IpfsConfigurationError, IpfsFetchError } from '../utils/customErrors.js';
+import { logger as parentLogger } from '../utils/logger.js';
 
 const IPFS_GATEWAY = process.env.IPFS_GATEWAY;
+const logger = parentLogger.child({ module: 'IPFS Service' });
+
 export class IpfsService {
   static async saveFile(cid: string, outputPath: string) {
     if (!IPFS_GATEWAY) {
-      console.log('IPFS_GATEWAY:', process.env.IPFS_GATEWAY);
+      logger.info({ IPFS_GATEWAY: process.env.IPFS_GATEWAY }, 'IPFS_GATEWAY');
       throw new IpfsConfigurationError('process.env.IPFS_GATEWAY is not defined in environment variables');
     }
     const url = `${IPFS_GATEWAY}/${cid}`;
@@ -22,9 +25,9 @@ export class IpfsService {
 
       await pipeline(response.data, fs.createWriteStream(outputPath));
 
-      console.log(`File downloaded and saved to ${outputPath}`);
+      logger.info(`File downloaded and saved to ${outputPath}`);
     } catch (error) {
-      console.error('Error downloading or saving the file:', error);
+      logger.error({ error }, 'Error downloading or saving the file');
       throw new IpfsFetchError(`Error downloading or saving the file: ${cid}`);
     }
   }
