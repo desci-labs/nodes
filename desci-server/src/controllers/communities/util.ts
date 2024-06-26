@@ -29,18 +29,19 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
     logger.warn({ uuid }, 'uuid not found');
   }
 
-  const selectAttributes = ['manifestUrl', 'ownerId', 'title', 'NodeCover'];
+  const selectAttributes: (keyof typeof discovery)[] = ['ownerId', 'NodeCover'];
   const node: Partial<Node & { versions: number }> = _.pick(discovery, selectAttributes);
-  const publisedVersions =
+  const publishedVersions =
     (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND "transactionId" IS NOT NULL ORDER BY "createdAt" DESC`) as NodeVersion[];
 
   // const nodeVersions = (await getNodeVersion
-  logger.info({ uuid: discovery.uuid, publisedVersions }, 'Resolve node');
-  node['versions'] = publisedVersions.length;
-  node['publishedDate'] = publisedVersions[0].createdAt;
+  logger.info({ uuid: discovery.uuid, publishedVersions }, 'Resolve node');
+  node['versions'] = publishedVersions.length;
+  node['publishedDate'] = publishedVersions[0].createdAt;
+  node.manifestUrl = publishedVersions[0].manifestUrl;
   radar.node = node;
 
-  let gatewayUrl = discovery.manifestUrl;
+  let gatewayUrl = publishedVersions[0].manifestUrl;
 
   try {
     gatewayUrl = cleanupManifestUrl(gatewayUrl);
@@ -48,9 +49,7 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
     const manifest = (await axios.get(gatewayUrl)).data;
     radar.manifest = manifest;
 
-    logger.info({ manifest }, '[SHOW API GET DRAFT MANIFEST]');
-
-    logger.info({}, 'Retrive DraftManifest For /SHOW');
+    logger.info({ manifest }, '[SHOW API GET LAST PUBLISHED MANIFEST]');
   } catch (err) {
     const manifest = await repoService.getDraftManifest(uuid as NodeUuid);
     radar.manifest = manifest;

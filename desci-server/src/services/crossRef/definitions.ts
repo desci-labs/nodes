@@ -26,7 +26,7 @@ export interface Work {
   author: Author[];
   DOI: string;
   prefix: string;
-  title: string;
+  title: string[];
 }
 
 export interface Author {
@@ -36,14 +36,6 @@ export interface Author {
   affiliation: unknown[];
   ORCID?: string;
   authenticatedOrcid?: boolean;
-}
-
-interface SearchQueryParams {
-  offset: number;
-  // mailto: string;
-  query: string;
-  filter?: string;
-  rows: number;
 }
 
 export interface QueryWorkParams {

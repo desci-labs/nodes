@@ -1,5 +1,7 @@
 import { Router } from 'express';
 
+import { checkIfPublishedNode } from '../../controllers/nodes/checkIfPublishedNode.js';
+import { checkNodeAccess } from '../../controllers/nodes/checkNodeAccess.js';
 import { addContributor } from '../../controllers/nodes/contributions/create.js';
 import { deleteContributor } from '../../controllers/nodes/contributions/delete.js';
 import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
@@ -12,6 +14,9 @@ import { createDpid } from '../../controllers/nodes/createDpid.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
+import { getDraftNodeStats } from '../../controllers/nodes/getDraftNodeStats.js';
+import { getPublishedNodes } from '../../controllers/nodes/getPublishedNodes.js';
+import { getPublishedNodeStats } from '../../controllers/nodes/getPublishedNodeStats.js';
 import {
   show,
   draftUpdate,
@@ -33,14 +38,16 @@ import {
   publishConsent,
   checkUserPublishConsent,
   checkPublishConsentSchema,
+  automateManuscriptDoi,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
 import { prepublish } from '../../controllers/nodes/prepublish.js';
+import { searchNodes } from '../../controllers/nodes/searchNodes.js';
 import { listSharedNodes } from '../../controllers/nodes/sharedNodes.js';
 import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
-import { asyncHander, attachUser, validate } from '../../internal.js';
+import { asyncHander, attachDoiSchema, attachUser, ensureUserIfPresent, validate } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
@@ -48,6 +55,13 @@ const router = Router();
 
 router.post('/prepublish', [ensureUser, ensureNodeAccess], prepublish);
 router.post('/publish', [ensureUser], publish);
+router.get('/stats', [ensureUser], getDraftNodeStats);
+router.get('/stats/published', [ensureUser], getPublishedNodeStats);
+router.get('/published/list', [ensureUser], getPublishedNodes);
+router.get('/published/:uuid', [], checkIfPublishedNode);
+router.get('/access/:uuid', [ensureUserIfPresent], checkNodeAccess);
+router.post('/search/:query', [ensureUser], searchNodes);
+
 router.post('/createDpid', [ensureUser, ensureWriteNodeAccess], createDpid);
 router.post('/createDraft', [ensureUser], draftCreate);
 // is this api deprecated?
@@ -85,6 +99,13 @@ router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
 router.post('/distribution/email', [ensureUser], emailPublishPackage);
+
+// doi automation
+router.post(
+  '/attachManuscriptDoi',
+  [ensureUser, ensureNodeAccess, validate(attachDoiSchema)],
+  asyncHander(automateManuscriptDoi),
+);
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 

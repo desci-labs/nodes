@@ -42,11 +42,11 @@ export const LEGACY_CHAIN_CONFIGS = {
     chainId: "1337",
     rpcUrl: "http://localhost:8545",
     researchObjectConnector: signerOrProvider => tc.ResearchObjectV2__factory.connect(
-      contracts.localRoInfo.proxies.at(0)!.address,
+      contracts.localRoInfo.proxies[0].address,
       signerOrProvider
     ),
     dpidRegistryConnector: signerOrProvider => tc.DpidRegistry__factory.connect(
-      contracts.localDpidInfo.proxies.at(0)!.address,
+      contracts.localDpidInfo.proxies[0].address,
       signerOrProvider
     ),
   },
@@ -54,11 +54,11 @@ export const LEGACY_CHAIN_CONFIGS = {
     chainId: "11155111",
     rpcUrl: "https://reverse-proxy-dev.desci.com/rpc_sepolia",
     researchObjectConnector: signerOrProvider => tc.ResearchObjectV2__factory.connect(
-      contracts.devRoInfo.proxies.at(0)!.address,
+      contracts.devRoInfo.proxies[0].address,
       signerOrProvider
     ),
     dpidRegistryConnector: signerOrProvider => tc.DpidRegistry__factory.connect(
-      contracts.devDpidInfo.proxies.at(0)!.address,
+      contracts.devDpidInfo.proxies[0].address,
       signerOrProvider
     ),
   },
@@ -66,11 +66,11 @@ export const LEGACY_CHAIN_CONFIGS = {
     chainId: "11155111",
     rpcUrl: "https://reverse-proxy-staging.desci.com/rpc_sepolia",
     researchObjectConnector: signerOrProvider => tc.ResearchObjectV2__factory.connect(
-      contracts.devRoInfo.proxies.at(0)!.address,
+      contracts.devRoInfo.proxies[0].address,
       signerOrProvider
     ),
     dpidRegistryConnector: signerOrProvider => tc.DpidRegistry__factory.connect(
-      contracts.devDpidInfo.proxies.at(0)!.address,
+      contracts.devDpidInfo.proxies[0].address,
       signerOrProvider
     ),
   },
@@ -78,11 +78,11 @@ export const LEGACY_CHAIN_CONFIGS = {
     chainId: "11155111",
     rpcUrl: "https://reverse-proxy-prod.desci.com/rpc_sepolia",
     researchObjectConnector: signerOrProvider => tc.ResearchObjectV2__factory.connect(
-      contracts.prodRoInfo.proxies.at(0)!.address,
+      contracts.prodRoInfo.proxies[0].address,
       signerOrProvider
     ),
     dpidRegistryConnector: signerOrProvider => tc.DpidRegistry__factory.connect(
-      contracts.prodDpidInfo.proxies.at(0)!.address,
+      contracts.prodDpidInfo.proxies[0].address,
       signerOrProvider
     ),
   },
@@ -101,7 +101,7 @@ export const CHAIN_CONFIGS = {
     chainId: "11155420",
     rpcUrl: "https://reverse-proxy-dev.desci.com/rpc_opt_sepolia",
     dpidAliasRegistryConnector: signerOrProvider => tc.DpidAliasRegistry__factory.connect(
-      contracts.devDpidAliasInfo.proxies.at(0)!.address,
+      contracts.devDpidAliasInfo.proxies[0].address,
       signerOrProvider,
     ),
   },
@@ -109,15 +109,15 @@ export const CHAIN_CONFIGS = {
     chainId: "11155420",
     rpcUrl: "https://reverse-proxy-staging.desci.com/rpc_opt_sepolia",
     dpidAliasRegistryConnector: signerOrProvider => tc.DpidAliasRegistry__factory.connect(
-      contracts.devDpidAliasInfo.proxies.at(0)!.address,
+      contracts.devDpidAliasInfo.proxies[0].address,
       signerOrProvider,
     ),
   },
   prod: {
     chainId: "10",
-    rpcUrl: "https://reverse-proxy-prod.desci.com/rpc_opt_mainnet",
+    rpcUrl: "https://reverse-proxy-prod.desci.com/rpc_opt_sepolia",
     dpidAliasRegistryConnector: signerOrProvider => tc.DpidAliasRegistry__factory.connect(
-      contracts.prodDpidAliasInfo.proxies.at(0)!.address,
+      contracts.prodDpidAliasInfo.proxies[0].address,
       signerOrProvider,
     ),
   }
