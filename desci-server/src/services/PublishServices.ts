@@ -63,7 +63,7 @@ export class PublishServices {
       const emailMsg = {
         to: contributor.email,
         from: 'no-reply@desci.com',
-        subject: `[nodes.desci.com] DPID ${dpid} has been updated`,
+        subject: `[nodes.desci.com] DPID ${dpid || '(DEMO)'} has been updated`,
         text: `${nodeOwner.name} has published an updated version (${versionPublished}) of their research object titled "${node.title}" that you have contributed to.`,
         html: emailHtml,
       };

@@ -24,6 +24,8 @@ export const NodeUpdated = ({
 }: NodeUpdatedEmailProps) => {
   if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
   nodeOwner = nodeOwner || 'The node owner';
+  nodeDpid = nodeDpid || '(DEMO)';
+  versionUpdate = versionUpdate || '1'; // For demo case
   const nodeUrl = `${DAPP_URL}/dpid/${nodeDpid}/${versionUpdate}`;
   const manuscriptUrl = `${process.env.IPFS_RESOLVER_OVERRIDE}/${manuscriptCid}`;
   return (
