@@ -2205,10 +2205,10 @@
     key-did-resolver "^4.0.0"
     uint8arrays "^4.0.6"
 
-"@desci-labs/desci-contracts@0.2.5-rc7":
-  version "0.2.5-rc7"
-  resolved "https://registry.yarnpkg.com/@desci-labs/desci-contracts/-/desci-contracts-0.2.5-rc7.tgz#a8a49c9518107305be712bcbdbb352faa4057a44"
-  integrity sha512-W1hf+mv5KWnqCuXX3uBiBsll+iMD82GJbsGs3huzH6qY2TySVFUCLov017B0RGz2Ap1WRB9w7h3o9CEwDuV5lQ==
+"@desci-labs/desci-contracts@^0.2.6":
+  version "0.2.6"
+  resolved "https://registry.yarnpkg.com/@desci-labs/desci-contracts/-/desci-contracts-0.2.6.tgz#71e0dd8b953f8729fce899cdf6cdf4898acbcb9b"
+  integrity sha512-1PTKgGtHIrWZ/UMIrOs/tVrAdGUQC+QW+OLiBlEi2sV2UXsazZTjMbiGxjErP+VBPoMkFbfsWiLMvgjs6Pw/5A==
 
 "@desci-labs/desci-models@0.2.9":
   version "0.2.9"

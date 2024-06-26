@@ -1,0 +1,309 @@
+{
+	"info": {
+		"_postman_id": "f3499db3-0bee-418e-8229-3af4d9f4719f",
+		"name": "DeSci Nodes Server",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "10483110"
+	},
+	"item": [
+		{
+			"name": "Start Email Login (Magic Code)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"email\": \"sina@desci.com\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{server_url}}/v1/auth/magic",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"v1",
+						"auth",
+						"magic"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Complete Email Login (Magic Code)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"email\": \"sina@desci.com\",\r\n    \"code\": \"353876\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{server_url}}/v1/auth/magic",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"v1",
+						"auth",
+						"magic"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Node Draft",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"title\": \"Test123\",\r\n    \"links\": []\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{server_url}}/v1/nodes/createDraft",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"v1",
+						"nodes",
+						"createDraft"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Nodes",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{auth_jwt_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{server_url}}/v1/nodes/access/",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"v1",
+						"nodes",
+						"access",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Nodes Page 2",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{auth_jwt_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{server_url}}/v1/nodes?g=http://localhost:5001&page=2",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"v1",
+						"nodes"
+					],
+					"query": [
+						{
+							"key": "g",
+							"value": "http://localhost:5001"
+						},
+						{
+							"key": "page",
+							"value": "2"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Published Nodes",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{auth_jwt_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{server_url}}/v1/nodes/published/list?g=http://localhost:5001",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"v1",
+						"nodes",
+						"published",
+						"list"
+					],
+					"query": [
+						{
+							"key": "g",
+							"value": "http://localhost:5001"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Node Titles",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{server_url}}/v1/nodes/search/test",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"v1",
+						"nodes",
+						"search",
+						"test"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Node Stats",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{auth_jwt_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{server_url}}/v1/nodes/stats",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"v1",
+						"nodes",
+						"stats"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Check Node Access",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{auth_jwt_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{server_url}}/v1/nodes/access/GOcPwF6yNEyTemHzPmXXhINrx-dXMpfAMpUj-to-FMY",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"v1",
+						"nodes",
+						"access",
+						"GOcPwF6yNEyTemHzPmXXhINrx-dXMpfAMpUj-to-FMY"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Check if Published",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{auth_jwt_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{server_url}}/v1/nodes/published/GOcPwF6yNEyTemHzPmXXhINrx-dXMpfAMpUj-to-FMY",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"v1",
+						"nodes",
+						"published",
+						"GOcPwF6yNEyTemHzPmXXhINrx-dXMpfAMpUj-to-FMY"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Published Node Stats",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{auth_jwt_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{server_url}}/v1/nodes/stats/published",
+					"host": [
+						"{{server_url}}"
+					],
+					"path": [
+						"v1",
+						"nodes",
+						"stats",
+						"published"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

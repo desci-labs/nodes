@@ -46,7 +46,6 @@ jobs:
           sudo apt-get install less
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
           aws sts get-caller-identity
-          kubectl describe deployments
 
       - name: Build and tag desci-media-isolated image (STAGING)
         run: |
@@ -103,7 +102,6 @@ jobs:
           sudo apt-get install less
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
           aws sts get-caller-identity
-          kubectl describe deployments
 
       - name: Build and tag nodes-media-server image (STAGING)
         run: |
@@ -160,7 +158,6 @@ jobs:
           sudo apt-get install less
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
           aws sts get-caller-identity
-          kubectl describe deployments
 
       - name: Stub contract
         run: |
@@ -222,7 +219,6 @@ jobs:
           sudo apt-get install less
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
           aws sts get-caller-identity
-          kubectl describe deployments
 
       - name: Stub contract
         run: |
@@ -289,7 +285,6 @@ jobs:
           sudo apt-get install less
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
           aws sts get-caller-identity
-          kubectl describe deployments
 
       - name: Build and tag the image (STAGING)
         run: |
@@ -307,7 +302,7 @@ jobs:
           docker tag $CONTAINER_IMAGE_PROXY-staging:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_PROXY-staging:latest
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_PROXY-staging:${{ github.sha }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE_PROXY-staging:latest
-      
+
       - name: Deploy to EKS (STAGING)
         run: | # defaults to latest kubectl binary version
           kubectl apply -f $CONTAINER_IMAGE_PROXY/deployment.yaml
