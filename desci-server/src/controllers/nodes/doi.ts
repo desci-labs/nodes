@@ -85,7 +85,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
   // pull metadata from AM service
   metadata = await metadataClient.getResourceMetadata({
     cid: component.payload.cid,
-    doi: doi || component.payload.doi[0],
+    doi: doi || component.payload?.doi?.[0],
   });
 
   // todo: pull metadata from crossrefClient#getDoiMetadata
