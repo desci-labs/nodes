@@ -66,7 +66,7 @@ router.get('/ror', [ensureUser], queryRor);
 router.get('/ipfs/:cid', ipfsReadGatewayProxy);
 
 // potential notification fallback catch
-router.get(
+router.post(
   '/crossref/callback',
   [identifyEndpoint('/v1/crossref/callback'), ensureCrossrefNotifier],
   asyncHandler(handleCrossrefNotificationCallback),

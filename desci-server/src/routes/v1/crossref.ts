@@ -2,6 +2,8 @@
 import { NextFunction, Request, Response, Router } from 'express';
 
 import {
+  AuthFailureError,
+  BadRequestError,
   RequestWithCrossRefPayload,
   asyncHandler,
   handleCrossrefNotificationCallback,
@@ -34,19 +36,19 @@ export const ensureCrossrefNotifier = (req: Request, _res: Response, next: NextF
   // CROSSREF-RETRIEVE-URL-EXPIRATION-DATE
 
   const payload = {
-    notifyEndpoint: req.headers['CROSSREF-NOTIFY-ENDPOINT'] as string,
-    externalId: req.headers[' CROSSREF-EXTERNAL-ID'] as string,
-    internalId: req.headers['CROSSREF-INTERNAL-ID'] as string,
-    retrieveUrl: req.headers['CROSSREF-RETRIEVE-URL'] as string,
-    serviceDate: req.headers['CROSSREF-SERVICE-DATE'] as string,
-    retrieveUrlExpirationDate: req.headers['CROSSREF-RETRIEVE-URL-EXPIRATION-DATE'] as string,
+    notifyEndpoint: req.headers['crossref-notify-endpoint'] as string,
+    externalId: req.headers['crossref-external-id'] as string,
+    internalId: req.headers['crossref-internal-id'] as string,
+    retrieveUrl: req.headers['crossref-retrieve-url'] as string,
+    serviceDate: req.headers['crossref-service-date'] as string,
+    retrieveUrlExpirationDate: req.headers['crossref-retrieve-url-expiration-date'] as string,
   };
 
   logger.info({ payload, headers: req.headers, body: req.body }, 'payload');
   // verify notification endpoint
   if (payload.notifyEndpoint !== process.env.CROSSREF_NOTIFY_ENDPOINT) {
     logger.info({ payloadEndpoint: payload.notifyEndpoint, endpoint: notifierEndpoint }, 'INVALID ENDPOINT');
-    return;
+    throw new AuthFailureError();
   }
 
   (req as RequestWithCrossRefPayload).payload = payload;

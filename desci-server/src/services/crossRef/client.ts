@@ -304,7 +304,7 @@ class CrossRefClient {
     logger.info(response, 'CROSSREF NOTIFICATION: retrieveSubmission');
     // return interprete the response from the api to determine if the
     // submission status has either `success | pending | failed`
-    return { success: true, pending: true, failure: true };
+    return { success: response?.completed !== null, pending: false, failure: true };
   }
 }
 
@@ -320,7 +320,7 @@ type NotificationResult = {
   notifyPayloadExpiration: string;
   internalTrackingId: string;
   externalTrackingId: string;
-  recordCreated: string;
+  recordCreated: string | null;
   recordUpdated: string | null;
 };
 

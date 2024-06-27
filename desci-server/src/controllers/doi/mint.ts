@@ -5,6 +5,7 @@ import _ from 'lodash';
 import { MintError } from '../../core/doi/error.js';
 import {
   BadRequestError,
+  NotFoundError,
   SuccessMessageResponse,
   SuccessResponse,
   crossRefClient,
@@ -40,21 +41,22 @@ export interface RequestWithCrossRefPayload extends Request {
 
 export const handleCrossrefNotificationCallback = async (
   req: RequestWithCrossRefPayload,
-  _res: Response,
+  res: Response,
   _next: NextFunction,
 ) => {
   const submission = await doiService.getPendingSubmission(req.payload.externalId);
   logger.info({ submission }, 'SUBMISSION');
+
   if (!submission) {
     logger.error({ payload: req.payload }, 'Crossref Notifiication: pending submission not found');
-    return;
+    throw new NotFoundError('submission not found');
   }
 
   logger.info({ submission }, 'SUBMISSION FOUND');
   await doiService.updateSubmission({ id: submission.id }, { notification: req.payload });
   logger.info('SUBMISSION UPDATED');
 
-  new SuccessMessageResponse();
+  new SuccessMessageResponse().send(res);
 
   // check retrieve url to get submission result
   const response = await crossRefClient.retrieveSubmission(req.payload.retrieveUrl);

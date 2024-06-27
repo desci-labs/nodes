@@ -184,7 +184,7 @@ export class DoiService {
       include: { DoiSubmission: { where: { status: DoiStatus.PENDING } } },
     });
 
-    return pending.DoiSubmission.length > 0 ? true : false;
+    return pending?.DoiSubmission && pending.DoiSubmission.length > 0 ? true : false;
   }
 
   async getPendingSubmission(batchId: string) {
