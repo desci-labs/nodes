@@ -30,7 +30,7 @@ export interface PrepublishErrorResponse {
 /**
  * DAGifies the drafts current DB tree state, adds the structure to IPFS (No Files Pinned, Folders staged), and updates the manifest data bucket CID.
  */
-export const prepublish = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
+export const prepublish = async (req: RequestWithNode, res: Response<PrepublishResponse>, _next: NextFunction) => {
   const owner = req.user;
   const node = req.node;
   const { uuid } = req.body;

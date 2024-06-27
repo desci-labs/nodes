@@ -66,7 +66,7 @@ export class DoiService {
         select: [WorkSelectOptions.DOI, WorkSelectOptions.TITLE, WorkSelectOptions.AUTHOR],
         queryTitle: manuscriptTitle,
       });
-      const doi = works?.data?.message?.items.find((item) => item.title === manuscriptTitle);
+      const doi = works?.data?.message?.items.find((item) => item.title.some((t) => t === manuscriptTitle));
       logger.info({ status: works.ok, manuscript: manuscriptTitle, doi }, 'Search Manuscripts');
 
       if (!doi) return null;

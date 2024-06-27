@@ -71,9 +71,9 @@ jobs:
             exit 1
           fi
 
-  build-and-push:
-    needs: build-and-test
-    name: Build and deploy
+  build-and-push-images:
+    # we build and push for every commit, even if tests pass, that way when tests pass deployment is short (run test + build in parallel)
+    name: Build and push images
     runs-on: ubuntu-latest
     steps:
       - uses: hashicorp/setup-terraform@v1
@@ -102,7 +102,6 @@ jobs:
           sudo apt-get install less
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
           aws sts get-caller-identity
-          kubectl describe deployments
 
       # - name: Check Docker Version
       #   run: docker --version
@@ -125,7 +124,7 @@ jobs:
         run: |
           # Build and tag the image
           docker build \
-            -t $CONTAINER_IMAGE-dev:latest \
+            -t $CONTAINER_IMAGE-dev:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev \
              .
 
@@ -134,7 +133,7 @@ jobs:
         run: |
           # Build and tag the image
           docker build \
-            -t $CONTAINER_IMAGE-demo:latest \
+            -t $CONTAINER_IMAGE-demo:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo \
              .
 
@@ -143,42 +142,67 @@ jobs:
         run: |
           # Build and tag the image
           docker build \
-            -t $CONTAINER_IMAGE:latest \
+            -t $CONTAINER_IMAGE:${{ github.sha }} \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
              .
 
-      # Add additional steps here like scanning of image
-
-      # Only push to registry on dev
       - name: Push (DEV)
         if: github.ref == 'refs/heads/develop'
         run: |
           # Push image to AWS ECR
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE-dev:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
-          docker tag $CONTAINER_IMAGE-dev:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:latest
+          docker tag $CONTAINER_IMAGE-dev:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:latest
 
       - name: Push (DEMO)
         if: github.ref == 'refs/heads/demo'
         run: |
           # Push image to AWS ECR
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE-demo:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
-          docker tag $CONTAINER_IMAGE-demo:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:latest
+          docker tag $CONTAINER_IMAGE-demo:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:latest
 
       - name: Push (PROD)
         if: github.ref == 'refs/heads/main'
         run: |
           # Push image to AWS ECR
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
-          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
+          docker tag $CONTAINER_IMAGE:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
+
+  deploy:
+    name: Deploy desci-server
+    needs:
+      - build-and-test
+      - build-and-push-images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hashicorp/setup-terraform@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Add steps here like linting, testing, minification, etc.
+      - id: install-aws-cli
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 1
+
+      - uses: prepor/action-aws-iam-authenticator@master
+      - run: aws-iam-authenticator version
+
+      - name: Install Kubectl
+        run: |
+          #$(curl -Ls https://dl.k8s.io/release/stable.txt)
+          version=v1.23.6
+          echo "using kubectl@$version"
+          curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          mkdir $HOME/.kube
+          sudo apt-get update
+          sudo apt-get install less
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+          aws sts get-caller-identity
 
       - name: Deploy to EKS (DEV)
         # uses: steebchen/kubectl@v2.0.0
@@ -186,18 +210,30 @@ jobs:
         run: | # defaults to latest kubectl binary version
           kubectl apply -f desci-server/kubernetes/deployment_dev.yaml
           kubectl set image deployment/desci-server-dev desci-server-dev=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} --record
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
+          docker tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:latest
 
       - name: Deploy to EKS (DEMO)
         # uses: steebchen/kubectl@v2.0.0
         if: github.ref == 'refs/heads/demo'
         run: | # defaults to latest kubectl binary version
           kubectl set image deployment/desci-server-demo desci-server-demo=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }} --record
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
+          docker tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:latest
 
       - name: Deploy to EKS (PROD)
         if: github.ref == 'refs/heads/main'
         run: | # defaults to latest kubectl binary version
           kubectl apply -f desci-server/kubernetes/deployment_prod.yaml
           kubectl set image deployment/desci-server desci-server=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} --record
+          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+          docker tag $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
 
       - name: Verify EKS Deployment (DEV)
         if: github.ref == 'refs/heads/develop'

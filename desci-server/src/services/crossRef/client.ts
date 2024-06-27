@@ -274,7 +274,7 @@ class CrossRefClient {
 
   async performFetch<T>(request: Request) {
     const responseFromCache = await getFromCache<T>(request.url);
-    logger.info(responseFromCache, 'DOI From Cache');
+    // logger.info(responseFromCache, 'DOI From Cache');
     if (responseFromCache) return { ok: true, status: 200, data: responseFromCache };
 
     const response = (await global.fetch(request)) as CrossRefHttpResponse<T>;
