@@ -44,18 +44,23 @@ export const handleCrossrefNotificationCallback = async (
   _next: NextFunction,
 ) => {
   const submission = await doiService.getPendingSubmission(req.payload.externalId);
-
+  logger.info({ submission }, 'SUBMISSION');
   if (!submission) {
     logger.error({ payload: req.payload }, 'Crossref Notifiication: pending submission not found');
     return;
   }
 
+  logger.info({ submission }, 'SUBMISSION FOUND');
   await doiService.updateSubmission({ id: submission.id }, { notification: req.payload });
+  logger.info('SUBMISSION UPDATED');
 
   new SuccessMessageResponse();
 
   // check retrieve url to get submission result
   const response = await crossRefClient.retrieveSubmission(req.payload.retrieveUrl);
+
+  // TODO: email authors about the submission status
+
   await doiService.updateSubmission(
     { id: submission.id },
     { status: response.success ? DoiStatus.SUCCESS : response.failure ? DoiStatus.FAILED : DoiStatus.PENDING },

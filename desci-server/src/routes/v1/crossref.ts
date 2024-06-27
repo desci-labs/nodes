@@ -5,18 +5,26 @@ import {
   RequestWithCrossRefPayload,
   asyncHandler,
   handleCrossrefNotificationCallback,
-  logger,
+  logger as parentLogger,
 } from '../../internal.js';
 
+const logger = parentLogger.child({ module: 'CROSSREF NOTIFICATION' });
 // assert required env are available
 if (!process.env.CROSSREF_NOTIFY_CALLBACK_PATH) throw Error('Env `CROSSREF_NOTIFY_CALLBACK_PATH` not set.');
 if (!process.env.CROSSREF_NOTIFY_ENDPOINT) throw Error('Env `CROSSREF_NOTIFY_ENDPOINT` not set.');
 
 const notifierCallbackUrl = process.env.CROSSREF_NOTIFY_CALLBACK_PATH;
+const notifierEndpoint = process.env.CROSSREF_NOTIFY_ENDPOINT;
 
 const router = Router();
 
-const ensureCrossrefNotifier = (req: Request, _res: Response, next: NextFunction) => {
+export const identifyEndpoint = (endpoint: string) => (req: Request, _res: Response, next: NextFunction) => {
+  logger.info({ endpoint }, 'identifyEndpoint');
+  next();
+};
+
+export const ensureCrossrefNotifier = (req: Request, _res: Response, next: NextFunction) => {
+  logger.info({ headers: req.headers }, 'CALLBACK MIDDLEWARE');
   // parse the follwing headers and attach it to the request's context;
   // CROSSREF-NOTIFY-ENDPOINT
   // CROSSREF-EXTERNAL-ID
@@ -34,9 +42,10 @@ const ensureCrossrefNotifier = (req: Request, _res: Response, next: NextFunction
     retrieveUrlExpirationDate: req.headers['CROSSREF-RETRIEVE-URL-EXPIRATION-DATE'] as string,
   };
 
-  logger.info({ payload, headers: req.headers }, 'CROSSREF NOTIFICATION');
+  logger.info({ payload, headers: req.headers, body: req.body }, 'payload');
   // verify notification endpoint
   if (payload.notifyEndpoint !== process.env.CROSSREF_NOTIFY_ENDPOINT) {
+    logger.info({ payloadEndpoint: payload.notifyEndpoint, endpoint: notifierEndpoint }, 'INVALID ENDPOINT');
     return;
   }
 
@@ -45,6 +54,10 @@ const ensureCrossrefNotifier = (req: Request, _res: Response, next: NextFunction
   next();
 };
 
-router.post(notifierCallbackUrl, [ensureCrossrefNotifier], asyncHandler(handleCrossrefNotificationCallback));
+router.post(
+  notifierCallbackUrl,
+  [identifyEndpoint(notifierCallbackUrl), ensureCrossrefNotifier],
+  asyncHandler(handleCrossrefNotificationCallback),
+);
 
 export default router;

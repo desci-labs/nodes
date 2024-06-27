@@ -1,8 +1,14 @@
 import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
-import { DoiStatus, DoiSubmissionQueue, Prisma, PrismaClient } from '@prisma/client';
+import { DoiStatus, Prisma, PrismaClient } from '@prisma/client';
 import { v4 } from 'uuid';
 
-import { DuplicateMintError, BadManifestError, AttestationsError, MintError } from '../core/doi/error.js';
+import {
+  DuplicateMintError,
+  BadManifestError,
+  AttestationsError,
+  MintError,
+  ForbiddenMintError,
+} from '../core/doi/error.js';
 import { logger } from '../logger.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js';
 import { asyncMap, ensureUuidEndsWithDot, hexToCid } from '../utils.js';
@@ -84,7 +90,10 @@ export class DoiService {
     // retrieve node manifest/metadata
     const { researchObjects } = await getIndexedResearchObjects([uuid]);
     const researchObject = researchObjects[0] as IndexedResearchObject;
-    const manifestCid = hexToCid(researchObject.recentCid);
+    const manifestCid = hexToCid(researchObject?.recentCid);
+
+    if (!manifestCid) throw new ForbiddenMintError('Node not published yet!');
+
     const latestManifest = await getManifestByCid(manifestCid);
     researchObject.versions.reverse();
 
