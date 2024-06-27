@@ -43,8 +43,8 @@ import {
 
 const router = Router();
 
-router.get('/suggestions/all', [ensureUser], asyncHander(getAllRecommendations));
-router.get('/suggestions/protected', [ensureUser], asyncHander(getValidatedRecommendations));
+router.get('/suggestions/all', [], asyncHander(getAllRecommendations));
+router.get('/suggestions/protected', [], asyncHander(getValidatedRecommendations));
 router.get(
   '/claims/:communityId/:dpid',
   [ensureUser, validate(showCommunityClaimsSchema)],
