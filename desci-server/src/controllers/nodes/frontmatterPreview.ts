@@ -25,7 +25,9 @@ type FrontmatterPreviewErrorResponse = {
   error: string;
   status?: number;
 };
-
+const logger = parentLogger.child({
+  module: 'NODES::FrontmatterPreview',
+});
 /**
  * Generates previews for the frontmatter and first content page of a PDF
  * @param req.params.contentPageOnly will only generate the first content page preview (Used before frontmatter is generated)
@@ -34,16 +36,12 @@ export const frontmatterPreview = async (
   req: Request<FrontmatterPreviewQueryParams, any, FrontmatterPreviewReqBodyParams>,
   res: Response<FrontmatterPreviewResponse | FrontmatterPreviewErrorResponse>,
 ) => {
+  logger.trace({ fn: 'Retrieving frontmatter previews', ...req.body, ...req.params });
   const user = (req as any).user;
   const { uuid, pdfCid } = req.body;
   const { contentPageOnly } = req.params;
-  const logger = parentLogger.child({
-    module: 'NODES::FrontmatterPreview',
-    uuid,
-    contentPageOnly,
-    userId: user?.id,
-  });
-  logger.trace({ fn: 'Retrieving frontmatter previews' });
+
+  logger.trace({ fn: 'Retrieving frontmatter previews', uuid, contentPageOnly, userId: user?.id });
 
   if (!uuid) return res.status(400).json({ ok: false, error: 'UUID is required.' });
   if (!pdfCid) return res.status(400).json({ ok: false, error: 'pdfCid is required.' });
