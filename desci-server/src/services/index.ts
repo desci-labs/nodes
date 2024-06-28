@@ -12,5 +12,5 @@ export const crossRefClient = new CrossRefClient(
 );
 export const metadataClient = new AutomatedMetadataClient(
   process.env.AUTOMATED_METADATA_API || 'http://host.docker.internal:5005', // remove this after env have been added to CI
-  process.env.AUTOMATED_METADATA_API_KEY,
+  process.env.AUTOMATED_METADATA_API_KEY || '',
 );
