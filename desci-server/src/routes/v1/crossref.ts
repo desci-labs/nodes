@@ -11,10 +11,13 @@ import {
 } from '../../internal.js';
 
 const logger = parentLogger.child({ module: 'CROSSREF NOTIFICATION' });
+const DEFAULT_CROSSREF_ENDPOINT = '/callback/crossref';
 // assert required env are available
-if (!process.env.CROSSREF_NOTIFY_ENDPOINT) throw Error('Env `CROSSREF_NOTIFY_ENDPOINT` not set.');
+if (!process.env.CROSSREF_NOTIFY_ENDPOINT) {
+  logger.warn({ using: DEFAULT_CROSSREF_ENDPOINT }, 'Env `CROSSREF_NOTIFY_ENDPOINT` not set.');
+}
 
-const notifierEndpoint = process.env.CROSSREF_NOTIFY_ENDPOINT;
+const notifierEndpoint = process.env.CROSSREF_NOTIFY_ENDPOINT || DEFAULT_CROSSREF_ENDPOINT;
 
 const router = Router();
 

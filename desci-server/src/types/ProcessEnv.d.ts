@@ -12,7 +12,6 @@ declare namespace NodeJS {
     MAX_LOCK_TIME: string;
     CROSSREF_EMAIL: string;
     CROSSREF_DOI_URL: string;
-    CROSSREF_API_KEY: string;
     CROSSREF_METADATA_API: string;
     ORCID_API_DOMAIN: string;
     CROSSREF_LOGIN: string;
