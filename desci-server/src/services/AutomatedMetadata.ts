@@ -92,7 +92,7 @@ export class AutomatedMetadataClient {
     const body: { pdf: string; doi?: string } | { doi: string; pdf?: string } = { pdf: '' };
 
     if (query.cid) {
-      body.pdf = query.cid;
+      body.pdf = `https://ipfs.desci.com/ipfs/${query.cid}`;
     }
 
     if (query.doi) {
