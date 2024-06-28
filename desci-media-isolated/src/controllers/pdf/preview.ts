@@ -32,21 +32,27 @@ export const generatePreview = async (
 
   try {
     // debugger;
+    console.log('start preview', cid);
     const previewPaths = await PdfManipulationService.generatePdfPreviews(cid, `${cid}.pdf`, pages, height);
+    console.log('done preview', cid);
     const previewBuffers: Buffer[] = [];
     for (const previewPath of previewPaths) {
       const fullPreviewPath = path.join(BASE_TEMP_DIR, THUMBNAIL_OUTPUT_DIR, previewPath);
+      console.log({ fullPreviewPath });
 
       try {
+        console.log('star read', fullPreviewPath);
         const previewBuffer = await fs.readFile(fullPreviewPath);
+        console.log('done read', fullPreviewPath);
         previewBuffers.push(previewBuffer);
       } catch (err) {
+        console.error(err);
         throw new NotFoundError(`Preview not found for file with cid: ${cid}, path: ${previewPath}`);
       }
     }
 
+    console.log({ done: previewBuffers });
     res.setHeader('Content-Type', 'application/json');
-    res.status(200).json(previewBuffers);
 
     res.on('finish', async () => {
       // Cleanup generated previews after they're sent
@@ -60,6 +66,7 @@ export const generatePreview = async (
         logger.error({ error }, 'Error during cleanup:');
       }
     });
+    return res.status(200).json(previewBuffers);
   } catch (err: any) {
     return res.status(500).json({ message: err.message });
   }

@@ -154,20 +154,20 @@ class PublishPackageService {
     }
 
     // Save it to the database
-    const existingPreviews = await prisma.pdfPreviews.findFirst({
-      where: { pdfCid, nodeUuid },
-    });
+    // const existingPreviews = await prisma.pdfPreviews.findFirst({
+    //   where: { pdfCid, nodeUuid },
+    // });
 
-    if (existingPreviews) {
-      await prisma.pdfPreviews.update({
-        where: { id: existingPreviews.id },
-        data: { previewMap },
-      });
-    } else {
-      await prisma.pdfPreviews.create({
-        data: { nodeUuid: ensureUuidEndsWithDot(nodeUuid), pdfCid, previewMap },
-      });
-    }
+    // if (existingPreviews) {
+    //   await prisma.pdfPreviews.update({
+    //     where: { id: existingPreviews.id },
+    //     data: { previewMap },
+    //   });
+    // } else {
+    //   await prisma.pdfPreviews.create({
+    //     data: { nodeUuid: ensureUuidEndsWithDot(nodeUuid), pdfCid, previewMap },
+    //   });
+    // }
 
     // LATER: Add data ref
     return previewMap;
