@@ -19,6 +19,5 @@ declare namespace NodeJS {
     CROSSREF_LOGIN: string;
     CROSSREF_PASSWORD: string;
     CROSSREF_NOTIFY_ENDPOINT: string;
-    CROSSREF_NOTIFY_CALLBACK_PATH: string;
   }
 }

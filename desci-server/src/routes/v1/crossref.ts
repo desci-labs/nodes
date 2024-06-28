@@ -12,10 +12,8 @@ import {
 
 const logger = parentLogger.child({ module: 'CROSSREF NOTIFICATION' });
 // assert required env are available
-if (!process.env.CROSSREF_NOTIFY_CALLBACK_PATH) throw Error('Env `CROSSREF_NOTIFY_CALLBACK_PATH` not set.');
 if (!process.env.CROSSREF_NOTIFY_ENDPOINT) throw Error('Env `CROSSREF_NOTIFY_ENDPOINT` not set.');
 
-const notifierCallbackUrl = process.env.CROSSREF_NOTIFY_CALLBACK_PATH;
 const notifierEndpoint = process.env.CROSSREF_NOTIFY_ENDPOINT;
 
 const router = Router();
@@ -57,8 +55,8 @@ export const ensureCrossrefNotifier = (req: Request, _res: Response, next: NextF
 };
 
 router.post(
-  notifierCallbackUrl,
-  [identifyEndpoint(notifierCallbackUrl), ensureCrossrefNotifier],
+  '/crossref/callback',
+  [identifyEndpoint('/crossref/callback'), ensureCrossrefNotifier],
   asyncHandler(handleCrossrefNotificationCallback),
 );
 
