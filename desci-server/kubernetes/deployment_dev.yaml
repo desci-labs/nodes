@@ -84,6 +84,8 @@ spec:
           export CROSSREF_API={{ .Data.CROSSREF_API }}
           export CROSSREF_API_KEY={{ .Data.CROSSREF_API_KEY }}
           export CROSSREF_EMAIL={{ .Data.CROSSREF_EMAIL }}
+          export AUTOMATED_METADATA_API={{ .Data.AUTOMATED_METADATA_API }}
+          export AUTOMATED_METADATA_API_KEY={{ .Data.AUTOMATED_METADATA_API_KEY }}
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
