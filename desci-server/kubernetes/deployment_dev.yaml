@@ -81,7 +81,6 @@ spec:
           export ETHEREUM_RPC_URL={{ .Data.ETHEREUM_RPC_URL }}
           export GOOGLE_CLIENT_ID={{ .Data.GOOGLE_CLIENT_ID }}
           export DOI_PREFIX={{ .Data.DOI_PREFIX }}
-          export CROSSREF_API={{ .Data.CROSSREF_API }}
           export CROSSREF_API_KEY={{ .Data.CROSSREF_API_KEY }}
           export CROSSREF_EMAIL={{ .Data.CROSSREF_EMAIL }}
           export CROSSREF_DOI_URL={{ .Data.CROSSREF_DOI_URL }}

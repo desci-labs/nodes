@@ -98,19 +98,12 @@ type PublicationDate = {
  * Initialize constructor with CrossRef Api url https://api.crossref.org, Api token and a polite Mail
  */
 class CrossRefClient {
-  baseurl: string;
+  baseurl = 'https://api.crossref.org';
 
   constructor(
-    baseUrl: string,
     private _plusToken?: string,
     private _mailto?: string,
-  ) {
-    if (!baseUrl) {
-      logger.error('Pass Cross ref api as argument to CrossRefClient');
-      throw Error('Pass Cross ref api as argument to CrossRefClient');
-    }
-    this.baseurl = baseUrl;
-  }
+  ) {}
 
   /**
    * Returns a list of all works (journal articles,
