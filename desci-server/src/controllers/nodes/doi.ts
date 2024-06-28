@@ -33,6 +33,50 @@ export const attachDoiSchema = z.object({
   }),
 });
 
+export interface OpenAlexWork {
+  id: string;
+  title: string;
+  doi: string;
+  open_access: {
+    is_oa: boolean;
+    oa_status: string;
+    oa_url: string;
+  };
+  best_oa_location: {
+    is_oa: boolean;
+    pdf_url: string;
+  };
+  authorships: Array<{
+    author_position: string;
+    author: {
+      id: string;
+      display_name: string;
+      orcid: string;
+    };
+    institutions: Array<{
+      id: string;
+      display_name: string;
+      ror: string;
+      country_code: string;
+      type: string;
+      lineage: string[];
+    }>;
+    countries: string[];
+    is_corresponding: boolean;
+    raw_author_name: string;
+    raw_affiliation_strings: string[];
+    affiliations: Array<{
+      raw_affiliation_string: string;
+      institution_ids: string[];
+    }>;
+  }>;
+  keywords: Array<{
+    id: string;
+    display_name: string;
+    score: number;
+  }>;
+}
+
 export const automateManuscriptDoi = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid, path, prepublication } = req.body;
 
@@ -53,47 +97,51 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
 
   const component = latestManifest.components[componentIndex] as PdfComponent;
 
-  // if (component.payload.doi) throw new ForbiddenError(`${component.subtype || component.type} already has a DOI`);
-
-  const queryTitle =
-    component.payload.path.split('/').pop().replace(/\.pdf/g, '') ||
-    component.name.replace(/\.pdf/g, '') ||
-    component.payload.title;
-
-  const works = await crossRefClient.listWorks({
-    queryTitle,
-    rows: 5,
-    select: [WorkSelectOptions.DOI, WorkSelectOptions.TITLE, WorkSelectOptions.AUTHOR],
-  });
-
-  logger.info({ works }, 'Works Response');
-
-  const matchFound = works?.data?.message?.items.find((item) =>
-    item.title.some((t) => t.toLowerCase() === queryTitle.toLowerCase()),
-  );
-
-  logger.info({ matchFound, queryTitle }, 'DOI Response');
-
   let doi: string;
   let metadata: MetadataResponse;
 
-  if (works.ok && matchFound) {
-    doi = matchFound.DOI;
-    metadata = transformWorkToMetadata(matchFound);
+  // if doi is present, pull from openalex
+  if (component.payload?.doi) {
+    doi = component.payload.doi[0];
+    try {
+      const result = await fetch(
+        `https://api.openalex.org/works/doi:${doi}?select=id,title,doi,authorships,keywords,open_access,best_oa_location`,
+        {
+          headers: {
+            Accept: '*/*',
+            'content-type': 'application/json',
+          },
+        },
+      );
+      logger.info({ status: result.status, message: result.statusText }, 'OPEN ALEX QUERY');
+      const work = (await result.json()) as OpenAlexWork;
+      logger.info({ openAlexWork: work }, 'OPEN ALEX QUERY');
+      metadata = transformOpenAlexWorkToMetadata(work);
+    } catch (err) {
+      logger.error({ err }, 'ERROR: OPEN ALEX WORK QUERY');
+    }
   }
 
-  // pull metadata from AM service
-  metadata = await metadataClient.getResourceMetadata({
-    cid: component.payload.cid,
-    doi: doi || component.payload?.doi?.[0],
-  });
+  if (!metadata) {
+    // pull metadata from AM service
+    metadata = await metadataClient.getResourceMetadata({
+      cid: component.payload.cid,
+      doi: doi || component.payload?.doi?.[0],
+    });
+  }
 
   // todo: pull metadata from crossrefClient#getDoiMetadata
   // const doiMetadata = await crossRefClient.getDoiMetadata('');
 
+  logger.info({ metadata }, 'METADATA');
   if (!metadata) throw new NotFoundError('DOI not found!');
 
   const actions: ManifestActions[] = [];
+
+  if (!doi) {
+    // fallback to metadata.doi if component payload has no doi
+    doi = metadata?.doi;
+  }
 
   if (doi) {
     actions.push({
@@ -102,14 +150,19 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
         ...component,
         payload: {
           ...component.payload,
-          doi: component.payload?.doi ? component.payload.doi.concat([doi]) : [doi],
-        } as PdfComponentPayload,
+          doi: component.payload?.doi ? component.payload.doi : [doi],
+          ...(metadata?.keywords && {
+            keywords: component.payload?.keywords
+              ? component?.payload.keywords.concat(metadata.keywords)
+              : metadata.keywords,
+          }),
+        } as PdfComponentPayload & CommonComponentPayload,
       },
       componentIndex,
     });
   }
 
-  if (metadata?.abstract.trim()) {
+  if (metadata?.abstract?.trim()) {
     actions.push({
       type: 'Update Description',
       description: metadata.abstract.trim(),
@@ -147,6 +200,18 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
   logger.info({ response: response.manifest.components[componentIndex] }, 'component updated');
 
   new SuccessResponse(true).send(res);
+};
+
+const transformOpenAlexWorkToMetadata = (work: OpenAlexWork): MetadataResponse => {
+  const authors = work.authorships.map((author) => ({
+    orcid: author.author?.orcid ? getOrcidFromURL(author.author.orcid) : null,
+    name: author.author.display_name,
+    affiliations: author?.institutions.map((org) => ({ name: org.display_name, id: org?.ror || '' })) ?? [],
+  }));
+
+  const keywords = work?.keywords.map((entry) => entry.display_name) ?? [];
+
+  return { title: work.title, doi: work.doi, authors, pdfUrl: '', keywords };
 };
 
 const transformWorkToMetadata = (work: Work): MetadataResponse => {
