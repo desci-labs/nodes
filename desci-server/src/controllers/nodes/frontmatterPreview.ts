@@ -44,7 +44,7 @@ export const frontmatterPreview = async (
     userId: user?.id,
   });
   logger.trace({ fn: 'Retrieving frontmatter previews' });
-
+  // debugger;
   if (!uuid) return res.status(400).json({ ok: false, error: 'UUID is required.' });
   if (!pdfCid) return res.status(400).json({ ok: false, error: 'pdfCid is required.' });
 
