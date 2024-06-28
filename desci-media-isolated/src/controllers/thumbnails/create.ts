@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { TEMP_DIR, THUMBNAIL_OUTPUT_DIR } from '../../config/index.js';
 import { BadRequestError, NotFoundError } from '../../utils/customErrors.js';
+import { logger as parentLogger } from '../../utils/logger.js';
 
 export type GenerateThumbnailRequestBody = {
   cid?: string;
@@ -27,6 +28,11 @@ export const generateThumbnail = async (req: GenerateThumbnailRequest, res: Resp
   const { cid } = req.body;
   const height = parseInt(req.query.height || '300');
 
+  const logger = parentLogger.child({
+    module: 'generateThumbnail Controller',
+    cid,
+  });
+
   try {
     let thumbnailPath: string;
 
@@ -48,6 +54,16 @@ export const generateThumbnail = async (req: GenerateThumbnailRequest, res: Resp
       res.setHeader('Content-Type', 'image/png');
       const readStream = fs.createReadStream(fullThumbnailPath);
       readStream.pipe(res);
+      readStream.on('end', () => {
+        // Cleanup the generated PDF file
+        fs.unlink(fullThumbnailPath, (unlinkErr) => {
+          if (unlinkErr) {
+            logger.error({ unlinkErr }, `Failed to delete generated thumbnail file: ${fullThumbnailPath}`);
+          } else {
+            logger.info(`Successfully cleaned up generated thumbnail file: ${fullThumbnailPath}`);
+          }
+        });
+      });
     });
   } catch (err: any) {
     return res.status(500).json({ message: err.message });

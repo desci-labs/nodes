@@ -7,6 +7,7 @@ import { deleteContributor } from '../../controllers/nodes/contributions/delete.
 import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
 import { getUserContributions } from '../../controllers/nodes/contributions/getUserContributions.js';
 import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
+import { emailPublishPackage } from '../../controllers/nodes/contributions/prepubEmail.js';
 import { updateContributor } from '../../controllers/nodes/contributions/update.js';
 import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
 import { createDpid } from '../../controllers/nodes/createDpid.js';
@@ -107,6 +108,7 @@ router.post(
   automateMetadata,
 );
 router.post('/generate-metadata', [ensureUser, validate(generateMetadataSchema)], generateMetadata);
+router.post('/distribution/email', [ensureUser], emailPublishPackage);
 
 // doi automation
 router.post(

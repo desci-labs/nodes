@@ -519,6 +519,7 @@ model NodeContribution {
   orcid         String?
   deleted       Boolean   @default(false)
   deletedAt     DateTime?
+  inviteSent    Boolean   @default(false)
   node          Node      @relation(fields: [nodeId], references: [id])
   user          User?     @relation(fields: [userId], references: [id])
 

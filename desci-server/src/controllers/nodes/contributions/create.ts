@@ -100,6 +100,10 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
 
       if (process.env.NODE_ENV === 'production') {
         sgMail.send(emailMsg);
+        prisma.nodeContribution.update({
+          where: { id: contributorAdded.id },
+          data: { inviteSent: true },
+        });
       } else {
         logger.info(
           { nodeEnv: process.env.NODE_ENV },

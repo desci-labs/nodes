@@ -33,9 +33,9 @@ export const NODESLIB_CONFIGS = {
   staging: {
     apiUrl: "https://nodes-api-staging.desci.com",
     apiKey: undefined,
-    ceramicNodeUrl: "https://ceramic-dev.desci.com",
-    legacyChainConfig: LEGACY_CHAIN_CONFIGS.dev, // also using the dev contracts
-    chainConfig: CHAIN_CONFIGS.dev, // also using dev contracts
+    ceramicNodeUrl: "https://ceramic-prod.desci.com",
+    legacyChainConfig: LEGACY_CHAIN_CONFIGS.prod, // also using the prod contracts
+    chainConfig: CHAIN_CONFIGS.prod, // also using prod contracts
   },
   prod: {
     apiUrl: "https://nodes-api.desci.com",

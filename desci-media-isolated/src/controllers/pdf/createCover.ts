@@ -5,6 +5,7 @@ import fs from 'fs';
 import { PDF_OUTPUT_DIR, TEMP_DIR } from '../../config/index.js';
 import { BadRequestError, NotFoundError } from '../../utils/customErrors.js';
 import { PdfManipulationService } from '../../services/pdf.js';
+import { logger as parentLogger } from '../../utils/logger.js';
 
 export type GeneratePdfCoverRequestBody = {
   cid: string;
@@ -36,6 +37,23 @@ export const generatePdfCover = async (
 ) => {
   const { cid, doi, dpid, title, codeAvailableDpid, dataAvailableDpid, license, publishDate, authors } = req.body;
   const { header = true, headerAllPages = false, authorLimit } = req.query;
+  const logger = parentLogger.child({
+    module: 'GeneratePdfCover Controller',
+    cid,
+    doi,
+    dpid,
+    title,
+    codeAvailableDpid,
+    dataAvailableDpid,
+    license,
+    publishDate,
+    authors,
+    header,
+    headerAllPages,
+    authorLimit,
+  });
+  logger.trace('Generating prepub cover');
+
   try {
     if (!cid) throw new BadRequestError('Missing cid in request body');
     if (!dpid) throw new BadRequestError('Missing dpid in request body');
@@ -69,6 +87,17 @@ export const generatePdfCover = async (
       const readStream = fs.createReadStream(fullPdfPath);
 
       readStream.pipe(res);
+
+      readStream.on('end', () => {
+        // Cleanup the generated PDF file
+        fs.unlink(fullPdfPath, (unlinkErr) => {
+          if (unlinkErr) {
+            logger.error({ unlinkErr }, `Failed to delete generated cover file: ${fullPdfPath}`);
+          } else {
+            logger.info(`Successfully cleaned up generated cover file: ${fullPdfPath}`);
+          }
+        });
+      });
     });
 
     return res.status(200);

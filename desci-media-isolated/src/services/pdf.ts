@@ -16,10 +16,13 @@ import {
   type PdfImageObject,
 } from '../types/pdf.js';
 import fontkit from 'pdflib-fontkit';
+import { logger as parentLogger } from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const BASE_TEMP_DIR = path.resolve(__dirname, '../..', TEMP_DIR);
+
+const logger = parentLogger.child({ module: 'PDF Manipulation Service' });
 
 export class PdfManipulationService {
   static async addPdfCover({
@@ -40,12 +43,16 @@ export class PdfManipulationService {
     const outputPdfFileName = this.getPdfPath(PDF_JOB_TYPE.ADD_COVER, cid);
     const outputFullPath = path.join(BASE_TEMP_DIR, PDF_OUTPUT_DIR, outputPdfFileName);
     // debugger;
+    logger.trace({ cid, tempFilePath }, 'Saving PDF from IPFS onto disk for processing');
     await IpfsService.saveFile(cid, tempFilePath);
+
     // debugger;
     try {
+      logger.trace({ taskId }, 'Loading PDF for processing');
       // Proccess the pdf file to add the cover page
       const pdfBytes = await readFileToBuffer(tempFilePath);
       const pdfDoc = await PDFDocument.load(pdfBytes);
+      logger.trace({ taskId }, 'PDF Doc Loaded');
 
       /**
        * Load Fonts
@@ -232,28 +239,31 @@ export class PdfManipulationService {
           font: interRegularFont,
         });
       }
+      logger.trace({ taskId }, 'Saving PDF with cover page added');
+
       const pdfBytesMod = await pdfDoc.save();
       await fsp.writeFile(outputFullPath, pdfBytesMod);
 
-      console.log('Cover page generated successfully:', outputFullPath);
+      logger.info({ taskId, outputFullPath }, 'Cover page generated successfully');
       return outputPdfFileName;
     } catch (e) {
-      console.error(e);
+      logger.error({ e }, 'Failed generating cover page for PDF');
       throw new UnhandledError(
         `Failed generating cover page for file with cid: ${cid}, with temp file path: ${tempFilePath}`,
       );
     } finally {
       // The initially saved file is removed, however the generated pdf remains. Further cleanup can be done for the generated pdf result.
       try {
+        logger.trace({ taskId }, 'Cleaning up original PDF');
         await fs.unlink(tempFilePath, (err) => {
           if (err) {
-            console.error(err, `Failed to cleanup temporary file: ${tempFilePath}`);
+            logger.error({ err }, `Failed to cleanup temporary file: ${tempFilePath}`);
             return;
           }
-          console.log(`Temporary file ${tempFilePath} deleted successfully.`);
+          logger.info(`Temporary file ${tempFilePath} deleted successfully.`);
         });
       } catch (cleanupError) {
-        console.error(`Failed to delete temporary file ${tempFilePath}:`, cleanupError);
+        logger.error({ cleanupError, tempFilePath }, `Failed to delete temporary file ${tempFilePath}`);
       }
     }
   }
@@ -524,18 +534,18 @@ export class PdfManipulationService {
         previewPaths.push(previewPath);
       }
 
-      console.log('Previews generated successfully:', previewPaths);
+      logger.info({ previewPaths }, 'Previews generated successfully');
       return previewPaths;
     } catch (e) {
-      console.error(e);
+      logger.error({ e }, 'Failed generating previews for PDF');
       throw new UnhandledError(`Failed generating previews for file with pdfCid: ${pdfCid}`);
     } finally {
       // The initially saved file is removed, however the generated previews remain. Further cleanup can be done for the generated previews.
       try {
         await fs.promises.unlink(tempFilePath);
-        console.log(`Temporary file ${tempFilePath} deleted successfully.`);
+        logger.trace(`Temporary file ${tempFilePath} deleted successfully.`);
       } catch (cleanupError) {
-        console.error(`Failed to delete temporary file ${tempFilePath}:`, cleanupError);
+        logger.error({ cleanupError, tempFilePath }, `Failed to delete temporary file ${tempFilePath}`);
       }
     }
   }
