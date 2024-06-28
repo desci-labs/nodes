@@ -93,7 +93,17 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
       component.type === ResearchObjectComponentType.PDF && (component.payload as CommonComponentPayload).path === path,
   );
 
-  if (componentIndex === -1) throw new BadRequestError('Component to attach DOI not a valid pdf');
+  if (componentIndex === -1) {
+    logger.error(
+      {
+        path,
+        componentIndex,
+        components: latestManifest.components,
+      },
+      'Component to attach DOI not a valid pdf',
+    );
+    throw new BadRequestError('Component to attach DOI not a valid pdf');
+  }
 
   const component = latestManifest.components[componentIndex] as PdfComponent;
 
