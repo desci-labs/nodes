@@ -48,7 +48,7 @@ export const frontmatterPreview = async (
 
   if (user) {
     // Check if user owns node, if requesting previews
-    const node = await prisma.node.findFirst({\
+    const node = await prisma.node.findFirst({
       where: {
         ownerId: user.id,
         uuid: ensureUuidEndsWithDot(uuid),
