@@ -64,10 +64,10 @@ export const emailPublishPackage = async (
 
     if (!node) return res.status(404).json({ ok: false, error: 'Node not found' });
     // debugger; //
-    const distPdfEntry = await prisma.distributionPdfs.findFirst({
-      where: { distPdfCid: prepubDistPdfCid, nodeUuid: ensureUuidEndsWithDot(node.uuid) },
-    });
-    if (!distPdfEntry) return res.status(404).json({ ok: false, error: 'Distribution PDF not found' });
+    // const distPdfEntry = await prisma.distributionPdfs.findFirst({
+    //   where: { distPdfCid: prepubDistPdfCid, nodeUuid: ensureUuidEndsWithDot(node.uuid) },
+    // });
+    // if (!distPdfEntry) return res.status(404).json({ ok: false, error: 'Distribution PDF not found' });
 
     // Fire off email
     await publishServices.sendVersionUpdateEmailToAllContributors({
