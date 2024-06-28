@@ -61,6 +61,7 @@ export type MetadataResponse = {
   title: string;
   pdfUrl: string | null;
   keywords: string[];
+  doi?: string;
 };
 
 /**
