@@ -38,6 +38,10 @@ import {
   publishConsent,
   checkUserPublishConsent,
   checkPublishConsentSchema,
+  automateMetadata,
+  generateMetadata,
+  automateMetadataSchema,
+  generateMetadataSchema,
   automateManuscriptDoi,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
@@ -98,11 +102,17 @@ router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
+router.post(
+  '/:uuid/automate-metadata',
+  [ensureUser, ensureNodeAccess, validate(automateMetadataSchema)],
+  automateMetadata,
+);
+router.post('/generate-metadata', [ensureUser, validate(generateMetadataSchema)], generateMetadata);
 router.post('/distribution/email', [ensureUser], emailPublishPackage);
 
 // doi automation
 router.post(
-  '/attachManuscriptDoi',
+  '/:uuid/automate-manuscript',
   [ensureUser, ensureNodeAccess, validate(attachDoiSchema)],
   asyncHander(automateManuscriptDoi),
 );
