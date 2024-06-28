@@ -99,6 +99,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
         path,
         componentIndex,
         components: latestManifest.components,
+        latestManifest,
       },
       'Component to attach DOI not a valid pdf',
     );
