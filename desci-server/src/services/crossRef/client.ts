@@ -296,7 +296,7 @@ class CrossRefClient {
     logger.info(url, 'url params');
     const request = new Request(url, config);
     try {
-      const response = await fetch(request);
+      const response = await global.fetch(request);
       if (!response.ok) return null;
       const body = await response.text();
       logger.info(body, 'XML RESPONSE');

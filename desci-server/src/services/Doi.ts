@@ -48,10 +48,10 @@ export class DoiService {
     let claims = await attestationService.getProtectedNodeClaims(manifest.dpid.id);
     claims = claims.filter((claim) => claim.verifications > 0);
 
-    const hasClaimedRequiredAttestations = doiAttestations.every((attestation) =>
+    const hasClaimedRequiredAttestation = doiAttestations.some((attestation) =>
       claims.find((claim) => claim.attestationId === attestation.id),
     );
-    if (!hasClaimedRequiredAttestations) throw new AttestationsError();
+    if (!hasClaimedRequiredAttestation) throw new AttestationsError();
   }
 
   async extractManuscriptDoi(manuscripts: PdfComponent[]) {
@@ -111,7 +111,8 @@ export class DoiService {
     logger.info(manuscripts, 'MANUSCRIPTS');
 
     if (manuscripts.length > 0) {
-      const existingDois = await this.extractManuscriptDoi(manuscripts);
+      const existingDois = manuscripts.filter((doc) => doc.payload?.doi && doc.payload.doi.length > 0);
+      // await this.extractManuscriptDoi(manuscripts);
 
       logger.info(existingDois, 'Existing DOI');
       // does manuscript(s) already have a DOI
