@@ -9,6 +9,7 @@ import {
 import { User, Node, Prisma } from '@prisma/client';
 
 import { prisma } from '../../client.js';
+import { ExternalCid } from '../../controllers/data/updateExternalCid.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
 import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
@@ -28,7 +29,6 @@ import {
   createManifestPersistFailError,
   createUnhandledError,
 } from './processingErrors.js';
-import { ExternalCid } from '../../controllers/data/updateExternalCid.js';
 
 const logger = parentLogger.child({
   module: 'Services::ExternalCidProcessing',
@@ -48,7 +48,7 @@ interface ProcessExternalCidDataToIpfsParams {
 
 /**
  * Processes external CIDs, to pin the file or leafless UnixFS DAG.
-*/
+ */
 export async function processExternalCidDataToIpfs({
   externalCids,
   user,
@@ -63,9 +63,7 @@ export async function processExternalCidDataToIpfs({
      */
     const cidTypesSizes: Record<string, GetExternalSizeAndTypeResult> = {};
     try {
-      externalCids = externalCids.map(
-        (extCid) => ({ ...extCid, cid: convertToCidV1(extCid.cid) })
-      );
+      externalCids = externalCids.map((extCid) => ({ ...extCid, cid: convertToCidV1(extCid.cid) }));
       for (const extCid of externalCids) {
         const { isDirectory, size } = await getExternalCidSizeAndType(extCid.cid);
         if (size !== undefined && isDirectory !== undefined) {

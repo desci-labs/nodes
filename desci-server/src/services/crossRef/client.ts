@@ -134,11 +134,11 @@ class CrossRefClient {
       }
     }
 
-    logger.info(params, 'API INFO');
+    logger.info({ params }, 'API INFO');
 
     if (typeof params === 'object') {
       params = keysToDotsAndDashses(params);
-      logger.info(params, 'parsed params');
+      logger.info({ params }, 'parsed params');
     }
 
     for (const [key, value] of Object.entries(params)) {
@@ -159,12 +159,12 @@ class CrossRefClient {
 
     url = url.slice(0, -1);
     url = encodeURI(url);
-    logger.info(url, 'url params');
+    logger.info({ url }, 'url params');
     const request = new Request(url, config);
     try {
       return await this.performFetch<Items<Work>>(request);
     } catch (error) {
-      logger.error(error, 'LIST WORKS API ERROR');
+      logger.error({ error }, 'LIST WORKS API ERROR');
 
       // retry after 1 second
       await delay(1000);
@@ -262,6 +262,47 @@ class CrossRefClient {
     } catch (error) {
       logger.error(error, 'Post metadata Api Error');
       return { ok: false };
+    }
+  }
+  /**
+   * Returns a list of all works (journal articles,
+   * conference proceedings, books, components, etc),
+   */
+  async getDoiMetadata(doi: string) {
+    const params: { [k: string]: any } = {};
+    let url = `https://www.crossref.org/openurl/?pid=${this._mailto}&format=unixref&id=${doi}`;
+    const config: RequestInit = {
+      method: 'GET',
+      mode: 'cors',
+      headers: {},
+    };
+
+    // polite api
+    if (this._mailto) {
+      params['pid'] = this._mailto;
+    }
+
+    params['format'] = 'unixref';
+    params['id'] = doi;
+
+    logger.info(params, 'API INFO');
+
+    for (const [key, value] of Object.entries(params)) {
+      url += `${key}=${value}&`;
+    }
+
+    url = url.slice(0, -1);
+    url = encodeURI(url);
+    logger.info(url, 'url params');
+    const request = new Request(url, config);
+    try {
+      const response = await fetch(request);
+      if (!response.ok) return null;
+      const body = await response.text();
+      logger.info(body, 'XML RESPONSE');
+    } catch (error) {
+      logger.error(error, 'OPEN URL SEARCH ERROR');
+      return null;
     }
   }
 

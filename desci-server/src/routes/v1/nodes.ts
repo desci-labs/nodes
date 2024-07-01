@@ -7,6 +7,7 @@ import { deleteContributor } from '../../controllers/nodes/contributions/delete.
 import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
 import { getUserContributions } from '../../controllers/nodes/contributions/getUserContributions.js';
 import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
+import { emailPublishPackage } from '../../controllers/nodes/contributions/prepubEmail.js';
 import { updateContributor } from '../../controllers/nodes/contributions/update.js';
 import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
 import { createDpid } from '../../controllers/nodes/createDpid.js';
@@ -37,6 +38,10 @@ import {
   publishConsent,
   checkUserPublishConsent,
   checkPublishConsentSchema,
+  automateMetadata,
+  generateMetadata,
+  automateMetadataSchema,
+  generateMetadataSchema,
   automateManuscriptDoi,
   attachDoiSchema,
 } from '../../controllers/nodes/index.js';
@@ -98,10 +103,17 @@ router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
+router.post(
+  '/:uuid/automate-metadata',
+  [ensureUser, ensureNodeAccess, validate(automateMetadataSchema)],
+  automateMetadata,
+);
+router.post('/generate-metadata', [ensureUser, validate(generateMetadataSchema)], generateMetadata);
+router.post('/distribution/email', [ensureUser], emailPublishPackage);
 
 // doi automation
 router.post(
-  '/attachManuscriptDoi',
+  '/:uuid/automate-manuscript',
   [ensureUser, ensureNodeAccess, validate(attachDoiSchema)],
   asyncHandler(automateManuscriptDoi),
 );

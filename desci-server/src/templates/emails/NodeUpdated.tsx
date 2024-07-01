@@ -24,6 +24,8 @@ export const NodeUpdated = ({
 }: NodeUpdatedEmailProps) => {
   if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
   nodeOwner = nodeOwner || 'The node owner';
+  nodeDpid = nodeDpid || '(DEMO)';
+  versionUpdate = versionUpdate || '1'; // For demo case
   const nodeUrl = `${DAPP_URL}/dpid/${nodeDpid}/${versionUpdate}`;
   const manuscriptUrl = `${process.env.IPFS_RESOLVER_OVERRIDE}/${manuscriptCid}`;
   return (
@@ -34,7 +36,7 @@ export const NodeUpdated = ({
         <Body style={main}>
           <Container style={container}>
             <Heading style={h1} className="text-center">
-              DPID {nodeDpid} has been updated to version ${versionUpdate}
+              DPID {nodeDpid} has been updated to version {versionUpdate}
             </Heading>
             <Text style={heroText}>
               <strong>{nodeOwner}</strong> has published an updated version of their research object titled{' '}

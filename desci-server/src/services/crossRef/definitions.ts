@@ -32,8 +32,9 @@ export interface Work {
 export interface Author {
   given: string;
   family: string;
+  name?: string;
   sequence: string;
-  affiliation: unknown[];
+  affiliation: { name: string }[];
   ORCID?: string;
   authenticatedOrcid?: boolean;
 }
