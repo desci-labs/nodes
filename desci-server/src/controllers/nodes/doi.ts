@@ -75,6 +75,7 @@ export interface OpenAlexWork {
     display_name: string;
     score: number;
   }>;
+  abstract_inverted_index?: { [key: string]: number[] };
 }
 
 export const automateManuscriptDoi = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
@@ -116,7 +117,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     doi = component.payload.doi[0];
     try {
       const result = await fetch(
-        `https://api.openalex.org/works/doi:${doi}?select=id,title,doi,authorships,keywords,open_access,best_oa_location`,
+        `https://api.openalex.org/works/doi:${doi}?select=id,title,doi,authorships,keywords,open_access,best_oa_location,abstract_inverted_index`,
         {
           headers: {
             Accept: '*/*',
@@ -222,7 +223,17 @@ const transformOpenAlexWorkToMetadata = (work: OpenAlexWork): MetadataResponse =
 
   const keywords = work?.keywords.map((entry) => entry.display_name) ?? [];
 
-  return { title: work.title, doi: work.doi, authors, pdfUrl: '', keywords };
+  const abstract = work?.abstract_inverted_index ? transformInvertedAbstractToText(work.abstract_inverted_index) : '';
+
+  return { title: work.title, doi: work.doi, authors, pdfUrl: '', keywords, abstract };
+};
+
+const transformInvertedAbstractToText = (abstract: OpenAlexWork['abstract_inverted_index']) => {
+  const words = [];
+  Object.entries(abstract).map(([word, positions]) => {
+    positions.forEach((pos) => words.splice(pos, 0, word));
+  });
+  return words.filter(Boolean).join(' ');
 };
 
 const transformWorkToMetadata = (work: Work): MetadataResponse => {
