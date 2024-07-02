@@ -54,3 +54,5 @@ export enum WorkSelectOptions {
   TITLE = 'title',
   AUTHOR = 'author',
 }
+
+export type RegisterDoiResponse = { ok: true; batchId: string } | { ok: false; batchId?: never };

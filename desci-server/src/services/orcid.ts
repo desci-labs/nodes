@@ -1,7 +1,7 @@
 import { ResearchObjectV1, ResearchObjectV1Author } from '@desci-labs/desci-models';
 import { ActionType, AuthTokenSource, ORCIDRecord, OrcidPutCodes, PutcodeReference } from '@prisma/client';
 
-import { logger as parentLogger, prisma } from '../internal.js';
+import { logger as parentLogger, prisma, zeropad } from '../internal.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js';
 import { hexToCid } from '../utils.js';
 
@@ -635,8 +635,6 @@ const generateClaimWorkRecord = ({
     `
   );
 };
-
-const zeropad = (data: string) => (data.length < 2 ? `0${data}` : data);
 
 /**
  * Generate an ORCID work summary xml string based for a research Node

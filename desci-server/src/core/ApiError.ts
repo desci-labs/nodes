@@ -67,6 +67,7 @@ export abstract class ApiError extends Error {
         case DoiErrorType.NO_MANUSCRIPT:
         case DoiErrorType.INCOMPLETE_ATTESTATIONS:
         case DoiErrorType.DUPLICATE_MINT:
+        case DoiErrorType.FORBIDDEN:
           return new BadRequestResponse(err.message, err).send(res);
         default:
           return new InternalErrorResponse(err.message).send(res);

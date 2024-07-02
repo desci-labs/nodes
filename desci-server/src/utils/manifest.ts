@@ -45,3 +45,5 @@ export const resolveNodeManifest = async (targetCid: string, query?: string) => 
     return null;
   }
 };
+
+export const zeropad = (data: string) => (data.length < 2 ? `0${data}` : data);
