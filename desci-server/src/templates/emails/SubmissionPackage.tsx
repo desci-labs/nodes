@@ -1,0 +1,108 @@
+import { Body, Container, Head, Heading, Html, Preview, Text, Button, Section } from '@react-email/components';
+import * as React from 'react';
+
+import { PUBLIC_IPFS_PATH } from '../../config/index.js';
+
+import MainLayout from './MainLayout.js';
+
+export interface SubmissionPackageEmailProps {
+  nodeOwner: string;
+  nodeTitle: string;
+  nodeUuid: string;
+  nodeDpid: string;
+  versionUpdate: string;
+  manuscriptCid: string;
+}
+
+const DAPP_URL = process.env.DAPP_URL || 'http://localhost:3000';
+
+export const SubmissionPackage = ({
+  nodeOwner,
+  nodeTitle,
+  nodeUuid,
+  nodeDpid,
+  versionUpdate,
+  manuscriptCid,
+}: SubmissionPackageEmailProps) => {
+  if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
+  nodeOwner = nodeOwner || 'The node owner';
+  nodeDpid = nodeDpid || '(DEMO)';
+  versionUpdate = versionUpdate || '1'; // For demo case
+  const nodeUrl = `${DAPP_URL}/dpid/${nodeDpid}/${versionUpdate}`;
+  const manuscriptUrl = `${PUBLIC_IPFS_PATH}/${manuscriptCid}`;
+  return (
+    <MainLayout>
+      <Html>
+        <Head />
+        <Preview>Your submission package is ready</Preview>
+        <Body style={main}>
+          <Container style={container}>
+            <Heading style={h1} className="text-center">
+              A submission package has been created for your node with DPID {nodeDpid}
+            </Heading>
+            <Text style={heroText}>
+              <strong>{nodeOwner}</strong> has published their research object titled <strong>"{nodeTitle}</strong>"
+              that you have contributed to.
+            </Text>
+
+            <Section className="mx-auto w-fit my-5" align="center">
+              <Button
+                href={nodeUrl}
+                className="backdrop-blur-2xl rounded-sm"
+                style={{
+                  color: 'white',
+                  padding: '10px 20px',
+                  marginRight: '10px',
+                  background: '#28aac4',
+                }}
+              >
+                View Node
+              </Button>
+              <Button
+                href={manuscriptUrl}
+                className="backdrop-blur-2xl rounded-sm"
+                style={{
+                  color: 'white',
+                  padding: '10px 20px',
+                  marginRight: '10px',
+                  background: '#28aac4',
+                }}
+              >
+                Download PDF
+              </Button>
+            </Section>
+          </Container>
+        </Body>
+      </Html>
+    </MainLayout>
+  );
+};
+
+export default SubmissionPackage;
+
+const main = {
+  backgroundColor: '#ffffff',
+  margin: '0 auto',
+  fontFamily:
+    "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
+};
+
+const container = {
+  margin: '0 auto',
+  padding: '0px 20px',
+};
+
+const h1 = {
+  color: '#000000',
+  fontSize: '30px',
+  fontWeight: '700',
+  margin: '30px 0',
+  padding: '0',
+  lineHeight: '42px',
+};
+
+const heroText = {
+  fontSize: '20px',
+  lineHeight: '28px',
+  marginBottom: '30px',
+};

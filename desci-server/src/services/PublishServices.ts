@@ -4,7 +4,7 @@ import sgMail from '@sendgrid/mail';
 import { prisma } from '../client.js';
 import { getNodeVersion, hexToCid } from '../internal.js';
 import { logger as parentLogger } from '../logger.js';
-import { NodeUpdatedEmailHtml } from '../templates/emails/utils/emailRenderer.js';
+import { SubmissionPackageEmailHtml } from '../templates/emails/utils/emailRenderer.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 
 import { contributorService } from './Contributors.js';
@@ -51,7 +51,7 @@ export class PublishServices {
     }
 
     const emailPromises = contributors.map((contributor) => {
-      const emailHtml = NodeUpdatedEmailHtml({
+      const emailHtml = SubmissionPackageEmailHtml({
         nodeOwner: nodeOwner.name,
         nodeUuid: node.uuid,
         nodeTitle: node.title,
@@ -63,11 +63,10 @@ export class PublishServices {
       const emailMsg = {
         to: contributor.email,
         from: 'no-reply@desci.com',
-        subject: `[nodes.desci.com] DPID ${dpid || '(DEMO)'} has been updated`,
-        text: `${nodeOwner.name} has published an updated version (${versionPublished}) of their research object titled "${node.title}" that you have contributed to.`,
+        subject: `[nodes.desci.com] Your submission package is ready`,
+        text: `${nodeOwner.name} has published their research object titled "${node.title}" that you have contributed to.`,
         html: emailHtml,
       };
-
       return { contributor, emailMsg };
     });
 
