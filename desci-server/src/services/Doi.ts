@@ -153,14 +153,10 @@ export class DoiService {
       publicationDate: { day, month, year },
     });
 
+    logger.info({ doiSuffix, doi, uuid, metadataResponse }, 'DOI SUBMITTED');
     if (!metadataResponse.ok) {
       throw new MintError("We couldn't register a DOI for this research object");
     }
-
-    // todo: add submissionId and doi to DoiSubmissionLog table to keep track of status
-    logger.info({ doiSuffix, doi, uuid, metadataResponse }, 'DOI SUBMITTED');
-
-    // todo:
 
     // only create doi if submission status is success
     const submission = await crossRefClient.addSubmissiontoQueue({
@@ -182,12 +178,11 @@ export class DoiService {
   }
 
   async hasPendingSubmission(uuid: string) {
-    const pending = await this.dbClient.doiRecord.findFirst({
-      where: { uuid: ensureUuidEndsWithDot(uuid) },
-      include: { DoiSubmission: { where: { status: DoiStatus.PENDING } } },
+    const pending = await this.dbClient.doiSubmissionQueue.findFirst({
+      where: { uuid: ensureUuidEndsWithDot(uuid), status: DoiStatus.PENDING },
     });
 
-    return pending?.DoiSubmission && pending.DoiSubmission.length > 0 ? true : false;
+    return pending;
   }
 
   async getPendingSubmission(batchId: string) {

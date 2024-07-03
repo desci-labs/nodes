@@ -38,52 +38,52 @@ const metadataTemplate = `<?xml version="1.0" encoding="UTF-8"?>
       <group_title>&_.title;</group_title>
       <contributors>
         <for in="_.contributors" mkmapping="">
-          <person_name sequence="first" contributor_role="author">
-            <given_name>&_.name;</given_name>
-            <surname>&_.surname;</surname>
-            <if expr="_.affiliations">
-              <affiliations>
-                <for in="_.affiliations" mkmapping="">
-                  <institution>
-                    <institution_name>&_.name;</institution_name>
-                    <if expr="_.id">
-                      <institution_id type="ror">&_.id;</institution_id>
-                    </if>
-                  </institution>
-                </for>
-              </affiliations>
-            </if>
-            <if expr="_.orcid">
-              <if expr="_.isAuthenticated == true">
-                <ORCID authenticated="true">&_.orcid;</ORCID>
-              </if>
-              <else>
-                <ORCID authenticated="false">&_.orcid;</ORCID>
-              </else>
-            </if>
-          </person_name>
-        </for>
-      </contributors>
-      <titles>
-        <title>&_.title;</title>
-      </titles>
-      <posted_date>
-        <month>&publishedDate.month;</month>
-        <day>&publishedDate.day;</day>
-        <year>&publishedDate.year;</year>
-      </posted_date>
-      <acceptance_date>
-        <month>&publishedDate.month;</month>
-        <day>&publishedDate.day;</day>
-        <year>&publishedDate.year;</year>
-      </acceptance_date>
-      <item_number>&_.dpid;</item_number>
-      <doi_data>
-        <doi>&_.doi;</doi>
-        <resource>&_.doiResource;</resource>
-      </doi_data>
-    </posted_content>
-  </body>
+      <person_name sequence="&_.sequence;" contributor_role="author">
+        <given_name>&_.name;</given_name>
+        <surname>&_.surname;</surname>
+        <if expr="_.affiliations">
+          <affiliations>
+            <for in="_.affiliations" mkmapping="">
+              <institution>
+                <institution_name>&_.name;</institution_name>
+                <if expr="_.id">
+                  <institution_id type="ror">&_.id;</institution_id>
+                </if>
+              </institution>
+            </for>
+          </affiliations>
+        </if>
+        <if expr="_.orcid">
+          <if expr="_.isAuthenticated == true">
+            <ORCID authenticated="true">&_.orcid;</ORCID>
+          </if>
+          <else>
+            <ORCID authenticated="false">&_.orcid;</ORCID>
+          </else>
+        </if>
+      </person_name>
+    </for>
+  </contributors>
+  <titles>
+    <title>&_.title;</title>
+  </titles>
+  <posted_date>
+    <month>&publishedDate.month;</month>
+    <day>&publishedDate.day;</day>
+    <year>&publishedDate.year;</year>
+  </posted_date>
+  <acceptance_date>
+    <month>&publishedDate.month;</month>
+    <day>&publishedDate.day;</day>
+    <year>&publishedDate.year;</year>
+  </acceptance_date>
+  <item_number>&_.dpid;</item_number>
+  <doi_data>
+    <doi>&_.doi;</doi>
+    <resource>&_.doiResource;</resource>
+  </doi_data>
+</posted_content>
+</body>
 </doi_batch>
 `;
 
