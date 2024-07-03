@@ -195,7 +195,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
           name: author.name,
           role: ResearchObjectV1AuthorRole.AUTHOR,
           ...(author.affiliations.length > 0 && { organizations: author.affiliations }),
-          ...(author.orcid && { orcid: author.orcid }),
+          ...(author.orcid && { orcid: getOrcidFromURL(author.orcid) }),
         })),
       });
     }

@@ -21,6 +21,7 @@ const toDotsAndDashes = (str: string) => {
 };
 
 export const getOrcidFromURL = (orcid: string) => {
-  const url = new URL(orcid);
-  return url.pathname.replace('/', '');
+  const pattern = /[^/]+$/;
+  const match = orcid.match(pattern);
+  return match ? match[0] : orcid;
 };

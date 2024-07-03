@@ -5,6 +5,7 @@ import { logger as parentLogger } from '../logger.js';
 import { ONE_DAY_TTL, getFromCache, setToCache } from '../redisClient.js';
 
 import repoService from './repoService.js';
+import { getOrcidFromURL } from './crossRef/utils.js';
 
 const logger = parentLogger.child({ module: '[AutomatedMetadataClient]' });
 
@@ -187,7 +188,7 @@ export class AutomatedMetadataClient {
               name: author.name,
               role: ResearchObjectV1AuthorRole.AUTHOR,
               ...(author.affiliations.length > 0 && { organizations: author.affiliations }),
-              ...(author.orcid && { orcid: author.orcid }),
+              ...(author.orcid && { orcid: getOrcidFromURL(author.orcid) }),
             }) as ResearchObjectV1Author,
         ),
       }); //
