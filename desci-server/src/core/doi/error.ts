@@ -2,7 +2,9 @@ export enum DoiErrorType {
   DUPLICATE_MINT = 'DuplicateDoiError',
   NO_MANUSCRIPT = 'NoManuscriptError',
   BAD_METADATA = 'InvalidManifestError',
-  INCOMPLETE_ATTESTATIONS = 'ForbiddenError',
+  INCOMPLETE_ATTESTATIONS = 'MissingAttestationsError',
+  REGISTRATION_ERROR = 'RegistrationError',
+  FORBIDDEN = 'ForbiddenError',
 }
 
 export class DoiError extends Error {
@@ -37,5 +39,17 @@ export class AttestationsError extends DoiError {
 export class DuplicateMintError extends DoiError {
   constructor(message = 'DOI already minted for node') {
     super(DoiErrorType.DUPLICATE_MINT, message);
+  }
+}
+
+export class MintError extends DoiError {
+  constructor(message = 'An Error occurred while registring a new DOI') {
+    super(DoiErrorType.DUPLICATE_MINT, message);
+  }
+}
+
+export class ForbiddenMintError extends DoiError {
+  constructor(message = 'Research object not valid') {
+    super(DoiErrorType.FORBIDDEN, message);
   }
 }
