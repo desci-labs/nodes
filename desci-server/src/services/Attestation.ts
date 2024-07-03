@@ -245,9 +245,9 @@ export class AttestationService {
     });
   }
 
-  async getProtectedNodeClaims(dpid: string) {
+  async getProtectedNodeClaims(nodeUuid: string) {
     const data = await prisma.nodeAttestation.findMany({
-      where: { nodeDpid10: dpid, revoked: false },
+      where: { nodeUuid, revoked: false },
       include: {
         community: { select: { name: true } },
         attestation: { select: { protected: true } },

@@ -325,9 +325,19 @@ class CrossRefClient {
     return response;
   }
 
-  async addSubmissiontoQueue({ doi, batchId }: { doi: number; batchId: string }) {
+  async addSubmissiontoQueue({
+    uniqueDoi,
+    dpid,
+    uuid,
+    batchId,
+  }: {
+    uniqueDoi: string;
+    dpid: string;
+    uuid: string;
+    batchId: string;
+  }) {
     // check if there is no pending submission log
-    return await prisma.doiSubmissionQueue.create({ data: { doiRecordId: doi, batchId } });
+    return await prisma.doiSubmissionQueue.create({ data: { batchId, uniqueDoi, dpid, uuid } });
   }
 
   async retrieveSubmission(retrieveUrl: string) {
@@ -336,11 +346,18 @@ class CrossRefClient {
     // query submssion payload from param.CROSSREF-RETRIEVE-URL
     // only create doi if submission status is success
 
-    const response = (await fetch(retrieveUrl).then((res) => res.json())) as NotificationResult;
-    logger.info(response, 'CROSSREF NOTIFICATION: retrieveSubmission');
-    // return interprete the response from the api to determine if the
-    // submission status has either `success | pending | failed`
-    return { success: response?.completed !== null, pending: false, failure: true };
+    try {
+      logger.info({ retrieveUrl }, 'ATTEMPT TO RETRIEVE SUBMISSION');
+      const response = (await fetch(retrieveUrl).then((res) => res.json())) as NotificationResult;
+      logger.info(response, 'RETRIEVE SUBMISSION');
+      // return interprete the response from the api to determine if the
+      // submission status has either `success | pending | failed`
+      const isSuccess = response?.completed !== null && !!response.recordCreated;
+      return { success: isSuccess, failure: !isSuccess };
+    } catch (err) {
+      logger.error({ err }, 'ERROR RETRIEVING SUBMISSION');
+      return { success: false, failure: true };
+    }
   }
 }
 

@@ -145,7 +145,7 @@ class OrcidApiService {
     const researchObject = researchObjects[0] as IndexedResearchObject;
     const manifestCid = hexToCid(researchObject.recentCid);
     const latestManifest = await getManifestByCid(manifestCid);
-    let claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
+    let claims = await attestationService.getProtectedNodeClaims(nodeUuid);
     claims = claims.filter((claim) => claim.verifications > 0);
     logger.info({ claims: claims.length }, '[ORCID::DELETE]:: CHECK CLAIMS');
 
@@ -250,7 +250,7 @@ class OrcidApiService {
       researchObject.versions.reverse();
       const nodeVersion = researchObject.versions.length;
 
-      let claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
+      let claims = await attestationService.getProtectedNodeClaims(nodeUuid);
       claims = claims.filter((claim) => claim.verifications > 0);
 
       // TODO: if claims is empty remove orcid record

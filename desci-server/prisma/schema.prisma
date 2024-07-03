@@ -47,6 +47,7 @@ model Node {
   PdfPreviews         PdfPreviews[]
   DoiRecord           DoiRecord[]
   dpidAlias           Int?
+  DoiSubmissionQueue  DoiSubmissionQueue[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -839,7 +840,7 @@ model OrcidPutCodes {
 model DoiRecord {
   id            Int                  @id @default(autoincrement())
   doi           String               @unique
-  dpid          String               @unique // remove unique constrant
+  dpid          String               @unique
   // add dpid or resource path the doi is registered for
   uuid          String
   node          Node                 @relation(fields: [uuid], references: [uuid])
@@ -849,14 +850,18 @@ model DoiRecord {
 }
 
 model DoiSubmissionQueue {
-  id           Int       @id @default(autoincrement())
-  batchId      String    @unique
-  createdAt    DateTime  @default(now())
-  doiRecordId  Int
-  doi          DoiRecord @relation(fields: [doiRecordId], references: [id])
+  id           Int        @id @default(autoincrement())
+  batchId      String     @unique
+  createdAt    DateTime   @default(now())
+  dpid         String
+  doiRecordId  Int?
+  doi          DoiRecord? @relation(fields: [doiRecordId], references: [id])
   notification Json?
-  status       DoiStatus @default(PENDING)
-  updatedAt    DateTime  @updatedAt
+  status       DoiStatus  @default(PENDING)
+  uniqueDoi    String     @unique
+  uuid         String
+  node         Node       @relation(fields: [uuid], references: [uuid])
+  updatedAt    DateTime   @updatedAt
 }
 
 enum ORCIDRecord {
