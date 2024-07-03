@@ -34,7 +34,7 @@ const metadataTemplate = `<?xml version="1.0" encoding="UTF-8"?>
     <registrant>&_.registrant;</registrant>
   </head>
   <body>
-    <posted_content type="preprint">
+    <posted_content type="other">
       <group_title>&_.title;</group_title>
       <contributors>
         <for in="_.contributors" mkmapping="">
@@ -45,10 +45,10 @@ const metadataTemplate = `<?xml version="1.0" encoding="UTF-8"?>
               <affiliations>
                 <for in="_.affiliations" mkmapping="">
                   <institution>
-                    <institution_id type="ror">&_.id;</institution_id>
-                  </institution>
-                  <institution>
                     <institution_name>&_.name;</institution_name>
+                    <if expr="_.id">
+                      <institution_id type="ror">&_.id;</institution_id>
+                    </if>
                   </institution>
                 </for>
               </affiliations>
@@ -183,24 +183,26 @@ class CrossRefClient {
     doi: string;
     publicationDate: PublicationDate;
   }): Promise<RegisterDoiResponse> {
-    const contributors = await asyncMap(query.manifest.authors ?? [], async (author) => {
+    const contributors = await asyncMap(query.manifest.authors ?? [], async (author, index) => {
       const user = author.orcid ? await prisma.user.findUnique({ where: { orcid: author.orcid } }) : null;
       logger.info({ user: { orcid: user?.orcid } });
       const affiliations = user
         ? (
             await prisma.userOrganizations.findMany({ where: { userId: user.id }, include: { organization: true } })
           )?.map((org) => ({ name: org.organization.name, id: org.organization.id }))
-        : author?.organizations?.map((org) => ({ name: org.name }));
+        : author?.organizations?.map((org) => ({ name: org.name, id: org.id }));
 
       return {
         name: author.name.split(' ')[0],
         surname: author.name.split(' ').slice(1)?.join(' ') || '-',
-
+        isAuthenticated: !!user,
+        sequence: index === 0 ? 'first' : 'additional',
         // don't substitute with `sandbox.orcid.org`, the submission will be rejected
         // due to schema errors
-        orcid: `https://orcid.org/${author.orcid}`,
+        ...(author.orcid && {
+          orcid: author.orcid.startsWith('https://orcid.org/') ? author.orcid : `https://orcid.org/${author.orcid}`,
+        }),
 
-        isAuthenticated: !!user,
         // crossref schema only allows a maximum of one affiliation per contributor
         ...(affiliations?.length > 0 && { affiliations: affiliations.slice(0, 1) }),
       };

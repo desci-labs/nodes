@@ -50,8 +50,8 @@ export const hexToCid = (hexCid: string) => {
   return cidString;
 };
 
-export async function asyncMap<T, E>(arr: E[], predicate: (input: E) => Promise<T>): Promise<T[]> {
-  const results = await Promise.all(arr.map(predicate));
+export async function asyncMap<T, E>(arr: E[], predicate: (input: E, index: number) => Promise<T>): Promise<T[]> {
+  const results = await Promise.all(arr.map((value, index) => predicate(value, index)));
 
   return results as T[];
 }
