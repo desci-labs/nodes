@@ -39,6 +39,7 @@ export type ManifestActions =
   | { type: 'Upsert Components'; components: ResearchObjectV1Component[] }
   | { type: 'Delete Component'; path: string }
   | { type: 'Add Contributor'; author: ResearchObjectV1Author }
+  | { type: 'Add Contributors'; contributors: ResearchObjectV1Author[] }
   | { type: 'Remove Contributor'; contributorIndex: number }
   | { type: 'Add Contributors'; contributors: ResearchObjectV1Author[] }
   | { type: 'Pin Component'; path: string }

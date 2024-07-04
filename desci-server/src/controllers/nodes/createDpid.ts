@@ -47,11 +47,11 @@ if (apiServerUrl.includes('localhost') || apiServerUrl.includes('host.docker.int
   aliasRegistryAddress = contracts.localDpidAliasInfo.proxies.at(0).address;
   ceramicApiUrl = CERAMIC_API_URLS.local;
   optimismRpcUrl = OPTIMISM_RPC_URLS.local;
-} else if (apiServerUrl.includes('dev') || apiServerUrl.includes('staging')) {
+} else if (apiServerUrl.includes('dev')) {
   aliasRegistryAddress = contracts.devDpidAliasInfo.proxies.at(0).address;
   ceramicApiUrl = CERAMIC_API_URLS.dev;
   optimismRpcUrl = OPTIMISM_RPC_URLS.opSepolia;
-} else if (process.env.NODE_ENV === 'production') {
+} else if (process.env.NODE_ENV === 'production' || apiServerUrl.includes('staging')) {
   aliasRegistryAddress = contracts.prodDpidAliasInfo.proxies.at(0).address;
   ceramicApiUrl = CERAMIC_API_URLS.prod;
   optimismRpcUrl = OPTIMISM_RPC_URLS.opSepolia;

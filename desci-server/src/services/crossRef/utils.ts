@@ -19,3 +19,9 @@ const toDotsAndDashes = (str: string) => {
   str = str.replace(/[A-Z]/g, (match) => match.toLowerCase());
   return str;
 };
+
+export const getOrcidFromURL = (orcid: string) => {
+  const pattern = /[^/]+$/;
+  const match = orcid.match(pattern);
+  return match ? match[0] : orcid;
+};

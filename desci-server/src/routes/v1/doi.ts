@@ -1,10 +1,11 @@
 import { Router } from 'express';
 
-import { asyncHander, checkMintability, ensureNodeAccess, ensureUser, getDoi, mintDoi } from '../../internal.js';
+import { asyncHandler, checkMintability, ensureNodeAccess, ensureUser, getDoi, mintDoi } from '../../internal.js';
+
 const router = Router();
 
-router.post('/check/:uuid', [ensureUser, ensureNodeAccess], asyncHander(checkMintability));
-router.post('/mint/:uuid', [ensureUser, ensureNodeAccess], asyncHander(mintDoi));
-router.get('/:identifier', [ensureUser], asyncHander(getDoi));
+router.post('/check/:uuid', [ensureUser, ensureNodeAccess], asyncHandler(checkMintability));
+router.post('/mint/:uuid', [ensureUser, ensureNodeAccess], asyncHandler(mintDoi));
+router.get('/:identifier', [ensureUser], asyncHandler(getDoi));
 
 export default router;

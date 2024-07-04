@@ -33,6 +33,7 @@ class PublishPackageService {
     manifest,
     manifestCid,
   }: PrepareDistributionPdfParams): Promise<PrepareDistributionPdfResult> {
+    this.logger.trace({ pdfCid, nodeUuid: node.uuid, doi, manifest, manifestCid }, 'Preparing distribution PDF');
     // Check if distro PDF already exists
     const existingDistributionPdf = await prisma.distributionPdfs.findFirst({
       where: { originalPdfCid: pdfCid, manifestCid },
@@ -80,6 +81,7 @@ class PublishPackageService {
     };
 
     // Generate the PDF with the cover
+    this.logger.trace({ pdfCid, doi, title, dpid, license, publishDate, authors }, 'Generating PDF cover');
     const coverPdfStream = await axios.post(
       `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/pdf/addCover`,
       { cid: pdfCid, doi, title, ...attestationLinks, dpid, license, publishDate, authors },
@@ -87,15 +89,23 @@ class PublishPackageService {
         responseType: 'stream',
       },
     );
+
+    this.logger.trace({ pdfCid, doi, title, dpid, license, publishDate, authors }, 'Generated PDF cover');
     // Save it on IPFS
     const pinned = await pinFile(coverPdfStream.data);
 
+    this.logger.trace({ pdfCid, doi, title, dpid, license, publishDate, authors }, 'Pinned PDF cover');
     // Save it to the database
     await prisma.distributionPdfs.create({
       data: { originalPdfCid: pdfCid, distPdfCid: pinned.cid, nodeUuid: node.uuid, manifestCid },
     });
 
     // LATER: Add data ref
+
+    this.logger.trace(
+      { pdfCid, doi, title, dpid, license, publishDate, authors, pinnedCid: pinned.cid },
+      'Saved PDF cover',
+    );
 
     // Return the CID
     return { pdfCid: pinned.cid };
@@ -124,6 +134,7 @@ class PublishPackageService {
     pageNums: PageNumber[],
     nodeUuid: string,
   ): Promise<PreviewMap> {
+    this.logger.trace({ pdfCid, heightPx, pageNums, nodeUuid }, 'Generating PDF preview');
     if (process.env.ISOLATED_MEDIA_SERVER_URL === undefined) {
       this.logger.error('process.env.ISOLATED_MEDIA_SERVER_URL is not defined');
       return null;
@@ -139,6 +150,8 @@ class PublishPackageService {
       },
     );
 
+    this.logger.trace({ pdfCid, heightPx, pageNums, nodeUuid }, 'Generated PDF preview');
+
     const previewStreams = previewResponse.data;
 
     const previewMap: PreviewMap = {};
@@ -153,21 +166,23 @@ class PublishPackageService {
       previewMap[pageNumber] = pinned.cid;
     }
 
-    // Save it to the database
-    const existingPreviews = await prisma.pdfPreviews.findFirst({
-      where: { pdfCid, nodeUuid },
-    });
+    this.logger.trace({ pdfCid, heightPx, pageNums, nodeUuid, previewMap }, 'Pinned PDF preview');
 
-    if (existingPreviews) {
-      await prisma.pdfPreviews.update({
-        where: { id: existingPreviews.id },
-        data: { previewMap },
-      });
-    } else {
-      await prisma.pdfPreviews.create({
-        data: { nodeUuid: ensureUuidEndsWithDot(nodeUuid), pdfCid, previewMap },
-      });
-    }
+    // Save it to the database
+    // const existingPreviews = await prisma.pdfPreviews.findFirst({
+    //   where: { pdfCid, nodeUuid },
+    // });
+
+    // if (existingPreviews) {
+    //   await prisma.pdfPreviews.update({
+    //     where: { id: existingPreviews.id },
+    //     data: { previewMap },
+    //   });
+    // } else {
+    //   await prisma.pdfPreviews.create({
+    //     data: { nodeUuid: ensureUuidEndsWithDot(nodeUuid), pdfCid, previewMap },
+    //   });
+    // }
 
     // LATER: Add data ref
     return previewMap;

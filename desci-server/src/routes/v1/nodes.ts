@@ -1,16 +1,22 @@
 import { Router } from 'express';
 
+import { checkIfPublishedNode } from '../../controllers/nodes/checkIfPublishedNode.js';
+import { checkNodeAccess } from '../../controllers/nodes/checkNodeAccess.js';
 import { addContributor } from '../../controllers/nodes/contributions/create.js';
 import { deleteContributor } from '../../controllers/nodes/contributions/delete.js';
 import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
 import { getUserContributions } from '../../controllers/nodes/contributions/getUserContributions.js';
 import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
+import { emailPublishPackage } from '../../controllers/nodes/contributions/prepubEmail.js';
 import { updateContributor } from '../../controllers/nodes/contributions/update.js';
 import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
 import { createDpid } from '../../controllers/nodes/createDpid.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
+import { getDraftNodeStats } from '../../controllers/nodes/getDraftNodeStats.js';
+import { getPublishedNodes } from '../../controllers/nodes/getPublishedNodes.js';
+import { getPublishedNodeStats } from '../../controllers/nodes/getPublishedNodeStats.js';
 import {
   show,
   draftUpdate,
@@ -32,23 +38,23 @@ import {
   publishConsent,
   checkUserPublishConsent,
   checkPublishConsentSchema,
+  automateMetadata,
+  generateMetadata,
+  automateMetadataSchema,
+  generateMetadataSchema,
   automateManuscriptDoi,
+  attachDoiSchema,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
 import { prepublish } from '../../controllers/nodes/prepublish.js';
+import { searchNodes } from '../../controllers/nodes/searchNodes.js';
 import { listSharedNodes } from '../../controllers/nodes/sharedNodes.js';
 import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 import { versionDetails } from '../../controllers/nodes/versionDetails.js';
-import { asyncHander, attachDoiSchema, attachUser, ensureUserIfPresent, validate } from '../../internal.js';
+import { asyncHandler, attachUser, validate, ensureUserIfPresent } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
-import { getDraftNodeStats } from '../../controllers/nodes/getDraftNodeStats.js';
-import { getPublishedNodeStats } from '../../controllers/nodes/getPublishedNodeStats.js';
-import { checkIfPublishedNode } from '../../controllers/nodes/checkIfPublishedNode.js';
-import { checkNodeAccess } from '../../controllers/nodes/checkNodeAccess.js';
-import { searchNodes } from '../../controllers/nodes/searchNodes.js';
-import { getPublishedNodes } from '../../controllers/nodes/getPublishedNodes.js';
 
 const router = Router();
 
@@ -71,11 +77,11 @@ router.get('/', [ensureUser], list);
 router.post('/doi', [ensureUser], retrieveDoi);
 router.get('/pdf', proxyPdf);
 router.post('/consent', [], consent);
-router.post('/consent/publish', [ensureUser, validate(publishConsentSchema)], asyncHander(publishConsent));
+router.post('/consent/publish', [ensureUser, validate(publishConsentSchema)], asyncHandler(publishConsent));
 router.get(
   '/consent/publish/:uuid',
   [ensureUser, validate(checkPublishConsentSchema)],
-  asyncHander(checkUserPublishConsent),
+  asyncHandler(checkUserPublishConsent),
 );
 router.post('/terms', [ensureUser], consent);
 router.get('/share/verify/:shareId', checkPrivateShareId);
@@ -97,12 +103,19 @@ router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
+router.post(
+  '/:uuid/automate-metadata',
+  [ensureUser, ensureNodeAccess, validate(automateMetadataSchema)],
+  automateMetadata,
+);
+router.post('/generate-metadata', [ensureUser, validate(generateMetadataSchema)], generateMetadata);
+router.post('/distribution/email', [ensureUser], emailPublishPackage);
 
 // doi automation
 router.post(
-  '/attachManuscriptDoi',
+  '/:uuid/automate-manuscript',
   [ensureUser, ensureNodeAccess, validate(attachDoiSchema)],
-  asyncHander(automateManuscriptDoi),
+  asyncHandler(automateManuscriptDoi),
 );
 
 router.delete('/:uuid', [ensureUser], deleteNode);

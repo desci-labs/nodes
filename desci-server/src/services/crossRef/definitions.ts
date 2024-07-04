@@ -32,8 +32,9 @@ export interface Work {
 export interface Author {
   given: string;
   family: string;
+  name?: string;
   sequence: string;
-  affiliation: unknown[];
+  affiliation: { name: string }[];
   ORCID?: string;
   authenticatedOrcid?: boolean;
 }
@@ -53,3 +54,5 @@ export enum WorkSelectOptions {
   TITLE = 'title',
   AUTHOR = 'author',
 }
+
+export type RegisterDoiResponse = { ok: true; batchId: string } | { ok: false; batchId?: never };

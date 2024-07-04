@@ -1,3 +1,4 @@
+import { ResearchObjectComponentSubtypes, ResearchObjectComponentType } from '@desci-labs/desci-models';
 import { User } from '@prisma/client';
 import { Response, Request } from 'express';
 
@@ -7,37 +8,30 @@ import { processExternalCidDataToIpfs } from '../../services/data/externalCidPro
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse, UpdateResponse } from './update.js';
-import { ResearchObjectComponentSubtypes, ResearchObjectComponentType } from '@desci-labs/desci-models';
 
 export type ExternalCid = {
-  cid: string,
-  name: string,
+  cid: string;
+  name: string;
 };
 
 export type ExternalCidPayload = {
-  uuid: string,
-  contextPath: string,
-  externalCids: ExternalCid[],
-  componentType: ResearchObjectComponentType,
-  componentSubtype: ResearchObjectComponentSubtypes,
+  uuid: string;
+  contextPath: string;
+  externalCids: ExternalCid[];
+  componentType: ResearchObjectComponentType;
+  componentSubtype: ResearchObjectComponentSubtypes;
 };
 
 /**
  * Add an external UnixFS tree to the drive, without actually getting the files,
  * by fetching the leafless DAG and pinning it.
-*/
+ */
 export const updateExternalCid = async (
   req: Request<any, any, ExternalCidPayload>,
-  res: Response<UpdateResponse | ErrorResponse>
+  res: Response<UpdateResponse | ErrorResponse>,
 ) => {
   const owner = (req as any).user as User;
-  const {
-    uuid,
-    contextPath,
-    externalCids,
-    componentType,
-    componentSubtype
-  } = req.body;
+  const { uuid, contextPath, externalCids, componentType, componentSubtype } = req.body;
 
   const logger = parentLogger.child({
     // id: req.id,
@@ -73,7 +67,7 @@ export const updateExternalCid = async (
     externalCids,
     contextPath,
     componentType,
-    componentSubtype
+    componentSubtype,
   });
 
   if (ok) {
@@ -83,6 +77,7 @@ export const updateExternalCid = async (
       tree: tree,
       date: date,
     } = value as UpdateResponse;
+
     return res.status(200).json({
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,

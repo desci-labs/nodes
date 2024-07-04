@@ -1,10 +1,10 @@
-import { Node } from '@prisma/client';
+import { Node, NodeContribution, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
 import { prisma } from '../client.js';
 import { getNodeVersion, hexToCid } from '../internal.js';
 import { logger as parentLogger } from '../logger.js';
-import { NodeUpdatedEmailHtml } from '../templates/emails/utils/emailRenderer.js';
+import { SubmissionPackageEmailHtml } from '../templates/emails/utils/emailRenderer.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 
 import { contributorService } from './Contributors.js';
@@ -17,8 +17,18 @@ const logger = parentLogger.child({
 });
 
 export class PublishServices {
-  async sendVersionUpdateEmailToAllContributors({ node, manuscriptCid }: { node: Node; manuscriptCid: string }) {
-    const contributors = await contributorService.retrieveAllVerifiedContributionsForNode(node);
+  async sendVersionUpdateEmailToAllContributors({
+    node,
+    manuscriptCid,
+    ownerOnly,
+    verifiedOnly = false,
+  }: {
+    node: Node;
+    manuscriptCid: string;
+    ownerOnly?: boolean;
+    verifiedOnly?: boolean;
+  }) {
+    const contributors = ownerOnly ? [] : await contributorService.retrieveAllContributionsForNode(node, verifiedOnly);
     const nodeOwner = await prisma.user.findUnique({ where: { id: node.ownerId } });
     const manifest = await getLatestManifestFromNode(node);
     const dpid = manifest.dpid?.id;
@@ -31,8 +41,17 @@ export class PublishServices {
       );
     }
 
+    const ownerEmailIncluded = contributors.find((c) => c.email === nodeOwner.email);
+    if (!ownerEmailIncluded) {
+      // Add the owner to the email list incase they forgot to add themselves as a contributor
+      const ownerContributor = { email: nodeOwner.email, name: nodeOwner.name } as unknown as NodeContribution & {
+        user: User;
+      };
+      contributors.push(ownerContributor);
+    }
+
     const emailPromises = contributors.map((contributor) => {
-      const emailHtml = NodeUpdatedEmailHtml({
+      const emailHtml = SubmissionPackageEmailHtml({
         nodeOwner: nodeOwner.name,
         nodeUuid: node.uuid,
         nodeTitle: node.title,
@@ -44,16 +63,25 @@ export class PublishServices {
       const emailMsg = {
         to: contributor.email,
         from: 'no-reply@desci.com',
-        subject: `[nodes.desci.com] DPID ${dpid} has been updated`,
-        text: `${nodeOwner.name} has published an updated version (${versionPublished}) of their research object titled "${node.title}" that you have contributed to.`,
+        subject: `[nodes.desci.com] Your submission package is ready`,
+        text: `${nodeOwner.name} has published their research object titled "${node.title}" that you have contributed to.`,
         html: emailHtml,
       };
-
-      return emailMsg;
+      return { contributor, emailMsg };
     });
 
-    if (process.env.NODE_ENV === 'production') {
-      await Promise.allSettled(emailPromises.map((emailMsg) => sgMail.send(emailMsg)));
+    if (process.env.SHOULD_SEND_EMAIL && process.env.SENDGRID_API_KEY) {
+      await Promise.allSettled(
+        emailPromises.map((emailEntry) => {
+          // if (emailEntry.contributor.id !== undefined) {
+          //   prisma.nodeContribution.update({
+          //     where: { id: emailEntry.contributor.id },
+          //     data: { inviteSent: true },
+          //   });
+          // }
+          return sgMail.send(emailEntry.emailMsg);
+        }),
+      );
     } else {
       logger.info(
         { nodeEnv: process.env.NODE_ENV },

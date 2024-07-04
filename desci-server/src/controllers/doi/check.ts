@@ -1,9 +1,15 @@
 import { NextFunction, Request, Response } from 'express';
 
 import { DoiError } from '../../core/doi/error.js';
-import { BadRequestError, SuccessResponse, doiService, logger as parentLogger } from '../../internal.js';
+import {
+  BadRequestError,
+  RequestWithNode,
+  SuccessResponse,
+  doiService,
+  logger as parentLogger,
+} from '../../internal.js';
 
-export const checkMintability = async (req: Request, res: Response, _next: NextFunction) => {
+export const checkMintability = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid } = req.params;
   if (!uuid) throw new BadRequestError();
 

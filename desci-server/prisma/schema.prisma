@@ -519,6 +519,7 @@ model NodeContribution {
   orcid         String?
   deleted       Boolean   @default(false)
   deletedAt     DateTime?
+  inviteSent    Boolean   @default(false)
   node          Node      @relation(fields: [nodeId], references: [id])
   user          User?     @relation(fields: [userId], references: [id])
 
@@ -836,13 +837,26 @@ model OrcidPutCodes {
 }
 
 model DoiRecord {
-  id        Int      @id @default(autoincrement())
-  doi       String   @unique
-  dpid      String   @unique
-  uuid      String
-  node      Node     @relation(fields: [uuid], references: [uuid])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int                  @id @default(autoincrement())
+  doi           String               @unique
+  dpid          String               @unique // remove unique constrant
+  // add dpid or resource path the doi is registered for
+  uuid          String
+  node          Node                 @relation(fields: [uuid], references: [uuid])
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  DoiSubmission DoiSubmissionQueue[]
+}
+
+model DoiSubmissionQueue {
+  id           Int       @id @default(autoincrement())
+  batchId      String    @unique
+  createdAt    DateTime  @default(now())
+  doiRecordId  Int
+  doi          DoiRecord @relation(fields: [doiRecordId], references: [id])
+  notification Json?
+  status       DoiStatus @default(PENDING)
+  updatedAt    DateTime  @updatedAt
 }
 
 enum ORCIDRecord {
@@ -918,6 +932,7 @@ enum ActionType {
   UPDATE_ORCID_RECORD
   REMOVE_ORCID_WORK_RECORD
   ORCID_API_ERROR
+  // AUTOMATE_METADATA
 }
 
 enum ChainTransactionType {
@@ -961,4 +976,10 @@ enum PublishTaskQueueStatus {
 
 enum AuthTokenSource {
   ORCID
+}
+
+enum DoiStatus {
+  PENDING
+  FAILED
+  SUCCESS
 }

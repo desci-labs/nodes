@@ -102,6 +102,10 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
 
         if (process.env.NODE_ENV === 'production') {
           sgMail.send(emailMsg);
+          prisma.nodeContribution.update({
+            where: { id: contributorUpdated.id },
+            data: { inviteSent: true },
+          });
         } else {
           logger.info(
             { nodeEnv: process.env.NODE_ENV },

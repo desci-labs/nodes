@@ -15,6 +15,8 @@ cd desci-server
 yarn run migrate
 npx prisma db seed
 
+npm run script:seed-social-data
+
 # import required images from ipfs to local
 chmod +x ./scripts/import-ipfs-content.sh
 ./scripts/import-ipfs-content.sh 

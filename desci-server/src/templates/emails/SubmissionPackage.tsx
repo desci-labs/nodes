@@ -1,9 +1,11 @@
 import { Body, Container, Head, Heading, Html, Preview, Text, Button, Section } from '@react-email/components';
 import * as React from 'react';
 
+import { PUBLIC_IPFS_PATH } from '../../config/index.js';
+
 import MainLayout from './MainLayout.js';
 
-export interface NodeUpdatedEmailProps {
+export interface SubmissionPackageEmailProps {
   nodeOwner: string;
   nodeTitle: string;
   nodeUuid: string;
@@ -14,33 +16,33 @@ export interface NodeUpdatedEmailProps {
 
 const DAPP_URL = process.env.DAPP_URL || 'http://localhost:3000';
 
-export const NodeUpdated = ({
+export const SubmissionPackage = ({
   nodeOwner,
   nodeTitle,
   nodeUuid,
   nodeDpid,
   versionUpdate,
   manuscriptCid,
-}: NodeUpdatedEmailProps) => {
+}: SubmissionPackageEmailProps) => {
   if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
   nodeOwner = nodeOwner || 'The node owner';
   nodeDpid = nodeDpid || '(DEMO)';
   versionUpdate = versionUpdate || '1'; // For demo case
   const nodeUrl = `${DAPP_URL}/dpid/${nodeDpid}/${versionUpdate}`;
-  const manuscriptUrl = `${process.env.IPFS_RESOLVER_OVERRIDE}/${manuscriptCid}`;
+  const manuscriptUrl = `${PUBLIC_IPFS_PATH}/${manuscriptCid}`;
   return (
     <MainLayout>
       <Html>
         <Head />
-        <Preview>DPID {nodeDpid} has been updated</Preview>
+        <Preview>Your submission package is ready</Preview>
         <Body style={main}>
           <Container style={container}>
             <Heading style={h1} className="text-center">
-              DPID {nodeDpid} has been updated to version {versionUpdate}
+              A submission package has been created for your node with DPID {nodeDpid}
             </Heading>
             <Text style={heroText}>
-              <strong>{nodeOwner}</strong> has published an updated version of their research object titled{' '}
-              <strong>"{nodeTitle}</strong>" that you have contributed to.
+              <strong>{nodeOwner}</strong> has published their research object titled <strong>"{nodeTitle}</strong>"
+              that you have contributed to.
             </Text>
 
             <Section className="mx-auto w-fit my-5" align="center">
@@ -54,7 +56,7 @@ export const NodeUpdated = ({
                   background: '#28aac4',
                 }}
               >
-                View Version {versionUpdate}
+                View Node
               </Button>
               <Button
                 href={manuscriptUrl}
@@ -66,7 +68,7 @@ export const NodeUpdated = ({
                   background: '#28aac4',
                 }}
               >
-                View Manuscript
+                Download PDF
               </Button>
             </Section>
           </Container>
@@ -76,7 +78,7 @@ export const NodeUpdated = ({
   );
 };
 
-export default NodeUpdated;
+export default SubmissionPackage;
 
 const main = {
   backgroundColor: '#ffffff',
