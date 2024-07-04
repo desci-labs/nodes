@@ -3,8 +3,7 @@ import type { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getManifestByCid } from '../../services/data/processing.js';
-import { publishPackageService } from '../../services/PublishPackage.js';
-import { publishServices } from '../../services/PublishServices.js';
+import { PreviewMap, publishPackageService } from '../../services/PublishPackage.js';
 import { CidString } from '../../services/Thumbnails.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -14,11 +13,14 @@ export type PreparePublishPackageReqBodyParams = {
   doi?: string; // temp till DOI system is operational
   dpid: string;
   nodeUuid: string;
+  withPreviews?: boolean;
 };
 
 type PreparePublishPackageResponse = {
   ok: true;
   distPdfCid: CidString;
+  frontmatterPageCid?: string;
+  contentPageCid?: string;
 };
 
 type PreparePublishPackageErrorResponse = {
@@ -34,12 +36,13 @@ export const preparePublishPackage = async (
   req: Request<any, any, PreparePublishPackageReqBodyParams>,
   res: Response<PreparePublishPackageResponse | PreparePublishPackageErrorResponse>,
 ) => {
-  const { pdfCid, doi, nodeUuid, manifestCid } = req.body;
+  const { pdfCid, doi, nodeUuid, manifestCid, withPreviews } = req.body;
   const logger = parentLogger.child({
     module: 'NODES::PreparePublishPackageController',
     pdfCid,
     doi,
     nodeUuid,
+    withPreviews,
   });
   // debugger;
   logger.trace({ fn: 'Retrieving Publish Package' });
@@ -72,7 +75,16 @@ export const preparePublishPackage = async (
     // Fire off email to all contributors
     // await publishServices.sendVersionUpdateEmailToAllContributors({ node, manuscriptCid: distPdfCid });
 
-    return res.status(200).json({ ok: true, distPdfCid });
+    let previewMap: PreviewMap = {};
+    if (withPreviews) {
+      previewMap = await publishPackageService.generatePdfPreview(distPdfCid, 1000, [1, 2], node.uuid);
+    }
+
+    return res.status(200).json({
+      ok: true,
+      distPdfCid,
+      ...(withPreviews && { frontmatterPageCid: previewMap[1], contentPageCid: previewMap[2] }),
+    });
   } catch (e) {
     logger.error({ fn: 'preparePublishPackage', error: e.message });
     return res.status(500).json({ ok: false, error: 'Failed preparing distribution package' });
