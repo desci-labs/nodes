@@ -55,6 +55,7 @@ export class DoiService {
   }
 
   async extractManuscriptDoi(manuscripts: PdfComponent[]) {
+    // todo: update this to use Grobid/openAlex
     const manuscriptDois = await asyncMap(manuscripts, async (component) => {
       const manuscriptTitle =
         component.name.replace(/\.pdf/g, '') ||
@@ -66,7 +67,9 @@ export class DoiService {
         select: [WorkSelectOptions.DOI, WorkSelectOptions.TITLE, WorkSelectOptions.AUTHOR],
         queryTitle: manuscriptTitle,
       });
-      const doi = works?.data?.message?.items.find((item) => item.title.some((t) => t === manuscriptTitle));
+      const doi = works?.data?.message?.items.find((item) =>
+        item.title.some((t) => t.toLowerCase() === manuscriptTitle.toLowerCase()),
+      );
       logger.info({ status: works.ok, manuscript: manuscriptTitle, doi }, 'Search Manuscripts');
 
       if (!doi) return null;
