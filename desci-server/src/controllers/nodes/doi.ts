@@ -12,7 +12,6 @@ import { z } from 'zod';
 
 import {
   BadRequestError,
-  ForbiddenError,
   NotFoundError,
   RequestWithNode,
   SuccessResponse,
@@ -32,51 +31,6 @@ export const attachDoiSchema = z.object({
     path: z.string().startsWith('root/', 'Invalid component path'),
   }),
 });
-
-export interface OpenAlexWork {
-  id: string;
-  title: string;
-  doi: string;
-  open_access: {
-    is_oa: boolean;
-    oa_status: string;
-    oa_url: string;
-  };
-  best_oa_location: {
-    is_oa: boolean;
-    pdf_url: string;
-  };
-  authorships: Array<{
-    author_position: string;
-    author: {
-      id: string;
-      display_name: string;
-      orcid: string;
-    };
-    institutions: Array<{
-      id: string;
-      display_name: string;
-      ror: string;
-      country_code: string;
-      type: string;
-      lineage: string[];
-    }>;
-    countries: string[];
-    is_corresponding: boolean;
-    raw_author_name: string;
-    raw_affiliation_strings: string[];
-    affiliations: Array<{
-      raw_affiliation_string: string;
-      institution_ids: string[];
-    }>;
-  }>;
-  keywords: Array<{
-    id: string;
-    display_name: string;
-    score: number;
-  }>;
-  abstract_inverted_index?: { [key: string]: number[] };
-}
 
 export const automateManuscriptDoi = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid, path, prepublication } = req.body;
