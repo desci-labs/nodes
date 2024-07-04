@@ -11,7 +11,8 @@ import {
   crossRefClient,
   doiService,
   ensureUuidEndsWithDot,
-  logger,
+  logger as parentLogger,
+  prisma,
 } from '../../internal.js';
 
 export const mintDoi = async (req: Request, res: Response, _next: NextFunction) => {
@@ -44,6 +45,8 @@ export const handleCrossrefNotificationCallback = async (
   res: Response,
   _next: NextFunction,
 ) => {
+  const logger = parentLogger.child({ module: 'handleCrossrefNotificationCallback' });
+
   const submission = await doiService.getPendingSubmission(req.payload.externalId);
   logger.info({ submission }, 'SUBMISSION');
 
@@ -52,7 +55,6 @@ export const handleCrossrefNotificationCallback = async (
     throw new NotFoundError('submission not found');
   }
 
-  logger.info({ submission }, 'SUBMISSION FOUND');
   await doiService.updateSubmission({ id: submission.id }, { notification: req.payload });
   logger.info('SUBMISSION UPDATED');
 
@@ -61,10 +63,30 @@ export const handleCrossrefNotificationCallback = async (
   // check retrieve url to get submission result
   const response = await crossRefClient.retrieveSubmission(req.payload.retrieveUrl);
 
-  // TODO: email authors about the submission status
+  logger.info({ response, submission }, 'CREATE DOI CALLBACK RESPONSE');
+  if (response.success) {
+    logger.info('CREATE DOI ');
+    const doiRecord = await prisma.doiRecord.create({
+      data: {
+        uuid: submission.uuid,
+        dpid: submission.dpid,
+        doi: submission.uniqueDoi,
+      },
+    });
+    await doiService.updateSubmission(
+      { id: submission.id },
+      {
+        status: DoiStatus.SUCCESS,
+        doiRecordId: doiRecord.id,
+      },
+    );
+  } else {
+    logger.info('ERROR CREATING DOI');
+    await doiService.updateSubmission(
+      { id: submission.id },
+      { status: response.failure ? DoiStatus.FAILED : DoiStatus.PENDING },
+    );
+  }
 
-  await doiService.updateSubmission(
-    { id: submission.id },
-    { status: response.success ? DoiStatus.SUCCESS : response.failure ? DoiStatus.FAILED : DoiStatus.PENDING },
-  );
+  // TODO: email authors about the submission status
 };

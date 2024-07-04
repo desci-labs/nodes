@@ -34,56 +34,56 @@ const metadataTemplate = `<?xml version="1.0" encoding="UTF-8"?>
     <registrant>&_.registrant;</registrant>
   </head>
   <body>
-    <posted_content type="preprint">
+    <posted_content type="other">
       <group_title>&_.title;</group_title>
       <contributors>
         <for in="_.contributors" mkmapping="">
-          <person_name sequence="first" contributor_role="author">
-            <given_name>&_.name;</given_name>
-            <surname>&_.surname;</surname>
-            <if expr="_.affiliations">
-              <affiliations>
-                <for in="_.affiliations" mkmapping="">
-                  <institution>
-                    <institution_id type="ror">&_.id;</institution_id>
-                  </institution>
-                  <institution>
-                    <institution_name>&_.name;</institution_name>
-                  </institution>
-                </for>
-              </affiliations>
-            </if>
-            <if expr="_.orcid">
-              <if expr="_.isAuthenticated == true">
-                <ORCID authenticated="true">&_.orcid;</ORCID>
-              </if>
-              <else>
-                <ORCID authenticated="false">&_.orcid;</ORCID>
-              </else>
-            </if>
-          </person_name>
-        </for>
-      </contributors>
-      <titles>
-        <title>&_.title;</title>
-      </titles>
-      <posted_date>
-        <month>&publishedDate.month;</month>
-        <day>&publishedDate.day;</day>
-        <year>&publishedDate.year;</year>
-      </posted_date>
-      <acceptance_date>
-        <month>&publishedDate.month;</month>
-        <day>&publishedDate.day;</day>
-        <year>&publishedDate.year;</year>
-      </acceptance_date>
-      <item_number>&_.dpid;</item_number>
-      <doi_data>
-        <doi>&_.doi;</doi>
-        <resource>&_.doiResource;</resource>
-      </doi_data>
-    </posted_content>
-  </body>
+      <person_name sequence="&_.sequence;" contributor_role="author">
+        <given_name>&_.name;</given_name>
+        <surname>&_.surname;</surname>
+        <if expr="_.affiliations">
+          <affiliations>
+            <for in="_.affiliations" mkmapping="">
+              <institution>
+                <institution_name>&_.name;</institution_name>
+                <if expr="_.id">
+                  <institution_id type="ror">&_.id;</institution_id>
+                </if>
+              </institution>
+            </for>
+          </affiliations>
+        </if>
+        <if expr="_.orcid">
+          <if expr="_.isAuthenticated == true">
+            <ORCID authenticated="true">&_.orcid;</ORCID>
+          </if>
+          <else>
+            <ORCID authenticated="false">&_.orcid;</ORCID>
+          </else>
+        </if>
+      </person_name>
+    </for>
+  </contributors>
+  <titles>
+    <title>&_.title;</title>
+  </titles>
+  <posted_date>
+    <month>&publishedDate.month;</month>
+    <day>&publishedDate.day;</day>
+    <year>&publishedDate.year;</year>
+  </posted_date>
+  <acceptance_date>
+    <month>&publishedDate.month;</month>
+    <day>&publishedDate.day;</day>
+    <year>&publishedDate.year;</year>
+  </acceptance_date>
+  <item_number>&_.dpid;</item_number>
+  <doi_data>
+    <doi>&_.doi;</doi>
+    <resource>&_.doiResource;</resource>
+  </doi_data>
+</posted_content>
+</body>
 </doi_batch>
 `;
 
@@ -183,24 +183,26 @@ class CrossRefClient {
     doi: string;
     publicationDate: PublicationDate;
   }): Promise<RegisterDoiResponse> {
-    const contributors = await asyncMap(query.manifest.authors ?? [], async (author) => {
+    const contributors = await asyncMap(query.manifest.authors ?? [], async (author, index) => {
       const user = author.orcid ? await prisma.user.findUnique({ where: { orcid: author.orcid } }) : null;
       logger.info({ user: { orcid: user?.orcid } });
       const affiliations = user
         ? (
             await prisma.userOrganizations.findMany({ where: { userId: user.id }, include: { organization: true } })
           )?.map((org) => ({ name: org.organization.name, id: org.organization.id }))
-        : author?.organizations?.map((org) => ({ name: org.name }));
+        : author?.organizations?.map((org) => ({ name: org.name, id: org.id }));
 
       return {
         name: author.name.split(' ')[0],
         surname: author.name.split(' ').slice(1)?.join(' ') || '-',
-
+        isAuthenticated: !!user,
+        sequence: index === 0 ? 'first' : 'additional',
         // don't substitute with `sandbox.orcid.org`, the submission will be rejected
         // due to schema errors
-        orcid: `https://orcid.org/${author.orcid}`,
+        ...(author.orcid && {
+          orcid: author.orcid.startsWith('https://orcid.org/') ? author.orcid : `https://orcid.org/${author.orcid}`,
+        }),
 
-        isAuthenticated: !!user,
         // crossref schema only allows a maximum of one affiliation per contributor
         ...(affiliations?.length > 0 && { affiliations: affiliations.slice(0, 1) }),
       };
@@ -323,9 +325,19 @@ class CrossRefClient {
     return response;
   }
 
-  async addSubmissiontoQueue({ doi, batchId }: { doi: number; batchId: string }) {
+  async addSubmissiontoQueue({
+    uniqueDoi,
+    dpid,
+    uuid,
+    batchId,
+  }: {
+    uniqueDoi: string;
+    dpid: string;
+    uuid: string;
+    batchId: string;
+  }) {
     // check if there is no pending submission log
-    return await prisma.doiSubmissionQueue.create({ data: { doiRecordId: doi, batchId } });
+    return await prisma.doiSubmissionQueue.create({ data: { batchId, uniqueDoi, dpid, uuid } });
   }
 
   async retrieveSubmission(retrieveUrl: string) {
@@ -334,11 +346,18 @@ class CrossRefClient {
     // query submssion payload from param.CROSSREF-RETRIEVE-URL
     // only create doi if submission status is success
 
-    const response = (await fetch(retrieveUrl).then((res) => res.json())) as NotificationResult;
-    logger.info(response, 'CROSSREF NOTIFICATION: retrieveSubmission');
-    // return interprete the response from the api to determine if the
-    // submission status has either `success | pending | failed`
-    return { success: response?.completed !== null, pending: false, failure: true };
+    try {
+      logger.info({ retrieveUrl }, 'ATTEMPT TO RETRIEVE SUBMISSION');
+      const response = (await fetch(retrieveUrl).then((res) => res.json())) as NotificationResult;
+      logger.info(response, 'RETRIEVE SUBMISSION');
+      // return interprete the response from the api to determine if the
+      // submission status has either `success | pending | failed`
+      const isSuccess = response?.completed !== null && !!response.recordCreated;
+      return { success: isSuccess, failure: !isSuccess };
+    } catch (err) {
+      logger.error({ err }, 'ERROR RETRIEVING SUBMISSION');
+      return { success: false, failure: true };
+    }
   }
 }
 

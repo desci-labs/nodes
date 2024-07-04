@@ -9,7 +9,7 @@ import {
   MintError,
   ForbiddenMintError,
 } from '../core/doi/error.js';
-import { logger } from '../logger.js';
+import { logger as parentLogger } from '../logger.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js';
 import { asyncMap, ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 
@@ -22,6 +22,8 @@ import { crossRefClient } from './index.js';
 const DOI_PREFIX = process.env.DOI_PREFIX;
 
 if (!DOI_PREFIX) throw new Error('env DOI_PREFIX is missing!');
+
+const logger = parentLogger.child({ module: '[DoiService]' });
 export class DoiService {
   dbClient: PrismaClient;
 
@@ -39,18 +41,19 @@ export class DoiService {
     return !exists;
   }
 
-  async assertHasValidatedAttestations(manifest: ResearchObjectV1) {
+  async assertHasValidatedAttestations(uuid: string) {
     const doiAttestations = await attestationService.getProtectedAttestations({
       protected: true,
       community: { slug: 'desci-foundation' },
     });
     // logger.info(doiAttestations, 'DOI Requirements');
-    let claims = await attestationService.getProtectedNodeClaims(manifest.dpid.id);
+    let claims = await attestationService.getProtectedNodeClaims(uuid);
     claims = claims.filter((claim) => claim.verifications > 0);
 
     const hasClaimedRequiredAttestation = doiAttestations.some((attestation) =>
       claims.find((claim) => claim.attestationId === attestation.id),
     );
+    logger.info({ hasClaimedRequiredAttestation }, 'hasClaimedRequiredAttestation');
     if (!hasClaimedRequiredAttestation) throw new AttestationsError();
   }
 
@@ -85,11 +88,13 @@ export class DoiService {
 
   // check mintability for either root node or manuscript
   async checkMintability(nodeUuid: string) {
+    logger.info({ nodeUuid }, 'checkMintability');
     const uuid = ensureUuidEndsWithDot(nodeUuid);
 
     // retrieve node manifest/metadata
     const { researchObjects } = await getIndexedResearchObjects([uuid]);
     const researchObject = researchObjects[0] as IndexedResearchObject;
+    logger.info({ researchObject }, 'RESEARCH OBJECT');
     const manifestCid = hexToCid(researchObject?.recentCid);
 
     if (!manifestCid) throw new ForbiddenMintError('Node not published yet!');
@@ -118,11 +123,11 @@ export class DoiService {
       // does manuscript(s) already have a DOI
       if (existingDois.length) {
         // Validate node has claimed all necessary attestations
-        await this.assertHasValidatedAttestations(latestManifest);
+        await this.assertHasValidatedAttestations(uuid);
       }
     } else {
       // Validate node has claimed all necessary attestations
-      await this.assertHasValidatedAttestations(latestManifest);
+      await this.assertHasValidatedAttestations(uuid);
     }
 
     // validate title, abstract and contributors
@@ -148,24 +153,17 @@ export class DoiService {
       publicationDate: { day, month, year },
     });
 
+    logger.info({ doiSuffix, doi, uuid, metadataResponse }, 'DOI SUBMITTED');
     if (!metadataResponse.ok) {
       throw new MintError("We couldn't register a DOI for this research object");
     }
 
-    // todo: add submissionId and doi to DoiSubmissionLog table to keep track of status
-    logger.info({ doiSuffix, doi, uuid, metadataResponse }, 'DOI SUBMITTED');
-
-    // todo:
-    const doiRecord = await this.dbClient.doiRecord.create({
-      data: {
-        uuid,
-        dpid,
-        doi,
-      },
-    });
     // only create doi if submission status is success
     const submission = await crossRefClient.addSubmissiontoQueue({
-      doi: doiRecord.id,
+      // doi: doiRecord.id,
+      dpid,
+      uuid: ensureUuidEndsWithDot(uuid),
+      uniqueDoi: doi,
       batchId: metadataResponse.batchId,
     });
 
@@ -180,12 +178,11 @@ export class DoiService {
   }
 
   async hasPendingSubmission(uuid: string) {
-    const pending = await this.dbClient.doiRecord.findFirst({
-      where: { uuid: ensureUuidEndsWithDot(uuid) },
-      include: { DoiSubmission: { where: { status: DoiStatus.PENDING } } },
+    const pending = await this.dbClient.doiSubmissionQueue.findFirst({
+      where: { uuid: ensureUuidEndsWithDot(uuid), status: DoiStatus.PENDING },
     });
 
-    return pending?.DoiSubmission && pending.DoiSubmission.length > 0 ? true : false;
+    return pending;
   }
 
   async getPendingSubmission(batchId: string) {
