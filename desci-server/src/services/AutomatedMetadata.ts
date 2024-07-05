@@ -13,6 +13,8 @@ import repoService from './repoService.js';
 
 const logger = parentLogger.child({ module: '[AutomatedMetadataClient]' });
 
+const IPFS_RESOLVER = process.env.IPFS_RESOLVER_OVERRIDE || 'https://ipfs.desci.com/ipfs';
+
 export const delay = async (timeMs: number) => {
   return new Promise((resolve) => setTimeout(resolve, timeMs));
 };
@@ -114,6 +116,13 @@ export interface OpenAlexWork {
   abstract_inverted_index?: { [key: string]: number[] };
 }
 
+const DEFAULT_GROBID_METADATA = {
+  authors: [],
+  title: '',
+  abstract: '',
+  doi: '',
+};
+
 /**
  * A wrapper http client for querying, caching and parsing requests
  * from the CrossRef Rest Api https://www.crossref.org/documentation/retrieve-metadata/rest-api/
@@ -142,7 +151,7 @@ export class AutomatedMetadataClient {
     const body: { pdf: string; doi?: string } | { doi: string; pdf?: string } = { pdf: '' };
 
     if (query.cid) {
-      body.pdf = `https://ipfs.desci.com/ipfs/${query.cid}`;
+      body.pdf = `${IPFS_RESOLVER}/${query.cid}`;
     }
 
     if (query.doi) {
@@ -183,7 +192,7 @@ export class AutomatedMetadataClient {
     try {
       if (!cid) throw new Error('Invalid data');
 
-      const pdfUrl = `${process.env.IPFS_RESOLVER_OVERRIDE}/${cid}`;
+      const pdfUrl = `${IPFS_RESOLVER}/${cid}`;
 
       let response = await axios.head(pdfUrl);
       const contentType = response.headers['content-type'];
@@ -191,7 +200,7 @@ export class AutomatedMetadataClient {
 
       if (contentType.toLowerCase() !== 'application/pdf') {
         logger.error({ contentType, cid: cid }, 'CID CONTENT NOT A PDF FILE');
-        return null;
+        return DEFAULT_GROBID_METADATA;
       }
 
       logger.info({ contentType, pdfUrl }, 'PDF RESPONSE CONTENT');
@@ -213,13 +222,13 @@ export class AutomatedMetadataClient {
       const url = 'https://grobid-dev.desci.com/api/processHeaderDocument';
       response = await axios.request({ url, method: 'POST', data: formdata, headers: { ...formdata.getHeaders() } });
       logger.info({ header: response.data }, 'GROBID RESPONSE');
-      if (response.status !== 200) return null;
+      if (response.status !== 200) return DEFAULT_GROBID_METADATA;
       // transform data
       const headerMetadata = parseBibtext(response.data);
       return headerMetadata;
     } catch (error) {
       logger.error(error, 'ERROR');
-      return null;
+      return DEFAULT_GROBID_METADATA;
     }
   }
 

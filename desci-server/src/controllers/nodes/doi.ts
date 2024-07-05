@@ -94,11 +94,11 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
         abstract: grobidMetadata.abstract || openAlexMetadata.abstract,
         title: grobidMetadata.title || openAlexMetadata.title,
       };
-    } else {
+    } else if (grobidMetadata) {
       metadata = {
-        title: grobidMetadata.title,
-        abstract: grobidMetadata.abstract,
-        authors: grobidMetadata.authors.map((author) => ({ name: author, affiliations: [], orcid: '' })),
+        title: grobidMetadata?.title,
+        abstract: grobidMetadata?.abstract,
+        authors: grobidMetadata?.authors.map((author) => ({ name: author, affiliations: [], orcid: '' })),
         pdfUrl: '',
         keywords: [],
       };
