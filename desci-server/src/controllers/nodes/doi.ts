@@ -12,7 +12,6 @@ import { z } from 'zod';
 
 import {
   BadRequestError,
-  ForbiddenError,
   NotFoundError,
   RequestWithNode,
   SuccessResponse,
@@ -32,51 +31,6 @@ export const attachDoiSchema = z.object({
     path: z.string().startsWith('root/', 'Invalid component path'),
   }),
 });
-
-export interface OpenAlexWork {
-  id: string;
-  title: string;
-  doi: string;
-  open_access: {
-    is_oa: boolean;
-    oa_status: string;
-    oa_url: string;
-  };
-  best_oa_location: {
-    is_oa: boolean;
-    pdf_url: string;
-  };
-  authorships: Array<{
-    author_position: string;
-    author: {
-      id: string;
-      display_name: string;
-      orcid: string;
-    };
-    institutions: Array<{
-      id: string;
-      display_name: string;
-      ror: string;
-      country_code: string;
-      type: string;
-      lineage: string[];
-    }>;
-    countries: string[];
-    is_corresponding: boolean;
-    raw_author_name: string;
-    raw_affiliation_strings: string[];
-    affiliations: Array<{
-      raw_affiliation_string: string;
-      institution_ids: string[];
-    }>;
-  }>;
-  keywords: Array<{
-    id: string;
-    display_name: string;
-    score: number;
-  }>;
-  abstract_inverted_index?: { [key: string]: number[] };
-}
 
 export const automateManuscriptDoi = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid, path, prepublication } = req.body;
@@ -115,44 +69,70 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
   // if doi is present, pull from openalex
   if (component.payload?.doi) {
     doi = component.payload.doi[0];
-    try {
-      const result = await fetch(
-        `https://api.openalex.org/works/doi:${doi}?select=id,title,doi,authorships,keywords,open_access,best_oa_location,abstract_inverted_index`,
-        {
-          headers: {
-            Accept: '*/*',
-            'content-type': 'application/json',
-          },
-        },
-      );
-      logger.info({ status: result.status, message: result.statusText }, 'OPEN ALEX QUERY');
-      const work = (await result.json()) as OpenAlexWork;
-      logger.info({ openAlexWork: work }, 'OPEN ALEX QUERY');
-      metadata = transformOpenAlexWorkToMetadata(work);
-    } catch (err) {
-      logger.error({ err }, 'ERROR: OPEN ALEX WORK QUERY');
-    }
+    metadata = await metadataClient.queryDoiFromOpenAlex(doi);
   }
 
+  let grobidMetadata: {
+    authors: string[];
+    title: string;
+    abstract: string;
+    doi: string;
+  } | null;
+
   if (!metadata) {
-    // pull metadata from AM service
-    metadata = await metadataClient.getResourceMetadata({
-      cid: component.payload.cid,
-      doi: doi || component.payload?.doi?.[0],
-    });
+    logger.info('Pull from grobid');
+    // pull from grobid
+    grobidMetadata = await metadataClient.queryFromGrobid(component.payload.cid);
+
+    logger.info({ grobidMetadata }, 'GROBID METADATA');
+    if (grobidMetadata?.doi) {
+      // doi = grobidMetadata.doi;
+      logger.info({ doi }, 'DOI PARSED FROM GROBID');
+      const openAlexMetadata = await metadataClient.queryDoiFromOpenAlex(grobidMetadata.doi);
+      metadata = {
+        ...openAlexMetadata,
+        abstract: grobidMetadata.abstract || openAlexMetadata.abstract,
+        title: grobidMetadata.title || openAlexMetadata.title,
+      };
+    } else {
+      metadata = {
+        title: grobidMetadata.title,
+        abstract: grobidMetadata.abstract,
+        authors: grobidMetadata.authors.map((author) => ({ name: author, affiliations: [], orcid: '' })),
+        pdfUrl: '',
+        keywords: [],
+      };
+    }
+
+    logger.info({ grobidMetadata }, 'Grobid Metadata');
   }
 
   // todo: pull metadata from crossrefClient#getDoiMetadata
   // const doiMetadata = await crossRefClient.getDoiMetadata('');
+  // attempt to pull doi from crossref api
+  if (!doi && metadata?.title) {
+    const works = await crossRefClient.listWorks({
+      rows: 5,
+      select: [WorkSelectOptions.DOI, WorkSelectOptions.TITLE, WorkSelectOptions.AUTHOR],
+      queryTitle: metadata.title,
+    });
+    const work = works?.data?.message?.items.find((item) =>
+      item.title.some((t) => t.toLowerCase() === metadata?.title.toLowerCase()),
+    );
+    if (work?.DOI) {
+      doi = work.DOI;
+    }
+  }
 
   logger.info({ metadata }, 'METADATA');
   if (!metadata) throw new NotFoundError('DOI not found!');
 
   const actions: ManifestActions[] = [];
 
-  if (!doi) {
+  if (!doi && metadata?.doi) {
     // fallback to metadata.doi if component payload has no doi
     doi = metadata?.doi;
+    logger.info({ doi }, 'USE DOI FROM METADATA');
   }
 
   if (doi) {
@@ -163,11 +143,11 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
         payload: {
           ...component.payload,
           doi: component.payload?.doi ? component.payload.doi : [doi],
-          ...(metadata?.keywords && {
-            keywords: component.payload?.keywords
-              ? component?.payload.keywords.concat(metadata.keywords)
-              : metadata.keywords,
-          }),
+          // ...(metadata?.keywords && {
+          //   keywords: component.payload?.keywords
+          //     ? component?.payload.keywords.concat(metadata.keywords)
+          //     : metadata.keywords,
+          // }),
         } as PdfComponentPayload & CommonComponentPayload,
       },
       componentIndex,
@@ -212,28 +192,6 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
   logger.info({ response: response.manifest.components[componentIndex] }, 'component updated');
 
   new SuccessResponse(true).send(res);
-};
-
-const transformOpenAlexWorkToMetadata = (work: OpenAlexWork): MetadataResponse => {
-  const authors = work.authorships.map((author) => ({
-    orcid: author.author?.orcid ? getOrcidFromURL(author.author.orcid) : null,
-    name: author.author.display_name,
-    affiliations: author?.institutions.map((org) => ({ name: org.display_name, id: org?.ror || '' })) ?? [],
-  }));
-
-  const keywords = work?.keywords.map((entry) => entry.display_name) ?? [];
-
-  const abstract = work?.abstract_inverted_index ? transformInvertedAbstractToText(work.abstract_inverted_index) : '';
-
-  return { title: work.title, doi: work.doi, authors, pdfUrl: '', keywords, abstract };
-};
-
-const transformInvertedAbstractToText = (abstract: OpenAlexWork['abstract_inverted_index']) => {
-  const words = [];
-  Object.entries(abstract).map(([word, positions]) => {
-    positions.forEach((pos) => words.splice(pos, 0, word));
-  });
-  return words.filter(Boolean).join(' ');
 };
 
 const transformWorkToMetadata = (work: Work): MetadataResponse => {

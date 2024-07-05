@@ -211,6 +211,18 @@ services:
       - "9777:9777" # debugger
       - "7771:7771" # Uncomment if you want to test the media server from the host machine
 
+  grobid:
+    image: lfoppiano/grobid:0.8.0
+    container_name: grobid
+    ports:
+      - "8070:8070"
+    environment:
+      - JAVA_OPTS=-Xmx2G -Xms2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8070/api/isalive"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # desci_nodes_backend_test:
   #   container_name: 'be_test_boilerplate'
