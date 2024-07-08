@@ -46,6 +46,7 @@ async function processPublishQueue() {
 
   try {
     const txStatus = await checkTransaction(task.transactionId, task.uuid);
+    logger.info({ txStatus }, 'publish::processPublishQueue txStatus');
     if (txStatus === 1) {
       publishHandler(task)
         .then(async (published) => {
@@ -80,7 +81,7 @@ async function processPublishQueue() {
     }
     return ProcessOutcome.TaskCompleted;
   } catch (err) {
-    logger.error({ err }, 'ProcessPublishQueue::ERROR');
+    logger.error({ err }, 'publish::processPublishQueue ProcessPublishQueue::ERROR');
     return ProcessOutcome.Error;
   } finally {
     lockService.freeLock(task.transactionId);
