@@ -58,15 +58,17 @@ class PublishPackageService {
     }
 
     const license = PublishPackageService.extractManuscriptLicense(manifest, pdfCid);
+    let nodeUuid = ensureUuidEndsWithDot(node.uuid);
+    nodeUuid = nodeUuid.slice(0, -1);
     // const paddedTimestamp = unixTimestamp.padEnd(13, '0');
     const publishTime = demoMode
       ? Date.now().toString().slice(0, 10)
-      : await publishServices.retrieveBlockTimeByManifestCid(node.uuid, manifestCid);
+      : await publishServices.retrieveBlockTimeByManifestCid(nodeUuid, manifestCid);
 
     const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);
     const authors = manifest.authors?.map((author) => author.name);
 
-    const attestations = await attestationService.getAllNodeAttestations(node.uuid);
+    const attestations = await attestationService.getAllNodeAttestations(nodeUuid);
 
     const openCodeAttestation = attestations.find((a) => a.attestationVersion.name === 'Open Code');
     const openDataAttestation = attestations.find((a) => a.attestationVersion.name === 'Open Data');
