@@ -33,7 +33,7 @@ const checkTransaction = async (transactionId: string, uuid: string) => {
       },
       'TX::check transaction',
     );
-  };
+  }
 
   const tx = await provider.getTransactionReceipt(transactionId);
   logger.info({ tx, uuid, transactionId, ETHEREUM_RPC_URL, network: await provider.getNetwork() }, 'TX::Receipt');
@@ -58,7 +58,7 @@ async function processPublishQueue() {
             await fixDpid(task.dpid);
           } else {
             logger.warn('DPID URL not set, skipping dpid fix');
-          };
+          }
           lockService.freeLock(task.transactionId);
         })
         .catch((err) => {
@@ -112,19 +112,23 @@ const delay = async (timeMs: number) => {
 
 export async function runWorkerUntilStopped() {
   while (true) {
-    const outcome = await processPublishQueue();
-    if (!process.env.MUTE_PUBLISH_WORKER) logger.trace({ outcome }, 'Processed Queue');
-    switch (outcome) {
-      case ProcessOutcome.EmptyQueue:
-        await delay(10000);
-        break;
-      case ProcessOutcome.Error:
-        await delay(1000);
-        break;
-      case ProcessOutcome.TaskCompleted:
-        break;
-      default:
-        logger.error({ outcome }, 'UNREACHABLE CODE REACHED, CHECK IMMEDIATELY');
+    try {
+      const outcome = await processPublishQueue();
+      if (!process.env.MUTE_PUBLISH_WORKER) logger.trace({ outcome }, 'Processed Queue');
+      switch (outcome) {
+        case ProcessOutcome.EmptyQueue:
+          await delay(10000);
+          break;
+        case ProcessOutcome.Error:
+          await delay(1000);
+          break;
+        case ProcessOutcome.TaskCompleted:
+          break;
+        default:
+          logger.error({ outcome }, 'UNREACHABLE CODE REACHED, CHECK IMMEDIATELY');
+      }
+    } catch (e) {
+      logger.error({ e }, 'PUBLISH WORKER LOOP ERROR');
     }
   }
 }
