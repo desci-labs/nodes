@@ -1,7 +1,6 @@
 import { Router } from 'express';
 
 import {
-  asyncHander,
   addComment,
   addReaction,
   addVerification,
@@ -19,7 +18,7 @@ import {
   getAttestationVerifications,
   validate,
   getValidatedRecommendations,
-  canVerifyClaim,
+  asyncHandler,
 } from '../../../internal.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 
@@ -38,43 +37,41 @@ import {
   showCommunityClaimsSchema,
   showNodeAttestationsSchema,
   claimEntryAttestationsSchema,
-  canVerificationSchema,
 } from './schema.js';
 
 const router = Router();
 
-router.get('/suggestions/all', [], asyncHander(getAllRecommendations));
-router.get('/suggestions/protected', [], asyncHander(getValidatedRecommendations));
+router.get('/suggestions/all', [], asyncHandler(getAllRecommendations));
+router.get('/suggestions/protected', [], asyncHandler(getValidatedRecommendations));
 router.get(
   '/claims/:communityId/:dpid',
   [ensureUser, validate(showCommunityClaimsSchema)],
-  asyncHander(showCommunityClaims),
+  asyncHandler(showCommunityClaims),
 );
 
-router.get('/:dpid', [validate(showNodeAttestationsSchema)], asyncHander(showNodeAttestations));
-router.get('/:claimId/reactions', [validate(getAttestationReactionsSchema)], asyncHander(getAttestationReactions));
+router.get('/:uuid', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
+router.get('/:claimId/reactions', [validate(getAttestationReactionsSchema)], asyncHandler(getAttestationReactions));
 router.get(
   '/:claimId/verifications',
   [validate(getAttestationVerificationsSchema)],
-  asyncHander(getAttestationVerifications),
+  asyncHandler(getAttestationVerifications),
 );
-router.get('/:claimId/comments', [validate(getAttestationCommentsSchema)], asyncHander(getAttestationComments));
+router.get('/:claimId/comments', [validate(getAttestationCommentsSchema)], asyncHandler(getAttestationComments));
 
-router.post('/claim', [ensureUser, validate(claimAttestationSchema)], asyncHander(claimAttestation));
-router.post('/unclaim', [ensureUser, validate(removeClaimSchema)], asyncHander(removeClaim));
-router.post('/claimAll', [ensureUser, validate(claimEntryAttestationsSchema)], asyncHander(claimEntryRequirements));
+router.post('/claim', [ensureUser, validate(claimAttestationSchema)], asyncHandler(claimAttestation));
+router.post('/unclaim', [ensureUser, validate(removeClaimSchema)], asyncHandler(removeClaim));
+router.post('/claimAll', [ensureUser, validate(claimEntryAttestationsSchema)], asyncHandler(claimEntryRequirements));
 
-router.post('/comment', [ensureUser, validate(createCommentSchema)], asyncHander(addComment));
-router.post('/reaction', [ensureUser, validate(addReactionSchema)], asyncHander(addReaction));
-router.post('/verification', [ensureUser, validate(addVerificationSchema)], asyncHander(addVerification));
-router.post('/verification/check/:claimId', [ensureUser, validate(canVerificationSchema)], asyncHander(canVerifyClaim));
+router.post('/comment', [ensureUser, validate(createCommentSchema)], asyncHandler(addComment));
+router.post('/reaction', [ensureUser, validate(addReactionSchema)], asyncHandler(addReaction));
+router.post('/verification', [ensureUser, validate(addVerificationSchema)], asyncHandler(addVerification));
 
-router.delete('/comments/:commentId', [ensureUser, validate(deleteCommentSchema)], asyncHander(removeComment));
-router.delete('/reactions/:reactionId', [ensureUser, validate(deleteReactionSchema)], asyncHander(removeReaction));
+router.delete('/comments/:commentId', [ensureUser, validate(deleteCommentSchema)], asyncHandler(removeComment));
+router.delete('/reactions/:reactionId', [ensureUser, validate(deleteReactionSchema)], asyncHandler(removeReaction));
 router.delete(
   '/verifications/:verificationId',
   [ensureUser, validate(deleteVerificationSchema)],
-  asyncHander(removeVerification),
+  asyncHandler(removeVerification),
 );
 
 export default router;

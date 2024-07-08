@@ -6,15 +6,13 @@ if [ ! -f /usr/src/app/.env ]; then
 fi
 
 # Ensure temp directories exist
-mkdir -p /usr/src/app/.temp/files /usr/src/app/.temp/thumbnails
+mkdir -p /usr/src/app/.temp/files /usr/src/app/.temp/thumbnails /usr/src/app/.temp/files/pdf /usr/src/app/.temp/pdf
 
 
-# Check if node_modules directory doesn't exist and run npm install if necessary
-if [ ! -d "/usr/src/app/node_modules" ]; then
-  echo "node_modules not found, running npm install..."
-  cd /usr/src/app
-  npm install
-fi
+echo "Running npm install to install any package changes..."
+cd /usr/src/app
+npm install
+
 
 # Execute the main container command
 exec "$@"

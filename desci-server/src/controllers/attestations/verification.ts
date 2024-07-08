@@ -1,21 +1,18 @@
+import { ActionType } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 // import { Attestation, NodeAttestation } from '@prisma/client';
 import _ from 'lodash';
 
 import {
-  AuthFailureResponse,
-  BadRequestError,
   ForbiddenError,
-  NotFoundError,
-  RequestWithUser,
   SuccessMessageResponse,
   SuccessResponse,
   attestationService,
-  communityService,
   ensureUuidEndsWithDot,
   prisma,
 } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
+import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import orcidApiService from '../../services/orcid.js';
 
 type RemoveVerificationBody = {
@@ -51,6 +48,11 @@ export const removeVerification = async (
     new SuccessMessageResponse().send(res);
   } else {
     await attestationService.removeVerification(verification.id, user.id);
+
+    await saveInteraction(req, ActionType.UNVERIFY_ATTESTATION, {
+      claimId: verification.nodeAttestationId,
+      userId: user.id,
+    });
 
     new SuccessMessageResponse().send(res);
 
@@ -96,11 +98,11 @@ export const addVerification = async (
   const claim = await attestationService.findClaimById(parseInt(claimId));
 
   await attestationService.verifyClaim(parseInt(claimId), user.id);
-
-  const attestation = await attestationService.findAttestationById(claim.attestationId);
+  await saveInteraction(req, ActionType.VERIFY_ATTESTATION, { claimId: claimId, userId: user.id });
 
   new SuccessMessageResponse().send(res);
 
+  const attestation = await attestationService.findAttestationById(claim.attestationId);
   if (attestation.protected) {
     /**
      * Update ORCID Profile
@@ -108,6 +110,12 @@ export const addVerification = async (
     const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(claim.nodeUuid) } });
     const owner = await prisma.user.findFirst({ where: { id: node.ownerId } });
     if (owner.orcid) await orcidApiService.postWorkRecord(node.uuid, owner.orcid);
+    await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
+      ownerId: owner.id,
+      orcid: owner.orcid,
+      uuid: node.uuid,
+      claimId,
+    });
   }
 };
 
@@ -129,19 +137,4 @@ export const getAttestationVerifications = async (req: Request, res: Response, n
   });
 
   return new SuccessResponse(data).send(res);
-};
-
-export const canVerifyClaim = async (req: RequestWithUser, res: Response) => {
-  const logger = parentLogger.child({
-    module: 'ATTESTATIONS::canVerify',
-  });
-  const userId = req.user.id;
-  const claimId = parseInt(req.params.claimId);
-
-  const claim = await attestationService.findClaimById(claimId);
-  const isMember = await communityService.findMemberByUserId(claim.desciCommunityId, userId);
-
-  logger.info({ userId: req.user.id, claimId, community: claim.desciCommunityId }, 'Claim Verification check');
-  if (!isMember) new SuccessResponse({ ok: false }).send(res);
-  else new SuccessResponse({ ok: true }).send(res);
 };

@@ -41,6 +41,7 @@ spec:
           export SESSION_KEY={{ .Data.SESSION_KEY }}
           export COOKIE_DOMAIN={{ .Data.COOKIE_DOMAIN }}
           export ORCID_API_DOMAIN={{ .Data.ORCID_API_DOMAIN }}
+          export DPID_URL_OVERRIDE={{ .Data.DPID_URL_OVERRIDE }}
           export ORCID_CLIENT_ID={{ .Data.ORCID_CLIENT_ID }}
           export ORCID_CLIENT_SECRET={{ .Data.ORCID_CLIENT_SECRET }}
           export ARWEAVE_ENABLED=0
@@ -62,6 +63,7 @@ spec:
           export AWS_S3_BUCKET_REGION={{ .Data.AWS_S3_BUCKET_REGION }}
           export THEGRAPH_API_URL={{ .Data.THEGRAPH_API_URL }}
           export HOT_WALLET_KEY={{ .Data.HOT_WALLET_KEY }}
+          export REGISTRY_OWNER_PKEY={{ .Data.REGISTRY_OWNER_PKEY }}
           export CSO_CLASSIFIER_API={{ .Data.CSO_CLASSIFIER_API }}
           export VSCODE_ACCESS_TOKEN={{ .Data.VSCODE_ACCESS_TOKEN }}
           export NODES_MEDIA_SERVER_URL={{ .Data.NODES_MEDIA_SERVER_URL }}
@@ -78,6 +80,16 @@ spec:
           export IPFS_READ_ONLY_GATEWAY_SERVER_URL={{ .Data.IPFS_READ_ONLY_GATEWAY_SERVER_URL }}
           export ETHEREUM_RPC_URL={{ .Data.ETHEREUM_RPC_URL }}
           export GOOGLE_CLIENT_ID={{ .Data.GOOGLE_CLIENT_ID }}
+          export DOI_PREFIX={{ .Data.DOI_PREFIX }}
+          export CROSSREF_EMAIL={{ .Data.CROSSREF_EMAIL }}
+          export CROSSREF_DOI_URL={{ .Data.CROSSREF_DOI_URL }}
+          export CROSSREF_LOGIN={{ .Data.CROSSREF_LOGIN }}
+          export CROSSREF_PASSWORD={{ .Data.CROSSREF_PASSWORD }}
+          export CROSSREF_METADATA_API={{ .Data.CROSSREF_METADATA_API }}
+          export CROSSREF_ADMIN_API={{ .Data.CROSSREF_ADMIN_API }}
+          export CROSSREF_NOTIFY_ENDPOINT={{ .Data.CROSSREF_NOTIFY_ENDPOINT }}
+          export AUTOMATED_METADATA_API="{{ .Data.AUTOMATED_METADATA_API }}"
+          export AUTOMATED_METADATA_API_KEY="{{ .Data.AUTOMATED_METADATA_API_KEY }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}

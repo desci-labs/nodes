@@ -5,6 +5,9 @@ import devRoInfo from "./.openzeppelin/sepoliaDev-research-object.json";
 import devDpidInfo from "./.openzeppelin/sepoliaDev-dpid.json";
 import prodRoInfo from "./.openzeppelin/sepoliaProd-research-object.json";
 import prodDpidInfo from "./.openzeppelin/sepoliaProd-dpid.json";
+import localDpidAliasInfo from "./.openzeppelin/unknown-dpid-alias-registry.json";
+import devDpidAliasInfo from "./.openzeppelin/opSepoliaDev-dpid-alias-registry.json";
+import prodDpidAliasInfo from "./.openzeppelin/opSepoliaProd-dpid-alias-registry.json";
 
 export const contracts = {
   localRoInfo,
@@ -13,4 +16,7 @@ export const contracts = {
   devDpidInfo,
   prodRoInfo,
   prodDpidInfo,
+  localDpidAliasInfo,
+  devDpidAliasInfo,
+  prodDpidAliasInfo,
 };

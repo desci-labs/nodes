@@ -66,6 +66,19 @@ export const setCeramicStream = async (uuid: string, ceramicStream: string) => {
   });
 };
 
+export const setDpidAlias = async (uuid: string, dpidAlias: number) => {
+  logger.debug({ fn: 'setDpidAlias', uuid, dpidAlias }, 'node::setDpidAlias');
+  uuid = ensureUuidEndsWithDot(uuid);
+  return await prisma.node.update({
+    data: {
+      dpidAlias,
+    },
+    where: {
+      uuid,
+    },
+  });
+};
+
 export const createPublicDataRefs = async (
   data: Prisma.PublicDataReferenceCreateManyInput[],
   userId: number | undefined,

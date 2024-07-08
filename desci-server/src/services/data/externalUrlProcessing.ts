@@ -60,7 +60,7 @@ const logger = parentLogger.child({
 
 interface ProcessExternalUrlDataToIpfsParams {
   // files: any[];
-  externalUrl: any;
+  externalUrl: { path: string; url: string; doi?: string };
   user: User;
   node: Node;
   /**
@@ -69,6 +69,7 @@ interface ProcessExternalUrlDataToIpfsParams {
   contextPath: string;
   componentType?: ResearchObjectComponentType;
   componentSubtype?: ResearchObjectComponentSubtypes;
+  autoStar?: boolean;
 }
 
 /**
@@ -81,6 +82,7 @@ export async function processExternalUrlDataToIpfs({
   contextPath,
   componentType,
   componentSubtype,
+  autoStar,
 }: ProcessExternalUrlDataToIpfsParams) {
   // debugger;
   let pinResult: IpfsPinnedResult[] = [];
@@ -128,10 +130,17 @@ export async function processExternalUrlDataToIpfs({
          */
         if (componentType === ResearchObjectComponentType.PDF) {
           const url = externalUrl.url;
-          const res = await axios.get(url, { responseType: 'arraybuffer' });
-          const buffer = Buffer.from(res.data, 'binary');
-          externalUrlFiles = [{ path: externalUrl.path, content: buffer }];
-          externalUrlTotalSizeBytes = buffer.length;
+          const response = await axios.head(url);
+          const contentType = response.headers['content-type'];
+
+          if (contentType === 'application/pdf') {
+            const res = await axios.get(url, { responseType: 'arraybuffer' });
+            const buffer = Buffer.from(res.data, 'binary');
+            externalUrlFiles = [{ path: externalUrl.path, content: buffer }];
+            externalUrlTotalSizeBytes = buffer.length;
+          } else {
+            throw new Error('Invalid file type. Only PDF files are supported.');
+          }
         }
       } catch (e) {
         logger.warn(
@@ -229,10 +238,39 @@ export async function processExternalUrlDataToIpfs({
         componentType,
         componentSubtype,
         externalUrl,
+        star: autoStar,
       });
 
       if (firstNestingComponents?.length > 0) {
         updatedManifest = await addComponentsToDraftManifest(node, firstNestingComponents);
+      }
+
+      logger.info({ EXTERNAL_DOI: externalUrl }, 'External URL DOI');
+      if (componentType === ResearchObjectComponentType.PDF && externalUrl.doi) {
+        const componentIndex = updatedManifest.components.findIndex(
+          (comp) => comp.type === ResearchObjectComponentType.PDF,
+        );
+        const comp = updatedManifest.components[componentIndex];
+        const res = await repoService.dispatchAction({
+          uuid: node.uuid,
+          documentId: node.manifestDocumentId as DocumentId,
+          actions: [
+            {
+              type: 'Update Component',
+              component: {
+                ...comp,
+                payload: {
+                  ...comp.payload,
+                  ...(externalUrl.doi && {
+                    doi: [externalUrl.doi],
+                  }),
+                },
+              },
+              componentIndex,
+            },
+          ],
+        });
+        updatedManifest = res.manifest;
       }
     }
 

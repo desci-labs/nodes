@@ -2,7 +2,7 @@ import {
   createResearchObject,
   newComposeClient,
   updateResearchObject,
-  type ComposeClient,
+  ComposeClient,
   type NodeIDs,
   queryResearchObject,
   resolveHistory,
@@ -15,6 +15,7 @@ import { getNodesLibInternalConfig } from "./config/index.js";
 import { Signer } from "ethers";
 import { authorizedSessionDidFromSigner } from "./util/signing.js";
 import { type DID } from"dids";
+import { CID } from "multiformats";
 
 const LOG_CTX = "[nodes-lib::codex]";
 /**
@@ -126,7 +127,19 @@ const backfillNewStream = async (
 
     const title = "[BACKFILLED]"; // version.title is the title of the event, e.g. "Published"
     const license = "[BACKFILLED]";
-    const manifest = convert0xHexToCid(nextVersion.cid);
+
+    // When pulling history from new contract legacy entries, the CID
+    // is cleartext. Otherwise, it needs to be decoded from hex.
+    let manifest: string;
+    try {
+      // If this works, it was a plaintext CID
+      manifest = CID.parse(nextVersion.cid).toString();
+    } catch (e) {
+      // Otherwise, fall back to hex decoding old style representation
+      console.log(LOG_CTX, `got non-plaintext CID for backfill: ${nextVersion.cid}`);
+      manifest = convert0xHexToCid(nextVersion.cid);
+    };
+
     const op =
       streamID === ""
         ? createResearchObject(compose, { title, manifest, license })
@@ -142,15 +155,44 @@ const backfillNewStream = async (
 };
 
 /**
+ * Get full historical publish state of a research object.
+*/
+export const getFullState = async (
+  streamID: string,
+) => {
+  const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
+  const compose = newComposeClient({ ceramic });
+  const resolved = await queryResearchObject(
+    compose,
+    streamID,
+    "owner { id } manifest"
+  ) as unknown as { owner: { id: string }, manifest: string};
+
+  console.log(JSON.stringify(resolved))
+
+  if (!resolved) {
+    console.log("Failed to resolve research object:", { streamID });
+    throw new Error("codex resolution failed");
+  };
+
+  const events = await getCodexHistory(streamID);
+  return {
+    owner: resolved.owner, // explicitly selected in query
+    manifest: resolved.manifest, // explicitly selected in query
+    events,
+  };
+};
+
+/**
  * Get the state of a research object as published on Codex.
 */
-export const getPublishedFromCodex = async (
-  id: string
+export const getCurrentState = async (
+  streamID: string
 ) => {
   const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
   const compose = newComposeClient({ ceramic });
 
-  return await queryResearchObject(compose, id);
+  return await queryResearchObject(compose, streamID);
 };
 
 /**

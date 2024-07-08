@@ -14,6 +14,7 @@ export type UpdateContributorReqBody = {
   email?: string;
   orcid?: string;
   userId?: number;
+  silent?: boolean;
 };
 
 export type UpdateContributorRequest = Request<never, never, UpdateContributorReqBody> & {
@@ -36,7 +37,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
   if (!node || !user)
     throw Error('Middleware not properly setup for addContributor controller, requires req.node and req.user');
 
-  const { contributorId, orcid, userId } = req.body;
+  const { contributorId, orcid, userId, silent } = req.body;
   let { email } = req.body;
   if (email) email = email.toLowerCase();
 
@@ -46,6 +47,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
     uuid: node.uuid,
     user: (req as any).user,
     nodeId: node.id,
+    silent,
   });
 
   if (!contributorId) {
@@ -78,7 +80,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
       }
 
       // Future:
-      if (currentEmail !== email && email !== user.email) {
+      if (currentEmail !== email && email !== user.email && !silent) {
         // If email was changed, send a new email.
         logger.info({ contributorId, recipient: email }, 'Firing off contributor invite email for updated contributor');
 
@@ -102,6 +104,10 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
 
         if (process.env.NODE_ENV === 'production') {
           sgMail.send(emailMsg);
+          await prisma.nodeContribution.update({
+            where: { id: contributorUpdated.id },
+            data: { inviteSent: true },
+          });
         } else {
           logger.info(
             { nodeEnv: process.env.NODE_ENV },

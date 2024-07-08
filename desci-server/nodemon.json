@@ -7,7 +7,7 @@
     "log/server.log"
   ],
   "verbose": true,
-  "exec": "node -r ts-node/register --inspect=0.0.0.0",
-  "delay": 300,
+  "exec": "node -r ts-node/register --inspect=0.0.0.0:9228",
+  "delay": 750,
   "signal": "SIGTERM"
 }

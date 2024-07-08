@@ -10,6 +10,8 @@ import { ensureUuidEndsWithDot, hideEmail } from '../utils.js';
 
 export interface RequestWithUser extends Request {
   user: User;
+  userAuth?: any;
+  traceId?: string;
 }
 
 export interface RequestWithNode extends RequestWithUser {
@@ -60,7 +62,7 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
     res.status(401).send({ ok: false, message: 'Unauthorized' });
     return;
   }
-  (req as RequestWithUser).user = user;
+  req.user = user;
 
   if (!uuid) {
     logger.error({ uuid: req.body.uuid, body: req.body }, 'No UUID Found');

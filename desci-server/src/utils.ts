@@ -50,8 +50,8 @@ export const hexToCid = (hexCid: string) => {
   return cidString;
 };
 
-export async function asyncMap<T, E>(arr: E[], predicate: (input: E) => Promise<T>): Promise<T[]> {
-  const results = await Promise.all(arr.map(predicate));
+export async function asyncMap<T, E>(arr: E[], predicate: (input: E, index: number) => Promise<T>): Promise<T[]> {
+  const results = await Promise.all(arr.map((value, index) => predicate(value, index)));
 
   return results as T[];
 }
@@ -255,4 +255,19 @@ export function formatOrcidString(orcidId: string): string {
   const formattedOrcid = orcidWithoutHyphens.replace(/(\d{4})(\d{4})(\d{4})(\d{3}[\dX])/, '$1-$2-$3-$4');
 
   return formattedOrcid;
+}
+
+export function toKebabCase(name: string) {
+  const lowercaseName = name.toLowerCase();
+
+  // Replace spaces, underscores, and dashes with a single dash
+  const dashedName = lowercaseName.replace(/[\s_-]+/g, '-');
+
+  // Remove any non-alphanumeric characters except dashes
+  const urlSafeName = dashedName.replace(/[^a-z0-9-]/g, '');
+
+  // Remove any leading or trailing dashes
+  const trimmedName = urlSafeName.replace(/^-+|-+$/g, '');
+
+  return trimmedName;
 }

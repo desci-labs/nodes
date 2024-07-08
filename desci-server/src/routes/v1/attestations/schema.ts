@@ -12,7 +12,7 @@ export const showCommunityClaimsSchema = z.object({
 
 export const showNodeAttestationsSchema = z.object({
   params: z.object({
-    dpid,
+    uuid: z.string(),
   }),
 });
 
@@ -128,12 +128,6 @@ export const addVerificationSchema = z.object({
   }),
 });
 
-export const canVerificationSchema = z.object({
-  params: z.object({
-    claimId: z.coerce.number(),
-  }),
-});
-
 export const deleteCommentSchema = z.object({
   params: z.object({ commentId: z.coerce.number() }),
 });
@@ -155,7 +149,7 @@ export const claimAttestationSchema = z.object({
     attestationId: z.coerce.number(),
     nodeVersion: z.coerce.number(),
     nodeUuid: z.string(),
-    nodeDpid: z.string(),
+    nodeDpid: z.string().optional(),
     claimerId: z.coerce.number(),
   }),
 });
@@ -165,14 +159,14 @@ export const claimEntryAttestationsSchema = z.object({
     communityId: z.coerce.number(),
     nodeVersion: z.coerce.number(),
     nodeUuid: z.string(),
-    nodeDpid: z.string(),
+    nodeDpid: z.string().optional(),
     claimerId: z.coerce.number(),
   }),
 });
 
 export const removeClaimSchema = z.object({
   body: z.object({
-    dpid,
+    dpid: z.coerce.number().optional(),
     nodeUuid: z.string(),
     claimId: z.coerce.number(),
   }),

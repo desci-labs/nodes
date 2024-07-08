@@ -164,7 +164,7 @@ class ContributorService {
     return false;
   }
 
-  async retrieveContributionsForNode(
+  async retrieveSelectedContributionsForNode(
     node: Node,
     contributorIds: string[],
     authedMode = false,
@@ -181,10 +181,25 @@ class ContributorService {
         userId: contributor.user?.id,
         deleted: contributor.deleted,
         deletedAt: contributor.deletedAt,
+        ...(authedMode && { inviteSent: contributor.inviteSent }),
         ...(authedMode && { email: contributor.email, orcid: contributor.orcid }),
       };
       return acc;
     }, {});
+  }
+
+  /**
+   * To be used within the backend, if the data from this is returned to the frontend, it can potentially leak data,
+   * opt for retrieveSelectedContributionsForNode instead if the data is to be returned to the frontend
+   */
+  async retrieveAllContributionsForNode(
+    node: Node,
+    verifiedOnly?: boolean,
+  ): Promise<(NodeContribution & { user: User })[]> {
+    return prisma.nodeContribution.findMany({
+      where: { nodeId: node.id, ...(verifiedOnly && { verified: true }) },
+      include: { user: true },
+    });
   }
 
   async retrieveContributionsForUser(user: User): Promise<UserContribution[]> {

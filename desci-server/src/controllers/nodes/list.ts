@@ -18,6 +18,10 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
   const ipfsQuery = req.query.g;
 
+  // implement paging
+  const page: number = req.query.page ? parseInt(req.query.page as string) : 1;
+  const limit: number = req.query.limit ? parseInt(req.query.limit as string) : 10;
+
   logger.info({
     body: req.body,
     user: (req as any).user,
@@ -41,6 +45,8 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
       isDeleted: false,
     },
     orderBy: { updatedAt: 'desc' },
+    take: limit,
+    skip: (page - 1) * limit,
   });
 
   // transition UUID
@@ -94,7 +100,9 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
   nodes = await asyncMap(nodes, async (n) => {
     const hex = `0x${decodeBase64UrlSafeToHex(n.uuid)}`;
     const result = indexMap[hex];
-    const manifest: ResearchObjectV1 = result?.recentCid ? await resolveNodeManifest(result?.recentCid) : null;
+    const manifest: ResearchObjectV1 = result?.recentCid
+      ? await resolveNodeManifest(result?.recentCid, ipfsQuery as string)
+      : null;
     const o = {
       ...n,
       uuid: n.uuid.replaceAll('.', ''),

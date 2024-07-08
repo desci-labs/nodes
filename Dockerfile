@@ -1,4 +1,4 @@
-FROM node:18.20.0-bullseye
+FROM node:20.8.1-bullseye-slim
 
 VOLUME /root/.yarn
 
@@ -46,7 +46,8 @@ COPY --chown=node:node ./desci-contracts/artifacts ./src/desci-contracts-artifac
 RUN mv package.json package.json.old
 RUN sed 's/link:/file:/' package.json.old > package.json
 
-RUN --mount=type=cache,target=/root/.yarn YARN_CACHE_FOLDER=/root/.yarn yarn install
+# Remove ignore-engines flag after bump to node 20, composedb CLI blocks installing meanwhile
+RUN --mount=type=cache,target=/root/.yarn YARN_CACHE_FOLDER=/root/.yarn yarn install --ignore-engines
 
 RUN chown -R node /app/node_modules/.prisma
 RUN chown -R node /root/.cache/prisma/master

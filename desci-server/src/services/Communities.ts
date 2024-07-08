@@ -2,7 +2,7 @@ import { Attestation, CommunityMembershipRole, NodeAttestation, NodeFeedItem, Pr
 import _ from 'lodash';
 
 import { prisma } from '../client.js';
-import { DuplicateDataError } from '../internal.js';
+import { DuplicateDataError, logger } from '../internal.js';
 import { attestationService } from '../internal.js';
 
 export type CommunityRadarNode = NodeAttestation & { annotations: number; reactions: number; verifications: number };
@@ -95,7 +95,7 @@ export class CommunityService {
         left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
-      WHERE t1."revoked" = false AND
+      WHERE t1."revoked" = false AND t1."nodeDpid10" IS NOT NULL AND
         EXISTS
       (SELECT *
         from "CommunityEntryAttestation" c1
@@ -124,9 +124,11 @@ export class CommunityService {
    */
   async getCuratedNodes(communityId: number) {
     const nodesOnRadar = await this.getCommunityRadar(communityId);
+    logger.info({ nodesOnRadar, communityId }, 'Radar');
     const curated = nodesOnRadar.filter((node) =>
       node.NodeAttestation.every((attestation) => attestation.verifications > 0),
     );
+    logger.info({ curated, communityId }, 'CURATED');
     return curated;
   }
 

@@ -1,16 +1,17 @@
 import { ResearchObjectV1, ResearchObjectV1Author } from '@desci-labs/desci-models';
-import { AuthTokenSource, ORCIDRecord, OrcidPutCodes, PutcodeReference } from '@prisma/client';
+import { ActionType, AuthTokenSource, ORCIDRecord, OrcidPutCodes, PutcodeReference } from '@prisma/client';
 
-import { logger as parentLogger, prisma } from '../internal.js';
+import { logger as parentLogger, prisma, zeropad } from '../internal.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js';
 import { hexToCid } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { getManifestByCid } from './data/processing.js';
+import { saveInteractionWithoutReq } from './interactionLog.js';
 
 // const PUTCODE_REGEX = /put-code=.*?(?<code>\d+)/m;
 
-const DPID_URL_OVERRIDE = process.env.DPID_URL_OVERRIDE || 'https://dev-beta.dpid.org';
+const DPID_URL_OVERRIDE = process.env.DPID_URL_OVERRIDE || 'https://beta.dpid.org';
 const ORCID_DOMAIN = process.env.ORCID_API_DOMAIN || 'sandbox.orcid.org';
 type Claim = Awaited<ReturnType<typeof attestationService.getProtectedNodeClaims>>[number];
 const logger = parentLogger.child({ module: 'ORCIDApiService' });
@@ -144,7 +145,7 @@ class OrcidApiService {
     const researchObject = researchObjects[0] as IndexedResearchObject;
     const manifestCid = hexToCid(researchObject.recentCid);
     const latestManifest = await getManifestByCid(manifestCid);
-    let claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
+    let claims = await attestationService.getProtectedNodeClaims(nodeUuid);
     claims = claims.filter((claim) => claim.verifications > 0);
     logger.info({ claims: claims.length }, '[ORCID::DELETE]:: CHECK CLAIMS');
 
@@ -196,24 +197,37 @@ class OrcidApiService {
       },
     });
 
-    await prisma.orcidPutCodes.delete({
-      where: {
-        id: putCode.id,
-      },
-    });
-
-    logger.info(
-      {
-        status: response.status,
-        statusText: response.statusText,
+    if (response.ok) {
+      await saveInteractionWithoutReq(ActionType.REMOVE_ORCID_WORK_RECORD, {
         orcid,
-        putCode: {
-          code: putCode.putcode,
-          reference: putCode.reference,
+      });
+      await prisma.orcidPutCodes.delete({
+        where: {
+          id: putCode.id,
         },
-      },
-      'ORCID RECORD DELETED',
-    );
+      });
+
+      logger.info(
+        {
+          status: response.status,
+          statusText: response.statusText,
+          orcid,
+          putCode: {
+            code: putCode.putcode,
+            reference: putCode.reference,
+          },
+        },
+        'ORCID RECORD DELETED',
+      );
+    } else {
+      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
+        orcid,
+        putCode,
+        status: response.status,
+        error: await response.json(),
+      });
+      logger.error({ orcid, putCode, status: response.status }, 'Error: REMOVE ORCID WORK RECORD');
+    }
   }
 
   /**
@@ -236,7 +250,7 @@ class OrcidApiService {
       researchObject.versions.reverse();
       const nodeVersion = researchObject.versions.length;
 
-      let claims = await attestationService.getProtectedNodeClaims(latestManifest.dpid.id);
+      let claims = await attestationService.getProtectedNodeClaims(nodeUuid);
       claims = claims.filter((claim) => claim.verifications > 0);
 
       // TODO: if claims is empty remove orcid record
@@ -370,17 +384,34 @@ class OrcidApiService {
             },
           });
         }
+        await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
+          userId,
+          orcid,
+          uuid,
+          putCode: returnedCode,
+        });
         logger.info(
           { uuid, userId, status: response.status, returnedCode, reference: PutcodeReference.PREPRINT },
           '[ORCID_API_SERVICE]:: Node Record UPDATED',
         );
       } else {
-        logger.info(
-          { status: response.status, response, body: await response.text() },
-          '[ORCID_API_SERVICE]::ORCID NODE API ERROR',
-        );
+        const body = await response.text();
+        await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
+          userId,
+          orcid,
+          uuid,
+          statusCode: response.status,
+          error: body,
+        });
+        logger.info({ status: response.status, response, body }, '[ORCID_API_SERVICE]::ORCID NODE API ERROR');
       }
     } catch (err) {
+      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
+        userId,
+        orcid,
+        uuid,
+        error: err,
+      });
       logger.info({ err }, '[ORCID_API_SERVICE]::NODE API Error Response');
     }
   }
@@ -496,17 +527,38 @@ class OrcidApiService {
           });
         }
 
+        await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
+          userId,
+          orcid,
+          uuid,
+          claimId: claim.id,
+          putCode: returnedCode,
+        });
+
         logger.info(
           { uuid, claimId: claim.id, userId, status: response.status, returnedCode, reference: putCodeReference },
           'ORCID CLAIM RECORD UPDATED',
         );
       } else {
-        logger.info(
-          { status: response.status, response, body: await response.text() },
-          '[ORCID_API_SERVICE]::ORCID CLAIM API ERROR',
-        );
+        const body = await response.text();
+        await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
+          userId,
+          orcid,
+          uuid,
+          claimId: claim.id,
+          statusCode: response.status,
+          error: body,
+        });
+        logger.info({ status: response.status, response, body }, '[ORCID_API_SERVICE]::ORCID CLAIM API ERROR');
       }
     } catch (err) {
+      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
+        userId,
+        orcid,
+        uuid,
+        claimId: claim.id,
+        error: err,
+      });
       logger.info({ err }, '[ORCID_API_SERVICE]::CLAIM API Error Response');
     }
   }
@@ -583,8 +635,6 @@ const generateClaimWorkRecord = ({
     `
   );
 };
-
-const zeropad = (data: string) => (data.length < 2 ? `0${data}` : data);
 
 /**
  * Generate an ORCID work summary xml string based for a research Node

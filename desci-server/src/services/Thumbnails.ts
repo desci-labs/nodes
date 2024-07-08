@@ -1,11 +1,14 @@
+import { Readable } from 'stream';
+
 import { ResearchObjectComponentType } from '@desci-labs/desci-models';
 import axios from 'axios';
+import FormData from 'form-data';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
-import { getManifestByCid, getManifestFromNode, pinNewFiles } from './data/processing.js';
+import { getManifestByCid } from './data/processing.js';
 import { pinFile } from './ipfs.js';
 import { NodeUuid, getLatestManifestFromNode } from './manifestRepo.js';
 
@@ -107,7 +110,7 @@ export class ThumbnailsService {
     // Generate the thumbnail
     // debugger;
     const thumbnailStream = await axios.post(
-      `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/thumbnails?height${heightPx}`,
+      `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/thumbnails?height=${heightPx}`,
       { cid: cid, fileName: componentFileName },
       {
         responseType: 'stream',
@@ -136,6 +139,41 @@ export class ThumbnailsService {
 
     // Return the CID
     return { componentCid: cid, height: heightPx, thumbnailCid: pinned.cid };
+  }
+
+  async generateThumbnailFromStream(
+    fileStream: Readable,
+    fileName: string,
+    heightPx: HeightPx = HEIGHT_PX,
+  ): Promise<Readable> {
+    if (process.env.ISOLATED_MEDIA_SERVER_URL === undefined) {
+      logger.error('process.env.ISOLATED_MEDIA_SERVER_URL is not defined');
+      throw new Error('Isolated media server URL is not defined');
+    }
+
+    try {
+      const form = new FormData();
+      form.append('file', fileStream, {
+        filename: fileName,
+        contentType: 'application/octet-stream',
+      });
+
+      const response = await axios.post(
+        `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/thumbnails?height=${heightPx}`,
+        form,
+        {
+          headers: {
+            ...form.getHeaders(),
+          },
+          responseType: 'stream',
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      logger.error('Error generating thumbnail from stream:', error);
+      throw new Error('Failed to generate thumbnail from stream');
+    }
   }
 }
 

@@ -19,10 +19,7 @@ export const getCommunityFeed = async (req: Request, res: Response, next: NextFu
   // accounts for only engagements on community selected attestations
   const nodes = await asyncMap(curatedNodes, async (node) => {
     const engagements = await attestationService.getNodeEngagementSignals(node.nodeDpid10);
-    // const verifiedEngagements = await communityService.getNodeVerifiedEngagementsByCommunity(
-    //   node.nodeDpid10,
-    //   parseInt(req.params.communityId),
-    // );
+
     const verifiedEngagements = node.NodeAttestation.reduce(
       (total, claim) => ({
         reactions: total.reactions + claim.reactions,
@@ -39,11 +36,13 @@ export const getCommunityFeed = async (req: Request, res: Response, next: NextFu
   });
 
   let data = await Promise.all(nodes.map(resolveLatestNode));
-  data = data.sort((c1, c2) => {
-    const key1 = c1.engagements.verifications + c1.engagements.annotations + c1.engagements.reactions;
-    const key2 = c2.engagements.verifications + c2.engagements.annotations + c2.engagements.reactions;
-    return key2 - key1;
-  });
+  data = data
+    .sort((c1, c2) => {
+      const key1 = c1.engagements.verifications + c1.engagements.annotations + c1.engagements.reactions;
+      const key2 = c2.engagements.verifications + c2.engagements.annotations + c2.engagements.reactions;
+      return key2 - key1;
+    })
+    .reverse();
   return new SuccessResponse(data).send(res);
 };
 
@@ -77,7 +76,6 @@ export const getAllFeeds = async (req: Request, res: Response, next: NextFunctio
     };
   });
 
-  logger.info({ nodes }, 'CHECK Verification SignalS');
   let data = await Promise.all(nodes.map(resolveLatestNode));
 
   /**
@@ -85,15 +83,21 @@ export const getAllFeeds = async (req: Request, res: Response, next: NextFunctio
    * or
    * fallback to last submission/attestation claim date
    */
-  data = data.sort((entryA, entryB) => {
-    const key1 = entryA.engagements.verifications + entryA.engagements.annotations + entryA.engagements.reactions;
-    const key2 = entryB.engagements.verifications + entryB.engagements.annotations + entryB.engagements.reactions;
-    if (key1 !== key2) return key2 - key1;
+  data = data
+    .sort((entryA, entryB) => {
+      const key1 = entryA.engagements.verifications + entryA.engagements.annotations + entryA.engagements.reactions;
+      const key2 = entryB.engagements.verifications + entryB.engagements.annotations + entryB.engagements.reactions;
+      if (key1 !== key2) return key2 - key1;
 
-    const entryALastClaimedAt = new Date(entryA.NodeAttestation[entryA.NodeAttestation.length - 1].claimedAt).getTime();
-    const entryBlastClaimedAt = new Date(entryB.NodeAttestation[entryB.NodeAttestation.length - 1].claimedAt).getTime();
-    return entryBlastClaimedAt - entryALastClaimedAt;
-  });
+      const entryALastClaimedAt = new Date(
+        entryA.NodeAttestation[entryA.NodeAttestation.length - 1].claimedAt,
+      ).getTime();
+      const entryBlastClaimedAt = new Date(
+        entryB.NodeAttestation[entryB.NodeAttestation.length - 1].claimedAt,
+      ).getTime();
+      return entryBlastClaimedAt - entryALastClaimedAt;
+    })
+    .reverse();
 
   return new SuccessResponse(data).send(res);
 };

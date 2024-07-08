@@ -39,7 +39,6 @@ jobs:
           sudo apt-get install less
           echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
           aws sts get-caller-identity
-          kubectl describe deployments
 
       - name: Migrate DB (DEV)
         if: github.ref == 'refs/heads/develop'

@@ -6,6 +6,7 @@ import { prisma } from '../client.js';
 import { hashApiKey } from '../controllers/auth/utils.js';
 import { logger } from '../logger.js';
 import { getUserByEmail, getUserByOrcId } from '../services/user.js';
+import { AUTH_COOKIE_FIELDNAME } from '../utils/sendCookie.js';
 
 export enum AuthMethods {
   AUTH_TOKEN = 'AUTH_TOKEN',
@@ -32,7 +33,7 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
  * Extract JWT Authorisation token from IncommingRequest
  */
 export const extractAuthToken = async (request: ExpressRequest | Request) => {
-  let token = await extractTokenFromCookie(request, 'auth');
+  let token = await extractTokenFromCookie(request, AUTH_COOKIE_FIELDNAME);
 
   if (!token) {
     // Try to retrieve the token from the header
@@ -40,7 +41,7 @@ export const extractAuthToken = async (request: ExpressRequest | Request) => {
     if (authHeader) {
       token = authHeader.split(' ')[1];
     }
-    logger.info({ module: 'Permissions::extractToken', authHeaderLength: authHeader?.length || 0 }, 'Request');
+    logger.trace({ module: 'Permissions::extractToken', authHeaderLength: authHeader?.length || 0 }, 'Request');
 
     // Sanitize null or undefined string tokens passed from frontend
     if (token === 'null' || token === 'undefined') token = null;
@@ -56,7 +57,7 @@ export const extractTokenFromCookie = async (request: ExpressRequest | Request, 
   let token: string | undefined;
   // get from query string
   token = request.url.split(`${tokenName}=`)[1];
-  logger.info({ url: request.url, token }, 'got url extract');
+  logger.trace({ url: request.url, token }, 'got url extract');
 
   if (!token) {
     // If auth token wasn't found in the header, try retrieve from cookies
@@ -73,7 +74,7 @@ export const extractTokenFromCookie = async (request: ExpressRequest | Request, 
         .filter(([key]) => key.trim().toLowerCase() === tokenName)[0];
       token = parsedTokenValue?.[1];
     }
-    logger.info({ tokenFound: !!token, tokenName }, 'COOKIE');
+    logger.trace({ tokenFound: !!token, tokenName }, 'COOKIE');
   }
   return token;
 };
@@ -96,7 +97,7 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
         return;
       }
 
-      logger.info({ module: 'ExtractAuthUser', user, tokenFound: !!token }, 'User decrypted');
+      logger.trace({ module: 'ExtractAuthUser', user, tokenFound: !!token }, 'User decrypted');
 
       if (!user) {
         resolve(null);
@@ -127,7 +128,7 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
  */
 export const extractApiKey = async (request: ExpressRequest | Request) => {
   const apiKeyHeader = request.headers['api-key'];
-  logger.info({ module: 'Permissions::extractApiKey', apiKeyLength: apiKeyHeader?.length || 0 }, 'Request');
+  logger.trace({ module: 'Permissions::extractApiKey', apiKeyLength: apiKeyHeader?.length || 0 }, 'Request');
 
   return apiKeyHeader;
 };

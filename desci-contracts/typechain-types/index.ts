@@ -3,6 +3,7 @@
 /* eslint-disable */
 export type { OwnableUpgradeable } from "./OwnableUpgradeable";
 export type { Initializable } from "./Initializable";
+export type { PausableUpgradeable } from "./PausableUpgradeable";
 export type { ERC721Upgradeable } from "./ERC721Upgradeable";
 export type { IERC721MetadataUpgradeable } from "./IERC721MetadataUpgradeable";
 export type { IERC721ReceiverUpgradeable } from "./IERC721ReceiverUpgradeable";
@@ -16,6 +17,7 @@ export type { IERC721 } from "./IERC721";
 export type { IERC721Receiver } from "./IERC721Receiver";
 export type { ERC165 } from "./ERC165";
 export type { IERC165 } from "./IERC165";
+export type { DpidAliasRegistry } from "./DpidAliasRegistry";
 export type { DpidRegistry } from "./DpidRegistry";
 export type { IDpidRegistry } from "./IDpidRegistry";
 export type { ResearchObjectMigrated } from "./ResearchObjectMigrated";
@@ -27,6 +29,7 @@ export type { VersionedERC721V2 } from "./VersionedERC721V2";
 
 export { OwnableUpgradeable__factory } from "./factories/OwnableUpgradeable__factory";
 export { Initializable__factory } from "./factories/Initializable__factory";
+export { PausableUpgradeable__factory } from "./factories/PausableUpgradeable__factory";
 export { ERC721Upgradeable__factory } from "./factories/ERC721Upgradeable__factory";
 export { IERC721MetadataUpgradeable__factory } from "./factories/IERC721MetadataUpgradeable__factory";
 export { IERC721ReceiverUpgradeable__factory } from "./factories/IERC721ReceiverUpgradeable__factory";
@@ -40,6 +43,7 @@ export { IERC721__factory } from "./factories/IERC721__factory";
 export { IERC721Receiver__factory } from "./factories/IERC721Receiver__factory";
 export { ERC165__factory } from "./factories/ERC165__factory";
 export { IERC165__factory } from "./factories/IERC165__factory";
+export { DpidAliasRegistry__factory } from "./factories/DpidAliasRegistry__factory";
 export { DpidRegistry__factory } from "./factories/DpidRegistry__factory";
 export { IDpidRegistry__factory } from "./factories/IDpidRegistry__factory";
 export { ResearchObjectMigrated__factory } from "./factories/ResearchObjectMigrated__factory";

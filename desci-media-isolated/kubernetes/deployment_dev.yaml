@@ -48,9 +48,9 @@ spec:
               value: 'https://ipfs.desci.com/ipfs'
           resources:
             limits:
-              cpu: '0.5'
-              memory: 2Gi
+              cpu: '4'
+              memory: 4Gi
             requests:
-              cpu: 250m
-              memory: 1Gi
+              cpu: '1'
+              memory: 2Gi
       serviceAccountName: 'default'
