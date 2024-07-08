@@ -135,7 +135,7 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
   logger.info({ communityId, body: req.body }, 'claimEntryRequirements');
   const uuid = ensureUuidEndsWithDot(nodeUuid);
 
-  const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
+  const entryAttestations = await attestationService.getAllCommunityEntryAttestations(communityId);
   logger.info({ entryAttestations });
 
   const claimables = (await asyncMap(entryAttestations, async (attestation) => {

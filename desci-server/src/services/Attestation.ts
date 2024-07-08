@@ -297,6 +297,12 @@ export class AttestationService {
     return prisma.communityEntryAttestation.findMany({ where: { desciCommunityId: communityId, required: true } });
   }
 
+  async getAllCommunityEntryAttestations(communityId: number) {
+    const community = await communityService.findCommunityById(communityId);
+    if (!community) throw new CommunityNotFoundError();
+    return prisma.communityEntryAttestation.findMany({ where: { desciCommunityId: communityId } });
+  }
+
   async claimAttestation({
     attestationId,
     attestationVersion,
