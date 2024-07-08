@@ -399,8 +399,14 @@ const parseBibtext = (input: string) => {
         skipUntil('}');
         line = input.substring(start, cursor - 1);
         const authors = line
-          .split(',')
-          .map((text) => text.trim())
+          .split(' and ')
+          .map((text) =>
+            text
+              .trim()
+              .split(',')
+              .map((t) => t.trim())
+              .join(' '),
+          )
           .filter(Boolean);
         // console.log({ authors, line, cursor });
         metadata['authors'] = authors;
