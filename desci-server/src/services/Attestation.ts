@@ -744,7 +744,7 @@ export class AttestationService {
             image_url: true,
           },
         },
-        desciCommunity: { select: { name: true, hidden: true } },
+        desciCommunity: { select: { name: true, hidden: true, image_url: true } },
       },
       where: {
         desciCommunity: {
