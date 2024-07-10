@@ -15,7 +15,7 @@ export const getAllRecommendations = async (_req: Request, res: Response, _next:
   const attestations = await attestationService.getRecommendedAttestations();
   const attestationEntries = _(attestations)
     .groupBy((x) => x.attestationId)
-    .map((value, key) => ({
+    .map((value, _) => ({
       attestationId: value[0].attestationId,
       attestationVersionId: value[0].attestationVersionId,
       required: value[0].required,
@@ -24,7 +24,7 @@ export const getAllRecommendations = async (_req: Request, res: Response, _next:
       description: value[0].attestationVersion.description,
       image_url: value[0].attestationVersion.image_url,
       communities: value.map((entry) => ({
-        communityId: key,
+        communityId: entry.desciCommunityId,
         communityName: entry.desciCommunity.name,
         image_url: entry.desciCommunity.image_url,
       })),
