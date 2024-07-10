@@ -47,10 +47,19 @@ export const preparePublishPackage = async (
   // debugger;
   logger.trace({ fn: 'Retrieving Publish Package' });
 
-  if (!nodeUuid) return res.status(400).json({ ok: false, error: 'nodeUuid is required.' });
+  if (!nodeUuid) {
+    logger.warn({}, 'nodeUuid is required');
+    return res.status(400).json({ ok: false, error: 'nodeUuid is required.' });
+  }
   // if (!doi) return res.status(400).json({ ok: false, error: 'doi is required.' });
-  if (!pdfCid) return res.status(400).json({ ok: false, error: 'pdfCid is required.' });
-  if (!manifestCid) return res.status(400).json({ ok: false, error: 'manifestCid is required.' });
+  if (!pdfCid) {
+    logger.warn({}, 'pdfCid is required');
+    return res.status(400).json({ ok: false, error: 'pdfCid is required.' });
+  }
+  if (!manifestCid) {
+    logger.warn({}, 'manifestCid is required');
+    return res.status(400).json({ ok: false, error: 'manifestCid is required.' });
+  }
 
   try {
     const node = await prisma.node.findFirst({
@@ -59,11 +68,18 @@ export const preparePublishPackage = async (
       },
     });
 
-    if (!node) return res.status(404).json({ ok: false, error: 'Node not found' });
+    if (!node) {
+      logger.warn({ nodeUuid }, 'Node not found');
+      return res.status(404).json({ ok: false, error: 'Node not found' });
+    }
 
     const manifest = await getManifestByCid(manifestCid);
-    if (!manifest) return res.status(404).json({ ok: false, error: 'Manifest not found' });
+    if (!manifest) {
+      logger.warn({ manifestCid }, 'Manifest not found');
+      return res.status(404).json({ ok: false, error: 'Manifest not found' });
+    }
     // debugger;
+    logger.trace({ nodeUuid, pdfCid, doi, manifestCid }, 'Preparing distribution package');
     const { pdfCid: distPdfCid } = await publishPackageService.prepareDistributionPdf({
       pdfCid,
       node,
@@ -77,8 +93,11 @@ export const preparePublishPackage = async (
 
     let previewMap: PreviewMap = {};
     if (withPreviews) {
+      logger.trace({ distPdfCid, fn: 'Generating PDF previews' });
       previewMap = await publishPackageService.generatePdfPreview(distPdfCid, 1000, [1, 2], node.uuid);
     }
+
+    logger.trace({ distPdfCid, previewMap, fn: 'Distribution package prepared' });
 
     return res.status(200).json({
       ok: true,
