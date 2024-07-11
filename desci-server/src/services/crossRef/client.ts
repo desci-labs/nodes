@@ -3,6 +3,7 @@ import FormData from 'form-data';
 import fetch from 'node-fetch';
 import { default as Remixml } from 'remixml';
 import { v4 } from 'uuid';
+import { xml2json } from 'xml-js';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
@@ -341,22 +342,45 @@ class CrossRefClient {
   }
 
   async retrieveSubmission(retrieveUrl: string) {
-    // retrieve submission log whose batchId == param.['CROSSREF-EXTERNAL-ID']
-    // update with notifiication payload
-    // query submssion payload from param.CROSSREF-RETRIEVE-URL
-    // only create doi if submission status is success
-
     try {
       logger.info({ retrieveUrl }, 'ATTEMPT TO RETRIEVE SUBMISSION');
-      const response = (await fetch(retrieveUrl).then((res) => res.json())) as NotificationResult;
-      logger.info(response, 'RETRIEVE SUBMISSION');
-      // return interprete the response from the api to determine if the
-      // submission status has either `success | pending | failed`
-      const isSuccess = response?.completed !== null && !!response.recordCreated;
-      return { success: isSuccess, failure: !isSuccess };
+      const response = await fetch(retrieveUrl);
+      const contentType = response.headers.get('content-type');
+      logger.info({ contentType }, 'RETRIEVE SUBMISSION');
+      // handle when response is gone
+
+      if (contentType === 'text/xml;charset=UTF-8') {
+        // handle xml response
+        const data = await response.text();
+        const xmlPayload = xml2json(data);
+        const result = JSON.parse(xmlPayload) as NotificationResultXmlJson;
+        logger.info({ result }, 'PAYLOAD');
+        const doi_batch_diagnostic = result?.elements?.[0];
+        const batch_data = doi_batch_diagnostic.elements?.find((el) => el.name === 'batch_data');
+        const success = batch_data?.elements?.find((element) => element.name === 'success_count');
+        const isSuccess = success?.elements?.[0]?.text === '1';
+        return { success: isSuccess, failure: !isSuccess };
+      } else {
+        // handle json response
+        const data = await response.text();
+        logger.info({ data }, 'RESPONSE');
+        let payload: NotificationResult;
+        try {
+          payload = JSON.parse(data) as NotificationResult;
+          logger.info({ payload }, 'PAYLOAD');
+        } catch (err) {
+          logger.info({ err }, 'Cannot parse json body');
+          payload = JSON.parse(data.substring(1, data.length - 1));
+          logger.info({ payload }, 'PAYLOAD');
+        }
+        // return interprete the response from the api to determine if the
+        // submission status has either `success | pending | failed`
+        const isSuccess = payload?.completed !== null && !!payload?.recordCreated;
+        return { success: isSuccess, failure: !isSuccess };
+      }
     } catch (err) {
       logger.error({ err }, 'ERROR RETRIEVING SUBMISSION');
-      return { success: false, failure: true };
+      return { success: false, failure: false };
     }
   }
 }
@@ -376,5 +400,30 @@ type NotificationResult = {
   recordCreated: string | null;
   recordUpdated: string | null;
 };
+
+interface NotificationResultXmlJson {
+  elements: Array<{
+    type: string;
+    name: 'doi_batch_diagnostic';
+    attributes: {
+      status: 'completed';
+      sp: 'a-cs1';
+    };
+    elements: Array<{
+      type: 'element';
+      name: 'batch_data';
+      elements: Array<{
+        type: 'element';
+        name: 'success_count';
+        elements: [
+          {
+            type: 'text';
+            text: string;
+          },
+        ];
+      }>;
+    }>;
+  }>;
+}
 
 // TODO: run yarn generate
