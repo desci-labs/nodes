@@ -1,4 +1,5 @@
 import { DoiStatus } from '@prisma/client';
+import sgMail from '@sendgrid/mail';
 import { Request, Response, NextFunction } from 'express';
 import _ from 'lodash';
 
@@ -14,6 +15,7 @@ import {
   logger as parentLogger,
   prisma,
 } from '../../internal.js';
+import { DoiMintedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 
 export const mintDoi = async (req: Request, res: Response, _next: NextFunction) => {
   const { uuid } = req.params;
@@ -84,6 +86,39 @@ export const handleCrossrefNotificationCallback = async (
           doiRecordId: doiRecord.id,
         },
       );
+
+      // Send Notification Email Node author about the submission status
+      const node = await prisma.node.findFirst({
+        where: { uuid: submission.uuid },
+        include: { owner: { select: { email: true, name: true } } },
+      });
+
+      if (!node.owner.email) return;
+      const message = {
+        to: node.owner.email,
+        from: 'no-reply@desci.com',
+        subject: 'DOI Registration successful 🎉',
+        text: `Hello ${node.owner.name}, You DOI registration for the research object ${node.title} has been completed. Here is your DOI: ${process.env.CROSSREF_DOI_URL}/${submission.uniqueDoi}`,
+        html: DoiMintedEmailHtml({
+          dpid: submission.dpid,
+          userName: node.owner.name.split(' ')?.[0] ?? '',
+          dpidPath: `${process.env.DAPP_URL}/dpid/${submission.dpid}`,
+          doi: `${process.env.CROSSREF_DOI_URL}/${submission.uniqueDoi}`,
+          nodeTitle: node.title,
+        }),
+      };
+
+      try {
+        logger.info({ members: message, NODE_ENV: process.env.NODE_ENV }, 'DOI MINTED EMAIL');
+        if (process.env.NODE_ENV === 'production') {
+          const response = await sgMail.send(message);
+          logger.info(response, '[EMAIL]:: Response');
+        } else {
+          logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject);
+        }
+      } catch (err) {
+        logger.info({ err }, '[ERROR]:: DOI MINTED EMAIL');
+      }
     } else {
       logger.info('ERROR CREATING DOI');
       await doiService.updateSubmission(
@@ -91,8 +126,6 @@ export const handleCrossrefNotificationCallback = async (
         { status: response.failure ? DoiStatus.FAILED : DoiStatus.PENDING },
       );
     }
-
-    // TODO: email authors about the submission status
   } catch (error) {
     logger.error({ error }, 'Error updating DOI submission');
   }
