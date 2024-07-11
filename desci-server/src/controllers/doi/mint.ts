@@ -52,7 +52,9 @@ export const handleCrossrefNotificationCallback = async (
 
   if (!submission) {
     logger.error({ payload: req.payload }, 'Crossref Notifiication: pending submission not found');
-    throw new NotFoundError('submission not found');
+    // throw new NotFoundError('submission not found');
+    new SuccessMessageResponse().send(res);
+    return;
   }
 
   await doiService.updateSubmission({ id: submission.id }, { notification: req.payload });
@@ -60,33 +62,38 @@ export const handleCrossrefNotificationCallback = async (
 
   new SuccessMessageResponse().send(res);
 
-  // check retrieve url to get submission result
-  const response = await crossRefClient.retrieveSubmission(req.payload.retrieveUrl);
+  try {
+    // check retrieve url to get submission result
+    const response = await crossRefClient.retrieveSubmission(req.payload.retrieveUrl);
 
-  logger.info({ response, submission }, 'CREATE DOI CALLBACK RESPONSE');
-  if (response.success) {
-    logger.info('CREATE DOI ');
-    const doiRecord = await prisma.doiRecord.create({
-      data: {
-        uuid: submission.uuid,
-        dpid: submission.dpid,
-        doi: submission.uniqueDoi,
-      },
-    });
-    await doiService.updateSubmission(
-      { id: submission.id },
-      {
-        status: DoiStatus.SUCCESS,
-        doiRecordId: doiRecord.id,
-      },
-    );
-  } else {
-    logger.info('ERROR CREATING DOI');
-    await doiService.updateSubmission(
-      { id: submission.id },
-      { status: response.failure ? DoiStatus.FAILED : DoiStatus.PENDING },
-    );
+    logger.info({ response, submission }, 'CREATE DOI CALLBACK RESPONSE');
+    if (response.success) {
+      logger.info({ response, submission }, 'CREATE DOI ');
+
+      const doiRecord = await prisma.doiRecord.create({
+        data: {
+          uuid: submission.uuid,
+          dpid: submission.dpid,
+          doi: submission.uniqueDoi,
+        },
+      });
+      await doiService.updateSubmission(
+        { id: submission.id },
+        {
+          status: DoiStatus.SUCCESS,
+          doiRecordId: doiRecord.id,
+        },
+      );
+    } else {
+      logger.info('ERROR CREATING DOI');
+      await doiService.updateSubmission(
+        { id: submission.id },
+        { status: response.failure ? DoiStatus.FAILED : DoiStatus.PENDING },
+      );
+    }
+
+    // TODO: email authors about the submission status
+  } catch (error) {
+    logger.error({ error }, 'Error updating DOI submission');
   }
-
-  // TODO: email authors about the submission status
 };
