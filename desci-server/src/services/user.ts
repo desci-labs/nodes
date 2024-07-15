@@ -6,6 +6,7 @@ import { OrcIdRecordData, generateAccessToken, getOrcidRecord } from '../control
 import { logger as parentLogger } from '../logger.js';
 import { hideEmail } from '../utils.js';
 
+import { contributorService } from './Contributors.js';
 import { getUserConsent } from './interactionLog.js';
 const logger = parentLogger.child({
   module: 'Services::User',
@@ -247,6 +248,13 @@ export async function setOrcidForUser(
         },
       });
       logger.trace({ fn: 'setOrcidForUser' }, 'added auth token');
+
+      // Inherits existing user contribution entries that were made with the same ORCID
+      const inheritedContributions = await contributorService.updateContributorEntriesForNewUser({
+        orcid,
+        userId: user.id,
+      });
+      logger.trace({ inheritedContributions: inheritedContributions?.count, user, orcid });
     } else {
       logger.trace({ fn: 'setOrcidForUser' }, 'no user found');
       return false;
