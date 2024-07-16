@@ -46,6 +46,8 @@ spec:
               value: '7771'
             - name: IPFS_GATEWAY
               value: 'https://ipfs.desci.com/ipfs'
+            - name: DPID_RESOLVER_URL
+              value: 'https://dev-beta.dpid.org'
           resources:
             limits:
               cpu: '4'

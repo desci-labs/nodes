@@ -46,6 +46,8 @@ spec:
               value: '7771'
             - name: IPFS_GATEWAY
               value: 'http://host.docker.internal:5420/v1/ipfs'
+            - name: DPID_RESOLVER_URL
+              value: 'https://beta.dpid.org'
           resources:
             limits:
               cpu: '0.5'
