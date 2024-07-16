@@ -779,7 +779,7 @@ export class AttestationService {
       LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
-      LEFT JOIN "CommunityEntryAttestation" CSA ON CSA."attestationId" = A."id"
+      LEFT JOIN "CommunityEntryAttestation" CSA ON CSA."attestationId" = A."id" AND CSA."required" = true 
 	where 
 		CSA."desciCommunityId" = ${communityId}
     GROUP BY
@@ -874,7 +874,7 @@ export class AttestationService {
         EXISTS
       (SELECT *
         from "CommunityEntryAttestation" c1
-        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = ${communityId})
+        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = ${communityId} )
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];
