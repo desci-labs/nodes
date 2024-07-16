@@ -1,0 +1,16 @@
+node_modules
+# Keep environment variables out of version control
+.env
+database/boilerplate/
+database/test/
+dist
+.nebulus
+log/access.log
+
+temp_downloads
+.nyc_output
+coverage
+
+server.log
+
+repo-tmp

@@ -1,0 +1,12 @@
+{
+  "watch": [
+    "."
+  ],
+  "ext": ".ts,.js,*",
+  "ignore": [
+    "log/server.log"
+  ],
+  "verbose": true,
+  "exec": "node -r ts-node/register",
+  "delay": 300
+}
