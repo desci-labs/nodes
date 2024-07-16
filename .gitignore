@@ -17,3 +17,4 @@ node-modules/
 node_modules/*
 .idea
 .composedbRuntimeDefinition.json
+openalex-importer
