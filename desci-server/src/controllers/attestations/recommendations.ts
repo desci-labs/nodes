@@ -13,27 +13,27 @@ const logger = parentLogger.child({ module: 'Recommendations' });
 
 export const getAllRecommendations = async (_req: Request, res: Response, _next: NextFunction) => {
   const attestations = await attestationService.getRecommendedAttestations();
-  const communityEntries = _(attestations)
-    .groupBy((x) => x.desciCommunityId)
-    .map((value, key) => ({
-      community: value[0].desciCommunity.name,
-      communityId: key,
-      attestations: value.map((attestation) => ({
-        id: attestation.id,
-        communityId: value[0].attestation.community.id,
-        communityName: value[0].attestation.community.name,
-        attestationId: attestation.attestationId,
-        attestationVersionId: attestation.attestationVersionId,
-        required: attestation.required,
-        createdAt: attestation.createdAt,
-        name: attestation.attestationVersion.name,
-        description: attestation.attestationVersion.description,
-        image_url: attestation.attestationVersion.image_url,
+  const attestationEntries = _(attestations)
+    .groupBy((x) => x.attestationId)
+    .map((value, _) => ({
+      attestationId: value[0].attestationId,
+      attestationVersionId: value[0].attestationVersionId,
+      required: value[0].required,
+      createdAt: value[0].createdAt,
+      name: value[0].attestationVersion.name,
+      description: value[0].attestationVersion.description,
+      image_url: value[0].attestationVersion.image_url,
+      communities: value.map((entry) => ({
+        communityId: entry.desciCommunityId,
+        communityName: entry.desciCommunity.name,
+        image_url: entry.desciCommunity.image_url,
       })),
     }))
-    .value();
+    .value()
+    .sort((entryA, entryB) => entryB.communities.length - entryA.communities.length);
 
-  return new SuccessResponse(communityEntries).send(res);
+  logger.info({ attestationEntries }, 'getAllRecommendations');
+  return new SuccessResponse(attestationEntries).send(res);
 };
 
 export const getCommunityRecommendations = async (req: Request, res: Response, _next: NextFunction) => {

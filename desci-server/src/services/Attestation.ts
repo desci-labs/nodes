@@ -744,7 +744,7 @@ export class AttestationService {
             image_url: true,
           },
         },
-        desciCommunity: { select: { name: true, hidden: true } },
+        desciCommunity: { select: { name: true, hidden: true, image_url: true } },
       },
       where: {
         desciCommunity: {
@@ -874,7 +874,7 @@ export class AttestationService {
         EXISTS
       (SELECT *
         from "CommunityEntryAttestation" c1
-        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = ${communityId})
+        where t1."attestationId" = c1."attestationId" and t1."attestationVersionId" = c1."attestationVersionId" and c1."desciCommunityId" = ${communityId} )
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];

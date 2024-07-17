@@ -1,7 +1,7 @@
 import { format } from 'path';
 
 import { IpldUrl, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
-import { Node, NodeContribution, User } from '@prisma/client';
+import { Node, NodeContribution, Prisma, User } from '@prisma/client';
 import ShortUniqueId from 'short-unique-id';
 
 import { prisma } from '../client.js';
@@ -340,6 +340,30 @@ class ContributorService {
 
     if (privShare) return privShare.shareId;
     return null;
+  }
+
+  /*
+  Associates the user's nodes profile (userId) with all entries under that email/orcid, used on new signups to link previously added contributions
+  */
+  async updateContributorEntriesForNewUser({
+    email,
+    orcid,
+    userId,
+  }: {
+    email?: string;
+    orcid?: string;
+    userId: number;
+  }): Promise<Prisma.BatchPayload> {
+    if (!orcid && !email) return { count: 0 };
+    return await prisma.nodeContribution.updateMany({
+      where: {
+        email,
+        orcid,
+      },
+      data: {
+        userId,
+      },
+    });
   }
 
   async getContributionById(contributorId: string): Promise<NodeContribution> {

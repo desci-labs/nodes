@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { prisma as prismaClient } from '../../client.js';
 import { logger } from '../../logger.js';
 import { magicLinkRedeem, sendMagicLink } from '../../services/auth.js';
+import { contributorService } from '../../services/Contributors.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
@@ -52,6 +53,15 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
           email,
         },
       });
+
+      if (user.email) {
+        // Inherits existing user contribution entries that were made with the same email
+        const inheritedContributions = await contributorService.updateContributorEntriesForNewUser({
+          email: user.email,
+          userId: user.id,
+        });
+        logger.trace({ inheritedContributions: inheritedContributions?.count, user, email });
+      }
     }
 
     try {

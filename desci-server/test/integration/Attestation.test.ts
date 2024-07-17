@@ -133,7 +133,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe('Attestations Service', async () => {
+describe.only('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -2029,7 +2029,7 @@ describe('Attestations Service', async () => {
       });
       expect(res.status).to.equal(200);
 
-      const claims = await attestationService.getAllNodeAttestations(node.uuid);
+      const claims = await attestationService.getAllNodeAttestations(node.uuid!);
       expect(claims.length).to.equal(1);
     });
 
@@ -2077,7 +2077,7 @@ describe('Attestations Service', async () => {
       });
       expect(res.status).to.equal(200);
 
-      const attestations = await attestationService.getAllNodeAttestations(node.uuid);
+      const attestations = await attestationService.getAllNodeAttestations(node.uuid!);
       expect(attestations.length).to.equal(2);
 
       res = await request(app).get(`/v1/attestations/${node.uuid}`).set('authorization', authHeaderVal);
