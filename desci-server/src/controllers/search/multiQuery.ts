@@ -2,11 +2,20 @@ import { Request, Response } from 'express';
 
 import { elasticClient } from '../../elasticSearchClient.js';
 import { logger as parentLogger } from '../../logger.js';
-import { buildSimpleStringQuery, buildSortQuery, VALID_ENTITIES } from '../../services/ElasticSearchService.js';
+import {
+  buildBoolQuery,
+  buildSimpleStringQuery,
+  buildSortQuery,
+  VALID_ENTITIES,
+} from '../../services/ElasticSearchService.js';
 
-interface QuerySearchParams {
-  query: string;
-  entity: string;
+type Entity = string;
+type Query = string;
+
+type QueryObject = Record<Entity, Query>;
+
+interface MultiQuerySearchParams {
+  queries: QueryObject[];
   fuzzy?: number;
   sortType?: string;
   sortOrder?: 'asc' | 'desc';
@@ -14,20 +23,18 @@ interface QuerySearchParams {
   perPage?: number;
 }
 
-export const singleQuery = async (req: Request, res: Response) => {
+export const multiQuery = async (req: Request, res: Response) => {
   const {
-    query,
-    entity,
+    queries,
     fuzzy,
     sortType = 'relevance',
     sortOrder,
     page = 1,
     perPage = 10,
-  }: QuerySearchParams = req.body;
+  }: MultiQuerySearchParams = req.body;
   const logger = parentLogger.child({
-    module: 'SEARCH::Query',
-    query,
-    entity,
+    module: 'SEARCH::MultiQuery',
+    queries,
     fuzzy,
     sortType,
     sortOrder,
@@ -37,23 +44,27 @@ export const singleQuery = async (req: Request, res: Response) => {
 
   logger.trace({ fn: 'Executing elastic search query' });
 
-  if (!VALID_ENTITIES.includes(entity)) {
+  const validEntityQueries = queries.filter((q) => VALID_ENTITIES.includes(Object.keys(q)[0]));
+
+  if (!validEntityQueries) {
     return res.status(400).json({
       ok: false,
-      error: `Invalid entity: ${entity}, the following entities are supported: ${VALID_ENTITIES.join(' ')}`,
+      error: `Invalid queries, the following entities are supported: ${VALID_ENTITIES.join(' ')}`,
     });
   }
 
-  const esQuery = buildSimpleStringQuery(query, entity, fuzzy);
+  const esQueries = validEntityQueries.map((q) => {
+    return buildSimpleStringQuery(Object.values(q)[0], Object.keys(q)[0]);
+  });
   const esSort = buildSortQuery(sortType, sortOrder);
+  const esBoolQuery = buildBoolQuery(esQueries);
 
   try {
     debugger;
-    logger.debug({ esQuery, esSort }, 'Executing query');
+    logger.debug({ esQueries, esSort }, 'Executing query');
     const resp = await elasticClient.search({
-      index: entity,
       body: {
-        query: esQuery,
+        ...esBoolQuery,
         sort: esSort,
         from: (page - 1) * perPage,
         size: perPage,
