@@ -1,10 +1,24 @@
+import { SearchTotalHits } from '@elastic/elasticsearch/lib/api/types.js';
 import { Request, Response } from 'express';
 
 import { elasticClient } from '../../elasticSearchClient.js';
 import { logger as parentLogger } from '../../logger.js';
 import { buildSimpleStringQuery, buildSortQuery, VALID_ENTITIES } from '../../services/ElasticSearchService.js';
 
-interface QuerySearchParams {
+export interface SingleQuerySuccessResponse {
+  ok: true;
+  page: number;
+  perPage: number;
+  total: number | SearchTotalHits;
+  data: any[];
+}
+
+export interface SingleQueryErrorResponse {
+  ok: false;
+  error: string;
+}
+
+interface QuerySearchBodyParams {
   query: string;
   entity: string;
   fuzzy?: number;
@@ -14,7 +28,10 @@ interface QuerySearchParams {
   perPage?: number;
 }
 
-export const singleQuery = async (req: Request, res: Response) => {
+export const singleQuery = async (
+  req: Request<any, any, QuerySearchBodyParams>,
+  res: Response<SingleQuerySuccessResponse | SingleQueryErrorResponse>,
+) => {
   const {
     query,
     entity,
@@ -23,7 +40,7 @@ export const singleQuery = async (req: Request, res: Response) => {
     sortOrder,
     page = 1,
     perPage = 10,
-  }: QuerySearchParams = req.body;
+  }: QuerySearchBodyParams = req.body;
   const logger = parentLogger.child({
     module: 'SEARCH::Query',
     query,
@@ -50,7 +67,7 @@ export const singleQuery = async (req: Request, res: Response) => {
   try {
     debugger;
     logger.debug({ esQuery, esSort }, 'Executing query');
-    const resp = await elasticClient.search({
+    const { hits } = await elasticClient.search({
       index: entity,
       body: {
         query: esQuery,
@@ -61,15 +78,15 @@ export const singleQuery = async (req: Request, res: Response) => {
     });
     debugger;
     logger.info({ fn: 'Elastic search query executed successfully' });
-    return res.status(200).send(resp);
+    // return res.status(200).send({ esQuery, resp });
 
-    //     res.json({
-    //       ok: true,
-    //       data: hits.hits,
-    //       total: hits.total.value,
-    //       page,
-    //       perPage,
-    //     });
+    return res.json({
+      ok: true,
+      total: hits.total,
+      page,
+      perPage,
+      data: hits.hits,
+    });
   } catch (error) {
     logger.error({ fn: 'Elastic search query failed', error });
     return res.status(500).json({

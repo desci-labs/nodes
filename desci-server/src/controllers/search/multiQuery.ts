@@ -9,6 +9,8 @@ import {
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
+import { SingleQueryErrorResponse, SingleQuerySuccessResponse } from './query.js';
+
 type Entity = string;
 type Query = string;
 
@@ -23,7 +25,10 @@ interface MultiQuerySearchParams {
   perPage?: number;
 }
 
-export const multiQuery = async (req: Request, res: Response) => {
+export const multiQuery = async (
+  req: Request<any, any, MultiQuerySearchParams>,
+  res: Response<SingleQuerySuccessResponse | SingleQueryErrorResponse>,
+) => {
   const {
     queries,
     fuzzy,
@@ -62,7 +67,7 @@ export const multiQuery = async (req: Request, res: Response) => {
   try {
     debugger;
     logger.debug({ esQueries, esSort }, 'Executing query');
-    const resp = await elasticClient.search({
+    const { hits } = await elasticClient.search({
       body: {
         ...esBoolQuery,
         sort: esSort,
@@ -71,16 +76,15 @@ export const multiQuery = async (req: Request, res: Response) => {
       },
     });
     debugger;
-    logger.info({ fn: 'Elastic search query executed successfully' });
-    return res.status(200).send(resp);
+    logger.info({ fn: 'Elastic search multi query executed successfully' });
 
-    //     res.json({
-    //       ok: true,
-    //       data: hits.hits,
-    //       total: hits.total.value,
-    //       page,
-    //       perPage,
-    //     });
+    return res.json({
+      ok: true,
+      total: hits.total,
+      page,
+      perPage,
+      data: hits.hits,
+    });
   } catch (error) {
     logger.error({ fn: 'Elastic search query failed', error });
     return res.status(500).json({
