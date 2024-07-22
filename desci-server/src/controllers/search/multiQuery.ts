@@ -4,12 +4,13 @@ import { elasticClient } from '../../elasticSearchClient.js';
 import { logger as parentLogger } from '../../logger.js';
 import {
   buildBoolQuery,
+  buildMultiMatchQuery,
   buildSimpleStringQuery,
   buildSortQuery,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
-import { SingleQueryErrorResponse, SingleQuerySuccessResponse } from './query.js';
+import { QueryDebuggingResponse, SingleQueryErrorResponse, SingleQuerySuccessResponse } from './query.js';
 
 type Entity = string;
 type Query = string;
@@ -27,7 +28,7 @@ interface MultiQuerySearchParams {
 
 export const multiQuery = async (
   req: Request<any, any, MultiQuerySearchParams>,
-  res: Response<SingleQuerySuccessResponse | SingleQueryErrorResponse>,
+  res: Response<(SingleQuerySuccessResponse & QueryDebuggingResponse) | SingleQueryErrorResponse>,
 ) => {
   const {
     queries,
@@ -59,13 +60,14 @@ export const multiQuery = async (
   }
 
   const esQueries = validEntityQueries.map((q) => {
-    return buildSimpleStringQuery(Object.values(q)[0], Object.keys(q)[0]);
+    const [entity, query] = Object.entries(q)[0];
+    return buildMultiMatchQuery(query, entity);
   });
-  const esSort = buildSortQuery(sortType, sortOrder);
+  const primaryEntity = Object.keys(validEntityQueries[0])[0];
+  const esSort = buildSortQuery(primaryEntity, sortType, sortOrder);
   const esBoolQuery = buildBoolQuery(esQueries);
 
   try {
-    debugger;
     logger.debug({ esQueries, esSort }, 'Executing query');
     const { hits } = await elasticClient.search({
       body: {
@@ -75,10 +77,11 @@ export const multiQuery = async (
         size: perPage,
       },
     });
-    debugger;
+    debugger; //
     logger.info({ fn: 'Elastic search multi query executed successfully' });
 
     return res.json({
+      esQueries,
       ok: true,
       total: hits.total,
       page,

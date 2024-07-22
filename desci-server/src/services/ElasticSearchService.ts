@@ -5,9 +5,31 @@ export const VALID_ENTITIES = ['authors', 'concepts', 'institutions', 'publisher
  */
 export const RELEVANT_FIELDS = {
   works: ['title', 'abstract', 'doi'],
-  authors: ['display_name', 'orcid'],
+  authors: ['display_name', 'orcid', 'last_known_institution'],
 };
 // abstract_inverted_index
+
+type SortOrder = 'asc' | 'desc';
+type SortField = { [field: string]: { order: SortOrder; missing?: string } };
+
+const baseSort: SortField[] = [{ _score: { order: 'desc' } }];
+
+const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) => SortField[] } } = {
+  works: {
+    publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
+    publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
+    cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
+    title: (order) => [{ 'title.keyword': { order, missing: '_last' } }],
+    relevance: () => [{ publication_year: { order: 'desc', missing: '_last' } }],
+  },
+  authors: {
+    display_name: (order) => [{ 'display_name.keyword': { order, missing: '_last' } }],
+    works_count: (order) => [{ works_count: { order, missing: '_last' } }],
+    cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
+    updated_date: (order) => [{ updated_date: { order, missing: '_last' } }],
+    relevance: () => [],
+  },
+};
 
 export function buildSimpleStringQuery(query: string, entity: string, fuzzy?: number) {
   return {
@@ -35,7 +57,7 @@ export function buildBoolQuery(queries: any[]) {
 export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number) {
   let fields = [];
   if (entity === 'works') fields = RELEVANT_FIELDS.works;
-  if (entity === 'authors') fields = RELEVANT_FIELDS.works;
+  if (entity === 'authors') fields = RELEVANT_FIELDS.authors;
   return {
     multi_match: {
       query: query,
@@ -46,15 +68,16 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
   };
 }
 
-export function buildSortQuery(sortType: string, sortOrder?: string) {
-  const order = sortOrder === 'asc' ? 'asc' : 'desc';
-  switch (sortType) {
-    case 'date':
-      return [{ year: order }];
-    case 'relevance':
-    default:
-      return ['_score'];
+export function buildSortQuery(entity: string, sortType?: string, sortOrder: SortOrder = 'desc'): SortField[] {
+  const entityConfig = sortConfigs[entity];
+  if (!entityConfig) {
+    return baseSort;
   }
+
+  const sortFunction = entityConfig[sortType] || entityConfig['relevance'] || (() => []);
+  const specificSort = sortFunction(sortOrder);
+
+  return [...specificSort, ...baseSort];
 }
 
 export type IndexedAuthor = {

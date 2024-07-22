@@ -13,6 +13,12 @@ export interface SingleQuerySuccessResponse {
   data: any[];
 }
 
+export interface QueryDebuggingResponse {
+  esQuery?: any;
+  esQueries?: any;
+  esSort?: any;
+}
+
 export interface SingleQueryErrorResponse {
   ok: false;
   error: string;
@@ -30,7 +36,7 @@ interface QuerySearchBodyParams {
 
 export const singleQuery = async (
   req: Request<any, any, QuerySearchBodyParams>,
-  res: Response<SingleQuerySuccessResponse | SingleQueryErrorResponse>,
+  res: Response<SingleQuerySuccessResponse | (SingleQueryErrorResponse & QueryDebuggingResponse)>,
 ) => {
   const {
     query,
@@ -62,10 +68,10 @@ export const singleQuery = async (
   }
 
   const esQuery = buildSimpleStringQuery(query, entity, fuzzy);
-  const esSort = buildSortQuery(sortType, sortOrder);
+  const esSort = buildSortQuery(entity, sortType, sortOrder);
 
   try {
-    debugger;
+    // debugger;
     logger.debug({ esQuery, esSort }, 'Executing query');
     const { hits } = await elasticClient.search({
       index: entity,
@@ -76,7 +82,7 @@ export const singleQuery = async (
         size: perPage,
       },
     });
-    debugger;
+    // debugger;
     logger.info({ fn: 'Elastic search query executed successfully' });
     // return res.status(200).send({ esQuery, resp });
 
@@ -92,6 +98,8 @@ export const singleQuery = async (
     return res.status(500).json({
       ok: false,
       error: 'An error occurred while searching',
+      esQuery,
+      esSort,
     });
   }
 };
