@@ -174,9 +174,15 @@ export class DoiService {
     return submission;
   }
 
-  async getDoiByDpidOrUuid(identifier: string) {
+  /**
+   * Query for Doi Record entry for a node using it's
+   * identifier (dPid, uuid or Doi)
+   * @param identifier dPID | UUID(.) | DOI
+   * @returns
+   */
+  async findDoiRecord(identifier: string) {
     return this.dbClient.doiRecord.findFirst({
-      where: { OR: [{ dpid: identifier }, { uuid: ensureUuidEndsWithDot(identifier) }] },
+      where: { OR: [{ dpid: identifier }, { uuid: ensureUuidEndsWithDot(identifier) }, { doi: identifier }] },
     });
   }
 

@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import _ from 'lodash';
 
 import { DoiError } from '../../core/doi/error.js';
 import {
@@ -31,17 +32,22 @@ export const checkMintability = async (req: RequestWithNode, res: Response, _nex
   }
 };
 
-export const getDoi = async (req: Request, res: Response, next: NextFunction) => {
-  const { identifier } = req.params;
+export const getDoi = async (req: Request, res: Response, _next: NextFunction) => {
+  const { doi: doiQuery, uuid, dpid } = req.query;
+  const identifier = doiQuery || uuid || dpid;
+
   if (!identifier) throw new BadRequestError();
 
-  const pending = await doiService.hasPendingSubmission(ensureUuidEndsWithDot(identifier));
-  logger.info({ pending }, 'GET DOI');
-  if (pending) {
-    new SuccessResponse({ status: pending.status }).send(res);
-    return;
+  if (uuid) {
+    const pending = await doiService.hasPendingSubmission(ensureUuidEndsWithDot(uuid as string));
+    logger.info({ pending }, 'GET DOI');
+    if (pending) {
+      new SuccessResponse({ status: pending.status }).send(res);
+      return;
+    }
   }
 
-  const doi = await doiService.getDoiByDpidOrUuid(identifier);
-  new SuccessResponse(doi).send(res);
+  const doi = await doiService.findDoiRecord(identifier as string);
+  const data = _.pick(doi, ['doi', 'dpid', 'uuid']);
+  new SuccessResponse(data).send(res);
 };
