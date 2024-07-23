@@ -1,0 +1,38 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./local-data/esdata:/usr/share/elasticsearch/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  logstash:
+    build:
+      context: .
+      dockerfile: ./desci-elastic/Dockerfile-logstash
+    volumes:
+      - ./desci-elastic/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - ./local-data/logstash/drivers:/opt/logstash/drivers
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.14.3
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - elasticsearch
