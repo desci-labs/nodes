@@ -50,6 +50,15 @@ export const hexToCid = (hexCid: string) => {
   return cidString;
 };
 
+export const convertCidTo0xHex = (cid: string) => {
+  const rawHex = CID.parse(cid).toString(base16);
+  const paddedAndPrefixed = "0x"
+    // left pad to even pairs if odd length
+    + (rawHex.length % 2 !== 0 ? "0" : "")
+    + rawHex;
+  return paddedAndPrefixed;
+};
+
 export async function asyncMap<T, E>(arr: E[], predicate: (input: E, index: number) => Promise<T>): Promise<T[]> {
   const results = await Promise.all(arr.map((value, index) => predicate(value, index)));
 
