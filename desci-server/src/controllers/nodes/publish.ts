@@ -122,10 +122,10 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     if (task) return res.status(400).json({ error: 'Node publishing in progress' });
 
     let publishTask: PublishTaskQueue | undefined;
-
+    let dpidAlias: number;
     if (useNewPublish) {
       logger.info({ ceramicStream, commitId, uuid, owner: owner.id }, 'Triggering new publish flow');
-      await syncPublish(ceramicStream, commitId, node, owner, cid, uuid, manifest);
+      dpidAlias = await syncPublish(ceramicStream, commitId, node, owner, cid, uuid, manifest);
     } else {
       publishTask = await prisma.publishTaskQueue.create({
         data: {
@@ -139,14 +139,14 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
           status: PublishTaskQueueStatus.WAITING,
         },
       });
-    }
+    };
 
     saveInteraction(
       req,
       ActionType.PUBLISH_NODE,
       {
         cid,
-        dpid: manifest.dpid?.id,
+        dpid: dpidAlias ? dpidAlias.toString() : manifest.dpid?.id,
         userId: owner.id,
         transactionId,
         ceramicStream,
@@ -157,7 +157,11 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       owner.id,
     );
 
-    updateAssociatedAttestations(node.uuid, manifest.dpid.id);
+    updateAssociatedAttestations(
+      node.uuid,
+      dpidAlias ? dpidAlias.toString() : manifest.dpid?.id
+    );
+
     return res.send({
       ok: true,
       taskId: publishTask?.id,
@@ -178,6 +182,8 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
  *
  * Semantically, these can both be made fire-and-forget promises if we can
  * manage without instantly having the dPID alias available in this function.
+ *
+ * @returns dpidAlias
  */
 const syncPublish = async (
   ceramicStream: string,
@@ -187,7 +193,7 @@ const syncPublish = async (
   cid: string,
   uuid: string,
   manifest: ResearchObjectV1,
-): Promise<void> => {
+): Promise<number> => {
   const logger = parentLogger.child({
     module: 'NODE::syncPublish',
     uuid,
@@ -245,8 +251,10 @@ const syncPublish = async (
     // The only reason this isn't just fire-and-forget is that we want the dpid
     // for the discord notification, which won't be available otherwise for
     // first time publishes.
-    promises.push(createOrUpgradeDpidAlias(legacyDpid, ceramicStream, uuid).then((dpid) => (dpidAlias = dpid)));
-  }
+    promises.push(
+      createOrUpgradeDpidAlias(legacyDpid, ceramicStream, uuid)
+        .then(dpid => dpidAlias = dpid));
+  };
 
   promises.push(
     handlePublicDataRefs({
@@ -260,15 +268,14 @@ const syncPublish = async (
 
   await Promise.all(promises);
 
-  // TODO: different resolver url for codex? :thinking:
   const targetDpidUrl = getTargetDpidUrl();
-
   discordNotify(`${targetDpidUrl}/${dpidAlias}`);
 
   /**
    * Save the cover art for this Node for later sharing: PDF -> JPG for this version
    */
   cacheNodeMetadata(node.uuid, cid);
+  return dpidAlias;
 };
 
 /**
