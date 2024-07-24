@@ -4,7 +4,7 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+      - "ES_JAVA_OPTS=-Xms3g -Xmx3g"
     ports:
       - "9200:9200"
     volumes:
@@ -19,6 +19,8 @@ services:
     volumes:
       - ./desci-elastic/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
       - ./local-data/logstash/drivers:/opt/logstash/drivers
+    environment:
+      - "LS_JAVA_OPTS=-Xms3g -Xmx3g"
     env_file:
       - .env
     extra_hosts:
