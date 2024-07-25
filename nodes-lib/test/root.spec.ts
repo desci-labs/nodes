@@ -2,7 +2,7 @@
 import { test, describe, beforeAll, expect } from "vitest";
 import type {
   AddCodeComponentParams, AddLinkComponentParams, AddPdfComponentParams,
-  CreateDraftParams, ExternalUrl, NodeResponse, PublishResponse, RetrieveResponse,
+  CreateDraftParams, ExternalUrl, NodeResponse, LegacyPublishResponse, RetrieveResponse,
   UploadFilesResponse,
 } from "../src/api.js"
 import {
@@ -273,7 +273,7 @@ describe("nodes-lib", () => {
 
   describe("legacy publishing ", async () => {
     let uuid: string;
-    let publishResult: PublishResponse;
+    let publishResult: LegacyPublishResponse;
     const did = await authorizedSessionDidFromSigner(testSigner, getResources());
 
     beforeAll(async () => {
@@ -386,7 +386,7 @@ describe("nodes-lib", () => {
 
   describe("publishing ", async () => {
     let uuid: string;
-    let publishResult: PublishResponse;
+    let publishResult: LegacyPublishResponse;
     const did = await authorizedSessionDidFromSigner(testSigner, getResources());
 
     beforeAll(async () => {
@@ -443,7 +443,7 @@ describe("nodes-lib", () => {
     });
 
     describe("node update", async () => {
-      let updateResult: PublishResponse;
+      let updateResult: LegacyPublishResponse;
       let nodeStateBefore: NodeResponse;
 
       beforeAll(async () => {
@@ -475,7 +475,7 @@ describe("nodes-lib", () => {
 
     describe("node with legacy history", async () => {
       let uuid: string;
-      let pubResult: PublishResponse;
+      let pubResult: LegacyPublishResponse;
       let legacyDpid: number;
 
       beforeAll(async () => {
