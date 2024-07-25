@@ -328,14 +328,14 @@ type PublishParams = {
 
 /** Result of publishing a draft node */
 export type PublishResponse = {
-  /** The updated manifest */
+  /** The updated manifest, which could change in prepublish */
   updatedManifest: ResearchObjectV1,
-  /** The new manifest CID, which could have changed from adding the dPID */
+  /** The new manifest CID, which could change in prepublish */
   updatedManifestCid: string,
   /** Ceramic stream and commit IDs from publishing to Codex */
   ceramicIDs?: NodeIDs,
-  /** dPID transaction ID */
-  dpidTxId?: string
+  /** dPID, new or already existing */
+  dpid: number,
 };
 
 /**
@@ -360,8 +360,10 @@ export const publishNode = async (
     useNewPublish: true,
   };
 
+  let dpid: number;
   try {
-    await makeRequest(ENDPOINTS.publish, getHeaders(), pubParams);
+    const res = await makeRequest(ENDPOINTS.publish, getHeaders(), pubParams);
+    dpid = res.dpid;
   } catch (e) {
     console.log(`Publish successful, but backend update failed for node ${uuid}`);
     throw e;
@@ -369,6 +371,7 @@ export const publishNode = async (
 
   return {
     ceramicIDs: publishResult.ceramicIDs,
+    dpid,
     updatedManifest: publishResult.manifest,
     updatedManifestCid: publishResult.cid,
   };
@@ -394,6 +397,18 @@ export const createDpid = async (
   return dpid;
 };
 
+/** Result of publishing a draft node */
+export type LegacyPublishResponse = {
+  /** The updated manifest */
+  updatedManifest: ResearchObjectV1,
+  /** The new manifest CID, which could have changed from adding the dPID */
+  updatedManifestCid: string,
+  /** Ceramic stream and commit IDs from publishing to Codex */
+  ceramicIDs?: NodeIDs,
+  /** dPID transaction ID */
+  dpidTxId?: string
+};
+
 /**
  * Publish a draft node, meaning to compile the state of the drive into an
  * actual IPLD DAG, make the IPFS CIDs public, and register the node on
@@ -409,7 +424,7 @@ export const publishDraftNode = async (
   uuid: string,
   signer: Signer,
   did?: DID,
-): Promise<PublishResponse> => {
+): Promise<LegacyPublishResponse> => {
   const publishResult = await legacyPublish(uuid, signer, did);
 
   const pubParams: PublishParams = {

@@ -37,6 +37,7 @@ export type PublishRequest = Request<never, never, PublishReqBody> & {
 export type PublishResBody =
   | {
       ok: boolean;
+      dpid: number;
       taskId?: number;
     }
   | {
@@ -146,7 +147,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       ActionType.PUBLISH_NODE,
       {
         cid,
-        dpid: dpidAlias ? dpidAlias.toString() : manifest.dpid?.id,
+        dpid: dpidAlias?.toString() ?? manifest.dpid?.id,
         userId: owner.id,
         transactionId,
         ceramicStream,
@@ -164,6 +165,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
 
     return res.send({
       ok: true,
+      dpid: dpidAlias ?? parseInt(manifest.dpid?.id),
       taskId: publishTask?.id,
     });
   } catch (err) {
