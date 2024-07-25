@@ -89,7 +89,7 @@ export const multiQuery = async (
       data: hits.hits,
     });
   } catch (error) {
-    logger.error({ fn: 'Elastic search query failed', error });
+    logger.error({ error }, 'Elastic search multi query failed');
     return res.status(500).json({
       ok: false,
       error: 'An error occurred while searching',

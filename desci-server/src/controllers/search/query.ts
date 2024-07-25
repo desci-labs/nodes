@@ -82,7 +82,6 @@ export const singleQuery = async (
         size: perPage,
       },
     });
-    // debugger;
     logger.info({ fn: 'Elastic search query executed successfully' });
     // return res.status(200).send({ esQuery, resp });
 
@@ -94,7 +93,7 @@ export const singleQuery = async (
       data: hits.hits,
     });
   } catch (error) {
-    logger.error({ fn: 'Elastic search query failed', error });
+    logger.error({ error }, 'Elastic search query failed');
     return res.status(500).json({
       ok: false,
       error: 'An error occurred while searching',

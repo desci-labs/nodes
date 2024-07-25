@@ -4,7 +4,7 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms3g -Xmx3g"
+      - "ES_JAVA_OPTS=-Xms3g -Xmx8g"
     ports:
       - "9200:9200"
     volumes:
@@ -12,21 +12,21 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  logstash:
-    build:
-      context: .
-      dockerfile: ./desci-elastic/Dockerfile-logstash
-    volumes:
-      - ./desci-elastic/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-      - ./local-data/logstash/drivers:/opt/logstash/drivers
-    environment:
-      - "LS_JAVA_OPTS=-Xms3g -Xmx3g"
-    env_file:
-      - .env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      - elasticsearch
+  # logstash:
+  #   build:
+  #     context: .
+  #     dockerfile: ./desci-elastic/Dockerfile-logstash
+  #   volumes:
+  #     - ./desci-elastic/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+  #     - ./local-data/logstash/drivers:/opt/logstash/drivers
+  #   environment:
+  #     - "LS_JAVA_OPTS=-Xms3g -Xmx4g"
+  #   env_file:
+  #     - .env
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   depends_on:
+  #     - elasticsearch
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.14.3
