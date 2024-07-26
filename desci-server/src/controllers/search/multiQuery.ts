@@ -59,12 +59,14 @@ export const multiQuery = async (
     });
   }
 
+  const hardcodedMultiIndex = 'denormalized_works_test2';
+
   const esQueries = validEntityQueries.map((q) => {
     const [entity, query] = Object.entries(q)[0];
     return buildMultiMatchQuery(query, entity);
   });
   const primaryEntity = Object.keys(validEntityQueries[0])[0];
-  const esSort = buildSortQuery(primaryEntity, sortType, sortOrder);
+  const esSort = buildSortQuery(hardcodedMultiIndex, sortType, sortOrder);
   const esBoolQuery = buildBoolQuery(esQueries);
 
   try {

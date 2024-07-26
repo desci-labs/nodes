@@ -1,11 +1,21 @@
-export const VALID_ENTITIES = ['authors', 'concepts', 'institutions', 'publishers', 'sources', 'topics', 'works'];
+export const VALID_ENTITIES = [
+  'authors',
+  'concepts',
+  'institutions',
+  'publishers',
+  'sources',
+  'topics',
+  'works',
+  'denormalized_works_test2',
+];
 
 /**
  * Ordered from most relevant to least relevant
  */
 export const RELEVANT_FIELDS = {
   works: ['title', 'abstract', 'doi'],
-  authors: ['display_name', 'orcid', 'last_known_institution'],
+  authors: ['author.display_name', 'author.orcid', 'author.last_known_institution'],
+  // authors: ['display_name', 'orcid', 'last_known_institution'],
 };
 // abstract_inverted_index
 
@@ -28,6 +38,14 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
     cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
     updated_date: (order) => [{ updated_date: { order, missing: '_last' } }],
     relevance: () => [],
+  },
+  denormalized_works_test2: {
+    publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
+    publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
+    cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
+    title: (order) => [{ 'title.keyword': { order, missing: '_last' } }],
+    author_name: (order) => [{ 'authors.display_name.keyword': { order, missing: '_last' } }],
+    relevance: () => [{ publication_year: { order: 'desc', missing: '_last' } }],
   },
 };
 
