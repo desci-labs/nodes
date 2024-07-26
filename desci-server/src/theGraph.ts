@@ -5,7 +5,7 @@
 import axios from 'axios';
 
 import { logger as parentLogger } from './logger.js';
-import { convertCidTo0xHex, decodeBase64UrlSafeToHex } from './utils.js';
+import { convertCidTo0xHex, decodeBase64UrlSafeToHex, ensureUuidEndsWithDot } from './utils.js';
 import { prisma } from './client.js';
 import { getTargetDpidUrl } from './services/fixDpid.js';
 
@@ -67,7 +67,7 @@ export const getIndexedResearchObjects = async (
     },
     where: {
       uuid: {
-        in: urlSafeBase64s,
+        in: urlSafeBase64s.map(ensureUuidEndsWithDot),
       },
     },
   });
@@ -157,7 +157,7 @@ const getHistoryFromStreams = async (
       id: undefined,
       commitId: v.version,
       time: v.time.toString(),
-    })),
+    })).toReversed(), // app expects latest first
   }));
 
   logger.info({ indexedHistory }, "Stream history results");
