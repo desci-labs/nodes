@@ -1,5 +1,3 @@
-version: "3"
-
 services:
   db_postgres:
     container_name: "db_boilerplate"
@@ -192,6 +190,11 @@ services:
     volumes:
       - ./local-data/ceramic/statestore:/root/.ceramic/statestore
       - ./.ceramicDev.config.json:/root/.ceramic/daemon.config.json
+    healthcheck:
+      test: ["CMD", "curl", "--fail-with-body", "http://localhost:7007/api/v0/node/healthcheck"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     depends_on:
       ipfs:
         condition: service_healthy
@@ -224,18 +227,32 @@ services:
       timeout: 10s
       retries: 5
 
-  # desci_nodes_backend_test:
-  #   container_name: 'be_test_boilerplate'
-  #   command: echo 'Test container ready'
-  #   build: .
-  #   stdin_open: true
-  #   tty: true
-  #   depends_on:
-  #     - db_postgres
-  #   links:
-  #     - db_postgres
-  #   env_file:
-  #     - .envs
-  #   volumes:
-  #     - .:/app/
-  #     - /app/node_modules
+  dpid_resolver:
+    image: ghcr.io/desci-labs/dpid-resolver-dev
+    container_name: dpid_resolver
+    build:
+      # context: https://hub.docker.com/descilabs/dpid-resolver
+      # Change to local path for local dev
+      context: ~/dev/desci/dpid-resolver
+    environment:
+      DPID_ENV: local
+      OPTIMISM_RPC_URL: http://host.docker.internal:8545
+      CERAMIC_URL: http://host.docker.internal:7007
+      IPFS_GATEWAY: http://host.docker.internal:8089/ipfs
+    restart: always
+    ports:
+      - "5460:5460"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    healthcheck:
+      test: ["CMD", "curl", "--fail-with-body", "http://localhost:5460/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      ipfs:
+        condition: service_healthy
+      desci_blockchain_ganache:
+        condition: service_healthy
+      ceramic:
+        condition: service_healthy
