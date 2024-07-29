@@ -14,3 +14,6 @@ coverage
 server.log
 
 repo-tmp
+
+postgres-data/
+logs/
