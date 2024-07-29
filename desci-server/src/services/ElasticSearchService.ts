@@ -14,8 +14,8 @@ export const VALID_ENTITIES = [
  */
 export const RELEVANT_FIELDS = {
   works: ['title', 'abstract', 'doi'],
-  authors: ['author.display_name', 'author.orcid', 'author.last_known_institution'],
-  // authors: ['display_name', 'orcid', 'last_known_institution'],
+  authors: ['display_name', 'orcid', 'last_known_institution'],
+  denorm_authors: ['authors.author_name', 'authors.orcid', 'authors.last_known_institution'],
 };
 // abstract_inverted_index
 
@@ -44,7 +44,7 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
     publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
     cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
     title: (order) => [{ 'title.keyword': { order, missing: '_last' } }],
-    author_name: (order) => [{ 'authors.display_name.keyword': { order, missing: '_last' } }],
+    author_name: (order) => [{ 'authors.author_name.keyword': { order, missing: '_last' } }],
     relevance: () => [{ publication_year: { order: 'desc', missing: '_last' } }],
   },
 };
@@ -75,7 +75,7 @@ export function buildBoolQuery(queries: any[]) {
 export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number) {
   let fields = [];
   if (entity === 'works') fields = RELEVANT_FIELDS.works;
-  if (entity === 'authors') fields = RELEVANT_FIELDS.authors;
+  if (entity === 'authors') fields = RELEVANT_FIELDS.denorm_authors;
   return {
     multi_match: {
       query: query,

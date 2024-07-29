@@ -72,6 +72,7 @@ export const multiQuery = async (
   try {
     logger.debug({ esQueries, esSort }, 'Executing query');
     const { hits } = await elasticClient.search({
+      index: hardcodedMultiIndex,
       body: {
         ...esBoolQuery,
         sort: esSort,
