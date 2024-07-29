@@ -135,12 +135,9 @@ type ResolverIndexResult = {
 const getHistoryFromStreams = async (
   streamToHexUuid: Record<string, string>
 ): Promise<IndexedResearchObject[]> => {
-  logger.info({ streamToHexUuid }, "Requesting indexed history for UUIDs");
-
-  // Ask resolver for the history of these streams
   const historyRes = await axios.post<ResolverIndexResult[]>(
     `${RESOLVER_URL}/api/v2/query/history`,
-    { streamIds: Object.keys(streamToHexUuid) },
+    { ids: Object.keys(streamToHexUuid) },
   );
 
   // Convert resolver format to server format
@@ -148,8 +145,7 @@ const getHistoryFromStreams = async (
     id: streamToHexUuid[ro.id],
     id10: BigInt(streamToHexUuid[ro.id]).toString(),
     streamId: ro.id,
-    // Un-qualify DID to match plain ethereum address
-    owner: ro.owner.replace(/did:pkh:eip155:[0-9]+:/, ""),
+    owner: ro.owner,
     recentCid: convertCidTo0xHex(ro.manifest),
     versions: ro.versions.map(v => ({
       cid: convertCidTo0xHex(v.manifest),
@@ -160,7 +156,6 @@ const getHistoryFromStreams = async (
     })).toReversed(), // app expects latest first
   }));
 
-  logger.info({ indexedHistory }, "Stream history results");
   return indexedHistory;
 };
 
