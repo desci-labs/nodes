@@ -10,6 +10,8 @@
     "dev": "npm-run-all --parallel watch-compile watch-dev",
     "watch-dev": "debug=* nodemon --watch \"dist/**/*\" -e js ./dist/index.js",
     "watch-compile": "debug=* tsc -w --preserveWatchOutput",
+    "build": "tsc",
+    "start": "pm2 start ./dist/index.js",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -30,11 +32,14 @@
   "dependencies": {
     "@prisma/client": "^5.17.0",
     "@types/lodash": "^4.17.7",
+    "date-fns": "^3.6.0",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.32.1",
     "drizzle-zod": "^0.5.1",
     "lodash": "^4.17.21",
+    "node-cron": "^3.0.3",
     "pg": "^8.12.0",
+    "pm2": "^5.4.2",
     "zod": "^3.23.8"
   }
 }
