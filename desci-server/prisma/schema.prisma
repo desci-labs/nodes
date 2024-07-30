@@ -48,7 +48,6 @@ model Node {
   DoiRecord           DoiRecord[]
   dpidAlias           Int?
   DoiSubmissionQueue  DoiSubmissionQueue[]
-  DeferredEmails      DeferredEmails[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -194,7 +193,6 @@ model User {
   PublishTaskQueue            PublishTaskQueue[]
   NodeContribution            NodeContribution[]
   OrcidPutCodes               OrcidPutCodes[]
-  DeferredEmails              DeferredEmails[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -712,7 +710,6 @@ model Attestation {
   AttestationVersion        AttestationVersion[]
   NodeAttestation           NodeAttestation[]
   CommunityEntryAttestation CommunityEntryAttestation[]
-  DeferredEmails            DeferredEmails[]
 
   @@unique([name, communityId])
 }
@@ -728,7 +725,6 @@ model AttestationVersion {
   attestation               Attestation                 @relation(fields: [attestationId], references: [id])
   NodeAttestation           NodeAttestation[]
   CommunityEntryAttestation CommunityEntryAttestation[]
-  DeferredEmails            DeferredEmails[]
 }
 
 // A communities selected attestations, these appear in their radar.
@@ -773,24 +769,6 @@ model NodeAttestation {
   @@unique([nodeUuid, nodeVersion, attestationId, attestationVersionId])
 }
 
-// Deferred emails usually when a published node is required, e.g. unpublished attestation claims, emails are deferred until node is published.
-model DeferredEmails {
-  id                   Int                 @id @default(autoincrement())
-  nodeUuid             String
-  emailType            EmailType
-  attestationVersionId Int?
-  attestationId        Int?
-  attestation          Attestation?        @relation(fields: [attestationId], references: [id])
-  node                 Node                @relation(fields: [nodeUuid], references: [uuid])
-  User                 User?               @relation(fields: [userId], references: [id])
-  userId               Int?
-  AttestationVersion   AttestationVersion? @relation(fields: [attestationVersionId], references: [id])
-}
-
-enum EmailType {
-  PROTECTED_ATTESTATION
-}
-
 //Comments on attestations
 model Annotation {
   id                Int             @id @default(autoincrement())
@@ -802,7 +780,6 @@ model Annotation {
   author            User            @relation(fields: [authorId], references: [id])
   nodeAttestationId Int
   attestation       NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
-  deferredEmailsId  Int?
 }
 
 //An emoji reaction to a node
@@ -813,7 +790,6 @@ model NodeAttestationReaction {
   author            User            @relation(fields: [authorId], references: [id])
   nodeAttestationId Int
   attestation       NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
-  deferredEmailsId  Int?
 }
 
 // More prevalent reaction, reputation is staked
@@ -825,7 +801,6 @@ model NodeAttestationVerification {
   nodeAttestation   NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
-  deferredEmailsId  Int?
 
   @@unique([nodeAttestationId, userId])
 }
@@ -847,18 +822,17 @@ model PublishTaskQueue {
 }
 
 model OrcidPutCodes {
-  id               Int              @id @default(autoincrement())
-  orcid            String
-  putcode          String?
-  reference        PutcodeReference @default(PREPRINT)
-  claimId          Int?
-  record           ORCIDRecord
-  userId           Int
-  uuid             String
-  claim            NodeAttestation? @relation(fields: [claimId], references: [id])
-  user             User             @relation(fields: [userId], references: [id])
-  Node             Node             @relation(fields: [uuid], references: [uuid])
-  deferredEmailsId Int?
+  id        Int              @id @default(autoincrement())
+  orcid     String
+  putcode   String?
+  reference PutcodeReference @default(PREPRINT)
+  claimId   Int?
+  record    ORCIDRecord
+  userId    Int
+  uuid      String
+  claim     NodeAttestation? @relation(fields: [claimId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
+  Node      Node             @relation(fields: [uuid], references: [uuid])
 
   @@unique([orcid, uuid, reference])
 }

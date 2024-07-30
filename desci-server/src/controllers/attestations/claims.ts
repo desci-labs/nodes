@@ -1,4 +1,5 @@
-import { ActionType, CommunityEntryAttestation, EmailType } from '@prisma/client';
+import { ActionType, CommunityEntryAttestation } from '@prisma/client';
+import sgMail from '@sendgrid/mail';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
@@ -17,7 +18,8 @@ import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { AttestationClaimedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
-import { getIndexedResearchObjects } from '../../theGraph.js';
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export const claimAttestation = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const body = req.body as {
@@ -62,32 +64,37 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   new SuccessResponse(nodeClaim).send(res);
 
-  // Check if published to defer emails if not
-  const indexed = await getIndexedResearchObjects([uuid]);
-  const isNodePublished = !!indexed?.length;
-
-  if (!isNodePublished && attestation.protected) {
-    // Email table append op
-    const deferredEmail = await prisma.deferredEmails.create({
-      data: {
-        nodeUuid: uuid,
-        emailType: EmailType.PROTECTED_ATTESTATION,
-        attestationId: nodeClaim.id,
-        attestationVersionId: attestationVersion.id,
-        userId: req.user.id,
-      },
+  if (attestation.protected) {
+    const members = await prisma.communityMember.findMany({
+      where: { communityId: attestation.communityId },
+      include: { user: { select: { email: true } } },
     });
-    logger.info({ deferredEmail }, 'Attestation was claimed on an unpublished node, deferred email table entry added.');
-  }
 
-  if (attestation.protected && isNodePublished) {
-    await attestationService.emailProtectedAttestationCommunityMembers(
-      nodeClaim.id,
-      attestationVersion.id,
-      body.nodeVersion,
-      body.nodeDpid,
-      req.user,
-    );
+    const messages = members.map((member) => ({
+      to: member.user.email,
+      from: 'no-reply@desci.com',
+      subject: `[nodes.desci.com] ${attestationVersion.name} claimed on DPID://${body.nodeDpid}/v${body.nodeVersion + 1}`,
+      text: `${req.user.name} just claimed ${attestationVersion.name} on ${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}?claim=${nodeClaim.id}`,
+      html: AttestationClaimedEmailHtml({
+        dpid: body.nodeDpid,
+        attestationName: attestationVersion.name,
+        communityName: attestationVersion.name,
+        userName: req.user.name,
+        dpidPath: `${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}?claim=${nodeClaim.id}`,
+      }),
+    }));
+
+    try {
+      logger.info({ members: messages, NODE_ENV: process.env.NODE_ENV }, '[EMAIL]:: ATTESTATION EMAIL');
+      if (process.env.NODE_ENV === 'production') {
+        const response = await sgMail.send(messages);
+        logger.info(response, '[EMAIL]:: Response');
+      } else {
+        messages.forEach((message) => logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject));
+      }
+    } catch (err) {
+      logger.info({ err }, '[EMAIL]::ERROR');
+    }
   }
 
   return;

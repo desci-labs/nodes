@@ -14,7 +14,6 @@ import {
   setCeramicStream,
   setDpidAlias,
 } from '../../services/nodeManager.js';
-import { publishServices } from '../../services/PublishServices.js';
 import { discordNotify } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -445,11 +444,6 @@ export const publishHandler = async ({
     const manifest = await getManifestByCid(cid);
     const targetDpidUrl = getTargetDpidUrl();
     discordNotify(`${targetDpidUrl}/${manifest.dpid?.id}`);
-
-    /**
-     * Fire off any deferred emails awaiting publish
-     */
-    await publishServices.handleDeferredEmails(node.uuid, manifest.dpid?.id);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
