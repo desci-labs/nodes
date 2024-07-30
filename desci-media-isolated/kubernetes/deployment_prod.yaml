@@ -42,15 +42,19 @@ spec:
             - containerPort: 7771
               name: api
           env:
+            - name: NODE_ENV
+              value: 'production'
             - name: PORT
               value: '7771'
             - name: IPFS_GATEWAY
-              value: 'http://host.docker.internal:5420/v1/ipfs'
+              value: 'https://ipfs.desci.com/ipfs'
+            - name: DPID_RESOLVER_URL
+              value: 'https://beta.dpid.org'
           resources:
             limits:
-              cpu: '0.5'
-              memory: 2Gi
+              cpu: '4'
+              memory: 4Gi
             requests:
-              cpu: 250m
-              memory: 1Gi
+              cpu: '1'
+              memory: 2Gi
       serviceAccountName: 'default'

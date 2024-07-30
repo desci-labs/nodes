@@ -8,7 +8,7 @@ dataSources:
     name: DeSciNodes
     network: sepolia
     source:
-      address: "0xB954B4F1c01DcA2508278C4426EaF895f4133aDF"
+      address: "0x1fA4c72680af35FE1eb7345509E39498be6Ce03b"
       abi: ResearchObjectMigrated
       startBlock: 5530308
     mapping:

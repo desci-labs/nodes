@@ -85,8 +85,10 @@ export class PdfManipulationService {
       /*
        * Header
        */
+      const dpidResolverUrl = process.env.DPID_RESOLVER_URL ?? 'https://beta.dpid.org';
+
       const licenseStartsWithVowel = startsWithVowel(license);
-      const nodeUrl = usingDoi ? `https://doi.org/${doi}` : `https://beta.dpid.org/${dpid}`;
+      const nodeUrl = usingDoi ? `https://doi.org/${doi}` : `${dpidResolverUrl}/${dpid}`;
       const topHeader = `Research object ${nodeUrl}, this version posted ${publishDate}. The copyright holder for this research object (which was not certified by peer review) is the author/funder, who has granted DeSci Labs a non-exclsuive license to display the research object in perpetuity. It is made available under a${
         licenseStartsWithVowel ? 'n' : ''
       } ${license} license.`;

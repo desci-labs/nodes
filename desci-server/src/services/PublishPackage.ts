@@ -73,12 +73,13 @@ class PublishPackageService {
     const openCodeAttestation = attestations.find((a) => a.attestationVersion.name === 'Open Code');
     const openDataAttestation = attestations.find((a) => a.attestationVersion.name === 'Open Data');
 
+    const dpidUrl = process.env.DPID_URL_OVERRIDE ?? 'https://beta.dpid.org';
     const attestationLinks = {
       ...(openCodeAttestation && {
-        codeAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${toKebabCase(openCodeAttestation.attestationVersion.name)}`,
+        codeAvailableDpid: `${dpidUrl}/${dpid}/attestations/${toKebabCase(openCodeAttestation.attestationVersion.name)}`,
       }),
       ...(openDataAttestation && {
-        dataAvailableDpid: `https://beta.dpid.org/${dpid}/attestations/${toKebabCase(openDataAttestation.attestationVersion.name)}`,
+        dataAvailableDpid: `${dpidUrl}/${dpid}/attestations/${toKebabCase(openDataAttestation.attestationVersion.name)}`,
       }),
     };
 

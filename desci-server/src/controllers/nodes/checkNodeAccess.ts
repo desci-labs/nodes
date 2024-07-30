@@ -1,13 +1,12 @@
+import { ResearchObjectV1, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
+import { NodeCover } from '@prisma/client';
 import type { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { resolveNodeManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
-import { decodeBase64UrlSafeToHex, ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
-import { ResearchObjectV1, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
-import { NodeCover } from '@prisma/client';
-import { PRIV_SHARE_CONTRIBUTION_PREFIX } from '../../services/Contributors.js';
+import { decodeBase64UrlSafeToHex, ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
 
 const logger = parentLogger.child({
   module: 'NODE::checkNodeAccess',
@@ -44,19 +43,21 @@ type GetCheckNodeAccessErrorResponse = {
 };
 
 export const checkNodeAccess = async (
-  req: Request<any, any, any>,
+  req: Request<any, any, any, { g?: string; shareId?: string }>,
   res: Response<GetCheckNodeAccessResponse | GetCheckNodeAccessErrorResponse>,
 ) => {
   const owner = (req as any).user;
   const ipfsQuery = req.query.g;
+  const { shareId } = req.query;
 
   logger.info({
     body: req.body,
     user: (req as any).user,
     ipfsQuery,
+    shareId,
   });
 
-  let node = await prisma.node.findFirst({
+  const node = await prisma.node.findFirst({
     select: {
       uuid: true,
       id: true,
@@ -78,12 +79,12 @@ export const checkNodeAccess = async (
     res.status(404).send({ ok: false, message: 'Node not found' });
     return;
   }
-
-  const privSharedNode = owner
+  // debugger;
+  const privSharedNode = !!shareId
     ? await prisma.privateShare.findFirst({
         where: {
-          memo: `${PRIV_SHARE_CONTRIBUTION_PREFIX}${owner?.email}`,
           nodeUUID: node.uuid,
+          shareId: shareId,
         },
       })
     : undefined;
