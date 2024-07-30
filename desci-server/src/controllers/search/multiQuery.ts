@@ -5,7 +5,6 @@ import { logger as parentLogger } from '../../logger.js';
 import {
   buildBoolQuery,
   buildMultiMatchQuery,
-  buildSimpleStringQuery,
   buildSortQuery,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
