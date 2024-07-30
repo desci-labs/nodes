@@ -1,0 +1,256 @@
+{
+  "id": "eae2fc6f-fe08-442d-9153-9dce133285e6",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "openalex.batch": {
+      "name": "batch",
+      "schema": "openalex",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_batch": {
+      "name": "works_batch",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "works_batch_work_id_works_id_fk": {
+          "name": "works_batch_work_id_works_id_fk",
+          "tableFrom": "works_batch",
+          "tableTo": "works",
+          "schemaTo": "openalex",
+          "columnsFrom": [
+            "work_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "works_batch_batch_id_batch_id_fk": {
+          "name": "works_batch_batch_id_batch_id_fk",
+          "tableFrom": "works_batch",
+          "tableTo": "batch",
+          "schemaTo": "openalex",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "works_batch_work_id_unique": {
+          "name": "works_batch_work_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "work_id"
+          ]
+        },
+        "works_batch_batch_id_unique": {
+          "name": "works_batch_batch_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "batch_id"
+          ]
+        }
+      }
+    },
+    "openalex.works": {
+      "name": "works",
+      "schema": "openalex",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doi": {
+          "name": "doi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "publication_year": {
+          "name": "publication_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "publication_date": {
+          "name": "publication_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_retracted": {
+          "name": "is_retracted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_paratext": {
+          "name": "is_paratext",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_api_url": {
+          "name": "cited_by_api_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "abstract_inverted_index": {
+          "name": "abstract_inverted_index",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "language": {
+          "name": "language",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_ids": {
+      "name": "works_ids",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "openalex": {
+          "name": "openalex",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doi": {
+          "name": "doi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mag": {
+          "name": "mag",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pmid": {
+          "name": "pmid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pmcid": {
+          "name": "pmcid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -1,0 +1,23 @@
+version: "3.7"
+services:
+  postgres:
+    container_name: "openalex_db"
+    image: "ankane/pgvector"
+    restart: always
+    # build:
+    #   context: ./postgres
+    #   dockerfile: Dockerfile
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+    ports:
+      - "5438:5432"
+    volumes:
+      - ./postgres/postgres-data:/var/lib/postgresql/data
+      # copy the sql script to create tables
+      - ./postgres/sql/vector_extension.sql:/docker-entrypoint-initdb.d/0-vector_extension.sql
+      - ./postgres/sql/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
