@@ -14,10 +14,11 @@ export default defineConfig({
     resourceArn: "",
     ssl: false,
   },
+  schemaFilter: ["openalex", "public"],
   migrations: {
     table: "__migrations__",
     schema: "public",
   },
-  // verbose: true,
-  // strict: true,
+  verbose: true,
+  strict: true,
 });

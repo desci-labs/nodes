@@ -1,8 +1,17 @@
 import _ from "lodash";
-import { Prisma } from "@prisma/client";
+// import { Prisma } from "@prisma/client";
 import type { Mesh, Work } from "./types/works.js";
 import { Institution } from "./types/institutions.js";
-import type { Works, WorksId } from "./db/index.js";
+import type {
+  authors_idsInOpenalex,
+  authorsInOpenalex,
+  WorksBestOaLocation,
+  Works,
+  works_biblioInOpenalex,
+  WorksId,
+  WorksPrimaryLocation,
+  WorksLocation,
+} from "./db/index.js";
 
 interface ModelMap {
   works: ReturnType<typeof transformToWork>[];
@@ -45,8 +54,10 @@ export const transformDataModel = (data: Work[]) => {
   const works = data.map(transformToWork);
 
   const authorship_data = data.map((work) => {
-    let authors = work.authorships.map((data) => data.author);
-    const authors_ids: Prisma.authors_idsCreateManyInput[] =
+    let authors: (typeof authorsInOpenalex.$inferInsert)[] =
+      work.authorships.map((data) => data.author);
+
+    const authors_ids: (typeof authors_idsInOpenalex.$inferInsert)[] =
       work.authorships.map((authorship) => ({
         author_id: authorship.author.id,
         openalex: authorship.author.id,
@@ -56,6 +67,7 @@ export const transformDataModel = (data: Work[]) => {
         wikipedia: authorship.author.wikipedia ?? null,
         mag: authorship.author.mag ?? null,
       }));
+
     const works_authorships: {
       work_id?: string;
       author_position?: string;
@@ -63,7 +75,9 @@ export const transformDataModel = (data: Work[]) => {
       institution_id?: string;
       raw_affiliation_string?: string;
     }[] = [];
+
     const institutions: Institution[] = [];
+
     for (let authorship of work.authorships) {
       for (let institution of authorship.institutions) {
         works_authorships.push({
@@ -75,15 +89,20 @@ export const transformDataModel = (data: Work[]) => {
         institutions.push(institution);
       }
     }
+
     return { authors, authors_ids, works_authorships, institutions };
   });
 
-  const works_biblio: Prisma.works_biblioCreateManyInput[] = data.map(
-    (work) => ({ ...work.biblio, work_id: work.id })
+  const works_biblio: (typeof works_biblioInOpenalex.$inferInsert)[] = data.map(
+    (work) => ({
+      ...work.biblio,
+      work_id: work.id,
+    })
   );
 
   const works_id: WorksId[] = data.map((work) => ({
     ...work.ids,
+    mag: work.ids?.mag,
     work_id: work.id,
   }));
 
@@ -109,17 +128,20 @@ export const transformDataModel = (data: Work[]) => {
 
   const works_locations = _.flatten(
     data.map((work) =>
-      work.locations.map((location) => ({
-        work_id: work.id,
-        source_id: location.source?.id,
-        landing_page_url: location.landing_page_url,
-        pdf_url: location.pdf_url,
-        is_oa: location.is_oa,
-        version: location.version,
-        license: location.license,
-      }))
+      work.locations.map(
+        (location) =>
+          ({
+            work_id: work.id,
+            source_id: location.source?.id,
+            landing_page_url: location.landing_page_url,
+            pdf_url: location.pdf_url,
+            is_oa: location.is_oa,
+            version: location.version,
+            license: location.license,
+          } as WorksLocation)
+      )
     )
-  );
+  ) as WorksLocation[];
 
   const works_mesh = _.flatten(
     data.map((work) =>
@@ -151,12 +173,12 @@ export const transformDataModel = (data: Work[]) => {
           }
         : null
     )
-    .filter(Boolean);
+    .filter(Boolean) as WorksPrimaryLocation[];
 
   const works_best_oa_locations = data
     .map((work) =>
       work?.best_oa_location
-        ? {
+        ? ({
             source_id: work.best_oa_location.source?.id,
             landing_page_url: work.best_oa_location.landing_page_url,
             pdf_url: work.best_oa_location.pdf_url,
@@ -164,10 +186,10 @@ export const transformDataModel = (data: Work[]) => {
             version: work.best_oa_location.version,
             license: work.best_oa_location.license,
             work_id: work.id,
-          }
+          } as WorksBestOaLocation)
         : null
     )
-    .filter(Boolean);
+    .filter(Boolean) as WorksBestOaLocation[];
 
   const works_open_access = data.map((work) => ({
     ...work.open_access,
@@ -194,7 +216,7 @@ export const transformDataModel = (data: Work[]) => {
 
   // group unique authors
   let all_authors = _.flatten(authorship_data.map((data) => data.authors));
-  let authors: Prisma.authorsCreateManyInput[] = _(all_authors)
+  let authors: (typeof authorsInOpenalex.$inferInsert)[] = _(all_authors)
     .groupBy((x) => x.id)
     .map(
       (values, key) =>
@@ -202,7 +224,13 @@ export const transformDataModel = (data: Work[]) => {
           id: key,
           orcid: values[0].orcid,
           display_name: values[0].display_name,
-        } as Prisma.authorsCreateManyInput)
+          display_name_alternatives: values[0].display_name_alternatives,
+          works_count: values[0].works_count,
+          cited_by_count: values[0].cited_by_count,
+          last_known_institution: values[0].last_known_institution,
+          works_api_url: values[0].works_api_url,
+          updated_date: values[0].updated_date,
+        } as typeof authorsInOpenalex.$inferInsert)
     )
     .value();
 
@@ -211,7 +239,9 @@ export const transformDataModel = (data: Work[]) => {
     authorship_data.map((data) => data.authors_ids)
   );
 
-  let authors_ids: Prisma.authors_idsCreateManyInput[] = _(all_author_ids)
+  let authors_ids: (typeof authors_idsInOpenalex.$inferInsert)[] = _(
+    all_author_ids
+  )
     .groupBy((x) => x.author_id)
     .map(
       (values, key) =>
@@ -223,7 +253,7 @@ export const transformDataModel = (data: Work[]) => {
           scopus: values[0].scopus,
           wikipedia: values[0].wikipedia,
           mag: values[0].mag,
-        } as Prisma.authors_idsCreateManyInput)
+        } as typeof authors_idsInOpenalex.$inferInsert)
     )
     .value();
 
@@ -270,12 +300,13 @@ export const transformDataModel = (data: Work[]) => {
 
   return {
     authors,
-    authorships: _.flatten(
+    works_authorships: _.flatten(
       authorship_data.map((data) => data.works_authorships)
     ),
     authors_ids,
     works,
     works_id,
+
     works_biblio,
     works_concepts,
     works_topics,
