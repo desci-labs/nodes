@@ -55,7 +55,7 @@ export interface Work {
 interface Ids {
   openalex: string;
   doi: string | null;
-  mag: bigint | null;
+  mag: number | null;
   pmid: string | null;
   pmcid: string | null;
 }
@@ -155,15 +155,15 @@ interface Location {
 }
 
 interface BestOaLocation {
-  is_oa: boolean;
-  landing_page_url: string;
-  pdf_url: string;
-  source: Source;
-  license: string;
-  license_id: string;
-  version: string;
-  is_accepted: boolean;
-  is_published: boolean;
+  is_oa: boolean | null;
+  landing_page_url: string | null;
+  pdf_url: string | null;
+  source: Source | null;
+  license: string | null;
+  license_id: string | null;
+  version: string | null;
+  is_accepted: boolean | null;
+  is_published: boolean | null;
 }
 
 interface CountsByYear {

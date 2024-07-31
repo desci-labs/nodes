@@ -43,9 +43,9 @@ async function importWorks(filter?: FilterParam): Promise<Work[] | null> {
     const url = `${OPEN_ALEX_API}/works`;
     const works = await performFetch<Work[]>(url, {
       filter: {
-        from_created_date: "2024-07-28",
-        to_created_date: "2024-07-28",
-        ...filter,
+        from_created_date: "2024-07-27",
+        to_created_date: "2024-07-27",
+        // ...filter,
         // from_updated_date: "2024-07-30T20:00:00.347Z",
         // to_updated_date: "2024-07-30T23:29:50.347Z",
       },
@@ -166,7 +166,7 @@ export const runImport = async () => {
   const {
     authors,
     authors_ids,
-    authorships,
+    works_authorships,
     works,
     works_id,
     works_concepts,
@@ -186,7 +186,7 @@ export const runImport = async () => {
   if (process.env.NODE_ENV === "development") {
     saveToLogs(JSON.stringify(authors), "authors.json");
     saveToLogs(JSON.stringify(authors_ids), "authors_ids.json");
-    saveToLogs(JSON.stringify(authorships), "authorships.json");
+    saveToLogs(JSON.stringify(works_authorships), "works_authorships.json");
     saveToLogs(JSON.stringify(works.slice(1, 100)), "works.json");
     saveToLogs(JSON.stringify(works_id), "works_id.json");
     saveToLogs(JSON.stringify(works_concepts), "works_concepts.json");
@@ -210,11 +210,6 @@ export const runImport = async () => {
     saveToLogs(JSON.stringify(works_topics), "works_topics.json");
   }
 
-  // const worksQueries = works.map((work) =>
-  //   prisma.works.upsert({ where: { id: work.id }, update: work, create: work })
-  // );
-  // const tx = await prisma.$transaction([...worksQueries]);
-  // logger.info("DB Transaction: ", tx.length);
   await saveData(transformedData);
 
   return works?.length;

@@ -4,10 +4,11 @@ import { runImport } from "./src/script.js";
 import { logger } from "./src/logger.js";
 
 async function main() {
-  cron.schedule("0 0 * * *", () => {
+  cron.schedule("0 0 * * *", async () => {
     logger.info("running a task every minute");
-    runImport();
+    await runImport();
   });
+  // await runImport();
 }
 
 main()

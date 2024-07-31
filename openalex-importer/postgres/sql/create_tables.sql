@@ -69,8 +69,11 @@ CREATE TABLE openalex.concepts
   image_thumbnail_url text NULL,
   works_api_url text NULL,
   updated_date timestamp NULL,
-  descriptions_embeddings vector(100) NULL,
-  name_embeddings vector(100) NULL,
+
+descriptions_embeddings vector
+(768) NULL,
+  name_embeddings vector
+(768) NULL,
   CONSTRAINT concepts_pkey PRIMARY KEY (id)
 );
 CREATE INDEX concepts_descriptions_embeddings_idx ON openalex.concepts USING ivfflat

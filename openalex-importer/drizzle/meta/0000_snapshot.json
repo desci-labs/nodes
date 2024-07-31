@@ -1,27 +1,179 @@
 {
-  "id": "eae2fc6f-fe08-442d-9153-9dce133285e6",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "00000000-0000-0000-0000-000000000000",
+  "prevId": "",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "openalex.batch": {
-      "name": "batch",
+    "openalex.institutions_geo": {
+      "name": "institutions_geo",
+      "schema": "openalex",
+      "columns": {
+        "institution_id": {
+          "name": "institution_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "geonames_city_id": {
+          "name": "geonames_city_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "region": {
+          "name": "region",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country_code": {
+          "name": "country_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.institutions_ids": {
+      "name": "institutions_ids",
+      "schema": "openalex",
+      "columns": {
+        "institution_id": {
+          "name": "institution_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "openalex": {
+          "name": "openalex",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ror": {
+          "name": "ror",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grid": {
+          "name": "grid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wikipedia": {
+          "name": "wikipedia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wikidata": {
+          "name": "wikidata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mag": {
+          "name": "mag",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.publishers": {
+      "name": "publishers",
       "schema": "openalex",
       "columns": {
         "id": {
           "name": "id",
-          "type": "serial",
-          "primaryKey": true,
+          "type": "text",
+          "primaryKey": false,
           "notNull": true
         },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "timestamp",
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "updatedAt": {
-          "name": "updatedAt",
+        "alternate_titles": {
+          "name": "alternate_titles",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country_codes": {
+          "name": "country_codes",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hierarchy_level": {
+          "name": "hierarchy_level",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_publisher": {
+          "name": "parent_publisher",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "works_count": {
+          "name": "works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sources_api_url": {
+          "name": "sources_api_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_date": {
+          "name": "updated_date",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
@@ -32,83 +184,176 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "openalex.works_batch": {
-      "name": "works_batch",
+    "openalex.publishers_counts_by_year": {
+      "name": "publishers_counts_by_year",
+      "schema": "openalex",
+      "columns": {
+        "publisher_id": {
+          "name": "publisher_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "works_count": {
+          "name": "works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oa_works_count": {
+          "name": "oa_works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.publishers_ids": {
+      "name": "publishers_ids",
+      "schema": "openalex",
+      "columns": {
+        "publisher_id": {
+          "name": "publisher_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "openalex": {
+          "name": "openalex",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ror": {
+          "name": "ror",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wikidata": {
+          "name": "wikidata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.institutions_associated_institutions": {
+      "name": "institutions_associated_institutions",
+      "schema": "openalex",
+      "columns": {
+        "institution_id": {
+          "name": "institution_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "associated_institution_id": {
+          "name": "associated_institution_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "relationship": {
+          "name": "relationship",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_primary_locations": {
+      "name": "works_primary_locations",
       "schema": "openalex",
       "columns": {
         "work_id": {
           "name": "work_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "batch_id": {
-          "name": "batch_id",
+        "source_id": {
+          "name": "source_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "timestamp",
+        "landing_page_url": {
+          "name": "landing_page_url",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "updatedAt": {
-          "name": "updatedAt",
-          "type": "timestamp",
+        "pdf_url": {
+          "name": "pdf_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_oa": {
+          "name": "is_oa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "license": {
+          "name": "license",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         }
       },
-      "indexes": {},
-      "foreignKeys": {
-        "works_batch_work_id_works_id_fk": {
-          "name": "works_batch_work_id_works_id_fk",
-          "tableFrom": "works_batch",
-          "tableTo": "works",
-          "schemaTo": "openalex",
-          "columnsFrom": [
-            "work_id"
+      "indexes": {
+        "works_primary_locations_work_id_idx": {
+          "name": "works_primary_locations_work_id_idx",
+          "columns": [
+            {
+              "expression": "work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
           ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "works_batch_batch_id_batch_id_fk": {
-          "name": "works_batch_batch_id_batch_id_fk",
-          "tableFrom": "works_batch",
-          "tableTo": "batch",
-          "schemaTo": "openalex",
-          "columnsFrom": [
-            "batch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "works_batch_work_id_unique": {
-          "name": "works_batch_work_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "work_id"
-          ]
-        },
-        "works_batch_batch_id_unique": {
-          "name": "works_batch_batch_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "batch_id"
-          ]
-        }
-      }
+      "uniqueConstraints": {}
     },
     "openalex.works": {
       "name": "works",
@@ -117,7 +362,7 @@
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
         "doi": {
@@ -146,7 +391,7 @@
         },
         "publication_date": {
           "name": "publication_date",
-          "type": "date",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -191,9 +436,389 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "publication_date_date": {
+          "name": "publication_date_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "works_publication_date_idx": {
+          "name": "works_publication_date_idx",
+          "columns": [
+            {
+              "expression": "publication_date",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.institutions": {
+      "name": "institutions",
+      "schema": "openalex",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ror": {
+          "name": "ror",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country_code": {
+          "name": "country_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "homepage_url": {
+          "name": "homepage_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_thumbnail_url": {
+          "name": "image_thumbnail_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name_acronyms": {
+          "name": "display_name_acronyms",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name_alternatives": {
+          "name": "display_name_alternatives",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "works_count": {
+          "name": "works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "works_api_url": {
+          "name": "works_api_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_date": {
+          "name": "updated_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.institutions_counts_by_year": {
+      "name": "institutions_counts_by_year",
+      "schema": "openalex",
+      "columns": {
+        "institution_id": {
+          "name": "institution_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "works_count": {
+          "name": "works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oa_works_count": {
+          "name": "oa_works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.sources": {
+      "name": "sources",
+      "schema": "openalex",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issn_l": {
+          "name": "issn_l",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "issn": {
+          "name": "issn",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "publisher": {
+          "name": "publisher",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "works_count": {
+          "name": "works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_oa": {
+          "name": "is_oa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_in_doaj": {
+          "name": "is_in_doaj",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "homepage_url": {
+          "name": "homepage_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "works_api_url": {
+          "name": "works_api_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_date": {
+          "name": "updated_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.sources_counts_by_year": {
+      "name": "sources_counts_by_year",
+      "schema": "openalex",
+      "columns": {
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "works_count": {
+          "name": "works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oa_works_count": {
+          "name": "oa_works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_biblio": {
+      "name": "works_biblio",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "volume": {
+          "name": "volume",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "issue": {
+          "name": "issue",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "first_page": {
+          "name": "first_page",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_page": {
+          "name": "last_page",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_concepts": {
+      "name": "works_concepts",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "concept_id": {
+          "name": "concept_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "score": {
+          "name": "score",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "works_concepts_concept_id_idx": {
+          "name": "works_concepts_concept_id_idx",
+          "columns": [
+            {
+              "expression": "concept_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "works_concepts_work_id_idx": {
+          "name": "works_concepts_work_id_idx",
+          "columns": [
+            {
+              "expression": "work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
@@ -243,14 +868,1209 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
+    },
+    "openalex.works_mesh": {
+      "name": "works_mesh",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "descriptor_ui": {
+          "name": "descriptor_ui",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "descriptor_name": {
+          "name": "descriptor_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "qualifier_ui": {
+          "name": "qualifier_ui",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "qualifier_name": {
+          "name": "qualifier_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_major_topic": {
+          "name": "is_major_topic",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "works_mesh_descriptor_ui_idx": {
+          "name": "works_mesh_descriptor_ui_idx",
+          "columns": [
+            {
+              "expression": "descriptor_ui",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "works_mesh_qualifier_ui_idx": {
+          "name": "works_mesh_qualifier_ui_idx",
+          "columns": [
+            {
+              "expression": "qualifier_ui",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "works_mesh_work_id_idx": {
+          "name": "works_mesh_work_id_idx",
+          "columns": [
+            {
+              "expression": "work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_open_access": {
+      "name": "works_open_access",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_oa": {
+          "name": "is_oa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oa_status": {
+          "name": "oa_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oa_url": {
+          "name": "oa_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "any_repository_has_fulltext": {
+          "name": "any_repository_has_fulltext",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "works_open_access_work_id_idx": {
+          "name": "works_open_access_work_id_idx",
+          "columns": [
+            {
+              "expression": "work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "works_open_access_work_id_idx1": {
+          "name": "works_open_access_work_id_idx1",
+          "columns": [
+            {
+              "expression": "work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.sources_ids": {
+      "name": "sources_ids",
+      "schema": "openalex",
+      "columns": {
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "openalex": {
+          "name": "openalex",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "issn_l": {
+          "name": "issn_l",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "issn": {
+          "name": "issn",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mag": {
+          "name": "mag",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wikidata": {
+          "name": "wikidata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fatcat": {
+          "name": "fatcat",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_locations": {
+      "name": "works_locations",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "landing_page_url": {
+          "name": "landing_page_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pdf_url": {
+          "name": "pdf_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_oa": {
+          "name": "is_oa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "license": {
+          "name": "license",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "works_locations_work_id_idx": {
+          "name": "works_locations_work_id_idx",
+          "columns": [
+            {
+              "expression": "work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_referenced_works": {
+      "name": "works_referenced_works",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "referenced_work_id": {
+          "name": "referenced_work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "works_referenced_works_referenced_work_id_idx": {
+          "name": "works_referenced_works_referenced_work_id_idx",
+          "columns": [
+            {
+              "expression": "referenced_work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "works_referenced_works_work_id_idx": {
+          "name": "works_referenced_works_work_id_idx",
+          "columns": [
+            {
+              "expression": "work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_related_works": {
+      "name": "works_related_works",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "related_work_id": {
+          "name": "related_work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "works_related_works_related_work_id_idx": {
+          "name": "works_related_works_related_work_id_idx",
+          "columns": [
+            {
+              "expression": "related_work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "works_related_works_work_id_idx": {
+          "name": "works_related_works_work_id_idx",
+          "columns": [
+            {
+              "expression": "work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_topics": {
+      "name": "works_topics",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "topic_id": {
+          "name": "topic_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "score": {
+          "name": "score",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "works_topics_topic_id_idx": {
+          "name": "works_topics_topic_id_idx",
+          "columns": [
+            {
+              "expression": "topic_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "works_topics_work_id_idx": {
+          "name": "works_topics_work_id_idx",
+          "columns": [
+            {
+              "expression": "work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.authors": {
+      "name": "authors",
+      "schema": "openalex",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "orcid": {
+          "name": "orcid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name_alternatives": {
+          "name": "display_name_alternatives",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "works_count": {
+          "name": "works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_known_institution": {
+          "name": "last_known_institution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "works_api_url": {
+          "name": "works_api_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_date": {
+          "name": "updated_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.authors_counts_by_year": {
+      "name": "authors_counts_by_year",
+      "schema": "openalex",
+      "columns": {
+        "author_id": {
+          "name": "author_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "works_count": {
+          "name": "works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oa_works_count": {
+          "name": "oa_works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.authors_ids": {
+      "name": "authors_ids",
+      "schema": "openalex",
+      "columns": {
+        "author_id": {
+          "name": "author_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "openalex": {
+          "name": "openalex",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "orcid": {
+          "name": "orcid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scopus": {
+          "name": "scopus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "twitter": {
+          "name": "twitter",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wikipedia": {
+          "name": "wikipedia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mag": {
+          "name": "mag",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.topics": {
+      "name": "topics",
+      "schema": "openalex",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subfield_id": {
+          "name": "subfield_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subfield_display_name": {
+          "name": "subfield_display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "field_display_name": {
+          "name": "field_display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "domain_id": {
+          "name": "domain_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "domain_display_name": {
+          "name": "domain_display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "keywords": {
+          "name": "keywords",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "works_api_url": {
+          "name": "works_api_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wikipedia_id": {
+          "name": "wikipedia_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "works_count": {
+          "name": "works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_date": {
+          "name": "updated_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.concepts": {
+      "name": "concepts",
+      "schema": "openalex",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wikidata": {
+          "name": "wikidata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "level": {
+          "name": "level",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "works_count": {
+          "name": "works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_thumbnail_url": {
+          "name": "image_thumbnail_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "works_api_url": {
+          "name": "works_api_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_date": {
+          "name": "updated_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "descriptions_embeddings": {
+          "name": "descriptions_embeddings",
+          "type": "vector(768)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name_embeddings": {
+          "name": "name_embeddings",
+          "type": "vector(768)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "concepts_descriptions_embeddings_idx": {
+          "name": "concepts_descriptions_embeddings_idx",
+          "columns": [
+            {
+              "expression": "descriptions_embeddings",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "vector_l2_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "ivfflat",
+          "with": {
+            "lists": "100"
+          }
+        },
+        "concepts_name_embeddings_idx": {
+          "name": "concepts_name_embeddings_idx",
+          "columns": [
+            {
+              "expression": "name_embeddings",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "vector_l2_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "ivfflat",
+          "with": {
+            "lists": "100"
+          }
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.concepts_ancestors": {
+      "name": "concepts_ancestors",
+      "schema": "openalex",
+      "columns": {
+        "concept_id": {
+          "name": "concept_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ancestor_id": {
+          "name": "ancestor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "concepts_ancestors_concept_id_idx": {
+          "name": "concepts_ancestors_concept_id_idx",
+          "columns": [
+            {
+              "expression": "concept_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.concepts_counts_by_year": {
+      "name": "concepts_counts_by_year",
+      "schema": "openalex",
+      "columns": {
+        "concept_id": {
+          "name": "concept_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "works_count": {
+          "name": "works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cited_by_count": {
+          "name": "cited_by_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oa_works_count": {
+          "name": "oa_works_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_authorships": {
+      "name": "works_authorships",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author_position": {
+          "name": "author_position",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "institution_id": {
+          "name": "institution_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "raw_affiliation_string": {
+          "name": "raw_affiliation_string",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "works_authorships_author_id_idx": {
+          "name": "works_authorships_author_id_idx",
+          "columns": [
+            {
+              "expression": "author_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "works_authorships_institution_id_idx": {
+          "name": "works_authorships_institution_id_idx",
+          "columns": [
+            {
+              "expression": "institution_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "works_authorships_work_id_idx": {
+          "name": "works_authorships_work_id_idx",
+          "columns": [
+            {
+              "expression": "work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.works_best_oa_locations": {
+      "name": "works_best_oa_locations",
+      "schema": "openalex",
+      "columns": {
+        "work_id": {
+          "name": "work_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "landing_page_url": {
+          "name": "landing_page_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pdf_url": {
+          "name": "pdf_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_oa": {
+          "name": "is_oa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "license": {
+          "name": "license",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "works_best_oa_locations_work_id_idx": {
+          "name": "works_best_oa_locations_work_id_idx",
+          "columns": [
+            {
+              "expression": "work_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.concepts_ids": {
+      "name": "concepts_ids",
+      "schema": "openalex",
+      "columns": {
+        "concept_id": {
+          "name": "concept_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "openalex": {
+          "name": "openalex",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wikidata": {
+          "name": "wikidata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wikipedia": {
+          "name": "wikipedia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "umls_aui": {
+          "name": "umls_aui",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "umls_cui": {
+          "name": "umls_cui",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mag": {
+          "name": "mag",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "openalex.concepts_related_concepts": {
+      "name": "concepts_related_concepts",
+      "schema": "openalex",
+      "columns": {
+        "concept_id": {
+          "name": "concept_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "related_concept_id": {
+          "name": "related_concept_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "score": {
+          "name": "score",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "concepts_related_concepts_concept_id_idx": {
+          "name": "concepts_related_concepts_concept_id_idx",
+          "columns": [
+            {
+              "expression": "concept_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "concepts_related_concepts_related_concept_id_idx": {
+          "name": "concepts_related_concepts_related_concept_id_idx",
+          "columns": [
+            {
+              "expression": "related_concept_id",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
     }
   },
   "enums": {},
-  "schemas": {},
-  "sequences": {},
+  "schemas": {
+    "openalex": "openalex"
+  },
   "_meta": {
-    "columns": {},
     "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
     "tables": {}
   }
 }

@@ -14,6 +14,7 @@
     "start": "pm2 start ./dist/index.js",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
+    "introspect": "drizzle-kit instrospect",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -23,7 +24,7 @@
   "devDependencies": {
     "@types/node": "^20.14.12",
     "@types/pg": "^8.11.6",
-    "drizzle-kit": "^0.23.0",
+    "drizzle-kit": "^0.22.8",
     "nodemon": "^3.0.2",
     "npm-run-all": "^4.1.5",
     "ts-node": "10.9.1",
@@ -35,14 +36,12 @@
     "date-fns": "^3.6.0",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.32.1",
-    "drizzle-zod": "^0.5.1",
     "lodash": "^4.17.21",
     "node-cron": "^3.0.3",
     "pg": "^8.12.0",
     "pino": "^9.3.2",
     "pino-http": "^10.2.0",
     "pino-pretty": "^11.2.2",
-    "pm2": "^5.4.2",
-    "zod": "^3.23.8"
+    "pm2": "^5.4.2"
   }
 }
