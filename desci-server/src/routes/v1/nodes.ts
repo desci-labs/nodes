@@ -58,6 +58,7 @@ import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { asyncHandler, attachUser, validate, ensureUserIfPresent } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
+import { nodeByDpid } from '../../controllers/nodes/byDpid.js';
 
 const router = Router();
 
@@ -66,6 +67,7 @@ router.post('/publish', [ensureUser], publish);
 router.get('/stats', [ensureUser], getDraftNodeStats);
 router.get('/stats/published', [ensureUser], getPublishedNodeStats);
 router.get('/published/list', [ensureUser], getPublishedNodes);
+router.get('/published/:dpid([0-9]+)', [], nodeByDpid);
 router.get('/published/:uuid', [], checkIfPublishedNode);
 router.get('/access/:uuid', [ensureUserIfPresent], checkNodeAccess);
 router.post('/search/:query', [ensureUser], searchNodes);
