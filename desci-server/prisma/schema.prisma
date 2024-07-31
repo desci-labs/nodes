@@ -773,7 +773,7 @@ model NodeAttestation {
   @@unique([nodeUuid, nodeVersion, attestationId, attestationVersionId])
 }
 
-// Deferred emails usually when a published node is required, e.g. unpublished attestation claims, emails are deferred until node is published.
+// Deferred emails are usually used when a published node is required, e.g. unpublished attestation claims, emails are deferred until node is published.
 model DeferredEmails {
   id                   Int                 @id @default(autoincrement())
   nodeUuid             String
@@ -847,18 +847,17 @@ model PublishTaskQueue {
 }
 
 model OrcidPutCodes {
-  id               Int              @id @default(autoincrement())
-  orcid            String
-  putcode          String?
-  reference        PutcodeReference @default(PREPRINT)
-  claimId          Int?
-  record           ORCIDRecord
-  userId           Int
-  uuid             String
-  claim            NodeAttestation? @relation(fields: [claimId], references: [id])
-  user             User             @relation(fields: [userId], references: [id])
-  Node             Node             @relation(fields: [uuid], references: [uuid])
-  deferredEmailsId Int?
+  id        Int              @id @default(autoincrement())
+  orcid     String
+  putcode   String?
+  reference PutcodeReference @default(PREPRINT)
+  claimId   Int?
+  record    ORCIDRecord
+  userId    Int
+  uuid      String
+  claim     NodeAttestation? @relation(fields: [claimId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
+  Node      Node             @relation(fields: [uuid], references: [uuid])
 
   @@unique([orcid, uuid, reference])
 }
