@@ -18,6 +18,7 @@ export type SharedNode = {
   published?: boolean;
   dpid?: ResearchObjectV1Dpid;
   publishDate?: string;
+  pendingVerification?: boolean;
   shareKey: string;
 };
 
@@ -90,11 +91,32 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
       'Published nodes map created successfully',
     );
 
+    // Work out if any action on the shared node is required (e.g. verifying the contribution)
+    const contributionEntries = await prisma.nodeContribution.findMany({
+      where: {
+        deleted: false,
+        OR: { userId: user.id, email: user.email, orcid: user.orcid },
+        node: {
+          uuid: {
+            in: nodeUuids,
+          },
+        },
+      },
+      include: { node: true },
+    });
+
+    const contributionEntryMap = contributionEntries.reduce((acc, entry) => {
+      acc[entry.node.uuid] = entry;
+      return acc;
+    }, {});
+
     const filledSharedNodes = await Promise.all(
       privSharedNodes.map(async (priv) => {
         const { node } = priv;
         const latestManifest = await getLatestManifestFromNode(node);
         const publishedEntry = publishedNodesMap[node.uuid];
+        const contributionEntry = contributionEntryMap[node.uuid];
+        const pendingVerification = contributionEntry?.verified === false && contributionEntry?.denied === false;
 
         return {
           uuid: node.uuid,
@@ -105,6 +127,7 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
           dpid: latestManifest.dpid,
           publishDate: publishedEntry?.versions[0].time,
           published: !!publishedEntry,
+          pendingVerification: !!pendingVerification,
           shareKey: priv.shareId,
         };
       }),
