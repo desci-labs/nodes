@@ -228,12 +228,11 @@ services:
       retries: 5
 
   dpid_resolver:
-    image: ghcr.io/desci-labs/dpid-resolver-dev
+    image: descilabs/dpid-resolver
     container_name: dpid_resolver
-    build:
-      # context: https://hub.docker.com/descilabs/dpid-resolver
-      # Change to local path for local dev
-      context: ~/dev/desci/dpid-resolver
+    # Uncomment and set to local repo path for tinkering
+    # build:
+      # context: ~/dev/desci/dpid-resolver
     environment:
       DPID_ENV: local
       OPTIMISM_RPC_URL: http://host.docker.internal:8545
