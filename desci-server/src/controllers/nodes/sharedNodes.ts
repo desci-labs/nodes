@@ -18,7 +18,8 @@ export type SharedNode = {
   published?: boolean;
   dpid?: ResearchObjectV1Dpid;
   publishDate?: string;
-  pendingVerification?: boolean;
+  pendingVerification: boolean;
+  pendingContributionId?: string;
   shareKey: string;
 };
 
@@ -128,6 +129,7 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
           publishDate: publishedEntry?.versions[0].time,
           published: !!publishedEntry,
           pendingVerification: !!pendingVerification,
+          ...(!!pendingVerification && { pendingContributionId: contributionEntry.contributorId }),
           shareKey: priv.shareId,
         };
       }),
