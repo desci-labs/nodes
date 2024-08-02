@@ -20,7 +20,7 @@ export const RELEVANT_FIELDS = {
   authors: ['display_name', 'orcid', 'last_known_institution'],
   denorm_authors: ['authors.author_name', 'authors.orcid', 'authors.last_known_institution'],
   works_single: [
-    'title^3',
+    'title^1.25',
     'abstract',
     'doi',
     'authors.author_name',
@@ -60,6 +60,34 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
   },
 };
 
+export function scoreBoostFunction(query: Record<'multi_match', MultiMatchQuery>) {
+  return {
+    function_score: {
+      query,
+      functions: [
+        {
+          field_value_factor: {
+            field: 'cited_by_count',
+            factor: 1.5,
+            modifier: 'log1p',
+            missing: 0,
+          },
+        },
+        {
+          field_value_factor: {
+            field: 'authors.author_cited_by_count',
+            factor: 0.1,
+            modifier: 'log1p',
+            missing: 0,
+          },
+        },
+      ],
+      boost_mode: 'sum',
+      score_mode: 'sum',
+    },
+  };
+}
+
 export function buildSimpleStringQuery(query: string, entity: string, fuzzy?: number) {
   return {
     simple_query_string: {
@@ -90,7 +118,7 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
   if (entity === 'works_single') fields = RELEVANT_FIELDS.works_single;
 
   const type: QueryDslTextQueryType = 'best_fields';
-  return {
+  const multiMatchQuery = {
     multi_match: {
       query: query,
       fields: fields,
@@ -98,6 +126,9 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
       fuzziness: fuzzy || 'AUTO',
     },
   };
+
+  if (entity === 'works_single') return scoreBoostFunction(multiMatchQuery);
+  return multiMatchQuery;
 }
 
 export function buildSortQuery(entity: string, sortType?: string, sortOrder: SortOrder = 'desc'): SortField[] {
@@ -130,3 +161,10 @@ export type IndexedAuthor = {
     updated_date: string;
   };
 };
+
+export interface MultiMatchQuery {
+  query: string;
+  fields: any[];
+  type: 'best_fields';
+  fuzziness: string | number;
+}
