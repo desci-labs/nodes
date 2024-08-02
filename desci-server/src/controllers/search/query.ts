@@ -78,9 +78,8 @@ export const singleQuery = async (
   const esSort = buildSortQuery(entity, sortType, sortOrder);
 
   try {
-    // debugger;
     logger.debug({ esQuery, esSort }, 'Executing query');
-    const { hits } = await elasticClient.search({
+    const results = await elasticClient.search({
       index: entity,
       body: {
         query: esQuery,
@@ -89,8 +88,8 @@ export const singleQuery = async (
         size: perPage,
       },
     });
+    const hits = results.hits;
     logger.info({ fn: 'Elastic search query executed successfully' });
-    // return res.status(200).send({ esQuery, resp });
 
     return res.json({
       esQuery,

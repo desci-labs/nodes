@@ -1,4 +1,8 @@
-import { QueryDslTextQueryType } from '@elastic/elasticsearch/lib/api/types.js';
+import {
+  QueryDslFunctionBoostMode,
+  QueryDslQueryContainer,
+  QueryDslTextQueryType,
+} from '@elastic/elasticsearch/lib/api/types.js';
 
 export const DENORMALIZED_WORKS_INDEX = 'denormalized_works_test_2024_08_01';
 export const VALID_ENTITIES = [
@@ -82,8 +86,8 @@ export function scoreBoostFunction(query: Record<'multi_match', MultiMatchQuery>
           },
         },
       ],
-      boost_mode: 'sum',
-      score_mode: 'sum',
+      boost_mode: 'sum' as QueryDslFunctionBoostMode,
+      score_mode: 'sum' as QueryDslFunctionBoostMode,
     },
   };
 }
@@ -127,8 +131,8 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
     },
   };
 
-  if (entity === 'works_single') return scoreBoostFunction(multiMatchQuery);
-  return multiMatchQuery;
+  if (entity === 'works_single') return scoreBoostFunction(multiMatchQuery) as QueryDslQueryContainer;
+  return multiMatchQuery as QueryDslQueryContainer;
 }
 
 export function buildSortQuery(entity: string, sortType?: string, sortOrder: SortOrder = 'desc'): SortField[] {
@@ -165,6 +169,6 @@ export type IndexedAuthor = {
 export interface MultiMatchQuery {
   query: string;
   fields: any[];
-  type: 'best_fields';
+  type: QueryDslTextQueryType;
   fuzziness: string | number;
 }
