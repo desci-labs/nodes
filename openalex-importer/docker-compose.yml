@@ -4,9 +4,6 @@ services:
     container_name: "openalex_db"
     image: "ankane/pgvector"
     restart: always
-    # build:
-    #   context: ./postgres
-    #   dockerfile: Dockerfile
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
