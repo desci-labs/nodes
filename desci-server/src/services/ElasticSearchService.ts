@@ -1,3 +1,6 @@
+import { QueryDslTextQueryType } from '@elastic/elasticsearch/lib/api/types.js';
+
+export const DENORMALIZED_WORKS_INDEX = 'denormalized_works_test_2024_08_01';
 export const VALID_ENTITIES = [
   'authors',
   'concepts',
@@ -6,7 +9,7 @@ export const VALID_ENTITIES = [
   'sources',
   'topics',
   'works',
-  'denormalized_works_test2',
+  DENORMALIZED_WORKS_INDEX,
 ];
 
 /**
@@ -16,6 +19,14 @@ export const RELEVANT_FIELDS = {
   works: ['title', 'abstract', 'doi'],
   authors: ['display_name', 'orcid', 'last_known_institution'],
   denorm_authors: ['authors.author_name', 'authors.orcid', 'authors.last_known_institution'],
+  works_single: [
+    'title^3',
+    'abstract',
+    'doi',
+    'authors.author_name',
+    'authors.orcid',
+    'authors.last_known_institution',
+  ],
 };
 // abstract_inverted_index
 
@@ -30,7 +41,7 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
     publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
     cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
     title: (order) => [{ 'title.keyword': { order, missing: '_last' } }],
-    relevance: () => [{ publication_year: { order: 'desc', missing: '_last' } }],
+    relevance: () => [],
   },
   authors: {
     display_name: (order) => [{ 'display_name.keyword': { order, missing: '_last' } }],
@@ -39,13 +50,13 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
     updated_date: (order) => [{ updated_date: { order, missing: '_last' } }],
     relevance: () => [],
   },
-  denormalized_works_test2: {
+  [DENORMALIZED_WORKS_INDEX]: {
     publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
     publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
     cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
     title: (order) => [{ 'title.keyword': { order, missing: '_last' } }],
     author_name: (order) => [{ 'authors.author_name.keyword': { order, missing: '_last' } }],
-    relevance: () => [{ publication_year: { order: 'desc', missing: '_last' } }],
+    relevance: () => [],
   },
 };
 
@@ -76,11 +87,14 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
   let fields = [];
   if (entity === 'works') fields = RELEVANT_FIELDS.works;
   if (entity === 'authors') fields = RELEVANT_FIELDS.denorm_authors;
+  if (entity === 'works_single') fields = RELEVANT_FIELDS.works_single;
+
+  const type: QueryDslTextQueryType = 'best_fields';
   return {
     multi_match: {
       query: query,
       fields: fields,
-      type: 'best_fields',
+      type,
       fuzziness: fuzzy || 'AUTO',
     },
   };
@@ -95,6 +109,7 @@ export function buildSortQuery(entity: string, sortType?: string, sortOrder: Sor
   const sortFunction = entityConfig[sortType] || entityConfig['relevance'] || (() => []);
   const specificSort = sortFunction(sortOrder);
 
+  // return [...baseSort];
   return [...specificSort, ...baseSort];
 }
 

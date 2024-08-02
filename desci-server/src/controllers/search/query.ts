@@ -3,9 +3,16 @@ import { Request, Response } from 'express';
 
 import { elasticClient } from '../../elasticSearchClient.js';
 import { logger as parentLogger } from '../../logger.js';
-import { buildSimpleStringQuery, buildSortQuery, VALID_ENTITIES } from '../../services/ElasticSearchService.js';
+import {
+  buildBoolQuery,
+  buildMultiMatchQuery,
+  buildSimpleStringQuery,
+  buildSortQuery,
+  DENORMALIZED_WORKS_INDEX,
+  VALID_ENTITIES,
+} from '../../services/ElasticSearchService.js';
 
-export interface SingleQuerySuccessResponse {
+export interface SingleQuerySuccessResponse extends QueryDebuggingResponse {
   ok: true;
   page: number;
   perPage: number;
@@ -19,7 +26,7 @@ export interface QueryDebuggingResponse {
   esSort?: any;
 }
 
-export interface SingleQueryErrorResponse {
+export interface SingleQueryErrorResponse extends QueryDebuggingResponse {
   ok: false;
   error: string;
 }
@@ -36,17 +43,12 @@ interface QuerySearchBodyParams {
 
 export const singleQuery = async (
   req: Request<any, any, QuerySearchBodyParams>,
-  res: Response<SingleQuerySuccessResponse | (SingleQueryErrorResponse & QueryDebuggingResponse)>,
+  res: Response<SingleQuerySuccessResponse | SingleQueryErrorResponse>,
 ) => {
-  const {
-    query,
-    entity,
-    fuzzy,
-    sortType = 'relevance',
-    sortOrder,
-    page = 1,
-    perPage = 10,
-  }: QuerySearchBodyParams = req.body;
+  const { query, fuzzy, sortType = 'relevance', sortOrder, page = 1, perPage = 10 }: QuerySearchBodyParams = req.body;
+
+  let { entity } = req.body;
+
   const logger = parentLogger.child({
     module: 'SEARCH::Query',
     query,
@@ -57,7 +59,11 @@ export const singleQuery = async (
     page,
     perPage,
   });
-
+  if (entity === 'works') {
+    logger.info({ entity }, `Entity is 'works', changing to denormalized works index: ${DENORMALIZED_WORKS_INDEX}`);
+    entity = DENORMALIZED_WORKS_INDEX;
+  }
+  //
   logger.trace({ fn: 'Executing elastic search query' });
 
   if (!VALID_ENTITIES.includes(entity)) {
@@ -67,7 +73,8 @@ export const singleQuery = async (
     });
   }
 
-  const esQuery = buildSimpleStringQuery(query, entity, fuzzy);
+  // const esQuery = buildSimpleStringQuery(query, entity, fuzzy);
+  const esQuery = buildMultiMatchQuery(query, 'works_single', fuzzy);
   const esSort = buildSortQuery(entity, sortType, sortOrder);
 
   try {
@@ -86,6 +93,8 @@ export const singleQuery = async (
     // return res.status(200).send({ esQuery, resp });
 
     return res.json({
+      esQuery,
+      esSort,
       ok: true,
       total: hits.total,
       page,

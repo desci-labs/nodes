@@ -6,6 +6,7 @@ import {
   buildBoolQuery,
   buildMultiMatchQuery,
   buildSortQuery,
+  DENORMALIZED_WORKS_INDEX,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
@@ -58,20 +59,18 @@ export const multiQuery = async (
     });
   }
 
-  const hardcodedMultiIndex = 'denormalized_works_test2';
-
   const esQueries = validEntityQueries.map((q) => {
     const [entity, query] = Object.entries(q)[0];
     return buildMultiMatchQuery(query, entity);
   });
   const primaryEntity = Object.keys(validEntityQueries[0])[0];
-  const esSort = buildSortQuery(hardcodedMultiIndex, sortType, sortOrder);
+  const esSort = buildSortQuery(DENORMALIZED_WORKS_INDEX, sortType, sortOrder);
   const esBoolQuery = buildBoolQuery(esQueries);
 
   try {
     logger.debug({ esQueries, esSort }, 'Executing query');
     const { hits } = await elasticClient.search({
-      index: hardcodedMultiIndex,
+      index: DENORMALIZED_WORKS_INDEX,
       body: {
         ...esBoolQuery,
         sort: esSort,
@@ -79,11 +78,11 @@ export const multiQuery = async (
         size: perPage,
       },
     });
-    debugger; //
+
     logger.info({ fn: 'Elastic search multi query executed successfully' });
 
     return res.json({
-      esQueries,
+      // esQueries,
       ok: true,
       total: hits.total,
       page,
