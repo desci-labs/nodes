@@ -37,15 +37,17 @@ type FilterParam = {
   has_ror?: boolean;
 };
 
+const MAX_PAGES_TO_FETCH = 100;
+
 async function importWorks(filter?: FilterParam): Promise<Work[] | null> {
   logger.info(filter, "Filter");
   try {
     const url = `${OPEN_ALEX_API}/works`;
     const works = await performFetch<Work[]>(url, {
       filter: {
-        from_created_date: "2024-07-27",
-        to_created_date: "2024-07-27",
-        // ...filter,
+        // from_created_date: "2024-07-27",
+        // to_created_date: "2024-07-27",
+        ...filter,
         // from_updated_date: "2024-07-30T20:00:00.347Z",
         // to_updated_date: "2024-07-30T23:29:50.347Z",
       },
@@ -78,9 +80,10 @@ async function performFetch<T>(url: string, searchQuery: Query): Promise<T> {
 
   while (cursor) {
     if (process.env.NODE_ENV === "development") {
-      // When running script locally,
-      // break loop prematurely to avoid overloading memory
-      if (roundtrip >= 10) break; // todo: remove line before push to prod
+      /* When running script locally,
+        break loop prematurely to avoid overloading memory
+      */
+      if (roundtrip >= MAX_PAGES_TO_FETCH) break; // todo: remove line before push to prod
     }
 
     let query = Object.entries(searchQuery).reduce((queryStr, [key, value]) => {
@@ -141,8 +144,8 @@ const saveToLogs = (data: string, logFile: string) => {
 export const runImport = async () => {
   // figure time parameters
   let currentDate = new Date();
-  let from_created_date = startOfDay(subDays(currentDate, 2));
-  let to_created_date = endOfDay(subDays(currentDate, 2));
+  let from_created_date = startOfDay(subDays(currentDate, 1));
+  let to_created_date = endOfDay(subDays(currentDate, 1));
 
   const dateFormatter = new Intl.DateTimeFormat("fr-CA", {
     year: "numeric",

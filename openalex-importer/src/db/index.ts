@@ -56,6 +56,7 @@ type PgTransactionType = PgTransaction<
 >;
 
 export const saveData = async (models: DataModels) => {
+  logger.info("Persisting Data to database");
   const client = await pool.connect();
   const db = drizzle(client, {
     schema: {
@@ -96,6 +97,8 @@ export const saveData = async (models: DataModels) => {
             .onConflictDoNothing({ target: workBatchesInOpenAlex.work_id });
         })
       );
+
+      logger.info("Works data to persisted");
 
       // save worksIdb
       await Promise.all([
@@ -294,6 +297,7 @@ const updateAuthors = async (
       });
     })
   );
+  // logger.info("Authors data to persisted");
 };
 
 const updateAuthorIds = async (

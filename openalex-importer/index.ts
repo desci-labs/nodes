@@ -5,7 +5,7 @@ import { logger } from "./src/logger.js";
 
 async function main() {
   cron.schedule("0 0 * * *", async () => {
-    logger.info("running a task every minute");
+    logger.info("Running a task evey day at 12:00 AM");
     await runImport();
   });
 }
