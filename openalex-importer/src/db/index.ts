@@ -33,6 +33,9 @@ const {
   works_primary_locationsInOpenalex,
   works_referenced_worksInOpenalex,
   works_related_worksInOpenalex,
+  works_conceptsInOpenalex,
+  works_meshInOpenalex,
+  works_topicsInOpenalex,
 } = openAlexSchema;
 
 type OpenAlexSchema = {
@@ -41,6 +44,9 @@ type OpenAlexSchema = {
   batchesInOpenAlex: typeof batchesInOpenAlex;
   workBatchesInOpenAlex: typeof workBatchesInOpenAlex;
   works_authorshipsInOpenalex: typeof works_authorshipsInOpenalex;
+  works_conceptsInOpenalex: typeof works_conceptsInOpenalex;
+  works_meshInOpenalex: typeof works_meshInOpenalex;
+  works_topicsInOpenalex: typeof works_topicsInOpenalex;
 };
 
 type PgTransactionType = PgTransaction<
@@ -59,6 +65,9 @@ export const saveData = async (models: DataModels) => {
       workBatchesInOpenAlex,
       works_authorshipsInOpenalex,
       authorsInOpenalex,
+      works_conceptsInOpenalex,
+      works_meshInOpenalex,
+      works_topicsInOpenalex,
     },
   });
 
@@ -100,6 +109,9 @@ export const saveData = async (models: DataModels) => {
         updateWorksOpenAccess(tx, models["works_open_access"]),
         updateWorksReferencedWorks(tx, models["works_referenced_works"]),
         updateWorksRelatedWorks(tx, models["works_related_works"]),
+        updateWorksConcepts(tx, models["works_concepts"]),
+        updateWorksMesh(tx, models["works_mesh"]),
+        updateWorksTopics(tx, models["works_topics"]),
         // todo: add unique constraint [work_id, author_id] before uncommenting
         // updateWorkAuthorships(tx, models["works_authorships"]),
       ]);
@@ -311,6 +323,73 @@ const updateWorksBiblio = async (
         target: works_biblioInOpenalex.work_id,
         set: entry,
       });
+    })
+  );
+};
+
+const updateWorksConcepts = async (
+  tx: PgTransactionType,
+  data: DataModels["works_concepts"]
+) => {
+  await Promise.all(
+    data.map(async (entry) => {
+      const duplicate = await tx
+        .select()
+        .from(works_conceptsInOpenalex)
+        .where(
+          and(
+            eq(works_conceptsInOpenalex.work_id, entry.work_id!),
+            eq(works_conceptsInOpenalex.concept_id, entry.concept_id!)
+          )
+        )
+        .limit(1);
+      if (duplicate.length > 0) return null;
+      return await tx.insert(works_conceptsInOpenalex).values(entry);
+    })
+  );
+};
+
+const updateWorksMesh = async (
+  tx: PgTransactionType,
+  data: DataModels["works_mesh"]
+) => {
+  await Promise.all(
+    data.map(async (entry) => {
+      const duplicate = await tx
+        .select()
+        .from(works_meshInOpenalex)
+        .where(
+          and(
+            eq(works_meshInOpenalex.work_id, entry.work_id!),
+            eq(works_meshInOpenalex.descriptor_ui, entry.descriptor_ui!),
+            eq(works_meshInOpenalex.qualifier_ui, entry.qualifier_ui!)
+          )
+        )
+        .limit(1);
+      if (duplicate.length > 0) return null;
+      return await tx.insert(works_meshInOpenalex).values(entry);
+    })
+  );
+};
+
+const updateWorksTopics = async (
+  tx: PgTransactionType,
+  data: DataModels["works_topics"]
+) => {
+  await Promise.all(
+    data.map(async (entry) => {
+      const duplicate = await tx
+        .select()
+        .from(works_topicsInOpenalex)
+        .where(
+          and(
+            eq(works_topicsInOpenalex.work_id, entry.work_id!),
+            eq(works_topicsInOpenalex.topic_id, entry.topic_id!)
+          )
+        )
+        .limit(1);
+      if (duplicate.length > 0) return null;
+      return await tx.insert(works_topicsInOpenalex).values(entry);
     })
   );
 };

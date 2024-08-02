@@ -11,6 +11,8 @@ import type {
   WorksId,
   WorksPrimaryLocation,
   WorksLocation,
+  works_meshInOpenalex,
+  works_topicsInOpenalex,
 } from "./db/index.js";
 
 interface ModelMap {
@@ -118,11 +120,14 @@ export const transformDataModel = (data: Work[]) => {
 
   const works_topics = _.flatten(
     data.map((work) =>
-      work.topics.map((topic) => ({
-        work_id: work.id,
-        topic_id: topic.id,
-        score: topic.score,
-      }))
+      work.topics.map(
+        (topic) =>
+          ({
+            work_id: work.id,
+            topic_id: topic.id,
+            score: topic.score,
+          } as typeof works_topicsInOpenalex.$inferInsert)
+      )
     )
   );
 
@@ -154,7 +159,7 @@ export const transformDataModel = (data: Work[]) => {
             qualifier_name: mesh.qualifier_name,
             qualifier_ui: mesh.qualifier_ui,
             is_major_topic: mesh.is_major_topic,
-          } as Mesh)
+          } as typeof works_meshInOpenalex.$inferInsert)
       )
     )
   );
@@ -306,7 +311,6 @@ export const transformDataModel = (data: Work[]) => {
     authors_ids,
     works,
     works_id,
-
     works_biblio,
     works_concepts,
     works_topics,

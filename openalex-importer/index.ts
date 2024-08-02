@@ -8,7 +8,6 @@ async function main() {
     logger.info("running a task every minute");
     await runImport();
   });
-  // await runImport();
 }
 
 main()
