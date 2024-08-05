@@ -1,20 +1,14 @@
-// import { randomBytes } from 'crypto';
-
-import { ResearchObjectV1, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
-import axios from 'axios';
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Request, Response, NextFunction } from 'express';
-
 import { prisma } from '../../client.js';
 import { resolveNodeManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
-import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
-import { asyncMap, decodeBase64UrlSafeToHex, randomUUID64 } from '../../utils.js';
-import { Node } from '@prisma/client';
+import { getIndexedResearchObjects } from '../../theGraph.js';
+import { asyncMap, decodeBase64UrlSafeToHex } from '../../utils.js';
 
 const logger = parentLogger.child({
   module: 'NODE::getPublishedNodes',
 });
-// type NodeWithDpid =  { dpid?: ResearchObjectV1Dpid; isPublished: boolean; index?: IndexedResearchObject };
 export const getPublishedNodes = async (req: Request, res: Response, next: NextFunction) => {
   const owner = (req as any).user;
   const ipfsQuery = req.query.g;
@@ -34,6 +28,7 @@ export const getPublishedNodes = async (req: Request, res: Response, next: NextF
       manifestUrl: true,
       cid: true,
       NodeCover: true,
+      dpidAlias: true,
     },
     where: {
       ownerId: owner.id,
