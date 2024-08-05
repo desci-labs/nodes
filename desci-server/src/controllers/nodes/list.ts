@@ -1,7 +1,4 @@
-// import { randomBytes } from 'crypto';
-
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
@@ -39,6 +36,8 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
       manifestUrl: true,
       cid: true,
       NodeCover: true,
+      ceramicStream: true,
+      dpidAlias: true,
     },
     where: {
       ownerId: owner.id,
@@ -76,6 +75,8 @@ export const list = async (req: Request, res: Response, next: NextFunction) => {
         manifestUrl: true,
         cid: true,
         NodeCover: true,
+        ceramicStream: true,
+        dpidAlias: true,
       },
       where: {
         ownerId: owner.id,
