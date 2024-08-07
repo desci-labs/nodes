@@ -32,7 +32,6 @@ export const RELEVANT_FIELDS = {
     'authors.last_known_institution',
   ],
 };
-// abstract_inverted_index
 
 type SortOrder = 'asc' | 'desc';
 type SortField = { [field: string]: { order: SortOrder; missing?: string } };
