@@ -8,7 +8,7 @@ if (!esNodeUrl || !esUser || !esPw) {
   console.error('Missing environment variables for ElasticSearch');
 }
 
-const esAuthConfig = !esNodeUrl.includes('host.docker.internal')
+const esAuthConfig = !esNodeUrl?.includes('host.docker.internal')
   ? {
       // Auth unnecessary if running local ES node
       auth: {
