@@ -96,7 +96,8 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
     const contributionEntries = await prisma.nodeContribution.findMany({
       where: {
         deleted: false,
-        OR: { userId: user.id, email: user.email, orcid: user.orcid },
+        OR: [{ userId: user.id }, { email: user.email }, { orcid: user.orcid }],
+        userId: user.id,
         node: {
           uuid: {
             in: nodeUuids,
