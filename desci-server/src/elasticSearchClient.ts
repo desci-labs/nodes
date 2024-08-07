@@ -18,11 +18,13 @@ const esAuthConfig = !esNodeUrl?.includes('host.docker.internal')
     }
   : {};
 
-export const elasticClient = new Client({
-  node: esNodeUrl,
-
-  ...esAuthConfig,
-  tls: {
-    rejectUnauthorized: false, // Temporary
-  },
-});
+export const elasticClient =
+  esNodeUrl && esUser && esPw
+    ? new Client({
+        node: esNodeUrl,
+        ...esAuthConfig,
+        tls: {
+          rejectUnauthorized: false, // Temporary
+        },
+      })
+    : ({} as any);
