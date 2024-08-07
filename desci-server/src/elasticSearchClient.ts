@@ -8,15 +8,16 @@ if (!esNodeUrl || !esUser || !esPw) {
   console.error('Missing environment variables for ElasticSearch');
 }
 
-const esAuthConfig = !esNodeUrl?.includes('host.docker.internal')
-  ? {
-      // Auth unnecessary if running local ES node
-      auth: {
-        username: esUser,
-        password: esPw,
-      },
-    }
-  : {};
+const esAuthConfig =
+  !esNodeUrl?.includes('host.docker.internal') && esUser && esPw
+    ? {
+        // Auth unnecessary if running local ES node
+        auth: {
+          username: esUser,
+          password: esPw,
+        },
+      }
+    : {};
 
 export const elasticClient =
   esNodeUrl && esUser && esPw
