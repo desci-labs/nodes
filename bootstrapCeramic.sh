@@ -69,7 +69,7 @@ echo "$CTX Deployment all good, probably!"
 
 if [ "$WAS_RUNNING" -eq "0" ]; then
   echo "$CTX Shutting down ceramic service..."
-  docker compose --project-name desci down
+  docker compose --project-name desci stop
 else
   echo "$CTX Leaving compose services up as they were already running when we started."
 fi 
