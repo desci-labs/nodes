@@ -133,7 +133,7 @@ export class PublishServices {
       const nodeVersion = await getNodeVersion(uuid);
 
       const indexed = await getIndexedResearchObjects([uuid]);
-      const isNodePublished = !!indexed?.length;
+      const isNodePublished = indexed?.researchObjects?.length > 0;
 
       logger.info({ fn: 'handleDeferredEmails', uuid, dpid, indexed, isNodePublished }, 'Init deferred emails, step 4');
 
