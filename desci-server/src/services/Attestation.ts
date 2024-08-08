@@ -20,7 +20,7 @@ import {
   VerificationError,
   VerificationNotFoundError,
   ensureUuidEndsWithDot,
-  logger,
+  logger as parentLogger,
 } from '../internal.js';
 import { communityService } from '../internal.js';
 import { AttestationClaimedEmailHtml } from '../templates/emails/utils/emailRenderer.js';
@@ -43,6 +43,8 @@ export type CommunityAttestation = Attestation & {
   verifications: number;
   communitySelected: boolean;
 };
+
+const logger = parentLogger.child({ module: 'AttestationService' });
 
 /**
  * Attestation Service
@@ -969,6 +971,7 @@ export class AttestationService {
     nodeDpid: string,
     user: User,
   ) {
+    logger.info({ attestationId, attestationVersionId, nodeVersion, nodeDpid, user }, 'Emailing community members');
     // const attestation = await this.findAttestationById(attestationId);
     const versionedAttestation = await this.getAttestationVersion(attestationVersionId, attestationId);
     const members = await prisma.communityMember.findMany({
@@ -992,7 +995,7 @@ export class AttestationService {
 
     try {
       logger.info({ members: messages, NODE_ENV: process.env.NODE_ENV }, '[EMAIL]:: ATTESTATION EMAIL');
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.SHOULD_SEND_EMAIL) {
         const response = await sgMail.send(messages);
         logger.info(response, '[EMAIL]:: Response');
       } else {
