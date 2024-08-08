@@ -49,6 +49,7 @@ model Node {
   dpidAlias           Int?
   DoiSubmissionQueue  DoiSubmissionQueue[]
   BookmarkedNode      BookmarkedNode[]
+  DeferredEmails      DeferredEmails[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -195,6 +196,7 @@ model User {
   NodeContribution            NodeContribution[]
   OrcidPutCodes               OrcidPutCodes[]
   BookmarkedNode              BookmarkedNode[]
+  DeferredEmails              DeferredEmails[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -742,6 +744,7 @@ model AttestationVersion {
   attestation               Attestation                 @relation(fields: [attestationId], references: [id])
   NodeAttestation           NodeAttestation[]
   CommunityEntryAttestation CommunityEntryAttestation[]
+  DeferredEmails            DeferredEmails[]
 }
 
 // A communities selected attestations, these appear in their radar.
@@ -782,8 +785,27 @@ model NodeAttestation {
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
   OrcidPutCodes               OrcidPutCodes[]
+  DeferredEmails              DeferredEmails[]
 
   @@unique([nodeUuid, nodeVersion, attestationId, attestationVersionId])
+}
+
+// Deferred emails are usually used when a published node is required, e.g. unpublished attestation claims, emails are deferred until node is published.
+model DeferredEmails {
+  id                   Int                 @id @default(autoincrement())
+  nodeUuid             String
+  emailType            EmailType
+  attestationVersionId Int?
+  nodeAttestationId    Int?
+  nodeAttestation      NodeAttestation?    @relation(fields: [nodeAttestationId], references: [id])
+  node                 Node                @relation(fields: [nodeUuid], references: [uuid])
+  User                 User?               @relation(fields: [userId], references: [id])
+  userId               Int?
+  AttestationVersion   AttestationVersion? @relation(fields: [attestationVersionId], references: [id])
+}
+
+enum EmailType {
+  PROTECTED_ATTESTATION
 }
 
 //Comments on attestations
@@ -797,6 +819,7 @@ model Annotation {
   author            User            @relation(fields: [authorId], references: [id])
   nodeAttestationId Int
   attestation       NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
+  deferredEmailsId  Int?
 }
 
 //An emoji reaction to a node
@@ -807,6 +830,7 @@ model NodeAttestationReaction {
   author            User            @relation(fields: [authorId], references: [id])
   nodeAttestationId Int
   attestation       NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
+  deferredEmailsId  Int?
 }
 
 // More prevalent reaction, reputation is staked
@@ -818,6 +842,7 @@ model NodeAttestationVerification {
   nodeAttestation   NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
+  deferredEmailsId  Int?
 
   @@unique([nodeAttestationId, userId])
 }

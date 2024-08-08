@@ -1,8 +1,8 @@
-import { Node, NodeContribution, User } from '@prisma/client';
+import { EmailType, Node, NodeContribution, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
 import { prisma } from '../client.js';
-import { getNodeVersion, hexToCid } from '../internal.js';
+import { attestationService, ensureUuidEndsWithDot, getNodeVersion, hexToCid } from '../internal.js';
 import { logger as parentLogger } from '../logger.js';
 import { SubmissionPackageEmailHtml } from '../templates/emails/utils/emailRenderer.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
@@ -96,8 +96,8 @@ export class PublishServices {
     const { researchObjects } = await getIndexedResearchObjects([uuid]);
     if (!researchObjects.length)
       logger.warn({ fn: 'retrieveBlockTimeByManifestCid' }, `No research objects found for nodeUuid ${uuid}`);
-    const indexedNode = researchObjects[0];
-    const targetVersion = indexedNode.versions.find((v) => hexToCid(v.cid) === manifestCid);
+    const indexedNode = researchObjects?.[0];
+    const targetVersion = indexedNode?.versions.find((v) => hexToCid(v.cid) === manifestCid);
     if (!targetVersion) {
       logger.warn(
         { fn: 'retrieveBlockTimeByManifestCid', uuid, manifestCid },
@@ -107,8 +107,67 @@ export class PublishServices {
     }
     return targetVersion.time;
   }
-}
 
+  /**
+   * Some emails are deferred until the node is published. This function will handle those deferred emails.
+   */
+  async handleDeferredEmails(uuid: string, dpid: string) {
+    logger.info({ fn: 'handleDeferredEmails', uuid, dpid }, 'Init deferred emails');
+    const deferred = await prisma.deferredEmails.findMany({
+      where: {
+        nodeUuid: ensureUuidEndsWithDot(uuid),
+      },
+      include: {
+        User: true,
+      },
+    });
+
+    logger.info({ fn: 'handleDeferredEmails', uuid, dpid, deferred }, 'Init deferred emails, step 2');
+
+    const protectedAttestationEmails = deferred.filter((d) => d.emailType === EmailType.PROTECTED_ATTESTATION);
+
+    logger.info({ fn: 'handleDeferredEmails', uuid, dpid, protectedAttestationEmails }, 'Init deferred emails, step 3');
+
+    if (protectedAttestationEmails.length) {
+      // Handle the emails related to protected attestation claims
+      const nodeVersion = await getNodeVersion(uuid);
+
+      const indexed = await getIndexedResearchObjects([uuid]);
+      const isNodePublished = indexed?.researchObjects?.length > 0;
+
+      logger.info({ fn: 'handleDeferredEmails', uuid, dpid, indexed, isNodePublished }, 'Init deferred emails, step 4');
+
+      if (isNodePublished) {
+        await Promise.allSettled(
+          protectedAttestationEmails.map((entry) => {
+            return attestationService.emailProtectedAttestationCommunityMembers(
+              entry.nodeAttestationId,
+              entry.attestationVersionId,
+              nodeVersion - 1, // 0-indexed total expected
+              dpid,
+              entry.User,
+            );
+          }),
+        );
+        logger.info(
+          { fn: 'handleDeferredEmails', uuid, dpid, protectedAttestationEmails },
+          `Sent ${protectedAttestationEmails.length} deferred protected attestation emails`,
+        );
+        // Remove the deferred emails after they have been sent
+        const executedDeferredEmailIds = protectedAttestationEmails.map((e) => e.id);
+        const deleted = await prisma.deferredEmails.deleteMany({
+          where: {
+            id: { in: executedDeferredEmailIds },
+          },
+        });
+        logger.info(
+          { fn: 'handleDeferredEmails', uuid, dpid, protectedAttestationEmails },
+          `removed ${deleted?.count} deferred protected attestation email entries as they have been executed`,
+        );
+      }
+    }
+  }
+}
 export interface NodeUpdatedEmailProps {
   nodeOwner: string;
   nodeTitle: string;
