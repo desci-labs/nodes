@@ -102,6 +102,9 @@ spec:
           export CROSSREF_NOTIFY_ENDPOINT={{ .Data.CROSSREF_NOTIFY_ENDPOINT }}
           export AUTOMATED_METADATA_API={{ .Data.AUTOMATED_METADATA_API }}
           export AUTOMATED_METADATA_API_KEY={{ .Data.AUTOMATED_METADATA_API_KEY }}
+          export ELASTIC_SEARCH_NODE_URL="{{ .Data.ELASTIC_SEARCH_NODE_URL }}"
+          export ELASTIC_SEARCH_USER="{{ .Data.ELASTIC_SEARCH_USER }}"
+          export ELASTIC_SEARCH_PW="{{ .Data.ELASTIC_SEARCH_PW }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
