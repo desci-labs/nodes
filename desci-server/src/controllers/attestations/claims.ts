@@ -72,7 +72,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
       data: {
         nodeUuid: uuid,
         emailType: EmailType.PROTECTED_ATTESTATION,
-        nodeAttestationId: nodeClaim.id,
+        attestationId: nodeClaim.attestationId,
         attestationVersionId: attestationVersion.id,
         userId: req.user.id,
       },
@@ -113,7 +113,7 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
       where: {
         nodeUuid: ensureUuidEndsWithDot(body.nodeUuid),
         emailType: EmailType.PROTECTED_ATTESTATION,
-        nodeAttestationId: claim.id,
+        attestationId: claim.attestationId,
         userId: req.user.id,
       },
     });
