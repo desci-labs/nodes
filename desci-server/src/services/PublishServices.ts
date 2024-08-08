@@ -1,4 +1,4 @@
-import { EmailType, Node, NodeContribution, User } from '@prisma/client';
+import { DeferredEmails, EmailType, Node, NodeContribution, Prisma, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
 import { prisma } from '../client.js';
@@ -139,9 +139,14 @@ export class PublishServices {
 
       if (isNodePublished) {
         await Promise.allSettled(
-          protectedAttestationEmails.map((entry) => {
+          protectedAttestationEmails.map(async (entry: DeferredEmails & { User: User }) => {
+            const baseAttestation = await prisma.nodeAttestation.findFirst({
+              where: { id: entry.nodeAttestationId },
+              include: { attestation: true },
+            });
+
             return attestationService.emailProtectedAttestationCommunityMembers(
-              entry.nodeAttestationId,
+              baseAttestation.id,
               entry.attestationVersionId,
               nodeVersion - 1, // 0-indexed total expected
               dpid,
