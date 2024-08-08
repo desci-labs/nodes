@@ -141,7 +141,7 @@ export class PublishServices {
         await Promise.allSettled(
           protectedAttestationEmails.map((entry) => {
             return attestationService.emailProtectedAttestationCommunityMembers(
-              entry.nodeAttestationId,
+              entry.attestationId,
               entry.attestationVersionId,
               nodeVersion - 1, // 0-indexed total expected
               dpid,
