@@ -72,7 +72,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
       data: {
         nodeUuid: uuid,
         emailType: EmailType.PROTECTED_ATTESTATION,
-        attestationId: nodeClaim.id,
+        nodeAttestationId: nodeClaim.id,
         attestationVersionId: attestationVersion.id,
         userId: req.user.id,
       },
@@ -112,6 +112,25 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
       : await attestationService.unClaimAttestation(claim.id);
 
   await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
+
+  // Check if any deferredEmails are created for attestation being unclaimed
+  try {
+    const deferredEmails = await prisma.deferredEmails.findMany({
+      where: {
+        nodeUuid: ensureUuidEndsWithDot(body.nodeUuid),
+        emailType: EmailType.PROTECTED_ATTESTATION,
+        nodeAttestationId: claim.id,
+        userId: req.user.id,
+      },
+    });
+    if (deferredEmails.length) {
+      const deleteIds = deferredEmails.map((e) => e.id);
+      const deleted = await prisma.deferredEmails.deleteMany({ where: { id: { in: deleteIds } } });
+      logger.info({ deleted }, 'Deferred attestation claim emails deleted');
+    }
+  } catch (e) {
+    logger.warn({ e, message: e?.message }, 'Something went wrong with deleting deferred attestation claim emails');
+  }
 
   logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
   return new SuccessMessageResponse('Attestation unclaimed').send(res);
