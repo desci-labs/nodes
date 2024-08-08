@@ -106,12 +106,6 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
 
   const claimSignal = await attestationService.getClaimEngagementSignals(claim.id);
   const totalSignal = claimSignal.annotations + claimSignal.reactions + claimSignal.verifications;
-  const removeOrRevoke =
-    totalSignal > 0
-      ? await attestationService.revokeAttestation(claim.id)
-      : await attestationService.unClaimAttestation(claim.id);
-
-  await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
 
   // Check if any deferredEmails are created for attestation being unclaimed
   try {
@@ -131,6 +125,13 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
   } catch (e) {
     logger.warn({ e, message: e?.message }, 'Something went wrong with deleting deferred attestation claim emails');
   }
+
+  const removeOrRevoke =
+    totalSignal > 0
+      ? await attestationService.revokeAttestation(claim.id)
+      : await attestationService.unClaimAttestation(claim.id);
+
+  await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
 
   logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
   return new SuccessMessageResponse('Attestation unclaimed').send(res);
