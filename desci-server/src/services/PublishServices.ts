@@ -112,6 +112,7 @@ export class PublishServices {
    * Some emails are deferred until the node is published. This function will handle those deferred emails.
    */
   async handleDeferredEmails(uuid: string, dpid: string) {
+    logger.info({ fn: 'handleDeferredEmails', uuid, dpid }, 'Init deferred emails');
     const deferred = await prisma.deferredEmails.findMany({
       where: {
         nodeUuid: ensureUuidEndsWithDot(uuid),
@@ -121,7 +122,11 @@ export class PublishServices {
       },
     });
 
+    logger.info({ fn: 'handleDeferredEmails', uuid, dpid, deferred }, 'Init deferred emails, step 2');
+
     const protectedAttestationEmails = deferred.filter((d) => d.emailType === EmailType.PROTECTED_ATTESTATION);
+
+    logger.info({ fn: 'handleDeferredEmails', uuid, dpid, protectedAttestationEmails }, 'Init deferred emails, step 3');
 
     if (protectedAttestationEmails.length) {
       // Handle the emails related to protected attestation claims
@@ -129,6 +134,8 @@ export class PublishServices {
 
       const indexed = await getIndexedResearchObjects([uuid]);
       const isNodePublished = !!indexed?.length;
+
+      logger.info({ fn: 'handleDeferredEmails', uuid, dpid, indexed, isNodePublished }, 'Init deferred emails, step 4');
 
       if (isNodePublished) {
         await Promise.allSettled(
