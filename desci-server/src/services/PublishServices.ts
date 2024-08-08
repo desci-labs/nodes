@@ -118,6 +118,7 @@ export class PublishServices {
       },
       include: {
         User: true,
+        NodeAttestation: true,
       },
     });
 
@@ -134,7 +135,7 @@ export class PublishServices {
         await Promise.allSettled(
           protectedAttestationEmails.map((entry) => {
             return attestationService.emailProtectedAttestationCommunityMembers(
-              entry.attestationId,
+              entry.NodeAttestation.attestationId,
               entry.attestationVersionId,
               nodeVersion - 1, // 0-indexed total expected
               dpid,

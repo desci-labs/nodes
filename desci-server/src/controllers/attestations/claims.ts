@@ -72,7 +72,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
       data: {
         nodeUuid: uuid,
         emailType: EmailType.PROTECTED_ATTESTATION,
-        attestationId: nodeClaim.id,
+        nodeAttestationId: nodeClaim.id,
         attestationVersionId: attestationVersion.id,
         userId: req.user.id,
       },
