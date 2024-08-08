@@ -48,6 +48,7 @@ model Node {
   DoiRecord           DoiRecord[]
   dpidAlias           Int?
   DoiSubmissionQueue  DoiSubmissionQueue[]
+  BookmarkedNode      BookmarkedNode[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -193,6 +194,7 @@ model User {
   PublishTaskQueue            PublishTaskQueue[]
   NodeContribution            NodeContribution[]
   OrcidPutCodes               OrcidPutCodes[]
+  BookmarkedNode              BookmarkedNode[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -447,16 +449,31 @@ model PublicDataReferenceOnIpfsMirror {
 }
 
 model PrivateShare {
-  id        Int      @id @default(autoincrement())
-  shareId   String   @unique
-  nodeUUID  String
-  memo      String?
-  node      Node     @relation(fields: [nodeUUID], references: [uuid])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int              @id @default(autoincrement())
+  shareId        String           @unique
+  nodeUUID       String
+  memo           String?
+  node           Node             @relation(fields: [nodeUUID], references: [uuid])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  BookmarkedNode BookmarkedNode[]
 
   @@index([nodeUUID])
   @@index([shareId])
+}
+
+model BookmarkedNode {
+  id           Int           @id @default(autoincrement())
+  userId       Int
+  nodeUuid     String
+  shareId      String?
+  privateShare PrivateShare? @relation(fields: [shareId], references: [shareId])
+  node         Node          @relation(fields: [nodeUuid], references: [uuid])
+  user         User          @relation(fields: [userId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([userId, nodeUuid])
 }
 
 model NodeCover {
