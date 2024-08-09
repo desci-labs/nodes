@@ -5,7 +5,7 @@ import _ from 'lodash';
 import { NodeRadar, ensureUuidEndsWithDot } from '../../internal.js';
 import { NodeUuid, cleanupManifestUrl, logger, prisma } from '../../internal.js';
 import repoService from '../../services/repoService.js';
-import { getIndexedResearchObjects } from '../../theGraph.js';
+import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
 
 export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
   const uuid = ensureUuidEndsWithDot(radar.nodeuuid);
@@ -61,9 +61,13 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
 };
 
 export const getNodeVersion = async (uuid: string) => {
+  let indexingResults: { researchObjects: IndexedResearchObject[]};
   try {
-    const { researchObjects } = await getIndexedResearchObjects([uuid]);
-    const result = researchObjects?.[0];
-    return result?.versions?.length ?? 0;
-  } catch (e) {}
+    indexingResults = await getIndexedResearchObjects([uuid]);
+    const researchObject = indexingResults.researchObjects[0];
+    return researchObject?.versions?.length ?? 0;
+  } catch (e) {
+    logger.error({ uuid, indexingResults }, "getNodeVersion failed");
+    throw e;
+  };
 };
