@@ -185,6 +185,7 @@ services:
       - "7007:7007"
     environment:
       NODE_ENV: production
+      CERAMIC_PUBSUB_QPS_LIMIT: 500
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
