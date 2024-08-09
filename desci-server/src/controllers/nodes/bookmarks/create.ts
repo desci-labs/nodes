@@ -7,7 +7,7 @@ import { logger as parentLogger } from '../../../logger.js';
 
 export type CreateNodeBookmarkReqBody = {
   nodeUuid: string;
-  shareKey: string;
+  shareKey?: string;
 };
 
 export type CreateNodeBookmarkRequest = Request<never, never, CreateNodeBookmarkReqBody> & {
