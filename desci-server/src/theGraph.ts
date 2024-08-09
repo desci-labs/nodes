@@ -45,6 +45,9 @@ export type IndexedResearchObjectVersion = {
 /**
  * Get the indexed (published) history for of some given node UUID(s).
  *
+ * Note: This method does not preserve order between param and return array
+ * when it needs to union legacy and stream based lookups.
+ *
  * Most of the (temporary) mess here stems from following reasons:
  * - TheGraph returns all strings hex encoded, and even though the resolver
  *   returns them plain we re-encode to hex to be backward compatible
@@ -170,20 +173,61 @@ export const _getIndexedResearchObjects = async (
       id, id10, recentCid, owner, versions(orderBy: time, orderDirection: desc) {
         cid, id, time
       }
-    } 
+    }
   }`;
   return query(q);
 };
 
-export const query = async (query: string) => {
+export const query = async <T>(
+  query: string,
+  overrideUrl?: string
+): Promise<T> => {
   const payload = JSON.stringify({
     query,
   });
-  const { data } = await axios.post(process.env.THEGRAPH_API_URL, payload);
+  const url = overrideUrl ?? process.env.THEGRAPH_API_URL;
+  const { data } = await axios.post(url, payload);
   if (data.errors) {
     logger.error({ fn: 'query', err: data.errors, query, dataRes: data }, `graph index query err ${query}`);
     throw Error(JSON.stringify(data.errors));
   }
-  return data.data;
+  return data.data as T;
 };
 
+type RegisterEvent = {
+  transactionHash: string,
+  entryId: string,
+};
+
+type DpidRegistersResponse = {
+  registers: RegisterEvent[],
+};
+
+/**
+ * Find the legacy dPID for a given node by looking up a transaction hash,
+ * as the graph doesn't index dPIDs by UUID.
+ * @deprecated
+*/
+export const _getDpidForTxIds = async (
+  txs: string[]
+): Promise<RegisterEvent[]> => {
+  logger.info({ txs }, "Getting legacy dpid's for transactions");
+  // Usually called with way less arguments, but 500 will prevent very odd errors as it will always  include all dpids
+  const q = `
+  {
+    registers(
+      first: 500
+      where: {
+        transactionHash_in: ["${txs.join('","')}"],
+      }
+      orderBy: entryId
+    ) {
+      transactionHash
+      entryId
+    }
+  }`;
+  console.log("Sending graph query:", { q })
+  const url = process.env.THEGRAPH_API_URL.replace("name/nodes", "name/dpid-registry");
+  const response = await query<DpidRegistersResponse>(q, url);
+  return response.registers;
+};

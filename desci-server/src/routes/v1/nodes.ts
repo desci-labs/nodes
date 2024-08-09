@@ -59,6 +59,7 @@ import { asyncHandler, attachUser, validate, ensureUserIfPresent } from '../../i
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
 import { nodeByDpid } from '../../controllers/nodes/byDpid.js';
+import { explore } from '../../controllers/nodes/explore.js';
 
 const router = Router();
 
@@ -71,6 +72,8 @@ router.get('/published/:dpid([0-9]+)', [], nodeByDpid);
 router.get('/published/:uuid', [], checkIfPublishedNode);
 router.get('/access/:uuid', [ensureUserIfPresent], checkNodeAccess);
 router.post('/search/:query', [ensureUser], searchNodes);
+router.get('/explore', [], explore);
+
 
 router.post('/createDpid', [ensureUser, ensureWriteNodeAccess], createDpid);
 router.post('/createDraft', [ensureUser], draftCreate);
