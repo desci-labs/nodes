@@ -46,7 +46,7 @@ export const createNodeBookmark = async (req: CreateNodeBookmarkRequest, res: Re
       data: {
         userId: user.id,
         nodeUuid: ensureUuidEndsWithDot(nodeUuid),
-        shareId: shareKey,
+        shareId: shareKey || null,
       },
     });
 
