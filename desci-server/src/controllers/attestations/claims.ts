@@ -64,7 +64,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   // Check if published to defer emails if not
   const indexed = await getIndexedResearchObjects([uuid]);
-  const isNodePublished = !!indexed?.length;
+  const isNodePublished = !!indexed?.researchObjects?.length;
 
   if (!isNodePublished && attestation.protected) {
     // Email table append op
