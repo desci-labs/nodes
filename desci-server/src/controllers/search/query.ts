@@ -12,7 +12,7 @@ import {
 
 import { Filter, QueryErrorResponse, QuerySuccessResponse } from './types.js';
 
-interface QuerySearchBodyParams {
+interface SingleQuerySearchBodyParams {
   query: string;
   entity: string;
   filters?: Filter[];
@@ -28,7 +28,7 @@ interface QuerySearchBodyParams {
 }
 
 export const singleQuery = async (
-  req: Request<any, any, QuerySearchBodyParams>,
+  req: Request<any, any, SingleQuerySearchBodyParams>,
   res: Response<QuerySuccessResponse | QueryErrorResponse>,
 ) => {
   const {
@@ -38,7 +38,7 @@ export const singleQuery = async (
     fuzzy,
     sort = { field: '_score', order: 'desc' },
     pagination = { page: 1, perPage: 10 },
-  }: QuerySearchBodyParams = req.body;
+  }: SingleQuerySearchBodyParams = req.body;
 
   const logger = parentLogger.child({
     module: 'SEARCH::SingleQuery',
