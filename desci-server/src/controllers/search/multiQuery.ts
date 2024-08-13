@@ -15,15 +15,34 @@ import { QueryDebuggingResponse, SingleQueryErrorResponse, SingleQuerySuccessRes
 type Entity = string;
 type Query = string;
 
+export type ComparisonOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte';
+export type FilterType = 'range' | 'term' | 'match' | 'exists';
+
+export type Filter = {
+  entity: Entity;
+  field: string;
+  type: FilterType;
+} & (
+  | { type: 'range'; operator: ComparisonOperator; value: number | string }
+  | { type: 'term'; value: string | number | boolean }
+  | { type: 'match'; value: string }
+  | { type: 'exists' }
+);
+
 type QueryObject = Record<Entity, Query>;
 
 interface MultiQuerySearchParams {
   queries: QueryObject[];
+  filters?: Filter[];
   fuzzy?: number;
-  sortType?: string;
-  sortOrder?: 'asc' | 'desc';
-  page?: number;
-  perPage?: number;
+  sort?: {
+    field: string;
+    order: 'asc' | 'desc';
+  };
+  pagination?: {
+    page: number;
+    perPage: number;
+  };
 }
 
 export const multiQuery = async (
@@ -33,25 +52,22 @@ export const multiQuery = async (
   const {
     queries,
     fuzzy,
-    sortType = 'relevance',
-    sortOrder,
-    page = 1,
-    perPage = 10,
+    filters,
+    sort = { field: '_score', order: 'desc' },
+    pagination = { page: 1, perPage: 10 },
   }: MultiQuerySearchParams = req.body;
   const logger = parentLogger.child({
     module: 'SEARCH::MultiQuery',
     queries,
+    filters,
     fuzzy,
-    sortType,
-    sortOrder,
-    page,
-    perPage,
+    sort,
+    pagination,
   });
 
   logger.trace({ fn: 'Executing elastic search query' });
 
   const validEntityQueries = queries.filter((q) => VALID_ENTITIES.includes(Object.keys(q)[0]));
-
   if (!validEntityQueries) {
     return res.status(400).json({
       ok: false,
@@ -59,34 +75,30 @@ export const multiQuery = async (
     });
   }
 
-  const esQueries = validEntityQueries.map((q) => {
-    const [entity, query] = Object.entries(q)[0];
-    return buildMultiMatchQuery(query, entity);
-  });
+  const esQueries = validEntityQueries.map((q) => buildMultiMatchQuery(q.query, q.entity));
+
   const primaryEntity = Object.keys(validEntityQueries[0])[0];
-  const esSort = buildSortQuery(DENORMALIZED_WORKS_INDEX, sortType, sortOrder);
-  const esBoolQuery = buildBoolQuery(esQueries);
+  const esSort = buildSortQuery(DENORMALIZED_WORKS_INDEX, sort.field, sort.order);
+  const esBoolQuery = buildBoolQuery(esQueries, filters);
 
   try {
-    logger.debug({ esQueries, esSort }, 'Executing query');
+    logger.debug({ esQueries, esSort, esBoolQuery }, 'Executing query');
     const { hits } = await elasticClient.search({
       index: DENORMALIZED_WORKS_INDEX,
       body: {
         ...esBoolQuery,
         sort: esSort,
-        from: (page - 1) * perPage,
-        size: perPage,
+        from: (pagination.page - 1) * pagination.perPage,
+        size: pagination.perPage,
       },
     });
 
     logger.info({ fn: 'Elastic search multi query executed successfully' });
-
     return res.json({
-      // esQueries,
       ok: true,
       total: hits.total,
-      page,
-      perPage,
+      page: pagination.page,
+      perPage: pagination.perPage,
       data: hits.hits,
     });
   } catch (error) {
