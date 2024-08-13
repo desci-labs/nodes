@@ -4,7 +4,7 @@ import {
   QueryDslTextQueryType,
 } from '@elastic/elasticsearch/lib/api/types.js';
 
-import { Filter } from '../controllers/search/multiQuery.js';
+import { Filter } from '../controllers/search/types.js';
 
 export const DENORMALIZED_WORKS_INDEX = 'denormalized_works_test_2024_08_01';
 export const VALID_ENTITIES = [

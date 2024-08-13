@@ -1,4 +1,3 @@
-import { SearchTotalHits } from '@elastic/elasticsearch/lib/api/types.js';
 import { Request, Response } from 'express';
 
 import { elasticClient } from '../../elasticSearchClient.js';
@@ -6,32 +5,12 @@ import { logger as parentLogger } from '../../logger.js';
 import {
   buildBoolQuery,
   buildMultiMatchQuery,
-  buildSimpleStringQuery,
   buildSortQuery,
   DENORMALIZED_WORKS_INDEX,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
-import { Filter } from './multiQuery.js';
-
-export interface SingleQuerySuccessResponse extends QueryDebuggingResponse {
-  ok: true;
-  page: number;
-  perPage: number;
-  total: number | SearchTotalHits;
-  data: any[];
-}
-
-export interface QueryDebuggingResponse {
-  esQuery?: any;
-  esQueries?: any;
-  esSort?: any;
-}
-
-export interface SingleQueryErrorResponse extends QueryDebuggingResponse {
-  ok: false;
-  error: string;
-}
+import { Filter, QueryErrorResponse, QuerySuccessResponse } from './types.js';
 
 interface QuerySearchBodyParams {
   query: string;
@@ -50,7 +29,7 @@ interface QuerySearchBodyParams {
 
 export const singleQuery = async (
   req: Request<any, any, QuerySearchBodyParams>,
-  res: Response<SingleQuerySuccessResponse | SingleQueryErrorResponse>,
+  res: Response<QuerySuccessResponse | QueryErrorResponse>,
 ) => {
   const {
     query,
@@ -107,6 +86,7 @@ export const singleQuery = async (
     return res.json({
       esQuery,
       esSort,
+      esBoolQuery,
       ok: true,
       total: hits.total,
       page: pagination.page,
@@ -120,6 +100,7 @@ export const singleQuery = async (
       error: 'An error occurred while searching',
       esQuery,
       esSort,
+      esBoolQuery,
     });
   }
 };

@@ -10,24 +10,7 @@ import {
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
-import { QueryDebuggingResponse, SingleQueryErrorResponse, SingleQuerySuccessResponse } from './query.js';
-
-type Entity = string;
-type Query = string;
-
-export type ComparisonOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte';
-export type FilterType = 'range' | 'term' | 'match' | 'exists';
-
-export type Filter = {
-  entity: Entity;
-  field: string;
-  type: FilterType;
-} & (
-  | { type: 'range'; operator: ComparisonOperator; value: number | string }
-  | { type: 'term'; value: string | number | boolean }
-  | { type: 'match'; value: string }
-  | { type: 'exists' }
-);
+import { Entity, Filter, Query, QueryDebuggingResponse, QueryErrorResponse, QuerySuccessResponse } from './types.js';
 
 type QueryObject = Record<Entity, Query>;
 
@@ -47,7 +30,7 @@ interface MultiQuerySearchParams {
 
 export const multiQuery = async (
   req: Request<any, any, MultiQuerySearchParams>,
-  res: Response<(SingleQuerySuccessResponse & QueryDebuggingResponse) | SingleQueryErrorResponse>,
+  res: Response<(QuerySuccessResponse & QueryDebuggingResponse) | QueryErrorResponse>,
 ) => {
   const {
     queries,
@@ -95,6 +78,9 @@ export const multiQuery = async (
 
     logger.info({ fn: 'Elastic search multi query executed successfully' });
     return res.json({
+      esQueries,
+      esBoolQuery,
+      esSort,
       ok: true,
       total: hits.total,
       page: pagination.page,
@@ -104,6 +90,9 @@ export const multiQuery = async (
   } catch (error) {
     logger.error({ error }, 'Elastic search multi query failed');
     return res.status(500).json({
+      esQueries,
+      esBoolQuery,
+      esSort,
       ok: false,
       error: 'An error occurred while searching',
     });
