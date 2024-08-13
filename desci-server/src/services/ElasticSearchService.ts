@@ -4,6 +4,8 @@ import {
   QueryDslTextQueryType,
 } from '@elastic/elasticsearch/lib/api/types.js';
 
+import { Filter } from '../controllers/search/multiQuery.js';
+
 export const DENORMALIZED_WORKS_INDEX = 'denormalized_works_test_2024_08_01';
 export const VALID_ENTITIES = [
   'authors',
@@ -102,16 +104,49 @@ export function buildSimpleStringQuery(query: string, entity: string, fuzzy?: nu
   };
 }
 
-export function buildBoolQuery(queries: any[]) {
-  return {
-    query: {
-      bool: {
-        // must: [],
-        should: queries,
-        // filter: [],
-      },
+export function buildBoolQuery(queries: any[], filters: Filter[] = []) {
+  const boolQuery: any = {
+    bool: {
+      should: queries,
     },
   };
+
+  if (filters.length > 0) {
+    boolQuery.bool.filter = filters.map(buildFilter);
+  }
+
+  return { query: boolQuery };
+}
+
+function buildFilter(filter: Filter) {
+  switch (filter.type) {
+    case 'range':
+      return {
+        range: {
+          [filter.field]: {
+            [filter.operator]: filter.value,
+          },
+        },
+      };
+    case 'term':
+      return {
+        term: {
+          [filter.field]: filter.value,
+        },
+      };
+    case 'match':
+      return {
+        match: {
+          [filter.field]: filter.value,
+        },
+      };
+    case 'exists':
+      return {
+        exists: {
+          field: filter.field,
+        },
+      };
+  }
 }
 
 export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number) {
