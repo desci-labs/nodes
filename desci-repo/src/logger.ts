@@ -1,6 +1,7 @@
 import { pino } from 'pino';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { pool } from './db/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,6 +68,26 @@ function omitBuffer(array) {
   });
 }
 
-process.on('uncaughtException', (err) => {
-  logger.fatal(err, 'uncaught exception');
-});
+type RejectionPayload = {
+  reason: unknown,
+  promise: Promise<unknown>,
+};
+
+const shutdownNicely = async (
+  err: Error | RejectionPayload,
+  kind: string
+): Promise<void> => {
+  await pool.end();
+  logger.fatal(err, kind);
+  process.exit(1);
+};
+
+process.on(
+  'uncaughtException',
+  e => shutdownNicely(e, 'uncaughtException')
+);
+
+process.on(
+  'unhandledRejection',
+  (reason, promise) => shutdownNicely({ reason, promise }, 'unhandledRejection')
+);
