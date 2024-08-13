@@ -1,6 +1,12 @@
 import {
+  QueryDslBoolQuery,
   QueryDslFunctionBoostMode,
+  QueryDslFunctionScoreContainer,
+  QueryDslFunctionScoreMode,
+  QueryDslFunctionScoreQuery,
   QueryDslQueryContainer,
+  QueryDslTermQuery,
+  QueryDslTermsQuery,
   QueryDslTextQueryType,
 } from '@elastic/elasticsearch/lib/api/types.js';
 
@@ -65,31 +71,53 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
   },
 };
 
-export function scoreBoostFunction(query: Record<'multi_match', MultiMatchQuery>) {
-  return {
-    function_score: {
-      query,
-      functions: [
-        {
-          field_value_factor: {
-            field: 'cited_by_count',
-            factor: 1.5,
-            modifier: 'log1p',
-            missing: 0,
-          },
-        },
-        {
-          field_value_factor: {
-            field: 'authors.author_cited_by_count',
-            factor: 0.1,
-            modifier: 'log1p',
-            missing: 0,
-          },
-        },
-      ],
-      boost_mode: 'sum' as QueryDslFunctionBoostMode,
-      score_mode: 'sum' as QueryDslFunctionBoostMode,
+export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: string): QueryDslFunctionScoreQuery {
+  /**
+   * Boost work citations, author citations, and reduce non articles
+   */
+  const functions: QueryDslFunctionScoreContainer[] = [
+    {
+      field_value_factor: {
+        field: 'cited_by_count',
+        factor: 1.5,
+        modifier: 'log1p',
+        missing: 0,
+      },
     },
+    {
+      field_value_factor: {
+        field: 'authors.author_cited_by_count',
+        factor: 0.1,
+        modifier: 'log1p',
+        missing: 0,
+      },
+    },
+  ];
+
+  if (entity === 'works' || 'works_single') {
+    const nonArticleFilter: QueryDslQueryContainer = {
+      bool: {
+        must_not: [
+          {
+            term: {
+              type: 'article',
+            } as QueryDslTermsQuery,
+          },
+        ],
+      } as QueryDslBoolQuery,
+    };
+
+    functions.push({
+      weight: 0.5,
+      filter: nonArticleFilter,
+    });
+  }
+
+  return {
+    query,
+    functions,
+    boost_mode: 'multiply' as QueryDslFunctionBoostMode,
+    score_mode: 'multiply' as QueryDslFunctionScoreMode,
   };
 }
 
@@ -165,7 +193,11 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
     },
   };
 
-  if (entity === 'works_single') return scoreBoostFunction(multiMatchQuery) as QueryDslQueryContainer;
+  if (entity === 'works' || entity === 'works_single') {
+    return {
+      function_score: createFunctionScoreQuery(multiMatchQuery, entity),
+    };
+  }
   return multiMatchQuery as QueryDslQueryContainer;
 }
 

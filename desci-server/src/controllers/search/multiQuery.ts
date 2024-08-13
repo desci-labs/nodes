@@ -58,7 +58,10 @@ export const multiQuery = async (
     });
   }
 
-  const esQueries = validEntityQueries.map((q) => buildMultiMatchQuery(q.query, q.entity));
+  const esQueries = validEntityQueries.map((q) => {
+    const [entity, query] = Object.entries(q)[0];
+    return buildMultiMatchQuery(query, entity, fuzzy);
+  });
 
   const primaryEntity = Object.keys(validEntityQueries[0])[0];
   const esSort = buildSortQuery(DENORMALIZED_WORKS_INDEX, sort.field, sort.order);
