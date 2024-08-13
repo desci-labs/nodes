@@ -12,6 +12,8 @@ import {
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
+import { Filter } from './multiQuery.js';
+
 export interface SingleQuerySuccessResponse extends QueryDebuggingResponse {
   ok: true;
   page: number;
@@ -34,36 +36,41 @@ export interface SingleQueryErrorResponse extends QueryDebuggingResponse {
 interface QuerySearchBodyParams {
   query: string;
   entity: string;
+  filters?: Filter[];
   fuzzy?: number;
-  sortType?: string;
-  sortOrder?: 'asc' | 'desc';
-  page?: number;
-  perPage?: number;
+  sort?: {
+    field: string;
+    order: 'asc' | 'desc';
+  };
+  pagination?: {
+    page: number;
+    perPage: number;
+  };
 }
 
 export const singleQuery = async (
   req: Request<any, any, QuerySearchBodyParams>,
   res: Response<SingleQuerySuccessResponse | SingleQueryErrorResponse>,
 ) => {
-  const { query, fuzzy, sortType = 'relevance', sortOrder, page = 1, perPage = 10 }: QuerySearchBodyParams = req.body;
-
-  let { entity } = req.body;
-
-  const logger = parentLogger.child({
-    module: 'SEARCH::Query',
+  const {
     query,
+    filters = [],
     entity,
     fuzzy,
-    sortType,
-    sortOrder,
-    page,
-    perPage,
+    sort = { field: '_score', order: 'desc' },
+    pagination = { page: 1, perPage: 10 },
+  }: QuerySearchBodyParams = req.body;
+
+  const logger = parentLogger.child({
+    module: 'SEARCH::SingleQuery',
+    query,
+    entity,
+    filters,
+    fuzzy,
+    sort,
+    pagination,
   });
-  if (entity === 'works') {
-    logger.info({ entity }, `Entity is 'works', changing to denormalized works index: ${DENORMALIZED_WORKS_INDEX}`);
-    entity = DENORMALIZED_WORKS_INDEX;
-  }
-  //
+
   logger.trace({ fn: 'Executing elastic search query' });
 
   if (!VALID_ENTITIES.includes(entity)) {
@@ -74,30 +81,36 @@ export const singleQuery = async (
   }
 
   // const esQuery = buildSimpleStringQuery(query, entity, fuzzy);
-  const esQuery = buildMultiMatchQuery(query, 'works_single', fuzzy);
-  const esSort = buildSortQuery(entity, sortType, sortOrder);
+  const tempEntity = entity === 'works' ? 'works_single' : entity; // Temp to apply boosting algo to default search
+  const esQuery = buildMultiMatchQuery(query, tempEntity, fuzzy);
+  const esBoolQuery = buildBoolQuery([esQuery], filters);
+  const esSort = buildSortQuery(entity, sort.field, sort.order);
 
   try {
-    logger.debug({ esQuery, esSort }, 'Executing query');
+    logger.debug({ esQuery, esSort, esBoolQuery }, 'Executing query');
+    const searchEntity = entity === 'works' ? DENORMALIZED_WORKS_INDEX : entity; // Temp overwrite with denormalized works index
+    if (entity === 'works')
+      logger.info({ entity }, `Entity is 'works', changing to denormalized works index: ${DENORMALIZED_WORKS_INDEX}`);
+
     const results = await elasticClient.search({
-      index: entity,
+      index: searchEntity,
       body: {
-        query: esQuery,
+        ...esBoolQuery,
         sort: esSort,
-        from: (page - 1) * perPage,
-        size: perPage,
+        from: (pagination.page - 1) * pagination.perPage,
+        size: pagination.perPage,
       },
     });
     const hits = results.hits;
-    logger.info({ fn: 'Elastic search query executed successfully' });
+    logger.info({ hitsReturned: hits.total }, 'Elastic search query executed successfully');
 
     return res.json({
       esQuery,
       esSort,
       ok: true,
       total: hits.total,
-      page,
-      perPage,
+      page: pagination.page,
+      perPage: pagination.perPage,
       data: hits.hits,
     });
   } catch (error) {
