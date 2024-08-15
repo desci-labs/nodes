@@ -214,6 +214,8 @@ services:
     ports:
       - "9777:9777" # debugger
       - "7771:7771" # Uncomment if you want to test the media server from the host machine
+    environment:
+      DPID_RESOLVER_URL: http://host.docker.internal:5460
 
   grobid:
     image: lfoppiano/grobid:0.8.0
