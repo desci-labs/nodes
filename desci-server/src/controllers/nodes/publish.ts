@@ -237,9 +237,9 @@ const syncPublish = async (
     await setCeramicStream(uuid, ceramicStream);
   } else if (node.ceramicStream !== ceramicStream) {
     logger.warn(
+      { database: node.ceramicStream, ceramicStream },
       // This is unexpected and weird, but important to know if it occurs
       `[publish:publish] stream on record does not match passed streamID`,
-      { database: node.ceramicStream, ceramicStream },
     );
   }
 
@@ -259,6 +259,7 @@ const syncPublish = async (
   };
 
   promises.push(
+    // Make sure artifacts are resolvable on public IPFS node
     handlePublicDataRefs({
       nodeId: node.id,
       userId: owner.id,
@@ -266,6 +267,11 @@ const syncPublish = async (
       nodeVersionId: nodeVersion.id,
       nodeUuid: node.uuid,
     }),
+    // Send emails coupled to the publish event
+    publishServices.handleDeferredEmails(
+      node.uuid,
+      dpidAlias?.toString() ?? legacyDpid?.toString(),
+    )
   );
 
   await Promise.all(promises);
@@ -458,7 +464,10 @@ export const publishHandler = async ({
     /**
      * Fire off any deferred emails awaiting publish
      */
-    await publishServices.handleDeferredEmails(node.uuid, manifest.dpid?.id);
+    await publishServices.handleDeferredEmails(
+      node.uuid,
+      node.dpidAlias?.toString() ?? manifest.dpid?.id
+    );
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
