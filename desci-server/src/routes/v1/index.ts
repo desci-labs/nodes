@@ -21,6 +21,7 @@ import log from './log.js';
 import nodes from './nodes.js';
 import pub from './pub.js';
 import referral from './referral.js';
+import search from './search.js';
 import services from './services.js';
 import users from './users.js';
 import waitlist from './waitlist.js';
@@ -58,6 +59,7 @@ router.use('/services', services);
 router.use('/communities', communities);
 router.use('/attestations', attestations);
 router.use('/doi', doi);
+router.use('/search', search);
 
 router.get('/nft/:id', nft);
 router.use('/referral', referral);

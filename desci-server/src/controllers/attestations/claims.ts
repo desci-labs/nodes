@@ -1,5 +1,4 @@
-import { ActionType, CommunityEntryAttestation } from '@prisma/client';
-import sgMail from '@sendgrid/mail';
+import { ActionType, CommunityEntryAttestation, EmailType } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
@@ -18,8 +17,7 @@ import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { AttestationClaimedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
-
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+import { getIndexedResearchObjects } from '../../theGraph.js';
 
 export const claimAttestation = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const body = req.body as {
@@ -64,37 +62,32 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   new SuccessResponse(nodeClaim).send(res);
 
-  if (attestation.protected) {
-    const members = await prisma.communityMember.findMany({
-      where: { communityId: attestation.communityId },
-      include: { user: { select: { email: true } } },
+  // Check if published to defer emails if not
+  const indexed = await getIndexedResearchObjects([uuid]);
+  const isNodePublished = !!indexed?.researchObjects?.length;
+
+  if (!isNodePublished && attestation.protected) {
+    // Email table append op
+    const deferredEmail = await prisma.deferredEmails.create({
+      data: {
+        nodeUuid: uuid,
+        emailType: EmailType.PROTECTED_ATTESTATION,
+        attestationId: nodeClaim.attestationId,
+        attestationVersionId: attestationVersion.id,
+        userId: req.user.id,
+      },
     });
+    logger.info({ deferredEmail }, 'Attestation was claimed on an unpublished node, deferred email table entry added.');
+  }
 
-    const messages = members.map((member) => ({
-      to: member.user.email,
-      from: 'no-reply@desci.com',
-      subject: `[nodes.desci.com] ${attestationVersion.name} claimed on DPID://${body.nodeDpid}/v${body.nodeVersion + 1}`,
-      text: `${req.user.name} just claimed ${attestationVersion.name} on ${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}?claim=${nodeClaim.id}`,
-      html: AttestationClaimedEmailHtml({
-        dpid: body.nodeDpid,
-        attestationName: attestationVersion.name,
-        communityName: attestationVersion.name,
-        userName: req.user.name,
-        dpidPath: `${process.env.DAPP_URL}/dpid/${body.nodeDpid}/v${body.nodeVersion + 1}?claim=${nodeClaim.id}`,
-      }),
-    }));
-
-    try {
-      logger.info({ members: messages, NODE_ENV: process.env.NODE_ENV }, '[EMAIL]:: ATTESTATION EMAIL');
-      if (process.env.NODE_ENV === 'production') {
-        const response = await sgMail.send(messages);
-        logger.info(response, '[EMAIL]:: Response');
-      } else {
-        messages.forEach((message) => logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject));
-      }
-    } catch (err) {
-      logger.info({ err }, '[EMAIL]::ERROR');
-    }
+  if (attestation.protected && isNodePublished) {
+    await attestationService.emailProtectedAttestationCommunityMembers(
+      nodeClaim.id,
+      attestationVersion.id,
+      body.nodeVersion,
+      body.nodeDpid,
+      req.user,
+    );
   }
 
   return;
@@ -113,6 +106,26 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
 
   const claimSignal = await attestationService.getClaimEngagementSignals(claim.id);
   const totalSignal = claimSignal.annotations + claimSignal.reactions + claimSignal.verifications;
+
+  // Check if any deferredEmails are created for attestation being unclaimed
+  try {
+    const deferredEmails = await prisma.deferredEmails.findMany({
+      where: {
+        nodeUuid: ensureUuidEndsWithDot(body.nodeUuid),
+        emailType: EmailType.PROTECTED_ATTESTATION,
+        attestationId: claim.attestationId,
+        userId: req.user.id,
+      },
+    });
+    if (deferredEmails.length) {
+      const deleteIds = deferredEmails.map((e) => e.id);
+      const deleted = await prisma.deferredEmails.deleteMany({ where: { id: { in: deleteIds } } });
+      logger.info({ deleted }, 'Deferred attestation claim emails deleted');
+    }
+  } catch (e) {
+    logger.warn({ e, message: e?.message }, 'Something went wrong with deleting deferred attestation claim emails');
+  }
+
   const removeOrRevoke =
     totalSignal > 0
       ? await attestationService.revokeAttestation(claim.id)
