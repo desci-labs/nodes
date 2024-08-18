@@ -146,6 +146,7 @@ export class PublishServices {
               nodeVersion - 1, // 0-indexed total expected
               dpid,
               entry.User,
+              ensureUuidEndsWithDot(uuid),
             );
           }),
         );

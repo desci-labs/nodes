@@ -82,11 +82,12 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   if (attestation.protected && isNodePublished) {
     await attestationService.emailProtectedAttestationCommunityMembers(
-      nodeClaim.id,
+      nodeClaim.attestationId,
       attestationVersion.id,
       body.nodeVersion,
       body.nodeDpid,
       req.user,
+      ensureUuidEndsWithDot(uuid),
     );
   }
 
