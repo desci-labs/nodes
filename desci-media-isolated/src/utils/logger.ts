@@ -20,12 +20,6 @@ const devTransport = {
 
 console.log('[Media Isolated - DIR NAME]::', __dirname, __filename, logLevel);
 
-const fileTransport = {
-  target: 'pino/file',
-  options: { destination: `${__dirname}/../log/server.log` },
-  level: 'trace',
-};
-
 export const logger = pino({
   level: logLevel,
   serializers: {
@@ -98,7 +92,7 @@ export const logger = pino({
     process.env.NODE_ENV === 'production'
       ? undefined
       : {
-          targets: [devTransport, fileTransport],
+          targets: [devTransport],
         },
   redact: {
     paths: [
@@ -135,4 +129,5 @@ function omitBuffer(array: any[]) {
 
 process.on('uncaughtException', (err) => {
   logger.fatal(err, 'uncaught exception');
+  process.exit(1);
 });

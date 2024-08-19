@@ -31,12 +31,18 @@ export class PublishServices {
     const contributors = ownerOnly ? [] : await contributorService.retrieveAllContributionsForNode(node, verifiedOnly);
     const nodeOwner = await prisma.user.findUnique({ where: { id: node.ownerId } });
     const manifest = await getLatestManifestFromNode(node);
-    const dpid = manifest.dpid?.id;
+    const dpid = node.dpidAlias?.toString() ?? manifest.dpid?.id;
     const versionPublished = await getNodeVersion(node.uuid);
 
     if (!dpid) {
       logger.error(
-        { nodeUuid: node.uuid, 'manifest.dpid': manifest?.dpid, nodeOwner, totalContributors: contributors.length },
+        {
+          nodeUuid: node.uuid,
+          'manifest.dpid': manifest?.dpid,
+          dpidAlias: node.dpidAlias,
+          nodeOwner,
+          totalContributors: contributors.length,
+        },
         'Failed to retrieve DPID for node, emails not sent during publish update.',
       );
     }
@@ -56,7 +62,7 @@ export class PublishServices {
         nodeUuid: node.uuid,
         nodeTitle: node.title,
         nodeDpid: dpid,
-        versionUpdate: versionPublished,
+        versionUpdate: versionPublished.toString(),
         manuscriptCid: manuscriptCid,
       });
 

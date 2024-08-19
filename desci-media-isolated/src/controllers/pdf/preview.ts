@@ -31,7 +31,6 @@ export const generatePreview = async (
   if (!pages) throw new BadRequestError('Missing pages number array in request body');
 
   try {
-    // debugger;
     console.log('start preview', cid);
     const previewPaths = await PdfManipulationService.generatePdfPreviews(cid, `${cid}.pdf`, pages, height);
     console.log('done preview', cid);
@@ -51,7 +50,6 @@ export const generatePreview = async (
       }
     }
 
-    console.log({ done: previewBuffers });
     res.setHeader('Content-Type', 'application/json');
 
     res.on('finish', async () => {

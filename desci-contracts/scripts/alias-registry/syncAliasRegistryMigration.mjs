@@ -50,7 +50,7 @@ const getDpidPage = async (page) => {
 };
 
 const allDpids = (await Promise.all(
-  [1,2,3].map(getDpidPage)
+  [1,2,3,4].map(getDpidPage)
 )).flat().sort((d1, d2) => parseInt(d1.dpid) - parseInt(d2.dpid));
 
 const toImportEntry = (dpid) => [
