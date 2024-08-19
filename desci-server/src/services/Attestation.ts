@@ -1,7 +1,8 @@
 import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { AnnotationType, Attestation, Prisma } from '@prisma/client';
+import { AnnotationType, Attestation, Prisma, User } from '@prisma/client';
+import sgMail from '@sendgrid/mail';
 import _ from 'lodash';
 
 import { prisma } from '../client.js';
@@ -19,9 +20,12 @@ import {
   VerificationError,
   VerificationNotFoundError,
   ensureUuidEndsWithDot,
-  logger,
+  logger as parentLogger,
 } from '../internal.js';
 import { communityService } from '../internal.js';
+import { AttestationClaimedEmailHtml } from '../templates/emails/utils/emailRenderer.js';
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export type AllAttestation = Attestation & {
   annotations: number;
@@ -39,6 +43,8 @@ export type CommunityAttestation = Attestation & {
   verifications: number;
   communitySelected: boolean;
 };
+
+const logger = parentLogger.child({ module: 'AttestationService' });
 
 /**
  * Attestation Service
@@ -779,7 +785,7 @@ export class AttestationService {
       LEFT JOIN "Annotation" AN ON AN."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
-      LEFT JOIN "CommunityEntryAttestation" CSA ON CSA."attestationId" = A."id" AND CSA."required" = true 
+      LEFT JOIN "CommunityEntryAttestation" CSA ON CSA."attestationId" = A."id"
 	where 
 		CSA."desciCommunityId" = ${communityId}
     GROUP BY
@@ -953,6 +959,57 @@ export class AttestationService {
       { reactions: 0, annotations: 0, verifications: 0 },
     );
     return groupedEngagements;
+  }
+
+  /**
+   * Fires off an email to all community members when a protected attestation is claimed
+   */
+  async emailProtectedAttestationCommunityMembers(
+    nodeAttestationId: number,
+    attestationVersionId: number,
+    nodeVersion: number,
+    nodeDpid: string,
+    user: User,
+  ) {
+    logger.info(
+      { nodeAttestationId, attestationVersionId, nodeVersion, nodeDpid, user },
+      'init emailProtectedAttestationCommunityMembers',
+    );
+    const nodeAttestation = await prisma.nodeAttestation.findFirst({ where: { id: nodeAttestationId } });
+    const attestationId = nodeAttestation.attestationId;
+    logger.info({ attestationId }, 'Emailing community members');
+    // const attestation = await this.findAttestationById(attestationId);
+    const versionedAttestation = await this.getAttestationVersion(attestationVersionId, attestationId);
+    const members = await prisma.communityMember.findMany({
+      where: { communityId: versionedAttestation.attestation.communityId },
+      include: { user: { select: { email: true } } },
+    });
+
+    const messages = members.map((member) => ({
+      to: member.user.email,
+      from: 'no-reply@desci.com',
+      subject: `[nodes.desci.com] ${versionedAttestation.name} claimed on DPID://${nodeDpid}/v${nodeVersion + 1}`,
+      text: `${user.name} just claimed ${versionedAttestation.name} on ${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}?claim=${attestationId}`,
+      html: AttestationClaimedEmailHtml({
+        dpid: nodeDpid,
+        attestationName: versionedAttestation.name,
+        communityName: versionedAttestation.name,
+        userName: user.name,
+        dpidPath: `${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}?claim=${attestationId}`,
+      }),
+    }));
+
+    try {
+      logger.info({ members: messages, NODE_ENV: process.env.NODE_ENV }, '[EMAIL]:: ATTESTATION EMAIL');
+      if (process.env.SHOULD_SEND_EMAIL) {
+        const response = await sgMail.send(messages);
+        logger.info(response, '[EMAIL]:: Response');
+      } else {
+        messages.forEach((message) => logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject));
+      }
+    } catch (err) {
+      logger.info({ err }, '[EMAIL]::ERROR');
+    }
   }
 }
 

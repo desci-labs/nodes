@@ -1,5 +1,8 @@
 import { Router } from 'express';
 
+import { createNodeBookmark } from '../../controllers/nodes/bookmarks/create.js';
+import { deleteNodeBookmark } from '../../controllers/nodes/bookmarks/delete.js';
+import { listBookmarkedNodes } from '../../controllers/nodes/bookmarks/index.js';
 import { checkIfPublishedNode } from '../../controllers/nodes/checkIfPublishedNode.js';
 import { checkNodeAccess } from '../../controllers/nodes/checkNodeAccess.js';
 import { addContributor } from '../../controllers/nodes/contributions/create.js';
@@ -89,6 +92,9 @@ router.get('/share', [ensureUser], listSharedNodes);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);
 router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
+router.get('/bookmarks', [ensureUser], listBookmarkedNodes);
+router.delete('/bookmarks/:nodeUuid', [ensureUser], deleteNodeBookmark);
+router.post('/bookmarks', [ensureUser], createNodeBookmark);
 router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
