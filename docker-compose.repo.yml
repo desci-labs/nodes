@@ -1,5 +1,3 @@
-version: "3"
-
 services:
   desci_repo:
     container_name: "desci_repo"

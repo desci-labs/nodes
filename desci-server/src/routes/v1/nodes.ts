@@ -1,5 +1,8 @@
 import { Router } from 'express';
 
+import { createNodeBookmark } from '../../controllers/nodes/bookmarks/create.js';
+import { deleteNodeBookmark } from '../../controllers/nodes/bookmarks/delete.js';
+import { listBookmarkedNodes } from '../../controllers/nodes/bookmarks/index.js';
 import { checkIfPublishedNode } from '../../controllers/nodes/checkIfPublishedNode.js';
 import { checkNodeAccess } from '../../controllers/nodes/checkNodeAccess.js';
 import { addContributor } from '../../controllers/nodes/contributions/create.js';
@@ -55,6 +58,8 @@ import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 import { asyncHandler, attachUser, validate, ensureUserIfPresent } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
+import { nodeByDpid } from '../../controllers/nodes/byDpid.js';
+import { explore } from '../../controllers/nodes/explore.js';
 
 const router = Router();
 
@@ -63,9 +68,12 @@ router.post('/publish', [ensureUser], publish);
 router.get('/stats', [ensureUser], getDraftNodeStats);
 router.get('/stats/published', [ensureUser], getPublishedNodeStats);
 router.get('/published/list', [ensureUser], getPublishedNodes);
+router.get('/published/:dpid([0-9]+)', [], nodeByDpid);
 router.get('/published/:uuid', [], checkIfPublishedNode);
 router.get('/access/:uuid', [ensureUserIfPresent], checkNodeAccess);
 router.post('/search/:query', [ensureUser], searchNodes);
+router.get('/explore', [], explore);
+
 
 router.post('/createDpid', [ensureUser, ensureWriteNodeAccess], createDpid);
 router.post('/createDraft', [ensureUser], draftCreate);
@@ -89,6 +97,9 @@ router.get('/share', [ensureUser], listSharedNodes);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);
 router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
+router.get('/bookmarks', [ensureUser], listBookmarkedNodes);
+router.delete('/bookmarks/:nodeUuid', [ensureUser], deleteNodeBookmark);
+router.post('/bookmarks', [ensureUser], createNodeBookmark);
 router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);

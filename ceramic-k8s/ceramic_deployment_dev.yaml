@@ -26,6 +26,7 @@ spec:
           {{- with secret "secrets/desci-server/dev/db" -}}
           echo "{\"anchor\":{\"ethereum-rpc-url\":\"{{ .Data.ceramic_rpc }}\"},\"http-api\":{\"cors-allowed-origins\":[\".*\"],\"admin-dids\":[\"did:key:z6MktbKJrMnhVJ37QFTo12911ycm2juKDUzWHDVETu9s5a9T\"]},\"ipfs\":{\"mode\":\"remote\",\"host\":\"http://public-ceramic-ipfs-dev-service-internal.default.svc.cluster.local:5001\"},\"logger\":{\"log-level\":0},\"metrics\":{\"metrics-exporter-enabled\":false,\"metrics-port\":9090},\"network\":{\"name\":\"testnet-clay\"},\"node\":{},\"state-store\":{\"mode\":\"fs\",\"local-directory\":\"/root/.ceramic/statestore\"},\"indexing\":{\"db\":\"{{ .Data.ceramic_url }}\",\"allow-queries-before-historical-sync\":true,\"models\":[]}}" > daemon.config.json
           export NODE_ENV=production
+          export CERAMIC_PUBSUB_QPS_LIMIT=500
           echo "envset"; 
           {{- end -}}
       labels:

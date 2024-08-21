@@ -965,13 +965,19 @@ export class AttestationService {
    * Fires off an email to all community members when a protected attestation is claimed
    */
   async emailProtectedAttestationCommunityMembers(
-    attestationId: number,
+    nodeAttestationId: number,
     attestationVersionId: number,
     nodeVersion: number,
     nodeDpid: string,
     user: User,
   ) {
-    logger.info({ attestationId, attestationVersionId, nodeVersion, nodeDpid, user }, 'Emailing community members');
+    logger.info(
+      { nodeAttestationId, attestationVersionId, nodeVersion, nodeDpid, user },
+      'init emailProtectedAttestationCommunityMembers',
+    );
+    const nodeAttestation = await prisma.nodeAttestation.findFirst({ where: { id: nodeAttestationId } });
+    const attestationId = nodeAttestation.attestationId;
+    logger.info({ attestationId }, 'Emailing community members');
     // const attestation = await this.findAttestationById(attestationId);
     const versionedAttestation = await this.getAttestationVersion(attestationVersionId, attestationId);
     const members = await prisma.communityMember.findMany({

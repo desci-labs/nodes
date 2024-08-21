@@ -208,7 +208,10 @@ export async function getTreeAndFill(
       cidInfoMap[ref.cid] = entryDetails;
     });
     const promises = pubEntries.map(async (ref) => {
-      const blockTime = await getBlockTime(nodeUuid, ref.nodeVersion.transactionId);
+      const blockTime = await getBlockTime(
+        nodeUuid,
+        ref.nodeVersion.transactionId ?? ref.nodeVersion.commitId
+      );
       const date = !!blockTime && blockTime !== '-1' ? blockTime : ref.createdAt?.getTime().toString();
       const entryDetails = {
         size: ref.size || 0,
@@ -228,13 +231,15 @@ export async function getTreeAndFill(
   return treeRoot;
 }
 
-export async function getBlockTime(nodeUuid: string, txHash: string) {
+export async function getBlockTime(nodeUuid: string, txOrCommit: string) {
   let blockTime;
   try {
-    blockTime = await getOrCache(`txHash-blockTime-${txHash}`, retrieveBlockTime);
-    if (blockTime !== '-1' && !blockTime) throw new Error('[getBlockTime] Failed to retrieve blocktime from cache');
+    blockTime = await getOrCache(`txHash-blockTime-${txOrCommit}`, retrieveBlockTime);
+    if (blockTime !== '-1' && !blockTime) {
+      throw new Error('[getBlockTime] Failed to retrieve blocktime from cache');
+    };
   } catch (err) {
-    logger.warn({ fn: 'getBlockTime', err, nodeUuid, txHash }, '[getBlockTime] error');
+    logger.warn({ fn: 'getBlockTime', err, nodeUuid, txHash: txOrCommit }, '[getBlockTime] error');
     logger.info('[getBlockTime] Falling back on uncached tree retrieval');
     return await retrieveBlockTime();
   }
@@ -245,9 +250,9 @@ export async function getBlockTime(nodeUuid: string, txHash: string) {
     if (!researchObjects.length)
       logger.warn({ fn: 'getBlockTime' }, `No research objects found for nodeUuid ${nodeUuid}`);
     const indexedNode = researchObjects[0];
-    const correctVersion = indexedNode.versions.find((v) => v.id === txHash);
+    const correctVersion = indexedNode.versions.find((v) => v.id === txOrCommit);
     if (!correctVersion) {
-      logger.warn({ fn: 'getBlockTime', nodeUuid, txHash }, `No version match was found for nodeUuid/txHash`);
+      logger.warn({ fn: 'getBlockTime', nodeUuid, txHash: txOrCommit }, `No version match was found for nodeUuid/txHash`);
       return '-1';
     }
     return correctVersion.time;
