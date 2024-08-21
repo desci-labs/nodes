@@ -12,7 +12,7 @@ import {
 
 import { Filter } from '../controllers/search/types.js';
 
-export const DENORMALIZED_WORKS_INDEX = 'denormalized_works_test_2024_08_01';
+export const DENORMALIZED_WORKS_INDEX = 'denormalized_works_test_2024_08_20';
 export const VALID_ENTITIES = [
   'authors',
   'concepts',
@@ -29,15 +29,23 @@ export const VALID_ENTITIES = [
  */
 export const RELEVANT_FIELDS = {
   works: ['title', 'abstract', 'doi'],
-  authors: ['display_name', 'orcid', 'last_known_institution'],
-  denorm_authors: ['authors.author_name', 'authors.orcid', 'authors.last_known_institution'],
+  authors: ['display_name', 'orcid', 'last_known_institution', 'authors.affiliation'],
+  topics: ['display_name', 'subfield_display_name'],
+  concepts: ['display_name'],
+  denorm_authors: ['authors.display_name', 'authors.orcid', 'authors.last_known_institution', 'authors.affiliation'],
+  denorm_topics: ['topics.display_name', 'topics.subfield_display_name'],
+  denorm_concepts: ['concepts.display_name', 'concepts.subfield_display_name'],
   works_single: [
     'title^1.25',
-    'abstract',
+    'abstract^1.25',
+    'topics.display_name^1.25',
+    'topics.subfield_display_name^1.25',
     'doi',
-    'authors.author_name',
+    'authors.display_name',
     'authors.orcid',
     'authors.last_known_institution',
+    'authors.last_known_institution',
+    'authors.affiliation',
   ],
 };
 
