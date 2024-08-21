@@ -8,7 +8,7 @@ export const attachDoiSchema = z.object({
   }),
 });
 
-export const getDoiSchema = z.object({
+export const retrieveDoiSchema = z.object({
   query: z
     .object({
       uuid: z.string().optional(),

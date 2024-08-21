@@ -8,9 +8,39 @@ import {
   SuccessResponse,
   doiService,
   ensureUuidEndsWithDot,
-  logger,
   logger as parentLogger,
 } from '../../internal.js';
+
+const pg = await import('pg').then((value) => value.default);
+const { Pool } = pg;
+
+const logger = parentLogger.child({ module: '/controllers/doi/check/' });
+// console.log('DB', process.env.DATABASE_URL);
+
+export const pool = new Pool({
+  connectionString: process.env.OPEN_ALEX_DATABASE_URL,
+  connectionTimeoutMillis: 5000,
+
+  // options: '-c search_path=public',
+});
+
+pool
+  .connect()
+  .then(async (v) => {
+    logger.info({ v }, 'Postgres Poll connected');
+    const { rows } = await pool.query(
+      'select pdf_url from openalex.works_best_oa_locations wboal left join openalex.works w on w.id = wboal.work_id where w.doi = $1',
+      ['https://doi.org/10.1088/2058-9565/ac70f4'],
+    );
+    logger.info({ rows }, 'PDF URL');
+  })
+  .catch((err) => logger.error({ err }, 'Postgres pool Error'));
+
+pool.on('error', (err, client) => {
+  logger.error({ err }, 'Unexpected error on idle client');
+  process.exit(-1);
+});
+// export const client = await pool.connect();
 
 export const checkMintability = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid } = req.params;
@@ -32,7 +62,7 @@ export const checkMintability = async (req: RequestWithNode, res: Response, _nex
   }
 };
 
-export const getDoi = async (req: Request, res: Response, _next: NextFunction) => {
+export const retrieveDoi = async (req: Request, res: Response, _next: NextFunction) => {
   const { doi: doiQuery, uuid, dpid } = req.query;
   const identifier = doiQuery || uuid || dpid;
 
@@ -47,7 +77,17 @@ export const getDoi = async (req: Request, res: Response, _next: NextFunction) =
     }
   }
 
+  logger.info({ doiQuery }, 'Retrieve DOI');
+
+  const doiLink = (doiQuery as string).startsWith('https') ? doiQuery : `https://doi.org/${doiQuery}`;
+  // pull record from openalex database
+  const { rows } = await pool.query(
+    'select pdf_url from openalex.works_best_oa_locations wboal left join openalex.works w on w.id = wboal.work_id where w.doi = $1',
+    [doiLink],
+  );
+
+  logger.info({ rows }, 'OPEN ALEX QUERY');
   const doi = await doiService.findDoiRecord(identifier as string);
   const data = _.pick(doi, ['doi', 'dpid', 'uuid']);
-  new SuccessResponse(data).send(res);
+  new SuccessResponse({ doi, pdf: rows?.[0].pdf_url, ...data }).send(res);
 };

@@ -107,8 +107,8 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     logger.info({ grobidMetadata }, 'Grobid Metadata');
   }
 
-  // todo: pull metadata from crossrefClient#getDoiMetadata
-  // const doiMetadata = await crossRefClient.getDoiMetadata('');
+  // todo: pull metadata from crossrefClient#retrieveDoiMetadata
+  // const doiMetadata = await crossRefClient.retrieveDoiMetadata('');
   // attempt to pull doi from crossref api
   if (!doi && metadata?.title) {
     const works = await crossRefClient.listWorks({
