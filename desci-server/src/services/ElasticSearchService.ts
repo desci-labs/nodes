@@ -19,7 +19,10 @@ export const VALID_ENTITIES = [
   'institutions',
   'publishers',
   'sources',
+  'topic',
+  'field',
   'topics',
+  'fields',
   'works',
   DENORMALIZED_WORKS_INDEX,
 ];
@@ -33,7 +36,8 @@ export const RELEVANT_FIELDS = {
   topics: ['display_name', 'subfield_display_name'],
   concepts: ['display_name'],
   denorm_authors: ['authors.display_name', 'authors.orcid', 'authors.last_known_institution', 'authors.affiliation'],
-  denorm_topics: ['topics.display_name', 'topics.subfield_display_name'],
+  denorm_topics: ['topics.display_name'],
+  denorm_fields: ['topics.subfield_display_name'],
   denorm_concepts: ['concepts.display_name', 'concepts.subfield_display_name'],
   works_single: [
     'title^1.25',
@@ -189,6 +193,8 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
   let fields = [];
   if (entity === 'works') fields = RELEVANT_FIELDS.works;
   if (entity === 'authors') fields = RELEVANT_FIELDS.denorm_authors;
+  if (entity === 'field' || entity === 'fields') fields = RELEVANT_FIELDS.denorm_fields;
+  if (entity === 'topic' || entity === 'topics') fields = RELEVANT_FIELDS.denorm_topics;
   if (entity === 'works_single') fields = RELEVANT_FIELDS.works_single;
 
   const type: QueryDslTextQueryType = 'best_fields';
