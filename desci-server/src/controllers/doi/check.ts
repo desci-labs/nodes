@@ -10,37 +10,12 @@ import {
   ensureUuidEndsWithDot,
   logger as parentLogger,
 } from '../../internal.js';
+import { OpenAlexWork, transformInvertedAbstractToText } from '../../services/AutomatedMetadata.js';
 
 const pg = await import('pg').then((value) => value.default);
-const { Pool } = pg;
+const { Client } = pg;
 
 const logger = parentLogger.child({ module: '/controllers/doi/check/' });
-// console.log('DB', process.env.DATABASE_URL);
-
-export const pool = new Pool({
-  connectionString: process.env.OPEN_ALEX_DATABASE_URL,
-  connectionTimeoutMillis: 5000,
-
-  // options: '-c search_path=public',
-});
-
-pool
-  .connect()
-  .then(async (v) => {
-    logger.info({ v }, 'Postgres Poll connected');
-    const { rows } = await pool.query(
-      'select pdf_url from openalex.works_best_oa_locations wboal left join openalex.works w on w.id = wboal.work_id where w.doi = $1',
-      ['https://doi.org/10.1088/2058-9565/ac70f4'],
-    );
-    logger.info({ rows }, 'PDF URL');
-  })
-  .catch((err) => logger.error({ err }, 'Postgres pool Error'));
-
-pool.on('error', (err, client) => {
-  logger.error({ err }, 'Unexpected error on idle client');
-  process.exit(-1);
-});
-// export const client = await pool.connect();
 
 export const checkMintability = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid } = req.params;
@@ -62,6 +37,18 @@ export const checkMintability = async (req: RequestWithNode, res: Response, _nex
   }
 };
 
+interface WorksDetails {
+  doi: string;
+  authors: string[];
+  citation_count: number;
+  pdf_url: string;
+  publication_year: string;
+  works_id: string;
+  work_type: string;
+  title: string;
+  landing_page_url: string;
+}
+
 export const retrieveDoi = async (req: Request, res: Response, _next: NextFunction) => {
   const { doi: doiQuery, uuid, dpid } = req.query;
   const identifier = doiQuery || uuid || dpid;
@@ -77,17 +64,54 @@ export const retrieveDoi = async (req: Request, res: Response, _next: NextFuncti
     }
   }
 
+  const doiLink = (doiQuery as string).startsWith('https') ? doiQuery : `https://doi.org/${doiQuery}`;
+
+  const client = new Client({
+    connectionString: process.env.OPEN_ALEX_DATABASE_URL,
+    connectionTimeoutMillis: 1500,
+    options: '-c search_path=openalex',
+  });
+
+  await client.connect();
   logger.info({ doiQuery }, 'Retrieve DOI');
 
-  const doiLink = (doiQuery as string).startsWith('https') ? doiQuery : `https://doi.org/${doiQuery}`;
   // pull record from openalex database
-  const { rows } = await pool.query(
-    'select pdf_url from openalex.works_best_oa_locations wboal left join openalex.works w on w.id = wboal.work_id where w.doi = $1',
+  const { rows } = await client.query(
+    `select pdf_url,
+    landing_page_url,
+    works.title as title,
+    works.id as works_id,
+    works."type" as work_type,
+    works.publication_year,
+    works.cited_by_count as citation_count,
+    ARRAY(
+        SELECT author.display_name as author_name FROM openalex.works_authorships wauth
+        left join openalex.authors author on author.id = wauth.author_id
+        WHERE wauth.work_id = works.id
+    ) as authors
+  from openalex.works_best_oa_locations wol 
+  left join openalex.works works on works.id  = wol.work_id
+  left JOIN openalex.works_authorships wa on works.id = wa.work_id
+  where works.doi = $1
+  GROUP BY wol.pdf_url, landing_page_url,title, works_id, work_type, citation_count, works.publication_year;`,
     [doiLink],
   );
 
-  logger.info({ rows }, 'OPEN ALEX QUERY');
-  const doi = await doiService.findDoiRecord(identifier as string);
-  const data = _.pick(doi, ['doi', 'dpid', 'uuid']);
-  new SuccessResponse({ doi, pdf: rows?.[0].pdf_url, ...data }).send(res);
+  const works = rows?.[0] as WorksDetails;
+
+  const { rows: abstract_result } = await client.query(
+    'select works.abstract_inverted_index AS abstract FROM openalex.works works WHERE works.id = $1',
+    [works.works_id],
+  );
+
+  const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
+  const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
+
+  await client.end();
+
+  logger.info({ works }, 'OPEN ALEX QUERY');
+  // const doi = await doiService.findDoiRecord(identifier as string);
+  // const data = _.pick(doi, ['doi', 'dpid', 'uuid']);
+
+  new SuccessResponse({ abstract, doi: identifier, ...works }).send(res);
 };
