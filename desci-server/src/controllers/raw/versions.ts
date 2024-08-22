@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 
 import { logger } from '../../logger.js';
-import { getIndexedResearchObjects } from '../../theGraph.js';
+import { getIndexedResearchObjects, IndexedResearchObject } from '../../theGraph.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 /**
@@ -10,7 +10,7 @@ import { ensureUuidEndsWithDot } from '../../utils.js';
 export const versions = async (req: Request, res: Response, next: NextFunction) => {
   const uuid = ensureUuidEndsWithDot(req.params.uuid);
   let graphOk = false;
-  let result;
+  let result: IndexedResearchObject;
   try {
     const { researchObjects } = await getIndexedResearchObjects([uuid]);
     result = researchObjects[0];
