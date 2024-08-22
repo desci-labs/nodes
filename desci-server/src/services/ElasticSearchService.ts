@@ -119,9 +119,25 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
       } as QueryDslBoolQuery,
     };
 
+    const nonEnglishFilter: QueryDslQueryContainer = {
+      bool: {
+        must_not: [
+          {
+            term: {
+              language: 'en',
+            } as QueryDslTermsQuery,
+          },
+        ],
+      } as QueryDslBoolQuery,
+    };
+
     functions.push({
       weight: 0.5,
       filter: nonArticleFilter,
+    });
+    functions.push({
+      weight: 0.1,
+      filter: nonEnglishFilter,
     });
   }
 
