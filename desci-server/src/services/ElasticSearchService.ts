@@ -92,14 +92,14 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
         missing: 0,
       },
     },
-    {
-      field_value_factor: {
-        field: 'authors.author_cited_by_count',
-        factor: 0.1,
-        modifier: 'log1p',
-        missing: 0,
-      },
-    },
+    // {
+    //   field_value_factor: {
+    //     field: 'authors.author_cited_by_count',
+    //     factor: 0.1,
+    //     modifier: 'log1p',
+    //     missing: 0,
+    //   },
+    // },
   ];
 
   if (entity === 'works' || 'works_single') {
