@@ -1,17 +1,28 @@
 import {
+  QueryDslBoolQuery,
   QueryDslFunctionBoostMode,
+  QueryDslFunctionScoreContainer,
+  QueryDslFunctionScoreMode,
+  QueryDslFunctionScoreQuery,
   QueryDslQueryContainer,
+  QueryDslTermQuery,
+  QueryDslTermsQuery,
   QueryDslTextQueryType,
 } from '@elastic/elasticsearch/lib/api/types.js';
 
-export const DENORMALIZED_WORKS_INDEX = 'denormalized_works_test_2024_08_01';
+import { Filter } from '../controllers/search/types.js';
+
+export const DENORMALIZED_WORKS_INDEX = 'denormalized_works_test_2024_08_20';
 export const VALID_ENTITIES = [
   'authors',
   'concepts',
   'institutions',
   'publishers',
   'sources',
+  'topic',
+  'field',
   'topics',
+  'fields',
   'works',
   DENORMALIZED_WORKS_INDEX,
 ];
@@ -21,15 +32,25 @@ export const VALID_ENTITIES = [
  */
 export const RELEVANT_FIELDS = {
   works: ['title', 'abstract', 'doi'],
-  authors: ['display_name', 'orcid', 'last_known_institution'],
-  denorm_authors: ['authors.author_name', 'authors.orcid', 'authors.last_known_institution'],
+  authors: ['display_name', 'orcid', 'last_known_institution', 'authors.affiliation'],
+  topics: ['display_name'],
+  fields: ['subfield_display_name'],
+  concepts: ['display_name'],
+  denorm_authors: ['authors.display_name', 'authors.orcid', 'authors.last_known_institution', 'authors.affiliation'],
+  denorm_topics: ['topics.display_name'],
+  denorm_fields: ['topics.subfield_display_name'],
+  denorm_concepts: ['concepts.display_name', 'concepts.subfield_display_name'],
   works_single: [
     'title^1.25',
-    'abstract',
+    'abstract^1.25',
+    'topics.display_name^1.25',
+    'topics.subfield_display_name^1.25',
     'doi',
-    'authors.author_name',
+    'authors.display_name',
     'authors.orcid',
     'authors.last_known_institution',
+    'authors.last_known_institution',
+    'authors.affiliation',
   ],
 };
 
@@ -63,31 +84,69 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
   },
 };
 
-export function scoreBoostFunction(query: Record<'multi_match', MultiMatchQuery>) {
-  return {
-    function_score: {
-      query,
-      functions: [
-        {
-          field_value_factor: {
-            field: 'cited_by_count',
-            factor: 1.5,
-            modifier: 'log1p',
-            missing: 0,
-          },
-        },
-        {
-          field_value_factor: {
-            field: 'authors.author_cited_by_count',
-            factor: 0.1,
-            modifier: 'log1p',
-            missing: 0,
-          },
-        },
-      ],
-      boost_mode: 'sum' as QueryDslFunctionBoostMode,
-      score_mode: 'sum' as QueryDslFunctionBoostMode,
+export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: string): QueryDslFunctionScoreQuery {
+  /**
+   * Boost work citations, author citations, and reduce non articles
+   */
+  const functions: QueryDslFunctionScoreContainer[] = [
+    {
+      field_value_factor: {
+        field: 'cited_by_count',
+        factor: 1.5,
+        modifier: 'log1p',
+        missing: 0,
+      },
     },
+    // {
+    //   field_value_factor: {
+    //     field: 'authors.author_cited_by_count',
+    //     factor: 0.1,
+    //     modifier: 'log1p',
+    //     missing: 0,
+    //   },
+    // },
+  ];
+
+  if (entity === 'works' || 'works_single') {
+    const nonArticleFilter: QueryDslQueryContainer = {
+      bool: {
+        must_not: [
+          {
+            term: {
+              type: 'article',
+            } as QueryDslTermsQuery,
+          },
+        ],
+      } as QueryDslBoolQuery,
+    };
+
+    const nonEnglishFilter: QueryDslQueryContainer = {
+      bool: {
+        must_not: [
+          {
+            term: {
+              language: 'en',
+            } as QueryDslTermsQuery,
+          },
+        ],
+      } as QueryDslBoolQuery,
+    };
+
+    functions.push({
+      weight: 0.5,
+      filter: nonArticleFilter,
+    });
+    functions.push({
+      weight: 0.1,
+      filter: nonEnglishFilter,
+    });
+  }
+
+  return {
+    query,
+    functions,
+    boost_mode: 'multiply' as QueryDslFunctionBoostMode,
+    score_mode: 'multiply' as QueryDslFunctionScoreMode,
   };
 }
 
@@ -102,23 +161,66 @@ export function buildSimpleStringQuery(query: string, entity: string, fuzzy?: nu
   };
 }
 
-export function buildBoolQuery(queries: any[]) {
-  return {
-    query: {
-      bool: {
-        // must: [],
-        should: queries,
-        // filter: [],
-      },
+export function buildBoolQuery(queries: any[], filters: Filter[] = []) {
+  const boolQuery: any = {
+    bool: {
+      should: queries,
     },
   };
+
+  if (filters.length > 0) {
+    boolQuery.bool.filter = filters.map(buildFilter);
+  }
+
+  return { query: boolQuery };
+}
+
+function buildFilter(filter: Filter) {
+  switch (filter.type) {
+    case 'range':
+      return {
+        range: {
+          [filter.field]: {
+            [filter.operator]: filter.value,
+          },
+        },
+      };
+    case 'term':
+      return {
+        term: {
+          [filter.field]: filter.value,
+        },
+      };
+    case 'match':
+      return {
+        match: {
+          [filter.field]: filter.value,
+        },
+      };
+    case 'exists':
+      return {
+        exists: {
+          field: filter.field,
+        },
+      };
+  }
+}
+
+function getRelevantFields(entity: string) {
+  if (entity === 'works') return RELEVANT_FIELDS.works;
+  if (entity === 'authors') return RELEVANT_FIELDS.authors;
+  if (entity === 'topics') return RELEVANT_FIELDS.topics;
+  if (entity === 'fields') return RELEVANT_FIELDS.fields;
+  if (entity === 'works_authors') return RELEVANT_FIELDS.denorm_authors;
+  if (entity === 'works_fields') return RELEVANT_FIELDS.denorm_fields;
+  if (entity === 'works_topics') return RELEVANT_FIELDS.denorm_topics;
+  if (entity === 'works_single') return RELEVANT_FIELDS.works_single; // refers to the single query search
+
+  return RELEVANT_FIELDS.works_single;
 }
 
 export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number) {
-  let fields = [];
-  if (entity === 'works') fields = RELEVANT_FIELDS.works;
-  if (entity === 'authors') fields = RELEVANT_FIELDS.denorm_authors;
-  if (entity === 'works_single') fields = RELEVANT_FIELDS.works_single;
+  const fields = getRelevantFields(entity);
 
   const type: QueryDslTextQueryType = 'best_fields';
   const multiMatchQuery = {
@@ -130,7 +232,11 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
     },
   };
 
-  if (entity === 'works_single') return scoreBoostFunction(multiMatchQuery) as QueryDslQueryContainer;
+  if (entity === 'works' || entity === 'works_single') {
+    return {
+      function_score: createFunctionScoreQuery(multiMatchQuery, entity),
+    };
+  }
   return multiMatchQuery as QueryDslQueryContainer;
 }
 
