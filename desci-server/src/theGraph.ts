@@ -145,6 +145,10 @@ const getHistoryFromStreams = async (
     { ids: Object.keys(streamToHexUuid) },
   );
 
+  // Aid in figuring out why sometimes v.time is undefined in production
+  // TODO remove me
+  logger.debug({fn: "getHistoryFromStreams", data: historyRes.data })
+
   // Convert resolver format to server format
   const indexedHistory: IndexedResearchObject[] = historyRes.data.map(ro => ({
     id: streamToHexUuid[ro.id],
