@@ -206,16 +206,21 @@ function buildFilter(filter: Filter) {
   }
 }
 
+function getRelevantFields(entity: string) {
+  if (entity === 'works') return RELEVANT_FIELDS.works;
+  if (entity === 'authors') return RELEVANT_FIELDS.authors;
+  if (entity === 'topics') return RELEVANT_FIELDS.topics;
+  if (entity === 'fields') return RELEVANT_FIELDS.fields;
+  if (entity === 'works_authors') return RELEVANT_FIELDS.denorm_authors;
+  if (entity === 'works_fields') return RELEVANT_FIELDS.denorm_fields;
+  if (entity === 'works_topics') return RELEVANT_FIELDS.denorm_topics;
+  if (entity === 'works_single') return RELEVANT_FIELDS.works_single; // refers to the single query search
+
+  return RELEVANT_FIELDS.works_single;
+}
+
 export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number) {
-  let fields = [];
-  if (entity === 'works') fields = RELEVANT_FIELDS.works;
-  if (entity === 'authors') fields = RELEVANT_FIELDS.authors;
-  if (entity === 'topics') fields = RELEVANT_FIELDS.topics;
-  if (entity === 'fields') fields = RELEVANT_FIELDS.fields;
-  if (entity === 'works_authors') fields = RELEVANT_FIELDS.denorm_authors;
-  if (entity === 'works_fields') fields = RELEVANT_FIELDS.denorm_fields;
-  if (entity === 'works_topics') fields = RELEVANT_FIELDS.denorm_topics;
-  if (entity === 'works_single') fields = RELEVANT_FIELDS.works_single; // refers to the single query search
+  const fields = getRelevantFields(entity);
 
   const type: QueryDslTextQueryType = 'best_fields';
   const multiMatchQuery = {
