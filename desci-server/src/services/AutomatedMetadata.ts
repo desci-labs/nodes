@@ -512,7 +512,7 @@ const transformOpenAlexWorkToMetadata = (work: OpenAlexWork): MetadataResponse =
   return { title: work.title, doi: work.doi, authors, pdfUrl: '', keywords, abstract };
 };
 
-const transformInvertedAbstractToText = (abstract: OpenAlexWork['abstract_inverted_index']) => {
+export const transformInvertedAbstractToText = (abstract: OpenAlexWork['abstract_inverted_index']) => {
   const words = [];
   Object.entries(abstract).map(([word, positions]) => {
     positions.forEach((pos) => words.splice(pos, 0, word));

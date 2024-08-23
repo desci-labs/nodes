@@ -105,6 +105,7 @@ spec:
           export ELASTIC_SEARCH_NODE_URL="{{ .Data.ELASTIC_SEARCH_NODE_URL }}"
           export ELASTIC_SEARCH_USER="{{ .Data.ELASTIC_SEARCH_USER }}"
           export ELASTIC_SEARCH_PW="{{ .Data.ELASTIC_SEARCH_PW }}"
+          export OPEN_ALEX_DATABASE_URL="{{ .Data.OPEN_ALEX_DATABASE_URL }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
