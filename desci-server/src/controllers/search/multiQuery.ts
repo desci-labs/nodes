@@ -58,12 +58,15 @@ export const multiQuery = async (
     });
   }
 
+  const primaryEntity = Object.keys(validEntityQueries[0])[0];
+
   const esQueries = validEntityQueries.map((q) => {
     const [entity, query] = Object.entries(q)[0];
-    return buildMultiMatchQuery(query, entity, fuzzy);
+    let fullEntity = entity;
+    if (entity !== primaryEntity) fullEntity = `${primaryEntity}_${entity}`; // e.g. if we're searching for authors in the works table, entity should be 'works_authors'
+    return buildMultiMatchQuery(query, fullEntity, fuzzy);
   });
 
-  const primaryEntity = Object.keys(validEntityQueries[0])[0];
   const esSort = buildSortQuery(DENORMALIZED_WORKS_INDEX, sort.field, sort.order);
   const esBoolQuery = buildBoolQuery(esQueries, filters);
 

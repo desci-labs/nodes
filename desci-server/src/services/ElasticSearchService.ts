@@ -33,7 +33,8 @@ export const VALID_ENTITIES = [
 export const RELEVANT_FIELDS = {
   works: ['title', 'abstract', 'doi'],
   authors: ['display_name', 'orcid', 'last_known_institution', 'authors.affiliation'],
-  topics: ['display_name', 'subfield_display_name'],
+  topics: ['display_name'],
+  fields: ['subfield_display_name'],
   concepts: ['display_name'],
   denorm_authors: ['authors.display_name', 'authors.orcid', 'authors.last_known_institution', 'authors.affiliation'],
   denorm_topics: ['topics.display_name'],
@@ -208,10 +209,13 @@ function buildFilter(filter: Filter) {
 export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number) {
   let fields = [];
   if (entity === 'works') fields = RELEVANT_FIELDS.works;
-  if (entity === 'authors') fields = RELEVANT_FIELDS.denorm_authors;
-  if (entity === 'field' || entity === 'fields') fields = RELEVANT_FIELDS.denorm_fields;
-  if (entity === 'topic' || entity === 'topics') fields = RELEVANT_FIELDS.denorm_topics;
-  if (entity === 'works_single') fields = RELEVANT_FIELDS.works_single;
+  if (entity === 'authors') fields = RELEVANT_FIELDS.authors;
+  if (entity === 'topics') fields = RELEVANT_FIELDS.topics;
+  if (entity === 'fields') fields = RELEVANT_FIELDS.fields;
+  if (entity === 'works_authors') fields = RELEVANT_FIELDS.denorm_authors;
+  if (entity === 'works_fields') fields = RELEVANT_FIELDS.denorm_fields;
+  if (entity === 'works_topics') fields = RELEVANT_FIELDS.denorm_topics;
+  if (entity === 'works_single') fields = RELEVANT_FIELDS.works_single; // refers to the single query search
 
   const type: QueryDslTextQueryType = 'best_fields';
   const multiMatchQuery = {
