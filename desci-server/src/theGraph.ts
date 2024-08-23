@@ -75,7 +75,7 @@ export const getIndexedResearchObjects = async (
     },
   });
 
-  // 1. These (upgraded nodes) we can resolve normally
+  // 1. Upgraded nodes we can resolve normally
   const nodesWithStream = nodeRes.filter(n => !!n.ceramicStream);
 
   // Create stream to hex UUID lookup mapping
@@ -94,15 +94,17 @@ export const getIndexedResearchObjects = async (
     logger.info({ streamHistory }, "Resolver history for nodes found");
   };
 
-  // 2. These are simplest to fallback to graph lookup as we don't have the dPID handy
-  const nodesWithoutStream = nodeRes
-    .filter(n => !n.ceramicStream)
-    .map(n => n.uuid);
+  // 2. Other nodes we need to graph lookup, as we don't have the dPID handy
+  //   - Can't filter on just !ceramicStream, as some really old nodes aren't in the database
+  const uuidsWithoutStream = urlSafeBase64s.filter(
+    // Filter out DB nodes with the same uuid, that has a tracked stream
+    u => !nodeRes.some(({ uuid, ceramicStream }) => u === uuid && ceramicStream !== null)
+  );
 
   let legacyHistory = [];
-  if (nodesWithoutStream.length > 0) {
-    logger.info({ nodesWithoutStream }, "Falling back to subgraph query for history");
-    legacyHistory = (await _getIndexedResearchObjects(nodesWithoutStream))
+  if (uuidsWithoutStream.length > 0) {
+    logger.info({ uuidsWithoutStream}, "Falling back to subgraph query for history");
+    legacyHistory = (await _getIndexedResearchObjects(uuidsWithoutStream))
       .researchObjects;
     logger.info({ legacyHistory }, "Subgraph history for nodes found");
   };
