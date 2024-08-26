@@ -113,6 +113,9 @@ export function ensureUuidEndsWithDot(uuid: string): string {
   return uuid.endsWith('.') ? uuid : uuid + '.';
 }
 
+export const unpadUuid = (uuid: string): string =>
+  uuid.replace(".", "");
+
 export async function calculateTotalZipUncompressedSize(zipPath: string): Promise<number> {
   return new Promise((resolve, reject) => {
     let totalSize = 0;
