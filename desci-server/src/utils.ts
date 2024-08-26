@@ -38,6 +38,16 @@ export const randomUUID64 = () => {
   return encoded;
 };
 
+/** Test if a string is a valid, plain-text CID */
+export const isCid = (maybeCid: string) => {
+  try {
+    CID.parse(maybeCid);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 export const hexToCid = (hexCid: string) => {
   hexCid = hexCid.substring(2); // remove 0x
   hexCid = hexCid.length % 2 === 0 ? hexCid.substring(1) : hexCid;

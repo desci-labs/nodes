@@ -1,80 +1,110 @@
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
-import { resolveNodeManifest } from '../../internal.js';
+import { cachedGetDpidFromManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getIndexedResearchObjects } from '../../theGraph.js';
-import { asyncMap, decodeBase64UrlSafeToHex } from '../../utils.js';
+import { asyncMap } from '../../utils.js';
+import { User } from '@prisma/client';
 
 const logger = parentLogger.child({
   module: 'NODE::getPublishedNodes',
 });
-export const getPublishedNodes = async (req: Request, res: Response, next: NextFunction) => {
-  const owner = (req as any).user;
-  const ipfsQuery = req.query.g;
+
+type PublishedNodesQueryParams = {
+  /** Alternative IPFS gateway */
+  g?: string;
+  page?: string;
+  size?: string;
+};
+
+type PublishedNodesRequest = 
+  Request<never, never, never, PublishedNodesQueryParams> & { user: User };
+
+type PublishedNode = {
+    uuid: string;
+    /** Current version index */
+    versionIx: number;
+    /** The latest published manifest CID */
+    cid: string;
+    /** Datetime of latest publish */
+    publishedAt: Date;
+    /** Current title of the node (could have changed after publish) */
+    title: string;
+    /** Creation time of the node */
+    createdAt: Date;
+    dpid?: number;
+};
+
+type PublishedNodesResponse = Response<{
+  nodes: PublishedNode[];
+}>;
+
+export const getPublishedNodes = async (
+  req: PublishedNodesRequest,
+  res: PublishedNodesResponse,
+) => {
+  const owner = req.user;
+  const gateway = req.query.g;
 
   // implement paging
   const page: number = req.query.page ? parseInt(req.query.page as string) : 1;
-  const limit: number = req.query.limit ? parseInt(req.query.limit as string) : 20;
+  const size: number = req.query.size ? parseInt(req.query.size as string) : 20;
 
-  let nodes = await prisma.node.findMany({
+  const publishedNodes = await prisma.node.findMany({
     select: {
       uuid: true,
-      id: true,
-      createdAt: true,
-      updatedAt: true,
-      ownerId: true,
       title: true,
-      manifestUrl: true,
-      cid: true,
-      NodeCover: true,
+      createdAt: true,
       dpidAlias: true,
+      versions: {
+        select: {
+          manifestUrl: true,
+          createdAt: true,
+          commitId: true,
+          transactionId: true,
+        },
+        where: {
+          OR: [
+            { transactionId: { not: null }},
+            { commitId: { not: null }},
+          ]
+        },
+        orderBy: { createdAt: "desc" }
+      }
     },
     where: {
       ownerId: owner.id,
       isDeleted: false,
-      ceramicStream: {
-        not: null,
-      },
+      // Without additional filter, we'll get results with empty versions array
+      versions: {
+        some: {
+          OR: [
+            { transactionId: { not: null }},
+            { commitId: { not: null }},
+          ]
+        }
+       }
     },
-    orderBy: { updatedAt: 'desc' },
+    // Note this is the node update, not time of last publish
+    orderBy: { updatedAt: "desc" },
+    take: size,
+    skip: (page -1) * size,
   });
-  logger.info({ nodes }, 'nodeess');
-  const indexMap = {};
 
-  try {
-    const uuids = nodes.map((n) => n.uuid);
-    const indexed = await getIndexedResearchObjects(uuids);
-    indexed.researchObjects.forEach((e) => {
-      indexMap[e.id] = e;
-    });
-  } catch (err) {
-    logger.error({ err: err.message }, '[ERROR] graph index lookup fail');
-    // todo: try on chain direct (current method doesnt support batch, so fix that and add here)
-  }
+  const formattedNodes = await asyncMap(publishedNodes, async n => {
+    const versionIx = n.versions.length - 1;
+    const cid = n.versions[0].manifestUrl;
+    const publishedAt = n.versions[0].createdAt;
 
-  let foundNodes = await asyncMap(nodes, async (n) => {
-    const hex = `0x${decodeBase64UrlSafeToHex(n.uuid)}`;
-    const result = indexMap[hex];
-    const manifest: ResearchObjectV1 = result?.recentCid
-      ? await resolveNodeManifest(result?.recentCid, ipfsQuery as string)
-      : null;
-    const o = {
-      ...n,
-      uuid: n.uuid.replaceAll('.', ''),
-      isPublished: !!indexMap[hex],
-      index: indexMap[hex],
-      dpid: manifest?.dpid,
+    return {
+      uuid: n.uuid.replace(".", ""),
+      title: n.title,
+      createdAt: n.createdAt,
+      cid,
+      versionIx,
+      publishedAt,
+      dpid: n.dpidAlias ?? await cachedGetDpidFromManifest(cid, gateway),
     };
-    delete o.id;
-
-    return o;
   });
 
-  logger.info({ foundNodes }, 'foundNodes');
-
-  foundNodes = foundNodes.filter((n) => n.isPublished);
-  foundNodes = foundNodes.slice((page - 1) * limit, page * limit);
-
-  res.send({ nodes: foundNodes });
+  res.send({ nodes: formattedNodes });
 };

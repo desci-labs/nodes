@@ -30,9 +30,7 @@ export const getPublishedNodeStats = async (
       id: true
     },
     where: {
-      ownerId: {
-        equals: owner.id
-      },
+      ownerId: owner.id,
       versions: {
         some: {
           OR: [
