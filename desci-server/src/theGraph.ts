@@ -145,25 +145,28 @@ const getHistoryFromStreams = async (
     { ids: Object.keys(streamToHexUuid) },
   );
 
-  // Aid in figuring out why sometimes v.time is undefined in production
-  // TODO remove me
-  logger.debug({fn: "getHistoryFromStreams", data: historyRes.data })
-
-  // Convert resolver format to server format
-  const indexedHistory: IndexedResearchObject[] = historyRes.data.map(ro => ({
-    id: streamToHexUuid[ro.id],
-    id10: BigInt(streamToHexUuid[ro.id]).toString(),
-    streamId: ro.id,
-    owner: ro.owner,
-    recentCid: convertCidTo0xHex(ro.manifest),
-    versions: ro.versions.map(v => ({
-      cid: convertCidTo0xHex(v.manifest),
-      // No transaction ID exists
-      id: undefined,
-      commitId: v.version,
-      time: v.time.toString(),
-    })).toReversed(), // app expects latest first
-  }));
+  let indexedHistory: IndexedResearchObject[];
+  try {
+    // Convert resolver format to server format
+    indexedHistory = historyRes.data.map(ro => ({
+      id: streamToHexUuid[ro.id],
+      id10: BigInt(streamToHexUuid[ro.id]).toString(),
+      streamId: ro.id,
+      owner: ro.owner,
+      recentCid: convertCidTo0xHex(ro.manifest),
+      versions: ro.versions.map(v => ({
+        cid: convertCidTo0xHex(v.manifest),
+        // No transaction ID exists
+        id: undefined,
+        commitId: v.version,
+        time: v.time.toString(),
+      })).toReversed(), // app expects latest first
+    }));
+  } catch (e) {
+    // Aid in figuring out why sometimes v.time is mysteriously undefined in production
+    logger.error({ fn: "getHistoryFromStreams", data: historyRes.data, error: e });
+    throw e;
+  };
 
   return indexedHistory;
 };

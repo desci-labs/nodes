@@ -208,10 +208,11 @@ export async function getTreeAndFill(
       cidInfoMap[ref.cid] = entryDetails;
     });
     const promises = pubEntries.map(async (ref) => {
-      const blockTime = await getBlockTime(
-        nodeUuid,
-        ref.nodeVersion.transactionId ?? ref.nodeVersion.commitId
-      );
+      const txOrCommit = ref.nodeVersion.transactionId ?? ref.nodeVersion.commitId;
+      if (!txOrCommit) {
+        logger.error({ fn: "getTreeAndFill", ref, }, "Got empty publish hashes");
+      };
+      const blockTime = await getBlockTime(nodeUuid, txOrCommit);
       const date = !!blockTime && blockTime !== '-1' ? blockTime : ref.createdAt?.getTime().toString();
       const entryDetails = {
         size: ref.size || 0,
@@ -250,7 +251,8 @@ export async function getBlockTime(nodeUuid: string, txOrCommit: string) {
     if (!researchObjects.length)
       logger.warn({ fn: 'getBlockTime' }, `No research objects found for nodeUuid ${nodeUuid}`);
     const indexedNode = researchObjects[0];
-    const correctVersion = indexedNode.versions.find((v) => v.id === txOrCommit);
+    const correctVersion = indexedNode.versions
+      .find((v) => [v.id, v.commitId].includes(txOrCommit));
     if (!correctVersion) {
       logger.warn({ fn: 'getBlockTime', nodeUuid, txHash: txOrCommit }, `No version match was found for nodeUuid/txHash`);
       return '-1';
@@ -259,8 +261,8 @@ export async function getBlockTime(nodeUuid: string, txOrCommit: string) {
   }
 }
 
-export const gbToBytes = (gb: number) => gb * 1000000000;
-export const bytesToGb = (bytes: number) => bytes / 1000000000;
+export const gbToBytes = (gb: number) => gb * 1_000_000_000;
+export const bytesToGb = (bytes: number) => bytes / 1_000_000_000;
 
 export const ROTypesToPrismaTypes = {
   [ResearchObjectComponentType.DATA]: DataType.DATASET,
