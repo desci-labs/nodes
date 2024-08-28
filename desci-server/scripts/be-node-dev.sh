@@ -4,7 +4,7 @@ apt-get install bash
 
 # Exit on error
 set -e
-./desci-server/scripts/wait-for-it.sh $PG_HOST:5432 --timeout=5 --strict -- echo "postgres up and running"
+./desci-server/scripts/wait-for-it.sh $PG_HOST:5433 --timeout=5 --strict -- echo "postgres up and running"
 
 # npm run migration:run
 # npm run seed:run
@@ -19,7 +19,7 @@ npm run script:seed-social-data
 
 # import required images from ipfs to local
 chmod +x ./scripts/import-ipfs-content.sh
-./scripts/import-ipfs-content.sh 
+./scripts/import-ipfs-content.sh
 
 # note: for local dev, you can probably import dpid 46 using the following script, however it doesn't work due to local IPFS client not being open to the public (swarm key)
 # when you set NODE_ENV=prod, it uses the public IPFS reader. Need to adjust this for local dev so we can properly import in the future

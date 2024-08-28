@@ -47,6 +47,9 @@ interface WorksDetails {
   work_type: string;
   title: string;
   landing_page_url: string;
+  publisher: string;
+  source_name: string;
+  oa_status: 'diamond' | 'gold' | 'green' | 'hybrid' | 'bronze' | 'closed';
 }
 
 export const retrieveDoi = async (req: Request, res: Response, _next: NextFunction) => {
@@ -84,24 +87,30 @@ export const retrieveDoi = async (req: Request, res: Response, _next: NextFuncti
     works."type" as work_type,
     works.publication_year,
     works.cited_by_count as citation_count,
+    woa.oa_status,
+    source.publisher,
+    source.display_name as source_name,
     ARRAY(
         SELECT author.display_name as author_name FROM openalex.works_authorships wauth
         left join openalex.authors author on author.id = wauth.author_id
         WHERE wauth.work_id = works.id
     ) as authors
-  from openalex.works_best_oa_locations wol 
+  from openalex.works_best_oa_locations wol
   left join openalex.works works on works.id  = wol.work_id
   left JOIN openalex.works_authorships wa on works.id = wa.work_id
+  left JOIN openalex.works_open_access woa on woa.work_id = works.id
+  left JOIN openalex.sources source on source.id = wol.source_id
   where works.doi = $1
-  GROUP BY wol.pdf_url, landing_page_url,title, works_id, work_type, citation_count, works.publication_year;`,
+  GROUP BY wol.pdf_url, landing_page_url,title, works_id, work_type, citation_count, works.publication_year, woa.oa_status, source.publisher, source_name;`,
     [doiLink],
   );
 
   const works = rows?.[0] as WorksDetails;
 
+  logger.info({ works_found: rows.length > 0, doi: doiLink }, 'Retrieve DOI Works');
   const { rows: abstract_result } = await client.query(
     'select works.abstract_inverted_index AS abstract FROM openalex.works works WHERE works.id = $1',
-    [works.works_id],
+    [works?.works_id],
   );
 
   const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
