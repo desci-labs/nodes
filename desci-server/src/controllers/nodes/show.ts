@@ -115,7 +115,7 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
     res.send(data);
     return;
   } catch (e) {
-    logger.error({ error: e }, 'error');
+    logger.error({ e }, 'error');
     // res.status(404).send();
     // example
     res.status(404).send();

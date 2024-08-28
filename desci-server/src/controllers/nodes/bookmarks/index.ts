@@ -1,24 +1,17 @@
-import { IpldUrl, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
 import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../../client.js';
 import { getLatestManifestFromNode } from '../../../internal.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { getIndexedResearchObjects } from '../../../theGraph.js';
 
 export type BookmarkedNode = {
   uuid: string;
-  manifestCid: string;
   title?: string;
-  versions: number;
-  coverImageCid?: string | IpldUrl;
   published?: boolean;
-  dpid?: ResearchObjectV1Dpid;
-  publishDate?: string;
+  dpid?: number;
   shareKey: string;
 };
-
 export type ListBookmarkedNodesRequest = Request<never, never> & {
   user: User; // added by auth middleware
 };
@@ -52,8 +45,24 @@ export const listBookmarkedNodes = async (
       where: {
         userId: user.id,
       },
-      include: {
-        node: true,
+      select: {
+        shareId: true,
+        node: {
+          select: {
+            uuid: true,
+            dpidAlias: true,
+            manifestUrl: true,
+            // Get published versions, if any
+            versions: {
+              where: {
+                OR: [
+                  { transactionId: { not: null }},
+                  { commitId: { not: null }},
+                ],
+              },
+            },
+          },
+        },
       },
     });
 
@@ -61,47 +70,22 @@ export const listBookmarkedNodes = async (
 
     if (bookmarkedNodes?.length === 0) {
       return res.status(200).json({ ok: true, bookmarkedNodes: [] });
-    }
-
-    const nodeUuids = bookmarkedNodes.map((bm) => bm.node.uuid);
-    const { researchObjects } = await getIndexedResearchObjects(nodeUuids);
-
-    logger.trace({ researchObjectsLength: researchObjects.length }, 'Research objects retrieved successfully');
-
-    const publishedNodesMap = researchObjects.reduce((acc, ro) => {
-      try {
-        // convert hex string to integer
-        const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
-        // convert integer to hex
-        const nodeUuid = nodeUuidInt.toString('base64url');
-        acc[nodeUuid] = ro;
-      } catch (e) {
-        logger.error({ acc, ro, e, message: e?.message }, 'Failed to convert hex string to integer');
-      }
-      return acc;
-    }, {});
-
-    logger.trace(
-      { publishedNodesMapKeyLength: Object.keys(publishedNodesMap).length },
-      'Published nodes map created successfully',
-    );
+    };
 
     const filledBookmarkedNodes = await Promise.all(
-      bookmarkedNodes.map(async (bm) => {
-        const { node } = bm;
+      bookmarkedNodes.map(async ({ shareId, node}) => {
         const latestManifest = await getLatestManifestFromNode(node);
-        const publishedEntry = publishedNodesMap[node.uuid];
+        const manifestDpid = latestManifest.dpid
+          ? parseInt(latestManifest.dpid.id)
+          : undefined;
+        const published = node.versions.length > 0;
 
         return {
           uuid: node.uuid,
-          manifestCid: node.manifestUrl,
           title: latestManifest.title,
-          versions: publishedEntry?.versions.length,
-          coverImageCid: latestManifest.coverImage,
-          dpid: latestManifest.dpid,
-          publishDate: publishedEntry?.versions[0].time,
-          published: !!publishedEntry,
-          shareKey: bm.shareId,
+          dpid: node.dpidAlias ?? manifestDpid,
+          published,
+          shareKey: shareId,
         };
       }),
     );
