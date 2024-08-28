@@ -1,80 +1,63 @@
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../../client.js';
-import { resolveNodeManifest } from '../../internal.js';
+import { Request, Response } from 'express';
+import { cachedGetDpidFromManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getIndexedResearchObjects } from '../../theGraph.js';
-import { asyncMap, decodeBase64UrlSafeToHex } from '../../utils.js';
+import { asyncMap } from '../../utils.js';
+import { User } from '@prisma/client';
+import { listAllUserNodes, PublishedNode } from './list.js';
 
 const logger = parentLogger.child({
   module: 'NODE::getPublishedNodes',
 });
-export const getPublishedNodes = async (req: Request, res: Response, next: NextFunction) => {
-  const owner = (req as any).user;
-  const ipfsQuery = req.query.g;
 
-  // implement paging
+type PublishedNodesQueryParams = {
+  /** Alternative IPFS gateway */
+  g?: string;
+  page?: string;
+  size?: string;
+};
+
+// User populated by auth middleware
+type PublishedNodesRequest =
+  Request<never, never, never, PublishedNodesQueryParams> & { user: User };
+
+type PublishedNodesResponse = Response<{
+  nodes: PublishedNode[];
+}>;
+
+export const getPublishedNodes = async (
+  req: PublishedNodesRequest,
+  res: PublishedNodesResponse,
+) => {
+  const owner = req.user;
+  const gateway = req.query.g;
+
   const page: number = req.query.page ? parseInt(req.query.page as string) : 1;
-  const limit: number = req.query.limit ? parseInt(req.query.limit as string) : 20;
+  const size: number = req.query.size ? parseInt(req.query.size as string) : 20;
 
-  let nodes = await prisma.node.findMany({
-    select: {
-      uuid: true,
-      id: true,
-      createdAt: true,
-      updatedAt: true,
-      ownerId: true,
-      title: true,
-      manifestUrl: true,
-      cid: true,
-      NodeCover: true,
-      dpidAlias: true,
-    },
-    where: {
-      ownerId: owner.id,
-      isDeleted: false,
-      ceramicStream: {
-        not: null,
-      },
-    },
-    orderBy: { updatedAt: 'desc' },
-  });
-  logger.info({ nodes }, 'nodeess');
-  const indexMap = {};
+  logger.info({
+    queryParams: req.query,
+    gateway,
+  }, "getting published nodes");
 
-  try {
-    const uuids = nodes.map((n) => n.uuid);
-    const indexed = await getIndexedResearchObjects(uuids);
-    indexed.researchObjects.forEach((e) => {
-      indexMap[e.id] = e;
+  const nodes = await listAllUserNodes(owner.id, page, size, true);
+  const publishedNodes = nodes.filter(n => n.versions.length);
+
+  const formattedNodes = await asyncMap( publishedNodes, async n => {
+      const versionIx = n.versions.length - 1;
+      const cid = n.versions[0].manifestUrl;
+      const dpid = n.dpidAlias ?? await cachedGetDpidFromManifest(cid, gateway);
+      const publishedAt = n.versions[0].createdAt;
+
+      return {
+        uuid: n.uuid.replace(".", ""),
+        title: n.title,
+        createdAt: n.createdAt,
+        versionIx,
+        publishedAt,
+        isPublished: true as const,
+        dpid,
+      };
     });
-  } catch (err) {
-    logger.error({ err: err.message }, '[ERROR] graph index lookup fail');
-    // todo: try on chain direct (current method doesnt support batch, so fix that and add here)
-  }
 
-  let foundNodes = await asyncMap(nodes, async (n) => {
-    const hex = `0x${decodeBase64UrlSafeToHex(n.uuid)}`;
-    const result = indexMap[hex];
-    const manifest: ResearchObjectV1 = result?.recentCid
-      ? await resolveNodeManifest(result?.recentCid, ipfsQuery as string)
-      : null;
-    const o = {
-      ...n,
-      uuid: n.uuid.replaceAll('.', ''),
-      isPublished: !!indexMap[hex],
-      index: indexMap[hex],
-      dpid: manifest?.dpid,
-    };
-    delete o.id;
-
-    return o;
-  });
-
-  logger.info({ foundNodes }, 'foundNodes');
-
-  foundNodes = foundNodes.filter((n) => n.isPublished);
-  foundNodes = foundNodes.slice((page - 1) * limit, page * limit);
-
-  res.send({ nodes: foundNodes });
+  return res.send({ nodes: formattedNodes });
 };

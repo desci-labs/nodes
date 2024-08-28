@@ -38,6 +38,16 @@ export const randomUUID64 = () => {
   return encoded;
 };
 
+/** Test if a string is a valid, plain-text CID */
+export const isCid = (maybeCid: string) => {
+  try {
+    CID.parse(maybeCid);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 export const hexToCid = (hexCid: string) => {
   hexCid = hexCid.substring(2); // remove 0x
   hexCid = hexCid.length % 2 === 0 ? hexCid.substring(1) : hexCid;
@@ -102,6 +112,9 @@ export async function zipUrlToStream(url: string): Promise<Readable> {
 export function ensureUuidEndsWithDot(uuid: string): string {
   return uuid.endsWith('.') ? uuid : uuid + '.';
 }
+
+export const unpadUuid = (uuid: string): string =>
+  uuid.replace(".", "");
 
 export async function calculateTotalZipUncompressedSize(zipPath: string): Promise<number> {
   return new Promise((resolve, reject) => {
