@@ -58,7 +58,7 @@ export const resolveNodeManifest = async (
 
 export const cachedGetDpidFromManifest = async (
   cid: string,
-  gateway: string
+  gateway?: string
 ) => {
   const fnGetDpidFromManifest = async () => {
     const manifest = await resolveNodeManifest(cid, gateway) as ResearchObjectV1;
