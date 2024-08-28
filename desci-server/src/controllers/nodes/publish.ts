@@ -206,7 +206,6 @@ const syncPublish = async (
 
   const latestNodeVersion = await prisma.nodeVersion.findFirst({
     where: {
-      id: -1,
       nodeId: node.id,
     },
     orderBy: {
@@ -411,7 +410,6 @@ export const publishHandler = async ({
     // update node version
     const latestNodeVersion = await prisma.nodeVersion.findFirst({
       where: {
-        id: -1,
         nodeId: node.id,
       },
       orderBy: {

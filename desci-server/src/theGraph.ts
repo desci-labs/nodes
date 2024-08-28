@@ -38,8 +38,8 @@ export type IndexedResearchObjectVersion = {
   id?: string;
   /** Plain text: CommitID for this version (ceramic) */
   commitId?: string;
-  /** Version timestamp */
-  time: string;
+  /** Version timestamp, if commit has been anchored yet */
+  time?: string;
 };
 
 /**
@@ -159,7 +159,7 @@ const getHistoryFromStreams = async (
         // No transaction ID exists
         id: undefined,
         commitId: v.version,
-        time: v.time.toString(),
+        time: v.time?.toString(),
       })).toReversed(), // app expects latest first
     }));
   } catch (e) {
