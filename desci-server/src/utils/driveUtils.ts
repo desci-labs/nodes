@@ -207,12 +207,18 @@ export async function getTreeAndFill(
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
+    const blockTimeCache = {};
     const promises = pubEntries.map(async (ref) => {
       const txOrCommit = ref.nodeVersion.transactionId ?? ref.nodeVersion.commitId;
       if (!txOrCommit) {
-        logger.error({ fn: "getTreeAndFill", ref }, "Got empty publish hashes");
-      };
-      const blockTime = await getBlockTime(nodeUuid, txOrCommit);
+        logger.error({ fn: 'getTreeAndFill', ref }, 'Got empty publish hashes');
+      }
+      const blockTimeCacheKey = `${nodeUuid}-${txOrCommit}`;
+      const existingBlockTime = blockTimeCache[blockTimeCacheKey];
+      // blockTimeCache prevents redoing the same ceramic node/redis lookup for every pubRef entry if they share the same tx/commit hash
+      // getBlockTime returning null is valid, and its a valid cache value in the blockTimeCache map, to prevent spamming failing lookups in the ceramic node
+      const blockTime = existingBlockTime !== undefined ? existingBlockTime : await getBlockTime(nodeUuid, txOrCommit);
+      if (!(blockTimeCacheKey in blockTimeCache)) blockTimeCache[blockTimeCacheKey] = blockTime;
       const date = blockTime ?? ref.createdAt?.getTime().toString();
       const entryDetails = {
         size: ref.size || 0,
@@ -238,42 +244,41 @@ export const getBlockTime = async (uuid: string, txOrCommit: string | undefined)
   const cacheKey = `txHash-blockTime-${txOrCommit}`;
   try {
     blockTime = await getFromCache<string>(cacheKey);
-    if (blockTime && blockTime !== "-1") {
+    if (blockTime && blockTime !== '-1') {
       // Previously blockTime was sometimes cached as -1, to cleanup we don't return
       // and try to re-fetch instead.
       return blockTime;
     }
   } catch (e) {
     // Redis isn't configured or client not ready
-    logger.info({ fn: "getBlockTime", uuid, txOrCommit }, "Failed to get blockTime from redis");
-  };
+    logger.info({ fn: 'getBlockTime', uuid, txOrCommit }, 'Failed to get blockTime from redis');
+  }
 
   let indexRes: { researchObjects: IndexedResearchObject[] };
   try {
     indexRes = await getIndexedResearchObjects([uuid]);
   } catch (e) {
-    logger.error({ fn: "getBlockTime", uuid, txOrCommit }, "getIndexedResearchObjects failed");
-  };
+    logger.error({ fn: 'getBlockTime', uuid, txOrCommit }, 'getIndexedResearchObjects failed');
+  }
 
   if (!indexRes?.researchObjects?.length) {
     logger.warn({ fn: 'getBlockTime' }, `No research objects found for node ${uuid}`);
     return null;
-  };
+  }
 
   const indexedNode = indexRes.researchObjects[0];
-  const correctVersion = indexedNode.versions
-    .find((v) => [v.id, v.commitId].includes(txOrCommit));
+  const correctVersion = indexedNode.versions.find((v) => [v.id, v.commitId].includes(txOrCommit));
 
   if (!correctVersion) {
-    logger.warn({ fn: 'getBlockTime', uuid, txOrCommit }, "No version match was found txOrCommit");
+    logger.warn({ fn: 'getBlockTime', uuid, txOrCommit }, 'No version match was found txOrCommit');
     return null;
-  };
+  }
 
   try {
     await setToCache(cacheKey, correctVersion.time);
   } catch (e) {
-    logger.warn({ fn: "getBlockTime", uuid, txOrCommit, cacheKey }, "Failed to set block time in cache")
-  };
+    logger.warn({ fn: 'getBlockTime', uuid, txOrCommit, cacheKey }, 'Failed to set block time in cache');
+  }
 
   return correctVersion.time;
 };
