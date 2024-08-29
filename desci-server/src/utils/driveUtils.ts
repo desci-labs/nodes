@@ -207,18 +207,32 @@ export async function getTreeAndFill(
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
+
+    // blockTimeCache prevents redoing the same ceramic node/redis lookup for every pubRef entry if they share the same tx/commit hash
+    // getBlockTime returning null is valid, and its a valid cache value in the blockTimeCache map, to prevent spamming failing lookups in the ceramic node
     const blockTimeCache = {};
-    const promises = pubEntries.map(async (ref) => {
+    const uniqueTxOrCommits = new Set(
+      pubEntries.map((entry) => entry.nodeVersion.transactionId ?? entry.nodeVersion.commitId).filter(Boolean),
+    );
+
+    const fetchBlockTimePromises = Array.from(uniqueTxOrCommits).map(async (txOrCommit) => {
+      try {
+        const blockTime = await getBlockTime(nodeUuid, txOrCommit);
+        blockTimeCache[txOrCommit] = blockTime;
+      } catch (error) {
+        logger.info({ error, txOrCommit }, `Failed to fetch block time}`);
+        blockTimeCache[txOrCommit] = null;
+      }
+    });
+    await Promise.all(fetchBlockTimePromises);
+
+    pubEntries.forEach((ref) => {
       const txOrCommit = ref.nodeVersion.transactionId ?? ref.nodeVersion.commitId;
       if (!txOrCommit) {
         logger.error({ fn: 'getTreeAndFill', ref }, 'Got empty publish hashes');
       }
-      const blockTimeCacheKey = `${nodeUuid}-${txOrCommit}`;
-      const existingBlockTime = blockTimeCache[blockTimeCacheKey];
-      // blockTimeCache prevents redoing the same ceramic node/redis lookup for every pubRef entry if they share the same tx/commit hash
-      // getBlockTime returning null is valid, and its a valid cache value in the blockTimeCache map, to prevent spamming failing lookups in the ceramic node
-      const blockTime = existingBlockTime !== undefined ? existingBlockTime : await getBlockTime(nodeUuid, txOrCommit);
-      if (!(blockTimeCacheKey in blockTimeCache)) blockTimeCache[blockTimeCacheKey] = blockTime;
+
+      const blockTime = blockTimeCache[txOrCommit];
       const date = blockTime ?? ref.createdAt?.getTime().toString();
       const entryDetails = {
         size: ref.size || 0,
@@ -228,8 +242,6 @@ export async function getTreeAndFill(
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
-
-    await Promise.all(promises);
   }
 
   tree = fillCidInfo(tree, cidInfoMap);
