@@ -170,6 +170,12 @@ export async function getTreeAndFill(
    ** Both entries neccessary to determine publish state, prioritize public entries over private
    */
   const privEntries = await prisma.dataReference.findMany({
+    select: {
+      cid: true,
+      size: true,
+      createdAt: true,
+      external: true,
+    },
     where: {
       userId: ownerId,
       type: { not: DataType.MANIFEST },
@@ -180,14 +186,23 @@ export async function getTreeAndFill(
     },
   });
   const pubEntries = await prisma.publicDataReference.findMany({
+    select: {
+      createdAt: true,
+      size: true,
+      external: true,
+      cid: true,
+      nodeVersion: {
+        select: {
+          transactionId: true,
+          commitId: true,
+        }
+      }
+    },
     where: {
       type: { not: DataType.MANIFEST },
       node: {
         uuid: ensureUuidEndsWithDot(nodeUuid),
       },
-    },
-    include: {
-      nodeVersion: true,
     },
   });
 
