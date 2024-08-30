@@ -179,7 +179,7 @@ services:
       - ./local-data/redis:/data
 
   ceramic:
-    image: ceramicnetwork/js-ceramic:5.3.0
+    image: ceramicnetwork/js-ceramic:5.16.0
     container_name: ceramic
     ports:
       - "7007:7007"

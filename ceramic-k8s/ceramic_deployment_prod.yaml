@@ -33,7 +33,7 @@ spec:
         App: JsCeramicProd
     spec:
       containers:
-        - image: ceramicnetwork/js-ceramic:5.3.0
+        - image: ceramicnetwork/js-ceramic:5.16.0
           name: js-ceramic-prod
           command: ["/bin/bash", "-c"]
           args:
