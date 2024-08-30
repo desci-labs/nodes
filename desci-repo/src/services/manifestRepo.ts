@@ -323,17 +323,18 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
             document.manifest.references = [];
           }
 
-          for (const reference of action.references) {
+          for (const reference of action.reference) {
             if (!document.manifest.references.find((ref) => ref.id === reference.id))
               document.manifest.references.push(reference);
           }
         });
         break;
       case 'Delete Reference':
-        const idx = latestDocument.manifest.references?.findIndex((ref) => ref.id === action.referenceId) ?? -1;
-        if (idx > -1) {
+        if (!action.referenceId) return;
+        const deletedIdx = latestDocument.manifest.references?.findIndex((ref) => ref.id === action.referenceId);
+        if (deletedIdx !== -1) {
           handle.change((document) => {
-            document.manifest.references?.splice(idx, 1);
+            document.manifest.references?.splice(deleteIdx, 1);
           });
         }
         break;
