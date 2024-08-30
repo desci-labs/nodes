@@ -302,6 +302,42 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
+      case 'Add Reference':
+        const exists =
+          latestDocument.manifest?.references &&
+          latestDocument.manifest?.references?.find((ref) => ref.id === action.reference.id);
+
+        if (!exists) {
+          handle.change((document) => {
+            if (!document.manifest.references) {
+              document.manifest.references = [];
+            }
+
+            document.manifest.references.push(action.reference);
+          });
+        }
+        break;
+      case 'Add References':
+        handle.change((document) => {
+          if (!document.manifest.references) {
+            document.manifest.references = [];
+          }
+
+          for (const reference of action.reference) {
+            if (!document.manifest.references.find((ref) => ref.id === reference.id))
+              document.manifest.references.push(reference);
+          }
+        });
+        break;
+      case 'Delete Reference':
+        if (!action.referenceId) return;
+        const deletedIdx = latestDocument.manifest.references?.findIndex((ref) => ref.id === action.referenceId);
+        if (deletedIdx !== -1) {
+          handle.change((document) => {
+            document.manifest.references?.splice(deleteIdx, 1);
+          });
+        }
+        break;
       default:
         assertNever(action);
     }
