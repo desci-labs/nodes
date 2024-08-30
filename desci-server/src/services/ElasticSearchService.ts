@@ -12,7 +12,7 @@ import {
 
 import { Filter } from '../controllers/search/types.js';
 
-export const DENORMALIZED_WORKS_INDEX = 'denormalized_works_test_2024_08_20';
+export const DENORMALIZED_WORKS_INDEX = 'works_2024_08_27';
 export const VALID_ENTITIES = [
   'authors',
   'concepts',
@@ -88,6 +88,8 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
   /**
    * Boost work citations, author citations, and reduce non articles
    */
+  const currentYear = new Date().getFullYear();
+
   const functions: QueryDslFunctionScoreContainer[] = [
     {
       field_value_factor: {
@@ -97,14 +99,34 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
         missing: 0,
       },
     },
+    {
+      field_value_factor: {
+        field: 'authors.cited_by_count',
+        factor: 1.1,
+        modifier: 'log1p',
+        missing: 1,
+      },
+    },
     // {
-    //   field_value_factor: {
-    //     field: 'authors.author_cited_by_count',
-    //     factor: 0.1,
-    //     modifier: 'log1p',
-    //     missing: 0,
+    //   gauss: {
+    //     publication_year: {
+    //       origin: currentYear.toString(),
+    //       scale: '100', // 100 years
+    //       offset: '5', // 5 years (grace period)
+    //       decay: 0.5,
+    //     },
     //   },
     // },
+    {
+      linear: {
+        publication_year: {
+          origin: currentYear.toString(),
+          scale: '25', // 25 years
+          offset: '3', // 3 years (grace period)
+          decay: 0.7,
+        },
+      },
+    },
   ];
 
   if (entity === 'works' || 'works_single') {
