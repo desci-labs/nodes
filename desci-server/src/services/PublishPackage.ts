@@ -100,9 +100,16 @@ class PublishPackageService {
 
     this.logger.trace({ pdfCid, doi, title, dpid, license, publishDate, authors }, 'Pinned PDF cover');
     // Save it to the database
-    await prisma.distributionPdfs.create({
-      data: { originalPdfCid: pdfCid, distPdfCid: pinned.cid, nodeUuid: node.uuid, manifestCid },
-    });
+    try {
+      await prisma.distributionPdfs.create({
+        data: { originalPdfCid: pdfCid, distPdfCid: pinned.cid, nodeUuid: node.uuid, manifestCid },
+      });
+    } catch (e) {
+      this.logger.info(
+        { fn: 'preparePublishPackage', error: e.message },
+        'Failed to create distributionPdf entry, likely because already exists',
+      );
+    }
 
     // LATER: Add data ref
 
