@@ -64,5 +64,8 @@
     "typechain": "^7.0.0",
     "typescript": "^4.3.5"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "resolutions": {
+    "ethereumjs-abi": "^0.6.8"
+  }
 }
