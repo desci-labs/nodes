@@ -3,6 +3,7 @@ import { Node } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
+import { cachedGetDpidFromManifest } from '../internal.js';
 import { logger as parentLogger } from '../logger.js';
 import { ensureUuidEndsWithDot, toKebabCase } from '../utils.js';
 
@@ -39,7 +40,6 @@ class PublishPackageService {
       where: { originalPdfCid: pdfCid, manifestCid },
     });
 
-    // debugger;
     if (existingDistributionPdf) {
       return { pdfCid: existingDistributionPdf.distPdfCid };
     }
@@ -48,10 +48,11 @@ class PublishPackageService {
       this.logger.error('process.env.ISOLATED_MEDIA_SERVER_URL is not defined');
       return null;
     }
-    // debugger;
+
     const title = manifest.title;
-    const demoMode = manifest?.dpid?.id === undefined;
-    const dpid = !demoMode ? manifest?.dpid?.id : 'UNPUBLISHED_DEMO';
+    const nodeDpid = node.dpidAlias ?? (await cachedGetDpidFromManifest(manifestCid));
+    const demoMode = nodeDpid === undefined || nodeDpid === -1;
+    const dpid = !demoMode ? nodeDpid : 'UNPUBLISHED_DEMO';
     if (dpid === undefined) {
       this.logger.warn({ dpid, nodeId: node.id }, 'Failed generating a publish package for node, dpid is undefined');
       throw new Error('DPID is undefined');
