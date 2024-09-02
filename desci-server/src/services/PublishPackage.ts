@@ -5,7 +5,8 @@ import axios from 'axios';
 import { prisma } from '../client.js';
 import { cachedGetDpidFromManifest } from '../internal.js';
 import { logger as parentLogger } from '../logger.js';
-import { ensureUuidEndsWithDot, toKebabCase } from '../utils.js';
+import { getIndexedResearchObjects } from '../theGraph.js';
+import { ensureUuidEndsWithDot, hexToCid, toKebabCase } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { pinFile } from './ipfs.js';
@@ -25,7 +26,8 @@ type PrepareDistributionPdfResult = {
 } | null;
 
 class PublishPackageService {
-  private logger = parentLogger.child({ module: 'Services::PublishPackageService' });
+  private static logger = parentLogger.child({ module: 'Services::PublishPackageService' });
+  private logger = PublishPackageService.logger;
 
   async prepareDistributionPdf({
     pdfCid,
@@ -57,6 +59,13 @@ class PublishPackageService {
       this.logger.warn({ dpid, nodeId: node.id }, 'Failed generating a publish package for node, dpid is undefined');
       throw new Error('DPID is undefined');
     }
+    let usedManifestCid = manifestCid;
+
+    if (!demoMode) {
+      // Ensure the manifestCid used is published, if not use the latest published manifestCid, this prevents failing to find a timestamp
+      // on a prepub rerun after a publish
+      usedManifestCid = await PublishPackageService.ensurePublishedManifestCid(node.uuid, manifestCid);
+    }
 
     const license = PublishPackageService.extractManuscriptLicense(manifest, pdfCid);
     let nodeUuid = ensureUuidEndsWithDot(node.uuid);
@@ -64,7 +73,7 @@ class PublishPackageService {
     // const paddedTimestamp = unixTimestamp.padEnd(13, '0');
     const publishTime = demoMode
       ? Date.now().toString().slice(0, 10)
-      : await publishServices.retrieveBlockTimeByManifestCid(nodeUuid, manifestCid);
+      : await publishServices.retrieveBlockTimeByManifestCid(nodeUuid, usedManifestCid);
 
     const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);
     const authors = manifest.authors?.map((author) => author.name);
@@ -102,7 +111,12 @@ class PublishPackageService {
     // Save it to the database
     try {
       await prisma.distributionPdfs.create({
-        data: { originalPdfCid: pdfCid, distPdfCid: pinned.cid, nodeUuid: node.uuid, manifestCid },
+        data: {
+          originalPdfCid: pdfCid,
+          distPdfCid: pinned.cid,
+          nodeUuid: node.uuid,
+          manifestCid: usedManifestCid,
+        },
       });
     } catch (e) {
       this.logger.info(
@@ -114,12 +128,30 @@ class PublishPackageService {
     // LATER: Add data ref
 
     this.logger.trace(
-      { pdfCid, doi, title, dpid, license, publishDate, authors, pinnedCid: pinned.cid },
+      { pdfCid, doi, title, dpid, license, publishDate, authors, pinnedCid: pinned.cid, usedManifestCid },
       'Saved PDF cover',
     );
 
     // Return the CID
     return { pdfCid: pinned.cid };
+  }
+
+  /*
+   ** Ensure the manifestCid used is published, if not use the latest published manifestCid
+   */
+  static async ensurePublishedManifestCid(nodeUuid: string, manifestCid: string): Promise<string | null> {
+    const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
+    if (!researchObjects.length) return null;
+    const indexedNode = researchObjects?.[0];
+    const targetVersion = indexedNode?.versions.find((v) => hexToCid(v.cid) === manifestCid);
+    if (!targetVersion) {
+      this.logger.trace(
+        { fn: 'ensurePublishedManifestCid', nodeUuid, manifestCid, latestPublishedManifestCid: indexedNode.recentCid },
+        `No version match was found for nodeUuid/manifestCid, falling back on latest published manifestCid`,
+      );
+      return indexedNode.recentCid;
+    }
+    return manifestCid;
   }
 
   static convertUnixTimestampToDate(unixTimestamp: string): string {
