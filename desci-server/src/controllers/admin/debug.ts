@@ -39,7 +39,15 @@ export const debugAllNodesHandler = async (
     select: {
       uuid: true,
     },
-    where: makeTimeFilter(timeColumn ?? "createdAt", { fromDate, toDate }),
+    where: {
+      owner: {
+        email: {
+          // Cuts out about 90% :p
+          not: "noreply+test@desci.com"
+        }
+      },
+      ...makeTimeFilter(timeColumn ?? "createdAt", { fromDate, toDate }),
+    }
   });
   logger.info(
     { ...req.query, uuids: nodes.map(n => n.uuid) },
@@ -56,12 +64,6 @@ const debugNode = async (uuid: string) => {
   const node = await prisma.node.findFirst({
     where: {
       uuid: ensureUuidEndsWithDot(uuid),
-      owner: {
-        email: {
-          // Cuts out about 90% :p
-          not: "noreply+test@desci.com"
-        }
-      }
     },
     include: {
       versions: {
