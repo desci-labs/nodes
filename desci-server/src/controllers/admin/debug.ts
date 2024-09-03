@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { logger as parentLogger } from '../../logger.js';
 import { prisma } from '../../client.js';
-import { Node, NodeVersion, Prisma, PublicDataReference } from '@prisma/client';
+import { DataType, Node, NodeVersion, Prisma, PublicDataReference } from '@prisma/client';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 import { directStreamLookup } from '../../services/ceramic.js';
 import { getAliasRegistry, getHotWallet } from '../../services/chain.js';
@@ -26,6 +26,9 @@ type DebugAllNodesQueryParams = {
   timeColumn?: "createdAt" | "updatedAt",
 };
 
+/** Be gentle with the search scope, as it'll put a fair amount of load on
+ * the ceramic node
+*/
 export const debugAllNodesHandler = async (
   req: Request<never, never, never, DebugAllNodesQueryParams>,
   res: Response,
@@ -53,34 +56,50 @@ const debugNode = async (uuid: string) => {
   const node = await prisma.node.findFirst({
     where: {
       uuid: ensureUuidEndsWithDot(uuid),
+      owner: {
+        email: {
+          // Cuts out about 90% :p
+          not: "noreply+test@desci.com"
+        }
+      }
     },
     include: {
-      versions: true,
-      PublicDataReference: true,
+      versions: {
+        orderBy: { createdAt: "desc" }
+      },
+      PublicDataReference: {
+        orderBy: { createdAt: "desc" }
+      },
     },
   });
 
-  const streamDebugData = await debugStream(node.ceramicStream);
-  const dpidDebugData = await debugDpid(node.dpidAlias);
-  const dbDebugData = await debugDb(node);
-  const shouldBeIndexed: boolean = node.versions
-    .findIndex(v =>
-      v.transactionId !== null || v.commitId !== null
-    ) > -1;
-  const indexerDebugData = await debugIndexer(uuid, shouldBeIndexed);
+  const stream = await debugStream(node.ceramicStream);
+  const dpid = await debugDpid(node.dpidAlias);
+  const database = await debugDb(node);
+  const shouldBeIndexed = database.nVersions > 0 || stream.nVersions > 0;
+  const indexer = await debugIndexer(uuid, shouldBeIndexed);
 
-  const hasError = streamDebugData.error
-    || dpidDebugData.error
-    || dbDebugData.error
-    || indexerDebugData.error;
+  const nVersionsAgree = new Set([
+    database.nVersions ?? 0,
+    stream.nVersions ?? 0,
+    indexer.nVersions ?? 0,
+  ]).size === 1;
+
+  const hasError = stream.error
+    || dpid.error
+    || database.error
+    || indexer.error
+    || !nVersionsAgree;
 
   return {
     uuid,
+    createdAt: node.createdAt,
     hasError,
-    stream: streamDebugData,
-    dpid: dpidDebugData,
-    db: dbDebugData,
-    indexer: indexerDebugData,
+    nVersionsAgree,
+    stream: stream,
+    dpid: dpid,
+    db: database,
+    indexer: indexer,
   };
 };
 
@@ -182,8 +201,32 @@ const debugIndexer = async (
 };
 
 const debugDb = async (
-  _node: NodeDbClosure
+  node: NodeDbClosure
 ) => {
+  try {
+    const publishedVersions = node.versions
+      .filter(nv => nv.transactionId !== null || nv.commitId !== null);
+    const nVersions = publishedVersions.length;
 
-  return { error: false, result: "skipped" };
+    const pubRefManifests = node.PublicDataReference
+      .filter(pdr => pdr.type == DataType.MANIFEST)
+      .map(pdr => pdr.cid);
+
+    const publicManifests = publishedVersions.map(v => ({
+      cid: v.manifestUrl,
+      hasPdr: pubRefManifests.includes(v.manifestUrl)
+    }));
+
+    const missingManifestPubRefs = publicManifests.some(m => !m.hasPdr);
+
+    return {
+      error: missingManifestPubRefs,
+      nVersions,
+      missingManifestPubRefs,
+      publicManifests,
+    };
+  } catch (e) {
+    const err = e as Error;
+    return { error: true, name: err.name, msg: err.message, stack: err.stack };
+  }
 };
