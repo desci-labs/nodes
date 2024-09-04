@@ -23,18 +23,21 @@ export const sendCookie = (res: Response, token: string, isDevMode: boolean, coo
     res.cookie(cookieName, token, {
       maxAge: cookieName === AUTH_COOKIE_FIELDNAME ? oneDay : oneMinute,
       httpOnly: true,
-      sameSite: 'strict',
+      sameSite: 'lax',
     });
   }
 
   (process.env.COOKIE_DOMAIN?.split(',') || [undefined]).map((domain) => {
-    logger.info({ fn: 'sendCookie', domain, env: process.env.NODE_ENV }, `cookie set`);
+    logger.info(
+      { fn: 'sendCookie', domain, env: process.env.NODE_ENV, cookieName, AUTH_COOKIE_FIELDNAME },
+      `cookie set`,
+    );
     res.cookie(cookieName, token, {
       maxAge: cookieName === AUTH_COOKIE_FIELDNAME ? oneYear : oneMinute,
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
       secure: process.env.NODE_ENV === 'production',
       domain: process.env.NODE_ENV === 'production' ? domain || '.desci.com' : 'localhost',
-      sameSite: 'strict',
+      sameSite: 'lax',
     });
   });
 };
@@ -45,7 +48,7 @@ export const removeCookie = (res: Response, cookieName: string) => {
     httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
     secure: process.env.NODE_ENV === 'production',
     domain: process.env.NODE_ENV === 'production' ? '.desci.com' : 'localhost',
-    sameSite: 'strict',
+    sameSite: 'lax',
     path: '/',
   });
 
@@ -55,7 +58,7 @@ export const removeCookie = (res: Response, cookieName: string) => {
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
       secure: process.env.NODE_ENV === 'production',
       domain: process.env.NODE_ENV === 'production' ? domain || '.desci.com' : 'localhost',
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
     });
   });
@@ -65,7 +68,7 @@ export const removeCookie = (res: Response, cookieName: string) => {
     res.cookie(cookieName, 'unset', {
       maxAge: 0,
       httpOnly: true,
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
     });
   }
