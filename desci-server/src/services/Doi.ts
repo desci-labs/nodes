@@ -186,6 +186,13 @@ export class DoiService {
     });
   }
 
+  /**
+   * List all registered Doi records
+   */
+  async listDoi() {
+    return this.dbClient.doiRecord.findMany({ where: {} });
+  }
+
   async hasPendingSubmission(uuid: string) {
     const pending = await this.dbClient.doiSubmissionQueue.findFirst({
       where: { uuid: ensureUuidEndsWithDot(uuid), status: DoiStatus.PENDING },
