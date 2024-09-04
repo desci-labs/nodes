@@ -10,7 +10,9 @@ export const getAutomergeUrl = (documentId: DocumentId): AutomergeUrl => {
   return `automerge:${documentId}` as AutomergeUrl;
 };
 
-export const getLatestManifestFromNode = async (node: Node) => {
+export const getLatestManifestFromNode = async (
+  node: Pick<Node, "manifestUrl" | "uuid">
+) => {
   logger.info({ uuid: node.uuid }, 'START [getLatestManifestFromNode]');
   let manifest = await repoService.getDraftManifest(node.uuid as NodeUuid);
   if (!manifest) {

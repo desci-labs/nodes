@@ -23,8 +23,16 @@ spec:
         vault.hashicorp.com/role: app-vault-reader
         vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/dev/db
         vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secrets/desci-server/ipfs-gateway-staging" -}}
+          export AWS_REGION=us-east-2
+          export AWS_ACCESS_KEY={{ .Data.AWS_ACCESS_KEY }}
+          export AWS_SECRET_KEY={{ .Data.AWS_SECRET_KEY }}
+          export AWS_DEFAULT_REGION=us-east-2
+          echo "envset"; 
+
+          {{- end -}}
           {{- with secret "secrets/desci-server/dev/db" -}}
-          echo "{\"anchor\":{\"ethereum-rpc-url\":\"{{ .Data.ceramic_rpc }}\"},\"http-api\":{\"cors-allowed-origins\":[\".*\"],\"admin-dids\":[\"did:key:z6MktbKJrMnhVJ37QFTo12911ycm2juKDUzWHDVETu9s5a9T\"]},\"ipfs\":{\"mode\":\"remote\",\"host\":\"http://public-ceramic-ipfs-dev-service-internal.default.svc.cluster.local:5001\"},\"logger\":{\"log-level\":0},\"metrics\":{\"metrics-exporter-enabled\":false,\"metrics-port\":9090},\"network\":{\"name\":\"testnet-clay\"},\"node\":{},\"state-store\":{\"mode\":\"fs\",\"local-directory\":\"/root/.ceramic/statestore\"},\"indexing\":{\"db\":\"{{ .Data.ceramic_url }}\",\"allow-queries-before-historical-sync\":true,\"models\":[]}}" > daemon.config.json
+          echo "{\"anchor\":{\"ethereum-rpc-url\":\"{{ .Data.ceramic_rpc }}\"},\"http-api\":{\"cors-allowed-origins\":[\".*\"],\"admin-dids\":[\"did:key:z6MktbKJrMnhVJ37QFTo12911ycm2juKDUzWHDVETu9s5a9T\"]},\"ipfs\":{\"mode\":\"remote\",\"host\":\"http://public-ceramic-ipfs-dev-service-internal.default.svc.cluster.local:5001\"},\"logger\":{\"log-level\":0},\"metrics\":{\"metrics-exporter-enabled\":false,\"metrics-port\":9090},\"network\":{\"name\":\"testnet-clay\"},\"node\":{},\"state-store\":{\"mode\":\"s3\",\"s3-bucket\":\"ceramic-node-dev-prime2\"},\"indexing\":{\"db\":\"{{ .Data.ceramic_url }}\",\"allow-queries-before-historical-sync\":true,\"models\":[]}}" > daemon.config.json
           export NODE_ENV=production
           export CERAMIC_PUBSUB_QPS_LIMIT=500
           echo "envset"; 
@@ -33,7 +41,7 @@ spec:
         App: JsCeramicDev
     spec:
       containers:
-        - image: ceramicnetwork/js-ceramic:5.3.0
+        - image: ceramicnetwork/js-ceramic:5.16.0
           name: js-ceramic-dev
           command: ["/bin/bash", "-c"]
           args:

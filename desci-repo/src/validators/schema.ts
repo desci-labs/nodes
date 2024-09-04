@@ -6,6 +6,7 @@ import {
   ResearchObjectV1Dpid,
   ResearchObjectV1Organization,
   ManifestActions,
+  ResearchObjectReference,
 } from '@desci-labs/desci-models';
 
 const researchObject = z
@@ -60,7 +61,22 @@ const componentSchema: z.ZodType<ResearchObjectV1Component> = z
   })
   .passthrough();
 
-type Action = ManifestActions["type"];
+export const DPID_PATH_REGEX =
+  /^https:\/\/(?<domain>dev-beta|beta)\.dpid\.org(?<dpid>\/\d+)(?<version>\/v\d+)?(?<path>\/root.*)?/m;
+
+export const DOI_REGEX = /(https:\/\/doi.org\/)?(?<doi>10.\d{4,9}\/[-._;()/:A-Z0-9]+$)/i;
+
+const referenceSchema: z.ZodType<ResearchObjectReference> = z
+  .object({
+    type: z.union([z.literal('doi'), z.literal('dpid')]),
+    id: z.string().refine((id) => DPID_PATH_REGEX.test(id) || DOI_REGEX.test(id)),
+  })
+  .refine((arg) => {
+    if (arg.type === 'doi') return DOI_REGEX.test(arg.id);
+    return DPID_PATH_REGEX.test(arg.id);
+  });
+
+type Action = ManifestActions['type'];
 
 export const actionsSchema = z.array(
   z.discriminatedUnion('type', [
@@ -79,5 +95,8 @@ export const actionsSchema = z.array(
     z.object({ type: z.literal<Action>('Pin Component'), componentIndex: z.number() }),
     z.object({ type: z.literal<Action>('UnPin Component'), componentIndex: z.number() }),
     z.object({ type: z.literal<Action>('Update CoverImage'), cid: z.string().optional() }),
+    z.object({ type: z.literal<Action>('Add Reference'), reference: referenceSchema }),
+    z.object({ type: z.literal<Action>('Add References'), references: z.array(referenceSchema) }),
+    z.object({ type: z.literal<Action>('Delete Reference'), referenceId: z.string() }),
   ]),
 );

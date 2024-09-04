@@ -1,5 +1,4 @@
 import { newCeramicClient, resolveHistory } from '@desci-labs/desci-codex-lib';
-import { contracts, typechain as tc } from '@desci-labs/desci-contracts';
 import {
   DpidAliasRegistry,
   type DpidMintedEvent,
@@ -11,6 +10,8 @@ import { Logger } from 'pino';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
 import { setDpidAlias } from '../../services/nodeManager.js';
+import { CERAMIC_API_URL } from '../../config/index.js';
+import { getAliasRegistry, getHotWallet, getRegistryOwnerWallet } from '../../services/chain.js';
 
 type DpidResponse = DpidSuccessResponse | DpidErrorResponse;
 export type DpidSuccessResponse = {
@@ -20,47 +21,6 @@ export type DpidSuccessResponse = {
 export type DpidErrorResponse = {
   error: string;
 };
-
-const CERAMIC_API_URLS = {
-  local: 'http://host.docker.internal:7007',
-  dev: 'https://ceramic-dev.desci.com',
-  prod: 'https://ceramic-prod.desci.com',
-} as const;
-
-const OPTIMISM_RPC_URLS = {
-  local: 'http://host.docker.internal:8545',
-  opSepolia: 'https://reverse-proxy-dev.desci.com/rpc_opt_sepolia',
-  opMainnet: 'https://reverse-proxy-prod.desci.com/rpc_opt_mainnet',
-} as const;
-
-/** Not secret: pre-seeded ganache account for local dev */
-const GANACHE_PKEY = 'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-
-const apiServerUrl = process.env.SERVER_URL;
-
-/** Manually set in this module since the envvar needs to support OG ethereum during migration */
-let optimismRpcUrl: string;
-let aliasRegistryAddress: string;
-let ceramicApiUrl: string;
-
-if (apiServerUrl.includes('localhost') || apiServerUrl.includes('host.docker.internal')) {
-  aliasRegistryAddress = contracts.localDpidAliasInfo.proxies.at(0).address;
-  ceramicApiUrl = CERAMIC_API_URLS.local;
-  optimismRpcUrl = OPTIMISM_RPC_URLS.local;
-} else if (apiServerUrl.includes('dev')) {
-  aliasRegistryAddress = contracts.devDpidAliasInfo.proxies.at(0).address;
-  ceramicApiUrl = CERAMIC_API_URLS.dev;
-  optimismRpcUrl = OPTIMISM_RPC_URLS.opSepolia;
-} else if (process.env.NODE_ENV === 'production' || apiServerUrl.includes('staging')) {
-  aliasRegistryAddress = contracts.prodDpidAliasInfo.proxies.at(0).address;
-  ceramicApiUrl = CERAMIC_API_URLS.prod;
-  optimismRpcUrl = OPTIMISM_RPC_URLS.opSepolia;
-} else {
-  console.error('Cannot derive contract address due to ambiguous environment');
-  throw new Error('Ambiguous environment');
-}
-
-console.log('Using new publish configuration:', { aliasRegistryAddress, optimismRpcUrl, ceramicApiUrl });
 
 export const createDpid = async (req: RequestWithNode, res: Response<DpidResponse>) => {
   const owner = req.user;
@@ -96,26 +56,19 @@ export const createDpid = async (req: RequestWithNode, res: Response<DpidRespons
   }
 };
 
-export const getOrCreateDpid = async (streamId: string): Promise<number> => {
+export const getOrCreateDpid = async (
+  streamId: string,
+): Promise<number> => {
   const logger = parentLogger.child({
     module: 'NODE::mintDpid',
     ceramicStream: streamId,
   });
 
-  const provider = new ethers.providers.JsonRpcProvider(optimismRpcUrl);
-
-  await provider.ready;
-  const wallet = new ethers.Wallet(
-    apiServerUrl.includes('localhost') || apiServerUrl.includes('host.docker.internal')
-      ? GANACHE_PKEY
-      : process.env.HOT_WALLET_KEY,
-    provider,
-  );
-
-  const dpidAliasRegistry = tc.DpidAliasRegistry__factory.connect(aliasRegistryAddress, wallet);
+  const wallet = await getHotWallet();
+  const registry = getAliasRegistry(wallet);
 
   // Not exists will return the zero value, i.e. 0
-  const checkDpid = await dpidAliasRegistry.find(streamId);
+  const checkDpid = await registry.find(streamId);
   const existingDpid = ethers.BigNumber.from(checkDpid).toNumber();
 
   if (existingDpid !== 0) {
@@ -123,7 +76,7 @@ export const getOrCreateDpid = async (streamId: string): Promise<number> => {
     return existingDpid;
   }
 
-  const tx = await dpidAliasRegistry.mintDpid(streamId);
+  const tx = await registry.mintDpid(streamId);
   const receipt = await tx.wait();
   const {
     args: [dpidBn],
@@ -144,28 +97,18 @@ export const getOrCreateDpid = async (streamId: string): Promise<number> => {
  * Note: this method in the registry contract is only callable by contract
  * owner, so this is not generally available.
  */
-export const upgradeDpid = async (dpid: number, ceramicStream: string): Promise<number> => {
+export const upgradeDpid = async (
+  dpid: number,
+  ceramicStream: string
+): Promise<number> => {
   const logger = parentLogger.child({
     module: 'NODE::upgradeDpid',
     ceramicStream,
     dpid,
   });
 
-  const provider = new ethers.providers.JsonRpcProvider(optimismRpcUrl);
-
-  if (!process.env.REGISTRY_OWNER_PKEY) {
-    throw new Error('REGISTRY_OWNER_PKEY missing, cannot upgrade dpid');
-  }
-
-  await provider.ready;
-  const wallet = new ethers.Wallet(
-    apiServerUrl.includes('localhost') || apiServerUrl.includes('host.docker.internal')
-      ? GANACHE_PKEY
-      : process.env.REGISTRY_OWNER_PKEY,
-    provider,
-  );
-
-  const dpidAliasRegistry = tc.DpidAliasRegistry__factory.connect(aliasRegistryAddress, wallet);
+  const ownerWallet = await getRegistryOwnerWallet();
+  const dpidAliasRegistry = getAliasRegistry(ownerWallet);
 
   const historyValid = await validateHistory(dpid, ceramicStream, dpidAliasRegistry, logger);
   if (!historyValid) {
@@ -187,8 +130,13 @@ export const upgradeDpid = async (dpid: number, ceramicStream: string): Promise<
  * This should be checked before upgrading a dPID, to make sure
  * the new stream accurately represents the publish history.
  */
-const validateHistory = async (dpid: number, ceramicStream: string, registry: DpidAliasRegistry, logger: Logger) => {
-  const client = newCeramicClient(ceramicApiUrl);
+const validateHistory = async (
+  dpid: number,
+  ceramicStream: string,
+  registry: DpidAliasRegistry,
+  logger: Logger
+) => {
+  const client = newCeramicClient(CERAMIC_API_URL);
   const legacyEntry = await registry.legacyLookup(dpid);
 
   const streamEvents = await resolveHistory(client, ceramicStream);

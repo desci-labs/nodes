@@ -1,14 +1,9 @@
-import { format } from 'path';
-
-import { IpldUrl, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
+import { IpldUrl } from '@desci-labs/desci-models';
 import { Node, NodeContribution, Prisma, User } from '@prisma/client';
 import ShortUniqueId from 'short-unique-id';
-
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
-import { getIndexedResearchObjects } from '../theGraph.js';
-import { formatOrcidString, hexToCid } from '../utils.js';
-
+import { formatOrcidString, unpadUuid } from '../utils.js';
 import { getManifestByCid } from './data/processing.js';
 
 type ContributorId = string;
@@ -33,7 +28,7 @@ export type UserContribution = {
   title?: string;
   versions: number;
   coverImageCid?: string | IpldUrl;
-  dpid?: ResearchObjectV1Dpid;
+  dpid?: string;
   publishDate: string;
 };
 
@@ -202,36 +197,57 @@ class ContributorService {
     });
   }
 
-  async retrieveContributionsForUser(user: User): Promise<UserContribution[]> {
-    const contributions = await prisma.nodeContribution.findMany({
-      where: { userId: user.id },
-      include: { node: true },
+  async retrieveContributionsForUser(user: { id: number }): Promise<UserContribution[]> {
+    const contributionNodes = await prisma.node.findMany({
+      // find unique nodes
+      distinct: [ "id" ],
+      // where there is a contribution from the given userId
+      where: {
+        NodeContribution: { some: { userId: user.id }}
+      },
+      select: {
+        uuid: true,
+        dpidAlias: true,
+        // get its published versions
+        versions: {
+          select: {
+            manifestUrl: true,
+            createdAt: true,
+          },
+          where: {
+            OR: [
+              { transactionId: { not: null }},
+              { commitId: { not: null }},
+            ],
+          },
+          // with the newest one first
+          orderBy: { createdAt: "desc" },
+        },
+      },
     });
-    const nodeUuids = contributions.map((contribution) => contribution.node.uuid);
-    // Filter out for published works
-    const { researchObjects } = await getIndexedResearchObjects(nodeUuids);
-    const filledContributions = await Promise.all(
-      researchObjects.map(async (ro) => {
-        // convert hex string to integer
-        const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
-        // convert integer to hex
-        const nodeUuid = nodeUuidInt.toString('base64url');
-        const manifestCid = hexToCid(ro.recentCid);
+
+    const filledContributions = await Promise.all(contributionNodes
+      // Published if any version was returned from subquery
+      .filter(n => n.versions.length > 0)
+      .map(async n => {
+        // desc ordering => first element is the latest version
+        const latestVersion = n.versions[0];
+        const manifestCid = latestVersion.manifestUrl;
         const latestManifest = await getManifestByCid(manifestCid);
 
         return {
-          uuid: nodeUuid,
+          uuid: unpadUuid(n.uuid),
           manifestCid,
           title: latestManifest.title,
-          versions: ro.versions.length,
+          versions: n.versions.length,
           coverImageCid: latestManifest.coverImage,
-          dpid: latestManifest.dpid,
-          publishDate: ro.versions[0].time,
+          dpid: n.dpidAlias?.toString() ?? latestManifest.dpid?.id,
+          publishDate: latestVersion.createdAt.toISOString(),
         };
       }),
     );
-    // debugger;
-    return filledContributions || [];
+
+    return filledContributions;
   }
 
   /**

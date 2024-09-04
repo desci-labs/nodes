@@ -21,11 +21,11 @@ import { DataReference, DataType, Node } from '@prisma/client';
 import { prisma } from '../client.js';
 import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
-import { getOrCache } from '../redisClient.js';
+import { getFromCache, getOrCache, setToCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
 import { NodeUuid } from '../services/manifestRepo.js';
 import repoService from '../services/repoService.js';
-import { getIndexedResearchObjects } from '../theGraph.js';
+import { getIndexedResearchObjects, IndexedResearchObject } from '../theGraph.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
@@ -170,6 +170,12 @@ export async function getTreeAndFill(
    ** Both entries neccessary to determine publish state, prioritize public entries over private
    */
   const privEntries = await prisma.dataReference.findMany({
+    select: {
+      cid: true,
+      size: true,
+      createdAt: true,
+      external: true,
+    },
     where: {
       userId: ownerId,
       type: { not: DataType.MANIFEST },
@@ -180,14 +186,23 @@ export async function getTreeAndFill(
     },
   });
   const pubEntries = await prisma.publicDataReference.findMany({
+    select: {
+      createdAt: true,
+      size: true,
+      external: true,
+      cid: true,
+      nodeVersion: {
+        select: {
+          transactionId: true,
+          commitId: true,
+        }
+      }
+    },
     where: {
       type: { not: DataType.MANIFEST },
       node: {
         uuid: ensureUuidEndsWithDot(nodeUuid),
       },
-    },
-    include: {
-      nodeVersion: true,
     },
   });
 
@@ -207,12 +222,33 @@ export async function getTreeAndFill(
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
-    const promises = pubEntries.map(async (ref) => {
-      const blockTime = await getBlockTime(
-        nodeUuid,
-        ref.nodeVersion.transactionId ?? ref.nodeVersion.commitId
-      );
-      const date = !!blockTime && blockTime !== '-1' ? blockTime : ref.createdAt?.getTime().toString();
+
+    // blockTimeCache prevents redoing the same ceramic node/redis lookup for every pubRef entry if they share the same tx/commit hash
+    // getBlockTime returning null is valid, and its a valid cache value in the blockTimeCache map, to prevent spamming failing lookups in the ceramic node
+    const blockTimeCache = {};
+    const uniqueTxOrCommits = new Set(
+      pubEntries.map((entry) => entry.nodeVersion.transactionId ?? entry.nodeVersion.commitId).filter(Boolean),
+    );
+
+    const fetchBlockTimePromises = Array.from(uniqueTxOrCommits).map(async (txOrCommit) => {
+      try {
+        const blockTime = await getBlockTime(nodeUuid, txOrCommit);
+        blockTimeCache[txOrCommit] = blockTime;
+      } catch (error) {
+        logger.info({ error, txOrCommit }, `Failed to fetch block time}`);
+        blockTimeCache[txOrCommit] = null;
+      }
+    });
+    await Promise.all(fetchBlockTimePromises);
+
+    pubEntries.forEach((ref) => {
+      const txOrCommit = ref.nodeVersion.transactionId ?? ref.nodeVersion.commitId;
+      if (!txOrCommit) {
+        logger.error({ fn: 'getTreeAndFill', ref }, 'Got empty publish hashes');
+      }
+
+      const blockTime = blockTimeCache[txOrCommit];
+      const date = blockTime ?? ref.createdAt?.getTime().toString();
       const entryDetails = {
         size: ref.size || 0,
         published: true,
@@ -221,8 +257,6 @@ export async function getTreeAndFill(
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
-
-    await Promise.all(promises);
   }
 
   tree = fillCidInfo(tree, cidInfoMap);
@@ -231,36 +265,53 @@ export async function getTreeAndFill(
   return treeRoot;
 }
 
-export async function getBlockTime(nodeUuid: string, txOrCommit: string) {
-  let blockTime;
+export const getBlockTime = async (uuid: string, txOrCommit: string | undefined) => {
+  if (!txOrCommit) return null;
+  let blockTime: string;
+  const cacheKey = `txHash-blockTime-${txOrCommit}`;
   try {
-    blockTime = await getOrCache(`txHash-blockTime-${txOrCommit}`, retrieveBlockTime);
-    if (blockTime !== '-1' && !blockTime) {
-      throw new Error('[getBlockTime] Failed to retrieve blocktime from cache');
-    };
-  } catch (err) {
-    logger.warn({ fn: 'getBlockTime', err, nodeUuid, txHash: txOrCommit }, '[getBlockTime] error');
-    logger.info('[getBlockTime] Falling back on uncached tree retrieval');
-    return await retrieveBlockTime();
-  }
-  return blockTime === '-1' ? null : blockTime;
-
-  async function retrieveBlockTime() {
-    const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
-    if (!researchObjects.length)
-      logger.warn({ fn: 'getBlockTime' }, `No research objects found for nodeUuid ${nodeUuid}`);
-    const indexedNode = researchObjects[0];
-    const correctVersion = indexedNode.versions.find((v) => v.id === txOrCommit);
-    if (!correctVersion) {
-      logger.warn({ fn: 'getBlockTime', nodeUuid, txHash: txOrCommit }, `No version match was found for nodeUuid/txHash`);
-      return '-1';
+    blockTime = await getFromCache<string>(cacheKey);
+    if (blockTime && blockTime !== '-1') {
+      // Previously blockTime was sometimes cached as -1, to cleanup we don't return
+      // and try to re-fetch instead.
+      return blockTime;
     }
-    return correctVersion.time;
+  } catch (e) {
+    // Redis isn't configured or client not ready
+    logger.info({ fn: 'getBlockTime', uuid, txOrCommit }, 'Failed to get blockTime from redis');
   }
-}
 
-export const gbToBytes = (gb: number) => gb * 1000000000;
-export const bytesToGb = (bytes: number) => bytes / 1000000000;
+  let indexRes: { researchObjects: IndexedResearchObject[] };
+  try {
+    indexRes = await getIndexedResearchObjects([uuid]);
+  } catch (e) {
+    logger.error({ fn: 'getBlockTime', uuid, txOrCommit }, 'getIndexedResearchObjects failed');
+  }
+
+  if (!indexRes?.researchObjects?.length) {
+    logger.warn({ fn: 'getBlockTime' }, `No research objects found for node ${uuid}`);
+    return null;
+  }
+
+  const indexedNode = indexRes.researchObjects[0];
+  const correctVersion = indexedNode.versions.find((v) => [v.id, v.commitId].includes(txOrCommit));
+
+  if (!correctVersion) {
+    logger.warn({ fn: 'getBlockTime', uuid, txOrCommit }, 'No version match was found txOrCommit');
+    return null;
+  }
+
+  try {
+    await setToCache(cacheKey, correctVersion.time);
+  } catch (e) {
+    logger.warn({ fn: 'getBlockTime', uuid, txOrCommit, cacheKey }, 'Failed to set block time in cache');
+  }
+
+  return correctVersion.time;
+};
+
+export const gbToBytes = (gb: number) => gb * 1_000_000_000;
+export const bytesToGb = (bytes: number) => bytes / 1_000_000_000;
 
 export const ROTypesToPrismaTypes = {
   [ResearchObjectComponentType.DATA]: DataType.DATASET,

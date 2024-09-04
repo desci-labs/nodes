@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/index.js';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library.js';
 
 const logger = parentLogger.child({
   module: 'NODE::nodeByDpidController',
