@@ -11,7 +11,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
     httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
     secure: process.env.NODE_ENV === 'production',
     domain: process.env.NODE_ENV === 'production' ? '.desci.com' : 'localhost',
-    sameSite: 'lax',
+    sameSite: 'none',
     path: '/',
   });
 
@@ -21,7 +21,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
       secure: process.env.NODE_ENV === 'production',
       domain: process.env.NODE_ENV === 'production' ? domain || '.desci.com' : 'localhost',
-      sameSite: 'lax',
+      sameSite: 'none',
       path: '/',
     });
   });
@@ -31,7 +31,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
     res.cookie(AUTH_COOKIE_FIELDNAME, 'unset', {
       maxAge: 0,
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
       path: '/',
     });
   }

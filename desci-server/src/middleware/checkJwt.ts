@@ -44,7 +44,7 @@ export const checkJwt = (req: Request, res: Response, next: NextFunction) => {
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
       secure: process.env.NODE_ENV === 'production',
       domain: process.env.NODE_ENV === 'production' ? '.desci.com' : 'localhost',
-      sameSite: 'lax',
+      sameSite: 'none',
     });
 
     return next();

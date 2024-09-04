@@ -23,7 +23,7 @@ export const sendCookie = (res: Response, token: string, isDevMode: boolean, coo
     res.cookie(cookieName, token, {
       maxAge: cookieName === AUTH_COOKIE_FIELDNAME ? oneDay : oneMinute,
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
     });
   }
 
@@ -37,7 +37,7 @@ export const sendCookie = (res: Response, token: string, isDevMode: boolean, coo
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
       secure: process.env.NODE_ENV === 'production',
       domain: process.env.NODE_ENV === 'production' ? domain || '.desci.com' : 'localhost',
-      sameSite: 'lax',
+      sameSite: 'none',
     });
   });
 };
@@ -48,7 +48,7 @@ export const removeCookie = (res: Response, cookieName: string) => {
     httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
     secure: process.env.NODE_ENV === 'production',
     domain: process.env.NODE_ENV === 'production' ? '.desci.com' : 'localhost',
-    sameSite: 'lax',
+    sameSite: 'none',
     path: '/',
   });
 
@@ -58,7 +58,7 @@ export const removeCookie = (res: Response, cookieName: string) => {
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
       secure: process.env.NODE_ENV === 'production',
       domain: process.env.NODE_ENV === 'production' ? domain || '.desci.com' : 'localhost',
-      sameSite: 'lax',
+      sameSite: 'none',
       path: '/',
     });
   });
@@ -68,7 +68,7 @@ export const removeCookie = (res: Response, cookieName: string) => {
     res.cookie(cookieName, 'unset', {
       maxAge: 0,
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
       path: '/',
     });
   }
