@@ -42,6 +42,8 @@ assert_command_available "docker"
 assert_command_available "docker-compose"
 assert_command_available "lsof"
 assert_command_available "make"
+assert_command_available "wget"
+assert_command_available "curl"
 
 init_node
 npm i -g hardhat
