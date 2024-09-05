@@ -6,7 +6,6 @@ import {
   buildBoolQuery,
   buildMultiMatchQuery,
   buildSortQuery,
-  DENORMALIZED_WORKS_INDEX,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
@@ -67,9 +66,10 @@ export const singleQuery = async (
 
   try {
     logger.debug({ esQuery, esSort, esBoolQuery }, 'Executing query');
-    const searchEntity = entity === 'works' ? DENORMALIZED_WORKS_INDEX : entity; // Temp overwrite with denormalized works index
-    if (entity === 'works')
-      logger.info({ entity }, `Entity is 'works', changing to denormalized works index: ${DENORMALIZED_WORKS_INDEX}`);
+    const searchEntity = entity; // logic not removed to handle other rewrites here
+    // const searchEntity = entity === 'works' ? DENORMALIZED_WORKS_INDEX : entity; // Temp overwrite with denormalized works index
+    // if (entity === 'works')
+    //   logger.info({ entity }, `Entity is 'works', changing to denormalized works index: ${DENORMALIZED_WORKS_INDEX}`);
 
     const results = await elasticClient.search({
       index: searchEntity,
