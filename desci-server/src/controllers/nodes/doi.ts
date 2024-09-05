@@ -8,6 +8,8 @@ import {
   ResearchObjectV1AuthorRole,
 } from '@desci-labs/desci-models';
 import { NextFunction, Response } from 'express';
+import { Request } from 'express';
+import _ from 'lodash';
 import { z } from 'zod';
 
 import {
@@ -16,7 +18,10 @@ import {
   RequestWithNode,
   SuccessResponse,
   crossRefClient,
+  doiService,
+  ensureUuidEndsWithDot,
   getLatestManifestFromNode,
+  logger,
   metadataClient,
   logger as parentLogger,
 } from '../../internal.js';
@@ -203,4 +208,26 @@ const transformWorkToMetadata = (work: Work): MetadataResponse => {
   }));
 
   return { title, authors, pdfUrl: '', keywords: [] };
+};
+
+export const retrieveNodeDoi = async (req: Request, res: Response, _next: NextFunction) => {
+  // const { doi: doiQuery } = req.query;
+  const { identifier } = req.params;
+  // const identifier = (req.params.identifier || doiQuery || uuid || dpid) as string;
+  logger.info({ identifier }, 'RETRIEVE NODE DOI');
+  if (!identifier) throw new BadRequestError();
+
+  if (identifier) {
+    const pending = await doiService.hasPendingSubmission(ensureUuidEndsWithDot(identifier as string));
+    logger.info({ pending }, 'GET DOI');
+    if (pending) {
+      new SuccessResponse({ status: pending.status }).send(res);
+      return;
+    }
+  }
+
+  const doi = await doiService.findDoiRecord(identifier as string);
+  const data = _.pick(doi, ['doi', 'dpid', 'uuid']);
+
+  new SuccessResponse(data).send(res);
 };
