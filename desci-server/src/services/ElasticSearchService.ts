@@ -23,7 +23,7 @@ export const VALID_ENTITIES = [
   'topics',
   'fields',
   'works',
-  'locations',
+  'countries',
 ];
 
 /**
@@ -41,8 +41,9 @@ export const RELEVANT_FIELDS = {
   denorm_topics: ['topics.display_name'],
   denorm_fields: ['topics.subfield_display_name'],
   denorm_concepts: ['concepts.display_name', 'concepts.subfield_display_name'],
-  denorm_sources: ['display_name', 'publisher', 'issn_l', 'issn'],
-  denorm_institutions: ['display_name', 'homepage_url', 'ror', 'country_code'],
+  denorm_sources: ['best_locations.display_name', 'best_locations.publisher'],
+  denorm_institutions: ['institutions.display_name', 'institutions.ror', 'institutions.country_code'],
+  denorm_countries: ['institutions.country_code'],
   works_single: [
     'title^1.25',
     'abstract^1.25',
@@ -245,6 +246,9 @@ function getRelevantFields(entity: string) {
   if (entity === 'works_authors') return RELEVANT_FIELDS.denorm_authors;
   if (entity === 'works_fields') return RELEVANT_FIELDS.denorm_fields;
   if (entity === 'works_topics') return RELEVANT_FIELDS.denorm_topics;
+  if (entity === 'works_countries') return RELEVANT_FIELDS.denorm_countries;
+  if (entity === 'works_institutions') return RELEVANT_FIELDS.denorm_institutions;
+  if (entity === 'works_sources') return RELEVANT_FIELDS.denorm_sources;
   if (entity === 'works_single') return RELEVANT_FIELDS.works_single; // refers to the single query search
 
   return RELEVANT_FIELDS.works_single;
