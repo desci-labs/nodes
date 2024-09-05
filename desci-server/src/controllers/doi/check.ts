@@ -56,7 +56,7 @@ export const retrieveDoi = async (req: Request, res: Response, _next: NextFuncti
   const { doi: doiQuery, uuid, dpid } = req.query;
   const identifier = doiQuery || uuid || dpid;
 
-  if (!identifier) throw new BadRequestError();
+  if (!doiQuery) throw new BadRequestError();
 
   if (uuid) {
     const pending = await doiService.hasPendingSubmission(ensureUuidEndsWithDot(uuid as string));
@@ -67,7 +67,7 @@ export const retrieveDoi = async (req: Request, res: Response, _next: NextFuncti
     }
   }
 
-  const doiLink = (doiQuery as string).startsWith('https') ? doiQuery : `https://doi.org/${doiQuery}`;
+  const doiLink = (doiQuery as string)?.startsWith('https') ? doiQuery : `https://doi.org/${doiQuery}`;
 
   const client = new Client({
     connectionString: process.env.OPEN_ALEX_DATABASE_URL,

@@ -97,10 +97,11 @@ export class DoiService {
     // retrieve node manifest/metadata
     const { researchObjects } = await getIndexedResearchObjects([uuid]);
     const researchObject = researchObjects[0] as IndexedResearchObject;
-    logger.info({ researchObject }, 'RESEARCH OBJECT');
-    const manifestCid = hexToCid(researchObject?.recentCid);
+    logger.info({ researchObject, uuid }, 'RESEARCH OBJECT');
+    if (!researchObject) throw new ForbiddenMintError('Node not published yet!');
 
-    if (!manifestCid) throw new ForbiddenMintError('Node not published yet!');
+    const manifestCid = hexToCid(researchObject?.recentCid);
+    // if (!manifestCid) throw new ForbiddenMintError('Node not published yet!');
 
     const latestManifest = await getManifestByCid(manifestCid);
     researchObject.versions.reverse();
