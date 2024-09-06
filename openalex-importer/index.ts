@@ -2,7 +2,13 @@ import "dotenv/config";
 import cron from "node-cron";
 import { runImport } from "./src/script.js";
 import { logger } from "./src/logger.js";
-import { differenceInDays, endOfDay, startOfDay, subDays } from "date-fns";
+import {
+  addDays,
+  differenceInDays,
+  endOfDay,
+  startOfDay,
+  subDays,
+} from "date-fns";
 
 async function main() {
   let cliArgs = parseArgs();
@@ -17,13 +23,37 @@ async function main() {
       await runImport({ from: from_created_date, to: to_created_date });
     });
   } else if (cliArgs.start) {
-    logger.info("Running Script in Time travel mode ⏰✈️");
+    logger.info("Running Script in Time travel moide ⏰✈️");
     let startDate = cliArgs.start;
     let endDate = cliArgs.end || cliArgs.start;
-    let diffInDays = differenceInDays(startDate, endDate!);
+    let diffInDays = differenceInDays(endDate, startDate);
     logger.info({ diffInDays }, "differenceInDays");
     // run script from start date to end date in a loop
+    if (diffInDays === 0) {
+      logger.info(
+        { from: startOfDay(startDate), to: endOfDay(startDate) },
+        "Single Day time travel",
+      );
+      await runImport({ from: startOfDay(startDate), to: endOfDay(startDate) });
+    } else {
+      // run import from start to end date
+      let currentDate = startDate;
+
+      while (diffInDays > 0) {
+        logger.info({ diffInDays, currentDate }, "Run import script");
+        // await runImport({ from: startOfDay(currentDate), to: endOfDay(currentDate) });
+        currentDate = addDays(currentDate, 1);
+        diffInDays = differenceInDays(endDate, currentDate);
+      }
+
+      logger.info(
+        { currentDate, diffInDays, endDate },
+        "Time travel completed ⏰✈️",
+      );
+    }
   }
+
+  return;
 }
 
 /**
@@ -60,7 +90,7 @@ function parseArgs() {
       param.end = parseDate(end.split("=")[1]);
     }
     logger.info(param, "ARGS");
-
+    console.log(param, "ARGS");
     if (param.start) return param;
     return;
   }
