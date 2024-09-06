@@ -70,7 +70,7 @@ async function performFetch<T>(url: string, searchQuery: Query): Promise<T> {
     const filter = Object.entries(param).reduce(
       (queryStr, [key, value]) =>
         queryStr ? `${queryStr},${key}:${value}` : `${key}:${value}`,
-      ""
+      "",
     );
     return filter;
   };
@@ -121,7 +121,7 @@ async function performFetch<T>(url: string, searchQuery: Query): Promise<T> {
           message: response.statusText,
           data: await response.json(),
         },
-        "Api error: "
+        "Api error: ",
       );
       break;
     }
@@ -141,11 +141,13 @@ const saveToLogs = (data: string, logFile: string) => {
   }
 };
 
-export const runImport = async () => {
+export const runImport = async ({ from, to }: { from: Date; to: Date }) => {
   // figure time parameters
-  let currentDate = new Date();
-  let from_created_date = startOfDay(subDays(currentDate, 1));
-  let to_created_date = endOfDay(subDays(currentDate, 1));
+  // let currentDate = new Date();
+  // let from_created_date = startOfDay(subDays(currentDate, 1));
+  // let to_created_date = endOfDay(subDays(currentDate, 1));
+  let from_created_date = from; // startOfDay(subDays(currentDate, 0));
+  let to_created_date = to; // endOfDay(subDays(currentDate, 0));
 
   const dateFormatter = new Intl.DateTimeFormat("fr-CA", {
     year: "numeric",
@@ -197,17 +199,17 @@ export const runImport = async () => {
     saveToLogs(JSON.stringify(works_locations), "works_locations.json");
     saveToLogs(
       JSON.stringify(works_best_oa_locations),
-      "works_best_oa_locations.json"
+      "works_best_oa_locations.json",
     );
     saveToLogs(JSON.stringify(works_open_access), "works_open_access.json");
     saveToLogs(JSON.stringify(works_mesh), "works_mesh.json");
     saveToLogs(
       JSON.stringify(works_primary_locations),
-      "works_primary_locations.json"
+      "works_primary_locations.json",
     );
     saveToLogs(
       JSON.stringify(works_referenced_works),
-      "works_referenced_works.json"
+      "works_referenced_works.json",
     );
     saveToLogs(JSON.stringify(works_related_works), "works_related_works.json");
     saveToLogs(JSON.stringify(works_topics), "works_topics.json");
