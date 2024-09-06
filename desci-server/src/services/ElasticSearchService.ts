@@ -18,8 +18,6 @@ export const VALID_ENTITIES = [
   'institutions',
   // 'publishers',
   'sources',
-  'topic',
-  'field',
   'topics',
   'fields',
   'works',
@@ -267,7 +265,7 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
     },
   };
 
-  if (entity === 'works' || entity === 'works_single') {
+  if (entity === 'works') {
     return {
       function_score: createFunctionScoreQuery(multiMatchQuery, entity),
     };
