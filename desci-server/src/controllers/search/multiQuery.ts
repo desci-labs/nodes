@@ -6,7 +6,6 @@ import {
   buildBoolQuery,
   buildMultiMatchQuery,
   buildSortQuery,
-  DENORMALIZED_WORKS_INDEX,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
@@ -67,13 +66,13 @@ export const multiQuery = async (
     return buildMultiMatchQuery(query, fullEntity, fuzzy);
   });
 
-  const esSort = buildSortQuery(DENORMALIZED_WORKS_INDEX, sort.field, sort.order);
+  const esSort = buildSortQuery(primaryEntity, sort.field, sort.order);
   const esBoolQuery = buildBoolQuery(esQueries, filters);
 
   try {
     logger.debug({ esQueries, esSort, esBoolQuery }, 'Executing query');
     const { hits } = await elasticClient.search({
-      index: DENORMALIZED_WORKS_INDEX,
+      index: primaryEntity,
       body: {
         ...esBoolQuery,
         sort: esSort,

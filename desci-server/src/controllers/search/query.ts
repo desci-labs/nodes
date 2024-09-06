@@ -6,7 +6,6 @@ import {
   buildBoolQuery,
   buildMultiMatchQuery,
   buildSortQuery,
-  DENORMALIZED_WORKS_INDEX,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
@@ -60,16 +59,22 @@ export const singleQuery = async (
   }
 
   // const esQuery = buildSimpleStringQuery(query, entity, fuzzy);
-  const tempEntity = entity === 'works' ? 'works_single' : entity; // Temp to apply boosting algo to default search
-  const esQuery = buildMultiMatchQuery(query, tempEntity, fuzzy);
+  const esQuery = buildMultiMatchQuery(query, entity, fuzzy);
   const esBoolQuery = buildBoolQuery([esQuery], filters);
   const esSort = buildSortQuery(entity, sort.field, sort.order);
 
   try {
     logger.debug({ esQuery, esSort, esBoolQuery }, 'Executing query');
-    const searchEntity = entity === 'works' ? DENORMALIZED_WORKS_INDEX : entity; // Temp overwrite with denormalized works index
-    if (entity === 'works')
-      logger.info({ entity }, `Entity is 'works', changing to denormalized works index: ${DENORMALIZED_WORKS_INDEX}`);
+
+    let searchEntity = entity;
+
+    if (entity === 'fields') {
+      searchEntity = 'topics'; // Overwrite as fields are accessible via 'topics' index
+      logger.info(
+        { entity, searchEntity },
+        `Entity provided is '${entity}', overwriting with '${searchEntity}' because ${entity} is accessible in that index.`,
+      );
+    }
 
     const results = await elasticClient.search({
       index: searchEntity,

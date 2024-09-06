@@ -12,19 +12,16 @@ import {
 
 import { Filter } from '../controllers/search/types.js';
 
-export const DENORMALIZED_WORKS_INDEX = 'works_2024_08_27';
 export const VALID_ENTITIES = [
   'authors',
   'concepts',
   'institutions',
-  'publishers',
+  // 'publishers',
   'sources',
-  'topic',
-  'field',
   'topics',
   'fields',
   'works',
-  DENORMALIZED_WORKS_INDEX,
+  'countries',
 ];
 
 /**
@@ -36,10 +33,15 @@ export const RELEVANT_FIELDS = {
   topics: ['display_name'],
   fields: ['subfield_display_name'],
   concepts: ['display_name'],
+  sources: ['display_name', 'publisher', 'issn_l', 'issn'],
+  institutions: ['display_name', 'homepage_url', 'ror', 'country_code'],
   denorm_authors: ['authors.display_name', 'authors.orcid', 'authors.last_known_institution', 'authors.affiliation'],
   denorm_topics: ['topics.display_name'],
   denorm_fields: ['topics.subfield_display_name'],
   denorm_concepts: ['concepts.display_name', 'concepts.subfield_display_name'],
+  denorm_sources: ['best_locations.display_name', 'best_locations.publisher'],
+  denorm_institutions: ['institutions.display_name', 'institutions.ror', 'institutions.country_code'],
+  denorm_countries: ['institutions.country_code'],
   works_single: [
     'title^1.25',
     'abstract^1.25',
@@ -51,6 +53,9 @@ export const RELEVANT_FIELDS = {
     'authors.last_known_institution',
     'authors.last_known_institution',
     'authors.affiliation',
+    'institutions.display_name',
+    'best_locations.publisher',
+    'best_locations.display_name',
   ],
 };
 
@@ -60,13 +65,13 @@ type SortField = { [field: string]: { order: SortOrder; missing?: string } };
 const baseSort: SortField[] = [{ _score: { order: 'desc' } }];
 
 const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) => SortField[] } } = {
-  works: {
-    publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
-    publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
-    cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
-    title: (order) => [{ 'title.keyword': { order, missing: '_last' } }],
-    relevance: () => [],
-  },
+  // works: {
+  //   publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
+  //   publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
+  //   cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
+  //   title: (order) => [{ 'title.keyword': { order, missing: '_last' } }],
+  //   relevance: () => [],
+  // },
   authors: {
     display_name: (order) => [{ 'display_name.keyword': { order, missing: '_last' } }],
     works_count: (order) => [{ works_count: { order, missing: '_last' } }],
@@ -74,7 +79,8 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
     updated_date: (order) => [{ updated_date: { order, missing: '_last' } }],
     relevance: () => [],
   },
-  [DENORMALIZED_WORKS_INDEX]: {
+  works: {
+    // ex denormalized works, probably safe to remove old 'works' config above
     publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
     publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
     cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
@@ -233,9 +239,14 @@ function getRelevantFields(entity: string) {
   if (entity === 'authors') return RELEVANT_FIELDS.authors;
   if (entity === 'topics') return RELEVANT_FIELDS.topics;
   if (entity === 'fields') return RELEVANT_FIELDS.fields;
+  if (entity === 'institutions') return RELEVANT_FIELDS.institutions;
+  if (entity === 'sources') return RELEVANT_FIELDS.sources;
   if (entity === 'works_authors') return RELEVANT_FIELDS.denorm_authors;
   if (entity === 'works_fields') return RELEVANT_FIELDS.denorm_fields;
   if (entity === 'works_topics') return RELEVANT_FIELDS.denorm_topics;
+  if (entity === 'works_countries') return RELEVANT_FIELDS.denorm_countries;
+  if (entity === 'works_institutions') return RELEVANT_FIELDS.denorm_institutions;
+  if (entity === 'works_sources') return RELEVANT_FIELDS.denorm_sources;
   if (entity === 'works_single') return RELEVANT_FIELDS.works_single; // refers to the single query search
 
   return RELEVANT_FIELDS.works_single;
@@ -254,7 +265,7 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
     },
   };
 
-  if (entity === 'works' || entity === 'works_single') {
+  if (entity === 'works') {
     return {
       function_score: createFunctionScoreQuery(multiMatchQuery, entity),
     };
