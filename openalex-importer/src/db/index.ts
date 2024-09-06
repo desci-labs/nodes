@@ -6,6 +6,7 @@ import { drizzle, NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
 // import { Client } from "pg";
 import { DataModels } from "../transformers.js";
 import * as openAlexSchema from "../../drizzle/schema.js";
+import * as batchesSchema from "../../drizzle/batches-schema.js";
 import { PgTransaction } from "drizzle-orm/pg-core";
 import { and, eq, ExtractTablesWithRelations } from "drizzle-orm";
 import { logger } from "../logger.js";
@@ -18,9 +19,9 @@ export const pool = new Pool({
   options: "-c search_path=public",
 });
 
+const { batchesInOpenAlex, workBatchesInOpenAlex } = batchesSchema;
+
 const {
-  batchesInOpenAlex,
-  workBatchesInOpenAlex,
   worksInOpenalex,
   works_idsInOpenalex,
   works_authorshipsInOpenalex,
@@ -95,7 +96,7 @@ export const saveData = async (models: DataModels) => {
               batch_id: savedBatch[0].id,
             })
             .onConflictDoNothing({ target: workBatchesInOpenAlex.work_id });
-        })
+        }),
       );
 
       logger.info("Works data to persisted");
@@ -127,7 +128,7 @@ export const saveData = async (models: DataModels) => {
 
 const updateWorkIds = async (
   tx: PgTransactionType,
-  data: DataModels["works_id"]
+  data: DataModels["works_id"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -138,13 +139,13 @@ const updateWorkIds = async (
         .limit(1);
       if (duplicate.length > 0) return null;
       return await tx.insert(works_idsInOpenalex).values(entry);
-    })
+    }),
   );
 };
 
 const updateWorksBestOaLocations = async (
   tx: PgTransactionType,
-  data: DataModels["works_best_oa_locations"]
+  data: DataModels["works_best_oa_locations"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -155,13 +156,13 @@ const updateWorksBestOaLocations = async (
         .limit(1);
       if (duplicate.length > 0) return null;
       return await tx.insert(works_best_oa_locationsInOpenalex).values(entry);
-    })
+    }),
   );
 };
 
 const updateWorksPrimaryLocations = async (
   tx: PgTransactionType,
-  data: DataModels["works_primary_locations"]
+  data: DataModels["works_primary_locations"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -172,13 +173,13 @@ const updateWorksPrimaryLocations = async (
         .limit(1);
       if (duplicate.length > 0) return null;
       return await tx.insert(works_primary_locationsInOpenalex).values(entry);
-    })
+    }),
   );
 };
 
 const updateWorksLocations = async (
   tx: PgTransactionType,
-  data: DataModels["works_locations"]
+  data: DataModels["works_locations"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -188,19 +189,19 @@ const updateWorksLocations = async (
         .where(
           eq(
             works_locationsInOpenalex.landing_page_url,
-            entry?.landing_page_url!
-          )
+            entry?.landing_page_url!,
+          ),
         )
         .limit(1);
       if (duplicate.length > 0) return null;
       return await tx.insert(works_locationsInOpenalex).values(entry);
-    })
+    }),
   );
 };
 
 const updateWorksReferencedWorks = async (
   tx: PgTransactionType,
-  data: DataModels["works_referenced_works"]
+  data: DataModels["works_referenced_works"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -212,20 +213,20 @@ const updateWorksReferencedWorks = async (
             eq(works_referenced_worksInOpenalex.work_id, entry.work_id),
             eq(
               works_referenced_worksInOpenalex.referenced_work_id,
-              entry.referenced_work_id
-            )
-          )
+              entry.referenced_work_id,
+            ),
+          ),
         )
         .limit(1);
       if (duplicate.length > 0) return null;
       return await tx.insert(works_referenced_worksInOpenalex).values(entry);
-    })
+    }),
   );
 };
 
 const updateWorksRelatedWorks = async (
   tx: PgTransactionType,
-  data: DataModels["works_related_works"]
+  data: DataModels["works_related_works"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -237,20 +238,20 @@ const updateWorksRelatedWorks = async (
             eq(works_related_worksInOpenalex.work_id, entry.work_id),
             eq(
               works_related_worksInOpenalex.related_work_id,
-              entry.related_work_id
-            )
-          )
+              entry.related_work_id,
+            ),
+          ),
         )
         .limit(1);
       if (duplicate.length > 0) return null;
       return await tx.insert(works_related_worksInOpenalex).values(entry);
-    })
+    }),
   );
 };
 
 const updateWorksOpenAccess = async (
   tx: PgTransactionType,
-  data: DataModels["works_open_access"]
+  data: DataModels["works_open_access"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -261,13 +262,13 @@ const updateWorksOpenAccess = async (
         .limit(1);
       if (duplicate.length > 0) return null;
       return await tx.insert(works_open_accessInOpenalex).values(entry);
-    })
+    }),
   );
 };
 
 const updateWorkAuthorships = async (
   tx: PgTransactionType,
-  data: DataModels["works_authorships"]
+  data: DataModels["works_authorships"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -281,13 +282,13 @@ const updateWorkAuthorships = async (
           ],
           set: entry,
         });
-    })
+    }),
   );
 };
 
 const updateAuthors = async (
   tx: PgTransactionType,
-  data: DataModels["authors"]
+  data: DataModels["authors"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -295,14 +296,14 @@ const updateAuthors = async (
         target: authorsInOpenalex.id,
         set: entry,
       });
-    })
+    }),
   );
   // logger.info("Authors data to persisted");
 };
 
 const updateAuthorIds = async (
   tx: PgTransactionType,
-  data: DataModels["authors_ids"]
+  data: DataModels["authors_ids"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -313,13 +314,13 @@ const updateAuthorIds = async (
         .limit(1);
       if (duplicate.length > 0) return null;
       return await tx.insert(authors_idsInOpenalex).values(entry);
-    })
+    }),
   );
 };
 
 const updateWorksBiblio = async (
   tx: PgTransactionType,
-  data: DataModels["works_biblio"]
+  data: DataModels["works_biblio"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -327,13 +328,13 @@ const updateWorksBiblio = async (
         target: works_biblioInOpenalex.work_id,
         set: entry,
       });
-    })
+    }),
   );
 };
 
 const updateWorksConcepts = async (
   tx: PgTransactionType,
-  data: DataModels["works_concepts"]
+  data: DataModels["works_concepts"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -343,19 +344,19 @@ const updateWorksConcepts = async (
         .where(
           and(
             eq(works_conceptsInOpenalex.work_id, entry.work_id!),
-            eq(works_conceptsInOpenalex.concept_id, entry.concept_id!)
-          )
+            eq(works_conceptsInOpenalex.concept_id, entry.concept_id!),
+          ),
         )
         .limit(1);
       if (duplicate.length > 0) return null;
       return await tx.insert(works_conceptsInOpenalex).values(entry);
-    })
+    }),
   );
 };
 
 const updateWorksMesh = async (
   tx: PgTransactionType,
-  data: DataModels["works_mesh"]
+  data: DataModels["works_mesh"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -366,19 +367,19 @@ const updateWorksMesh = async (
           and(
             eq(works_meshInOpenalex.work_id, entry.work_id!),
             eq(works_meshInOpenalex.descriptor_ui, entry.descriptor_ui!),
-            eq(works_meshInOpenalex.qualifier_ui, entry.qualifier_ui!)
-          )
+            eq(works_meshInOpenalex.qualifier_ui, entry.qualifier_ui!),
+          ),
         )
         .limit(1);
       if (duplicate.length > 0) return null;
       return await tx.insert(works_meshInOpenalex).values(entry);
-    })
+    }),
   );
 };
 
 const updateWorksTopics = async (
   tx: PgTransactionType,
-  data: DataModels["works_topics"]
+  data: DataModels["works_topics"],
 ) => {
   await Promise.all(
     data.map(async (entry) => {
@@ -388,12 +389,12 @@ const updateWorksTopics = async (
         .where(
           and(
             eq(works_topicsInOpenalex.work_id, entry.work_id!),
-            eq(works_topicsInOpenalex.topic_id, entry.topic_id!)
-          )
+            eq(works_topicsInOpenalex.topic_id, entry.topic_id!),
+          ),
         )
         .limit(1);
       if (duplicate.length > 0) return null;
       return await tx.insert(works_topicsInOpenalex).values(entry);
-    })
+    }),
   );
 };
