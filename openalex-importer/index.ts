@@ -101,3 +101,5 @@ function parseArgs() {
 main()
   .then((_) => logger.info("Open Alex Import script Scheduled"))
   .catch((err) => logger.info({ err }, "ERROR: data import crashed due to: "));
+
+// Todo: Add k8s config file
