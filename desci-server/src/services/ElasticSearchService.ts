@@ -65,13 +65,6 @@ type SortField = { [field: string]: { order: SortOrder; missing?: string } };
 const baseSort: SortField[] = [{ _score: { order: 'desc' } }];
 
 const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) => SortField[] } } = {
-  // works: {
-  //   publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
-  //   publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
-  //   cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
-  //   title: (order) => [{ 'title.keyword': { order, missing: '_last' } }],
-  //   relevance: () => [],
-  // },
   authors: {
     display_name: (order) => [{ 'display_name.keyword': { order, missing: '_last' } }],
     works_count: (order) => [{ works_count: { order, missing: '_last' } }],
@@ -81,6 +74,7 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
   },
   works: {
     // ex denormalized works, probably safe to remove old 'works' config above
+    context_novelty_percentile: (order) => [{ context_novelty_percentile: { order, missing: '_last' } }],
     publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
     publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
     cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
