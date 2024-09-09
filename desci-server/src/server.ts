@@ -230,9 +230,7 @@ class AppServer {
         // We recommend adjusting this value in production
         tracesSampleRate: 1.0,
       });
-      this.app.use(Sentry.Handlers.requestHandler());
-      this.app.use(Sentry.Handlers.tracingHandler());
-      this.app.use(Sentry.Handlers.errorHandler());
+      Sentry.setupExpressErrorHandler(this.app);
     } else {
       logger.info('[DeSci Nodes] Telemetry disabled');
     }
