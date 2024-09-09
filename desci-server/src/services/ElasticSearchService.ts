@@ -252,25 +252,43 @@ function getRelevantFields(entity: string) {
   return RELEVANT_FIELDS.works_single;
 }
 
-export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number) {
+export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number): QueryDslQueryContainer {
   const fields = getRelevantFields(entity);
 
-  const type: QueryDslTextQueryType = 'best_fields';
-  const multiMatchQuery = {
-    multi_match: {
-      query: query,
-      fields: fields,
-      type,
-      fuzziness: fuzzy || 'AUTO',
-    },
-  };
+  let multiMatchQuery: QueryDslQueryContainer;
 
-  if (entity === 'works') {
+  if (entity.startsWith('works_')) {
+    const nestedField = entity.split('_')[1];
+    multiMatchQuery = {
+      nested: {
+        path: nestedField,
+        query: {
+          multi_match: {
+            query: query,
+            fields: fields,
+            type: 'best_fields',
+            fuzziness: fuzzy || 'AUTO',
+          },
+        },
+      },
+    };
+  } else {
+    multiMatchQuery = {
+      multi_match: {
+        query: query,
+        fields: fields,
+        type: 'best_fields',
+        fuzziness: fuzzy || 'AUTO',
+      },
+    };
+  }
+
+  if (entity === 'works' || entity === 'works_single') {
     return {
       function_score: createFunctionScoreQuery(multiMatchQuery, entity),
     };
   }
-  return multiMatchQuery as QueryDslQueryContainer;
+  return multiMatchQuery;
 }
 
 export function buildSortQuery(entity: string, sortType?: string, sortOrder: SortOrder = 'desc'): SortField[] {
