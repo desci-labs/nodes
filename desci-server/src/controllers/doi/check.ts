@@ -53,21 +53,12 @@ interface WorksDetails {
 }
 
 export const retrieveDoi = async (req: Request, res: Response, _next: NextFunction) => {
-  const { doi: doiQuery, uuid, dpid } = req.query;
-  const identifier = doiQuery || uuid || dpid;
+  const { doi: doiQuery } = req.query;
+  const identifier = doiQuery;
 
   if (!doiQuery) throw new BadRequestError();
 
-  if (uuid) {
-    const pending = await doiService.hasPendingSubmission(ensureUuidEndsWithDot(uuid as string));
-    logger.info({ pending }, 'GET DOI');
-    if (pending) {
-      new SuccessResponse({ status: pending.status }).send(res);
-      return;
-    }
-  }
-
-  const doiLink = (doiQuery as string)?.startsWith('https') ? doiQuery : `https://doi.org/${doiQuery}`;
+  const doiLink = (doiQuery as string)?.startsWith('doi.org/') ? `https://${doiQuery}` : `https://doi.org/${doiQuery}`;
 
   const client = new Client({
     connectionString: process.env.OPEN_ALEX_DATABASE_URL,
@@ -119,8 +110,6 @@ export const retrieveDoi = async (req: Request, res: Response, _next: NextFuncti
   await client.end();
 
   logger.info({ works }, 'OPEN ALEX QUERY');
-  // const doi = await doiService.findDoiRecord(identifier as string);
-  // const data = _.pick(doi, ['doi', 'dpid', 'uuid']);
 
   new SuccessResponse({ abstract, doi: identifier, ...works }).send(res);
 };
