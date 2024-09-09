@@ -12,6 +12,7 @@ import { Request } from 'express';
 import _ from 'lodash';
 import { z } from 'zod';
 
+import { sanitizeObject } from '../../core/helper.js';
 import {
   BadRequestError,
   NotFoundError,
@@ -91,7 +92,6 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
 
     logger.info({ grobidMetadata }, 'GROBID METADATA');
     if (grobidMetadata?.doi) {
-      // doi = grobidMetadata.doi;
       logger.info({ doi }, 'DOI PARSED FROM GROBID');
       const openAlexMetadata = await metadataClient.queryDoiFromOpenAlex(grobidMetadata.doi);
       metadata = {
@@ -104,18 +104,15 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
         title: grobidMetadata?.title,
         abstract: grobidMetadata?.abstract,
         authors: grobidMetadata?.authors.map((author) => ({ name: author, affiliations: [], orcid: '' })),
-        pdfUrl: '',
-        keywords: [],
       };
     }
 
     logger.info({ grobidMetadata }, 'Grobid Metadata');
   }
 
-  // todo: pull metadata from crossrefClient#retrieveDoiMetadata
-  // const doiMetadata = await crossRefClient.retrieveDoiMetadata('');
   // attempt to pull doi from crossref api
   if (!doi && metadata?.title) {
+    logger.info({ title: metadata.title }, 'CHECK CROSSREF FOR DOI');
     const works = await crossRefClient.listWorks({
       rows: 5,
       select: [WorkSelectOptions.DOI, WorkSelectOptions.TITLE, WorkSelectOptions.AUTHOR],
@@ -126,6 +123,16 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     );
     if (work?.DOI) {
       doi = work.DOI;
+      // logger.info({ doi, work }, 'DOI from CrossRef');
+
+      const openAlexMetadata = await metadataClient.queryDoiFromOpenAlex(doi);
+      delete openAlexMetadata.pdfUrl;
+      logger.info({ openAlexMetadata }, 'openAlexMetadata METADATA');
+      metadata = {
+        ...openAlexMetadata,
+        abstract: grobidMetadata.abstract || openAlexMetadata.abstract,
+        title: grobidMetadata.title || openAlexMetadata.title,
+      };
     }
   }
 
@@ -148,11 +155,6 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
         payload: {
           ...component.payload,
           doi: component.payload?.doi ? component.payload.doi : [doi],
-          // ...(metadata?.keywords && {
-          //   keywords: component.payload?.keywords
-          //     ? component?.payload.keywords.concat(metadata.keywords)
-          //     : metadata.keywords,
-          // }),
         } as PdfComponentPayload & CommonComponentPayload,
       },
       componentIndex,

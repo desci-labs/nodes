@@ -66,8 +66,8 @@ export type MetadataResponse = {
   abstract?: string;
   authors: Array<{ orcid?: string; name: string; affiliations?: { name: string; id: string }[] }>;
   title: string;
-  pdfUrl: string | null;
-  keywords: string[];
+  pdfUrl?: string | null;
+  keywords?: string[];
   doi?: string;
 };
 
@@ -509,7 +509,7 @@ const transformOpenAlexWorkToMetadata = (work: OpenAlexWork): MetadataResponse =
 
   const abstract = work?.abstract_inverted_index ? transformInvertedAbstractToText(work.abstract_inverted_index) : '';
 
-  return { title: work.title, doi: work.doi, authors, pdfUrl: '', keywords, abstract };
+  return { title: work.title, doi: work.doi, authors, pdfUrl: work.best_oa_location?.pdf_url, keywords, abstract };
 };
 
 export const transformInvertedAbstractToText = (abstract: OpenAlexWork['abstract_inverted_index']) => {
