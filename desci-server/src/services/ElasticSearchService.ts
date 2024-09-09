@@ -258,7 +258,7 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
   let multiMatchQuery: QueryDslQueryContainer;
 
   if (entity.startsWith('works_')) {
-    const nestedField = entity.split('_')[1];
+    const nestedField = fields[0]?.split('.')[0];
     multiMatchQuery = {
       nested: {
         path: nestedField,
