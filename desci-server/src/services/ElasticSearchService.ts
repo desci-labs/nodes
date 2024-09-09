@@ -65,13 +65,6 @@ type SortField = { [field: string]: { order: SortOrder; missing?: string } };
 const baseSort: SortField[] = [{ _score: { order: 'desc' } }];
 
 const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) => SortField[] } } = {
-  // works: {
-  //   publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
-  //   publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
-  //   cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
-  //   title: (order) => [{ 'title.keyword': { order, missing: '_last' } }],
-  //   relevance: () => [],
-  // },
   authors: {
     display_name: (order) => [{ 'display_name.keyword': { order, missing: '_last' } }],
     works_count: (order) => [{ works_count: { order, missing: '_last' } }],
@@ -81,6 +74,7 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
   },
   works: {
     // ex denormalized works, probably safe to remove old 'works' config above
+    context_novelty_percentile: (order) => [{ context_novelty_percentile: { order, missing: '_last' } }],
     publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
     publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
     cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
@@ -252,25 +246,43 @@ function getRelevantFields(entity: string) {
   return RELEVANT_FIELDS.works_single;
 }
 
-export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number) {
+export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number): QueryDslQueryContainer {
   const fields = getRelevantFields(entity);
 
-  const type: QueryDslTextQueryType = 'best_fields';
-  const multiMatchQuery = {
-    multi_match: {
-      query: query,
-      fields: fields,
-      type,
-      fuzziness: fuzzy || 'AUTO',
-    },
-  };
+  let multiMatchQuery: QueryDslQueryContainer;
 
-  if (entity === 'works') {
+  if (entity.startsWith('works_')) {
+    const nestedField = fields[0]?.split('.')[0];
+    multiMatchQuery = {
+      nested: {
+        path: nestedField,
+        query: {
+          multi_match: {
+            query: query,
+            fields: fields,
+            type: 'best_fields',
+            fuzziness: fuzzy || 'AUTO',
+          },
+        },
+      },
+    };
+  } else {
+    multiMatchQuery = {
+      multi_match: {
+        query: query,
+        fields: fields,
+        type: 'best_fields',
+        fuzziness: fuzzy || 'AUTO',
+      },
+    };
+  }
+
+  if (entity === 'works' || entity === 'works_single') {
     return {
       function_score: createFunctionScoreQuery(multiMatchQuery, entity),
     };
   }
-  return multiMatchQuery as QueryDslQueryContainer;
+  return multiMatchQuery;
 }
 
 export function buildSortQuery(entity: string, sortType?: string, sortOrder: SortOrder = 'desc'): SortField[] {
