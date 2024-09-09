@@ -175,9 +175,9 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     actions.push({ type: 'Update Title', title });
 
     // update contributors if populated
-    if (authors.length > 0 && !latestManifest.authors?.length) {
+    if (authors.length > 0) {
       actions.push({
-        type: 'Add Contributors',
+        type: 'Set Contributors',
         contributors: authors.map((author) => ({
           name: author.name,
           role: ResearchObjectV1AuthorRole.AUTHOR,
