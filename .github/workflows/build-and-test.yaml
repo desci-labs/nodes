@@ -55,6 +55,10 @@ jobs:
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
 
+      - name: Set up Sentry CLI
+        run: |
+          sentry-cli --version
+
       - name: Run tests
         run: |
           cd desci-server && export DOCKER_BUILDKIT=1 && yarn --ignore-engines && yarn test
