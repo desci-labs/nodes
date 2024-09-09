@@ -91,6 +91,7 @@ export const actionsSchema = z.array(
     z.object({ type: z.literal<Action>('Update Component'), component: componentSchema }),
     z.object({ type: z.literal<Action>('Add Contributor'), author: contributor }),
     z.object({ type: z.literal<Action>('Add Contributors'), contributors: z.array(contributor) }),
+    z.object({ type: z.literal<Action>('Set Contributors'), contributors: z.array(contributor) }),
     z.object({ type: z.literal<Action>('Remove Contributor'), contributorIndex: z.number() }),
     z.object({ type: z.literal<Action>('Pin Component'), componentIndex: z.number() }),
     z.object({ type: z.literal<Action>('UnPin Component'), componentIndex: z.number() }),
