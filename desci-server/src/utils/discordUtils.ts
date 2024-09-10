@@ -2,7 +2,12 @@ import { DiscordNotification } from '@penseapp/discord-notification';
 
 import { logger } from '../logger.js';
 
-const discordNotification = new DiscordNotification(
+const doiMintingNotification = new DiscordNotification(
+  process.env.SERVER_URL,
+  process.env.DISCORD_NOTIFICATIONS_DOI_WEBHOOK_URL,
+);
+
+const nodeFeedNotification = new DiscordNotification(
   process.env.SERVER_URL,
   process.env.DISCORD_NOTIFICATIONS_WEBHOOK_URL,
 );
@@ -12,6 +17,11 @@ export enum DiscordNotifyType {
   INFO,
   WARNING,
   ERROR,
+}
+
+export enum DiscordChannel {
+  NodesFeed,
+  DoiMinting,
 }
 
 type Message =
@@ -24,11 +34,14 @@ export const discordNotify = async ({
   message,
   title = 'Node Updated',
   type = DiscordNotifyType.SUCCESS,
+  channel = DiscordChannel.NodesFeed,
 }: {
   message: string;
   title?: string;
   type?: DiscordNotifyType;
+  channel?: DiscordChannel;
 }) => {
+  const discordNotification = channel === DiscordChannel.DoiMinting ? doiMintingNotification : nodeFeedNotification;
   let notifier: ReturnType<Message>;
   switch (type) {
     case DiscordNotifyType.SUCCESS:
