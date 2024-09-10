@@ -57,6 +57,7 @@ jobs:
 
       - name: Set up Sentry CLI
         run: |
+          npm install -g @sentry/cli
           sentry-cli --version
 
       - name: Run tests
