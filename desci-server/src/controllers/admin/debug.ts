@@ -26,6 +26,12 @@ type DebugAllNodesQueryParams = {
   toDate?: string,
 };
 
+type NodeInfo = {
+  uuid: string,
+  first_publish: Date,
+  last_publish: Date,
+};
+
 /** Be gentle with the search scope, as it'll put a fair amount of load on
  * the ceramic node
 */
@@ -33,11 +39,14 @@ export const debugAllNodesHandler = async (
   req: Request<never, never, never, DebugAllNodesQueryParams>,
   res: Response,
 ) => {
-  const { event, fromDate, toDate } = req.query;
+  const { fromDate, toDate } = req.query;
+  const event = req.query.event ?? "last_publish";
+
+  const startTime = new Date();
 
   const timeClause = makeTimeClause(event, fromDate, toDate);
-  const nodes = await prisma.$queryRawUnsafe<{uuid: string}[]>(`
-    select uuid from
+  const nodes = await prisma.$queryRawUnsafe<NodeInfo[]>(`
+    select uuid, first_publish, last_publish from
     (
         select
           n.uuid,
@@ -53,35 +62,64 @@ export const debugAllNodesHandler = async (
   `);
 
   logger.info(
-    { event, fromDate, toDate, uuids: nodes.map(n => n.uuid) },
+    { event, fromDate, toDate, nodes },
     "found nodes matching debug range",
   );
 
-  const results = await Promise.all(
-    nodes.map(async n => await debugNode(n.uuid))
+  const debugData = await Promise.all(
+    nodes.map(async n => ({
+      first_publish: n.first_publish,
+      last_publish: n.last_publish,
+      ...await debugNode(n.uuid)
+    }))
   );
-  res.send(results);
+
+  const sortedDebugData = debugData.sort((n1, n2) =>
+    // Most recent first
+    n2[event].getTime() - n1[event].getTime()
+  );
+  
+  const endTime = new Date();
+  const duration = Math.round(endTime.getTime() - startTime.getTime());
+
+  const result = {
+    info: {
+      startTime,
+      duration: `${duration}s`,
+      event,
+      fromDate: fromDate ?? "undefined",
+      toDate: toDate ?? "undefined",
+    },
+    summary: {
+      nodesWithErrors: debugData.filter(n => n.hasError).length,
+    },
+    data: sortedDebugData,
+  };
+
+  return res.send(result);
 };
 
 const makeTimeClause = (
-  event?: "first_publish" | "last_publish",
+  event: "first_publish" | "last_publish",
   fromDate?: string,
   toDate?: string
 ) => {
   if (!fromDate && !toDate) {
     return "";
   }
-  let clause = `where all_versions.${event ?? "last_publish"}`;
+
+  let clause = `where all_versions.${event}`;
 
   if (fromDate) {
     clause += ` > '${fromDate}'`;
   };
 
   if (toDate && fromDate) {
-    clause += `and all_versions.${event ?? "last_publish"} < '${toDate}'`;
+    clause += `and all_versions.${event} < '${toDate}'`;
   } else if (toDate) {
     clause += `< '${toDate}'`;
   };
+
   return clause;
 };
 
@@ -119,8 +157,8 @@ const debugNode = async (uuid: string) => {
     || !nVersionsAgree;
 
   return {
-    uuid,
     createdAt: node.createdAt,
+    updatedAt: node.updatedAt,
     hasError,
     nVersionsAgree,
     stream,
