@@ -6,7 +6,47 @@ const discordNotification = new DiscordNotification(
   process.env.SERVER_URL,
   process.env.DISCORD_NOTIFICATIONS_WEBHOOK_URL,
 );
-export const discordNotify = async (message: string) => {
+
+export enum DiscordNotifyType {
+  SUCCESS,
+  INFO,
+  WARNING,
+  ERROR,
+}
+
+type Message =
+  | DiscordNotification['sucessfulMessage']
+  | DiscordNotification['infoMessage']
+  | DiscordNotification['warningMessage']
+  | DiscordNotification['errorMessage'];
+
+export const discordNotify = async ({
+  message,
+  title = 'Node Updated',
+  type = DiscordNotifyType.SUCCESS,
+}: {
+  message: string;
+  title?: string;
+  type?: DiscordNotifyType;
+}) => {
+  let notifier: ReturnType<Message>;
+  switch (type) {
+    case DiscordNotifyType.SUCCESS:
+      notifier = discordNotification.sucessfulMessage();
+      break;
+    case DiscordNotifyType.INFO:
+      notifier = discordNotification.infoMessage();
+      break;
+    case DiscordNotifyType.WARNING:
+      notifier = discordNotification.warningMessage();
+      break;
+    case DiscordNotifyType.ERROR:
+      notifier = discordNotification.errorMessage();
+      break;
+    default:
+      notifier = discordNotification.sucessfulMessage();
+  }
+
   logger.info(
     {
       module: 'Utils::DiscordUtils',
@@ -17,5 +57,5 @@ export const discordNotify = async (message: string) => {
     },
     'DISCORD NOTIFY',
   );
-  await discordNotification.sucessfulMessage().addTitle('Node Updated').addDescription(message).sendMessage();
+  await notifier.addTitle(title).addDescription(message).sendMessage();
 };
