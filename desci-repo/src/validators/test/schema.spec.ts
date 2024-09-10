@@ -220,14 +220,36 @@ describe('ManifestActions Schema', () => {
     });
   });
 
-  describe('Contributor', () => {
+  describe('Contributor Actions', () => {
     const author: ResearchObjectV1Author = {
-      name: 'Tay',
+      name: 'Sandra Sanchez‐Roige',
       role: ResearchObjectV1AuthorRole.AUTHOR,
+      organizations: [
+        {
+          name: 'University of California, San Diego',
+          id: 'https://ror.org/0168r3w48',
+        },
+        {
+          name: 'Vanderbilt University Medical Center',
+          id: 'https://ror.org/05dq2gs74',
+        },
+      ],
+      orcid: '0000-0001-6137-0000',
     };
+    // const author: ResearchObjectV1Author = {
+    //   name: 'Tay',
+    //   role: ResearchObjectV1AuthorRole.AUTHOR,
+    //   orcid: ''
+    // };
 
     it('should validate Add Contributor', async () => {
       const validated = await actionsSchema.safeParseAsync([{ type: 'Add Contributor', author }]);
+      console.log(validated.success ? validated.data : validated.error);
+      expect(validated.success).to.be.true;
+    });
+
+    it('should validate Set Contributors', async () => {
+      const validated = await actionsSchema.safeParseAsync([{ type: 'Add Contributors', contributors: [author] }]);
       console.log(validated.success ? validated.data : validated.error);
       expect(validated.success).to.be.true;
     });
@@ -277,7 +299,7 @@ describe('ManifestActions Schema', () => {
     });
   });
 
-  describe.only('ResearchObject References', () => {
+  describe('ResearchObject References', () => {
     it('should validate add new reference', () => {
       let validated = actionsSchema.safeParse([
         { type: 'Add Reference', reference: { id: 'https://doi.org/10.1111/af325', type: 'doi' } },
