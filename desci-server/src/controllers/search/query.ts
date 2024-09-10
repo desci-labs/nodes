@@ -69,7 +69,7 @@ export const singleQuery = async (
     let searchEntity = entity;
 
     if (entity === 'fields') {
-      searchEntity = 'topics'; // Overwrite as fields are accessible via 'topics' index
+      searchEntity = 'topics_v2'; // Overwrite as fields are accessible via 'topics' index
       logger.info(
         { entity, searchEntity },
         `Entity provided is '${entity}', overwriting with '${searchEntity}' because ${entity} is accessible in that index.`,

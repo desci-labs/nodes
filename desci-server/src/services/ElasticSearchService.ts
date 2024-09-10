@@ -31,7 +31,7 @@ export const RELEVANT_FIELDS = {
   works: ['title', 'abstract', 'doi'],
   authors: ['display_name', 'orcid', 'last_known_institution', 'authors.affiliation'],
   topics: ['display_name'],
-  fields: ['subfield_display_name'],
+  fields: ['field_display_name'],
   concepts: ['display_name'],
   sources: ['display_name', 'publisher', 'issn_l', 'issn'],
   institutions: ['display_name', 'homepage_url', 'ror', 'country_code'],
