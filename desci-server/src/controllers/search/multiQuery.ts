@@ -86,6 +86,7 @@ export const multiQuery = async (
       esQueries,
       esBoolQuery,
       esSort,
+      index: primaryEntity,
       ok: true,
       total: hits.total,
       page: pagination.page,

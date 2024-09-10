@@ -93,6 +93,7 @@ export const singleQuery = async (
       esSort,
       esBoolQuery,
       ok: true,
+      index: searchEntity,
       total: hits.total,
       page: pagination.page,
       perPage: pagination.perPage,
