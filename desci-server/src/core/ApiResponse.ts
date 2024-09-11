@@ -7,6 +7,7 @@ enum ResponseStatus {
   FORBIDDEN = 403,
   NOT_FOUND = 404,
   INTERNAL_ERROR = 500,
+  UNPROCESSABLE_ENTITY = 422,
 }
 
 type Headers = { [key: string]: string };
@@ -18,7 +19,7 @@ export interface ToApiResponse {
 export abstract class ApiResponse {
   constructor(
     private status: ResponseStatus,
-    private message: string,
+    private message?: string,
   ) {}
 
   protected prepare<T extends ApiResponse>(res: Response, response: T, headers: { [key: string]: string }): Response {
@@ -35,12 +36,13 @@ export abstract class ApiResponse {
     Object.assign(clone, response);
     delete clone.status;
     for (const field in clone) if (clone[field] === 'undefined') delete clone[field];
+    // if (!clone['message']) delete clone.message;
     return clone;
   }
 }
 
 export class SuccessMessageResponse extends ApiResponse {
-  constructor(message = '') {
+  constructor() {
     super(ResponseStatus.SUCCESS, undefined);
   }
 }
@@ -48,7 +50,7 @@ export class SuccessMessageResponse extends ApiResponse {
 export class SuccessResponse<T> extends ApiResponse {
   constructor(
     private data: T,
-    message = '',
+    message?: string,
   ) {
     super(ResponseStatus.SUCCESS, message);
   }
@@ -76,6 +78,12 @@ export class BadRequestResponse<T> extends ApiResponse {
     private error: T,
   ) {
     super(ResponseStatus.BAD_REQUEST, message);
+  }
+}
+
+export class UnProcessableRequestResponse extends ApiResponse {
+  constructor(message = 'Request cannot be processed') {
+    super(ResponseStatus.UNPROCESSABLE_ENTITY, message);
   }
 }
 

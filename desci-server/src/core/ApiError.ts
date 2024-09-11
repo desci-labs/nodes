@@ -8,6 +8,7 @@ import {
   ForbiddenResponse,
   InternalErrorResponse,
   NotFoundResponse,
+  UnProcessableRequestResponse,
 } from './ApiResponse.js';
 import { DoiError, DoiErrorType } from './doi/error.js';
 
@@ -18,6 +19,7 @@ export enum ApiErrorType {
   NOT_FOUND = 'NotFoundError',
   NO_DATA = 'NotDataError',
   FORBIDDEN = 'ForbiddenError',
+  UNPROCESSABLE = 'UnProcessableError',
 }
 
 export abstract class ApiError extends Error {
@@ -40,6 +42,8 @@ export abstract class ApiError extends Error {
         return new NotFoundResponse(err.message).send(res);
       case ApiErrorType.FORBIDDEN:
         return new ForbiddenResponse(err.message).send(res);
+      case ApiErrorType.UNPROCESSABLE:
+        return new UnProcessableRequestResponse(err.message).send(res);
       default:
         let message = err.message;
         if (process.env.NODE_ENV === 'production') message = 'Something wrong happened.';
@@ -89,6 +93,14 @@ export class BadRequestError extends ApiError {
     private err?: unknown,
   ) {
     super(ApiErrorType.BAD_REQUEST, message, err);
+  }
+}
+export class UnProcessableRequestError extends ApiError {
+  constructor(
+    message = 'Request could not be processed',
+    private err?: unknown,
+  ) {
+    super(ApiErrorType.UNPROCESSABLE, message, err);
   }
 }
 

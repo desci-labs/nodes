@@ -48,7 +48,7 @@ jobs:
       - name: Deploy to EKS (PROD)
         if: github.ref == 'refs/heads/main'
         run: |
-          kubectl apply -f ceramic-k8s/ceramic_deployment_dev.yaml
+          kubectl apply -f ceramic-k8s/ceramic_deployment_prod.yaml
 
       - name: Verify EKS Deployment (DEV)
         if: github.ref == 'refs/heads/develop'

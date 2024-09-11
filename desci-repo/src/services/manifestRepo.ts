@@ -290,6 +290,15 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
+      case 'Set Contributors':
+        handle.change(
+          (document) => {
+            if (!document.manifest.authors) document.manifest.authors = [];
+            document.manifest.authors = action.contributors;
+          },
+          { time: Date.now(), message: action.type },
+        );
+        break;
       case 'Update CoverImage':
         handle.change(
           (document) => {

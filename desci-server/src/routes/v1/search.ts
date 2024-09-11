@@ -6,7 +6,7 @@ import { ensureUser } from '../../internal.js';
 
 const router = Router();
 
-router.post('/multi', [ensureUser], multiQuery);
-router.post('/', [ensureUser], singleQuery);
+router.post('/multi', multiQuery);
+router.post('/', singleQuery);
 
 export default router;

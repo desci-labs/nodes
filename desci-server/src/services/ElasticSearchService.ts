@@ -22,6 +22,7 @@ export const VALID_ENTITIES = [
   'fields',
   'works',
   'countries',
+  'autocomplete_index',
 ];
 
 /**
@@ -31,9 +32,10 @@ export const RELEVANT_FIELDS = {
   works: ['title', 'abstract', 'doi'],
   authors: ['display_name', 'orcid', 'last_known_institution', 'authors.affiliation'],
   topics: ['display_name'],
-  fields: ['subfield_display_name'],
+  fields: ['field_display_name'],
   concepts: ['display_name'],
   sources: ['display_name', 'publisher', 'issn_l', 'issn'],
+  autocomplete_index: ['title, primary_id'],
   institutions: ['display_name', 'homepage_url', 'ror', 'country_code'],
   denorm_authors: ['authors.display_name', 'authors.orcid', 'authors.last_known_institution', 'authors.affiliation'],
   denorm_topics: ['topics.display_name'],
@@ -65,13 +67,6 @@ type SortField = { [field: string]: { order: SortOrder; missing?: string } };
 const baseSort: SortField[] = [{ _score: { order: 'desc' } }];
 
 const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) => SortField[] } } = {
-  // works: {
-  //   publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
-  //   publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
-  //   cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
-  //   title: (order) => [{ 'title.keyword': { order, missing: '_last' } }],
-  //   relevance: () => [],
-  // },
   authors: {
     display_name: (order) => [{ 'display_name.keyword': { order, missing: '_last' } }],
     works_count: (order) => [{ works_count: { order, missing: '_last' } }],
@@ -81,6 +76,7 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
   },
   works: {
     // ex denormalized works, probably safe to remove old 'works' config above
+    context_novelty_percentile: (order) => [{ context_novelty_percentile: { order, missing: '_last' } }],
     publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
     publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
     cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
@@ -252,25 +248,43 @@ function getRelevantFields(entity: string) {
   return RELEVANT_FIELDS.works_single;
 }
 
-export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number) {
+export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number): QueryDslQueryContainer {
   const fields = getRelevantFields(entity);
 
-  const type: QueryDslTextQueryType = 'best_fields';
-  const multiMatchQuery = {
-    multi_match: {
-      query: query,
-      fields: fields,
-      type,
-      fuzziness: fuzzy || 'AUTO',
-    },
-  };
+  let multiMatchQuery: QueryDslQueryContainer;
 
-  if (entity === 'works') {
+  if (entity.startsWith('works_')) {
+    const nestedField = fields[0]?.split('.')[0];
+    multiMatchQuery = {
+      nested: {
+        path: nestedField,
+        query: {
+          multi_match: {
+            query: query,
+            fields: fields,
+            type: 'best_fields',
+            fuzziness: fuzzy || 'AUTO',
+          },
+        },
+      },
+    };
+  } else {
+    multiMatchQuery = {
+      multi_match: {
+        query: query,
+        fields: fields,
+        type: 'best_fields',
+        fuzziness: fuzzy || 'AUTO',
+      },
+    };
+  }
+
+  if (entity === 'works' || entity === 'works_single') {
     return {
       function_score: createFunctionScoreQuery(multiMatchQuery, entity),
     };
   }
-  return multiMatchQuery as QueryDslQueryContainer;
+  return multiMatchQuery;
 }
 
 export function buildSortQuery(entity: string, sortType?: string, sortOrder: SortOrder = 'desc'): SortField[] {

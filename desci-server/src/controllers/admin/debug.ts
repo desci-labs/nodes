@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { logger as parentLogger } from '../../logger.js';
 import { prisma } from '../../client.js';
-import { DataType, Node, NodeVersion, Prisma, PublicDataReference } from '@prisma/client';
+import { DataType, Node, NodeVersion, PublicDataReference } from '@prisma/client';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 import { directStreamLookup } from '../../services/ceramic.js';
 import { getAliasRegistry, getHotWallet } from '../../services/chain.js';
@@ -21,9 +21,15 @@ export const debugNodeHandler = async (
 };
 
 type DebugAllNodesQueryParams = {
+  event?: "first_publish" | "last_publish",
   fromDate?: string,
   toDate?: string,
-  timeColumn?: "createdAt" | "updatedAt",
+};
+
+type NodeInfo = {
+  uuid: string,
+  first_publish: Date,
+  last_publish: Date,
 };
 
 /** Be gentle with the search scope, as it'll put a fair amount of load on
@@ -33,35 +39,92 @@ export const debugAllNodesHandler = async (
   req: Request<never, never, never, DebugAllNodesQueryParams>,
   res: Response,
 ) => {
-  const { fromDate, toDate, timeColumn } = req.query;
+  const { fromDate, toDate } = req.query;
+  const event = req.query.event ?? "last_publish";
 
-  const nodes = await prisma.node.findMany({
-    select: {
-      uuid: true,
-    },
-    where: {
-      owner: {
-        email: {
-          // Cuts out about 90% :p
-          not: "noreply+test@desci.com"
-        }
-      },
-      ...makeTimeFilter(timeColumn ?? "createdAt", { fromDate, toDate }),
-    }
-  });
+  const startTime = new Date();
+
+  const timeClause = makeTimeClause(event, fromDate, toDate);
+  const nodes = await prisma.$queryRawUnsafe<NodeInfo[]>(`
+    select uuid, first_publish, last_publish from
+    (
+        select
+          n.uuid,
+          min(nv."createdAt") as first_publish,
+          max(nv."createdAt") as last_publish
+        from "Node" n
+        left join "NodeVersion" nv on n.id = nv."nodeId"
+        where
+            (nv."transactionId" is not null or nv."commitId" is not null)
+        group by n.uuid
+    ) as all_versions
+    ${timeClause};
+  `);
+
   logger.info(
-    { ...req.query, uuids: nodes.map(n => n.uuid) },
-    "handling debugAll query",
+    { event, fromDate, toDate, nodes },
+    "found nodes matching debug range",
   );
 
-  const results = await Promise.all(
-    nodes.map(async n => await debugNode(n.uuid))
+  const debugData = await Promise.all(
+    nodes.map(async n => ({
+      first_publish: n.first_publish,
+      last_publish: n.last_publish,
+      ...await debugNode(n.uuid)
+    }))
   );
-  res.send(results);
+
+  const sortedDebugData = debugData.sort((n1, n2) =>
+    // Most recent first
+    n2[event].getTime() - n1[event].getTime()
+  );
+  
+  const endTime = new Date();
+  const duration = Math.round(endTime.getTime() - startTime.getTime());
+
+  const result = {
+    info: {
+      startTime,
+      duration: `${duration}s`,
+      event,
+      fromDate: fromDate ?? "undefined",
+      toDate: toDate ?? "undefined",
+    },
+    summary: {
+      nodesWithErrors: debugData.filter(n => n.hasError).length,
+    },
+    data: sortedDebugData,
+  };
+
+  return res.send(result);
+};
+
+const makeTimeClause = (
+  event: "first_publish" | "last_publish",
+  fromDate?: string,
+  toDate?: string
+) => {
+  if (!fromDate && !toDate) {
+    return "";
+  }
+
+  let clause = `where all_versions.${event}`;
+
+  if (fromDate) {
+    clause += ` > '${fromDate}'`;
+  };
+
+  if (toDate && fromDate) {
+    clause += `and all_versions.${event} < '${toDate}'`;
+  } else if (toDate) {
+    clause += `< '${toDate}'`;
+  };
+
+  return clause;
 };
 
 const debugNode = async (uuid: string) => {
-  const node = await prisma.node.findFirst({
+  const node: NodeDbClosure = await prisma.node.findFirst({
     where: {
       uuid: ensureUuidEndsWithDot(uuid),
     },
@@ -94,34 +157,15 @@ const debugNode = async (uuid: string) => {
     || !nVersionsAgree;
 
   return {
-    uuid,
     createdAt: node.createdAt,
+    updatedAt: node.updatedAt,
     hasError,
     nVersionsAgree,
-    stream: stream,
-    dpid: dpid,
-    db: database,
-    indexer: indexer,
+    stream,
+    dpid,
+    database,
+    indexer,
   };
-};
-
-const makeTimeFilter = (
-  timeColumn: "createdAt" | "updatedAt",
-  bounds: { fromDate?: string, toDate?: string }
-): Prisma.NodeWhereInput => {
-  const { fromDate, toDate } = bounds;
-
-  let filter: Prisma.DateTimeFilter = {};
-
-  if (fromDate) {
-    filter.gte = new Date(fromDate).toISOString();
-  };
-
-  if (toDate){
-    filter.lte = new Date(toDate).toString();
-  };
-
-  return { [timeColumn]: filter };
 };
 
 type NodeDbClosure = Node & {
@@ -171,10 +215,17 @@ const debugStream = async (
 const debugDpid = async (dpid?: number) => {
   if (!dpid) return { present: false, error: false };
 
-  const wallet = await getHotWallet();
-  const registry = getAliasRegistry(wallet);
+  let mappedStream: string;
+  try {
+    const wallet = await getHotWallet();
+    const registry = getAliasRegistry(wallet);
 
-  const mappedStream = await registry.resolve(dpid);
+    mappedStream = await registry.resolve(dpid);
+  } catch (e) {
+    const err = e as Error;
+    return { present: true, error: true, name: err.name, msg: err.message, stack: err.stack };
+  };
+
   if (!mappedStream) {
     return { present: true, error: true, mappedStream: null };
   };
