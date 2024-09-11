@@ -77,6 +77,7 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
   works: {
     // ex denormalized works, probably safe to remove old 'works' config above
     context_novelty_percentile: (order) => [{ context_novelty_percentile: { order, missing: '_last' } }],
+    content_novelty_percentile: (order) => [{ content_novelty_percentile: { order, missing: '_last' } }],
     publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
     publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
     cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
