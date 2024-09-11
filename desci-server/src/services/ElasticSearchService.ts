@@ -217,11 +217,26 @@ function buildFilter(filter: Filter) {
         },
       };
     case 'match':
-      return {
+      const matchQuery = {
         match: {
-          [filter.field]: filter.value,
+          [filter.field]: {
+            query: filter.value,
+            operator: filter.matchLogic || 'or',
+            ...(filter.fuzziness && { fuzziness: filter.fuzziness }),
+          },
         },
       };
+
+      if (filter.field.includes('.')) {
+        const [nestedPath, nestedField] = filter.field.split('.');
+        return {
+          nested: {
+            path: nestedPath,
+            query: matchQuery,
+          },
+        };
+      }
+      return matchQuery;
     case 'exists':
       return {
         exists: {
