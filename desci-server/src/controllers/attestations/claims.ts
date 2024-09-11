@@ -134,7 +134,7 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
   await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
 
   logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
-  return new SuccessMessageResponse('Attestation unclaimed').send(res);
+  return new SuccessMessageResponse().send(res);
 };
 
 export const claimEntryRequirements = async (req: Request, res: Response, _next: NextFunction) => {

@@ -12,12 +12,12 @@ import { Request } from 'express';
 import _ from 'lodash';
 import { z } from 'zod';
 
-import { sanitizeObject } from '../../core/helper.js';
 import {
   BadRequestError,
   NotFoundError,
   RequestWithNode,
   SuccessResponse,
+  UnProcessableRequestError,
   crossRefClient,
   doiService,
   ensureUuidEndsWithDot,
@@ -172,7 +172,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     const { title, authors } = metadata;
 
     // update title
-    actions.push({ type: 'Update Title', title });
+    if (title.trim()) actions.push({ type: 'Update Title', title });
 
     // update contributors if populated
     if (authors.length > 0) {
@@ -188,17 +188,21 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     }
   }
 
-  logger.info({ actions }, 'Automate DOI actions');
+  if (actions.length > 0) {
+    logger.info({ actions }, 'Automate DOI actions');
+    const response = await repoService.dispatchAction({
+      uuid,
+      documentId: node.manifestDocumentId as DocumentId,
+      actions,
+    });
 
-  const response = await repoService.dispatchAction({
-    uuid,
-    documentId: node.manifestDocumentId as DocumentId,
-    actions,
-  });
+    logger.info({ response: response.manifest.components[componentIndex] }, 'component updated');
 
-  logger.info({ response: response.manifest.components[componentIndex] }, 'component updated');
-
-  new SuccessResponse(true).send(res);
+    new SuccessResponse(true).send(res);
+  } else {
+    logger.error('NO DATA EXTRACTED');
+    throw new UnProcessableRequestError('Unable to extract metadata from manuscript');
+  }
 };
 
 const transformWorkToMetadata = (work: Work): MetadataResponse => {
