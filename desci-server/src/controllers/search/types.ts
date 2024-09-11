@@ -1,4 +1,6 @@
 import { SearchTotalHits } from '@elastic/elasticsearch/lib/api/types.js';
+
+import { VALID_ENTITIES } from '../../services/ElasticSearchService.js';
 export type Entity = string;
 export type Query = string;
 
@@ -18,6 +20,7 @@ export type Filter = {
 
 export interface QuerySuccessResponse extends QueryDebuggingResponse {
   ok: true;
+  index: (typeof VALID_ENTITIES)[number];
   page: number;
   perPage: number;
   total: number | SearchTotalHits;

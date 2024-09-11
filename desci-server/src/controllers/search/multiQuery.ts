@@ -57,7 +57,8 @@ export const multiQuery = async (
     });
   }
 
-  const primaryEntity = Object.keys(validEntityQueries[0])[0];
+  const primaryEntity = 'works'; // Hard coded for now to not affect results without a 'works' query.
+  // const primaryEntity = Object.keys(validEntityQueries[0])[0];
 
   const esQueries = validEntityQueries.map((q) => {
     const [entity, query] = Object.entries(q)[0];
@@ -86,6 +87,7 @@ export const multiQuery = async (
       esQueries,
       esBoolQuery,
       esSort,
+      index: primaryEntity,
       ok: true,
       total: hits.total,
       page: pagination.page,
