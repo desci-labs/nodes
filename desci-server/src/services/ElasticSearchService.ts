@@ -35,7 +35,7 @@ export const RELEVANT_FIELDS = {
   fields: ['field_display_name'],
   concepts: ['display_name'],
   sources: ['display_name', 'publisher', 'issn_l', 'issn'],
-  autocomplete_full: ['title, primary_id'],
+  autocomplete_full: ['title', 'publisher', 'primary_id'],
   institutions: ['display_name', 'homepage_url', 'ror', 'country_code'],
   denorm_authors: ['authors.display_name', 'authors.orcid', 'authors.last_known_institution', 'authors.affiliation'],
   denorm_topics: ['topics.display_name'],
