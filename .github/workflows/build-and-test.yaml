@@ -22,6 +22,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   CONTAINER_IMAGE: desci-server
   DOCKER_BUILDKIT: 1
+  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
 jobs:
   build-and-test:
