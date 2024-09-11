@@ -60,6 +60,7 @@ jobs:
         run: |
           npm install -g @sentry/cli
           sentry-cli --version
+          sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
 
       - name: Run tests
         run: |
