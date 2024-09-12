@@ -1,5 +1,6 @@
 import { DiscordNotification } from '@penseapp/discord-notification';
 
+import { SERVER_ENV } from '../config/index.js';
 import { logger } from '../logger.js';
 
 const doiMintingNotification = new DiscordNotification(
@@ -67,8 +68,9 @@ export const discordNotify = async ({
       message,
       notificationName: discordNotification.name,
       webhook: discordNotification.webhook,
+      env: SERVER_ENV,
     },
     'DISCORD NOTIFY',
   );
-  await notifier.addTitle(title).addDescription(message).sendMessage();
+  await notifier.addTitle(`${title} - ${SERVER_ENV}`).addDescription(message).sendMessage();
 };
