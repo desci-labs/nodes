@@ -38,7 +38,7 @@ export const singleQuery = async (
     sort = { field: '_score', order: 'desc' },
     pagination = { page: 1, perPage: 10 },
   }: SingleQuerySearchBodyParams = req.body;
-
+  //
   const logger = parentLogger.child({
     module: 'SEARCH::SingleQuery',
     query,
@@ -57,6 +57,7 @@ export const singleQuery = async (
       error: `Invalid entity: ${entity}, the following entities are supported: ${VALID_ENTITIES.join(' ')}`,
     });
   }
+  //
 
   // const esQuery = buildSimpleStringQuery(query, entity, fuzzy);
   const esQuery = buildMultiMatchQuery(query, entity, fuzzy);
