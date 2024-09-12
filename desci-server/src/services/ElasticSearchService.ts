@@ -217,16 +217,23 @@ function buildFilter(filter: Filter) {
         },
       };
     case 'match_phrase':
-      const authorQuery = Array.isArray(filter.value)
-        ? {
-            bool: {
-              [filter.matchLogic === 'and' ? 'must' : 'should']: filter.value.map((value) => ({
-                match_phrase: { [filter.field]: value },
-              })),
-              ...(filter.matchLogic === 'or' ? { minimum_should_match: 1 } : {}),
+      if (Array.isArray(filter.value)) {
+        const queries = filter.value.map((value) => ({
+          nested: {
+            path: filter.field.split('.')[0],
+            query: {
+              match_phrase: { [filter.field]: value },
             },
-          }
-        : { match_phrase: { [filter.field]: filter.value } };
+          },
+        }));
+
+        return {
+          bool: {
+            [filter.matchLogic === 'and' ? 'must' : 'should']: queries,
+            ...(filter.matchLogic === 'or' ? { minimum_should_match: 1 } : {}),
+          },
+        };
+      }
 
       const fieldParts = filter.field.split('.');
       if (fieldParts.length > 1) {
@@ -234,18 +241,12 @@ function buildFilter(filter: Filter) {
           nested: {
             path: fieldParts[0],
             query: {
-              bool: {
-                must: [authorQuery],
-              },
+              match_phrase: { [filter.field]: filter.value },
             },
           },
         };
       }
-      return {
-        bool: {
-          must: [authorQuery],
-        },
-      };
+      return { match_phrase: { [filter.field]: filter.value } };
     case 'match':
       const matchQuery = {
         match: {
