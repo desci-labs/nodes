@@ -216,6 +216,36 @@ function buildFilter(filter: Filter) {
           [filter.field]: filter.value,
         },
       };
+    case 'match_phrase':
+      const authorQuery = Array.isArray(filter.value)
+        ? {
+            bool: {
+              [filter.matchLogic === 'and' ? 'must' : 'should']: filter.value.map((value) => ({
+                match_phrase: { [filter.field]: value },
+              })),
+              ...(filter.matchLogic === 'or' ? { minimum_should_match: 1 } : {}),
+            },
+          }
+        : { match_phrase: { [filter.field]: filter.value } };
+
+      const fieldParts = filter.field.split('.');
+      if (fieldParts.length > 1) {
+        return {
+          nested: {
+            path: fieldParts[0],
+            query: {
+              bool: {
+                must: [authorQuery],
+              },
+            },
+          },
+        };
+      }
+      return {
+        bool: {
+          must: [authorQuery],
+        },
+      };
     case 'match':
       const matchQuery = {
         match: {

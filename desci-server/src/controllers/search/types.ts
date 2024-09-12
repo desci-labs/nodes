@@ -5,7 +5,7 @@ export type Entity = string;
 export type Query = string;
 
 export type ComparisonOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte';
-export type FilterType = 'range' | 'term' | 'match' | 'exists';
+export type FilterType = 'range' | 'term' | 'match' | 'exists' | 'match_phrase';
 export type MatchLogic = 'and' | 'or';
 
 export type Filter = {
@@ -18,6 +18,7 @@ export type Filter = {
   | { type: 'range'; operator: ComparisonOperator; value: number | string }
   | { type: 'term'; value: string | number | boolean }
   | { type: 'match'; value: string; matchLogic?: MatchLogic; fuzziness?: number | 'AUTO' }
+  | { type: 'match_phrase'; value: string | string[]; matchLogic?: MatchLogic }
   | { type: 'exists' }
 );
 
