@@ -22,7 +22,7 @@ export const VALID_ENTITIES = [
   'fields',
   'works',
   'countries',
-  'autocomplete_index',
+  'autocomplete_full',
 ];
 
 /**
@@ -35,7 +35,7 @@ export const RELEVANT_FIELDS = {
   fields: ['field_display_name'],
   concepts: ['display_name'],
   sources: ['display_name', 'publisher', 'issn_l', 'issn'],
-  autocomplete_index: ['title, primary_id'],
+  autocomplete_full: ['title', 'publisher', 'primary_id'],
   institutions: ['display_name', 'homepage_url', 'ror', 'country_code'],
   denorm_authors: ['authors.display_name', 'authors.orcid', 'authors.last_known_institution', 'authors.affiliation'],
   denorm_topics: ['topics.display_name'],
@@ -77,6 +77,7 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
   works: {
     // ex denormalized works, probably safe to remove old 'works' config above
     context_novelty_percentile: (order) => [{ context_novelty_percentile: { order, missing: '_last' } }],
+    content_novelty_percentile: (order) => [{ content_novelty_percentile: { order, missing: '_last' } }],
     publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
     publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
     cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
@@ -215,12 +216,58 @@ function buildFilter(filter: Filter) {
           [filter.field]: filter.value,
         },
       };
+    case 'match_phrase':
+      if (Array.isArray(filter.value)) {
+        const queries = filter.value.map((value) => ({
+          nested: {
+            path: filter.field.split('.')[0],
+            query: {
+              match_phrase: { [filter.field]: value },
+            },
+          },
+        }));
+
+        return {
+          bool: {
+            [filter.matchLogic === 'and' ? 'must' : 'should']: queries,
+            ...(filter.matchLogic === 'or' ? { minimum_should_match: 1 } : {}),
+          },
+        };
+      }
+
+      const fieldParts = filter.field.split('.');
+      if (fieldParts.length > 1) {
+        return {
+          nested: {
+            path: fieldParts[0],
+            query: {
+              match_phrase: { [filter.field]: filter.value },
+            },
+          },
+        };
+      }
+      return { match_phrase: { [filter.field]: filter.value } };
     case 'match':
-      return {
+      const matchQuery = {
         match: {
-          [filter.field]: filter.value,
+          [filter.field]: {
+            query: filter.value,
+            operator: filter.matchLogic || 'or',
+            ...(filter.fuzziness && { fuzziness: filter.fuzziness }),
+          },
         },
       };
+
+      if (filter.field.includes('.')) {
+        const [nestedPath, nestedField] = filter.field.split('.');
+        return {
+          nested: {
+            path: nestedPath,
+            query: matchQuery,
+          },
+        };
+      }
+      return matchQuery;
     case 'exists':
       return {
         exists: {
@@ -237,6 +284,7 @@ function getRelevantFields(entity: string) {
   if (entity === 'fields') return RELEVANT_FIELDS.fields;
   if (entity === 'institutions') return RELEVANT_FIELDS.institutions;
   if (entity === 'sources') return RELEVANT_FIELDS.sources;
+  if (entity === 'autocomplete_full') return RELEVANT_FIELDS.autocomplete_full;
   if (entity === 'works_authors') return RELEVANT_FIELDS.denorm_authors;
   if (entity === 'works_fields') return RELEVANT_FIELDS.denorm_fields;
   if (entity === 'works_topics') return RELEVANT_FIELDS.denorm_topics;
