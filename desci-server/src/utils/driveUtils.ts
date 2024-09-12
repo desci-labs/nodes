@@ -225,7 +225,7 @@ export async function getTreeAndFill(
 
     // blockTimeCache prevents redoing the same ceramic node/redis lookup for every pubRef entry if they share the same tx/commit hash
     // getBlockTime returning null is valid, and its a valid cache value in the blockTimeCache map, to prevent spamming failing lookups in the ceramic node
-    const blockTimeCache = {};
+    const blockTimeCache: Record<string, string> = {};
     const uniqueTxOrCommits = new Set(
       pubEntries.map((entry) => entry.nodeVersion.transactionId ?? entry.nodeVersion.commitId).filter(Boolean),
     );
@@ -236,7 +236,7 @@ export async function getTreeAndFill(
         blockTimeCache[txOrCommit] = blockTime;
       } catch (error) {
         logger.info({ error, txOrCommit }, `Failed to fetch block time}`);
-        blockTimeCache[txOrCommit] = null;
+        blockTimeCache[txOrCommit] = BLOCKTIME_NOT_FOUND;
       }
     });
     await Promise.all(fetchBlockTimePromises);
@@ -248,7 +248,10 @@ export async function getTreeAndFill(
       }
 
       const blockTime = blockTimeCache[txOrCommit];
-      const date = blockTime ?? ref.createdAt?.getTime().toString();
+      const isValidTime = blockTime !== BLOCKTIME_NOT_FOUND;
+      const date = isValidTime
+        ? blockTime
+        : ref.createdAt?.getTime().toString();
       const entryDetails = {
         size: ref.size || 0,
         published: true,
@@ -265,15 +268,24 @@ export async function getTreeAndFill(
   return treeRoot;
 }
 
-export const getBlockTime = async (uuid: string, txOrCommit: string | undefined) => {
-  if (!txOrCommit) return null;
+const BLOCKTIME_NOT_FOUND = '-1';
+
+/**
+ * Get the block time for a transaction, as a string.
+ * - If a timestamp is found in the index, it's returned cached with default, long lived TTL
+ * - If the research object/version is not found, returns -1 but doesn't cache it
+ * - If the timestamp is missing, return -1 and caches it for a few minutes
+ */
+export const getBlockTime = async (uuid: string, txOrCommit: string | undefined): Promise<string> => {
+  if (!txOrCommit) {
+    return BLOCKTIME_NOT_FOUND;
+  }
+
   let blockTime: string;
   const cacheKey = `txHash-blockTime-${txOrCommit}`;
   try {
     blockTime = await getFromCache<string>(cacheKey);
-    if (blockTime && blockTime !== '-1') {
-      // Previously blockTime was sometimes cached as -1, to cleanup we don't return
-      // and try to re-fetch instead.
+    if (blockTime) {
       return blockTime;
     }
   } catch (e) {
@@ -290,7 +302,7 @@ export const getBlockTime = async (uuid: string, txOrCommit: string | undefined)
 
   if (!indexRes?.researchObjects?.length) {
     logger.warn({ fn: 'getBlockTime' }, `No research objects found for node ${uuid}`);
-    return null;
+    return BLOCKTIME_NOT_FOUND;
   }
 
   const indexedNode = indexRes.researchObjects[0];
@@ -298,16 +310,21 @@ export const getBlockTime = async (uuid: string, txOrCommit: string | undefined)
 
   if (!correctVersion) {
     logger.warn({ fn: 'getBlockTime', uuid, txOrCommit }, 'No version match was found txOrCommit');
-    return null;
+    return BLOCKTIME_NOT_FOUND;
   }
 
+  const timestamp = correctVersion.time;
   try {
-    await setToCache(cacheKey, correctVersion.time);
+    if (timestamp) {
+      await setToCache(cacheKey, correctVersion.time);
+    } else {
+      await setToCache(cacheKey, BLOCKTIME_NOT_FOUND, 60 * 5); // Cache not-yet-anchored for 5 mins
+    }
   } catch (e) {
     logger.warn({ fn: 'getBlockTime', uuid, txOrCommit, cacheKey }, 'Failed to set block time in cache');
   }
 
-  return correctVersion.time;
+  return timestamp;
 };
 
 export const gbToBytes = (gb: number) => gb * 1_000_000_000;
