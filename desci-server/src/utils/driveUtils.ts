@@ -25,7 +25,7 @@ import { getFromCache, getOrCache, setToCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
 import { NodeUuid } from '../services/manifestRepo.js';
 import repoService from '../services/repoService.js';
-import { getIndexedResearchObjects, IndexedResearchObject } from '../theGraph.js';
+import { getIndexedResearchObjects, getTimeForTxOrCommits, IndexedResearchObject } from '../theGraph.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
@@ -195,8 +195,8 @@ export async function getTreeAndFill(
         select: {
           transactionId: true,
           commitId: true,
-        }
-      }
+        },
+      },
     },
     where: {
       type: { not: DataType.MANIFEST },
@@ -223,23 +223,29 @@ export async function getTreeAndFill(
       cidInfoMap[ref.cid] = entryDetails;
     });
 
-    // blockTimeCache prevents redoing the same ceramic node/redis lookup for every pubRef entry if they share the same tx/commit hash
-    // getBlockTime returning null is valid, and its a valid cache value in the blockTimeCache map, to prevent spamming failing lookups in the ceramic node
-    const blockTimeCache: Record<string, string> = {};
-    const uniqueTxOrCommits = new Set(
-      pubEntries.map((entry) => entry.nodeVersion.transactionId ?? entry.nodeVersion.commitId).filter(Boolean),
-    );
+    let blockTimeMap: Record<string, string> = {};
+    const blockTimeMapCacheKey = `blockTimeMap-${nodeUuid}`;
 
-    const fetchBlockTimePromises = Array.from(uniqueTxOrCommits).map(async (txOrCommit) => {
-      try {
-        const blockTime = await getBlockTime(nodeUuid, txOrCommit);
-        blockTimeCache[txOrCommit] = blockTime;
-      } catch (error) {
-        logger.info({ error, txOrCommit }, `Failed to fetch block time}`);
-        blockTimeCache[txOrCommit] = BLOCKTIME_NOT_FOUND;
+    try {
+      blockTimeMap = await getFromCache(blockTimeMapCacheKey);
+      if (!blockTimeMap) {
+        const uniqueTxOrCommits = Array.from(
+          new Set(
+            pubEntries.map((entry) => entry.nodeVersion.transactionId ?? entry.nodeVersion.commitId).filter(Boolean),
+          ),
+        );
+        blockTimeMap = await getTimeForTxOrCommits(uniqueTxOrCommits);
+        setToCache(blockTimeMapCacheKey, blockTimeMap, 60 * 5); // Short 5 min TTL to not query the ceramic node/graph multiple times for similar requests
       }
-    });
-    await Promise.all(fetchBlockTimePromises);
+    } catch (e) {
+      logger.warn({ fn: 'getTreeAndFill', nodeUuid }, 'Failed to get blockTimeMap from redis, redis likely down');
+      const uniqueTxOrCommits = Array.from(
+        new Set(
+          pubEntries.map((entry) => entry.nodeVersion.transactionId ?? entry.nodeVersion.commitId).filter(Boolean),
+        ),
+      );
+      blockTimeMap = await getTimeForTxOrCommits(uniqueTxOrCommits);
+    }
 
     pubEntries.forEach((ref) => {
       const txOrCommit = ref.nodeVersion.transactionId ?? ref.nodeVersion.commitId;
@@ -247,11 +253,9 @@ export async function getTreeAndFill(
         logger.error({ fn: 'getTreeAndFill', ref }, 'Got empty publish hashes');
       }
 
-      const blockTime = blockTimeCache[txOrCommit];
-      const isValidTime = blockTime !== BLOCKTIME_NOT_FOUND;
-      const date = isValidTime
-        ? blockTime
-        : ref.createdAt?.getTime().toString();
+      const blockTime = blockTimeMap[txOrCommit];
+      const isValidTime = blockTime !== undefined;
+      const date = isValidTime ? blockTime : ref.createdAt?.getTime().toString();
       const entryDetails = {
         size: ref.size || 0,
         published: true,
@@ -271,12 +275,13 @@ export async function getTreeAndFill(
 const BLOCKTIME_NOT_FOUND = '-1';
 
 /**
+ * DEPRECATED in favor of getTimeForTxOrCommits
  * Get the block time for a transaction, as a string.
  * - If a timestamp is found in the index, it's returned cached with default, long lived TTL
  * - If the research object/version is not found, returns -1 but doesn't cache it
  * - If the timestamp is missing, return -1 and caches it for a few minutes
  */
-export const getBlockTime = async (uuid: string, txOrCommit: string | undefined): Promise<string> => {
+export const _getBlockTime = async (uuid: string, txOrCommit: string | undefined): Promise<string> => {
   if (!txOrCommit) {
     return BLOCKTIME_NOT_FOUND;
   }

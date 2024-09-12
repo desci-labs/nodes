@@ -1,12 +1,13 @@
+import { log } from 'console';
+
+import { CommitID, StreamID } from '@desci-labs/desci-codex-lib/dist/streams.js';
 import axios from 'axios';
 
 import { prisma } from './client.js';
 import { logger as parentLogger } from './logger.js';
+import { directStreamLookup, LogEntry } from './services/ceramic.js';
 import { getTargetDpidUrl } from './services/fixDpid.js';
 import { convertCidTo0xHex, decodeBase64UrlSafeToHex, ensureUuidEndsWithDot } from './utils.js';
-import { CommitID, StreamID } from '@desci-labs/desci-codex-lib/dist/streams.js';
-import { directStreamLookup, LogEntry } from './services/ceramic.js';
-import { log } from 'console';
 
 const logger = parentLogger.child({
   module: 'GetIndexedResearchObjects',
@@ -207,16 +208,14 @@ type DpidRegistersResponse = {
 };
 
 type TransactionsWithTimestamp = {
-  researchObjectVersions: { id: string, time: string }[]
+  researchObjectVersions: { id: string; time: string }[];
 };
 
-export const getTimeForTxOrCommits = async (
-  txOrCommits: string[]
-): Promise<Record<string, string>> => {
-  let commitIdStrs: string[] = [];
-  let txIds: string[] = [];
+export const getTimeForTxOrCommits = async (txOrCommits: string[]): Promise<Record<string, string>> => {
+  const commitIdStrs: string[] = [];
+  const txIds: string[] = [];
   for (const id of txOrCommits) {
-    if (id.slice(0,2) === "0x") {
+    if (id.slice(0, 2) === '0x') {
       txIds.push(id);
     } else {
       commitIdStrs.push(id);
@@ -230,11 +229,12 @@ export const getTimeForTxOrCommits = async (
     const streamState = await directStreamLookup(streamId.toString());
     if (!('err' in streamState)) {
       const rawLog = streamState.state.log;
-      const timeMap = rawLog.reduce((acc, event) => (
-        {
+      const timeMap = rawLog.reduce(
+        (acc, event) => ({
           ...acc,
           [CommitID.make(streamId, event.cid).toString()]: event.timestamp.toString(),
-        }), {} as Record<string, string>
+        }),
+        {} as Record<string, string>,
       );
       results = timeMap;
     }
@@ -242,15 +242,18 @@ export const getTimeForTxOrCommits = async (
   }
 
   if (txIds) {
-    const graphTxTimestamps = await getTxTimeFromGraph(txIds);
-    // TODO: create map {txId: timestamp} and spread into results
+    try {
+      const graphTxTimestamps = await getTxTimeFromGraph(txIds);
+      const graphTxTimeMap = graphTxTimestamps.reduce((acc, { id, time }) => ({ ...acc, [id]: time }), {});
+      results = { ...results, ...graphTxTimeMap };
+    } catch (e) {
+      logger.error({ txIds, err: e }, 'failed to get tx timestamps from graph');
+    }
   }
   return results;
-}
+};
 
-const getTxTimeFromGraph = async (
-  txIds: string[]
-): Promise<TransactionsWithTimestamp['researchObjectVersions']> => {
+const getTxTimeFromGraph = async (txIds: string[]): Promise<TransactionsWithTimestamp['researchObjectVersions']> => {
   const q = `
   researchObjectVersions(where: {id_in: ["${txIds.join('","')}"]}) {
     id
@@ -258,7 +261,7 @@ const getTxTimeFromGraph = async (
   }`;
   const response = await query<TransactionsWithTimestamp>(q);
   return response.researchObjectVersions;
-}
+};
 
 /**
  * Find the legacy dPID for a given node by looking up a transaction hash,
@@ -299,4 +302,3 @@ export const query = async <T>(query: string, overrideUrl?: string): Promise<T> 
   }
   return data.data as T;
 };
-
