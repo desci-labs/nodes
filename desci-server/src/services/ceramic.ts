@@ -1,7 +1,6 @@
 import axios, { AxiosError } from "axios";
 import { CERAMIC_API_URL } from "../config/index.js";
 import { logger as parentLogger } from "../logger.js";
-import { newCeramicClient, resolveHistory } from "@desci-labs/desci-codex-lib";
 
 const logger = parentLogger.child({
   module: "Service::Ceramic",

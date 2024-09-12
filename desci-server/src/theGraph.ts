@@ -4,6 +4,9 @@ import { prisma } from './client.js';
 import { logger as parentLogger } from './logger.js';
 import { getTargetDpidUrl } from './services/fixDpid.js';
 import { convertCidTo0xHex, decodeBase64UrlSafeToHex, ensureUuidEndsWithDot } from './utils.js';
+import { CommitID, StreamID } from '@desci-labs/desci-codex-lib/dist/streams.js';
+import { directStreamLookup, LogEntry } from './services/ceramic.js';
+import { log } from 'console';
 
 const logger = parentLogger.child({
   module: 'GetIndexedResearchObjects',
@@ -194,19 +197,6 @@ export const _getIndexedResearchObjects = async (
   return query(q);
 };
 
-export const query = async <T>(query: string, overrideUrl?: string): Promise<T> => {
-  const payload = JSON.stringify({
-    query,
-  });
-  const url = overrideUrl ?? process.env.THEGRAPH_API_URL;
-  const { data } = await axios.post(url, payload);
-  if (data.errors) {
-    logger.error({ fn: 'query', err: data.errors, query, dataRes: data }, `graph index query err ${query}`);
-    throw Error(JSON.stringify(data.errors));
-  }
-  return data.data as T;
-};
-
 type RegisterEvent = {
   transactionHash: string;
   entryId: string;
@@ -215,6 +205,60 @@ type RegisterEvent = {
 type DpidRegistersResponse = {
   registers: RegisterEvent[];
 };
+
+type TransactionsWithTimestamp = {
+  researchObjectVersions: { id: string, time: string }[]
+};
+
+export const getTimeForTxOrCommits = async (
+  txOrCommits: string[]
+): Promise<Record<string, string>> => {
+  let commitIdStrs: string[] = [];
+  let txIds: string[] = [];
+  for (const id of txOrCommits) {
+    if (id.slice(0,2) === "0x") {
+      txIds.push(id);
+    } else {
+      commitIdStrs.push(id);
+    }
+  }
+
+  let results: Record<string, string> = {};
+  if (commitIdStrs.length) {
+    const commitId = CommitID.fromString(commitIdStrs[0]);
+    const streamId = commitId.baseID;
+    const streamState = await directStreamLookup(streamId.toString());
+    if (!('err' in streamState)) {
+      const rawLog = streamState.state.log;
+      const timeMap = rawLog.reduce((acc, event) => (
+        {
+          ...acc,
+          [CommitID.make(streamId, event.cid).toString()]: event.timestamp.toString(),
+        }), {} as Record<string, string>
+      );
+      results = timeMap;
+    }
+    logger.error({ streamId, commitId }, 'failed to do direct lookup of stream');
+  }
+
+  if (txIds) {
+    const graphTxTimestamps = await getTxTimeFromGraph(txIds);
+    // TODO: create map {txId: timestamp} and spread into results
+  }
+  return results;
+}
+
+const getTxTimeFromGraph = async (
+  txIds: string[]
+): Promise<TransactionsWithTimestamp['researchObjectVersions']> => {
+  const q = `
+  researchObjectVersions(where: {id_in: ["${txIds.join('","')}"]}) {
+    id
+    time
+  }`;
+  const response = await query<TransactionsWithTimestamp>(q);
+  return response.researchObjectVersions;
+}
 
 /**
  * Find the legacy dPID for a given node by looking up a transaction hash,
@@ -242,3 +286,17 @@ export const _getDpidForTxIds = async (txs: string[]): Promise<RegisterEvent[]> 
   const response = await query<DpidRegistersResponse>(q, url);
   return response.registers;
 };
+
+export const query = async <T>(query: string, overrideUrl?: string): Promise<T> => {
+  const payload = JSON.stringify({
+    query,
+  });
+  const url = overrideUrl ?? process.env.THEGRAPH_API_URL;
+  const { data } = await axios.post(url, payload);
+  if (data.errors) {
+    logger.error({ fn: 'query', err: data.errors, query, dataRes: data }, `graph index query err ${query}`);
+    throw Error(JSON.stringify(data.errors));
+  }
+  return data.data as T;
+};
+
