@@ -7,7 +7,7 @@ import {
 import axios from 'axios';
 import { NextFunction, Request, Response } from 'express';
 import { logger as parentLogger } from '../../logger.js';
-import { getIndexedResearchObjects } from '../../theGraph.js';
+import { getIndexedResearchObjects, IndexedResearchObject } from '../../theGraph.js';
 import { decodeBase64UrlSafeToHex, hexToCid } from '../../utils.js';
 
 const IPFS_RESOLVER_OVERRIDE = process.env.IPFS_RESOLVER_OVERRIDE || '';
@@ -44,17 +44,16 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
   });
   logger.debug(`[resolve::resolve] firstParam=${firstParam} secondParam=${secondParam}`);
 
-  let result;
+  let result: IndexedResearchObject;
   try {
     const res = await getIndexedResearchObjects([uuid]);
     result = res.researchObjects[0];
-    result.versions.reverse();
   } catch (err) {
     logger.warn({ err }, `[ERROR] index lookup failed: ${err.message}`);
   };
 
   if (!result) {
-    logger.warn({ result }, 'empty result or indexer down');
+    logger.warn({ uuid, result }, 'empty result or indexer down');
     return res.status(404).send({
       ok: false,
       msg: `resource not found`,
@@ -62,6 +61,9 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
       env: process.env.NODE_ENV,
     });
   };
+
+  // Flip history to chronological
+  result.versions.reverse();
 
   const ipfsResolver = IPFS_RESOLVER_OVERRIDE || req.query.g || 'https://ipfs.desci.com/ipfs';
   // TODO: add whitelist of resolvers

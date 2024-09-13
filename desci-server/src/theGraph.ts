@@ -1,11 +1,8 @@
-import { log } from 'console';
-
-import { CommitID, StreamID } from '@desci-labs/desci-codex-lib/dist/streams.js';
 import axios from 'axios';
 
 import { prisma } from './client.js';
 import { logger as parentLogger } from './logger.js';
-import { directStreamLookup, LogEntry } from './services/ceramic.js';
+import { getCommitTimestamps } from './services/ceramic.js';
 import { getTargetDpidUrl } from './services/fixDpid.js';
 import { convertCidTo0xHex, decodeBase64UrlSafeToHex, ensureUuidEndsWithDot } from './utils.js';
 
@@ -198,6 +195,58 @@ export const _getIndexedResearchObjects = async (
   return query(q);
 };
 
+/**
+ * For a bunch of publish hashes, get the corresponding timestamps as strings.
+ */
+export const getTimeForTxOrCommits = async (txOrCommits: string[]): Promise<Record<string, string>> => {
+  const isTx = (id: string) => id.startsWith('0x');
+  const txIds = txOrCommits.filter(isTx);
+  const commitIdStrs = txOrCommits.filter(id => !isTx(id));
+
+  const commitTimeMap = await getCommitTimestamps(commitIdStrs);
+  const txTimeMap = await getTxTimestamps(txIds);
+
+  return { ...commitTimeMap, ...txTimeMap };
+};
+
+/**
+ * Get the timestamp for a list of research object publish transactions.
+ * @returns a map between { txId: timestamp }
+ */
+const getTxTimestamps = async (txIds: string[]): Promise<Record<string, string>> => {
+  if (txIds.length === 0) {
+    return {};
+  }
+
+  try {
+    const graphTxTimestamps = await getTxTimeFromGraph(txIds);
+    const timeMap = graphTxTimestamps.reduce(
+      (acc, { id, time }) => ({ ...acc, [id]: time}),
+      {} as Record<string, string>,
+    );
+    return timeMap;
+  } catch (err) {
+    logger.error({ txIds, err }, 'failed to get tx timestamps from graph, returning empty map');
+    return {};
+  };
+}
+
+type TransactionsWithTimestamp = {
+  researchObjectVersions: { id: string; time: string }[];
+};
+
+const getTxTimeFromGraph = async (txIds: string[]): Promise<TransactionsWithTimestamp['researchObjectVersions']> => {
+  const q = `
+  {
+    researchObjectVersions(where: {id_in: ["${txIds.join('","')}"]}) {
+      id
+      time
+    }
+  }`;
+  const response = await query<TransactionsWithTimestamp>(q);
+  return response.researchObjectVersions;
+};
+
 type RegisterEvent = {
   transactionHash: string;
   entryId: string;
@@ -205,62 +254,6 @@ type RegisterEvent = {
 
 type DpidRegistersResponse = {
   registers: RegisterEvent[];
-};
-
-type TransactionsWithTimestamp = {
-  researchObjectVersions: { id: string; time: string }[];
-};
-
-export const getTimeForTxOrCommits = async (txOrCommits: string[]): Promise<Record<string, string>> => {
-  const commitIdStrs: string[] = [];
-  const txIds: string[] = [];
-  for (const id of txOrCommits) {
-    if (id.slice(0, 2) === '0x') {
-      txIds.push(id);
-    } else {
-      commitIdStrs.push(id);
-    }
-  }
-
-  let results: Record<string, string> = {};
-  if (commitIdStrs.length) {
-    const commitId = CommitID.fromString(commitIdStrs[0]);
-    const streamId = commitId.baseID;
-    const streamState = await directStreamLookup(streamId.toString());
-    if (!('err' in streamState)) {
-      const rawLog = streamState.state.log;
-      const timeMap = rawLog.reduce(
-        (acc, event) => ({
-          ...acc,
-          [CommitID.make(streamId, event.cid).toString()]: event.timestamp.toString(),
-        }),
-        {} as Record<string, string>,
-      );
-      results = timeMap;
-    }
-    logger.error({ streamId, commitId }, 'failed to do direct lookup of stream');
-  }
-
-  if (txIds) {
-    try {
-      const graphTxTimestamps = await getTxTimeFromGraph(txIds);
-      const graphTxTimeMap = graphTxTimestamps.reduce((acc, { id, time }) => ({ ...acc, [id]: time }), {});
-      results = { ...results, ...graphTxTimeMap };
-    } catch (e) {
-      logger.error({ txIds, err: e }, 'failed to get tx timestamps from graph');
-    }
-  }
-  return results;
-};
-
-const getTxTimeFromGraph = async (txIds: string[]): Promise<TransactionsWithTimestamp['researchObjectVersions']> => {
-  const q = `
-  researchObjectVersions(where: {id_in: ["${txIds.join('","')}"]}) {
-    id
-    time
-  }`;
-  const response = await query<TransactionsWithTimestamp>(q);
-  return response.researchObjectVersions;
 };
 
 /**
