@@ -2,6 +2,7 @@ import axios from 'axios';
 
 import { prisma } from './client.js';
 import { logger as parentLogger } from './logger.js';
+import { getCommitTimestamps } from './services/ceramic.js';
 import { getTargetDpidUrl } from './services/fixDpid.js';
 import { convertCidTo0xHex, decodeBase64UrlSafeToHex, ensureUuidEndsWithDot } from './utils.js';
 
@@ -194,17 +195,56 @@ export const _getIndexedResearchObjects = async (
   return query(q);
 };
 
-export const query = async <T>(query: string, overrideUrl?: string): Promise<T> => {
-  const payload = JSON.stringify({
-    query,
-  });
-  const url = overrideUrl ?? process.env.THEGRAPH_API_URL;
-  const { data } = await axios.post(url, payload);
-  if (data.errors) {
-    logger.error({ fn: 'query', err: data.errors, query, dataRes: data }, `graph index query err ${query}`);
-    throw Error(JSON.stringify(data.errors));
+/**
+ * For a bunch of publish hashes, get the corresponding timestamps as strings.
+ */
+export const getTimeForTxOrCommits = async (txOrCommits: string[]): Promise<Record<string, string>> => {
+  const isTx = (id: string) => id.startsWith('0x');
+  const txIds = txOrCommits.filter(isTx);
+  const commitIdStrs = txOrCommits.filter(id => !isTx(id));
+
+  const commitTimeMap = await getCommitTimestamps(commitIdStrs);
+  const txTimeMap = await getTxTimestamps(txIds);
+
+  return { ...commitTimeMap, ...txTimeMap };
+};
+
+/**
+ * Get the timestamp for a list of research object publish transactions.
+ * @returns a map between { txId: timestamp }
+ */
+const getTxTimestamps = async (txIds: string[]): Promise<Record<string, string>> => {
+  if (txIds.length === 0) {
+    return {};
   }
-  return data.data as T;
+
+  try {
+    const graphTxTimestamps = await getTxTimeFromGraph(txIds);
+    const timeMap = graphTxTimestamps.reduce(
+      (acc, { id, time }) => ({ ...acc, [id]: time}),
+      {} as Record<string, string>,
+    );
+    return timeMap;
+  } catch (err) {
+    logger.error({ txIds, err }, 'failed to get tx timestamps from graph, returning empty map');
+    return {};
+  };
+}
+
+type TransactionsWithTimestamp = {
+  researchObjectVersions: { id: string; time: string }[];
+};
+
+const getTxTimeFromGraph = async (txIds: string[]): Promise<TransactionsWithTimestamp['researchObjectVersions']> => {
+  const q = `
+  {
+    researchObjectVersions(where: {id_in: ["${txIds.join('","')}"]}) {
+      id
+      time
+    }
+  }`;
+  const response = await query<TransactionsWithTimestamp>(q);
+  return response.researchObjectVersions;
 };
 
 type RegisterEvent = {
@@ -241,4 +281,17 @@ export const _getDpidForTxIds = async (txs: string[]): Promise<RegisterEvent[]> 
   const url = process.env.THEGRAPH_API_URL.replace('name/nodes', 'name/dpid-registry');
   const response = await query<DpidRegistersResponse>(q, url);
   return response.registers;
+};
+
+export const query = async <T>(query: string, overrideUrl?: string): Promise<T> => {
+  const payload = JSON.stringify({
+    query,
+  });
+  const url = overrideUrl ?? process.env.THEGRAPH_API_URL;
+  const { data } = await axios.post(url, payload);
+  if (data.errors) {
+    logger.error({ fn: 'query', err: data.errors, query, dataRes: data }, `graph index query err ${query}`);
+    throw Error(JSON.stringify(data.errors));
+  }
+  return data.data as T;
 };
