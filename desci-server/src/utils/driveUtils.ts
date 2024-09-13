@@ -224,7 +224,9 @@ export async function getTreeAndFill(
     });
 
     let blockTimeMap: Record<string, string> = {};
-    const blockTimeMapCacheKey = `blockTimeMap-${nodeUuid}`;
+
+    // TODO: add back redis cache code if needed after NEVER_SYNC setting in ceramic service
+    // const blockTimeMapCacheKey = `blockTimeMap-${nodeUuid}`;
 
     try {
       // blockTimeMap = await getFromCache(blockTimeMapCacheKey);
