@@ -25,7 +25,7 @@
     "script:seed-social-data": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/seed-social-data.ts",
     "script:DESTRUCTIVE-clear-social-data": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/DESTRUCTIVE-clear-social-data.ts",
     "script:seed-community-member": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/seed-community-members.ts",
-    "build": "rimraf dist && tsc && yarn copy-files && yarn sentry:sourcemaps",
+    "build": "rimraf dist && tsc && yarn copy-files",
     "copy-files": "copyfiles -u 1 src/**/*.cjs dist/",
     "generate": "npx prisma generate",
     "migrate:local": "DATABASE_URL=postgresql://walter:white@localhost:5433/boilerplate npx prisma migrate dev",
