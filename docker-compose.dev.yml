@@ -2,7 +2,7 @@ services:
   db_postgres:
     container_name: "db_boilerplate"
     image: "postgres:12.6-alpine"
-    restart: always
+    restart: on-failure
     healthcheck:
       test: "pg_isready -U walter -d postgres"
       interval: 5s
@@ -22,7 +22,7 @@ services:
   desci_blockchain_ganache:
     container_name: "desci_blockchain_ganache"
     build: ./desci-contracts
-    restart: always
+    restart: on-failure
     healthcheck:
       test: curl -sf -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' localhost:8545
       interval: 10s
@@ -80,7 +80,7 @@ services:
   graph_node:
     image: graphprotocol/graph-node
     container_name: "graph_node"
-    restart: always
+    restart: on-failure
     # healthcheck:
     #   test: "pg_isready -U walter -d postgres"
     #   interval: 5s
@@ -241,7 +241,7 @@ services:
       OPTIMISM_RPC_URL: http://host.docker.internal:8545
       CERAMIC_URL: http://host.docker.internal:7007
       IPFS_GATEWAY: http://host.docker.internal:8089/ipfs
-    restart: always
+    restart: on-failure
     ports:
       - "5460:5460"
     extra_hosts:

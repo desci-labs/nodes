@@ -4,7 +4,7 @@ services:
   nodes_test_db:
     container_name: "nodes_test_db"
     image: "postgres:12.6-alpine"
-    restart: always
+    restart: on-failure
     env_file:
       - .env.test
     ports:
