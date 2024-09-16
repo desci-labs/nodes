@@ -33,6 +33,7 @@ export interface QuerySuccessResponse extends QueryDebuggingResponse {
 
 export interface QueryDebuggingResponse {
   finalQuery?: any;
+  duration?: any;
 }
 
 export interface QueryErrorResponse extends QueryDebuggingResponse {

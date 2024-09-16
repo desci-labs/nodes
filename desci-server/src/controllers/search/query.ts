@@ -11,6 +11,7 @@ import {
 
 import { Filter, QueryErrorResponse, QuerySuccessResponse } from './types.js';
 
+export const MIN_RELEVANCE_SCORE = 0.01;
 interface SingleQuerySearchBodyParams {
   query: string;
   entity: string;
@@ -62,9 +63,14 @@ export const singleQuery = async (
   // const esQuery = buildSimpleStringQuery(query, entity, fuzzy);
   const esQuery = buildMultiMatchQuery(query, entity, fuzzy);
   const esBoolQuery = buildBoolQuery([esQuery], filters);
+
   const esSort = buildSortQuery(entity, sort.field, sort.order);
 
   let searchEntity = entity;
+
+  if (entity === 'works') {
+    searchEntity = 'works_opt';
+  }
 
   if (entity === 'fields') {
     searchEntity = 'topics_v2'; // Overwrite as fields are accessible via 'topics' index
@@ -81,13 +87,16 @@ export const singleQuery = async (
       sort: esSort,
       from: (pagination.page - 1) * pagination.perPage,
       size: pagination.perPage,
+      min_score: MIN_RELEVANCE_SCORE,
     },
   };
 
   logger.debug({ query: finalQuery }, 'Executing query');
 
   try {
+    const startTime = Date.now();
     const results = await elasticClient.search(finalQuery);
+    const duration = Date.now() - startTime;
     const hits = results.hits;
     logger.info({ hitsReturned: hits.total }, 'Elastic search query executed successfully');
 
@@ -99,6 +108,7 @@ export const singleQuery = async (
       page: pagination.page,
       perPage: pagination.perPage,
       data: hits.hits,
+      duration,
     });
   } catch (error) {
     logger.error({ error }, 'Elastic search query failed');

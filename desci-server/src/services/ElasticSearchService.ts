@@ -29,7 +29,7 @@ export const VALID_ENTITIES = [
  * Ordered from most relevant to least relevant
  */
 export const RELEVANT_FIELDS = {
-  works: ['title', 'abstract', 'doi'],
+  works: ['title', 'abstract'],
   authors: ['display_name', 'orcid', 'last_known_institution', 'authors.affiliation'],
   topics: ['display_name'],
   fields: ['field_display_name'],
@@ -62,7 +62,7 @@ export const RELEVANT_FIELDS = {
 };
 
 type SortOrder = 'asc' | 'desc';
-type SortField = { [field: string]: { order: SortOrder; missing?: string } };
+type SortField = { [field: string]: { order: SortOrder; missing?: string; type?: string; script?: any } };
 
 const baseSort: SortField[] = [{ _score: { order: 'desc' } }];
 
@@ -233,7 +233,7 @@ function buildFilter(filter: Filter) {
           [filter.field]: {
             query: filter.value,
             operator: filter.matchLogic || 'or',
-            // ...(filter.fuzziness && { fuzziness: filter.fuzziness }),
+            ...(filter.fuzziness && { fuzziness: filter.fuzziness }),
           },
         },
       };
@@ -276,7 +276,11 @@ function getRelevantFields(entity: string) {
   return RELEVANT_FIELDS.works_single;
 }
 
-export function buildMultiMatchQuery(query: string, entity: string, fuzzy: string = 'AUTO'): QueryDslQueryContainer {
+export function buildMultiMatchQuery(
+  query: string,
+  entity: string,
+  fuzzy: string | number = 0,
+): QueryDslQueryContainer {
   const fields = getRelevantFields(entity);
 
   let multiMatchQuery: QueryDslQueryContainer;
@@ -291,7 +295,7 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy: strin
             query: query,
             fields: fields,
             type: 'best_fields',
-            // fuzziness: fuzzy, // Retained fuzziness
+            fuzziness: fuzzy, // Retained fuzziness
           },
         },
       },
@@ -302,7 +306,7 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy: strin
         query: query,
         fields: fields,
         type: 'best_fields',
-        // fuzziness: fuzzy, // Retained fuzziness
+        fuzziness: fuzzy, // Retained fuzziness
       },
     };
   }

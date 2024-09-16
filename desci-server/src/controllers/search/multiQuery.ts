@@ -9,6 +9,7 @@ import {
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
+import { MIN_RELEVANCE_SCORE } from './query.js';
 import { Entity, Filter, Query, QueryDebuggingResponse, QueryErrorResponse, QuerySuccessResponse } from './types.js';
 
 type QueryObject = Record<Entity, Query>;
@@ -70,6 +71,24 @@ export const multiQuery = async (
   const esSort = buildSortQuery(primaryEntity, sort.field, sort.order);
   const esBoolQuery = buildBoolQuery(esQueries, filters);
 
+  const searchTermIsNonEmpty = Object.values(queries).some((q) => q['works'].length > 0);
+
+  // if search term is empty and there is no other sorting, then sort by content novelty and date
+  if (!searchTermIsNonEmpty && sort.field === 'relevance') {
+    esSort.push({
+      _script: {
+        type: 'number',
+        script: {
+          lang: 'painless',
+          source:
+            "params._source.containsKey('content_novelty_percentile') ? params._source['content_novelty_percentile'] : 0",
+        },
+        order: 'desc',
+      },
+    });
+    esSort.push({ publication_year: { order: 'desc' } });
+  }
+
   const finalQuery = {
     index: primaryEntity,
     body: {
@@ -77,12 +96,15 @@ export const multiQuery = async (
       sort: esSort,
       from: (pagination.page - 1) * pagination.perPage,
       size: pagination.perPage,
+      ...(searchTermIsNonEmpty ? { min_score: MIN_RELEVANCE_SCORE } : {}),
     },
   };
 
   try {
     logger.debug({ query: finalQuery }, 'Executing query');
+    const startTime = Date.now();
     const { hits } = await elasticClient.search(finalQuery);
+    const duration = Date.now() - startTime;
 
     logger.info({ fn: 'Elastic search multi query executed successfully' });
     return res.json({
@@ -93,6 +115,7 @@ export const multiQuery = async (
       page: pagination.page,
       perPage: pagination.perPage,
       data: hits.hits,
+      duration,
     });
   } catch (error) {
     logger.error({ error }, 'Elastic search multi query failed');
