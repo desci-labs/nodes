@@ -1,9 +1,9 @@
 import {
-  worksInOpenalex,
   works_best_oa_locationsInOpenalex,
   works_idsInOpenalex,
   works_locationsInOpenalex,
   works_primary_locationsInOpenalex,
+  worksInOpenalex,
 } from '../../drizzle/schema.js';
 
 // filter object fields to remove undefined fields but allow null fields

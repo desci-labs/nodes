@@ -4,14 +4,14 @@ import _ from 'lodash';
 import type {
   authors_idsInOpenalex,
   authorsInOpenalex,
-  WorksBestOaLocation,
   Works,
   works_biblioInOpenalex,
-  WorksId,
-  WorksPrimaryLocation,
-  WorksLocation,
   works_meshInOpenalex,
   works_topicsInOpenalex,
+  WorksBestOaLocation,
+  WorksId,
+  WorksLocation,
+  WorksPrimaryLocation,
 } from './db/index.js';
 import { Institution } from './types/institutions.js';
 import type { Mesh, Work } from './types/works.js';
