@@ -29,7 +29,7 @@ export const VALID_ENTITIES = [
  * Ordered from most relevant to least relevant
  */
 export const RELEVANT_FIELDS = {
-  works: ['title', 'abstract', 'doi'],
+  works: ['title', 'abstract'],
   authors: ['display_name', 'orcid', 'last_known_institution', 'authors.affiliation'],
   topics: ['display_name'],
   fields: ['field_display_name'],
@@ -62,7 +62,7 @@ export const RELEVANT_FIELDS = {
 };
 
 type SortOrder = 'asc' | 'desc';
-type SortField = { [field: string]: { order: SortOrder; missing?: string } };
+type SortField = { [field: string]: { order: SortOrder; missing?: string; type?: string; script?: any } };
 
 const baseSort: SortField[] = [{ _score: { order: 'desc' } }];
 
@@ -88,11 +88,9 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
 };
 
 export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: string): QueryDslFunctionScoreQuery {
-  /**
-   * Boost work citations, author citations, and reduce non articles
-   */
   const currentYear = new Date().getFullYear();
 
+  // Simplified function score containers
   const functions: QueryDslFunctionScoreContainer[] = [
     {
       field_value_factor: {
@@ -103,36 +101,18 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
       },
     },
     {
-      field_value_factor: {
-        field: 'authors.cited_by_count',
-        factor: 1.1,
-        modifier: 'log1p',
-        missing: 1,
-      },
-    },
-    // {
-    //   gauss: {
-    //     publication_year: {
-    //       origin: currentYear.toString(),
-    //       scale: '100', // 100 years
-    //       offset: '5', // 5 years (grace period)
-    //       decay: 0.5,
-    //     },
-    //   },
-    // },
-    {
       linear: {
         publication_year: {
           origin: currentYear.toString(),
-          scale: '25', // 25 years
-          offset: '3', // 3 years (grace period)
+          scale: '25',
+          offset: '3',
           decay: 0.7,
         },
       },
     },
   ];
 
-  if (entity === 'works' || 'works_single') {
+  if (entity === 'works' || entity === 'works_single') {
     const nonArticleFilter: QueryDslQueryContainer = {
       bool: {
         must_not: [
@@ -296,7 +276,11 @@ function getRelevantFields(entity: string) {
   return RELEVANT_FIELDS.works_single;
 }
 
-export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number): QueryDslQueryContainer {
+export function buildMultiMatchQuery(
+  query: string,
+  entity: string,
+  fuzzy: string | number = 0,
+): QueryDslQueryContainer {
   const fields = getRelevantFields(entity);
 
   let multiMatchQuery: QueryDslQueryContainer;
@@ -311,7 +295,7 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
             query: query,
             fields: fields,
             type: 'best_fields',
-            fuzziness: fuzzy || 'AUTO',
+            fuzziness: fuzzy, // Retained fuzziness
           },
         },
       },
@@ -322,7 +306,7 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
         query: query,
         fields: fields,
         type: 'best_fields',
-        fuzziness: fuzzy || 'AUTO',
+        fuzziness: fuzzy, // Retained fuzziness
       },
     };
   }
