@@ -25,34 +25,6 @@ env:
   DOCKER_BUILDKIT: 1
 
 jobs:
-  # build-and-test:
-  #   runs-on: ubuntu-latest
-  #   # container:
-  #   #   image: ubuntu:latest
-  #   #   options: --user 1001
-
-  #   steps:
-  #     - name: Check out repository
-  #       uses: actions/checkout@v2
-
-  #     - name: Set up the environment
-  #       # Replace this line with the appropriate setup for your project
-  #       # Examples:
-  #       uses: actions/setup-node@v2
-  #       with:
-  #         node-version: 16
-
-  #     - name: Install dependencies
-  #       run: cd desci-repo && yarn
-
-  #     - name: Run tests
-  #       run: |
-  #         cd desci-repo && export DOCKER_BUILDKIT=1 && yarn && yarn test
-  #         echo "exit code $?"
-  #         if [ $? -ne 0 ]; then
-  #           exit 1
-  #         fi
-
   build-and-push:
     # needs: build-and-test
     name: Build and deploy
