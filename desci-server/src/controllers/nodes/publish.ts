@@ -261,11 +261,13 @@ const syncPublish = async (
       nodeVersionId: nodeVersion.id,
       nodeUuid: node.uuid,
     }),
-    // Send emails coupled to the publish event
-    publishServices.handleDeferredEmails(node.uuid, dpidAlias?.toString() ?? legacyDpid?.toString()),
   );
 
   await Promise.all(promises);
+
+  // Intentionally of above stacked promise, needs the DPID to be resolved!!!
+  // Send emails coupled to the publish event
+  await publishServices.handleDeferredEmails(node.uuid, dpidAlias?.toString() || legacyDpid?.toString());
 
   const targetDpidUrl = getTargetDpidUrl();
   discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
