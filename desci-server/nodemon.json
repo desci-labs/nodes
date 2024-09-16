@@ -1,13 +1,9 @@
 {
-  "watch": [
-    "."
-  ],
+  "watch": ["."],
   "ext": ".ts,.js,*",
-  "ignore": [
-    "log/server.log"
-  ],
+  "ignore": ["log/server.log"],
   "verbose": true,
   "exec": "node -r ts-node/register --inspect=0.0.0.0:9228",
-  "delay": 750,
+  "delay": 1000,
   "signal": "SIGTERM"
 }

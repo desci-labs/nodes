@@ -348,7 +348,7 @@ export function extractRootDagCidFromManifest(manifest: ResearchObjectV1, manife
 }
 
 export async function getManifestFromNode(
-  node: Node,
+  node: { manifestUrl: string, cid?: string },
   queryString?: string,
 ): Promise<{ manifest: ResearchObjectV1; manifestCid: string }> {
   // debugger;

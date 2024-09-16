@@ -32,7 +32,10 @@ export const getUserContributions = async (
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { id: parseInt(userId) } });
+    const user = await prisma.user.findUnique({
+      select: { id: true },
+      where: { id: parseInt(userId) },
+    });
     const userContributions = await contributorService.retrieveContributionsForUser(user);
     if (userContributions) {
       logger.info({ totalContributions: userContributions.length }, 'Contributions retrieved successfully');

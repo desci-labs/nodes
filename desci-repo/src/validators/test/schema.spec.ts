@@ -220,14 +220,36 @@ describe('ManifestActions Schema', () => {
     });
   });
 
-  describe('Contributor', () => {
+  describe('Contributor Actions', () => {
     const author: ResearchObjectV1Author = {
-      name: 'Tay',
+      name: 'Sandra Sanchez‐Roige',
       role: ResearchObjectV1AuthorRole.AUTHOR,
+      organizations: [
+        {
+          name: 'University of California, San Diego',
+          id: 'https://ror.org/0168r3w48',
+        },
+        {
+          name: 'Vanderbilt University Medical Center',
+          id: 'https://ror.org/05dq2gs74',
+        },
+      ],
+      orcid: '0000-0001-6137-0000',
     };
+    // const author: ResearchObjectV1Author = {
+    //   name: 'Tay',
+    //   role: ResearchObjectV1AuthorRole.AUTHOR,
+    //   orcid: ''
+    // };
 
     it('should validate Add Contributor', async () => {
       const validated = await actionsSchema.safeParseAsync([{ type: 'Add Contributor', author }]);
+      console.log(validated.success ? validated.data : validated.error);
+      expect(validated.success).to.be.true;
+    });
+
+    it('should validate Set Contributors', async () => {
+      const validated = await actionsSchema.safeParseAsync([{ type: 'Add Contributors', contributors: [author] }]);
       console.log(validated.success ? validated.data : validated.error);
       expect(validated.success).to.be.true;
     });
@@ -276,4 +298,90 @@ describe('ManifestActions Schema', () => {
       expect(validated.success).to.be.false;
     });
   });
+
+  describe('ResearchObject References', () => {
+    it('should validate add new reference', () => {
+      let validated = actionsSchema.safeParse([
+        { type: 'Add Reference', reference: { id: 'https://doi.org/10.1111/af325', type: 'doi' } },
+      ]);
+      expect(validated.success).to.be.true;
+
+      validated = actionsSchema.safeParse([
+        { type: 'Add Reference', reference: { id: 'https://beta.dpid.org/165', type: 'dpid' } },
+      ]);
+      console.log('error' in validated && validated.error);
+      expect(validated.success).to.be.true;
+    });
+    it('should validate add new references', () => {
+      let validated = actionsSchema.safeParse([
+        {
+          type: 'Add References',
+          references: [
+            { id: 'https://doi.org/10.1111/af325', type: 'doi' },
+            { id: 'https://beta.dpid.org/165/v6', type: 'dpid' },
+          ],
+        },
+      ]);
+      expect(validated.success).to.be.true;
+    });
+
+    it('should reject invalid references', () => {
+      let validated = actionsSchema.safeParse([
+        {
+          type: 'Add References',
+          references: [
+            { id: 'https://doi/10.111/af325', type: 'doi' },
+            { id: 'https://dpid.org/165', type: 'dpid' },
+          ],
+        },
+      ]);
+      expect(validated.success).to.be.false;
+    });
+
+    it('should reject reference Id/type mismatch', () => {
+      let validated = actionsSchema.safeParse([
+        {
+          type: 'Add References',
+          references: [
+            { id: 'https://doi/10.111/af325', type: 'dpid' },
+            { id: 'https://dpid.org/165', type: 'doi' },
+          ],
+        },
+      ]);
+      expect(validated.success).to.be.false;
+    });
+
+    it('should reject invalid actions payload', () => {
+      let validated = actionsSchema.safeParse([
+        { type: 'Add Reference', reference: [{ id: 'https://doi.org/10.1111/af325', type: 'doi' }] },
+      ]);
+      expect(validated.success).to.be.false;
+
+      validated = actionsSchema.safeParse([{ type: 'Add Reference', reference: { type: 'dpid' } }]);
+      expect(validated.success).to.be.false;
+
+      validated = actionsSchema.safeParse([
+        {
+          type: 'Add References',
+          references: { id: 'https://dpid.org/165', type: 'dpid' },
+        },
+      ]);
+      expect(validated.success).to.be.false;
+    });
+
+    it('should validate delete existing reference', () => {
+      let validated = actionsSchema.safeParse([
+        { type: 'Delete Reference', referenceId: 'https://doi.org/10.111/af325' },
+      ]);
+      expect(validated.success).to.be.true;
+    });
+  });
+
+  // describe("ResearchObject References", () => {
+  //   it('should add new reference', () => {})
+  //   it('should not add duplicate reference', () => {})
+  //   it('should add new references', () => {})
+  //   it('should not add duplicate references', () => {})
+  //   it('should delete existing reference', () => {})
+  // })
 });

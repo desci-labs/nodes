@@ -4,7 +4,8 @@ import axios from 'axios';
 
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
-import { hexToCid } from '../utils.js';
+import { hexToCid, isCid } from '../utils.js';
+import { getOrCache } from '../redisClient.js';
 
 const IPFS_RESOLVER_OVERRIDE = process.env.IPFS_RESOLVER_OVERRIDE;
 
@@ -33,9 +34,18 @@ export const transformManifestWithHistory = (data: ResearchObjectV1, researchNod
   return ro;
 };
 
-export const resolveNodeManifest = async (targetCid: string, query?: string) => {
-  const ipfsResolver = IPFS_RESOLVER_OVERRIDE || query || 'https://ipfs.desci.com/ipfs';
-  const cidString = hexToCid(targetCid);
+/** Resolve manifest given its CID, in either hex or plain-text format */
+export const resolveNodeManifest = async (
+  targetCid: string,
+  gateway?: string
+) => {
+  const ipfsResolver = IPFS_RESOLVER_OVERRIDE || gateway || 'https://ipfs.desci.com/ipfs';
+  let cidString = targetCid;
+
+  if (!isCid(targetCid)) {
+    cidString = hexToCid(targetCid);
+  };
+
   try {
     parentLogger.info(`Calling IPFS Resolver ${ipfsResolver} for CID ${cidString}`);
     const { data } = await axios.get(`${ipfsResolver}/${cidString}`);
@@ -45,5 +55,24 @@ export const resolveNodeManifest = async (targetCid: string, query?: string) => 
     return null;
   }
 };
+
+export const cachedGetDpidFromManifest = async (
+  cid: string,
+  gateway?: string
+) => {
+  const fnGetDpidFromManifest = async () => {
+    const manifest = await resolveNodeManifest(cid, gateway) as ResearchObjectV1;
+    return manifest.dpid
+      ? parseInt(manifest.dpid.id)
+      : -1;
+  };
+
+  const manifestDpid = await getOrCache(`manifest-dpid-${cid}`, fnGetDpidFromManifest);
+  if (manifestDpid === -1) {
+    return undefined;
+  } else {
+    return manifestDpid;
+  }
+}
 
 export const zeropad = (data: string) => (data.length < 2 ? `0${data}` : data);

@@ -271,7 +271,7 @@ class CrossRefClient {
    * Returns a list of all works (journal articles,
    * conference proceedings, books, components, etc),
    */
-  async getDoiMetadata(doi: string) {
+  async retrieveDoiMetadata(doi: string) {
     const params: { [k: string]: any } = {};
     let url = `https://www.crossref.org/openurl/?pid=${this._mailto}&format=unixref&id=${doi}`;
     const config: RequestInit = {

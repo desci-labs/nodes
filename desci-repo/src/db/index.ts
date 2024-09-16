@@ -1,23 +1,15 @@
-// import * as pg from 'pg';
-
 const pg = await import('pg').then((value) => value.default);
 const { Pool } = pg;
-
-// console.log('DB', process.env.DATABASE_URL);
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   options: '-c search_path=public',
 });
 
-// pool.on('error', (err, client) => {
-//   console.error('Unexpected error on idle client', err, client);
-//   // process.exit(-1);
-// });
-
-export const client = await pool.connect();
-
-// console.log('DB CLIENT', client.)
+pool.on('error', (err, client) => {
+  // This is fine, client is booted out of the pool already when this happens
+  console.warn('[db::pool] Unexpected error on idle client', err, client);
+});
 
 export const findNodeByUuid = async (uuid: string) => {
   try {

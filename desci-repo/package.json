@@ -10,7 +10,7 @@
     "build": "rimraf dist && tsc",
     "start": "NODE_PATH=./dist node ./dist/index.js",
     "dev": "npm-run-all --parallel watch-compile watch-dev",
-    "docker:dev": "docker-compose --file docker-compose.repo.yml --compatibility up --build",
+    "docker:dev": "docker compose --file docker-compose.repo.yml --compatibility up --build",
     "watch-dev": "debug=* nodemon --watch \"dist/**/*\" -e js ./dist/index.js",
     "watch-compile": "debug=* tsc -w --preserveWatchOutput",
     "test": "NODE_ENV=test mocha --colors --timeout 20000 --exit",
@@ -68,7 +68,7 @@
     "typescript": "5.1.6"
   },
   "dependencies": {
-    "@desci-labs/desci-models": "0.2.7-rc6",
+    "@desci-labs/desci-models": "0.2.11",
     "@sentry/node": "^7.84.0",
     "@sentry/tracing": "^7.84.0",
     "axios": "^1.6.2",

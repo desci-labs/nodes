@@ -1,5 +1,9 @@
 import { Router } from 'express';
 
+import { createNodeBookmark } from '../../controllers/nodes/bookmarks/create.js';
+import { deleteNodeBookmark } from '../../controllers/nodes/bookmarks/delete.js';
+import { listBookmarkedNodes } from '../../controllers/nodes/bookmarks/index.js';
+import { nodeByDpid } from '../../controllers/nodes/byDpid.js';
 import { checkIfPublishedNode } from '../../controllers/nodes/checkIfPublishedNode.js';
 import { checkNodeAccess } from '../../controllers/nodes/checkNodeAccess.js';
 import { addContributor } from '../../controllers/nodes/contributions/create.js';
@@ -12,6 +16,7 @@ import { updateContributor } from '../../controllers/nodes/contributions/update.
 import { verifyContribution } from '../../controllers/nodes/contributions/verify.js';
 import { createDpid } from '../../controllers/nodes/createDpid.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
+import { explore } from '../../controllers/nodes/explore.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
 import { getDraftNodeStats } from '../../controllers/nodes/getDraftNodeStats.js';
@@ -44,6 +49,7 @@ import {
   generateMetadataSchema,
   automateManuscriptDoi,
   attachDoiSchema,
+  retrieveNodeDoi,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
@@ -63,9 +69,11 @@ router.post('/publish', [ensureUser], publish);
 router.get('/stats', [ensureUser], getDraftNodeStats);
 router.get('/stats/published', [ensureUser], getPublishedNodeStats);
 router.get('/published/list', [ensureUser], getPublishedNodes);
+router.get('/published/:dpid([0-9]+)', [], nodeByDpid);
 router.get('/published/:uuid', [], checkIfPublishedNode);
 router.get('/access/:uuid', [ensureUserIfPresent], checkNodeAccess);
 router.post('/search/:query', [ensureUser], searchNodes);
+router.get('/explore', [], explore);
 
 router.post('/createDpid', [ensureUser, ensureWriteNodeAccess], createDpid);
 router.post('/createDraft', [ensureUser], draftCreate);
@@ -74,7 +82,6 @@ router.post('/addComponentToDraft', [ensureUser], draftAddComponent);
 router.post('/updateDraft', [ensureUser], draftUpdate);
 router.get('/versionDetails', [], versionDetails);
 router.get('/', [ensureUser], list);
-router.post('/doi', [ensureUser], retrieveDoi);
 router.get('/pdf', proxyPdf);
 router.post('/consent', [], consent);
 router.post('/consent/publish', [ensureUser, validate(publishConsentSchema)], asyncHandler(publishConsent));
@@ -89,6 +96,9 @@ router.get('/share', [ensureUser], listSharedNodes);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);
 router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
+router.get('/bookmarks', [ensureUser], listBookmarkedNodes);
+router.delete('/bookmarks/:nodeUuid', [ensureUser], deleteNodeBookmark);
+router.post('/bookmarks', [ensureUser], createNodeBookmark);
 router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
@@ -103,6 +113,9 @@ router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
+
+// Doi api routes
+router.get('/:identifier/doi', [ensureUser], asyncHandler(retrieveNodeDoi));
 router.post(
   '/:uuid/automate-metadata',
   [ensureUser, ensureNodeAccess, validate(automateMetadataSchema)],

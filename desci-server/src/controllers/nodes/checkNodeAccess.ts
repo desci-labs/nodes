@@ -1,28 +1,11 @@
-import { ResearchObjectV1, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
-import { NodeCover } from '@prisma/client';
 import type { Request, Response } from 'express';
-
 import { prisma } from '../../client.js';
-import { resolveNodeManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
-import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
-import { decodeBase64UrlSafeToHex, ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 const logger = parentLogger.child({
   module: 'NODE::checkNodeAccess',
 });
-
-type NodeWithDpid = {
-  uuid: string;
-  createdAt: Date;
-  updatedAt: Date;
-  ownerId: number;
-  title: string;
-  manifestUrl: string;
-  cid: string;
-  NodeCover: NodeCover[];
-  isPublished: boolean;
-} & { dpid?: ResearchObjectV1Dpid; isPublished: boolean; index?: IndexedResearchObject };
 
 type GetCheckNodeAccessResponse = {
   ok: true;
@@ -33,7 +16,6 @@ type GetCheckNodeAccessResponse = {
   sharedOn?: number;
   isPublished: boolean;
   recentCid?: string;
-  index?: IndexedResearchObject;
   manifestUrl?: string;
 };
 
@@ -68,6 +50,14 @@ export const checkNodeAccess = async (
       manifestUrl: true,
       cid: true,
       NodeCover: true,
+      versions: {
+        select: {
+          manifestUrl: true,
+          transactionId: true,
+          commitId: true,
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
     where: {
       isDeleted: false,
@@ -79,7 +69,7 @@ export const checkNodeAccess = async (
     res.status(404).send({ ok: false, message: 'Node not found' });
     return;
   }
-  // debugger;
+  
   const privSharedNode = !!shareId
     ? await prisma.privateShare.findFirst({
         where: {
@@ -89,57 +79,21 @@ export const checkNodeAccess = async (
       })
     : undefined;
 
-  // transition UUID
-  const indexMap = {};
-
-  try {
-    const uuids = node.uuid;
-    const indexed = await getIndexedResearchObjects([uuids]);
-    indexed.researchObjects.forEach((e) => {
-      indexMap[e.id] = e;
-    });
-  } catch (err) {
-    logger.error({ err: err.message }, '[ERROR] graph index lookup fail');
-    // todo: try on chain direct (current method doesnt support batch, so fix that and add here)
-  }
-
-  const hex = `0x${decodeBase64UrlSafeToHex(node.uuid)}`;
-  const result = indexMap[hex];
-  const manifest: ResearchObjectV1 = result?.recentCid
-    ? await resolveNodeManifest(result?.recentCid, ipfsQuery as string)
-    : null;
-  const o = {
-    ...node,
-    uuid: node.uuid.replaceAll('.', ''),
-    isPublished: !!indexMap[hex],
-    index: indexMap[hex],
-    dpid: manifest?.dpid,
-  };
-  delete o.id;
-
-  const enhancedNode: NodeWithDpid = o;
-
-  const isOwner = owner?.id === enhancedNode.ownerId;
-  const latestDraftVersion = await prisma.nodeVersion.findFirst({
-    where: {
-      nodeId: node.id,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
-
+  const isOwner = owner?.id === node.ownerId;
   const hasAccess = privSharedNode?.nodeUUID === node.uuid || isOwner;
+  const latestPublishedVersion = node.versions
+    .find(nv => nv.transactionId !== null || nv.commitId !== null);
+  const isPublished = !!latestPublishedVersion;
+
   res.send({
     ok: true,
-    uuid: enhancedNode.uuid,
+    uuid: node.uuid,
     isOwner,
     isShared: !isOwner && !!privSharedNode,
     hasAccess,
-    isPublished: enhancedNode.isPublished,
+    isPublished,
     sharedOn: privSharedNode?.createdAt.getTime(),
-    recentCid: enhancedNode.index?.recentCid,
-    index: enhancedNode.index,
-    manifestUrl: hasAccess ? latestDraftVersion?.manifestUrl : undefined,
+    recentCid: latestPublishedVersion?.manifestUrl,
+    manifestUrl: hasAccess ? node.versions[0]?.manifestUrl : undefined,
   });
 };

@@ -8,6 +8,14 @@ import { saveInteraction } from '../../services/interactionLog.js';
  * TODO: Put this in desci-models?
  */
 export enum AvailableUserActionLogTypes {
+  publishStep = 'publishStep',
+  btnPublishActivityBar = 'btnPublishActivityBar',
+  btnSidebarNavigation = 'btnSidebarNavigation',
+  tabProfilePublishedNodes = 'tabProfilePublishedNodes',
+  tabProfileSharedNodes = 'tabProfileSharedNodes',
+  tabProfileAllNodes = 'tabProfileAllNodes',
+  btnProfileCreateNewResearchObject = 'btnProfileCreateNewResearchObject',
+  btnProfileCreateNewSubmissionPackage = 'btnProfileCreateNewSubmissionPackage',
   btnDownloadData = 'btnDownloadData',
   btnDownloadManuscript = 'btnDownloadManuscript',
   btnShare = 'btnShare',

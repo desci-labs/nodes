@@ -103,7 +103,7 @@ The following guide is meant to get you running for full-stack dev on your local
 Make sure you have these packages installed on your system:
 
 - Docker
-- docker-compose
+- docker compose (comes with Docker Desktop, otherwise install the plugin package for your OS)
 - lsof (may not be available by default depending on OS)
 
 <br>

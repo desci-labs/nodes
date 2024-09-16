@@ -15,7 +15,9 @@ import {
   logger as parentLogger,
   prisma,
 } from '../../internal.js';
+import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { DoiMintedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
+import { discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
 
 export const mintDoi = async (req: Request, res: Response, _next: NextFunction) => {
   const { uuid } = req.params;
@@ -28,6 +30,13 @@ export const mintDoi = async (req: Request, res: Response, _next: NextFunction) 
     const submission = await doiService.mintDoi(sanitizedUuid);
     const data = _.pick(submission, ['id', 'status']);
     new SuccessResponse(data).send(res);
+
+    const targetDpidUrl = getTargetDpidUrl();
+    discordNotify({
+      type: DiscordNotifyType.INFO,
+      title: 'Mint DOI',
+      message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
+    });
   }
 };
 
@@ -69,6 +78,8 @@ export const handleCrossrefNotificationCallback = async (
 
   new SuccessMessageResponse().send(res);
 
+  const targetDpidUrl = getTargetDpidUrl();
+
   try {
     // check retrieve url to get submission result
     const response = await crossRefClient.retrieveSubmission(req.payload.retrieveUrl);
@@ -91,6 +102,13 @@ export const handleCrossrefNotificationCallback = async (
           doiRecordId: doiRecord.id,
         },
       );
+
+      // send discord notification
+      discordNotify({
+        type: DiscordNotifyType.SUCCESS,
+        title: 'DOI Registration successful 🎉',
+        message: `${targetDpidUrl}/${submission.dpid} was assigned a DOI: ${submission.uniqueDoi}`,
+      });
 
       // Send Notification Email Node author about the submission status
       const node = await prisma.node.findFirst({
@@ -130,6 +148,13 @@ export const handleCrossrefNotificationCallback = async (
         { id: submission.id },
         { status: response.failure ? DoiStatus.FAILED : DoiStatus.PENDING },
       );
+
+      // send discord notification
+      discordNotify({
+        type: DiscordNotifyType.SUCCESS,
+        title: 'DOI Registration Inconclusive ❌',
+        message: `Check ${req.payload.retrieveUrl} for more details. Node: ${targetDpidUrl}/${submission.dpid}`,
+      });
     }
   } catch (error) {
     logger.error({ error }, 'Error updating DOI submission');

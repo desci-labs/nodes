@@ -44,7 +44,7 @@ export const preparePublishPackage = async (
     nodeUuid,
     withPreviews,
   });
-  // debugger;
+
   logger.trace({ fn: 'Retrieving Publish Package' });
 
   if (!nodeUuid) return res.status(400).json({ ok: false, error: 'nodeUuid is required.' });

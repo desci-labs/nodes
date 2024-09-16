@@ -1,7 +1,7 @@
 {
   "name": "@desci-labs/desci-contracts",
   "description": "Smart contracts implementing DeSci Nodes on-chain state and logic",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "license": "MIT",
   "scripts": {
     "test": "hardhat clean && hardhat test",
@@ -64,5 +64,8 @@
     "typechain": "^7.0.0",
     "typescript": "^4.3.5"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "resolutions": {
+    "ethereumjs-abi": "^0.6.8"
+  }
 }

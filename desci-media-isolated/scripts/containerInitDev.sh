@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ex
+
 # Check if .env file does not exist and auto generate it from .example.env
 if [ ! -f /usr/src/app/.env ]; then
   cp /usr/src/app/.env.example /usr/src/app/.env

@@ -45,6 +45,9 @@ export interface ResearchObjectV1 extends ResearchObject {
   researchFields?: string[];
   /** Contributors to this publication */
   authors?: ResearchObjectV1Author[];
+
+  /** References to other research objects or published researches */
+  references?: ResearchObjectReference[];
 }
 
 export interface ResearchObjectV1Dpid {
@@ -438,3 +441,13 @@ export type License =
   | 'EPL-2.0'
   | 'AGPL-3.0'
   | 'Unlicense';
+
+/**
+ * Reference Interface to other dPIDs or DOIs
+ */
+export interface ResearchObjectReference {
+  /** Type of reference identifier  */
+  type: 'dpid' | 'doi';
+  /** Identifier (https://doi.org/<doi>) | <doi> | https://dpid.org/<dpid> */
+  id: string;
+}

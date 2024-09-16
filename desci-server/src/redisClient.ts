@@ -164,24 +164,8 @@ process.on('SIGTERM', () => {
   process.exit(1);
 });
 
-// probably not used since its normally starting node debugger
-// process.on('SIGUSR1', () => {
-//   logger.info('Process caught SIGUSR1');
-//   // process.exit(1);
-// });
-
 // default kill signal for nodemon
 process.on('SIGUSR2', () => {
   logger.info('Process caught SIGUSR2');
   process.exit(1);
-});
-
-process.on('uncaughtException', (err) => {
-  logger.info({ errMsg: err.message, err }, 'Process caught uncaughtException');
-  // process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  logger.info({ promise, reason }, 'Process caught unhandledRejection');
-  // process.exit(1);
 });

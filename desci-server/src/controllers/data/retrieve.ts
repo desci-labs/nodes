@@ -109,7 +109,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
     return res.status(200).json({ tree: [tree], date: await latestDriveClock });
   } catch (err) {
     logger.error({ err }, 'Failed to retrieve tree');
-    return res.status(400).json({ error: 'failed' });
+    return res.status(400).json({ error: 'retrieveTree failed' });
   }
 };
 
@@ -206,7 +206,7 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
       return await fetchCb();
     } catch (err2) {
       logger.error({ fn: 'pubTree', err: err2 }, '[pubTree] retrieve retry error');
-      return res.status(400).json({ error: 'failed' });
+      return res.status(400).json({ error: 'pubTree failed' });
     }
   }
 

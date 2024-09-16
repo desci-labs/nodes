@@ -1,0 +1,15 @@
+FROM docker.elastic.co/logstash/logstash:8.14.3
+
+USER root
+
+# Install curl
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Copy the initialization script
+COPY desci-elastic/init-logstash.sh /usr/local/bin/init-logstash.sh
+RUN chmod +x /usr/local/bin/init-logstash.sh
+
+USER logstash
+
+# Set the entrypoint to the initialization script
+ENTRYPOINT ["/usr/local/bin/init-logstash.sh"]

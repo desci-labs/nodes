@@ -19,7 +19,7 @@ npm run script:seed-social-data
 
 # import required images from ipfs to local
 chmod +x ./scripts/import-ipfs-content.sh
-./scripts/import-ipfs-content.sh 
+./scripts/import-ipfs-content.sh
 
 # note: for local dev, you can probably import dpid 46 using the following script, however it doesn't work due to local IPFS client not being open to the public (swarm key)
 # when you set NODE_ENV=prod, it uses the public IPFS reader. Need to adjust this for local dev so we can properly import in the future
