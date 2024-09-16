@@ -1,20 +1,19 @@
 import 'dotenv/config';
+import { addDays, differenceInDays, endOfDay, startOfDay, subDays } from 'date-fns';
 import cron from 'node-cron';
 import { runImport } from './src/script.js';
 import { logger } from './src/logger.js';
-import { addDays, differenceInDays, endOfDay, startOfDay, subDays } from 'date-fns';
 
 async function main() {
-  let cliArgs = parseArgs();
+  const cliArgs = parseArgs();
   if (!cliArgs) {
     cron.schedule('*/2 * * * *', async () => {
       logger.info('Running a task evey day at 12:00 AM');
-      console.log('Running a task evey day at 12:00 AM');
-      let currentDate = new Date();
+      const currentDate = new Date();
       // let from_created_date = startOfDay(subDays(currentDate, 1));
       // let to_created_date = endOfDay(subDays(currentDate, 1));
-      let from_created_date = startOfDay(subDays(currentDate, 0));
-      let to_created_date = endOfDay(subDays(currentDate, 0));
+      const from_created_date = startOfDay(subDays(currentDate, 0));
+      const to_created_date = endOfDay(subDays(currentDate, 0));
       await runImport({ from: from_created_date, to: to_created_date });
     });
   } else if (cliArgs.start) {

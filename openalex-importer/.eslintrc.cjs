@@ -3,7 +3,7 @@ module.exports = {
 
   extends: ['plugin:@typescript-eslint/recommended', 'prettier', 'plugin:prettier/recommended'],
 
-  plugins: ['@typescript-eslint', 'import'],
+  plugins: ['@typescript-eslint', 'import', 'simple-import-sort'],
 
   rules: {
     // General
@@ -13,6 +13,7 @@ module.exports = {
     '@typescript-eslint/no-non-null-assertion': 0,
     '@typescript-eslint/ban-ts-comment': 0,
     '@typescript-eslint/no-empty-interface': 0,
+    'simple-import-sort/imports': 'error',
 
     // Import
     'import/order': [
