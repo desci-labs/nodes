@@ -7,15 +7,19 @@
     "node": ">=16.14"
   },
   "scripts": {
-    "dev": "npm-run-all --parallel watch-compile watch-dev",
+    "dev": "tsx watch --inspect=0.0.0.0:9231 index.ts",
     "watch-dev": "debug=* nodemon --watch \"dist/**/*\" -e js ./dist/index.js",
     "watch-compile": "debug=* tsc -w --preserveWatchOutput",
-    "build": "tsc",
-    "start": "pm2 start ./dist/index.js",
+    "build": "rimraf dist && tsc",
+    "start": "node ./dist/index.js",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
     "introspect": "drizzle-kit instrospect",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint --max-warnings 0 --ext .js,ts src",
+    "lint-staged-husky": "lint-staged",
+    "lint-prettier": "prettier --config .prettierrc --list-different '{src,test}/**/*.{ts,js,css,scss}'",
+    "prettier": "prettier --config .prettierrc --write './**/*.{ts,js,css,scss,json,md}'"
   },
   "keywords": [],
   "author": "",
@@ -28,20 +32,40 @@
     "drizzle-kit": "^0.22.8",
     "nodemon": "^3.0.2",
     "npm-run-all": "^4.1.5",
+    "rimraf": "^3.0.2",
     "ts-node": "10.9.1",
+    "tsx": "^4.19.1",
     "typescript": "5.1.6"
   },
   "dependencies": {
     "@types/lodash": "^4.17.7",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
     "date-fns": "^3.6.0",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.32.1",
+    "eslint": "^7.32.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-import": "^2.24.0",
+    "eslint-plugin-no-array-reduce": "^1.0.22",
+    "eslint-plugin-prettier": "^3.4.0",
+    "lint-staged": "^11.1.2",
     "lodash": "^4.17.21",
     "node-cron": "^3.0.3",
     "pg": "^8.12.0",
     "pino": "^9.3.2",
     "pino-http": "^10.2.0",
     "pino-pretty": "^11.2.2",
-    "pm2": "^5.4.2"
+    "pm2": "^5.4.2",
+    "prettier": "^2.3.2",
+    "pretty-quick": "^3.1.1"
+  },
+  "lint-staged": {
+    "*": [
+      "pretty-quick --staged"
+    ],
+    "{src,test}/**/*.{js,ts}": [
+      "eslint --max-warnings 0"
+    ]
   }
 }

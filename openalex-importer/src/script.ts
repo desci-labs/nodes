@@ -1,13 +1,13 @@
-import path from "path";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { startOfDay, endOfDay, subDays } from "date-fns";
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import path from 'path';
+// import { startOfDay, endOfDay, subDays } from "date-fns";
 
-import { Work, Institution } from "./types/index.js";
-import { transformDataModel } from "./transformers.js";
-import { saveData } from "./db/index.js";
-import { logger } from "./logger.js";
+import { saveData } from './db/index.js';
+import { logger } from './logger.js';
+import { transformDataModel } from './transformers.js';
+import { Work, Institution } from './types/index.js';
 
-const OPEN_ALEX_API = "https://api.openalex.org/";
+const OPEN_ALEX_API = 'https://api.openalex.org/';
 
 type ApiResponse<T> = {
   meta: {
@@ -23,7 +23,7 @@ type ApiResponse<T> = {
 
 type Query = {
   filter?: FilterParam;
-  "per-page"?: number;
+  'per-page'?: number;
   cursor: string | undefined;
 };
 
@@ -40,37 +40,36 @@ type FilterParam = {
 const MAX_PAGES_TO_FETCH = 100;
 
 async function importWorks(filter?: FilterParam): Promise<Work[] | null> {
-  logger.info(filter, "Filter");
+  logger.info(filter, 'Filter');
   try {
     const url = `${OPEN_ALEX_API}/works`;
     const works = await performFetch<Work[]>(url, {
       filter: {
+        ...filter,
         // from_created_date: "2024-07-27",
         // to_created_date: "2024-07-27",
-        ...filter,
         // from_updated_date: "2024-07-30T20:00:00.347Z",
         // to_updated_date: "2024-07-30T23:29:50.347Z",
       },
-      "per-page": 200,
-      cursor: "*",
+      'per-page': 200,
+      cursor: '*',
     });
-    logger.info({ totalWorks: works.length }, "Fetch done");
+    logger.info({ totalWorks: works.length }, 'Fetch done');
     return works;
   } catch (err) {
-    logger.error({ err }, "ERROR::");
+    logger.error({ err }, 'ERROR::');
     return null;
   }
 }
 
 async function performFetch<T>(url: string, searchQuery: Query): Promise<T> {
-  logger.info(searchQuery, "QUERY");
+  logger.info(searchQuery, 'QUERY');
   let data = [];
 
   const getFilter = (param: FilterParam) => {
     const filter = Object.entries(param).reduce(
-      (queryStr, [key, value]) =>
-        queryStr ? `${queryStr},${key}:${value}` : `${key}:${value}`,
-      "",
+      (queryStr, [key, value]) => (queryStr ? `${queryStr},${key}:${value}` : `${key}:${value}`),
+      '',
     );
     return filter;
   };
@@ -79,33 +78,33 @@ async function performFetch<T>(url: string, searchQuery: Query): Promise<T> {
   let roundtrip = 0;
 
   while (cursor) {
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV === 'development') {
       /* When running script locally,
         break loop prematurely to avoid overloading memory
       */
       if (roundtrip >= MAX_PAGES_TO_FETCH) break; // todo: remove line before push to prod
     }
 
-    let query = Object.entries(searchQuery).reduce((queryStr, [key, value]) => {
-      if (key === "filter") {
+    const query = Object.entries(searchQuery).reduce((queryStr, [key, value]) => {
+      if (key === 'filter') {
         const filter = `filter=${getFilter(value as FilterParam)}`;
         return queryStr ? `${queryStr}&${filter}` : filter;
       }
 
       const param = `${key}=${value}`;
       return queryStr ? `${queryStr}&${param}` : param;
-    }, "");
+    }, '');
 
     // logger.info("QUERY: ", query);
     const request = new Request(`${url}?${query}`, {
-      headers: { "API-KEY": process.env.OPENALEX_API_KEY as string },
+      headers: { 'API-KEY': process.env.OPENALEX_API_KEY as string },
     });
     const response = (await fetch(request)) as Response;
 
     if (response.ok && response.status === 200) {
       // logger.info("Api success: ", response.status, response.statusText);
 
-      if (response.headers.get("content-type")?.includes("application/json")) {
+      if (response.headers.get('content-type')?.includes('application/json')) {
         const apiRes = (await response.json()) as ApiResponse<T>;
         data = data.concat(...(apiRes.results as any[]));
         cursor = !!apiRes.meta?.next_cursor;
@@ -121,7 +120,7 @@ async function performFetch<T>(url: string, searchQuery: Query): Promise<T> {
           message: response.statusText,
           data: await response.json(),
         },
-        "Api error: ",
+        'Api error: ',
       );
       break;
     }
@@ -131,7 +130,7 @@ async function performFetch<T>(url: string, searchQuery: Query): Promise<T> {
 }
 
 const saveToLogs = (data: string, logFile: string) => {
-  const TMP_DIR = path.join(process.cwd(), "logs");
+  const TMP_DIR = path.join(process.cwd(), 'logs');
   const LOG_FILE = path.join(TMP_DIR, logFile);
   if (!existsSync(TMP_DIR)) {
     mkdirSync(TMP_DIR);
@@ -146,13 +145,15 @@ export const runImport = async ({ from, to }: { from: Date; to: Date }) => {
   // let currentDate = new Date();
   // let from_created_date = startOfDay(subDays(currentDate, 1));
   // let to_created_date = endOfDay(subDays(currentDate, 1));
-  let from_created_date = from; // startOfDay(subDays(currentDate, 0));
-  let to_created_date = to; // endOfDay(subDays(currentDate, 0));
+  logger.info({ from, to }, 'Running Import');
 
-  const dateFormatter = new Intl.DateTimeFormat("fr-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
+  const from_created_date = from; // startOfDay(subDays(currentDate, 0));
+  const to_created_date = to; // endOfDay(subDays(currentDate, 0));
+
+  const dateFormatter = new Intl.DateTimeFormat('fr-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   });
   const openAlexData = await importWorks({
     from_created_date: dateFormatter.format(from_created_date),
@@ -161,10 +162,14 @@ export const runImport = async ({ from, to }: { from: Date; to: Date }) => {
     // to_updated_date: to_created_date.toISOString(),
   });
 
-  saveToLogs(JSON.stringify(openAlexData?.slice(0, 100)), "works_raw.json");
   if (!openAlexData) {
     // logger issue or result
+    logger.info('Nothing to import');
     return 0;
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    saveToLogs(JSON.stringify(openAlexData?.slice(0, 100)), 'works_raw.json');
   }
 
   const transformedData = transformDataModel(openAlexData);
@@ -188,31 +193,22 @@ export const runImport = async ({ from, to }: { from: Date; to: Date }) => {
 
   // const models = transformApiResponseToDbModel(works);
 
-  if (process.env.NODE_ENV === "development") {
-    saveToLogs(JSON.stringify(authors), "authors.json");
-    saveToLogs(JSON.stringify(authors_ids), "authors_ids.json");
-    saveToLogs(JSON.stringify(works_authorships), "works_authorships.json");
-    saveToLogs(JSON.stringify(works.slice(1, 100)), "works.json");
-    saveToLogs(JSON.stringify(works_id), "works_id.json");
-    saveToLogs(JSON.stringify(works_concepts), "works_concepts.json");
-    saveToLogs(JSON.stringify(works_biblio), "works_biblio.json");
-    saveToLogs(JSON.stringify(works_locations), "works_locations.json");
-    saveToLogs(
-      JSON.stringify(works_best_oa_locations),
-      "works_best_oa_locations.json",
-    );
-    saveToLogs(JSON.stringify(works_open_access), "works_open_access.json");
-    saveToLogs(JSON.stringify(works_mesh), "works_mesh.json");
-    saveToLogs(
-      JSON.stringify(works_primary_locations),
-      "works_primary_locations.json",
-    );
-    saveToLogs(
-      JSON.stringify(works_referenced_works),
-      "works_referenced_works.json",
-    );
-    saveToLogs(JSON.stringify(works_related_works), "works_related_works.json");
-    saveToLogs(JSON.stringify(works_topics), "works_topics.json");
+  if (process.env.NODE_ENV === 'development') {
+    saveToLogs(JSON.stringify(authors), 'authors.json');
+    saveToLogs(JSON.stringify(authors_ids), 'authors_ids.json');
+    saveToLogs(JSON.stringify(works_authorships), 'works_authorships.json');
+    saveToLogs(JSON.stringify(works.slice(1, 100)), 'works.json');
+    saveToLogs(JSON.stringify(works_id), 'works_id.json');
+    saveToLogs(JSON.stringify(works_concepts), 'works_concepts.json');
+    saveToLogs(JSON.stringify(works_biblio), 'works_biblio.json');
+    saveToLogs(JSON.stringify(works_locations), 'works_locations.json');
+    saveToLogs(JSON.stringify(works_best_oa_locations), 'works_best_oa_locations.json');
+    saveToLogs(JSON.stringify(works_open_access), 'works_open_access.json');
+    saveToLogs(JSON.stringify(works_mesh), 'works_mesh.json');
+    saveToLogs(JSON.stringify(works_primary_locations), 'works_primary_locations.json');
+    saveToLogs(JSON.stringify(works_referenced_works), 'works_referenced_works.json');
+    saveToLogs(JSON.stringify(works_related_works), 'works_related_works.json');
+    saveToLogs(JSON.stringify(works_topics), 'works_topics.json');
   }
 
   await saveData(transformedData);

@@ -1,14 +1,15 @@
-import { pino } from "pino";
-import { fileURLToPath } from "url";
-import path from "path";
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+import { pino } from 'pino';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const logLevel = process.env.PINO_LOG_LEVEL || "trace";
+const logLevel = process.env.PINO_LOG_LEVEL || 'trace';
 
 const devTransport = {
-  target: "pino-pretty",
+  target: 'pino-pretty',
   level: logLevel,
   options: {
     colorize: true,
@@ -16,12 +17,12 @@ const devTransport = {
 };
 
 const fileTransport = {
-  target: "pino/file",
+  target: 'pino/file',
   options: { destination: `${__dirname}/../../log/server.log` },
-  level: "trace",
+  level: 'trace',
 };
 
-console.log("[DIR NAME]::", __dirname, __filename, logLevel);
+console.log('[DIR NAME]::', __dirname, __filename, logLevel);
 
 export const logger = pino({
   level: logLevel,
@@ -29,7 +30,7 @@ export const logger = pino({
     files: omitBuffer,
   },
   transport:
-    process.env.NODE_ENV === "production"
+    process.env.NODE_ENV === 'production'
       ? { targets: [] }
       : {
           targets: [devTransport, fileTransport],
@@ -46,6 +47,6 @@ function omitBuffer(array) {
   });
 }
 
-process.on("uncaughtException", (err) => {
-  logger.fatal(err, "uncaught exception");
+process.on('uncaughtException', (err) => {
+  logger.fatal(err, 'uncaught exception');
 });
