@@ -61,6 +61,8 @@ jobs:
           npm install -g @sentry/cli
           sentry-cli --version
           sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
+          # append to .env
+          echo "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> .env
 
       - name: Run tests
         run: |
