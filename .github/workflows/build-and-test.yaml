@@ -63,7 +63,7 @@ jobs:
           sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
           # append to .env
           echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> .env
-          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> ./desci-server/.env
+          yarn build
 
       - name: Run tests
         run: |
