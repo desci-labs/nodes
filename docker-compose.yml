@@ -2,7 +2,7 @@ services:
   desci_nodes_backend:
     container_name: "desci_nodes_backend"
     build: .
-    restart: always
+    restart: on-failure
     volumes:
       - .:/app/
       - /app/node_modules

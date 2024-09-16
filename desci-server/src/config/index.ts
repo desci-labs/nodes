@@ -35,6 +35,13 @@ export let CERAMIC_API_URL: string;
 export const serverIsLocal = SERVER_URL.includes('localhost') || SERVER_URL.includes('host.docker.internal');
 const serverIsDev = SERVER_URL.includes('dev');
 const serverIsProdOrStaging = process.env.NODE_ENV === 'production' || SERVER_URL.includes('staging');
+export const SERVER_ENV = serverIsLocal
+  ? 'LOCAL'
+  : serverIsDev
+    ? 'DEVELOPMENT'
+    : SERVER_URL.includes('staging')
+      ? 'STAGING'
+      : 'PRODUCTION';
 
 if (serverIsLocal) {
   ALIAS_REGISTRY_ADDRESS = contracts.localDpidAliasInfo.proxies.at(0).address;
@@ -51,4 +58,4 @@ if (serverIsLocal) {
 } else {
   console.error('Cannot derive configuration due to ambiguous environment');
   throw new Error('Ambiguous environment');
-};
+}

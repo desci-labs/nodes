@@ -22,20 +22,20 @@ export const VALID_ENTITIES = [
   'fields',
   'works',
   'countries',
-  'autocomplete_index',
+  'autocomplete_full',
 ];
 
 /**
  * Ordered from most relevant to least relevant
  */
 export const RELEVANT_FIELDS = {
-  works: ['title', 'abstract', 'doi'],
+  works: ['title', 'abstract'],
   authors: ['display_name', 'orcid', 'last_known_institution', 'authors.affiliation'],
   topics: ['display_name'],
-  fields: ['field_display_name'],
+  subfields: ['subfield_display_name'],
   concepts: ['display_name'],
   sources: ['display_name', 'publisher', 'issn_l', 'issn'],
-  autocomplete_index: ['title, primary_id'],
+  autocomplete_full: ['title', 'publisher', 'primary_id'],
   institutions: ['display_name', 'homepage_url', 'ror', 'country_code'],
   denorm_authors: ['authors.display_name', 'authors.orcid', 'authors.last_known_institution', 'authors.affiliation'],
   denorm_topics: ['topics.display_name'],
@@ -62,7 +62,7 @@ export const RELEVANT_FIELDS = {
 };
 
 type SortOrder = 'asc' | 'desc';
-type SortField = { [field: string]: { order: SortOrder; missing?: string } };
+type SortField = { [field: string]: { order: SortOrder; missing?: string; type?: string; script?: any } };
 
 const baseSort: SortField[] = [{ _score: { order: 'desc' } }];
 
@@ -77,6 +77,7 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
   works: {
     // ex denormalized works, probably safe to remove old 'works' config above
     context_novelty_percentile: (order) => [{ context_novelty_percentile: { order, missing: '_last' } }],
+    content_novelty_percentile: (order) => [{ content_novelty_percentile: { order, missing: '_last' } }],
     publication_year: (order) => [{ publication_year: { order, missing: '_last' } }],
     publication_date: (order) => [{ publication_date: { order, missing: '_last' } }],
     cited_by_count: (order) => [{ cited_by_count: { order, missing: '_last' } }],
@@ -87,11 +88,9 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
 };
 
 export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: string): QueryDslFunctionScoreQuery {
-  /**
-   * Boost work citations, author citations, and reduce non articles
-   */
   const currentYear = new Date().getFullYear();
 
+  // Simplified function score containers
   const functions: QueryDslFunctionScoreContainer[] = [
     {
       field_value_factor: {
@@ -102,36 +101,18 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
       },
     },
     {
-      field_value_factor: {
-        field: 'authors.cited_by_count',
-        factor: 1.1,
-        modifier: 'log1p',
-        missing: 1,
-      },
-    },
-    // {
-    //   gauss: {
-    //     publication_year: {
-    //       origin: currentYear.toString(),
-    //       scale: '100', // 100 years
-    //       offset: '5', // 5 years (grace period)
-    //       decay: 0.5,
-    //     },
-    //   },
-    // },
-    {
       linear: {
         publication_year: {
           origin: currentYear.toString(),
-          scale: '25', // 25 years
-          offset: '3', // 3 years (grace period)
+          scale: '25',
+          offset: '3',
           decay: 0.7,
         },
       },
     },
   ];
 
-  if (entity === 'works' || 'works_single') {
+  if (entity === 'works' || entity === 'works_single') {
     const nonArticleFilter: QueryDslQueryContainer = {
       bool: {
         must_not: [
@@ -215,12 +196,58 @@ function buildFilter(filter: Filter) {
           [filter.field]: filter.value,
         },
       };
+    case 'match_phrase':
+      if (Array.isArray(filter.value)) {
+        const queries = filter.value.map((value) => ({
+          nested: {
+            path: filter.field.split('.')[0],
+            query: {
+              match_phrase: { [filter.field]: value },
+            },
+          },
+        }));
+
+        return {
+          bool: {
+            [filter.matchLogic === 'and' ? 'must' : 'should']: queries,
+            ...(filter.matchLogic === 'or' ? { minimum_should_match: 1 } : {}),
+          },
+        };
+      }
+
+      const fieldParts = filter.field.split('.');
+      if (fieldParts.length > 1) {
+        return {
+          nested: {
+            path: fieldParts[0],
+            query: {
+              match_phrase: { [filter.field]: filter.value },
+            },
+          },
+        };
+      }
+      return { match_phrase: { [filter.field]: filter.value } };
     case 'match':
-      return {
+      const matchQuery = {
         match: {
-          [filter.field]: filter.value,
+          [filter.field]: {
+            query: filter.value,
+            operator: filter.matchLogic || 'or',
+            ...(filter.fuzziness && { fuzziness: filter.fuzziness }),
+          },
         },
       };
+
+      if (filter.field.includes('.')) {
+        const [nestedPath, nestedField] = filter.field.split('.');
+        return {
+          nested: {
+            path: nestedPath,
+            query: matchQuery,
+          },
+        };
+      }
+      return matchQuery;
     case 'exists':
       return {
         exists: {
@@ -234,9 +261,10 @@ function getRelevantFields(entity: string) {
   if (entity === 'works') return RELEVANT_FIELDS.works;
   if (entity === 'authors') return RELEVANT_FIELDS.authors;
   if (entity === 'topics') return RELEVANT_FIELDS.topics;
-  if (entity === 'fields') return RELEVANT_FIELDS.fields;
+  if (entity === 'subfields') return RELEVANT_FIELDS.subfields;
   if (entity === 'institutions') return RELEVANT_FIELDS.institutions;
   if (entity === 'sources') return RELEVANT_FIELDS.sources;
+  if (entity === 'autocomplete_full') return RELEVANT_FIELDS.autocomplete_full;
   if (entity === 'works_authors') return RELEVANT_FIELDS.denorm_authors;
   if (entity === 'works_fields') return RELEVANT_FIELDS.denorm_fields;
   if (entity === 'works_topics') return RELEVANT_FIELDS.denorm_topics;
@@ -248,7 +276,11 @@ function getRelevantFields(entity: string) {
   return RELEVANT_FIELDS.works_single;
 }
 
-export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: number): QueryDslQueryContainer {
+export function buildMultiMatchQuery(
+  query: string,
+  entity: string,
+  fuzzy: string | number = 0,
+): QueryDslQueryContainer {
   const fields = getRelevantFields(entity);
 
   let multiMatchQuery: QueryDslQueryContainer;
@@ -263,7 +295,7 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
             query: query,
             fields: fields,
             type: 'best_fields',
-            fuzziness: fuzzy || 'AUTO',
+            fuzziness: fuzzy, // Retained fuzziness
           },
         },
       },
@@ -274,7 +306,7 @@ export function buildMultiMatchQuery(query: string, entity: string, fuzzy?: numb
         query: query,
         fields: fields,
         type: 'best_fields',
-        fuzziness: fuzzy || 'AUTO',
+        fuzziness: fuzzy, // Retained fuzziness
       },
     };
   }

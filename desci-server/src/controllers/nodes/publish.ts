@@ -140,7 +140,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
           status: PublishTaskQueueStatus.WAITING,
         },
       });
-    };
+    }
 
     saveInteraction(
       req,
@@ -158,10 +158,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       owner.id,
     );
 
-    updateAssociatedAttestations(
-      node.uuid,
-      dpidAlias ? dpidAlias.toString() : manifest.dpid?.id
-    );
+    updateAssociatedAttestations(node.uuid, dpidAlias ? dpidAlias.toString() : manifest.dpid?.id);
 
     return res.send({
       ok: true,
@@ -252,10 +249,8 @@ const syncPublish = async (
     // The only reason this isn't just fire-and-forget is that we want the dpid
     // for the discord notification, which won't be available otherwise for
     // first time publishes.
-    promises.push(
-      createOrUpgradeDpidAlias(legacyDpid, ceramicStream, uuid)
-        .then(dpid => dpidAlias = dpid));
-  };
+    promises.push(createOrUpgradeDpidAlias(legacyDpid, ceramicStream, uuid).then((dpid) => (dpidAlias = dpid)));
+  }
 
   promises.push(
     // Make sure artifacts are resolvable on public IPFS node
@@ -266,17 +261,16 @@ const syncPublish = async (
       nodeVersionId: nodeVersion.id,
       nodeUuid: node.uuid,
     }),
-    // Send emails coupled to the publish event
-    publishServices.handleDeferredEmails(
-      node.uuid,
-      dpidAlias?.toString() ?? legacyDpid?.toString(),
-    )
   );
 
   await Promise.all(promises);
 
+  // Intentionally of above stacked promise, needs the DPID to be resolved!!!
+  // Send emails coupled to the publish event
+  await publishServices.handleDeferredEmails(node.uuid, dpidAlias?.toString() || legacyDpid?.toString());
+
   const targetDpidUrl = getTargetDpidUrl();
-  discordNotify(`${targetDpidUrl}/${dpidAlias}`);
+  discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
 
   /**
    * Save the cover art for this Node for later sharing: PDF -> JPG for this version
@@ -457,15 +451,12 @@ export const publishHandler = async ({
 
     const manifest = await getManifestByCid(cid);
     const targetDpidUrl = getTargetDpidUrl();
-    discordNotify(`${targetDpidUrl}/${manifest.dpid?.id}`);
+    discordNotify({ message: `${targetDpidUrl}/${manifest.dpid?.id}` });
 
     /**
      * Fire off any deferred emails awaiting publish
      */
-    await publishServices.handleDeferredEmails(
-      node.uuid,
-      node.dpidAlias?.toString() ?? manifest.dpid?.id
-    );
+    await publishServices.handleDeferredEmails(node.uuid, node.dpidAlias?.toString() ?? manifest.dpid?.id);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
