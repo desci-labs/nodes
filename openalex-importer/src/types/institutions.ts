@@ -39,7 +39,7 @@ export interface Repository {
 }
 
 export interface SummaryStats {
-  "2yr_mean_citedness": number;
+  '2yr_mean_citedness': number;
   h_index: number;
   i10_index: number;
 }
@@ -75,21 +75,21 @@ export interface DisplayName {
   azb: string;
   ba: string;
   be: string;
-  "be-tarask": string;
+  'be-tarask': string;
   bg: string;
   bn: string;
   br: string;
   ca: string;
   ckb: string;
   crh: string;
-  "crh-latn": string;
+  'crh-latn': string;
   cs: string;
   cy: string;
   da: string;
   de: string;
   el: string;
   en: string;
-  "en-gb": string;
+  'en-gb': string;
   eo: string;
   es: string;
   et: string;
@@ -155,12 +155,12 @@ export interface DisplayName {
   xmf: string;
   yue: string;
   zh: string;
-  "zh-cn": string;
-  "zh-hans": string;
-  "zh-hant": string;
-  "zh-hk": string;
-  "zh-sg": string;
-  "zh-tw": string;
+  'zh-cn': string;
+  'zh-hans': string;
+  'zh-hant': string;
+  'zh-hk': string;
+  'zh-sg': string;
+  'zh-tw': string;
 }
 
 export interface AssociatedInstitution {
