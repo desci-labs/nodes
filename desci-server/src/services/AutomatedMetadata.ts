@@ -248,7 +248,7 @@ export class AutomatedMetadataClient {
       );
       logger.info({ status: result.status, message: result.statusText }, 'OPEN ALEX QUERY');
       const work = (await result.json()) as OpenAlexWork;
-      logger.info({ openAlexWork: work }, 'OPEN ALEX QUERY');
+      // logger.info({ openAlexWork: work }, 'OPEN ALEX QUERY');
       return transformOpenAlexWorkToMetadata(work);
     } catch (err) {
       logger.error({ err }, 'ERROR: OPEN ALEX WORK QUERY');

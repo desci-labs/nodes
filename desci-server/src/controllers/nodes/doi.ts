@@ -85,6 +85,8 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     doi: string;
   } | null;
 
+  let attemptedOpenAlexQuery = false;
+
   if (!metadata) {
     logger.info('Pull from grobid');
     // pull from grobid
@@ -94,11 +96,17 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     if (grobidMetadata?.doi) {
       logger.info({ doi }, 'DOI PARSED FROM GROBID');
       const openAlexMetadata = await metadataClient.queryDoiFromOpenAlex(grobidMetadata.doi);
+      attemptedOpenAlexQuery = true;
       metadata = {
-        ...openAlexMetadata,
+        // ...openAlexMetadata,
+        authors:
+          openAlexMetadata?.authors ||
+          grobidMetadata?.authors.map((author) => ({ name: author, affiliations: [], orcid: '' })),
         abstract: grobidMetadata.abstract || openAlexMetadata.abstract,
         title: grobidMetadata.title || openAlexMetadata.title,
+        doi: grobidMetadata.doi,
       };
+      doi = grobidMetadata.doi;
     } else if (grobidMetadata) {
       metadata = {
         title: grobidMetadata?.title,
@@ -123,7 +131,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     );
     if (work?.DOI) {
       doi = work.DOI;
-      // logger.info({ doi, work }, 'DOI from CrossRef');
+      logger.info({ doi, work }, 'DOI from CrossRef');
 
       const openAlexMetadata = await metadataClient.queryDoiFromOpenAlex(doi);
       delete openAlexMetadata.pdfUrl;
@@ -136,7 +144,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     }
   }
 
-  logger.info({ metadata }, 'METADATA');
+  // logger.info({ metadata }, 'METADATA');
   if (!metadata) throw new NotFoundError('DOI not found!');
 
   const actions: ManifestActions[] = [];
@@ -168,6 +176,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     });
   }
 
+  // only update toplevel manifest metadata when in prepub flow
   if (prepublication) {
     const { title, authors } = metadata;
 
@@ -175,7 +184,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     if (title.trim()) actions.push({ type: 'Update Title', title });
 
     // update contributors if populated
-    if (authors.length > 0) {
+    if (authors?.length > 0) {
       actions.push({
         type: 'Set Contributors',
         contributors: authors.map((author) => ({
