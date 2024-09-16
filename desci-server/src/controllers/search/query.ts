@@ -64,35 +64,35 @@ export const singleQuery = async (
   const esBoolQuery = buildBoolQuery([esQuery], filters);
   const esSort = buildSortQuery(entity, sort.field, sort.order);
 
+  let searchEntity = entity;
+
+  if (entity === 'fields') {
+    searchEntity = 'topics_v2'; // Overwrite as fields are accessible via 'topics' index
+    logger.info(
+      { entity, searchEntity },
+      `Entity provided is '${entity}', overwriting with '${searchEntity}' because ${entity} is accessible in that index.`,
+    );
+  }
+
+  const finalQuery = {
+    index: searchEntity,
+    body: {
+      ...esBoolQuery,
+      sort: esSort,
+      from: (pagination.page - 1) * pagination.perPage,
+      size: pagination.perPage,
+    },
+  };
+
+  logger.debug({ query: finalQuery }, 'Executing query');
+
   try {
-    logger.debug({ esQuery, esSort, esBoolQuery }, 'Executing query');
-
-    let searchEntity = entity;
-
-    if (entity === 'fields') {
-      searchEntity = 'topics_v2'; // Overwrite as fields are accessible via 'topics' index
-      logger.info(
-        { entity, searchEntity },
-        `Entity provided is '${entity}', overwriting with '${searchEntity}' because ${entity} is accessible in that index.`,
-      );
-    }
-
-    const results = await elasticClient.search({
-      index: searchEntity,
-      body: {
-        ...esBoolQuery,
-        sort: esSort,
-        from: (pagination.page - 1) * pagination.perPage,
-        size: pagination.perPage,
-      },
-    });
+    const results = await elasticClient.search(finalQuery);
     const hits = results.hits;
     logger.info({ hitsReturned: hits.total }, 'Elastic search query executed successfully');
 
     return res.json({
-      esQuery,
-      esSort,
-      esBoolQuery,
+      finalQuery,
       ok: true,
       index: searchEntity,
       total: hits.total,
@@ -105,9 +105,7 @@ export const singleQuery = async (
     return res.status(500).json({
       ok: false,
       error: 'An error occurred while searching',
-      esQuery,
-      esSort,
-      esBoolQuery,
+      finalQuery,
     });
   }
 };

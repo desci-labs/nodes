@@ -32,10 +32,7 @@ export interface QuerySuccessResponse extends QueryDebuggingResponse {
 }
 
 export interface QueryDebuggingResponse {
-  esQuery?: any;
-  esQueries?: any;
-  esBoolQuery?: any;
-  esSort?: any;
+  finalQuery?: any;
 }
 
 export interface QueryErrorResponse extends QueryDebuggingResponse {

@@ -70,23 +70,23 @@ export const multiQuery = async (
   const esSort = buildSortQuery(primaryEntity, sort.field, sort.order);
   const esBoolQuery = buildBoolQuery(esQueries, filters);
 
+  const finalQuery = {
+    index: primaryEntity,
+    body: {
+      ...esBoolQuery,
+      sort: esSort,
+      from: (pagination.page - 1) * pagination.perPage,
+      size: pagination.perPage,
+    },
+  };
+
   try {
-    logger.debug({ esQueries, esSort, esBoolQuery }, 'Executing query');
-    const { hits } = await elasticClient.search({
-      index: primaryEntity,
-      body: {
-        ...esBoolQuery,
-        sort: esSort,
-        from: (pagination.page - 1) * pagination.perPage,
-        size: pagination.perPage,
-      },
-    });
+    logger.debug({ query: finalQuery }, 'Executing query');
+    const { hits } = await elasticClient.search(finalQuery);
 
     logger.info({ fn: 'Elastic search multi query executed successfully' });
     return res.json({
-      esQueries,
-      esBoolQuery,
-      esSort,
+      finalQuery,
       index: primaryEntity,
       ok: true,
       total: hits.total,
@@ -97,9 +97,7 @@ export const multiQuery = async (
   } catch (error) {
     logger.error({ error }, 'Elastic search multi query failed');
     return res.status(500).json({
-      esQueries,
-      esBoolQuery,
-      esSort,
+      finalQuery,
       ok: false,
       error: 'An error occurred while searching',
     });
