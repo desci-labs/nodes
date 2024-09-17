@@ -62,7 +62,7 @@ export const RELEVANT_FIELDS = {
 };
 
 type SortOrder = 'asc' | 'desc';
-type SortField = { [field: string]: { order: SortOrder; missing?: string; type?: string; script?: any } };
+type SortField = { [field: string]: { order: SortOrder; missing?: string | number; type?: string; script?: any } };
 
 const baseSort: SortField[] = [{ _score: { order: 'desc' } }];
 
@@ -202,7 +202,7 @@ function buildFilter(filter: Filter) {
           nested: {
             path: filter.field.split('.')[0],
             query: {
-              match_phrase: { [filter.field]: value },
+              match_phrase: { [filter.field]: { query: value, analyzer: 'edge_ngram_analyzer' } },
             },
           },
         }));
@@ -221,12 +221,12 @@ function buildFilter(filter: Filter) {
           nested: {
             path: fieldParts[0],
             query: {
-              match_phrase: { [filter.field]: filter.value },
+              match_phrase: { [filter.field]: { query: filter.value, analyzer: 'edge_ngram_analyzer' } },
             },
           },
         };
       }
-      return { match_phrase: { [filter.field]: filter.value } };
+      return { match_phrase: { [filter.field]: { query: filter.value, analyzer: 'edge_ngram_analyzer' } } };
     case 'match':
       const matchQuery = {
         match: {
