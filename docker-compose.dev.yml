@@ -63,7 +63,7 @@ services:
       graph_node:
         condition: service_started
       redis:
-        condition: service_started
+        condition: service_healthy
       # - nodes_media # UNCOMMENT FOR LOCAL DEV OF nodes-media
     links:
       - db_postgres
@@ -173,6 +173,11 @@ services:
   redis:
     image: "redis:7-alpine"
     container_name: "redis_cache"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 1s
+      retries: 5
     ports:
       - "6379:6379"
     volumes:
@@ -224,11 +229,6 @@ services:
       - "8070:8070"
     environment:
       - JAVA_OPTS=-Xmx2G -Xms2G
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8070/api/isalive"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
   dpid_resolver:
     image: descilabs/dpid-resolver
@@ -241,6 +241,12 @@ services:
       OPTIMISM_RPC_URL: http://host.docker.internal:8545
       CERAMIC_URL: http://host.docker.internal:7007
       IPFS_GATEWAY: http://host.docker.internal:8089/ipfs
+      REDIS_HOST: http://host.docker.internal
+      REDIS_PORT: 6379
+      # How long to store anchored commit info (default 24 hours)
+      CACHE_TTL_ANCHORED: 86400
+      # How long to store pending commit info
+      CACHE_TTL_PENDING: 300
     restart: on-failure
     ports:
       - "5460:5460"
@@ -258,3 +264,6 @@ services:
         condition: service_healthy
       ceramic:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
