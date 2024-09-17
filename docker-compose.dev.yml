@@ -121,7 +121,7 @@ services:
       # EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE: synced
 
   ipfs:
-    image: ipfs/kubo:v0.24.0
+    image: ipfs/kubo:v0.26.0
     container_name: "ipfs"
     environment:
       IPFS_SWARM_KEY: "/key/swarm/psk/1.0.0/\n/base16/\n9d002c50635a479d29dcc0ccb49d862952a0dcc52baddd253167adcd496c8d04"
@@ -147,7 +147,7 @@ services:
       timeout: 2s
 
   ipfs_public:
-    image: ipfs/kubo:v0.24.0
+    image: ipfs/kubo:v0.26.0
     container_name: "ipfs_public"
     ports:
       - "5002:5001"
@@ -184,7 +184,7 @@ services:
       - ./local-data/redis:/data
 
   ceramic:
-    image: ceramicnetwork/js-ceramic:5.16.0
+    image: ceramicnetwork/js-ceramic:6.4.0
     container_name: ceramic
     ports:
       - "7007:7007"
