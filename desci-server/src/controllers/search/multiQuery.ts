@@ -58,7 +58,8 @@ export const multiQuery = async (
     });
   }
 
-  const primaryEntity = 'works'; // Hard coded for now to not affect results without a 'works' query.
+  let primaryEntity = 'works'; // Hard coded for now to not affect results without a 'works' query.
+
   // const primaryEntity = Object.keys(validEntityQueries[0])[0];
 
   const esQueries = validEntityQueries.map((q) => {
@@ -71,22 +72,18 @@ export const multiQuery = async (
   const esSort = buildSortQuery(primaryEntity, sort.field, sort.order);
   const esBoolQuery = buildBoolQuery(esQueries, filters);
 
-  const searchTermIsNonEmpty = Object.values(queries).some((q) => q['works'].length > 0);
+  const searchTermIsNonEmpty = Object.values(queries).some((q) => q['works']?.length > 0);
 
   // if search term is empty and there is no other sorting, then sort by content novelty and date
-  if (!searchTermIsNonEmpty && sort.field === 'relevance') {
+  if (sort.field === 'relevance') {
     esSort.push({
-      _script: {
-        type: 'number',
-        script: {
-          lang: 'painless',
-          source:
-            "params._source.containsKey('content_novelty_percentile') ? params._source['content_novelty_percentile'] : 0",
-        },
-        order: 'desc',
-      },
+      content_novelty_percentile: { order: 'desc', missing: '_last' },
     });
-    esSort.push({ publication_year: { order: 'desc' } });
+    // esSort.push({ publication_year: { order: 'desc' } });
+  }
+
+  if (primaryEntity === 'works') {
+    primaryEntity = 'works_opt';
   }
 
   const finalQuery = {
