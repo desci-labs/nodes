@@ -32,7 +32,7 @@ spec:
 
           {{- end -}}
           {{- with secret "secrets/desci-server/dev/db" -}}
-          echo "{\"anchor\":{\"ethereum-rpc-url\":\"{{ .data.ceramic_rpc }}\"},\"http-api\":{\"cors-allowed-origins\":[\".*\"],\"admin-dids\":[\"did:key:z6mktbkjrmnhvj37qfto12911ycm2jukduzwhdvetu9s5a9t\"]},\"ipfs\":{\"mode\":\"remote\",\"host\":\"http://public-ceramic-ipfs-dev-service-internal.default.svc.cluster.local:5001\"},\"logger\":{\"log-level\":0},\"metrics\":{\"prometheus-exporter-enabled\":true,\"prometheus-exporter-port\":9464},\"network\":{\"name\":\"testnet-clay\"},\"node\":{},\"state-store\":{\"mode\":\"s3\",\"s3-bucket\":\"ceramic-node-dev-prime2\"},\"indexing\":{\"db\":\"{{ .data.ceramic_url }}\",\"allow-queries-before-historical-sync\":true,\"enable-historical-sync\":true}}" > daemon.config.json
+          echo "{\"anchor\":{\"ethereum-rpc-url\":\"{{ .Data.ceramic_rpc }}\"},\"http-api\":{\"cors-allowed-origins\":[\".*\"],\"admin-dids\":[\"did:key:z6MktbKJrMnhVJ37QFTo12911ycm2juKDUzWHDVETu9s5a9T\"]},\"ipfs\":{\"mode\":\"remote\",\"host\":\"http://public-ceramic-ipfs-dev-service-internal.default.svc.cluster.local:5001\"},\"logger\":{\"log-level\":0},\"metrics\":{\"prometheus-exporter-enabled\":true,\"prometheus-exporter-port\":9464},\"network\":{\"name\":\"testnet-clay\"},\"node\":{},\"state-store\":{\"mode\":\"s3\",\"s3-bucket\":\"ceramic-node-dev-prime2\"},\"indexing\":{\"db\":\"{{ .Data.ceramic_url }}\",\"allow-queries-before-historical-sync\":true,\"enable-historical-sync\":true}}" > daemon.config.json
           export NODE_ENV=production
           export CERAMIC_PUBSUB_QPS_LIMIT=500
           echo "envset"; 
