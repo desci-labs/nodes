@@ -32,7 +32,7 @@ export const RELEVANT_FIELDS = {
   works: ['title', 'abstract'],
   authors: ['display_name', 'orcid', 'last_known_institution', 'authors.affiliation'],
   topics: ['display_name'],
-  subfields: ['subfield_display_name'],
+  fields: ['subfield_display_name'],
   concepts: ['display_name'],
   sources: ['display_name', 'publisher', 'issn_l', 'issn'],
   autocomplete_full: ['title', 'publisher', 'primary_id'],
@@ -262,7 +262,7 @@ function getRelevantFields(entity: string) {
   if (entity === 'authors') return RELEVANT_FIELDS.authors;
   if (entity === 'topics') return RELEVANT_FIELDS.topics;
   if (entity === 'concepts') return RELEVANT_FIELDS.concepts;
-  if (entity === 'subfields') return RELEVANT_FIELDS.subfields;
+  if (entity === 'fields') return RELEVANT_FIELDS.fields;
   if (entity === 'institutions') return RELEVANT_FIELDS.institutions;
   if (entity === 'sources') return RELEVANT_FIELDS.sources;
   if (entity === 'autocomplete_full') return RELEVANT_FIELDS.autocomplete_full;
