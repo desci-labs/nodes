@@ -75,11 +75,11 @@ export const multiQuery = async (
   const searchTermIsNonEmpty = Object.values(queries).some((q) => q['works']?.length > 0);
 
   // if search term is empty and there is no other sorting, then sort by content novelty and date
-  if (!searchTermIsNonEmpty && sort.field === 'relevance') {
+  if (sort.field === 'relevance') {
     esSort.push({
       content_novelty_percentile: { order: 'desc', missing: '_last' },
     });
-    esSort.push({ publication_year: { order: 'desc' } });
+    // esSort.push({ publication_year: { order: 'desc' } });
   }
 
   if (primaryEntity === 'works') {

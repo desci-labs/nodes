@@ -233,12 +233,12 @@ function buildFilter(filter: Filter) {
           [filter.field]: {
             query: filter.value,
             operator: filter.matchLogic || 'or',
-            ...(filter.fuzziness && { fuzziness: filter.fuzziness }),
+            // ...(filter.fuzziness && { fuzziness: filter.fuzziness }),
           },
         },
       };
 
-      if (filter.field.includes('.')) {
+      if (filter.field.includes('.') && !filter.field.includes('institutions')) {
         const [nestedPath, nestedField] = filter.field.split('.');
         return {
           nested: {
@@ -261,12 +261,14 @@ function getRelevantFields(entity: string) {
   if (entity === 'works') return RELEVANT_FIELDS.works;
   if (entity === 'authors') return RELEVANT_FIELDS.authors;
   if (entity === 'topics') return RELEVANT_FIELDS.topics;
+  if (entity === 'concepts') return RELEVANT_FIELDS.concepts;
   if (entity === 'subfields') return RELEVANT_FIELDS.subfields;
   if (entity === 'institutions') return RELEVANT_FIELDS.institutions;
   if (entity === 'sources') return RELEVANT_FIELDS.sources;
   if (entity === 'autocomplete_full') return RELEVANT_FIELDS.autocomplete_full;
   if (entity === 'works_authors') return RELEVANT_FIELDS.denorm_authors;
   if (entity === 'works_fields') return RELEVANT_FIELDS.denorm_fields;
+  if (entity === 'works_concepts') return RELEVANT_FIELDS.denorm_concepts;
   if (entity === 'works_topics') return RELEVANT_FIELDS.denorm_topics;
   if (entity === 'works_countries') return RELEVANT_FIELDS.denorm_countries;
   if (entity === 'works_institutions') return RELEVANT_FIELDS.denorm_institutions;
@@ -285,7 +287,7 @@ export function buildMultiMatchQuery(
 
   let multiMatchQuery: QueryDslQueryContainer;
 
-  if (entity.startsWith('works_')) {
+  if (entity.startsWith('works_') && !fields[0]?.includes('institutions')) {
     const nestedField = fields[0]?.split('.')[0];
     multiMatchQuery = {
       nested: {
@@ -295,7 +297,7 @@ export function buildMultiMatchQuery(
             query: query,
             fields: fields,
             type: 'best_fields',
-            fuzziness: fuzzy, // Retained fuzziness
+            // fuzziness: fuzzy, // Retained fuzziness
           },
         },
       },
@@ -306,7 +308,7 @@ export function buildMultiMatchQuery(
         query: query,
         fields: fields,
         type: 'best_fields',
-        fuzziness: fuzzy, // Retained fuzziness
+        // fuzziness: fuzzy, // Retained fuzziness
       },
     };
   }
