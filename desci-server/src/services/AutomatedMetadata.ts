@@ -66,8 +66,8 @@ export type MetadataResponse = {
   abstract?: string;
   authors: Array<{ orcid?: string; name: string; affiliations?: { name: string; id: string }[] }>;
   title: string;
-  pdfUrl: string | null;
-  keywords: string[];
+  pdfUrl?: string | null;
+  keywords?: string[];
   doi?: string;
 };
 
@@ -248,7 +248,7 @@ export class AutomatedMetadataClient {
       );
       logger.info({ status: result.status, message: result.statusText }, 'OPEN ALEX QUERY');
       const work = (await result.json()) as OpenAlexWork;
-      logger.info({ openAlexWork: work }, 'OPEN ALEX QUERY');
+      // logger.info({ openAlexWork: work }, 'OPEN ALEX QUERY');
       return transformOpenAlexWorkToMetadata(work);
     } catch (err) {
       logger.error({ err }, 'ERROR: OPEN ALEX WORK QUERY');
@@ -509,10 +509,10 @@ const transformOpenAlexWorkToMetadata = (work: OpenAlexWork): MetadataResponse =
 
   const abstract = work?.abstract_inverted_index ? transformInvertedAbstractToText(work.abstract_inverted_index) : '';
 
-  return { title: work.title, doi: work.doi, authors, pdfUrl: '', keywords, abstract };
+  return { title: work.title, doi: work.doi, authors, pdfUrl: work.best_oa_location?.pdf_url, keywords, abstract };
 };
 
-const transformInvertedAbstractToText = (abstract: OpenAlexWork['abstract_inverted_index']) => {
+export const transformInvertedAbstractToText = (abstract: OpenAlexWork['abstract_inverted_index']) => {
   const words = [];
   Object.entries(abstract).map(([word, positions]) => {
     positions.forEach((pos) => words.splice(pos, 0, word));

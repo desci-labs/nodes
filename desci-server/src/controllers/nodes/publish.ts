@@ -37,6 +37,7 @@ export type PublishRequest = Request<never, never, PublishReqBody> & {
 export type PublishResBody =
   | {
       ok: boolean;
+      dpid: number;
       taskId?: number;
     }
   | {
@@ -122,10 +123,10 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     if (task) return res.status(400).json({ error: 'Node publishing in progress' });
 
     let publishTask: PublishTaskQueue | undefined;
-
+    let dpidAlias: number;
     if (useNewPublish) {
       logger.info({ ceramicStream, commitId, uuid, owner: owner.id }, 'Triggering new publish flow');
-      await syncPublish(ceramicStream, commitId, node, owner, cid, uuid, manifest);
+      dpidAlias = await syncPublish(ceramicStream, commitId, node, owner, cid, uuid, manifest);
     } else {
       publishTask = await prisma.publishTaskQueue.create({
         data: {
@@ -146,7 +147,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       ActionType.PUBLISH_NODE,
       {
         cid,
-        dpid: manifest.dpid?.id,
+        dpid: dpidAlias?.toString() ?? manifest.dpid?.id,
         userId: owner.id,
         transactionId,
         ceramicStream,
@@ -157,9 +158,11 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       owner.id,
     );
 
-    updateAssociatedAttestations(node.uuid, manifest.dpid.id);
+    updateAssociatedAttestations(node.uuid, dpidAlias ? dpidAlias.toString() : manifest.dpid?.id);
+
     return res.send({
       ok: true,
+      dpid: dpidAlias ?? parseInt(manifest.dpid?.id),
       taskId: publishTask?.id,
     });
   } catch (err) {
@@ -178,6 +181,8 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
  *
  * Semantically, these can both be made fire-and-forget promises if we can
  * manage without instantly having the dPID alias available in this function.
+ *
+ * @returns dpidAlias
  */
 const syncPublish = async (
   ceramicStream: string,
@@ -187,7 +192,7 @@ const syncPublish = async (
   cid: string,
   uuid: string,
   manifest: ResearchObjectV1,
-): Promise<void> => {
+): Promise<number> => {
   const logger = parentLogger.child({
     module: 'NODE::syncPublish',
     uuid,
@@ -198,7 +203,6 @@ const syncPublish = async (
 
   const latestNodeVersion = await prisma.nodeVersion.findFirst({
     where: {
-      id: -1,
       nodeId: node.id,
     },
     orderBy: {
@@ -229,9 +233,9 @@ const syncPublish = async (
     await setCeramicStream(uuid, ceramicStream);
   } else if (node.ceramicStream !== ceramicStream) {
     logger.warn(
+      { database: node.ceramicStream, ceramicStream },
       // This is unexpected and weird, but important to know if it occurs
       `[publish:publish] stream on record does not match passed streamID`,
-      { database: node.ceramicStream, ceramicStream },
     );
   }
 
@@ -249,6 +253,7 @@ const syncPublish = async (
   }
 
   promises.push(
+    // Make sure artifacts are resolvable on public IPFS node
     handlePublicDataRefs({
       nodeId: node.id,
       userId: owner.id,
@@ -260,15 +265,18 @@ const syncPublish = async (
 
   await Promise.all(promises);
 
-  // TODO: different resolver url for codex? :thinking:
-  const targetDpidUrl = getTargetDpidUrl();
+  // Intentionally of above stacked promise, needs the DPID to be resolved!!!
+  // Send emails coupled to the publish event
+  await publishServices.handleDeferredEmails(node.uuid, dpidAlias?.toString() || legacyDpid?.toString());
 
-  discordNotify(`${targetDpidUrl}/${dpidAlias}`);
+  const targetDpidUrl = getTargetDpidUrl();
+  discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
 
   /**
    * Save the cover art for this Node for later sharing: PDF -> JPG for this version
    */
   cacheNodeMetadata(node.uuid, cid);
+  return dpidAlias;
 };
 
 /**
@@ -396,7 +404,6 @@ export const publishHandler = async ({
     // update node version
     const latestNodeVersion = await prisma.nodeVersion.findFirst({
       where: {
-        id: -1,
         nodeId: node.id,
       },
       orderBy: {
@@ -444,12 +451,12 @@ export const publishHandler = async ({
 
     const manifest = await getManifestByCid(cid);
     const targetDpidUrl = getTargetDpidUrl();
-    discordNotify(`${targetDpidUrl}/${manifest.dpid?.id}`);
+    discordNotify({ message: `${targetDpidUrl}/${manifest.dpid?.id}` });
 
     /**
      * Fire off any deferred emails awaiting publish
      */
-    await publishServices.handleDeferredEmails(node.uuid, manifest.dpid?.id);
+    await publishServices.handleDeferredEmails(node.uuid, node.dpidAlias?.toString() ?? manifest.dpid?.id);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version

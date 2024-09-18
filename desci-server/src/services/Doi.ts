@@ -97,10 +97,11 @@ export class DoiService {
     // retrieve node manifest/metadata
     const { researchObjects } = await getIndexedResearchObjects([uuid]);
     const researchObject = researchObjects[0] as IndexedResearchObject;
-    logger.info({ researchObject }, 'RESEARCH OBJECT');
-    const manifestCid = hexToCid(researchObject?.recentCid);
+    logger.info({ researchObject, uuid }, 'RESEARCH OBJECT');
+    if (!researchObject) throw new ForbiddenMintError('Node not published yet!');
 
-    if (!manifestCid) throw new ForbiddenMintError('Node not published yet!');
+    const manifestCid = hexToCid(researchObject?.recentCid);
+    // if (!manifestCid) throw new ForbiddenMintError('Node not published yet!');
 
     const latestManifest = await getManifestByCid(manifestCid);
     researchObject.versions.reverse();
@@ -174,10 +175,23 @@ export class DoiService {
     return submission;
   }
 
-  async getDoiByDpidOrUuid(identifier: string) {
+  /**
+   * Query for Doi Record entry for a node using it's
+   * identifier (dPid, uuid or Doi)
+   * @param identifier dPID | UUID(.) | DOI
+   * @returns
+   */
+  async findDoiRecord(identifier: string) {
     return this.dbClient.doiRecord.findFirst({
-      where: { OR: [{ dpid: identifier }, { uuid: ensureUuidEndsWithDot(identifier) }] },
+      where: { OR: [{ dpid: identifier }, { uuid: ensureUuidEndsWithDot(identifier) }, { doi: identifier }] },
     });
+  }
+
+  /**
+   * List all registered Doi records
+   */
+  async listDoi() {
+    return this.dbClient.doiRecord.findMany({ where: {} });
   }
 
   async hasPendingSubmission(uuid: string) {

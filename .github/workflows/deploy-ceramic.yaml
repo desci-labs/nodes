@@ -1,0 +1,61 @@
+on:
+  push:
+    paths:
+      - ceramic-k8s/**
+    branches:
+      - main
+      - develop
+env:
+  AWS_DEFAULT_REGION: us-east-2
+  AWS_DEFAULT_OUTPUT: json
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: install-aws-cli
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 1
+
+      - uses: prepor/action-aws-iam-authenticator@master
+      - run: aws-iam-authenticator version
+
+      - name: Install Kubectl
+        run: |
+          #$(curl -Ls https://dl.k8s.io/release/stable.txt)
+          version=v1.23.6
+          echo "using kubectl@$version"
+          curl -sLO "https://dl.k8s.io/release/$version/bin/linux/amd64/kubectl" -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin
+          mkdir $HOME/.kube
+          sudo apt-get update
+          sudo apt-get install less
+          echo ${{ secrets.KUBE_CONFIG_DATA }} | base64 --decode > $HOME/.kube/config
+          aws sts get-caller-identity
+
+      - name: Deploy to EKS (DEV)
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          kubectl apply -f ceramic-k8s/ceramic_deployment_dev.yaml
+
+      - name: Deploy to EKS (PROD)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl apply -f ceramic-k8s/ceramic_deployment_prod.yaml
+
+      - name: Verify EKS Deployment (DEV)
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          kubectl rollout status deployment/js-ceramic-dev
+
+      - name: Verify EKS Deployment (PROD)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl rollout status deployment/js-ceramic-prod

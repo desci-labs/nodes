@@ -1,11 +1,11 @@
-import { EmailType, Node, NodeContribution, User } from '@prisma/client';
+import { DataType, EmailType, Node, NodeContribution, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
 import { prisma } from '../client.js';
 import { attestationService, ensureUuidEndsWithDot, getNodeVersion, hexToCid } from '../internal.js';
 import { logger as parentLogger } from '../logger.js';
 import { SubmissionPackageEmailHtml } from '../templates/emails/utils/emailRenderer.js';
-import { getIndexedResearchObjects } from '../theGraph.js';
+import { getIndexedResearchObjects, getTimeForTxOrCommits } from '../theGraph.js';
 
 import { contributorService } from './Contributors.js';
 import { getLatestManifestFromNode } from './manifestRepo.js';
@@ -31,12 +31,18 @@ export class PublishServices {
     const contributors = ownerOnly ? [] : await contributorService.retrieveAllContributionsForNode(node, verifiedOnly);
     const nodeOwner = await prisma.user.findUnique({ where: { id: node.ownerId } });
     const manifest = await getLatestManifestFromNode(node);
-    const dpid = manifest.dpid?.id;
+    const dpid = node.dpidAlias?.toString() ?? manifest.dpid?.id;
     const versionPublished = await getNodeVersion(node.uuid);
 
     if (!dpid) {
       logger.error(
-        { nodeUuid: node.uuid, 'manifest.dpid': manifest?.dpid, nodeOwner, totalContributors: contributors.length },
+        {
+          nodeUuid: node.uuid,
+          'manifest.dpid': manifest?.dpid,
+          dpidAlias: node.dpidAlias,
+          nodeOwner,
+          totalContributors: contributors.length,
+        },
         'Failed to retrieve DPID for node, emails not sent during publish update.',
       );
     }
@@ -56,7 +62,7 @@ export class PublishServices {
         nodeUuid: node.uuid,
         nodeTitle: node.title,
         nodeDpid: dpid,
-        versionUpdate: versionPublished,
+        versionUpdate: versionPublished.toString(),
         manuscriptCid: manuscriptCid,
       });
 
@@ -93,19 +99,32 @@ export class PublishServices {
   }
 
   async retrieveBlockTimeByManifestCid(uuid: string, manifestCid: string) {
-    const { researchObjects } = await getIndexedResearchObjects([uuid]);
-    if (!researchObjects.length)
-      logger.warn({ fn: 'retrieveBlockTimeByManifestCid' }, `No research objects found for nodeUuid ${uuid}`);
-    const indexedNode = researchObjects?.[0];
-    const targetVersion = indexedNode?.versions.find((v) => hexToCid(v.cid) === manifestCid);
-    if (!targetVersion) {
-      logger.warn(
-        { fn: 'retrieveBlockTimeByManifestCid', uuid, manifestCid },
-        `No version match was found for nodeUuid/manifestCid`,
-      );
-      return '-1';
-    }
-    return targetVersion.time;
+    if (!manifestCid) return Date.now().toString();
+    const manifestPubRefEntry = await prisma.publicDataReference.findFirst({
+      select: {
+        createdAt: true,
+        size: true,
+        external: true,
+        cid: true,
+        nodeVersion: {
+          select: {
+            transactionId: true,
+            commitId: true,
+          },
+        },
+      },
+      where: {
+        type: { equals: DataType.MANIFEST },
+        node: {
+          uuid: ensureUuidEndsWithDot(uuid),
+        },
+        cid: manifestCid,
+      },
+    });
+    const commitId = manifestPubRefEntry?.nodeVersion?.commitId ?? manifestPubRefEntry?.nodeVersion?.transactionId;
+    const timeMap = await getTimeForTxOrCommits([commitId]);
+    const timestamp = timeMap[commitId];
+    return timestamp ?? Date.now().toString();
   }
 
   /**
@@ -146,6 +165,7 @@ export class PublishServices {
               nodeVersion - 1, // 0-indexed total expected
               dpid,
               entry.User,
+              ensureUuidEndsWithDot(uuid),
             );
           }),
         );

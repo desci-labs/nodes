@@ -8,6 +8,7 @@
 
 import {
   ResearchObjectComponentTypeMap,
+  ResearchObjectReference,
   ResearchObjectV1Author,
   ResearchObjectV1Component,
   ResearchObjectV1Dpid,
@@ -57,4 +58,8 @@ export type ManifestActions =
   | {
       type: 'Update CoverImage';
       cid: string | undefined;
-    };
+    }
+  | { type: 'Add Reference'; reference: ResearchObjectReference }
+  | { type: 'Add References'; reference: ResearchObjectReference[] }
+  | { type: 'Delete Reference'; referenceId: string }
+  | { type: 'Set Contributors'; contributors: ResearchObjectV1Author[] };

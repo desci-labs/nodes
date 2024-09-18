@@ -1,10 +1,8 @@
-version: "3"
-
 services:
   db_postgres:
     container_name: "db_boilerplate"
     image: "postgres:12.6-alpine"
-    restart: always
+    restart: on-failure
     healthcheck:
       test: "pg_isready -U walter -d postgres"
       interval: 5s
@@ -24,7 +22,7 @@ services:
   desci_blockchain_ganache:
     container_name: "desci_blockchain_ganache"
     build: ./desci-contracts
-    restart: always
+    restart: on-failure
     healthcheck:
       test: curl -sf -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' localhost:8545
       interval: 10s
@@ -65,7 +63,7 @@ services:
       graph_node:
         condition: service_started
       redis:
-        condition: service_started
+        condition: service_healthy
       # - nodes_media # UNCOMMENT FOR LOCAL DEV OF nodes-media
     links:
       - db_postgres
@@ -82,7 +80,7 @@ services:
   graph_node:
     image: graphprotocol/graph-node
     container_name: "graph_node"
-    restart: always
+    restart: on-failure
     # healthcheck:
     #   test: "pg_isready -U walter -d postgres"
     #   interval: 5s
@@ -123,7 +121,7 @@ services:
       # EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE: synced
 
   ipfs:
-    image: ipfs/kubo:v0.24.0
+    image: ipfs/kubo:v0.26.0
     container_name: "ipfs"
     environment:
       IPFS_SWARM_KEY: "/key/swarm/psk/1.0.0/\n/base16/\n9d002c50635a479d29dcc0ccb49d862952a0dcc52baddd253167adcd496c8d04"
@@ -149,7 +147,7 @@ services:
       timeout: 2s
 
   ipfs_public:
-    image: ipfs/kubo:v0.24.0
+    image: ipfs/kubo:v0.26.0
     container_name: "ipfs_public"
     ports:
       - "5002:5001"
@@ -175,23 +173,34 @@ services:
   redis:
     image: "redis:7-alpine"
     container_name: "redis_cache"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 1s
+      retries: 5
     ports:
       - "6379:6379"
     volumes:
       - ./local-data/redis:/data
 
   ceramic:
-    image: ceramicnetwork/js-ceramic:5.3.0
+    image: ceramicnetwork/js-ceramic:6.4.0
     container_name: ceramic
     ports:
       - "7007:7007"
     environment:
       NODE_ENV: production
+      CERAMIC_PUBSUB_QPS_LIMIT: 500
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
       - ./local-data/ceramic/statestore:/root/.ceramic/statestore
       - ./.ceramicDev.config.json:/root/.ceramic/daemon.config.json
+    healthcheck:
+      test: ["CMD", "curl", "--fail-with-body", "http://localhost:7007/api/v0/node/healthcheck"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     depends_on:
       ipfs:
         condition: service_healthy
@@ -210,6 +219,8 @@ services:
     ports:
       - "9777:9777" # debugger
       - "7771:7771" # Uncomment if you want to test the media server from the host machine
+    environment:
+      DPID_RESOLVER_URL: http://host.docker.internal:5460
 
   grobid:
     image: lfoppiano/grobid:0.8.0
@@ -218,24 +229,41 @@ services:
       - "8070:8070"
     environment:
       - JAVA_OPTS=-Xmx2G -Xms2G
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8070/api/isalive"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
-  # desci_nodes_backend_test:
-  #   container_name: 'be_test_boilerplate'
-  #   command: echo 'Test container ready'
-  #   build: .
-  #   stdin_open: true
-  #   tty: true
-  #   depends_on:
-  #     - db_postgres
-  #   links:
-  #     - db_postgres
-  #   env_file:
-  #     - .envs
-  #   volumes:
-  #     - .:/app/
-  #     - /app/node_modules
+  dpid_resolver:
+    image: descilabs/dpid-resolver
+    container_name: dpid_resolver
+    # Uncomment and set to local repo path for tinkering
+    # build:
+      # context: ~/dev/desci/dpid-resolver
+    environment:
+      DPID_ENV: local
+      OPTIMISM_RPC_URL: http://host.docker.internal:8545
+      CERAMIC_URL: http://host.docker.internal:7007
+      IPFS_GATEWAY: http://host.docker.internal:8089/ipfs
+      REDIS_HOST: http://host.docker.internal
+      REDIS_PORT: 6379
+      # How long to store anchored commit info (default 24 hours)
+      CACHE_TTL_ANCHORED: 86400
+      # How long to store pending commit info
+      CACHE_TTL_PENDING: 300
+    restart: on-failure
+    ports:
+      - "5460:5460"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    healthcheck:
+      test: ["CMD", "curl", "--fail-with-body", "http://localhost:5460/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      ipfs:
+        condition: service_healthy
+      desci_blockchain_ganache:
+        condition: service_healthy
+      ceramic:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+

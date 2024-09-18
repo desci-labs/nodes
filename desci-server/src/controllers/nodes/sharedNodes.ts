@@ -1,4 +1,3 @@
-import { IpldUrl, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
 import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
@@ -6,21 +5,15 @@ import { prisma } from '../../client.js';
 import { getLatestManifestFromNode } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { PRIV_SHARE_CONTRIBUTION_PREFIX } from '../../services/Contributors.js';
-import { getManifestFromNode } from '../../services/data/processing.js';
-import { getIndexedResearchObjects } from '../../theGraph.js';
 
 export type SharedNode = {
-  uuid: string;
-  manifestCid: string;
-  title?: string;
-  versions: number;
-  coverImageCid?: string | IpldUrl;
-  published?: boolean;
-  dpid?: ResearchObjectV1Dpid;
-  publishDate?: string;
-  pendingVerification: boolean;
-  pendingContributionId?: string;
-  shareKey: string;
+    uuid: string;
+    title: string;
+    published: boolean;
+    dpid?: number;
+    shareKey: string;
+    pendingVerification: boolean;
+    pendingContributionId?: string;
 };
 
 export type ListSharedNodesRequest = Request<never, never> & {
@@ -58,8 +51,24 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
       where: {
         memo: `${PRIV_SHARE_CONTRIBUTION_PREFIX}${user.email}`,
       },
-      include: {
-        node: true,
+      select: {
+        shareId: true,
+        node: {
+          select: {
+            uuid: true,
+            manifestUrl: true,
+            dpidAlias: true,
+            // Get published versions, if any
+            versions: {
+              where: {
+                OR: [
+                  { transactionId: { not: null }},
+                  { commitId: { not: null }},
+                ],
+              },
+            },
+          },
+        },
       },
     });
 
@@ -67,30 +76,9 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
 
     if (privSharedNodes?.length === 0) {
       return res.status(200).json({ ok: true, sharedNodes: [] });
-    }
+    };
 
     const nodeUuids = privSharedNodes.map((priv) => priv.node.uuid);
-    const { researchObjects } = await getIndexedResearchObjects(nodeUuids);
-
-    logger.trace({ researchObjectsLength: researchObjects.length }, 'Research objects retrieved successfully');
-
-    const publishedNodesMap = researchObjects.reduce((acc, ro) => {
-      try {
-        // convert hex string to integer
-        const nodeUuidInt = Buffer.from(ro.id.substring(2), 'hex');
-        // convert integer to hex
-        const nodeUuid = nodeUuidInt.toString('base64url');
-        acc[nodeUuid] = ro;
-      } catch (e) {
-        logger.error({ acc, ro, e, message: e?.message }, 'Failed to convert hex string to integer');
-      }
-      return acc;
-    }, {});
-
-    logger.trace(
-      { publishedNodesMapKeyLength: Object.keys(publishedNodesMap).length },
-      'Published nodes map created successfully',
-    );
 
     // Work out if any action on the shared node is required (e.g. verifying the contribution)
     const contributionEntries = await prisma.nodeContribution.findMany({
@@ -104,34 +92,38 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
           },
         },
       },
-      include: { node: true },
+      select: {
+        verified: true,
+        denied: true,
+        contributorId: true,
+        node: { select: { uuid: true }}
+      },
     });
 
     const contributionEntryMap = contributionEntries.reduce((acc, entry) => {
       acc[entry.node.uuid] = entry;
       return acc;
-    }, {});
+    }, {} as Record<string, typeof contributionEntries[number]>);
 
     const filledSharedNodes = await Promise.all(
-      privSharedNodes.map(async (priv) => {
-        const { node } = priv;
+      privSharedNodes.map(async ({ shareId, node }) => {
         const latestManifest = await getLatestManifestFromNode(node);
-        const publishedEntry = publishedNodesMap[node.uuid];
+        const manifestDpid = latestManifest.dpid
+          ? parseInt(latestManifest.dpid.id)
+          : undefined;
+        const published = node.versions.length > 0;
+
         const contributionEntry = contributionEntryMap[node.uuid];
         const pendingVerification = contributionEntry?.verified === false && contributionEntry?.denied === false;
 
         return {
           uuid: node.uuid,
-          manifestCid: node.manifestUrl,
+          published,
           title: latestManifest.title,
-          versions: publishedEntry?.versions.length,
-          coverImageCid: latestManifest.coverImage,
-          dpid: latestManifest.dpid,
-          publishDate: publishedEntry?.versions[0].time,
-          published: !!publishedEntry,
+          dpid: node.dpidAlias ?? manifestDpid,
           pendingVerification: !!pendingVerification,
           ...(!!pendingVerification && { pendingContributionId: contributionEntry.contributorId }),
-          shareKey: priv.shareId,
+          shareKey: shareId,
         };
       }),
     );

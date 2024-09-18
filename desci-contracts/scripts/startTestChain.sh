@@ -49,15 +49,21 @@ waitForPostgres() {
     # Now able to connect to postgres
 }
 
-deploySubgraph() {
-    echo "[startTestChain] deploying subgraph..."
-    waitForPostgres
+deployObjectSubgraph() {
+    echo "[startTestChain] deploying object subgraph..."
     scripts/deployLocalSubgraph.sh
+}
+
+deployDpidSubgraph() {
+    echo "[startTestChain] deploying dpid subgraph..."
+    scripts/deployLocalDpidSubgraph.sh
 }
 
 makeDeployments() {
     checkTestDeployments
-    deploySubgraph
+    waitForPostgres
+    deployObjectSubgraph
+    deployDpidSubgraph
 }
 
 makeDeployments &

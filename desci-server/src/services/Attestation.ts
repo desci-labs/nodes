@@ -965,20 +965,22 @@ export class AttestationService {
    * Fires off an email to all community members when a protected attestation is claimed
    */
   async emailProtectedAttestationCommunityMembers(
-    nodeAttestationId: number,
+    attestationId: number,
     attestationVersionId: number,
     nodeVersion: number,
     nodeDpid: string,
     user: User,
+    nodeUuid: string,
   ) {
     logger.info(
-      { nodeAttestationId, attestationVersionId, nodeVersion, nodeDpid, user },
+      { attestationId, attestationVersionId, nodeVersion, nodeDpid, user },
       'init emailProtectedAttestationCommunityMembers',
     );
-    const nodeAttestation = await prisma.nodeAttestation.findFirst({ where: { id: nodeAttestationId } });
-    const attestationId = nodeAttestation.attestationId;
+    const nodeAttestation = await prisma.nodeAttestation.findFirst({
+      where: { attestationId, nodeUuid: ensureUuidEndsWithDot(nodeUuid), revoked: false },
+    });
     logger.info({ attestationId }, 'Emailing community members');
-    // const attestation = await this.findAttestationById(attestationId);
+
     const versionedAttestation = await this.getAttestationVersion(attestationVersionId, attestationId);
     const members = await prisma.communityMember.findMany({
       where: { communityId: versionedAttestation.attestation.communityId },
@@ -989,13 +991,13 @@ export class AttestationService {
       to: member.user.email,
       from: 'no-reply@desci.com',
       subject: `[nodes.desci.com] ${versionedAttestation.name} claimed on DPID://${nodeDpid}/v${nodeVersion + 1}`,
-      text: `${user.name} just claimed ${versionedAttestation.name} on ${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}?claim=${attestationId}`,
+      text: `${user.name} just claimed ${versionedAttestation.name} on ${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}?claim=${nodeAttestation.id}`,
       html: AttestationClaimedEmailHtml({
         dpid: nodeDpid,
         attestationName: versionedAttestation.name,
         communityName: versionedAttestation.name,
         userName: user.name,
-        dpidPath: `${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}?claim=${attestationId}`,
+        dpidPath: `${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}?claim=${nodeAttestation.id}`,
       }),
     }));
 

@@ -30,7 +30,7 @@ COPY . .
 EXPOSE 9777
 
 ENTRYPOINT ["/usr/src/app/scripts/containerInitDev.sh"]
-CMD ["dumb-init", "npx", "tsx","watch", "--env-file=.env", "--inspect=0.0.0.0:9777", "src/index.ts"]
+CMD ["dumb-init", "npx", "tsx","watch", "--clear-screen=false", "--env-file=.env", "--inspect=0.0.0.0:9777", "src/index.ts"]
 
 FROM base as production
 # Cache mounts for faster builds, prod env for better express perf

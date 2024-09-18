@@ -8,6 +8,8 @@ import {
   ResearchObjectV1AuthorRole,
 } from '@desci-labs/desci-models';
 import { NextFunction, Response } from 'express';
+import { Request } from 'express';
+import _ from 'lodash';
 import { z } from 'zod';
 
 import {
@@ -15,8 +17,12 @@ import {
   NotFoundError,
   RequestWithNode,
   SuccessResponse,
+  UnProcessableRequestError,
   crossRefClient,
+  doiService,
+  ensureUuidEndsWithDot,
   getLatestManifestFromNode,
+  logger,
   metadataClient,
   logger as parentLogger,
 } from '../../internal.js';
@@ -79,6 +85,8 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     doi: string;
   } | null;
 
+  let attemptedOpenAlexQuery = false;
+
   if (!metadata) {
     logger.info('Pull from grobid');
     // pull from grobid
@@ -86,31 +94,33 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
 
     logger.info({ grobidMetadata }, 'GROBID METADATA');
     if (grobidMetadata?.doi) {
-      // doi = grobidMetadata.doi;
       logger.info({ doi }, 'DOI PARSED FROM GROBID');
       const openAlexMetadata = await metadataClient.queryDoiFromOpenAlex(grobidMetadata.doi);
+      attemptedOpenAlexQuery = true;
       metadata = {
-        ...openAlexMetadata,
+        // ...openAlexMetadata,
+        authors:
+          openAlexMetadata?.authors ||
+          grobidMetadata?.authors.map((author) => ({ name: author, affiliations: [], orcid: '' })),
         abstract: grobidMetadata.abstract || openAlexMetadata.abstract,
         title: grobidMetadata.title || openAlexMetadata.title,
+        doi: grobidMetadata.doi,
       };
+      doi = grobidMetadata.doi;
     } else if (grobidMetadata) {
       metadata = {
         title: grobidMetadata?.title,
         abstract: grobidMetadata?.abstract,
         authors: grobidMetadata?.authors.map((author) => ({ name: author, affiliations: [], orcid: '' })),
-        pdfUrl: '',
-        keywords: [],
       };
     }
 
     logger.info({ grobidMetadata }, 'Grobid Metadata');
   }
 
-  // todo: pull metadata from crossrefClient#getDoiMetadata
-  // const doiMetadata = await crossRefClient.getDoiMetadata('');
   // attempt to pull doi from crossref api
   if (!doi && metadata?.title) {
+    logger.info({ title: metadata.title }, 'CHECK CROSSREF FOR DOI');
     const works = await crossRefClient.listWorks({
       rows: 5,
       select: [WorkSelectOptions.DOI, WorkSelectOptions.TITLE, WorkSelectOptions.AUTHOR],
@@ -121,10 +131,20 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     );
     if (work?.DOI) {
       doi = work.DOI;
+      logger.info({ doi, work }, 'DOI from CrossRef');
+
+      const openAlexMetadata = await metadataClient.queryDoiFromOpenAlex(doi);
+      delete openAlexMetadata.pdfUrl;
+      logger.info({ openAlexMetadata }, 'openAlexMetadata METADATA');
+      metadata = {
+        ...openAlexMetadata,
+        abstract: grobidMetadata.abstract || openAlexMetadata.abstract,
+        title: grobidMetadata.title || openAlexMetadata.title,
+      };
     }
   }
 
-  logger.info({ metadata }, 'METADATA');
+  // logger.info({ metadata }, 'METADATA');
   if (!metadata) throw new NotFoundError('DOI not found!');
 
   const actions: ManifestActions[] = [];
@@ -143,11 +163,6 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
         payload: {
           ...component.payload,
           doi: component.payload?.doi ? component.payload.doi : [doi],
-          // ...(metadata?.keywords && {
-          //   keywords: component.payload?.keywords
-          //     ? component?.payload.keywords.concat(metadata.keywords)
-          //     : metadata.keywords,
-          // }),
         } as PdfComponentPayload & CommonComponentPayload,
       },
       componentIndex,
@@ -161,16 +176,17 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     });
   }
 
+  // only update toplevel manifest metadata when in prepub flow
   if (prepublication) {
     const { title, authors } = metadata;
 
     // update title
-    actions.push({ type: 'Update Title', title });
+    if (title.trim()) actions.push({ type: 'Update Title', title });
 
     // update contributors if populated
-    if (authors.length > 0) {
+    if (authors?.length > 0) {
       actions.push({
-        type: 'Add Contributors',
+        type: 'Set Contributors',
         contributors: authors.map((author) => ({
           name: author.name,
           role: ResearchObjectV1AuthorRole.AUTHOR,
@@ -181,17 +197,21 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
     }
   }
 
-  logger.info({ actions }, 'Automate DOI actions');
+  if (actions.length > 0) {
+    logger.info({ actions }, 'Automate DOI actions');
+    const response = await repoService.dispatchAction({
+      uuid,
+      documentId: node.manifestDocumentId as DocumentId,
+      actions,
+    });
 
-  const response = await repoService.dispatchAction({
-    uuid,
-    documentId: node.manifestDocumentId as DocumentId,
-    actions,
-  });
+    logger.info({ response: response.manifest.components[componentIndex] }, 'component updated');
 
-  logger.info({ response: response.manifest.components[componentIndex] }, 'component updated');
-
-  new SuccessResponse(true).send(res);
+    new SuccessResponse(true).send(res);
+  } else {
+    logger.error('NO DATA EXTRACTED');
+    throw new UnProcessableRequestError('Unable to extract metadata from manuscript');
+  }
 };
 
 const transformWorkToMetadata = (work: Work): MetadataResponse => {
@@ -203,4 +223,26 @@ const transformWorkToMetadata = (work: Work): MetadataResponse => {
   }));
 
   return { title, authors, pdfUrl: '', keywords: [] };
+};
+
+export const retrieveNodeDoi = async (req: Request, res: Response, _next: NextFunction) => {
+  // const { doi: doiQuery } = req.query;
+  const { identifier } = req.params;
+  // const identifier = (req.params.identifier || doiQuery || uuid || dpid) as string;
+  logger.info({ identifier }, 'RETRIEVE NODE DOI');
+  if (!identifier) throw new BadRequestError();
+
+  if (identifier) {
+    const pending = await doiService.hasPendingSubmission(ensureUuidEndsWithDot(identifier as string));
+    logger.info({ pending }, 'GET DOI');
+    if (pending) {
+      new SuccessResponse({ status: pending.status }).send(res);
+      return;
+    }
+  }
+
+  const doi = await doiService.findDoiRecord(identifier as string);
+  const data = _.pick(doi, ['doi', 'dpid', 'uuid']);
+
+  new SuccessResponse(data).send(res);
 };

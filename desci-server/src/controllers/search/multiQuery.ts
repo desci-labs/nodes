@@ -6,52 +6,51 @@ import {
   buildBoolQuery,
   buildMultiMatchQuery,
   buildSortQuery,
-  DENORMALIZED_WORKS_INDEX,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
-import { QueryDebuggingResponse, SingleQueryErrorResponse, SingleQuerySuccessResponse } from './query.js';
-
-type Entity = string;
-type Query = string;
+import { MIN_RELEVANCE_SCORE } from './query.js';
+import { Entity, Filter, Query, QueryDebuggingResponse, QueryErrorResponse, QuerySuccessResponse } from './types.js';
 
 type QueryObject = Record<Entity, Query>;
 
 interface MultiQuerySearchParams {
   queries: QueryObject[];
+  filters?: Filter[];
   fuzzy?: number;
-  sortType?: string;
-  sortOrder?: 'asc' | 'desc';
-  page?: number;
-  perPage?: number;
+  sort?: {
+    field: string;
+    order: 'asc' | 'desc';
+  };
+  pagination?: {
+    page: number;
+    perPage: number;
+  };
 }
 
 export const multiQuery = async (
   req: Request<any, any, MultiQuerySearchParams>,
-  res: Response<(SingleQuerySuccessResponse & QueryDebuggingResponse) | SingleQueryErrorResponse>,
+  res: Response<(QuerySuccessResponse & QueryDebuggingResponse) | QueryErrorResponse>,
 ) => {
   const {
     queries,
     fuzzy,
-    sortType = 'relevance',
-    sortOrder,
-    page = 1,
-    perPage = 10,
+    filters,
+    sort = { field: '_score', order: 'desc' },
+    pagination = { page: 1, perPage: 10 },
   }: MultiQuerySearchParams = req.body;
   const logger = parentLogger.child({
     module: 'SEARCH::MultiQuery',
     queries,
+    filters,
     fuzzy,
-    sortType,
-    sortOrder,
-    page,
-    perPage,
+    sort,
+    pagination,
   });
 
   logger.trace({ fn: 'Executing elastic search query' });
 
   const validEntityQueries = queries.filter((q) => VALID_ENTITIES.includes(Object.keys(q)[0]));
-
   if (!validEntityQueries) {
     return res.status(400).json({
       ok: false,
@@ -59,39 +58,66 @@ export const multiQuery = async (
     });
   }
 
+  let primaryEntity = 'works'; // Hard coded for now to not affect results without a 'works' query.
+
+  // const primaryEntity = Object.keys(validEntityQueries[0])[0];
+
   const esQueries = validEntityQueries.map((q) => {
     const [entity, query] = Object.entries(q)[0];
-    return buildMultiMatchQuery(query, entity);
+    let fullEntity = entity;
+    if (entity !== primaryEntity) fullEntity = `${primaryEntity}_${entity}`; // e.g. if we're searching for authors in the works table, entity should be 'works_authors'
+    return buildMultiMatchQuery(query, fullEntity, fuzzy);
   });
-  const primaryEntity = Object.keys(validEntityQueries[0])[0];
-  const esSort = buildSortQuery(DENORMALIZED_WORKS_INDEX, sortType, sortOrder);
-  const esBoolQuery = buildBoolQuery(esQueries);
+
+  const esSort = buildSortQuery(primaryEntity, sort.field, sort.order);
+  const esBoolQuery = buildBoolQuery(esQueries, filters);
+
+  const searchTermIsNonEmpty = Object.values(queries).some((q) => q['works']?.length > 0);
+
+  // if search term is empty and there is no other sorting, then sort by content novelty and date
+  if (sort.field === 'relevance') {
+    esSort.push({
+      content_novelty_percentile: { order: 'desc', missing: '_last' },
+    });
+    // esSort.push({ publication_year: { order: 'desc' } });
+  }
+
+  if (primaryEntity === 'works') {
+    primaryEntity = 'works_opt';
+  }
+
+  const finalQuery = {
+    index: primaryEntity,
+    body: {
+      ...esBoolQuery,
+      sort: esSort,
+      from: (pagination.page - 1) * pagination.perPage,
+      size: pagination.perPage,
+      ...(searchTermIsNonEmpty ? { min_score: MIN_RELEVANCE_SCORE } : {}),
+    },
+  };
 
   try {
-    logger.debug({ esQueries, esSort }, 'Executing query');
-    const { hits } = await elasticClient.search({
-      index: DENORMALIZED_WORKS_INDEX,
-      body: {
-        ...esBoolQuery,
-        sort: esSort,
-        from: (page - 1) * perPage,
-        size: perPage,
-      },
-    });
+    logger.debug({ query: finalQuery }, 'Executing query');
+    const startTime = Date.now();
+    const { hits } = await elasticClient.search(finalQuery);
+    const duration = Date.now() - startTime;
 
     logger.info({ fn: 'Elastic search multi query executed successfully' });
-
     return res.json({
-      // esQueries,
+      finalQuery,
+      index: primaryEntity,
       ok: true,
       total: hits.total,
-      page,
-      perPage,
+      page: pagination.page,
+      perPage: pagination.perPage,
       data: hits.hits,
+      duration,
     });
   } catch (error) {
     logger.error({ error }, 'Elastic search multi query failed');
     return res.status(500).json({
+      finalQuery,
       ok: false,
       error: 'An error occurred while searching',
     });

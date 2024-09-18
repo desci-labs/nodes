@@ -16,7 +16,6 @@ import {
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
 import { saveInteraction } from '../../services/interactionLog.js';
-import { AttestationClaimedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
 
 export const claimAttestation = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
@@ -64,7 +63,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   // Check if published to defer emails if not
   const indexed = await getIndexedResearchObjects([uuid]);
-  const isNodePublished = !!indexed?.researchObjects?.length;
+  const isNodePublished = !!indexed?.researchObjects.length;
 
   if (!isNodePublished && attestation.protected) {
     // Email table append op
@@ -82,11 +81,12 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   if (attestation.protected && isNodePublished) {
     await attestationService.emailProtectedAttestationCommunityMembers(
-      nodeClaim.id,
+      nodeClaim.attestationId,
       attestationVersion.id,
       body.nodeVersion,
       body.nodeDpid,
       req.user,
+      ensureUuidEndsWithDot(uuid),
     );
   }
 
@@ -134,7 +134,7 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
   await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
 
   logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
-  return new SuccessMessageResponse('Attestation unclaimed').send(res);
+  return new SuccessMessageResponse().send(res);
 };
 
 export const claimEntryRequirements = async (req: Request, res: Response, _next: NextFunction) => {

@@ -4,7 +4,7 @@ services:
   nodes_media:
     container_name: 'nodes_media'
     build: ./nodes-media
-    restart: always
+    restart: on-failure
     entrypoint: /bin/sh './scripts/nodes-media-dev.sh'
     env_file:
       - ./nodes-media/.env

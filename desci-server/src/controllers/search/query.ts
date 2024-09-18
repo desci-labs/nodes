@@ -1,4 +1,3 @@
-import { SearchTotalHits } from '@elastic/elasticsearch/lib/api/types.js';
 import { Request, Response } from 'express';
 
 import { elasticClient } from '../../elasticSearchClient.js';
@@ -6,64 +5,51 @@ import { logger as parentLogger } from '../../logger.js';
 import {
   buildBoolQuery,
   buildMultiMatchQuery,
-  buildSimpleStringQuery,
   buildSortQuery,
-  DENORMALIZED_WORKS_INDEX,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
-export interface SingleQuerySuccessResponse extends QueryDebuggingResponse {
-  ok: true;
-  page: number;
-  perPage: number;
-  total: number | SearchTotalHits;
-  data: any[];
-}
+import { Filter, QueryErrorResponse, QuerySuccessResponse } from './types.js';
 
-export interface QueryDebuggingResponse {
-  esQuery?: any;
-  esQueries?: any;
-  esSort?: any;
-}
-
-export interface SingleQueryErrorResponse extends QueryDebuggingResponse {
-  ok: false;
-  error: string;
-}
-
-interface QuerySearchBodyParams {
+export const MIN_RELEVANCE_SCORE = 0.01;
+interface SingleQuerySearchBodyParams {
   query: string;
   entity: string;
+  filters?: Filter[];
   fuzzy?: number;
-  sortType?: string;
-  sortOrder?: 'asc' | 'desc';
-  page?: number;
-  perPage?: number;
+  sort?: {
+    field: string;
+    order: 'asc' | 'desc';
+  };
+  pagination?: {
+    page: number;
+    perPage: number;
+  };
 }
 
 export const singleQuery = async (
-  req: Request<any, any, QuerySearchBodyParams>,
-  res: Response<SingleQuerySuccessResponse | SingleQueryErrorResponse>,
+  req: Request<any, any, SingleQuerySearchBodyParams>,
+  res: Response<QuerySuccessResponse | QueryErrorResponse>,
 ) => {
-  const { query, fuzzy, sortType = 'relevance', sortOrder, page = 1, perPage = 10 }: QuerySearchBodyParams = req.body;
-
-  let { entity } = req.body;
-
-  const logger = parentLogger.child({
-    module: 'SEARCH::Query',
+  const {
     query,
+    filters = [],
     entity,
     fuzzy,
-    sortType,
-    sortOrder,
-    page,
-    perPage,
-  });
-  if (entity === 'works') {
-    logger.info({ entity }, `Entity is 'works', changing to denormalized works index: ${DENORMALIZED_WORKS_INDEX}`);
-    entity = DENORMALIZED_WORKS_INDEX;
-  }
+    sort = { field: '_score', order: 'desc' },
+    pagination = { page: 1, perPage: 10 },
+  }: SingleQuerySearchBodyParams = req.body;
   //
+  const logger = parentLogger.child({
+    module: 'SEARCH::SingleQuery',
+    query,
+    entity,
+    filters,
+    fuzzy,
+    sort,
+    pagination,
+  });
+
   logger.trace({ fn: 'Executing elastic search query' });
 
   if (!VALID_ENTITIES.includes(entity)) {
@@ -72,41 +58,63 @@ export const singleQuery = async (
       error: `Invalid entity: ${entity}, the following entities are supported: ${VALID_ENTITIES.join(' ')}`,
     });
   }
+  //
 
   // const esQuery = buildSimpleStringQuery(query, entity, fuzzy);
-  const esQuery = buildMultiMatchQuery(query, 'works_single', fuzzy);
-  const esSort = buildSortQuery(entity, sortType, sortOrder);
+  const esQuery = buildMultiMatchQuery(query, entity, fuzzy);
+  const esBoolQuery = buildBoolQuery([esQuery], filters);
+
+  const esSort = buildSortQuery(entity, sort.field, sort.order);
+
+  let searchEntity = entity;
+
+  if (entity === 'works') {
+    searchEntity = 'works_opt';
+  }
+
+  if (entity === 'fields') {
+    searchEntity = 'subfields'; // Overwrite as fields are accessible via 'subfields' index
+    logger.info(
+      { entity, searchEntity },
+      `Entity provided is '${entity}', overwriting with '${searchEntity}' because ${entity} is accessible in that index.`,
+    );
+  }
+  const finalQuery = {
+    index: searchEntity,
+    body: {
+      ...esBoolQuery,
+      sort: esSort,
+      from: (pagination.page - 1) * pagination.perPage,
+      size: pagination.perPage,
+      min_score: MIN_RELEVANCE_SCORE,
+    },
+  };
+
+  logger.debug({ query: finalQuery }, 'Executing query');
 
   try {
-    logger.debug({ esQuery, esSort }, 'Executing query');
-    const results = await elasticClient.search({
-      index: entity,
-      body: {
-        query: esQuery,
-        sort: esSort,
-        from: (page - 1) * perPage,
-        size: perPage,
-      },
-    });
+    const startTime = Date.now();
+    const results = await elasticClient.search(finalQuery);
+    const duration = Date.now() - startTime;
     const hits = results.hits;
-    logger.info({ fn: 'Elastic search query executed successfully' });
+    logger.info({ hitsReturned: hits.total }, 'Elastic search query executed successfully');
 
     return res.json({
-      esQuery,
-      esSort,
+      finalQuery,
       ok: true,
+      index: searchEntity,
       total: hits.total,
-      page,
-      perPage,
+      page: pagination.page,
+      perPage: pagination.perPage,
       data: hits.hits,
+      duration,
     });
   } catch (error) {
     logger.error({ error }, 'Elastic search query failed');
     return res.status(500).json({
       ok: false,
       error: 'An error occurred while searching',
-      esQuery,
-      esSort,
+      finalQuery,
     });
   }
 };

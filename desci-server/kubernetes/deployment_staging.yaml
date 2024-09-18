@@ -82,6 +82,7 @@ spec:
           export OTEL_SERVICE_NAME={{ .Data.OTEL_SERVICE_NAME }}
           export HONEYCOMB_API_KEY={{ .Data.HONEYCOMB_API_KEY }}
           export DISCORD_NOTIFICATIONS_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}
+          export DISCORD_NOTIFICATIONS_DOI_WEBHOOK_URL={{ .Data.DISCORD_NOTIFICATIONS_DOI_WEBHOOK_URL }}
           export PUBLIC_IPFS_RESOLVER={{ .Data.PUBLIC_IPFS_RESOLVER }}
           export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
           export ESTUARY_API_KEY={{ .Data.ESTUARY_API_KEY }}
@@ -105,6 +106,7 @@ spec:
           export ELASTIC_SEARCH_NODE_URL="{{ .Data.ELASTIC_SEARCH_NODE_URL }}"
           export ELASTIC_SEARCH_USER="{{ .Data.ELASTIC_SEARCH_USER }}"
           export ELASTIC_SEARCH_PW="{{ .Data.ELASTIC_SEARCH_PW }}"
+          export OPEN_ALEX_DATABASE_URL="{{ .Data.OPEN_ALEX_DATABASE_URL }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}

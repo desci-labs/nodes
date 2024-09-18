@@ -7,7 +7,7 @@
     "dev": "tsx watch --inspect=0.0.0.0:9230 ./src/index.ts",
     "build": "rimraf dist && tsc",
     "start": "node ./dist/index.js",
-    "docker:dev": "docker-compose --file docker-compose.yml --file docker-compose.dev.yml --compatibility up --build",
+    "docker:dev": "docker compose --file docker-compose.yml --file docker-compose.dev.yml --compatibility up --build",
     "prepare": "",
     "lint": "eslint --max-warnings 0 --ext .js,ts src",
     "lint-staged-husky": "lint-staged",
