@@ -67,7 +67,7 @@ spec:
               name: ws-api
           resources:
             limits:
-              cpu: '2'
+              cpu: '4'
               memory: 16Gi
             requests:
               cpu: '1'
