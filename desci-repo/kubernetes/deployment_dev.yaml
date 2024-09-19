@@ -67,9 +67,9 @@ spec:
               name: ws-api
           resources:
             limits:
-              cpu: '2'
+              cpu: '4.0'
               memory: 16Gi
             requests:
-              cpu: '1'
+              cpu: '2.0'
               memory: 8Gi
       serviceAccountName: 'vault-auth'
