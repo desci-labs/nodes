@@ -66,6 +66,8 @@ const getManualSignatureAuthMethod = (
 export const authorizedSessionDidFromSigner = async (
   signer: Signer,
   resources: string[],
+  /** Force a particular chainID to match controller EIP155 prefix in `dids:validateJWS` */
+  chainIdOverride?: string,
 ) => {
   // Fuckery to get the inner provider for a metamask signer
   const externalProvider = (signer.provider as providers.Web3Provider)?.provider;
@@ -74,7 +76,7 @@ export const authorizedSessionDidFromSigner = async (
 
   const address = await signer.getAddress();
   const network = await jsonRpcProvider.getNetwork();
-  const chainId = `eip155:${network.chainId}`;
+  const chainId = `eip155:${chainIdOverride ?? network.chainId}`;
   const caipAccountId = new AccountId({ address, chainId });
 
   let authMethod: AuthMethod;

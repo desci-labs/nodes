@@ -40,20 +40,37 @@ export const codexPublish = async (
   const ceramic = newCeramicClient(nodeUrl);
   const compose = newComposeClient({ ceramic });
 
+  const existingStreamID = prepublishResult.ceramicStream;
+
+  let controller: string | undefined;
+  let controllerChainID: string | undefined;
+  if (existingStreamID) {
+    const stream = await ceramic.loadStream(existingStreamID);
+    controller = stream.state.metadata.controllers[0];
+    controllerChainID = controller.match(/eip155:(\d+):/)?.[1]
+  };
+
   if (didOrSigner instanceof Signer) {
     compose.setDID(
       // Wrangle a DID out of the signer for Ceramic auth
-      await authorizedSessionDidFromSigner(didOrSigner, compose.resources)
+      await authorizedSessionDidFromSigner(didOrSigner, compose.resources, controllerChainID)
     );
   } else {
+  // NOTE: for a signer we can check and pass the controller EIP155 chainID, but we can't edit that if it's a preauthorized DID
+    if (didOrSigner.parent !== controller) {
+      console.warn(
+        `[nodes-lib::codex] DID and controller mismatch, is the chainID set correctly?`,
+        { didParent: didOrSigner.parent, streamController: controller },
+      );
+    };
     compose.setDID(didOrSigner);
   };
 
   // If we know about a stream already, let's assume we backfilled it initially
-  if (prepublishResult.ceramicStream) {
-    console.log(LOG_CTX, `publishing to known stream ${prepublishResult.ceramicStream}...`);
+  if (existingStreamID) {
+    console.log(LOG_CTX, `publishing to known stream ${existingStreamID}...`);
     const ro = await updateResearchObject(compose, {
-      id: prepublishResult.ceramicStream,
+      id: existingStreamID,
       title: prepublishResult.updatedManifest.title,
       manifest: prepublishResult.updatedManifestCid,
     });
