@@ -191,11 +191,27 @@ function buildFilter(filter: Filter) {
         },
       };
     case 'term':
-      return {
-        term: {
-          [filter.field]: filter.value,
-        },
-      };
+      const termFieldParts = filter.field.split('.');
+      const isNested = termFieldParts.length > 1;
+      const queryType = Array.isArray(filter.value) ? 'terms' : 'term';
+      let valFormatted = filter.value;
+      if (Array.isArray(valFormatted)) {
+        valFormatted = valFormatted.map((v) => (typeof v === 'string' ? v.toLowerCase() : v));
+      } else if (typeof valFormatted === 'string') {
+        valFormatted = valFormatted.toLowerCase();
+      }
+
+      const query = { [queryType]: { [filter.field]: valFormatted } };
+
+      if (isNested) {
+        return {
+          nested: {
+            path: termFieldParts[0],
+            query: query,
+          },
+        };
+      }
+      return query;
     case 'match_phrase':
       if (Array.isArray(filter.value)) {
         const queries = filter.value.map((value) => ({

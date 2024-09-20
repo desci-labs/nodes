@@ -16,7 +16,7 @@ export type Filter = {
   fuzziness?: number | 'AUTO';
 } & (
   | { type: 'range'; operator: ComparisonOperator; value: number | string }
-  | { type: 'term'; value: string | number | boolean }
+  | { type: 'term'; value: string | number | boolean | string[] }
   | { type: 'match'; value: string; matchLogic?: MatchLogic; fuzziness?: number | 'AUTO' }
   | { type: 'match_phrase'; value: string | string[]; matchLogic?: MatchLogic }
   | { type: 'exists' }
