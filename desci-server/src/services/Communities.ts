@@ -1,5 +1,5 @@
 import { Attestation, CommunityMembershipRole, NodeAttestation, NodeFeedItem, Prisma } from '@prisma/client';
-import _ from 'lodash';
+import _, { includes } from 'lodash';
 
 import { prisma } from '../client.js';
 import { DuplicateDataError, logger } from '../internal.js';
@@ -16,6 +16,22 @@ export class CommunityService {
 
     const community = await prisma.desciCommunity.create({ data: data });
     return community;
+  }
+
+  async adminGetCommunities() {
+    return prisma.desciCommunity.findMany({
+      orderBy: { createdAt: 'asc' },
+      include: {
+        CommunityMember: {
+          select: { id: true, role: true, userId: true, user: { select: { name: true, userOrganizations: true } } },
+          orderBy: { role: 'asc' },
+        },
+        CommunityEntryAttestation: {
+          select: { id: true, attestationVersion: { select: { name: true, image_url: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
   }
 
   async getAllCommunities() {

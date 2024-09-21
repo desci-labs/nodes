@@ -1,5 +1,7 @@
 import { Response } from 'express';
 
+import { logger } from '../logger.js';
+
 enum ResponseStatus {
   SUCCESS = 200,
   BAD_REQUEST = 400,
@@ -24,7 +26,8 @@ export abstract class ApiResponse {
 
   protected prepare<T extends ApiResponse>(res: Response, response: T, headers: { [key: string]: string }): Response {
     for (const [key, value] of Object.entries(headers)) res.append(key, value);
-    return res.status(this.status).json(ApiResponse.sanitize(response));
+    const data = ApiResponse.sanitize(response);
+    return data ? res.status(this.status).json(data) : res.status(this.status).send();
   }
 
   public send(res: Response, headers: Headers = {}): Response {
@@ -35,8 +38,8 @@ export abstract class ApiResponse {
     const clone: T = {} as T;
     Object.assign(clone, response);
     delete clone.status;
-    for (const field in clone) if (clone[field] === 'undefined') delete clone[field];
-    // if (!clone['message']) delete clone.message;
+    for (const field in clone) if (!clone[field]) delete clone[field];
+    if (Object.keys(clone).length === 0) return undefined;
     return clone;
   }
 }
