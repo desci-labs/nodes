@@ -76,7 +76,9 @@ export const authorizedSessionDidFromSigner = async (
 
   const address = await signer.getAddress();
   const network = await jsonRpcProvider.getNetwork();
-  const chainId = `eip155:${chainIdOverride ?? network.chainId}`;
+  // Force sepolia chainID in CACAO to prevent segmenting the
+  // user's streams over AccountIDs with different chainIDs
+  const chainId = `eip155:${chainIdOverride ?? "11155111" }`;
   const caipAccountId = new AccountId({ address, chainId });
 
   let authMethod: AuthMethod;
