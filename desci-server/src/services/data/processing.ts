@@ -434,7 +434,7 @@ export async function pinNewFiles(files: any[], wrapWithDirectory = false): Prom
   if (structuredFilesForPinning.length) {
     if (structuredFilesForPinning.length) uploaded = await pinDirectory(structuredFilesForPinning, wrapWithDirectory);
     if (!uploaded.length) throw createIpfsUploadFailureError();
-    logger.info('[UPDATE DATASET] Pinned files: ', uploaded.length);
+    logger.info({ uploaded }, '[UPDATE DATASET] Pinned files: ');
   }
   return uploaded;
 }

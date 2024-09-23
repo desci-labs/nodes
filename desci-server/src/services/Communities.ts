@@ -88,6 +88,13 @@ export class CommunityService {
     });
   }
 
+  async updateCommunityById(id: number, community: Prisma.DesciCommunityUpdateInput) {
+    return prisma.desciCommunity.update({
+      where: { id },
+      data: community,
+    });
+  }
+
   /**
    * This query retrieves data from the "NodeAttestation" table along with the counts of related records from the
    * "Annotation", "NodeAttestationReaction", and "NodeAttestationVerification" tables.

@@ -3,7 +3,12 @@ import { Request } from 'express';
 import multer from 'multer';
 import multerS3 from 'multer-s3';
 
-import { createCommunity, listAllCommunities, todoApi } from '../../../../controllers/admin/communities/index.js';
+import {
+  createCommunity,
+  listAllCommunities,
+  todoApi,
+  updateCommunity,
+} from '../../../../controllers/admin/communities/index.js';
 import { asyncHandler, ensureAdmin, ensureUser, logger as parentLogger, validate } from '../../../../internal.js';
 import { isS3Configured, s3Client } from '../../../../services/s3.js';
 
@@ -14,6 +19,7 @@ import {
   addMemberSchema,
   removeEntryAttestationSchema,
   removeMemberSchema,
+  updateCommunitySchema,
 } from './schema.js';
 
 const logger = parentLogger.child({ module: 'Admin/communities' });
@@ -39,7 +45,10 @@ const upload = isS3Configured
     })
   : multer({ preservePath: true });
 
-const uploadHandler = upload.fields([{ name: 'imageUrl', maxCount: 1 }, { name: 'verifiedImageUrl' }]);
+const uploadHandler = upload.fields([
+  { name: 'imageUrl', maxCount: 1 },
+  { name: 'verifiedImageUrl', maxCount: 1 },
+]);
 
 const wrappedHandler = (req: Request, res: Response, next: NextFunction) => {
   uploadHandler(req, res, (err) => {
@@ -65,23 +74,21 @@ const sanitizeBody = async (req: Request, _res: Response, next: NextFunction) =>
 
 router.get('/', [ensureUser, ensureAdmin], asyncHandler(listAllCommunities));
 
-// todo: api to create desci community
 router.post(
   '/',
-  [ensureUser, ensureAdmin, /* upload.single('image'),*/ wrappedHandler, sanitizeBody, validate(addCommunitySchema)],
+  [ensureUser, ensureAdmin, wrappedHandler, sanitizeBody, validate(addCommunitySchema)],
   asyncHandler(createCommunity),
 );
 
-// todo: api to update desci community
-router.post(
-  ':communityId/',
-  [ensureUser, ensureAdmin, validate(addCommunitySchema), wrappedHandler],
-  asyncHandler(todoApi),
+router.put(
+  '/:communityId',
+  [ensureUser, ensureAdmin, wrappedHandler, sanitizeBody, validate(updateCommunitySchema)],
+  asyncHandler(updateCommunity),
 );
 
 // todo: api to create attestation for desci community ( with option to add it as an entryAttestation)
 router.post(
-  ':communityId/attestations',
+  '/:communityId/attestations',
   [ensureUser, ensureAdmin, validate(addAttestationSchema), wrappedHandler],
   asyncHandler(todoApi),
 );
@@ -91,21 +98,21 @@ router.post(':communityId/members', [ensureUser, ensureAdmin, validate(addMember
 
 // todo: api to remove a desci community member
 router.delete(
-  ':communityId/members/:memberId',
+  '/:communityId/members/:memberId',
   [ensureUser, ensureAdmin, validate(removeMemberSchema)],
   asyncHandler(todoApi),
 );
 
 // todo: api to link attestation to community (this adds it to the communityEntryAttestation)
 router.post(
-  ':communityId/addEntryAttestation',
+  '/:communityId/addEntryAttestation',
   [ensureUser, ensureAdmin, validate(addEntryAttestationSchema)],
   asyncHandler(todoApi),
 );
 
 // todo: api to remove attestation as required in for community (remove communityEntryAttestation)
 router.post(
-  ':communityId/removeEntryAttestation',
+  '/:communityId/removeEntryAttestation',
   [ensureUser, ensureAdmin, validate(removeEntryAttestationSchema)],
   asyncHandler(todoApi),
 );
