@@ -44,7 +44,6 @@ export const createCommunity = async (req: Request, res: Response, _next: NextFu
 
   if (!image_url) throw new BadRequestError('No community logo uploaded');
 
-  // logger.info({ ...body, image_url }, 'payload');
   const community = await communityService.createCommunity({ ...body, image_url });
   new SuccessResponse(community).send(res);
 };
