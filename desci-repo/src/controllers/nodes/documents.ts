@@ -59,18 +59,13 @@ export const createNodeDocument = async function (req: Request, res: Response) {
 export const getLatestNodeManifest = async function (req: Request, res: Response) {
   logger.info({ params: req.params }, 'START [getLatestNodeManifest]');
   try {
-    console.log('[getLatestNodeManifest]', req.params);
+    logger.info({ params: req.params }, '[getLatestNodeManifest]');
     if (!req.params.uuid) {
       res.status(400).send({ ok: false, message: 'Invalid data' });
       return;
     }
 
     const { uuid } = req.params;
-
-    // const queryResult = await pool.query('SELECT * FROM nodes WHERE uuid = $1', [uuid]);
-    // console.log('user:', queryResult.rows[0]);
-
-    logger.info('[getLatestNodeManifest]', { uuid });
     const node = await findNodeByUuid(uuid);
     logger.trace('[getLatestNodeManifest::node]', { node });
 

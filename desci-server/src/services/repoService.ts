@@ -85,12 +85,15 @@ class RepoService {
   }
 
   async getDraftDocument(arg: { uuid: NodeUuid }) {
+    if (!arg.uuid) {
+      logger.warn({ arg }, 'Attempt to retrieve draft manifest for empty UUID');
+      return null;
+    }
     logger.info({ arg }, 'Retrieve Draft Document');
     try {
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
         `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}`,
       );
-      logger.info({ response: response.status }, 'Draft Retrieval Response');
       if (response.status === 200 && response.data.ok) {
         return response.data.document;
       } else {
