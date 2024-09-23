@@ -4,9 +4,11 @@ import multer from 'multer';
 import multerS3 from 'multer-s3';
 
 import {
+  createAttestation,
   createCommunity,
   listAllCommunities,
   todoApi,
+  updateAttestation,
   updateCommunity,
 } from '../../../../controllers/admin/communities/index.js';
 import { asyncHandler, ensureAdmin, ensureUser, logger as parentLogger, validate } from '../../../../internal.js';
@@ -19,6 +21,7 @@ import {
   addMemberSchema,
   removeEntryAttestationSchema,
   removeMemberSchema,
+  updateAttestationSchema,
   updateCommunitySchema,
 } from './schema.js';
 
@@ -86,15 +89,20 @@ router.put(
   asyncHandler(updateCommunity),
 );
 
-// todo: api to create attestation for desci community ( with option to add it as an entryAttestation)
 router.post(
   '/:communityId/attestations',
-  [ensureUser, ensureAdmin, validate(addAttestationSchema), wrappedHandler],
-  asyncHandler(todoApi),
+  [ensureUser, ensureAdmin, wrappedHandler, validate(addAttestationSchema)],
+  asyncHandler(createAttestation),
+);
+
+router.put(
+  '/:communityId/attestations/:attestationId',
+  [ensureUser, ensureAdmin, wrappedHandler, validate(updateAttestationSchema)],
+  asyncHandler(updateAttestation),
 );
 
 // todo: api to add a desci community member
-router.post(':communityId/members', [ensureUser, ensureAdmin, validate(addMemberSchema)], asyncHandler(todoApi));
+router.post('/:communityId/members', [ensureUser, ensureAdmin, validate(addMemberSchema)], asyncHandler(todoApi));
 
 // todo: api to remove a desci community member
 router.delete(

@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import {
   asyncMap,
+  attestationService,
   BadRequestError,
   communityService,
   DuplicateDataError,
@@ -11,7 +12,12 @@ import {
   SuccessMessageResponse,
   SuccessResponse,
 } from '../../../internal.js';
-import { addCommunitySchema, updateCommunitySchema } from '../../../routes/v1/admin/communities/schema.js';
+import {
+  addAttestationSchema,
+  addCommunitySchema,
+  updateAttestationSchema,
+  updateCommunitySchema,
+} from '../../../routes/v1/admin/communities/schema.js';
 import { processUploadToIpfs } from '../../../services/data/processing.js';
 
 const logger = parentLogger.child({ module: 'Admin/Communities/controller' });
@@ -33,7 +39,7 @@ export const createCommunity = async (req: Request, res: Response, _next: NextFu
         .map((files) => files[0])
         .filter(Boolean);
 
-  if (uploads) {
+  if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
       file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
       return file;
@@ -50,7 +56,7 @@ export const createCommunity = async (req: Request, res: Response, _next: NextFu
     }
   }
 
-  const image_url = assets.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body.imageUrl;
+  const image_url = assets?.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body.imageUrl;
   delete body.imageUrl;
 
   if (!image_url) throw new BadRequestError('No community logo uploaded');
@@ -65,7 +71,7 @@ export const updateCommunity = async (req: Request, res: Response, _next: NextFu
   const { communityId } = req.params as z.infer<typeof updateCommunitySchema>['params'];
   logger.info({ body, communityId }, 'updateCommunity');
 
-  let community = await communityService.findCommunityById(parseInt(communityId));
+  let community = await communityService.findCommunityById(+communityId);
 
   if (!community) throw new NotFoundError();
 
@@ -77,7 +83,7 @@ export const updateCommunity = async (req: Request, res: Response, _next: NextFu
         .filter(Boolean);
 
   logger.info({ uploads: !!uploads }, 'Uploads');
-  if (uploads?.length) {
+  if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
       file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
       return file;
@@ -101,11 +107,11 @@ export const updateCommunity = async (req: Request, res: Response, _next: NextFu
   if (!image_url) throw new BadRequestError('No community logo uploaded');
   const hidden = body.hidden.toString() === 'true' ? true : false;
 
-  community = await communityService.updateCommunityById(parseInt(communityId), { ...body, hidden, image_url });
+  community = await communityService.updateCommunityById(+communityId, { ...body, hidden, image_url });
   new SuccessResponse(community).send(res);
 };
 
-export const listAllCommunities = async (_req: Request, res: Response, next: NextFunction) => {
+export const listAllCommunities = async (_req: Request, res: Response, _next: NextFunction) => {
   const communities = await communityService.adminGetCommunities();
   logger.info({ communities }, 'List communities');
   const data = await asyncMap(communities, async (community) => {
@@ -118,4 +124,111 @@ export const listAllCommunities = async (_req: Request, res: Response, next: Nex
     };
   });
   new SuccessResponse(data).send(res);
+};
+
+export const createAttestation = async (req: Request, res: Response, _next: NextFunction) => {
+  const body = req.body as Required<z.infer<typeof addAttestationSchema>['body']>;
+  const { communityId } = req.params as z.infer<typeof addAttestationSchema>['params'];
+  logger.info({ communityId, body }, 'Payload');
+
+  const community = await communityService.findCommunityById(Number(communityId));
+  if (!community) throw new NotFoundError(`Community ${communityId} not found`);
+
+  let assets: { key: string; url: string }[];
+  let uploads = Array.isArray(req.files)
+    ? req.files
+    : Object.values(req.files)
+        .map((files) => files[0])
+        .filter(Boolean);
+
+  if (uploads) {
+    uploads = uploads.map((file) => {
+      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      return file;
+    });
+
+    const { ok, value } = await processUploadToIpfs({ files: uploads });
+    if (ok && value) {
+      assets = value.map((ipfsImg) => ({
+        key: ipfsImg.path,
+        url: `${process.env.IPFS_RESOLVER_OVERRIDE}/${ipfsImg.cid}`,
+      }));
+    } else {
+      throw new BadRequestError('Could not upload file to ipfs');
+    }
+  }
+
+  const image_url = assets.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body.imageUrl;
+  delete body.imageUrl;
+  const verified_image_url =
+    assets.find((img) => img.key.toLowerCase().includes('verifiedimageurl'))?.url || body.verifiedImageUrl;
+  delete body.verifiedImageUrl;
+
+  logger.info({ image_url, verified_image_url }, 'Assets');
+
+  if (!image_url) throw new BadRequestError('No community logo uploaded');
+
+  const isProtected = body.protected.toString() === 'true' ? true : false;
+  const attestation = await attestationService.create({
+    ...body,
+    image_url,
+    verified_image_url,
+    communityId: community.id,
+    protected: isProtected,
+  });
+  new SuccessResponse(attestation).send(res);
+};
+
+export const updateAttestation = async (req: Request, res: Response, _next: NextFunction) => {
+  const body = req.body as Required<z.infer<typeof addAttestationSchema>['body']>;
+  const { attestationId } = req.params as z.infer<typeof updateAttestationSchema>['params'];
+  logger.info({ attestationId, body }, 'Payload');
+
+  const exists = await attestationService.findAttestationById(Number(attestationId));
+  if (!exists) throw new NotFoundError(`Attestation ${attestationId} not found`);
+
+  let assets: { key: string; url: string }[] | undefined;
+  let uploads = Array.isArray(req.files)
+    ? req.files
+    : Object.values(req.files)
+        .map((files) => files[0])
+        .filter(Boolean);
+
+  logger.info({ uploads: uploads?.map((up) => up.fieldname) }, 'Uploads');
+  if (uploads?.length > 0) {
+    uploads = uploads.map((file) => {
+      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      return file;
+    });
+    const { ok, value } = await processUploadToIpfs({ files: uploads });
+    logger.info({ ok, value }, 'Uploads REsult');
+    if (ok && value) {
+      assets = value.map((ipfsImg) => ({
+        key: ipfsImg.path,
+        url: `${process.env.IPFS_RESOLVER_OVERRIDE}/${ipfsImg.cid}`,
+      }));
+    } else {
+      throw new BadRequestError('Could not upload file to ipfs');
+    }
+  }
+
+  const image_url = assets?.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body.imageUrl;
+  const verified_image_url =
+    assets?.find((img) => img.key.toLowerCase().includes('verifiedimageurl'))?.url || body.verifiedImageUrl;
+  delete body.imageUrl;
+  delete body.verifiedImageUrl;
+
+  logger.info({ image_url, verified_image_url }, 'Assets');
+
+  if (!image_url) throw new BadRequestError('No attestation image uploaded');
+
+  const isProtected = body.protected.toString() === 'true' ? true : false;
+  const attestation = await attestationService.updateAttestation(exists.id, {
+    ...body,
+    image_url,
+    verified_image_url,
+    communityId: exists.communityId,
+    protected: isProtected,
+  });
+  new SuccessResponse(attestation).send(res);
 };

@@ -32,7 +32,7 @@ export const updateCommunitySchema = z.object({
     links: z.array(z.string().url()).optional(),
   }),
   params: z.object({
-    communityId: z.string(),
+    communityId: z.coerce.number(),
   }),
 });
 
@@ -42,12 +42,18 @@ export const addAttestationSchema = z.object({
   }),
   body: z.object({
     name: z.string(),
-    communitySlug: z.string(),
     description: z.string(),
     imageUrl: z.string().url().optional(), //"https://pub.desci.com/ipfs/bafkreie7kxhzpzhsbywcrpgyv5yvy3qxcjsibuxsnsh5olaztl2uvnrzx4",
     verifiedImageUrl: z.string().url().optional(), //"https://pub.desci.com/ipfs/bafkreie7kxhzpzhsbywcrpgyv5yvy3qxcjsibuxsnsh5olaztl2uvnrzx4",
-    protected: z.boolean().default(false),
+    protected: z.coerce
+      .boolean()
+      .transform((value) => (value.toString() === 'true' ? true : false))
+      .default(false),
   }),
+});
+
+export const updateAttestationSchema = addAttestationSchema.extend({
+  params: z.object({ attestationId: z.coerce.number(), communityId: z.coerce.number() }),
 });
 
 export const addMemberSchema = z.object({
