@@ -1,3 +1,4 @@
+import { CommunityMembershipRole } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 
@@ -9,12 +10,15 @@ import {
   DuplicateDataError,
   NotFoundError,
   logger as parentLogger,
+  prisma,
   SuccessMessageResponse,
   SuccessResponse,
 } from '../../../internal.js';
 import {
   addAttestationSchema,
   addCommunitySchema,
+  addMemberSchema,
+  removeMemberSchema,
   updateAttestationSchema,
   updateCommunitySchema,
 } from '../../../routes/v1/admin/communities/schema.js';
@@ -231,4 +235,40 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
     protected: isProtected,
   });
   new SuccessResponse(attestation).send(res);
+};
+
+export const addMember = async (req: Request, res: Response, _next: NextFunction) => {
+  const { userId, role }: Required<z.infer<typeof addMemberSchema>['body']> = req.body;
+  const { communityId }: z.infer<typeof addMemberSchema>['params'] = req.params;
+
+  const user = await prisma.user.findFirst({ where: { id: userId } });
+  if (!user) throw new NotFoundError('Invalid user');
+
+  const community = await communityService.findCommunityById(Number(communityId));
+  if (!community) throw new NotFoundError(`No Desci community with ID: ${Number(communityId)} found!`);
+
+  const exists = await communityService.findMemberByUserId(Number(communityId), userId);
+  if (exists) throw new DuplicateDataError();
+
+  const member = await communityService.addCommunityMember(parseInt(communityId), {
+    userId,
+    communityId: parseInt(communityId),
+    role,
+  });
+
+  new SuccessResponse(member).send(res);
+};
+
+export const removeMember = async (req: Request, res: Response, _next: NextFunction) => {
+  const { communityId, memberId }: z.infer<typeof removeMemberSchema>['params'] = req.params;
+
+  const community = await communityService.findCommunityById(Number(communityId));
+  if (!community) throw new NotFoundError(`No Desci community with ID: ${Number(communityId)} found!`);
+
+  const exists = await communityService.findMemberById(Number(memberId));
+  if (!exists) throw new NotFoundError();
+
+  await communityService.removeMemberById(Number(memberId));
+
+  new SuccessMessageResponse().send(res);
 };

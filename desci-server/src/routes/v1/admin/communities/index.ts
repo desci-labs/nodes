@@ -4,9 +4,11 @@ import multer from 'multer';
 import multerS3 from 'multer-s3';
 
 import {
+  addMember,
   createAttestation,
   createCommunity,
   listAllCommunities,
+  removeMember,
   todoApi,
   updateAttestation,
   updateCommunity,
@@ -101,14 +103,12 @@ router.put(
   asyncHandler(updateAttestation),
 );
 
-// todo: api to add a desci community member
-router.post('/:communityId/members', [ensureUser, ensureAdmin, validate(addMemberSchema)], asyncHandler(todoApi));
+router.post('/:communityId/members', [ensureUser, ensureAdmin, validate(addMemberSchema)], asyncHandler(addMember));
 
-// todo: api to remove a desci community member
 router.delete(
   '/:communityId/members/:memberId',
   [ensureUser, ensureAdmin, validate(removeMemberSchema)],
-  asyncHandler(todoApi),
+  asyncHandler(removeMember),
 );
 
 // todo: api to link attestation to community (this adds it to the communityEntryAttestation)

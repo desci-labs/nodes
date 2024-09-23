@@ -58,10 +58,10 @@ export const updateAttestationSchema = addAttestationSchema.extend({
 
 export const addMemberSchema = z.object({
   params: z.object({
-    communityId: z.coerce.number(),
+    communityId: z.string(),
   }),
   body: z.object({
-    userId: z.coerce.number(),
+    userId: z.number(),
     role: z.enum([CommunityMembershipRole.ADMIN, CommunityMembershipRole.MEMBER]),
   }),
 });
@@ -69,8 +69,6 @@ export const addMemberSchema = z.object({
 export const removeMemberSchema = z.object({
   params: z.object({
     communityId: z.coerce.number(),
-  }),
-  body: z.object({
     memberId: z.coerce.number(),
   }),
 });

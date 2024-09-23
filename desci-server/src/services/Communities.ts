@@ -318,8 +318,16 @@ export class CommunityService {
     return await prisma.communityMember.findUnique({ where: { userId_communityId: { userId, communityId } } });
   }
 
+  async findMemberById(id: number) {
+    return await prisma.communityMember.findUnique({ where: { id } });
+  }
+
   async removeMember(communityId: number, userId: number) {
     return prisma.communityMember.delete({ where: { userId_communityId: { userId, communityId } } });
+  }
+
+  async removeMemberById(id: number) {
+    return prisma.communityMember.delete({ where: { id } });
   }
 }
 
