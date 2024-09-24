@@ -14,6 +14,8 @@ type NodeByDpidParams = {
 
 type NodeByDpidSuccess = {
   uuid: string;
+  dpidAlias: number;
+  ceramicStream: string;
 };
 
 type NodeByDpidError = {
@@ -43,6 +45,8 @@ export const nodeByDpid = async (
     node = await prisma.node.findFirstOrThrow({
       select: {
         uuid: true,
+        dpidAlias: true,
+        ceramicStream: true,
       },
       where: {
         dpidAlias: {
