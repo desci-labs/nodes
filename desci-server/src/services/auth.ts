@@ -124,7 +124,7 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
   });
 
   if (env.SHOULD_SEND_EMAIL) {
-    logger.info({ fn: 'sendMagicLinkEmail', email, token }, `Sending actual email to ${email} token: ${token}`);
+    logger.info({ fn: 'sendMagicLinkEmail', email }, `Sending actual email`);
 
     const url = `${env.DAPP_URL}/web/login?e=${email}&c=${token}`;
     const goodIp = ip?.length > 0 && ip !== '::1' && ip !== '127.0.0.1' && ip !== 'localhost';
