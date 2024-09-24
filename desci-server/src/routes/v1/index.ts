@@ -10,7 +10,7 @@ import { nft } from '../../controllers/raw/nft.js';
 import { asyncHandler } from '../../internal.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
-import admin from './admin.js';
+import admin from './admin/index.js';
 import attestations from './attestations/index.js';
 import auth from './auth.js';
 import communities from './communities/index.js';
