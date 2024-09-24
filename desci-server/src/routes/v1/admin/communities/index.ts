@@ -111,14 +111,12 @@ router.delete(
   asyncHandler(removeMember),
 );
 
-// todo: api to link attestation to community (this adds it to the communityEntryAttestation)
 router.post(
   '/:communityId/addEntryAttestation/:attestationId',
   [ensureUser, ensureAdmin, validate(addEntryAttestationSchema)],
   asyncHandler(addEntryAttestation),
 );
 
-// todo: api to remove attestation as required in for community (remove communityEntryAttestation)
 router.delete(
   '/:communityId/removeEntryAttestation/:attestationId',
   [ensureUser, ensureAdmin, validate(addEntryAttestationSchema)],
