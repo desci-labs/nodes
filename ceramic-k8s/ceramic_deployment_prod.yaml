@@ -62,7 +62,7 @@ spec:
         App: JsCeramicProd
     spec:
       containers:
-        - image: ceramicnetwork/js-ceramic:6.4.0
+        - image: ceramicnetwork/js-ceramic:6.5.0
           name: js-ceramic-prod
           command: ["/bin/bash", "-c"]
           volumeMounts:
