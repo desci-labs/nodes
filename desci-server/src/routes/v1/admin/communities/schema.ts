@@ -76,17 +76,6 @@ export const removeMemberSchema = z.object({
 export const addEntryAttestationSchema = z.object({
   params: z.object({
     communityId: z.coerce.number(),
-  }),
-  body: z.object({
-    attestationId: z.coerce.number(),
-  }),
-});
-
-export const removeEntryAttestationSchema = z.object({
-  params: z.object({
-    communityId: z.coerce.number(),
-  }),
-  body: z.object({
     attestationId: z.coerce.number(),
   }),
 });

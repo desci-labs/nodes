@@ -17,6 +17,7 @@ import {
   DuplicateReactionError,
   DuplicateVerificationError,
   NoAccessError,
+  NotFoundError,
   VerificationError,
   VerificationNotFoundError,
   ensureUuidEndsWithDot,
@@ -239,6 +240,23 @@ export class AttestationService {
     });
   }
 
+  async removeCommunityEntryAttestation({
+    communityId,
+    attestationId,
+    attestationVersion: version,
+  }: {
+    communityId: number;
+    attestationId: number;
+    attestationVersion: number;
+  }) {
+    const existingSelection = await prisma.communityEntryAttestation.findFirst({
+      where: { desciCommunityId: communityId, attestationId, attestationVersionId: version },
+    });
+    if (!existingSelection) return null;
+
+    return await prisma.communityEntryAttestation.delete({ where: { id: existingSelection.id } });
+  }
+
   async getAllNodeAttestations(uuid: string) {
     return prisma.nodeAttestation.findMany({
       where: { nodeUuid: ensureUuidEndsWithDot(uuid), revoked: false },
@@ -297,6 +315,12 @@ export class AttestationService {
           select: { Annotation: true, NodeAttestationReaction: true, NodeAttestationVerification: true },
         },
       },
+    });
+  }
+
+  async getCommunityEntryAttestation(communityId: number, attestationId: number) {
+    return prisma.communityEntryAttestation.findFirst({
+      where: { desciCommunityId: communityId, attestationId, required: true },
     });
   }
 

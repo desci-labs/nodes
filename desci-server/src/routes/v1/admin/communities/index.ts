@@ -4,12 +4,13 @@ import multer from 'multer';
 import multerS3 from 'multer-s3';
 
 import {
+  addEntryAttestation,
   addMember,
   createAttestation,
   createCommunity,
   listAllCommunities,
+  removeEntryAttestation,
   removeMember,
-  todoApi,
   updateAttestation,
   updateCommunity,
 } from '../../../../controllers/admin/communities/index.js';
@@ -21,7 +22,6 @@ import {
   addCommunitySchema,
   addEntryAttestationSchema,
   addMemberSchema,
-  removeEntryAttestationSchema,
   removeMemberSchema,
   updateAttestationSchema,
   updateCommunitySchema,
@@ -113,16 +113,16 @@ router.delete(
 
 // todo: api to link attestation to community (this adds it to the communityEntryAttestation)
 router.post(
-  '/:communityId/addEntryAttestation',
+  '/:communityId/addEntryAttestation/:attestationId',
   [ensureUser, ensureAdmin, validate(addEntryAttestationSchema)],
-  asyncHandler(todoApi),
+  asyncHandler(addEntryAttestation),
 );
 
 // todo: api to remove attestation as required in for community (remove communityEntryAttestation)
-router.post(
-  '/:communityId/removeEntryAttestation',
-  [ensureUser, ensureAdmin, validate(removeEntryAttestationSchema)],
-  asyncHandler(todoApi),
+router.delete(
+  '/:communityId/removeEntryAttestation/:attestationId',
+  [ensureUser, ensureAdmin, validate(addEntryAttestationSchema)],
+  asyncHandler(removeEntryAttestation),
 );
 
 export default router;

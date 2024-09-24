@@ -17,6 +17,7 @@ import {
 import {
   addAttestationSchema,
   addCommunitySchema,
+  addEntryAttestationSchema,
   addMemberSchema,
   removeMemberSchema,
   updateAttestationSchema,
@@ -271,4 +272,40 @@ export const removeMember = async (req: Request, res: Response, _next: NextFunct
   await communityService.removeMemberById(Number(memberId));
 
   new SuccessMessageResponse().send(res);
+};
+
+export const addEntryAttestation = async (req: Request, res: Response, _next: NextFunction) => {
+  const { communityId, attestationId }: z.infer<typeof addEntryAttestationSchema>['params'] = req.params;
+
+  const community = await communityService.findCommunityById(Number(communityId));
+  if (!community) throw new NotFoundError(`No Desci community with ID: ${Number(communityId)} not found!`);
+
+  const attestation = await attestationService.findAttestationById(+attestationId);
+  if (!attestation) throw new NotFoundError(`No attestation with ID: ${Number(attestationId)} not found!`);
+
+  const exists = await attestationService.getCommunityEntryAttestation(Number(communityId), Number(attestationId));
+  if (exists) throw new DuplicateDataError();
+
+  const data = await attestationService.addCommunityEntryAttestation({
+    communityId: Number(communityId),
+    attestationId: Number(attestationId),
+    attestationVersion: attestation.AttestationVersion[attestation.AttestationVersion.length - 1].id,
+  });
+
+  new SuccessResponse(data).send(res);
+};
+
+export const removeEntryAttestation = async (req: Request, res: Response, _next: NextFunction) => {
+  const { communityId, attestationId }: z.infer<typeof addEntryAttestationSchema>['params'] = req.params;
+
+  const attestation = await attestationService.findAttestationById(+attestationId);
+  if (!attestation) throw new NotFoundError(`No attestation with ID: ${Number(attestationId)} not found!`);
+
+  const data = await attestationService.removeCommunityEntryAttestation({
+    communityId: Number(communityId),
+    attestationId: Number(attestationId),
+    attestationVersion: attestation.AttestationVersion[attestation.AttestationVersion.length - 1].id,
+  });
+
+  new SuccessResponse(data).send(res);
 };
