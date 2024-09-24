@@ -54,7 +54,6 @@ class OrcidApiService {
       throw new Error('User does not have an orcid auth token');
     }
 
-    // todo: refresh token if necessary
     try {
       const url = `https://${ORCID_DOMAIN}/oauth/token`;
 
@@ -125,6 +124,9 @@ class OrcidApiService {
    * @returns
    */
   async removeClaimRecord({ claimId, nodeUuid, orcid }: { claimId: number; nodeUuid: string; orcid: string }) {
+    const user = await prisma.user.findUnique({ where: { orcid } });
+    const authToken = await this.getAccessToken(user.id);
+
     const putCode = await prisma.orcidPutCodes.findFirst({
       where: {
         claimId,
@@ -133,18 +135,13 @@ class OrcidApiService {
       },
     });
 
-    if (!putCode) return;
+    // remove claim record on Orcid profile
+    if (putCode) {
+      logger.info({ userId: user.id, authToken: !!authToken, nodeUuid }, '[ORCID::DELETE]:: START');
 
-    const user = await prisma.user.findUnique({ where: { orcid } });
-    const authToken = await this.getAccessToken(user.id);
-    logger.info({ userId: user.id, authToken: !!authToken, nodeUuid }, '[ORCID::DELETE]:: START');
+      await this.removeWorkRecord({ orcid, putCode, authToken });
+    }
 
-    await this.removeWorkRecord({ orcid, putCode, authToken });
-
-    const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
-    const researchObject = researchObjects[0] as IndexedResearchObject;
-    const manifestCid = hexToCid(researchObject.recentCid);
-    const latestManifest = await getManifestByCid(manifestCid);
     let claims = await attestationService.getProtectedNodeClaims(nodeUuid);
     claims = claims.filter((claim) => claim.verifications > 0);
     logger.info({ claims: claims.length }, '[ORCID::DELETE]:: CHECK CLAIMS');
@@ -185,7 +182,7 @@ class OrcidApiService {
         code,
         orcid,
       },
-      'ORCID API DELETE RECORD',
+      'ORCID API DELETE WORK RECORD',
     );
     const response = await fetch(url, {
       method: 'DELETE',
@@ -253,8 +250,14 @@ class OrcidApiService {
       let claims = await attestationService.getProtectedNodeClaims(nodeUuid);
       claims = claims.filter((claim) => claim.verifications > 0);
 
-      // TODO: if claims is empty remove orcid record
-      if (claims.length === 0) return;
+      if (claims.length === 0) {
+        const orcidPutCode = await prisma.orcidPutCodes.findUnique({
+          where: { orcid_uuid_reference: { orcid, uuid: nodeUuid, reference: PutcodeReference.PREPRINT } },
+        });
+
+        await orcidApiService.removeWorkRecord({ authToken, putCode: orcidPutCode, orcid: user.orcid });
+        return;
+      }
 
       const latestVersion = researchObject.versions[researchObject.versions.length - 1];
       const publicationDate = new Date(parseInt(latestVersion.time) * 1000).toLocaleDateString().replaceAll('/', '-');
@@ -270,8 +273,9 @@ class OrcidApiService {
         manifest: latestManifest,
       });
       const claimRecordPromises = claims.map((claim) => {
-        const claimedVersionNumber = claims[claims.length - 1].nodeVersion;
-        const claimedVersion = researchObject.versions[claimedVersionNumber];
+        const versionIndex = claims[claims.length - 1].nodeVersion;
+        const claimedVersionNumber = versionIndex + 1;
+        const claimedVersion = researchObject.versions[versionIndex];
         const publicationDate = new Date(parseInt(claimedVersion.time) * 1000)
           .toLocaleDateString()
           .replaceAll('/', '-');
