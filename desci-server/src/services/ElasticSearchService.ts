@@ -255,15 +255,31 @@ function buildFilter(filter: Filter) {
 
       return { match_phrase: { [filter.field]: { query: filter.value, analyzer: 'edge_ngram_analyzer' } } };
     case 'match':
-      const matchQuery = {
-        match: {
-          [filter.field]: {
-            query: filter.value,
-            operator: filter.matchLogic || 'or',
-            // ...(filter.fuzziness && { fuzziness: filter.fuzziness }),
+      let matchQuery;
+      if (Array.isArray(filter.value)) {
+        matchQuery = {
+          bool: {
+            should: filter.value.map((value) => ({
+              match: {
+                [filter.field]: {
+                  query: value,
+                  operator: filter.matchLogic || 'or',
+                },
+              },
+            })),
+            minimum_should_match: 1,
           },
-        },
-      };
+        };
+      } else {
+        matchQuery = {
+          match: {
+            [filter.field]: {
+              query: filter.value,
+              operator: filter.matchLogic || 'or',
+            },
+          },
+        };
+      }
 
       if (filter.field.includes('.') && !filter.field.includes('institutions')) {
         const [nestedPath, nestedField] = filter.field.split('.');
