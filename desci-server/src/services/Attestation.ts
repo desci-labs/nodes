@@ -581,21 +581,27 @@ export class AttestationService {
     authorId,
     comment,
     links,
+    uuid,
+    visible = true,
   }: {
-    claimId: number;
+    claimId?: number;
     authorId: number;
     comment: string;
     links: string[];
+    uuid?: string;
+    visible: boolean;
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
-    assert(claimId > 0, 'Error: claimId is zero');
+    claimId && assert(claimId > 0, 'Error: claimId is zero');
 
-    const claim = await this.findClaimById(claimId);
-    if (!claim) throw new ClaimNotFoundError();
+    if (claimId) {
+      const claim = await this.findClaimById(claimId);
+      if (!claim) throw new ClaimNotFoundError();
 
-    const attestation = await this.findAttestationById(claim.attestationId);
-    if (attestation.protected) {
-      await this.assertUserIsMember(authorId, attestation.communityId);
+      const attestation = await this.findAttestationById(claim.attestationId);
+      if (attestation.protected) {
+        await this.assertUserIsMember(authorId, attestation.communityId);
+      }
     }
 
     const data: Prisma.AnnotationUncheckedCreateInput = {
@@ -604,6 +610,8 @@ export class AttestationService {
       nodeAttestationId: claimId,
       body: comment,
       links,
+      uuid,
+      visible,
     };
     return this.createAnnotation(data);
   }
@@ -614,22 +622,28 @@ export class AttestationService {
     comment,
     highlights,
     links,
+    uuid,
+    visible,
   }: {
     claimId: number;
     authorId: number;
     comment: string;
     links: string[];
     highlights: HighlightBlock[];
+    uuid?: string;
+    visible: boolean;
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
-    assert(claimId > 0, 'Error: claimId is zero');
+    claimId && assert(claimId > 0, 'Error: claimId is zero');
 
-    const claim = await this.findClaimById(claimId);
-    if (!claim) throw new ClaimNotFoundError();
+    if (claimId) {
+      const claim = await this.findClaimById(claimId);
+      if (!claim) throw new ClaimNotFoundError();
 
-    const attestation = await this.findAttestationById(claim.attestationId);
-    if (attestation.protected) {
-      await this.assertUserIsMember(authorId, attestation.communityId);
+      const attestation = await this.findAttestationById(claim.attestationId);
+      if (attestation.protected) {
+        await this.assertUserIsMember(authorId, attestation.communityId);
+      }
     }
 
     const data: Prisma.AnnotationUncheckedCreateInput = {
@@ -639,6 +653,8 @@ export class AttestationService {
       body: comment,
       links,
       highlights: highlights.map((h) => JSON.stringify(h)),
+      uuid,
+      visible,
     };
     return this.createAnnotation(data);
   }
@@ -715,6 +731,21 @@ export class AttestationService {
 
   // TODO: write raw sql query to optimize this
   async getAllClaimComments(filter: Prisma.AnnotationWhereInput) {
+    return prisma.annotation.findMany({
+      where: filter,
+      include: {
+        author: true,
+        attestation: {
+          include: {
+            attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },
+          },
+        },
+      },
+    });
+  }
+
+  async getComments(filter: Prisma.AnnotationWhereInput) {
+    logger.info({ filter }, 'GET COMMENTS');
     return prisma.annotation.findMany({
       where: filter,
       include: {

@@ -7,11 +7,11 @@ import { ethers } from 'ethers';
 import { Response } from 'express';
 import { Logger } from 'pino';
 
+import { CERAMIC_API_URL } from '../../config/index.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
-import { setDpidAlias } from '../../services/nodeManager.js';
-import { CERAMIC_API_URL } from '../../config/index.js';
 import { getAliasRegistry, getHotWallet, getRegistryOwnerWallet } from '../../services/chain.js';
+import { setDpidAlias } from '../../services/nodeManager.js';
 
 type DpidResponse = DpidSuccessResponse | DpidErrorResponse;
 export type DpidSuccessResponse = {
@@ -56,9 +56,7 @@ export const createDpid = async (req: RequestWithNode, res: Response<DpidRespons
   }
 };
 
-export const getOrCreateDpid = async (
-  streamId: string,
-): Promise<number> => {
+export const getOrCreateDpid = async (streamId: string): Promise<number> => {
   const logger = parentLogger.child({
     module: 'NODE::mintDpid',
     ceramicStream: streamId,
@@ -97,10 +95,7 @@ export const getOrCreateDpid = async (
  * Note: this method in the registry contract is only callable by contract
  * owner, so this is not generally available.
  */
-export const upgradeDpid = async (
-  dpid: number,
-  ceramicStream: string
-): Promise<number> => {
+export const upgradeDpid = async (dpid: number, ceramicStream: string): Promise<number> => {
   const logger = parentLogger.child({
     module: 'NODE::upgradeDpid',
     ceramicStream,
@@ -130,12 +125,7 @@ export const upgradeDpid = async (
  * This should be checked before upgrading a dPID, to make sure
  * the new stream accurately represents the publish history.
  */
-const validateHistory = async (
-  dpid: number,
-  ceramicStream: string,
-  registry: DpidAliasRegistry,
-  logger: Logger
-) => {
+const validateHistory = async (dpid: number, ceramicStream: string, registry: DpidAliasRegistry, logger: Logger) => {
   const client = newCeramicClient(CERAMIC_API_URL);
   const legacyEntry = await registry.legacyLookup(dpid);
 

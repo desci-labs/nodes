@@ -27,7 +27,6 @@ import {
   draftUpdate,
   list,
   draftAddComponent,
-  retrieveDoi,
   proxyPdf,
   draftCreate,
   consent,
@@ -50,15 +49,21 @@ import {
   automateManuscriptDoi,
   attachDoiSchema,
   retrieveNodeDoi,
+  prepublish,
+  getGeneralComments,
+  listSharedNodes,
+  searchNodes,
+  versionDetails,
+  thumbnails,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
-import { prepublish } from '../../controllers/nodes/prepublish.js';
-import { searchNodes } from '../../controllers/nodes/searchNodes.js';
-import { listSharedNodes } from '../../controllers/nodes/sharedNodes.js';
-import { thumbnails } from '../../controllers/nodes/thumbnails.js';
-import { versionDetails } from '../../controllers/nodes/versionDetails.js';
-import { asyncHandler, attachUser, validate, ensureUserIfPresent } from '../../internal.js';
+// import { prepublish } from '../../controllers/nodes/prepublish.js';
+// import { searchNodes } from '../../controllers/nodes/searchNodes.js';
+// import { listSharedNodes } from '../../controllers/nodes/sharedNodes.js';
+// import { thumbnails } from '../../controllers/nodes/thumbnails.js';
+// import { versionDetails } from '../../controllers/nodes/versionDetails.js';
+import { asyncHandler, attachUser, validate, ensureUserIfPresent, getCommentsSchema } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
@@ -132,6 +137,8 @@ router.post(
 );
 
 router.delete('/:uuid', [ensureUser], deleteNode);
+
+router.get('/:uuid/comments', [validate(getCommentsSchema), attachUser], asyncHandler(getGeneralComments));
 
 router.get('/feed', [], feed);
 
