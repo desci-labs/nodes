@@ -32,7 +32,7 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
   const selectAttributes: (keyof typeof discovery)[] = ['ownerId', 'NodeCover'];
   const node: Partial<Node & { versions: number }> = _.pick(discovery, selectAttributes);
   const publishedVersions =
-    (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND "transactionId" IS NOT NULL ORDER BY "createdAt" DESC`) as NodeVersion[];
+    (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND ("transactionId" IS NOT NULL or "commitId" IS NOT NULL) ORDER BY "createdAt" DESC`) as NodeVersion[];
 
   // const nodeVersions = (await getNodeVersion
   logger.info({ uuid: discovery.uuid, publishedVersions }, 'Resolve node');
@@ -61,13 +61,13 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
 };
 
 export const getNodeVersion = async (uuid: string) => {
-  let indexingResults: { researchObjects: IndexedResearchObject[]};
+  let indexingResults: { researchObjects: IndexedResearchObject[] };
   try {
     indexingResults = await getIndexedResearchObjects([uuid]);
     const researchObject = indexingResults.researchObjects[0];
     return researchObject?.versions?.length ?? 0;
   } catch (e) {
-    logger.error({ uuid, indexingResults }, "getNodeVersion failed");
+    logger.error({ uuid, indexingResults }, 'getNodeVersion failed');
     throw e;
-  };
+  }
 };
