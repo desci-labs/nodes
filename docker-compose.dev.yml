@@ -188,6 +188,7 @@ services:
     container_name: ceramic
     ports:
       - "7007:7007"
+      - "9464:9464"
     environment:
       NODE_ENV: production
       CERAMIC_PUBSUB_QPS_LIMIT: 500
