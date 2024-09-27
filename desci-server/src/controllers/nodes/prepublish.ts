@@ -82,6 +82,7 @@ export const prepublish = async (req: RequestWithNode, res: Response<PrepublishR
       skipDuplicates: true,
     });
 
+    logger.info({ nodeFileTreeDagCid }, 'publishDraftComments::Root');
     logger.info(
       `[Prepublish DAG Skeleton Refs] Created ${createdPublicRefs.count} public data refs for node ${node.id}`,
     );

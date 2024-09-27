@@ -115,7 +115,7 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
       links,
       highlights: processedHighlights as unknown as HighlightBlock[],
       visible,
-      uuid: ensureUuidEndsWithDot(uuid),
+      ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
     });
     await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
   } else {
@@ -125,7 +125,7 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
       comment: body,
       links,
       visible,
-      uuid: ensureUuidEndsWithDot(uuid),
+      ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
     });
   }
   await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });

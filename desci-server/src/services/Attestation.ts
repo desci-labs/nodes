@@ -1,7 +1,7 @@
 import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { AnnotationType, Attestation, Prisma, User } from '@prisma/client';
+import { AnnotationType, Attestation, Node, Prisma, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import _ from 'lodash';
 
@@ -20,8 +20,10 @@ import {
   NotFoundError,
   VerificationError,
   VerificationNotFoundError,
+  asyncMap,
   ensureUuidEndsWithDot,
   logger as parentLogger,
+  uuidPathRegex,
 } from '../internal.js';
 import { communityService } from '../internal.js';
 import { AttestationClaimedEmailHtml } from '../templates/emails/utils/emailRenderer.js';
@@ -657,6 +659,59 @@ export class AttestationService {
       visible,
     };
     return this.createAnnotation(data);
+  }
+
+  /**
+   * Iterate on all hidden comments and check if highlights path
+   * have been published then update comment to become visible
+   */
+  async publishDraftComments({
+    userId,
+    node,
+    dpidAlias,
+    version,
+    rootCid,
+  }: {
+    userId: number;
+    node: Node;
+    dpidAlias: number;
+    version: number;
+    rootCid: string;
+  }) {
+    const dpidUrl = process.env.DPID_URL_OVERRIDE ?? 'https://beta.dpid.org';
+    // todo: specify version here
+    const dpidPrefix = `${dpidUrl}/${dpidAlias}`;
+
+    const comments = await prisma.annotation.findMany({ where: { uuid: node.uuid, visible: false } });
+    const publishedComments = await asyncMap(comments, async (comment) => {
+      const highlights = (comment.highlights.map((h) => JSON.parse(h as string)) ?? []) as HighlightBlock[];
+
+      const transformed = await asyncMap(highlights, async (highlight) => {
+        const match = highlight.path.match(uuidPathRegex);
+        logger.info({ comment: comment.id, path: highlight.path, match: match?.groups }, 'publishDraftComments::Match');
+        if (!match?.groups?.path) return highlight;
+
+        const path = match.groups.path.startsWith('/root') ? match.groups.path.substring(1) : match.groups.path;
+        const publicPath = path.replace('root', rootCid);
+        const publishedPath = await prisma.publicDataReference.findFirst({
+          where: { userId, nodeId: node.id, path: publicPath },
+        });
+        if (!publishedPath) return highlight;
+
+        const transformedPath = `${dpidPrefix}/${path}`;
+        return { ...highlight, path: transformedPath };
+      });
+
+      logger.info({ highlights }, 'publishDraftComments::Highlights');
+      logger.info({ transformed }, 'publishDraftComments::Transformed');
+      return { id: comment.id, highlights: transformed.map((h) => JSON.stringify(h)) };
+    });
+
+    logger.info({ publishedComments }, 'publishDraftComments');
+
+    await prisma.$transaction(
+      publishedComments.map((comment) => prisma.annotation.update({ where: { id: comment.id }, data: comment })),
+    );
   }
 
   async removeComment(commentId: number) {

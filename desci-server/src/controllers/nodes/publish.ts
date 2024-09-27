@@ -3,6 +3,7 @@ import { ActionType, Node, Prisma, PublishTaskQueue, PublishTaskQueueStatus, Use
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
+import { attestationService } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getManifestByCid } from '../../services/data/processing.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
@@ -159,6 +160,21 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     );
 
     updateAssociatedAttestations(node.uuid, dpidAlias ? dpidAlias.toString() : manifest.dpid?.id);
+
+    const root = await prisma.publicDataReference.findFirst({
+      where: { nodeId: node.id, root: true, userId: owner.id },
+      orderBy: { updatedAt: 'desc' },
+    });
+    logger.info({ root }, 'publishDraftComments::Root');
+    // publish draft comments
+    await attestationService.publishDraftComments({
+      node,
+      userId: owner.id,
+      dpidAlias: dpidAlias ?? parseInt(manifest.dpid?.id),
+      rootCid: root.rootCid,
+      // todo: get version number
+      version: 0,
+    });
 
     return res.send({
       ok: true,

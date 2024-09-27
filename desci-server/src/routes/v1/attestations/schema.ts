@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { logger } from '../../../logger.js';
+
 const communityId = z.coerce.number();
 const dpid = z.coerce.number();
 
@@ -42,7 +44,7 @@ export const getCommentsSchema = z.object({
 });
 
 const dpidPathRegexPlusLocalResolver =
-  /^https?:\/\/(?<domain>dev-beta\.dpid\.org|beta\.dpid\.org|localhost:5460)\/(?<dpid>\d+)\/(?<version>v\d+)\/(?<path>\S+.*)?/gm;
+  /^https?:\/\/(?<domain>dev-beta\.dpid\.org|beta\.dpid\.org|localhost:5460)\/(?<dpid>\d+)\/(?<version>v\d+)\/(?<path>\S+.*)?/m;
 
 export const dpidPathRegex =
   process.env.NODE_ENV === 'dev'
@@ -65,9 +67,15 @@ export const uuidPathSchema = z
 export const resourcePathSchema = z
   .string()
   .url()
-  .refine((link) => uuidPathRegex.test(link) || dpidPathRegex.test(link), {
-    message: 'Invalid Resource link',
-  });
+  .refine(
+    (link) => {
+      logger.info({ uuidPathRegex: uuidPathRegex.source, dpidPathRegex: dpidPathRegex.source }, 'REGEX');
+      return uuidPathRegex.test(link) || dpidPathRegex.test(link);
+    },
+    {
+      message: 'Invalid Resource link',
+    },
+  );
 
 const pdfHighlightSchema = z
   .object({
