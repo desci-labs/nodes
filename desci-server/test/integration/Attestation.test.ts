@@ -133,7 +133,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe.only('Attestations Service', async () => {
+describe('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -2259,7 +2259,7 @@ describe.only('Attestations Service', async () => {
         body: 'review 1',
       };
       let res = await request(app)
-        .post(`/v1/attestations/comment`)
+        .post(`/v1/attestations/comments`)
         .set('authorization', memberAuthHeaderVal1)
         .send(body);
       expect(res.statusCode).to.equal(200);
@@ -2269,7 +2269,7 @@ describe.only('Attestations Service', async () => {
         claimId: openCodeClaim.id,
         body: 'review 2',
       };
-      res = await request(app).post(`/v1/attestations/comment`).set('authorization', memberAuthHeaderVal2).send(body);
+      res = await request(app).post(`/v1/attestations/comments`).set('authorization', memberAuthHeaderVal2).send(body);
       expect(res.statusCode).to.equal(200);
 
       const comments = await attestationService.getAllClaimComments({ nodeAttestationId: openCodeClaim.id });
@@ -2280,7 +2280,7 @@ describe.only('Attestations Service', async () => {
 
     it('should prevent non community members from reviewing a protected attestation(claim)', async () => {
       const apiResponse = await request(app)
-        .post(`/v1/attestations/comment`)
+        .post(`/v1/attestations/comments`)
         .set('authorization', UserAuthHeaderVal)
         .send({
           authorId: users[1].id,
