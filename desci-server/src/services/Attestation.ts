@@ -75,7 +75,7 @@ export class AttestationService {
 
     const node = await prisma.node.findFirst({ where: { uuid: nodeUuid } });
     const publishedNodeVersions =
-      (await prisma.$queryRaw`SELECT COUNT(*) from "NodeVersion" where "nodeId" = ${node.id} AND "transactionId" IS NOT NULL`) as number;
+      (await prisma.$queryRaw`SELECT COUNT(*) from "NodeVersion" where "nodeId" = ${node.id} AND ("transactionId" IS NOT NULL or "commitId" IS NOT NULL)`) as number;
 
     if (nodeVersion >= publishedNodeVersions) {
       logger.warn({ nodeVersion, publishedNodeVersions }, 'Invalid Node version');
