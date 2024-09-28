@@ -7,6 +7,7 @@ import type { Server as HttpServer } from 'http';
 // import path from 'path';
 
 import * as Sentry from '@sentry/node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import * as Tracing from '@sentry/tracing';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
@@ -224,7 +225,7 @@ class AppServer {
       Sentry.init({
         dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
         release: 'desci-nodes-server@' + process.env.npm_package_version,
-        integrations: [new Tracing.Integrations.Prisma({ client: prisma })],
+        integrations: [Sentry.prismaIntegration(), nodeProfilingIntegration()],
         // Set tracesSampleRate to 1.0 to capture 100%
         // of transactions for performance monitoring.
         // We recommend adjusting this value in production
