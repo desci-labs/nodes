@@ -27,6 +27,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
   }
 
   const { email, code, dev, orcid, access_token, refresh_token, expires_in } = req.body;
+  const cleanEmail = email.toLowerCase().trim();
 
   if (!code) {
     // we are sending the magic code
@@ -34,7 +35,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     let user = await prismaClient.user.findFirst({
       where: {
         email: {
-          equals: email,
+          equals: cleanEmail,
           mode: 'insensitive',
         },
       },
@@ -44,13 +45,13 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     if (!user) {
       user = await prismaClient.user.upsert({
         where: {
-          email,
+          email: cleanEmail,
         },
         create: {
-          email,
+          email: cleanEmail,
         },
         update: {
-          email,
+          email: cleanEmail,
         },
       });
 
@@ -66,7 +67,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
     try {
       const ip = req.ip;
-      const ok = await sendMagicLink(email, ip);
+      const ok = await sendMagicLink(cleanEmail, ip);
       res.send({ ok });
     } catch (err) {
       logger.error({ ...err, fn: 'magic' });
@@ -75,7 +76,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
   } else {
     // we are validating the magic code is correct
     try {
-      const user = await magicLinkRedeem(email, code);
+      const user = await magicLinkRedeem(cleanEmail, code);
 
       if (orcid && user) {
         logger.trace({ fn: 'magic', orcid }, `setting orcid for user`);
