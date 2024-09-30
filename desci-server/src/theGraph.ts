@@ -5,6 +5,7 @@ import { logger as parentLogger } from './logger.js';
 import { getCommitTimestamps } from './services/ceramic.js';
 import { getTargetDpidUrl } from './services/fixDpid.js';
 import { convertCidTo0xHex, decodeBase64UrlSafeToHex, ensureUuidEndsWithDot } from './utils.js';
+import { THEGRAPH_API_URL } from './config/index.js';
 
 const logger = parentLogger.child({
   module: 'GetIndexedResearchObjects',
@@ -100,24 +101,14 @@ export const getIndexedResearchObjects = async (
     }
   }
 
-  /**
-   * fallback to _getIndexedResearchObjects() when resolving locally
-   * because calls to getHistoryFromStreams() never returns due to
-   * RESOLVER_URL not configured for local dpid resolution
-   */
-  if (process.env.NODE_ENV === 'dev') {
-    legacyUuids.push(...paddedUuids);
-    streamLookupMap = {};
-  }
-
-  let streamHistory = [];
+  let streamHistory: IndexedResearchObject[] = [];
   if (Object.keys(streamLookupMap).length > 0) {
     logger.info({ streamLookupMap }, 'Querying resolver for history');
     streamHistory = await getHistoryFromStreams(streamLookupMap);
     logger.info({ streamHistory }, 'Resolver history for nodes found');
   }
 
-  let legacyHistory = [];
+  let legacyHistory: IndexedResearchObject[] = [];
   if (legacyUuids.length > 0) {
     logger.info({ legacyUuids, _urlSafeBase64s }, 'Falling back to subgraph query for history');
     legacyHistory = (await _getIndexedResearchObjects(legacyUuids)).researchObjects;
@@ -202,8 +193,28 @@ export const _getIndexedResearchObjects = async (
       }
     }
   }`;
-  return query(q);
+
+  const results = await query<{ researchObjects: IndexedResearchObject[] }>(q);
+  if (THEGRAPH_API_URL.includes("sepolia-dev")) {
+    // In-place deduplication on the graph results
+    results.researchObjects.forEach(ro => {
+      ro.versions = ro.versions.reduce((deduped, next) => {
+        if (deduped.length === 0 || !isLegacyDupe(next, deduped.at(-1))) {
+          deduped.push(next);
+        }
+        return deduped;
+      }, [] as IndexedResearchObjectVersion[])
+    });
+  }
+
+  return results;
 };
+
+/** Makes semi-certain that two entries are dupes, by requiring that
+* both timestamp and cid are equal
+*/
+const isLegacyDupe = (a: IndexedResearchObjectVersion, b: IndexedResearchObjectVersion) =>
+    a.cid === b.cid && a.time === b.time;
 
 /**
  * For a bunch of publish hashes, get the corresponding timestamps as strings.
@@ -288,7 +299,7 @@ export const _getDpidForTxIds = async (txs: string[]): Promise<RegisterEvent[]> 
     }
   }`;
   console.log('Sending graph query:', { q });
-  const url = process.env.THEGRAPH_API_URL.replace('name/nodes', 'name/dpid-registry');
+  const url = THEGRAPH_API_URL.replace('name/nodes', 'name/dpid-registry');
   const response = await query<DpidRegistersResponse>(q, url);
   return response.registers;
 };
@@ -297,7 +308,7 @@ export const query = async <T>(query: string, overrideUrl?: string): Promise<T> 
   const payload = JSON.stringify({
     query,
   });
-  const url = overrideUrl ?? process.env.THEGRAPH_API_URL;
+  const url = overrideUrl ?? THEGRAPH_API_URL;
   const { data } = await axios.post(url, payload);
   if (data.errors) {
     logger.error({ fn: 'query', err: data.errors, query, dataRes: data }, `graph index query err ${query}`);
@@ -305,3 +316,4 @@ export const query = async <T>(query: string, overrideUrl?: string): Promise<T> 
   }
   return data.data as T;
 };
+

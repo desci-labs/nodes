@@ -22,7 +22,7 @@ export const getTargetDpidUrl = () => {
     'https://nodes-api.desci.com': 'https://beta.dpid.org',
   };
   const targetDpidUrl = TARGET_DPID_URL_BY_SERVER_URL[process.env.SERVER_URL];
-  return targetDpidUrl;
+  return targetDpidUrl as string;
 };
 
 // usage: npx tsx scripts/fix-dpid.ts 211
