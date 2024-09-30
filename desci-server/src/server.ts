@@ -230,6 +230,7 @@ class AppServer {
         // of transactions for performance monitoring.
         // We recommend adjusting this value in production
         tracesSampleRate: 1.0,
+        profilesSampleRate: 1.0,
       });
       Sentry.setupExpressErrorHandler(this.app);
     } else {
