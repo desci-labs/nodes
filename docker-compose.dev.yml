@@ -184,10 +184,11 @@ services:
       - ./local-data/redis:/data
 
   ceramic:
-    image: ceramicnetwork/js-ceramic:6.4.0
+    image: ceramicnetwork/js-ceramic:6.5.0
     container_name: ceramic
     ports:
       - "7007:7007"
+      - "9464:9464"
     environment:
       NODE_ENV: production
       CERAMIC_PUBSUB_QPS_LIMIT: 500

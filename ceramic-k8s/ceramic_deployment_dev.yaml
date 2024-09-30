@@ -11,10 +11,7 @@ spec:
     matchLabels:
       App: JsCeramicDev
   strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
+    type: Recreate
   template:
     metadata:
       annotations:
@@ -41,7 +38,9 @@ spec:
         App: JsCeramicDev
     spec:
       containers:
-        - image: ceramicnetwork/js-ceramic:6.4.0
+          # Enables a fix allowing us to heal dropped anchors on genesis commits:
+          # https://github.com/ceramicnetwork/js-ceramic/pull/3280
+        - image: ceramicnetwork/js-ceramic:6.6.0-rc.0
           name: js-ceramic-dev
           command: ["/bin/bash", "-c"]
           args:
@@ -49,6 +48,8 @@ spec:
           ports:
             - containerPort: 7007
               name: http-api
+            - containerPort: 9464
+              name: metrics
           resources:
             limits:
               cpu: 2
@@ -70,8 +71,37 @@ spec:
               port: http-api
             failureThreshold: 60
             periodSeconds: 1
-
       serviceAccountName: "vault-auth"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: js-ceramic-dev-service-internal
+  labels:
+    App: JsCeramicDev
+spec:
+  type: ClusterIP
+  selector:
+    App: JsCeramicDev
+  ports:
+    - name: metrics
+      port: 9464
+      targetPort: metrics
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: public-js-ceramic-dev-service
+  labels:
+    App: JsCeramicDev
+spec:
+  type: LoadBalancer
+  selector:
+    App: JsCeramicDev
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: http-api
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -91,19 +121,3 @@ spec:
                 name: public-js-ceramic-dev-service
                 port:
                   number: 80
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: public-js-ceramic-dev-service
-  labels:
-    App: JsCeramicDev
-spec:
-  type: LoadBalancer
-  selector:
-    App: JsCeramicDev
-  ports:
-    - protocol: TCP
-      name: http
-      port: 80
-      targetPort: 7007

@@ -23,6 +23,7 @@ env:
   AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
   CONTAINER_IMAGE: desci-server
   DOCKER_BUILDKIT: 1
 
@@ -56,6 +57,14 @@ jobs:
         run: |
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
+
+      - name: Set up Sentry CLI
+        run: |
+          npm install -g @sentry/cli
+          sentry-cli --version
+          sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
+          # append to .env
+          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> desci-server/.env
 
       - name: Run tests
         run: |
@@ -112,6 +121,14 @@ jobs:
         run: |
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
+
+      - name: Set up Sentry CLI
+        run: |
+          npm install -g @sentry/cli
+          sentry-cli --version
+          sentry-cli login --auth-token $SENTRY_AUTH_TOKEN
+          # append to .env
+          echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> desci-server/.env
 
       - name: Build and tag the image (DEV)
         if: github.ref == 'refs/heads/develop'

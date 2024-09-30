@@ -17,6 +17,7 @@ import {
   DuplicateReactionError,
   DuplicateVerificationError,
   NoAccessError,
+  NotFoundError,
   VerificationError,
   VerificationNotFoundError,
   ensureUuidEndsWithDot,
@@ -74,7 +75,7 @@ export class AttestationService {
 
     const node = await prisma.node.findFirst({ where: { uuid: nodeUuid } });
     const publishedNodeVersions =
-      (await prisma.$queryRaw`SELECT COUNT(*) from "NodeVersion" where "nodeId" = ${node.id} AND "transactionId" IS NOT NULL`) as number;
+      (await prisma.$queryRaw`SELECT COUNT(*) from "NodeVersion" where "nodeId" = ${node.id} AND ("transactionId" IS NOT NULL or "commitId" IS NOT NULL)`) as number;
 
     if (nodeVersion >= publishedNodeVersions) {
       logger.warn({ nodeVersion, publishedNodeVersions }, 'Invalid Node version');
@@ -171,7 +172,10 @@ export class AttestationService {
     const attestation = await this.findAttestationById(attestationId);
 
     if (!attestation) throw new AttestationNotFoundError();
-
+    await prisma.attestation.update({
+      where: { id: attestationId },
+      data: { verified_image_url: data.verified_image_url },
+    });
     await this.#publishVersion({
       name: data.name as string,
       description: data.description,
@@ -236,6 +240,23 @@ export class AttestationService {
     });
   }
 
+  async removeCommunityEntryAttestation({
+    communityId,
+    attestationId,
+    attestationVersion: version,
+  }: {
+    communityId: number;
+    attestationId: number;
+    attestationVersion: number;
+  }) {
+    const existingSelection = await prisma.communityEntryAttestation.findFirst({
+      where: { desciCommunityId: communityId, attestationId, attestationVersionId: version },
+    });
+    if (!existingSelection) return null;
+
+    return await prisma.communityEntryAttestation.delete({ where: { id: existingSelection.id } });
+  }
+
   async getAllNodeAttestations(uuid: string) {
     return prisma.nodeAttestation.findMany({
       where: { nodeUuid: ensureUuidEndsWithDot(uuid), revoked: false },
@@ -294,6 +315,12 @@ export class AttestationService {
           select: { Annotation: true, NodeAttestationReaction: true, NodeAttestationVerification: true },
         },
       },
+    });
+  }
+
+  async getCommunityEntryAttestation(communityId: number, attestationId: number) {
+    return prisma.communityEntryAttestation.findFirst({
+      where: { desciCommunityId: communityId, attestationId, required: true },
     });
   }
 

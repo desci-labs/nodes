@@ -20,5 +20,6 @@ declare namespace NodeJS {
     CROSSREF_API_KEY: string;
     AUTOMATED_METADATA_API: string;
     AUTOMATED_METADATA_API_KEY: string;
+    IPFS_RESOLVER_OVERRIDE: string;
   }
 }

@@ -13,8 +13,10 @@ type GetCheckNodeAccessResponse = {
   isOwner: boolean;
   isShared: boolean;
   hasAccess: boolean;
-  sharedOn?: number;
   isPublished: boolean;
+  ceramicStream?: string;
+  dpidAlias?: number;
+  sharedOn?: number;
   recentCid?: string;
   manifestUrl?: string;
 };
@@ -42,14 +44,10 @@ export const checkNodeAccess = async (
   const node = await prisma.node.findFirst({
     select: {
       uuid: true,
-      id: true,
-      createdAt: true,
-      updatedAt: true,
       ownerId: true,
-      title: true,
       manifestUrl: true,
-      cid: true,
-      NodeCover: true,
+      dpidAlias: true,
+      ceramicStream: true,
       versions: {
         select: {
           manifestUrl: true,
@@ -92,6 +90,8 @@ export const checkNodeAccess = async (
     isShared: !isOwner && !!privSharedNode,
     hasAccess,
     isPublished,
+    ceramicStream: node.ceramicStream,
+    dpidAlias: node.dpidAlias,
     sharedOn: privSharedNode?.createdAt.getTime(),
     recentCid: latestPublishedVersion?.manifestUrl,
     manifestUrl: hasAccess ? node.versions[0]?.manifestUrl : undefined,

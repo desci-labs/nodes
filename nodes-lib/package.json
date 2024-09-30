@@ -1,6 +1,6 @@
 {
   "name": "@desci-labs/nodes-lib",
-  "version": "0.0.11-rc1",
+  "version": "0.0.11",
   "homepage": "https://github.com/desci-labs/nodes#readme",
   "description": "Stand-alone client library for interacting with desci-server",
   "repository": {

@@ -61,6 +61,8 @@ export const RELEVANT_FIELDS = {
   ],
 };
 
+const NESTED_WORKS_ENTITIES = ['authors', 'best_locations', 'concepts', 'locations', 'topics', 'sources'];
+
 type SortOrder = 'asc' | 'desc';
 type SortField = { [field: string]: { order: SortOrder; missing?: string | number; type?: string; script?: any } };
 
@@ -192,7 +194,7 @@ function buildFilter(filter: Filter) {
       };
     case 'term':
       const termFieldParts = filter.field.split('.');
-      const isNested = termFieldParts.length > 1;
+      const isNested = NESTED_WORKS_ENTITIES.includes(termFieldParts[0]);
       const queryType = Array.isArray(filter.value) ? 'terms' : 'term';
       let valFormatted = filter.value;
       if (Array.isArray(valFormatted)) {
@@ -213,15 +215,24 @@ function buildFilter(filter: Filter) {
       }
       return query;
     case 'match_phrase':
+      const fieldParts = filter.field.split('.');
+      const isNestedMatchPhrase = NESTED_WORKS_ENTITIES.includes(fieldParts[0]);
+
       if (Array.isArray(filter.value)) {
-        const queries = filter.value.map((value) => ({
-          nested: {
-            path: filter.field.split('.')[0],
-            query: {
-              match_phrase: { [filter.field]: { query: value, analyzer: 'edge_ngram_analyzer' } },
-            },
-          },
-        }));
+        const queries = filter.value.map((value) => {
+          if (isNestedMatchPhrase) {
+            return {
+              nested: {
+                path: fieldParts[0],
+                query: {
+                  match_phrase: { [filter.field]: { query: value, analyzer: 'edge_ngram_analyzer' } },
+                },
+              },
+            };
+          } else {
+            return { match_phrase: { [filter.field]: { query: value, analyzer: 'edge_ngram_analyzer' } } };
+          }
+        });
 
         return {
           bool: {
@@ -231,8 +242,7 @@ function buildFilter(filter: Filter) {
         };
       }
 
-      const fieldParts = filter.field.split('.');
-      if (fieldParts.length > 1) {
+      if (isNestedMatchPhrase) {
         return {
           nested: {
             path: fieldParts[0],
@@ -242,17 +252,34 @@ function buildFilter(filter: Filter) {
           },
         };
       }
+
       return { match_phrase: { [filter.field]: { query: filter.value, analyzer: 'edge_ngram_analyzer' } } };
     case 'match':
-      const matchQuery = {
-        match: {
-          [filter.field]: {
-            query: filter.value,
-            operator: filter.matchLogic || 'or',
-            // ...(filter.fuzziness && { fuzziness: filter.fuzziness }),
+      let matchQuery;
+      if (Array.isArray(filter.value)) {
+        matchQuery = {
+          bool: {
+            should: filter.value.map((value) => ({
+              match: {
+                [filter.field]: {
+                  query: value,
+                  operator: filter.matchLogic || 'or',
+                },
+              },
+            })),
+            minimum_should_match: 1,
           },
-        },
-      };
+        };
+      } else {
+        matchQuery = {
+          match: {
+            [filter.field]: {
+              query: filter.value,
+              operator: filter.matchLogic || 'or',
+            },
+          },
+        };
+      }
 
       if (filter.field.includes('.') && !filter.field.includes('institutions')) {
         const [nestedPath, nestedField] = filter.field.split('.');

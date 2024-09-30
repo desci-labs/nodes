@@ -77,7 +77,7 @@ export const getIndexedResearchObjects = async (
   For stream resolution, build a map to allow for also returning the UUID
   to match the format returned by the graph lookup
   */
-  const streamLookupMap: Record<string, string> = {};
+  let streamLookupMap: Record<string, string> = {};
   /** For legacy nodes, the graph lookup only needs the UUID */
   const legacyUuids = [];
 
@@ -100,6 +100,16 @@ export const getIndexedResearchObjects = async (
     }
   }
 
+  /**
+   * fallback to _getIndexedResearchObjects() when resolving locally
+   * because calls to getHistoryFromStreams() never returns due to
+   * RESOLVER_URL not configured for local dpid resolution
+   */
+  if (process.env.NODE_ENV === 'dev') {
+    legacyUuids.push(...paddedUuids);
+    streamLookupMap = {};
+  }
+
   let streamHistory = [];
   if (Object.keys(streamLookupMap).length > 0) {
     logger.info({ streamLookupMap }, 'Querying resolver for history');
@@ -109,7 +119,7 @@ export const getIndexedResearchObjects = async (
 
   let legacyHistory = [];
   if (legacyUuids.length > 0) {
-    logger.info({ legacyUuids }, 'Falling back to subgraph query for history');
+    logger.info({ legacyUuids, _urlSafeBase64s }, 'Falling back to subgraph query for history');
     legacyHistory = (await _getIndexedResearchObjects(legacyUuids)).researchObjects;
     logger.info({ legacyHistory }, 'Subgraph history for nodes found');
   }
@@ -201,7 +211,7 @@ export const _getIndexedResearchObjects = async (
 export const getTimeForTxOrCommits = async (txOrCommits: string[]): Promise<Record<string, string>> => {
   const isTx = (id: string) => id.startsWith('0x');
   const txIds = txOrCommits.filter(isTx);
-  const commitIdStrs = txOrCommits.filter(id => !isTx(id));
+  const commitIdStrs = txOrCommits.filter((id) => !isTx(id));
 
   const commitTimeMap = await getCommitTimestamps(commitIdStrs);
   const txTimeMap = await getTxTimestamps(txIds);
@@ -221,15 +231,15 @@ const getTxTimestamps = async (txIds: string[]): Promise<Record<string, string>>
   try {
     const graphTxTimestamps = await getTxTimeFromGraph(txIds);
     const timeMap = graphTxTimestamps.reduce(
-      (acc, { id, time }) => ({ ...acc, [id]: time}),
+      (acc, { id, time }) => ({ ...acc, [id]: time }),
       {} as Record<string, string>,
     );
     return timeMap;
   } catch (err) {
     logger.error({ txIds, err }, 'failed to get tx timestamps from graph, returning empty map');
     return {};
-  };
-}
+  }
+};
 
 type TransactionsWithTimestamp = {
   researchObjectVersions: { id: string; time: string }[];
