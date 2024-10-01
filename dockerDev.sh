@@ -18,7 +18,7 @@ assert_command_available() {
 }
 
 init_node() {
-  if ! printenv NVM_DIR &> /dev/null; then
+  if ! printenv NVM_DIR &> /dev/null && ! command -v fnm; then
     echo "[dockerDev] NVM_DIR not set, please install NVM"
     echo "[dockerDev] curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash"
     exit 1
@@ -27,13 +27,17 @@ init_node() {
   # Since nvm is loaded through shell config, it's not available
   # in scripts unless we source it manually
   local NVM_SCRIPT="$NVM_DIR/nvm.sh"
-  if [[ -s "$NVM_SCRIPT" ]]; then
+  if command -v fnm &>/dev/null; then
+    # A script doesn't inherit get aliases, so if fnm is available, "implement" nvm with that
+    nvm() { fnm "$@"; }
+  elif [[ -s "$NVM_SCRIPT" ]]; then
     source "$NVM_SCRIPT"
   else
     echo "[dockerDev] Could not find $NVM_SCRIPT, aborting"
     exit 1
   fi
-  nvm install $(cat .nvmrc)
+
+  nvm install "$(cat .nvmrc)"
   nvm use
 }
 
