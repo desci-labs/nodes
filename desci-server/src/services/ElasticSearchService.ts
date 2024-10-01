@@ -123,6 +123,11 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
               type: 'article',
             } as QueryDslTermsQuery,
           },
+          {
+            term: {
+              type: 'preprint',
+            } as QueryDslTermsQuery,
+          },
         ],
       } as QueryDslBoolQuery,
     };
@@ -339,7 +344,9 @@ export function buildMultiMatchQuery(
           multi_match: {
             query: query,
             fields: fields,
-            type: 'best_fields',
+            type: 'phrase',
+            slop: 5,
+            tie_breaker: 0.7,
             // fuzziness: fuzzy, // Retained fuzziness
           },
         },
