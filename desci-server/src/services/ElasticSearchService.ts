@@ -95,11 +95,11 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
   // Simplified function score containers
   const functions: QueryDslFunctionScoreContainer[] = [
     {
+      filter: { range: { cited_by_count: { gte: 1 } } },
       field_value_factor: {
         field: 'cited_by_count',
-        factor: 1.5,
+        factor: 0.025,
         modifier: 'log1p',
-        missing: 0,
       },
     },
     {
@@ -332,42 +332,80 @@ export function buildMultiMatchQuery(
   fuzzy: string | number = 0,
 ): QueryDslQueryContainer {
   const fields = getRelevantFields(entity);
+  const terms = query.split(/\s+/);
+  const termCount = terms.length;
 
-  let multiMatchQuery: QueryDslQueryContainer;
+  const exactMatchBoost = 1000;
+  const phraseMatchBoost = 100;
+  const termMatchBoost = 10;
 
-  if (entity.startsWith('works_') && !fields[0]?.includes('institutions')) {
-    const nestedField = fields[0]?.split('.')[0];
-    multiMatchQuery = {
-      nested: {
-        path: nestedField,
-        query: {
-          multi_match: {
+  let shouldClauses: QueryDslQueryContainer[] = [
+    // Phrase match (high priority)
+    {
+      multi_match: {
+        query: query,
+        fields: fields.map((field) => `${field}^${phraseMatchBoost}`),
+        type: 'phrase' as QueryDslTextQueryType,
+        slop: 1,
+        boost: phraseMatchBoost,
+      },
+    },
+    // Phrase prefix match (medium-high priority)
+    {
+      multi_match: {
+        query: query,
+        fields: fields.map((field) => `${field}^${termMatchBoost * 2}`),
+        type: 'phrase_prefix' as QueryDslTextQueryType,
+        boost: termMatchBoost * 2,
+      },
+    },
+    // Term match with minimum should match (medium priority)
+    {
+      bool: {
+        should: fields.map((field) => ({
+          match: {
+            [field]: {
+              query: query,
+              operator: 'or',
+              minimum_should_match: Math.min(3, Math.ceil(termCount * 0.75)),
+              boost: termMatchBoost,
+            },
+          },
+        })),
+        minimum_should_match: 1,
+      },
+    },
+  ];
+
+  // Special handling for 'works' and 'works_single' entities
+  if (entity === 'works' || entity === 'works_single') {
+    shouldClauses = [
+      {
+        match_phrase: {
+          title: {
             query: query,
-            fields: fields,
-            type: 'phrase',
-            slop: 5,
-            tie_breaker: 0.7,
-            // fuzziness: fuzzy, // Retained fuzziness
+            boost: exactMatchBoost * 2, // Double boost for title exact match
+            slop: 0,
           },
         },
       },
-    };
-  } else {
-    multiMatchQuery = {
-      multi_match: {
-        query: query,
-        fields: fields,
-        type: 'best_fields',
-        // fuzziness: fuzzy, // Retained fuzziness
-      },
-    };
+      ...shouldClauses,
+    ];
   }
+
+  const multiMatchQuery: QueryDslQueryContainer = {
+    bool: {
+      should: shouldClauses,
+      minimum_should_match: 1,
+    },
+  };
 
   if (entity === 'works' || entity === 'works_single') {
     return {
       function_score: createFunctionScoreQuery(multiMatchQuery, entity),
     };
   }
+
   return multiMatchQuery;
 }
 
