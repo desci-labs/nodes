@@ -242,7 +242,7 @@ services:
       OPTIMISM_RPC_URL: http://host.docker.internal:8545
       CERAMIC_URL: http://host.docker.internal:7007
       IPFS_GATEWAY: http://host.docker.internal:8089/ipfs
-      REDIS_HOST: http://host.docker.internal
+      REDIS_HOST: host.docker.internal
       REDIS_PORT: 6379
       # How long to store anchored commit info (default 24 hours)
       CACHE_TTL_ANCHORED: 86400
