@@ -77,7 +77,7 @@ export const getIndexedResearchObjects = async (
   For stream resolution, build a map to allow for also returning the UUID
   to match the format returned by the graph lookup
   */
-  let streamLookupMap: Record<string, string> = {};
+  const streamLookupMap: Record<string, string> = {};
   /** For legacy nodes, the graph lookup only needs the UUID */
   const legacyUuids = [];
 
@@ -98,16 +98,6 @@ export const getIndexedResearchObjects = async (
       // We had a stream on record for this node, attach hex converted UUID
       streamLookupMap[matchingDbNode.ceramicStream] = `0x${decodeBase64UrlSafeToHex(uuid)}`;
     }
-  }
-
-  /**
-   * fallback to _getIndexedResearchObjects() when resolving locally
-   * because calls to getHistoryFromStreams() never returns due to
-   * RESOLVER_URL not configured for local dpid resolution
-   */
-  if (process.env.NODE_ENV === 'dev') {
-    legacyUuids.push(...paddedUuids);
-    streamLookupMap = {};
   }
 
   let streamHistory = [];

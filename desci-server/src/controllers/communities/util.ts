@@ -61,13 +61,13 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
 };
 
 export const getNodeVersion = async (uuid: string) => {
-  let indexingResults: { researchObjects: IndexedResearchObject[]};
+  let indexingResults: { researchObjects: IndexedResearchObject[] };
   try {
     indexingResults = await getIndexedResearchObjects([uuid]);
     const researchObject = indexingResults.researchObjects[0];
     return researchObject?.versions?.length ?? 0;
   } catch (e) {
-    logger.error({ uuid, indexingResults }, "getNodeVersion failed");
+    logger.error({ uuid, indexingResults }, 'getNodeVersion failed');
     throw e;
-  };
+  }
 };

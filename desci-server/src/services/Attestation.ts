@@ -704,13 +704,19 @@ export class AttestationService {
 
       logger.info({ highlights }, 'publishDraftComments::Highlights');
       logger.info({ transformed }, 'publishDraftComments::Transformed');
-      return { id: comment.id, highlights: transformed.map((h) => JSON.stringify(h)) };
+      return {
+        id: comment.id,
+        highlights: transformed.map((h) => JSON.stringify(h)),
+        visible: true,
+      } as Prisma.AnnotationUncheckedUpdateManyInput;
     });
 
     logger.info({ publishedComments }, 'publishDraftComments');
 
     await prisma.$transaction(
-      publishedComments.map((comment) => prisma.annotation.update({ where: { id: comment.id }, data: comment })),
+      publishedComments.map((comment) =>
+        prisma.annotation.update({ where: { id: comment.id as number }, data: comment }),
+      ),
     );
   }
 
