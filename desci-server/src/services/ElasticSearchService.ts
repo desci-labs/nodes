@@ -145,6 +145,76 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
   };
 }
 
+export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQueryContainer {
+  const functions: QueryDslFunctionScoreContainer[] = [
+    // Citation count
+    {
+      filter: { range: { cited_by_count: { gte: 1 } } },
+      field_value_factor: {
+        field: 'cited_by_count',
+        factor: 0.01,
+        modifier: 'log1p',
+      },
+      weight: 10,
+    },
+    // Works count
+    {
+      filter: { range: { works_count: { gte: 1 } } },
+      field_value_factor: {
+        field: 'works_count',
+        factor: 0.005,
+        modifier: 'log1p',
+      },
+      weight: 5,
+    },
+  ];
+
+  const shouldClauses: QueryDslQueryContainer[] = [
+    // Exact match on keyword fields
+    {
+      multi_match: {
+        query: query,
+        fields: [
+          'title.keyword^10',
+          'primary_id.keyword^10',
+          'entity_type.keyword^5',
+          'publisher.keyword^5',
+          'issn.keyword^5',
+          'id.keyword^5',
+        ],
+        type: 'best_fields',
+      },
+    },
+    // match on text fields
+    {
+      multi_match: {
+        query: query,
+        fields: [
+          'title^3',
+          'description^2',
+          'publisher^2',
+          'subfield_display_name^2',
+          'institution_data.display_name^2',
+        ],
+      },
+    },
+  ];
+
+  const boolQuery: QueryDslBoolQuery = {
+    should: shouldClauses,
+    minimum_should_match: 1,
+  };
+
+  const functionScoreQuery: QueryDslFunctionScoreQuery = {
+    query: { bool: boolQuery },
+    functions,
+    boost_mode: 'multiply' as QueryDslFunctionBoostMode,
+    score_mode: 'sum' as QueryDslFunctionScoreMode,
+  };
+
+  return { function_score: functionScoreQuery };
+}
+
 export function buildSimpleStringQuery(query: string, entity: string, fuzzy?: number) {
   return {
     simple_query_string: {
@@ -314,6 +384,10 @@ export function buildMultiMatchQuery(
   entity: string,
   fuzzy: string | number = 0,
 ): QueryDslQueryContainer {
+  if (entity === 'autocomplete_full') {
+    return createAutocompleteFunctionScoreQuery(query);
+  }
+
   const fields = getRelevantFields(entity);
   const terms = query.split(/\s+/);
   const termCount = terms.length;
