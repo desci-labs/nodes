@@ -20,6 +20,7 @@ export const getTargetDpidUrl = () => {
   const TARGET_DPID_URL_BY_SERVER_URL = {
     'https://nodes-api-dev.desci.com': 'https://dev-beta.dpid.org',
     'https://nodes-api.desci.com': 'https://beta.dpid.org',
+    'http://localhost:5420': 'http://host.docker.internal:5460',
   };
   const targetDpidUrl = TARGET_DPID_URL_BY_SERVER_URL[process.env.SERVER_URL];
   return targetDpidUrl;

@@ -16,6 +16,7 @@ import {
   setDpidAlias,
 } from '../../services/nodeManager.js';
 import { publishServices } from '../../services/PublishServices.js';
+import { getIndexedResearchObjects } from '../../theGraph.js';
 import { discordNotify } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -70,7 +71,6 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     body: req.body,
     uuid,
     cid,
-    manifest,
     transactionId,
     ceramicStream,
     commitId,
@@ -165,15 +165,18 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       where: { nodeId: node.id, root: true, userId: owner.id },
       orderBy: { updatedAt: 'desc' },
     });
-    logger.info({ root }, 'publishDraftComments::Root');
+    const result = await getIndexedResearchObjects([ensureUuidEndsWithDot(uuid)]);
+    // if node is being published for the first time default to 1
+    const version = result ? result.researchObjects?.[0]?.versions.length : 1;
+    logger.info({ root, result, version }, 'publishDraftComments::Root');
+
     // publish draft comments
     await attestationService.publishDraftComments({
       node,
       userId: owner.id,
       dpidAlias: dpidAlias ?? parseInt(manifest.dpid?.id),
       rootCid: root.rootCid,
-      // todo: get version number
-      version: 0,
+      version,
     });
 
     return res.send({

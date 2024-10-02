@@ -679,10 +679,10 @@ export class AttestationService {
     rootCid: string;
   }) {
     const dpidUrl = process.env.DPID_URL_OVERRIDE ?? 'https://beta.dpid.org';
-    // todo: specify version here
-    const dpidPrefix = `${dpidUrl}/${dpidAlias}`;
+    const dpidPrefix = `${dpidUrl}/${dpidAlias}/v${version}`;
 
     const comments = await prisma.annotation.findMany({ where: { uuid: node.uuid, visible: false } });
+    logger.info({ dpidPrefix, comments }, 'publishDraftComments');
     const publishedComments = await asyncMap(comments, async (comment) => {
       const highlights = (comment.highlights.map((h) => JSON.parse(h as string)) ?? []) as HighlightBlock[];
 
@@ -702,8 +702,6 @@ export class AttestationService {
         return { ...highlight, path: transformedPath };
       });
 
-      logger.info({ highlights }, 'publishDraftComments::Highlights');
-      logger.info({ transformed }, 'publishDraftComments::Transformed');
       return {
         id: comment.id,
         highlights: transformed.map((h) => JSON.stringify(h)),
