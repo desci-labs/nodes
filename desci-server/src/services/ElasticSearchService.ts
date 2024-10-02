@@ -92,16 +92,18 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
 export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: string): QueryDslFunctionScoreQuery {
   const currentYear = new Date().getFullYear();
 
-  // Simplified function score containers
   const functions: QueryDslFunctionScoreContainer[] = [
+    // Citation count
     {
       filter: { range: { cited_by_count: { gte: 1 } } },
       field_value_factor: {
         field: 'cited_by_count',
-        factor: 0.025,
+        factor: 0.01,
         modifier: 'log1p',
       },
+      weight: 5,
     },
+    // Publication year
     {
       linear: {
         publication_year: {
@@ -111,54 +113,35 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
           decay: 0.7,
         },
       },
+      weight: 3,
     },
   ];
 
   if (entity === 'works' || entity === 'works_single') {
-    const nonArticleFilter: QueryDslQueryContainer = {
-      bool: {
-        must_not: [
-          {
-            term: {
-              type: 'article',
-            } as QueryDslTermsQuery,
-          },
-          {
-            term: {
-              type: 'preprint',
-            } as QueryDslTermsQuery,
-          },
-        ],
-      } as QueryDslBoolQuery,
-    };
+    // Boost for articles and preprints
+    functions.push({
+      weight: 1,
+      filter: {
+        bool: {
+          should: [{ term: { type: 'article' } }, { term: { type: 'preprint' } }] as QueryDslQueryContainer[],
+        } as QueryDslBoolQuery,
+      },
+    });
 
-    const nonEnglishFilter: QueryDslQueryContainer = {
-      bool: {
-        must_not: [
-          {
-            term: {
-              language: 'en',
-            } as QueryDslTermsQuery,
-          },
-        ],
-      } as QueryDslBoolQuery,
-    };
-
+    // Boost for English language documents
     functions.push({
       weight: 0.5,
-      filter: nonArticleFilter,
-    });
-    functions.push({
-      weight: 0.1,
-      filter: nonEnglishFilter,
+      filter: {
+        term: { language: 'en' },
+      },
     });
   }
 
   return {
     query,
     functions,
-    boost_mode: 'multiply' as QueryDslFunctionBoostMode,
-    score_mode: 'multiply' as QueryDslFunctionScoreMode,
+    boost_mode: 'sum' as QueryDslFunctionBoostMode,
+    score_mode: 'sum' as QueryDslFunctionScoreMode,
   };
 }
 
@@ -337,7 +320,7 @@ export function buildMultiMatchQuery(
 
   const exactMatchBoost = 1000;
   const phraseMatchBoost = 100;
-  const termMatchBoost = 10;
+  const termMatchBoost = 5;
 
   let shouldClauses: QueryDslQueryContainer[] = [
     // Phrase match (high priority)
@@ -359,7 +342,7 @@ export function buildMultiMatchQuery(
         boost: termMatchBoost * 2,
       },
     },
-    // Term match with minimum should match (medium priority)
+    // Term match with minimum should match term threshold (medium priority)
     {
       bool: {
         should: fields.map((field) => ({
@@ -367,7 +350,7 @@ export function buildMultiMatchQuery(
             [field]: {
               query: query,
               operator: 'or',
-              minimum_should_match: Math.min(3, Math.ceil(termCount * 0.75)),
+              minimum_should_match: Math.min(3, Math.ceil(termCount * 0.7)),
               boost: termMatchBoost,
             },
           },
