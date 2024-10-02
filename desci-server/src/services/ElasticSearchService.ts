@@ -30,7 +30,7 @@ export const VALID_ENTITIES = [
  */
 export const RELEVANT_FIELDS = {
   works: ['title', 'abstract'],
-  authors: ['display_name', 'orcid', 'last_known_institution', 'authors.affiliation'],
+  authors: ['display_name', 'orcid', 'last_known_institution'],
   topics: ['display_name'],
   fields: ['subfield_display_name'],
   concepts: ['display_name'],
@@ -322,58 +322,57 @@ export function buildMultiMatchQuery(
   const phraseMatchBoost = 100;
   const termMatchBoost = 5;
 
-  let shouldClauses: QueryDslQueryContainer[] = [
-    // Phrase match (high priority)
-    {
-      multi_match: {
-        query: query,
-        fields: fields.map((field) => `${field}^${phraseMatchBoost}`),
-        type: 'phrase' as QueryDslTextQueryType,
-        slop: 1,
-        boost: phraseMatchBoost,
-      },
+  const shouldClauses: QueryDslQueryContainer[] = [];
+
+  // Exact match on keyword fields
+  shouldClauses.push({
+    multi_match: {
+      query: query,
+      fields: fields.map((field) => `${field}.keyword^${exactMatchBoost}`),
+      type: 'best_fields' as QueryDslTextQueryType,
+      boost: exactMatchBoost,
     },
-    // Phrase prefix match (medium-high priority)
-    {
-      multi_match: {
-        query: query,
-        fields: fields.map((field) => `${field}^${termMatchBoost * 2}`),
-        type: 'phrase_prefix' as QueryDslTextQueryType,
-        boost: termMatchBoost * 2,
-      },
+  });
+
+  // Phrase match on text fields
+  shouldClauses.push({
+    multi_match: {
+      query: query,
+      fields: fields.map((field) => `${field}^${phraseMatchBoost}`),
+      type: 'phrase' as QueryDslTextQueryType,
+      slop: 1,
+      boost: phraseMatchBoost,
     },
-    // Term match with minimum should match term threshold (medium priority)
-    {
-      bool: {
-        should: fields.map((field) => ({
-          match: {
-            [field]: {
-              query: query,
-              operator: 'or',
-              minimum_should_match: Math.min(3, Math.ceil(termCount * 0.7)),
-              boost: termMatchBoost,
-            },
+  });
+
+  // Term match with minimum should match
+  shouldClauses.push({
+    bool: {
+      should: fields.map((field) => ({
+        match: {
+          [field]: {
+            query: query,
+            operator: 'or',
+            minimum_should_match: Math.min(3, Math.ceil(termCount * 0.7)),
+            boost: termMatchBoost,
           },
-        })),
-        minimum_should_match: 1,
-      },
+        },
+      })),
+      minimum_should_match: 1,
     },
-  ];
+  });
 
   // Special handling for 'works' and 'works_single' entities
   if (entity === 'works' || entity === 'works_single') {
-    shouldClauses = [
-      {
-        match_phrase: {
-          title: {
-            query: query,
-            boost: exactMatchBoost * 2, // Double boost for title exact match
-            slop: 0,
-          },
+    shouldClauses.unshift({
+      match_phrase: {
+        title: {
+          query: query,
+          boost: exactMatchBoost * 2, // Double boost for title exact match
+          slop: 0,
         },
       },
-      ...shouldClauses,
-    ];
+    });
   }
 
   const multiMatchQuery: QueryDslQueryContainer = {
