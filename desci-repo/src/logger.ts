@@ -2,6 +2,9 @@ import { pino } from 'pino';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { pool } from './db/index.js';
+import { AsyncLocalStorage } from 'async_hooks';
+
+export const als = new AsyncLocalStorage();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,10 +27,75 @@ const fileTransport = {
 
 console.log('[DIR NAME]::', __dirname, __filename, logLevel);
 
+function logMethodHooks(inputArgs, method) {
+  try {
+    //get caller
+    const stack = new Error()?.stack?.split('\n') ?? [];
+    // find first line that is not from this file
+
+    let callerFilePath;
+    try {
+      const intermediate = stack.filter(
+        (a) => a.includes('file:///') && !(a.includes('/dist/logger.') || a.includes('/src/logger.')),
+      )[0];
+
+      if (intermediate) {
+        callerFilePath = intermediate
+          .split('(')[1]
+          .split(')')[0]
+          .replace('file:///app/desci-server/src/', '')
+          .replace('file:///app/dist/', '');
+      }
+    } catch (err) {
+      // callerFilePath = '-unknown-';
+    }
+
+    let target = typeof inputArgs[0] == 'string' ? 1 : 0;
+    let newInputArgs = [...inputArgs];
+
+    if (!newInputArgs[target]) {
+      newInputArgs[target] = {};
+    } else if (typeof newInputArgs[target] !== 'object') {
+      const rawValue = {};
+      rawValue['stringLogs'] = inputArgs;
+
+      rawValue['error'] =
+        'this means your pino log statement is incorrectly formatted, check the order of the arguments';
+      target = 0;
+      newInputArgs[target] = { rawValue };
+      newInputArgs = [newInputArgs[0], inputArgs[0]];
+    }
+
+    newInputArgs[target]['caller'] = callerFilePath;
+
+    const traceId = (als.getStore() as any)?.traceId;
+    const callerTraceId = (als.getStore() as any)?.callerTraceId;
+    if (traceId) {
+      newInputArgs[target]['traceId'] = traceId;
+      newInputArgs[target]['callerTraceId'] = callerTraceId || '';
+
+      const timingArray = (als.getStore() as any)?.timing;
+      if (timingArray) {
+        newInputArgs[target]['traceIndex'] = timingArray.length;
+        newInputArgs[target]['traceDelta'] = Date.now() - timingArray[timingArray.length - 1];
+      }
+      (als.getStore() as any)?.timing.push(Date.now());
+    }
+
+    return method.apply(this, [...newInputArgs]);
+  } catch (err) {
+    // logger.error({ err }, 'error in logMethod hook');
+    return method.apply(this, inputArgs);
+  }
+}
+
 export const logger = pino({
   level: logLevel,
   serializers: {
     files: omitBuffer,
+  },
+  hooks: {
+    logMethod: logMethodHooks,
   },
   transport:
     process.env.NODE_ENV === 'production'
