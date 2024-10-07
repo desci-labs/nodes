@@ -114,6 +114,13 @@ class AppServer {
       });
     });
 
+    this.app.use(helmet());
+    this.app.use(bodyParser.json({ limit: '100mb' }));
+    this.app.use(bodyParser.urlencoded({ extended: false }));
+
+    this.app.use(cookieParser());
+    this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
+
     // attach all app routes
     this.#attachRouteHandlers();
 
@@ -122,13 +129,6 @@ class AppServer {
 
     // attach proxy routes
     this.#attachProxies();
-
-    this.app.use(helmet());
-    this.app.use(bodyParser.json({ limit: '100mb' }));
-    this.app.use(bodyParser.urlencoded({ extended: false }));
-
-    this.app.use(cookieParser());
-    this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
     // catch 404 errors and forward to error handler
     this.app.use((_req, _res, next) => next(new NotFoundError()));
