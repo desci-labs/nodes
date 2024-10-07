@@ -2,9 +2,8 @@ import { DocumentId } from '@automerge/automerge-repo';
 import { ResearchObjectV1, ManifestActions } from '@desci-labs/desci-models';
 import axios, { AxiosInstance } from 'axios';
 
-import { logger as parentLogger } from '../logger.js';
+import { als, logger as parentLogger } from '../logger.js';
 import { ResearchObjectDocument } from '../types/documents.js';
-import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { NodeUuid } from './manifestRepo.js';
 
@@ -38,6 +37,11 @@ class RepoService {
     const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
       `${this.baseUrl}/v1/nodes/documents/dispatch`,
       arg,
+      {
+        headers: {
+          'x-api-remote-traceid': (als.getStore() as any)?.traceId,
+        },
+      },
     );
     logger.info({ arg, ok: response.data.ok }, 'Disatch Changes Response');
     if (response.status === 200 && response.data.ok) {
@@ -54,6 +58,11 @@ class RepoService {
       const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
         `${this.baseUrl}/v1/nodes/documents/actions`,
         arg,
+        {
+          headers: {
+            'x-api-remote-traceid': (als.getStore() as any)?.traceId,
+          },
+        },
       );
       logger.info({ arg, response: response.data }, 'Disatch Actions Response');
       if (response.status === 200 && response.data.ok) {
@@ -71,7 +80,11 @@ class RepoService {
     try {
       const response = await this.#client.post<
         ApiResponse<{ documentId: DocumentId; document: ResearchObjectDocument }>
-      >(`${this.baseUrl}/v1/nodes/documents`, arg);
+      >(`${this.baseUrl}/v1/nodes/documents`, arg, {
+        headers: {
+          'x-api-remote-traceid': (als.getStore() as any)?.traceId,
+        },
+      });
       logger.info({ response: response.data }, 'Create Draft Response');
       if (response.status === 200 && response.data.ok) {
         return response.data;
@@ -93,6 +106,11 @@ class RepoService {
     try {
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
         `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}`,
+        {
+          headers: {
+            'x-api-remote-traceid': (als.getStore() as any)?.traceId,
+          },
+        },
       );
       if (response.status === 200 && response.data.ok) {
         return response.data.document;
@@ -104,6 +122,7 @@ class RepoService {
       return null;
     }
   }
+
   async getDraftManifest(uuid: NodeUuid) {
     logger.info({ uuid }, 'Retrieve Draft Document');
     // try {} catch (err) {}

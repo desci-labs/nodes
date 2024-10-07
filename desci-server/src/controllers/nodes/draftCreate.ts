@@ -1,4 +1,4 @@
-import { DocumentId } from '@automerge/automerge-repo';
+// import { DocumentId } from '@automerge/automerge-repo';
 import {
   ExternalLinkComponent,
   PdfComponent,
@@ -12,7 +12,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getDataUsageForUserBytes, hasAvailableDataUsageForUpload } from '../../services/dataService.js';
+import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import {
   addBufferToIpfs,
   downloadFilesAndMakeManifest,
@@ -76,7 +76,7 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
       },
     });
 
-    const dataConsumptionBytes = await getDataUsageForUserBytes(owner);
+    // const dataConsumptionBytes = await getDataUsageForUserBytes(owner);
 
     const uploadSizeBytes = files.map((f) => f.size).reduce((total, size) => total + size, 0);
 
@@ -267,7 +267,7 @@ export const draftAddComponent = async (req: Request, res: Response, next: NextF
         subtype: componentSubtype,
         payload: {
           url: componentUrl,
-          path: DRIVE_NODE_ROOT_PATH + `/${name}`
+          path: DRIVE_NODE_ROOT_PATH + `/${name}`,
         },
       };
       manifestParsed.components.push(linkComponent);

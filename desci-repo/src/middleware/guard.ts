@@ -20,6 +20,8 @@ export type Node = {
 
 export interface RequestWithUser extends Request {
   user: { email: string; id: number };
+  traceId?: string;
+  callerTraceId?: string;
 }
 
 export interface RequestWithNode extends RequestWithUser {

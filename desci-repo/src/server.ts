@@ -17,9 +17,11 @@ import routes from './routes/index.js';
 
 import { fileURLToPath } from 'url';
 import { socket as wsSocket } from './repo.js';
-import { logger } from './logger.js';
+import { als, logger } from './logger.js';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import { pinoHttp } from 'pino-http';
+import { RequestWithUser } from './middleware/guard.js';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +49,17 @@ const allowlist = [
   'loca.lt' /** NOT SECURE */,
   'vercel.app' /** NOT SECURE */,
 ];
+
+function getRemoteAddress(req: Request) {
+  let xForwardedFor = req.headers['x-forwarded-for'];
+  xForwardedFor = Array.isArray(xForwardedFor) ? xForwardedFor.join(',') : xForwardedFor;
+  if (xForwardedFor) {
+    return xForwardedFor.split(',')[0].trim();
+  } else {
+    return req.socket.remoteAddress;
+  }
+}
+
 class AppServer {
   #readyResolvers: ((value: any) => void)[] = [];
 
@@ -78,6 +91,19 @@ class AppServer {
         // }
       }
       next();
+    });
+
+    // attach trace id to every request
+    this.app.use((req: RequestWithUser, res, next) => {
+      req.traceId = v4();
+      req.callerTraceId = req.headers['x-api-remote-traceid'] as string;
+
+      res.header('X-Desci-Trace-Id', req.traceId);
+      res.header('X-Desci-Request-Trace-Id', req.headers['x-api-remote-traceid']);
+
+      als.run({ traceId: req.traceId, callerTraceId: req.callerTraceId, timing: [new Date()] }, () => {
+        next();
+      });
     });
 
     this.#initTelemetry();
@@ -138,6 +164,12 @@ class AppServer {
     this.app.use(
       pinoHttp({
         logger,
+        customProps: (req: RequestWithUser) => ({
+          traceId: (als.getStore() as any)?.traceId,
+          callerTraceId: req.headers['x-api-remote-traceid'],
+          http: 1,
+          remoteAddress: getRemoteAddress(req),
+        }),
         serializers: {
           res: (res) => {
             if (IS_DEV) {
@@ -172,15 +204,17 @@ class AppServer {
       Sentry.init({
         dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
         release: 'desci-nodes-repo@' + process.env.npm_package_version,
-        integrations: [],
+        integrations: [nodeProfilingIntegration()],
         // Set tracesSampleRate to 1.0 to capture 100%
         // of transactions for performance monitoring.
         // We recommend adjusting this value in production
         tracesSampleRate: 1.0,
+        profilesSampleRate: 1.0,
       });
-      this.app.use(Sentry.Handlers.requestHandler());
-      this.app.use(Sentry.Handlers.tracingHandler());
-      this.app.use(Sentry.Handlers.errorHandler());
+      // this.app.use(Sentry.Handlers.requestHandler());
+      // this.app.use(Sentry.Handlers.tracingHandler());
+      // this.app.use(Sentry.Handlers.errorHandler());
+      Sentry.setupExpressErrorHandler(this.app);
     } else {
       logger.info('[DeSci Repo] Telemetry disabled');
     }
