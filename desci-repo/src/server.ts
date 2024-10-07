@@ -71,6 +71,7 @@ class AppServer {
 
   constructor() {
     this.app = express();
+
     this.#initSerialiser();
 
     this.app.use(function (req, res, next) {
@@ -106,8 +107,6 @@ class AppServer {
       });
     });
 
-    this.#initTelemetry();
-
     this.app.use(bodyParser.json({ limit: '100mb' }));
     this.app.use(bodyParser.urlencoded({ extended: false }));
 
@@ -123,6 +122,9 @@ class AppServer {
     this.app.get('/id', (_, res) => {
       res.status(200).json({ id: serverUuid });
     });
+
+    // init telementry
+    this.#initTelemetry();
 
     this.port = process.env.PORT ? parseInt(process.env.PORT) : 5484;
     logger.info(`Server starting on port ${this.port}`);
@@ -212,9 +214,10 @@ class AppServer {
         profilesSampleRate: 1.0,
       });
       // this.app.use(Sentry.Handlers.requestHandler());
-      // this.app.use(Sentry.Handlers.tracingHandler());
-      // this.app.use(Sentry.Handlers.errorHandler());
+      Sentry.addIntegration(Sentry.expressIntegration);
       Sentry.setupExpressErrorHandler(this.app);
+      // this.app.use(Sentry.expressIntegration);
+      // this.app.use(Sentry.expressErrorHandler);
     } else {
       logger.info('[DeSci Repo] Telemetry disabled');
     }

@@ -67,6 +67,7 @@ class AppServer {
 
   constructor() {
     this.app = express();
+
     this.#initSerialiser();
 
     this.app.use(function (req, res, next) {
@@ -113,9 +114,6 @@ class AppServer {
       });
     });
 
-    this.#attachProxies();
-    this.#initTelemetry();
-
     this.app.use(helmet());
     this.app.use(bodyParser.json({ limit: '100mb' }));
     this.app.use(bodyParser.urlencoded({ extended: false }));
@@ -123,7 +121,14 @@ class AppServer {
     this.app.use(cookieParser());
     this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
+    // attach all app routes
     this.#attachRouteHandlers();
+
+    // init telementry
+    this.#initTelemetry();
+
+    // attach proxy routes
+    this.#attachProxies();
 
     // catch 404 errors and forward to error handler
     this.app.use((_req, _res, next) => next(new NotFoundError()));
