@@ -89,7 +89,12 @@ class AppServer {
       next();
     });
 
-    // // attach user info to every request
+    // Respond to probes before we do any other work on the request
+    this.app.get('/readyz', (_, res) => {
+      res.status(200).json({ status: 'ok' });
+    });
+
+    // attach user info to every request
     this.app.use(async (req: RequestWithUser, res, next) => {
       const token = await extractAuthToken(req);
 
@@ -155,9 +160,6 @@ class AppServer {
   }
 
   #attachRouteHandlers() {
-    this.app.get('/readyz', (_, res) => {
-      res.status(200).json({ status: 'ok' });
-    });
     this.app.get('/version', (req, res) => {
       const revision = child.execSync('git rev-parse HEAD').toString().trim();
       // const sha256 = child.execSync('find /app/desci-server/dist -type f -exec sha256sum \\;').toString().trim();
@@ -185,6 +187,9 @@ class AppServer {
     this.app.use(
       pinoHttp({
         logger,
+        autoLogging: {
+          ignore: (req) => req.url === "/readyz"
+        },
         customProps: (req: RequestWithUser, res) => ({
           userAuth: req.userAuth,
           traceId: (als.getStore() as any)?.traceId,
