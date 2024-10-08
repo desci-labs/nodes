@@ -35,26 +35,26 @@ export const createNodeDocument = async function (req: Request, res: Response) {
       { message: 'Init Document', time: Date.now() },
     );
 
-    logger.info({ peerId: backendRepo.networkSubsystem.peerId, uuid }, 'Document Created');
+    logger.trace({ peerId: backendRepo.networkSubsystem.peerId, uuid }, 'Document Created');
 
-    const document = await handle.doc();
+    // const document = await handle.doc();
 
-    logger.trace({ document: !!document }, 'Document Retrieved');
+    logger.trace({ handleReady: handle.isReady() }, 'Document Retrieved');
 
-    const node = await findNodeByUuid(uuid);
-    logger.trace({ node }, 'Node Retrieved');
+    // const node = await findNodeByUuid(uuid);
+    // logger.trace({ node }, 'Node Retrieved');
     // await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
-    const result = await query('UPDATE "Node" SET "manifestDocumentId" = $1 WHERE uuid = $2', [
-      handle.documentId,
-      uuid,
-    ]);
+    // const result = await query('UPDATE "Node" SET "manifestDocumentId" = $1 WHERE uuid = $2', [
+    //   handle.documentId,
+    //   uuid,
+    // ]);
 
-    logger.trace(
-      { node, uuid, documentId: handle.documentId, url: handle.url, isReady: handle.isReady() },
-      'Node Updated',
-    );
+    // logger.trace(
+    //   { node, uuid, documentId: handle.documentId, url: handle.url, isReady: handle.isReady() },
+    //   'Node Updated',
+    // );
 
-    logger.info({ result }, 'UPDATE DOCUMENT ID');
+    // logger.info({ result }, 'UPDATE DOCUMENT ID');
 
     res.status(200).send({ ok: true, documentId: handle.documentId, document });
 
