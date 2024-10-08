@@ -19,6 +19,7 @@ import data from './data.js';
 import doi from './doi.js';
 import log from './log.js';
 import nodes from './nodes.js';
+import notifications from './notifications.js';
 import pub from './pub.js';
 import referral from './referral.js';
 import search from './search.js';
@@ -60,6 +61,7 @@ router.use('/communities', communities);
 router.use('/attestations', attestations);
 router.use('/doi', doi);
 router.use('/search', search);
+router.use('/notifications', notifications);
 
 router.get('/nft/:id', nft);
 router.use('/referral', referral);
