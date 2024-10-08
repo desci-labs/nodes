@@ -43,7 +43,7 @@ function logMethodHooks(inputArgs, method) {
         callerFilePath = intermediate
           .split('(')[1]
           .split(')')[0]
-          .replace('file:///app/desci-server/src/', '')
+          .replace('file:///app/desci-repo/src/', '')
           .replace('file:///app/dist/', '');
       }
     } catch (err) {
@@ -89,6 +89,8 @@ function logMethodHooks(inputArgs, method) {
   }
 }
 
+const IS_PROD = process.env.NODE_ENV === 'production';
+
 export const logger = pino({
   level: logLevel,
   serializers: {
@@ -97,12 +99,13 @@ export const logger = pino({
   hooks: {
     logMethod: logMethodHooks,
   },
-  transport:
-    process.env.NODE_ENV === 'production'
-      ? { targets: [] }
-      : {
+  ...(!IS_PROD
+    ? {
+        transport: {
           targets: [devTransport, fileTransport],
         },
+      }
+    : {}),
   redact: {
     paths: [
       'req.headers.cookie',
@@ -137,25 +140,16 @@ function omitBuffer(array) {
 }
 
 type RejectionPayload = {
-  reason: unknown,
-  promise: Promise<unknown>,
+  reason: unknown;
+  promise: Promise<unknown>;
 };
 
-const shutdownNicely = async (
-  err: Error | RejectionPayload,
-  kind: string
-): Promise<void> => {
+const shutdownNicely = async (err: Error | RejectionPayload, kind: string): Promise<void> => {
   await pool.end();
   logger.fatal(err, kind);
   process.exit(1);
 };
 
-process.on(
-  'uncaughtException',
-  e => shutdownNicely(e, 'uncaughtException')
-);
+process.on('uncaughtException', (e) => shutdownNicely(e, 'uncaughtException'));
 
-process.on(
-  'unhandledRejection',
-  (reason, promise) => shutdownNicely({ reason, promise }, 'unhandledRejection')
-);
+process.on('unhandledRejection', (reason, promise) => shutdownNicely({ reason, promise }, 'unhandledRejection'));
