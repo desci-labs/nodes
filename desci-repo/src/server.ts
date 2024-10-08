@@ -1,14 +1,36 @@
 // @ts-check
-import express from 'express';
-import type { Express, Request } from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-
 import 'dotenv/config';
 import 'reflect-metadata';
 import path from 'path';
 
 import * as Sentry from '@sentry/node';
+import { als, logger } from './logger.js';
+
+const ENABLE_TELEMETRY = true; // process.env.NODE_ENV === 'production';
+const IS_DEV = !ENABLE_TELEMETRY;
+
+if (ENABLE_TELEMETRY) {
+  logger.info('[DeSci Repo] Telemetry enabled');
+  Sentry.init({
+    dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
+    release: 'desci-nodes-repo@' + process.env.npm_package_version,
+    integrations: [nodeProfilingIntegration()],
+    // Set tracesSampleRate to 1.0 to capture 100%
+    // of transactions for performance monitoring.
+    // We recommend adjusting this value in production
+    tracesSampleRate: 1.0,
+    profilesSampleRate: 1.0,
+  });
+  // Sentry.setupExpressErrorHandler(this.app);
+} else {
+  logger.info('[DeSci Repo] Telemetry disabled');
+}
+
+import express from 'express';
+import type { Express, Request } from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+
 import type { Server as HttpServer } from 'http';
 import { v4 } from 'uuid';
 
@@ -17,7 +39,7 @@ import routes from './routes/index.js';
 
 import { fileURLToPath } from 'url';
 import { socket as wsSocket } from './repo.js';
-import { als, logger } from './logger.js';
+
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import { pinoHttp } from 'pino-http';
 import { RequestWithUser } from './middleware/guard.js';
@@ -25,9 +47,6 @@ import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
-const IS_DEV = !ENABLE_TELEMETRY;
 
 const serverUuid = v4();
 
@@ -203,21 +222,17 @@ class AppServer {
   #initTelemetry() {
     if (ENABLE_TELEMETRY) {
       logger.info('[DeSci Repo] Telemetry enabled');
-      Sentry.init({
-        dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
-        release: 'desci-nodes-repo@' + process.env.npm_package_version,
-        integrations: [nodeProfilingIntegration()],
-        // Set tracesSampleRate to 1.0 to capture 100%
-        // of transactions for performance monitoring.
-        // We recommend adjusting this value in production
-        tracesSampleRate: 1.0,
-        profilesSampleRate: 1.0,
-      });
-      // this.app.use(Sentry.Handlers.requestHandler());
-      Sentry.addIntegration(Sentry.expressIntegration);
+      // Sentry.init({
+      //   dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
+      //   release: 'desci-nodes-repo@' + process.env.npm_package_version,
+      //   integrations: [nodeProfilingIntegration()],
+      //   // Set tracesSampleRate to 1.0 to capture 100%
+      //   // of transactions for performance monitoring.
+      //   // We recommend adjusting this value in production
+      //   tracesSampleRate: 1.0,
+      //   profilesSampleRate: 1.0,
+      // });
       Sentry.setupExpressErrorHandler(this.app);
-      // this.app.use(Sentry.expressIntegration);
-      // this.app.use(Sentry.expressErrorHandler);
     } else {
       logger.info('[DeSci Repo] Telemetry disabled');
     }
