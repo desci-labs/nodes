@@ -5725,6 +5725,44 @@
     "@sentry/types" "8.32.0"
     "@sentry/utils" "8.32.0"
 
+"@sentry/node@8.29.0":
+  version "8.29.0"
+  resolved "https://registry.yarnpkg.com/@sentry/node/-/node-8.29.0.tgz#6e462b8802356a630c56733dc795a4035464c4ab"
+  integrity sha512-RCKpWR6DUWmlxtms10MRXwJZRrFt1a2P38FjwEEahcdcK1R6wB8GPf0GO4JnJAiw6oeM0MERSqLIcSLT8+FxtA==
+  dependencies:
+    "@opentelemetry/api" "^1.9.0"
+    "@opentelemetry/context-async-hooks" "^1.25.1"
+    "@opentelemetry/core" "^1.25.1"
+    "@opentelemetry/instrumentation" "^0.53.0"
+    "@opentelemetry/instrumentation-connect" "0.39.0"
+    "@opentelemetry/instrumentation-express" "0.42.0"
+    "@opentelemetry/instrumentation-fastify" "0.39.0"
+    "@opentelemetry/instrumentation-fs" "0.15.0"
+    "@opentelemetry/instrumentation-generic-pool" "0.39.0"
+    "@opentelemetry/instrumentation-graphql" "0.43.0"
+    "@opentelemetry/instrumentation-hapi" "0.41.0"
+    "@opentelemetry/instrumentation-http" "0.53.0"
+    "@opentelemetry/instrumentation-ioredis" "0.43.0"
+    "@opentelemetry/instrumentation-koa" "0.43.0"
+    "@opentelemetry/instrumentation-mongodb" "0.47.0"
+    "@opentelemetry/instrumentation-mongoose" "0.42.0"
+    "@opentelemetry/instrumentation-mysql" "0.41.0"
+    "@opentelemetry/instrumentation-mysql2" "0.41.0"
+    "@opentelemetry/instrumentation-nestjs-core" "0.40.0"
+    "@opentelemetry/instrumentation-pg" "0.44.0"
+    "@opentelemetry/instrumentation-redis-4" "0.42.0"
+    "@opentelemetry/resources" "^1.25.1"
+    "@opentelemetry/sdk-trace-base" "^1.25.1"
+    "@opentelemetry/semantic-conventions" "^1.25.1"
+    "@prisma/instrumentation" "5.19.1"
+    "@sentry/core" "8.29.0"
+    "@sentry/opentelemetry" "8.29.0"
+    "@sentry/types" "8.29.0"
+    "@sentry/utils" "8.29.0"
+    import-in-the-middle "^1.11.0"
+  optionalDependencies:
+    opentelemetry-instrumentation-fetch-node "1.2.3"
+
 "@sentry/node@8.32.0":
   version "8.32.0"
   resolved "https://registry.yarnpkg.com/@sentry/node/-/node-8.32.0.tgz#68822b3246fb2ed7418f21795ed539a18058cfa8"
@@ -5765,44 +5803,6 @@
     "@sentry/utils" "8.32.0"
     import-in-the-middle "^1.11.0"
 
-"@sentry/node@^8.29.0":
-  version "8.29.0"
-  resolved "https://registry.yarnpkg.com/@sentry/node/-/node-8.29.0.tgz#6e462b8802356a630c56733dc795a4035464c4ab"
-  integrity sha512-RCKpWR6DUWmlxtms10MRXwJZRrFt1a2P38FjwEEahcdcK1R6wB8GPf0GO4JnJAiw6oeM0MERSqLIcSLT8+FxtA==
-  dependencies:
-    "@opentelemetry/api" "^1.9.0"
-    "@opentelemetry/context-async-hooks" "^1.25.1"
-    "@opentelemetry/core" "^1.25.1"
-    "@opentelemetry/instrumentation" "^0.53.0"
-    "@opentelemetry/instrumentation-connect" "0.39.0"
-    "@opentelemetry/instrumentation-express" "0.42.0"
-    "@opentelemetry/instrumentation-fastify" "0.39.0"
-    "@opentelemetry/instrumentation-fs" "0.15.0"
-    "@opentelemetry/instrumentation-generic-pool" "0.39.0"
-    "@opentelemetry/instrumentation-graphql" "0.43.0"
-    "@opentelemetry/instrumentation-hapi" "0.41.0"
-    "@opentelemetry/instrumentation-http" "0.53.0"
-    "@opentelemetry/instrumentation-ioredis" "0.43.0"
-    "@opentelemetry/instrumentation-koa" "0.43.0"
-    "@opentelemetry/instrumentation-mongodb" "0.47.0"
-    "@opentelemetry/instrumentation-mongoose" "0.42.0"
-    "@opentelemetry/instrumentation-mysql" "0.41.0"
-    "@opentelemetry/instrumentation-mysql2" "0.41.0"
-    "@opentelemetry/instrumentation-nestjs-core" "0.40.0"
-    "@opentelemetry/instrumentation-pg" "0.44.0"
-    "@opentelemetry/instrumentation-redis-4" "0.42.0"
-    "@opentelemetry/resources" "^1.25.1"
-    "@opentelemetry/sdk-trace-base" "^1.25.1"
-    "@opentelemetry/semantic-conventions" "^1.25.1"
-    "@prisma/instrumentation" "5.19.1"
-    "@sentry/core" "8.29.0"
-    "@sentry/opentelemetry" "8.29.0"
-    "@sentry/types" "8.29.0"
-    "@sentry/utils" "8.29.0"
-    import-in-the-middle "^1.11.0"
-  optionalDependencies:
-    opentelemetry-instrumentation-fetch-node "1.2.3"
-
 "@sentry/opentelemetry@8.29.0":
   version "8.29.0"
   resolved "https://registry.yarnpkg.com/@sentry/opentelemetry/-/opentelemetry-8.29.0.tgz#6ae54c640155925fc42ac86f37d125f9bb983794"
@@ -5821,7 +5821,7 @@
     "@sentry/types" "8.32.0"
     "@sentry/utils" "8.32.0"
 
-"@sentry/profiling-node@^8.32.0":
+"@sentry/profiling-node@8.32.0":
   version "8.32.0"
   resolved "https://registry.yarnpkg.com/@sentry/profiling-node/-/profiling-node-8.32.0.tgz#cb4bf0512dc7a6f0a9058529f3c4dbb8963a597d"
   integrity sha512-wKE2JAvDM3DjVNFKd2YLzwhXFS3SurLxDPpvA1EjMQ9Me7sR5ssO9jFn3e6et5oT3e3EzGDyTfbrJ81BNQuZhQ==
@@ -12071,9 +12071,9 @@ import-in-the-middle@1.7.1:
     module-details-from-path "^1.0.3"
 
 import-in-the-middle@^1.11.0, import-in-the-middle@^1.8.1:
-  version "1.11.0"
-  resolved "https://registry.yarnpkg.com/import-in-the-middle/-/import-in-the-middle-1.11.0.tgz#a94c4925b8da18256cde3b3b7b38253e6ca5e708"
-  integrity sha512-5DimNQGoe0pLUHbR9qK84iWaWjjbsxiqXnw6Qz64+azRgleqv9k2kTt5fw7QsOpmaGYtuxxursnPPsnTKEx10Q==
+  version "1.11.2"
+  resolved "https://registry.yarnpkg.com/import-in-the-middle/-/import-in-the-middle-1.11.2.tgz#dd848e72b63ca6cd7c34df8b8d97fc9baee6174f"
+  integrity sha512-gK6Rr6EykBcc6cVWRSBR5TWf8nn6hZMYSRYqCcHa0l0d1fPK7JSYo6+Mlmck76jIX9aL/IZ71c06U2VpFwl1zA==
   dependencies:
     acorn "^8.8.2"
     acorn-import-attributes "^1.9.5"
