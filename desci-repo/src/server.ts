@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
-const ENABLE_TELEMETRY = true; //process.env.NODE_ENV === 'production';
+const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
 const IS_DEV = !ENABLE_TELEMETRY;
 
 // @ts-check
