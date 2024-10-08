@@ -69,10 +69,8 @@
   },
   "dependencies": {
     "@desci-labs/desci-models": "0.2.11",
-    "@sentry/node": "^8.29.0",
-    "@sentry/profiling-node": "^8.32.0",
+    "@sentry/node": "7.84.0",
     "@sentry/tracing": "^7.84.0",
-    "async_hooks": "^1.0.0",
     "axios": "^1.6.2",
     "cors": "^2.8.5",
     "deep-equal": "^2.2.3",
