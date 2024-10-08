@@ -1,7 +1,8 @@
-import './instrument.js';
+// import './instrument.js';
 import * as Sentry from '@sentry/node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
-const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
+const ENABLE_TELEMETRY = true; //process.env.NODE_ENV === 'production';
 const IS_DEV = !ENABLE_TELEMETRY;
 
 // @ts-check
@@ -109,6 +110,9 @@ class AppServer {
       });
     });
 
+    // init telementry
+    this.#initTelemetry();
+
     this.app.use(bodyParser.json({ limit: '100mb' }));
     this.app.use(bodyParser.urlencoded({ extended: false }));
 
@@ -124,9 +128,6 @@ class AppServer {
     this.app.get('/id', (_, res) => {
       res.status(200).json({ id: serverUuid });
     });
-
-    // init telementry
-    this.#initTelemetry();
 
     this.port = process.env.PORT ? parseInt(process.env.PORT) : 5484;
     logger.info(`Server starting on port ${this.port}`);
@@ -202,10 +203,21 @@ class AppServer {
     );
   }
 
-  async #initTelemetry() {
+  #initTelemetry() {
     if (ENABLE_TELEMETRY) {
       logger.info('[DeSci Repo] Telemetry enabled');
-      Sentry.setupExpressErrorHandler(this.app);
+      Sentry.init({
+        dsn: 'https://d508a5c408f34b919ccd94aac093e076@o1330109.ingest.sentry.io/6619754',
+        release: 'desci-nodes-repo@' + process.env.npm_package_version,
+        integrations: [nodeProfilingIntegration()],
+        // Set tracesSampleRate to 1.0 to capture 100%
+        // of transactions for performance monitoring.
+        // We recommend adjusting this value in production
+        tracesSampleRate: 1.0,
+        profilesSampleRate: 1.0,
+      });
+      // Sentry.setupExpressErrorHandler(this.app);
+      this.app.use(Sentry.expressErrorHandler());
     } else {
       logger.info('[DeSci Repo] Telemetry disabled');
     }
