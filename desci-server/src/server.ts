@@ -8,7 +8,7 @@ import type { Server as HttpServer } from 'http';
 
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
-import * as Tracing from '@sentry/tracing';
+// import * as Tracing from '@sentry/tracing';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
@@ -193,7 +193,7 @@ class AppServer {
       pinoHttp({
         logger,
         autoLogging: {
-          ignore: (req) => req.url === "/readyz"
+          ignore: (req) => req.url === '/readyz',
         },
         customProps: (req: RequestWithUser, res) => ({
           userAuth: req.userAuth,
