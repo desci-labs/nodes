@@ -91,3 +91,31 @@ export const createUserNotification = async (data: CreateNotificationData): Prom
 
   return notification;
 };
+
+export const updateUserNotification = async (
+  notificationId: number,
+  userId: number,
+  dismissed: boolean,
+): Promise<UserNotifications> => {
+  const notification = await prisma.userNotifications.findUnique({
+    where: { id: notificationId },
+  });
+
+  if (!notification) {
+    logger.warn({ notificationId }, 'Notification not found');
+    throw new Error('Notification not found');
+  }
+
+  if (notification.userId !== userId) {
+    logger.warn({ notificationId, userId }, 'Notification does not belong to the user');
+    throw new Error('Notification does not belong to the user');
+  }
+
+  const updatedNotification = await prisma.userNotifications.update({
+    where: { id: notificationId },
+    data: { dismissed },
+  });
+
+  logger.info({ notificationId: updatedNotification.id }, 'User notification updated successfully');
+  return updatedNotification;
+};
