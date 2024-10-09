@@ -4,8 +4,9 @@ import { z } from 'zod';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getUserNotifications } from '../../services/NotificationService.js';
 
-const GetNotificationsQuerySchema = z.object({
+export const GetNotificationsQuerySchema = z.object({
   page: z.string().regex(/^\d+$/).transform(Number).optional().default('1'),
   perPage: z.string().regex(/^\d+$/).transform(Number).optional().default('25'),
   dismissed: z
@@ -32,7 +33,7 @@ export interface ErrorResponse {
   details?: z.ZodIssue[] | string;
 }
 
-export const getUserNotifications = async (
+export const list = async (
   req: AuthenticatedRequest & { query: z.infer<typeof GetNotificationsQuerySchema> },
   res: Response<PaginatedResponse<UserNotifications> | ErrorResponse>,
 ) => {
@@ -41,54 +42,35 @@ export const getUserNotifications = async (
     userId: req.user?.id,
     query: req.query,
   });
-
   logger.info('Fetching user notifications');
 
   try {
     if (!req.user) {
       logger.warn('Unauthorized, check middleware');
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthorized' } as ErrorResponse);
     }
 
     const { id: userId } = req.user;
-    const { page, perPage, dismissed = false } = GetNotificationsQuerySchema.parse(req.query);
+    const query = GetNotificationsQuerySchema.parse(req.query);
 
-    const skip = (page - 1) * perPage;
+    const notifs = await getUserNotifications(userId, query);
 
-    const whereClause = {
-      userId,
-      dismissed,
-    };
-
-    const [notifications, totalItems] = await Promise.all([
-      prisma.userNotifications.findMany({
-        where: whereClause,
-        skip,
-        take: perPage,
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.userNotifications.count({ where: whereClause }),
-    ]);
-
-    const totalPages = Math.ceil(totalItems / perPage);
-
-    const response: PaginatedResponse<UserNotifications> = {
-      data: notifications,
-      pagination: {
-        currentPage: page,
-        totalPages,
-        totalItems,
+    logger.info(
+      {
+        totalItems: notifs.pagination.totalItems,
+        page: notifs.pagination.currentPage,
+        totalPages: notifs.pagination.totalPages,
       },
-    };
+      'Successfully fetched user notifications',
+    );
 
-    logger.info({ totalItems, page, totalPages }, 'Successfully fetched user notifications');
-    return res.status(200).json(response);
+    return res.status(200).json(notifs);
   } catch (error) {
     if (error instanceof z.ZodError) {
       logger.warn({ error: error.errors }, 'Invalid request parameters');
-      return res.status(400).json({ error: 'Invalid request parameters', details: error.errors });
+      return res.status(400).json({ error: 'Invalid request parameters', details: error.errors } as ErrorResponse);
     }
     logger.error({ error }, 'Error fetching user notifications');
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' } as ErrorResponse);
   }
 };
