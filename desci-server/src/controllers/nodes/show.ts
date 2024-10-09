@@ -87,12 +87,20 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
     try {
       gatewayUrl = cleanupManifestUrl(gatewayUrl, req.query?.g as string);
       logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
-      (discovery as any).manifestData = transformManifestWithHistory((await axios.get(gatewayUrl)).data, discovery);
+
+      // this can take >30s before it resolves or
+      // even fail after a much longer time there by causing the slow loading of nodes
+      // and a lot of failing `*.loggedIn` test in
+      (discovery as any).manifestData = transformManifestWithHistory(
+        (await axios.get(gatewayUrl, { timeout: 2000 })).data,
+        discovery,
+      );
       // Add draft manifest document
       const nodeUuid = ensureUuidEndsWithDot(uuid) as NodeUuid;
+      // for draft nodes we can do this asynchronously on the frontend
       const manifest = await repoService.getDraftManifest(nodeUuid);
 
-      logger.info({ manifest }, '[SHOW API GET DRAFT MANIFEST]');
+      logger.info({ manifest: !!manifest }, '[SHOW API GET DRAFT MANIFEST]');
 
       if (manifest) (discovery as any).manifestData = transformManifestWithHistory(manifest, discovery);
       delete (discovery as any).restBody;
