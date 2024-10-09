@@ -37,7 +37,7 @@ export const createNodeDocument = async function (req: Request, res: Response) {
 
     logger.trace({ peerId: backendRepo.networkSubsystem.peerId, uuid }, 'Document Created');
 
-    // const document = await handle.doc();
+    const document = await handle.doc();
 
     logger.trace({ handleReady: handle.isReady() }, 'Document Retrieved');
 
@@ -68,15 +68,16 @@ export const createNodeDocument = async function (req: Request, res: Response) {
 export const getLatestNodeManifest = async function (req: Request, res: Response) {
   const logger = parentLogger.child({ module: 'getLatestNodeManifest', params: req.params });
   logger.trace('getLatestNodeManifest');
+  const { uuid, documentId } = req.params;
 
+  // todo: add support for documentId params and skip querying node
   try {
-    if (!req.params.uuid) {
+    if (!uuid) {
       res.status(400).send({ ok: false, message: 'Invalid data' });
       logger.trace('No UUID FOUND');
       return;
     }
 
-    const { uuid } = req.params;
     const node = await findNodeByUuid(ensureUuidEndsWithDot(uuid));
     logger.trace({ node }, 'Retrieve Node');
 

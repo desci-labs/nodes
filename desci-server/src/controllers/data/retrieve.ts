@@ -14,6 +14,7 @@ import redisClient, { getOrCache } from '../../redisClient.js';
 import { getLatestDriveTime } from '../../services/draftTrees.js';
 import { getDatasetTar } from '../../services/ipfs.js';
 import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import { showNodeDraftManifest } from '../../services/nodeManager.js';
 import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
@@ -94,7 +95,7 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   }
 
   try {
-    const manifest = await getLatestManifestFromNode(node);
+    const manifest = await showNodeDraftManifest(node); // getLatestManifestFromNode(node);
     const filledTree = (await getTreeAndFill(manifest, uuid, ownerId)) ?? [];
     const latestDriveClock = getLatestDriveTime(node.uuid as NodeUuid);
 
