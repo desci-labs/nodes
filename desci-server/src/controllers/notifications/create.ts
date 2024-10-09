@@ -61,6 +61,10 @@ export const createNotification = async (
         logger.warn({ error }, 'Node does not belong to the user');
         return res.status(403).json({ error: 'Node does not belong to the user' } as ErrorResponse);
       }
+      if (error.message === 'Notification type is disabled for this user') {
+        logger.warn({ error }, 'Notification type is disabled for this user');
+        return res.status(403).json({ error: 'Notification type is disabled for this user' } as ErrorResponse);
+      }
     }
     logger.error({ error }, 'Error creating user notification');
     return res.status(500).json({ error: 'Internal server error' } as ErrorResponse);

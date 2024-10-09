@@ -1,4 +1,4 @@
-import { NotificationType, Prisma, UserNotifications } from '@prisma/client';
+import { NotificationType, Prisma, User, UserNotifications } from '@prisma/client';
 import { z } from 'zod';
 
 import { prisma } from '../client.js';
@@ -12,6 +12,8 @@ export type CreateNotificationData = z.infer<typeof CreateNotificationSchema>;
 const logger = parentLogger.child({
   module: 'UserNotifications::NotificationService',
 });
+
+export type NotificationSettings = Partial<Record<NotificationType, boolean>>;
 
 export const getUserNotifications = async (
   userId: number,
@@ -48,6 +50,13 @@ export const getUserNotifications = async (
 
 export const createUserNotification = async (data: CreateNotificationData): Promise<UserNotifications> => {
   logger.info({ data }, 'Creating user notification');
+
+  const settings = await getNotificationSettings(data.userId);
+
+  if (!shouldSendNotification(settings, data.type)) {
+    logger.warn({ userId: data.userId, type: data.type }, 'Notification creation blocked by user settings');
+    throw new Error('Notification type is disabled for this user');
+  }
 
   if (data.nodeUuid) {
     // Validate node belongs to user
@@ -118,4 +127,43 @@ export const updateUserNotification = async (
 
   logger.info({ notificationId: updatedNotification.id }, 'User notification updated successfully');
   return updatedNotification;
+};
+
+export const updateNotificationSettings = async (userId: number, newSettings: NotificationSettings): Promise<User> => {
+  logger.info({ userId, newSettings }, 'Updating user notification settings');
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { notificationSettings: true },
+  });
+
+  const currentSettings = (user?.notificationSettings as NotificationSettings) || {};
+  const mergedSettings = { ...currentSettings, ...newSettings };
+
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      notificationSettings: mergedSettings as Prisma.JsonObject,
+    },
+  });
+
+  logger.info({ userId, mergedSettings }, 'User notification settings updated successfully');
+  return updatedUser;
+};
+
+/*
+ ** A JSON object stored on the User model, if <NotificationType> is set to false, the user will not receive notifications of that type,
+ ** otherwise, they will receive notifications of that type. Note: Undefined types will default to true.
+ */
+export const getNotificationSettings = async (userId: number): Promise<NotificationSettings> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { notificationSettings: true },
+  });
+
+  return (user?.notificationSettings as NotificationSettings) || {};
+};
+
+export const shouldSendNotification = (settings: NotificationSettings, type: NotificationType): boolean => {
+  return settings[type] !== false;
 };
