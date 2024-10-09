@@ -482,7 +482,10 @@ export const showNodeDraftManifest = async (node: Node, ipfsFallbackUrl?: string
   // Add draft manifest document
   const nodeUuid = ensureUuidEndsWithDot(node.uuid) as NodeUuid;
   // for draft nodes we can do this asynchronously on the frontend
-  const manifest = await repoService.getDraftManifest(nodeUuid);
+  const manifest = await repoService.getDraftManifest({
+    uuid: nodeUuid,
+    documentId: node.manifestDocumentId as DocumentId,
+  });
 
   logger.trace({ nodeUuid, manifestFound: !!manifest }, '[getNodeManifest] ==> repoService.getDraftManifest');
 

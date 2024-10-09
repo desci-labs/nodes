@@ -274,7 +274,9 @@ export async function processExternalUrlDataToIpfs({
       }
     }
 
-    updatedManifest = updatedManifest ?? (await repoService.getDraftManifest(ltsNode.uuid as NodeUuid));
+    updatedManifest =
+      updatedManifest ??
+      (await repoService.getDraftManifest({ uuid: ltsNode.uuid as NodeUuid, documentId: ltsNode.manifestDocumentId }));
 
     // Update existing data references, add new data references.
     const upserts = await updateDataReferences({ node, user, updatedManifest });

@@ -100,15 +100,15 @@ class RepoService {
     }
   }
 
-  async getDraftDocument(arg: { uuid: NodeUuid; timeout?: number }) {
-    if (!arg.uuid) {
+  async getDraftDocument(arg: { uuid: NodeUuid; documentId?: string | DocumentId; timeout?: number }) {
+    if (!arg.uuid && !arg.documentId) {
       logger.warn({ arg }, 'Attempt to retrieve draft manifest for empty UUID');
       return null;
     }
     logger.info({ arg }, 'Retrieve Draft Document');
     try {
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
-        `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}`,
+        `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}?documentId=${arg.documentId}`,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
@@ -132,10 +132,18 @@ class RepoService {
     }
   }
 
-  async getDraftManifest(uuid: NodeUuid, timeout?: number) {
+  async getDraftManifest({
+    uuid,
+    timeout,
+    documentId,
+  }: {
+    uuid: NodeUuid;
+    documentId?: string | DocumentId;
+    timeout?: number;
+  }) {
     logger.info({ uuid }, 'Retrieve Draft Document');
     try {
-      const response = await this.getDraftDocument({ uuid, timeout });
+      const response = await this.getDraftDocument({ uuid, timeout, documentId });
       return response ? response.manifest : null;
     } catch (err) {
       logger.error({ err }, 'GET Draft manifest Error');

@@ -137,7 +137,10 @@ export async function processS3DataToIpfs({
     });
 
     // const ltsManifest = await getLatestManifestFromNode(ltsNode);
-    let updatedManifest = await repoService.getDraftManifest(ltsNode.uuid as NodeUuid);
+    let updatedManifest = await repoService.getDraftManifest({
+      uuid: ltsNode.uuid as NodeUuid,
+      documentId: ltsNode.manifestDocumentId,
+    });
 
     const { filteredFiles } = filterFirstNestings(pinResult.slice(0, -1));
 

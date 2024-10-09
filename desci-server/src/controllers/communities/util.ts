@@ -51,7 +51,10 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
 
     logger.info({ manifest }, '[SHOW API GET LAST PUBLISHED MANIFEST]');
   } catch (err) {
-    const manifest = await repoService.getDraftManifest(uuid as NodeUuid);
+    const manifest = await repoService.getDraftManifest({
+      uuid: node.uuid as NodeUuid,
+      documentId: node.manifestDocumentId,
+    });
     radar.manifest = manifest;
     logger.error({ err, manifestUrl: discovery.manifestUrl, gatewayUrl }, 'nodes/show.ts: failed to preload manifest');
   }
