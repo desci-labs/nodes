@@ -13,3 +13,8 @@ export * from './nodesCover.js';
 export * from './manager.js';
 export * from './metadata.js';
 export * from './doi.js';
+export * from './comments.js';
+export * from './sharedNodes.js';
+export * from './searchNodes.js';
+export * from './versionDetails.js';
+export * from './thumbnails.js';

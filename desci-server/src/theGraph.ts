@@ -11,7 +11,7 @@ const logger = parentLogger.child({
   module: 'GetIndexedResearchObjects',
 });
 
-const RESOLVER_URL = process.env.DPID_URL_OVERRIDE || getTargetDpidUrl();
+const RESOLVER_URL = getTargetDpidUrl();
 
 export type IndexedResearchObject = {
   /** Hex: Node UUID */

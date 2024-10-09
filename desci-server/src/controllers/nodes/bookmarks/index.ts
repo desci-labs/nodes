@@ -52,13 +52,11 @@ export const listBookmarkedNodes = async (
             uuid: true,
             dpidAlias: true,
             manifestUrl: true,
+            manifestDocumentId: true,
             // Get published versions, if any
             versions: {
               where: {
-                OR: [
-                  { transactionId: { not: null }},
-                  { commitId: { not: null }},
-                ],
+                OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
               },
             },
           },
@@ -70,14 +68,12 @@ export const listBookmarkedNodes = async (
 
     if (bookmarkedNodes?.length === 0) {
       return res.status(200).json({ ok: true, bookmarkedNodes: [] });
-    };
+    }
 
     const filledBookmarkedNodes = await Promise.all(
-      bookmarkedNodes.map(async ({ shareId, node}) => {
+      bookmarkedNodes.map(async ({ shareId, node }) => {
         const latestManifest = await getLatestManifestFromNode(node);
-        const manifestDpid = latestManifest.dpid
-          ? parseInt(latestManifest.dpid.id)
-          : undefined;
+        const manifestDpid = latestManifest.dpid ? parseInt(latestManifest.dpid.id) : undefined;
         const published = node.versions.length > 0;
 
         return {

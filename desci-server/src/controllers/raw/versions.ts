@@ -5,7 +5,7 @@ import { getIndexedResearchObjects, IndexedResearchObject } from '../../theGraph
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 const logger = parentLogger.child({
-  module: "RAW::versionsController"
+  module: 'RAW::versionsController',
 });
 
 /**
@@ -19,12 +19,10 @@ export const versions = async (req: Request, res: Response, next: NextFunction) 
     const { researchObjects } = await getIndexedResearchObjects([uuid]);
     result = researchObjects[0];
   } catch (err) {
-    logger.error(
-      { result, err }, `[ERROR] graph lookup fail ${err.message}`,
-    );
+    logger.error({ result, err }, `[ERROR] graph lookup fail ${err.message}`);
   }
   if (!result) {
-    logger.warn({ uuid, result }, "could not find indexed versions");
+    logger.warn({ uuid, result }, 'could not find indexed versions');
     res.status(404).send({ ok: false, msg: `could not locate uuid ${uuid}` });
     return;
   }

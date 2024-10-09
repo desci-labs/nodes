@@ -57,7 +57,10 @@ export const prepublish = async (req: RequestWithNode, res: Response<PrepublishR
       return res.status(403).json({ ok: false, error: 'Failed' });
     }
 
-    const manifest = await repoService.getDraftManifest(node.uuid as NodeUuid);
+    const manifest = await repoService.getDraftManifest({
+      uuid: node.uuid as NodeUuid,
+      documentId: node.manifestDocumentId,
+    });
 
     /**
      * Dagify and add DAGs to IPFS (No Files Pinned yet, just the folder structure added to IPFS (NOT PINNED!))
@@ -82,6 +85,7 @@ export const prepublish = async (req: RequestWithNode, res: Response<PrepublishR
       skipDuplicates: true,
     });
 
+    logger.info({ nodeFileTreeDagCid }, 'publishDraftComments::Root');
     logger.info(
       `[Prepublish DAG Skeleton Refs] Created ${createdPublicRefs.count} public data refs for node ${node.id}`,
     );

@@ -236,7 +236,7 @@ services:
     container_name: dpid_resolver
     # Uncomment and set to local repo path for tinkering
     # build:
-      # context: ~/dev/desci/dpid-resolver
+    #   context: ~/dev/desci/dpid-resolver
     environment:
       DPID_ENV: local
       OPTIMISM_RPC_URL: http://host.docker.internal:8545

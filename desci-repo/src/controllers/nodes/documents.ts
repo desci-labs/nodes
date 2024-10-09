@@ -35,26 +35,26 @@ export const createNodeDocument = async function (req: Request, res: Response) {
       { message: 'Init Document', time: Date.now() },
     );
 
-    logger.info({ peerId: backendRepo.networkSubsystem.peerId, uuid }, 'Document Created');
+    logger.trace({ peerId: backendRepo.networkSubsystem.peerId, uuid }, 'Document Created');
 
     const document = await handle.doc();
 
-    logger.trace({ document: !!document }, 'Document Retrieved');
+    logger.trace({ handleReady: handle.isReady() }, 'Document Retrieved');
 
-    const node = await findNodeByUuid(uuid);
-    logger.trace({ node }, 'Node Retrieved');
+    // const node = await findNodeByUuid(uuid);
+    // logger.trace({ node }, 'Node Retrieved');
     // await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
-    const result = await query('UPDATE "Node" SET "manifestDocumentId" = $1 WHERE uuid = $2', [
-      handle.documentId,
-      uuid,
-    ]);
+    // const result = await query('UPDATE "Node" SET "manifestDocumentId" = $1 WHERE uuid = $2', [
+    //   handle.documentId,
+    //   uuid,
+    // ]);
 
-    logger.trace(
-      { node, uuid, documentId: handle.documentId, url: handle.url, isReady: handle.isReady() },
-      'Node Updated',
-    );
+    // logger.trace(
+    //   { node, uuid, documentId: handle.documentId, url: handle.url, isReady: handle.isReady() },
+    //   'Node Updated',
+    // );
 
-    logger.info({ result }, 'UPDATE DOCUMENT ID');
+    // logger.info({ result }, 'UPDATE DOCUMENT ID');
 
     res.status(200).send({ ok: true, documentId: handle.documentId, document });
 
@@ -68,21 +68,45 @@ export const createNodeDocument = async function (req: Request, res: Response) {
 export const getLatestNodeManifest = async function (req: Request, res: Response) {
   const logger = parentLogger.child({ module: 'getLatestNodeManifest', params: req.params });
   logger.trace('getLatestNodeManifest');
+  const { uuid } = req.params;
+  const { documentId } = req.query;
+
+  const getDocument = async (documentId: DocumentId) => {
+    const automergeUrl = getAutomergeUrl(documentId);
+    const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+    logger.trace({ uuid, automergeUrl }, 'Document Handle retrieved');
+
+    logger.trace({ uuid, automergeUrl }, 'Get DOCUMENT');
+    const document = await handle.doc();
+    logger.trace({ uuid, automergeUrl }, 'DOCUMENT Retrieved');
+    return document;
+  };
 
   try {
-    if (!req.params.uuid) {
+    // todo: add support for documentId params and skip querying node
+    // fast track call if documentId is available
+    if (documentId) {
+      logger.trace({ documentId }, 'Fast track using documentId');
+      const document = await getDocument(documentId as DocumentId);
+      if (document) res.status(200).send({ ok: true, document });
+      logger.trace({ document: !!document }, 'Fast tracked call using documentId');
+      return;
+    }
+
+    // calls might never reach this place again now that documentId is
+    // used to fast track calls and skip database calls
+    if (!uuid) {
       res.status(400).send({ ok: false, message: 'Invalid data' });
       logger.trace('No UUID FOUND');
       return;
     }
 
-    const { uuid } = req.params;
     const node = await findNodeByUuid(ensureUuidEndsWithDot(uuid));
     logger.trace({ node }, 'Retrieve Node');
 
     if (!node) {
       logger.warn({ uuid }, `Node with uuid ${uuid} not found!`);
-      res.status(400).send({ ok: false, message: `Node with uuid ${uuid} not found!` });
+      res.status(404).send({ ok: false, message: `Node with uuid ${uuid} not found!` });
       return;
     }
 
@@ -91,15 +115,22 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
       'Node manifestDocumentId',
     );
 
-    const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
-    const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
-    logger.trace({ uuid, automergeUrl }, 'Document Handle retrieved');
+    // const automergeUrl = getAutomergeUrl(node.manifestDocumentId as DocumentId);
+    // const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+    // logger.trace({ uuid, automergeUrl }, 'Document Handle retrieved');
 
-    logger.trace({ uuid, automergeUrl }, 'Get DOCUMENT');
-    const document = await handle.doc();
-    logger.trace({ uuid, automergeUrl }, 'DOCUMENT Retrieved');
+    // logger.trace({ uuid, automergeUrl }, 'Get DOCUMENT');
+    // const document = await handle.doc();
+    // logger.trace({ uuid, automergeUrl }, 'DOCUMENT Retrieved');
 
-    logger.info({ manifest: document?.manifest, automergeUrl }, '[getLatestNodeManifest::END]');
+    if (!node.manifestDocumentId) {
+      res.status(404).send({ ok: false, message: `node: ${uuid} has no documentId: ${node.manifestDocumentId}` });
+      return;
+    }
+
+    const document = await getDocument(node.manifestDocumentId as DocumentId);
+
+    logger.info({ manifest: document?.manifest }, '[getLatestNodeManifest::END]');
     res.status(200).send({ ok: true, document });
   } catch (err) {
     logger.error({ err }, 'Error');

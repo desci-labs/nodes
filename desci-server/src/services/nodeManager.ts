@@ -1,16 +1,21 @@
+import { DocumentId } from '@automerge/automerge-repo';
 import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
-import { DataType, Prisma, PublicDataReference, User } from '@prisma/client';
+import { DataType, Node, Prisma, PublicDataReference, User } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from '../config/index.js';
+import { ForbiddenError, NodeUuid, NotFoundError } from '../internal.js';
 import { logger as parentLogger } from '../logger.js';
+import { getFromCache } from '../redisClient.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
+import { ResearchObjectDocument } from '../types/documents.js';
 import { generateDataReferences } from '../utils/dataRefTools.js';
-import { cleanupManifestUrl } from '../utils/manifest.js';
+import { cleanupManifestUrl, transformManifestWithHistory } from '../utils/manifest.js';
 import { hexToCid, randomUUID64, asyncMap, ensureUuidEndsWithDot } from '../utils.js';
 
 import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
+import repoService from './repoService.js';
 
 const ESTUARY_MIRROR_ID = 1;
 
@@ -442,4 +447,69 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
     logger.error({ error: e }, 'Error cacheNodeMetadata');
     return false;
   }
+};
+
+export const showNodeDraftManifest = async (node: Node, ipfsFallbackUrl?: string) => {
+  logger.trace('[getNodeManifest] ==> start');
+  const timeDifferenceInSeconds = getTimeDiffInSec(node.createdAt.toString());
+  logger.trace(
+    { timeDifferenceInSeconds, uuid: node.uuid, now: Date.now(), created: node.createdAt },
+    '[getNodeManifest] ==> timeDifferenceInSeconds',
+  );
+
+  const cachedDraftMetadata = (await getFromCache(`node-draft-${node.uuid}`)) as {
+    documentId: DocumentId;
+    document: ResearchObjectDocument;
+  };
+
+  logger.trace(
+    { timeDifferenceInSeconds, uuid: node.uuid, cachedDraftMetadata: !!cachedDraftMetadata },
+    '[getNodeManifest] ==> cachedDraftMetadata',
+  );
+
+  if (timeDifferenceInSeconds <= 30 && cachedDraftMetadata) {
+    logger.trace(
+      { timeDifferenceInSeconds, uuid: node.uuid, driveClock: cachedDraftMetadata.document.driveClock },
+      '[getNodeManifest] ==> Found cachedDraftetadata',
+    );
+    return cachedDraftMetadata.document.manifest;
+  }
+
+  logger.trace(
+    { timeDifferenceInSeconds, uuid: node.uuid, cachedDraftMetadata: !!cachedDraftMetadata },
+    '[getNodeManifest] ==> Fallback to repoService.getDraftManifest',
+  );
+  // Add draft manifest document
+  const nodeUuid = ensureUuidEndsWithDot(node.uuid) as NodeUuid;
+  // for draft nodes we can do this asynchronously on the frontend
+  const manifest = await repoService.getDraftManifest({
+    uuid: nodeUuid,
+    documentId: node.manifestDocumentId as DocumentId,
+  });
+
+  logger.trace({ nodeUuid, manifestFound: !!manifest }, '[getNodeManifest] ==> repoService.getDraftManifest');
+
+  if (manifest) return manifest;
+
+  logger.trace(
+    { uuid: node.uuid, cid: node.manifestUrl, ipfsFallbackUrl, timeout: 5000 },
+    '[getNodeManifest] ==> Fallback to IPFS Call',
+  );
+  const gatewayUrl = cleanupManifestUrl(node.manifestUrl, ipfsFallbackUrl);
+  const data = transformManifestWithHistory((await axios.get(gatewayUrl, { timeout: 5000 })).data, node);
+
+  logger.trace(
+    { uuid: node.uuid, cid: node.manifestUrl, ipfsFallbackUrl, manifest: !!data },
+    '[getNodeManifest] ==> Found manifest on IPFS',
+  );
+
+  logger.trace('[getNodeManifest] ==> end');
+  return data;
+};
+
+const getTimeDiffInSec = (date: string) => {
+  const now = Date.now();
+  const start = new Date(date).getTime();
+
+  return (now - start) / 1000;
 };
