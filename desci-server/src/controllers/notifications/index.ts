@@ -33,7 +33,7 @@ export interface ErrorResponse {
   details?: z.ZodIssue[] | string;
 }
 
-export const list = async (
+export const listUserNotifications = async (
   req: AuthenticatedRequest & { query: z.infer<typeof GetNotificationsQuerySchema> },
   res: Response<PaginatedResponse<UserNotifications> | ErrorResponse>,
 ) => {
