@@ -78,7 +78,10 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
       updatedManifest = response.manifest;
     } catch (err) {
       logger.error({ err }, 'Source: Rename Component Path');
-      updatedManifest = await repoService.getDraftManifest(node.uuid as NodeUuid);
+      updatedManifest = await repoService.getDraftManifest({
+        uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId,
+      });
       // return res.status(400).json({ error: 'failed' });
     }
 
@@ -119,7 +122,10 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
         updatedManifest = response?.manifest;
       } catch (err) {
         logger.error({ err }, 'Source: Rename Component');
-        updatedManifest = await repoService.getDraftManifest(node.uuid as NodeUuid);
+        updatedManifest = await repoService.getDraftManifest({
+          uuid: node.uuid as NodeUuid,
+          documentId: node.manifestDocumentId,
+        });
       }
     }
 

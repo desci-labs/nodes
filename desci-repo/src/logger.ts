@@ -90,8 +90,16 @@ function logMethodHooks(inputArgs, method) {
 }
 
 const IS_PROD = process.env.NODE_ENV === 'production';
-
+const transport = {
+  ...(!IS_PROD && {
+    transport: {
+      targets: [devTransport, fileTransport],
+    },
+  }),
+};
+console.log('[transport]', transport);
 export const logger = pino({
+  ...transport,
   level: logLevel,
   serializers: {
     files: omitBuffer,
@@ -99,13 +107,6 @@ export const logger = pino({
   hooks: {
     logMethod: logMethodHooks,
   },
-  ...(!IS_PROD
-    ? {
-        transport: {
-          targets: [devTransport, fileTransport],
-        },
-      }
-    : {}),
   redact: {
     paths: [
       'req.headers.cookie',

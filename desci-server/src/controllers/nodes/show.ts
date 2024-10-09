@@ -8,8 +8,9 @@ import { prisma } from '../../client.js';
 import { PUBLIC_IPFS_PATH } from '../../config/index.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
-import { NodeUuid } from '../../services/manifestRepo.js';
-import repoService from '../../services/repoService.js';
+// import { NodeUuid } from '../../services/manifestRepo.js';
+import { showNodeDraftManifest } from '../../services/nodeManager.js';
+// import repoService from '../../services/repoService.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -83,25 +84,33 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
       return;
     }
 
-    let gatewayUrl = discovery.manifestUrl;
+    // let gatewayUrl = discovery.manifestUrl;
     try {
-      gatewayUrl = cleanupManifestUrl(gatewayUrl, req.query?.g as string);
-      logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
-      (discovery as any).manifestData = transformManifestWithHistory((await axios.get(gatewayUrl)).data, discovery);
-      // Add draft manifest document
-      const nodeUuid = ensureUuidEndsWithDot(uuid) as NodeUuid;
-      const manifest = await repoService.getDraftManifest(nodeUuid);
+      // gatewayUrl = cleanupManifestUrl(gatewayUrl, req.query?.g as string);
+      // logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
 
-      logger.info({ manifest }, '[SHOW API GET DRAFT MANIFEST]');
+      // // this can take >30s before it resolves or
+      // // even fail after a much longer time there by causing the slow loading of nodes
+      // // and a lot of failing `*.loggedIn` test in
+      // (discovery as any).manifestData = transformManifestWithHistory(
+      //   (await axios.get(gatewayUrl, { timeout: 2000 })).data,
+      //   discovery,
+      // );
+      // // Add draft manifest document
+      // const nodeUuid = ensureUuidEndsWithDot(uuid) as NodeUuid;
+      // // for draft nodes we can do this asynchronously on the frontend
+      // const manifest = await repoService.getDraftManifest(nodeUuid);
 
-      if (manifest) (discovery as any).manifestData = transformManifestWithHistory(manifest, discovery);
-      delete (discovery as any).restBody;
-      logger.info({}, 'Retrive DraftManifest For /SHOW');
+      // logger.info({ manifest: !!manifest }, '[SHOW API GET DRAFT MANIFEST]');
+
+      // if (manifest) (discovery as any).manifestData = transformManifestWithHistory(manifest, discovery);
+      // delete (discovery as any).restBody;
+      // logger.info({}, 'Retrive DraftManifest For /SHOW');
+      logger.trace('[showNodeDraftManifest]::START');
+      (discovery as any).manifestData = await showNodeDraftManifest(discovery, req.query?.g as string);
+      logger.trace('[showNodeDraftManifest]::END');
     } catch (err) {
-      logger.error(
-        { err, manifestUrl: discovery.manifestUrl, gatewayUrl },
-        'nodes/show.ts: failed to preload manifest',
-      );
+      logger.error({ err }, 'nodes/show.ts: failed to preload manifest');
     }
 
     res.send({ ...discovery });

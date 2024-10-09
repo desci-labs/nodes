@@ -1,6 +1,6 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import { ResearchObjectV1, ManifestActions } from '@desci-labs/desci-models';
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 
 import { als, logger as parentLogger } from '../logger.js';
 import { ResearchObjectDocument } from '../types/documents.js';
@@ -16,6 +16,9 @@ class RepoService {
   #apiKey: string;
 
   baseUrl: string;
+
+  defaultTimeoutInMilliseconds: 5000;
+  timeoutErrorMessage = 'Timeout: Call to Repo service timed out';
 
   constructor() {
     if (!process.env.REPO_SERVICE_SECRET_KEY || !process.env.REPO_SERVER_URL)
@@ -97,19 +100,21 @@ class RepoService {
     }
   }
 
-  async getDraftDocument(arg: { uuid: NodeUuid }) {
-    if (!arg.uuid) {
+  async getDraftDocument(arg: { uuid: NodeUuid; documentId?: string | DocumentId; timeout?: number }) {
+    if (!arg.uuid && !arg.documentId) {
       logger.warn({ arg }, 'Attempt to retrieve draft manifest for empty UUID');
       return null;
     }
     logger.info({ arg }, 'Retrieve Draft Document');
     try {
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
-        `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}`,
+        `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}?documentId=${arg.documentId}`,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
           },
+          timeout: arg.timeout ?? this.defaultTimeoutInMilliseconds,
+          timeoutErrorMessage: this.timeoutErrorMessage,
         },
       );
       if (response.status === 200 && response.data.ok) {
@@ -118,17 +123,27 @@ class RepoService {
         return null;
       }
     } catch (err) {
+      const error = err as AxiosError;
+      if (error?.code === 'ECONNABORTED' || error?.message?.toLowerCase().includes('timeout')) {
+        logger.error({ error }, 'REPO_SERVICE_CALL_TIMEOUT');
+      }
       logger.error({ err }, 'GET Draft Document Error');
       return null;
     }
   }
 
-  async getDraftManifest(uuid: NodeUuid) {
+  async getDraftManifest({
+    uuid,
+    timeout,
+    documentId,
+  }: {
+    uuid: NodeUuid;
+    documentId?: string | DocumentId;
+    timeout?: number;
+  }) {
     logger.info({ uuid }, 'Retrieve Draft Document');
-    // try {} catch (err) {}
-    // uuid = ensureUuidEndsWithDot(uuid) as NodeUuid;
     try {
-      const response = await this.getDraftDocument({ uuid });
+      const response = await this.getDraftDocument({ uuid, timeout, documentId });
       return response ? response.manifest : null;
     } catch (err) {
       logger.error({ err }, 'GET Draft manifest Error');
