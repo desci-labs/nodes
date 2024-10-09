@@ -10,6 +10,7 @@ const router = Router();
 
 router.get('/', [ensureUser], listUserNotifications);
 router.post('/', [ensureUser], createNotification);
+router.patch('/', [ensureUser], updateNotification); // Batch update route
 router.patch('/:notificationId', [ensureUser], updateNotification);
 router.patch('/settings', [ensureUser], updateSettings);
 

@@ -15,6 +15,11 @@ const logger = parentLogger.child({
 
 export type NotificationSettings = Partial<Record<NotificationType, boolean>>;
 
+export type NotificationUpdateData = {
+  dismissed?: boolean;
+  //   seen?: boolean; // future
+};
+
 export const getUserNotifications = async (
   userId: number,
   query: GetNotificationsQuery,
@@ -104,8 +109,10 @@ export const createUserNotification = async (data: CreateNotificationData): Prom
 export const updateUserNotification = async (
   notificationId: number,
   userId: number,
-  dismissed: boolean,
+  updateData: NotificationUpdateData,
 ): Promise<UserNotifications> => {
+  logger.info({ notificationId, userId, updateData }, 'Updating user notification');
+
   const notification = await prisma.userNotifications.findUnique({
     where: { id: notificationId },
   });
@@ -122,11 +129,30 @@ export const updateUserNotification = async (
 
   const updatedNotification = await prisma.userNotifications.update({
     where: { id: notificationId },
-    data: { dismissed },
+    data: updateData,
   });
 
   logger.info({ notificationId: updatedNotification.id }, 'User notification updated successfully');
   return updatedNotification;
+};
+
+export const batchUpdateUserNotifications = async (
+  notificationIds: number[],
+  userId: number,
+  updateData: NotificationUpdateData,
+): Promise<number> => {
+  logger.info({ notificationIds, userId, updateData }, 'Batch updating user notifications');
+
+  const result = await prisma.userNotifications.updateMany({
+    where: {
+      id: { in: notificationIds },
+      userId: userId,
+    },
+    data: updateData,
+  });
+
+  logger.info({ userId, count: result.count }, 'User notifications batch updated successfully');
+  return result.count;
 };
 
 export const updateNotificationSettings = async (userId: number, newSettings: NotificationSettings): Promise<User> => {

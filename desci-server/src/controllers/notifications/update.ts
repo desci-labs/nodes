@@ -3,11 +3,15 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 
 import { logger as parentLogger } from '../../logger.js';
-import { updateUserNotification } from '../../services/NotificationService.js';
+import { updateUserNotification, batchUpdateUserNotifications } from '../../services/NotificationService.js';
 
-export const UpdateNotificationSchema = z.object({
-  notificationId: z.number(),
-  dismissed: z.boolean(),
+const UpdateDataSchema = z.object({
+  dismissed: z.boolean().optional(),
+});
+
+const BatchUpdateSchema = z.object({
+  notificationIds: z.array(z.number()),
+  updateData: UpdateDataSchema,
 });
 
 interface AuthenticatedRequest extends Request {
@@ -19,16 +23,21 @@ export interface ErrorResponse {
   details?: z.ZodIssue[] | string;
 }
 
+type UpdateNotificationRequest = AuthenticatedRequest & {
+  params: { notificationId?: string };
+  body: z.infer<typeof UpdateDataSchema> | z.infer<typeof BatchUpdateSchema>;
+};
+
 export const updateNotification = async (
-  req: AuthenticatedRequest & { body: z.infer<typeof UpdateNotificationSchema> },
-  res: Response<UserNotifications | ErrorResponse>,
+  req: UpdateNotificationRequest,
+  res: Response<UserNotifications | { count: number } | ErrorResponse>,
 ) => {
   const logger = parentLogger.child({
     module: 'UserNotifications::UpdateNotification',
     userId: req.user?.id,
   });
 
-  logger.info({ body: req.body }, 'Updating user notification');
+  logger.info({ params: req.params, body: req.body }, 'Updating user notification(s)');
 
   try {
     if (!req.user) {
@@ -37,12 +46,21 @@ export const updateNotification = async (
     }
 
     const { id: userId } = req.user;
-    const { notificationId, dismissed } = UpdateNotificationSchema.parse(req.body);
 
-    const updatedNotification = await updateUserNotification(notificationId, userId, dismissed);
-
-    logger.info({ notificationId: updatedNotification.id }, 'Successfully updated user notification');
-    return res.status(200).json(updatedNotification);
+    if (req.params.notificationId) {
+      // Single update
+      const notificationId = parseInt(req.params.notificationId);
+      const updateData = UpdateDataSchema.parse(req.body);
+      const updatedNotification = await updateUserNotification(notificationId, userId, updateData);
+      logger.info({ notificationId: updatedNotification.id }, 'Successfully updated user notification');
+      return res.status(200).json(updatedNotification);
+    } else {
+      // Batch update
+      const { notificationIds, updateData } = BatchUpdateSchema.parse(req.body);
+      const count = await batchUpdateUserNotifications(notificationIds, userId, updateData);
+      logger.info({ count }, 'Successfully batch updated user notifications');
+      return res.status(200).json({ count });
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       logger.warn({ error: error.errors }, 'Invalid request parameters');
@@ -58,7 +76,7 @@ export const updateNotification = async (
         return res.status(403).json({ error: 'Notification does not belong to the user' } as ErrorResponse);
       }
     }
-    logger.error({ error }, 'Error updating user notification');
+    logger.error({ error }, 'Error updating user notification(s)');
     return res.status(500).json({ error: 'Internal server error' } as ErrorResponse);
   }
 };
