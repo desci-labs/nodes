@@ -18,7 +18,7 @@ export interface ErrorResponse {
 
 export const updateSettings = async (
   req: AuthenticatedRequest & { body: z.infer<typeof NotificationSettingsSchema> },
-  res: Response<User | ErrorResponse>,
+  res: Response<Record<NotificationType, boolean> | ErrorResponse>,
 ) => {
   const logger = parentLogger.child({
     module: 'UserNotifications::UpdateSettings',
@@ -34,9 +34,9 @@ export const updateSettings = async (
     const { id: userId } = req.user;
     const settings = NotificationSettingsSchema.parse(req.body);
 
-    const updatedUser = await updateNotificationSettings(userId, settings);
+    const newSettings = await updateNotificationSettings(userId, settings);
 
-    return res.status(200).json(updatedUser);
+    return res.status(200).json(newSettings);
   } catch (error) {
     if (error instanceof z.ZodError) {
       logger.warn({ error: error.errors }, 'Invalid request parameters');

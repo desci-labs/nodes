@@ -155,7 +155,10 @@ export const batchUpdateUserNotifications = async (
   return result.count;
 };
 
-export const updateNotificationSettings = async (userId: number, newSettings: NotificationSettings): Promise<User> => {
+export const updateNotificationSettings = async (
+  userId: number,
+  newSettings: NotificationSettings,
+): Promise<Record<NotificationType, boolean>> => {
   logger.info({ userId, newSettings }, 'Updating user notification settings');
 
   const user = await prisma.user.findUnique({
@@ -174,7 +177,7 @@ export const updateNotificationSettings = async (userId: number, newSettings: No
   });
 
   logger.info({ userId, mergedSettings }, 'User notification settings updated successfully');
-  return updatedUser;
+  return mergedSettings;
 };
 
 /*
