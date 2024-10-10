@@ -174,11 +174,6 @@ class CrossRefClient {
     }
   }
 
-  // check if there's a pending submission for a dpid
-  async getPendingSubmission(dpid: string) {
-    // todo: retrieve doi whose submission log is pending
-  }
-
   async registerDoi(query: {
     manifest: ResearchObjectV1;
     doi: string;

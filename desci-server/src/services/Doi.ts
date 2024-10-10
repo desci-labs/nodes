@@ -1,5 +1,5 @@
 import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
-import { DoiStatus, Prisma, PrismaClient } from '@prisma/client';
+import { DoiStatus, DoiSubmissionQueue, Prisma, PrismaClient } from '@prisma/client';
 import { v4 } from 'uuid';
 
 import {
@@ -164,7 +164,6 @@ export class DoiService {
 
     // only create doi if submission status is success
     const submission = await crossRefClient.addSubmissiontoQueue({
-      // doi: doiRecord.id,
       dpid,
       uuid: ensureUuidEndsWithDot(uuid),
       uniqueDoi: doi,
@@ -208,10 +207,33 @@ export class DoiService {
     });
   }
 
+  async getPendingSubmissions() {
+    return await this.dbClient.doiSubmissionQueue.findMany({
+      where: { status: DoiStatus.PENDING },
+    });
+  }
+
   async updateSubmission(
     filter: Prisma.DoiSubmissionQueueWhereInput,
     data: Prisma.DoiSubmissionQueueUncheckedUpdateManyInput,
   ) {
     return await this.dbClient.doiSubmissionQueue.updateMany({ where: filter, data });
+  }
+
+  async onRegistrationSuccessful(submission: DoiSubmissionQueue) {
+    const doiRecord = await this.dbClient.doiRecord.create({
+      data: {
+        uuid: submission.uuid,
+        dpid: submission.dpid,
+        doi: submission.uniqueDoi,
+      },
+    });
+    await this.updateSubmission(
+      { id: submission.id },
+      {
+        status: DoiStatus.SUCCESS,
+        doiRecordId: doiRecord.id,
+      },
+    );
   }
 }

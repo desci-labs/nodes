@@ -88,20 +88,7 @@ export const handleCrossrefNotificationCallback = async (
     if (response.success) {
       logger.info({ response, submission }, 'CREATE DOI ');
 
-      const doiRecord = await prisma.doiRecord.create({
-        data: {
-          uuid: submission.uuid,
-          dpid: submission.dpid,
-          doi: submission.uniqueDoi,
-        },
-      });
-      await doiService.updateSubmission(
-        { id: submission.id },
-        {
-          status: DoiStatus.SUCCESS,
-          doiRecordId: doiRecord.id,
-        },
-      );
+      await doiService.onRegistrationSuccessful(submission);
 
       // send discord notification
       discordNotify({
