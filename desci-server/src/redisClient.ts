@@ -3,6 +3,7 @@ import os from 'os';
 import { createClient } from 'redis';
 
 import { logger as parentLogger } from './logger.js';
+import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 
 const hostname = os.hostname();
 const logger = parentLogger.child({
@@ -151,6 +152,7 @@ process.on('exit', () => {
   logger.info('Process caught exit');
   lockService.freeLocks();
   redisClient.quit();
+  SubmissionQueueJob.stop();
 });
 
 // catches ctrl+c event

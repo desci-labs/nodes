@@ -85,6 +85,7 @@
     "body-parser": "^1.20.2",
     "concurrently": "^8.2.0",
     "cookie-parser": "^1.4.5",
+    "cron": "^3.1.7",
     "crypto": "^1.0.1",
     "ethers": "^5.6.9",
     "express": "^4.17.1",
