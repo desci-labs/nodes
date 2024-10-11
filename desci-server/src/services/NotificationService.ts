@@ -6,6 +6,7 @@ import { CreateNotificationSchema } from '../controllers/notifications/create.js
 import { GetNotificationsQuerySchema, PaginatedResponse } from '../controllers/notifications/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { server } from '../server.js';
+import { emitWebsocketEvent, WebSocketEventType } from '../utils/websocketHelpers.js';
 
 type GetNotificationsQuery = z.infer<typeof GetNotificationsQuerySchema>;
 export type CreateNotificationData = z.infer<typeof CreateNotificationSchema>;
@@ -54,14 +55,18 @@ export const getUserNotifications = async (
   };
 };
 
-export const createUserNotification = async (data: CreateNotificationData): Promise<UserNotifications> => {
+export const createUserNotification = async (
+  data: CreateNotificationData,
+  options?: { throwOnDisabled?: boolean },
+): Promise<UserNotifications | null> => {
   logger.info({ data }, 'Creating user notification');
 
   const settings = await getNotificationSettings(data.userId);
 
   if (!shouldSendNotification(settings, data.type)) {
     logger.warn({ userId: data.userId, type: data.type }, 'Notification creation blocked by user settings');
-    throw new Error('Notification type is disabled for this user');
+    if (options.throwOnDisabled) throw new Error('Notification type is disabled for this user');
+    return null;
   }
 
   if (data.nodeUuid) {
@@ -105,7 +110,7 @@ export const createUserNotification = async (data: CreateNotificationData): Prom
   logger.info({ notificationId: notification.id }, 'User notification created successfully');
 
   // Emit websocket push notification
-  server.io.to(`user-${data.userId}`).emit('notification', 'invalidate-cache');
+  emitWebsocketEvent(data.userId, { type: WebSocketEventType.NOTIFICATION, data: 'invalidate-cache' });
 
   return notification;
 };

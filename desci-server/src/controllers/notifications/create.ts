@@ -43,7 +43,7 @@ export const createNotification = async (
     const { id: userId } = req.user;
     const notificationData = CreateNotificationSchema.parse({ ...req.body, userId });
 
-    const notification = await createUserNotification(notificationData);
+    const notification = await createUserNotification(notificationData, { throwOnDisabled: true });
 
     logger.info({ notificationId: notification.id }, 'Successfully created user notification');
     return res.status(201).json(notification);
