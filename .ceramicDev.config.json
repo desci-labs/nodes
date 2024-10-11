@@ -1,5 +1,5 @@
 {
-  "anchor": { },
+  "anchor": {},
   "http-api": {
     "cors-allowed-origins": [
       ".*"
@@ -16,8 +16,8 @@
     "log-level": 2
   },
   "metrics": {
-    "metrics-exporter-enabled": false,
-    "metrics-port": 9090
+    "prometheus-exporter-enabled": true,
+    "prometheus-exporter-port": 9464
   },
   "network": {
     "name": "inmemory"
@@ -33,3 +33,4 @@
     "models": []
   }
 }
+

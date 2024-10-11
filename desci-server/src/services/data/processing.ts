@@ -137,7 +137,10 @@ export async function processS3DataToIpfs({
     });
 
     // const ltsManifest = await getLatestManifestFromNode(ltsNode);
-    let updatedManifest = await repoService.getDraftManifest(ltsNode.uuid as NodeUuid);
+    let updatedManifest = await repoService.getDraftManifest({
+      uuid: ltsNode.uuid as NodeUuid,
+      documentId: ltsNode.manifestDocumentId,
+    });
 
     const { filteredFiles } = filterFirstNestings(pinResult.slice(0, -1));
 
@@ -348,7 +351,7 @@ export function extractRootDagCidFromManifest(manifest: ResearchObjectV1, manife
 }
 
 export async function getManifestFromNode(
-  node: { manifestUrl: string, cid?: string },
+  node: { manifestUrl: string; cid?: string },
   queryString?: string,
 ): Promise<{ manifest: ResearchObjectV1; manifestCid: string }> {
   // debugger;
@@ -434,7 +437,7 @@ export async function pinNewFiles(files: any[], wrapWithDirectory = false): Prom
   if (structuredFilesForPinning.length) {
     if (structuredFilesForPinning.length) uploaded = await pinDirectory(structuredFilesForPinning, wrapWithDirectory);
     if (!uploaded.length) throw createIpfsUploadFailureError();
-    logger.info('[UPDATE DATASET] Pinned files: ', uploaded.length);
+    logger.info({ uploaded }, '[UPDATE DATASET] Pinned files: ');
   }
   return uploaded;
 }
@@ -746,5 +749,38 @@ export async function assignTypeMapInManifest(
   } catch (err) {
     logger.error(err, 'Error Caught in assignTypeMapInManifest');
     return manifest;
+  }
+}
+
+/**
+ * Proccesses regular file uploads, pins S3 files to IPFS, adds them to the end of the context DAG node, creates data references for them and updates the manifest.
+ */
+export async function processUploadToIpfs({
+  files,
+}: {
+  files:
+    | {
+        [fieldname: string]: Express.Multer.File[];
+      }
+    | Express.Multer.File[];
+}): Promise<Either<IpfsPinnedResult[], ProcessingError>> {
+  let pinResult: IpfsPinnedResult[] = [];
+  try {
+    const uploads = Array.isArray(files) ? files : Object.values(files).map((files) => files[0]);
+    // Pin new files, add draftNodeTree entries
+    pinResult = await pinNewFiles(uploads, false);
+    if (pinResult) {
+      logger.info({ pinResult }, 'Files uploaded to Ipfs');
+    }
+
+    return {
+      ok: true,
+      value: pinResult,
+    };
+    // SUCCESS
+  } catch (error) {
+    logger.error({ error }, 'Error processing S3 data to IPFS');
+    const controlledErr = 'type' in error ? error : createUnhandledError(error);
+    return { ok: false, value: controlledErr };
   }
 }

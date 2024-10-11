@@ -1,7 +1,7 @@
 import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { AnnotationType, Attestation, Prisma, User } from '@prisma/client';
+import { AnnotationType, Attestation, Node, Prisma, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import _ from 'lodash';
 
@@ -17,10 +17,13 @@ import {
   DuplicateReactionError,
   DuplicateVerificationError,
   NoAccessError,
+  NotFoundError,
   VerificationError,
   VerificationNotFoundError,
+  asyncMap,
   ensureUuidEndsWithDot,
   logger as parentLogger,
+  uuidPathRegex,
 } from '../internal.js';
 import { communityService } from '../internal.js';
 import { AttestationClaimedEmailHtml } from '../templates/emails/utils/emailRenderer.js';
@@ -74,7 +77,7 @@ export class AttestationService {
 
     const node = await prisma.node.findFirst({ where: { uuid: nodeUuid } });
     const publishedNodeVersions =
-      (await prisma.$queryRaw`SELECT COUNT(*) from "NodeVersion" where "nodeId" = ${node.id} AND "transactionId" IS NOT NULL`) as number;
+      (await prisma.$queryRaw`SELECT COUNT(*) from "NodeVersion" where "nodeId" = ${node.id} AND ("transactionId" IS NOT NULL or "commitId" IS NOT NULL)`) as number;
 
     if (nodeVersion >= publishedNodeVersions) {
       logger.warn({ nodeVersion, publishedNodeVersions }, 'Invalid Node version');
@@ -171,7 +174,10 @@ export class AttestationService {
     const attestation = await this.findAttestationById(attestationId);
 
     if (!attestation) throw new AttestationNotFoundError();
-
+    await prisma.attestation.update({
+      where: { id: attestationId },
+      data: { verified_image_url: data.verified_image_url },
+    });
     await this.#publishVersion({
       name: data.name as string,
       description: data.description,
@@ -236,6 +242,23 @@ export class AttestationService {
     });
   }
 
+  async removeCommunityEntryAttestation({
+    communityId,
+    attestationId,
+    attestationVersion: version,
+  }: {
+    communityId: number;
+    attestationId: number;
+    attestationVersion: number;
+  }) {
+    const existingSelection = await prisma.communityEntryAttestation.findFirst({
+      where: { desciCommunityId: communityId, attestationId, attestationVersionId: version },
+    });
+    if (!existingSelection) return null;
+
+    return await prisma.communityEntryAttestation.delete({ where: { id: existingSelection.id } });
+  }
+
   async getAllNodeAttestations(uuid: string) {
     return prisma.nodeAttestation.findMany({
       where: { nodeUuid: ensureUuidEndsWithDot(uuid), revoked: false },
@@ -294,6 +317,12 @@ export class AttestationService {
           select: { Annotation: true, NodeAttestationReaction: true, NodeAttestationVerification: true },
         },
       },
+    });
+  }
+
+  async getCommunityEntryAttestation(communityId: number, attestationId: number) {
+    return prisma.communityEntryAttestation.findFirst({
+      where: { desciCommunityId: communityId, attestationId, required: true },
     });
   }
 
@@ -554,21 +583,27 @@ export class AttestationService {
     authorId,
     comment,
     links,
+    uuid,
+    visible = true,
   }: {
-    claimId: number;
+    claimId?: number;
     authorId: number;
     comment: string;
     links: string[];
+    uuid?: string;
+    visible: boolean;
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
-    assert(claimId > 0, 'Error: claimId is zero');
+    claimId && assert(claimId > 0, 'Error: claimId is zero');
 
-    const claim = await this.findClaimById(claimId);
-    if (!claim) throw new ClaimNotFoundError();
+    if (claimId) {
+      const claim = await this.findClaimById(claimId);
+      if (!claim) throw new ClaimNotFoundError();
 
-    const attestation = await this.findAttestationById(claim.attestationId);
-    if (attestation.protected) {
-      await this.assertUserIsMember(authorId, attestation.communityId);
+      const attestation = await this.findAttestationById(claim.attestationId);
+      if (attestation.protected) {
+        await this.assertUserIsMember(authorId, attestation.communityId);
+      }
     }
 
     const data: Prisma.AnnotationUncheckedCreateInput = {
@@ -577,6 +612,8 @@ export class AttestationService {
       nodeAttestationId: claimId,
       body: comment,
       links,
+      uuid,
+      visible,
     };
     return this.createAnnotation(data);
   }
@@ -587,22 +624,28 @@ export class AttestationService {
     comment,
     highlights,
     links,
+    uuid,
+    visible,
   }: {
     claimId: number;
     authorId: number;
     comment: string;
     links: string[];
     highlights: HighlightBlock[];
+    uuid?: string;
+    visible: boolean;
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
-    assert(claimId > 0, 'Error: claimId is zero');
+    claimId && assert(claimId > 0, 'Error: claimId is zero');
 
-    const claim = await this.findClaimById(claimId);
-    if (!claim) throw new ClaimNotFoundError();
+    if (claimId) {
+      const claim = await this.findClaimById(claimId);
+      if (!claim) throw new ClaimNotFoundError();
 
-    const attestation = await this.findAttestationById(claim.attestationId);
-    if (attestation.protected) {
-      await this.assertUserIsMember(authorId, attestation.communityId);
+      const attestation = await this.findAttestationById(claim.attestationId);
+      if (attestation.protected) {
+        await this.assertUserIsMember(authorId, attestation.communityId);
+      }
     }
 
     const data: Prisma.AnnotationUncheckedCreateInput = {
@@ -612,8 +655,67 @@ export class AttestationService {
       body: comment,
       links,
       highlights: highlights.map((h) => JSON.stringify(h)),
+      uuid,
+      visible,
     };
     return this.createAnnotation(data);
+  }
+
+  /**
+   * Iterate on all hidden comments and check if highlights path
+   * have been published then update comment to become visible
+   */
+  async publishDraftComments({
+    userId,
+    node,
+    dpidAlias,
+    version,
+    rootCid,
+  }: {
+    userId: number;
+    node: Node;
+    dpidAlias: number;
+    version: number;
+    rootCid: string;
+  }) {
+    const dpidUrl = process.env.DPID_URL_OVERRIDE ?? 'https://beta.dpid.org';
+    const dpidPrefix = `${dpidUrl}/${dpidAlias}/v${version}`;
+
+    const comments = await prisma.annotation.findMany({ where: { uuid: node.uuid, visible: false } });
+    logger.info({ dpidPrefix, comments }, 'publishDraftComments');
+    const publishedComments = await asyncMap(comments, async (comment) => {
+      const highlights = (comment.highlights.map((h) => JSON.parse(h as string)) ?? []) as HighlightBlock[];
+
+      const transformed = await asyncMap(highlights, async (highlight) => {
+        const match = highlight.path.match(uuidPathRegex);
+        logger.info({ comment: comment.id, path: highlight.path, match: match?.groups }, 'publishDraftComments::Match');
+        if (!match?.groups?.path) return highlight;
+
+        const path = match.groups.path.startsWith('/root') ? match.groups.path.substring(1) : match.groups.path;
+        const publicPath = path.replace('root', rootCid);
+        const publishedPath = await prisma.publicDataReference.findFirst({
+          where: { userId, nodeId: node.id, path: publicPath },
+        });
+        if (!publishedPath) return highlight;
+
+        const transformedPath = `${dpidPrefix}/${path}`;
+        return { ...highlight, path: transformedPath };
+      });
+
+      return {
+        id: comment.id,
+        highlights: transformed.map((h) => JSON.stringify(h)),
+        visible: true,
+      } as Prisma.AnnotationUncheckedUpdateManyInput;
+    });
+
+    logger.info({ publishedComments }, 'publishDraftComments');
+
+    await prisma.$transaction(
+      publishedComments.map((comment) =>
+        prisma.annotation.update({ where: { id: comment.id as number }, data: comment }),
+      ),
+    );
   }
 
   async removeComment(commentId: number) {
@@ -688,6 +790,21 @@ export class AttestationService {
 
   // TODO: write raw sql query to optimize this
   async getAllClaimComments(filter: Prisma.AnnotationWhereInput) {
+    return prisma.annotation.findMany({
+      where: filter,
+      include: {
+        author: true,
+        attestation: {
+          include: {
+            attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },
+          },
+        },
+      },
+    });
+  }
+
+  async getComments(filter: Prisma.AnnotationWhereInput) {
+    logger.info({ filter }, 'GET COMMENTS');
     return prisma.annotation.findMany({
       where: filter,
       include: {

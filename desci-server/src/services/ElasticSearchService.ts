@@ -30,9 +30,9 @@ export const VALID_ENTITIES = [
  */
 export const RELEVANT_FIELDS = {
   works: ['title', 'abstract'],
-  authors: ['display_name', 'orcid', 'last_known_institution', 'authors.affiliation'],
+  authors: ['display_name', 'orcid', 'last_known_institution'],
   topics: ['display_name'],
-  subfields: ['subfield_display_name'],
+  fields: ['subfield_display_name'],
   concepts: ['display_name'],
   sources: ['display_name', 'publisher', 'issn_l', 'issn'],
   autocomplete_full: ['title', 'publisher', 'primary_id'],
@@ -61,8 +61,10 @@ export const RELEVANT_FIELDS = {
   ],
 };
 
+const NESTED_WORKS_ENTITIES = ['authors', 'best_locations', 'concepts', 'locations', 'topics', 'sources'];
+
 type SortOrder = 'asc' | 'desc';
-type SortField = { [field: string]: { order: SortOrder; missing?: string; type?: string; script?: any } };
+type SortField = { [field: string]: { order: SortOrder; missing?: string | number; type?: string; script?: any } };
 
 const baseSort: SortField[] = [{ _score: { order: 'desc' } }];
 
@@ -90,16 +92,18 @@ const sortConfigs: { [entity: string]: { [sortType: string]: (order: SortOrder) 
 export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: string): QueryDslFunctionScoreQuery {
   const currentYear = new Date().getFullYear();
 
-  // Simplified function score containers
   const functions: QueryDslFunctionScoreContainer[] = [
+    // Citation count
     {
+      filter: { range: { cited_by_count: { gte: 1 } } },
       field_value_factor: {
         field: 'cited_by_count',
-        factor: 1.5,
+        factor: 0.01,
         modifier: 'log1p',
-        missing: 0,
       },
+      weight: 5,
     },
+    // Publication year
     {
       linear: {
         publication_year: {
@@ -109,50 +113,106 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
           decay: 0.7,
         },
       },
+      weight: 3,
     },
   ];
 
   if (entity === 'works' || entity === 'works_single') {
-    const nonArticleFilter: QueryDslQueryContainer = {
-      bool: {
-        must_not: [
-          {
-            term: {
-              type: 'article',
-            } as QueryDslTermsQuery,
-          },
-        ],
-      } as QueryDslBoolQuery,
-    };
+    // Boost for articles and preprints
+    functions.push({
+      weight: 1,
+      filter: {
+        bool: {
+          should: [{ term: { type: 'article' } }, { term: { type: 'preprint' } }] as QueryDslQueryContainer[],
+        } as QueryDslBoolQuery,
+      },
+    });
 
-    const nonEnglishFilter: QueryDslQueryContainer = {
-      bool: {
-        must_not: [
-          {
-            term: {
-              language: 'en',
-            } as QueryDslTermsQuery,
-          },
-        ],
-      } as QueryDslBoolQuery,
-    };
-
+    // Boost for English language documents
     functions.push({
       weight: 0.5,
-      filter: nonArticleFilter,
-    });
-    functions.push({
-      weight: 0.1,
-      filter: nonEnglishFilter,
+      filter: {
+        term: { language: 'en' },
+      },
     });
   }
 
   return {
     query,
     functions,
-    boost_mode: 'multiply' as QueryDslFunctionBoostMode,
-    score_mode: 'multiply' as QueryDslFunctionScoreMode,
+    boost_mode: 'sum' as QueryDslFunctionBoostMode,
+    score_mode: 'sum' as QueryDslFunctionScoreMode,
   };
+}
+
+export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQueryContainer {
+  const functions: QueryDslFunctionScoreContainer[] = [
+    // Citation count
+    {
+      filter: { range: { cited_by_count: { gte: 1 } } },
+      field_value_factor: {
+        field: 'cited_by_count',
+        factor: 0.01,
+        modifier: 'log1p',
+      },
+      weight: 10,
+    },
+    // Works count
+    {
+      filter: { range: { works_count: { gte: 1 } } },
+      field_value_factor: {
+        field: 'works_count',
+        factor: 0.005,
+        modifier: 'log1p',
+      },
+      weight: 5,
+    },
+  ];
+
+  const shouldClauses: QueryDslQueryContainer[] = [
+    // Exact match on keyword fields
+    {
+      multi_match: {
+        query: query,
+        fields: [
+          'title.keyword^10',
+          'primary_id.keyword^10',
+          'entity_type.keyword^5',
+          'publisher.keyword^5',
+          'issn.keyword^5',
+          'id.keyword^5',
+        ],
+        type: 'best_fields',
+      },
+    },
+    // match on text fields
+    {
+      multi_match: {
+        query: query,
+        fields: [
+          'title^3',
+          'description^2',
+          'publisher^2',
+          'subfield_display_name^2',
+          'institution_data.display_name^2',
+        ],
+      },
+    },
+  ];
+
+  const boolQuery: QueryDslBoolQuery = {
+    should: shouldClauses,
+    minimum_should_match: 1,
+  };
+
+  const functionScoreQuery: QueryDslFunctionScoreQuery = {
+    query: { bool: boolQuery },
+    functions,
+    boost_mode: 'multiply' as QueryDslFunctionBoostMode,
+    score_mode: 'sum' as QueryDslFunctionScoreMode,
+  };
+
+  return { function_score: functionScoreQuery };
 }
 
 export function buildSimpleStringQuery(query: string, entity: string, fuzzy?: number) {
@@ -191,21 +251,46 @@ function buildFilter(filter: Filter) {
         },
       };
     case 'term':
-      return {
-        term: {
-          [filter.field]: filter.value,
-        },
-      };
-    case 'match_phrase':
-      if (Array.isArray(filter.value)) {
-        const queries = filter.value.map((value) => ({
+      const termFieldParts = filter.field.split('.');
+      const isNested = NESTED_WORKS_ENTITIES.includes(termFieldParts[0]);
+      const queryType = Array.isArray(filter.value) ? 'terms' : 'term';
+      let valFormatted = filter.value;
+      if (Array.isArray(valFormatted)) {
+        valFormatted = valFormatted.map((v) => (typeof v === 'string' ? v.toLowerCase() : v));
+      } else if (typeof valFormatted === 'string') {
+        valFormatted = valFormatted.toLowerCase();
+      }
+
+      const query = { [queryType]: { [filter.field]: valFormatted } };
+
+      if (isNested) {
+        return {
           nested: {
-            path: filter.field.split('.')[0],
-            query: {
-              match_phrase: { [filter.field]: value },
-            },
+            path: termFieldParts[0],
+            query: query,
           },
-        }));
+        };
+      }
+      return query;
+    case 'match_phrase':
+      const fieldParts = filter.field.split('.');
+      const isNestedMatchPhrase = NESTED_WORKS_ENTITIES.includes(fieldParts[0]);
+
+      if (Array.isArray(filter.value)) {
+        const queries = filter.value.map((value) => {
+          if (isNestedMatchPhrase) {
+            return {
+              nested: {
+                path: fieldParts[0],
+                query: {
+                  match_phrase: { [filter.field]: { query: value, analyzer: 'edge_ngram_analyzer' } },
+                },
+              },
+            };
+          } else {
+            return { match_phrase: { [filter.field]: { query: value, analyzer: 'edge_ngram_analyzer' } } };
+          }
+        });
 
         return {
           bool: {
@@ -215,30 +300,46 @@ function buildFilter(filter: Filter) {
         };
       }
 
-      const fieldParts = filter.field.split('.');
-      if (fieldParts.length > 1) {
+      if (isNestedMatchPhrase) {
         return {
           nested: {
             path: fieldParts[0],
             query: {
-              match_phrase: { [filter.field]: filter.value },
+              match_phrase: { [filter.field]: { query: filter.value, analyzer: 'edge_ngram_analyzer' } },
             },
           },
         };
       }
-      return { match_phrase: { [filter.field]: filter.value } };
-    case 'match':
-      const matchQuery = {
-        match: {
-          [filter.field]: {
-            query: filter.value,
-            operator: filter.matchLogic || 'or',
-            ...(filter.fuzziness && { fuzziness: filter.fuzziness }),
-          },
-        },
-      };
 
-      if (filter.field.includes('.')) {
+      return { match_phrase: { [filter.field]: { query: filter.value, analyzer: 'edge_ngram_analyzer' } } };
+    case 'match':
+      let matchQuery;
+      if (Array.isArray(filter.value)) {
+        matchQuery = {
+          bool: {
+            should: filter.value.map((value) => ({
+              match: {
+                [filter.field]: {
+                  query: value,
+                  operator: filter.matchLogic || 'or',
+                },
+              },
+            })),
+            minimum_should_match: 1,
+          },
+        };
+      } else {
+        matchQuery = {
+          match: {
+            [filter.field]: {
+              query: filter.value,
+              operator: filter.matchLogic || 'or',
+            },
+          },
+        };
+      }
+
+      if (filter.field.includes('.') && !filter.field.includes('institutions')) {
         const [nestedPath, nestedField] = filter.field.split('.');
         return {
           nested: {
@@ -261,12 +362,14 @@ function getRelevantFields(entity: string) {
   if (entity === 'works') return RELEVANT_FIELDS.works;
   if (entity === 'authors') return RELEVANT_FIELDS.authors;
   if (entity === 'topics') return RELEVANT_FIELDS.topics;
-  if (entity === 'subfields') return RELEVANT_FIELDS.subfields;
+  if (entity === 'concepts') return RELEVANT_FIELDS.concepts;
+  if (entity === 'fields') return RELEVANT_FIELDS.fields;
   if (entity === 'institutions') return RELEVANT_FIELDS.institutions;
   if (entity === 'sources') return RELEVANT_FIELDS.sources;
   if (entity === 'autocomplete_full') return RELEVANT_FIELDS.autocomplete_full;
   if (entity === 'works_authors') return RELEVANT_FIELDS.denorm_authors;
   if (entity === 'works_fields') return RELEVANT_FIELDS.denorm_fields;
+  if (entity === 'works_concepts') return RELEVANT_FIELDS.denorm_concepts;
   if (entity === 'works_topics') return RELEVANT_FIELDS.denorm_topics;
   if (entity === 'works_countries') return RELEVANT_FIELDS.denorm_countries;
   if (entity === 'works_institutions') return RELEVANT_FIELDS.denorm_institutions;
@@ -281,41 +384,84 @@ export function buildMultiMatchQuery(
   entity: string,
   fuzzy: string | number = 0,
 ): QueryDslQueryContainer {
+  if (entity === 'autocomplete_full') {
+    return createAutocompleteFunctionScoreQuery(query);
+  }
+
   const fields = getRelevantFields(entity);
+  const terms = query.split(/\s+/);
+  const termCount = terms.length;
 
-  let multiMatchQuery: QueryDslQueryContainer;
+  const exactMatchBoost = 1000;
+  const phraseMatchBoost = 100;
+  const termMatchBoost = 5;
 
-  if (entity.startsWith('works_')) {
-    const nestedField = fields[0]?.split('.')[0];
-    multiMatchQuery = {
-      nested: {
-        path: nestedField,
-        query: {
-          multi_match: {
+  const shouldClauses: QueryDslQueryContainer[] = [];
+
+  // Exact match on keyword fields
+  shouldClauses.push({
+    multi_match: {
+      query: query,
+      fields: fields.map((field) => `${field}.keyword^${exactMatchBoost}`),
+      type: 'best_fields' as QueryDslTextQueryType,
+      boost: exactMatchBoost,
+    },
+  });
+
+  // Phrase match on text fields
+  shouldClauses.push({
+    multi_match: {
+      query: query,
+      fields: fields.map((field) => `${field}^${phraseMatchBoost}`),
+      type: 'phrase' as QueryDslTextQueryType,
+      slop: 1,
+      boost: phraseMatchBoost,
+    },
+  });
+
+  // Term match with minimum should match
+  shouldClauses.push({
+    bool: {
+      should: fields.map((field) => ({
+        match: {
+          [field]: {
             query: query,
-            fields: fields,
-            type: 'best_fields',
-            fuzziness: fuzzy, // Retained fuzziness
+            operator: 'or',
+            minimum_should_match: Math.min(3, Math.ceil(termCount * 0.7)),
+            boost: termMatchBoost,
           },
         },
+      })),
+      minimum_should_match: 1,
+    },
+  });
+
+  // Special handling for 'works' and 'works_single' entities
+  if (entity === 'works' || entity === 'works_single') {
+    shouldClauses.unshift({
+      match_phrase: {
+        title: {
+          query: query,
+          boost: exactMatchBoost * 2, // Double boost for title exact match
+          slop: 0,
+        },
       },
-    };
-  } else {
-    multiMatchQuery = {
-      multi_match: {
-        query: query,
-        fields: fields,
-        type: 'best_fields',
-        fuzziness: fuzzy, // Retained fuzziness
-      },
-    };
+    });
   }
+
+  const multiMatchQuery: QueryDslQueryContainer = {
+    bool: {
+      should: shouldClauses,
+      minimum_should_match: 1,
+    },
+  };
 
   if (entity === 'works' || entity === 'works_single') {
     return {
       function_score: createFunctionScoreQuery(multiMatchQuery, entity),
     };
   }
+
   return multiMatchQuery;
 }
 

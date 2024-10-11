@@ -1,4 +1,4 @@
-import { DocumentId } from '@automerge/automerge-repo';
+// import { DocumentId } from '@automerge/automerge-repo';
 import {
   ExternalLinkComponent,
   PdfComponent,
@@ -12,7 +12,8 @@ import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getDataUsageForUserBytes, hasAvailableDataUsageForUpload } from '../../services/dataService.js';
+import { setToCache } from '../../redisClient.js';
+import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import {
   addBufferToIpfs,
   downloadFilesAndMakeManifest,
@@ -76,7 +77,7 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
       },
     });
 
-    const dataConsumptionBytes = await getDataUsageForUserBytes(owner);
+    // const dataConsumptionBytes = await getDataUsageForUserBytes(owner);
 
     const uploadSizeBytes = files.map((f) => f.size).reduce((total, size) => total + size, 0);
 
@@ -129,6 +130,7 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
     const documentId = result.documentId;
     const document = result.document;
 
+    // attach automerge documentId to node
     await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: documentId } });
 
     logger.info({ uuid: node.uuid, documentId }, 'Automerge document created');
@@ -142,6 +144,10 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
       documentId,
       document,
     });
+
+    // cache initial doc for a minute (60)
+    await setToCache(`node-draft-${node.uuid}`, { document, documentId }, 60);
+
     return;
   } catch (err) {
     logger.error({ err }, 'mint-err');
@@ -267,7 +273,7 @@ export const draftAddComponent = async (req: Request, res: Response, next: NextF
         subtype: componentSubtype,
         payload: {
           url: componentUrl,
-          path: DRIVE_NODE_ROOT_PATH + `/${name}`
+          path: DRIVE_NODE_ROOT_PATH + `/${name}`,
         },
       };
       manifestParsed.components.push(linkComponent);

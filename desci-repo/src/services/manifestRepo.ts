@@ -33,11 +33,15 @@ export function assertNever(value: never) {
 
 export const getDocumentUpdater = (documentId: DocumentId) => {
   const automergeUrl = getAutomergeUrl(documentId);
+  logger.trace({ automergeUrl }, 'Find handle');
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+  logger.trace({ automergeUrl }, 'Retrieved handle');
 
   return async (action: ManifestActions) => {
     if (!handle) return;
+    logger.trace({ documentId, action }, 'get doc');
     let latestDocument = await handle.doc();
+    logger.trace({ latestDocument }, 'retrieved doc');
 
     if (!latestDocument) {
       logger.error({ node: documentId }, 'Automerge document not found');
@@ -350,7 +354,10 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
       default:
         assertNever(action);
     }
+
+    logger.trace({ documentId }, 'get updated doc');
     latestDocument = await handle.doc();
+    logger.trace({ action }, 'retrieved updated doc');
 
     if (latestDocument) {
       const updatedHeads = getHeads(latestDocument);

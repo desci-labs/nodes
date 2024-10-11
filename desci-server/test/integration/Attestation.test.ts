@@ -133,7 +133,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe.only('Attestations Service', async () => {
+describe('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -852,6 +852,7 @@ describe.only('Attestations Service', async () => {
         claimId: claim.id,
         authorId: users[1].id,
         comment: 'Love the attestation',
+        visible: true,
       });
     });
 
@@ -1044,6 +1045,7 @@ describe.only('Attestations Service', async () => {
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
+        visible: true,
       });
 
       // verify one claims for node 2 attestations
@@ -1054,6 +1056,7 @@ describe.only('Attestations Service', async () => {
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
+        visible: true,
       });
     });
 
@@ -1198,6 +1201,7 @@ describe.only('Attestations Service', async () => {
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
+        visible: true,
       });
 
       // verify one claims for node 2 attestations
@@ -1208,6 +1212,7 @@ describe.only('Attestations Service', async () => {
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
+        visible: true,
       });
       await attestationService.createReaction({
         claimId: claim2.id,
@@ -1361,6 +1366,7 @@ describe.only('Attestations Service', async () => {
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
+        visible: true,
       });
 
       // verify one claims for node 2 attestations
@@ -1372,12 +1378,14 @@ describe.only('Attestations Service', async () => {
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
+        visible: true,
       });
       await attestationService.createComment({
         links: [],
         claimId: fairMetadataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
+        visible: true,
       });
       await attestationService.createReaction({
         claimId: claim2.id,
@@ -1397,6 +1405,7 @@ describe.only('Attestations Service', async () => {
         claimId: localClaim.id,
         authorId: users[3].id,
         comment: 'I love this guy',
+        visible: true,
       });
       await attestationService.createReaction({
         claimId: localClaim.id,
@@ -1793,6 +1802,7 @@ describe.only('Attestations Service', async () => {
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
+        visible: true,
       });
 
       // verify one claims for node 2 attestations
@@ -1804,12 +1814,14 @@ describe.only('Attestations Service', async () => {
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
+        visible: true,
       });
       await attestationService.createComment({
         links: [],
         claimId: fairMetadataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
+        visible: true,
       });
       await attestationService.createReaction({
         claimId: claim2.id,
@@ -1829,6 +1841,7 @@ describe.only('Attestations Service', async () => {
         claimId: localClaim.id,
         authorId: users[3].id,
         comment: 'I love this guy',
+        visible: true,
       });
       await attestationService.createReaction({
         claimId: localClaim.id,
@@ -2003,6 +2016,7 @@ describe.only('Attestations Service', async () => {
         claimId: openDataAttestationClaim.id,
         authorId: users[2].id,
         comment: 'I love this game',
+        visible: true,
       });
 
       // verify one claims for node 2 attestations
@@ -2013,6 +2027,7 @@ describe.only('Attestations Service', async () => {
         claimId: openDataAttestationClaim2.id,
         authorId: users[3].id,
         comment: 'I love this guy',
+        visible: true,
       });
     });
 
@@ -2244,7 +2259,7 @@ describe.only('Attestations Service', async () => {
         body: 'review 1',
       };
       let res = await request(app)
-        .post(`/v1/attestations/comment`)
+        .post(`/v1/attestations/comments`)
         .set('authorization', memberAuthHeaderVal1)
         .send(body);
       expect(res.statusCode).to.equal(200);
@@ -2254,7 +2269,7 @@ describe.only('Attestations Service', async () => {
         claimId: openCodeClaim.id,
         body: 'review 2',
       };
-      res = await request(app).post(`/v1/attestations/comment`).set('authorization', memberAuthHeaderVal2).send(body);
+      res = await request(app).post(`/v1/attestations/comments`).set('authorization', memberAuthHeaderVal2).send(body);
       expect(res.statusCode).to.equal(200);
 
       const comments = await attestationService.getAllClaimComments({ nodeAttestationId: openCodeClaim.id });
@@ -2265,7 +2280,7 @@ describe.only('Attestations Service', async () => {
 
     it('should prevent non community members from reviewing a protected attestation(claim)', async () => {
       const apiResponse = await request(app)
-        .post(`/v1/attestations/comment`)
+        .post(`/v1/attestations/comments`)
         .set('authorization', UserAuthHeaderVal)
         .send({
           authorId: users[1].id,

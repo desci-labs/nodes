@@ -63,7 +63,7 @@ services:
       graph_node:
         condition: service_started
       redis:
-        condition: service_started
+        condition: service_healthy
       # - nodes_media # UNCOMMENT FOR LOCAL DEV OF nodes-media
     links:
       - db_postgres
@@ -121,7 +121,7 @@ services:
       # EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE: synced
 
   ipfs:
-    image: ipfs/kubo:v0.24.0
+    image: ipfs/kubo:v0.26.0
     container_name: "ipfs"
     environment:
       IPFS_SWARM_KEY: "/key/swarm/psk/1.0.0/\n/base16/\n9d002c50635a479d29dcc0ccb49d862952a0dcc52baddd253167adcd496c8d04"
@@ -147,7 +147,7 @@ services:
       timeout: 2s
 
   ipfs_public:
-    image: ipfs/kubo:v0.24.0
+    image: ipfs/kubo:v0.26.0
     container_name: "ipfs_public"
     ports:
       - "5002:5001"
@@ -173,16 +173,22 @@ services:
   redis:
     image: "redis:7-alpine"
     container_name: "redis_cache"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 1s
+      retries: 5
     ports:
       - "6379:6379"
     volumes:
       - ./local-data/redis:/data
 
   ceramic:
-    image: ceramicnetwork/js-ceramic:5.16.0
+    image: ceramicnetwork/js-ceramic:6.5.0
     container_name: ceramic
     ports:
       - "7007:7007"
+      - "9464:9464"
     environment:
       NODE_ENV: production
       CERAMIC_PUBSUB_QPS_LIMIT: 500
@@ -224,23 +230,24 @@ services:
       - "8070:8070"
     environment:
       - JAVA_OPTS=-Xmx2G -Xms2G
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8070/api/isalive"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
   dpid_resolver:
-    image: descilabs/dpid-resolver
+    image: descilabs/dpid-resolver:develop
     container_name: dpid_resolver
     # Uncomment and set to local repo path for tinkering
     # build:
-      # context: ~/dev/desci/dpid-resolver
+    #   context: ~/dev/desci/dpid-resolver
     environment:
       DPID_ENV: local
       OPTIMISM_RPC_URL: http://host.docker.internal:8545
       CERAMIC_URL: http://host.docker.internal:7007
       IPFS_GATEWAY: http://host.docker.internal:8089/ipfs
+      REDIS_HOST: host.docker.internal
+      REDIS_PORT: 6379
+      # How long to store anchored commit info (default 24 hours)
+      CACHE_TTL_ANCHORED: 86400
+      # How long to store pending commit info
+      CACHE_TTL_PENDING: 300
     restart: on-failure
     ports:
       - "5460:5460"
@@ -258,3 +265,6 @@ services:
         condition: service_healthy
       ceramic:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+

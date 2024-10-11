@@ -5,12 +5,13 @@ import { logger as parentLogger } from './logger.js';
 import { getCommitTimestamps } from './services/ceramic.js';
 import { getTargetDpidUrl } from './services/fixDpid.js';
 import { convertCidTo0xHex, decodeBase64UrlSafeToHex, ensureUuidEndsWithDot } from './utils.js';
+import { THEGRAPH_API_URL } from './config/index.js';
 
 const logger = parentLogger.child({
   module: 'GetIndexedResearchObjects',
 });
 
-const RESOLVER_URL = process.env.DPID_URL_OVERRIDE || getTargetDpidUrl();
+const RESOLVER_URL = getTargetDpidUrl();
 
 export type IndexedResearchObject = {
   /** Hex: Node UUID */
@@ -77,7 +78,7 @@ export const getIndexedResearchObjects = async (
   For stream resolution, build a map to allow for also returning the UUID
   to match the format returned by the graph lookup
   */
-  const streamLookupMap: Record<string, string> = {};
+  let streamLookupMap: Record<string, string> = {};
   /** For legacy nodes, the graph lookup only needs the UUID */
   const legacyUuids = [];
 
@@ -100,16 +101,16 @@ export const getIndexedResearchObjects = async (
     }
   }
 
-  let streamHistory = [];
+  let streamHistory: IndexedResearchObject[] = [];
   if (Object.keys(streamLookupMap).length > 0) {
     logger.info({ streamLookupMap }, 'Querying resolver for history');
     streamHistory = await getHistoryFromStreams(streamLookupMap);
     logger.info({ streamHistory }, 'Resolver history for nodes found');
   }
 
-  let legacyHistory = [];
+  let legacyHistory: IndexedResearchObject[] = [];
   if (legacyUuids.length > 0) {
-    logger.info({ legacyUuids }, 'Falling back to subgraph query for history');
+    logger.info({ legacyUuids, _urlSafeBase64s }, 'Falling back to subgraph query for history');
     legacyHistory = (await _getIndexedResearchObjects(legacyUuids)).researchObjects;
     logger.info({ legacyHistory }, 'Subgraph history for nodes found');
   }
@@ -192,8 +193,28 @@ export const _getIndexedResearchObjects = async (
       }
     }
   }`;
-  return query(q);
+
+  const results = await query<{ researchObjects: IndexedResearchObject[] }>(q);
+  if (THEGRAPH_API_URL.includes("sepolia-dev")) {
+    // In-place deduplication on the graph results
+    results.researchObjects.forEach(ro => {
+      ro.versions = ro.versions.reduce((deduped, next) => {
+        if (deduped.length === 0 || !isLegacyDupe(next, deduped.at(-1))) {
+          deduped.push(next);
+        }
+        return deduped;
+      }, [] as IndexedResearchObjectVersion[])
+    });
+  }
+
+  return results;
 };
+
+/** Makes semi-certain that two entries are dupes, by requiring that
+* both timestamp and cid are equal
+*/
+const isLegacyDupe = (a: IndexedResearchObjectVersion, b: IndexedResearchObjectVersion) =>
+    a.cid === b.cid && a.time === b.time;
 
 /**
  * For a bunch of publish hashes, get the corresponding timestamps as strings.
@@ -201,7 +222,7 @@ export const _getIndexedResearchObjects = async (
 export const getTimeForTxOrCommits = async (txOrCommits: string[]): Promise<Record<string, string>> => {
   const isTx = (id: string) => id.startsWith('0x');
   const txIds = txOrCommits.filter(isTx);
-  const commitIdStrs = txOrCommits.filter(id => !isTx(id));
+  const commitIdStrs = txOrCommits.filter((id) => !isTx(id));
 
   const commitTimeMap = await getCommitTimestamps(commitIdStrs);
   const txTimeMap = await getTxTimestamps(txIds);
@@ -221,15 +242,15 @@ const getTxTimestamps = async (txIds: string[]): Promise<Record<string, string>>
   try {
     const graphTxTimestamps = await getTxTimeFromGraph(txIds);
     const timeMap = graphTxTimestamps.reduce(
-      (acc, { id, time }) => ({ ...acc, [id]: time}),
+      (acc, { id, time }) => ({ ...acc, [id]: time }),
       {} as Record<string, string>,
     );
     return timeMap;
   } catch (err) {
     logger.error({ txIds, err }, 'failed to get tx timestamps from graph, returning empty map');
     return {};
-  };
-}
+  }
+};
 
 type TransactionsWithTimestamp = {
   researchObjectVersions: { id: string; time: string }[];
@@ -278,7 +299,7 @@ export const _getDpidForTxIds = async (txs: string[]): Promise<RegisterEvent[]> 
     }
   }`;
   console.log('Sending graph query:', { q });
-  const url = process.env.THEGRAPH_API_URL.replace('name/nodes', 'name/dpid-registry');
+  const url = THEGRAPH_API_URL.replace('name/nodes', 'name/dpid-registry');
   const response = await query<DpidRegistersResponse>(q, url);
   return response.registers;
 };
@@ -287,7 +308,7 @@ export const query = async <T>(query: string, overrideUrl?: string): Promise<T> 
   const payload = JSON.stringify({
     query,
   });
-  const url = overrideUrl ?? process.env.THEGRAPH_API_URL;
+  const url = overrideUrl ?? THEGRAPH_API_URL;
   const { data } = await axios.post(url, payload);
   if (data.errors) {
     logger.error({ fn: 'query', err: data.errors, query, dataRes: data }, `graph index query err ${query}`);
@@ -295,3 +316,4 @@ export const query = async <T>(query: string, overrideUrl?: string): Promise<T> 
   }
   return data.data as T;
 };
+

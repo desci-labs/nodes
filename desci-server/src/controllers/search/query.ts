@@ -73,10 +73,18 @@ export const singleQuery = async (
   }
 
   if (entity === 'fields') {
-    searchEntity = 'subfields'; // Overwrite as fields are accessible via 'topics' index
+    searchEntity = 'subfields'; // Overwrite as fields are accessible via 'subfields' index
     logger.info(
       { entity, searchEntity },
       `Entity provided is '${entity}', overwriting with '${searchEntity}' because ${entity} is accessible in that index.`,
+    );
+  }
+
+  if (entity === 'authors') {
+    searchEntity = 'authors_with_institutions'; // Overwrite as fields are accessible via 'subfields' index
+    logger.info(
+      { entity, searchEntity },
+      `Entity provided is '${entity}', overwriting with '${searchEntity}' because its a more complete index containing institution data`,
     );
   }
   const finalQuery = {

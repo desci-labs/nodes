@@ -60,7 +60,6 @@ export const getValidatedAttestations = async (req: Request, res: Response, _nex
   logger.info({ communityName });
   const community = await communityService.findCommunityByNameOrSlug(communityName);
   if (!community) throw new NotFoundError('Community not found');
-  logger.info({ community });
 
   const attestations = await attestationService.getCommunityAttestations({
     communityId: community.id,
@@ -83,6 +82,6 @@ export const getValidatedRecommendations = async (req: Request, res: Response, _
     communityName: attestation.community.name,
     AttestationVersion: attestation.AttestationVersion[0],
   }));
-  logger.info({ attestations }, 'getValidatedRecommendations');
+  logger.info({ recommendations: attestations.length }, 'getValidatedRecommendations');
   return new SuccessResponse(response).send(res);
 };

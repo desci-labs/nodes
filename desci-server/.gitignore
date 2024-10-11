@@ -16,3 +16,8 @@ server.log
 repo-tmp
 
 queries.sql
+
+# Sentry Config File
+.sentryclirc
+
+seed-doi-queue.ts

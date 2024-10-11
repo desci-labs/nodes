@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["tracing"]
 }
 
 datasource db {
@@ -50,6 +51,7 @@ model Node {
   DoiSubmissionQueue  DoiSubmissionQueue[]
   BookmarkedNode      BookmarkedNode[]
   DeferredEmails      DeferredEmails[]
+  Annotation          Annotation[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -810,16 +812,19 @@ enum EmailType {
 
 //Comments on attestations
 model Annotation {
-  id                Int             @id @default(autoincrement())
+  id                Int              @id @default(autoincrement())
   type              AnnotationType
   body              String
-  highlights        Json[]          @default([])
-  links             String[]        @default([])
+  highlights        Json[]           @default([])
+  links             String[]         @default([])
   authorId          Int
-  author            User            @relation(fields: [authorId], references: [id])
-  nodeAttestationId Int
-  attestation       NodeAttestation @relation(fields: [nodeAttestationId], references: [id])
+  author            User             @relation(fields: [authorId], references: [id])
+  nodeAttestationId Int?
+  attestation       NodeAttestation? @relation(fields: [nodeAttestationId], references: [id])
   deferredEmailsId  Int?
+  uuid              String?
+  node              Node?            @relation(fields: [uuid], references: [uuid])
+  visible           Boolean          @default(true)
 }
 
 //An emoji reaction to a node
