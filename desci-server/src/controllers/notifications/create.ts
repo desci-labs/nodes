@@ -33,7 +33,7 @@ export const createNotification = async (
   });
 
   logger.info('Creating user notification');
-
+  //
   try {
     if (!req.user) {
       logger.warn('Unauthorized, check middleware');
@@ -48,6 +48,7 @@ export const createNotification = async (
     logger.info({ notificationId: notification.id }, 'Successfully created user notification');
     return res.status(201).json(notification);
   } catch (error) {
+    // debugger;
     if (error instanceof z.ZodError) {
       logger.warn({ error: error.errors }, 'Invalid request parameters');
       return res.status(400).json({ error: 'Invalid request parameters', details: error.errors } as ErrorResponse);

@@ -38,12 +38,19 @@ export const initializeWebSocketServer = async (httpServer: HttpServer) => {
     throw error;
   }
 
+  io.on('error', () => {
+    logger.info('websockets error');
+  });
+
   io.on('connection', (socket: Socket & { userId?: string }) => {
+    logger.info('New socket connection');
     const { userId } = socket;
     const clientIp = socket.handshake.headers['x-real-ip'] || socket.handshake.address;
     logger.info({ userId, clientIp }, 'User connected');
 
     socket.on('authenticate', (userId: string) => {
+      logger.info({ socketId: socket.id, userId }, `User ${userId} authenticated`);
+      socket.userId = userId;
       socket.join(`user-${userId}`);
     });
 

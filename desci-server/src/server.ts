@@ -16,6 +16,7 @@ import type { Express, Request } from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { pinoHttp } from 'pino-http';
+import { Server as SocketIOServer } from 'socket.io';
 import { v4 } from 'uuid';
 
 import { prisma } from './client.js';
@@ -66,6 +67,8 @@ class AppServer {
   server: HttpServer;
   port: number;
 
+  private _io: SocketIOServer | null = null;
+
   constructor() {
     this.app = express();
 
@@ -90,8 +93,6 @@ class AppServer {
       }
       next();
     });
-
-    this.#attachWebsockets();
 
     // Respond to probes before we do any other work on the request
     this.app.get('/readyz', (_, res) => {
@@ -147,6 +148,7 @@ class AppServer {
       this.#isReady = true;
       this.#readyResolvers.forEach((resolve) => resolve(true));
       console.log(`Server running on port ${this.port}`);
+      this.#attachWebsockets();
     });
 
     // init publish worker
@@ -174,8 +176,8 @@ class AppServer {
 
     while (retries < maxRetries) {
       try {
-        const io = await initializeWebSocketServer(this.server);
-        this.app.set('io', io);
+        this._io = await initializeWebSocketServer(this.server);
+        this.app.set('io', this._io);
         logger.info('WebSocket server initialized successfully');
         return;
       } catch (error) {
@@ -187,6 +189,11 @@ class AppServer {
 
     logger.error('Failed to initialize WebSocket server after maximum retries');
     // Optionally, you could throw an error here or implement a fallback mechanism
+  }
+
+  // websockets getter
+  get io(): SocketIOServer | null {
+    return this._io;
   }
 
   #attachRouteHandlers() {
