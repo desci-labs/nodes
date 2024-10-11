@@ -205,3 +205,47 @@ export const getNotificationSettings = async (userId: number): Promise<Notificat
 export const shouldSendNotification = (settings: NotificationSettings, type: NotificationType): boolean => {
   return settings[type] !== false;
 };
+
+export const emitNotificationForAnnotation = async (annotationId: number) => {
+  const annotation = await prisma.annotation.findUnique({
+    where: { id: annotationId },
+    include: {
+      author: true,
+      node: {
+        include: { owner: true },
+      },
+      attestation: {
+        include: {
+          node: {
+            include: { owner: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!annotation) {
+    logger.warn({ annotationId }, 'Annotation not found');
+    return;
+  }
+
+  const annotationAuthor = annotation.author;
+  const node = annotation.node || annotation.attestation?.node;
+  const nodeOwner = node?.owner;
+
+  if (!nodeOwner) {
+    logger.warn({ annotationId }, 'Linked owner not found on annotation');
+    return;
+  }
+
+  const notificationData: CreateNotificationData = {
+    userId: annotation.node.owner.id,
+    type: NotificationType.COMMENTS,
+    title: `${annotationAuthor?.name} commented on your research object`,
+    message: `Your research object titled ${annotation.node.title}, has received a new comment.`, // TODO:: Ideally deserialize some of the message body from the annotation and show a truncated snippet
+    nodeUuid: node.uuid,
+    payload: { type: NotificationType.COMMENTS, nodeUuid: node.uuid, annotationId },
+  };
+
+  await createUserNotification(notificationData);
+};

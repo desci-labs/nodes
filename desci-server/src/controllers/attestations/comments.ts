@@ -19,6 +19,7 @@ import {
 } from '../../internal.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { client } from '../../services/ipfs.js';
+import { emitNotificationForAnnotation } from '../../services/NotificationService.js';
 import { base64ToBlob } from '../../utils/upload.js';
 
 export const getAttestationComments = async (req: Request, res: Response, next: NextFunction) => {
@@ -129,6 +130,7 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
     });
   }
   await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
+  await emitNotificationForAnnotation(annotation.id);
   new SuccessResponse({
     ...annotation,
     highlights: annotation.highlights.map((h) => JSON.parse(h as string)),
