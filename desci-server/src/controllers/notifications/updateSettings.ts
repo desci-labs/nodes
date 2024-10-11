@@ -18,7 +18,7 @@ export interface ErrorResponse {
 
 export const updateSettings = async (
   req: AuthenticatedRequest & { body: z.infer<typeof NotificationSettingsSchema> },
-  res: Response<Record<NotificationType, boolean> | ErrorResponse>,
+  res: Response<Partial<Record<NotificationType, boolean>> | ErrorResponse>,
 ) => {
   const logger = parentLogger.child({
     module: 'UserNotifications::UpdateSettings',

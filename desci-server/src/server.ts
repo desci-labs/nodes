@@ -28,6 +28,7 @@ import { NotFoundError, RequestWithUser, extractAuthToken, extractUserFromToken 
 import { als, logger } from './logger.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { initializeWebSocketServer } from './websocketServer.js';
 import { runWorkerUntilStopped } from './workers/publish.js';
 
 // const __dirname = path.dirname(__filename);
@@ -89,6 +90,8 @@ class AppServer {
       }
       next();
     });
+
+    this.#attachWebsockets();
 
     // Respond to probes before we do any other work on the request
     this.app.get('/readyz', (_, res) => {
@@ -162,6 +165,28 @@ class AppServer {
     return new Promise((resolve) => {
       this.#readyResolvers.push(resolve);
     });
+  }
+
+  async #attachWebsockets() {
+    const maxRetries = 3;
+    let retries = 0;
+    const retryTimeout = 5000;
+
+    while (retries < maxRetries) {
+      try {
+        const io = await initializeWebSocketServer(this.server);
+        this.app.set('io', io);
+        logger.info('WebSocket server initialized successfully');
+        return;
+      } catch (error) {
+        retries++;
+        logger.error({ error, retries }, 'Failed to initialize WebSocket server, retrying...');
+        await new Promise((resolve) => setTimeout(resolve, retryTimeout));
+      }
+    }
+
+    logger.error('Failed to initialize WebSocket server after maximum retries');
+    // Optionally, you could throw an error here or implement a fallback mechanism
   }
 
   #attachRouteHandlers() {

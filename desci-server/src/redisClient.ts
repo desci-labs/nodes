@@ -10,7 +10,7 @@ const logger = parentLogger.child({
   hostname,
 });
 
-const redisClient = createClient({
+export const redisClient = createClient({
   // url: process.env.REDIS_URL,
   socket: {
     host: process.env.REDIS_HOST || 'localhost',
