@@ -147,7 +147,7 @@ class AppServer {
     });
 
     // init publish worker
-    this.#initWorker();
+    // this.#initWorker();
   }
 
   get httpServer() {
@@ -249,8 +249,6 @@ class AppServer {
   }
 
   async #initWorker() {
-    // TODO: remove after testing
-    // await Promise.all([runWorkerUntilStopped(), runWorkerUntilStopped()]);
     await runWorkerUntilStopped();
   }
 }
