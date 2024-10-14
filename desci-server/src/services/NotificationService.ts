@@ -1,4 +1,4 @@
-import { NotificationType, Prisma, User, UserNotifications } from '@prisma/client';
+import { NotificationType, Prisma, User, UserNotifications, Node } from '@prisma/client';
 import { z } from 'zod';
 
 import { prisma } from '../client.js';
@@ -20,6 +20,18 @@ export type NotificationSettings = Partial<Record<NotificationType, boolean>>;
 export type NotificationUpdateData = {
   dismissed?: boolean;
   //   seen?: boolean; // future
+};
+
+export type CommentPayload = {
+  type: NotificationType.COMMENTS;
+  nodeUuid: string;
+  annotationId: number;
+};
+
+export type PublishPayload = {
+  type: NotificationType.PUBLISH;
+  nodeUuid: string;
+  dpid: string;
 };
 
 export const getUserNotifications = async (
@@ -238,15 +250,6 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
     return;
   }
 
-  const userNotifSettings = await getNotificationSettings(nodeOwner.id);
-  if (!shouldSendNotification(userNotifSettings, NotificationType.COMMENTS)) {
-    logger.warn(
-      { userId: nodeOwner.id, type: NotificationType.COMMENTS },
-      'Notification creation blocked by user settings',
-    );
-    return;
-  }
-
   const notificationData: CreateNotificationData = {
     userId: nodeOwner.id,
     type: NotificationType.COMMENTS,
@@ -254,6 +257,19 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
     message: `Your research object titled ${node.title}, has received a new comment.`, // TODO:: Ideally deserialize some of the message body from the annotation and show a truncated snippet
     nodeUuid: node.uuid,
     payload: { type: NotificationType.COMMENTS, nodeUuid: node.uuid, annotationId },
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnPublish = async (node: Node, user: User, dpid: string) => {
+  const notificationData: CreateNotificationData = {
+    userId: user.id,
+    type: NotificationType.PUBLISH,
+    title: `Your research object has been published!`,
+    message: `Your research object titled "${node.title}" has been published and is now available for public access.`,
+    nodeUuid: node.uuid,
+    payload: { type: NotificationType.PUBLISH, nodeUuid: node.uuid, dpid } as PublishPayload,
   };
 
   await createUserNotification(notificationData);
