@@ -20,11 +20,11 @@ export const updateSettings = async (
   req: AuthenticatedRequest & { body: z.infer<typeof NotificationSettingsSchema> },
   res: Response<Partial<Record<NotificationType, boolean>> | ErrorResponse>,
 ) => {
+  // debugger;
   const logger = parentLogger.child({
     module: 'UserNotifications::UpdateSettings',
     userId: req.user?.id,
   });
-
   try {
     if (!req.user) {
       logger.warn('Unauthorized, check middleware');
@@ -38,6 +38,7 @@ export const updateSettings = async (
 
     return res.status(200).json(newSettings);
   } catch (error) {
+    // debugger;
     if (error instanceof z.ZodError) {
       logger.warn({ error: error.errors }, 'Invalid request parameters');
       return res.status(400).json({ error: 'Invalid request parameters', details: error.errors } as ErrorResponse);
