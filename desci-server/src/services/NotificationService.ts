@@ -239,7 +239,6 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
   }
 
   const userNotifSettings = await getNotificationSettings(nodeOwner.id);
-
   if (!shouldSendNotification(userNotifSettings, NotificationType.COMMENTS)) {
     logger.warn(
       { userId: nodeOwner.id, type: NotificationType.COMMENTS },
@@ -252,7 +251,7 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
     userId: nodeOwner.id,
     type: NotificationType.COMMENTS,
     title: `${annotationAuthor?.name} commented on your research object`,
-    message: `Your research object titled ${annotation.node.title}, has received a new comment.`, // TODO:: Ideally deserialize some of the message body from the annotation and show a truncated snippet
+    message: `Your research object titled ${node.title}, has received a new comment.`, // TODO:: Ideally deserialize some of the message body from the annotation and show a truncated snippet
     nodeUuid: node.uuid,
     payload: { type: NotificationType.COMMENTS, nodeUuid: node.uuid, annotationId },
   };
