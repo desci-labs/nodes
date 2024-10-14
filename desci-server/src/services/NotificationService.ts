@@ -238,8 +238,18 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
     return;
   }
 
+  const userNotifSettings = await getNotificationSettings(nodeOwner.id);
+
+  if (!shouldSendNotification(userNotifSettings, NotificationType.COMMENTS)) {
+    logger.warn(
+      { userId: nodeOwner.id, type: NotificationType.COMMENTS },
+      'Notification creation blocked by user settings',
+    );
+    return;
+  }
+
   const notificationData: CreateNotificationData = {
-    userId: annotation.node.owner.id,
+    userId: nodeOwner.id,
     type: NotificationType.COMMENTS,
     title: `${annotationAuthor?.name} commented on your research object`,
     message: `Your research object titled ${annotation.node.title}, has received a new comment.`, // TODO:: Ideally deserialize some of the message body from the annotation and show a truncated snippet
