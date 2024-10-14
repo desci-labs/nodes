@@ -1,8 +1,9 @@
 import { Server as HttpServer } from 'http';
 
 import { createAdapter } from '@socket.io/redis-adapter';
-import { Server, Socket } from 'socket.io';
+import { ExtendedError, Server, Socket } from 'socket.io';
 
+import { AuthenticatedSocket, socketsEnsureUser } from './internal.js';
 import { logger as parentLogger } from './logger.js';
 import redisClient from './redisClient.js';
 
@@ -38,19 +39,22 @@ export const initializeWebSocketServer = async (httpServer: HttpServer) => {
     throw error;
   }
 
+  io.use((socket: Socket, next: (err?: ExtendedError) => void) => {
+    socketsEnsureUser(socket, next);
+  });
+
   io.on('error', () => {
     logger.info('websockets error');
   });
 
-  io.on('connection', (socket: Socket & { userId?: string }) => {
+  io.on('connection', (socket: AuthenticatedSocket) => {
     logger.info('New socket connection');
-    const { userId } = socket;
+    const { userId } = socket.data;
     const clientIp = socket.handshake.headers['x-real-ip'] || socket.handshake.address;
     logger.info({ userId, clientIp }, 'User connected');
 
     socket.on('authenticate', (userId: string) => {
       logger.info({ socketId: socket.id, userId }, `User ${userId} authenticated`);
-      socket.userId = userId;
       socket.join(`user-${userId}`);
     });
 
