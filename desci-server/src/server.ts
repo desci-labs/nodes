@@ -30,6 +30,7 @@ import { als, logger } from './logger.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initializeWebSocketServer } from './websocketServer.js';
+import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 import { runWorkerUntilStopped } from './workers/publish.js';
 
 // const __dirname = path.dirname(__filename);
@@ -151,8 +152,8 @@ class AppServer {
       this.#attachWebsockets();
     });
 
-    // init publish worker
-    this.#initWorker();
+    // start jobs
+    this.startJobs();
   }
 
   get httpServer() {
@@ -280,10 +281,9 @@ class AppServer {
     }
   }
 
-  async #initWorker() {
-    // TODO: remove after testing
-    // await Promise.all([runWorkerUntilStopped(), runWorkerUntilStopped()]);
-    await runWorkerUntilStopped();
+  async startJobs() {
+    // start doi submission cron job
+    SubmissionQueueJob.start();
   }
 }
 function getRemoteAddress(req) {

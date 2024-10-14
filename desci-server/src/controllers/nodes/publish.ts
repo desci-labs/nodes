@@ -124,25 +124,24 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
 
     if (task) return res.status(400).json({ error: 'Node publishing in progress' });
 
-    let publishTask: PublishTaskQueue | undefined;
-    let dpidAlias: number;
-    if (useNewPublish) {
-      logger.info({ ceramicStream, commitId, uuid, owner: owner.id }, 'Triggering new publish flow');
-      dpidAlias = await syncPublish(ceramicStream, commitId, node, owner, cid, uuid, manifest);
-    } else {
-      publishTask = await prisma.publishTaskQueue.create({
-        data: {
-          cid,
-          dpid: manifest.dpid?.id,
-          userId: owner.id,
-          transactionId,
-          ceramicStream,
-          commitId,
-          uuid: ensureUuidEndsWithDot(uuid),
-          status: PublishTaskQueueStatus.WAITING,
-        },
-      });
-    }
+    // let publishTask: PublishTaskQueue | undefined;
+    logger.info({ ceramicStream, commitId, uuid, owner: owner.id }, 'Triggering new publish flow');
+    const dpidAlias = await syncPublish(ceramicStream, commitId, node, owner, cid, uuid, manifest);
+    // if (useNewPublish) {
+    // } else {
+    // publishTask = await prisma.publishTaskQueue.create({
+    //   data: {
+    //     cid,
+    //     dpid: manifest.dpid?.id,
+    //     userId: owner.id,
+    //     transactionId,
+    //     ceramicStream,
+    //     commitId,
+    //     uuid: ensureUuidEndsWithDot(uuid),
+    //     status: PublishTaskQueueStatus.WAITING,
+    //   },
+    // });
+    // }
 
     saveInteraction(
       req,
@@ -155,7 +154,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
         ceramicStream,
         commitId,
         uuid: ensureUuidEndsWithDot(uuid),
-        status: PublishTaskQueueStatus.WAITING,
+        // status: PublishTaskQueueStatus.WAITING,
       },
       owner.id,
     );
@@ -183,7 +182,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     return res.send({
       ok: true,
       dpid: dpidAlias ?? parseInt(manifest.dpid?.id),
-      taskId: publishTask?.id,
+      // taskId: publishTask?.id,
     });
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
