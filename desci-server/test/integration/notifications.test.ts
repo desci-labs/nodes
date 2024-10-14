@@ -138,7 +138,7 @@ describe('Notification Service', () => {
         [NotificationType.PUBLISH]: false,
       });
 
-      const settings = updatedUser.notificationSettings as Record<string, boolean>;
+      const settings = updatedUser.notificationSettings as Partial<Record<NotificationType, boolean>>;
       expect(settings[NotificationType.PUBLISH]).to.be.false;
     });
   });

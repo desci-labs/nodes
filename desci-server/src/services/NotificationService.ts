@@ -23,13 +23,13 @@ export type NotificationUpdateData = {
 };
 
 export type CommentPayload = {
-  type: NotificationType.COMMENTS;
+  type: 'COMMENTS';
   nodeUuid: string;
   annotationId: number;
 };
 
 export type PublishPayload = {
-  type: NotificationType.PUBLISH;
+  type: 'PUBLISH';
   nodeUuid: string;
   dpid: string;
 };
