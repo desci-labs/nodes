@@ -8,7 +8,7 @@ import type { Server as HttpServer } from 'http';
 
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
-import * as Tracing from '@sentry/tracing';
+// import * as Tracing from '@sentry/tracing';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
@@ -28,6 +28,7 @@ import { NotFoundError, RequestWithUser, extractAuthToken, extractUserFromToken 
 import { als, logger } from './logger.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 import { runWorkerUntilStopped } from './workers/publish.js';
 
 // const __dirname = path.dirname(__filename);
@@ -67,6 +68,7 @@ class AppServer {
 
   constructor() {
     this.app = express();
+
     this.#initSerialiser();
 
     this.app.use(function (req, res, next) {
@@ -89,7 +91,12 @@ class AppServer {
       next();
     });
 
-    // // attach user info to every request
+    // Respond to probes before we do any other work on the request
+    this.app.get('/readyz', (_, res) => {
+      res.status(200).json({ status: 'ok' });
+    });
+
+    // attach user info to every request
     this.app.use(async (req: RequestWithUser, res, next) => {
       const token = await extractAuthToken(req);
 
@@ -113,9 +120,6 @@ class AppServer {
       });
     });
 
-    this.#attachProxies();
-    this.#initTelemetry();
-
     this.app.use(helmet());
     this.app.use(bodyParser.json({ limit: '100mb' }));
     this.app.use(bodyParser.urlencoded({ extended: false }));
@@ -123,7 +127,14 @@ class AppServer {
     this.app.use(cookieParser());
     this.app.set('trust proxy', 2); // detect AWS ELB IP + cloudflare
 
+    // attach all app routes
     this.#attachRouteHandlers();
+
+    // init telementry
+    this.#initTelemetry();
+
+    // attach proxy routes
+    this.#attachProxies();
 
     // catch 404 errors and forward to error handler
     this.app.use((_req, _res, next) => next(new NotFoundError()));
@@ -136,8 +147,8 @@ class AppServer {
       console.log(`Server running on port ${this.port}`);
     });
 
-    // init publish worker
-    this.#initWorker();
+    // start jobs
+    this.startJobs();
   }
 
   get httpServer() {
@@ -155,9 +166,6 @@ class AppServer {
   }
 
   #attachRouteHandlers() {
-    this.app.get('/readyz', (_, res) => {
-      res.status(200).json({ status: 'ok' });
-    });
     this.app.get('/version', (req, res) => {
       const revision = child.execSync('git rev-parse HEAD').toString().trim();
       // const sha256 = child.execSync('find /app/desci-server/dist -type f -exec sha256sum \\;').toString().trim();
@@ -185,6 +193,9 @@ class AppServer {
     this.app.use(
       pinoHttp({
         logger,
+        autoLogging: {
+          ignore: (req) => req.url === '/readyz',
+        },
         customProps: (req: RequestWithUser, res) => ({
           userAuth: req.userAuth,
           traceId: (als.getStore() as any)?.traceId,
@@ -238,10 +249,9 @@ class AppServer {
     }
   }
 
-  async #initWorker() {
-    // TODO: remove after testing
-    // await Promise.all([runWorkerUntilStopped(), runWorkerUntilStopped()]);
-    await runWorkerUntilStopped();
+  async startJobs() {
+    // start doi submission cron job
+    SubmissionQueueJob.start();
   }
 }
 function getRemoteAddress(req) {

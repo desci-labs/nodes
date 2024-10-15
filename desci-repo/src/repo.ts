@@ -42,7 +42,7 @@ const config: RepoConfig = {
 
       const userId = peerId.split(':')?.[0]?.split('-')?.[1];
       const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
-      logger.info({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
+      logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
       return isAuthorised;
     } catch (err) {
       logger.error({ err }, 'Error in share policy');

@@ -62,7 +62,7 @@ router.post('/claim', [ensureUser, validate(claimAttestationSchema)], asyncHandl
 router.post('/unclaim', [ensureUser, validate(removeClaimSchema)], asyncHandler(removeClaim));
 router.post('/claimAll', [ensureUser, validate(claimEntryAttestationsSchema)], asyncHandler(claimEntryRequirements));
 
-router.post('/comment', [ensureUser, validate(createCommentSchema)], asyncHandler(addComment));
+router.post('/comments', [ensureUser, validate(createCommentSchema)], asyncHandler(addComment));
 router.post('/reaction', [ensureUser, validate(addReactionSchema)], asyncHandler(addReaction));
 router.post('/verification', [ensureUser, validate(addVerificationSchema)], asyncHandler(addVerification));
 

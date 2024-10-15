@@ -232,17 +232,17 @@ services:
       - JAVA_OPTS=-Xmx2G -Xms2G
 
   dpid_resolver:
-    image: descilabs/dpid-resolver
+    image: descilabs/dpid-resolver:develop
     container_name: dpid_resolver
     # Uncomment and set to local repo path for tinkering
     # build:
-      # context: ~/dev/desci/dpid-resolver
+    #   context: ~/dev/desci/dpid-resolver
     environment:
       DPID_ENV: local
       OPTIMISM_RPC_URL: http://host.docker.internal:8545
       CERAMIC_URL: http://host.docker.internal:7007
       IPFS_GATEWAY: http://host.docker.internal:8089/ipfs
-      REDIS_HOST: http://host.docker.internal
+      REDIS_HOST: host.docker.internal
       REDIS_PORT: 6379
       # How long to store anchored commit info (default 24 hours)
       CACHE_TTL_ANCHORED: 86400

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { logger } from '../../../logger.js';
+
 const communityId = z.coerce.number();
 const dpid = z.coerce.number();
 
@@ -34,22 +36,53 @@ export const getAttestationCommentsSchema = z.object({
   }),
 });
 
+export const getCommentsSchema = z.object({
+  params: z.object({
+    // quickly disqualify false uuid strings
+    uuid: z.string().min(10),
+  }),
+});
+
+const dpidPathRegexPlusLocalResolver =
+  /^https?:\/\/(?<domain>dev-beta\.dpid\.org|beta\.dpid\.org|localhost:5460)\/(?<dpid>\d+)\/(?<version>v\d+)\/(?<path>\S+.*)?/m;
+
 export const dpidPathRegex =
-  /^https:\/\/(?<domain>dev-beta|beta)\.dpid\.org\/(?<dpid>\d+)\/(?<version>v\d+)\/(?<path>\S+.*)?/m;
-// /^https:\/\/beta\.dpid\.org\/(?<dpid>\d+)\/(?<version>v\d+)\/(?<path>\S+.*)?/m;
+  process.env.NODE_ENV === 'dev'
+    ? dpidPathRegexPlusLocalResolver
+    : /^https:\/\/(?<domain>dev-beta|beta)\.dpid\.org\/(?<dpid>\d+)\/(?<version>v\d+)\/(?<path>\S+.*)?/m;
+
+export const uuidPathRegex =
+  /^https?:\/\/(?<domain>nodes-dev.desci.com|nodes.desci.com|localhost:3000)\/node\/(?<uuid>[^/^.\s]+)(?<version>\/v\d+)?(?<path>\/root.*)?/m;
 
 export const dpidPathSchema = z
   .string()
   .url()
   .refine((link) => dpidPathRegex.test(link), { message: 'Invalid dpid link' });
 
-// TODO: UPDATE TO A UNION OF CodeHighlightBlock and PdfHighlightBlock
+export const uuidPathSchema = z
+  .string()
+  .url()
+  .refine((link) => uuidPathRegex.test(link), { message: 'Invalid uuid link' });
+
+export const resourcePathSchema = z
+  .string()
+  .url()
+  .refine(
+    (link) => {
+      logger.info({ uuidPathRegex: uuidPathRegex.source, dpidPathRegex: dpidPathRegex.source }, 'REGEX');
+      return uuidPathRegex.test(link) || dpidPathRegex.test(link);
+    },
+    {
+      message: 'Invalid Resource link',
+    },
+  );
+
 const pdfHighlightSchema = z
   .object({
     id: z.string(),
     text: z.string().optional(),
     image: z.string().optional(),
-    path: dpidPathSchema,
+    path: resourcePathSchema,
     startX: z.coerce.number(),
     startY: z.coerce.number(),
     endX: z.coerce.number(),
@@ -81,7 +114,7 @@ const pdfHighlightSchema = z
 const codeHighlightSchema = z.object({
   id: z.string(),
   text: z.string().optional(),
-  path: dpidPathSchema,
+  path: resourcePathSchema,
   cid: z.string(),
   startLine: z.coerce.number(),
   endLine: z.coerce.number(),
@@ -93,7 +126,7 @@ const highlightBlockSchema = z.union([pdfHighlightSchema, codeHighlightSchema]);
 const commentSchema = z
   .object({
     authorId: z.coerce.number(),
-    claimId: z.coerce.number(),
+    claimId: z.coerce.number().optional(),
     body: z.string(),
     links: z
       .string()
@@ -101,6 +134,8 @@ const commentSchema = z
       .refine((links) => links.every((link) => dpidPathRegex.test(link)))
       .optional(),
     highlights: z.array(highlightBlockSchema).optional(),
+    uuid: z.string().optional(),
+    visible: z.boolean().default(true),
   })
   .refine((comment) => comment.body?.length > 0 || !!comment?.highlights?.length, {
     message: 'Either Comment body or highlights is required',

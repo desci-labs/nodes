@@ -52,7 +52,10 @@ export const draftUpdate = async (req: Request, res: Response, next: NextFunctio
     let manifestParsed: ResearchObjectV1;
 
     try {
-      manifestParsed = await repoService.getDraftManifest(node.uuid as NodeUuid); //await getDraftManifestFromUuid(node.uuid as NodeUuid);
+      manifestParsed = await repoService.getDraftManifest({
+        uuid: node.uuid as NodeUuid,
+        documentId: node.manifestDocumentId,
+      }); //await getDraftManifestFromUuid(node.uuid as NodeUuid);
     } catch (e) {
       manifestParsed = req.body.manifest as ResearchObjectV1;
     }

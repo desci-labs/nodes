@@ -72,8 +72,8 @@ const wrappedHandler = (req: Request, res: Response, next: NextFunction) => {
 
 const sanitizeBody = async (req: Request, _res: Response, next: NextFunction) => {
   logger.info({ body: req.body }, 'sanitizeBody');
-  req.body?.keywords ? (req.body.keywords = JSON.parse(req.body.keywords)) : null;
-  req.body?.links ? (req.body.links = JSON.parse(req.body.links)) : null;
+  typeof req.body?.keywords === 'string' ? (req.body.keywords = JSON.parse(req.body.keywords)) : null;
+  typeof req.body?.links === 'string' ? (req.body.links = JSON.parse(req.body.links)) : null;
   next();
 };
 

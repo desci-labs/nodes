@@ -1,14 +1,16 @@
 import { DocumentId } from '@automerge/automerge-repo';
+import { ManifestActions } from '@desci-labs/desci-models';
 import { Response } from 'express';
-import { ManifestActions } from "@desci-labs/desci-models";
+
 import { prisma } from '../../client.js';
-import { logger } from '../../logger.js';
+import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { getLatestManifest } from '../data/utils.js';
 
 export const getNodeDocument = async function (req: RequestWithNode, response: Response) {
+  const logger = parentLogger.child({ module: 'getNodeDocument' });
   try {
     logger.info({ userId: req.user.id, uuid: req.node.uuid }, '[START] GetNodeDocument');
 
@@ -45,8 +47,8 @@ export const getNodeDocument = async function (req: RequestWithNode, response: R
 };
 
 export const dispatchDocumentChange = async function (req: RequestWithNode, response: Response) {
+  const logger = parentLogger.child({ module: 'dispatchDocumentChange', userId: req.user.id, uuid: req.node.uuid });
   try {
-    logger.info({ userId: req.user.id, uuid: req.node.uuid }, '[START] GetNodeDocument');
     const node = req.node;
     const actions = req.body.actions as ManifestActions[];
 

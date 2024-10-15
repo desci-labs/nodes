@@ -1,5 +1,5 @@
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { ActionType, Annotation } from '@prisma/client';
+import { ActionType, Annotation, AnnotationType } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import zod from 'zod';
@@ -13,7 +13,9 @@ import {
   asyncMap,
   attestationService,
   createCommentSchema,
+  ensureUuidEndsWithDot,
   logger as parentLogger,
+  prisma,
 } from '../../internal.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { client } from '../../services/ipfs.js';
@@ -78,7 +80,7 @@ export const removeComment = async (req: Request<RemoveCommentBody, any, any>, r
 type AddCommentBody = zod.infer<typeof createCommentSchema>;
 
 export const addComment = async (req: Request<any, any, AddCommentBody['body']>, res: Response<AddCommentResponse>) => {
-  const { authorId, claimId, body, highlights, links } = req.body;
+  const { authorId, claimId, body, highlights, links, uuid, visible } = req.body;
   const user = (req as any).user;
 
   if (parseInt(authorId.toString()) !== user.id) throw new ForbiddenError();
@@ -89,6 +91,11 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
     user: (req as any).user,
     body: req.body,
   });
+
+  if (uuid) {
+    const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
+    if (!node) throw new NotFoundError('Node with uuid ${uuid} not found');
+  }
   logger.trace(`addComment`);
 
   let annotation: Annotation;
@@ -102,19 +109,23 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
     });
     logger.info({ processedHighlights }, 'processedHighlights');
     annotation = await attestationService.createHighlight({
-      claimId: parseInt(claimId.toString()),
+      claimId: claimId && parseInt(claimId.toString()),
       authorId: user.id,
       comment: body,
       links,
       highlights: processedHighlights as unknown as HighlightBlock[],
+      visible,
+      ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
     });
     await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
   } else {
     annotation = await attestationService.createComment({
-      claimId: parseInt(claimId.toString()),
+      claimId: claimId && parseInt(claimId.toString()),
       authorId: user.id,
       comment: body,
       links,
+      visible,
+      ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
     });
   }
   await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });

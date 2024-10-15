@@ -7,13 +7,13 @@ import { logger as parentLogger } from '../../logger.js';
 import { PRIV_SHARE_CONTRIBUTION_PREFIX } from '../../services/Contributors.js';
 
 export type SharedNode = {
-    uuid: string;
-    title: string;
-    published: boolean;
-    dpid?: number;
-    shareKey: string;
-    pendingVerification: boolean;
-    pendingContributionId?: string;
+  uuid: string;
+  title: string;
+  published: boolean;
+  dpid?: number;
+  shareKey: string;
+  pendingVerification: boolean;
+  pendingContributionId?: string;
 };
 
 export type ListSharedNodesRequest = Request<never, never> & {
@@ -58,13 +58,11 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
             uuid: true,
             manifestUrl: true,
             dpidAlias: true,
+            manifestDocumentId: true,
             // Get published versions, if any
             versions: {
               where: {
-                OR: [
-                  { transactionId: { not: null }},
-                  { commitId: { not: null }},
-                ],
+                OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
               },
             },
           },
@@ -76,7 +74,7 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
 
     if (privSharedNodes?.length === 0) {
       return res.status(200).json({ ok: true, sharedNodes: [] });
-    };
+    }
 
     const nodeUuids = privSharedNodes.map((priv) => priv.node.uuid);
 
@@ -96,21 +94,22 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
         verified: true,
         denied: true,
         contributorId: true,
-        node: { select: { uuid: true }}
+        node: { select: { uuid: true } },
       },
     });
 
-    const contributionEntryMap = contributionEntries.reduce((acc, entry) => {
-      acc[entry.node.uuid] = entry;
-      return acc;
-    }, {} as Record<string, typeof contributionEntries[number]>);
+    const contributionEntryMap = contributionEntries.reduce(
+      (acc, entry) => {
+        acc[entry.node.uuid] = entry;
+        return acc;
+      },
+      {} as Record<string, (typeof contributionEntries)[number]>,
+    );
 
     const filledSharedNodes = await Promise.all(
       privSharedNodes.map(async ({ shareId, node }) => {
         const latestManifest = await getLatestManifestFromNode(node);
-        const manifestDpid = latestManifest.dpid
-          ? parseInt(latestManifest.dpid.id)
-          : undefined;
+        const manifestDpid = latestManifest.dpid ? parseInt(latestManifest.dpid.id) : undefined;
         const published = node.versions.length > 0;
 
         const contributionEntry = contributionEntryMap[node.uuid];
