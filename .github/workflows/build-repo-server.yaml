@@ -56,7 +56,7 @@ jobs:
   build-and-push:
     # needs: build-and-test
     name: Build and deploy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
