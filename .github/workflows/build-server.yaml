@@ -29,7 +29,7 @@ env:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # container:
     #   image: ubuntu:latest
     #   options: --user 1001
@@ -77,7 +77,7 @@ jobs:
   build-and-push-images:
     # we build and push for every commit, even if tests pass, that way when tests pass deployment is short (run test + build in parallel)
     name: Build and push images
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
@@ -186,7 +186,7 @@ jobs:
     needs:
       - build-and-test
       - build-and-push-images
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
