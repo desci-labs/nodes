@@ -49,7 +49,7 @@ export const extractAuthToken = async (request: ExpressRequest | Request) => {
     if (authHeader) {
       token = authHeader.split(' ')[1];
     }
-    logger.info({ module: 'Permissions::extractAuthToken', authHeaderLength: authHeader?.length || 0 }, 'Request');
+    logger.trace({ module: 'Permissions::extractAuthToken', authHeaderLength: authHeader?.length || 0 }, 'Request');
 
     // If auth token wasn't found in the header, try retrieve from cookies
     if (!token && request['cookies']) {

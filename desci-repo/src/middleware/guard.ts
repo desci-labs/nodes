@@ -30,11 +30,9 @@ export interface RequestWithNode extends RequestWithUser {
 }
 
 export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next: NextFunction) => {
-  logger.info('START EnsureNodeAccess');
   const token = await extractAuthToken(req);
 
   if (!token) {
-    logger.trace('Token not found');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
     return;
   }
@@ -42,7 +40,6 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
   const user = await extractUserFromToken(token);
 
   if (!(user && user.id > 0)) {
-    logger.trace('User not found');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
     return;
   }
@@ -59,9 +56,9 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
   const rows = await query('SELECT * FROM "Node" WHERE uuid = $1 AND ownerId = $2', [uuid, user.id]);
   const node = rows?.[0];
 
-  logger.info({ email: hideEmail(user.email), uuid, node }, '[EnsureNodeAccess]:: => ');
+  logger.trace({ email: hideEmail(user.email), uuid, node }, '[EnsureNodeAccess]:: => ');
   if (!node) {
-    logger.info({ uuid, user }, `Node not found ${req.params}`);
+    logger.trace({ uuid, user }, `Node not found ${req.params}`);
     res.status(401).send({ message: 'Unauthorized' });
     return;
   }
