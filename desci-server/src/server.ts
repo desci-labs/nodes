@@ -149,7 +149,7 @@ class AppServer {
       this.#isReady = true;
       this.#readyResolvers.forEach((resolve) => resolve(true));
       console.log(`Server running on port ${this.port}`);
-      this.#attachWebsockets();
+      if (process.env.NODE_ENV !== 'test') this.#attachWebsockets();
     });
 
     // start jobs
