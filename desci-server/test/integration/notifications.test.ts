@@ -134,10 +134,11 @@ describe('Notification Service', () => {
 
   describe('updateNotificationSettings', () => {
     it('should update user notification settings', async () => {
-      const updatedUser = await updateNotificationSettings(user.id, {
-        [NotificationType.PUBLISH]: false,
+      await updateNotificationSettings(user.id, {
+        [NotificationType.PUBLISH!]: false,
       });
 
+      const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
       const settings = updatedUser.notificationSettings as Partial<Record<NotificationType, boolean>>;
       expect(settings[NotificationType.PUBLISH]).to.be.false;
     });
@@ -146,7 +147,7 @@ describe('Notification Service', () => {
   describe('getNotificationSettings', () => {
     it('should retrieve user notification settings', async () => {
       await updateNotificationSettings(user.id, {
-        [NotificationType.PUBLISH]: false,
+        [NotificationType.PUBLISH!]: false,
       });
 
       const settings = await getNotificationSettings(user.id);
