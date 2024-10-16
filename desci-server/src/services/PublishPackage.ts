@@ -71,9 +71,10 @@ class PublishPackageService {
     let nodeUuid = ensureUuidEndsWithDot(node.uuid);
     nodeUuid = nodeUuid.slice(0, -1);
     // const paddedTimestamp = unixTimestamp.padEnd(13, '0');
+
     const publishTime = demoMode
       ? Date.now().toString().slice(0, 10)
-      : await publishServices.retrieveBlockTimeByManifestCid(nodeUuid, usedManifestCid);
+      : (await publishServices.retrieveBlockTimeByManifestCid(nodeUuid, usedManifestCid)).slice(0, 10);
 
     const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);
     const authors = manifest.authors?.map((author) => author.name);
