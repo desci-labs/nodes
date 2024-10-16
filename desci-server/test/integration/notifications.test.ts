@@ -42,7 +42,7 @@ describe('Notification Service', () => {
     });
 
     it('should throw an error when creating a notification for a disabled type', async () => {
-      await updateNotificationSettings(user.id, { [NotificationType.PUBLISH]: false });
+      await updateNotificationSettings(user.id, { [NotificationType.PUBLISH!]: false });
 
       await expectThrowsAsync(
         () =>
