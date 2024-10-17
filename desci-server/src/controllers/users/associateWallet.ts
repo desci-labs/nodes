@@ -57,7 +57,7 @@ export const associateOrcidWallet = async (req: Request, res: Response, next: Ne
     if (hasOrcidWallet > 0) {
       res.status(202).send({ message: 'orcid DID already registered to this user' });
       return;
-    };
+    }
 
     // TODO: check for wallet uniqueness across all accounts
     const doesExist =
@@ -69,7 +69,7 @@ export const associateOrcidWallet = async (req: Request, res: Response, next: Ne
     if (doesExist) {
       res.status(400).send({ err: 'orcid DID already register to some other' });
       return;
-    };
+    }
 
     try {
       const addWallet = await prisma.wallet.create({
@@ -312,7 +312,7 @@ const sendGiftTxn = async (user: User, walletAddress: string, addedWalletId: num
      */
     const giftedWallets = await prisma.wallet.count({
       where: {
-        user,
+        userId: user.id,
         giftTransaction: { not: null },
       },
     });

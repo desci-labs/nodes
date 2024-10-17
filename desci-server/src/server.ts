@@ -16,6 +16,7 @@ import type { Express, Request } from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { pinoHttp } from 'pino-http';
+import { Server as SocketIOServer } from 'socket.io';
 import { v4 } from 'uuid';
 
 import { prisma } from './client.js';
@@ -28,6 +29,7 @@ import { NotFoundError, RequestWithUser, extractAuthToken, extractUserFromToken 
 import { als, logger } from './logger.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { initializeWebSocketServer } from './websocketServer.js';
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 import { runWorkerUntilStopped } from './workers/publish.js';
 
@@ -65,6 +67,8 @@ class AppServer {
   app: Express;
   server: HttpServer;
   port: number;
+
+  private _io: SocketIOServer | null = null;
 
   constructor() {
     this.app = express();
@@ -145,6 +149,7 @@ class AppServer {
       this.#isReady = true;
       this.#readyResolvers.forEach((resolve) => resolve(true));
       console.log(`Server running on port ${this.port}`);
+      this.#attachWebsockets();
     });
 
     // start jobs
@@ -163,6 +168,33 @@ class AppServer {
     return new Promise((resolve) => {
       this.#readyResolvers.push(resolve);
     });
+  }
+
+  async #attachWebsockets() {
+    const maxRetries = 3;
+    let retries = 0;
+    const retryTimeout = 5000;
+
+    while (retries < maxRetries) {
+      try {
+        this._io = await initializeWebSocketServer(this.server);
+        this.app.set('io', this._io);
+        logger.info('WebSocket server initialized successfully');
+        return;
+      } catch (error) {
+        retries++;
+        logger.error({ error, retries }, 'Failed to initialize WebSocket server, retrying...');
+        await new Promise((resolve) => setTimeout(resolve, retryTimeout));
+      }
+    }
+
+    logger.error('Failed to initialize WebSocket server after maximum retries');
+    // Optionally, you could throw an error here or implement a fallback mechanism
+  }
+
+  // websockets getter
+  get io(): SocketIOServer | null {
+    return this._io;
   }
 
   #attachRouteHandlers() {
