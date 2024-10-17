@@ -21,7 +21,7 @@ export class PostgresStorageAdapter extends StorageAdapter {
 
     try {
       const result = await query(`SELECT * FROM "${this.tableName}" WHERE key = $1`, [key]);
-      logger.info({ value: result?.length, key }, '[LOAD DOCUMENT]::');
+      logger.trace({ value: result?.length, key }, '[LOAD DOCUMENT]::');
 
       const response = result?.[0];
       // MUST RETURN UNDEFINED!
@@ -38,7 +38,7 @@ export class PostgresStorageAdapter extends StorageAdapter {
     this.cache[key] = binary;
 
     try {
-      logger.info({ action: 'Save', key }, 'PostgresStorageAdaptser::Save');
+      logger.trace({ action: 'Save', key }, 'PostgresStorageAdaptser::Save');
 
       await query(
         `INSERT INTO "${this.tableName}" (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = $2 RETURNING key`,
@@ -55,7 +55,7 @@ export class PostgresStorageAdapter extends StorageAdapter {
     delete this.cache[key];
 
     try {
-      logger.info({ action: 'Remove', key }, 'PostgresStorageAdapter::Remove');
+      logger.trace({ action: 'Remove', key }, 'PostgresStorageAdapter::Remove');
       await query(`DELETE FROM "${this.tableName}" WHERE key = $1 RETURNING key`, [key]);
     } catch (e) {
       logger.error({ e, key }, 'PostgresStorageAdapter::Remove ==> Error deleting document');
@@ -81,7 +81,7 @@ export class PostgresStorageAdapter extends StorageAdapter {
     const key = getKey(keyPrefix);
     this.cachedKeys(keyPrefix).forEach((key) => delete this.cache[key]);
     try {
-      logger.info({ key, keyPrefix }, 'DELETE DOCUMENT RANGE');
+      logger.trace({ key, keyPrefix }, 'DELETE DOCUMENT RANGE');
       const result = await query(`DELETE FROM "${this.tableName}" WHERE key LIKE $1 RETURNING key`, [`${key}%`]);
       console.log({ result, key }, 'DELETED MANY RANGE');
     } catch (e) {
@@ -95,9 +95,9 @@ export class PostgresStorageAdapter extends StorageAdapter {
   }
 
   private async loadRangeKeys(keyPrefix: string[]): Promise<string[]> {
-    logger.info({ keyPrefix }, 'LoadRange Keys');
+    logger.trace({ keyPrefix }, 'LoadRange Keys');
     const response = await query(`SELECT key FROM "${this.tableName}" WHERE key LIKE $1`, [`${keyPrefix}%`]);
-    logger.info({ keyPrefix, response: response?.length }, '[LOADED RANGE Keys]');
+    logger.trace({ keyPrefix, response: response?.length }, '[LOADED RANGE Keys]');
 
     return response ? response.map((row) => row.key) : [];
   }

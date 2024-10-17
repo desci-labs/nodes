@@ -4,13 +4,13 @@ import { logger } from '../logger.js';
 
 export const verifyNodeDocumentAccess = async (userId: number, documentId: DocumentId) => {
   try {
-    logger.info({ userId, documentId }, 'START [verifyNodeDocumentAccess]::Node');
+    logger.trace({ userId, documentId }, 'START [verifyNodeDocumentAccess]::Node');
     const rows = await query('SELECT * FROM "Node" WHERE "manifestDocumentId" = $1 AND "ownerId" = $2', [
       documentId,
       userId,
     ]);
     const node = rows?.[0];
-    logger.info(
+    logger.trace(
       { uuid: node.uuid, userId, ownerId: node.ownerId, documentId: node.manifestDocumentId },
       '[verifyNodeDocumentAccess]::Node',
     );

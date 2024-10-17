@@ -50,8 +50,8 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
     }
 
     const heads = getHeads(latestDocument);
-    logger.info({ heads }, `Document Heads`);
-    logger.info({ action }, `DocumentUpdater::Dispatched`);
+    // logger.info({ heads, action }, `Document Heads`);
+    logger.trace({ action, heads }, `DocumentUpdater::Dispatched`);
 
     switch (action.type) {
       case 'Add Components':
@@ -355,13 +355,13 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
         assertNever(action);
     }
 
-    logger.trace({ documentId }, 'get updated doc');
+    // logger.trace({ documentId }, 'get updated doc');
     latestDocument = await handle.doc();
-    logger.trace({ action }, 'retrieved updated doc');
+    // logger.trace({ action }, 'retrieved updated doc');
 
     if (latestDocument) {
       const updatedHeads = getHeads(latestDocument);
-      logger.info({ action, heads: updatedHeads }, `DocumentUpdater::Exit`);
+      logger.trace({ action, heads: updatedHeads }, `DocumentUpdater::Exit`);
     }
     return latestDocument;
   };

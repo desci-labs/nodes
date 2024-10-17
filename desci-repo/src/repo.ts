@@ -29,10 +29,8 @@ const config: RepoConfig = {
   sharePolicy: async (peerId, documentId) => {
     try {
       if (!documentId) {
-        logger.warn({ peerId }, 'SharePolicy: Document ID NOT found');
+        logger.trace({ peerId }, 'SharePolicy: Document ID NOT found');
         return false;
-      } else {
-        logger.trace({ peerId, documentId }, 'SharePolicy: Document found');
       }
       // peer format: `peer-[user#id]:[unique string combination]
       if (peerId.toString().length < 8) {
