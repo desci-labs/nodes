@@ -3,7 +3,7 @@ import { Server as HttpServer } from 'http';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { ExtendedError, Server, Socket } from 'socket.io';
 
-import { AuthenticatedSocket, socketsEnsureUser } from './internal.js';
+// import { AuthenticatedSocket, socketsEnsureUser } from './internal.js';
 import { logger as parentLogger } from './logger.js';
 import redisClient from './redisClient.js';
 

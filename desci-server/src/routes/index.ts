@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import { resolve } from '../controllers/raw/resolve.js';
-import { asyncHandler, handleCrossrefNotificationCallback } from '../internal.js';
+// import { asyncHandler, handleCrossrefNotificationCallback } from '../internal.js';
 
 import page404 from './pages/404.js';
 import pageRoot from './pages/root.js';

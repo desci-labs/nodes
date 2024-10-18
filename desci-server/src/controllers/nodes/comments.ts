@@ -2,16 +2,16 @@ import { Response, NextFunction } from 'express';
 import _ from 'lodash';
 import z from 'zod';
 
-import {
-  NotFoundError,
-  RequestWithNode,
-  SuccessResponse,
-  attestationService,
-  ensureUuidEndsWithDot,
-  getCommentsSchema,
-  logger,
-  prisma,
-} from '../../internal.js';
+// import {
+//   NotFoundError,
+//   RequestWithNode,
+//   SuccessResponse,
+//   attestationService,
+//   ensureUuidEndsWithDot,
+//   getCommentsSchema,
+//   logger,
+//   prisma,
+// } from '../../internal.js';
 
 export const getGeneralComments = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid } = req.params as z.infer<typeof getCommentsSchema>['params'];

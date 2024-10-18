@@ -4,17 +4,17 @@ import { Request, Response, NextFunction } from 'express';
 import _ from 'lodash';
 
 import { MintError } from '../../core/doi/error.js';
-import {
-  BadRequestError,
-  NotFoundError,
-  SuccessMessageResponse,
-  SuccessResponse,
-  crossRefClient,
-  doiService,
-  ensureUuidEndsWithDot,
-  logger as parentLogger,
-  prisma,
-} from '../../internal.js';
+// import {
+//   BadRequestError,
+//   NotFoundError,
+//   SuccessMessageResponse,
+//   SuccessResponse,
+//   crossRefClient,
+//   doiService,
+//   ensureUuidEndsWithDot,
+//   logger as parentLogger,
+//   prisma,
+// } from '../../internal.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { DoiMintedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 import { discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';

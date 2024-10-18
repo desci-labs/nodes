@@ -63,7 +63,7 @@ import { preparePublishPackage } from '../../controllers/nodes/preparePublishPac
 // import { listSharedNodes } from '../../controllers/nodes/sharedNodes.js';
 // import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 // import { versionDetails } from '../../controllers/nodes/versionDetails.js';
-import { asyncHandler, attachUser, validate, ensureUserIfPresent, getCommentsSchema } from '../../internal.js';
+// import { asyncHandler, attachUser, validate, ensureUserIfPresent, getCommentsSchema } from '../../internal.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUser } from '../../middleware/permissions.js';
 

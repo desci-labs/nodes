@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
-import { NodeUuid } from '../../internal.js';
+// import { NodeUuid } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { type ThumbnailMap, thumbnailsService } from '../../services/Thumbnails.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';

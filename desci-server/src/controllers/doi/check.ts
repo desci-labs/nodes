@@ -2,14 +2,14 @@ import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
 import { DoiError } from '../../core/doi/error.js';
-import {
-  BadRequestError,
-  RequestWithNode,
-  SuccessResponse,
-  doiService,
-  ensureUuidEndsWithDot,
-  logger as parentLogger,
-} from '../../internal.js';
+// import {
+//   BadRequestError,
+//   RequestWithNode,
+//   SuccessResponse,
+//   doiService,
+//   ensureUuidEndsWithDot,
+//   logger as parentLogger,
+// } from '../../internal.js';
 import { OpenAlexWork, transformInvertedAbstractToText } from '../../services/AutomatedMetadata.js';
 
 const pg = await import('pg').then((value) => value.default);

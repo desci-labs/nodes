@@ -1,25 +1,25 @@
 import { Router } from 'express';
 
-import {
-  addComment,
-  addReaction,
-  addVerification,
-  removeComment,
-  removeReaction,
-  removeVerification,
-  getAttestationComments,
-  getAllRecommendations,
-  showNodeAttestations,
-  claimAttestation,
-  claimEntryRequirements,
-  removeClaim,
-  getAttestationReactions,
-  showCommunityClaims,
-  getAttestationVerifications,
-  validate,
-  getValidatedRecommendations,
-  asyncHandler,
-} from '../../../internal.js';
+// import {
+//   addComment,
+//   addReaction,
+//   addVerification,
+//   removeComment,
+//   removeReaction,
+//   removeVerification,
+//   getAttestationComments,
+//   getAllRecommendations,
+//   showNodeAttestations,
+//   claimAttestation,
+//   claimEntryRequirements,
+//   removeClaim,
+//   getAttestationReactions,
+//   showCommunityClaims,
+//   getAttestationVerifications,
+//   validate,
+//   getValidatedRecommendations,
+//   asyncHandler,
+// } from '../../../internal.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 
 import {

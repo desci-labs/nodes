@@ -25,7 +25,7 @@ import routes from './routes/index.js';
 import { orcidConnect } from './controllers/auth/orcid.js';
 import { orcidCheck } from './controllers/auth/orcidNext.js';
 // import SocketServer from './wsServer.js';
-import { NotFoundError, RequestWithUser, extractAuthToken, extractUserFromToken } from './internal.js';
+// import { NotFoundError, RequestWithUser, extractAuthToken, extractUserFromToken } from './internal.js';
 import { als, logger } from './logger.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';

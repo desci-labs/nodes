@@ -7,7 +7,7 @@ import { handleCrossrefNotificationCallback } from '../../controllers/doi/mint.j
 import { queryRor } from '../../controllers/proxy/index.js';
 import { ipfsReadGatewayProxy } from '../../controllers/proxy/ipfsReadGateway.js';
 import { nft } from '../../controllers/raw/nft.js';
-import { asyncHandler } from '../../internal.js';
+// import { asyncHandler } from '../../internal.js';
 import { ensureUser } from '../../middleware/permissions.js';
 
 import admin from './admin/index.js';

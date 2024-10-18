@@ -2,17 +2,17 @@ import { ActionType, CommunityEntryAttestation, EmailType } from '@prisma/client
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
-import {
-  AuthFailureError,
-  NotFoundError,
-  SuccessMessageResponse,
-  SuccessResponse,
-  asyncMap,
-  attestationService,
-  ensureUuidEndsWithDot,
-  logger,
-  prisma,
-} from '../../internal.js';
+// import {
+//   AuthFailureError,
+//   NotFoundError,
+//   SuccessMessageResponse,
+//   SuccessResponse,
+//   asyncMap,
+//   attestationService,
+//   ensureUuidEndsWithDot,
+//   logger,
+//   prisma,
+// } from '../../internal.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
 import { saveInteraction } from '../../services/interactionLog.js';

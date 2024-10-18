@@ -3,14 +3,14 @@ import { NextFunction, Request, Response } from 'express';
 // import { Attestation, NodeAttestation } from '@prisma/client';
 import _ from 'lodash';
 
-import {
-  ForbiddenError,
-  SuccessMessageResponse,
-  SuccessResponse,
-  attestationService,
-  ensureUuidEndsWithDot,
-  prisma,
-} from '../../internal.js';
+// import {
+//   ForbiddenError,
+//   SuccessMessageResponse,
+//   SuccessResponse,
+//   attestationService,
+//   ensureUuidEndsWithDot,
+//   prisma,
+// } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import orcidApiService from '../../services/orcid.js';

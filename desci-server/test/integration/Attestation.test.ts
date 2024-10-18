@@ -22,19 +22,19 @@ import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { app } from '../../src/index.js';
-import {
-  AllAttestation,
-  CommunityAttestation,
-  DuplicateReactionError,
-  DuplicateVerificationError,
-  Engagement,
-  NodeAttestationFragment,
-  NodeRadar,
-  NodeRadarItem,
-  VerificationError,
-  attestationService,
-  communityService,
-} from '../../src/internal.js';
+// import {
+//   AllAttestation,
+//   CommunityAttestation,
+//   DuplicateReactionError,
+//   DuplicateVerificationError,
+//   Engagement,
+//   NodeAttestationFragment,
+//   NodeRadar,
+//   NodeRadarItem,
+//   VerificationError,
+//   attestationService,
+//   communityService,
+// } from '../../src/internal.js';
 import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
 import { randomUUID64 } from '../../src/utils.js';
 import { createDraftNode, createUsers } from '../util.js';

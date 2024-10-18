@@ -2,8 +2,8 @@ import { Node, NodeVersion } from '@prisma/client';
 import axios from 'axios';
 import _ from 'lodash';
 
-import { NodeRadar, ensureUuidEndsWithDot } from '../../internal.js';
-import { NodeUuid, cleanupManifestUrl, logger, prisma } from '../../internal.js';
+// import { NodeRadar, ensureUuidEndsWithDot } from '../../internal.js';
+// import { NodeUuid, cleanupManifestUrl, logger, prisma } from '../../internal.js';
 import repoService from '../../services/repoService.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
 

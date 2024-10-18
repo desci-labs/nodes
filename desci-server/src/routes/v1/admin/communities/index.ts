@@ -14,7 +14,7 @@ import {
   updateAttestation,
   updateCommunity,
 } from '../../../../controllers/admin/communities/index.js';
-import { asyncHandler, ensureAdmin, ensureUser, logger as parentLogger, validate } from '../../../../internal.js';
+// import { asyncHandler, ensureAdmin, ensureUser, logger as parentLogger, validate } from '../../../../internal.js';
 import { isS3Configured, s3Client } from '../../../../services/s3.js';
 
 import {

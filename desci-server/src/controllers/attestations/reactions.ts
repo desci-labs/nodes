@@ -1,16 +1,16 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
-import {
-  BadRequestError,
-  EMOJI_OPTIONS,
-  ForbiddenError,
-  NotFoundError,
-  SuccessMessageResponse,
-  SuccessResponse,
-  attestationService,
-  logger as parentLogger,
-} from '../../internal.js';
+// import {
+//   BadRequestError,
+//   EMOJI_OPTIONS,
+//   ForbiddenError,
+//   NotFoundError,
+//   SuccessMessageResponse,
+//   SuccessResponse,
+//   attestationService,
+//   logger as parentLogger,
+// } from '../../internal.js';
 
 export const getAttestationReactions = async (req: Request, res: Response, next: NextFunction) => {
   const logger = parentLogger.child({

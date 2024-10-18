@@ -12,20 +12,20 @@ import { Request } from 'express';
 import _ from 'lodash';
 import { z } from 'zod';
 
-import {
-  BadRequestError,
-  NotFoundError,
-  RequestWithNode,
-  SuccessResponse,
-  UnProcessableRequestError,
-  crossRefClient,
-  doiService,
-  ensureUuidEndsWithDot,
-  getLatestManifestFromNode,
-  logger,
-  metadataClient,
-  logger as parentLogger,
-} from '../../internal.js';
+// import {
+//   BadRequestError,
+//   NotFoundError,
+//   RequestWithNode,
+//   SuccessResponse,
+//   UnProcessableRequestError,
+//   crossRefClient,
+//   doiService,
+//   ensureUuidEndsWithDot,
+//   getLatestManifestFromNode,
+//   logger,
+//   metadataClient,
+//   logger as parentLogger,
+// } from '../../internal.js';
 import { MetadataResponse } from '../../services/AutomatedMetadata.js';
 import { Work, WorkSelectOptions } from '../../services/crossRef/definitions.js';
 import { getOrcidFromURL } from '../../services/crossRef/utils.js';

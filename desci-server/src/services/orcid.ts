@@ -1,7 +1,7 @@
 import { ResearchObjectV1, ResearchObjectV1Author } from '@desci-labs/desci-models';
 import { ActionType, AuthTokenSource, ORCIDRecord, OrcidPutCodes, PutcodeReference } from '@prisma/client';
 
-import { logger as parentLogger, prisma, zeropad } from '../internal.js';
+// import { logger as parentLogger, prisma, zeropad } from '../internal.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js';
 import { hexToCid } from '../utils.js';
 

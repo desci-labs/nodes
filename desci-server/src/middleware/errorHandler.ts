@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
-import { ApiError, logger } from '../internal.js';
+// import { ApiError, logger } from '../internal.js';
 import { CustomError } from '../utils/response/custom-error/CustomError.js';
 
 export const errorHandler = (err: Error | CustomError, req: Request, res: Response, next: NextFunction) => {

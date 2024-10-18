@@ -1,6 +1,6 @@
 import { Response } from 'express';
 
-import { SuccessResponse, communityService, logger } from '../../internal.js';
+// import { SuccessResponse, communityService, logger } from '../../internal.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 
 export const checkMemberGuard = async (req: RequestWithUser, res: Response) => {

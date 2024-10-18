@@ -5,18 +5,18 @@ import _ from 'lodash';
 import zod from 'zod';
 
 import { PUBLIC_IPFS_PATH } from '../../config/index.js';
-import {
-  ForbiddenError,
-  NotFoundError,
-  SuccessMessageResponse,
-  SuccessResponse,
-  asyncMap,
-  attestationService,
-  createCommentSchema,
-  ensureUuidEndsWithDot,
-  logger as parentLogger,
-  prisma,
-} from '../../internal.js';
+// import {
+//   ForbiddenError,
+//   NotFoundError,
+//   SuccessMessageResponse,
+//   SuccessResponse,
+//   asyncMap,
+//   attestationService,
+//   createCommentSchema,
+//   ensureUuidEndsWithDot,
+//   logger as parentLogger,
+//   prisma,
+// } from '../../internal.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { client } from '../../services/ipfs.js';
 import { emitNotificationForAnnotation } from '../../services/NotificationService.js';

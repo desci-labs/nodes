@@ -1,7 +1,7 @@
 import { AttestationVersion, DesciCommunity, NodeAttestation } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import { BadRequestError, SuccessResponse, attestationService } from '../../internal.js';
+// import { BadRequestError, SuccessResponse, attestationService } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 
 export type NodeAttestationFragment = NodeAttestation & {

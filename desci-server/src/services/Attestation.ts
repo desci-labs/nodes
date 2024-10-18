@@ -6,26 +6,26 @@ import sgMail from '@sendgrid/mail';
 import _ from 'lodash';
 
 import { prisma } from '../client.js';
-import {
-  AttestationNotFoundError,
-  AttestationVersionNotFoundError,
-  ClaimNotFoundError,
-  CommunityNotFoundError,
-  CommunityRadarNode,
-  DuplicateClaimError,
-  DuplicateDataError,
-  DuplicateReactionError,
-  DuplicateVerificationError,
-  NoAccessError,
-  NotFoundError,
-  VerificationError,
-  VerificationNotFoundError,
-  asyncMap,
-  ensureUuidEndsWithDot,
-  logger as parentLogger,
-  uuidPathRegex,
-} from '../internal.js';
-import { communityService } from '../internal.js';
+// import {
+//   AttestationNotFoundError,
+//   AttestationVersionNotFoundError,
+//   ClaimNotFoundError,
+//   CommunityNotFoundError,
+//   CommunityRadarNode,
+//   DuplicateClaimError,
+//   DuplicateDataError,
+//   DuplicateReactionError,
+//   DuplicateVerificationError,
+//   NoAccessError,
+//   NotFoundError,
+//   VerificationError,
+//   VerificationNotFoundError,
+//   asyncMap,
+//   ensureUuidEndsWithDot,
+//   logger as parentLogger,
+//   uuidPathRegex,
+// } from '../internal.js';
+// import { communityService } from '../internal.js';
 import { AttestationClaimedEmailHtml } from '../templates/emails/utils/emailRenderer.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);

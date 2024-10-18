@@ -1,6 +1,6 @@
 import { Response } from 'express';
 
-import { AttestationError, AttestationErrorType } from '../internal.js';
+// import { AttestationError, AttestationErrorType } from '../internal.js';
 
 import {
   AuthFailureResponse,

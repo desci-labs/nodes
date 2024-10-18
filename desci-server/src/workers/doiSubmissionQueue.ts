@@ -1,6 +1,6 @@
 import { CronJob } from 'cron';
 
-import { asyncMap, doiService, logger as parentLogger } from '../internal.js';
+// import { asyncMap, doiService, logger as parentLogger } from '../internal.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../utils/discordUtils.js';
 
 const logger = parentLogger.child({ module: 'DoiSubmissionJob' });

@@ -11,7 +11,7 @@ import {
 import { assert, expect } from 'chai';
 
 import { prisma } from '../../src/client.js';
-import { attestationService, communityService, DuplicateDataError } from '../../src/internal.js';
+// import { attestationService, communityService, DuplicateDataError } from '../../src/internal.js';
 import { createUsers } from '../util.js';
 
 const clearDatabase = async () => {
