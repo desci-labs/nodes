@@ -21,6 +21,13 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
+import { NodeAttestationFragment } from '../../src/controllers/attestations/show.js';
+import { Engagement, NodeRadar, NodeRadarItem } from '../../src/controllers/communities/types.js';
+import {
+  DuplicateReactionError,
+  DuplicateVerificationError,
+  VerificationError,
+} from '../../src/core/communities/error.js';
 import { app } from '../../src/index.js';
 // import {
 //   AllAttestation,
@@ -35,6 +42,8 @@ import { app } from '../../src/index.js';
 //   attestationService,
 //   communityService,
 // } from '../../src/internal.js';
+import { AllAttestation, attestationService, CommunityAttestation } from '../../src/services/Attestation.js';
+import { communityService } from '../../src/services/Communities.js';
 import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
 import { randomUUID64 } from '../../src/utils.js';
 import { createDraftNode, createUsers } from '../util.js';
