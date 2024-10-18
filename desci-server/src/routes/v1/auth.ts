@@ -17,8 +17,8 @@ import {
   check,
 } from '../../controllers/auth/index.js';
 import { walletLogin, walletNonce } from '../../controllers/users/associateWallet.js';
-import { asyncHandler } from '../../internal.js';
 import { ensureUser } from '../../middleware/permissions.js';
+import { asyncHandler } from '../../utils/asyncHandler.js';
 
 const router = Router();
 

@@ -1,15 +1,15 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
-import {
-  NotFoundError,
-  SuccessResponse,
-  asyncMap,
-  attestationService,
-  communityService,
-  resolveLatestNode,
-} from '../../internal.js';
-import { logger as parentLogger } from '../../internal.js';
+import { NotFoundError } from '../../core/ApiError.js';
+import { SuccessResponse } from '../../core/ApiResponse.js';
+import { logger as parentLogger } from '../../logger.js';
+import { attestationService } from '../../services/Attestation.js';
+import { communityService } from '../../services/Communities.js';
+import { asyncMap } from '../../utils.js';
+
+import { resolveLatestNode } from './util.js';
+
 const logger = parentLogger.child({ module: 'communities/feed.ts' });
 
 export const getCommunityFeed = async (req: Request, res: Response, next: NextFunction) => {

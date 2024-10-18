@@ -4,22 +4,18 @@ import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import zod from 'zod';
 
+import { prisma } from '../../client.js';
 import { PUBLIC_IPFS_PATH } from '../../config/index.js';
-import {
-  ForbiddenError,
-  NotFoundError,
-  SuccessMessageResponse,
-  SuccessResponse,
-  asyncMap,
-  attestationService,
-  createCommentSchema,
-  ensureUuidEndsWithDot,
-  logger as parentLogger,
-  prisma,
-} from '../../internal.js';
+import { ForbiddenError, NotFoundError } from '../../core/ApiError.js';
+import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
+import { logger as parentLogger } from '../../logger.js';
+import { createCommentSchema } from '../../routes/v1/attestations/schema.js';
+import { attestationService } from '../../services/Attestation.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { client } from '../../services/ipfs.js';
+import { emitNotificationForAnnotation } from '../../services/NotificationService.js';
 import { base64ToBlob } from '../../utils/upload.js';
+import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
 export const getAttestationComments = async (req: Request, res: Response, next: NextFunction) => {
   const { claimId } = req.params;
@@ -129,6 +125,7 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
     });
   }
   await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
+  await emitNotificationForAnnotation(annotation.id);
   new SuccessResponse({
     ...annotation,
     highlights: annotation.highlights.map((h) => JSON.parse(h as string)),

@@ -5,7 +5,6 @@ import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { MEDIA_SERVER_API_KEY, MEDIA_SERVER_API_URL, PUBLIC_IPFS_PATH } from '../config/index.js';
-import { ForbiddenError, NodeUuid, NotFoundError } from '../internal.js';
 import { logger as parentLogger } from '../logger.js';
 import { getFromCache } from '../redisClient.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
@@ -15,6 +14,7 @@ import { cleanupManifestUrl, transformManifestWithHistory } from '../utils/manif
 import { hexToCid, randomUUID64, asyncMap, ensureUuidEndsWithDot } from '../utils.js';
 
 import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
+import { NodeUuid } from './manifestRepo.js';
 import repoService from './repoService.js';
 
 const ESTUARY_MIRROR_ID = 1;
