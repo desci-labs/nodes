@@ -32,6 +32,7 @@ import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 import { runWorkerUntilStopped } from './workers/publish.js';
 
 // const __dirname = path.dirname(__filename);
+//test
 
 const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
 const IS_DEV = !ENABLE_TELEMETRY;
