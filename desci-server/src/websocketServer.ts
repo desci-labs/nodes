@@ -14,29 +14,34 @@ export const initializeWebSocketServer = async (httpServer: HttpServer) => {
 
   const io = new Server(httpServer);
 
-  if (!redisClient.isOpen) {
-    logger.info('Waiting for Redis client to connect...');
-    await new Promise<void>((resolve) => {
-      redisClient.on('connect', () => {
-        logger.info('Redis client connected');
-        resolve();
+  const useRedis = !!process.env.REDIS_HOST;
+
+  if (useRedis) {
+    logger.info('Redis host configured. Initializing with Redis adapter.');
+    if (!redisClient.isOpen) {
+      logger.info('Waiting for Redis client to connect...');
+      await new Promise<void>((resolve) => {
+        redisClient.on('connect', () => {
+          logger.info('Redis client connected');
+          resolve();
+        });
       });
-    });
-  }
-
-  const pubClient = redisClient;
-  const subClient = pubClient.duplicate();
-
-  try {
-    await subClient.connect();
-    io.adapter(createAdapter(pubClient, subClient));
-    logger.info(
-      { redisHost: process.env.REDIS_HOST, redisPort: process.env.REDIS_PORT },
-      'Redis adapter connected for WebSocket',
-    );
-  } catch (error) {
-    logger.error({ error }, 'Failed to connect to Redis for WebSocket adapter');
-    throw error;
+    }
+    const pubClient = redisClient;
+    const subClient = pubClient.duplicate();
+    try {
+      await subClient.connect();
+      io.adapter(createAdapter(pubClient, subClient));
+      logger.info(
+        { redisHost: process.env.REDIS_HOST, redisPort: process.env.REDIS_PORT },
+        'Redis adapter connected for WebSocket',
+      );
+    } catch (error) {
+      logger.error({ error }, 'Failed to connect to Redis for WebSocket adapter');
+      throw error;
+    }
+  } else {
+    logger.info('Redis host not configured. Initializing without Redis adapter.');
   }
 
   io.use((socket: Socket, next: (err?: ExtendedError) => void) => {

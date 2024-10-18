@@ -189,7 +189,6 @@ class AppServer {
     }
 
     logger.error('Failed to initialize WebSocket server after maximum retries');
-    // Optionally, you could throw an error here or implement a fallback mechanism
   }
 
   // websockets getter
