@@ -15,7 +15,12 @@ import {
   updateCommunity,
 } from '../../../../controllers/admin/communities/index.js';
 // import { asyncHandler, ensureAdmin, ensureUser, logger as parentLogger, validate } from '../../../../internal.js';
+import { logger as parentLogger } from '../../../../logger.js';
+import { ensureAdmin } from '../../../../middleware/ensureAdmin.js';
+import { ensureUser } from '../../../../middleware/permissions.js';
+import { validate } from '../../../../middleware/validator.js';
 import { isS3Configured, s3Client } from '../../../../services/s3.js';
+import { asyncHandler } from '../../../../utils/asyncHandler.js';
 
 import {
   addAttestationSchema,

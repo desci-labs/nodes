@@ -5,6 +5,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../client.js';
 // import { attestationService } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
+import { attestationService } from '../../services/Attestation.js';
 import { getManifestByCid } from '../../services/data/processing.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';

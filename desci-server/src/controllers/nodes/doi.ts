@@ -26,10 +26,18 @@ import { z } from 'zod';
 //   metadataClient,
 //   logger as parentLogger,
 // } from '../../internal.js';
+import { BadRequestError, NotFoundError, UnProcessableRequestError } from '../../core/ApiError.js';
+import { SuccessResponse } from '../../core/ApiResponse.js';
+import { logger as parentLogger } from '../../logger.js';
+import { logger } from '../../logger.js';
+import { RequestWithNode } from '../../middleware/authorisation.js';
 import { MetadataResponse } from '../../services/AutomatedMetadata.js';
 import { Work, WorkSelectOptions } from '../../services/crossRef/definitions.js';
 import { getOrcidFromURL } from '../../services/crossRef/utils.js';
+import { crossRefClient, doiService, metadataClient } from '../../services/index.js';
+import { getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export const attachDoiSchema = z.object({
   body: z.object({

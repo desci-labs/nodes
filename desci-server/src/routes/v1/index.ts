@@ -9,6 +9,7 @@ import { ipfsReadGatewayProxy } from '../../controllers/proxy/ipfsReadGateway.js
 import { nft } from '../../controllers/raw/nft.js';
 // import { asyncHandler } from '../../internal.js';
 import { ensureUser } from '../../middleware/permissions.js';
+import { asyncHandler } from '../../utils/asyncHandler.js';
 
 import admin from './admin/index.js';
 import attestations from './attestations/index.js';

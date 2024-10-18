@@ -1,6 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
+import { BadRequestError } from '../../core/ApiError.js';
+import { SuccessResponse } from '../../core/ApiResponse.js';
 import { DoiError } from '../../core/doi/error.js';
 // import {
 //   BadRequestError,
@@ -10,8 +12,10 @@ import { DoiError } from '../../core/doi/error.js';
 //   ensureUuidEndsWithDot,
 //   logger as parentLogger,
 // } from '../../internal.js';
+import { logger as parentLogger } from '../../logger.js';
+import { RequestWithNode } from '../../middleware/authorisation.js';
 import { OpenAlexWork, transformInvertedAbstractToText } from '../../services/AutomatedMetadata.js';
-
+import { doiService } from '../../services/index.js';
 const pg = await import('pg').then((value) => value.default);
 const { Client } = pg;
 

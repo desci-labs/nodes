@@ -3,6 +3,9 @@ import sgMail from '@sendgrid/mail';
 import { Request, Response, NextFunction } from 'express';
 import _ from 'lodash';
 
+import { prisma } from '../../client.js';
+import { BadRequestError } from '../../core/ApiError.js';
+import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { MintError } from '../../core/doi/error.js';
 // import {
 //   BadRequestError,
@@ -15,9 +18,12 @@ import { MintError } from '../../core/doi/error.js';
 //   logger as parentLogger,
 //   prisma,
 // } from '../../internal.js';
+import { logger as parentLogger } from '../../logger.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
+import { crossRefClient, doiService } from '../../services/index.js';
 import { DoiMintedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 import { discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export const mintDoi = async (req: Request, res: Response, _next: NextFunction) => {
   const { uuid } = req.params;

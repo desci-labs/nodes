@@ -64,8 +64,14 @@ import { preparePublishPackage } from '../../controllers/nodes/preparePublishPac
 // import { thumbnails } from '../../controllers/nodes/thumbnails.js';
 // import { versionDetails } from '../../controllers/nodes/versionDetails.js';
 // import { asyncHandler, attachUser, validate, ensureUserIfPresent, getCommentsSchema } from '../../internal.js';
+import { attachUser } from '../../middleware/attachUser.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
+import { ensureUserIfPresent } from '../../middleware/ensureUserIfPresent.js';
 import { ensureUser } from '../../middleware/permissions.js';
+import { validate } from '../../middleware/validator.js';
+import { asyncHandler } from '../../utils/asyncHandler.js';
+
+import { getCommentsSchema } from './attestations/schema.js';
 
 const router = Router();
 

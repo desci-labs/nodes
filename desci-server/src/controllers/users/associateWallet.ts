@@ -13,6 +13,8 @@ import { prisma } from '../../client.js';
 //   SuccessResponse,
 //   extractTokenFromCookie,
 // } from '../../internal.js';
+import { AuthFailureError, BadRequestError, ForbiddenError } from '../../core/ApiError.js';
+import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getUserConsent, saveInteraction } from '../../services/interactionLog.js';
 import { writeExternalIdToOrcidProfile } from '../../services/user.js';

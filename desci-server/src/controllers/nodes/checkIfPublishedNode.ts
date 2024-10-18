@@ -6,6 +6,7 @@ import { prisma } from '../../client.js';
 // import { resolveNodeManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
+import { resolveNodeManifest } from '../../utils/manifest.js';
 import { decodeBase64UrlSafeToHex, ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
 
 const logger = parentLogger.child({

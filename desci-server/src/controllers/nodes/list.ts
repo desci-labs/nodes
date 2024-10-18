@@ -4,6 +4,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 // import { cachedGetDpidFromManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
+import { cachedGetDpidFromManifest } from '../../utils/manifest.js';
 import { asyncMap, randomUUID64 } from '../../utils.js';
 
 const logger = parentLogger.child({

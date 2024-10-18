@@ -11,6 +11,10 @@ import _ from 'lodash';
 //   attestationService,
 //   logger as parentLogger,
 // } from '../../internal.js';
+import { ForbiddenError } from '../../core/ApiError.js';
+import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
+import { logger as parentLogger } from '../../logger.js';
+import { attestationService } from '../../services/Attestation.js';
 
 export const getAttestationReactions = async (req: Request, res: Response, next: NextFunction) => {
   const logger = parentLogger.child({

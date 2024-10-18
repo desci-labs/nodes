@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 
 // import { cachedGetDpidFromManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
+import { cachedGetDpidFromManifest } from '../../utils/manifest.js';
 import { asyncMap } from '../../utils.js';
 
 import { listAllUserNodes, PublishedNode } from './list.js';

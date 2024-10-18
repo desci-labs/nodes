@@ -4,8 +4,15 @@ import _ from 'lodash';
 
 // import { NodeRadar, ensureUuidEndsWithDot } from '../../internal.js';
 // import { NodeUuid, cleanupManifestUrl, logger, prisma } from '../../internal.js';
+import { prisma } from '../../client.js';
+import { logger } from '../../logger.js';
+import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
+import { cleanupManifestUrl } from '../../utils/manifest.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
+
+import { NodeRadar } from './types.js';
 
 export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
   const uuid = ensureUuidEndsWithDot(radar.nodeuuid);

@@ -11,9 +11,14 @@ import _ from 'lodash';
 //   ensureUuidEndsWithDot,
 //   prisma,
 // } from '../../internal.js';
+import { prisma } from '../../client.js';
+import { ForbiddenError } from '../../core/ApiError.js';
+import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
+import { attestationService } from '../../services/Attestation.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import orcidApiService from '../../services/orcid.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 type RemoveVerificationBody = {
   verificationId: string;

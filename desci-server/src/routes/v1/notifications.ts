@@ -4,7 +4,7 @@ import { createNotification } from '../../controllers/notifications/create.js';
 import { listUserNotifications } from '../../controllers/notifications/index.js';
 import { updateNotification } from '../../controllers/notifications/update.js';
 import { updateSettings } from '../../controllers/notifications/updateSettings.js';
-// import { ensureUser } from '../../internal.js';
+import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
 

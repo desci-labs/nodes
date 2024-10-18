@@ -15,6 +15,7 @@ import { cleanupManifestUrl, transformManifestWithHistory } from '../utils/manif
 import { hexToCid, randomUUID64, asyncMap, ensureUuidEndsWithDot } from '../utils.js';
 
 import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
+import { NodeUuid } from './manifestRepo.js';
 import repoService from './repoService.js';
 
 const ESTUARY_MIRROR_ID = 1;

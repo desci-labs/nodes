@@ -5,6 +5,7 @@ import { prisma } from '../../client.js';
 // import { getLatestManifestFromNode } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { PRIV_SHARE_CONTRIBUTION_PREFIX } from '../../services/Contributors.js';
+import { getLatestManifestFromNode } from '../../services/manifestRepo.js';
 
 export type SharedNode = {
   uuid: string;

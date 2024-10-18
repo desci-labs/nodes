@@ -6,6 +6,7 @@ import { prisma } from '../client.js';
 // import { cachedGetDpidFromManifest } from '../internal.js';
 import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
+import { cachedGetDpidFromManifest } from '../utils/manifest.js';
 import { ensureUuidEndsWithDot, hexToCid, toKebabCase } from '../utils.js';
 
 import { attestationService } from './Attestation.js';

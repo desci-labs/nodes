@@ -1,5 +1,10 @@
 import { NextFunction, Response } from 'express';
 
+import { SuccessResponse } from '../../core/ApiResponse.js';
+import { logger as parentLogger } from '../../logger.js';
+import { RequestWithUser } from '../../middleware/authorisation.js';
+import { doiService } from '../../services/index.js';
+
 // import { RequestWithUser, SuccessResponse, doiService, logger as parentLogger } from '../../internal.js';
 
 const logger = parentLogger.child({ module: 'ADMIN::DOI' });

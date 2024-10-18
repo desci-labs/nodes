@@ -21,14 +21,17 @@ import { v4 } from 'uuid';
 
 import { prisma } from './client.js';
 // eslint-disable-next-line import/order
-import routes from './routes/index.js';
 import { orcidConnect } from './controllers/auth/orcid.js';
 import { orcidCheck } from './controllers/auth/orcidNext.js';
+import { NotFoundError } from './core/ApiError.js';
+import { als, logger } from './logger.js';
 // import SocketServer from './wsServer.js';
 // import { NotFoundError, RequestWithUser, extractAuthToken, extractUserFromToken } from './internal.js';
-import { als, logger } from './logger.js';
+import { RequestWithUser } from './middleware/authorisation.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
+import routes from './routes/index.js';
 import { initializeWebSocketServer } from './websocketServer.js';
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 import { runWorkerUntilStopped } from './workers/publish.js';

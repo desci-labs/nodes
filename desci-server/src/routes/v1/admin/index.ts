@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { createCsv, getAnalytics } from '../../../controllers/admin/analytics.js';
 import { debugAllNodesHandler, debugNodeHandler } from '../../../controllers/admin/debug.js';
 // import { listDoiRecords } from '../../../internal.js';
+import { listDoiRecords } from '../../../controllers/doi/admin.js';
 import { ensureAdmin } from '../../../middleware/ensureAdmin.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 

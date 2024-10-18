@@ -11,7 +11,11 @@ import { z } from 'zod';
 //   SuccessResponse,
 //   metadataClient,
 // } from '../../internal.js';
+import { BadRequestError, InternalError } from '../../core/ApiError.js';
+import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
+import { RequestWithNode } from '../../middleware/authorisation.js';
 import { MetadataResponse } from '../../services/AutomatedMetadata.js';
+import { metadataClient } from '../../services/index.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { isDoiLink } from '../data/utils.js';
 

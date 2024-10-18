@@ -4,6 +4,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../../client.js';
 // import { getLatestManifestFromNode } from '../../../internal.js';
 import { logger as parentLogger } from '../../../logger.js';
+import { getLatestManifestFromNode } from '../../../services/manifestRepo.js';
 
 export type BookmarkedNode = {
   uuid: string;
