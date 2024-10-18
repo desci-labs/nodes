@@ -9,6 +9,9 @@ import {
   createAttestation,
   createCommunity,
   listAllCommunities,
+  listAttestations,
+  listCommunityAttestations,
+  listCommunityEntryAttestations,
   removeEntryAttestation,
   removeMember,
   updateAttestation,
@@ -78,6 +81,8 @@ const sanitizeBody = async (req: Request, _res: Response, next: NextFunction) =>
 };
 
 router.get('/', [ensureUser, ensureAdmin], asyncHandler(listAllCommunities));
+router.get('/:communityId/attestations', [ensureUser, ensureAdmin], asyncHandler(listCommunityAttestations));
+router.get('/:communityId/entryAttestations', [ensureUser, ensureAdmin], asyncHandler(listCommunityEntryAttestations));
 
 router.post(
   '/',
@@ -117,7 +122,7 @@ router.post(
   asyncHandler(addEntryAttestation),
 );
 
-router.delete(
+router.post(
   '/:communityId/removeEntryAttestation/:attestationId',
   [ensureUser, ensureAdmin, validate(addEntryAttestationSchema)],
   asyncHandler(removeEntryAttestation),
