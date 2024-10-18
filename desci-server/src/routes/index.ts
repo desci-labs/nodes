@@ -2,7 +2,6 @@ import { Router } from 'express';
 
 import { handleCrossrefNotificationCallback } from '../controllers/doi/mint.js';
 import { resolve } from '../controllers/raw/resolve.js';
-// import { asyncHandler, handleCrossrefNotificationCallback } from '../internal.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 import page404 from './pages/404.js';

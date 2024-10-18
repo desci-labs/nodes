@@ -2,7 +2,6 @@ import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../../client.js';
-// import { ensureUuidEndsWithDot } from '../../../internal.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { ensureUuidEndsWithDot } from '../../../utils.js';
 

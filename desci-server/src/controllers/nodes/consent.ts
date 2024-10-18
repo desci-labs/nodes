@@ -4,7 +4,6 @@ import _ from 'lodash';
 import { z as zod } from 'zod';
 
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
-// import { SuccessMessageResponse, SuccessResponse, ensureUuidEndsWithDot, logger } from '../../internal.js';
 import { logger } from '../../logger.js';
 import { getUserConsent, getUserPublishConsent, saveInteraction } from '../../services/interactionLog.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';

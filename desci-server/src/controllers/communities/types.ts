@@ -3,8 +3,6 @@ import { Node } from '@prisma/client';
 
 import { CommunityRadarNode } from '../../services/Communities.js';
 
-// import { CommunityRadarNode } from '../../internal.js';
-
 export type NodeRadarItem = {
   NodeAttestation: CommunityRadarNode[];
   nodeDpid10: string;

@@ -26,7 +26,6 @@ import { orcidCheck } from './controllers/auth/orcidNext.js';
 import { NotFoundError } from './core/ApiError.js';
 import { als, logger } from './logger.js';
 // import SocketServer from './wsServer.js';
-// import { NotFoundError, RequestWithUser, extractAuthToken, extractUserFromToken } from './internal.js';
 import { RequestWithUser } from './middleware/authorisation.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';

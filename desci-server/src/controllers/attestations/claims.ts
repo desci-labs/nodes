@@ -2,17 +2,6 @@ import { ActionType, CommunityEntryAttestation, EmailType } from '@prisma/client
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
-// import {
-//   AuthFailureError,
-//   NotFoundError,
-//   SuccessMessageResponse,
-//   SuccessResponse,
-//   asyncMap,
-//   attestationService,
-//   ensureUuidEndsWithDot,
-//   logger,
-//   prisma,
-// } from '../../internal.js';
 import { prisma } from '../../client.js';
 import { AuthFailureError, NotFoundError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';

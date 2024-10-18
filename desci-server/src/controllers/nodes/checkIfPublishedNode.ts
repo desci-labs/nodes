@@ -3,7 +3,6 @@ import { NodeCover } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
-// import { resolveNodeManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
 import { resolveNodeManifest } from '../../utils/manifest.js';

@@ -1,16 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
-// import {
-//   BadRequestError,
-//   EMOJI_OPTIONS,
-//   ForbiddenError,
-//   NotFoundError,
-//   SuccessMessageResponse,
-//   SuccessResponse,
-//   attestationService,
-//   logger as parentLogger,
-// } from '../../internal.js';
 import { ForbiddenError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';

@@ -2,7 +2,6 @@ import { DataType, EmailType, Node, NodeContribution, User } from '@prisma/clien
 import sgMail from '@sendgrid/mail';
 
 import { prisma } from '../client.js';
-// import { attestationService, ensureUuidEndsWithDot, getNodeVersion, hexToCid } from '../internal.js';
 import { getNodeVersion } from '../controllers/communities/util.js';
 import { logger as parentLogger } from '../logger.js';
 import { SubmissionPackageEmailHtml } from '../templates/emails/utils/emailRenderer.js';

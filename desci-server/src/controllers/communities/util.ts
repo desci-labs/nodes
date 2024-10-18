@@ -2,8 +2,6 @@ import { Node, NodeVersion } from '@prisma/client';
 import axios from 'axios';
 import _ from 'lodash';
 
-// import { NodeRadar, ensureUuidEndsWithDot } from '../../internal.js';
-// import { NodeUuid, cleanupManifestUrl, logger, prisma } from '../../internal.js';
 import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
 import { NodeUuid } from '../../services/manifestRepo.js';

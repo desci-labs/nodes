@@ -3,8 +3,6 @@ import _, { includes } from 'lodash';
 
 import { prisma } from '../client.js';
 import { DuplicateDataError } from '../core/communities/error.js';
-// import { DuplicateDataError, logger } from '../internal.js';
-// import { attestationService } from '../internal.js';
 import { logger } from '../logger.js';
 
 import { attestationService } from './Attestation.js';

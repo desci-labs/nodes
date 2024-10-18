@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 
-// import { ApiError, logger } from '../internal.js';
 import { ApiError } from '../core/ApiError.js';
 import { logger } from '../logger.js';
 import { CustomError } from '../utils/response/custom-error/CustomError.js';

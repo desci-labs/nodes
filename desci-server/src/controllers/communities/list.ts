@@ -1,9 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
-// import { SuccessResponse, communityService } from '../../internal.js';
-// import { logger as parentLogger, asyncMap } from '../../internal.js';
-
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { communityService } from '../../services/Communities.js';

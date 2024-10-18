@@ -1,6 +1,5 @@
 import { Response } from 'express';
 
-// import { SuccessResponse, communityService, logger } from '../../internal.js';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';

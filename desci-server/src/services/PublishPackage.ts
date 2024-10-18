@@ -3,7 +3,6 @@ import { Node } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
-// import { cachedGetDpidFromManifest } from '../internal.js';
 import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { cachedGetDpidFromManifest } from '../utils/manifest.js';

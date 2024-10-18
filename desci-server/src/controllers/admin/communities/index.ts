@@ -2,18 +2,6 @@ import { CommunityMembershipRole } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 
-// import {
-//   asyncMap,
-//   attestationService,
-//   BadRequestError,
-//   communityService,
-//   DuplicateDataError,
-//   NotFoundError,
-//   logger as parentLogger,
-//   prisma,
-//   SuccessMessageResponse,
-//   SuccessResponse,
-// } from '../../../internal.js';
 import { prisma } from '../../../client.js';
 import { BadRequestError, NotFoundError } from '../../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../../core/ApiResponse.js';

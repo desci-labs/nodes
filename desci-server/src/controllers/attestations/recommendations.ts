@@ -7,14 +7,6 @@ import { logger as parentLogger } from '../../logger.js';
 import { attestationService } from '../../services/Attestation.js';
 import { communityService } from '../../services/Communities.js';
 
-// import {
-//   NotFoundError,
-//   SuccessResponse,
-//   attestationService,
-//   communityService,
-//   logger as parentLogger,
-// } from '../../internal.js';
-
 const logger = parentLogger.child({ module: 'Recommendations' });
 
 export const getAllRecommendations = async (_req: Request, res: Response, _next: NextFunction) => {

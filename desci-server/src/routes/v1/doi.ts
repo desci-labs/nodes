@@ -8,17 +8,6 @@ import { ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
-// import {
-//   asyncHandler,
-//   checkMintability,
-//   ensureNodeAccess,
-//   ensureUser,
-//   retrieveDoi,
-//   retrieveDoiSchema,
-//   mintDoi,
-//   validate,
-// } from '../../internal.js';
-
 const router = Router();
 
 router.post('/check/:uuid', [ensureUser, ensureNodeAccess], asyncHandler(checkMintability));

@@ -11,7 +11,6 @@ import 'dotenv/config';
 import 'mocha';
 
 import { prisma } from '../../src/client.js';
-// import { attestationService, communityService, DuplicateDataError } from '../../src/internal.js';
 import { DuplicateDataError } from '../../src/core/communities/error.js';
 import { attestationService } from '../../src/services/Attestation.js';
 import { communityService } from '../../src/services/Communities.js';

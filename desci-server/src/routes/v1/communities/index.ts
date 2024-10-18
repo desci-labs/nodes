@@ -1,19 +1,5 @@
 import { Router } from 'express';
 
-// import {
-//   asyncHandler,
-//   checkMemberGuard,
-//   ensureUser,
-//   getAllFeeds,
-//   getCommunityDetails,
-//   getCommunityFeed,
-//   getCommunityRadar,
-//   getCommunityRecommendations,
-//   getValidatedAttestations,
-//   listCommunities,
-//   validate,
-// } from '../../../internal.js';
-
 import {
   getCommunityRecommendations,
   getValidatedAttestations,

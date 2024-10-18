@@ -7,17 +7,6 @@ import { prisma } from '../../client.js';
 import { BadRequestError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { MintError } from '../../core/doi/error.js';
-// import {
-//   BadRequestError,
-//   NotFoundError,
-//   SuccessMessageResponse,
-//   SuccessResponse,
-//   crossRefClient,
-//   doiService,
-//   ensureUuidEndsWithDot,
-//   logger as parentLogger,
-//   prisma,
-// } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { crossRefClient, doiService } from '../../services/index.js';

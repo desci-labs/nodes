@@ -5,14 +5,6 @@ import { NextFunction, Request, Response } from 'express';
 import { ErrorTypes, SiweMessage, generateNonce } from 'siwe';
 
 import { prisma } from '../../client.js';
-// import {
-//   AuthFailureError,
-//   BadRequestError,
-//   ForbiddenError,
-//   SuccessMessageResponse,
-//   SuccessResponse,
-//   extractTokenFromCookie,
-// } from '../../internal.js';
 import { AuthFailureError, BadRequestError, ForbiddenError } from '../../core/ApiError.js';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';

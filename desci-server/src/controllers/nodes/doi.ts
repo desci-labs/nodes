@@ -12,20 +12,6 @@ import { Request } from 'express';
 import _ from 'lodash';
 import { z } from 'zod';
 
-// import {
-//   BadRequestError,
-//   NotFoundError,
-//   RequestWithNode,
-//   SuccessResponse,
-//   UnProcessableRequestError,
-//   crossRefClient,
-//   doiService,
-//   ensureUuidEndsWithDot,
-//   getLatestManifestFromNode,
-//   logger,
-//   metadataClient,
-//   logger as parentLogger,
-// } from '../../internal.js';
 import { BadRequestError, NotFoundError, UnProcessableRequestError } from '../../core/ApiError.js';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';

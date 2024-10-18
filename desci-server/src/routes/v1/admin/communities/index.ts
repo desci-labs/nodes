@@ -14,7 +14,6 @@ import {
   updateAttestation,
   updateCommunity,
 } from '../../../../controllers/admin/communities/index.js';
-// import { asyncHandler, ensureAdmin, ensureUser, logger as parentLogger, validate } from '../../../../internal.js';
 import { logger as parentLogger } from '../../../../logger.js';
 import { ensureAdmin } from '../../../../middleware/ensureAdmin.js';
 import { ensureUser } from '../../../../middleware/permissions.js';

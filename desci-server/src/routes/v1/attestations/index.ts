@@ -1,25 +1,5 @@
 import { Router } from 'express';
 
-// import {
-//   addComment,
-//   addReaction,
-//   addVerification,
-//   removeComment,
-//   removeReaction,
-//   removeVerification,
-//   getAttestationComments,
-//   getAllRecommendations,
-//   showNodeAttestations,
-//   claimAttestation,
-//   claimEntryRequirements,
-//   removeClaim,
-//   getAttestationReactions,
-//   showCommunityClaims,
-//   getAttestationVerifications,
-//   validate,
-//   getValidatedRecommendations,
-//   asyncHandler,
-// } from '../../../internal.js';
 import { claimAttestation, claimEntryRequirements, removeClaim } from '../../../controllers/attestations/claims.js';
 import { addComment, getAttestationComments, removeComment } from '../../../controllers/attestations/comments.js';
 import { addReaction, getAttestationReactions, removeReaction } from '../../../controllers/attestations/reactions.js';

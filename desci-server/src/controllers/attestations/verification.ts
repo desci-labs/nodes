@@ -3,14 +3,6 @@ import { NextFunction, Request, Response } from 'express';
 // import { Attestation, NodeAttestation } from '@prisma/client';
 import _ from 'lodash';
 
-// import {
-//   ForbiddenError,
-//   SuccessMessageResponse,
-//   SuccessResponse,
-//   attestationService,
-//   ensureUuidEndsWithDot,
-//   prisma,
-// } from '../../internal.js';
 import { prisma } from '../../client.js';
 import { ForbiddenError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';

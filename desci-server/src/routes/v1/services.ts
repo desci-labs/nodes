@@ -4,7 +4,6 @@ import multer from 'multer';
 import { ephemeralThumbnail } from '../../controllers/proxy/ephemeralThumbnail.js';
 import { orcidDid, orcidProfile } from '../../controllers/proxy/orcidProfile.js';
 import { ensureUser } from '../../middleware/permissions.js';
-// import { ensureUser } from '../../internal.js';
 
 const router = Router();
 

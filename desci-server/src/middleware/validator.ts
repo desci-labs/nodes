@@ -4,8 +4,6 @@ import { ZodError, z } from 'zod';
 import { BadRequestError, InternalError } from '../core/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
-// import { BadRequestError, InternalError, asyncHandler, logger } from '../internal.js';
-
 export const validate = <T extends z.ZodRawShape>(schema: z.ZodObject<T>) =>
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     try {
