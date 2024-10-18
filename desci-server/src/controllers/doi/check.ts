@@ -74,30 +74,27 @@ export const retrieveDoi = async (req: Request, res: Response, _next: NextFuncti
     `select 
     COALESCE(wol.pdf_url, '') as pdf_url,
     COALESCE(wol.landing_page_url, '') as landing_page_url,
-    works.doi,
     works.title as title,
     works.id as works_id,
     works."type" as work_type,
     works.publication_year,
     works.cited_by_count as citation_count,
-    woa.oa_status,
-    source.publisher,
-    source.display_name as source_name,
+    COALESCE(woa.oa_status, 'unknown') as oa_status,
+    COALESCE(source.publisher, 'unknown') as publisher,
+    COALESCE(source.display_name, 'unknown') as source_name,
     ARRAY(
         SELECT author.display_name as author_name 
         FROM openalex.works_authorships wauth
-        left join openalex.authors author on author.id = wauth.author_id
+        LEFT JOIN openalex.authors author on author.id = wauth.author_id
         WHERE wauth.work_id = works.id
     ) as authors
 from openalex.works works
 left join openalex.works_best_oa_locations wol on works.id = wol.work_id
-left join openalex.works_locations wl on wl.work_id  = works.id
 left join openalex.works_authorships wa on works.id = wa.work_id
 left join openalex.works_open_access woa on woa.work_id = works.id
-left join openalex.sources source on source.id = coalesce(wl.source_id, wol.source_id)
+left join openalex.sources source on source.id = wol.source_id
 where works.doi = $1
-and source.publisher is not null
-group by works.doi, wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type", works.cited_by_count, works.publication_year, woa.oa_status, source.publisher, source.display_name;`,
+group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type", works.cited_by_count, works.publication_year, woa.oa_status, source.publisher, source.display_name;`,
     [doiLink],
   );
 
