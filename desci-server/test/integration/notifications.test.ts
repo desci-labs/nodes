@@ -46,12 +46,15 @@ describe('Notification Service', () => {
 
       await expectThrowsAsync(
         () =>
-          createUserNotification({
-            userId: user.id,
-            type: NotificationType.PUBLISH,
-            title: 'Test Notification',
-            message: 'This is a test notification',
-          }),
+          createUserNotification(
+            {
+              userId: user.id,
+              type: NotificationType.PUBLISH,
+              title: 'Test Notification',
+              message: 'This is a test notification',
+            },
+            { throwOnDisabled: true },
+          ),
         'Notification type is disabled for this user',
       );
     });
@@ -72,7 +75,7 @@ describe('Notification Service', () => {
 
       expect(result.data.length).to.equal(10);
       expect(result.pagination.currentPage).to.equal(1);
-      expect(result.pagination.totalPages).to.equal(2);
+      expect(result.pagination.totalPages).to.equal(3);
       expect(result.pagination.totalItems).to.equal(30);
     });
   });

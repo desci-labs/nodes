@@ -77,7 +77,7 @@ export const createUserNotification = async (
 
   if (!shouldSendNotification(settings, data.type)) {
     logger.warn({ userId: data.userId, type: data.type }, 'Notification creation blocked by user settings');
-    if (options.throwOnDisabled) throw new Error('Notification type is disabled for this user');
+    if (options?.throwOnDisabled) throw new Error('Notification type is disabled for this user');
     return null;
   }
 
