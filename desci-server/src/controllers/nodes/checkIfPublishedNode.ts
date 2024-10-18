@@ -1,12 +1,12 @@
+import { ResearchObjectV1, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
+import { NodeCover } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
-import { resolveNodeManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
-import { decodeBase64UrlSafeToHex, ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
-import { ResearchObjectV1, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
-import { NodeCover } from '@prisma/client';
+import { resolveNodeManifest } from '../../utils/manifest.js';
+import { decodeBase64UrlSafeToHex, ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
 
 const logger = parentLogger.child({
   module: 'NODE::checkIfPublishedNode',
@@ -49,7 +49,7 @@ export const checkIfPublishedNode = async (
     ipfsQuery,
   });
 
-  let node = await prisma.node.findFirst({
+  const node = await prisma.node.findFirst({
     select: {
       uuid: true,
       id: true,

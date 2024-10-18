@@ -58,14 +58,14 @@ import {
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
-// import { prepublish } from '../../controllers/nodes/prepublish.js';
-// import { searchNodes } from '../../controllers/nodes/searchNodes.js';
-// import { listSharedNodes } from '../../controllers/nodes/sharedNodes.js';
-// import { thumbnails } from '../../controllers/nodes/thumbnails.js';
-// import { versionDetails } from '../../controllers/nodes/versionDetails.js';
-import { asyncHandler, attachUser, validate, ensureUserIfPresent, getCommentsSchema } from '../../internal.js';
+import { attachUser } from '../../middleware/attachUser.js';
 import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
+import { ensureUserIfPresent } from '../../middleware/ensureUserIfPresent.js';
 import { ensureUser } from '../../middleware/permissions.js';
+import { validate } from '../../middleware/validator.js';
+import { asyncHandler } from '../../utils/asyncHandler.js';
+
+import { getCommentsSchema } from './attestations/schema.js';
 
 const router = Router();
 

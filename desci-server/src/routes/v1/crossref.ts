@@ -1,14 +1,10 @@
 // crossref/callback
 import { NextFunction, Request, Response, Router } from 'express';
 
-import {
-  AuthFailureError,
-  BadRequestError,
-  RequestWithCrossRefPayload,
-  asyncHandler,
-  handleCrossrefNotificationCallback,
-  logger as parentLogger,
-} from '../../internal.js';
+import { handleCrossrefNotificationCallback, RequestWithCrossRefPayload } from '../../controllers/doi/mint.js';
+import { AuthFailureError } from '../../core/ApiError.js';
+import { logger as parentLogger } from '../../logger.js';
+import { asyncHandler } from '../../utils/asyncHandler.js';
 
 const logger = parentLogger.child({ module: 'CROSSREF NOTIFICATION' });
 const DEFAULT_CROSSREF_ENDPOINT = 'endpoint';

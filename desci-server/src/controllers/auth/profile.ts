@@ -23,6 +23,7 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
       orcid: user.orcid,
       userOrganization: organization.map((org) => org.organization),
       consent: !!(await getUserConsent(user.id)),
+      notificationSettings: user.notificationSettings || {},
     },
   };
   try {

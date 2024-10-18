@@ -1,7 +1,7 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 
-import { CommunityRadarNode } from '../../internal.js';
+import { CommunityRadarNode } from '../../services/Communities.js';
 
 export type NodeRadarItem = {
   NodeAttestation: CommunityRadarNode[];

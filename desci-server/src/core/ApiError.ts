@@ -1,7 +1,5 @@
 import { Response } from 'express';
 
-import { AttestationError, AttestationErrorType } from '../internal.js';
-
 import {
   AuthFailureResponse,
   BadRequestResponse,
@@ -10,6 +8,7 @@ import {
   NotFoundResponse,
   UnProcessableRequestResponse,
 } from './ApiResponse.js';
+import { AttestationError, AttestationErrorType } from './communities/error.js';
 import { DoiError, DoiErrorType } from './doi/error.js';
 
 export enum ApiErrorType {

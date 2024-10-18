@@ -1,8 +1,10 @@
 import { ResearchObjectV1, ResearchObjectV1Author } from '@desci-labs/desci-models';
 import { ActionType, AuthTokenSource, ORCIDRecord, OrcidPutCodes, PutcodeReference } from '@prisma/client';
 
-import { logger as parentLogger, prisma, zeropad } from '../internal.js';
+import { prisma } from '../client.js';
+import { logger as parentLogger } from '../logger.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js';
+import { zeropad } from '../utils/manifest.js';
 import { hexToCid } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
@@ -14,6 +16,7 @@ import { saveInteractionWithoutReq } from './interactionLog.js';
 const DPID_URL_OVERRIDE = process.env.DPID_URL_OVERRIDE || 'https://beta.dpid.org';
 const ORCID_DOMAIN = process.env.ORCID_API_DOMAIN || 'sandbox.orcid.org';
 type Claim = Awaited<ReturnType<typeof attestationService.getProtectedNodeClaims>>[number];
+
 const logger = parentLogger.child({ module: 'ORCIDApiService' });
 
 /**
