@@ -62,7 +62,7 @@ export const createCommunity = async (req: Request, res: Response, _next: NextFu
     }
   }
 
-  const image_url = assets?.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body.imageUrl;
+  const image_url = assets?.find((img) => img.key.toLowerCase().includes('image'))?.url || body.imageUrl;
   delete body.imageUrl;
 
   if (!image_url) throw new BadRequestError('No community logo uploaded');
@@ -107,7 +107,7 @@ export const updateCommunity = async (req: Request, res: Response, _next: NextFu
 
   // enforce strict non-empty check on image_url field
   const image_url =
-    assets?.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body?.imageUrl || community.image_url;
+    assets?.find((img) => img.key.toLowerCase().includes('image'))?.url || body?.imageUrl || community.image_url;
   delete body.imageUrl;
 
   if (!image_url) throw new BadRequestError('No community logo uploaded');
@@ -119,7 +119,7 @@ export const updateCommunity = async (req: Request, res: Response, _next: NextFu
 
 export const listAllCommunities = async (_req: Request, res: Response, _next: NextFunction) => {
   const communities = await communityService.adminGetCommunities();
-  logger.info({ communities }, 'List communities');
+  logger.trace('List communities');
   const data = await asyncMap(communities, async (community) => {
     const engagements = await communityService.getCommunityEngagementSignals(community.id);
     const verifiedEngagements = await communityService.getCommunityRadarEngagementSignal(community.id);
@@ -160,7 +160,7 @@ export const listCommunityAttestations = async (
       attestationId: attestation.id,
       communityId: attestation.communityId,
       name: attestation.name,
-      imageUrl: attestation.image_url,
+      imageUrl: attestation.AttestationVersion[0].image_url,
       description: attestation.description,
       protected: attestation.protected,
       isRequired: !!attestation.CommunityEntryAttestation.length,
@@ -237,10 +237,10 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
     }
   }
 
-  const image_url = assets?.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body.imageUrl;
+  const image_url = assets?.find((img) => img.key.toLowerCase().includes('image'))?.url || body.imageUrl;
   delete body.imageUrl;
   const verified_image_url =
-    assets?.find((img) => img.key.toLowerCase().includes('verifiedimageurl'))?.url || body.verifiedImageUrl;
+    assets?.find((img) => img.key.toLowerCase().includes('verifiedimage'))?.url || body.verifiedImageUrl;
   delete body.verifiedImageUrl;
 
   logger.trace({ image_url, verified_image_url }, 'Assets');
@@ -293,9 +293,9 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
   }
 
   const image_url =
-    assets?.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body.imageUrl || exists.image_url;
+    assets?.find((img) => img.key.toLowerCase().includes('image'))?.url || body.imageUrl || exists.image_url;
   const verified_image_url =
-    assets?.find((img) => img.key.toLowerCase().includes('verifiedimageurl'))?.url ||
+    assets?.find((img) => img.key.toLowerCase().includes('verifiedimage'))?.url ||
     body.verifiedImageUrl ||
     exists.verified_image_url;
   delete body.imageUrl;
@@ -367,6 +367,7 @@ export const addEntryAttestation = async (req: Request, res: Response, _next: Ne
   const data = await attestationService.addCommunityEntryAttestation({
     communityId: Number(communityId),
     attestationId: Number(attestationId),
+    // set to the lastest version
     attestationVersion: attestation.AttestationVersion[attestation.AttestationVersion.length - 1].id,
   });
 
@@ -379,10 +380,16 @@ export const removeEntryAttestation = async (req: Request, res: Response, _next:
   const attestation = await attestationService.findAttestationById(+attestationId);
   if (!attestation) throw new NotFoundError(`No attestation with ID: ${Number(attestationId)} not found!`);
 
+  const existing = await attestationService.getCommunityEntryAttestation(Number(communityId), Number(attestationId));
+  if (!existing) {
+    new SuccessMessageResponse().send(res);
+    return;
+  }
+
   const data = await attestationService.removeCommunityEntryAttestation({
     communityId: Number(communityId),
     attestationId: Number(attestationId),
-    attestationVersion: attestation.AttestationVersion[attestation.AttestationVersion.length - 1].id,
+    attestationVersion: existing.attestationVersionId,
   });
 
   new SuccessResponse(data).send(res);

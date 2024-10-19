@@ -21,6 +21,6 @@ router.get('/debug/:uuid', [ensureUser, ensureAdmin], debugNodeHandler);
 
 router.use('/communities', [ensureUser, ensureAdmin], communities);
 router.get('/attestations', [ensureUser, ensureAdmin], asyncHandler(listAttestations));
-router.use('/users', [ensureUser, ensureAdmin], usersRouter);
+// router.use('/users', [ensureUser, ensureAdmin], usersRouter);
 
 export default router;

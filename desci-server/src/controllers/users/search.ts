@@ -17,7 +17,7 @@ export type SearchProfilesResBody =
       error: string;
     };
 
-export type UserProfile = { name: string; id: number; orcid?: string };
+export type UserProfile = { name: string; id: number; orcid?: string; organisations?: string[] };
 
 export const searchProfiles = async (req: SearchProfilesRequest, res: Response<SearchProfilesResBody>) => {
   // debugger;
@@ -45,13 +45,20 @@ export const searchProfiles = async (req: SearchProfilesRequest, res: Response<S
 
   try {
     const profiles = orcid
-      ? await prisma.user.findMany({ where: { orcid: orcid } })
-      : await prisma.user.findMany({ where: { name: { contains: name as string, mode: 'insensitive' } } });
+      ? await prisma.user.findMany({
+          where: { orcid: orcid },
+          include: { userOrganizations: { include: { organization: { select: { name: true } } } } },
+        })
+      : await prisma.user.findMany({
+          where: { name: { contains: name as string, mode: 'insensitive' } },
+          include: { userOrganizations: { include: { organization: { select: { name: true } } } } },
+        });
 
     if (profiles) {
       const profilesReturn: UserProfile[] = profiles.map((profile) => ({
         name: profile.name,
         id: profile.id,
+        organisations: profile.userOrganizations.map((org) => org.organization.name),
         ...(profile.orcid && { orcid: profile.orcid }),
       }));
       return res.status(200).json({ profiles: profilesReturn });
