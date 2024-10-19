@@ -54,6 +54,7 @@ export const searchProfiles = async (req: SearchProfilesRequest, res: Response<S
           include: { userOrganizations: { include: { organization: { select: { name: true } } } } },
         });
 
+    // logger.info({ profiles }, 'PROFILES');
     if (profiles) {
       const profilesReturn: UserProfile[] = profiles.map((profile) => ({
         name: profile.name,
