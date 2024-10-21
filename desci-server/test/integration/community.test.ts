@@ -1,5 +1,3 @@
-import 'dotenv/config';
-import 'mocha';
 import {
   Attestation,
   // AttestationTemplate,
@@ -9,9 +7,13 @@ import {
   User,
 } from '@prisma/client';
 import { assert, expect } from 'chai';
+import 'dotenv/config';
+import 'mocha';
 
 import { prisma } from '../../src/client.js';
-import { attestationService, communityService, DuplicateDataError } from '../../src/internal.js';
+import { DuplicateDataError } from '../../src/core/communities/error.js';
+import { attestationService } from '../../src/services/Attestation.js';
+import { communityService } from '../../src/services/Communities.js';
 import { createUsers } from '../util.js';
 
 const clearDatabase = async () => {

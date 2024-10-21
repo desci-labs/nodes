@@ -3,8 +3,8 @@ import { ActionType, Node, Prisma, PublishTaskQueue, PublishTaskQueueStatus, Use
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
-import { attestationService } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
+import { attestationService } from '../../services/Attestation.js';
 import { getManifestByCid } from '../../services/data/processing.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
@@ -15,6 +15,7 @@ import {
   setCeramicStream,
   setDpidAlias,
 } from '../../services/nodeManager.js';
+import { emitNotificationOnPublish } from '../../services/NotificationService.js';
 import { publishServices } from '../../services/PublishServices.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
 import { discordNotify } from '../../utils/discordUtils.js';
@@ -283,9 +284,15 @@ const syncPublish = async (
 
   await Promise.all(promises);
 
+  const dpid = dpidAlias?.toString() || legacyDpid?.toString();
   // Intentionally of above stacked promise, needs the DPID to be resolved!!!
   // Send emails coupled to the publish event
-  await publishServices.handleDeferredEmails(node.uuid, dpidAlias?.toString() || legacyDpid?.toString());
+  await publishServices.handleDeferredEmails(node.uuid, dpid);
+
+  /*
+   * Emit notification on publish
+   */
+  await emitNotificationOnPublish(node, owner, dpid);
 
   const targetDpidUrl = getTargetDpidUrl();
   discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
@@ -471,10 +478,17 @@ export const publishHandler = async ({
     const targetDpidUrl = getTargetDpidUrl();
     discordNotify({ message: `${targetDpidUrl}/${manifest.dpid?.id}` });
 
+    const dpid = node.dpidAlias?.toString() ?? manifest.dpid?.id;
+
     /**
      * Fire off any deferred emails awaiting publish
      */
-    await publishServices.handleDeferredEmails(node.uuid, node.dpidAlias?.toString() ?? manifest.dpid?.id);
+    await publishServices.handleDeferredEmails(node.uuid, dpid);
+
+    /*
+     * Emit notification on publish
+     */
+    await emitNotificationOnPublish(node, owner, dpid);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version

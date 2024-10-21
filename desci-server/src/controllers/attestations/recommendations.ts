@@ -1,13 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
-import {
-  NotFoundError,
-  SuccessResponse,
-  attestationService,
-  communityService,
-  logger as parentLogger,
-} from '../../internal.js';
+import { NotFoundError } from '../../core/ApiError.js';
+import { SuccessResponse } from '../../core/ApiResponse.js';
+import { logger as parentLogger } from '../../logger.js';
+import { attestationService } from '../../services/Attestation.js';
+import { communityService } from '../../services/Communities.js';
 
 const logger = parentLogger.child({ module: 'Recommendations' });
 

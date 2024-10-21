@@ -2,8 +2,10 @@ import { Attestation, CommunityMembershipRole, NodeAttestation, NodeFeedItem, Pr
 import _, { includes } from 'lodash';
 
 import { prisma } from '../client.js';
-import { DuplicateDataError, logger } from '../internal.js';
-import { attestationService } from '../internal.js';
+import { DuplicateDataError } from '../core/communities/error.js';
+import { logger } from '../logger.js';
+
+import { attestationService } from './Attestation.js';
 
 export type CommunityRadarNode = NodeAttestation & { annotations: number; reactions: number; verifications: number };
 export class CommunityService {

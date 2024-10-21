@@ -3,18 +3,11 @@ import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import { z } from 'zod';
 
-import {
-  asyncMap,
-  attestationService,
-  BadRequestError,
-  communityService,
-  DuplicateDataError,
-  NotFoundError,
-  logger as parentLogger,
-  prisma,
-  SuccessMessageResponse,
-  SuccessResponse,
-} from '../../../internal.js';
+import { prisma } from '../../../client.js';
+import { BadRequestError, NotFoundError } from '../../../core/ApiError.js';
+import { SuccessMessageResponse, SuccessResponse } from '../../../core/ApiResponse.js';
+import { DuplicateDataError } from '../../../core/communities/error.js';
+import { logger as parentLogger } from '../../../logger.js';
 import {
   addAttestationSchema,
   addCommunitySchema,
@@ -24,7 +17,10 @@ import {
   updateAttestationSchema,
   updateCommunitySchema,
 } from '../../../routes/v1/admin/communities/schema.js';
+import { attestationService } from '../../../services/Attestation.js';
+import { communityService } from '../../../services/Communities.js';
 import { processUploadToIpfs } from '../../../services/data/processing.js';
+import { asyncMap } from '../../../utils.js';
 
 const logger = parentLogger.child({ module: 'Admin/Communities/controller' });
 

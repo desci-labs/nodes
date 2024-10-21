@@ -1,26 +1,21 @@
 import { Router } from 'express';
 
+import { claimAttestation, claimEntryRequirements, removeClaim } from '../../../controllers/attestations/claims.js';
+import { addComment, getAttestationComments, removeComment } from '../../../controllers/attestations/comments.js';
+import { addReaction, getAttestationReactions, removeReaction } from '../../../controllers/attestations/reactions.js';
 import {
-  addComment,
-  addReaction,
-  addVerification,
-  removeComment,
-  removeReaction,
-  removeVerification,
-  getAttestationComments,
   getAllRecommendations,
-  showNodeAttestations,
-  claimAttestation,
-  claimEntryRequirements,
-  removeClaim,
-  getAttestationReactions,
-  showCommunityClaims,
-  getAttestationVerifications,
-  validate,
   getValidatedRecommendations,
-  asyncHandler,
-} from '../../../internal.js';
+} from '../../../controllers/attestations/recommendations.js';
+import { showCommunityClaims, showNodeAttestations } from '../../../controllers/attestations/show.js';
+import {
+  addVerification,
+  getAttestationVerifications,
+  removeVerification,
+} from '../../../controllers/attestations/verification.js';
 import { ensureUser } from '../../../middleware/permissions.js';
+import { validate } from '../../../middleware/validator.js';
+import { asyncHandler } from '../../../utils/asyncHandler.js';
 
 import {
   claimAttestationSchema,

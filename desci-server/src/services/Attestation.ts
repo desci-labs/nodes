@@ -11,22 +11,20 @@ import {
   AttestationVersionNotFoundError,
   ClaimNotFoundError,
   CommunityNotFoundError,
-  CommunityRadarNode,
   DuplicateClaimError,
   DuplicateDataError,
   DuplicateReactionError,
   DuplicateVerificationError,
   NoAccessError,
-  NotFoundError,
   VerificationError,
   VerificationNotFoundError,
-  asyncMap,
-  ensureUuidEndsWithDot,
-  logger as parentLogger,
-  uuidPathRegex,
-} from '../internal.js';
-import { communityService } from '../internal.js';
+} from '../core/communities/error.js';
+import { logger as parentLogger } from '../logger.js';
+import { uuidPathRegex } from '../routes/v1/attestations/schema.js';
 import { AttestationClaimedEmailHtml } from '../templates/emails/utils/emailRenderer.js';
+import { asyncMap, ensureUuidEndsWithDot } from '../utils.js';
+
+import { CommunityRadarNode, communityService } from './Communities.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 

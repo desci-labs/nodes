@@ -1,7 +1,9 @@
 import { Response } from 'express';
 
-import { SuccessResponse, communityService, logger } from '../../internal.js';
+import { SuccessResponse } from '../../core/ApiResponse.js';
+import { logger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
+import { communityService } from '../../services/Communities.js';
 
 export const checkMemberGuard = async (req: RequestWithUser, res: Response) => {
   const log = logger.child({
