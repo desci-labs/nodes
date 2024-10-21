@@ -51,7 +51,8 @@
     "podman:dev": "podman-compose --file docker-compose.yml --file docker-compose.dev.yml up --build",
     "email-dev": "email dev --dir ./src/templates/emails --port 3777",
     "check-deps": "npx npm-check",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org desci-labs --project nodes-backend ./dist && sentry-cli sourcemaps upload --org desci-labs --project nodes-backend ./dist && echo 'Sentry sourcemaps uploaded'"
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org desci-labs --project nodes-backend ./dist && sentry-cli sourcemaps upload --org desci-labs --project nodes-backend ./dist && echo 'Sentry sourcemaps uploaded'",
+    "madge": "tsc && npx --yes madge --circular --image circularDepGraph.svg dist/index.js && open circularDepGraph.svg 2>/dev/null || xdg-open circularDepGraph.svg"
   },
   "dependencies": {
     "@automerge/automerge-repo": "^1.0.19",
