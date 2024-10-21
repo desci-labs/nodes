@@ -132,7 +132,7 @@ export async function generateDataReferences({
 
   const manifestRefIncluded = includeManifestRef ? [manifestRefEntry] : [];
 
-  return [...(isPublished ? [dataRootEntry, ...manifestRefIncluded] : [manifestRefEntry]), ...dataTreeToPubRef];
+  return [...(isPublished ? [dataRootEntry, ...manifestRefIncluded] : [...manifestRefIncluded]), ...dataTreeToPubRef];
 }
 
 // used to prepare data refs for a given dag and manifest (differs from generateDataReferences in that you don't need the updated manifestCid ahead of time)
