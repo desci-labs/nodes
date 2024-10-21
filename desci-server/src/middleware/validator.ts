@@ -10,9 +10,8 @@ export const validate = <T extends z.ZodRawShape>(schema: z.ZodObject<T>) =>
       await schema.parseAsync(req);
       next();
     } catch (err) {
-      // logger.error({ body: req.body, file: req.file }, 'zod validator');
       if (err instanceof ZodError) {
-        console.log('Error', err);
+        // console.log('Error', err);
         throw new BadRequestError(
           err.errors.map((err) => err.message).join(','),
           err.issues.map((err) => `${err.path[err.path.length - 1]}: ${err.message}`),

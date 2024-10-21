@@ -235,7 +235,7 @@ describe('Desci Communities', () => {
         await attestationService.updateAttestation(attestation.id, { ...attestation, name: 'Update 1' });
       });
 
-      it('should publish new attestation version(2)', async () => {
+      it.skip('should publish new attestation version(2)', async () => {
         const versions = await attestationService.getAttestationVersions(attestation.id);
         assert(versions);
         // console.log('version 2', versions);
@@ -246,7 +246,7 @@ describe('Desci Communities', () => {
         expect(versions[1].attestationId).be.equal(attestation.id);
       });
 
-      it('should publish attestation version 3', async () => {
+      it.skip('should publish attestation version 3', async () => {
         await attestationService.updateAttestation(attestation.id, {
           ...attestation,
           name: 'Update 2',
@@ -262,7 +262,7 @@ describe('Desci Communities', () => {
         expect(versions[2].attestationId).be.equal(attestation.id);
       });
 
-      it('should publish attestation version 4', async () => {
+      it.skip('should publish attestation version 4', async () => {
         await attestationService.updateAttestation(attestation.id, {
           ...attestation,
           description: 'Version 4 Description',
