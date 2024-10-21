@@ -27,8 +27,43 @@ export class CommunityService {
           orderBy: { role: 'asc' },
         },
         CommunityEntryAttestation: {
-          select: { id: true, attestationVersion: { select: { name: true, image_url: true } } },
+          select: { id: true, attestationVersion: { select: { id: true, name: true, image_url: true } } },
           orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+  }
+
+  async adminGetAttestations(where?: Prisma.AttestationWhereInput) {
+    return prisma.attestation.findMany({
+      orderBy: { createdAt: 'asc' },
+      where,
+      include: {
+        community: { select: { name: true } },
+        AttestationVersion: {
+          select: { name: true, description: true, image_url: true },
+          orderBy: { createdAt: 'desc' },
+        },
+        ...(where?.communityId
+          ? {
+              CommunityEntryAttestation: {
+                where: { desciCommunityId: where.communityId },
+              },
+            }
+          : { CommunityEntryAttestation: { select: { desciCommunityId: true, id: true } } }),
+      },
+    });
+  }
+
+  async getEntryAttestations(where?: Prisma.CommunityEntryAttestationWhereInput) {
+    return prisma.communityEntryAttestation.findMany({
+      orderBy: { createdAt: 'asc' },
+      where,
+      include: {
+        attestation: { select: { protected: true, community: { select: { name: true } } } },
+        // desciCommunity: { select: { name: true } },
+        attestationVersion: {
+          select: { id: true, attestationId: true, name: true, image_url: true, description: true },
         },
       },
     });

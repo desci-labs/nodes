@@ -9,6 +9,9 @@ import {
   createAttestation,
   createCommunity,
   listAllCommunities,
+  listAttestations,
+  listCommunityAttestations,
+  listCommunityEntryAttestations,
   removeEntryAttestation,
   removeMember,
   updateAttestation,
@@ -51,14 +54,15 @@ const upload = isS3Configured
   : multer({ preservePath: true });
 
 const uploadHandler = upload.fields([
-  { name: 'imageUrl', maxCount: 1 },
-  { name: 'verifiedImageUrl', maxCount: 1 },
+  { name: 'image', maxCount: 1 },
+  { name: 'verifiedImage', maxCount: 1 },
 ]);
 
 const wrappedHandler = (req: Request, res: Response, next: NextFunction) => {
   uploadHandler(req, res, (err) => {
     if (err) {
       if (err instanceof multer.MulterError) {
+        logger.error({ err, files: req.files }, 'MulterError encountered');
         throw err;
       } else {
         logger.error({ err }, 'Upload Handler Error encountered');
@@ -78,6 +82,8 @@ const sanitizeBody = async (req: Request, _res: Response, next: NextFunction) =>
 };
 
 router.get('/', [ensureUser, ensureAdmin], asyncHandler(listAllCommunities));
+router.get('/:communityId/attestations', [ensureUser, ensureAdmin], asyncHandler(listCommunityAttestations));
+router.get('/:communityId/entryAttestations', [ensureUser, ensureAdmin], asyncHandler(listCommunityEntryAttestations));
 
 router.post(
   '/',
@@ -103,10 +109,10 @@ router.put(
   asyncHandler(updateAttestation),
 );
 
-router.post('/:communityId/members', [ensureUser, ensureAdmin, validate(addMemberSchema)], asyncHandler(addMember));
+router.post('/:communityId/addMember', [ensureUser, ensureAdmin, validate(addMemberSchema)], asyncHandler(addMember));
 
 router.delete(
-  '/:communityId/members/:memberId',
+  '/:communityId/removeMember/:memberId',
   [ensureUser, ensureAdmin, validate(removeMemberSchema)],
   asyncHandler(removeMember),
 );
@@ -117,7 +123,7 @@ router.post(
   asyncHandler(addEntryAttestation),
 );
 
-router.delete(
+router.post(
   '/:communityId/removeEntryAttestation/:attestationId',
   [ensureUser, ensureAdmin, validate(addEntryAttestationSchema)],
   asyncHandler(removeEntryAttestation),

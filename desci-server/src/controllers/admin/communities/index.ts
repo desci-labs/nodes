@@ -1,5 +1,6 @@
 import { CommunityMembershipRole } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
+import _ from 'lodash';
 import { z } from 'zod';
 
 import {
@@ -61,7 +62,7 @@ export const createCommunity = async (req: Request, res: Response, _next: NextFu
     }
   }
 
-  const image_url = assets?.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body.imageUrl;
+  const image_url = assets?.find((img) => img.key.toLowerCase().includes('image'))?.url || body.imageUrl;
   delete body.imageUrl;
 
   if (!image_url) throw new BadRequestError('No community logo uploaded');
@@ -106,7 +107,7 @@ export const updateCommunity = async (req: Request, res: Response, _next: NextFu
 
   // enforce strict non-empty check on image_url field
   const image_url =
-    assets?.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body?.imageUrl || community.image_url;
+    assets?.find((img) => img.key.toLowerCase().includes('image'))?.url || body?.imageUrl || community.image_url;
   delete body.imageUrl;
 
   if (!image_url) throw new BadRequestError('No community logo uploaded');
@@ -118,7 +119,7 @@ export const updateCommunity = async (req: Request, res: Response, _next: NextFu
 
 export const listAllCommunities = async (_req: Request, res: Response, _next: NextFunction) => {
   const communities = await communityService.adminGetCommunities();
-  logger.info({ communities }, 'List communities');
+  logger.trace('List communities');
   const data = await asyncMap(communities, async (community) => {
     const engagements = await communityService.getCommunityEngagementSignals(community.id);
     const verifiedEngagements = await communityService.getCommunityRadarEngagementSignal(community.id);
@@ -131,10 +132,83 @@ export const listAllCommunities = async (_req: Request, res: Response, _next: Ne
   new SuccessResponse(data).send(res);
 };
 
+export const listAttestations = async (_req: Request, res: Response, _next: NextFunction) => {
+  const attestations = await communityService.adminGetAttestations();
+  const data = attestations.map((attestation) => ({
+    ...attestation,
+    name: attestation.AttestationVersion[0].name,
+    image_url: attestation.AttestationVersion[0].image_url,
+    description: attestation.AttestationVersion[0].description,
+  }));
+  // logger.info({ attestations }, 'List attestations');
+  new SuccessResponse(data).send(res);
+};
+
+export const listCommunityAttestations = async (
+  req: Request<{ communityId: string }>,
+  res: Response,
+  _next: NextFunction,
+) => {
+  const { communityId } = req.params;
+  const attestations = await communityService.adminGetAttestations({ communityId: parseInt(communityId) });
+  // throw new BadRequestError('bad request');
+  const entryAttestations = await communityService.getEntryAttestations({ desciCommunityId: parseInt(communityId) });
+  const data = attestations
+    .filter((entry) => !entryAttestations.find((attestation) => attestation.attestationId === entry.id))
+    .map((attestation) => ({
+      id: attestation.id,
+      attestationId: attestation.id,
+      communityId: attestation.communityId,
+      name: attestation.name,
+      imageUrl: attestation.AttestationVersion[0].image_url,
+      description: attestation.description,
+      protected: attestation.protected,
+      isRequired: !!attestation.CommunityEntryAttestation.length,
+      isExternal: false,
+      communityName: attestation.community.name,
+    }));
+
+  const entryData = entryAttestations.map((entry) => ({
+    id: entry.attestationId,
+    attestationId: entry.attestationId,
+    communityId: entry.desciCommunityId,
+    name: entry.attestationVersion.name,
+    imageUrl: entry.attestationVersion.image_url,
+    description: entry.attestationVersion.description,
+    protected: entry.attestation.protected,
+    isRequired: true,
+    entryAttestationId: entry.id,
+    isExternal: entry.desciCommunityId !== parseInt(communityId),
+    communityName: entry.attestation.community.name,
+  }));
+
+  // logger.info({ attestations }, 'List attestations');
+  new SuccessResponse(data.concat(entryData)).send(res);
+};
+
+export const listCommunityEntryAttestations = async (
+  req: Request<{ communityId: string }>,
+  res: Response,
+  _next: NextFunction,
+) => {
+  const { communityId } = req.params;
+  const attestations = await communityService.getEntryAttestations({ desciCommunityId: parseInt(communityId) });
+  const data = _(attestations)
+    .map((entry) => ({
+      id: entry.id,
+      attestationId: entry.attestationId,
+      attestationVersionId: entry.attestationVersion.id,
+      name: entry.attestationVersion.name,
+      image_url: entry.attestationVersion.image_url,
+    }))
+    .value();
+  new SuccessResponse(data).send(res);
+};
+
 export const createAttestation = async (req: Request, res: Response, _next: NextFunction) => {
   const body = req.body as Required<z.infer<typeof addAttestationSchema>['body']>;
   const { communityId } = req.params as z.infer<typeof addAttestationSchema>['params'];
-  logger.info({ communityId, body }, 'Payload');
+  logger.trace({ communityId, body }, 'Payload');
 
   const community = await communityService.findCommunityById(Number(communityId));
   if (!community) throw new NotFoundError(`Community ${communityId} not found`);
@@ -146,7 +220,7 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
         .map((files) => files[0])
         .filter(Boolean);
 
-  if (uploads) {
+  if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
       file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
       return file;
@@ -163,15 +237,15 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
     }
   }
 
-  const image_url = assets.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body.imageUrl;
+  const image_url = assets?.find((img) => img.key.toLowerCase().includes('image'))?.url || body.imageUrl;
   delete body.imageUrl;
   const verified_image_url =
-    assets.find((img) => img.key.toLowerCase().includes('verifiedimageurl'))?.url || body.verifiedImageUrl;
+    assets?.find((img) => img.key.toLowerCase().includes('verifiedimage'))?.url || body.verifiedImageUrl;
   delete body.verifiedImageUrl;
 
-  logger.info({ image_url, verified_image_url }, 'Assets');
+  logger.trace({ image_url, verified_image_url }, 'Assets');
 
-  if (!image_url) throw new BadRequestError('No community logo uploaded');
+  if (!image_url) throw new BadRequestError('No attestation logo uploaded');
 
   const isProtected = body.protected.toString() === 'true' ? true : false;
   const attestation = await attestationService.create({
@@ -181,6 +255,7 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
     communityId: community.id,
     protected: isProtected,
   });
+  // logger.trace({ attestation }, 'created');
   new SuccessResponse(attestation).send(res);
 };
 
@@ -206,7 +281,7 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
       return file;
     });
     const { ok, value } = await processUploadToIpfs({ files: uploads });
-    logger.info({ ok, value }, 'Uploads REsult');
+    logger.trace({ ok, value }, 'Uploads REsult');
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
@@ -217,13 +292,16 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
     }
   }
 
-  const image_url = assets?.find((img) => img.key.toLowerCase().includes('imageurl'))?.url || body.imageUrl;
+  const image_url =
+    assets?.find((img) => img.key.toLowerCase().includes('image'))?.url || body.imageUrl || exists.image_url;
   const verified_image_url =
-    assets?.find((img) => img.key.toLowerCase().includes('verifiedimageurl'))?.url || body.verifiedImageUrl;
+    assets?.find((img) => img.key.toLowerCase().includes('verifiedimage'))?.url ||
+    body.verifiedImageUrl ||
+    exists.verified_image_url;
   delete body.imageUrl;
   delete body.verifiedImageUrl;
 
-  logger.info({ image_url, verified_image_url }, 'Assets');
+  // logger.info({ image_url, verified_image_url }, 'Assets');
 
   if (!image_url) throw new BadRequestError('No attestation image uploaded');
 
@@ -289,6 +367,7 @@ export const addEntryAttestation = async (req: Request, res: Response, _next: Ne
   const data = await attestationService.addCommunityEntryAttestation({
     communityId: Number(communityId),
     attestationId: Number(attestationId),
+    // set to the lastest version
     attestationVersion: attestation.AttestationVersion[attestation.AttestationVersion.length - 1].id,
   });
 
@@ -301,10 +380,16 @@ export const removeEntryAttestation = async (req: Request, res: Response, _next:
   const attestation = await attestationService.findAttestationById(+attestationId);
   if (!attestation) throw new NotFoundError(`No attestation with ID: ${Number(attestationId)} not found!`);
 
+  const existing = await attestationService.getCommunityEntryAttestation(Number(communityId), Number(attestationId));
+  if (!existing) {
+    new SuccessMessageResponse().send(res);
+    return;
+  }
+
   const data = await attestationService.removeCommunityEntryAttestation({
     communityId: Number(communityId),
     attestationId: Number(attestationId),
-    attestationVersion: attestation.AttestationVersion[attestation.AttestationVersion.length - 1].id,
+    attestationVersion: existing.attestationVersionId,
   });
 
   new SuccessResponse(data).send(res);

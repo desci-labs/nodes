@@ -78,9 +78,9 @@ export const debugAllNodesHandler = async (
     // Most recent first
     n2[event].getTime() - n1[event].getTime()
   );
-  
+
   const endTime = new Date();
-  const duration = Math.round(endTime.getTime() - startTime.getTime());
+  const duration = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
 
   const result = {
     info: {
@@ -250,7 +250,7 @@ const debugIndexer = async (
     return { error: shouldExist, result: null };
   };
 
-  return { error: false, nVersions: result.versions.length , result };
+  return { error: false, nVersions: result.versions.length, result };
 };
 
 const debugDb = async (

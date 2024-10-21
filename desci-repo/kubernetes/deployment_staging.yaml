@@ -50,7 +50,7 @@ spec:
           export DATABASE_URL={{ .Data.DATABASE_URL }}
           export IPFS_RESOLVER_OVERRIDE={{ .Data.IPFS_RESOLVER_OVERRIDE }}
           export DESCI_SERVER_URL={{ .Data.DESCI_SERVER_URL }}
-
+          export PINO_LOG_LEVEL=info
           {{- end -}}
       labels:
         App: DesciRepoServerStaging
