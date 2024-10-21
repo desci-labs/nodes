@@ -43,6 +43,7 @@ interface GenerateDataReferencesArgs {
   versionId?: number;
   markExternals?: boolean;
   workingTreeUrl?: string;
+  includeManifestRef?: boolean;
 }
 
 // generates data references for the contents of a manifest
@@ -52,6 +53,7 @@ export async function generateDataReferences({
   versionId,
   markExternals,
   workingTreeUrl,
+  includeManifestRef = false,
 }: GenerateDataReferencesArgs): Promise<
   Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]
 > {
@@ -128,7 +130,9 @@ export async function generateDataReferences({
   });
   // debugger;
 
-  return [...(isPublished ? [dataRootEntry, manifestRefEntry] : [manifestRefEntry]), ...dataTreeToPubRef];
+  const manifestRefIncluded = includeManifestRef ? [manifestRefEntry] : [];
+
+  return [...(isPublished ? [dataRootEntry, ...manifestRefIncluded] : [manifestRefEntry]), ...dataTreeToPubRef];
 }
 
 // used to prepare data refs for a given dag and manifest (differs from generateDataReferences in that you don't need the updated manifestCid ahead of time)
@@ -360,6 +364,7 @@ export async function validateDataReferences({
   txHash,
   commitId,
   workingTreeUrl,
+  includeManifestRef = false,
 }: ValidateAndHealDataRefsArgs) {
   if (nodeUuid.endsWith('.')) nodeUuid = nodeUuid.slice(0, -1);
   // debugger;
@@ -399,6 +404,7 @@ export async function validateDataReferences({
     versionId,
     markExternals,
     workingTreeUrl,
+    includeManifestRef,
   });
 
   const missingRefs = [];
@@ -521,6 +527,7 @@ interface ValidateAndHealDataRefsArgs {
   txHash?: string;
   commitId?: string;
   workingTreeUrl?: string;
+  includeManifestRef?: boolean;
 }
 
 export async function validateAndHealDataRefs({
@@ -531,6 +538,7 @@ export async function validateAndHealDataRefs({
   txHash,
   commitId,
   workingTreeUrl,
+  includeManifestRef = false,
 }: ValidateAndHealDataRefsArgs) {
   const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
     nodeUuid,
@@ -540,6 +548,7 @@ export async function validateAndHealDataRefs({
     txHash,
     commitId,
     workingTreeUrl,
+    includeManifestRef,
   });
   if (missingRefs.length) {
     const addedRefs = publicRefs

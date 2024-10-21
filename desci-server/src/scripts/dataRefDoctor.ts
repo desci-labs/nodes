@@ -66,10 +66,10 @@ async function main() {
       await validateAndHealDataRefs({ nodeUuid, manifestCid, publicRefs, markExternals, txHash, commitId });
       break;
     case 'validateAll':
-      await dataRefDoctor(false, publicRefs, startIterator, endIterator, markExternals);
+      await dataRefDoctor({ heal: false, publicRefs, start: startIterator, end: endIterator, markExternals });
       break;
     case 'healAll':
-      await dataRefDoctor(true, publicRefs, startIterator, endIterator, markExternals);
+      await dataRefDoctor({ heal: true, publicRefs, start: startIterator, end: endIterator, markExternals });
       break;
     case 'fillPublic':
       if (!nodeUuid && !userEmail) return logger.error('Missing NODE_UUID or USER_EMAIL');
@@ -104,14 +104,16 @@ function getOperationEnvs() {
   };
 }
 
+type DataRefDoctorArgs = {
+  heal: boolean;
+  publicRefs: boolean;
+  start?: number;
+  end?: number;
+  markExternals?: boolean;
+};
+
 //todo: add public handling
-async function dataRefDoctor(
-  heal: boolean,
-  publicRefs: boolean,
-  start?: number,
-  end?: number,
-  markExternals?: boolean,
-) {
+async function dataRefDoctor({ heal, publicRefs, start, end, markExternals }: DataRefDoctorArgs) {
   const nodes = await prisma.node.findMany({
     orderBy: {
       id: 'asc',
@@ -154,6 +156,7 @@ async function dataRefDoctor(
               markExternals,
               txHash,
               commitId,
+              includeManifestRef: true,
             });
           } else {
             validateDataReferences({
@@ -163,6 +166,7 @@ async function dataRefDoctor(
               markExternals,
               txHash,
               commitId,
+              includeManifestRef: true,
             });
           }
         }
@@ -174,6 +178,7 @@ async function dataRefDoctor(
             manifestCid: node.manifestUrl,
             publicRefs: false,
             markExternals,
+            includeManifestRef: true,
           });
         } else {
           await validateDataReferences({
@@ -181,6 +186,7 @@ async function dataRefDoctor(
             manifestCid: node.manifestUrl,
             publicRefs: false,
             markExternals,
+            includeManifestRef: true,
           });
         }
       }
