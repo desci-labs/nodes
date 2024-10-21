@@ -392,11 +392,12 @@ export async function validateDataReferences({
       ).id
     : undefined;
 
+  const excludeManifestClause = includeManifestRef ? {} : { type: { not: DataType.MANIFEST } };
   const currentRefs = publicRefs
     ? await prisma.publicDataReference.findMany({
-        where: { nodeId: node.id, versionId },
+        where: { nodeId: node.id, versionId, ...excludeManifestClause },
       })
-    : await prisma.dataReference.findMany({ where: { nodeId: node.id } });
+    : await prisma.dataReference.findMany({ where: { nodeId: node.id, ...excludeManifestClause } });
 
   const requiredRefs = await generateDataReferences({
     nodeUuid,
