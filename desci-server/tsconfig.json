@@ -40,6 +40,7 @@
     // This improves issue grouping in Sentry.
     "sourceRoot": "/"
   },
-  "include": ["./src/**/*.tsx", "./src/**/*.ts", "./src/**/*.cjs", "src/utils/dagConcat.ts", "./test/**/*.ts"],
+  "include": ["./src/**/*.tsx", "./src/**/*.ts", "./src/**/*.cjs", "src/utils/dagConcat.ts"],
+  "exclude": ["./test/**/*.ts"],
   "compileOnSave": true
 }
