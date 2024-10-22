@@ -1,18 +1,15 @@
 # build.yml
 on:
-  # pull_request:
-  #   paths:
-  #   - desci-server/**
   push:
     paths:
       - .github/workflows/**
-      - desci-repo/**
+      - openalex-importer/**
+      - Dockerfile
     branches: # array of glob patterns matching against refs/heads. Optional; defaults to all
       - main # triggers on pushes that contain changes
       - develop
-      - demo
 
-name: Build desci-repo
+name: Build openalex-importer
 
 # https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
 env:
@@ -21,14 +18,13 @@ env:
   AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  CONTAINER_IMAGE: desci-repo-server
+  CONTAINER_IMAGE: openalex-importer
   DOCKER_BUILDKIT: 1
 
 jobs:
   build-and-push:
-    # needs: build-and-test
     name: Build and deploy
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
@@ -64,16 +60,7 @@ jobs:
           docker build \
             -t $CONTAINER_IMAGE-dev:latest \
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev \
-             ./desci-repo
-
-      - name: Build and tag the image (DEMO)
-        if: github.ref == 'refs/heads/demo'
-        run: |
-          # Build and tag the image
-          docker build \
-            -t $CONTAINER_IMAGE-demo:latest \
-            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo \
-             ./desci-repo
+             ./openalex-importer
 
       - name: Build and tag the image (PROD)
         if: github.ref == 'refs/heads/main'
@@ -81,12 +68,12 @@ jobs:
           # Build and tag the image
           docker build \
             -t $CONTAINER_IMAGE:latest \
-            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod \
-             ./desci-repo
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE \
+             ./openalex-importer
 
       # Add additional steps here like scanning of image
 
-      # Only push to registry on dev
+      # Only push to registry on master
       - name: Push (DEV)
         if: github.ref == 'refs/heads/develop'
         run: |
@@ -97,56 +84,35 @@ jobs:
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }}
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:latest
 
-      - name: Push (DEMO)
-        if: github.ref == 'refs/heads/demo'
-        run: |
-          # Push image to AWS ECR
-          aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE-demo:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
-          docker tag $CONTAINER_IMAGE-demo:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:latest
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }}
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:latest
-
       - name: Push (PROD)
         if: github.ref == 'refs/heads/main'
         run: |
           # Push image to AWS ECR
           aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ github.sha }}
-          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:latest
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ github.sha }}
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:latest
+          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+          docker tag $CONTAINER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:latest
 
       - name: Deploy to EKS (DEV)
         # uses: steebchen/kubectl@v2.0.0
         if: github.ref == 'refs/heads/develop'
         run: | # defaults to latest kubectl binary version
-          kubectl apply -f desci-repo/kubernetes/deployment_dev.yaml
-          kubectl set image deployment/desci-repo-server-dev desci-repo-server-dev=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} --record
-
-      - name: Deploy to EKS (DEMO)
-        # uses: steebchen/kubectl@v2.0.0
-        if: github.ref == 'refs/heads/demo'
-        run: | # defaults to latest kubectl binary version
-          kubectl set image deployment/desci-repo-server-demo desci-repo-server-demo=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-demo:${{ github.sha }} --record
+          kubectl apply -f openalex-importer/kubernetes/deployment.yaml
+          kubectl set image deployment/openalex-importer-dev openalex-importer-dev=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-dev:${{ github.sha }} --record
 
       - name: Deploy to EKS (PROD)
         if: github.ref == 'refs/heads/main'
         run: | # defaults to latest kubectl binary version
-          kubectl apply -f desci-repo/kubernetes/deployment_prod.yaml
-          kubectl set image deployment/desci-repo-server-prod desci-repo-server-prod=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE-prod:${{ github.sha }} --record
+          kubectl apply -f openalex-importer/kubernetes/deployment.yaml
+          kubectl set image deployment/openalex-importer openalex-importer=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$CONTAINER_IMAGE:${{ github.sha }} --record
 
       - name: Verify EKS Deployment (DEV)
         if: github.ref == 'refs/heads/develop'
         run: |
-          kubectl rollout status deployment/desci-repo-server-dev
-
-      - name: Verify EKS Deployment (DEMO)
-        if: github.ref == 'refs/heads/demo'
-        run: |
-          kubectl rollout status deployment/desci-repo-server-demo
+          kubectl rollout status deployment/openalex-importer-dev
 
       - name: Verify EKS Deployment (PROD)
         if: github.ref == 'refs/heads/main'
         run: |
-          kubectl rollout status deployment/desci-repo-server-prod
+          kubectl rollout status deployment/openalex-importer
