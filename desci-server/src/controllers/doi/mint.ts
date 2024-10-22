@@ -137,7 +137,8 @@ export const handleCrossrefNotificationCallback = async (
 
       // send discord notification
       discordNotify({
-        type: DiscordNotifyType.SUCCESS,
+        channel: DiscordChannel.DoiMinting,
+        type: DiscordNotifyType.ERROR,
         title: 'DOI Registration Inconclusive ❌',
         message: `Check ${req.payload.retrieveUrl} for more details. Node: ${targetDpidUrl}/${submission.dpid}`,
       });
