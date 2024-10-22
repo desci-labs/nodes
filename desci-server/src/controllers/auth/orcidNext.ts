@@ -21,6 +21,18 @@ export const orcidCheck =
   async (req: Request, res: Response) => {
     logger.trace({ fn: 'orcid check', body: req.body });
     if (!req.body || !req.body.orcid || !req.body.access_token || !req.body.refresh_token || !req.body.expires_in) {
+      logger.error(
+        {
+          fn: 'orcid check',
+          step: 2,
+          bodyMissing: !req.body,
+          orcidMissing: !req.body.orcid,
+          accessTokenMissing: !req.body.access_token,
+          refreshTokenMissing: !req.body.refresh_token,
+          expiresInMissing: !req.body.expires_in,
+        },
+        'missing orcid data',
+      );
       res.status(400).send({ err: 'missing orcid data', code: 0 });
       return;
     }

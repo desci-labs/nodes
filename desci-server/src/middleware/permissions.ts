@@ -238,7 +238,7 @@ export const extractUserFromApiKey = (apiKey: string, ip: string): Promise<User 
  ** Parse cookies from a WebSocket connection header
  */
 function parseWsCookies(cookieString: string): { [key: string]: string } {
-  return cookieString.split(';').reduce(
+  return cookieString?.split(';').reduce(
     (cookies, cookie) => {
       const [name, value] = cookie.trim().split('=');
       cookies[name] = decodeURIComponent(value);

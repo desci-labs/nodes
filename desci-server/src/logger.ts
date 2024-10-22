@@ -122,6 +122,12 @@ export const logger = pino({
       '*.authorization',
       '*.Authorization',
       'Authorization',
+      'access_token',
+      'refresh_token',
+      '*.access_token',
+      '*.refresh_token',
+      'jwtToken',
+      '*.jwtToken',
     ],
   },
 });
