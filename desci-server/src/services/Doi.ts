@@ -1,5 +1,5 @@
 import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
-import { DoiStatus, DoiSubmissionQueue, Prisma, PrismaClient } from '@prisma/client';
+import { DoiStatus, DoiSubmissionQueue, NodeVersion, Prisma, PrismaClient } from '@prisma/client';
 import { v4 } from 'uuid';
 
 import {
@@ -148,14 +148,38 @@ export class DoiService {
     return { dpid, uuid, manifest: latestManifest, researchObject };
   }
 
+  async getLastPublishedDate(uuid: string) {
+    // const node = await this.dbClient.node.findFirst({ where: { uuid } });
+    const publishedVersions = await this.dbClient.nodeVersion.findFirst({
+      select: { createdAt: true },
+      where: { node: { uuid }, OR: [{ commitId: { not: null } }, { transactionId: { not: null } }] },
+      orderBy: { createdAt: 'desc' },
+    });
+    logger.trace({ publishedVersions }, 'getLastPublishedDate');
+    const time = publishedVersions.createdAt;
+    logger.trace({ time }, 'getLastPublishedDate');
+    return new Date(time);
+  }
+
   async mintDoi(nodeUuid: string) {
     const { dpid, uuid, manifest, researchObject } = await this.checkMintability(nodeUuid);
     // mint new doi
     const doiSuffix = v4().substring(0, 8);
     const doi = `${DOI_PREFIX}/${doiSuffix}`;
 
-    const latestVersion = researchObject.versions[researchObject.versions.length - 1];
-    const publicationDate = new Date(parseInt(latestVersion.time) * 1000).toLocaleDateString().replaceAll('/', '-');
+    const latestVersionTimestamp = researchObject.versions[researchObject.versions.length - 1]?.time;
+    const publicationDate = latestVersionTimestamp
+      ? new Date(parseInt(latestVersionTimestamp) * 1000).toLocaleDateString().replaceAll('/', '-')
+      : (await this.getLastPublishedDate(uuid)).toLocaleDateString().replaceAll('/', '-');
+    logger.trace(
+      {
+        latestVersionTimestamp: new Date(parseInt(latestVersionTimestamp) * 1000)
+          .toLocaleDateString()
+          .replaceAll('/', '-'),
+        publicationDate,
+      },
+      'latestVersionTimestamp',
+    );
 
     const [month, day, year] = publicationDate.split('-');
 
