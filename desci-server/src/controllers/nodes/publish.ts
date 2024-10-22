@@ -5,6 +5,8 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { attestationService } from '../../services/Attestation.js';
+import { directStreamLookup } from '../../services/ceramic.js';
+import { getAliasRegistry, getHotWallet } from '../../services/chain.js';
 import { getManifestByCid } from '../../services/data/processing.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
@@ -313,8 +315,30 @@ const createOrUpgradeDpidAlias = async (
   ceramicStream: string,
   uuid: string,
 ): Promise<number> => {
+  const logger = parentLogger.child({
+    module: 'NODE::createOrUpgradeDpidAlias',
+    legacyDpid,
+    ceramicStream,
+    uuid,
+  });
+
   let dpidAlias: number;
   if (legacyDpid) {
+    const registry = getAliasRegistry(await getHotWallet());
+    const [legacyOwner, _versions] = await registry.legacyLookup(legacyDpid);
+    const streamInfo = await directStreamLookup(ceramicStream);
+    if ('err' in streamInfo) {
+      logger.error(streamInfo, 'Failed to load stream when doing checks before upgrade');
+      throw new Error('Failed to load stream');
+    }
+    const streamController = streamInfo.state.metadata.controllers[0].toLowerCase();
+    const sameOwner = legacyOwner.toLowerCase() === streamController.split(':').pop();
+
+    if (!sameOwner) {
+      logger.error({ streamController, legacyOwner }, 'Legacy owner and stream controller differs');
+      throw new Error('Legacy owner and stream controller differs');
+    }
+
     // Requires the REGISTRY_OWNER_PKEY to be set in env
     dpidAlias = await upgradeDpid(legacyDpid, ceramicStream);
   } else {
