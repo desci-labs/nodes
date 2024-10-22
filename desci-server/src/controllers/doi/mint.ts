@@ -11,7 +11,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { crossRefClient, doiService } from '../../services/index.js';
 import { DoiMintedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
-import { discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
+import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export const mintDoi = async (req: Request, res: Response, _next: NextFunction) => {
@@ -28,6 +28,7 @@ export const mintDoi = async (req: Request, res: Response, _next: NextFunction) 
 
     const targetDpidUrl = getTargetDpidUrl();
     discordNotify({
+      channel: DiscordChannel.DoiMinting,
       type: DiscordNotifyType.INFO,
       title: 'Mint DOI',
       message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
@@ -88,6 +89,7 @@ export const handleCrossrefNotificationCallback = async (
 
       // send discord notification
       discordNotify({
+        channel: DiscordChannel.DoiMinting,
         type: DiscordNotifyType.SUCCESS,
         title: 'DOI Registration successful 🎉',
         message: `${targetDpidUrl}/${submission.dpid} was assigned a DOI: ${submission.uniqueDoi}`,
@@ -109,7 +111,8 @@ export const handleCrossrefNotificationCallback = async (
           dpid: submission.dpid,
           userName: node.owner.name.split(' ')?.[0] ?? '',
           dpidPath: `${process.env.DAPP_URL}/dpid/${submission.dpid}`,
-          doi: `${process.env.CROSSREF_DOI_URL}/${submission.uniqueDoi}`,
+          doi: submission.uniqueDoi,
+          doiLink: `${process.env.CROSSREF_DOI_URL}/${submission.uniqueDoi}`,
           nodeTitle: node.title,
         }),
       };
