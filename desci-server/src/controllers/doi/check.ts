@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
-import { BadRequestError } from '../../core/ApiError.js';
+import { ApiError, BadRequestError, ForbiddenError, InternalError } from '../../core/ApiError.js';
 import { SuccessResponse } from '../../core/ApiResponse.js';
-import { DoiError } from '../../core/doi/error.js';
+import { DoiError, ForbiddenMintError } from '../../core/doi/error.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
 import { OpenAlexWork, transformInvertedAbstractToText } from '../../services/AutomatedMetadata.js';
@@ -25,11 +25,14 @@ export const checkMintability = async (req: RequestWithNode, res: Response, _nex
     await doiService.checkMintability(uuid);
     new SuccessResponse(true).send(res);
   } catch (err) {
-    logger.error(err, 'module:: checkMintability');
+    logger.error({ err }, 'checkMintabilityError');
     if (!(err instanceof DoiError)) {
       // TODO: Sentry error reporting
+      throw new Error('Error checking DOI mintability');
+    } else {
+      const error = err as DoiError;
+      throw new ForbiddenError(`${error.name}: ${err.message}`);
     }
-    new SuccessResponse(false).send(res);
   }
 };
 
