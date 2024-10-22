@@ -63,10 +63,11 @@ export const handleCrossrefNotificationCallback = async (
     return;
   }
 
-  if (submission.status === DoiStatus.SUCCESS) {
-    new SuccessMessageResponse().send(res);
-    return;
-  }
+  // if (submission.status === DoiStatus.SUCCESS) {
+  //   logger.trace({ payload: req.payload }, 'Crossref Notifiication: submission ');
+  //   new SuccessMessageResponse().send(res);
+  //   return;
+  // }
 
   await doiService.updateSubmission({ id: submission.id }, { notification: req.payload });
   logger.info('SUBMISSION UPDATED');

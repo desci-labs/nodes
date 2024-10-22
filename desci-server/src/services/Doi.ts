@@ -108,7 +108,17 @@ export class DoiService {
 
     // check if node has claimed doi already
     // check with dpid instead or dpid/path/to/manuscript or dpid/path/to/file
-    await this.assertIsFirstDoi(latestManifest.dpid.id);
+    const node = await this.dbClient.node.findFirst({
+      where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
+      select: { dpidAlias: true },
+    });
+    logger.trace({ latestManifest, node }, 'Debug dpid');
+    const dpid = latestManifest?.dpid?.id || node?.dpidAlias.toString();
+    if (!dpid) {
+      logger.error({ dpid, uuid }, 'checkMintability::No DPID found');
+      throw new ForbiddenMintError('Node dpid not found');
+    }
+    await this.assertIsFirstDoi(dpid);
 
     // extract manuscripts
     const manuscripts = latestManifest.components.filter(
@@ -117,15 +127,13 @@ export class DoiService {
         component.name.endsWith('.pdf') ||
         component.payload?.path?.endsWith('.pdf'),
     ) as PdfComponent[];
-    logger.info(manuscripts, 'MANUSCRIPTS');
 
     if (manuscripts.length > 0) {
       const existingDois = manuscripts.filter((doc) => doc.payload?.doi && doc.payload.doi.length > 0);
-      // await this.extractManuscriptDoi(manuscripts);
 
-      logger.info(existingDois, 'Existing DOI');
       // does manuscript(s) already have a DOI
       if (existingDois.length) {
+        logger.trace({ existingDois }, 'Existing DOI');
         // Validate node has claimed all necessary attestations
         await this.assertHasValidatedAttestations(uuid);
       }
@@ -137,7 +145,7 @@ export class DoiService {
     // validate title, abstract and contributors
     this.assertValidManifest(latestManifest);
 
-    return { dpid: latestManifest.dpid.id, uuid, manifest: latestManifest, researchObject };
+    return { dpid, uuid, manifest: latestManifest, researchObject };
   }
 
   async mintDoi(nodeUuid: string) {
@@ -154,6 +162,7 @@ export class DoiService {
     const metadataResponse = await crossRefClient.registerDoi({
       manifest,
       doi,
+      dpid,
       publicationDate: { day, month, year },
     });
 

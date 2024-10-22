@@ -50,7 +50,7 @@ export const searchProfiles = async (req: SearchProfilesRequest, res: Response<S
           include: { userOrganizations: { include: { organization: { select: { name: true } } } } },
         })
       : await prisma.user.findMany({
-          where: { name: { contains: name as string, mode: 'insensitive' } },
+          where: { name: { contains: name as string, mode: 'insensitive', not: null } },
           include: { userOrganizations: { include: { organization: { select: { name: true } } } } },
         });
 

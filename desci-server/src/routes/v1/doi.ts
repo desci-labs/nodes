@@ -10,7 +10,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 
 const router = Router();
 
-router.post('/check/:uuid', [ensureUser, ensureNodeAccess], asyncHandler(checkMintability));
+router.get('/check/:uuid', [ensureUser, ensureNodeAccess], asyncHandler(checkMintability));
 router.post('/mint/:uuid', [ensureUser, ensureNodeAccess], asyncHandler(mintDoi));
 router.get('/', [validate(retrieveDoiSchema)], asyncHandler(retrieveDoi));
 
