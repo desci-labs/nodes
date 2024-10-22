@@ -201,7 +201,42 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
         minimum_should_match: 1,
       },
     },
-    // Prefix matches (high priority)
+    // 80% threshold matches (high-medium priority)
+    {
+      bool: {
+        should: [
+          {
+            match: {
+              title: {
+                query: query,
+                minimum_should_match: '80%',
+                boost: 75,
+              },
+            },
+          },
+          {
+            match: {
+              primary_id: {
+                query: query,
+                minimum_should_match: '80%',
+                boost: 75,
+              },
+            },
+          },
+          {
+            match: {
+              'institution_data.display_name': {
+                query: query,
+                minimum_should_match: '80%',
+                boost: 75,
+              },
+            },
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    },
+    // Prefix matches (medium priority)
     {
       bool: {
         should: [
@@ -233,7 +268,7 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
         minimum_should_match: 1,
       },
     },
-    // Text matches (medium priority)
+    // Text matches (lower priority)
     {
       multi_match: {
         query: query,
