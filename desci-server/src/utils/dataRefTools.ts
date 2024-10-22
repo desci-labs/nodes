@@ -5,7 +5,7 @@ import axios from 'axios';
 import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
-import { discoveryLs, getDirectoryTree } from '../services/ipfs.js';
+import { discoveryLs, getDirectoryTree, getSizeForCid } from '../services/ipfs.js';
 import { ensureUuidEndsWithDot, objectPropertyXor, omitKeys } from '../utils.js';
 
 import { DRAFT_CID, TimestampMap, draftNodeTreeEntriesToFlatIpfsTree } from './draftTreeUtils.js';
@@ -43,6 +43,7 @@ interface GenerateDataReferencesArgs {
   versionId?: number;
   markExternals?: boolean;
   workingTreeUrl?: string;
+  includeManifestRef?: boolean;
 }
 
 // generates data references for the contents of a manifest
@@ -52,6 +53,7 @@ export async function generateDataReferences({
   versionId,
   markExternals,
   workingTreeUrl,
+  includeManifestRef = false,
 }: GenerateDataReferencesArgs): Promise<
   Prisma.DataReferenceCreateManyInput[] | Prisma.PublicDataReferenceCreateManyInput[]
 > {
@@ -79,6 +81,17 @@ export async function generateDataReferences({
     nodeId: node.id,
     ...(versionId ? { versionId } : {}),
     ...(markExternals ? { external: null } : {}),
+  };
+
+  const manifestRefEntry: Prisma.PublicDataReferenceCreateManyInput = {
+    cid: manifestCid,
+    userId: node.ownerId,
+    root: false,
+    directory: false,
+    size: await getSizeForCid(manifestCid, false),
+    type: DataType.MANIFEST,
+    nodeId: node.id,
+    ...(versionId ? { versionId } : {}),
   };
 
   const externalCidMap = workingTreeUrl
@@ -117,7 +130,9 @@ export async function generateDataReferences({
   });
   // debugger;
 
-  return [...(isPublished ? [dataRootEntry] : []), ...dataTreeToPubRef];
+  const manifestRefIncluded = includeManifestRef ? [manifestRefEntry] : [];
+
+  return [...(isPublished ? [dataRootEntry, ...manifestRefIncluded] : [...manifestRefIncluded]), ...dataTreeToPubRef];
 }
 
 // used to prepare data refs for a given dag and manifest (differs from generateDataReferences in that you don't need the updated manifestCid ahead of time)
@@ -339,7 +354,7 @@ interface DiffObject {
 }
 
 // generateDataReferences() refs won't contain these keys, they will be omitted from the diff.
-const DIFF_EXCLUSION_KEYS = ['id', 'createdAt', 'updatedAt', 'name', 'description'];
+const DIFF_EXCLUSION_KEYS = ['id', 'createdAt', 'updatedAt', 'name', 'description', 'versionId'];
 
 export async function validateDataReferences({
   nodeUuid,
@@ -347,9 +362,12 @@ export async function validateDataReferences({
   publicRefs,
   markExternals,
   txHash,
+  commitId,
   workingTreeUrl,
+  includeManifestRef = false,
 }: ValidateAndHealDataRefsArgs) {
   if (nodeUuid.endsWith('.')) nodeUuid = nodeUuid.slice(0, -1);
+  // debugger;
   const node = await prisma.node.findFirst({
     where: {
       uuid: ensureUuidEndsWithDot(nodeUuid),
@@ -368,16 +386,18 @@ export async function validateDataReferences({
             nodeId: node.id,
             manifestUrl: manifestCid,
             ...(txHash && { transactionId: txHash }),
+            ...(commitId && { commitId }),
           },
         })
       ).id
     : undefined;
 
+  const excludeManifestClause = includeManifestRef ? {} : { type: { not: DataType.MANIFEST } };
   const currentRefs = publicRefs
     ? await prisma.publicDataReference.findMany({
-        where: { nodeId: node.id, type: { not: DataType.MANIFEST }, versionId },
+        where: { nodeId: node.id, versionId, ...excludeManifestClause },
       })
-    : await prisma.dataReference.findMany({ where: { nodeId: node.id, type: { not: DataType.MANIFEST } } });
+    : await prisma.dataReference.findMany({ where: { nodeId: node.id, ...excludeManifestClause } });
 
   const requiredRefs = await generateDataReferences({
     nodeUuid,
@@ -385,6 +405,7 @@ export async function validateDataReferences({
     versionId,
     markExternals,
     workingTreeUrl,
+    includeManifestRef,
   });
 
   const missingRefs = [];
@@ -488,7 +509,15 @@ export async function validateDataReferences({
     );
     logger.debug('_______________________________________________________________________________________');
   }
-  return { missingRefs, unusedRefs, diffRefs };
+  if (!totalMissingRefs && !totalUnusedRefs && !totalDiffRefs)
+    logger.info({ fn: 'validateDataReferences' }, `NodeId: ${node.id}, No missing, unused or diff refs found`);
+  return {
+    missingRefs,
+    unusedRefs,
+    diffRefs,
+    totalCurrentRefs: currentRefs.length,
+    totalRequiredRefs: requiredRefs.length,
+  };
 }
 
 interface ValidateAndHealDataRefsArgs {
@@ -497,7 +526,9 @@ interface ValidateAndHealDataRefsArgs {
   publicRefs: boolean;
   markExternals?: boolean;
   txHash?: string;
+  commitId?: string;
   workingTreeUrl?: string;
+  includeManifestRef?: boolean;
 }
 
 export async function validateAndHealDataRefs({
@@ -506,7 +537,9 @@ export async function validateAndHealDataRefs({
   publicRefs,
   markExternals,
   txHash,
+  commitId,
   workingTreeUrl,
+  includeManifestRef = false,
 }: ValidateAndHealDataRefsArgs) {
   const { missingRefs, unusedRefs, diffRefs } = await validateDataReferences({
     nodeUuid,
@@ -514,7 +547,9 @@ export async function validateAndHealDataRefs({
     publicRefs,
     markExternals,
     txHash,
+    commitId,
     workingTreeUrl,
+    includeManifestRef,
   });
   if (missingRefs.length) {
     const addedRefs = publicRefs
