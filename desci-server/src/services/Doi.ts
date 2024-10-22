@@ -114,7 +114,10 @@ export class DoiService {
     });
     logger.trace({ latestManifest, node }, 'Debug dpid');
     const dpid = latestManifest?.dpid?.id || node?.dpidAlias.toString();
-    if (!dpid) logger.trace({ dpid }, 'No DPID found');
+    if (!dpid) {
+      logger.error({ dpid, uuid }, 'checkMintability::No DPID found');
+      throw new ForbiddenMintError('Node dpid not found');
+    }
     await this.assertIsFirstDoi(dpid);
 
     // extract manuscripts
