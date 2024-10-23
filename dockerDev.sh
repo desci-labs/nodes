@@ -26,11 +26,12 @@ init_node() {
 
   # Since nvm is loaded through shell config, it's not available
   # in scripts unless we source it manually
-  local NVM_SCRIPT="$NVM_DIR/nvm.sh"
+  local NVM_SCRIPT="${NVM_DIR-}/nvm.sh"
   if command -v fnm &>/dev/null; then
     # A script doesn't inherit get aliases, so if fnm is available, "implement" nvm with that
     nvm() { fnm "$@"; }
-  elif [[ -s "$NVM_SCRIPT" ]]; then
+  elif [ -s "$NVM_SCRIPT" ]; then
+    # shellcheck disable=SC1090
     source "$NVM_SCRIPT"
   else
     echo "[dockerDev] Could not find $NVM_SCRIPT, aborting"

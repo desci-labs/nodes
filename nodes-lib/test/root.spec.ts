@@ -1,19 +1,46 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, describe, beforeAll, expect } from "vitest";
 import type {
-  AddCodeComponentParams, AddLinkComponentParams, AddPdfComponentParams,
-  CreateDraftParams, ExternalUrl, NodeResponse, LegacyPublishResponse, RetrieveResponse,
+  AddCodeComponentParams,
+  AddLinkComponentParams,
+  AddPdfComponentParams,
+  CreateDraftParams,
+  ExternalUrl,
+  NodeResponse,
+  LegacyPublishResponse,
+  RetrieveResponse,
   UploadFilesResponse,
-} from "../src/api.js"
+} from "../src/api.js";
 import {
-  createDraftNode, getDraftNode, publishDraftNode, createNewFolder,
-  retrieveDraftFileTree, moveData, uploadFiles, deleteDraftNode,
-  getDpidHistory, deleteData, addPdfComponent, addCodeComponent,
-  uploadPdfFromUrl, uploadGithubRepoFromUrl, listNodes, addLinkComponent,
-  deleteComponent, updateComponent, changeManifest, updateTitle,
-  updateDescription, updateLicense, updateResearchFields, addContributor,
-  removeContributor, addExternalCid, updateCoverImage,
+  createDraftNode,
+  getDraftNode,
+  publishDraftNode,
+  createNewFolder,
+  retrieveDraftFileTree,
+  moveData,
+  uploadFiles,
+  deleteDraftNode,
+  getDpidHistory,
+  deleteData,
+  addPdfComponent,
+  addCodeComponent,
+  uploadPdfFromUrl,
+  uploadGithubRepoFromUrl,
+  listNodes,
+  addLinkComponent,
+  deleteComponent,
+  updateComponent,
+  changeManifest,
+  updateTitle,
+  updateDescription,
+  updateLicense,
+  updateResearchFields,
+  addContributor,
+  removeContributor,
+  addExternalCid,
+  updateCoverImage,
   publishNode,
+  getLegacyHistory,
 } from "../src/api.js";
 import axios from "axios";
 import { getCodexHistory, getCurrentState, getRawState } from "../src/codex.js";
@@ -29,16 +56,25 @@ import {
   type ResearchObjectV1Author,
   ResearchObjectV1AuthorRole,
   ResearchObjectComponentType,
-  ResearchObjectComponentDataSubtype
+  ResearchObjectComponentDataSubtype,
 } from "@desci-labs/desci-models";
-import { authorizedSessionDidFromSigner, signerFromPkey } from "../src/util/signing.js";
-import { NODESLIB_CONFIGS, getNodesLibInternalConfig, setApiKey, setNodesLibConfig } from "../src/index.js";
+import {
+  authorizedSessionDidFromSigner,
+  signerFromPkey,
+} from "../src/util/signing.js";
+import {
+  NODESLIB_CONFIGS,
+  getNodesLibInternalConfig,
+  setApiKey,
+  setNodesLibConfig,
+} from "../src/index.js";
 import { getResources } from "@desci-labs/desci-codex-lib";
 import { contracts, typechain as tc } from "@desci-labs/desci-contracts";
 import { Wallet, providers } from "ethers";
 
 // Pre-funded ganache account
-const TEST_PKEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+const TEST_PKEY =
+  "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 // Pre-seeded for noreply user in local environment
 const TEST_API_KEY = "agu+zEH30gwm77C+Em4scbzdiYOnv8uSvA0qr2XAj5k=";
 
@@ -56,10 +92,10 @@ describe("nodes-lib", () => {
       console.log("Server is reachable");
     } catch (e) {
       console.error(
-        "Failed to connect to desci-server; is the service running?",
+        "Failed to connect to desci-server; is the service running?"
       );
       process.exit(1);
-    };
+    }
   });
   describe("draft nodes", async () => {
     test("can be created", async () => {
@@ -79,7 +115,9 @@ describe("nodes-lib", () => {
     });
 
     test("can be deleted", async () => {
-      const { node: { uuid }} = await createBoilerplateNode();
+      const {
+        node: { uuid },
+      } = await createBoilerplateNode();
 
       await deleteDraftNode(uuid);
       await expect(getDraftNode(uuid)).rejects.toThrowError("403");
@@ -97,25 +135,36 @@ describe("nodes-lib", () => {
 
       test("title", async () => {
         const newTitle = "UNTITLED";
-        const { document: { manifest }} = await updateTitle(uuid, newTitle);
+        const {
+          document: { manifest },
+        } = await updateTitle(uuid, newTitle);
         expect(manifest.title).toEqual(newTitle);
       });
 
       test("description", async () => {
         const newDesc = "Oh my what an interesting topic";
-        const { document: { manifest }} = await updateDescription(uuid, newDesc);
+        const {
+          document: { manifest },
+        } = await updateDescription(uuid, newDesc);
         expect(manifest.description).toEqual(newDesc);
       });
 
       test("license", async () => {
         const newLicense: License = "Mozilla Public License 2.0";
-        const { document: { manifest }} = await updateLicense(uuid, newLicense);
+        const {
+          document: { manifest },
+        } = await updateLicense(uuid, newLicense);
         expect(manifest.defaultLicense).toEqual(newLicense);
       });
 
       test("research fields", async () => {
-        const newResearchFields: ResearchField[] = [ "Bathymetry", "Fisheries Science" ];
-        const { document: { manifest }} = await updateResearchFields(uuid, newResearchFields);
+        const newResearchFields: ResearchField[] = [
+          "Bathymetry",
+          "Fisheries Science",
+        ];
+        const {
+          document: { manifest },
+        } = await updateResearchFields(uuid, newResearchFields);
         expect(manifest.researchFields).toEqual(newResearchFields);
       });
 
@@ -128,35 +177,43 @@ describe("nodes-lib", () => {
           {
             name: "Assistant Measly",
             role: ResearchObjectV1AuthorRole.NODE_STEWARD,
-          }
+          },
         ];
         await addContributor(uuid, newContributors[0]);
-        const { document: { manifest }} = await addContributor(
-          uuid, newContributors[1]
-        );
+        const {
+          document: { manifest },
+        } = await addContributor(uuid, newContributors[1]);
         expect(manifest.authors).toEqual(newContributors);
 
-        const { document: { manifest: updatedManifest }} =
-          await removeContributor(uuid, 1);
-        expect(updatedManifest.authors).toEqual([newContributors[0]])
+        const {
+          document: { manifest: updatedManifest },
+        } = await removeContributor(uuid, 1);
+        expect(updatedManifest.authors).toEqual([newContributors[0]]);
       });
 
       describe("cover image", async () => {
         test("can be set", async () => {
-          const coverCid = "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u";
-          const { document: { manifest: updatedManifest } } = await updateCoverImage(uuid, coverCid);
+          const coverCid =
+            "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u";
+          const {
+            document: { manifest: updatedManifest },
+          } = await updateCoverImage(uuid, coverCid);
           expect(updatedManifest.coverImage).toEqual(coverCid);
         });
 
         test("can be unset", async () => {
-          const { document: { manifest: updatedManifest } } = await updateCoverImage(uuid, undefined);
+          const {
+            document: { manifest: updatedManifest },
+          } = await updateCoverImage(uuid, undefined);
           expect(updatedManifest.coverImage).toBeUndefined();
         });
       });
     });
 
     test("can add link component", async () => {
-      const { node: { uuid }} = await createBoilerplateNode();
+      const {
+        node: { uuid },
+      } = await createBoilerplateNode();
       const component: AddLinkComponentParams = {
         name: "my component",
         url: "http://google.com",
@@ -164,6 +221,7 @@ describe("nodes-lib", () => {
         starred: false,
       };
       await addLinkComponent(uuid, component);
+      await sleep(1_000);
       const state = await getDraftNode(uuid);
       const actualComponents = state.manifestData.components;
 
@@ -173,8 +231,10 @@ describe("nodes-lib", () => {
     });
 
     test("can add pdf component", async () => {
-      const { node: { uuid }} = await createBoilerplateNode();
-      const files = [ "test/test.pdf" ];
+      const {
+        node: { uuid },
+      } = await createBoilerplateNode();
+      const files = ["test/test.pdf"];
       const uploadResult = await uploadFiles({
         uuid,
         contextPath: "root",
@@ -198,8 +258,10 @@ describe("nodes-lib", () => {
     });
 
     test("can add a code component", async () => {
-      const { node: { uuid }} = await createBoilerplateNode();
-      const files = [ "test/root.spec.ts" ];
+      const {
+        node: { uuid },
+      } = await createBoilerplateNode();
+      const files = ["test/root.spec.ts"];
       const uploadResult = await uploadFiles({
         uuid,
         contextPath: "root",
@@ -221,20 +283,18 @@ describe("nodes-lib", () => {
       // Data bucket already present, so new component at index 1
       expect(actualComponents.length).toEqual(2);
       expect(actualComponents[1].payload.cid).toEqual(uploadedFileCid);
-
     });
 
     test("can delete component", async () => {
-      const { node: { uuid }} = await createBoilerplateNode();
-      await addLinkComponent(
-        uuid,
-        {
-          name: "Link",
-          url: "https://google.com",
-          subtype: ResearchObjectComponentLinkSubtype.OTHER,
-          starred: false,
-        },
-      );
+      const {
+        node: { uuid },
+      } = await createBoilerplateNode();
+      await addLinkComponent(uuid, {
+        name: "Link",
+        url: "https://google.com",
+        subtype: ResearchObjectComponentLinkSubtype.OTHER,
+        starred: false,
+      });
 
       await deleteComponent(uuid, `root/External Links/Link`);
       const node = await getDraftNode(uuid);
@@ -242,51 +302,53 @@ describe("nodes-lib", () => {
     });
 
     test("can update component", async () => {
-      const { node: { uuid }} = await createBoilerplateNode();
-      const { document: { manifest }} = await addLinkComponent(
-        uuid,
-        {
-          name: "Link",
-          url: "https://google.com",
-          subtype: ResearchObjectComponentLinkSubtype.OTHER,
-          starred: false,
-        },
-      );
+      const {
+        node: { uuid },
+      } = await createBoilerplateNode();
+      const {
+        document: { manifest },
+      } = await addLinkComponent(uuid, {
+        name: "Link",
+        url: "https://google.com",
+        subtype: ResearchObjectComponentLinkSubtype.OTHER,
+        starred: false,
+      });
 
       // Change
       const expectedComponent = manifest.components[1];
       expectedComponent.payload.url = "https://desci.com";
 
-      await updateComponent(
-        uuid,
-        {
-          componentIndex: 1,
-          component: expectedComponent,
-        },
-      );
+      await updateComponent(uuid, {
+        componentIndex: 1,
+        component: expectedComponent,
+      });
 
       const updatedNode = await getDraftNode(uuid);
       const updatedComponent = updatedNode.manifestData.components[1];
-      expect(updatedComponent.payload.url).toEqual(expectedComponent.payload.url)
+      expect(updatedComponent.payload.url).toEqual(
+        expectedComponent.payload.url
+      );
     });
   });
 
   describe("legacy publishing ", async () => {
     let uuid: string;
     let publishResult: LegacyPublishResponse;
-    const did = await authorizedSessionDidFromSigner(testSigner, getResources());
+    const did = await authorizedSessionDidFromSigner(
+      testSigner,
+      getResources()
+    );
 
     beforeAll(async () => {
       const { node } = await createBoilerplateNode();
       uuid = node.uuid;
       publishResult = await publishDraftNode(uuid, testSigner, did);
+      // Wait for repo and subgraph changes to go through
+      // await sleep(2_500);
     });
 
     describe("new node", async () => {
       test("adds it to the dpid registry", async () => {
-        // Allow graph node to index
-        await sleep(1_500);
-
         const historyResult = await getDpidHistory(uuid);
         const actualCid = convert0xHexToCid(historyResult.versions[0].cid);
         expect(actualCid).toEqual(publishResult.updatedManifestCid);
@@ -301,17 +363,23 @@ describe("nodes-lib", () => {
 
       test("to codex", async () => {
         expect(publishResult.ceramicIDs).not.toBeUndefined();
-        const ceramicObject = await getCurrentState(publishResult.ceramicIDs!.streamID);
-        expect(ceramicObject?.manifest).toEqual(publishResult.updatedManifestCid);
+        const ceramicObject = await getCurrentState(
+          publishResult.ceramicIDs!.streamID
+        );
+        expect(ceramicObject?.manifest).toEqual(
+          publishResult.updatedManifestCid
+        );
       });
 
       test("has a CACAO from the passed DID", async () => {
-        const streamState = await getRawState(publishResult.ceramicIDs!.streamID);
+        const streamState = await getRawState(
+          publishResult.ceramicIDs!.streamID
+        );
         const controller = streamState.state.metadata.controllers.at(0);
         const signerAddress = (await testSigner.getAddress()).toLowerCase();
 
         expect(controller).toEqual(did.parent);
-        expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
+        expect(controller!.replace(/did:pkh.*:/, "")).toEqual(signerAddress);
       });
 
       test("can optionally derive DID from just a signer", async () => {
@@ -320,7 +388,7 @@ describe("nodes-lib", () => {
         const streamState = await getRawState(result.ceramicIDs!.streamID);
         const controller = streamState.state.metadata.controllers.at(0);
         const signerAddress = (await testSigner.getAddress()).toLowerCase();
-        expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
+        expect(controller!.replace(/did:pkh.*:/, "")).toEqual(signerAddress);
       });
     });
 
@@ -343,51 +411,65 @@ describe("nodes-lib", () => {
       test("publishes to codex stream", async () => {
         expect(publishResult.ceramicIDs).not.toBeUndefined();
 
-        const ceramicObject = await getCurrentState(publishResult.ceramicIDs!.streamID);
-        expect(ceramicObject?.manifest).toEqual(publishResult.updatedManifestCid);
+        const ceramicObject = await getCurrentState(
+          publishResult.ceramicIDs!.streamID
+        );
+        expect(ceramicObject?.manifest).toEqual(
+          publishResult.updatedManifestCid
+        );
 
-        const ceramicHistory = await getCodexHistory(publishResult.ceramicIDs!.streamID);
+        const ceramicHistory = await getCodexHistory(
+          publishResult.ceramicIDs!.streamID
+        );
         expect(ceramicHistory.length).toEqual(2);
       });
     });
 
-    test("with backfill ceramic migration", async () => {
-      const { node: { uuid }} = await createBoilerplateNode();
+    test(
+      "with backfill ceramic migration",
+      async () => {
+        const {
+          node: { uuid },
+        } = await createBoilerplateNode();
 
-      // make a dpid-only publish
-      await dpidPublish(uuid, false, testSigner);
-
-        // Allow graph node to index
-      await sleep(2_500);
-
-      // make a regular publish
-      const pubResult = await publishDraftNode(uuid, testSigner, did);
+        // make a dpid-only publish
+        await dpidPublish(uuid, false, testSigner);
 
         // Allow graph node to index
-      await sleep(5_000);
+        await sleep(2_500);
 
-      // make sure codex history is of equal length
-      const dpidHistory = await getDpidHistory(uuid);
-      const codexHistory = await getCodexHistory(pubResult.ceramicIDs!.streamID);
-      expect(dpidHistory.versions.length).toEqual(2);
-      expect (codexHistory.length).toEqual(2);
-    }, { timeout: 10_000});
+        // make a regular publish
+        const pubResult = await publishDraftNode(uuid, testSigner, did);
+
+        // Allow graph node to index
+        await sleep(5_000);
+
+        // make sure codex history is of equal length
+        const dpidHistory = await getDpidHistory(uuid);
+        const codexHistory = await getCodexHistory(
+          pubResult.ceramicIDs!.streamID
+        );
+        expect(dpidHistory.versions.length).toEqual(2);
+        expect(codexHistory.length).toEqual(2);
+      },
+      { timeout: 10_000 }
+    );
 
     /** This is not an user feature, but part of error handling during publish */
     test("can remove dPID from manifest", async () => {
-      await changeManifest(
-        uuid, [{ type: "Remove Dpid" }]
-      );
+      await changeManifest(uuid, [{ type: "Remove Dpid" }]);
       const node = await getDraftNode(uuid);
       expect(node.manifestData.dpid).toBeUndefined();
     });
-
   });
 
   describe("publishing ", async () => {
     let uuid: string;
     let publishResult: LegacyPublishResponse;
-    const did = await authorizedSessionDidFromSigner(testSigner, getResources());
+    const did = await authorizedSessionDidFromSigner(
+      testSigner,
+      getResources()
+    );
 
     beforeAll(async () => {
       const { node } = await createBoilerplateNode();
@@ -398,12 +480,18 @@ describe("nodes-lib", () => {
     describe("new node", async () => {
       test("to codex", async () => {
         expect(publishResult.ceramicIDs).not.toBeUndefined();
-        const ceramicObject = await getCurrentState(publishResult.ceramicIDs!.streamID);
-        expect(ceramicObject?.manifest).toEqual(publishResult.updatedManifestCid);
+        const ceramicObject = await getCurrentState(
+          publishResult.ceramicIDs!.streamID
+        );
+        expect(ceramicObject?.manifest).toEqual(
+          publishResult.updatedManifestCid
+        );
       });
 
       test("has a new version", async () => {
-        const history = await getCodexHistory(publishResult.ceramicIDs!.streamID);
+        const history = await getCodexHistory(
+          publishResult.ceramicIDs!.streamID
+        );
         expect(history.length).toEqual(1);
       });
 
@@ -413,12 +501,14 @@ describe("nodes-lib", () => {
       });
 
       test("has a CACAO from the passed DID", async () => {
-        const streamState = await getRawState(publishResult.ceramicIDs!.streamID);
+        const streamState = await getRawState(
+          publishResult.ceramicIDs!.streamID
+        );
         const controller = streamState.state.metadata.controllers.at(0);
         const signerAddress = (await testSigner.getAddress()).toLowerCase();
 
         expect(controller).toEqual(did.parent);
-        expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
+        expect(controller!.replace(/did:pkh.*:/, "")).toEqual(signerAddress);
       });
 
       test("can optionally derive DID from just a signer", async () => {
@@ -427,7 +517,7 @@ describe("nodes-lib", () => {
         const streamState = await getRawState(result.ceramicIDs!.streamID);
         const controller = streamState.state.metadata.controllers.at(0);
         const signerAddress = (await testSigner.getAddress()).toLowerCase();
-        expect(controller!.replace("did:pkh:eip155:1337:", "")).toEqual(signerAddress);
+        expect(controller!.replace(/did:pkh.*:/, "")).toEqual(signerAddress);
       });
 
       test("tracks streamID with node state", async () => {
@@ -453,12 +543,18 @@ describe("nodes-lib", () => {
       });
 
       test("updates most recent state", async () => {
-        const ceramicObject = await getCurrentState(updateResult.ceramicIDs!.streamID);
-        expect(ceramicObject?.manifest).toEqual(updateResult.updatedManifestCid);
+        const ceramicObject = await getCurrentState(
+          updateResult.ceramicIDs!.streamID
+        );
+        expect(ceramicObject?.manifest).toEqual(
+          updateResult.updatedManifestCid
+        );
       });
 
       test("adds a new version", async () => {
-        const ceramicHistory = await getCodexHistory(updateResult.ceramicIDs!.streamID);
+        const ceramicHistory = await getCodexHistory(
+          updateResult.ceramicIDs!.streamID
+        );
         expect(ceramicHistory.length).toEqual(2);
       });
 
@@ -483,11 +579,11 @@ describe("nodes-lib", () => {
         uuid = node.uuid;
 
         // make a dpid-only publish
-        const { prepubResult: { updatedManifest, updatedManifestCid }} = await dpidPublish(
-          uuid, false, testSigner
-        );
+        const {
+          prepubResult: { updatedManifest, updatedManifestCid },
+        } = await dpidPublish(uuid, false, testSigner);
 
-          // Allow graph node to index
+        // Allow graph node to index
         await sleep(2_500);
 
         legacyDpid = parseInt(updatedManifest.dpid!.id);
@@ -496,39 +592,39 @@ describe("nodes-lib", () => {
         // Publish uses this to validate history before migrating dPID
         const wallet = new Wallet(
           TEST_PKEY,
-          new providers.JsonRpcProvider(getNodesLibInternalConfig().chainConfig.rpcUrl),
+          new providers.JsonRpcProvider(
+            getNodesLibInternalConfig().chainConfig.rpcUrl
+          )
         );
         const aliasRegistry = tc.DpidAliasRegistry__factory.connect(
           contracts.localDpidAliasInfo.proxies.at(0)!.address,
-          wallet,
+          wallet
         );
-        const tx = await aliasRegistry.importLegacyDpid(
-          legacyDpid,
-          {
-            owner: await testSigner.getAddress(),
-            versions: [
-              {
-                cid: updatedManifestCid,
-                time: 1337 // Import fn can't validate this anyway
-              },
-            ],
-          },
-        );
+        const tx = await aliasRegistry.importLegacyDpid(legacyDpid, {
+          owner: await testSigner.getAddress(),
+          versions: [
+            {
+              cid: updatedManifestCid,
+              time: 1337, // Import fn can't validate this anyway
+            },
+          ],
+        });
         await tx.wait();
 
         // make a regular publish
         pubResult = await publishNode(uuid, did);
-        await sleep(1000);
       });
 
       test("migrates history to new stream", async () => {
         // legacy registry only knows about the first update
-        const dpidHistory = await getDpidHistory(uuid);
+        const dpidHistory = await getLegacyHistory(legacyDpid);
         expect(dpidHistory.versions.length).toEqual(1);
 
         // codex history has the legacy and the new update
-        const codexHistory = await getCodexHistory(pubResult.ceramicIDs!.streamID);
-        expect (codexHistory.length).toEqual(2);
+        const codexHistory = await getCodexHistory(
+          pubResult.ceramicIDs!.streamID
+        );
+        expect(codexHistory.length).toEqual(2);
       });
 
       test("tracks streamID with node state", async () => {
@@ -543,21 +639,87 @@ describe("nodes-lib", () => {
       });
     });
 
+    describe("node with legacy history but mismatched stream owner", async () => {
+      let uuid: string;
+      let legacyDpid: number;
+
+      beforeAll(async () => {
+        const { node } = await createBoilerplateNode();
+        uuid = node.uuid;
+
+        // make a dpid-only publish
+        const {
+          prepubResult: { updatedManifest, updatedManifestCid },
+        } = await dpidPublish(uuid, false, testSigner);
+
+        // Allow graph node to index
+        await sleep(2_500);
+
+        legacyDpid = parseInt(updatedManifest.dpid!.id);
+
+        // Import as legacy entry (i.e., fake migration step)
+        // Publish uses this to validate history before migrating dPID
+        const wallet = new Wallet(
+          TEST_PKEY,
+          new providers.JsonRpcProvider(
+            getNodesLibInternalConfig().chainConfig.rpcUrl
+          )
+        );
+        const aliasRegistry = tc.DpidAliasRegistry__factory.connect(
+          contracts.localDpidAliasInfo.proxies.at(0)!.address,
+          wallet
+        );
+        const tx = await aliasRegistry.importLegacyDpid(legacyDpid, {
+          owner: await testSigner.getAddress(),
+          versions: [
+            {
+              cid: updatedManifestCid,
+              time: 1337, // Import fn can't validate this anyway
+            },
+          ],
+        });
+        await tx.wait();
+      });
+
+      test("refuses to upgrade with an unmatching DID", async () => {
+        const differentDid = await authorizedSessionDidFromSigner(
+          signerFromPkey(
+            // Different last 4 chars
+            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2aaaa"
+          ),
+          getResources()
+        );
+        await expect(publishNode(uuid, differentDid)).rejects.toThrowError(
+          "Refusing to migrate history"
+        );
+      });
+
+      test("refuses to upgrade with an unmatching signer", async () => {
+        const differentDid = await authorizedSessionDidFromSigner(
+          signerFromPkey(
+            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2aaaa"
+          ),
+          getResources()
+        );
+        await expect(publishNode(uuid, differentDid)).rejects.toThrow();
+      });
+    });
+
     /** This is not an user feature, but part of error handling during legacy publish */
     test("can remove dPID from manifest", async () => {
-      await changeManifest(
-        uuid, [{ type: "Remove Dpid" }]
-      );
+      await changeManifest(uuid, [{ type: "Remove Dpid" }]);
       const node = await getDraftNode(uuid);
       expect(node.manifestData.dpid).toBeUndefined();
     });
-
   });
 
   describe("data management", async () => {
     describe("trees", async () => {
       test("can be retrieved by owner", async () => {
-        const { ok, node: { uuid }} = await createBoilerplateNode();
+        const {
+          ok,
+          node: { uuid },
+        } = await createBoilerplateNode();
         expect(ok).toEqual(true);
 
         const treeResult = await retrieveDraftFileTree(uuid);
@@ -578,7 +740,7 @@ describe("nodes-lib", () => {
         await createNewFolder({
           uuid,
           contextPath: "root",
-          newFolderName: expectedFolderName
+          newFolderName: expectedFolderName,
         });
       });
 
@@ -596,13 +758,11 @@ describe("nodes-lib", () => {
           contextPath: "root",
           newFolderName: otherFolderName,
         });
-        await moveData(
-          {
-            uuid,
-            oldPath: `root/${otherFolderName}`,
-            newPath: `root/${expectedFolderName}/${expectedFolderName}`
-          },
-        );
+        await moveData({
+          uuid,
+          oldPath: `root/${otherFolderName}`,
+          newPath: `root/${expectedFolderName}/${expectedFolderName}`,
+        });
 
         const treeResult = await retrieveDraftFileTree(uuid);
 
@@ -611,12 +771,10 @@ describe("nodes-lib", () => {
       });
 
       test("can be deleted", async () => {
-        await deleteData(
-          {
-            uuid,
-            path: `root/${expectedFolderName}`
-          },
-        );
+        await deleteData({
+          uuid,
+          path: `root/${expectedFolderName}`,
+        });
         const treeResult = await retrieveDraftFileTree(uuid);
 
         expect(treeResult.tree[0].contains).toEqual([]);
@@ -625,8 +783,10 @@ describe("nodes-lib", () => {
 
     describe("files", async () => {
       test("can be uploaded", async () => {
-        const { node: { uuid }} = await createBoilerplateNode();
-        const files = [ "package.json", "package-lock.json" ];
+        const {
+          node: { uuid },
+        } = await createBoilerplateNode();
+        const files = ["package.json", "package-lock.json"];
         await uploadFiles({
           uuid,
           contextPath: "root",
@@ -636,22 +796,27 @@ describe("nodes-lib", () => {
         const treeResult = await retrieveDraftFileTree(uuid);
         const driveContent = treeResult.tree[0].contains!;
 
-        expect(driveContent.map(driveObject => driveObject.name))
-          .toEqual(expect.arrayContaining(files));
-        driveContent.forEach(driveObject => {
+        expect(driveContent.map((driveObject) => driveObject.name)).toEqual(
+          expect.arrayContaining(files)
+        );
+        driveContent.forEach((driveObject) => {
           expect(driveObject.size).toBeGreaterThan(0);
         });
       });
 
       test("can be moved", async () => {
-        const { node: { uuid }} = await createBoilerplateNode();
-        const files = [ "package.json" ];
+        const {
+          node: { uuid },
+        } = await createBoilerplateNode();
+        const files = ["package.json"];
         const uploadResult = await uploadFiles({
           uuid,
           contextPath: "root",
           files,
         });
-        expect(uploadResult.tree[0].contains![0].path).toEqual("root/package.json");
+        expect(uploadResult.tree[0].contains![0].path).toEqual(
+          "root/package.json"
+        );
 
         await moveData({
           uuid,
@@ -660,12 +825,16 @@ describe("nodes-lib", () => {
         });
 
         const treeResult = await retrieveDraftFileTree(uuid);
-        expect(treeResult.tree[0].contains![0].path).toEqual("root/json.package");
+        expect(treeResult.tree[0].contains![0].path).toEqual(
+          "root/json.package"
+        );
       });
 
       test("can be deleted", async () => {
-        const { node: { uuid }} = await createBoilerplateNode();
-        const files = [ "package.json" ];
+        const {
+          node: { uuid },
+        } = await createBoilerplateNode();
+        const files = ["package.json"];
         const uploadResult = await uploadFiles({
           uuid,
           contextPath: "root",
@@ -676,7 +845,7 @@ describe("nodes-lib", () => {
 
         await deleteData({
           uuid,
-          path: "root/package.json"
+          path: "root/package.json",
         });
 
         const treeResult = await retrieveDraftFileTree(uuid);
@@ -689,7 +858,9 @@ describe("nodes-lib", () => {
         let uploadResult: UploadFilesResponse;
         let externalUrl: ExternalUrl;
         beforeAll(async () => {
-          const { node: { uuid }} = await createBoilerplateNode();
+          const {
+            node: { uuid },
+          } = await createBoilerplateNode();
           externalUrl = {
             url: "https://ipfs.desci.com/ipfs/bafybeiamslevhsvjlnfejg7p2rzk6bncioaapwb3oauu7zqwmfpwko5ho4",
             path: "manuscript.pdf",
@@ -723,9 +894,10 @@ describe("nodes-lib", () => {
             payload: expect.objectContaining({
               // cid: some cid,
               path: "root/manuscript.pdf",
-              externalUrl: "https://ipfs.desci.com/ipfs/bafybeiamslevhsvjlnfejg7p2rzk6bncioaapwb3oauu7zqwmfpwko5ho4"
+              externalUrl:
+                "https://ipfs.desci.com/ipfs/bafybeiamslevhsvjlnfejg7p2rzk6bncioaapwb3oauu7zqwmfpwko5ho4",
             }),
-            starred: false
+            starred: false,
           });
 
           expect(components).toEqual(
@@ -738,7 +910,9 @@ describe("nodes-lib", () => {
         let externalUrl: ExternalUrl;
         let treeResult: RetrieveResponse;
         beforeAll(async () => {
-          const { node: { uuid}} = await createBoilerplateNode();
+          const {
+            node: { uuid },
+          } = await createBoilerplateNode();
           externalUrl = {
             // This is probably stupid to do in a unit test
             url: "https://github.com/desci-labs/desci-codex",
@@ -748,7 +922,8 @@ describe("nodes-lib", () => {
             uuid,
             externalUrl,
             targetPath: "root",
-            componentSubtype: ResearchObjectComponentCodeSubtype.SOFTWARE_PACKAGE,
+            componentSubtype:
+              ResearchObjectComponentCodeSubtype.SOFTWARE_PACKAGE,
           });
           treeResult = await retrieveDraftFileTree(uuid);
         });
@@ -767,28 +942,37 @@ describe("nodes-lib", () => {
 
     describe("external CID", async () => {
       test("can be added", async () => {
-        const { node: { uuid }} = await createBoilerplateNode();
-        await createNewFolder(
-          {uuid, contextPath: "root", newFolderName: "catpics"}
-        );
-        const catCid = "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u";
+        const {
+          node: { uuid },
+        } = await createBoilerplateNode();
+        await createNewFolder({
+          uuid,
+          contextPath: "root",
+          newFolderName: "catpics",
+        });
+        const catCid =
+          "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u";
         const addResult = await addExternalCid({
           uuid,
-          externalCids: [{
-            cid: catCid,
-            name: "cat.jpg",
-          }],
+          externalCids: [
+            {
+              cid: catCid,
+              name: "cat.jpg",
+            },
+          ],
           contextPath: "/catpics",
           componentType: ResearchObjectComponentType.DATA,
           componentSubtype: ResearchObjectComponentDataSubtype.IMAGE,
         });
 
-        expect(addResult.tree[0].contains![0].contains![0]).toMatchObject(expect.objectContaining({
-          cid: catCid,
-          path: "root/catpics/cat.jpg",
-          name: "cat.jpg",
-          external: true,
-        }));
+        expect(addResult.tree[0].contains![0].contains![0]).toMatchObject(
+          expect.objectContaining({
+            cid: catCid,
+            path: "root/catpics/cat.jpg",
+            name: "cat.jpg",
+            external: true,
+          })
+        );
       });
     });
   });
@@ -802,4 +986,4 @@ const createBoilerplateNode = async () => {
   };
 
   return await createDraftNode(node);
-}
+};

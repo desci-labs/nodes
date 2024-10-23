@@ -4,12 +4,14 @@ import { NextFunction, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { RequestWithNode } from '../../middleware/authorisation.js';
+import { ensureNodeAccess, RequestWithNode } from '../../middleware/authorisation.js';
+import { delFromCache } from '../../redisClient.js';
 import { updateManifestDataBucket } from '../../services/data/processing.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { prepareDataRefsForDagSkeleton } from '../../utils/dataRefTools.js';
 import { dagifyAndAddDbTreeToIpfs } from '../../utils/draftTreeUtils.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 import { persistManifest } from '../data/utils.js';
 
 type PrepublishResponse = PrepublishSuccessResponse | PrepublishErrorResponse;
@@ -45,6 +47,7 @@ export const prepublish = async (req: RequestWithNode, res: Response<PrepublishR
   if (!uuid) {
     return res.status(400).json({ ok: false, error: 'UUID is required.' });
   }
+
   try {
     // Sourced from middleware EnsureUser
     if (!owner.id || owner.id < 1) {

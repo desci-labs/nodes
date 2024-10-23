@@ -179,7 +179,6 @@ export const getAllCidsRequiredForPublish = async (
   nodeId: number | undefined,
   versionId: number | undefined,
 ): Promise<Prisma.PublicDataReferenceCreateManyInput[]> => {
-  // debugger;
   // ensure public data refs staged matches our data bucket cids
   const latestManifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   // const manifestString = manifestBuffer.toString('utf8');
@@ -443,10 +442,15 @@ export const cacheNodeMetadata = async (uuid: string, manifestCid: string, versi
       },
     });
     return { version, uuid, manifestCid };
-  } catch (e) {
-    logger.error({ error: e }, 'Error cacheNodeMetadata');
+  } catch (error) {
+    logger.error({ error }, 'Error cacheNodeMetadata');
     return false;
   }
+};
+
+type DocumentInfo = {
+  documentId: DocumentId;
+  document: ResearchObjectDocument;
 };
 
 export const showNodeDraftManifest = async (node: Node, ipfsFallbackUrl?: string) => {
@@ -457,10 +461,7 @@ export const showNodeDraftManifest = async (node: Node, ipfsFallbackUrl?: string
     '[getNodeManifest] ==> timeDifferenceInSeconds',
   );
 
-  const cachedDraftMetadata = (await getFromCache(`node-draft-${node.uuid}`)) as {
-    documentId: DocumentId;
-    document: ResearchObjectDocument;
-  };
+  const cachedDraftMetadata = await getFromCache<DocumentInfo>(`node-draft-${ensureUuidEndsWithDot(node.uuid)}`, 0);
 
   logger.trace(
     { timeDifferenceInSeconds, uuid: node.uuid, cachedDraftMetadata: !!cachedDraftMetadata },

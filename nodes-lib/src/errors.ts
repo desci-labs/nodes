@@ -1,25 +1,59 @@
-class BaseError<Name extends string, Cause> extends Error {
-  name: Name;
-  message: string;
-  cause?: Cause;
+type PublishErrorType =
+  | { type: "DPID_UPDATE_FAILED"; cause: Error }
+  | { type: "DPID_REGISTRATION_FAILED"; cause: Error }
+  | { type: "WRONG_OWNER"; cause: { expected: string; actual: string } }
+  | { type: "NO_SUCH_ENTRY"; cause?: Error }
+  | { type: "CHAIN_CALL"; cause: Error }
+  | { type: "CERAMIC_WRITE"; cause: Error }
+  | { type: "BACKEND_CALL"; cause: Error }
+  | { type: "ALIAS_REGISTRATION"; cause: Error }
+  | { type: "DPID_UPGRADE"; cause: Error };
 
-  constructor({
-    name, message, cause
-  }: {
-    name: Name,
-    message: string,
-    cause?: Cause,
-  }) {
-    super();
-    this.name = name;
-    this.message = message;
-    this.cause = cause;
-  };
-};
+export class PublishError extends Error {
+  constructor(message: string, public details: PublishErrorType) {
+    super(message);
+    this.name = "PublishError";
+  }
 
-export class DpidUpdateError extends BaseError<"DPID_UPDATE_ERROR", Error> {};
-export class DpidRegistrationError extends BaseError<"DPID_REGISTRATION_ERROR", Error> {};
-export class WrongOwnerError extends BaseError<
-  "WRONG_OWNER_ERROR", { expected: string, actual: string }
-> {};
-export class NoSuchEntryError extends BaseError<"NO_SUCH_ENTRY_ERROR", Error> {};
+  static dpidUpdate(message: string, cause: Error) {
+    return new PublishError(message, { type: "DPID_UPDATE_FAILED", cause });
+  }
+
+  static dpidRegistration(message: string, cause: Error) {
+    return new PublishError(message, {
+      type: "DPID_REGISTRATION_FAILED",
+      cause,
+    });
+  }
+
+  static wrongOwner(message: string, expected: string, actual: string) {
+    return new PublishError(message, {
+      type: "WRONG_OWNER",
+      cause: { expected, actual },
+    });
+  }
+
+  static noLegacyMatch(message: string, cause?: Error) {
+    return new PublishError(message, { type: "NO_SUCH_ENTRY", cause });
+  }
+
+  static chainCall(message: string, cause: Error) {
+    return new PublishError(message, { type: "CHAIN_CALL", cause });
+  }
+
+  static ceramicWrite(message: string, cause: Error) {
+    return new PublishError(message, { type: "CERAMIC_WRITE", cause });
+  }
+
+  static backendCall(message: string, cause: Error) {
+    return new PublishError(message, { type: "BACKEND_CALL", cause });
+  }
+
+  static aliasRegistration(message: string, cause: Error) {
+    return new PublishError(message, { type: "ALIAS_REGISTRATION", cause });
+  }
+
+  static dpidUpgrade(message: string, cause: Error) {
+    return new PublishError(message, { type: "DPID_UPGRADE", cause });
+  }
+}

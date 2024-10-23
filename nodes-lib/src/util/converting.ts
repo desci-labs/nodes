@@ -9,9 +9,11 @@ export const convertUUIDToHex = (uuid: string): string => {
   const decoded = decode(uuid);
   const buffer = Base64Binary.decodeArrayBuffer(decoded).slice(0, 32);
   let base64UuidToBase16 = Buffer.from(buffer).toString("hex");
-  base64UuidToBase16 = "0x" + (base64UuidToBase16.length % 2 == 0
-    ? base64UuidToBase16
-    : "0" + base64UuidToBase16);
+  base64UuidToBase16 =
+    "0x" +
+    (base64UuidToBase16.length % 2 == 0
+      ? base64UuidToBase16
+      : "0" + base64UuidToBase16);
   return base64UuidToBase16;
 };
 
@@ -21,21 +23,17 @@ export const convertUUIDToDecimal = (uuid: string): string => {
 };
 
 export const convertCidTo0xHex = (cid: string): string => {
-  const c = CID.parse(cid)
+  const c = CID.parse(cid);
   const rootStrHex = c.toString(base16);
-  const paddedAndPrefixed = "0x" + (
-    rootStrHex.length % 2 === 0
-      ? rootStrHex 
-      : "0" + rootStrHex
-  );
+  const paddedAndPrefixed =
+    "0x" + (rootStrHex.length % 2 === 0 ? rootStrHex : "0" + rootStrHex);
   return paddedAndPrefixed;
 };
 
 export const convert0xHexToCid = (hexCid: string): string => {
   const without0x = hexCid.substring(2);
-  const withoutPadding = without0x.length % 2 === 0
-    ? without0x.substring(1)
-    : without0x;
+  const withoutPadding =
+    without0x.length % 2 === 0 ? without0x.substring(1) : without0x;
 
   const cidBytes = base16.decode(withoutPadding);
   const cid = CID.decode(cidBytes);
@@ -47,3 +45,6 @@ export const bnToNumber = (bn: BigNumberish): number =>
 
 export const bnToString = (bn: BigNumberish): string =>
   BigNumber.from(bn).toString();
+
+export const fullDidToLcAddress = (did: string) =>
+  did.split(":").pop()?.toLowerCase();

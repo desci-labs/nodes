@@ -10,10 +10,10 @@ import tar from 'tar';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import redisClient, { getOrCache } from '../../redisClient.js';
+import { redisClient, getOrCache } from '../../redisClient.js';
 import { getLatestDriveTime } from '../../services/draftTrees.js';
 import { getDatasetTar } from '../../services/ipfs.js';
-import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import { NodeUuid } from '../../services/manifestRepo.js';
 import { showNodeDraftManifest } from '../../services/nodeManager.js';
 import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';

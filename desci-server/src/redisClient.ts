@@ -3,7 +3,6 @@ import os from 'os';
 import { createClient } from 'redis';
 
 import { logger as parentLogger } from './logger.js';
-import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 
 const hostname = os.hostname();
 const logger = parentLogger.child({
@@ -49,17 +48,14 @@ redisClient.on('error', (err) => {
   logger.error({ err }, 'Redis Client Error');
 });
 
-// gracefully shutdown
-// process.on('exit', () => {
-//   redisClient.quit();
-// });
+export const ONE_WEEK_TTL = 60 * 60 * 24 * 7;
+export const ONE_DAY_TTL = 60 * 60 * 24;
+export const DEFAULT_TTL = ONE_WEEK_TTL;
 
-export default redisClient;
-
-const DEFAULT_TTL = 60 * 60 * 24 * 7; // 1 week
-export const ONE_DAY_TTL = 60 * 60 * 24; // 1 week
-
-export async function getFromCache<T>(key: string): Promise<T | null> {
+/**
+ * Get a value from cache, and optionally configure its on-hit TTL refresh
+ */
+export async function getFromCache<T>(key: string, ttl?: number): Promise<T | null> {
   let clientAvailable = true;
 
   if (!redisClient.isOpen) {
@@ -71,7 +67,7 @@ export async function getFromCache<T>(key: string): Promise<T | null> {
     const result = await redisClient.get(key);
     if (result !== null) {
       logger.info(`[REDIS CACHE]${key} retrieved from cache`);
-      redisClient.expire(key, DEFAULT_TTL);
+      redisClient.expire(key, ttl || DEFAULT_TTL);
       return JSON.parse(result);
     }
   }
@@ -79,19 +75,29 @@ export async function getFromCache<T>(key: string): Promise<T | null> {
   return null;
 }
 
+export async function delFromCache(key: string): Promise<void> {
+  if (!redisClient.isOpen) {
+    logger.info(`[REDIS CACHE] skipped-no-conn: DEL ${key}`);
+    return;
+  }
+
+  await redisClient.del(key);
+  logger.info(`[REDIS CACHE] DEL ${key}`);
+}
+
 export async function setToCache<T>(key: string, value: T, ttl = DEFAULT_TTL): Promise<void> {
   if (!redisClient.isOpen) {
-    logger.info(`[REDIS CACHE] skipped-no-conn ${key}`);
+    logger.info(`[REDIS CACHE] skipped-no-conn: SET ${key}`);
     return;
   }
 
   await redisClient.set(key, JSON.stringify(value), { EX: ttl });
-  logger.info(`[REDIS CACHE]${key} cached`);
+  logger.info(`[REDIS CACHE] SET ${key}`);
 }
 
 export async function getOrCache<T>(key: string, fn: () => Promise<T>, ttl = DEFAULT_TTL): Promise<T> {
   try {
-    const cachedValue = await getFromCache<T>(key);
+    const cachedValue = await getFromCache<T>(key, ttl);
     if (cachedValue !== null) {
       return cachedValue;
     }
@@ -147,27 +153,3 @@ class SingleNodeLockService {
 }
 
 export const lockService = new SingleNodeLockService();
-
-process.on('exit', () => {
-  logger.info('Process caught exit');
-  lockService.freeLocks();
-  redisClient.quit();
-  SubmissionQueueJob.stop();
-});
-
-// catches ctrl+c event
-process.on('SIGINT', () => {
-  logger.info('Process caught SIGINT');
-  process.exit(1);
-});
-
-process.on('SIGTERM', () => {
-  logger.info('Process caught SIGTERM');
-  process.exit(1);
-});
-
-// default kill signal for nodemon
-process.on('SIGUSR2', () => {
-  logger.info('Process caught SIGUSR2');
-  process.exit(1);
-});
