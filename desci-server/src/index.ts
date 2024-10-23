@@ -1,3 +1,6 @@
+import { errWithCause } from 'pino-std-serializers';
+
+import { prisma } from './client.js';
 import { logger as parentLogger } from './logger.js';
 import { redisClient, lockService } from './redisClient.js';
 import { server } from './server.js';
@@ -17,37 +20,95 @@ export const app = server.app;
  * 1. it prevents import cycles
  * 2. it makes sure we don't overwrite a hook already defined in another module
  */
-process.on('exit', () => {
-  logger.info('Process caught exit');
-  lockService.freeLocks();
-  redisClient.quit();
-  SubmissionQueueJob.stop();
-});
+
+/** Tracks ongoing graceful exit progress */
+let isShuttingDown = false;
+
+/** Async cleanup tasks we try to do before exiting  */
+const cleanup = async () => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  try {
+    logger.info('Starting cleanup');
+
+    await Promise.allSettled([
+      // Stop accepting new requests
+      new Promise((resolve, reject) => {
+        server.server.close((err) => {
+          if (err) reject(err);
+          else resolve(undefined);
+        });
+      }),
+      lockService.freeLocks(),
+      redisClient.quit(),
+      SubmissionQueueJob.stop(),
+      prisma.$disconnect(),
+    ]);
+  } catch (err) {
+    logger.error({ err }, 'Cleanup failed');
+  }
+};
+
+/** Async shutdown to use as signal hooks.
+ * Notably, this will not work for
+ * - `exit` (ignores async tasks)
+ * - `SIGKILL` (the kernel will kill us basically immediately, can't be caught)
+ */
+const gracefulShutdown = async (signal: string) => {
+  try {
+    logger.info(`Process caught ${signal}, starting graceful shutdown`);
+    await Promise.race([
+      cleanup(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Cleanup timed out')), 5000)),
+    ]);
+  } catch (err) {
+    logger.error({ err }, 'Graceful shutdown failed, exiting anyway');
+  } finally {
+    process.exit(1);
+  }
+};
 
 // catches ctrl+c event
-process.on('SIGINT', () => {
-  logger.info('Process caught SIGINT');
-  process.exit(1);
-});
-
-process.on('SIGTERM', () => {
-  logger.info('Process caught SIGTERM');
-  process.exit(1);
-});
-
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 // default kill signal for nodemon
-process.on('SIGUSR2', () => {
-  logger.info('Process caught SIGUSR2');
-  process.exit(1);
-});
+process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2'));
 
-// These should probably exit the process as it is not safe to continue
-// execution after a generic exception has occurred:
-// https://nodejs.org/api/process.html#warning-using-uncaughtexception-correctly
-process.on('uncaughtException', (err) => {
-  logger.fatal(err, 'uncaught exception');
-});
+/** Enough to make sure logs are writted to stdout even when choking under load,
+ * but if this has passed, ghetto-log and allow the proces to die.
+ */
+const FATAL_TIMEOUT_MS = 500;
 
-process.on('unhandledRejection', (reason, promise) => {
-  logger.fatal({ reason, promise }, 'unhandled rejection');
+/** Handler to use for uncaught exceptions and promise rejections, from which we
+ * want to extract as much log info as possible to the log aggregator.
+ */
+const handleFatalError = async (error: unknown, type: string) => {
+  // Mostly error should be an Error, but in theory anything can be thrown
+  const normalizedError = error instanceof Error ? error : new Error(String(error));
+
+  try {
+    const logPromise = logger.fatal({ err: errWithCause(normalizedError), type }, 'Process got fatal error');
+    await Promise.race([
+      logPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Logging timed out')), FATAL_TIMEOUT_MS)),
+    ]);
+    await cleanup();
+  } catch (loggingError) {
+    console.error('Process got fatal error, and logger call timed out', {
+      err: errWithCause(normalizedError),
+      loggingError,
+    });
+  } finally {
+    process.exit(1);
+  }
+};
+
+process.on('uncaughtException', (err) => handleFatalError(err, 'uncaughtException'));
+process.on('unhandledRejection', (reason) => handleFatalError(reason, 'unhandledRejection'));
+
+process.on('exit', () => {
+  if (!isShuttingDown) {
+    logger.error('Process exiting without cleanup - this should not happen');
+  }
 });
