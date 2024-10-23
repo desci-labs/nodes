@@ -42,7 +42,6 @@
     "test": "yarn test:check && yarn docker:test; export EXIT=$(echo $?); docker compose  --file ../docker-compose.test.yml --compatibility down; exit $EXIT",
     "coverage:destructive": "nyc --all --parser-plugins='[\"importAssertions\"]' -r lcov -e .ts -x \"*.test.ts\" npm run test:destructive",
     "coverage:destructive:debug": "nyc --all --parser-plugins='[\"importAssertions\"]' -r lcov -e .ts -x \"*.test.ts\" npm run test:destructive:debug",
-    "commit": "git-cz",
     "db:forward": "kubectl run --env REMOTE_HOST=$REMOTE_HOST --env REMOTE_PORT=5432 --env LOCAL_PORT=8080 --port 8080 --image marcnuri/port-forward test-port-forward ;  kubectl port-forward test-port-forward 8080:8080",
     "docker:dev": "../dockerDev.sh",
     "docker:test": "CI=true docker compose --file ../docker-compose.test.yml --compatibility up --exit-code-from nodes_backend_test",
@@ -132,8 +131,6 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@commitlint/cli": "^13.1.0",
-    "@commitlint/config-conventional": "^13.1.0",
     "@types/archiver": "^6.0.2",
     "@types/body-parser": "^1.19.1",
     "@types/chai": "^4.2.21",
@@ -150,7 +147,6 @@
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "chai": "^4.3.4",
-    "commitizen": "^4.2.4",
     "copyfiles": "^2.4.1",
     "dotenv": "^10.0.0",
     "eslint": "^7.32.0",
@@ -175,16 +171,6 @@
     "{src,test}/**/*.{js,ts}": [
       "eslint --max-warnings 0"
     ]
-  },
-  "commitlint": {
-    "extends": [
-      "@commitlint/config-conventional"
-    ]
-  },
-  "config": {
-    "commitizen": {
-      "path": "node_modules/cz-conventional-changelog"
-    }
   },
   "prisma": {
     "seed": "node --no-warnings=ExperimentalWarning --loader ts-node/esm prisma/seed.ts"

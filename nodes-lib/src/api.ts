@@ -30,7 +30,8 @@ import { type DID } from "dids";
 import { getFullState } from "./codex.js";
 import { bnToString, convertUUIDToDecimal } from "./util/converting.js";
 import { lookupLegacyDpid } from "./chain.js";
-import { NoSuchEntryError } from "./errors.js";
+import { PublishError } from "./errors.js";
+import { errWithCause } from "pino-std-serializers";
 
 export const ENDPOINTS = {
   deleteData: {
@@ -144,6 +145,8 @@ export const ENDPOINTS = {
     _responseT: <IndexedNode>{},
   },
 } as const;
+
+const LOG_CTX = "[nodes-lib::api]";
 
 /**
  * Required parameters for creating a new draft node
@@ -340,9 +343,13 @@ export const publishNode = async (
     dpid = res.dpid;
   } catch (e) {
     console.log(
-      `Publish successful, but backend update failed for node ${uuid}`
+      `${LOG_CTX} publish flow was successful, but backend request failed`,
+      { uuid, err: errWithCause(e as Error) }
     );
-    throw e;
+    throw PublishError.backendCall(
+      "Publish finished, but backend request failed",
+      e as Error
+    );
   }
 
   return {
@@ -365,8 +372,11 @@ export const createDpid = async (uuid: string): Promise<number> => {
     const res = await makeRequest(ENDPOINTS.createDpid, getHeaders(), { uuid });
     dpid = res.dpid;
   } catch (e) {
-    console.log(`Couldn't create dPID alias for node ${uuid}`);
-    throw e;
+    console.log(`${LOG_CTX} backend failed to create dPID alias`, {
+      uuid,
+      err: errWithCause(e as Error),
+    });
+    throw PublishError.backendCall("Failed to create dPID alias", e as Error);
   }
   return dpid;
 };
@@ -415,9 +425,13 @@ export const publishDraftNode = async (
     await makeRequest(ENDPOINTS.publish, getHeaders(), pubParams);
   } catch (e) {
     console.log(
-      `Publish flow was successful, but backend update failed for uuid ${uuid}.`
+      `${LOG_CTX} publish flow was successful, but backend request failed`,
+      { uuid, err: errWithCause(e as Error) }
     );
-    throw e;
+    throw PublishError.backendCall(
+      "Publish finished, but backend request failed",
+      e as Error
+    );
   }
 
   return {
@@ -748,13 +762,15 @@ export const getPublishHistory = async (uuid: string): Promise<IndexedNode> => {
 export const getLegacyHistory = async (
   dpid: number
 ): Promise<{ owner: string; versions: IndexedNodeVersion[] }> => {
-  const legacyEntry = await lookupLegacyDpid(dpid);
+  let legacyEntry: Awaited<ReturnType<typeof lookupLegacyDpid>>;
+  try {
+    legacyEntry = await lookupLegacyDpid(dpid);
+  } catch (err) {
+    throw PublishError.chainCall("Failed to get legacy history", err as Error);
+  }
 
   if (legacyEntry.versions.length === 0) {
-    throw new NoSuchEntryError({
-      name: "NO_SUCH_ENTRY_ERROR",
-      message: "No legacy history exists for this dPID",
-    });
+    throw PublishError.noLegacyMatch("No legacy history exists for this dPID");
   }
 
   const nodeVersions = legacyEntry.versions.map(({ cid, time }) => ({

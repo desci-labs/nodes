@@ -10,8 +10,11 @@ import { dpidPublish, hasDpid } from "./chain.js";
 import { codexPublish } from "./codex.js";
 import { Signer } from "ethers";
 import { DID } from "dids";
-import { NoSuchEntryError } from "./errors.js";
+import { PublishError } from "./errors.js";
 import { fullDidToLcAddress } from "./util/converting.js";
+import { errWithCause } from "pino-std-serializers";
+
+const LOG_CTX = "[nodes-lib::publish]";
 
 /**
  * Publish node to Codex, potentially migrating history from dPID token.
@@ -38,14 +41,11 @@ export const publish = async (uuid: string, didOrSigner: DID | Signer) => {
         : (await didOrSigner.getAddress()).toLowerCase();
 
     if (legacyOwner !== signingAddress) {
-      console.error(
-        "Refusing to migrate history to stream; signing addresses differs",
-        {
-          legacyOwner,
-          signingAddress,
-        }
+      throw PublishError.wrongOwner(
+        "Refusing to migrate history; signing addresses differ",
+        legacyOwner,
+        signingAddress || "undefined"
       );
-      throw new Error("Refusing to migrate history; signing addresses differ");
     }
   }
 
@@ -103,10 +103,12 @@ export const legacyPublish = async (
       did ?? signer
     );
   } catch (e) {
-    const err = e as Error;
-    console.log("Codex publish failed:", err);
     console.log(
-      `Publish flow will continue with uuid ${uuid} as dPID registry already has been updated.`
+      `${LOG_CTX} publish failed, flow will continue as dPID has already been updated`,
+      {
+        uuid,
+        err: errWithCause(e as Error),
+      }
     );
   }
 
@@ -135,11 +137,16 @@ const findLegacyHistory = async (
   try {
     return await getLegacyHistory(dpid);
   } catch (e) {
-    if (!(e instanceof NoSuchEntryError)) {
+    if (e instanceof PublishError && e.details.type === "NO_SUCH_ENTRY") {
+      console.log("findLegacyHistory: No match in contract legacy history", {
+        dpid,
+      });
+    } else {
       throw e;
     }
   }
 
+  // Keep for legacy publishing test suite, as it doesn't always import to legacy structs
   const fallbackHistory = await getDpidHistory(uuid);
 
   return { owner: fallbackHistory.owner, versions: fallbackHistory.versions };

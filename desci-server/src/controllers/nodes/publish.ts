@@ -335,7 +335,7 @@ const createOrUpgradeDpidAlias = async (
       throw new Error('Failed to load stream');
     }
     const streamController = streamInfo.state.metadata.controllers[0].toLowerCase();
-    const differentOwner = legacyOwner?.toLowerCase() !== streamController.split(':').pop();
+    const differentOwner = legacyOwner?.toLowerCase() !== streamController.split(':').pop().toLowerCase();
 
     // Caveat from above: if there was a legacyDpid, but no owner, we're likely in the middle of that process
     // and nodes-lib has published both with the same key regardless
