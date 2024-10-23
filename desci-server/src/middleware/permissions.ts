@@ -64,6 +64,9 @@ export interface AuthenticatedSocket extends Socket {
 export const socketsEnsureUser = async (socket: Socket, next: (err?: ExtendedError) => void) => {
   // debugger;
   const cookies = parseWsCookies(socket.handshake.headers.cookie);
+  if (!cookies) {
+    return next(new Error('Authentication error: No cookies provided'));
+  }
   const token = cookies[AUTH_COOKIE_FIELDNAME] as string | undefined;
   const ip =
     socket.handshake.headers['x-forwarded-for'] ||
