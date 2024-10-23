@@ -241,19 +241,19 @@ const debugMigration = async (uuid?: string, stream?: DebugStreamResponse) => {
   const legacyHistory = await _getIndexedResearchObjects([uuid]);
   const legacyHistoryPresent = !!legacyHistory?.researchObjects?.length;
 
-  if (!legacyHistoryPresent || !stream.present)
-    return { legacyHistory: legacyHistoryPresent, streamHistory: stream.present };
+  // if (!legacyHistoryPresent || !stream.present)
+  //   return { legacyHistory: legacyHistoryPresent, streamHistory: stream.present };
 
   const streamController =
     stream.present && 'state' in stream.raw ? stream.raw.state.metadata.controllers[0].split(':').pop() : undefined;
-  const legacyOwner = legacyHistory.researchObjects[0].owner;
+  const legacyOwner = legacyHistory.researchObjects[0]?.owner;
 
   // Stream Controller === Legacy Contract RO Owner Check
   const ownerMatches = streamController?.toLowerCase() === legacyOwner?.toLowerCase();
 
   // All Versions Migrated check
   const { researchObjects: streamResearchObjects } = await getIndexedResearchObjects([uuid]);
-  const streamManifestCidsMap = streamResearchObjects[0].versions.reduce((cids, v) => ({ [v.cid]: true }), {});
+  const streamManifestCidsMap = streamResearchObjects[0].versions.reduce((cids, v) => ({ ...cids, [v.cid]: true }), {});
   const streamContainsAllLegacyManifestCids = legacyHistory.researchObjects[0].versions.every(
     (v) => streamManifestCidsMap[v.cid],
   );
