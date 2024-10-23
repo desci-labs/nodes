@@ -250,26 +250,29 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
     return;
   }
 
+  const dotlessUuid = node.uuid.replace(/\./g, '');
+
   const notificationData: CreateNotificationData = {
     userId: nodeOwner.id,
     type: NotificationType.COMMENTS,
     title: `${annotationAuthor?.name} commented on your research object`,
     message: `Your research object titled ${node.title}, has received a new comment.`, // TODO:: Ideally deserialize some of the message body from the annotation and show a truncated snippet
     nodeUuid: node.uuid,
-    payload: { type: NotificationType.COMMENTS, nodeUuid: node.uuid, annotationId } as CommentPayload,
+    payload: { type: NotificationType.COMMENTS, nodeUuid: dotlessUuid, annotationId } as CommentPayload,
   };
 
   await createUserNotification(notificationData);
 };
 //
 export const emitNotificationOnPublish = async (node: Node, user: User, dpid: string) => {
+  const dotlessUuid = node.uuid.replace(/\./g, '');
   const notificationData: CreateNotificationData = {
     userId: user.id,
     type: NotificationType.PUBLISH,
     title: `Your research object has been published!`,
     message: `Your research object titled "${node.title}" has been published and is now available for public access.`,
     nodeUuid: node.uuid,
-    payload: { type: NotificationType.PUBLISH, nodeUuid: node.uuid, dpid } as PublishPayload,
+    payload: { type: NotificationType.PUBLISH, nodeUuid: dotlessUuid, dpid } as PublishPayload,
   };
 
   await createUserNotification(notificationData);
