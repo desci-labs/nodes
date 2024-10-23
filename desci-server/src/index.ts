@@ -32,14 +32,15 @@ const cleanup = async () => {
   try {
     logger.info('Starting cleanup');
 
+    // Stop accepting new requests before initialising cleanup
+    new Promise((resolve, reject) => {
+      server.server.close((err) => {
+        if (err) reject(err);
+        else resolve(undefined);
+      });
+    });
+
     await Promise.allSettled([
-      // Stop accepting new requests
-      new Promise((resolve, reject) => {
-        server.server.close((err) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      }),
       lockService.freeLocks(),
       redisClient.quit(),
       SubmissionQueueJob.stop(),
