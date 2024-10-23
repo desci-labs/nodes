@@ -1,17 +1,14 @@
 import { ResearchObjectV1, RESEARCH_OBJECT_NODES_PREFIX } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 import axios from 'axios';
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { CID } from 'multiformats/cid';
 
 import { prisma } from '../../client.js';
 import { PUBLIC_IPFS_PATH } from '../../config/index.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
-// import { NodeUuid } from '../../services/manifestRepo.js';
 import { showNodeDraftManifest } from '../../services/nodeManager.js';
-// import repoService from '../../services/repoService.js';
-import { cleanupManifestUrl } from '../../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 const transformManifestWithHistory = (data: ResearchObjectV1, researchNode: Node) => {
@@ -84,28 +81,7 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
       return;
     }
 
-    // let gatewayUrl = discovery.manifestUrl;
     try {
-      // gatewayUrl = cleanupManifestUrl(gatewayUrl, req.query?.g as string);
-      // logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
-
-      // // this can take >30s before it resolves or
-      // // even fail after a much longer time there by causing the slow loading of nodes
-      // // and a lot of failing `*.loggedIn` test in
-      // (discovery as any).manifestData = transformManifestWithHistory(
-      //   (await axios.get(gatewayUrl, { timeout: 2000 })).data,
-      //   discovery,
-      // );
-      // // Add draft manifest document
-      // const nodeUuid = ensureUuidEndsWithDot(uuid) as NodeUuid;
-      // // for draft nodes we can do this asynchronously on the frontend
-      // const manifest = await repoService.getDraftManifest(nodeUuid);
-
-      // logger.info({ manifest: !!manifest }, '[SHOW API GET DRAFT MANIFEST]');
-
-      // if (manifest) (discovery as any).manifestData = transformManifestWithHistory(manifest, discovery);
-      // delete (discovery as any).restBody;
-      // logger.info({}, 'Retrive DraftManifest For /SHOW');
       logger.trace('[showNodeDraftManifest]::START');
       (discovery as any).manifestData = await showNodeDraftManifest(discovery, req.query?.g as string);
       logger.trace('[showNodeDraftManifest]::END');
@@ -123,10 +99,8 @@ export const show = async (req: RequestWithNode, res: Response, next: NextFuncti
     const { data } = await axios.get(url);
     res.send(data);
     return;
-  } catch (e) {
-    logger.error({ e }, 'error');
-    // res.status(404).send();
-    // example
+  } catch (error) {
+    logger.error({ error }, 'error');
     res.status(404).send();
   }
 };

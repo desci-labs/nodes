@@ -9,9 +9,10 @@ WORKDIR /app
 RUN mkdir /app/repo-tmp
 RUN mkdir -p /app/desci-repo/repo-tmp
 
-COPY . .
-
+COPY package.json .
 RUN --mount=type=cache,target=/root/.yarn YARN_CACHE_FOLDER=/root/.yarn yarn install
+
+COPY . .
 RUN yarn build
 
 # server api

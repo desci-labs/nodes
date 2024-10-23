@@ -1,6 +1,4 @@
-import {
-  AxiosError,
-} from "axios";
+import { AxiosError } from "axios";
 import {
   ResearchObjectComponentType,
   type CodeComponent,
@@ -32,7 +30,8 @@ import { type DID } from "dids";
 import { getFullState } from "./codex.js";
 import { bnToString, convertUUIDToDecimal } from "./util/converting.js";
 import { lookupLegacyDpid } from "./chain.js";
-import { NoSuchEntryError } from "./errors.js";
+import { PublishError } from "./errors.js";
+import { errWithCause } from "pino-std-serializers";
 
 export const ENDPOINTS = {
   deleteData: {
@@ -65,9 +64,9 @@ export const ENDPOINTS = {
     _payloadT: <AddExternalTreeParams>{},
     _responseT: <UploadFilesResponse>{},
   },
-  /** Append `/[uuid]/tree` 
+  /** Append `/[uuid]/tree`
    * `tree` does nothing but a string needs to be there because of derp routing
-  */
+   */
   retrieveTree: {
     method: "get",
     route: `/v1/data/retrieveTree`,
@@ -86,7 +85,7 @@ export const ENDPOINTS = {
     _payloadT: <CreateDraftParams>{},
     _responseT: <CreateDraftResponse>{},
   },
-    /** Append `/[uuid]` */
+  /** Append `/[uuid]` */
   deleteDraft: {
     method: "delete",
     route: `/v1/nodes`,
@@ -147,91 +146,80 @@ export const ENDPOINTS = {
   },
 } as const;
 
+const LOG_CTX = "[nodes-lib::api]";
+
 /**
  * Required parameters for creating a new draft node
-*/
+ */
 export type CreateDraftParams = {
   /** Human-readable title of the node */
-  title: string,
+  title: string;
   /** Must be included for backward compatibility */
   links: {
-    pdf: string[],
-    metadata: string[],
-  },
+    pdf: string[];
+    metadata: string[];
+  };
   /** The license that should apply to the content of the node */
-  defaultLicense: License,
+  defaultLicense: License;
   /** Research fields the node is associated with */
-  researchFields: ResearchField[],
+  researchFields: ResearchField[];
 };
 
 /**
  * Nodes backend response after creating a draft, containing information
  * about the state of the draft node.
-*/
+ */
 export type CreateDraftResponse = {
-  ok: boolean,
-  hash: string,
-  uri: string,
-  node: NodeResponse,
-  version: NodeVersion,
-  documentId: string,
+  ok: boolean;
+  hash: string;
+  uri: string;
+  node: NodeResponse;
+  version: NodeVersion;
+  documentId: string;
 };
 
 /**
  * Create a new draft node, an empty base for further interaction. A draft
  * is the target of iterative file uploads, changes to metadata, etc and
  * remains private until the next call to `publishDraftNode`.
-*/
+ */
 export const createDraftNode = async (
-  params: Omit<CreateDraftParams, "links">,
-) => await makeRequest(
-  ENDPOINTS.createDraft,
-  getHeaders(),
-  {
+  params: Omit<CreateDraftParams, "links">
+) =>
+  await makeRequest(ENDPOINTS.createDraft, getHeaders(), {
     ...params,
     links: {
       pdf: [],
       metadata: [],
     },
-  }
-);
+  });
 
 /**
  * Information returned when listing user nodes, published and private drafts.
-*/
+ */
 export type ListedNode = {
-  uuid: string,
-  id: string,
-  createdAt: string,
-  updatedAt: string,
-  ownerId: number,
-  title: string,
-  manifestUrl: string,
-  isPublished: boolean,
-  cid: string,
-  NodeCover: any[],
-  index?: IndexedNode[],
+  uuid: string;
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  ownerId: number;
+  title: string;
+  manifestUrl: string;
+  isPublished: boolean;
+  cid: string;
+  NodeCover: any[];
+  index?: IndexedNode[];
 };
 
 /**
  * List all nodes for the authenticated user.
-*/
-export const listNodes = async (
-) => await makeRequest(
-  ENDPOINTS.listNodes,
-  getHeaders(),
-  undefined,
-);
+ */
+export const listNodes = async () =>
+  await makeRequest(ENDPOINTS.listNodes, getHeaders(), undefined);
 
 /** Delete a draft node (note this will not prevent public resolution )*/
-export const deleteDraftNode = async (
-  uuid: string,
-) => await makeRequest(
-  ENDPOINTS.deleteDraft,
-  getHeaders(),
-  undefined,
-  `/${uuid}`,
-);
+export const deleteDraftNode = async (uuid: string) =>
+  await makeRequest(ENDPOINTS.deleteDraft, getHeaders(), undefined, `/${uuid}`);
 
 /**
  * Full state of a draft node as the backend is aware.
@@ -239,42 +227,36 @@ export const deleteDraftNode = async (
  * Note that the data drive in the manifest, and hence
  * the manifest CID, may not reflect the actual drive state
  * until the node is published (or `prePublishDraftNode` is called).
-*/
+ */
 export type NodeResponse = {
-  id: number,
-  createdAt: string,
-  updatedAt: string,
-  title: string,
-  cid: string,
-  state: string,
-  isFeatured: boolean,
-  manifestUrl: string,
-  manifestData: ResearchObjectV1,
-  replicationFactor: number,
-  ownerId: number,
-  uuid: string,
-  deletedAt?: string,
-  isDeleted: boolean,
-  manifestDocumentId: string,
-  ceramicStream?: string,
-  dpidAlias?: number,
+  id: number;
+  createdAt: string;
+  updatedAt: string;
+  title: string;
+  cid: string;
+  state: string;
+  isFeatured: boolean;
+  manifestUrl: string;
+  manifestData: ResearchObjectV1;
+  replicationFactor: number;
+  ownerId: number;
+  uuid: string;
+  deletedAt?: string;
+  isDeleted: boolean;
+  manifestDocumentId: string;
+  ceramicStream?: string;
+  dpidAlias?: number;
 };
 
 /**
  * Get the state of a draft node.
-*/
-export const getDraftNode = async (
-  uuid: string,
-) => await makeRequest(
-  ENDPOINTS.showNode,
-  getHeaders(),
-  undefined,
-  `/${uuid}`
-);
+ */
+export const getDraftNode = async (uuid: string) =>
+  await makeRequest(ENDPOINTS.showNode, getHeaders(), undefined, `/${uuid}`);
 
 /**
  * dPID publish history entry for a node.
-*/
+ */
 type NodeVersion = {
   id: number;
   manifestUrl: string;
@@ -286,7 +268,7 @@ type NodeVersion = {
 /**
  * Response from prepublishing a node, containing the drive CID
  * computed from draft state.
-*/
+ */
 export type PrepublishResponse = {
   ok: boolean;
   updatedManifestCid: string;
@@ -296,46 +278,41 @@ export type PrepublishResponse = {
 };
 
 export type PublishConfiguration = {
-  signer: Signer
+  signer: Signer;
 };
 
 /**
  * Computes the draft drive DAG, and updates the data bucket CID
  * with the new root. Note this does not actually publish the draft,
  * just tells the backend to prepare for it.
- * 
+ *
  * @param uuid - UUID of the node to prepublish.
  * @param  - Your API key.
-*/
-export const prePublishDraftNode = async (
-  uuid: string,
-) => await makeRequest(
-  ENDPOINTS.prepublish,
-  getHeaders(),
-  { uuid },
-);
+ */
+export const prePublishDraftNode = async (uuid: string) =>
+  await makeRequest(ENDPOINTS.prepublish, getHeaders(), { uuid });
 
 type PublishParams = {
-  uuid: string,
-  cid: string,
-  manifest: ResearchObjectV1,
-  transactionId?: string,
-  nodeVersionId?: string,
-  ceramicStream?: string,
-  commitId?: string,
-  useNewPublish: boolean,
+  uuid: string;
+  cid: string;
+  manifest: ResearchObjectV1;
+  transactionId?: string;
+  nodeVersionId?: string;
+  ceramicStream?: string;
+  commitId?: string;
+  useNewPublish: boolean;
 };
 
 /** Result of publishing a draft node */
 export type PublishResponse = {
   /** The updated manifest, which could change in prepublish */
-  updatedManifest: ResearchObjectV1,
+  updatedManifest: ResearchObjectV1;
   /** The new manifest CID, which could change in prepublish */
-  updatedManifestCid: string,
+  updatedManifestCid: string;
   /** Ceramic stream and commit IDs from publishing to Codex */
-  ceramicIDs?: NodeIDs,
+  ceramicIDs?: NodeIDs;
   /** dPID, new or already existing */
-  dpid: number,
+  dpid: number;
 };
 
 /**
@@ -345,10 +322,10 @@ export type PublishResponse = {
  *
  * @param uuid - UUID of the node to publish
  * @param didOrSigner - authenticated did-session DID, or a generic signer
-*/
+ */
 export const publishNode = async (
   uuid: string,
-  didOrSigner: DID | Signer,
+  didOrSigner: DID | Signer
 ): Promise<PublishResponse> => {
   const publishResult = await publish(uuid, didOrSigner);
   const pubParams: PublishParams = {
@@ -365,9 +342,15 @@ export const publishNode = async (
     const res = await makeRequest(ENDPOINTS.publish, getHeaders(), pubParams);
     dpid = res.dpid;
   } catch (e) {
-    console.log(`Publish successful, but backend update failed for node ${uuid}`);
-    throw e;
-  };
+    console.log(
+      `${LOG_CTX} publish flow was successful, but backend request failed`,
+      { uuid, err: errWithCause(e as Error) }
+    );
+    throw PublishError.backendCall(
+      "Publish finished, but backend request failed",
+      e as Error
+    );
+  }
 
   return {
     ceramicIDs: publishResult.ceramicIDs,
@@ -382,31 +365,32 @@ export const publishNode = async (
  *
  * @param uuid - UUID of the node to mint a dPID
  * @throws on dPID minting failure
-*/
-export const createDpid = async (
-  uuid: string,
-): Promise<number> => {
+ */
+export const createDpid = async (uuid: string): Promise<number> => {
   let dpid: number;
   try {
     const res = await makeRequest(ENDPOINTS.createDpid, getHeaders(), { uuid });
     dpid = res.dpid;
   } catch (e) {
-    console.log(`Couldn't create dPID alias for node ${uuid}`)
-    throw e;
-  };
+    console.log(`${LOG_CTX} backend failed to create dPID alias`, {
+      uuid,
+      err: errWithCause(e as Error),
+    });
+    throw PublishError.backendCall("Failed to create dPID alias", e as Error);
+  }
   return dpid;
 };
 
 /** Result of publishing a draft node */
 export type LegacyPublishResponse = {
   /** The updated manifest */
-  updatedManifest: ResearchObjectV1,
+  updatedManifest: ResearchObjectV1;
   /** The new manifest CID, which could have changed from adding the dPID */
-  updatedManifestCid: string,
+  updatedManifestCid: string;
   /** Ceramic stream and commit IDs from publishing to Codex */
-  ceramicIDs?: NodeIDs,
+  ceramicIDs?: NodeIDs;
   /** dPID transaction ID */
-  dpidTxId?: string
+  dpidTxId?: string;
 };
 
 /**
@@ -419,11 +403,11 @@ export type LegacyPublishResponse = {
  * @throws (@link WrongOwnerError) if signer address isn't research object token owner
  * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
  * @depreated use publishNode instead, as this function uses the old on-chain registry
-*/
+ */
 export const publishDraftNode = async (
   uuid: string,
   signer: Signer,
-  did?: DID,
+  did?: DID
 ): Promise<LegacyPublishResponse> => {
   const publishResult = await legacyPublish(uuid, signer, did);
 
@@ -440,11 +424,17 @@ export const publishDraftNode = async (
   try {
     await makeRequest(ENDPOINTS.publish, getHeaders(), pubParams);
   } catch (e) {
-    console.log(`Publish flow was successful, but backend update failed for uuid ${uuid}.`);
-    throw e;
-  };
+    console.log(
+      `${LOG_CTX} publish flow was successful, but backend request failed`,
+      { uuid, err: errWithCause(e as Error) }
+    );
+    throw PublishError.backendCall(
+      "Publish finished, but backend request failed",
+      e as Error
+    );
+  }
 
-  return { 
+  return {
     ceramicIDs: publishResult.ceramicIDs,
     dpidTxId: publishResult.transactionId,
     updatedManifest: publishResult.manifest,
@@ -455,9 +445,9 @@ export const publishDraftNode = async (
 /** Parameters required for deleting a drive entry */
 export type DeleteDataParams = {
   /** The node to delete from */
-  uuid: string,
+  uuid: string;
   /** (absolute) drive path to delete. Can be a directory. */
-  path: string,
+  path: string;
 };
 
 /** Response from a delete operation, where components may have been removed */
@@ -471,42 +461,32 @@ export type DeleteDataResponse = {
 /**
  * Delete a file or directory from the drive. This also removes related
  * component entries in the manifest.
-*/
-export const deleteData = async (
-  params: DeleteDataParams,
-) => await makeRequest(
-  ENDPOINTS.deleteData,
-  getHeaders(),
-  params,
-);
+ */
+export const deleteData = async (params: DeleteDataParams) =>
+  await makeRequest(ENDPOINTS.deleteData, getHeaders(), params);
 
 /** Parameters required for moving data in the drive */
 export type MoveDataParams = {
   /** The node to move data in */
-  uuid: string,
+  uuid: string;
   /** The path of the data to move */
-  oldPath: string,
+  oldPath: string;
   /** The new location of the data */
-  newPath: string,
+  newPath: string;
 };
 
 /** Response from a move operation, where components may have been updated */
 export type MoveDataResponse = {
-  manifest: ResearchObjectV1,
-  manifestCid: string,
+  manifest: ResearchObjectV1;
+  manifestCid: string;
 };
 
 /**
  * Move a file or directory inside the drive. This will also update related
  * components associated with the paths.
-*/
-export const moveData = async (
-  params: MoveDataParams,
-) => await makeRequest(
-  ENDPOINTS.moveData,
-  getHeaders(),
-  params,
-);
+ */
+export const moveData = async (params: MoveDataParams) =>
+  await makeRequest(ENDPOINTS.moveData, getHeaders(), params);
 
 /** Response from retrieving the state of the drive tree */
 export type RetrieveResponse = {
@@ -522,44 +502,41 @@ export type RetrieveResponse = {
  * Get the state of the drive tree of a draft node.
  *
  * Note this may be different from the published version.
-*/
-export const retrieveDraftFileTree = async (
-  uuid: string,
-) => await makeRequest(
-  ENDPOINTS.retrieveTree,
-  getHeaders(),
-  undefined,
-  `/${uuid}/tree`,
-);
+ */
+export const retrieveDraftFileTree = async (uuid: string) =>
+  await makeRequest(
+    ENDPOINTS.retrieveTree,
+    getHeaders(),
+    undefined,
+    `/${uuid}/tree`
+  );
 
 /** Parameters required for creating a new directory in the drive */
 export type CreateFolderParams = {
   /** The node to create a new folder in */
-  uuid: string,
+  uuid: string;
   /** The location of the new folder (UNIX `dirname`) */
-  contextPath: string,
+  contextPath: string;
   /** The name of the new folder (UNIX `basename`) */
-  newFolderName: string,
+  newFolderName: string;
 };
 
 /** Response from creating a new directory */
 export type CreateFolderResponse = {
   /** The new state of the manifest */
-  manifest: ResearchObjectV1,
+  manifest: ResearchObjectV1;
   /** The new manifest CID */
-  manifestCid: string,
+  manifestCid: string;
   /** The new state of the drive tree */
-  tree: DriveObject[],
+  tree: DriveObject[];
   /** Timestamp of the change */
-  date: string,
+  date: string;
 };
 
 /**
  * Create a new, empty directory in the node drive tree.
-*/
-export const createNewFolder = async (
-  params: CreateFolderParams,
-) => {
+ */
+export const createNewFolder = async (params: CreateFolderParams) => {
   const { uuid, newFolderName, contextPath } = params;
   const form = new FormData();
   form.append("uuid", uuid);
@@ -569,35 +546,35 @@ export const createNewFolder = async (
     ENDPOINTS.createFolder,
     getHeaders(true),
     // Formdata equivalent
-    form as unknown as CreateFolderParams,
+    form as unknown as CreateFolderParams
   );
 };
 
 /** Parameters required to upload a set of files */
 export type UploadParams = {
   /** The node to upload files to */
-  uuid: string,
+  uuid: string;
   /**
    * Absolute path to target location in drive.
    * Note that folders must already exist.
-  */
-  contextPath: string,
+   */
+  contextPath: string;
   /** Local paths to files for upload */
-  files: string[],
+  files: string[];
 };
 
 /**
  * Response from uploading files
-*/
+ */
 export type UploadFilesResponse = {
   /** The new state of the manifest */
-  manifest: ResearchObjectV1,
+  manifest: ResearchObjectV1;
   /** The new manifest CID */
-  manifestCid: string,
+  manifestCid: string;
   /** The new state of the drive tree */
-  tree: DriveObject[],
+  tree: DriveObject[];
   /** Timestamp of the change */
-  date: string,
+  date: string;
 };
 
 /**
@@ -605,16 +582,14 @@ export type UploadFilesResponse = {
  *
  * Note that these do not become public until `publishDraftNode` has been
  * called, even if the node has previously been published.
-*/
-export const uploadFiles = async (
-  params: UploadParams,
-) => {
+ */
+export const uploadFiles = async (params: UploadParams) => {
   const { contextPath, files, uuid } = params;
   const form = new FormData();
   form.append("uuid", uuid);
   form.append("contextPath", makeAbsolutePath(contextPath));
 
-  files.forEach(f => {
+  files.forEach((f) => {
     const stream = createReadStream(f);
     form.append("files", stream);
   });
@@ -630,33 +605,31 @@ export const uploadFiles = async (
 /** Parameters required for uploading an externally hosted PDF file */
 export type UploadPdfFromUrlParams = {
   /** The node to uppload the document to */
-  uuid: string,
+  uuid: string;
   /** Web URL to the target document, and its filename */
-  externalUrl: ExternalUrl,
+  externalUrl: ExternalUrl;
   /** Target path in the drive (folders must already exist) */
-  targetPath: string,
+  targetPath: string;
   /** What type of document the target file is */
-  componentSubtype: ResearchObjectComponentDocumentSubtype,
+  componentSubtype: ResearchObjectComponentDocumentSubtype;
 };
 
 /**
  * Reference to externally hosted data to upload. Capable of handling
  * pdf or github repos at the moment.
-*/
+ */
 export type ExternalUrl = {
   /** Web URL to the target resource */
-  url: string,
+  url: string;
   /** **Name** of the file or code repo (not the full path) */
-  path: string,
+  path: string;
 };
 
 /**
  * Upload a PDF hosted elsewhere. Backend automatically creates a matching
  * component for attaching metadata.
-*/
-export const uploadPdfFromUrl = async (
-  params: UploadPdfFromUrlParams,
-) => {
+ */
+export const uploadPdfFromUrl = async (params: UploadPdfFromUrlParams) => {
   const { uuid, targetPath, externalUrl, componentSubtype } = params;
   const form = new FormData();
   form.append("uuid", uuid);
@@ -669,28 +642,28 @@ export const uploadPdfFromUrl = async (
     ENDPOINTS.uploadFiles,
     getHeaders(true),
     // Formdata equivalent
-    form as unknown as UploadParams,
+    form as unknown as UploadParams
   );
 };
 
 /** Parameters required for uploading an external GitHub code repository */
 export type UploadGithubRepoFromUrlParams = {
   /** The node to upload the repo to */
-  uuid: string,
+  uuid: string;
   /** Web URL to the target repo, and its name */
-  externalUrl: ExternalUrl,
+  externalUrl: ExternalUrl;
   /** Target path in the drive (folders must exist beforehand) */
-  targetPath: string,
+  targetPath: string;
   /** What type of code the repo contains */
-  componentSubtype: ResearchObjectComponentCodeSubtype,
+  componentSubtype: ResearchObjectComponentCodeSubtype;
 };
 
 /**
  * Clone an entire GitHub repository to the node, effectively creating
  * an immutable copy of it.
-*/
+ */
 export const uploadGithubRepoFromUrl = async (
-  params: UploadGithubRepoFromUrlParams,
+  params: UploadGithubRepoFromUrlParams
 ): Promise<UploadFilesResponse> => {
   const { uuid, externalUrl, targetPath, componentSubtype } = params;
   const form = new FormData();
@@ -703,39 +676,34 @@ export const uploadGithubRepoFromUrl = async (
     ENDPOINTS.uploadFiles,
     getHeaders(true),
     // Formdata equivalent
-    form as unknown as UploadParams,
+    form as unknown as UploadParams
   );
 };
 
 /** Parameters requried for adding an externally pinned file or UnixFS tree */
 export type AddExternalTreeParams = {
   /** The node to add the data to */
-  uuid: string,
+  uuid: string;
   /** Which external CIDs to include, and their associated names in the drive */
-  externalCids: { name: string, cid: string }[],
+  externalCids: { name: string; cid: string }[];
   /** The absolute path in the drive where the entries should be */
-  contextPath: string,
+  contextPath: string;
   /** The type of the imported data */
-  componentType: ResearchObjectComponentType,
+  componentType: ResearchObjectComponentType;
   /** The subtype of the imported data */
-  componentSubtype: ResearchObjectComponentSubtypes,
+  componentSubtype: ResearchObjectComponentSubtypes;
 };
 
 /**
  * Add a publicly available file or UnixFS tree CID to the drive, without
  * the content. This data will not be pinned by the Nodes backend, and
  * it's availability depends on other pinners.
-*/
-export const addExternalCid = async (
-  params: AddExternalTreeParams,
-) => await makeRequest(
-  ENDPOINTS.updateExternalCid,
-  getHeaders(),
-  {
+ */
+export const addExternalCid = async (params: AddExternalTreeParams) =>
+  await makeRequest(ENDPOINTS.updateExternalCid, getHeaders(), {
     ...params,
     contextPath: makeAbsolutePath(params.contextPath),
-  },
-);
+  });
 
 /** Historical log entry for a dPID */
 export type IndexedNodeVersion = {
@@ -763,17 +731,15 @@ export type IndexedNode = {
  * Get the codex publish history for a given node.
  * Note: calling this right after publish may fail
  * since the publish operation may not have finished.
-*/
-export const getPublishHistory = async (
-  uuid: string,
-): Promise<IndexedNode> => {
+ */
+export const getPublishHistory = async (uuid: string): Promise<IndexedNode> => {
   const { ceramicStream } = await getDraftNode(uuid);
   if (!ceramicStream) {
     throw new Error(`No known stream for node ${uuid}`);
-  };
+  }
 
   const resolved = await getFullState(ceramicStream);
-  const versions = resolved.events.map(e => ({
+  const versions = resolved.events.map((e) => ({
     cid: e.cid.toString(),
     time: e.timestamp?.toString() || "", // May happen if commit is not anchored
   }));
@@ -792,65 +758,59 @@ export const getPublishHistory = async (
 /**
  * Lookup the history of a legacy dPID in the alias registry.
  * @throws (@link NoSuchEntryError) if no such legacy entry exists
-*/
+ */
 export const getLegacyHistory = async (
-  dpid: number,
-): Promise<IndexedNodeVersion[]> => {
-  const legacyEntry = await lookupLegacyDpid(dpid);
+  dpid: number
+): Promise<{ owner: string; versions: IndexedNodeVersion[] }> => {
+  let legacyEntry: Awaited<ReturnType<typeof lookupLegacyDpid>>;
+  try {
+    legacyEntry = await lookupLegacyDpid(dpid);
+  } catch (err) {
+    throw PublishError.chainCall("Failed to get legacy history", err as Error);
+  }
 
   if (legacyEntry.versions.length === 0) {
-    throw new NoSuchEntryError({
-      name: "NO_SUCH_ENTRY_ERROR",
-      message: "No legacy history exists for this dPID",
-    });
+    throw PublishError.noLegacyMatch("No legacy history exists for this dPID");
+  }
+
+  const nodeVersions = legacyEntry.versions.map(({ cid, time }) => ({
+    cid,
+    time: bnToString(time),
+  }));
+
+  return {
+    owner: legacyEntry.owner,
+    versions: nodeVersions,
   };
-
-  const nodeVersions = legacyEntry.versions.map(
-    ({ cid, time }) => ({ cid, time: bnToString(time) })
-  );
-
-  return nodeVersions;
 };
 
 /**
  * Get the dPID publish history for a node.
  * @deprecated use getPublishHistory or getLegacyHistory when using new contracts
-*/
-export const getDpidHistory = async (
-  uuid: string,
-) => await makeRequest(
-  ENDPOINTS.dpidHistory,
-  getHeaders(),
-  undefined,
-  `/${uuid}`,
-);
+ */
+export const getDpidHistory = async (uuid: string) =>
+  await makeRequest(ENDPOINTS.dpidHistory, getHeaders(), undefined, `/${uuid}`);
 
 /** Parameters requried for changing the manifest */
 export type ChangeManifestParams = {
   /** One or more actions to perform */
-  actions: ManifestActions[],
+  actions: ManifestActions[];
 };
 
 /** Response from a manifest change request */
 export type ManifestDocumentResponse = {
   /** The (internal) automerge ID of the manifest */
-  documentId: string,
+  documentId: string;
   /** The state of the manifest document */
-  document: ResearchObjectDocument,
+  document: ResearchObjectDocument;
 };
 
 /**
  * Get the raw state of the node manifest. To support multiple clients, the
  * Nodes backend represents it as an automerge document and not raw JSON.
-*/
-const getManifestDocument = async (
-  uuid: string,
-) => await makeRequest(
-  ENDPOINTS.getDocument,
-  getHeaders(),
-  undefined,
-  `/${uuid}`
-);
+ */
+const getManifestDocument = async (uuid: string) =>
+  await makeRequest(ENDPOINTS.getDocument, getHeaders(), undefined, `/${uuid}`);
 
 /**
  * Send a generic manifest change to the backend. Normally, one of the
@@ -859,10 +819,10 @@ const getManifestDocument = async (
  * @param actions - series of change actions to perform
  * @param  - your API key or session token
  * @returns the new state of the manifest document
-*/
+ */
 export const changeManifest = async (
   uuid: string,
-  actions: ManifestActions[],
+  actions: ManifestActions[]
 ): Promise<ManifestDocumentResponse> => {
   let documentResponse: ManifestDocumentResponse;
   try {
@@ -873,15 +833,18 @@ export const changeManifest = async (
       `/${uuid}/actions`
     );
   } catch (e) {
-    const err = e as AxiosError
+    const err = e as AxiosError;
     // Node doesn't have an automerge document, needs initialization
-    if (err.status === 400 && err.message.toLowerCase().includes("missing automerge document")) {
+    if (
+      err.status === 400 &&
+      err.message.toLowerCase().includes("missing automerge document")
+    ) {
       await getManifestDocument(uuid);
       return await changeManifest(uuid, actions);
     } else {
       throw e;
-    };
-  };
+    }
+  }
 
   return documentResponse;
 };
@@ -898,10 +861,10 @@ export type ComponentParam =
  * @param params - component to add
  * @param  - your API key or session token
  * @returns the new state of the manifest document
-*/
+ */
 export const addRawComponent = async (
   uuid: string,
-  params: ComponentParam,
+  params: ComponentParam
 ): Promise<ManifestDocumentResponse> => {
   const action: ManifestActions = {
     type: "Add Component",
@@ -912,17 +875,17 @@ export const addRawComponent = async (
 
 /**
  * Update the content of a component.
-*/
+ */
 export type UpdateComponentParams = {
   /** The new component data */
-  component: ResearchObjectV1Component,
+  component: ResearchObjectV1Component;
   /** Which component index to update */
-  componentIndex: number,
+  componentIndex: number;
 };
 
 export const updateComponent = async (
   uuid: string,
-  params: UpdateComponentParams,
+  params: UpdateComponentParams
 ): Promise<ManifestDocumentResponse> => {
   const { component, componentIndex } = params;
   const action: ManifestActions = {
@@ -936,21 +899,21 @@ export const updateComponent = async (
 /** Parameters for adding an external link component to manifest */
 export type AddLinkComponentParams = {
   /** Human-readable name of component */
-  name: string,
+  name: string;
   /** Link component refers to */
-  url: string,
+  url: string;
   /** Which type of resource the link points to */
-  subtype: ResearchObjectComponentLinkSubtype,
+  subtype: ResearchObjectComponentLinkSubtype;
   /** Wether to show the link as a central component of the object */
-  starred: boolean,
+  starred: boolean;
 };
 
 /**
  * Add an external link to the node.
-*/
+ */
 export const addLinkComponent = async (
   uuid: string,
-  params: AddLinkComponentParams,
+  params: AddLinkComponentParams
 ): Promise<ManifestDocumentResponse> => {
   const fullParams: ExternalLinkComponent = {
     id: randomUUID(),
@@ -961,35 +924,35 @@ export const addLinkComponent = async (
       url: params.url,
       path: `root/External Links/${params.name}`,
     },
-    starred: params.starred
+    starred: params.starred,
   };
   return await addRawComponent(uuid, fullParams);
-}
+};
 
 /**
  * Parameters for adding a PDF component to manifest. This is done after
  * uploading the file, and allows adding richer metadata to the document.
-*/
+ */
 export type AddPdfComponentParams = {
   /** Human-readable name of the document */
-  name: string,
+  name: string;
   /** Absolute path to the file in the drive */
-  pathToFile: string,
+  pathToFile: string;
   /** CID of the file */
-  cid: string,
+  cid: string;
   /** Indicates the type of document */
-  subtype: ResearchObjectComponentDocumentSubtype,
+  subtype: ResearchObjectComponentDocumentSubtype;
   /** Wether to show the document as a central component of the object */
-  starred: boolean,
+  starred: boolean;
 };
 
 /**
  * Add a PDF component to the manifest, allowing setting metadata on a
  * PDF file added to the drive.
-*/
+ */
 export const addPdfComponent = async (
   uuid: string,
-  params: AddPdfComponentParams,
+  params: AddPdfComponentParams
 ): Promise<ManifestDocumentResponse> => {
   const fullParams: PdfComponent = {
     id: randomUUID(),
@@ -1008,28 +971,28 @@ export const addPdfComponent = async (
 /**
  * Parameters for adding code component to manifest. These can be
  * nested in layers to mark subdirectories as other types of code, etc.
-*/
+ */
 export type AddCodeComponentParams = {
   /** Human-readable name of the code collection */
-  name: string,
+  name: string;
   /** Absolute path to the code in the drive */
-  path: string,
+  path: string;
   /** CID of the target file or unixFS directory */
-  cid: string,
+  cid: string;
   /** */
-  language: string,
+  language: string;
   /** Indicates the type of document */
-  subtype: ResearchObjectComponentCodeSubtype,
+  subtype: ResearchObjectComponentCodeSubtype;
   /** Wether to show the document as a central component of the object */
-  starred: boolean,
+  starred: boolean;
 };
 
 /**
  * Manually add a code component to mark a subtree of the drive as code.
-*/
+ */
 export const addCodeComponent = async (
   uuid: string,
-  params: AddCodeComponentParams,
+  params: AddCodeComponentParams
 ): Promise<ManifestDocumentResponse> => {
   const fullParams: CodeComponent = {
     id: randomUUID(),
@@ -1049,63 +1012,71 @@ export const addCodeComponent = async (
 /** Delete a component from the manifest */
 export const deleteComponent = async (
   uuid: string,
-  path: string,
-): Promise<ManifestDocumentResponse> => await changeManifest(
-  uuid, [{ type: "Delete Component", path: makeAbsolutePath(path)}]);
+  path: string
+): Promise<ManifestDocumentResponse> =>
+  await changeManifest(uuid, [
+    { type: "Delete Component", path: makeAbsolutePath(path) },
+  ]);
 
 /** Update the node title */
 export const updateTitle = async (
   uuid: string,
-  title: string,
+  title: string
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Update Title", title }]);
 
 /** Update the node description */
 export const updateDescription = async (
   uuid: string,
-  description: string,
+  description: string
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Update Description", description }]);
 
- /** Update the default license of the node */
+/** Update the default license of the node */
 export const updateLicense = async (
   uuid: string,
-  license: License,
+  license: License
 ): Promise<ManifestDocumentResponse> =>
-  await changeManifest(uuid, [{ type: "Update License", defaultLicense: license }]);
+  await changeManifest(uuid, [
+    { type: "Update License", defaultLicense: license },
+  ]);
 
 /** Update the research fields of the node */
 export const updateResearchFields = async (
   uuid: string,
-  researchFields: ResearchField[],
+  researchFields: ResearchField[]
 ): Promise<ManifestDocumentResponse> =>
-  await changeManifest(uuid, [{ type: "Update ResearchFields", researchFields }]);
+  await changeManifest(uuid, [
+    { type: "Update ResearchFields", researchFields },
+  ]);
 
 /** Add a contributor to the node */
 export const addContributor = async (
   uuid: string,
-  author: ResearchObjectV1Author,
+  author: ResearchObjectV1Author
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Add Contributor", author }]);
 
 /** Remove a contributor from the node */
 export const removeContributor = async (
   uuid: string,
-  contributorIndex: number,
+  contributorIndex: number
 ): Promise<ManifestDocumentResponse> =>
-  await changeManifest(uuid, [{ type: "Remove Contributor", contributorIndex }]);
+  await changeManifest(uuid, [
+    { type: "Remove Contributor", contributorIndex },
+  ]);
 
 /** Set or unset the cover image of the node */
 export const updateCoverImage = async (
   uuid: string,
-  cid: string | undefined,
+  cid: string | undefined
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Update CoverImage", cid }]);
 
 const getHeaders = (isFormData: boolean = false) => {
   const headers = {
     "api-key": getNodesLibInternalConfig().apiKey,
-    ...(isFormData ? { "content-type": "multipart/form-data" } : {})
+    ...(isFormData ? { "content-type": "multipart/form-data" } : {}),
   };
   return headers;
 };
@@ -1113,10 +1084,10 @@ const getHeaders = (isFormData: boolean = false) => {
 /**
  * Best-effort way of ensuring reasonable representations of absolute paths
  * gets wrangled into the `root/`-prefixed string the API's/manifest expect.
-*/
+ */
 export const makeAbsolutePath = (path: string) => {
   // Sensible definitions of root
-  const ROOT_ALIASES = [ "root", "root/", "/" ];
+  const ROOT_ALIASES = ["root", "root/", "/"];
   if (!path || ROOT_ALIASES.includes(path)) return "root";
 
   // Support unix-style absolute paths

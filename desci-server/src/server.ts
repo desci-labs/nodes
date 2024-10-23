@@ -2,13 +2,10 @@
 import 'dotenv/config';
 import 'reflect-metadata';
 import * as child from 'child_process';
-// import fs from 'fs';
 import type { Server as HttpServer } from 'http';
-// import path from 'path';
 
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
-// import * as Tracing from '@sentry/tracing';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
@@ -19,13 +16,10 @@ import { pinoHttp } from 'pino-http';
 import { Server as SocketIOServer } from 'socket.io';
 import { v4 } from 'uuid';
 
-import { prisma } from './client.js';
-// eslint-disable-next-line import/order
 import { orcidConnect } from './controllers/auth/orcid.js';
 import { orcidCheck } from './controllers/auth/orcidNext.js';
 import { NotFoundError } from './core/ApiError.js';
-import { als, logger } from './logger.js';
-// import SocketServer from './wsServer.js';
+import { als, logger as parentLogger } from './logger.js';
 import { RequestWithUser } from './middleware/authorisation.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -36,6 +30,10 @@ import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 import { runWorkerUntilStopped } from './workers/publish.js';
 
 // const __dirname = path.dirname(__filename);
+
+const logger = parentLogger.child({
+  module: 'server.ts',
+});
 
 const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
 const IS_DEV = !ENABLE_TELEMETRY;

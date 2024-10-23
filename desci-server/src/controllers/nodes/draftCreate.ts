@@ -146,7 +146,8 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
     });
 
     // cache initial doc for a minute (60)
-    await setToCache(`node-draft-${node.uuid}`, { document, documentId }, 60);
+    // ! disabling, as it breaks programmatic interaction from nodes-lib, where stale results break interactivity
+    // await setToCache(`node-draft-${ensureUuidEndsWithDot(node.uuid)}`, { document, documentId }, 60);
 
     return;
   } catch (err) {
