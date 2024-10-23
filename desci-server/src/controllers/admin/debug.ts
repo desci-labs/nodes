@@ -241,12 +241,12 @@ const debugMigration = async (uuid?: string, stream?: DebugStreamResponse) => {
   const legacyHistory = await _getIndexedResearchObjects([uuid]);
   const legacyHistoryPresent = !!legacyHistory?.researchObjects?.length;
 
-  // if (!legacyHistoryPresent || !stream.present)
-  //   return { legacyHistory: legacyHistoryPresent, streamHistory: stream.present };
+  if (!legacyHistoryPresent || !stream.present)
+    return { legacyHistory: legacyHistoryPresent, streamHistory: stream.present };
 
   const streamController =
     stream.present && 'state' in stream.raw ? stream.raw.state.metadata.controllers[0].split(':').pop() : undefined;
-  const legacyOwner = legacyHistory.researchObjects[0]?.owner;
+  const legacyOwner = legacyHistory.researchObjects[0].owner;
 
   // Stream Controller === Legacy Contract RO Owner Check
   const ownerMatches = streamController?.toLowerCase() === legacyOwner?.toLowerCase();
