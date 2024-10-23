@@ -242,6 +242,7 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
   }
 
   const annotationAuthor = annotation.author;
+  const annotationAuthorName = annotationAuthor?.name || 'A user';
   const node = annotation.node || annotation.attestation?.node;
   const nodeOwner = node?.owner;
 
@@ -255,7 +256,7 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
   const notificationData: CreateNotificationData = {
     userId: nodeOwner.id,
     type: NotificationType.COMMENTS,
-    title: `${annotationAuthor?.name} commented on your research object`,
+    title: `${annotationAuthorName} commented on your research object`,
     message: `Your research object titled ${node.title}, has received a new comment.`, // TODO:: Ideally deserialize some of the message body from the annotation and show a truncated snippet
     nodeUuid: node.uuid,
     payload: { type: NotificationType.COMMENTS, nodeUuid: dotlessUuid, annotationId } as CommentPayload,
