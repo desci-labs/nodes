@@ -13,8 +13,7 @@ database/
 ganache-data/
 ipfs-data/
 local-data/
-node-modules/
-node_modules/*
+**/node_modules
 .idea
 .composedbRuntimeDefinition.json
 openalex-importer
