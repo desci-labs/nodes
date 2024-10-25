@@ -25,14 +25,9 @@ export const checkMintability = async (req: RequestWithNode, res: Response, _nex
     await doiService.checkMintability(uuid);
     new SuccessResponse(true).send(res);
   } catch (err) {
-    logger.error({ err }, 'checkMintabilityError');
-    if (!(err instanceof DoiError)) {
-      // TODO: Sentry error reporting
-      throw new Error('Error checking DOI mintability');
-    } else {
-      const error = err as DoiError;
-      throw new ForbiddenError(`${error.name}: ${err.message}`);
-    }
+    new SuccessResponse(false).send(res);
+    const error = err as DoiError;
+    logger.trace({ error, uuid }, 'checkMintabilityError');
   }
 };
 
