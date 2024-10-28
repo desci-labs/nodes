@@ -6,7 +6,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { directStreamLookup, RawStream } from '../../services/ceramic.js';
 import { getAliasRegistry, getHotWallet } from '../../services/chain.js';
 import { _getIndexedResearchObjects, getIndexedResearchObjects, IndexedResearchObject } from '../../theGraph.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
+import { ensureUuidEndsWithDot, hexToCid } from '../../utils.js';
 
 const logger = parentLogger.child({ module: 'ADMIN::DebugController' });
 
@@ -312,10 +312,11 @@ const debugMigration = async (uuid?: string, stream?: DebugStreamResponse): Prom
   const streamManifestCids = streamResearchObject.versions.map((v) => v.cid);
   const legacyManifestCids = legacyHistory.versions.map((v) => v.cid);
 
-  const zipped = Array.from(
-    Array(Math.max(streamManifestCids.length, legacyManifestCids.length)),
-    (_, i) => [legacyManifestCids[i], streamManifestCids[i]] as [string, string],
-  );
+  const zipped = Array.from(Array(Math.max(streamManifestCids.length, legacyManifestCids.length)), (_, i) => {
+    const legacyManifestCid = legacyManifestCids[i] ? hexToCid(legacyManifestCids[i]) : null;
+    const streamManifestCid = streamManifestCids[i] ? hexToCid(streamManifestCids[i]) : null;
+    return [legacyManifestCid, streamManifestCid] as [string, string];
+  });
 
   const allVersionsOrdered = zipped.every(([legacyCid, streamCid]) => !legacyCid || legacyCid === streamCid);
   const allVersionsPresent = legacyManifestCids.map((cid, i) => streamManifestCids[i] === cid).every(Boolean);
