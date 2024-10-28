@@ -310,7 +310,7 @@ const debugMigration = async (uuid?: string, stream?: DebugStreamResponse): Prom
 
   // All Versions Migrated check
   const streamManifestCids = streamResearchObject.versions.map((v) => v.cid);
-  const legacyManifestCids = legacyHistory.versions.map((v) => v.cid);
+  const legacyManifestCids = legacyHistory.versions.map((v) => v.cid).reverse(); // Ascending expected like stream history above
 
   const zipped = Array.from(Array(Math.max(streamManifestCids.length, legacyManifestCids.length)), (_, i) => {
     const legacyManifestCid = legacyManifestCids[i] ? hexToCid(legacyManifestCids[i]) : null;
