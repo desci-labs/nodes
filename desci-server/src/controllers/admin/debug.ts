@@ -115,7 +115,21 @@ const makeTimeClause = (event: 'first_publish' | 'last_publish', fromDate?: stri
   return clause;
 };
 
-const debugNode = async (uuid: string) => {
+type NodeDebugReport =
+  | {
+      createdAt: Date;
+      updatedAt: Date;
+      hasError: boolean;
+      nVersionsAgree: boolean;
+      stream: any;
+      dpid: any;
+      database: any;
+      indexer: any;
+      migration: any;
+    }
+  | { hasError: true; reason: string };
+
+const debugNode = async (uuid: string): Promise<NodeDebugReport> => {
   const node: NodeDbClosure = await prisma.node.findFirst({
     where: {
       uuid: ensureUuidEndsWithDot(uuid),
@@ -130,16 +144,23 @@ const debugNode = async (uuid: string) => {
     },
   });
 
+  if (!node) {
+    return {
+      hasError: true,
+      reason: 'Node not found',
+    };
+  }
+
   const stream = await debugStream(node.ceramicStream);
   const dpid = await debugDpid(node.dpidAlias);
   const database = await debugDb(node);
   const shouldBeIndexed = database.nVersions > 0 || stream.nVersions > 0;
   const indexer = await debugIndexer(uuid, shouldBeIndexed);
-  const migrationInfo = await debugMigration(uuid, stream);
+  const migration = await debugMigration(uuid, stream);
 
   const nVersionsAgree = new Set([database.nVersions ?? 0, stream.nVersions ?? 0, indexer.nVersions ?? 0]).size === 1;
 
-  const hasError = stream.error || dpid.error || database.error || indexer.error || !nVersionsAgree;
+  const hasError = stream.error || dpid.error || database.error || indexer.error || !nVersionsAgree || migration.error;
 
   return {
     createdAt: node.createdAt,
@@ -150,7 +171,7 @@ const debugNode = async (uuid: string) => {
     dpid,
     database,
     indexer,
-    migrationInfo,
+    migration,
   };
 };
 
@@ -233,36 +254,58 @@ const debugDpid = async (dpid?: number) => {
   return { present: true, error: false, mappedStream };
 };
 
+type DebugMigrationReponse = {
+  error: boolean;
+  hasLegacyHistory: boolean;
+  hasStreamHistory: boolean;
+  ownerMatches?: boolean;
+  allVersionsPresent?: boolean;
+  allVersionsOrdered?: boolean;
+  zipped?: [string, string][];
+};
+
 /*
  * Checks if the theres a signature signer mismatch between the legacy contract RO and the stream
  */
-const debugMigration = async (uuid?: string, stream?: DebugStreamResponse) => {
+const debugMigration = async (uuid?: string, stream?: DebugStreamResponse): Promise<DebugMigrationReponse> => {
   // Establish if there is a token history
-  const legacyHistory = await _getIndexedResearchObjects([uuid]);
-  const legacyHistoryPresent = !!legacyHistory?.researchObjects?.length;
+  const legacyHistoryResponse = await _getIndexedResearchObjects([uuid]);
+  const hasLegacyHistory = !!legacyHistoryResponse?.researchObjects?.length;
 
-  if (!legacyHistoryPresent || !stream.present)
-    return { legacyHistory: legacyHistoryPresent, streamHistory: stream.present };
+  if (!hasLegacyHistory || !stream.present) {
+    return { error: false, hasLegacyHistory, hasStreamHistory: stream.present };
+  }
+
+  const legacyHistory = legacyHistoryResponse.researchObjects[0];
 
   const streamController =
     stream.present && 'state' in stream.raw ? stream.raw.state.metadata.controllers[0].split(':').pop() : undefined;
-  const legacyOwner = legacyHistory.researchObjects[0].owner;
+  const legacyOwner = legacyHistory.owner;
 
   // Stream Controller === Legacy Contract RO Owner Check
   const ownerMatches = streamController?.toLowerCase() === legacyOwner?.toLowerCase();
 
   // All Versions Migrated check
   const { researchObjects: streamResearchObjects } = await getIndexedResearchObjects([uuid]);
-  const streamManifestCidsMap = streamResearchObjects[0].versions.reduce((cids, v) => ({ ...cids, [v.cid]: true }), {});
-  const streamContainsAllLegacyManifestCids = legacyHistory.researchObjects[0].versions.every(
-    (v) => streamManifestCidsMap[v.cid],
+  const streamManifestCids = streamResearchObjects[0].versions.map((v) => v.cid);
+  const legacyManifestCids = legacyHistory.versions.map((v) => v.cid);
+
+  const zipped = Array.from(
+    Array(Math.max(streamManifestCids.length, legacyManifestCids.length)),
+    (_, i) => [legacyManifestCids[i], streamManifestCids[i]] as [string, string],
   );
 
+  const allVersionsOrdered = zipped.every(([legacyCid, streamCid]) => !legacyCid || legacyCid === streamCid);
+  const allVersionsPresent = legacyManifestCids.map((cid, i) => streamManifestCids[i] === cid).every(Boolean);
+
   return {
-    legacyHistory: true,
-    streamHistory: !!streamController,
+    error: !ownerMatches || !allVersionsPresent || !allVersionsOrdered,
+    hasLegacyHistory: true,
+    hasStreamHistory: !!streamController,
     ownerMatches,
-    allVersionsMigrated: streamContainsAllLegacyManifestCids,
+    allVersionsPresent,
+    allVersionsOrdered,
+    zipped,
   };
 };
 
