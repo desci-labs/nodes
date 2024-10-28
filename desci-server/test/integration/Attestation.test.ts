@@ -2253,6 +2253,7 @@ describe('Attestations Service', async () => {
         authorId: members[0].userId,
         claimId: openCodeClaim.id,
         body: 'review 1',
+        uuid: openCodeClaim.nodeUuid,
       };
       let res = await request(app)
         .post(`/v1/attestations/comments`)
@@ -2264,6 +2265,7 @@ describe('Attestations Service', async () => {
         authorId: members[1].userId,
         claimId: openCodeClaim.id,
         body: 'review 2',
+        uuid: openCodeClaim.nodeUuid,
       };
       res = await request(app).post(`/v1/attestations/comments`).set('authorization', memberAuthHeaderVal2).send(body);
       expect(res.statusCode).to.equal(200);
@@ -2282,6 +2284,7 @@ describe('Attestations Service', async () => {
           authorId: users[1].id,
           claimId: openCodeClaim.id,
           body: 'review 1',
+          uuid: openCodeClaim.nodeUuid,
         });
       expect(apiResponse.statusCode).to.equal(401);
 
