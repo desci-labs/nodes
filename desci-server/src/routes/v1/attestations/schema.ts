@@ -134,7 +134,7 @@ const commentSchema = z
       .refine((links) => links.every((link) => dpidPathRegex.test(link)))
       .optional(),
     highlights: z.array(highlightBlockSchema).optional(),
-    uuid: z.string().optional(),
+    uuid: z.string(),
     visible: z.boolean().default(true),
   })
   .refine((comment) => comment.body?.length > 0 || !!comment?.highlights?.length, {
