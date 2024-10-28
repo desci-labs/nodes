@@ -254,22 +254,36 @@ const debugDpid = async (dpid?: number) => {
   return { present: true, error: false, mappedStream };
 };
 
-type DebugMigrationReponse = {
-  error: boolean;
-  hasLegacyHistory: boolean;
-  hasStreamHistory: boolean;
-  ownerMatches?: boolean;
-  allVersionsPresent?: boolean;
-  allVersionsOrdered?: boolean;
-  zipped?: [string, string][];
-};
+type DebugMigrationReponse =
+  | {
+      error: boolean;
+      hasLegacyHistory: boolean;
+      hasStreamHistory: boolean;
+      ownerMatches?: boolean;
+      allVersionsPresent?: boolean;
+      allVersionsOrdered?: boolean;
+      zipped?: [string, string][];
+    }
+  | {
+      error: true;
+      name: string;
+      message: string;
+      stack: unknown;
+    };
 
 /*
  * Checks if the theres a signature signer mismatch between the legacy contract RO and the stream
  */
 const debugMigration = async (uuid?: string, stream?: DebugStreamResponse): Promise<DebugMigrationReponse> => {
   // Establish if there is a token history
-  const legacyHistoryResponse = await _getIndexedResearchObjects([uuid]);
+  let legacyHistoryResponse;
+  try {
+    legacyHistoryResponse = await _getIndexedResearchObjects([uuid]);
+  } catch (err) {
+    logger.error({ uuid, err }, 'Failed to query legacy history');
+    return { error: true, name: err.name, message: err.message, stack: err.stack };
+  }
+
   const hasLegacyHistory = !!legacyHistoryResponse?.researchObjects?.length;
 
   if (!hasLegacyHistory || !stream.present) {
@@ -278,6 +292,15 @@ const debugMigration = async (uuid?: string, stream?: DebugStreamResponse): Prom
 
   const legacyHistory = legacyHistoryResponse.researchObjects[0];
 
+  let streamHistoryResponse;
+  try {
+    streamHistoryResponse = await getIndexedResearchObjects([uuid]);
+  } catch (err) {
+    logger.error({ uuid, err }, 'Failed to query stream history');
+    return { error: true, name: err.name, message: err.message, stack: err.stack };
+  }
+
+  const streamResearchObject = streamHistoryResponse.researchObjects[0];
   const streamController =
     stream.present && 'state' in stream.raw ? stream.raw.state.metadata.controllers[0].split(':').pop() : undefined;
   const legacyOwner = legacyHistory.owner;
@@ -286,8 +309,7 @@ const debugMigration = async (uuid?: string, stream?: DebugStreamResponse): Prom
   const ownerMatches = streamController?.toLowerCase() === legacyOwner?.toLowerCase();
 
   // All Versions Migrated check
-  const { researchObjects: streamResearchObjects } = await getIndexedResearchObjects([uuid]);
-  const streamManifestCids = streamResearchObjects[0].versions.map((v) => v.cid);
+  const streamManifestCids = streamResearchObject.versions.map((v) => v.cid);
   const legacyManifestCids = legacyHistory.versions.map((v) => v.cid);
 
   const zipped = Array.from(
