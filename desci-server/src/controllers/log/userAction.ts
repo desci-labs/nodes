@@ -1,67 +1,9 @@
+import { AvailableUserActionLogTypes } from '@desci-labs/desci-models';
 import { ActionType, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import { logger } from '../../logger.js';
 import { saveInteraction } from '../../services/interactionLog.js';
-
-/**
- * TODO: Put this in desci-models?
- */
-export enum AvailableUserActionLogTypes {
-  publishStep = 'publishStep',
-  btnPublishActivityBar = 'btnPublishActivityBar',
-  btnSidebarNavigation = 'btnSidebarNavigation',
-  tabProfilePublishedNodes = 'tabProfilePublishedNodes',
-  tabProfileSharedNodes = 'tabProfileSharedNodes',
-  tabProfileAllNodes = 'tabProfileAllNodes',
-  btnProfileCreateNewResearchObject = 'btnProfileCreateNewResearchObject',
-  btnProfileCreateNewSubmissionPackage = 'btnProfileCreateNewSubmissionPackage',
-  btnDownloadData = 'btnDownloadData',
-  btnDownloadManuscript = 'btnDownloadManuscript',
-  btnShare = 'btnShare',
-  btnPublish = 'btnPublish',
-  btnAddComponentFab = 'btnAddComponentFab',
-  btnAddComponentDrive = 'btnAddComponentDrive',
-  btnAddComponentDriveNewComponent = 'btnAddComponentDriveNewComponent',
-  btnAddComponentDriveNewFolder = 'btnAddComponentDriveNewFolder',
-  driveNavigateBreadcrumb = 'driveNavigateBreadcrumb',
-  btnFigureAnnotate = 'btnFigureAnnotate',
-  btnContinuePublish = 'btnContinuePublish',
-  btnReviewBeforePublish = 'btnReviewBeforePublish',
-  dismissCommitAdditionalInfo = 'dismissCommitAdditionalInfo',
-  dismissCommitStatus = 'dismissCommitStatus',
-  completePublish = 'completePublish',
-  btnSignPublish = 'btnSignPublish',
-  commitPanelDismiss = 'commitPanelDismiss',
-  viewWalletSettings = 'viewWalletSettings',
-  walletMoreOptions = 'walletMoreOptions',
-  walletSwitchChain = 'walletSwitchChain',
-  walletClickCard = 'walletClickCard',
-  walletError = 'walletError',
-  walletDisconnect = 'walletDisconnect',
-  connectWallet = 'connectWallet',
-  btnComponentCardCite = 'btnComponentCardCite',
-  btnComponentCardViewFile = 'btnComponentCardViewFile',
-  btnComponentCardUse = 'btnComponentCardUse',
-  btnComponentCardViewLink = 'btnComponentCardViewLink',
-  btnComponentCardViewMetadata = 'btnComponentCardViewMetadata',
-  viewDrive = 'viewDrive',
-  btnDriveCite = 'btnDriveCite',
-  btnDriveUse = 'btnDriveUse',
-  btnDriveStarToggle = 'btnDriveStarToggle',
-  saveMetadata = 'saveMetadata',
-  btnInspectMetadata = 'btnInspectMetadata',
-  ctxDriveRename = 'ctxDriveRename',
-  ctxDrivePreview = 'ctxDrivePreview',
-  ctxDriveDownload = 'ctxDriveDownload',
-  ctxDriveDelete = 'ctxDriveDelete',
-  ctxDriveAssignType = 'ctxDriveAssignType',
-  ctxDriveEditMetadata = 'ctxDriveEditMetadata',
-  btnCreateNewNode = 'btnCreateNewNode',
-  btnCreateNodeModalSave = 'btnCreateNodeModalSave',
-  errNodeCreate = 'errNodeCreate',
-  viewedNode = 'viewedNode',
-}
 
 /**
  * Note: user not guaranteed

@@ -153,7 +153,6 @@ export async function connectOrcidToUserIfPossible(
     logger.info({ fn: 'orcidCheck', user }, `Requesting user ${user}`);
     if (!user.orcid || user.orcid === orcid) {
       let nodeConnect: Awaited<ReturnType<typeof setOrcidForUser>>;
-      debugger;
       if (!user.orcid || !(await isAuthTokenSetForUser(user.id))) {
         nodeConnect = await setOrcidForUser(user.id, orcid, {
           accessToken,

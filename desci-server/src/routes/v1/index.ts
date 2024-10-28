@@ -7,8 +7,8 @@ import { handleCrossrefNotificationCallback } from '../../controllers/doi/mint.j
 import { queryRor } from '../../controllers/proxy/index.js';
 import { ipfsReadGatewayProxy } from '../../controllers/proxy/ipfsReadGateway.js';
 import { nft } from '../../controllers/raw/nft.js';
-import { asyncHandler } from '../../internal.js';
 import { ensureUser } from '../../middleware/permissions.js';
+import { asyncHandler } from '../../utils/asyncHandler.js';
 
 import admin from './admin/index.js';
 import attestations from './attestations/index.js';
@@ -19,6 +19,7 @@ import data from './data.js';
 import doi from './doi.js';
 import log from './log.js';
 import nodes from './nodes.js';
+import notifications from './notifications.js';
 import pub from './pub.js';
 import referral from './referral.js';
 import search from './search.js';
@@ -60,6 +61,7 @@ router.use('/communities', communities);
 router.use('/attestations', attestations);
 router.use('/doi', doi);
 router.use('/search', search);
+router.use('/notifications', notifications);
 
 router.get('/nft/:id', nft);
 router.use('/referral', referral);

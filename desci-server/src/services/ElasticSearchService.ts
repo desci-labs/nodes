@@ -146,46 +146,129 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
 }
 
 export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQueryContainer {
-  const functions: QueryDslFunctionScoreContainer[] = [
-    // Citation count
+  // Use these as tie breakers, low weights/factors compared to the text matches
+  const boostFunctions: QueryDslFunctionScoreContainer[] = [
     {
       filter: { range: { cited_by_count: { gte: 1 } } },
       field_value_factor: {
         field: 'cited_by_count',
-        factor: 0.01,
+        factor: 0.001,
         modifier: 'log1p',
       },
-      weight: 10,
+      weight: 1,
     },
-    // Works count
     {
       filter: { range: { works_count: { gte: 1 } } },
       field_value_factor: {
         field: 'works_count',
-        factor: 0.005,
+        factor: 0.0005,
         modifier: 'log1p',
       },
-      weight: 5,
+      weight: 0.5,
     },
   ];
 
   const shouldClauses: QueryDslQueryContainer[] = [
-    // Exact match on keyword fields
+    // Exact keyword matches (highest priority)
     {
-      multi_match: {
-        query: query,
-        fields: [
-          'title.keyword^10',
-          'primary_id.keyword^10',
-          'entity_type.keyword^5',
-          'publisher.keyword^5',
-          'issn.keyword^5',
-          'id.keyword^5',
+      bool: {
+        should: [
+          {
+            term: {
+              'title.keyword': {
+                value: query.toLowerCase(),
+                boost: 100,
+              },
+            },
+          },
+          {
+            term: {
+              'primary_id.keyword': {
+                value: query.toLowerCase(),
+                boost: 100,
+              },
+            },
+          },
+          {
+            term: {
+              'id.keyword': {
+                value: query.toLowerCase(),
+                boost: 100,
+              },
+            },
+          },
         ],
-        type: 'best_fields',
+        minimum_should_match: 1,
       },
     },
-    // match on text fields
+    // 80% threshold matches (high-medium priority)
+    {
+      bool: {
+        should: [
+          {
+            match: {
+              title: {
+                query: query,
+                minimum_should_match: '80%',
+                boost: 75,
+              },
+            },
+          },
+          {
+            match: {
+              primary_id: {
+                query: query,
+                minimum_should_match: '80%',
+                boost: 75,
+              },
+            },
+          },
+          {
+            match: {
+              'institution_data.display_name': {
+                query: query,
+                minimum_should_match: '80%',
+                boost: 75,
+              },
+            },
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    },
+    // Prefix matches (medium priority)
+    {
+      bool: {
+        should: [
+          {
+            prefix: {
+              'title.keyword': {
+                value: query.toLowerCase(),
+                boost: 50,
+              },
+            },
+          },
+          {
+            prefix: {
+              'primary_id.keyword': {
+                value: query.toLowerCase(),
+                boost: 50,
+              },
+            },
+          },
+          {
+            prefix: {
+              'id.keyword': {
+                value: query.toLowerCase(),
+                boost: 50,
+              },
+            },
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    },
+    // Text matches (lower priority)
     {
       multi_match: {
         query: query,
@@ -196,6 +279,8 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
           'subfield_display_name^2',
           'institution_data.display_name^2',
         ],
+        type: 'phrase_prefix',
+        boost: 10,
       },
     },
   ];
@@ -207,9 +292,10 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
 
   const functionScoreQuery: QueryDslFunctionScoreQuery = {
     query: { bool: boolQuery },
-    functions,
-    boost_mode: 'multiply' as QueryDslFunctionBoostMode,
-    score_mode: 'sum' as QueryDslFunctionScoreMode,
+    functions: boostFunctions,
+    boost_mode: 'sum' as QueryDslFunctionBoostMode,
+    score_mode: 'multiply' as QueryDslFunctionScoreMode,
+    min_score: 0.1,
   };
 
   return { function_score: functionScoreQuery };

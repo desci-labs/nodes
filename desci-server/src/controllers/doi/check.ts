@@ -1,17 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
-import { DoiError } from '../../core/doi/error.js';
-import {
-  BadRequestError,
-  RequestWithNode,
-  SuccessResponse,
-  doiService,
-  ensureUuidEndsWithDot,
-  logger as parentLogger,
-} from '../../internal.js';
+import { ApiError, BadRequestError, ForbiddenError, InternalError } from '../../core/ApiError.js';
+import { SuccessResponse } from '../../core/ApiResponse.js';
+import { DoiError, ForbiddenMintError } from '../../core/doi/error.js';
+import { logger as parentLogger } from '../../logger.js';
+import { RequestWithNode } from '../../middleware/authorisation.js';
 import { OpenAlexWork, transformInvertedAbstractToText } from '../../services/AutomatedMetadata.js';
-
+import { doiService } from '../../services/index.js';
 const pg = await import('pg').then((value) => value.default);
 const { Client } = pg;
 
@@ -29,11 +25,9 @@ export const checkMintability = async (req: RequestWithNode, res: Response, _nex
     await doiService.checkMintability(uuid);
     new SuccessResponse(true).send(res);
   } catch (err) {
-    logger.error(err, 'module:: checkMintability');
-    if (!(err instanceof DoiError)) {
-      // TODO: Sentry error reporting
-    }
     new SuccessResponse(false).send(res);
+    const error = err as DoiError;
+    logger.trace({ error, uuid }, 'checkMintabilityError');
   }
 };
 
@@ -71,28 +65,30 @@ export const retrieveDoi = async (req: Request, res: Response, _next: NextFuncti
 
   // pull record from openalex database
   const { rows } = await client.query(
-    `select pdf_url,
-    landing_page_url,
+    `select 
+    COALESCE(wol.pdf_url, '') as pdf_url,
+    COALESCE(wol.landing_page_url, '') as landing_page_url,
     works.title as title,
     works.id as works_id,
     works."type" as work_type,
     works.publication_year,
     works.cited_by_count as citation_count,
-    woa.oa_status,
-    source.publisher,
-    source.display_name as source_name,
+    COALESCE(woa.oa_status, 'unknown') as oa_status,
+    COALESCE(source.publisher, 'unknown') as publisher,
+    COALESCE(source.display_name, 'unknown') as source_name,
     ARRAY(
-        SELECT author.display_name as author_name FROM openalex.works_authorships wauth
-        left join openalex.authors author on author.id = wauth.author_id
+        SELECT author.display_name as author_name 
+        FROM openalex.works_authorships wauth
+        LEFT JOIN openalex.authors author on author.id = wauth.author_id
         WHERE wauth.work_id = works.id
     ) as authors
-  from openalex.works_best_oa_locations wol
-  left join openalex.works works on works.id  = wol.work_id
-  left JOIN openalex.works_authorships wa on works.id = wa.work_id
-  left JOIN openalex.works_open_access woa on woa.work_id = works.id
-  left JOIN openalex.sources source on source.id = wol.source_id
-  where works.doi = $1
-  GROUP BY wol.pdf_url, landing_page_url,title, works_id, work_type, citation_count, works.publication_year, woa.oa_status, source.publisher, source_name;`,
+from openalex.works works
+left join openalex.works_best_oa_locations wol on works.id = wol.work_id
+left join openalex.works_authorships wa on works.id = wa.work_id
+left join openalex.works_open_access woa on woa.work_id = works.id
+left join openalex.sources source on source.id = wol.source_id
+where works.doi = $1
+group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type", works.cited_by_count, works.publication_year, woa.oa_status, source.publisher, source.display_name;`,
     [doiLink],
   );
 

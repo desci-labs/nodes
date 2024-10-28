@@ -1,10 +1,13 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { ActionType, Node, Prisma, PublishTaskQueue, PublishTaskQueueStatus, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
+import { stdSerializers } from 'pino';
 
 import { prisma } from '../../client.js';
-import { attestationService } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
+import { delFromCache } from '../../redisClient.js';
+import { attestationService } from '../../services/Attestation.js';
+import { directStreamLookup } from '../../services/ceramic.js';
 import { getManifestByCid } from '../../services/data/processing.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
@@ -15,8 +18,9 @@ import {
   setCeramicStream,
   setDpidAlias,
 } from '../../services/nodeManager.js';
+import { emitNotificationOnPublish } from '../../services/NotificationService.js';
 import { publishServices } from '../../services/PublishServices.js';
-import { getIndexedResearchObjects } from '../../theGraph.js';
+import { _getIndexedResearchObjects, getIndexedResearchObjects } from '../../theGraph.js';
 import { discordNotify } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -60,10 +64,9 @@ async function updateAssociatedAttestations(nodeUuid: string, dpid: string) {
     },
   });
 }
-// call node publish service and add job to queue
+
 export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
   const { uuid, cid, manifest, transactionId, ceramicStream, commitId, useNewPublish } = req.body;
-  // debugger;
   const email = req.user.email;
   const logger = parentLogger.child({
     // id: req.id,
@@ -123,40 +126,8 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
 
     if (task) return res.status(400).json({ error: 'Node publishing in progress' });
 
-    // let publishTask: PublishTaskQueue | undefined;
     logger.info({ ceramicStream, commitId, uuid, owner: owner.id }, 'Triggering new publish flow');
     const dpidAlias = await syncPublish(ceramicStream, commitId, node, owner, cid, uuid, manifest);
-    // if (useNewPublish) {
-    // } else {
-    // publishTask = await prisma.publishTaskQueue.create({
-    //   data: {
-    //     cid,
-    //     dpid: manifest.dpid?.id,
-    //     userId: owner.id,
-    //     transactionId,
-    //     ceramicStream,
-    //     commitId,
-    //     uuid: ensureUuidEndsWithDot(uuid),
-    //     status: PublishTaskQueueStatus.WAITING,
-    //   },
-    // });
-    // }
-
-    saveInteraction(
-      req,
-      ActionType.PUBLISH_NODE,
-      {
-        cid,
-        dpid: dpidAlias?.toString() ?? manifest.dpid?.id,
-        userId: owner.id,
-        transactionId,
-        ceramicStream,
-        commitId,
-        uuid: ensureUuidEndsWithDot(uuid),
-        // status: PublishTaskQueueStatus.WAITING,
-      },
-      owner.id,
-    );
 
     updateAssociatedAttestations(node.uuid, dpidAlias ? dpidAlias.toString() : manifest.dpid?.id);
 
@@ -178,13 +149,41 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       version,
     });
 
+    // Make sure we don't serve stale manifest state when a publish is happening
+    delFromCache(`node-draft-${ensureUuidEndsWithDot(node.uuid)}`);
+
+    saveInteraction(
+      req,
+      ActionType.PUBLISH_NODE,
+      {
+        cid,
+        dpid: dpidAlias?.toString() ?? manifest.dpid?.id,
+        userId: owner.id,
+        transactionId,
+        ceramicStream,
+        commitId,
+        uuid: ensureUuidEndsWithDot(uuid),
+        outcome: 'SUCCESS',
+      },
+      owner.id,
+    );
+
     return res.send({
       ok: true,
       dpid: dpidAlias ?? parseInt(manifest.dpid?.id),
-      // taskId: publishTask?.id,
     });
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
+    saveInteraction(req, ActionType.PUBLISH_NODE, {
+      cid,
+      user: req.user,
+      transactionId,
+      ceramicStream,
+      commitId,
+      uuid: ensureUuidEndsWithDot(uuid),
+      outcome: 'FAILURE',
+      err: stdSerializers.errWithCause(err as Error),
+    });
     return res.status(400).send({ ok: false, error: err.message });
   }
 };
@@ -283,9 +282,15 @@ const syncPublish = async (
 
   await Promise.all(promises);
 
+  const dpid = dpidAlias?.toString() || legacyDpid?.toString();
   // Intentionally of above stacked promise, needs the DPID to be resolved!!!
   // Send emails coupled to the publish event
-  await publishServices.handleDeferredEmails(node.uuid, dpidAlias?.toString() || legacyDpid?.toString());
+  await publishServices.handleDeferredEmails(node.uuid, dpid);
+
+  /*
+   * Emit notification on publish
+   */
+  await emitNotificationOnPublish(node, owner, dpid);
 
   const targetDpidUrl = getTargetDpidUrl();
   discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
@@ -306,8 +311,39 @@ const createOrUpgradeDpidAlias = async (
   ceramicStream: string,
   uuid: string,
 ): Promise<number> => {
+  const logger = parentLogger.child({
+    module: 'NODE::createOrUpgradeDpidAlias',
+    legacyDpid,
+    ceramicStream,
+    uuid,
+  });
+
   let dpidAlias: number;
   if (legacyDpid) {
+    // Use subgraph lookup to ensure we don't get the owner from the stream and compare with itself
+    const legacyHistory = await _getIndexedResearchObjects([uuid]);
+
+    // On the initial legacy publish, the subgraph hasn't had time to index the event at this point.
+    // If it returns successfully, but array is empty, we can assume this is the first publish.
+    // and OK the check as there isn't any older history to contend with.
+    // This likely only happens in the legacy publish tests in nodes-lib, as legacy publish is disabled in the app.
+    const legacyOwner = legacyHistory.researchObjects[0]?.owner;
+
+    const streamInfo = await directStreamLookup(ceramicStream);
+    if ('err' in streamInfo) {
+      logger.error(streamInfo, 'Failed to load stream when doing checks before upgrade');
+      throw new Error('Failed to load stream');
+    }
+    const streamController = streamInfo.state.metadata.controllers[0].toLowerCase();
+    const differentOwner = legacyOwner?.toLowerCase() !== streamController.split(':').pop().toLowerCase();
+
+    // Caveat from above: if there was a legacyDpid, but no owner, we're likely in the middle of that process
+    // and nodes-lib has published both with the same key regardless
+    if (differentOwner && legacyOwner !== undefined) {
+      logger.error({ streamController, legacyOwner }, 'Legacy owner and stream controller differs');
+      throw new Error('Legacy owner and stream controller differs');
+    }
+
     // Requires the REGISTRY_OWNER_PKEY to be set in env
     dpidAlias = await upgradeDpid(legacyDpid, ceramicStream);
   } else {
@@ -471,10 +507,17 @@ export const publishHandler = async ({
     const targetDpidUrl = getTargetDpidUrl();
     discordNotify({ message: `${targetDpidUrl}/${manifest.dpid?.id}` });
 
+    const dpid = node.dpidAlias?.toString() ?? manifest.dpid?.id;
+
     /**
      * Fire off any deferred emails awaiting publish
      */
-    await publishServices.handleDeferredEmails(node.uuid, node.dpidAlias?.toString() ?? manifest.dpid?.id);
+    await publishServices.handleDeferredEmails(node.uuid, dpid);
+
+    /*
+     * Emit notification on publish
+     */
+    await emitNotificationOnPublish(node, owner, dpid);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version

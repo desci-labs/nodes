@@ -11,22 +11,20 @@ import {
   AttestationVersionNotFoundError,
   ClaimNotFoundError,
   CommunityNotFoundError,
-  CommunityRadarNode,
   DuplicateClaimError,
   DuplicateDataError,
   DuplicateReactionError,
   DuplicateVerificationError,
   NoAccessError,
-  NotFoundError,
   VerificationError,
   VerificationNotFoundError,
-  asyncMap,
-  ensureUuidEndsWithDot,
-  logger as parentLogger,
-  uuidPathRegex,
-} from '../internal.js';
-import { communityService } from '../internal.js';
+} from '../core/communities/error.js';
+import { logger as parentLogger } from '../logger.js';
+import { uuidPathRegex } from '../routes/v1/attestations/schema.js';
 import { AttestationClaimedEmailHtml } from '../templates/emails/utils/emailRenderer.js';
+import { asyncMap, ensureUuidEndsWithDot } from '../utils.js';
+
+import { CommunityRadarNode, communityService } from './Communities.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -1108,13 +1106,13 @@ export class AttestationService {
       to: member.user.email,
       from: 'no-reply@desci.com',
       subject: `[nodes.desci.com] ${versionedAttestation.name} claimed on DPID://${nodeDpid}/v${nodeVersion + 1}`,
-      text: `${user.name} just claimed ${versionedAttestation.name} on ${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}?claim=${nodeAttestation.id}`,
+      text: `${user.name} just claimed ${versionedAttestation.name} on ${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}/attestations/${nodeAttestation.id}`,
       html: AttestationClaimedEmailHtml({
         dpid: nodeDpid,
         attestationName: versionedAttestation.name,
         communityName: versionedAttestation.name,
         userName: user.name,
-        dpidPath: `${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}?claim=${nodeAttestation.id}`,
+        dpidPath: `${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}/attestations/${nodeAttestation.id}`,
       }),
     }));
 

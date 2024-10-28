@@ -14,8 +14,10 @@ import { convert0xHexToCid } from "./util/converting.js";
 import { getNodesLibInternalConfig } from "./config/index.js";
 import { Signer } from "ethers";
 import { authorizedSessionDidFromSigner } from "./util/signing.js";
-import { type DID } from"dids";
+import { type DID } from "dids";
 import { CID } from "multiformats";
+import { PublishError } from "./errors.js";
+import { errWithCause } from "pino-std-serializers";
 
 const LOG_CTX = "[nodes-lib::codex]";
 /**
@@ -32,7 +34,7 @@ const LOG_CTX = "[nodes-lib::codex]";
 export const codexPublish = async (
   prepublishResult: PrepublishResponse,
   dpidHistory: IndexedNodeVersion[],
-  didOrSigner: DID | Signer,
+  didOrSigner: DID | Signer
 ): Promise<NodeIDs> => {
   const nodeUrl = getNodesLibInternalConfig().ceramicNodeUrl;
   console.log(LOG_CTX, `starting publish with node ${nodeUrl}...`);
@@ -47,68 +49,79 @@ export const codexPublish = async (
   if (existingStreamID) {
     const stream = await ceramic.loadStream(existingStreamID);
     controller = stream.state.metadata.controllers[0];
-    controllerChainID = controller.match(/eip155:(\d+):/)?.[1]
-  };
+    controllerChainID = controller.match(/eip155:(\d+):/)!.at(1);
+  }
 
   if (didOrSigner instanceof Signer) {
     compose.setDID(
       // Wrangle a DID out of the signer for Ceramic auth
-      await authorizedSessionDidFromSigner(didOrSigner, compose.resources, controllerChainID)
+      await authorizedSessionDidFromSigner(
+        didOrSigner,
+        compose.resources,
+        controllerChainID
+      )
     );
   } else {
-  // NOTE: for a signer we can check and pass the controller EIP155 chainID, but we can't edit that if it's a preauthorized DID
-    if (didOrSigner.parent !== controller) {
-      console.warn(
-        `[nodes-lib::codex] DID and controller mismatch, is the chainID set correctly?`,
-        { didParent: didOrSigner.parent, streamController: controller },
+    // NOTE: for a signer we can check and pass the controller EIP155 chainID, but we can't edit that if it's a preauthorized DID
+    if (controller !== undefined && didOrSigner.parent !== controller) {
+      console.error(
+        `${LOG_CTX} DID and controller mismatch, is the chainID set correctly?`,
+        { didParent: didOrSigner.parent, streamController: controller }
       );
-    };
+      throw PublishError.wrongOwner(
+        "DID and controller mismatch; is the chainID set correctly?",
+        controller,
+        didOrSigner.parent
+      );
+    }
     compose.setDID(didOrSigner);
-  };
+  }
 
-  // If we know about a stream already, let's assume we backfilled it initially
-  if (existingStreamID) {
-    console.log(LOG_CTX, `publishing to known stream ${existingStreamID}...`);
-    const ro = await updateResearchObject(compose, {
-      id: existingStreamID,
-      title: prepublishResult.updatedManifest.title,
-      manifest: prepublishResult.updatedManifestCid,
+  let ids: NodeIDs;
+  try {
+    if (existingStreamID) {
+      // We know about the stream already; let's assume we backfilled initially
+      console.log(`${LOG_CTX} publishing to known stream...`, {
+        streamID: existingStreamID,
+      });
+      ids = await updateResearchObject(compose, {
+        id: existingStreamID,
+        title: prepublishResult.updatedManifest.title,
+        manifest: prepublishResult.updatedManifestCid,
+      });
+      console.log(`${LOG_CTX} successfully updated research object`, ids);
+    } else if (dpidHistory.length === 0) {
+      console.log(`${LOG_CTX} publishing to new stream...`);
+      ids = await createResearchObject(compose, {
+        title: prepublishResult.updatedManifest.title || "",
+        manifest: prepublishResult.updatedManifestCid,
+        license: prepublishResult.updatedManifest.defaultLicense || "",
+      });
+      console.log(`${LOG_CTX} published to new stream`, ids);
+    } else {
+      console.log(`${LOG_CTX} backfilling new stream to mirror history...`, {
+        dpidHistory,
+      });
+      const streamID = await backfillNewStream(compose, dpidHistory);
+      console.log(`${LOG_CTX} backfill done, appending latest event...`);
+      ids = await updateResearchObject(compose, {
+        id: streamID,
+        title: prepublishResult.updatedManifest.title,
+        manifest: prepublishResult.updatedManifestCid,
+      });
+      console.log(`${LOG_CTX} successfully appended latest update`, ids);
+    }
+  } catch (e) {
+    console.error(`${LOG_CTX} failed to update reseach object`, {
+      existingStreamID,
+      err: errWithCause(e as Error),
     });
-    console.log(
-      `[nodes-lib::codex] successfully updated ${ro.streamID} with commit ${ro.commitID}`
+    throw PublishError.ceramicWrite(
+      "Failed to write research object",
+      e as Error
     );
-    return { streamID: ro.streamID, commitID: ro.commitID };
-  };
-
-  // Otherwise, create a new stream, potentially backfilling it with
-  // earlier updates.
-  if (dpidHistory.length === 0) {
-    console.log(LOG_CTX, "publishing to new stream...");
-    const ro = await createResearchObject(compose, {
-      title: prepublishResult.updatedManifest.title || "",
-      manifest: prepublishResult.updatedManifestCid,
-      license: prepublishResult.updatedManifest.defaultLicense || "",
-    });
-    console.log(
-      LOG_CTX,
-      `published to new stream ${ro.streamID} with commit ${ro.commitID}`
-    );
-    return { streamID: ro.streamID, commitID: ro.commitID };
-  } else {
-    console.log(LOG_CTX, "backfilling new stream to mirror history...");
-    const streamID = await backfillNewStream(compose, dpidHistory);
-
-    console.log(LOG_CTX, "backfill done, appending latest event...");
-    const ro = await updateResearchObject(compose, {
-      id: streamID,
-      title: prepublishResult.updatedManifest.title,
-      manifest: prepublishResult.updatedManifestCid,
-    });
-    console.log(
-      `[nodes-lib::codex] successfully updated ${ro.streamID} with commit ${ro.commitID}`
-    );
-    return { streamID: ro.streamID, commitID: ro.commitID };
-  };
+  }
+  return ids;
 };
 
 /**
@@ -119,8 +132,8 @@ export const codexPublish = async (
  * @returns ID of the new stream
  */
 const backfillNewStream = async (
-    compose: ComposeClient,
-    versions: IndexedNodeVersion[]
+  compose: ComposeClient,
+  versions: IndexedNodeVersion[]
 ): Promise<string> => {
   console.log(
     LOG_CTX,
@@ -153,9 +166,12 @@ const backfillNewStream = async (
       manifest = CID.parse(nextVersion.cid).toString();
     } catch (e) {
       // Otherwise, fall back to hex decoding old style representation
-      console.log(LOG_CTX, `got non-plaintext CID for backfill: ${nextVersion.cid}`);
+      console.log(
+        `${LOG_CTX} got non-plaintext CID in next version to backfill`,
+        { nextVersion }
+      );
       manifest = convert0xHexToCid(nextVersion.cid);
-    };
+    }
 
     const op =
       streamID === ""
@@ -173,24 +189,22 @@ const backfillNewStream = async (
 
 /**
  * Get full historical publish state of a research object.
-*/
-export const getFullState = async (
-  streamID: string,
-) => {
+ */
+export const getFullState = async (streamID: string) => {
   const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
   const compose = newComposeClient({ ceramic });
-  const resolved = await queryResearchObject(
+  const resolved = (await queryResearchObject(
     compose,
     streamID,
     "owner { id } manifest"
-  ) as unknown as { owner: { id: string }, manifest: string};
+  )) as unknown as { owner: { id: string }; manifest: string };
 
-  console.log(JSON.stringify(resolved))
+  console.log(JSON.stringify(resolved));
 
   if (!resolved) {
     console.log("Failed to resolve research object:", { streamID });
     throw new Error("codex resolution failed");
-  };
+  }
 
   const events = await getCodexHistory(streamID);
   return {
@@ -202,10 +216,8 @@ export const getFullState = async (
 
 /**
  * Get the state of a research object as published on Codex.
-*/
-export const getCurrentState = async (
-  streamID: string
-) => {
+ */
+export const getCurrentState = async (streamID: string) => {
   const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
   const compose = newComposeClient({ ceramic });
 
@@ -214,20 +226,16 @@ export const getCurrentState = async (
 
 /**
  * Get the historical events for a given stream.
-*/
-export const getCodexHistory = async (
-  streamID: string
-) => {
+ */
+export const getCodexHistory = async (streamID: string) => {
   const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
   return await resolveHistory(ceramic, streamID);
 };
 
 /**
  * Get the raw stream state for a streamID.
-*/
-export const getRawState = async (
-  streamID: string
-) => {
+ */
+export const getRawState = async (streamID: string) => {
   const ceramic = newCeramicClient(getNodesLibInternalConfig().ceramicNodeUrl);
   return await streams.loadID(ceramic, streams.StreamID.fromString(streamID));
 };

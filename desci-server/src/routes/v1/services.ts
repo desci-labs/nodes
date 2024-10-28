@@ -3,8 +3,8 @@ import multer from 'multer';
 
 import { ephemeralThumbnail } from '../../controllers/proxy/ephemeralThumbnail.js';
 import { orcidDid, orcidProfile } from '../../controllers/proxy/orcidProfile.js';
-import { ensureUser } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
+import { ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
 

@@ -2,13 +2,10 @@
 import 'dotenv/config';
 import 'reflect-metadata';
 import * as child from 'child_process';
-// import fs from 'fs';
 import type { Server as HttpServer } from 'http';
-// import path from 'path';
 
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
-// import * as Tracing from '@sentry/tracing';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
@@ -16,22 +13,27 @@ import type { Express, Request } from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { pinoHttp } from 'pino-http';
+import { Server as SocketIOServer } from 'socket.io';
 import { v4 } from 'uuid';
 
-import { prisma } from './client.js';
-// eslint-disable-next-line import/order
-import routes from './routes/index.js';
 import { orcidConnect } from './controllers/auth/orcid.js';
 import { orcidCheck } from './controllers/auth/orcidNext.js';
-// import SocketServer from './wsServer.js';
-import { NotFoundError, RequestWithUser, extractAuthToken, extractUserFromToken } from './internal.js';
-import { als, logger } from './logger.js';
+import { NotFoundError } from './core/ApiError.js';
+import { als, logger as parentLogger } from './logger.js';
+import { RequestWithUser } from './middleware/authorisation.js';
 import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
+import routes from './routes/index.js';
+import { initializeWebSocketServer } from './websocketServer.js';
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 import { runWorkerUntilStopped } from './workers/publish.js';
 
 // const __dirname = path.dirname(__filename);
+
+const logger = parentLogger.child({
+  module: 'server.ts',
+});
 
 const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
 const IS_DEV = !ENABLE_TELEMETRY;
@@ -65,6 +67,8 @@ class AppServer {
   app: Express;
   server: HttpServer;
   port: number;
+
+  private _io: SocketIOServer | null = null;
 
   constructor() {
     this.app = express();
@@ -145,6 +149,7 @@ class AppServer {
       this.#isReady = true;
       this.#readyResolvers.forEach((resolve) => resolve(true));
       console.log(`Server running on port ${this.port}`);
+      if (process.env.NODE_ENV !== 'test') this.#attachWebsockets();
     });
 
     // start jobs
@@ -163,6 +168,32 @@ class AppServer {
     return new Promise((resolve) => {
       this.#readyResolvers.push(resolve);
     });
+  }
+
+  async #attachWebsockets() {
+    const maxRetries = 3;
+    let retries = 0;
+    const retryTimeout = 5000;
+
+    while (retries < maxRetries) {
+      try {
+        this._io = await initializeWebSocketServer(this.server);
+        this.app.set('io', this._io);
+        logger.info('WebSocket server initialized successfully');
+        return;
+      } catch (error) {
+        retries++;
+        logger.error({ error, retries }, 'Failed to initialize WebSocket server, retrying...');
+        await new Promise((resolve) => setTimeout(resolve, retryTimeout));
+      }
+    }
+
+    logger.error('Failed to initialize WebSocket server after maximum retries');
+  }
+
+  // websockets getter
+  get io(): SocketIOServer | null {
+    return this._io;
   }
 
   #attachRouteHandlers() {

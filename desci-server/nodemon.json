@@ -4,6 +4,6 @@
   "ignore": ["log/server.log"],
   "verbose": true,
   "exec": "node -r ts-node/register --inspect=0.0.0.0:9228",
-  "delay": 1000,
+  "delay": 1337,
   "signal": "SIGTERM"
 }

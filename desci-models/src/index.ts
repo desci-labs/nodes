@@ -5,3 +5,4 @@ export * from './trees/treeTools';
 export * from './trees/treeTypes';
 export * from './automerge';
 export * from './fields';
+export * from './actions';

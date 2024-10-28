@@ -3,21 +3,16 @@ import sgMail from '@sendgrid/mail';
 import { Request, Response, NextFunction } from 'express';
 import _ from 'lodash';
 
+import { prisma } from '../../client.js';
+import { BadRequestError } from '../../core/ApiError.js';
+import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { MintError } from '../../core/doi/error.js';
-import {
-  BadRequestError,
-  NotFoundError,
-  SuccessMessageResponse,
-  SuccessResponse,
-  crossRefClient,
-  doiService,
-  ensureUuidEndsWithDot,
-  logger as parentLogger,
-  prisma,
-} from '../../internal.js';
+import { logger as parentLogger } from '../../logger.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
+import { crossRefClient, doiService } from '../../services/index.js';
 import { DoiMintedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
-import { discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
+import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export const mintDoi = async (req: Request, res: Response, _next: NextFunction) => {
   const { uuid } = req.params;
@@ -33,6 +28,7 @@ export const mintDoi = async (req: Request, res: Response, _next: NextFunction) 
 
     const targetDpidUrl = getTargetDpidUrl();
     discordNotify({
+      channel: DiscordChannel.DoiMinting,
       type: DiscordNotifyType.INFO,
       title: 'Mint DOI',
       message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
@@ -68,10 +64,11 @@ export const handleCrossrefNotificationCallback = async (
     return;
   }
 
-  if (submission.status === DoiStatus.SUCCESS) {
-    new SuccessMessageResponse().send(res);
-    return;
-  }
+  // if (submission.status === DoiStatus.SUCCESS) {
+  //   logger.trace({ payload: req.payload }, 'Crossref Notifiication: submission ');
+  //   new SuccessMessageResponse().send(res);
+  //   return;
+  // }
 
   await doiService.updateSubmission({ id: submission.id }, { notification: req.payload });
   logger.info('SUBMISSION UPDATED');
@@ -92,6 +89,7 @@ export const handleCrossrefNotificationCallback = async (
 
       // send discord notification
       discordNotify({
+        channel: DiscordChannel.DoiMinting,
         type: DiscordNotifyType.SUCCESS,
         title: 'DOI Registration successful 🎉',
         message: `${targetDpidUrl}/${submission.dpid} was assigned a DOI: ${submission.uniqueDoi}`,
@@ -113,7 +111,8 @@ export const handleCrossrefNotificationCallback = async (
           dpid: submission.dpid,
           userName: node.owner.name.split(' ')?.[0] ?? '',
           dpidPath: `${process.env.DAPP_URL}/dpid/${submission.dpid}`,
-          doi: `${process.env.CROSSREF_DOI_URL}/${submission.uniqueDoi}`,
+          doi: submission.uniqueDoi,
+          doiLink: `${process.env.CROSSREF_DOI_URL}/${submission.uniqueDoi}`,
           nodeTitle: node.title,
         }),
       };
@@ -138,7 +137,8 @@ export const handleCrossrefNotificationCallback = async (
 
       // send discord notification
       discordNotify({
-        type: DiscordNotifyType.SUCCESS,
+        channel: DiscordChannel.DoiMinting,
+        type: DiscordNotifyType.ERROR,
         title: 'DOI Registration Inconclusive ❌',
         message: `Check ${req.payload.retrieveUrl} for more details. Node: ${targetDpidUrl}/${submission.dpid}`,
       });

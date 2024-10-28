@@ -1,7 +1,9 @@
 import { CronJob } from 'cron';
 
-import { asyncMap, doiService, logger as parentLogger } from '../internal.js';
+import { logger as parentLogger } from '../logger.js';
+import { doiService } from '../services/index.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../utils/discordUtils.js';
+import { asyncMap } from '../utils.js';
 
 const logger = parentLogger.child({ module: 'DoiSubmissionJob' });
 
@@ -21,8 +23,8 @@ const pingDoi = async (doi: string) => {
  */
 export const onTick = async () => {
   const pendingSubmissions = await doiService.getPendingSubmissions();
-  logger.info({ pendingSubmissions }, 'pending submission');
   if (pendingSubmissions.length === 0) return;
+  logger.info({ pendingSubmissions }, 'pending submission');
   const processed = await asyncMap(pendingSubmissions, async (job) => {
     const isResolved = await pingDoi(job.uniqueDoi);
     if (isResolved) {

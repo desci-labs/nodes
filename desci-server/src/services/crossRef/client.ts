@@ -177,6 +177,7 @@ class CrossRefClient {
   async registerDoi(query: {
     manifest: ResearchObjectV1;
     doi: string;
+    dpid: string;
     publicationDate: PublicationDate;
   }): Promise<RegisterDoiResponse> {
     const contributors = await asyncMap(query.manifest.authors ?? [], async (author, index) => {
@@ -210,9 +211,9 @@ class CrossRefClient {
       _: {
         batchId,
         timestamp: Date.now(),
-        dpid: query.manifest.dpid.id,
+        dpid: query.dpid,
         doi: query.doi,
-        doiResource: `${process.env.DPID_URL_OVERRIDE}/${query.manifest.dpid.id}`,
+        doiResource: `${process.env.DPID_URL_OVERRIDE}/${query.dpid}`,
         title: query.manifest.title,
         registrant: 'DeSci Labs AG',
         contributors,

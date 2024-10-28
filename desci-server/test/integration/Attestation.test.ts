@@ -21,20 +21,16 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
-import { app } from '../../src/index.js';
+import { NodeAttestationFragment } from '../../src/controllers/attestations/show.js';
+import { Engagement, NodeRadar, NodeRadarItem } from '../../src/controllers/communities/types.js';
 import {
-  AllAttestation,
-  CommunityAttestation,
   DuplicateReactionError,
   DuplicateVerificationError,
-  Engagement,
-  NodeAttestationFragment,
-  NodeRadar,
-  NodeRadarItem,
   VerificationError,
-  attestationService,
-  communityService,
-} from '../../src/internal.js';
+} from '../../src/core/communities/error.js';
+import { app } from '../../src/index.js';
+import { AllAttestation, attestationService, CommunityAttestation } from '../../src/services/Attestation.js';
+import { communityService } from '../../src/services/Communities.js';
 import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
 import { randomUUID64 } from '../../src/utils.js';
 import { createDraftNode, createUsers } from '../util.js';
@@ -2257,6 +2253,7 @@ describe('Attestations Service', async () => {
         authorId: members[0].userId,
         claimId: openCodeClaim.id,
         body: 'review 1',
+        uuid: openCodeClaim.nodeUuid,
       };
       let res = await request(app)
         .post(`/v1/attestations/comments`)
@@ -2268,6 +2265,7 @@ describe('Attestations Service', async () => {
         authorId: members[1].userId,
         claimId: openCodeClaim.id,
         body: 'review 2',
+        uuid: openCodeClaim.nodeUuid,
       };
       res = await request(app).post(`/v1/attestations/comments`).set('authorization', memberAuthHeaderVal2).send(body);
       expect(res.statusCode).to.equal(200);
@@ -2286,6 +2284,7 @@ describe('Attestations Service', async () => {
           authorId: users[1].id,
           claimId: openCodeClaim.id,
           body: 'review 1',
+          uuid: openCodeClaim.nodeUuid,
         });
       expect(apiResponse.statusCode).to.equal(401);
 

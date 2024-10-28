@@ -122,6 +122,12 @@ export const logger = pino({
       '*.authorization',
       '*.Authorization',
       'Authorization',
+      'access_token',
+      'refresh_token',
+      '*.access_token',
+      '*.refresh_token',
+      'jwtToken',
+      '*.jwtToken',
     ],
   },
 });
@@ -132,14 +138,3 @@ function omitBuffer(array) {
     return rest;
   });
 }
-
-// These should probably exit the process as it is not safe to continue
-// execution after a generic exception has occurred:
-// https://nodejs.org/api/process.html#warning-using-uncaughtexception-correctly
-process.on('uncaughtException', (err) => {
-  logger.fatal(err, 'uncaught exception');
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  logger.fatal({ reason, promise }, 'unhandled rejection');
-});

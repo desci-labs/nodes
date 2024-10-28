@@ -1,6 +1,7 @@
 import { User } from '@prisma/client';
 import { NextFunction, Request as ExpressRequest, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { Socket, ExtendedError } from 'socket.io';
 
 import { prisma } from '../client.js';
 import { hashApiKey } from '../controllers/auth/utils.js';
@@ -21,6 +22,7 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
   const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
 
   if (!retrievedUser) {
+    // logger.trace({ token, apiKey }, 'ENSURE USER');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
   } else {
     (req as any).user = retrievedUser;
@@ -48,6 +50,50 @@ export const extractAuthToken = async (request: ExpressRequest | Request) => {
   }
 
   return token;
+};
+
+export interface AuthenticatedSocket extends Socket {
+  data: {
+    userId: number | string;
+  };
+}
+
+/**
+ * Socket.IO WS: Authentication Middleware
+ */
+export const socketsEnsureUser = async (socket: Socket, next: (err?: ExtendedError) => void) => {
+  // debugger;
+  const cookies = parseWsCookies(socket.handshake.headers.cookie);
+  if (!cookies) {
+    return next(new Error('Authentication error: No cookies provided'));
+  }
+  const token = cookies[AUTH_COOKIE_FIELDNAME] as string | undefined;
+  const ip =
+    socket.handshake.headers['x-forwarded-for'] ||
+    socket.handshake.address ||
+    socket.handshake.headers['x-real-ip'] ||
+    socket.conn.remoteAddress;
+
+  logger.trace({ module: 'SocketEnsureUser Middleware', ip }, 'Attempting socketIO auth');
+
+  if (!token) {
+    logger.trace({ module: 'SocketEnsureUser Middleware', token, ip }, 'No token provided');
+    return next(new Error('Authentication error: No token provided'));
+  }
+
+  try {
+    const extractedUser = await extractUserFromToken(token);
+    if (!extractedUser) {
+      logger.trace({ module: 'SocketEnsureUser Middleware', ip }, 'Invalid token provided');
+      return next(new Error('Authentication error: Invalid token provided'));
+    }
+
+    (socket as AuthenticatedSocket).data.userId = extractedUser.id;
+    next();
+  } catch (error) {
+    logger.error({ module: 'SocketEnsureUser Middleware', error, ip }, 'Authentication error');
+    next(new Error('Authentication error: Server error'));
+  }
 };
 
 /**
@@ -190,3 +236,17 @@ export const extractUserFromApiKey = (apiKey: string, ip: string): Promise<User 
     resolve(retrievedUser);
   });
 };
+
+/*
+ ** Parse cookies from a WebSocket connection header
+ */
+function parseWsCookies(cookieString: string): { [key: string]: string } {
+  return cookieString?.split(';').reduce(
+    (cookies, cookie) => {
+      const [name, value] = cookie.trim().split('=');
+      cookies[name] = decodeURIComponent(value);
+      return cookies;
+    },
+    {} as { [key: string]: string },
+  );
+}

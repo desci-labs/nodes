@@ -5,9 +5,9 @@ import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
-import { resolveNodeManifest } from '../../internal.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
+import { resolveNodeManifest } from '../../utils/manifest.js';
 import { asyncMap, decodeBase64UrlSafeToHex, randomUUID64 } from '../../utils.js';
 
 const logger = parentLogger.child({

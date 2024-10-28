@@ -2,21 +2,16 @@ import { ActionType, CommunityEntryAttestation, EmailType } from '@prisma/client
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
-import {
-  AuthFailureError,
-  NotFoundError,
-  SuccessMessageResponse,
-  SuccessResponse,
-  asyncMap,
-  attestationService,
-  ensureUuidEndsWithDot,
-  logger,
-  prisma,
-} from '../../internal.js';
+import { prisma } from '../../client.js';
+import { AuthFailureError, NotFoundError } from '../../core/ApiError.js';
+import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
+import { logger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
+import { attestationService } from '../../services/Attestation.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
+import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
 export const claimAttestation = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
   const body = req.body as {

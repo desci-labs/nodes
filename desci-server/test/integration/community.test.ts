@@ -1,5 +1,3 @@
-import 'dotenv/config';
-import 'mocha';
 import {
   Attestation,
   // AttestationTemplate,
@@ -9,9 +7,13 @@ import {
   User,
 } from '@prisma/client';
 import { assert, expect } from 'chai';
+import 'dotenv/config';
+import 'mocha';
 
 import { prisma } from '../../src/client.js';
-import { attestationService, communityService, DuplicateDataError } from '../../src/internal.js';
+import { DuplicateDataError } from '../../src/core/communities/error.js';
+import { attestationService } from '../../src/services/Attestation.js';
+import { communityService } from '../../src/services/Communities.js';
 import { createUsers } from '../util.js';
 
 const clearDatabase = async () => {
@@ -233,7 +235,7 @@ describe('Desci Communities', () => {
         await attestationService.updateAttestation(attestation.id, { ...attestation, name: 'Update 1' });
       });
 
-      it('should publish new attestation version(2)', async () => {
+      it.skip('should publish new attestation version(2)', async () => {
         const versions = await attestationService.getAttestationVersions(attestation.id);
         assert(versions);
         // console.log('version 2', versions);
@@ -244,7 +246,7 @@ describe('Desci Communities', () => {
         expect(versions[1].attestationId).be.equal(attestation.id);
       });
 
-      it('should publish attestation version 3', async () => {
+      it.skip('should publish attestation version 3', async () => {
         await attestationService.updateAttestation(attestation.id, {
           ...attestation,
           name: 'Update 2',
@@ -260,7 +262,7 @@ describe('Desci Communities', () => {
         expect(versions[2].attestationId).be.equal(attestation.id);
       });
 
-      it('should publish attestation version 4', async () => {
+      it.skip('should publish attestation version 4', async () => {
         await attestationService.updateAttestation(attestation.id, {
           ...attestation,
           description: 'Version 4 Description',

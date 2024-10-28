@@ -41,6 +41,6 @@
     "sourceRoot": "/"
   },
   "include": ["./src/**/*.tsx", "./src/**/*.ts", "./src/**/*.cjs", "src/utils/dagConcat.ts"],
-  "exclude": ["test/**/*.ts"],
+  "exclude": ["./test/**/*.ts"],
   "compileOnSave": true
 }

@@ -1,18 +1,16 @@
 import { Router } from 'express';
 
 import {
-  asyncHandler,
-  checkMemberGuard,
-  ensureUser,
-  getAllFeeds,
-  getCommunityDetails,
-  getCommunityFeed,
-  getCommunityRadar,
   getCommunityRecommendations,
   getValidatedAttestations,
-  listCommunities,
-  validate,
-} from '../../../internal.js';
+} from '../../../controllers/attestations/recommendations.js';
+import { getAllFeeds, getCommunityDetails, getCommunityFeed } from '../../../controllers/communities/feed.js';
+import { checkMemberGuard } from '../../../controllers/communities/guard.js';
+import { listCommunities } from '../../../controllers/communities/list.js';
+import { getCommunityRadar } from '../../../controllers/communities/radar.js';
+import { ensureUser } from '../../../middleware/permissions.js';
+import { validate } from '../../../middleware/validator.js';
+import { asyncHandler } from '../../../utils/asyncHandler.js';
 
 import { getCommunityDetailsSchema, getCommunityFeedSchema, memberGuardSchema } from './schema.js';
 

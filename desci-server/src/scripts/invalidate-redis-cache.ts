@@ -2,13 +2,13 @@ import { isNodeRoot } from '@desci-labs/desci-models';
 import axios from 'axios';
 
 import { logger as parentLogger } from '../logger.js';
-import redisClient from '../redisClient.js';
+import { redisClient } from '../redisClient.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
 import { hexToCid } from '../utils.js';
 
 const logger = parentLogger.child({ module: 'SCRIPTS::invalidateRedisKeys' });
-/* 
+/*
 
 Usage Examples:
 invalidateByUuid:     OPERATION=invalidateByUuid NODE_UUID=noDeUuiD. npm run script:invalidate-redis-cache
