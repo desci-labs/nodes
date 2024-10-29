@@ -227,7 +227,7 @@ class CrossRefClient {
 
     const metadata = Remixml.parse2txt(metadataTemplate, param);
 
-    const url = `${process.env.CROSSREF_METADATA_API}?operation=doMDUpload&login_id=${process.env.CROSSREF_LOGIN || 'dslb'}&login_passwd=${process.env.CROSSREF_PASSWORD || 'pgz6wze1fmg-RPN_qkv'}`;
+    const url = `${process.env.CROSSREF_METADATA_API}?operation=doMDUpload&login_id=${process.env.CROSSREF_LOGIN}/dslb&login_passwd=${process.env.CROSSREF_PASSWORD}`;
     logger.info({ param, metadata, url }, 'METADATA TO POST');
     const buffer = Buffer.from(metadata, 'utf8');
 
