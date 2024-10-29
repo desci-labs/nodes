@@ -311,14 +311,13 @@ const debugMigration = async (uuid?: string, stream?: DebugStreamResponse): Prom
   const ownerMatches = streamController?.toLowerCase() === legacyOwner?.toLowerCase();
 
   // All Versions Migrated check
-  const streamManifestCids = streamResearchObject.versions.map((v) => v.cid);
-  const legacyManifestCids = legacyHistory.versions.map((v) => v.cid);
+  const streamManifestCids = streamResearchObject.versions.map((v) => hexToCid(v.cid));
+  const legacyManifestCids = legacyHistory.versions.map((v) => hexToCid(v.cid));
 
-  const zipped = Array.from(Array(Math.max(streamManifestCids.length, legacyManifestCids.length)), (_, i) => {
-    const legacyManifestCid = legacyManifestCids[i] ? hexToCid(legacyManifestCids[i]) : null;
-    const streamManifestCid = streamManifestCids[i] ? hexToCid(streamManifestCids[i]) : null;
-    return [legacyManifestCid, streamManifestCid] as [string, string];
-  });
+  const zipped = Array.from(
+    Array(Math.max(streamManifestCids.length, legacyManifestCids.length)),
+    (_, i) => [legacyManifestCids[i], streamManifestCids[i]] as [string, string],
+  );
 
   const allVersionsOrdered = zipped.every(([legacyCid, streamCid]) => !legacyCid || legacyCid === streamCid);
   const allVersionsPresent = legacyManifestCids.map((cid, i) => streamManifestCids[i] === cid).every(Boolean);
@@ -348,7 +347,15 @@ const debugIndexer = async (uuid: string, shouldExist: boolean) => {
     return { error: shouldExist, result: null };
   }
 
-  return { error: false, nVersions: result.versions.length, result };
+  const withDecodedCid = {
+    ...result,
+    versions: result.versions.map((v) => ({
+      ...v,
+      _decoded: hexToCid(v.cid),
+    })),
+  };
+
+  return { error: false, nVersions: result.versions.length, result: withDecodedCid };
 };
 
 const debugDb = async (node: NodeDbClosure) => {
