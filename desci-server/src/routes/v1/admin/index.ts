@@ -17,8 +17,8 @@ router.get('/analytics', [ensureUser, ensureAdmin], getAnalytics);
 router.get('/analytics/csv', [ensureUser, ensureAdmin], createCsv);
 router.get('/doi/list', [ensureUser, ensureAdmin], listDoiRecords);
 
-router.get('/debug', [ensureUser, ensureAdmin], debugAllNodesHandler);
-router.get('/debug/:uuid', [ensureUser, ensureAdmin], debugNodeHandler);
+router.get('/debug', [ensureUser, ensureAdmin], asyncHandler(debugAllNodesHandler));
+router.get('/debug/:uuid', [ensureUser, ensureAdmin], asyncHandler(debugNodeHandler));
 
 router.use('/communities', [ensureUser, ensureAdmin], communities);
 router.get('/attestations', [ensureUser, ensureAdmin], asyncHandler(listAttestations));
