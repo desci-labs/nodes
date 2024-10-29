@@ -311,8 +311,8 @@ const debugMigration = async (uuid?: string, stream?: DebugStreamResponse): Prom
   const ownerMatches = streamController?.toLowerCase() === legacyOwner?.toLowerCase();
 
   // All Versions Migrated check
-  const streamManifestCids = streamResearchObject.versions.map((v) => hexToCid(v.cid));
-  const legacyManifestCids = legacyHistory.versions.map((v) => hexToCid(v.cid));
+  const streamManifestCids = streamResearchObject.versions.map((v) => hexToCid(v.cid)).reverse();
+  const legacyManifestCids = legacyHistory.versions.map((v) => hexToCid(v.cid)).reverse();
 
   const zipped = Array.from(
     Array(Math.max(streamManifestCids.length, legacyManifestCids.length)),
