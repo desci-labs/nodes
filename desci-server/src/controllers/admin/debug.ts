@@ -6,7 +6,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { directStreamLookup, RawStream } from '../../services/ceramic.js';
 import { getAliasRegistry, getHotWallet } from '../../services/chain.js';
 import { _getIndexedResearchObjects, getIndexedResearchObjects, IndexedResearchObject } from '../../theGraph.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
+import { ensureUuidEndsWithDot, hexToCid } from '../../utils.js';
 
 const logger = parentLogger.child({ module: 'ADMIN::DebugController' });
 
@@ -119,6 +119,7 @@ type NodeDebugReport =
   | {
       createdAt: Date;
       updatedAt: Date;
+      uuid: string;
       hasError: boolean;
       nVersionsAgree: boolean;
       stream: any;
@@ -165,6 +166,7 @@ const debugNode = async (uuid: string): Promise<NodeDebugReport> => {
   return {
     createdAt: node.createdAt,
     updatedAt: node.updatedAt,
+    uuid: node.uuid,
     hasError,
     nVersionsAgree,
     stream,
@@ -233,15 +235,15 @@ const debugStream = async (stream?: string): Promise<DebugStreamResponse> => {
   };
 };
 
-const debugDpid = async (dpid?: number) => {
-  if (!dpid) return { present: false, error: false };
+const debugDpid = async (dpidAlias?: number) => {
+  if (!dpidAlias) return { present: false, error: false };
 
   let mappedStream: string;
   try {
     const wallet = await getHotWallet();
     const registry = getAliasRegistry(wallet);
 
-    mappedStream = await registry.resolve(dpid);
+    mappedStream = await registry.resolve(dpidAlias);
   } catch (e) {
     const err = e as Error;
     return { present: true, error: true, name: err.name, msg: err.message, stack: err.stack };
@@ -251,7 +253,7 @@ const debugDpid = async (dpid?: number) => {
     return { present: true, error: true, mappedStream: null };
   }
 
-  return { present: true, error: false, mappedStream };
+  return { present: true, dpidAlias, error: false, mappedStream };
 };
 
 type DebugMigrationReponse =
@@ -309,8 +311,8 @@ const debugMigration = async (uuid?: string, stream?: DebugStreamResponse): Prom
   const ownerMatches = streamController?.toLowerCase() === legacyOwner?.toLowerCase();
 
   // All Versions Migrated check
-  const streamManifestCids = streamResearchObject.versions.map((v) => v.cid);
-  const legacyManifestCids = legacyHistory.versions.map((v) => v.cid);
+  const streamManifestCids = streamResearchObject.versions.map((v) => hexToCid(v.cid)).reverse();
+  const legacyManifestCids = legacyHistory.versions.map((v) => hexToCid(v.cid)).reverse();
 
   const zipped = Array.from(
     Array(Math.max(streamManifestCids.length, legacyManifestCids.length)),
@@ -345,7 +347,15 @@ const debugIndexer = async (uuid: string, shouldExist: boolean) => {
     return { error: shouldExist, result: null };
   }
 
-  return { error: false, nVersions: result.versions.length, result };
+  const withDecodedCid = {
+    ...result,
+    versions: result.versions.map((v) => ({
+      ...v,
+      _decoded: hexToCid(v.cid),
+    })),
+  };
+
+  return { error: false, nVersions: result.versions.length, result: withDecodedCid };
 };
 
 const debugDb = async (node: NodeDbClosure) => {
