@@ -15,6 +15,7 @@ declare namespace NodeJS {
     CROSSREF_METADATA_API: string;
     ORCID_API_DOMAIN: string;
     CROSSREF_LOGIN: string;
+    CROSSREF_LOGIN_ROLE: string;
     CROSSREF_PASSWORD: string;
     CROSSREF_NOTIFY_ENDPOINT: string;
     CROSSREF_API_KEY: string;

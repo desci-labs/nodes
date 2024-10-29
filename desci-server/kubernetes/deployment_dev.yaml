@@ -85,6 +85,7 @@ spec:
           export CROSSREF_EMAIL={{ .Data.CROSSREF_EMAIL }}
           export CROSSREF_DOI_URL={{ .Data.CROSSREF_DOI_URL }}
           export CROSSREF_LOGIN={{ .Data.CROSSREF_LOGIN }}
+          export CROSSREF_LOGIN_ROLE={{ .Data.CROSSREF_LOGIN_ROLE }}
           export CROSSREF_PASSWORD={{ .Data.CROSSREF_PASSWORD }}
           export CROSSREF_METADATA_API={{ .Data.CROSSREF_METADATA_API }}
           export CROSSREF_ADMIN_API={{ .Data.CROSSREF_ADMIN_API }}
