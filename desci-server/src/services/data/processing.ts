@@ -22,18 +22,8 @@ import { prisma } from '../../client.js';
 import { UpdateResponse } from '../../controllers/data/update.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
-import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
-import { ensureUniquePathsDraftTree, externalDirCheck, getLatestDriveTime } from '../../services/draftTrees.js';
-import {
-  FilesToAddToDag,
-  IpfsDirStructuredInput,
-  IpfsPinnedResult,
-  getDirectoryTree,
-  isDir,
-  pinDirectory,
-} from '../../services/ipfs.js';
-import { fetchFileStreamFromS3, isS3Configured } from '../../services/s3.js';
 import { ResearchObjectDocument } from '../../types/documents.js';
+import { NodeUuid } from '../../types/nodes.js';
 import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 import { DRAFT_CID, DRAFT_DIR_CID, ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
@@ -47,8 +37,19 @@ import {
 } from '../../utils/driveUtils.js';
 import { EXTENSION_MAP } from '../../utils/extensions.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
-import { NodeUuid, getLatestManifestFromNode } from '../manifestRepo.js';
-import repoService from '../repoService.js';
+import { hasAvailableDataUsageForUpload } from '../dataService.js';
+import { ensureUniquePathsDraftTree, externalDirCheck, getLatestDriveTime } from '../draftTrees.js';
+import {
+  FilesToAddToDag,
+  IpfsDirStructuredInput,
+  IpfsPinnedResult,
+  getDirectoryTree,
+  isDir,
+  pinDirectory,
+} from '../ipfs.js';
+import { getLatestManifestFromNode } from '../manifestRepo.js';
+import { repoService } from '../repoService.js';
+import { fetchFileStreamFromS3, isS3Configured } from '../s3.js';
 
 import {
   Either,

@@ -4,8 +4,8 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { updateManifestAndAddToIpfs } from '../../services/ipfs.js';
-import { NodeUuid } from '../../services/manifestRepo.js';
-import repoService from '../../services/repoService.js';
+import { repoService } from '../../services/repoService.js';
+import { NodeUuid } from '../../types/nodes.js';
 import { cleanManifestForSaving } from '../../utils/manifestDraftUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 

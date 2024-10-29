@@ -9,19 +9,19 @@ import {
 import { User, Node, Prisma } from '@prisma/client';
 
 import { prisma } from '../../client.js';
-import { ExternalCid } from '../../controllers/data/updateExternalCid.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
-import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
-import {
-  GetExternalSizeAndTypeResult,
-  convertToCidV1,
-  getExternalCidSizeAndType,
-  pubRecursiveLs,
-} from '../../services/ipfs.js';
+import { NodeUuid } from '../../types/nodes.js';
 import { FirstNestingComponent, addComponentsToDraftManifest, getTreeAndFill } from '../../utils/driveUtils.js';
-import { NodeUuid, getLatestManifestFromNode } from '../manifestRepo.js';
-import repoService from '../repoService.js';
+import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../draftTrees.js';
+import { GetExternalSizeAndTypeResult, convertToCidV1, getExternalCidSizeAndType, pubRecursiveLs } from '../ipfs.js';
+import { getLatestManifestFromNode } from '../manifestRepo.js';
+import { repoService } from '../repoService.js';
+
+export type ExternalCid = {
+  cid: string;
+  name: string;
+};
 
 import { updateDataReferences } from './processing.js';
 import {

@@ -24,7 +24,7 @@ export const getDraftNodeStats = async (req: Request<any, any, any>, res: Respon
     ipfsQuery,
   });
 
-  let nodes = await prisma.node.count({
+  const nodes = await prisma.node.count({
     where: {
       ownerId: user.id,
       isDeleted: false,

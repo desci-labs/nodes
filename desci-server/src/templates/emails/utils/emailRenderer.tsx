@@ -1,11 +1,11 @@
 import { render } from '@react-email/components';
 
-import AttestationClaimedEmail, { AttestationClaimedEmailProps } from '../AttestationClaimed.js';
-import ContributorInvite, { ContributorInviteEmailProps } from '../ContributorInvite.js';
-import DoiMintedEmail, { DoiMintedEmailProps } from '../DoiMinted.js';
-import MagicCodeEmail, { MagicCodeEmailProps } from '../MagicCode.js';
-import NodeUpdated, { NodeUpdatedEmailProps } from '../NodeUpdated.js';
-import SubmissionPackage, { SubmissionPackageEmailProps } from '../SubmissionPackage.js';
+import { AttestationClaimedEmail, AttestationClaimedEmailProps } from '../AttestationClaimed.js';
+import { ContributorInvite, ContributorInviteEmailProps } from '../ContributorInvite.js';
+import { DoiMintedEmail, DoiMintedEmailProps } from '../DoiMinted.js';
+import { MagicCodeEmail, MagicCodeEmailProps } from '../MagicCode.js';
+import { NodeUpdated, NodeUpdatedEmailProps } from '../NodeUpdated.js';
+import { SubmissionPackage, SubmissionPackageEmailProps } from '../SubmissionPackage.js';
 
 export const ContributorInviteEmailHtml = ({
   inviter,
@@ -16,7 +16,7 @@ export const ContributorInviteEmailHtml = ({
 }: ContributorInviteEmailProps) =>
   render(ContributorInvite({ inviter, nodeUuid, privShareCode, contributorId, newUser }));
 
-export const MagicCodeEmailHtml = ({ magicCode, ip }: MagicCodeEmailProps) => render(MagicCodeEmail({ magicCode }));
+export const MagicCodeEmailHtml = ({ magicCode }: MagicCodeEmailProps) => render(MagicCodeEmail({ magicCode }));
 
 export const AttestationClaimedEmailHtml = (props: AttestationClaimedEmailProps) =>
   render(AttestationClaimedEmail(props));

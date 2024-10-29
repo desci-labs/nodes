@@ -1,9 +1,8 @@
+import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { logger as parentLogger } from '../../../logger.js';
 import { NodeContributorMap, contributorService } from '../../../services/Contributors.js';
-import { User } from '@prisma/client';
-
 
 export type GetNodeContributionsAuthedRequest = Request & {
   user: User; // Added by the ensureUser middleware
@@ -22,7 +21,7 @@ export const getUserContributionsAuthed = async (
   req: GetNodeContributionsAuthedRequest,
   res: Response<GetUserContributionsAuthedResBody>,
 ) => {
-const user = req.user
+  const user = req.user;
 
   const logger = parentLogger.child({
     module: 'Contributors::getUserContributionsAuthedController',
@@ -35,8 +34,7 @@ const user = req.user
   }
 
   try {
-    const userContributionsMap: NodeContributorMap =
-      await contributorService.retrieveUserContributionMap(user);
+    const userContributionsMap: NodeContributorMap = await contributorService.retrieveUserContributionMap(user);
     if (userContributionsMap) {
       logger.info({ totalContributions: userContributionsMap.length }, 'User contributions map retrieved successfully');
       return res.status(200).json({ ok: true, userContributionsMap });

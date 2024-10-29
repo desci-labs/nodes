@@ -62,10 +62,11 @@ export const hexToCid = (hexCid: string) => {
 
 export const convertCidTo0xHex = (cid: string) => {
   const rawHex = CID.parse(cid).toString(base16);
-  const paddedAndPrefixed = "0x"
+  const paddedAndPrefixed =
+    '0x' +
     // left pad to even pairs if odd length
-    + (rawHex.length % 2 !== 0 ? "0" : "")
-    + rawHex;
+    (rawHex.length % 2 !== 0 ? '0' : '') +
+    rawHex;
   return paddedAndPrefixed;
 };
 
@@ -113,8 +114,7 @@ export function ensureUuidEndsWithDot(uuid: string): string {
   return uuid.endsWith('.') ? uuid : uuid + '.';
 }
 
-export const unpadUuid = (uuid: string): string =>
-  uuid.replace(".", "");
+export const unpadUuid = (uuid: string): string => uuid.replace('.', '');
 
 export async function calculateTotalZipUncompressedSize(zipPath: string): Promise<number> {
   return new Promise((resolve, reject) => {

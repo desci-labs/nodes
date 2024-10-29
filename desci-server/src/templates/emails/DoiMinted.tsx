@@ -1,17 +1,4 @@
-import {
-  Body,
-  Container,
-  Column,
-  Head,
-  Heading,
-  Html,
-  Preview,
-  Row,
-  Text,
-  Button,
-  Section,
-  render,
-} from '@react-email/components';
+import { Body, Container, Head, Heading, Html, Preview, Text, Button, Section } from '@react-email/components';
 import * as React from 'react';
 
 import MainLayout from './MainLayout.js';
@@ -25,7 +12,7 @@ export interface DoiMintedEmailProps {
   doiLink: string;
 }
 
-const DoiMintedEmail = ({ dpidPath, userName, nodeTitle, dpid, doi, doiLink }: DoiMintedEmailProps) => (
+export const DoiMintedEmail = ({ dpidPath, userName, nodeTitle, dpid, doi, doiLink }: DoiMintedEmailProps) => (
   <MainLayout footerMsg="">
     <Html>
       <Head />
@@ -60,8 +47,6 @@ const DoiMintedEmail = ({ dpidPath, userName, nodeTitle, dpid, doi, doiLink }: D
     </Html>
   </MainLayout>
 );
-
-export default DoiMintedEmail;
 
 const main = {
   backgroundColor: '#ffffff',

@@ -7,3 +7,7 @@ export const createJwtToken = (payload: JwtPayload): string => {
     expiresIn: process.env.JWT_EXPIRATION,
   });
 };
+
+export const generateAccessToken = (payload) => {
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });
+};

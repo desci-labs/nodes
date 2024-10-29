@@ -1,7 +1,5 @@
 import { PdfComponentPayload, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 
-import { UrlWithCid } from '../services/ipfs.js';
-
 export const cleanManifestForSaving = (manifest: ResearchObjectV1) => {
   manifest.components = manifest.components.map((c) => {
     if (c.type == ResearchObjectComponentType.PDF) {
@@ -21,4 +19,14 @@ export const makePublic = (uris: UrlWithCid[]) => uris.map(({ key, cid }: UrlWit
 
 export const getUrlsFromParam = (data: any) => {
   return new Array(data).flat();
+};
+
+// key = type
+// data = array of string URLs
+// returns array of corrected URLs
+export type UrlWithCid = {
+  cid: string;
+  key: string;
+  buffer?: Buffer;
+  size?: number;
 };

@@ -592,7 +592,9 @@ export class AttestationService {
     visible: boolean;
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
-    claimId && assert(claimId > 0, 'Error: claimId is zero');
+    if (claimId) {
+      assert(claimId > 0, 'Error: claimId is zero');
+    }
 
     if (claimId) {
       const claim = await this.findClaimById(claimId);
@@ -634,7 +636,9 @@ export class AttestationService {
     visible: boolean;
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
-    claimId && assert(claimId > 0, 'Error: claimId is zero');
+    if (claimId) {
+      assert(claimId > 0, 'Error: claimId is zero');
+    }
 
     if (claimId) {
       const claim = await this.findClaimById(claimId);
@@ -901,7 +905,7 @@ export class AttestationService {
       LEFT JOIN "NodeAttestationReaction" NAR ON NAR."nodeAttestationId" = NA.id
       LEFT JOIN "NodeAttestationVerification" NAV ON NAV."nodeAttestationId" = NA.id
       LEFT JOIN "CommunityEntryAttestation" CSA ON CSA."attestationId" = A."id"
-	where 
+	where
 		CSA."desciCommunityId" = ${communityId}
     GROUP BY
       A.id,
@@ -1131,4 +1135,3 @@ export class AttestationService {
 }
 
 export const attestationService = new AttestationService();
-// export default attestationService;

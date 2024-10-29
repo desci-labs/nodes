@@ -78,8 +78,6 @@ export const SubmissionPackage = ({
   );
 };
 
-export default SubmissionPackage;
-
 const main = {
   backgroundColor: '#ffffff',
   margin: '0 auto',

@@ -86,8 +86,6 @@ export const ContributorInvite = ({
   );
 };
 
-export default ContributorInvite;
-
 const main = {
   backgroundColor: '#ffffff',
   margin: '0 auto',

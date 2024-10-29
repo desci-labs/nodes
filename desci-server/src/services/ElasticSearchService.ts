@@ -5,12 +5,30 @@ import {
   QueryDslFunctionScoreMode,
   QueryDslFunctionScoreQuery,
   QueryDslQueryContainer,
-  QueryDslTermQuery,
-  QueryDslTermsQuery,
   QueryDslTextQueryType,
+  SearchTotalHits,
 } from '@elastic/elasticsearch/lib/api/types.js';
 
-import { Filter } from '../controllers/search/types.js';
+export type Entity = string;
+export type Query = string;
+
+export type ComparisonOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte';
+export type FilterType = 'range' | 'term' | 'match' | 'exists' | 'match_phrase';
+export type MatchLogic = 'and' | 'or';
+
+export type Filter = {
+  entity: Entity;
+  field: string;
+  type: FilterType;
+  matchLogic?: MatchLogic;
+  fuzziness?: number | 'AUTO';
+} & (
+  | { type: 'range'; operator: ComparisonOperator; value: number | string }
+  | { type: 'term'; value: string | number | boolean | string[] }
+  | { type: 'match'; value: string; matchLogic?: MatchLogic; fuzziness?: number | 'AUTO' }
+  | { type: 'match_phrase'; value: string | string[]; matchLogic?: MatchLogic }
+  | { type: 'exists' }
+);
 
 export const VALID_ENTITIES = [
   'authors',
@@ -557,7 +575,7 @@ export function buildSortQuery(entity: string, sortType?: string, sortOrder: Sor
     return baseSort;
   }
 
-  const sortFunction = entityConfig[sortType] || entityConfig['relevance'] || (() => []);
+  const sortFunction = entityConfig[sortType!] || entityConfig['relevance'] || (() => []);
   const specificSort = sortFunction(sortOrder);
 
   // return [...baseSort];

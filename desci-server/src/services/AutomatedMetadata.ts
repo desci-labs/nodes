@@ -9,7 +9,7 @@ import { logger as parentLogger } from '../logger.js';
 import { ONE_DAY_TTL, getFromCache, setToCache } from '../redisClient.js';
 
 import { getOrcidFromURL } from './crossRef/utils.js';
-import repoService from './repoService.js';
+import { repoService } from './repoService.js';
 
 const logger = parentLogger.child({ module: '[AutomatedMetadataClient]' });
 

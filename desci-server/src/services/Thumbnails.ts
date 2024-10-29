@@ -6,11 +6,12 @@ import FormData from 'form-data';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
+import { NodeUuid } from '../types/nodes.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { getManifestByCid } from './data/processing.js';
 import { pinFile } from './ipfs.js';
-import { NodeUuid, getLatestManifestFromNode } from './manifestRepo.js';
+import { getLatestManifestFromNode } from './manifestRepo.js';
 
 const logger = parentLogger.child({
   module: 'Services::Thumbnails',

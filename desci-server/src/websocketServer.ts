@@ -6,6 +6,7 @@ import { ExtendedError, Server, Socket } from 'socket.io';
 import { logger as parentLogger } from './logger.js';
 import { AuthenticatedSocket, socketsEnsureUser } from './middleware/permissions.js';
 import { redisClient } from './redisClient.js';
+import { wsService } from './services/websocket.js';
 
 export const initializeWebSocketServer = async (httpServer: HttpServer) => {
   const logger = parentLogger.child({
@@ -76,5 +77,6 @@ export const initializeWebSocketServer = async (httpServer: HttpServer) => {
     logger.error({ error }, 'Connection error occurred');
   });
 
+  wsService.setServer(io);
   return io;
 };

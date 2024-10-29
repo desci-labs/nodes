@@ -1,21 +1,38 @@
 module.exports = {
   parser: '@typescript-eslint/parser',
+  parserOptions: {
+    projectService: true,
+    ecmaVersion: '2020',
+    tsconfigRootDir: __dirname,
+  },
 
-  extends: ['plugin:@typescript-eslint/recommended', 'prettier', 'plugin:prettier/recommended'],
+  extends: [
+    'plugin:@typescript-eslint/recommended',
+    'plugin:import-x/recommended',
+    'plugin:import-x/typescript',
+    'prettier',
+    'plugin:prettier/recommended',
+  ],
 
-  plugins: ['@typescript-eslint', 'import'],
+  plugins: ['@typescript-eslint'],
 
   rules: {
     // General
-    '@typescript-eslint/no-unused-vars': 0,
-    '@typescript-eslint/explicit-module-boundary-types': 0,
-    '@typescript-eslint/no-explicit-any': 0,
-    '@typescript-eslint/no-non-null-assertion': 0,
-    '@typescript-eslint/ban-ts-comment': 0,
-    '@typescript-eslint/no-empty-interface': 0,
+    // '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-unused-vars': 'off',
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/no-non-null-assertion': 'off',
+    '@typescript-eslint/ban-ts-comment': 'off',
+    '@typescript-eslint/no-empty-interface': 'off',
 
-    // Import
-    'import/order': [
+    // Imports
+    'import-x/no-useless-path-segments': 'warn',
+    'import-x/no-unused-modules': 'warn',
+    // Too slow to enable by default
+    'import-x/no-cycle': 'error',
+    'import-x/namespace': 'off',
+    'import-x/order': [
       'error',
       {
         groups: ['builtin', 'external', 'internal', 'parent', 'sibling'],
@@ -28,17 +45,14 @@ module.exports = {
     ],
   },
 
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-  },
-
   settings: {
-    'import/resolver': {
+    'import-x/resolver': {
       node: {
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
         moduleDirectory: ['node_modules', 'src/', '/test'],
       },
+      typescript: true,
+      // node: true
     },
   },
 };

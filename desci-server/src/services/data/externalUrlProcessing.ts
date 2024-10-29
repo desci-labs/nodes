@@ -18,9 +18,7 @@ import { rimraf } from 'rimraf';
 import { prisma } from '../../client.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
-import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
-import { ensureUniquePathsDraftTree, externalDirCheck, getLatestDriveTime } from '../../services/draftTrees.js';
-import { IpfsDirStructuredInput, addDirToIpfs, getDirectoryTree } from '../../services/ipfs.js';
+import { NodeUuid } from '../../types/nodes.js';
 import { ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
   ExtensionDataTypeMap,
@@ -35,8 +33,11 @@ import {
   saveZipStreamToDisk,
   zipUrlToStream,
 } from '../../utils.js';
-import { NodeUuid, getLatestManifestFromNode } from '../manifestRepo.js';
-import repoService from '../repoService.js';
+import { hasAvailableDataUsageForUpload } from '../dataService.js';
+import { ensureUniquePathsDraftTree, externalDirCheck, getLatestDriveTime } from '../draftTrees.js';
+import { IpfsDirStructuredInput, addDirToIpfs, getDirectoryTree } from '../ipfs.js';
+import { getLatestManifestFromNode } from '../manifestRepo.js';
+import { repoService } from '../repoService.js';
 
 import {
   filterFirstNestings,

@@ -1,18 +1,11 @@
-import { NotificationType, User, UserNotifications } from '@prisma/client';
+import { User, UserNotifications } from '@prisma/client';
 import { Request, Response } from 'express';
 import { z } from 'zod';
 
 import { logger as parentLogger } from '../../logger.js';
 import { createUserNotification } from '../../services/NotificationService.js';
 
-export const CreateNotificationSchema = z.object({
-  userId: z.number(),
-  nodeUuid: z.string().optional(),
-  type: z.nativeEnum(NotificationType),
-  title: z.string(),
-  message: z.string(),
-  payload: z.record(z.unknown()).optional(),
-});
+import { CreateNotificationSchema } from './schema.js';
 
 interface AuthenticatedRequest extends Request {
   user: User;

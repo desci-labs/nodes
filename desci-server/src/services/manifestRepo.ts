@@ -2,11 +2,10 @@ import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import { Node } from '@prisma/client';
 
 import { logger } from '../logger.js';
+import { NodeUuid } from '../types/nodes.js';
 
 import { getManifestFromNode } from './data/processing.js';
-import repoService from './repoService.js';
-
-export type NodeUuid = string & { _kind: 'uuid' };
+import { repoService } from './repoService.js';
 
 export const getAutomergeUrl = (documentId: DocumentId): AutomergeUrl => {
   return `automerge:${documentId}` as AutomergeUrl;

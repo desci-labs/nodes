@@ -5,14 +5,7 @@ import { z } from 'zod';
 import { logger as parentLogger } from '../../logger.js';
 import { updateUserNotification, batchUpdateUserNotifications } from '../../services/NotificationService.js';
 
-const UpdateDataSchema = z.object({
-  dismissed: z.boolean().optional(),
-});
-
-const BatchUpdateSchema = z.object({
-  notificationIds: z.array(z.number()),
-  updateData: UpdateDataSchema,
-});
+import { BatchUpdateSchema, UpdateDataSchema } from './schema.js';
 
 interface AuthenticatedRequest extends Request {
   user: User;

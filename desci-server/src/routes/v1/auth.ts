@@ -1,21 +1,20 @@
 import { Router } from 'express';
 
+import { issueApiKey } from '../../controllers/auth/issueApiKey.js';
+import { listApiKey } from '../../controllers/auth/listApiKey.js';
+import { check, login } from '../../controllers/auth/login.js';
+import { logout } from '../../controllers/auth/logout.js';
+import { magic } from '../../controllers/auth/magic.js';
 import {
-  login,
-  logout,
-  register,
-  profile,
   orcidAuth,
   orcidAuthClose,
   orcidConnect,
   orcidConnectClose,
   validateOrcid,
-  magic,
-  issueApiKey,
-  revokeApiKey,
-  listApiKey,
-  check,
-} from '../../controllers/auth/index.js';
+} from '../../controllers/auth/orcid.js';
+import { profile } from '../../controllers/auth/profile.js';
+import { register } from '../../controllers/auth/register.js';
+import { revokeApiKey } from '../../controllers/auth/revokeApiKey.js';
 import { walletLogin, walletNonce } from '../../controllers/users/associateWallet.js';
 import { ensureUser } from '../../middleware/permissions.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';

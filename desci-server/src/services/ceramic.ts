@@ -1,49 +1,50 @@
-import axios, { AxiosError } from "axios";
-import { CERAMIC_API_URL } from "../config/index.js";
-import { logger as parentLogger } from "../logger.js";
-import { CommitID } from "@desci-labs/desci-codex-lib/dist/streams.js";
+import { CommitID } from '@desci-labs/desci-codex-lib/dist/streams.js';
+import axios, { AxiosError } from 'axios';
+
+import { CERAMIC_API_URL } from '../config/index.js';
+import { logger as parentLogger } from '../logger.js';
 
 const logger = parentLogger.child({
-  module: "Service::Ceramic",
+  module: 'Service::Ceramic',
 });
 
-const DESCI_STREAM_API = CERAMIC_API_URL + "/api/v0/streams/";
+const DESCI_STREAM_API = CERAMIC_API_URL + '/api/v0/streams/';
 
 export type RawState = {
-  content: { title: string, license: string, manifest: string },
+  content: { title: string; license: string; manifest: string };
   metadata: {
     /** Single-element array with fully qualified EIP155 address */
-    controllers: string[],
+    controllers: string[];
     /** StreamID of model schema */
-    model: string,
+    model: string;
     /** Client randomness for stream uniqueness */
-    unique: string,
-  },
+    unique: string;
+  };
   /** Signing status. 0 is genesis, 2 is signed */
-  signature: number,
+  signature: number;
   /** Likely: NOT_REQUESTED, PENDING, ANCHORED
    *  Unlikely: PROCESSING, FAILED, REPLACED
-  */
-  anchorStatus: string,
-  log: LogEntry[],
-  anchorProof: any,
-  doctype: "MID",
+   */
+  anchorStatus: string;
+  log: LogEntry[];
+  anchorProof: any;
+  doctype: 'MID';
 };
 
 export type LogEntry = {
   /** Commit CID */
-  cid: string,
+  cid: string;
   /** 0 is genesis, 1 is data (update), 2 is anchor */
-  type: number,
+  type: number;
   /** On 0 and 1: expiration time of CACAO JWT, anchor must be made before this */
-  expirationTime?: number,
+  expirationTime?: number;
   /** Time of anchoring */
-  timestamp?: number,
+  timestamp?: number;
 };
 
 export type RawStream = {
-  streamId: string,
-  state: RawState,
+  streamId: string;
+  state: RawState;
 };
 
 export const directStreamLookup = async (stream: string) => {
@@ -62,7 +63,7 @@ export const directStreamLookup = async (stream: string) => {
       cause: err.cause,
       stack: err.stack,
     };
-  };
+  }
   return result.data;
 };
 
@@ -77,14 +78,12 @@ export const directStreamLookup = async (stream: string) => {
  *
  * @returns a map between { commitIdStr: timestamp} if successful, empty map otherwise
  */
-export const getCommitTimestamps = async (
-  commitIdStrs: string[]
-): Promise<Record<string, string>> => {
+export const getCommitTimestamps = async (commitIdStrs: string[]): Promise<Record<string, string>> => {
   if (commitIdStrs.length === 0) {
     return {};
   }
 
-  logger.debug({ fn: 'getCommitTimestamps', commitIdStrs }, "getting timestamps");
+  logger.debug({ fn: 'getCommitTimestamps', commitIdStrs }, 'getting timestamps');
   const firstCommitId = CommitID.fromString(commitIdStrs[0]);
   const streamId = firstCommitId.baseID;
   const streamState = await directStreamLookup(streamId.toString());
@@ -95,17 +94,17 @@ export const getCommitTimestamps = async (
       'failed to load stream, returning empty map',
     );
     return {};
-  };
+  }
 
   const rawLog = streamState.state.log;
   const timeMap = rawLog.reduce(
     (acc, logEvent) => ({
       ...acc,
-      [CommitID.make(streamId, logEvent.cid).toString()]: logEvent.timestamp?.toString()
+      [CommitID.make(streamId, logEvent.cid).toString()]: logEvent.timestamp?.toString(),
     }),
-    {} as Record<string, string>
+    {} as Record<string, string>,
   );
 
-  logger.debug({ fn: 'getCommitTimestamps', timeMap }, "returning timestamps");
+  logger.debug({ fn: 'getCommitTimestamps', timeMap }, 'returning timestamps');
   return timeMap;
 };

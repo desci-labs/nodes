@@ -2,8 +2,9 @@ import { AuthTokenSource, User } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma as client } from '../client.js';
-import { OrcIdRecordData, generateAccessToken, getOrcidRecord } from '../controllers/auth/index.js';
+import { getOrcidRecord, OrcIdRecordData } from '../controllers/auth/orcid.js';
 import { logger as parentLogger } from '../logger.js';
+import { generateAccessToken } from '../utils/createJwtToken.js';
 import { hideEmail } from '../utils.js';
 
 import { contributorService } from './Contributors.js';

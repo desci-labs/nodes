@@ -1,5 +1,4 @@
-import { NextFunction, Response, Router } from 'express';
-import { Request } from 'express';
+import { NextFunction, Response, Router, Request } from 'express';
 import multer from 'multer';
 import multerS3 from 'multer-s3';
 
@@ -9,7 +8,6 @@ import {
   createAttestation,
   createCommunity,
   listAllCommunities,
-  listAttestations,
   listCommunityAttestations,
   listCommunityEntryAttestations,
   removeEntryAttestation,
@@ -80,8 +78,12 @@ const wrappedHandler = (req: Request, res: Response, next: NextFunction) => {
 
 const sanitizeBody = async (req: Request, _res: Response, next: NextFunction) => {
   logger.info({ body: req.body }, 'sanitizeBody');
-  typeof req.body?.keywords === 'string' ? (req.body.keywords = JSON.parse(req.body.keywords)) : null;
-  typeof req.body?.links === 'string' ? (req.body.links = JSON.parse(req.body.links)) : null;
+  if (typeof req.body?.keywords === 'string') {
+    req.body.keywords = JSON.parse(req.body.keywords);
+  }
+  if (typeof req.body.links === 'string') {
+    req.body.links = JSON.parse(req.body.links);
+  }
   next();
 };
 

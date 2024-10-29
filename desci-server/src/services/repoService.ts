@@ -4,8 +4,7 @@ import axios, { AxiosError, AxiosInstance } from 'axios';
 
 import { als, logger as parentLogger } from '../logger.js';
 import { ResearchObjectDocument } from '../types/documents.js';
-
-import { NodeUuid } from './manifestRepo.js';
+import { NodeUuid } from '../types/nodes.js';
 
 const logger = parentLogger.child({ module: 'Repo Service' });
 
@@ -152,5 +151,4 @@ class RepoService {
   }
 }
 
-const repoService = new RepoService();
-export default repoService;
+export const repoService = new RepoService();

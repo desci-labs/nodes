@@ -1,7 +1,7 @@
 import { prisma } from '../client.js';
 
 const main = async () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const researchFieldsData = require('../data/fields.json');
   const parsedFields: { name: string }[] = researchFieldsData.map((name) => ({ name }));
 

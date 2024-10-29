@@ -20,4 +20,4 @@ queries.sql
 # Sentry Config File
 .sentryclirc
 
-seed-doi-queue.ts
+seed-doi-queue.ts.eslintcache

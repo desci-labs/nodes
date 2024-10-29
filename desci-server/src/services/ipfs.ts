@@ -25,7 +25,7 @@ import { getOrCache } from '../redisClient.js';
 import { addToDir, getSize, makeDir, updateDagCid } from '../utils/dagConcat.js';
 import { DRIVE_NODE_ROOT_PATH, type ExternalCidMap, type newCid, type oldCid } from '../utils/driveUtils.js';
 import { getGithubExternalUrl, processGithubUrl } from '../utils/githubUtils.js';
-import { createManifest, getUrlsFromParam, makePublic } from '../utils/manifestDraftUtils.js';
+import { createManifest, getUrlsFromParam, makePublic, UrlWithCid } from '../utils/manifestDraftUtils.js';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 export const IPFS_PATH_TMP = '/tmp/ipfs';
@@ -33,16 +33,6 @@ export const IPFS_PATH_TMP = '/tmp/ipfs';
 const logger = parentLogger.child({
   module: 'Services::Ipfs',
 });
-
-// key = type
-// data = array of string URLs
-// returns array of corrected URLs
-export interface UrlWithCid {
-  cid: string;
-  key: string;
-  buffer?: Buffer;
-  size?: number;
-}
 
 // connect to a different API
 export const client = create({ url: process.env.IPFS_NODE_URL });

@@ -76,8 +76,6 @@ export const NodeUpdated = ({
   );
 };
 
-export default NodeUpdated;
-
 const main = {
   backgroundColor: '#ffffff',
   margin: '0 auto',

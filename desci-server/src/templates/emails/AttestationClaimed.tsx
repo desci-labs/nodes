@@ -64,8 +64,6 @@ export const AttestationClaimedEmail = ({
   </MainLayout>
 );
 
-export default AttestationClaimedEmail;
-
 const main = {
   backgroundColor: '#ffffff',
   margin: '0 auto',

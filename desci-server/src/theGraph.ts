@@ -1,11 +1,11 @@
 import axios from 'axios';
 
 import { prisma } from './client.js';
+import { THEGRAPH_API_URL } from './config/index.js';
 import { logger as parentLogger } from './logger.js';
 import { getCommitTimestamps } from './services/ceramic.js';
 import { getTargetDpidUrl } from './services/fixDpid.js';
 import { convertCidTo0xHex, decodeBase64UrlSafeToHex, ensureUuidEndsWithDot } from './utils.js';
-import { THEGRAPH_API_URL } from './config/index.js';
 
 const logger = parentLogger.child({
   module: 'GetIndexedResearchObjects',
@@ -78,7 +78,7 @@ export const getIndexedResearchObjects = async (
   For stream resolution, build a map to allow for also returning the UUID
   to match the format returned by the graph lookup
   */
-  let streamLookupMap: Record<string, string> = {};
+  const streamLookupMap: Record<string, string> = {};
   /** For legacy nodes, the graph lookup only needs the UUID */
   const legacyUuids = [];
 
@@ -195,15 +195,15 @@ export const _getIndexedResearchObjects = async (
   }`;
 
   const results = await query<{ researchObjects: IndexedResearchObject[] }>(q);
-  if (THEGRAPH_API_URL.includes("sepolia-dev")) {
+  if (THEGRAPH_API_URL.includes('sepolia-dev')) {
     // In-place deduplication on the graph results
-    results.researchObjects.forEach(ro => {
+    results.researchObjects.forEach((ro) => {
       ro.versions = ro.versions.reduce((deduped, next) => {
         if (deduped.length === 0 || !isLegacyDupe(next, deduped.at(-1))) {
           deduped.push(next);
         }
         return deduped;
-      }, [] as IndexedResearchObjectVersion[])
+      }, [] as IndexedResearchObjectVersion[]);
     });
   }
 
@@ -211,10 +211,10 @@ export const _getIndexedResearchObjects = async (
 };
 
 /** Makes semi-certain that two entries are dupes, by requiring that
-* both timestamp and cid are equal
-*/
+ * both timestamp and cid are equal
+ */
 const isLegacyDupe = (a: IndexedResearchObjectVersion, b: IndexedResearchObjectVersion) =>
-    a.cid === b.cid && a.time === b.time;
+  a.cid === b.cid && a.time === b.time;
 
 /**
  * For a bunch of publish hashes, get the corresponding timestamps as strings.
@@ -316,4 +316,3 @@ export const query = async <T>(query: string, overrideUrl?: string): Promise<T> 
   }
   return data.data as T;
 };
-

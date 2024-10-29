@@ -10,8 +10,8 @@ import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getUserConsent, saveInteraction } from '../../services/interactionLog.js';
 import { writeExternalIdToOrcidProfile } from '../../services/user.js';
-import { removeCookie, sendCookie } from '../../utils/sendCookie.js';
-import { generateAccessToken } from '../auth/magic.js';
+import { generateAccessToken } from '../../utils/createJwtToken.js';
+import { sendCookie } from '../../utils/sendCookie.js';
 
 const createWalletNickname = async (user: Prisma.UserWhereInput) => {
   const count = await prisma.wallet.count({

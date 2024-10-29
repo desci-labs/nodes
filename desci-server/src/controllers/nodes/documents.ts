@@ -5,8 +5,8 @@ import { Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
-import { NodeUuid } from '../../services/manifestRepo.js';
-import repoService from '../../services/repoService.js';
+import { repoService } from '../../services/repoService.js';
+import { NodeUuid } from '../../types/nodes.js';
 import { getLatestManifest } from '../data/utils.js';
 
 export const getNodeDocument = async function (req: RequestWithNode, response: Response) {

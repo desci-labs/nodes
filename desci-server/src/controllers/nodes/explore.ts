@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 
@@ -51,7 +52,7 @@ const logger = parentLogger.child({
 
 /**
  * Get the latest publish information for the most recently updated nodes,
-*/
+ */
 export const explore = async (req: Request, res: Response) => {
   const page: number = req.query.page ? parseInt(req.query.page as string) : 1;
   const size: number = req.query.size ? parseInt(req.query.size as string) : 10;
@@ -59,17 +60,11 @@ export const explore = async (req: Request, res: Response) => {
   logger.info({ page, size });
 
   try {
-    let freshlyPublishedVersions = await prisma.nodeVersion.findMany({
+    const freshlyPublishedVersions = await prisma.nodeVersion.findMany({
       where: {
-        OR: [
-          { transactionId: { not: null } },
-          { commitId: { not: null } }
-        ]
+        OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
       },
-      orderBy: [
-        { createdAt: "desc" },
-        { id: "desc" },
-      ],
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: {
         manifestUrl: true,
         createdAt: true,
@@ -79,18 +74,18 @@ export const explore = async (req: Request, res: Response) => {
           select: {
             uuid: true,
             dpidAlias: true,
-          }
-        }
+          },
+        },
       },
       distinct: ['nodeId'],
       take: size,
       skip: (page - 1) * size,
     });
 
-    const flattened = freshlyPublishedVersions.map(v => ({
+    const flattened = freshlyPublishedVersions.map((v) => ({
       id: v.node.uuid,
       // Chop off the milliseconds to match epoch format
-      time: (v.createdAt.valueOf()).toString().slice(0, -3),
+      time: v.createdAt.valueOf().toString().slice(0, -3),
       recentCid: v.manifestUrl,
       dpid: v.node.dpidAlias,
       commitId: v.commitId,
@@ -99,7 +94,7 @@ export const explore = async (req: Request, res: Response) => {
 
     return res.send(flattened);
   } catch (e) {
-    logger.error({ e, page, size }, "explore query failed to complete");
+    logger.error({ e, page, size }, 'explore query failed to complete');
     return res.status(500).send();
-  };
+  }
 };

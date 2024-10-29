@@ -13,18 +13,13 @@ import { logger as parentLogger } from '../../logger.js';
 import { redisClient, getOrCache } from '../../redisClient.js';
 import { getLatestDriveTime } from '../../services/draftTrees.js';
 import { getDatasetTar } from '../../services/ipfs.js';
-import { NodeUuid } from '../../services/manifestRepo.js';
 import { showNodeDraftManifest } from '../../services/nodeManager.js';
-import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
+import { NodeUuid } from '../../types/nodes.js';
+import { DataReferenceSrc, getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';
-
-export enum DataReferenceSrc {
-  PRIVATE = 'private',
-  PUBLIC = 'public',
-}
 
 interface RetrieveResponse {
   status?: number;

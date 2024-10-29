@@ -2,11 +2,11 @@ import { NotificationType, Prisma, User, UserNotifications, Node } from '@prisma
 import { z } from 'zod';
 
 import { prisma } from '../client.js';
-import { CreateNotificationSchema } from '../controllers/notifications/create.js';
-import { GetNotificationsQuerySchema, PaginatedResponse } from '../controllers/notifications/index.js';
+import { CreateNotificationSchema, GetNotificationsQuerySchema } from '../controllers/notifications/schema.js';
+import { PaginatedResponse } from '../core/ApiResponse.js';
 import { logger as parentLogger } from '../logger.js';
-import { server } from '../server.js';
-import { emitWebsocketEvent, WebSocketEventType } from '../utils/websocketHelpers.js';
+
+import { WebSocketEventType, wsService } from './websocket.js';
 
 type GetNotificationsQuery = z.infer<typeof GetNotificationsQuerySchema>;
 export type CreateNotificationData = z.infer<typeof CreateNotificationSchema>;
@@ -122,7 +122,7 @@ export const createUserNotification = async (
   logger.info({ notificationId: notification.id }, 'User notification created successfully');
 
   // Emit websocket push notification
-  emitWebsocketEvent(data.userId, { type: WebSocketEventType.NOTIFICATION, data: 'invalidate-cache' });
+  wsService.emitEvent(data.userId, { type: WebSocketEventType.NOTIFICATION, data: 'invalidate-cache' });
 
   return notification;
 };

@@ -9,13 +9,13 @@ import { logger as parentLogger } from '../logger.js';
 import { getFromCache } from '../redisClient.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { ResearchObjectDocument } from '../types/documents.js';
+import { NodeUuid } from '../types/nodes.js';
 import { generateDataReferences } from '../utils/dataRefTools.js';
 import { cleanupManifestUrl, transformManifestWithHistory } from '../utils/manifest.js';
 import { hexToCid, randomUUID64, asyncMap, ensureUuidEndsWithDot } from '../utils.js';
 
 import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
-import { NodeUuid } from './manifestRepo.js';
-import repoService from './repoService.js';
+import { repoService } from './repoService.js';
 
 const ESTUARY_MIRROR_ID = 1;
 
@@ -249,7 +249,7 @@ async function publishCid(job: Prisma.PublicDataReferenceCreateManyInput): Promi
       data: { status: 'SUCCESS', providerCount: 1 },
       where: {
         dataReferenceId_mirrorId: {
-          dataReferenceId: dataRef.id,
+          dataReferenceId: dataRef!.id,
           mirrorId: ESTUARY_MIRROR_ID,
         },
       },
@@ -266,7 +266,7 @@ async function publishCid(job: Prisma.PublicDataReferenceCreateManyInput): Promi
       data: { status: 'PENDING', retryCount: { increment: 1 } },
       where: {
         dataReferenceId_mirrorId: {
-          dataReferenceId: dataRef.id,
+          dataReferenceId: dataRef!.id,
           mirrorId: ESTUARY_MIRROR_ID,
         },
       },
@@ -338,7 +338,7 @@ export const getBytesInXDays = async (daysAgo: number): Promise<number> => {
     },
   });
 
-  return bytesInXDays._sum.size;
+  return bytesInXDays._sum.size!;
 };
 
 export const getBytesInMonth = async (month: number, year: number): Promise<number> => {

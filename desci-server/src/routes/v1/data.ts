@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import multer = require('multer');
+import multer from 'multer';
 import multerS3 from 'multer-s3';
 import { v4 } from 'uuid';
 

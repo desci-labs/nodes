@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import _ from 'lodash';
-import z from 'zod';
+import { z } from 'zod';
 
 import { prisma } from '../../client.js';
 import { NotFoundError } from '../../core/ApiError.js';

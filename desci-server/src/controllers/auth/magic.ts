@@ -1,6 +1,5 @@
 import { ActionType } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 
 import { prisma as prismaClient } from '../../client.js';
 import { logger } from '../../logger.js';
@@ -8,17 +7,11 @@ import { magicLinkRedeem, sendMagicLink } from '../../services/auth.js';
 import { contributorService } from '../../services/Contributors.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { checkIfUserAcceptedTerms, connectOrcidToUserIfPossible } from '../../services/user.js';
+import { generateAccessToken } from '../../utils/createJwtToken.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 
 import { getOrcidRecord } from './orcid.js';
 
-export const generateAccessToken = (payload) => {
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' });
-};
-
-export const oneYear = 1000 * 60 * 60 * 24 * 365;
-export const oneDay = 1000 * 60 * 60 * 24;
-export const oneMinute = 1000 * 60;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
   if (process.env.NODE_ENV === 'production') {
     logger.info({ fn: 'magic', email: req.body.email }, `magic link requested`);

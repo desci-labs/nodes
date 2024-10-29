@@ -1,3 +1,4 @@
+import { SearchTotalHits } from '@elastic/elasticsearch/lib/api/types.js';
 import { Request, Response } from 'express';
 
 import { elasticClient } from '../../elasticSearchClient.js';
@@ -6,12 +7,32 @@ import {
   buildBoolQuery,
   buildMultiMatchQuery,
   buildSortQuery,
+  Entity,
+  Filter,
+  Query,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
 import { MIN_RELEVANCE_SCORE } from './query.js';
-import { Entity, Filter, Query, QueryDebuggingResponse, QueryErrorResponse, QuerySuccessResponse } from './types.js';
 
+export interface QuerySuccessResponse extends QueryDebuggingResponse {
+  ok: true;
+  index: (typeof VALID_ENTITIES)[number];
+  page: number;
+  perPage: number;
+  total: number | SearchTotalHits;
+  data: any[];
+}
+
+export interface QueryDebuggingResponse {
+  finalQuery?: any;
+  duration?: any;
+}
+
+export interface QueryErrorResponse extends QueryDebuggingResponse {
+  ok: false;
+  error: string;
+}
 type QueryObject = Record<Entity, Query>;
 
 interface MultiQuerySearchParams {

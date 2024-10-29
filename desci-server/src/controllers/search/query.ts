@@ -6,10 +6,11 @@ import {
   buildBoolQuery,
   buildMultiMatchQuery,
   buildSortQuery,
+  Filter,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
-import { Filter, QueryErrorResponse, QuerySuccessResponse } from './types.js';
+import { QueryErrorResponse, QuerySuccessResponse } from './multiQuery.js';
 
 export const MIN_RELEVANCE_SCORE = 0.01;
 interface SingleQuerySearchBodyParams {

@@ -1,13 +1,4 @@
-import {
-  Body,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Preview,
-  Text,
-  Section,
-} from '@react-email/components';
+import { Body, Container, Head, Heading, Html, Preview, Text, Section } from '@react-email/components';
 import * as React from 'react';
 
 import MainLayout from './MainLayout.js';
@@ -39,8 +30,6 @@ export const MagicCodeEmail = ({ magicCode, ip }: MagicCodeEmailProps) => (
     </Html>
   </MainLayout>
 );
-
-export default MagicCodeEmail;
 
 const main = {
   backgroundColor: '#ffffff',

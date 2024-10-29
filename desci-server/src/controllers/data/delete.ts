@@ -6,8 +6,9 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getLatestDriveTime } from '../../services/draftTrees.js';
-import { NodeUuid, getLatestManifestFromNode } from '../../services/manifestRepo.js';
-import repoService from '../../services/repoService.js';
+import { getLatestManifestFromNode } from '../../services/manifestRepo.js';
+import { repoService } from '../../services/repoService.js';
+import { NodeUuid } from '../../types/nodes.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { ErrorResponse } from './update.js';

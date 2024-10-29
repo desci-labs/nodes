@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 
@@ -25,20 +26,17 @@ export const getPublishedNodeStats = async (
   });
 
   // _count unavailable in prisma <4.16
-  let publishedNodeIds = await prisma.node.findMany({
+  const publishedNodeIds = await prisma.node.findMany({
     select: {
-      id: true
+      id: true,
     },
     where: {
       ownerId: owner.id,
       versions: {
         some: {
-          OR: [
-            { transactionId: { not: null }},
-            { commitId: { not: null }},
-          ]
-        }
-      }
+          OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+        },
+      },
     },
   });
 

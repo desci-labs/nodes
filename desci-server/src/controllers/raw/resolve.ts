@@ -6,6 +6,7 @@ import {
 } from '@desci-labs/desci-models';
 import axios from 'axios';
 import { NextFunction, Request, Response } from 'express';
+
 import { logger as parentLogger } from '../../logger.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
 import { decodeBase64UrlSafeToHex, hexToCid } from '../../utils.js';
@@ -51,7 +52,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
     result.versions.reverse();
   } catch (err) {
     logger.warn({ err }, `[ERROR] index lookup failed: ${err.message}`);
-  };
+  }
 
   if (!result) {
     logger.warn({ result }, 'empty result or indexer down');
@@ -61,7 +62,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
       decodedUuid,
       env: process.env.NODE_ENV,
     });
-  };
+  }
 
   const ipfsResolver = IPFS_RESOLVER_OVERRIDE || req.query.g || 'https://ipfs.desci.com/ipfs';
   // TODO: add whitelist of resolvers
@@ -76,8 +77,8 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
       return res.send(data);
     } catch (err) {
       return res.status(500).send({ ok: false, msg: 'ipfs uplink failed, try setting ?g= querystring to resolver' });
-    };
-  };
+    }
+  }
 
   // user either requests version by index or a cid
   // user requests latest version
@@ -97,7 +98,7 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
         env: process.env.NODE_ENV,
         result,
       });
-    };
+    }
 
     cidString = hexToCid(cidString);
   } else {
@@ -112,19 +113,16 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
         env: process.env.NODE_ENV,
         result,
       });
-    };
+    }
     cidString = hexToCid(version.cid);
-  };
+  }
 
-  const { data } = await axios.get(
-    `${ipfsResolver}/${cidString}`,
-    { headers: { 'Bypass-Tunnel-Reminder': true } }
-  );
+  const { data } = await axios.get(`${ipfsResolver}/${cidString}`, { headers: { 'Bypass-Tunnel-Reminder': true } });
 
   if (!secondParam) {
-    logger.info("Returning manifest as there is no additional path");
+    logger.info('Returning manifest as there is no additional path');
     return res.send(data);
-  };
+  }
 
   // process as json path if starts with dot
   if (secondParam.charAt(0) == '.') {
@@ -136,17 +134,12 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
     const component = ro.components[parseInt(secondParam)] as ResearchObjectV1Component;
 
     if (!component) {
-      logger.info(
-        { components: ro.components, index: secondParam },
-        `Could not resolve index in components`,
-      );
-      return res
-        .status(400)
-        .send({
-          err: true,
-          msg: `could not resolve component index ${secondParam} in ${ro.components}`,
-        });
-    };
+      logger.info({ components: ro.components, index: secondParam }, `Could not resolve index in components`);
+      return res.status(400).send({
+        err: true,
+        msg: `could not resolve component index ${secondParam} in ${ro.components}`,
+      });
+    }
 
     switch (component.type) {
       case ResearchObjectComponentType.PDF:
@@ -155,19 +148,18 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
         const codeComponent = component as CodeComponent;
         if (!thirdParam) {
           return res.send(component);
-        };
+        }
 
         if (thirdParam == '!') {
           logger.debug('recognize zip');
           //send the zip
-          return axios.get(
-            `${ipfsResolver}/${codeComponent.payload.url}`,
-            { responseType: 'stream' }
-          ).then((response) => {
-            // The response will give you the zip file
-            response.data.pipe(res);
-          });
-        };
+          return axios
+            .get(`${ipfsResolver}/${codeComponent.payload.url}`, { responseType: 'stream' })
+            .then((response) => {
+              // The response will give you the zip file
+              response.data.pipe(res);
+            });
+        }
 
         // send the individual file
         try {
@@ -180,11 +172,11 @@ export const resolve = async (req: Request, res: Response, next: NextFunction) =
           return res
             .status(400)
             .send({ ok: false, msg: `fail to resolve ${[thirdParam, ...rest].filter(Boolean).join('/')}` });
-        };
+        }
       default:
         return res
           .status(400)
           .send({ err: true, msg: `could not find the appropriate resolver for component ${component.type}` });
-    };
-  };
+    }
+  }
 };

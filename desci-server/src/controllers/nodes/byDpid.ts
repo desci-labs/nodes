@@ -1,7 +1,8 @@
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library.js';
 import { Request, Response } from 'express';
+
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library.js';
 
 const logger = parentLogger.child({
   module: 'NODE::nodeByDpidController',
@@ -25,18 +26,16 @@ type NodeByDpidError = {
   cause: any;
 };
 
-type NodeByDpidResponse =
-  | NodeByDpidSuccess
-  | NodeByDpidError;
+type NodeByDpidResponse = NodeByDpidSuccess | NodeByDpidError;
 
 /**
  * Lookup a node by it's dpid *alias*. If the node was published though Nodes,
  * this should be set in the Nodes table. A failure doesn't mean the dPID
  * can't resolve, just that we haven't seen it.
-*/
+ */
 export const nodeByDpid = async (
   req: Request<NodeByDpidParams>,
-  res: Response<NodeByDpidResponse>
+  res: Response<NodeByDpidResponse>,
 ): Promise<typeof res> => {
   const dpid = parseInt(req.params.dpid);
 
@@ -51,7 +50,7 @@ export const nodeByDpid = async (
       where: {
         dpidAlias: {
           equals: dpid,
-        }
+        },
       },
     });
   } catch (e) {
@@ -64,10 +63,10 @@ export const nodeByDpid = async (
         cause: e.meta,
       };
 
-      if (e?.code === "P2025") {
-        logger.warn(errPayload, "no node matching dPID");
+      if (e?.code === 'P2025') {
+        logger.warn(errPayload, 'no node matching dPID');
         return res.status(404).send(errPayload);
-      };
+      }
     } else {
       const err = e as Error;
       errPayload = {
@@ -76,12 +75,12 @@ export const nodeByDpid = async (
         details: err.message,
         cause: err.cause,
       };
-    };
+    }
 
-    logger.error(errPayload, "unexpected error");
+    logger.error(errPayload, 'unexpected error');
     return res.status(500).send(errPayload);
-  };
+  }
 
-  logger.info({ dpid, node }, "found matching node for dpid");
+  logger.info({ dpid, node }, 'found matching node for dpid');
   return res.status(200).send(node);
 };

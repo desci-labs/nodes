@@ -1,4 +1,3 @@
-// @ts-check
 import 'dotenv/config';
 import 'reflect-metadata';
 import * as child from 'child_process';
@@ -9,7 +8,7 @@ import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
-import type { Express, Request } from 'express';
+import type { Express } from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { pinoHttp } from 'pino-http';
@@ -27,7 +26,6 @@ import { extractAuthToken, extractUserFromToken } from './middleware/permissions
 import routes from './routes/index.js';
 import { initializeWebSocketServer } from './websocketServer.js';
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
-import { runWorkerUntilStopped } from './workers/publish.js';
 
 // const __dirname = path.dirname(__filename);
 
@@ -189,11 +187,6 @@ class AppServer {
     }
 
     logger.error('Failed to initialize WebSocket server after maximum retries');
-  }
-
-  // websockets getter
-  get io(): SocketIOServer | null {
-    return this._io;
   }
 
   #attachRouteHandlers() {

@@ -1,5 +1,5 @@
-import { Attestation, CommunityMembershipRole, NodeAttestation, NodeFeedItem, Prisma } from '@prisma/client';
-import _, { includes } from 'lodash';
+import { CommunityMembershipRole, NodeAttestation, NodeFeedItem, Prisma } from '@prisma/client';
+import _ from 'lodash';
 
 import { prisma } from '../client.js';
 import { DuplicateDataError } from '../core/communities/error.js';

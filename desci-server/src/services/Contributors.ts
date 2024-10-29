@@ -1,9 +1,11 @@
 import { IpldUrl } from '@desci-labs/desci-models';
 import { Node, NodeContribution, Prisma, User } from '@prisma/client';
 import ShortUniqueId from 'short-unique-id';
+
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { formatOrcidString, unpadUuid } from '../utils.js';
+
 import { getManifestByCid } from './data/processing.js';
 
 type ContributorId = string;
@@ -200,10 +202,10 @@ class ContributorService {
   async retrieveContributionsForUser(user: { id: number }): Promise<UserContribution[]> {
     const contributionNodes = await prisma.node.findMany({
       // find unique nodes
-      distinct: [ "id" ],
+      distinct: ['id'],
       // where there is a contribution from the given userId
       where: {
-        NodeContribution: { some: { userId: user.id }}
+        NodeContribution: { some: { userId: user.id } },
       },
       select: {
         uuid: true,
@@ -215,36 +217,34 @@ class ContributorService {
             createdAt: true,
           },
           where: {
-            OR: [
-              { transactionId: { not: null }},
-              { commitId: { not: null }},
-            ],
+            OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
           },
           // with the newest one first
-          orderBy: { createdAt: "desc" },
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
 
-    const filledContributions = await Promise.all(contributionNodes
-      // Published if any version was returned from subquery
-      .filter(n => n.versions.length > 0)
-      .map(async n => {
-        // desc ordering => first element is the latest version
-        const latestVersion = n.versions[0];
-        const manifestCid = latestVersion.manifestUrl;
-        const latestManifest = await getManifestByCid(manifestCid);
+    const filledContributions = await Promise.all(
+      contributionNodes
+        // Published if any version was returned from subquery
+        .filter((n) => n.versions.length > 0)
+        .map(async (n) => {
+          // desc ordering => first element is the latest version
+          const latestVersion = n.versions[0];
+          const manifestCid = latestVersion.manifestUrl;
+          const latestManifest = await getManifestByCid(manifestCid);
 
-        return {
-          uuid: unpadUuid(n.uuid),
-          manifestCid,
-          title: latestManifest.title,
-          versions: n.versions.length,
-          coverImageCid: latestManifest.coverImage,
-          dpid: n.dpidAlias?.toString() ?? latestManifest.dpid?.id,
-          publishDate: latestVersion.createdAt.toISOString(),
-        };
-      }),
+          return {
+            uuid: unpadUuid(n.uuid),
+            manifestCid,
+            title: latestManifest.title,
+            versions: n.versions.length,
+            coverImageCid: latestManifest.coverImage,
+            dpid: n.dpidAlias?.toString() ?? latestManifest.dpid?.id,
+            publishDate: latestVersion.createdAt.toISOString(),
+          };
+        }),
     );
 
     return filledContributions;

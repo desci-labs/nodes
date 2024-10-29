@@ -99,3 +99,12 @@ export class AuthFailureResponse extends ApiResponse {
     super(ResponseStatus.UNAUTHORIZED, message);
   }
 }
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+  };
+}

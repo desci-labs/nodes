@@ -17,18 +17,23 @@ import {
   ManifestActions,
 } from '@desci-labs/desci-models';
 import { DataReference, DataType, Node } from '@prisma/client';
+import { errWithCause } from 'pino-std-serializers';
 
 import { prisma } from '../client.js';
-import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getFromCache, setToCache } from '../redisClient.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
-import { NodeUuid } from '../services/manifestRepo.js';
-import repoService from '../services/repoService.js';
+import { repoService } from '../services/repoService.js';
 import { getIndexedResearchObjects, getTimeForTxOrCommits, IndexedResearchObject } from '../theGraph.js';
+import { NodeUuid } from '../types/nodes.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
+
+export enum DataReferenceSrc {
+  PRIVATE = 'private',
+  PUBLIC = 'public',
+}
 
 export function fillDirSizes(tree, cidInfoMap) {
   const contains = [];
@@ -238,7 +243,7 @@ export async function getTreeAndFill(
         );
         blockTimeMap = await getTimeForTxOrCommits(uniqueTxOrCommits);
         // Short 5 min TTL to ease the spam when loading during anchoring, as this can take ~45 mins worst case
-        // setToCache(blockTimeMapCacheKey, blockTimeMap, 60 * 5); 
+        // setToCache(blockTimeMapCacheKey, blockTimeMap, 60 * 5);
       }
     } catch (e) {
       logger.warn({ fn: 'getTreeAndFill', nodeUuid }, 'Failed to get blockTimeMap from redis, redis likely down');
@@ -274,65 +279,6 @@ export async function getTreeAndFill(
 
   return treeRoot;
 }
-
-/**
- * @deprecated in favor of getTimeForTxOrCommits
- * Get the block time for a transaction, as a string.
- * - If a timestamp is found in the index, it's returned cached with default, long lived TTL
- * - If the research object/version is not found, returns -1 but doesn't cache it
- * - If the timestamp is missing, return -1 and caches it for a few minutes
- */
-export const _getBlockTime = async (uuid: string, txOrCommit: string | undefined): Promise<string> => {
-  const BLOCKTIME_NOT_FOUND = '-1';
-  if (!txOrCommit) {
-    return BLOCKTIME_NOT_FOUND;
-  }
-
-  let blockTime: string;
-  const cacheKey = `txHash-blockTime-${txOrCommit}`;
-  try {
-    blockTime = await getFromCache<string>(cacheKey);
-    if (blockTime) {
-      return blockTime;
-    }
-  } catch (e) {
-    // Redis isn't configured or client not ready
-    logger.info({ fn: 'getBlockTime', uuid, txOrCommit }, 'Failed to get blockTime from redis');
-  }
-
-  let indexRes: { researchObjects: IndexedResearchObject[] };
-  try {
-    indexRes = await getIndexedResearchObjects([uuid]);
-  } catch (e) {
-    logger.error({ fn: 'getBlockTime', uuid, txOrCommit }, 'getIndexedResearchObjects failed');
-  }
-
-  if (!indexRes?.researchObjects?.length) {
-    logger.warn({ fn: 'getBlockTime' }, `No research objects found for node ${uuid}`);
-    return BLOCKTIME_NOT_FOUND;
-  }
-
-  const indexedNode = indexRes.researchObjects[0];
-  const correctVersion = indexedNode.versions.find((v) => [v.id, v.commitId].includes(txOrCommit));
-
-  if (!correctVersion) {
-    logger.warn({ fn: 'getBlockTime', uuid, txOrCommit }, 'No version match was found txOrCommit');
-    return BLOCKTIME_NOT_FOUND;
-  }
-
-  const timestamp = correctVersion.time;
-  try {
-    if (timestamp) {
-      await setToCache(cacheKey, correctVersion.time);
-    } else {
-      await setToCache(cacheKey, BLOCKTIME_NOT_FOUND, 60 * 5); // Cache not-yet-anchored for 5 mins
-    }
-  } catch (e) {
-    logger.warn({ fn: 'getBlockTime', uuid, txOrCommit, cacheKey }, 'Failed to set block time in cache');
-  }
-
-  return timestamp;
-};
 
 export const gbToBytes = (gb: number) => gb * 1_000_000_000;
 export const bytesToGb = (bytes: number) => bytes / 1_000_000_000;

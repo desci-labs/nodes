@@ -4,9 +4,9 @@ import _ from 'lodash';
 
 import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
-import { NodeUuid } from '../../services/manifestRepo.js';
-import repoService from '../../services/repoService.js';
+import { repoService } from '../../services/repoService.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
+import { NodeUuid } from '../../types/nodes.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 

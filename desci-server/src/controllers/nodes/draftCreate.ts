@@ -20,9 +20,9 @@ import {
   downloadSingleFile,
   updateManifestAndAddToIpfs,
 } from '../../services/ipfs.js';
-import { NodeUuid } from '../../services/manifestRepo.js';
 import { createNodeDraftBlank } from '../../services/nodeManager.js';
-import repoService from '../../services/repoService.js';
+import { repoService } from '../../services/repoService.js';
+import { NodeUuid } from '../../types/nodes.js';
 import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
 import { ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
 
@@ -208,7 +208,7 @@ export const draftAddComponent = async (req: Request, res: Response, next: NextF
     });
 
     const manifestParsed: ResearchObjectV1 = req.body.manifest as ResearchObjectV1;
-    let dataRefCallback: (id: number) => void | null = null;
+    let dataRefCallback: (id: number) => Promise<void> | null = null;
     if (
       componentType == ResearchObjectComponentType.CODE ||
       componentType == ResearchObjectComponentType.PDF ||
@@ -295,7 +295,9 @@ export const draftAddComponent = async (req: Request, res: Response, next: NextF
       },
     });
 
-    dataRefCallback && (await dataRefCallback(nodeVersion.id));
+    if (dataRefCallback !== null) {
+      await dataRefCallback(nodeVersion.id);
+    }
 
     const nodeCopy = Object.assign({}, node);
     nodeCopy.uuid = nodeCopy.uuid.replace(/\.$/, '');

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 //Thanks to https://github.com/webrecorder/ipfs-composite-files
 /* eslint-disable @typescript-eslint/no-var-requires */
 import { encode, decode, prepare } from '@ipld/dag-pb';

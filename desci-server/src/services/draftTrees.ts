@@ -3,6 +3,7 @@ import { DataType } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
+import { NodeUuid } from '../types/nodes.js';
 import { generateTimestampMapFromDataRefs } from '../utils/dataRefTools.js';
 import { TimestampMap, ipfsDagToDraftNodeTreeEntries } from '../utils/draftTreeUtils.js';
 import { generateExternalCidMap } from '../utils/driveUtils.js';
@@ -11,7 +12,6 @@ import { ensureUuidEndsWithDot } from '../utils.js';
 import { extractRootDagCidFromManifest, getManifestFromNode } from './data/processing.js';
 import { createDuplicateFileError, createMixingExternalDataError } from './data/processingErrors.js';
 import { getDirectoryTree } from './ipfs.js';
-import { NodeUuid } from './manifestRepo.js';
 
 const logger = parentLogger.child({
   module: 'Services::DraftTrees',

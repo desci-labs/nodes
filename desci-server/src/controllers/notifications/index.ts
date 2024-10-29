@@ -2,30 +2,14 @@ import { User, UserNotifications } from '@prisma/client';
 import { Request, Response } from 'express';
 import { z } from 'zod';
 
-import { prisma } from '../../client.js';
+import { PaginatedResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getUserNotifications } from '../../services/NotificationService.js';
 
-export const GetNotificationsQuerySchema = z.object({
-  page: z.string().regex(/^\d+$/).transform(Number).optional().default('1'),
-  perPage: z.string().regex(/^\d+$/).transform(Number).optional().default('25'),
-  dismissed: z
-    .enum(['true', 'false'])
-    .optional()
-    .transform((value) => value === 'true'),
-});
+import { GetNotificationsQuerySchema } from './schema.js';
 
 interface AuthenticatedRequest extends Request {
   user: User;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    currentPage: number;
-    totalPages: number;
-    totalItems: number;
-  };
 }
 
 export interface ErrorResponse {
