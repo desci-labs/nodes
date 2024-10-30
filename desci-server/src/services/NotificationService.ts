@@ -26,12 +26,23 @@ export type CommentPayload = {
   type: 'COMMENTS';
   nodeUuid: string;
   annotationId: number;
+  commenterName: string;
+  commenterId: number;
 };
 
 export type PublishPayload = {
   type: 'PUBLISH';
   nodeUuid: string;
   dpid: string;
+};
+
+export type ContributorInvitePayload = {
+  type: 'CONTRIBUTOR_INVITE';
+  nodeUuid: string;
+  contributorId: string;
+  shareCode: string;
+  inviterName: string;
+  inviterId: number;
 };
 
 export const getUserNotifications = async (
@@ -274,6 +285,39 @@ export const emitNotificationOnPublish = async (node: Node, user: User, dpid: st
     message: `Your research object titled "${node.title}" has been published and is now available for public access.`,
     nodeUuid: node.uuid,
     payload: { type: NotificationType.PUBLISH, nodeUuid: dotlessUuid, dpid } as PublishPayload,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnContributorInvite = async ({
+  node,
+  nodeOwner,
+  targetUserId,
+  privShareCode,
+  contributorId,
+}: {
+  node: Node;
+  nodeOwner: User;
+  targetUserId: number;
+  privShareCode: string;
+  contributorId;
+}) => {
+  const dotlessUuid = node.uuid.replace(/\./g, '');
+  const nodeOwnerName = nodeOwner.name || 'A user';
+
+  const notificationData: CreateNotificationData = {
+    userId: targetUserId,
+    type: NotificationType.PUBLISH,
+    title: `${nodeOwnerName} has added you as a contributor to their research`,
+    message: `Confirm your contribution status for the research object titled "${node.title}".`,
+    nodeUuid: node.uuid,
+    payload: {
+      type: NotificationType.CONTRIBUTOR_INVITE,
+      nodeUuid: dotlessUuid,
+      shareCode: privShareCode,
+      contributorId,
+    } as ContributorInvitePayload,
   };
 
   await createUserNotification(notificationData);
