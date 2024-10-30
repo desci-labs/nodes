@@ -5,7 +5,7 @@ import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { getManifestByCid, getManifestFromNode } from './data/processing.js';
 
-export async function getDpidForNode(node: Node): Promise<number | string | undefined> {
+export async function getDpidFromNode(node: Node): Promise<number | string | undefined> {
   let dpid: string | number = node.dpidAlias;
   if (!dpid) {
     const manifestCid = node.manifestUrl;

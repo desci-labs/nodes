@@ -8,6 +8,9 @@ import { logger as parentLogger } from '../logger.js';
 import { server } from '../server.js';
 import { emitWebsocketEvent, WebSocketEventType } from '../utils/websocketHelpers.js';
 
+import { attestationService } from './Attestation.js';
+import { getDpidFromNode, getDpidFromNodeUuid } from './node.js';
+
 type GetNotificationsQuery = z.infer<typeof GetNotificationsQuerySchema>;
 export type CreateNotificationData = z.infer<typeof CreateNotificationSchema>;
 
@@ -43,6 +46,14 @@ export type ContributorInvitePayload = {
   shareCode: string;
   inviterName: string;
   inviterId: number;
+};
+
+export type AttestationValidationPayload = {
+  type: 'ATTESTATION_VALIDATION';
+  nodeUuid: string;
+  claimId: number;
+  attestationVersionId: number;
+  attestationName: string;
 };
 
 export const getUserNotifications = async (
@@ -318,6 +329,38 @@ export const emitNotificationOnContributorInvite = async ({
       shareCode: privShareCode,
       contributorId,
     } as ContributorInvitePayload,
+  };
+
+  await createUserNotification(notificationData);
+};
+export const emitNotificationOnAttestationValidation = async ({
+  node,
+  user,
+  claimId,
+}: {
+  node: Node;
+  user: User;
+  claimId: number;
+}) => {
+  const dotlessUuid = node.uuid.replace(/\./g, '');
+  const claim = await attestationService.findClaimById(claimId);
+  const versionedAttestation = await attestationService.getAttestationVersion(claim.attestationVersionId, claimId);
+  const dpid = getDpidFromNode(node);
+
+  const attestationName = versionedAttestation.name;
+  const notificationData: CreateNotificationData = {
+    userId: user.id,
+    type: NotificationType.ATTESTATION_VALIDATION,
+    title: `The "${attestationName}" attestation has been validated for DPID ${dpid}`,
+    message: `An attestation maintainer has validated your attestation claim on your research object titled "${node.title}".`,
+    nodeUuid: node.uuid,
+    payload: {
+      type: NotificationType.ATTESTATION_VALIDATION,
+      nodeUuid: dotlessUuid,
+      claimId,
+      attestationVersionId: claim.attestationVersionId,
+      attestationName,
+    } as AttestationValidationPayload,
   };
 
   await createUserNotification(notificationData);

@@ -9,6 +9,7 @@ import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.
 import { logger as parentLogger } from '../../logger.js';
 import { attestationService } from '../../services/Attestation.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
+import { emitNotificationOnAttestationValidation } from '../../services/NotificationService.js';
 import orcidApiService from '../../services/orcid.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -113,6 +114,11 @@ export const addVerification = async (
       uuid: node.uuid,
       claimId,
     });
+
+    /**
+     * Fire off notification
+     */
+    await emitNotificationOnAttestationValidation({ node, user, claimId: parseInt(claimId) });
   }
 };
 
