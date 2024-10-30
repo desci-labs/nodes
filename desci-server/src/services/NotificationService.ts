@@ -308,7 +308,7 @@ export const emitNotificationOnContributorInvite = async ({
 
   const notificationData: CreateNotificationData = {
     userId: targetUserId,
-    type: NotificationType.PUBLISH,
+    type: NotificationType.CONTRIBUTOR_INVITE,
     title: `${nodeOwnerName} has added you as a contributor to their research`,
     message: `Confirm your contribution status for the research object titled "${node.title}".`,
     nodeUuid: node.uuid,

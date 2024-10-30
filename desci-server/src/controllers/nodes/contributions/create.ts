@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { contributorService } from '../../../services/Contributors.js';
+import { emitNotificationOnContributorInvite } from '../../../services/NotificationService.js';
 import { ContributorInviteEmailHtml } from '../../../templates/emails/utils/emailRenderer.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -99,6 +100,17 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
         Your private share code: ${shareCode}`,
         html: emailHtml,
       };
+
+      if (contributorAdded.userId !== undefined) {
+        // Emit push notif to contributor if they already have a nodes account
+        await emitNotificationOnContributorInvite({
+          node: node,
+          nodeOwner: user,
+          targetUserId: contributorAdded.userId,
+          privShareCode: shareCode,
+          contributorId: contributorAdded.contributorId,
+        });
+      }
 
       if (process.env.NODE_ENV === 'production') {
         sgMail.send(emailMsg);
