@@ -4,17 +4,18 @@ import which from 'which';
 import { generateDot } from "./graph";
 import { getAllEvents } from "./history";
 import { renderMarkdown } from "./markdown";
-import { exec, spawnSync } from "child_process";
+import { exec } from "child_process";
 
-if (!process.env.DPID || !process.env.STREAM) {
-  console.error('DPID and STREAM envvars required');
+if (!process.env.DPID || !process.env.STREAM || !process.env.ENV) {
+  console.error('ENV, DPID and STREAM envvars required');
   process.exit(1);
 }
 
+const env = process.env.ENV;
 const dpid = parseInt(process.env.DPID);
 const streamId = process.env.STREAM;
 
-const allEvents = await getAllEvents(dpid, streamId);
+const allEvents = await getAllEvents(dpid, streamId, env);
 
 // Create outdir if it doesn't exist
 mkdirSync('outputs', { recursive: true });
