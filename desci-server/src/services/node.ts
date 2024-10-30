@@ -9,8 +9,12 @@ export async function getDpidForNode(node: Node): Promise<number | string | unde
   let dpid: string | number = node.dpidAlias;
   if (!dpid) {
     const manifestCid = node.manifestUrl;
-    const manifest = await getManifestByCid(manifestCid);
-    dpid = manifest?.dpid?.id;
+    try {
+      const manifest = await getManifestByCid(manifestCid);
+      dpid = manifest?.dpid?.id;
+    } catch (e) {
+      // let undefined return
+    }
   }
 
   return dpid;
@@ -21,8 +25,12 @@ export async function getDpidFromNodeUuid(nodeUuid: string): Promise<number | st
   let dpid: string | number = node.dpidAlias;
   if (!dpid) {
     const manifestCid = node.manifestUrl;
-    const manifest = await getManifestByCid(manifestCid);
-    dpid = manifest?.dpid?.id;
+    try {
+      const manifest = await getManifestByCid(manifestCid);
+      dpid = manifest?.dpid?.id;
+    } catch (e) {
+      // let undefined return
+    }
   }
 
   return dpid;
