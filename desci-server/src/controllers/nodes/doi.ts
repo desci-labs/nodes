@@ -10,6 +10,7 @@ import {
 import { NextFunction, Response } from 'express';
 import { Request } from 'express';
 import _ from 'lodash';
+import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
 import { BadRequestError, NotFoundError, UnProcessableRequestError } from '../../core/ApiError.js';
@@ -182,6 +183,7 @@ export const automateManuscriptDoi = async (req: RequestWithNode, res: Response,
       actions.push({
         type: 'Set Contributors',
         contributors: authors.map((author) => ({
+          id: uuidv4(),
           name: author.name,
           role: ResearchObjectV1AuthorRole.AUTHOR,
           ...(author.affiliations.length > 0 && { organizations: author.affiliations }),
