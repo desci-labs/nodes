@@ -19,8 +19,9 @@ type RawToken = {
   }[];
 }
 
-const getTokenHistory = async (dpid: number): Promise<TokenHistory> => {
-  const legacyUrl = `https://beta.dpid.org/api/v1/dpid?page=${dpid + 1}&size=1&sort=asc`;
+const getTokenHistory = async (dpid: number, env: string): Promise<TokenHistory> => {
+  const maybeDevPrefix = env === 'dev' ? 'dev-' : '';
+  const legacyUrl = `https://${maybeDevPrefix}beta.dpid.org/api/v1/dpid?page=${dpid + 1}&size=1&sort=asc`;
   console.error(`💫 Fetching ${legacyUrl}`);
   const legacyDpidRes = await fetch(legacyUrl);
   const legacyDpid = await legacyDpidRes.json();
@@ -70,9 +71,9 @@ type IndexedStream = {
   }[];
 }
 
-const getStreamHistory = async (streamId: string): Promise<StreamHistory> => {
+const getStreamHistory = async (streamId: string, env: string): Promise<StreamHistory> => {
   // We can compute actual signature time from the raw commits
-  const streamApiUrl = `https://ceramic-prod.desci.com/api/v0/streams/${streamId}`;
+  const streamApiUrl = `https://ceramic-${env}.desci.com/api/v0/streams/${streamId}`;
   console.error(`💫 Fetching ${streamApiUrl}`);
   const rawStreamReq = await fetch(streamApiUrl);
   const rawStream = await rawStreamReq.json() as RawStream;
@@ -80,8 +81,9 @@ const getStreamHistory = async (streamId: string): Promise<StreamHistory> => {
   const rawUserCommits = rawStream.state.log
     .filter(event => event.type !== 2);
 
+  const maybeDevPrefix = env === 'dev' ? 'dev-' : '';
   // But we can get the manifest CID more easily from the resolver
-  const resolverUrl = `https://beta.dpid.org/api/v2/resolve/codex/${streamId}`
+  const resolverUrl = `https://${maybeDevPrefix}beta.dpid.org/api/v2/resolve/codex/${streamId}`
   const streamQueryRes = await fetch(resolverUrl);
   const streamQuery = await streamQueryRes.json() as IndexedStream;
 
@@ -106,11 +108,11 @@ export type AllEvents = {
   merged: GenericEvent[];
 };
 
-export const getAllEvents = async (dpid: number, streamId: string): Promise<AllEvents> => {
+export const getAllEvents = async (dpid: number, streamId: string, env: string): Promise<AllEvents> => {
   console.error('🔎 Getting events for token and stream history', { dpid, streamId });
 
-  const token = await getTokenHistory(dpid);
-  const stream = await getStreamHistory(streamId);
+  const token = await getTokenHistory(dpid, env);
+  const stream = await getStreamHistory(streamId, env);
 
   const merged = [...token.history, ...stream.history]
     .sort((a, b) => a.time - b.time);

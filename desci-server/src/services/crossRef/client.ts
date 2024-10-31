@@ -353,8 +353,9 @@ class CrossRefClient {
         logger.info({ result }, 'PAYLOAD');
         const doi_batch_diagnostic = result?.elements?.[0];
         const batch_data = doi_batch_diagnostic.elements?.find((el) => el.name === 'batch_data');
+        // const record_diagnostic = doi_batch_diagnostic.elements?.find((el) => el.name === 'record_diagnostic');
         const success = batch_data?.elements?.find((element) => element.name === 'success_count');
-        const isSuccess = success?.elements?.[0]?.text === '1';
+        const isSuccess = Number(success?.elements?.[0]?.text) > 0;
         return { success: isSuccess, failure: !isSuccess };
       } else {
         // handle json response

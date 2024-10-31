@@ -1,5 +1,4 @@
 import { DoiStatus } from '@prisma/client';
-import sgMail from '@sendgrid/mail';
 import { Request, Response, NextFunction } from 'express';
 import _ from 'lodash';
 
@@ -8,9 +7,9 @@ import { BadRequestError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { MintError } from '../../core/doi/error.js';
 import { logger as parentLogger } from '../../logger.js';
+import { EmailTypes, sendEmail } from '../../services/email.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { crossRefClient, doiService } from '../../services/index.js';
-import { DoiMintedEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -64,12 +63,6 @@ export const handleCrossrefNotificationCallback = async (
     return;
   }
 
-  // if (submission.status === DoiStatus.SUCCESS) {
-  //   logger.trace({ payload: req.payload }, 'Crossref Notifiication: submission ');
-  //   new SuccessMessageResponse().send(res);
-  //   return;
-  // }
-
   await doiService.updateSubmission({ id: submission.id }, { notification: req.payload });
   logger.info('SUBMISSION UPDATED');
 
@@ -102,32 +95,16 @@ export const handleCrossrefNotificationCallback = async (
       });
 
       if (!node.owner.email) return;
-      const message = {
-        to: node.owner.email,
-        from: 'no-reply@desci.com',
-        subject: 'DOI Registration successful 🎉',
-        text: `Hello ${node.owner.name}, You DOI registration for the research object ${node.title} has been completed. Here is your DOI: ${process.env.CROSSREF_DOI_URL}/${submission.uniqueDoi}`,
-        html: DoiMintedEmailHtml({
-          dpid: submission.dpid,
-          userName: node.owner.name.split(' ')?.[0] ?? '',
-          dpidPath: `${process.env.DAPP_URL}/dpid/${submission.dpid}`,
+      sendEmail({
+        type: EmailTypes.DoiMinted,
+        payload: {
+          name: node.owner.name,
           doi: submission.uniqueDoi,
-          doiLink: `${process.env.CROSSREF_DOI_URL}/${submission.uniqueDoi}`,
-          nodeTitle: node.title,
-        }),
-      };
-
-      try {
-        logger.info({ members: message, NODE_ENV: process.env.NODE_ENV }, 'DOI MINTED EMAIL');
-        if (process.env.NODE_ENV === 'production') {
-          const response = await sgMail.send(message);
-          logger.info(response, '[EMAIL]:: Response');
-        } else {
-          logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject);
-        }
-      } catch (err) {
-        logger.info({ err }, '[ERROR]:: DOI MINTED EMAIL');
-      }
+          dpid: submission.dpid,
+          to: node.owner.email,
+          title: node.title,
+        },
+      });
     } else {
       logger.info('ERROR CREATING DOI');
       await doiService.updateSubmission(
