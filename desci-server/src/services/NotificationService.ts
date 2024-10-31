@@ -1,4 +1,4 @@
-import { NotificationType, Prisma, User, UserNotifications, Node } from '@prisma/client';
+import { NotificationType, Prisma, User, UserNotifications, Node, DoiStatus } from '@prisma/client';
 import { z } from 'zod';
 
 import { prisma } from '../client.js';
@@ -7,6 +7,7 @@ import { GetNotificationsQuerySchema, PaginatedResponse } from '../controllers/n
 import { logger as parentLogger } from '../logger.js';
 import { server } from '../server.js';
 import { emitWebsocketEvent, WebSocketEventType } from '../utils/websocketHelpers.js';
+import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { getDpidFromNode, getDpidFromNodeUuid } from './node.js';
@@ -54,6 +55,14 @@ export type AttestationValidationPayload = {
   claimId: number;
   attestationVersionId: number;
   attestationName: string;
+};
+
+export type DoiIssuanceStatusPayload = {
+  type: 'DOI_ISSUANCE_STATUS';
+  nodeUuid: string;
+  nodeDpid: string;
+  issuanceStatus: DoiStatus;
+  doi: string;
 };
 
 export const getUserNotifications = async (
@@ -361,6 +370,40 @@ export const emitNotificationOnAttestationValidation = async ({
       attestationVersionId: claim.attestationVersionId,
       attestationName,
     } as AttestationValidationPayload,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnDoiIssuance = async ({
+  nodeUuid,
+  doi,
+  status,
+}: {
+  nodeUuid: string;
+  doi: string;
+  status: DoiStatus;
+}) => {
+  const dotlessUuid = nodeUuid.replace(/\./g, '');
+  const node = await prisma.node.findUnique({
+    where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
+    select: { ownerId: true, title: true, dpidAlias: true, manifestUrl: true },
+  });
+  const dpid = await getDpidFromNode(node as Node);
+
+  const notificationData: CreateNotificationData = {
+    userId: node.ownerId,
+    type: NotificationType.DOI_ISSUANCE_STATUS,
+    title: `A DOI has been issued for your research object with DPID ${dpid}!`,
+    message: `A DOI has been successfuly assigned to your research object with DPID ${dpid}. The DOI is ${doi}.`,
+    nodeUuid,
+    payload: {
+      type: NotificationType.DOI_ISSUANCE_STATUS,
+      nodeUuid: dotlessUuid,
+      nodeDpid: dpid,
+      issuanceStatus: status,
+      doi,
+    } as DoiIssuanceStatusPayload,
   };
 
   await createUserNotification(notificationData);
