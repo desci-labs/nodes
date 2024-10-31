@@ -111,6 +111,7 @@ export const createUserNotification = async (
     if (options?.throwOnDisabled) throw new Error('Notification type is disabled for this user');
     return null;
   }
+  // debugger; //
 
   if (data.nodeUuid) {
     // Validate node belongs to user
@@ -123,8 +124,7 @@ export const createUserNotification = async (
       logger.warn({ nodeUuid: data.nodeUuid }, 'Node not found');
       throw new Error('Node not found');
     }
-
-    if (options.emittedFromClient && node.ownerId !== data.userId) {
+    if (!!options?.emittedFromClient && node.ownerId !== data.userId) {
       logger.warn({ nodeUuid: data.nodeUuid, userId: data.userId }, 'Node does not belong to the user');
       throw new Error('Node does not belong to the user');
     }
