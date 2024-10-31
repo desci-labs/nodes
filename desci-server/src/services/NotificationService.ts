@@ -100,7 +100,7 @@ export const getUserNotifications = async (
 
 export const createUserNotification = async (
   data: CreateNotificationData,
-  options?: { throwOnDisabled?: boolean },
+  options?: { throwOnDisabled?: boolean; emittedFromClient?: boolean },
 ): Promise<UserNotifications | null> => {
   logger.info({ data }, 'Creating user notification');
 
@@ -124,7 +124,7 @@ export const createUserNotification = async (
       throw new Error('Node not found');
     }
 
-    if (node.ownerId !== data.userId) {
+    if (options.emittedFromClient && node.ownerId !== data.userId) {
       logger.warn({ nodeUuid: data.nodeUuid, userId: data.userId }, 'Node does not belong to the user');
       throw new Error('Node does not belong to the user');
     }
@@ -323,6 +323,7 @@ export const emitNotificationOnContributorInvite = async ({
   privShareCode: string;
   contributorId;
 }) => {
+  // debugger; //
   const dotlessUuid = node.uuid.replace(/\./g, '');
   const nodeOwnerName = nodeOwner.name || 'A user';
 
@@ -337,6 +338,8 @@ export const emitNotificationOnContributorInvite = async ({
       nodeUuid: dotlessUuid,
       shareCode: privShareCode,
       contributorId,
+      inviterId: nodeOwner.id,
+      inviterName: nodeOwner.name,
     } as ContributorInvitePayload,
   };
 
