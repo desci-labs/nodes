@@ -30,19 +30,26 @@ export type CommentPayload = {
   type: 'COMMENTS';
   nodeUuid: string;
   annotationId: number;
-  commenterName: string;
-  commenterId: number;
+  nodeTitle: string;
+  dpid: number | string | undefined;
+  commentAuthor: {
+    name: string;
+    userId: number;
+  };
 };
 
 export type PublishPayload = {
   type: 'PUBLISH';
   nodeUuid: string;
-  dpid: string;
+  dpid: string | number;
+  nodeTitle: string;
 };
 
 export type ContributorInvitePayload = {
   type: 'CONTRIBUTOR_INVITE';
   nodeUuid: string;
+  nodeTitle: string;
+  dpid: number | string | undefined;
   contributorId: string;
   shareCode: string;
   inviterName: string;
@@ -52,7 +59,10 @@ export type ContributorInvitePayload = {
 export type AttestationValidationPayload = {
   type: 'ATTESTATION_VALIDATION';
   nodeUuid: string;
+  nodeTitle: string;
+  dpid: number | string;
   claimId: number;
+  attestationId: number;
   attestationVersionId: number;
   attestationName: string;
 };
@@ -60,7 +70,8 @@ export type AttestationValidationPayload = {
 export type DoiIssuanceStatusPayload = {
   type: 'DOI_ISSUANCE_STATUS';
   nodeUuid: string;
-  nodeDpid: string;
+  nodeTitle: string;
+  dpid: number | string;
   issuanceStatus: DoiStatus;
   doi: string;
 };
@@ -283,6 +294,16 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
   }
 
   const dotlessUuid = node.uuid.replace(/\./g, '');
+  const dpid = await getDpidFromNode(node as Node);
+
+  const payload: CommentPayload = {
+    type: NotificationType.COMMENTS,
+    nodeUuid: dotlessUuid,
+    nodeTitle: node.title,
+    dpid,
+    annotationId,
+    commentAuthor: { name: annotationAuthorName, userId: annotationAuthor.id },
+  };
 
   const notificationData: CreateNotificationData = {
     userId: nodeOwner.id,
@@ -290,7 +311,7 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
     title: `${annotationAuthorName} commented on your research object`,
     message: `Your research object titled ${node.title}, has received a new comment.`, // TODO:: Ideally deserialize some of the message body from the annotation and show a truncated snippet
     nodeUuid: node.uuid,
-    payload: { type: NotificationType.COMMENTS, nodeUuid: dotlessUuid, annotationId } as CommentPayload,
+    payload,
   };
 
   await createUserNotification(notificationData);
@@ -298,13 +319,19 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
 //
 export const emitNotificationOnPublish = async (node: Node, user: User, dpid: string) => {
   const dotlessUuid = node.uuid.replace(/\./g, '');
+  const payload: PublishPayload = {
+    type: NotificationType.PUBLISH,
+    nodeUuid: dotlessUuid,
+    dpid,
+    nodeTitle: node.title,
+  };
   const notificationData: CreateNotificationData = {
     userId: user.id,
     type: NotificationType.PUBLISH,
     title: `Your research object has been published!`,
     message: `Your research object titled "${node.title}" has been published and is now available for public access.`,
     nodeUuid: node.uuid,
-    payload: { type: NotificationType.PUBLISH, nodeUuid: dotlessUuid, dpid } as PublishPayload,
+    payload,
   };
 
   await createUserNotification(notificationData);
@@ -326,6 +353,18 @@ export const emitNotificationOnContributorInvite = async ({
   // debugger; //
   const dotlessUuid = node.uuid.replace(/\./g, '');
   const nodeOwnerName = nodeOwner.name || 'A user';
+  const dpid = await getDpidFromNode(node);
+
+  const payload: ContributorInvitePayload = {
+    type: NotificationType.CONTRIBUTOR_INVITE,
+    nodeUuid: dotlessUuid,
+    nodeTitle: node.title,
+    dpid,
+    shareCode: privShareCode,
+    contributorId,
+    inviterId: nodeOwner.id,
+    inviterName: nodeOwner.name,
+  };
 
   const notificationData: CreateNotificationData = {
     userId: targetUserId,
@@ -333,14 +372,7 @@ export const emitNotificationOnContributorInvite = async ({
     title: `${nodeOwnerName} has added you as a contributor to their research`,
     message: `Confirm your contribution status for the research object titled "${node.title}".`,
     nodeUuid: node.uuid,
-    payload: {
-      type: NotificationType.CONTRIBUTOR_INVITE,
-      nodeUuid: dotlessUuid,
-      shareCode: privShareCode,
-      contributorId,
-      inviterId: nodeOwner.id,
-      inviterName: nodeOwner.name,
-    } as ContributorInvitePayload,
+    payload,
   };
 
   await createUserNotification(notificationData);
@@ -357,22 +389,28 @@ export const emitNotificationOnAttestationValidation = async ({
   const dotlessUuid = node.uuid.replace(/\./g, '');
   const claim = await attestationService.findClaimById(claimId);
   const versionedAttestation = await attestationService.getAttestationVersion(claim.attestationVersionId, claimId);
-  const dpid = getDpidFromNode(node);
+  const dpid = await getDpidFromNode(node);
 
   const attestationName = versionedAttestation.name;
+
+  const payload: AttestationValidationPayload = {
+    type: NotificationType.ATTESTATION_VALIDATION,
+    nodeUuid: dotlessUuid,
+    nodeTitle: node.title,
+    dpid,
+    claimId,
+    attestationId: claim.attestationId,
+    attestationVersionId: claim.attestationVersionId,
+    attestationName,
+  };
+
   const notificationData: CreateNotificationData = {
     userId: user.id,
     type: NotificationType.ATTESTATION_VALIDATION,
     title: `The "${attestationName}" attestation has been validated for DPID ${dpid}`,
     message: `An attestation maintainer has validated your attestation claim on your research object titled "${node.title}".`,
     nodeUuid: node.uuid,
-    payload: {
-      type: NotificationType.ATTESTATION_VALIDATION,
-      nodeUuid: dotlessUuid,
-      claimId,
-      attestationVersionId: claim.attestationVersionId,
-      attestationName,
-    } as AttestationValidationPayload,
+    payload,
   };
 
   await createUserNotification(notificationData);
@@ -394,19 +432,22 @@ export const emitNotificationOnDoiIssuance = async ({
   });
   const dpid = await getDpidFromNode(node as Node);
 
+  const payload: DoiIssuanceStatusPayload = {
+    type: NotificationType.DOI_ISSUANCE_STATUS,
+    nodeUuid: dotlessUuid,
+    nodeTitle: node.title,
+    dpid,
+    issuanceStatus: status,
+    doi,
+  };
+
   const notificationData: CreateNotificationData = {
     userId: node.ownerId,
     type: NotificationType.DOI_ISSUANCE_STATUS,
     title: `A DOI has been issued for your research object with DPID ${dpid}!`,
     message: `A DOI has been successfuly assigned to your research object with DPID ${dpid}. The DOI is ${doi}.`,
     nodeUuid,
-    payload: {
-      type: NotificationType.DOI_ISSUANCE_STATUS,
-      nodeUuid: dotlessUuid,
-      nodeDpid: dpid,
-      issuanceStatus: status,
-      doi,
-    } as DoiIssuanceStatusPayload,
+    payload,
   };
 
   await createUserNotification(notificationData);
