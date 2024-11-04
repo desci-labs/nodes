@@ -62,4 +62,9 @@ export enum AvailableUserActionLogTypes {
   chooseCreateSubmissionPackage = 'chooseCreateSubmissionPackage',
   clickedShareYourResearch = 'clickedShareYourResearch',
   viewedOnboarding = 'viewedOnboarding',
+  publishCheckPermissions = 'publishCheckPermissions',
+  publishCheckPermissionsSuccess = 'publishCheckPermissionsSuccess',
+  publishCheckPermissionsError = 'publishCheckPermissionsError',
+  automergeError = 'automergeError',
+  publishError = 'publishError',
 }
