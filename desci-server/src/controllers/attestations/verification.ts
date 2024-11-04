@@ -106,7 +106,7 @@ export const addVerification = async (
      */
     const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(claim.nodeUuid) } });
     const owner = await prisma.user.findFirst({ where: { id: node.ownerId } });
-    if (owner.orcid) await orcidApiService.postWorkRecord(node.uuid, owner.orcid);
+    if (owner.orcid) await orcidApiService.postWorkRecord(node.uuid, owner.orcid, node.dpidAlias.toString());
     await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
       ownerId: owner.id,
       orcid: owner.orcid,
