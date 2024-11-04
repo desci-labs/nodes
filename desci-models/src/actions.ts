@@ -54,4 +54,12 @@ export enum AvailableUserActionLogTypes {
   errNodeCreate = 'errNodeCreate',
   viewedNode = 'viewedNode',
   search = 'search',
+  startCreateResearchObjectFlow = 'startCreateResearchObjectFlow',
+  startCreateSubmissionPackageFlow = 'startCreateSubmissionPackageFlow',
+  completeCreateResearchObjectFlow = 'completeCreateResearchObjectFlow',
+  completeCreateSubmissionPackageFlow = 'completeCreateSubmissionPackageFlow',
+  chooseCreateResearchObject = 'chooseCreateResearchObject',
+  chooseCreateSubmissionPackage = 'chooseCreateSubmissionPackage',
+  clickedShareYourResearch = 'clickedShareYourResearch',
+  viewedOnboarding = 'viewedOnboarding',
 }
