@@ -93,17 +93,17 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
   const currentYear = new Date().getFullYear();
 
   const functions: QueryDslFunctionScoreContainer[] = [
-    // Citation count
+    // Citation count as tiebreaker
     {
       filter: { range: { cited_by_count: { gte: 1 } } },
       field_value_factor: {
         field: 'cited_by_count',
-        factor: 0.01,
+        factor: 0.0001,
         modifier: 'log1p',
       },
-      weight: 5,
+      weight: 1,
     },
-    // Publication year
+    // Publication year as tiebreaker
     {
       linear: {
         publication_year: {
@@ -113,28 +113,41 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
           decay: 0.7,
         },
       },
-      weight: 3,
+      weight: 0.5,
     },
   ];
 
-  if (entity === 'works' || entity === 'works_single') {
-    // Boost for articles and preprints
-    functions.push({
-      weight: 1,
-      filter: {
-        bool: {
-          should: [{ term: { type: 'article' } }, { term: { type: 'preprint' } }] as QueryDslQueryContainer[],
-        } as QueryDslBoolQuery,
+  if (entity === 'works' || entity === 'works_single' || entity === 'works_opt') {
+    functions.push(
+      // Boost for articles and preprints
+      {
+        filter: {
+          bool: {
+            should: [{ term: { type: 'article' } }, { term: { type: 'preprint' } }],
+          },
+        },
+        weight: 1,
       },
-    });
-
-    // Boost for English language documents
-    functions.push({
-      weight: 0.5,
-      filter: {
-        term: { language: 'en' },
+      // Venue quality as tiebreaker
+      {
+        filter: {
+          range: { 'best_locations.works_count': { gte: 1000 } },
+        },
+        field_value_factor: {
+          field: 'best_locations.works_count',
+          factor: 0.00001,
+          modifier: 'log1p',
+        },
+        weight: 0.3,
       },
-    });
+      // Language preference
+      {
+        filter: {
+          term: { language: 'en' },
+        },
+        weight: 0.2,
+      },
+    );
   }
 
   return {
@@ -142,6 +155,7 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
     functions,
     boost_mode: 'sum' as QueryDslFunctionBoostMode,
     score_mode: 'sum' as QueryDslFunctionScoreMode,
+    min_score: 0.1,
   };
 }
 
@@ -295,6 +309,168 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
     functions: boostFunctions,
     boost_mode: 'sum' as QueryDslFunctionBoostMode,
     score_mode: 'multiply' as QueryDslFunctionScoreMode,
+    min_score: 0.1,
+  };
+
+  return { function_score: functionScoreQuery };
+}
+
+function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
+  const currentYear = new Date().getFullYear();
+
+  const cleanQuery = query.toLowerCase();
+
+  const shouldClauses: QueryDslQueryContainer[] = [
+    // Exact matches (highest priority)
+    {
+      bool: {
+        should: [
+          {
+            match_phrase: {
+              title: {
+                query: cleanQuery,
+                boost: 100,
+                analyzer: 'standard_analyzer',
+              },
+            },
+          },
+          {
+            term: {
+              doi: {
+                value: cleanQuery,
+                boost: 90,
+              },
+            },
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    },
+
+    // High-precision matches (80% threshold)
+    {
+      bool: {
+        should: [
+          {
+            match: {
+              title: {
+                query: cleanQuery,
+                minimum_should_match: '80%',
+                boost: 75,
+                analyzer: 'standard_analyzer',
+              },
+            },
+          },
+          {
+            match: {
+              abstract: {
+                query: cleanQuery,
+                minimum_should_match: '80%',
+                boost: 60,
+                analyzer: 'standard_analyzer',
+              },
+            },
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    },
+
+    // Broader text matches
+    {
+      multi_match: {
+        query: cleanQuery,
+        fields: [
+          'title^3',
+          'abstract^2',
+          'topics.display_name^2',
+          'authors.display_name^1.5',
+          'best_locations.display_name^1.5',
+          'institutions.display_name^1.5',
+        ],
+        type: 'best_fields',
+        operator: 'or',
+        boost: 10,
+        analyzer: 'standard_analyzer',
+      },
+    },
+
+    // Fallback text matches with lower threshold
+    {
+      multi_match: {
+        query: cleanQuery,
+        fields: [
+          'title^2',
+          'abstract^1.5',
+          'topics.display_name^1.5',
+          'authors.display_name',
+          'best_locations.display_name',
+          'institutions.display_name',
+        ],
+        type: 'cross_fields',
+        minimum_should_match: '50%',
+        boost: 5,
+        analyzer: 'standard_analyzer',
+      },
+    },
+  ];
+
+  const functionScoreQuery: QueryDslFunctionScoreQuery = {
+    query: { bool: { should: shouldClauses, minimum_should_match: 1 } },
+    functions: [
+      // Citation impact as tiebreaker
+      {
+        filter: { range: { cited_by_count: { gte: 1 } } },
+        field_value_factor: {
+          field: 'cited_by_count',
+          factor: 0.0001,
+          modifier: 'log1p',
+        },
+        weight: 1,
+      },
+      // Publication year as tiebreaker
+      {
+        linear: {
+          publication_year: {
+            origin: currentYear.toString(),
+            scale: '25',
+            offset: '3',
+            decay: 0.7,
+          },
+        },
+        weight: 0.5,
+      },
+      // Boost for articles and preprints
+      {
+        filter: {
+          bool: {
+            should: [{ term: { type: 'article' } }, { term: { type: 'preprint' } }],
+          },
+        },
+        weight: 1,
+      },
+      // Venue quality as tiebreaker
+      {
+        filter: {
+          range: { 'best_locations.works_count': { gte: 1000 } },
+        },
+        field_value_factor: {
+          field: 'best_locations.works_count',
+          factor: 0.00001,
+          modifier: 'log1p',
+        },
+        weight: 0.3,
+      },
+      // Language preference
+      {
+        filter: {
+          term: { language: 'en' },
+        },
+        weight: 0.2,
+      },
+    ],
+    score_mode: 'sum' as QueryDslFunctionScoreMode,
+    boost_mode: 'sum' as QueryDslFunctionBoostMode,
     min_score: 0.1,
   };
 
@@ -472,6 +648,10 @@ export function buildMultiMatchQuery(
 ): QueryDslQueryContainer {
   if (entity === 'autocomplete_full') {
     return createAutocompleteFunctionScoreQuery(query);
+  }
+
+  if (entity === 'works' || entity === 'works_single' || entity === 'works_opt') {
+    return createEnhancedWorksQuery(query);
   }
 
   const fields = getRelevantFields(entity);
