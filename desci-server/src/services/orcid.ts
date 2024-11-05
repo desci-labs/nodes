@@ -5,7 +5,7 @@ import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../theGraph.js';
 import { zeropad } from '../utils/manifest.js';
-import { hexToCid } from '../utils.js';
+import { ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { getManifestByCid } from './data/processing.js';
@@ -238,7 +238,7 @@ class OrcidApiService {
    * @param orcid - ORCID identifier
    * @returns
    */
-  async postWorkRecord(nodeUuid: string, orcid: string) {
+  async postWorkRecord(nodeUuid: string, orcid: string, dpidAlias: string) {
     try {
       const user = await prisma.user.findUnique({ where: { orcid } });
       const authToken = await this.getAccessToken(user.id);
@@ -249,6 +249,13 @@ class OrcidApiService {
       const latestManifest = await getManifestByCid(manifestCid);
       researchObject.versions.reverse();
       const nodeVersion = researchObject.versions.length;
+
+      const dpid = latestManifest?.dpid?.id || dpidAlias;
+
+      if (!dpid) {
+        logger.error({ dpid, nodeUuid }, 'Node DPID is missing');
+        return;
+      }
 
       let claims = await attestationService.getProtectedNodeClaims(nodeUuid);
       claims = claims.filter((claim) => claim.verifications > 0);
@@ -273,7 +280,8 @@ class OrcidApiService {
         publicationDate,
         contributorsXml,
         userId: user.id,
-        manifest: latestManifest,
+        dpid,
+        title: latestManifest.title,
       });
       const claimRecordPromises = claims.map((claim) => {
         const versionIndex = claims[claims.length - 1].nodeVersion;
@@ -291,7 +299,8 @@ class OrcidApiService {
           uuid: nodeUuid,
           userId: user.id,
           nodeVersion: claimedVersionNumber,
-          manifest: latestManifest,
+          dpid,
+          title: latestManifest.title,
         });
       });
 
@@ -314,7 +323,8 @@ class OrcidApiService {
    * @param {number} argument.nodeVersion - The latest version of the research node
    */
   async putNodeWorkRecord({
-    manifest,
+    dpid,
+    title,
     publicationDate,
     uuid,
     userId,
@@ -323,7 +333,8 @@ class OrcidApiService {
     nodeVersion,
     contributorsXml,
   }: {
-    manifest: ResearchObjectV1;
+    dpid: string;
+    title: string;
     publicationDate: string;
     uuid: string;
     userId: number;
@@ -338,7 +349,7 @@ class OrcidApiService {
       });
       const putCode = orcidPutCode?.putcode;
 
-      let data = generateNodeWorkRecord({ manifest, publicationDate, nodeVersion, putCode, contributorsXml });
+      let data = generateNodeWorkRecord({ dpid, title, publicationDate, nodeVersion, putCode, contributorsXml });
       data = data.replace(/\\"/g, '"');
 
       const url = `${this.baseUrl}/${orcid}/work${putCode ? '/' + putCode : ''}`;
@@ -429,7 +440,8 @@ class OrcidApiService {
    * @param {Object} argument - The Research Node details object
    * @param {string} argument.authToken - A valid user orcid access token
    * @param {Object} argument.claim - The claim object retrieved from the database
-   * @param {Object} argument.manifest - The node's manifest
+   * @param {Object} argument.title - The title of the research object
+   * @param {Object} argument.dpid - The node's dpid
    * @param {number} argument.nodeVersion - The latest version of the research node
    * @param {string} argument.orcid - The ORCID identifier of the user
    * @param {string} argument.publicationDate - The last publish datetime string in rfc3339 format
@@ -437,7 +449,8 @@ class OrcidApiService {
    * @param {number} argument.userId - ID of the user (node owner)
    */
   async putClaimWorkRecord({
-    manifest,
+    dpid,
+    title,
     publicationDate,
     uuid,
     userId,
@@ -449,13 +462,14 @@ class OrcidApiService {
   }: {
     claim: Claim;
     contributorsXml: string;
-    manifest: ResearchObjectV1;
     nodeVersion: number;
     publicationDate: string;
     uuid: string;
     userId: number;
     authToken: string;
     orcid: string;
+    dpid: string;
+    title: string;
   }) {
     try {
       const putCodeReference = claim.name.toLowerCase().includes('code')
@@ -471,7 +485,9 @@ class OrcidApiService {
 
       let data = generateClaimWorkRecord({
         nodeVersion,
-        manifest,
+
+        dpid,
+        title,
         publicationDate,
         claim,
         putCode,
@@ -582,14 +598,17 @@ class OrcidApiService {
  * @param {number=} argument.putCode - The ORCID /work record putCode
  */
 const generateClaimWorkRecord = ({
-  manifest,
+  dpid,
+  title,
   putCode,
   claim,
   nodeVersion,
   publicationDate,
   contributorsXml,
 }: {
-  manifest: ResearchObjectV1;
+  // manifest: ResearchObjectV1;
+  dpid: string;
+  title: string;
   claim: Claim;
   contributorsXml: string;
   putCode?: string;
@@ -605,15 +624,15 @@ const generateClaimWorkRecord = ({
 
   const description = `${claim.name} availability verified`;
   const [month, day, year] = publicationDate.split('-');
-  const externalUrl = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${nodeVersion}/attestation/${claim.id}`;
-  const dataRoot = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${nodeVersion}`;
+  const externalUrl = `${DPID_URL_OVERRIDE}/${dpid}/v${nodeVersion}/attestation/${claim.id}`;
+  const dataRoot = `${DPID_URL_OVERRIDE}/${dpid}/v${nodeVersion}`;
   logger.info({ codeAttr, workType, publicationDate, day, month, year, externalUrl }, 'CODE ATTR');
   return (
     '<work:work xmlns:common="http://www.orcid.org/ns/common" xmlns:work="http://www.orcid.org/ns/work" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.orcid.org/ns/work https://raw.githubusercontent.com/ORCID/orcid-model/master/src/main/resources/record_3.0/work-3.0.xsd" ' +
     codeAttr +
     '> ' +
     '<work:title>' +
-    ` <common:title>${manifest.title}</common:title>
+    ` <common:title>${title}</common:title>
     </work:title>
     <work:short-description>${description}</work:short-description>
     <work:type>${workType}</work:type>
@@ -654,13 +673,15 @@ const generateClaimWorkRecord = ({
  * @returns {string}  xml string of the constructed work summary data
  */
 const generateNodeWorkRecord = ({
-  manifest,
+  title,
+  dpid,
   nodeVersion,
   putCode,
   publicationDate,
   contributorsXml,
 }: {
-  manifest: ResearchObjectV1;
+  dpid: string;
+  title: string;
   nodeVersion: number;
   putCode?: string;
   publicationDate: string;
@@ -669,14 +690,14 @@ const generateNodeWorkRecord = ({
   const codeAttr = putCode ? 'put-code="' + putCode + '"' : '';
   const workType = 'preprint';
   const [month, day, year] = publicationDate.split('-');
-  const dataRoot = `${DPID_URL_OVERRIDE}/${manifest.dpid.id}/v${nodeVersion}`;
+  const dataRoot = `${DPID_URL_OVERRIDE}/${dpid}/v${nodeVersion}`;
   logger.info({ codeAttr, publicationDate, dataRoot }, 'CODE ATTR');
   return (
     '<work:work xmlns:common="http://www.orcid.org/ns/common" xmlns:work="http://www.orcid.org/ns/work" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.orcid.org/ns/work https://raw.githubusercontent.com/ORCID/orcid-model/master/src/main/resources/record_3.0/work-3.0.xsd" ' +
     codeAttr +
     '> ' +
     '<work:title>' +
-    ` <common:title>${manifest.title}</common:title>
+    ` <common:title>${title}</common:title>
     </work:title>
     <work:type>${workType}</work:type>
     <common:publication-date>

@@ -120,7 +120,7 @@ router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
 
 // Doi api routes
-router.get('/:identifier/doi', [ensureUser], asyncHandler(retrieveNodeDoi));
+router.get('/:identifier/doi', [], asyncHandler(retrieveNodeDoi));
 router.post(
   '/:uuid/automate-metadata',
   [ensureUser, ensureNodeAccess, validate(automateMetadataSchema)],

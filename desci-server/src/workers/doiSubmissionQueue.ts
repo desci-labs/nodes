@@ -1,6 +1,8 @@
 import { CronJob } from 'cron';
 
+import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
+import { EmailTypes, sendEmail } from '../services/email.js';
 import { doiService } from '../services/index.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../utils/discordUtils.js';
 import { asyncMap } from '../utils.js';
@@ -36,6 +38,24 @@ export const onTick = async () => {
         message: `DOI: https://doi.org/${job.uniqueDoi}
         DPID: ${job.dpid}`,
       });
+
+      const node = await prisma.node.findFirst({
+        where: { uuid: job.uuid },
+        include: { owner: { select: { email: true, name: true } } },
+      });
+
+      if (node.owner.email) {
+        sendEmail({
+          type: EmailTypes.DoiMinted,
+          payload: {
+            name: node.owner.name,
+            doi: job.uniqueDoi,
+            dpid: job.dpid,
+            to: node.owner.email,
+            title: node.title,
+          },
+        });
+      }
     }
     return { doi: job.uniqueDoi, jobId: job.id, isResolved };
   });

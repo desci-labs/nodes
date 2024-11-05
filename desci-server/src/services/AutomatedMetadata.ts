@@ -4,6 +4,7 @@ import { DocumentId } from '@automerge/automerge-repo';
 import { ManifestActions, ResearchObjectV1Author, ResearchObjectV1AuthorRole } from '@desci-labs/desci-models';
 import axios from 'axios';
 import FormData from 'form-data';
+import { v4 as uuidv4 } from 'uuid';
 
 import { logger as parentLogger } from '../logger.js';
 import { ONE_DAY_TTL, getFromCache, setToCache } from '../redisClient.js';
@@ -314,6 +315,7 @@ export class AutomatedMetadataClient {
         contributors: metadata.authors.map(
           (author) =>
             ({
+              id: uuidv4(),
               name: author.name,
               role: ResearchObjectV1AuthorRole.AUTHOR,
               ...(author.affiliations.length > 0 && { organizations: author.affiliations }),
