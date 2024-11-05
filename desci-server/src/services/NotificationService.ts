@@ -80,7 +80,7 @@ export const getUserNotifications = async (
   userId: number,
   query: GetNotificationsQuery,
 ): Promise<PaginatedResponse<UserNotifications>> => {
-  const { page, perPage, dismissed = false } = query;
+  const { page, perPage, dismissed } = query;
   const skip = (page - 1) * perPage;
   const whereClause = {
     userId,
