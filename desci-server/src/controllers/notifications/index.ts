@@ -12,7 +12,7 @@ export const GetNotificationsQuerySchema = z.object({
   dismissed: z
     .enum(['true', 'false'])
     .optional()
-    .transform((value) => value === 'true'),
+    .transform((value) => (value === 'true' ? true : value === 'false' ? false : undefined)),
 });
 
 interface AuthenticatedRequest extends Request {
