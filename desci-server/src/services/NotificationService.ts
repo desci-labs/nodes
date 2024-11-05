@@ -84,7 +84,7 @@ export const getUserNotifications = async (
   const skip = (page - 1) * perPage;
   const whereClause = {
     userId,
-    ...(dismissed && { dismissed }),
+    ...(dismissed !== undefined && { dismissed }),
   };
 
   const [notifications, totalItems] = await Promise.all([
