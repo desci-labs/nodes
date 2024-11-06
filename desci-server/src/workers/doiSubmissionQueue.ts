@@ -65,7 +65,7 @@ export const onTick = async () => {
 export const SubmissionQueueJob = new CronJob(
   // schedule cron to run every hour
   // '*/10 * * * * *', // 10 seconds (for local test)
-  '0 * * * * *', // 1 hour
+  '0 * * * *', // 1 hour
   onTick, // onTick
   null, // onComplete
   false, // start

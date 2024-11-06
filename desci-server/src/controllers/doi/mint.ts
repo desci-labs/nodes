@@ -40,8 +40,8 @@ export const retryMint = async (req: Request, res: Response, _next: NextFunction
   if (!submissionId) throw new BadRequestError();
 
   const submission = await doiService.getSubmissionById(parseInt(submissionId));
-  if (submission) {
-    throw new MintError('You have a pending submission');
+  if (!submission) {
+    throw new MintError('No pending submission found');
   }
 
   await doiService.retryMint(submission);
@@ -53,6 +53,8 @@ export const retryMint = async (req: Request, res: Response, _next: NextFunction
     title: 'Retry DOI Minting',
     message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
   });
+
+  new SuccessMessageResponse().send(res);
 };
 
 export interface RequestWithCrossRefPayload extends Request {
