@@ -14,6 +14,7 @@ import {
   addEntryAttestationSchema,
   addMemberSchema,
   removeMemberSchema,
+  toggleEntryAttestationSchema,
   updateAttestationSchema,
   updateCommunitySchema,
 } from '../../../routes/v1/admin/communities/schema.js';
@@ -156,7 +157,7 @@ export const listCommunityAttestations = async (
       attestationId: attestation.id,
       communityId: attestation.communityId,
       name: attestation.name,
-      imageUrl: attestation.AttestationVersion[0].image_url,
+      imageUrl: attestation.AttestationVersion[attestation.AttestationVersion.length - 1].image_url,
       description: attestation.description,
       protected: attestation.protected,
       isRequired: !!attestation.CommunityEntryAttestation.length,
@@ -172,7 +173,7 @@ export const listCommunityAttestations = async (
     imageUrl: entry.attestationVersion.image_url,
     description: entry.attestationVersion.description,
     protected: entry.attestation.protected,
-    isRequired: true,
+    isRequired: entry.required,
     entryAttestationId: entry.id,
     isExternal: entry.desciCommunityId !== parseInt(communityId),
     communityName: entry.attestation.community.name,
@@ -252,6 +253,14 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
     protected: isProtected,
   });
   // logger.trace({ attestation }, 'created');
+  const AttestationVersion = await attestationService.getAttestationVersions(attestation.id);
+  await attestationService.addCommunityEntryAttestation({
+    communityId: Number(communityId),
+    attestationId: attestation.id,
+    // set to the lastest version
+    attestationVersion: AttestationVersion[AttestationVersion.length - 1].id,
+  });
+
   new SuccessResponse(attestation).send(res);
 };
 
@@ -389,4 +398,10 @@ export const removeEntryAttestation = async (req: Request, res: Response, _next:
   });
 
   new SuccessResponse(data).send(res);
+};
+
+export const toggleEntryAttestationRequirement = async (req: Request, res: Response, _next: NextFunction) => {
+  const { entryId }: z.infer<typeof toggleEntryAttestationSchema>['params'] = req.params;
+  await attestationService.toggleEntryAttestation(+entryId);
+  new SuccessMessageResponse().send(res);
 };
