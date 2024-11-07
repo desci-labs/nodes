@@ -79,3 +79,9 @@ export const addEntryAttestationSchema = z.object({
     attestationId: z.coerce.number(),
   }),
 });
+
+export const toggleEntryAttestationSchema = z.object({
+  params: z.object({
+    entryId: z.coerce.number(),
+  }),
+});
