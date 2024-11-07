@@ -1,0 +1,13 @@
+# Top-level configuration
+name = "automerge-sync-server"
+main = "src/party/Automerge.ts"
+compatibility_date = "2022-07-12"
+compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "Automerge"
+class_name = "AutomergeServer"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["AutomergeServer"]

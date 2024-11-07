@@ -4,12 +4,13 @@
   "description": "",
   "type": "module",
   "engines": {
-    "node": ">=16.14"
+    "node": ">=16"
   },
   "scripts": {
     "build": "rimraf dist && tsc",
     "start": "NODE_PATH=./dist node ./dist/index.js",
     "dev": "npm-run-all --parallel watch-compile watch-dev",
+    "partykit:dev": "wrangler dev --port 5446",
     "docker:dev": "docker compose --file docker-compose.repo.yml --compatibility up --build",
     "watch-dev": "debug=* nodemon --watch \"dist/**/*\" -e js ./dist/index.js",
     "watch-compile": "debug=* tsc -w --preserveWatchOutput",
@@ -35,8 +36,6 @@
     "cliui": "^8.0.1"
   },
   "devDependencies": {
-    "@automerge/automerge": "^2.1.10",
-    "@automerge/automerge-repo": "^1.1.0",
     "@automerge/automerge-repo-network-websocket": "^1.0.19",
     "@automerge/automerge-repo-storage-nodefs": "^1.0.19",
     "@types/chai": "^4.3.11",
@@ -68,6 +67,8 @@
     "typescript": "5.1.6"
   },
   "dependencies": {
+    "@automerge/automerge-repo": "1.2.1",
+    "@cloudflare/workers-types": "^4.20241022.0",
     "@desci-labs/desci-models": "0.2.11",
     "@sentry/node": "8.29.0",
     "@sentry/profiling-node": "8.32.0",
@@ -79,12 +80,15 @@
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "partykit": "^0.0.111",
+    "partyserver": "^0.0.57",
     "pg": "^8.11.3",
     "pino": "^8.16.2",
     "pino-http": "^8.5.1",
     "pino-pretty": "^10.2.3",
     "reflect-metadata": "^0.1.13",
     "uuid": "^9.0.1",
+    "wrangler": "^3.84.1",
     "ws": "^8.14.2",
     "zod": "^3.22.4"
   }
