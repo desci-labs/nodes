@@ -14,6 +14,7 @@ import {
   listCommunityEntryAttestations,
   removeEntryAttestation,
   removeMember,
+  toggleEntryAttestationRequirement,
   updateAttestation,
   updateCommunity,
 } from '../../../../controllers/admin/communities/index.js';
@@ -30,6 +31,7 @@ import {
   addEntryAttestationSchema,
   addMemberSchema,
   removeMemberSchema,
+  toggleEntryAttestationSchema,
   updateAttestationSchema,
   updateCommunitySchema,
 } from './schema.js';
@@ -131,6 +133,12 @@ router.post(
   '/:communityId/removeEntryAttestation/:attestationId',
   [ensureUser, ensureAdmin, validate(addEntryAttestationSchema)],
   asyncHandler(removeEntryAttestation),
+);
+
+router.post(
+  '/:communityId/toggleEntryAttestation/:entryId',
+  [ensureUser, ensureAdmin, validate(toggleEntryAttestationSchema)],
+  asyncHandler(toggleEntryAttestationRequirement),
 );
 
 export default router;

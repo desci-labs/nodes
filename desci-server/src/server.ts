@@ -153,7 +153,7 @@ class AppServer {
     });
 
     // start jobs
-    this.startJobs();
+    // this.startJobs();
   }
 
   get httpServer() {
