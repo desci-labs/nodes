@@ -33,23 +33,38 @@ cp $insight_path/data/issues/*.json $data_path/issues
 verify () {
   local cid=$1
   local file=$2
-  car verify "$file" && car root "$file" | grep -q "$cid"
+
+  # 1. check archive is well-formed
+  # 2. check that the car root is the same cid we wanted
+  # 3. check the entire dag is included (no link leaves) 
+  car verify "$file" && \
+  car root "$file" | grep -q "$cid" && \
+  car get-dag --strict "$file" /dev/null
 }
 
 download () {
   local cid=$1
   local target=$2
-  lassie fetch\
+
+  # First try nftstorage racing aggregator, fall back to IPNI discovery
+  if ! lassie fetch \
     --output "$target" \
     --providers='https://nftstorage.link' \
     --provider-timeout=20s \
     "$cid"
+  then
+    echo "⛑️ aggregator gateway failed, retrying with IPNI discovery..."
+    lassie fetch \
+    --output "$target" \
+    --provider-timeout=20s \
+    "$cid"   
+  fi
 }
 
 fetch () {
   local cid=$1
   local outdir=$2
-  local target="$outdir/data/$cid.car"
+  local target="$outdir/$cid.car"
 
   # if we have a file for this CID, verify the content
   if [ -f "$target" ]; then
@@ -72,12 +87,12 @@ fetch () {
   fi
 }
 
-# use process subst and only interrupt between iterations to not abort mid write
 while read -r file; do
   pub_id=$(basename "$(dirname "$file")")
   outdir="$data_path/publications/${pub_id}"
+  cardir="$data_path/cars"
+  
   mkdir -p "$outdir"
-
   cp "$file" "$outdir"
 
   cover_file=$(dirname "$file")/cover.jpeg
@@ -87,9 +102,8 @@ while read -r file; do
 
   cids=$(grep -Eo 'b[0-9a-z]{58}' "$file" || true)
   if [ -n "$cids" ]; then 
-    mkdir -p "$outdir/data"
     while read -r cid; do
-      fetch "$cid" "$outdir"
+      fetch "$cid" "$cardir"
     done <<< "$cids"
   fi
 done < <(find $insight_path/data/publications -type f -name "metadata.json")
