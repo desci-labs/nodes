@@ -86,6 +86,7 @@
     "pino": "^8.16.2",
     "pino-http": "^8.5.1",
     "pino-pretty": "^10.2.3",
+    "postgres": "^3.4.5",
     "reflect-metadata": "^0.1.13",
     "uuid": "^9.0.1",
     "wrangler": "^3.84.1",

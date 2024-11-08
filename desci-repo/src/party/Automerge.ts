@@ -9,6 +9,9 @@ import { routePartykitRequest, Server as PartyServer, Connection, ConnectionCont
 import { PartyKitWSServerAdapter } from './automerge-repo-network-websocket/PartykitWsServerAdapter.js';
 import { DurableObjectStorageAdapter } from './automerge-repo-storage-durable-object/index.js';
 
+import database from './automerge-repo-storage-postgres/db.js';
+import { PostgresStorageAdapter } from './automerge-repo-storage-postgres/adapter.js';
+import { Env } from './types.js';
 // const hostname = os.hostname();
 
 export class AutomergeServer extends PartyServer {
@@ -16,62 +19,54 @@ export class AutomergeServer extends PartyServer {
 
   constructor(
     private readonly ctx: DurableObjectState,
-    private readonly env,
+    private readonly env: Env,
   ) {
     super(ctx, env);
-    console.log('Room: ', ctx.id);
+    console.log('Room: ', ctx.id, env);
   }
 
   async onStart(): Promise<void> {
     console.log('first connection to server');
     const { Repo } = await import('@automerge/automerge-repo');
-
+    // const { query } = await database.init(this.env.DATABASE_URL);
     const config = {
       // network: [],
-      //   storage: new PostgresStorageAdapter(),
+      // storage: new PostgresStorageAdapter(query),
       storage: new DurableObjectStorageAdapter(this.ctx.storage),
       peerId: `worker-server-${this.ctx.id}` as PeerId,
       // Since this is a server, we don't share generously — meaning we only sync documents they already
       // know about and can ask for by ID.
-      sharePolicy: async (peerId, documentId) => {
-        console.log('share policy called: ', { peerId, documentId });
-        try {
-          if (!documentId) {
-            return false;
-          }
-          if (peerId.toString().length < 8) {
-            return false;
-          }
-
-          const userId = peerId.split(':')?.[0]?.split('-')?.[1];
-          // todo: make api request to desci-server
-          const isAuthorised = true; // await verifyNodeDocumentAccess(Number(userId), documentId);
-          //   logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
-          return isAuthorised;
-        } catch (err) {
-          //   logger.error({ err }, 'Error in share policy');
-          return false;
-        }
-      },
+      sharePolicy: async () => true,
     };
 
     this.repo = new Repo(config);
   }
 
-  onConnect(connection: Connection, ctx: ConnectionContext): void | Promise<void> {
-    console.log('[PARTYKIT]::onConnect', connection.url, connection.id, ctx.request.url);
-    this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
+  async onConnect(connection: Connection, ctx: ConnectionContext): Promise<void> {
+    const url = new URL(ctx.request.url);
+    const params = new URLSearchParams(url.search);
+    console.log('[PARTYKIT]::onConnect', params);
+
+    const auth = params.get('auth');
+    // console.log('auth', auth, this.env.NODES_API);
+    const response = await fetch(`${this.env.NODES_API}/v1/auth/check`, {
+      headers: { Authorization: `Bearer ${auth}` },
+    });
+    if (response.ok) {
+      this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
+    } else {
+      connection.close();
+    }
   }
 
   onMessage(connection: Connection, message: WSMessage): void | Promise<void> {
-    // console.log('[party]::onMessage', connection.id);
     this.broadcast(message, [connection.id]);
   }
 
-  onRequest(request: Request): Response | Promise<Response> {
-    console.log('Incoming request', request.url, request.headers);
-    return new Response('Hello from party server');
-  }
+  // onRequest(request: Request): Response | Promise<Response> {
+  //   console.log('Incoming request', request.url, request.headers);
+  //   return new Response('Hello from party server');
+  // }
 
   onError(connection: Connection, error: unknown): void | Promise<void> {
     console.log('Party Server Error: ', connection.id, error);

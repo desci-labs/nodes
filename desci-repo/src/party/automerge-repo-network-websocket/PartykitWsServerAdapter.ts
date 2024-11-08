@@ -60,7 +60,7 @@ export class PartyKitWSServerAdapter extends NetworkAdapter {
     });
 
     socket.addEventListener('message', (message) => {
-      console.log('[PARTY]::MESSAGE', message);
+      // console.log('[PARTY]::MESSAGE', message);
       // handleChunked((message) => this.receiveMessage(message as Uint8Array, socket));
       const data = new Uint8Array(message.data as ArrayBufferLike);
       this.receiveMessage(data as Uint8Array, socket);
@@ -99,7 +99,7 @@ export class PartyKitWSServerAdapter extends NetworkAdapter {
     const message: FromClientMessage = decode(messageBytes);
 
     const { type, senderId } = message;
-    console.log('[party]::ReceivedMessage', { type, senderId });
+    // console.log('[party]::ReceivedMessage', { type, senderId });
 
     const myPeerId = this.peerId;
     assert(myPeerId);

@@ -1,13 +1,28 @@
 # Top-level configuration
 name = "automerge-sync-server"
 main = "src/party/Automerge.ts"
-compatibility_date = "2022-07-12"
+compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 [[durable_objects.bindings]]
 name = "Automerge"
 class_name = "AutomergeServer"
 
+[vars]
+DATABASE_URL= "postgresql://walter:white@host.docker.internal:5432/boilerplate"
+DB_TABLE= "DocumentStore"
+WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_TEST_DB= "postgresql://walter:white@host.docker.internal:5432/boilerplate"
+NODES_API= "http://localhost:5420"
+
 [[migrations]]
 tag = "v1"
 new_classes = ["AutomergeServer"]
+
+[observability]
+enabled = true
+head_sampling_rate = 1 # optional. default = 1.
+
+[[hyperdrive]]
+binding = "NODES_DB"
+id = "c020574a-5623-407b-be0c-cd192bab9545"
+connectionString = "postgresql://walter:white@host.docker.internal:5432/boilerplate"

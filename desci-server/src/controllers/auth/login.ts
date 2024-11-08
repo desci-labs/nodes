@@ -11,7 +11,8 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 export const check = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   if (req.user) {
     res.status(200).send({ ok: true });
+    return;
   }
 
-  res.send({ ok: false });
+  res.status(401).send({ ok: false });
 };
