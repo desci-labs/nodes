@@ -194,7 +194,7 @@ export class AttestationService {
     return prisma.attestationVersion.findMany({ where: { attestationId } });
   }
 
-  private async getAttestationVersion(id: number, attestationId: number) {
+  async getAttestationVersion(id: number, attestationId: number) {
     return prisma.attestationVersion.findFirst({
       where: { attestationId, id },
       include: { attestation: { select: { communityId: true } } },

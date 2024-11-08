@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { contributorService } from '../../../services/Contributors.js';
+import { emitNotificationOnContributorInvite } from '../../../services/NotificationService.js';
 import { ContributorInviteEmailHtml } from '../../../templates/emails/utils/emailRenderer.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -14,7 +15,7 @@ export type UpdateContributorReqBody = {
   email?: string;
   orcid?: string;
   userId?: number;
-  silent?: boolean;
+  silent?: boolean; // Don't fire an email
 };
 
 export type UpdateContributorRequest = Request<never, never, UpdateContributorReqBody> & {
@@ -101,6 +102,18 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
           Your private share code: ${shareCode}`,
           html: emailHtml,
         };
+
+        if (contribution.userId === undefined && contributorUpdated.userId !== undefined) {
+          // Emit push notif to contributor if the previous contribution entry didn't have a nodes account associated,
+          // but the updated entry now has a nodes account associated.
+          await emitNotificationOnContributorInvite({
+            node: node,
+            nodeOwner: user,
+            targetUserId: contributorUpdated.userId,
+            privShareCode: shareCode,
+            contributorId: contributorUpdated.contributorId,
+          });
+        }
 
         if (process.env.NODE_ENV === 'production') {
           sgMail.send(emailMsg);
