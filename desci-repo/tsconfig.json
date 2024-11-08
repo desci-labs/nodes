@@ -9,10 +9,7 @@
     "target": "esnext",
     // Recommended by docs, but a lot of errors
     // "verbatimModuleSyntax": true,
-    "lib": [
-      "esnext",
-      "dom"
-    ],
+    "lib": ["esnext", "dom"],
     "outDir": "./dist",
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -26,18 +23,12 @@
     "inlineSourceMap": true,
     "paths": {
       // Overrides a built-in Response type
-      "express": [
-        "./src/types/express"
-      ]
+      "express": ["./src/types/express"],
     },
     "strictNullChecks": true,
-    "exactOptionalPropertyTypes": true
+    "exactOptionalPropertyTypes": true,
   },
-  "include": [
-    "./src/**/*.ts",
-  ],
-  "exclude": [
-    "test/**/*.ts"
-  ],
-  "compileOnSave": true
+  "include": ["./src/**/*.ts"],
+  "exclude": ["test/**/*.ts", "./src/party/"],
+  "compileOnSave": true,
 }

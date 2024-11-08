@@ -7,4 +7,5 @@ export interface Env {
   DATABASE_URL: string;
   DB_TABLE: string;
   NODES_API: string;
+  ENVIRONMENT: string;
 }

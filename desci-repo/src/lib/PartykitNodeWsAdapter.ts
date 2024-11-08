@@ -5,16 +5,28 @@ import debug from 'debug';
 const log = debug('WebsocketServer');
 
 import { cbor as cborHelpers, NetworkAdapter, type PeerMetadata, type PeerId } from '@automerge/automerge-repo/slim';
-import { FromClientMessage, FromServerMessage, isJoinMessage, isLeaveMessage } from './messages.js';
-import { ProtocolV1, ProtocolVersion } from './protocolVersion.js';
-import { assert } from './assert.js';
-import { toArrayBuffer } from './toArrayBuffer.js';
-import { Connection as WebSocket } from 'partyserver';
-// import { handleChunked, sendChunked } from './chunking.js';
+import {
+  FromClientMessage,
+  FromServerMessage,
+  isJoinMessage,
+  isLeaveMessage,
+  assert,
+  toArrayBuffer,
+  handleChunked,
+  sendChunked,
+  ProtocolV1,
+  ProtocolVersion,
+} from '../party/index.js';
+// import { ProtocolV1, ProtocolVersion } from '../party/index.js';
+// import { assert } from '../party/index.js';
+// import { toArrayBuffer } from '../party/index.js';
+// import { Connection as WebSocket } from 'partyserver';
+import { PartySocket as WebSocket } from 'partysocket';
+// import { handleChunked, sendChunked } from '../party/index.js';
 
 const { encode, decode } = cborHelpers;
 
-export class PartyKitWSServerAdapter extends NetworkAdapter {
+export class PartykitNodeWsAdapter extends NetworkAdapter {
   #isReady = false;
   #readyPromise;
   #readyResolver;
@@ -46,7 +58,7 @@ export class PartyKitWSServerAdapter extends NetworkAdapter {
   }
 
   connect(peerId: PeerId, peerMetadata: PeerMetadata) {
-    // console.log('Connect', { peerId, peerMetadata, remotePeer: this.remotePeerId });
+    console.log('Connect', { peerId, peerMetadata, remotePeer: this.remotePeerId });
     this.peerId = peerId;
     this.peerMetadata = peerMetadata;
 

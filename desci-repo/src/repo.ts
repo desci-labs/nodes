@@ -3,6 +3,7 @@ import os from 'os';
 import { DocHandleChangePayload, DocHandleEvents, PeerId, Repo, RepoConfig } from '@automerge/automerge-repo';
 import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import { WebSocketServer } from 'ws';
+import { PartySocket } from 'partysocket';
 
 import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
 import { logger as parentLogger } from './logger.js';
@@ -10,6 +11,9 @@ import { verifyNodeDocumentAccess } from './services/nodes.js';
 import { ResearchObjectDocument } from './types.js';
 import * as db from './db/index.js';
 import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
+
+const globalPartyHost = process.env.AUTOMERGE_PARTY_URL ?? 'ws://localhost:5446';
+const globalPartyAuthToken = process.env.AUTOMERGE_PARTY_TOKEN ?? '';
 
 export const socket = new WebSocketServer({
   port: process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 5445,
@@ -23,7 +27,7 @@ const adapter = new NodeWSServerAdapter(socket);
 const config: RepoConfig = {
   network: [adapter],
   storage: new PostgresStorageAdapter(),
-  peerId: `storage-server-${hostname}` as PeerId,
+  peerId: `repo-server-${hostname}` as PeerId,
   // Since this is a server, we don't share generously — meaning we only sync documents they already
   // know about and can ask for by ID.
   sharePolicy: async (peerId, documentId) => {

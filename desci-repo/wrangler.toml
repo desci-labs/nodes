@@ -11,8 +11,8 @@ class_name = "AutomergeServer"
 [vars]
 DATABASE_URL= "postgresql://walter:white@host.docker.internal:5432/boilerplate"
 DB_TABLE= "DocumentStore"
-WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_TEST_DB= "postgresql://walter:white@host.docker.internal:5432/boilerplate"
 NODES_API= "http://localhost:5420"
+ENVIRONMENT="local"
 
 [[migrations]]
 tag = "v1"
@@ -24,5 +24,5 @@ head_sampling_rate = 1 # optional. default = 1.
 
 [[hyperdrive]]
 binding = "NODES_DB"
-id = "c020574a-5623-407b-be0c-cd192bab9545"
+id = "local"
 connectionString = "postgresql://walter:white@host.docker.internal:5432/boilerplate"
