@@ -315,6 +315,130 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
   return { function_score: functionScoreQuery };
 }
 
+function createEnhancedWorksQueryV2(query: string): QueryDslQueryContainer {
+  const currentYear = new Date().getFullYear();
+
+  const cleanQuery = query.toLowerCase();
+
+  const shouldClauses: QueryDslQueryContainer[] = [
+    // Exact matches (highest priority)
+    {
+      bool: {
+        should: [
+          {
+            match_phrase: {
+              title: {
+                query: cleanQuery,
+                boost: 30,
+                analyzer: 'standard_analyzer',
+              },
+            },
+          },
+          {
+            term: {
+              doi: {
+                value: cleanQuery,
+                boost: 100,
+              },
+            },
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    },
+
+    // High-precision matches (80% threshold)
+    {
+      bool: {
+        should: [
+          {
+            match: {
+              title: {
+                query: cleanQuery,
+                minimum_should_match: '70%',
+                boost: 20,
+                analyzer: 'standard_analyzer',
+              },
+            },
+          },
+          {
+            match: {
+              abstract: {
+                query: cleanQuery,
+                minimum_should_match: '80%',
+                boost: 10,
+                analyzer: 'standard_analyzer',
+              },
+            },
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    },
+  ];
+
+  const functionScoreQuery: QueryDslFunctionScoreQuery = {
+    query: { bool: { should: shouldClauses, minimum_should_match: 1 } },
+    functions: [
+      // Citation impact as tiebreaker
+      {
+        filter: { range: { cited_by_count: { gte: 1 } } },
+        field_value_factor: {
+          field: 'cited_by_count',
+          factor: 1,
+          modifier: 'log1p',
+        },
+        weight: 25,
+      },
+      // Publication year as tiebreaker
+      {
+        linear: {
+          publication_year: {
+            origin: currentYear.toString(),
+            scale: '25',
+            offset: '3',
+            decay: 0.5,
+          },
+        },
+        weight: 5,
+      },
+      // // Boost for articles and preprints
+      {
+        filter: {
+          bool: {
+            should: [{ term: { type: 'article' } }, { term: { type: 'preprint' } }],
+          },
+        },
+        weight: 1,
+      },
+      // // Venue quality as tiebreaker
+      {
+        filter: {
+          range: { 'best_locations.works_count': { gte: 1000 } },
+        },
+        field_value_factor: {
+          field: 'best_locations.works_count',
+          factor: 1,
+          modifier: 'log1p',
+        },
+        weight: 25,
+      },
+      // Language preference
+      {
+        filter: {
+          term: { language: 'en' },
+        },
+        weight: 2,
+      },
+    ],
+    score_mode: 'sum' as QueryDslFunctionScoreMode,
+    boost_mode: 'sum' as QueryDslFunctionBoostMode,
+    min_score: 0.1,
+  };
+
+  return { function_score: functionScoreQuery };
+}
+
 function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
   const currentYear = new Date().getFullYear();
 
@@ -366,7 +490,7 @@ function createEnhancedWorksQuery(query: string): QueryDslQueryContainer {
               abstract: {
                 query: cleanQuery,
                 minimum_should_match: '80%',
-                boost: 60,
+                boost: 40,
                 analyzer: 'standard_analyzer',
               },
             },
@@ -651,7 +775,8 @@ export function buildMultiMatchQuery(
   }
 
   if (entity === 'works' || entity === 'works_single' || entity === 'works_opt') {
-    return createEnhancedWorksQuery(query);
+    return createEnhancedWorksQueryV2(query);
+    // return createEnhancedWorksQuery(query);
   }
 
   const fields = getRelevantFields(entity);
