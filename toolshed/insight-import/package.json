@@ -4,7 +4,9 @@
   "description": "Import Insight Journal entries into Nodes",
   "type": "module",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "generate-types": "./generateTsTypes.sh"
+  },
   "author": "Edvard Hübinette",
   "license": "MIT",
   "devDependencies": {
