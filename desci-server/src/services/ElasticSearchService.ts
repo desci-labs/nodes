@@ -160,8 +160,14 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
 }
 
 export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQueryContainer {
-  // Use these as tie breakers, low weights/factors compared to the text matches
+  // Use these as tie breakers, small multipliers to slightly boost more relevant work
   const boostFunctions: QueryDslFunctionScoreContainer[] = [
+    {
+      filter: {
+        term: { entity_type: 'work' },
+      },
+      weight: 0.9,
+    },
     {
       filter: { range: { cited_by_count: { gte: 1 } } },
       field_value_factor: {
@@ -169,16 +175,16 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
         factor: 0.001,
         modifier: 'log1p',
       },
-      weight: 1,
+      weight: 1.1,
     },
     {
       filter: { range: { works_count: { gte: 1 } } },
       field_value_factor: {
         field: 'works_count',
-        factor: 0.0005,
+        factor: 1,
         modifier: 'log1p',
       },
-      weight: 0.5,
+      weight: 1.05,
     },
   ];
 
@@ -282,19 +288,13 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
         minimum_should_match: 1,
       },
     },
-    // Text matches (lower priority)
+    // Prefix matches
     {
       multi_match: {
         query: query,
-        fields: [
-          'title^3',
-          'description^2',
-          'publisher^2',
-          'subfield_display_name^2',
-          'institution_data.display_name^2',
-        ],
+        fields: ['title'],
         type: 'phrase_prefix',
-        boost: 10,
+        boost: 200,
       },
     },
   ];
@@ -307,8 +307,8 @@ export function createAutocompleteFunctionScoreQuery(query: string): QueryDslQue
   const functionScoreQuery: QueryDslFunctionScoreQuery = {
     query: { bool: boolQuery },
     functions: boostFunctions,
-    boost_mode: 'sum' as QueryDslFunctionBoostMode,
-    score_mode: 'multiply' as QueryDslFunctionScoreMode,
+    boost_mode: 'multiply' as QueryDslFunctionBoostMode,
+    score_mode: 'sum' as QueryDslFunctionScoreMode,
     min_score: 0.1,
   };
 
