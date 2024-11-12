@@ -61,5 +61,6 @@ export type ManifestActions =
     }
   | { type: 'Add Reference'; reference: ResearchObjectReference }
   | { type: 'Add References'; reference: ResearchObjectReference[] }
+  | { type: 'Set References'; reference: ResearchObjectReference[] }
   | { type: 'Delete Reference'; referenceId: string }
   | { type: 'Set Contributors'; contributors: ResearchObjectV1Author[] };
