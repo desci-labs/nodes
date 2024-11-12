@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { showNodeAttestations } from '../../controllers/attestations/show.js';
 import { createNodeBookmark } from '../../controllers/nodes/bookmarks/create.js';
 import { deleteNodeBookmark } from '../../controllers/nodes/bookmarks/delete.js';
 import { listBookmarkedNodes } from '../../controllers/nodes/bookmarks/index.js';
@@ -65,7 +66,7 @@ import { ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
-import { getCommentsSchema } from './attestations/schema.js';
+import { getCommentsSchema, showNodeAttestationsSchema } from './attestations/schema.js';
 
 const router = Router();
 
@@ -139,6 +140,8 @@ router.post(
 router.delete('/:uuid', [ensureUser], deleteNode);
 
 router.get('/:uuid/comments', [validate(getCommentsSchema), attachUser], asyncHandler(getGeneralComments));
+
+router.get('/:uuid/attestations', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
 
 router.get('/feed', [], feed);
 
