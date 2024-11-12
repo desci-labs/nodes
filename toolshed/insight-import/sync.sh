@@ -93,7 +93,8 @@ while read -r file; do
   cardir="$data_path/cars"
   
   mkdir -p "$outdir"
-  cp "$file" "$outdir"
+  # Write a copy with jq to replace ascii unicode escapes and convert encoding to utf-8
+  jq "." "$file" > "$outdir/metadata.json"
 
   cover_file=$(dirname "$file")/cover.jpeg
   if [ -f "$cover_file" ]; then
@@ -101,7 +102,7 @@ while read -r file; do
   fi
 
   cids=$(grep -Eo 'b[0-9a-z]{58}' "$file" || true)
-  if [ -n "$cids" ]; then 
+  if [ -n "$cids" ]; then
     while read -r cid; do
       fetch "$cid" "$cardir"
     done <<< "$cids"
