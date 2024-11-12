@@ -1,10 +1,11 @@
 // import { Node, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
-import { extractAuthToken, extractUserFromToken } from './permissions.js';
+import { query } from '../db/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { hideEmail } from '../services/user.js';
-import { query } from '../db/index.js';
+
+import { extractAuthToken, extractUserFromToken } from './permissions.js';
 
 const logger = parentLogger.child({ module: 'MIDDLEWARE/GUARD' });
 

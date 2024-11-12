@@ -1,4 +1,5 @@
 import { DocumentId } from '@automerge/automerge-repo';
+
 import { query } from '../db/index.js';
 import { logger } from '../logger.js';
 
