@@ -2,8 +2,8 @@ import path from 'path';
 
 import { Chunk, StorageAdapter, StorageKey } from '@automerge/automerge-repo';
 
-import { logger as parentLogger } from '../logger.js';
 import { query } from '../db/index.js';
+import { logger as parentLogger } from '../logger.js';
 
 const logger = parentLogger.child({ module: 'PostgresStorageAdapter' });
 export class PostgresStorageAdapter extends StorageAdapter {
