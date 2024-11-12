@@ -81,6 +81,16 @@ Many of these CIDs weren't resolvable over the DHT or IPNS, so to help their ava
 
 This takes 20ish minutes to run, depending on your connection.
 
+#### Export cover images
+Run `covers.sh` to generate a CAR file for each cover photo, and send them to the public node as well:
+
+```bash
+./covers.sh
+./remoteDagImport.sh local-data/covers s3-public-ipfs-prod-8547f975ff-5sftc
+```
+
+The `covers.sh` script writes the cover image CID to a new top-level field `coverImage`, that can be used to connect them when creating the manifest later.
+
 ### Node creation
 
 #### Type generation
@@ -92,7 +102,13 @@ This is checked in as [src/ijTypes.ts](src/ijTypes.ts), and can be regenerated w
 Some IJ metadata fields are a bit different than what we're used to in `desci-models`.
 
 ### `abstract`
-Suitable to use as `description`, but contains some HTML tags and `\r\n` line feeds.
+Suitable to use as `description`, but contains some HTML tags, `\r\n` line feeds, and raw unicode characters:
+
+```
+An Insight Toolkit (ITK) processing framework for segmentation using active contours without edges \r\nis presented in this paper. Our algorithm is based on the work of Chan and Vese [1] that uses level- \r\nsets to accomplish region segmentation in images with poor or no gradient information. The basic idea \r\nis to partion the image into two piecewise constant intensity regions. This work is in contrast to the \r\nlevel-set methods currently available in ITK which necessarily require gradient information. Similar to \r\nthose methods, the methods presented in this paper are also made ef\ufb01cient using a sparse implementation \r\nstrategy that solves the contour evolution PDE at the level-set boundary. The framework consists of 6 \r\nnew ITK \ufb01lters that inherit in succession from itk::SegmentationFilter. We include 2D/3D example \r\ncode, parameter settings and show the results generated on a 2D cardiac image.
+```
+
+The raw unicode is removed automatically when we copy it into `local-data`, but the others stay for now.
 
 ### `authors`
 - No attached `role`, assume co-author?
@@ -112,6 +128,14 @@ View pubs with comments:
 cat local-data/publications/**/metadata.json | jq 'select(.publication.comments[] | length > 0)'
 ```
 
+### `categories`
+Similar to `ResearchField`, and much lower dimension than `tags` below. 1868 uses, but only 82 distinct categories. They do seem a bit more specific than research field though, as many of the categories does't have a dito `ResearchField`.
+
+List tags:
+```bash
+cat local-data/publications/**/metadata.json | jq '.publication.categories[]'
+```
+
 ### `tags`
 Some overlap with our `ResearchField`, but leaning more toward free-form SEO keywords. It seems to be freetext because there are many similar entries, some have the "list" in a single entry, etc. Not sure how/if we should try to match with research fields, because it probably won't be super straight-forward. We have listed the component `keywords` as deprecated, which is kinda what this would be (on the article).
 
@@ -119,6 +143,96 @@ List all unique tags:
 ```bash
 ❯ cat local-data/publications/**/metadata.json | jq --raw-output 'select(.publication.tags != null) | .publication.tags[]' | sort --unique
 ```
+
+<details>
+  <summary>All tags (click to expand)</summary>
+
+  ```
+  Active appearance models
+  Anisotropic blurring filters
+  Atlas-based segmentation
+  Bayesian Decision Theory
+  Blurring filters
+  CMake
+  Classification
+  Code memory optimization
+  Code speed optimization
+  Component Analysis and Discriminants
+  DART
+  DICOM
+  Data
+  Data Representation
+  Decision trees and non-metric classification
+  Deformable registration
+  Density Estimation
+  Density Functions
+  Derivatives and Integrals
+  Diffusion Tensor Imaging
+  Discriminant Functions
+  Distance maps
+  Distributed computation
+  Edge Detection
+  Error Estimation
+  Extreme Programming
+  Feature extraction
+  Filtering
+  Generic Programming
+  Geometric transforms
+  Groupwise registration
+  Higher order derivatives
+  Hypothesis Testing
+  IO
+  Image
+  Image pyramids
+  Images
+  Information Theory
+  Iterative clustering
+  Iterators
+  Language binding
+  Level sets
+  Linear Algebra
+  Mathematical Morphology
+  Mathematics
+  Mesh
+  Missing and Noisy Features
+  Mixture of densities
+  Model-to-image registration
+  Multi-classifier decision fusion
+  Multi-modality registration
+  Neighborhood filters
+  Neural networks
+  Non-parametric Techniques
+  Objects
+  Optimization
+  Parallelization, SMP
+  Parameter Techniques
+  Path
+  Point distribution models
+  PointSet
+  Probability
+  Programming
+  Reformating and tensor reorientation
+  Region growing
+  Registration
+  Registration metrics
+  Registration optimizers
+  Regularization and filtering
+  Resampling
+  Segmentation
+  Spatial Objects
+  Statistical shape models
+  Statistics on tensors
+  Streaming
+  Surface extraction
+  Tensor image reconstruction
+  Thresholding
+  Tractography
+  Transforms
+  Unsupervised learning and clustering
+  Watersheds
+  ```
+  
+</details>
 
 One indicator of things being a bit crazy is that there are 2167 tags used in total, and a whopping 1567 unique ones.
 ```bash 
