@@ -67,7 +67,7 @@ export const onTick = async () => {
       logger.warn({ err }, 'pendingSubmissions cron error');
       return { doi: job.uniqueDoi, jobId: job.id, isResolved: false };
     } finally {
-      // await lockService.freeLock(job.batchId);
+      await lockService.freeLock(job.batchId);
     }
   });
   logger.trace({ processed }, 'Exiting Job with results');
