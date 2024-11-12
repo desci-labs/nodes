@@ -342,6 +342,14 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           }
         });
         break;
+      case 'Set References':
+        handle.change((document) => {
+          if (!document.manifest.references) {
+            document.manifest.references = [];
+          }
+          document.manifest.references = action.reference;
+        });
+        break;
       case 'Delete Reference':
         if (!action.referenceId) return;
         const deletedIdx = latestDocument.manifest.references?.findIndex((ref) => ref.id === action.referenceId);

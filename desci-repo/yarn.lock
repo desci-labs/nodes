@@ -131,10 +131,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@desci-labs/desci-models@0.2.11":
-  version "0.2.11"
-  resolved "https://registry.yarnpkg.com/@desci-labs/desci-models/-/desci-models-0.2.11.tgz#3dabeeb606ce34f98597c36a92bb1235ebd88265"
-  integrity sha512-U+Svmqn2vzK967zoHek2oxNkELowKL87JSplh41V7eMjZMUeaDvnkWS5FCbn4YtjDaMOYVHBVV9CpDUWO+dAvQ==
+"@desci-labs/desci-models@^0.2.16":
+  version "0.2.16"
+  resolved "https://registry.yarnpkg.com/@desci-labs/desci-models/-/desci-models-0.2.16.tgz#7fda21d5079d13ea98457acd56c29e8fc57a01d7"
+  integrity sha512-kqs2qNNqostto76BCmPMoGeR74zGA6MfB9Lyfc2VOgeEh5CtY88j3Hq0B2+fRyZeVOqq43UJt32EDePsMO8wGw==
   dependencies:
     jsonld "^8.1.1"
     schema-dts "^1.1.2"
@@ -807,6 +807,11 @@
   integrity sha512-8CGDvrBj1zgo2qE+oS3pOCyYNqCPryMWY2bGfwA0dcfopWGgxs+78df0Rs3rc9THP4JkOhLsAa+15VdpAqkcUA==
   dependencies:
     "@types/node" "*"
+
+"@types/deep-equal@^1.0.4":
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/@types/deep-equal/-/deep-equal-1.0.4.tgz#c0a854be62d6b9fae665137a6639aab53389a147"
+  integrity sha512-tqdiS4otQP4KmY0PR3u6KbZ5EWvhNdUoS/jc93UuK23C220lOZ/9TvjfxdPcKvqwwDVtmtSCrnr0p/2dirAxkA==
 
 "@types/express-serve-static-core@^4.17.33":
   version "4.17.42"
