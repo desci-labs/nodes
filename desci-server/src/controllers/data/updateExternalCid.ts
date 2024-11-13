@@ -20,6 +20,7 @@ export type ExternalCidPayload = {
   externalCids: ExternalCid[];
   componentType: ResearchObjectComponentType;
   componentSubtype: ResearchObjectComponentSubtypes;
+  autoStar?: boolean;
 };
 
 /**
@@ -31,7 +32,7 @@ export const updateExternalCid = async (
   res: Response<UpdateResponse | ErrorResponse>,
 ) => {
   const owner = (req as any).user as User;
-  const { uuid, contextPath, externalCids, componentType, componentSubtype } = req.body;
+  const { uuid, contextPath, externalCids, componentType, componentSubtype, autoStar } = req.body;
 
   const logger = parentLogger.child({
     // id: req.id,
@@ -42,6 +43,7 @@ export const updateExternalCid = async (
     componentType,
     componentSubtype,
     externalCids,
+    autoStar,
   });
 
   logger.trace(`[UPDATE DATASET] Updating in context: ${contextPath}`);
@@ -68,6 +70,7 @@ export const updateExternalCid = async (
     contextPath,
     componentType,
     componentSubtype,
+    autoStar,
   });
 
   if (ok) {
