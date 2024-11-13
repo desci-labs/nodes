@@ -19,8 +19,8 @@ export class AutomergeServer extends PartyServer {
   }
 
   async onStart(): Promise<void> {
-    console.log('first connection to server');
     const { Repo } = await import('@automerge/automerge-repo');
+    console.log('first connection to server', this.env.NODES_DB);
     const dbUrl = this.env.ENVIRONMENT === 'local' ? this.env.DATABASE_URL : this.env.NODES_DB.connectionString;
     const { query } = await database.init(dbUrl);
     const config = {

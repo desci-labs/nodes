@@ -174,7 +174,7 @@ services:
     image: "redis:7-alpine"
     container_name: "redis_cache"
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 1s
       retries: 5
@@ -198,7 +198,13 @@ services:
       - ./local-data/ceramic/statestore:/root/.ceramic/statestore
       - ./.ceramicDev.config.json:/root/.ceramic/daemon.config.json
     healthcheck:
-      test: ["CMD", "curl", "--fail-with-body", "http://localhost:7007/api/v0/node/healthcheck"]
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail-with-body",
+          "http://localhost:7007/api/v0/node/healthcheck",
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -267,4 +273,3 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-
