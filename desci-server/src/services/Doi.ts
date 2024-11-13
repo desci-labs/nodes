@@ -16,6 +16,7 @@ import { asyncMap, ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 import { attestationService } from './Attestation.js';
 import { WorkSelectOptions } from './crossRef/definitions.js';
 import { getManifestByCid } from './data/processing.js';
+import { emitNotificationOnDoiIssuance } from './NotificationService.js';
 
 import { crossRefClient } from './index.js';
 
@@ -268,5 +269,12 @@ export class DoiService {
         doiRecordId: doiRecord.id,
       },
     );
+
+    // Emit app push notification on successful registration
+    await emitNotificationOnDoiIssuance({
+      nodeUuid: submission.uuid,
+      doi: submission.uniqueDoi,
+      status: DoiStatus.SUCCESS,
+    });
   }
 }
