@@ -1,3 +1,5 @@
+import fs from 'fs';
+import https from 'https';
 import { Readable } from 'stream';
 
 import {
@@ -44,8 +46,13 @@ export interface UrlWithCid {
   size?: number;
 }
 
+const cert = fs.readFileSync('../ssl/sealstorage-bundle.crt');
+const httpsAgent = new https.Agent({
+  ca: cert,
+});
+
 // connect to a different API
-export const client = create({ url: process.env.IPFS_NODE_URL });
+export const client = create({ url: process.env.IPFS_NODE_URL, options: { agent: httpsAgent } });
 export const readerClient = create({ url: PUBLIC_IPFS_PATH });
 
 export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0' });
