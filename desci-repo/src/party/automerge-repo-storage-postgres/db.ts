@@ -9,7 +9,6 @@ export default {
     console.log('connect to db', DATABASE_URL);
     const client = new Client({ connectionString: DATABASE_URL });
     await client.connect();
-    console.log('connected to db', client.database);
 
     return {
       async query(statement: string, values?: (string | number | object)[]) {

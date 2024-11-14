@@ -7,6 +7,7 @@ import database from './automerge-repo-storage-postgres/db.js';
 import { PostgresStorageAdapter } from './automerge-repo-storage-postgres/adapter.js';
 import { Env } from './types.js';
 
+// run a timeAlive loop to close connection in 30 secs if no other client aside the `worker-server-**` is connected
 export class AutomergeServer extends PartyServer {
   repo: Repo;
 
@@ -20,7 +21,7 @@ export class AutomergeServer extends PartyServer {
 
   async onStart(): Promise<void> {
     const { Repo } = await import('@automerge/automerge-repo');
-    console.log('first connection to server', this.env.NODES_DB);
+    console.log('first connection to server', this.env.NODES_DB.connectionString);
     const dbUrl = this.env.ENVIRONMENT === 'local' ? this.env.DATABASE_URL : this.env.NODES_DB.connectionString;
     const { query } = await database.init(dbUrl);
     const config = {
@@ -39,10 +40,20 @@ export class AutomergeServer extends PartyServer {
     const params = new URLSearchParams(url.search);
 
     const auth = params.get('auth');
-    const response = await fetch(`${this.env.NODES_API}/v1/auth/check`, {
-      headers: { Authorization: `Bearer ${auth}` },
-    });
-    if (response.ok) {
+    let isAuthorised = false;
+
+    console.log('CONNECT', { auth, id: connection.id, server: connection.server, url: connection.url });
+
+    if (auth === this.env.API_TOKEN) {
+      isAuthorised = true;
+    } else {
+      const response = await fetch(`${this.env.NODES_API}/v1/auth/check`, {
+        headers: { Authorization: `Bearer ${auth}` },
+      });
+
+      if (response.ok) isAuthorised = true;
+    }
+    if (isAuthorised) {
       this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
     } else {
       connection.close();
@@ -51,18 +62,15 @@ export class AutomergeServer extends PartyServer {
 
   onMessage(connection: Connection, message: WSMessage): void | Promise<void> {
     this.broadcast(message, [connection.id]);
+    // console.log('[peers]:', this.repo.peers);
   }
 
-  // onRequest(request: Request): Response | Promise<Response> {
-  //   console.log('Incoming request', request.url, request.headers);
-  //   return new Response('Hello from party server');
-  // }
-
   onError(connection: Connection, error: unknown): void | Promise<void> {
-    console.log('Party Server Error: ', connection.id, error);
+    console.log('[Error]:', { id: connection.id, error });
   }
 
   onClose(connection: Connection, code: number, reason: string, wasClean: boolean): void | Promise<void> {
+    console.log('[close]:', { id: connection.id, url: connection.url, documentId: connection.server });
     try {
       connection.close();
     } catch (err) {
@@ -73,7 +81,6 @@ export class AutomergeServer extends PartyServer {
 
 export default {
   fetch(request: Request, env) {
-    // console.log('Incoming request', request.url);
     return routePartykitRequest(request, env) || new Response('Not found', { status: 404 });
   },
 };

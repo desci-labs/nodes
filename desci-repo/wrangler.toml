@@ -25,3 +25,4 @@ head_sampling_rate = 1 # optional. default = 1.
 [[hyperdrive]]
 binding = "NODES_DB"
 id = "856af129675e4140accc0ccabbc2ee20"
+localConnectionString = "postgresql://walter:white@host.docker.internal:5432/boilerplate"

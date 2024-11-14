@@ -87,9 +87,9 @@ export class PostgresStorageAdapter implements StorageAdapterInterface {
   }
 
   private async loadRangeKeys(keyPrefix: string[]): Promise<string[]> {
-    console.log({ keyPrefix }, 'LoadRange Keys');
+    // console.log({ keyPrefix }, 'LoadRange Keys');
     const response = await this.query(`SELECT key FROM "${this.tableName}" WHERE key LIKE $1`, [`${keyPrefix}%`]);
-    console.log({ keyPrefix, response: response?.length }, '[LOADED RANGE Keys]');
+    // console.log({ keyPrefix, response: response?.length }, '[LOADED RANGE Keys]');
 
     return response ? response.map((row) => row.key) : [];
   }

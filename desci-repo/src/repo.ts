@@ -1,55 +1,67 @@
 import os from 'os';
 
-import { DocHandleChangePayload, DocHandleEvents, PeerId, Repo, RepoConfig } from '@automerge/automerge-repo';
-import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
-import { WebSocketServer } from 'ws';
-import { PartySocket } from 'partysocket';
-
-import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
+import {
+  DocHandleChangePayload,
+  DocHandleEvents,
+  DocumentId,
+  PeerId,
+  Repo,
+  RepoConfig,
+} from '@automerge/automerge-repo';
+import WebSocket from 'isomorphic-ws';
 import { logger as parentLogger } from './logger.js';
-import { verifyNodeDocumentAccess } from './services/nodes.js';
+// import { verifyNodeDocumentAccess } from './services/nodes.js';
 import { ResearchObjectDocument } from './types.js';
 import * as db from './db/index.js';
 import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
+import { PartykitNodeWsAdapter } from './lib/PartykitNodeWsAdapter.js';
 
-const globalPartyHost = process.env.AUTOMERGE_PARTY_URL ?? 'ws://localhost:5446';
-const globalPartyAuthToken = process.env.AUTOMERGE_PARTY_TOKEN ?? '';
+const partyServerHost = process.env.PARTY_SERVER_URL || 'ws://localhost:5446';
+const partyServerToken = process.env.PARTY_SERVER_TOKEN;
 
-export const socket = new WebSocketServer({
-  port: process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 5445,
-  path: '/sync',
-});
-const hostname = os.hostname();
+if (!(partyServerToken && partyServerHost)) {
+  throw new Error('Missing ENVIRONMENT variables: AUTOMERGE_PARTY_URL or AUTOMERGE_PARTY_TOKEN');
+}
 
 const logger = parentLogger.child({ module: 'repo.ts' });
 
-const adapter = new NodeWSServerAdapter(socket);
+logger.info({ partyServerHost, partyServerToken }, 'Env checked');
+
+// export const socket = new WebSocketServer({
+//   port: process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 5445,
+//   path: '/sync',
+// });
+const hostname = os.hostname();
+
+// const adapter = new NodeWSServerAdapter(socket);
+
 const config: RepoConfig = {
-  network: [adapter],
-  storage: new PostgresStorageAdapter(),
+  // network: [adapter],
+  // storage: new PostgresStorageAdapter(),
   peerId: `repo-server-${hostname}` as PeerId,
   // Since this is a server, we don't share generously — meaning we only sync documents they already
   // know about and can ask for by ID.
   sharePolicy: async (peerId, documentId) => {
-    try {
-      if (!documentId) {
-        logger.trace({ peerId }, 'SharePolicy: Document ID NOT found');
-        return false;
-      }
-      // peer format: `peer-[user#id]:[unique string combination]
-      if (peerId.toString().length < 8) {
-        logger.error({ peerId }, 'SharePolicy: Peer ID invalid');
-        return false;
-      }
+    logger.trace({ peerId, documentId }, 'SharePolicy: ');
+    return true;
+    // try {
+    //   if (!documentId) {
+    //     return false;
+    //   }
+    //   // peer format: `peer-[user#id]:[unique string combination]
+    //   if (peerId.toString().length < 8) {
+    //     logger.error({ peerId }, 'SharePolicy: Peer ID invalid');
+    //     return false;
+    //   }
 
-      const userId = peerId.split(':')?.[0]?.split('-')?.[1];
-      const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
-      logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
-      return isAuthorised;
-    } catch (err) {
-      logger.error({ err }, 'Error in share policy');
-      return false;
-    }
+    //   const userId = peerId.split(':')?.[0]?.split('-')?.[1];
+    //   const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
+    //   logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
+    //   return isAuthorised;
+    // } catch (err) {
+    //   logger.error({ err }, 'Error in share policy');
+    //   return false;
+    // }
   },
 };
 export const backendRepo = new Repo(config);
@@ -91,4 +103,69 @@ backendRepo.off('document', async (doc) => {
   doc.handle.off('change', handleChange);
 });
 
-// todo: Recover from RangeError -> reset repo and return a new instance
+class RepoManager {
+  clients: Map<string, PartykitNodeWsAdapter> = new Map();
+  intervalId: ReturnType<typeof setInterval>;
+
+  constructor(private repo: Repo) {}
+
+  isConnected(documentId: DocumentId) {
+    return this.clients.has(documentId);
+  }
+
+  connect(documentId: DocumentId) {
+    logger.trace({ documentId, exists: this.clients.has(documentId) }, 'RepoManager#Connect');
+    const adapter = new PartykitNodeWsAdapter({
+      host: partyServerHost,
+      party: 'automerge',
+      room: documentId,
+      query: { auth: partyServerToken },
+      protocol: 'ws',
+      WebSocket: WebSocket,
+    });
+
+    this.repo.networkSubsystem.addNetworkAdapter(adapter);
+
+    this.repo.networkSubsystem.on('peer-disconnected', (peer) => {
+      if (peer.peerId === adapter.remotePeerId) {
+        // clean up adapater and it's document handle after timeout
+        setTimeout(() => {
+          // logger.trace(
+          //   {
+          //     peer: peer.peerId,
+          //     remotePeerId: adapter.remotePeerId,
+          //     documentId,
+          //     socketState: adapter.socket?.readyState,
+          //   },
+          //   'Post disconnect',
+          // );
+          if (adapter.socket?.readyState !== WebSocket.OPEN) this.cleanUp(documentId);
+        }, 5000);
+      }
+      logger.trace(
+        { peer: peer.peerId, remotePeerId: adapter.remotePeerId, documentId, socketState: adapter.socket?.readyState },
+        'peer-disconnected',
+      );
+    });
+
+    this.clients.set(documentId, adapter);
+  }
+
+  /**
+   * Clean up a connection and it's handle to free memory effectively
+   * @param documentId
+   */
+  cleanUp(documentId) {
+    const adapter = this.clients.get(documentId);
+    if (adapter) {
+      this.repo.networkSubsystem.removeNetworkAdapter(adapter);
+      this.clients.delete(documentId);
+      // const handle = this.repo.find(documentId);
+      // handle.unload();
+      // delete this.repo.handles[documentId];
+      logger.trace({ documentId }, ' RepoManager#cleanUp');
+    }
+  }
+}
+
+export const repoManager = new RepoManager(backendRepo);

@@ -13,8 +13,7 @@ services:
       - host.docker.internal:host-gateway
     depends_on:
       db_postgres:
-        condition:
-          service_healthy
+        condition: service_healthy
     links:
       - db_postgres
     volumes:

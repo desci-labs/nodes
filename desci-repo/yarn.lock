@@ -7,41 +7,36 @@
   resolved "https://registry.npmjs.org/@aashutoshrathi/word-wrap/-/word-wrap-1.2.6.tgz"
   integrity sha512-1Yjs2SvM8TflER/OD3cOjhWWOZb58A2t7wpE2S9XfBYTiIl+XFhQG2bjy4Pu1I+EAlCNUzRDYDdFwFYUKvXcIA==
 
-"@automerge/automerge-repo-network-websocket@^1.0.19":
-  version "1.1.0"
-  resolved "https://registry.npmjs.org/@automerge/automerge-repo-network-websocket/-/automerge-repo-network-websocket-1.1.0.tgz"
-  integrity sha512-D3k/RKI5xVPb+ZEmEmL/MiuGiu2vzujOloyHveLmd1R9BL2JakbKk1s4G2MhTBT1qF8Io02pIa1+lsaG9HlULA==
+"@automerge/automerge-repo-network-websocket@^2.0.0-alpha.14":
+  version "2.0.0-alpha.14"
+  resolved "https://registry.yarnpkg.com/@automerge/automerge-repo-network-websocket/-/automerge-repo-network-websocket-2.0.0-alpha.14.tgz#31327e7b2eaff7e1fbbd58da5fabc1df963a6f0a"
+  integrity sha512-dvcIee9QJktvdV5PHNbnf+aKRqic/ptuy2GCZuQtaCzzpe17xMk9i4yuSnW6hQ1Wu7VXUGf4eHhrq7ArnySwww==
   dependencies:
-    "@automerge/automerge-repo" "1.1.0"
+    "@automerge/automerge-repo" "2.0.0-alpha.14"
     cbor-x "^1.3.0"
     debug "^4.3.4"
     eventemitter3 "^5.0.1"
     isomorphic-ws "^5.0.0"
     ws "^8.7.0"
 
-"@automerge/automerge-repo-storage-nodefs@^1.0.19":
-  version "1.1.0"
-  resolved "https://registry.npmjs.org/@automerge/automerge-repo-storage-nodefs/-/automerge-repo-storage-nodefs-1.1.0.tgz"
-  integrity sha512-31vTq4ItdV0n4x7MOF/mmKwUqEwYQMekYZ3OEgUdJAhw7qIrF1lY0IM194DjVp9V55UFFMQyb5vx+VJ4GpKewA==
+"@automerge/automerge-repo-react-hooks@^1.0.19":
+  version "1.2.1"
+  resolved "https://registry.yarnpkg.com/@automerge/automerge-repo-react-hooks/-/automerge-repo-react-hooks-1.2.1.tgz#de69f84d6278ae218abde39b4e87e4e32d39331a"
+  integrity sha512-xRRPFRp7dMLZZoIPuczI6ll8U6Qo4NkLAstIHZloGcVefSEOLXRRObMwkITbVaRCEM2zyRLG0MfA9T4dA1JYFQ==
   dependencies:
-    "@automerge/automerge-repo" "1.1.0"
-    rimraf "^5.0.1"
-
-"@automerge/automerge-repo@1.1.0":
-  version "1.1.0"
-  resolved "https://registry.npmjs.org/@automerge/automerge-repo/-/automerge-repo-1.1.0.tgz"
-  integrity sha512-QRSt2s89Uhrlofbkipsb/9Alyp65/e1PocNzY+L4J7yDDXD7fbEW5uThXey2lSb1m98Fe0+NtzyKD1we6lvAkA==
-  dependencies:
-    "@automerge/automerge" "^2.1.9"
-    bs58check "^3.0.1"
-    cbor-x "^1.3.0"
-    debug "^4.3.4"
+    "@automerge/automerge" "^2.2.5"
+    "@automerge/automerge-repo" "1.2.1"
     eventemitter3 "^5.0.1"
-    fast-sha256 "^1.3.0"
-    tiny-typed-emitter "^2.1.0"
-    ts-node "^10.9.1"
-    uuid "^9.0.0"
-    xstate "^4.37.0"
+    react "^18.2.0"
+    react-dom "^18.2.0"
+    react-usestateref "^1.0.8"
+
+"@automerge/automerge-repo-storage-indexeddb@^2.0.0-alpha.14":
+  version "2.0.0-alpha.14"
+  resolved "https://registry.yarnpkg.com/@automerge/automerge-repo-storage-indexeddb/-/automerge-repo-storage-indexeddb-2.0.0-alpha.14.tgz#fb5a302ff1a29f478b6a2e9734a3ed906b49ebb6"
+  integrity sha512-JMKUpne4rUoQwBI9h1+ZLnkb9mqSYmoXZJPS40Tkhjyji9PCE1MLopKo4qyt+xZdrO/QVct51PMsxPMXVt63pg==
+  dependencies:
+    "@automerge/automerge-repo" "2.0.0-alpha.14"
 
 "@automerge/automerge-repo@1.2.1":
   version "1.2.1"
@@ -59,20 +54,23 @@
     uuid "^9.0.0"
     xstate "^5.9.1"
 
-"@automerge/automerge-wasm@0.9.0":
-  version "0.9.0"
-  resolved "https://registry.npmjs.org/@automerge/automerge-wasm/-/automerge-wasm-0.9.0.tgz"
-  integrity sha512-wTPcW3wVk20D1x0DOko/RsfZV1mlc8HJynqgTRhVocOxFIU/RCilnYRfJmSb8LwCG2uZzfqg0DLsEBqQZ53KBQ==
-
-"@automerge/automerge@^2.1.9":
-  version "2.1.10"
-  resolved "https://registry.npmjs.org/@automerge/automerge/-/automerge-2.1.10.tgz"
-  integrity sha512-xj8R3fQHZmDYnrYW5WrBqWm/r5sLV9Z7mu89pJ10wGLVS2V+iAB2os85DoOGI2etzjmQsoHyrd97GBmszjH4zQ==
+"@automerge/automerge-repo@2.0.0-alpha.14", "@automerge/automerge-repo@^2.0.0-alpha.14":
+  version "2.0.0-alpha.14"
+  resolved "https://registry.yarnpkg.com/@automerge/automerge-repo/-/automerge-repo-2.0.0-alpha.14.tgz#7eaf79cff2e0f1fd771200fb539fb87952fa404b"
+  integrity sha512-nAI2YczFxKqotcuWf50kgHdpW+vZ1dMd0K86TP99qdN8vMM+YYu/TIrEseq7uzwJC/VF/KTtwdwBCuK77+zsGw==
   dependencies:
-    "@automerge/automerge-wasm" "0.9.0"
+    "@automerge/automerge" "^2.2.8"
+    bs58check "^3.0.1"
+    cbor-x "^1.3.0"
+    debug "^4.3.4"
+    eventemitter3 "^5.0.1"
+    fast-sha256 "^1.3.0"
+    tiny-typed-emitter "^2.1.0"
+    ts-node "^10.9.1"
     uuid "^9.0.0"
+    xstate "^5.9.1"
 
-"@automerge/automerge@^2.2.5":
+"@automerge/automerge@^2.2.5", "@automerge/automerge@^2.2.8":
   version "2.2.8"
   resolved "https://registry.yarnpkg.com/@automerge/automerge/-/automerge-2.2.8.tgz#6e33f271b99a652751c1a53048df2a2b2a80dcc2"
   integrity sha512-kP6Z9lIkNeIGe/jhF8SUQAgUMwVjtXCBL0eZEgQGCoWvPNTPcg8fnQco28XkYBrfkkuqiEUAbdHhJmSp0y79ug==
@@ -3482,7 +3480,7 @@ isexe@^2.0.0:
 
 isomorphic-ws@^5.0.0:
   version "5.0.0"
-  resolved "https://registry.npmjs.org/isomorphic-ws/-/isomorphic-ws-5.0.0.tgz"
+  resolved "https://registry.yarnpkg.com/isomorphic-ws/-/isomorphic-ws-5.0.0.tgz#e5529148912ecb9b451b46ed44d53dae1ce04bbf"
   integrity sha512-muId7Zzn9ywDsyXgTIafTry2sV3nySZeUDe6YedVd1Hvuuep5AsIlqK+XefWpYTyJG5e503F2xIuT2lcU6rCSw==
 
 itty-time@^1.0.6:
@@ -3504,9 +3502,9 @@ joycon@^3.1.1:
   resolved "https://registry.npmjs.org/joycon/-/joycon-3.1.1.tgz"
   integrity sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==
 
-js-tokens@^4.0.0:
+"js-tokens@^3.0.0 || ^4.0.0", js-tokens@^4.0.0:
   version "4.0.0"
-  resolved "https://registry.npmjs.org/js-tokens/-/js-tokens-4.0.0.tgz"
+  resolved "https://registry.yarnpkg.com/js-tokens/-/js-tokens-4.0.0.tgz#19203fb59991df98e3a287050d4647cdeaf32499"
   integrity sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==
 
 js-yaml@4.1.0, js-yaml@^4.1.0:
@@ -3739,6 +3737,13 @@ log-update@^4.0.0:
     cli-cursor "^3.1.0"
     slice-ansi "^4.0.0"
     wrap-ansi "^6.2.0"
+
+loose-envify@^1.1.0:
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/loose-envify/-/loose-envify-1.4.0.tgz#71ee51fa7be4caec1a63839f7e682d8132d30caf"
+  integrity sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==
+  dependencies:
+    js-tokens "^3.0.0 || ^4.0.0"
 
 lru-cache@^6.0.0:
   version "6.0.0"
@@ -4754,6 +4759,26 @@ rdf-canonize@^3.4.0:
   dependencies:
     setimmediate "^1.0.5"
 
+react-dom@^18.2.0:
+  version "18.3.1"
+  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-18.3.1.tgz#c2265d79511b57d479b3dd3fdfa51536494c5cb4"
+  integrity sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==
+  dependencies:
+    loose-envify "^1.1.0"
+    scheduler "^0.23.2"
+
+react-usestateref@^1.0.8:
+  version "1.0.9"
+  resolved "https://registry.yarnpkg.com/react-usestateref/-/react-usestateref-1.0.9.tgz#d40bc54db116e786b6b2bb1cd20fe06e7f8187f3"
+  integrity sha512-t8KLsI7oje0HzfzGhxFXzuwbf1z9vhBM1ptHLUIHhYqZDKFuI5tzdhEVxSNzUkYxwF8XdpOErzHlKxvP7sTERw==
+
+react@^18.2.0:
+  version "18.3.1"
+  resolved "https://registry.yarnpkg.com/react/-/react-18.3.1.tgz#49ab892009c53933625bd16b2533fc754cab2891"
+  integrity sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ==
+  dependencies:
+    loose-envify "^1.1.0"
+
 read-pkg@^3.0.0:
   version "3.0.0"
   resolved "https://registry.npmjs.org/read-pkg/-/read-pkg-3.0.0.tgz"
@@ -4870,7 +4895,7 @@ rimraf@^3.0.2:
   dependencies:
     glob "^7.1.3"
 
-rimraf@^5.0.1, rimraf@^5.0.5:
+rimraf@^5.0.5:
   version "5.0.5"
   resolved "https://registry.npmjs.org/rimraf/-/rimraf-5.0.5.tgz"
   integrity sha512-CqDakW+hMe/Bz202FPEymy68P+G50RfMQK+Qo5YUqc9SPipvbGjCGKd0RSKEelbsfQuw3g5NZDSrlZZAJurH1A==
@@ -4952,6 +4977,13 @@ safe-stable-stringify@^2.3.1:
   version "2.1.2"
   resolved "https://registry.npmjs.org/safer-buffer/-/safer-buffer-2.1.2.tgz"
   integrity sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==
+
+scheduler@^0.23.2:
+  version "0.23.2"
+  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.23.2.tgz#414ba64a3b282892e944cf2108ecc078d115cdc3"
+  integrity sha512-UOShsPwz7NrMUqhR6t0hWjFduvOzbtv7toDH1/hIrfRNIDBnnBWd0CwJTGvTpngVlmwGCdP9/Zl/tVrDqcuYzQ==
+  dependencies:
+    loose-envify "^1.1.0"
 
 schema-dts@^1.1.2:
   version "1.1.2"
@@ -5843,11 +5875,6 @@ ws@^8.17.1:
   version "8.18.0"
   resolved "https://registry.yarnpkg.com/ws/-/ws-8.18.0.tgz#0d7505a6eafe2b0e712d232b42279f53bc289bbc"
   integrity sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw==
-
-xstate@^4.37.0:
-  version "4.38.3"
-  resolved "https://registry.npmjs.org/xstate/-/xstate-4.38.3.tgz"
-  integrity sha512-SH7nAaaPQx57dx6qvfcIgqKRXIh4L0A1iYEqim4s1u7c9VoCgzZc+63FY90AKU4ZzOC2cfJzTnpO4zK7fCUzzw==
 
 xstate@^5.9.1:
   version "5.18.2"

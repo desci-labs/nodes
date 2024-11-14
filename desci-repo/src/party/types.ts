@@ -8,4 +8,5 @@ export interface Env {
   DB_TABLE: string;
   NODES_API: string;
   ENVIRONMENT: string;
+  API_TOKEN: string;
 }

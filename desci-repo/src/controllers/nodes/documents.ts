@@ -3,7 +3,7 @@ import { ResearchObjectDocument } from '../../types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import { RequestWithNode } from '../../middleware/guard.js';
-import { backendRepo } from '../../repo.js';
+import { backendRepo, repoManager } from '../../repo.js';
 import { getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
 import { findNodeByUuid, query } from '../../db/index.js';
 import { Doc } from '@automerge/automerge';
@@ -71,8 +71,16 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
   const { documentId } = req.query;
 
   const getDocument = async (documentId: DocumentId) => {
+    if (!repoManager.isConnected(documentId)) {
+      repoManager.connect(documentId);
+    }
+
     const automergeUrl = getAutomergeUrl(documentId);
+    logger.trace({ documentId }, 'when ready');
+    await backendRepo.networkSubsystem.whenReady();
+    logger.trace({ documentId }, 'ready');
     const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+    logger.trace({ documentId }, 'handle resolved');
     const document = await handle.doc();
     logger.trace({ uuid, automergeUrl }, 'DOCUMENT Retrieved');
     return document;

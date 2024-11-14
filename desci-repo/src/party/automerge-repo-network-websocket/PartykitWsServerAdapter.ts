@@ -67,7 +67,7 @@ export class PartyKitWSServerAdapter extends NetworkAdapter {
     });
 
     // setTimeout(() => this.#ready(), 1000);
-    this.emit('ready', { network: this });
+    // this.emit('ready', { network: this });
   }
 
   disconnect() {
