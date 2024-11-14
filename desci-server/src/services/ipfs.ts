@@ -53,10 +53,10 @@ const httpsAgent = new https.Agent({
 });
 
 // connect to a different API
-export const client = create({ url: process.env.IPFS_NODE_URL, options: { agent: httpsAgent } });
+export const client = create({ url: process.env.IPFS_NODE_URL });
 export const readerClient = create({ url: PUBLIC_IPFS_PATH });
 
-export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0' });
+export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0', options: { agent: httpsAgent } });
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
 const INTERNAL_IPFS_TIMEOUT = 30000;
