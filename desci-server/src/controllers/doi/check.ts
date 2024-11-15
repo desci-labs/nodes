@@ -31,7 +31,7 @@ export const checkMintability = async (req: RequestWithNode, res: Response, _nex
   }
 };
 
-interface WorksDetails {
+export interface WorksDetails {
   doi: string;
   authors: string[];
   citation_count: number;
@@ -44,6 +44,7 @@ interface WorksDetails {
   publisher: string;
   source_name: string;
   oa_status: 'diamond' | 'gold' | 'green' | 'hybrid' | 'bronze' | 'closed';
+  abstract?: string;
 }
 
 export const retrieveDoi = async (req: Request, res: Response, _next: NextFunction) => {

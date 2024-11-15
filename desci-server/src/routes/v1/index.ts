@@ -20,6 +20,7 @@ import doi from './doi.js';
 import log from './log.js';
 import nodes from './nodes.js';
 import notifications from './notifications.js';
+import openalex from './openalex.js';
 import pub from './pub.js';
 import referral from './referral.js';
 import search from './search.js';
@@ -60,6 +61,7 @@ router.use('/services', services);
 router.use('/communities', communities);
 router.use('/attestations', attestations);
 router.use('/doi', doi);
+router.use('/openalex', openalex);
 router.use('/search', search);
 router.use('/notifications', notifications);
 
