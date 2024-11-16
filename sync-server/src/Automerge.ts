@@ -4,7 +4,7 @@ import { routePartykitRequest, Server as PartyServer, Connection, ConnectionCont
 import { PartyKitWSServerAdapter } from './automerge-repo-network-websocket/PartykitWsServerAdapter.js';
 
 import database from './automerge-repo-storage-postgres/db.js';
-import { PostgresStorageAdapter } from './automerge-repo-storage-postgres/adapter.js';
+import { PostgresStorageAdapter } from './automerge-repo-storage-postgres/PostgresStorageAdapter.js';
 import { Env } from './types.js';
 
 // run a timeAlive loop to close connection in 30 secs if no other client aside the `worker-server-**` is connected

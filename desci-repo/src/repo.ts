@@ -16,8 +16,9 @@ import * as db from './db/index.js';
 import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
 import { PartykitNodeWsAdapter } from './lib/PartykitNodeWsAdapter.js';
 
-const partyServerHost = process.env.PARTY_SERVER_URL || 'ws://localhost:5446';
+const partyServerHost = process.env.PARTY_SERVER_URL || 'wss://localhost:5445';
 const partyServerToken = process.env.PARTY_SERVER_TOKEN;
+const isDev = process.env.NODE_ENV == 'dev';
 
 if (!(partyServerToken && partyServerHost)) {
   throw new Error('Missing ENVIRONMENT variables: AUTOMERGE_PARTY_URL or AUTOMERGE_PARTY_TOKEN');
@@ -44,24 +45,6 @@ const config: RepoConfig = {
   sharePolicy: async (peerId, documentId) => {
     logger.trace({ peerId, documentId }, 'SharePolicy: ');
     return true;
-    // try {
-    //   if (!documentId) {
-    //     return false;
-    //   }
-    //   // peer format: `peer-[user#id]:[unique string combination]
-    //   if (peerId.toString().length < 8) {
-    //     logger.error({ peerId }, 'SharePolicy: Peer ID invalid');
-    //     return false;
-    //   }
-
-    //   const userId = peerId.split(':')?.[0]?.split('-')?.[1];
-    //   const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
-    //   logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
-    //   return isAuthorised;
-    // } catch (err) {
-    //   logger.error({ err }, 'Error in share policy');
-    //   return false;
-    // }
   },
 };
 export const backendRepo = new Repo(config);
@@ -114,7 +97,7 @@ class RepoManager {
   }
 
   connect(documentId: DocumentId) {
-    logger.trace({ documentId, exists: this.clients.has(documentId) }, 'RepoManager#Connect');
+    logger.trace({ documentId, isDev, exists: this.clients.has(documentId) }, 'RepoManager#Connect');
     const adapter = new PartykitNodeWsAdapter({
       host: partyServerHost,
       party: 'automerge',
@@ -130,15 +113,15 @@ class RepoManager {
       if (peer.peerId === adapter.remotePeerId) {
         // clean up adapater and it's document handle after timeout
         setTimeout(() => {
-          // logger.trace(
-          //   {
-          //     peer: peer.peerId,
-          //     remotePeerId: adapter.remotePeerId,
-          //     documentId,
-          //     socketState: adapter.socket?.readyState,
-          //   },
-          //   'Post disconnect',
-          // );
+          logger.trace(
+            {
+              peer: peer.peerId,
+              remotePeerId: adapter.remotePeerId,
+              documentId,
+              socketState: adapter.socket?.readyState,
+            },
+            'Post disconnect',
+          );
           if (adapter.socket?.readyState !== WebSocket.OPEN) this.cleanUp(documentId);
         }, 5000);
       }

@@ -1,6 +1,6 @@
 # Top-level configuration
-name = "automerge-sync-server"
-main = "src/party/Automerge.ts"
+name = "desci-sync-worker"
+main = "src/Automerge.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 

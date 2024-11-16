@@ -13,7 +13,7 @@ import {
   JoinMessage,
   isPeerMessage,
   isErrorMessage,
-} from '../party/index.js';
+} from './automerge-repo-network-websocket/index.js';
 
 import WebSocket from 'ws';
 import { PartySocketOptions, PartySocket } from 'partysocket';

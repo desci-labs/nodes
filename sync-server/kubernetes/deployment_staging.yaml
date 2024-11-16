@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: desci-repo-server-staging-service
+  labels:
+    App: DesciRepoServerStaging
+spec:
+  type: ClusterIP
+  selector:
+    App: DesciRepoServerStaging
+  ports:
+    - name: server-api
+      port: 5484
+      targetPort: 5484
+    - name: ws-api
+      port: 5445
+      targetPort: 5445
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: desci-repo-server-staging
+  labels:
+    App: DesciRepoServerStaging
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      App: DesciRepoServerStaging
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-status: 'update'
+        vault.hashicorp.com/role: app-vault-reader
+        vault.hashicorp.com/agent-inject-secret-config: secrets/desci-server/staging/db
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secrets/desci-server/staging/repo" -}}
+          echo "sourcing"; 
+          export REPO_SERVICE_SECRET_KEY={{ .Data.REPO_SERVICE_SECRET_KEY }}
+          export NODE_ENV=production
+          export JWT_SECRET={{ .Data.JWT_SECRET }}
+          export DATABASE_URL={{ .Data.DATABASE_URL }}
+          export IPFS_RESOLVER_OVERRIDE={{ .Data.IPFS_RESOLVER_OVERRIDE }}
+          export DESCI_SERVER_URL={{ .Data.DESCI_SERVER_URL }}
+          export PINO_LOG_LEVEL=info
+          {{- end -}}
+      labels:
+        App: DesciRepoServerStaging
+    spec:
+      containers:
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/desci-repo-server-staging:latest
+          name: desci-repo-server-staging
+          command: ['/bin/bash', '-c']
+          args:
+            - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
+          ports:
+            - containerPort: 5484
+              name: server-api
+            - containerPort: 5445
+              name: ws-api
+          resources:
+            limits:
+              cpu: '2'
+              memory: 16Gi
+            requests:
+              cpu: '1'
+              memory: 8Gi
+      serviceAccountName: 'vault-auth'

@@ -1,0 +1,23 @@
+name: Deploy Worker
+on:
+  # pull_request:
+  #   paths:
+  #   - desci-server/**
+  push:
+    paths:
+      - .github/workflows/**
+      - sync-server/**
+    branches: # array of glob patterns matching against refs/heads. Optional; defaults to all
+      - main # triggers on pushes that contain changes
+      - develop
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build & Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

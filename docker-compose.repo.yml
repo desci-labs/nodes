@@ -1,13 +1,12 @@
 services:
   desci_repo:
     container_name: "desci_repo"
-    command: yarn dev
+    # command: yarn dev
     build: ./desci-repo
     env_file:
       - ./desci-repo/.env
     ports:
       - "5484:5484"
-      - "5445:5445"
       - "9232:9232"
     extra_hosts:
       - host.docker.internal:host-gateway

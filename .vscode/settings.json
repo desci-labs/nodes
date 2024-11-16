@@ -43,5 +43,8 @@
   },
   "[sql]": {
     "editor.defaultFormatter": "ms-mssql.mssql"
+  },
+  "[dotenv]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
   }
 }
