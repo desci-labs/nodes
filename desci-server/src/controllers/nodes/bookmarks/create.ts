@@ -1,9 +1,15 @@
 import { User } from '@prisma/client';
 import { Request, Response } from 'express';
+import { z } from 'zod';
 
 import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { ensureUuidEndsWithDot } from '../../../utils.js';
+
+const CreateBookmarkSchema = z.object({
+  nodeUuid: z.string().min(1),
+  shareKey: z.string().optional(),
+});
 
 export type CreateNodeBookmarkReqBody = {
   nodeUuid: string;
@@ -22,6 +28,7 @@ export type CreateNodeBookmarkResBody =
   | {
       ok: false;
       error: string;
+      details?: z.ZodIssue[] | string;
     };
 
 export const createNodeBookmark = async (req: CreateNodeBookmarkRequest, res: Response<CreateNodeBookmarkResBody>) => {
@@ -29,11 +36,10 @@ export const createNodeBookmark = async (req: CreateNodeBookmarkRequest, res: Re
 
   if (!user) throw Error('Middleware not properly setup for CreateNodeBookmark controller, requires req.user');
 
-  const { nodeUuid, shareKey } = req.body;
-  if (!nodeUuid) return res.status(400).json({ ok: false, error: 'nodeUuid is required' });
+  const { nodeUuid, shareKey } = CreateBookmarkSchema.parse(req.body);
 
   const logger = parentLogger.child({
-    module: 'PrivateShare::CreateNodeBookmarkController',
+    module: 'Bookmarks::CreateNodeBookmarkController',
     body: req.body,
     userId: user.id,
     nodeUuid: nodeUuid,
@@ -51,9 +57,14 @@ export const createNodeBookmark = async (req: CreateNodeBookmarkRequest, res: Re
     });
 
     logger.trace({ createdBookmark }, 'Bookmark created successfully');
-    return res.status(200).json({ ok: true, message: 'Bookmark created successfully' });
+    return res.status(201).json({ ok: true, message: 'Bookmark created successfully' });
   } catch (e) {
-    logger.error({ e, message: e?.message }, 'Failed to create bookmark');
-    return res.status(500).json({ ok: false, error: 'Failed to create bookmark for node' });
+    if (e instanceof z.ZodError) {
+      logger.warn({ error: e.errors }, 'Invalid request parameters');
+      return res.status(400).json({ ok: false, error: 'Invalid request parameters', details: e.errors });
+    }
+
+    logger.error({ e }, 'Error creating bookmark');
+    return res.status(500).json({ ok: false, error: 'Internal server error' });
   }
 };
