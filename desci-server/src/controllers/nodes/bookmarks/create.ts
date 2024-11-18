@@ -1,4 +1,4 @@
-import { User } from '@prisma/client';
+import { User, BookmarkType } from '@prisma/client';
 import { Request, Response } from 'express';
 import { z } from 'zod';
 
@@ -6,21 +6,29 @@ import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { ensureUuidEndsWithDot } from '../../../utils.js';
 
-const CreateBookmarkSchema = z.object({
-  nodeUuid: z.string().min(1),
-  shareKey: z.string().optional(),
-});
+const CreateBookmarkSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal(BookmarkType.NODE),
+    nodeUuid: z.string().min(1),
+    shareKey: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal(BookmarkType.DOI),
+    doi: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal(BookmarkType.OA),
+    oaWorkId: z.string().min(1),
+  }),
+]);
 
-export type CreateNodeBookmarkReqBody = {
-  nodeUuid: string;
-  shareKey?: string;
-};
+type CreateBookmarkReqBody = z.infer<typeof CreateBookmarkSchema>;
 
-export type CreateNodeBookmarkRequest = Request<never, never, CreateNodeBookmarkReqBody> & {
+export type CreateBookmarkRequest = Request<never, never, CreateBookmarkReqBody> & {
   user: User; // added by auth middleware
 };
 
-export type CreateNodeBookmarkResBody =
+export type CreateBookmarkResBody =
   | {
       ok: true;
       message: string;
@@ -31,30 +39,46 @@ export type CreateNodeBookmarkResBody =
       details?: z.ZodIssue[] | string;
     };
 
-export const createNodeBookmark = async (req: CreateNodeBookmarkRequest, res: Response<CreateNodeBookmarkResBody>) => {
+export const createNodeBookmark = async (req: CreateBookmarkRequest, res: Response<CreateBookmarkResBody>) => {
   const user = req.user;
 
   if (!user) throw Error('Middleware not properly setup for CreateNodeBookmark controller, requires req.user');
 
-  const { nodeUuid, shareKey } = CreateBookmarkSchema.parse(req.body);
+  const bookmarkData = CreateBookmarkSchema.parse(req.body);
+  // const { nodeUuid, shareKey, doi, oaWorkId } = CreateBookmarkSchema.parse(req.body);
 
   const logger = parentLogger.child({
     module: 'Bookmarks::CreateNodeBookmarkController',
-    body: req.body,
     userId: user.id,
-    nodeUuid: nodeUuid,
-    shareId: shareKey,
+    body: req.body,
   });
 
   try {
-    logger.trace({}, 'Bookmarking node');
-    const createdBookmark = await prisma.bookmarkedNode.create({
-      data: {
-        userId: user.id,
-        nodeUuid: ensureUuidEndsWithDot(nodeUuid),
-        shareId: shareKey || null,
-      },
-    });
+    logger.trace({ type: bookmarkData.type }, 'Creating bookmark');
+
+    const data = {
+      userId: user.id,
+      type: bookmarkData.type,
+      nodeUuid: null,
+      doi: null,
+      oaWorkId: null,
+      shareId: null,
+    };
+
+    switch (bookmarkData.type) {
+      case BookmarkType.NODE:
+        data.nodeUuid = ensureUuidEndsWithDot(bookmarkData.nodeUuid);
+        data.shareId = bookmarkData.shareKey || null;
+        break;
+      case BookmarkType.DOI:
+        data.doi = bookmarkData.doi;
+        break;
+      case BookmarkType.OA:
+        data.oaWorkId = bookmarkData.oaWorkId;
+        break;
+    }
+
+    const createdBookmark = await prisma.bookmarkedNode.create({ data });
 
     logger.trace({ createdBookmark }, 'Bookmark created successfully');
     return res.status(201).json({ ok: true, message: 'Bookmark created successfully' });
