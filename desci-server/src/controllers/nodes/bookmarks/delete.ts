@@ -1,11 +1,15 @@
-import { User } from '@prisma/client';
+import { BookmarkType, User } from '@prisma/client';
 import { Request, Response } from 'express';
 
-import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { ensureUuidEndsWithDot } from '../../../utils.js';
+import { BookmarkService } from '../../../services/BookmarkService.js';
 
-export type DeleteNodeBookmarkRequest = Request<{ nodeUuid: string }, never> & {
+type DeleteBookmarkParams = {
+  type: BookmarkType;
+  bId: string; // nodeUuid | DOI | oaWorkId
+};
+
+export type DeleteNodeBookmarkRequest = Request<DeleteBookmarkParams, never> & {
   user: User; // added by auth middleware
 };
 
@@ -24,37 +28,45 @@ export const deleteNodeBookmark = async (req: DeleteNodeBookmarkRequest, res: Re
 
   if (!user) throw Error('Middleware not properly setup for DeleteNodeBookmark controller, requires req.user');
 
-  const { nodeUuid } = req.params;
-  if (!nodeUuid) return res.status(400).json({ ok: false, error: 'nodeUuid is required' });
+  const { type, bId } = req.params;
+  if (!bId)
+    return res.status(400).json({ ok: false, error: 'bId param is required, either a nodeUuid, DOI, or oaWorkId' });
+
+  let deleteParams;
+  switch (type) {
+    case BookmarkType.NODE:
+      deleteParams = { type, nodeUuid: bId };
+      break;
+    case BookmarkType.DOI:
+      deleteParams = { type, doi: bId };
+      break;
+    case BookmarkType.OA:
+      deleteParams = { type, oaWorkId: bId };
+      break;
+    default:
+      return res.status(400).json({
+        ok: false,
+        error: 'Invalid bookmark type, must be NODE, DOI, or OA',
+      });
+  }
 
   const logger = parentLogger.child({
-    module: 'PrivateShare::DeleteNodeBookmarkController',
-    body: req.body,
+    module: 'Bookmarks::DeleteNodeBookmarkController',
     userId: user.id,
-    nodeUuid: nodeUuid,
+    type,
+    bookmarkUniqueId: bId,
   });
 
   try {
-    logger.trace({}, 'Bookmarking node');
-    const bookmark = await prisma.bookmarkedNode.findFirst({
-      where: { nodeUuid: ensureUuidEndsWithDot(nodeUuid), userId: user.id },
-    });
+    logger.trace({}, 'Deleting bookmark');
+    await BookmarkService.deleteBookmark(user.id, deleteParams);
 
-    if (!bookmark) {
-      logger.warn({}, 'Bookmark not found for node');
-      return res.status(404).json({ ok: false, error: 'Bookmark not found' });
-    }
-
-    const deleteResult = await prisma.bookmarkedNode.delete({
-      where: {
-        id: bookmark.id,
-      },
-    });
-
-    logger.trace({ deleteResult }, 'Bookmark deleted successfully');
     return res.status(200).json({ ok: true, message: 'Bookmark deleted successfully' });
   } catch (e) {
-    logger.error({ e, message: e?.message }, 'Failed to delete bookmark');
-    return res.status(500).json({ ok: false, error: 'Failed to delete bookmark for node' });
+    if (e instanceof Error && e.message === 'Bookmark not found') {
+      return res.status(404).json({ ok: false, error: 'Bookmark not found' });
+    }
+    logger.error({ e }, 'Failed to delete bookmark');
+    return res.status(500).json({ ok: false, error: 'Failed to delete bookmark' });
   }
 };

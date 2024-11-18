@@ -44,6 +44,48 @@ export const createBookmark = async (data: CreateBookmarkData): Promise<Bookmark
   return bookmark;
 };
 
+type DeleteBookmarkParams =
+  | { type: 'NODE'; nodeUuid: string }
+  | { type: 'DOI'; doi: string }
+  | { type: 'OA'; oaWorkId: string };
+
+export const deleteBookmark = async (userId: number, params: DeleteBookmarkParams): Promise<BookmarkedNode> => {
+  logger.info({ userId, ...params }, 'Deleting bookmark');
+
+  const bookmark = await prisma.bookmarkedNode.findFirst({
+    where: {
+      userId,
+      type: params.type,
+      ...(() => {
+        switch (params.type) {
+          case 'NODE':
+            return { nodeUuid: ensureUuidEndsWithDot(params.nodeUuid) };
+          case 'DOI':
+            return { doi: params.doi };
+          case 'OA':
+            return { oaWorkId: params.oaWorkId };
+        }
+      })(),
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!bookmark) {
+    logger.warn({}, 'Bookmark not found');
+    throw new Error('Bookmark not found');
+  }
+
+  const deletedBookmark = await prisma.bookmarkedNode.delete({
+    where: { id: bookmark.id },
+  });
+
+  logger.info({ bookmarkId: deletedBookmark.id }, 'Bookmark deleted successfully');
+  return deletedBookmark;
+};
+
 export const BookmarkService = {
   createBookmark,
+  deleteBookmark,
 };
