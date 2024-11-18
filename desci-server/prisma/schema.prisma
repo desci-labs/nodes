@@ -472,15 +472,18 @@ model PrivateShare {
 model BookmarkedNode {
   id           Int           @id @default(autoincrement())
   userId       Int
-  nodeUuid     String
+  nodeUuid     String?
+  doi          String?
+  oaWorkId     String?
+  type         BookmarkType  @default(NODE) // Default for existing records
   shareId      String?
   privateShare PrivateShare? @relation(fields: [shareId], references: [shareId])
-  node         Node          @relation(fields: [nodeUuid], references: [uuid])
+  node         Node?         @relation(fields: [nodeUuid], references: [uuid])
   user         User          @relation(fields: [userId], references: [id])
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  @@unique([userId, nodeUuid])
+  @@unique([userId, type, nodeUuid, doi, oaWorkId])
 }
 
 model NodeCover {
@@ -1060,4 +1063,10 @@ enum NotificationType {
   CONTRIBUTOR_INVITE
   DOI_ISSUANCE_STATUS
   ATTESTATION_VALIDATION
+}
+
+enum BookmarkType {
+  NODE
+  DOI
+  OA
 }
