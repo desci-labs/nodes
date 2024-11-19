@@ -25,7 +25,6 @@ export type ListBookmarksResBody =
 
 export const listBookmarkedNodes = async (req: ListBookmarksRequest, res: Response<ListBookmarksResBody>) => {
   const user = req.user;
-
   if (!user) throw Error('Middleware not properly setup for ListBookmarkedNodes controller, requires req.user');
 
   const logger = parentLogger.child({

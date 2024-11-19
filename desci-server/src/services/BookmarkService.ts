@@ -125,7 +125,7 @@ export const getBookmarks = async (
   const [bookmarks, totalItems] = await Promise.all([
     prisma.bookmarkedNode.findMany({
       where: whereClause,
-      skip,
+      ...(skip > 0 ? { skip } : {}),
       ...(perPage ? { take: perPage } : {}),
       orderBy: { createdAt: 'desc' },
       include: {
@@ -185,7 +185,7 @@ export const getBookmarks = async (
     data: filledBookmarks,
     pagination: {
       currentPage: page,
-      totalPages: Math.ceil(totalItems / perPage),
+      totalPages: Math.ceil(totalItems / perPage) || 1,
       totalItems,
     },
   };
