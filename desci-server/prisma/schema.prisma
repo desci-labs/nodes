@@ -473,6 +473,7 @@ model BookmarkedNode {
   id           Int           @id @default(autoincrement())
   userId       Int
   nodeUuid     String?
+  title        String?
   doi          String?
   oaWorkId     String?
   type         BookmarkType  @default(NODE) // Default for existing records
