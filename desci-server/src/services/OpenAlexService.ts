@@ -1,4 +1,5 @@
-import { Client } from 'pg';
+const pg = await import('pg').then((value) => value.default);
+const { Client } = pg;
 import { z } from 'zod';
 
 import { WorksDetails } from '../controllers/doi/check.js';
