@@ -1,10 +1,15 @@
-import { BookmarkType, BookmarkedNode, Prisma } from '@prisma/client';
+import { BookmarkType, BookmarkedNode, Node, Prisma } from '@prisma/client';
 import { z } from 'zod';
 
 import { prisma } from '../client.js';
 import { CreateBookmarkSchema } from '../controllers/nodes/bookmarks/create.js';
+import { GetBookmarksQuerySchema } from '../controllers/nodes/bookmarks/index.js';
+import { PaginatedResponse } from '../controllers/notifications/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
+
+import { getLatestManifestFromNode } from './manifestRepo.js';
+import { getDpidFromNode } from './node.js';
 
 const logger = parentLogger.child({
   module: 'Bookmarks::BookmarkService',
@@ -85,7 +90,103 @@ export const deleteBookmark = async (userId: number, params: DeleteBookmarkParam
   return deletedBookmark;
 };
 
+type GetBookmarksQuery = z.infer<typeof GetBookmarksQuerySchema>;
+
+export interface FilledBookmark {
+  id: number;
+  type: BookmarkType;
+  nodeUuid?: string;
+  doi?: string;
+  oaWorkId?: string;
+  title?: string;
+  published?: boolean;
+  dpid?: number | string;
+  shareKey?: string;
+}
+
+export const getBookmarks = async (
+  userId: number,
+  query: GetBookmarksQuery,
+): Promise<PaginatedResponse<FilledBookmark>> => {
+  const { page, perPage, type } = query;
+  const skip = (page - 1) * perPage;
+
+  const whereClause = {
+    userId,
+    ...(type && { type }),
+  };
+
+  const [bookmarks, totalItems] = await Promise.all([
+    prisma.bookmarkedNode.findMany({
+      where: whereClause,
+      skip,
+      take: perPage,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        node: {
+          select: {
+            uuid: true,
+            dpidAlias: true,
+            manifestUrl: true,
+            manifestDocumentId: true,
+            // Get published versions, if any
+            versions: {
+              where: {
+                OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.bookmarkedNode.count({ where: whereClause }),
+  ]);
+
+  const filledBookmarks = await Promise.all(
+    bookmarks.map(async (bookmark) => {
+      const details: FilledBookmark = {
+        id: bookmark.id,
+        type: bookmark.type,
+      };
+
+      switch (bookmark.type) {
+        case BookmarkType.NODE:
+          if (bookmark.node) {
+            const latestManifest = await getLatestManifestFromNode(bookmark.node);
+            const dpid = await getDpidFromNode(bookmark.node as unknown as Node, latestManifest);
+            details.nodeUuid = bookmark.nodeUuid;
+            details.title = latestManifest.title;
+            details.dpid = dpid;
+            details.published = bookmark.node.versions.length > 0;
+            details.shareKey = bookmark.shareId;
+          }
+          break;
+        case BookmarkType.DOI:
+          details.doi = bookmark.doi;
+          details.title = bookmark.title;
+          break;
+        case BookmarkType.OA:
+          details.oaWorkId = bookmark.oaWorkId;
+          details.title = bookmark.title;
+          break;
+      }
+
+      return details;
+    }),
+  );
+
+  return {
+    data: filledBookmarks,
+    pagination: {
+      currentPage: page,
+      totalPages: Math.ceil(totalItems / perPage),
+      totalItems,
+    },
+  };
+};
+
 export const BookmarkService = {
   createBookmark,
   deleteBookmark,
+  getBookmarks,
 };
