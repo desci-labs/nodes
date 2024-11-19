@@ -11,16 +11,16 @@ const logger = parentLogger.child({
   module: 'OpenAlexService::',
 });
 
-const client = new Client({
+const client = new pg.Pool({
   connectionString: process.env.OPEN_ALEX_DATABASE_URL,
   connectionTimeoutMillis: 1500,
   options: '-c search_path=openalex',
 });
 
 function ensureFormattedWorkId(workId: string) {
+  workId = workId.split('/').pop();
   workId = workId.toUpperCase();
-  if (!workId.startsWith('https://openalex.org/')) workId = 'https://openalex.org/' + workId;
-  return workId;
+  return 'https://openalex.org/' + workId;
 }
 
 function ensureFormattedDoi(doi: string) {
@@ -39,8 +39,6 @@ function getRawDoi(doi: string) {
 
 export async function getMetadataByWorkId(workId: string): Promise<WorksDetails> {
   logger.info(`Fetching OpenAlex work: ${workId}`);
-  await client.connect();
-
   workId = ensureFormattedWorkId(workId);
 
   const { rows } = await client.query(
@@ -82,15 +80,12 @@ export async function getMetadataByWorkId(workId: string): Promise<WorksDetails>
   const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
   const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
 
-  await client.end();
   return { ...work, abstract };
 }
 
 export async function getMetadataByDoi(doi: string): Promise<WorksDetails> {
   logger.info(`Fetching OpenAlex work by DOI: ${doi}`);
   doi = ensureFormattedDoi(doi);
-
-  await client.connect();
 
   // pull record from openalex database
   const { rows } = await client.query(
@@ -132,7 +127,6 @@ group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type",
   const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
   const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
 
-  await client.end();
   return { ...work, abstract, doi: getRawDoi(doi) };
 }
 
