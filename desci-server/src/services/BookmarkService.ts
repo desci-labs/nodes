@@ -126,7 +126,7 @@ export const getBookmarks = async (
     prisma.bookmarkedNode.findMany({
       where: whereClause,
       skip,
-      take: perPage,
+      ...(perPage ? { take: perPage } : {}),
       orderBy: { createdAt: 'desc' },
       include: {
         node: {
@@ -160,7 +160,7 @@ export const getBookmarks = async (
           if (bookmark.node) {
             const latestManifest = await getLatestManifestFromNode(bookmark.node);
             const dpid = await getDpidFromNode(bookmark.node as unknown as Node, latestManifest);
-            details.nodeUuid = bookmark.nodeUuid;
+            details.nodeUuid = bookmark.nodeUuid.replace('.', '');
             details.title = latestManifest.title;
             details.dpid = dpid;
             details.published = bookmark.node.versions.length > 0;

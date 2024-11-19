@@ -8,17 +8,10 @@ import { PaginatedResponse } from '../../notifications/index.js';
 
 export const GetBookmarksQuerySchema = z.object({
   page: z.string().regex(/^\d+$/).transform(Number).optional().default('1'),
-  perPage: z.string().regex(/^\d+$/).transform(Number).optional().default('20'),
+  perPage: z.string().regex(/^\d+$/).transform(Number).optional(),
   type: z.enum([BookmarkType.NODE, BookmarkType.DOI, BookmarkType.OA]).optional(),
 });
 
-export type BookmarkedNode = {
-  uuid: string;
-  title?: string;
-  published?: boolean;
-  dpid?: number;
-  shareKey: string;
-};
 export type ListBookmarksRequest = Request & {
   user: User;
   query: z.infer<typeof GetBookmarksQuerySchema>;
