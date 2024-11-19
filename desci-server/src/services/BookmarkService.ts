@@ -46,9 +46,10 @@ export const createBookmark = async (data: CreateBookmarkData): Promise<Bookmark
           .catch((e) => ({ oaWorkId: data.oaWorkId, title: data.oaWorkId }));
     }
   })();
+  // debugger; //
 
   const bookmark = await prisma.bookmarkedNode.create({
-    data: { ...prismaData, ...extraData },
+    data: { ...prismaData, ...(await extraData) },
   });
 
   logger.info({ bookmarkId: bookmark.id }, 'Bookmark created successfully');
