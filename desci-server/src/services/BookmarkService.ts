@@ -10,6 +10,7 @@ import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { getLatestManifestFromNode } from './manifestRepo.js';
 import { getDpidFromNode } from './node.js';
+import { OpenAlexService } from './OpenAlexService.js';
 
 const logger = parentLogger.child({
   module: 'Bookmarks::BookmarkService',
@@ -34,10 +35,15 @@ export const createBookmark = async (data: CreateBookmarkData): Promise<Bookmark
           nodeUuid: ensureUuidEndsWithDot(data.nodeUuid),
           shareId: data.shareKey || null,
         };
-      case BookmarkType.DOI:
-        return { doi: data.doi };
+      case BookmarkType.DOI: {
+        return OpenAlexService.getMetadataByDoi(data.doi)
+          .then((metadata) => ({ title: metadata.title, doi: data.doi }))
+          .catch((e) => ({ doi: data.doi, title: data.doi }));
+      }
       case BookmarkType.OA:
-        return { oaWorkId: data.oaWorkId };
+        return OpenAlexService.getMetadataByWorkId(data.oaWorkId)
+          .then((metadata) => ({ title: metadata.title, oaWorkId: data.oaWorkId }))
+          .catch((e) => ({ oaWorkId: data.oaWorkId, title: data.oaWorkId }));
     }
   })();
 
