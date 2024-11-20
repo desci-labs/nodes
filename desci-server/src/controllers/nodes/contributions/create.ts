@@ -57,7 +57,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
   if (!userId && !email && !orcid) {
     return res.status(400).json({ error: 'userId, Email or Orcid required' });
   }
-  // debugger; //
+  debugger; //
   // Add contributor to the db
   try {
     const contributorAdded = await contributorService.addNodeContribution({
@@ -90,7 +90,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
         nodeUuid: node.uuid,
         privShareCode: shareCode,
         contributorId: contributorAdded.contributorId,
-        newUser: contributorAdded.userId === undefined,
+        newUser: !!!contributorAdded.userId,
       });
       const emailMsg = {
         to: email,
@@ -101,7 +101,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
         html: emailHtml,
       };
 
-      if (contributorAdded.userId !== undefined) {
+      if (!!contributorAdded.userId) {
         // Emit push notif to contributor if they already have a nodes account
         await emitNotificationOnContributorInvite({
           node: node,
