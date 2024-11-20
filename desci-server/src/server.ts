@@ -43,6 +43,7 @@ const allowlist = [
   'http://localhost:3001',
   'http://localhost:61440',
   'http://localhost:3002',
+  'http://localhost:7000',
   'http://host.docker.internal:3000',
   'http://host.docker.internal:3002',
   'http://127.0.0.1:3000',
@@ -53,6 +54,7 @@ const allowlist = [
   'd3ge8gcb3rt5iw.amplifyapp.com',
   'desci.com',
   'gitpod.io',
+  'preview-desci-labs.ycode.site',
   'loca.lt' /** NOT SECURE */,
   'vercel.app' /** NOT SECURE */,
 ];
