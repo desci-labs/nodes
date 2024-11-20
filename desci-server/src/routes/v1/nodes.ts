@@ -108,6 +108,7 @@ router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
 // Bookmarks
 router.get('/bookmarks', [ensureUser], listBookmarkedNodes);
 router.delete('/bookmarks/:type/:bId', [ensureUser], deleteNodeBookmark);
+router.delete('/bookmarks/:type/:bId/*', [ensureUser], deleteNodeBookmark);
 router.post('/bookmarks', [ensureUser], createNodeBookmark);
 
 // Cover

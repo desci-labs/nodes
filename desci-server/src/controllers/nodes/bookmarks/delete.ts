@@ -25,12 +25,15 @@ export type DeleteNodeBookmarkResBody =
 
 export const deleteNodeBookmark = async (req: DeleteNodeBookmarkRequest, res: Response<DeleteNodeBookmarkResBody>) => {
   const user = req.user;
-
   if (!user) throw Error('Middleware not properly setup for DeleteNodeBookmark controller, requires req.user');
-
-  const { bId } = req.params;
-  let { type } = req.params;
+  let { type, bId } = req.params;
   type = type.toUpperCase() as BookmarkType;
+  // debugger; //////
+
+  if (type === BookmarkType.DOI) {
+    // Handles the extra slashes in DOI's to correctly form the bId
+    bId = [bId, req.params[0]].join('/');
+  }
 
   if (!bId)
     return res.status(400).json({ ok: false, error: 'bId param is required, either a nodeUuid, DOI, or oaWorkId' });
