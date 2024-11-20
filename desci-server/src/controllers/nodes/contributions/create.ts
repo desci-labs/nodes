@@ -57,7 +57,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
   if (!userId && !email && !orcid) {
     return res.status(400).json({ error: 'userId, Email or Orcid required' });
   }
-  // debugger;
+  // debugger; //
   // Add contributor to the db
   try {
     const contributorAdded = await contributorService.addNodeContribution({
@@ -70,7 +70,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
     });
     if (!contributorAdded) throw Error('Failed to add contributor');
 
-    if (!email && contributorAdded.userId !== undefined) {
+    if (!email && !!contributorAdded.userId) {
       // If the contributor being added has an existing account, their email is available on their profile.
       const invitedContributor = await prisma.user.findUnique({ where: { id: contributorAdded.userId } });
       if (invitedContributor?.email) email = invitedContributor.email;
