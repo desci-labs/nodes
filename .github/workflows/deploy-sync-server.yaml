@@ -1,9 +1,6 @@
 name: Deploy Worker
 on:
-  # pull_request:
-  #   paths:
-  #   - desci-server/**
-  push:
+  pull_request:
     paths:
       - .github/workflows/**
       - sync-server/**

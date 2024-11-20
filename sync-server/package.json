@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "NODE_PATH=./dist node ./dist/index.js",
-    "dev": "wrangler dev --port 5445 --ip 0.0.0.0 --local-protocol http",
+    "dev": "wrangler dev --port 5445 --ip 0.0.0.0",
+    "build": "wrangler deploy --dry-run --outdir .wrangler/dist ",
     "docker:dev": "docker compose --file ../docker-compose.sync.yml --compatibility up --build",
     "watch-compile": "debug=* tsc -w --preserveWatchOutput",
     "test": "NODE_ENV=test mocha --colors --timeout 20000 --exit",

@@ -64,7 +64,6 @@ spec:
           export MEDIA_SECRET_KEY={{ .Data.MEDIA_SECRET_KEY }}
           export ESTUARY_API_KEY={{ .Data.ESTUARY_API_KEY }}
           export ESTUARY_API_URL={{ .Data.ESTUARY_API_URL }}
-          export CLOUDFLARE_API_TOKEN={{ .Data.CLOUDFLARE_API_TOKEN }}
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}

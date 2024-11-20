@@ -82,7 +82,7 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
     const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
     logger.trace({ documentId }, 'handle resolved');
     const document = await handle.doc();
-    logger.trace({ uuid, automergeUrl }, 'DOCUMENT Retrieved');
+    logger.trace({ uuid, automergeUrl, document }, 'DOCUMENT Retrieved');
     return document;
   };
 

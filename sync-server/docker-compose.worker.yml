@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  sync_server:
+    build: .
+    image: worker
+    env_file:
+      - .env
+    volumes:
+      - ./.storage/cache:/worker/cache
+      - ./.storage/kv:/worker/kv
+      - ./.storage/d1:/worker/d1
+      - ./.storage/r2:/worker/r2
+      - .:/worker
+      - /app/node_modules
+      - ./local-data/yarn_cache:/root/.yarn
+    ports:
+      - '5445:5445'
+    extra_hosts:
+      - host.docker.internal:host-gateway

@@ -1,18 +1,13 @@
 # Top-level configuration
-name = "desci-sync-worker"
+name = "automerge-sync-worker"
 main = "src/Automerge.ts"
 compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = ["nodejs_compat_v2"]
+ip = "127.0.0.1"
 
 [[durable_objects.bindings]]
 name = "Automerge"
 class_name = "AutomergeServer"
-
-[vars]
-DATABASE_URL= "postgresql://walter:white@host.docker.internal:5432/boilerplate"
-DB_TABLE= "DocumentStore"
-NODES_API= "http://localhost:5420"
-ENVIRONMENT="local"
 
 [[migrations]]
 tag = "v1"
@@ -26,3 +21,51 @@ head_sampling_rate = 1 # optional. default = 1.
 binding = "NODES_DB"
 id = "856af129675e4140accc0ccabbc2ee20"
 localConnectionString = "postgresql://walter:white@host.docker.internal:5432/boilerplate"
+
+[vars]
+DATABASE_URL= "postgresql://walter:white@host.docker.internal:5432/boilerplate"
+DB_TABLE= "DocumentStore"
+NODES_API= "http://localhost:5420"
+ENVIRONMENT="dev"
+
+[env.staging]
+vars = { ENVIRONMENT = "staging", DB_TABLE= "DocumentStore", NODES_API= "https://nodes-api-dev.desci.com" }
+hyperdrive = { binding = "NODES_DB", id = "0475d48544a641ffa514488c6e94911e" }
+
+[env.production]
+vars = { ENVIRONMENT = "production", DB_TABLE= "DocumentStore", NODES_API= "https://nodes-api.desci.com" }
+hyperdrive = { binding = "NODES_DB", id = "21c45695583b4d8aa6655735efc4aa28" }
+
+
+[alias]
+"node:stream" = "./node_modules/unenv/runtime/node/stream/index.mjs"
+"stream" = "./node_modules/unenv/runtime/node/stream/index.mjs"
+"events" = "./node_modules/unenv/runtime/node/events/index.mjs"
+"path" = "./node_modules/unenv/runtime/node/path/index.mjs"
+"buffer" = "./node_modules/unenv/runtime/node/buffer/index.mjs"
+"fs" = "./node_modules/unenv/runtime/node/fs/index.mjs"
+"process" = "./node_modules/unenv/runtime/node/process/index.mjs"
+"os" = "./node_modules/unenv/runtime/node/os/index.mjs"
+"url" = "./node_modules/unenv/runtime/node/url/index.mjs"
+"zlib" = "./node_modules/unenv/runtime/node/zlib/index.mjs"
+"crypto" = "./node_modules/unenv/runtime/node/crypto/index.mjs"
+"async_hooks" = "./node_modules/unenv/runtime/node/async_hooks/index.mjs"
+"assert" = "./node_modules/unenv/runtime/node/assert/index.mjs"
+"console" = "./node_modules/unenv/runtime/node/console/index.mjs"
+"child_process" = "./node_modules/unenv/runtime/node/child_process/index.mjs"
+"net" = "./node_modules/unenv/runtime/node/net/index.mjs"
+"http" = "./node_modules/unenv/runtime/node/http/index.mjs"
+# "https" = "./node_modules/unenv/runtime/node/https/index.mjs"
+"string_decoder" = "./node_modules/unenv/runtime/node/string_decoder/index.mjs"
+# "tls" = "./node_modules/unenv/runtime/node/tls/index.mjs"
+# "trace_events" = "./node_modules/unenv/runtime/node/trace_events/index.mjs"
+# "querystring" = "./node_modules/unenv/runtime/node/querystring/index.mjs"
+# "readline" = "./node_modules/unenv/runtime/node/readline/index.mjs"
+# "sys" = "./node_modules/unenv/runtime/node/sys/index.mjs"
+# "timers" = "./node_modules/unenv/runtime/node/timers/index.mjs"
+# "tty" = "./node_modules/unenv/runtime/node/tty/index.mjs"
+# "constants" = "./node_modules/unenv/runtime/node/constants/index.mjs"
+# "util" = "./node_modules/unenv/runtime/node/util/index.mjs"
+# "v8" = "./node_modules/unenv/runtime/node/v8/index.mjs"
+# "vm" = "./node_modules/unenv/runtime/node/vm/index.mjs"
+# "wasi" = "./node_modules/unenv/runtime/node/wasi/index.mjs"

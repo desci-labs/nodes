@@ -1,3 +1,4 @@
+import * as streams from 'node:stream';
 import { type PeerId, Repo } from '@automerge/automerge-repo/slim';
 import { DurableObjectState } from '@cloudflare/workers-types';
 import { routePartykitRequest, Server as PartyServer, Connection, ConnectionContext, WSMessage } from 'partyserver';
@@ -7,6 +8,8 @@ import database from './automerge-repo-storage-postgres/db.js';
 import { PostgresStorageAdapter } from './automerge-repo-storage-postgres/PostgresStorageAdapter.js';
 import { Env } from './types.js';
 
+const writer = new streams.Writable();
+// console.log('writer ', writer);
 // run a timeAlive loop to close connection in 30 secs if no other client aside the `worker-server-**` is connected
 export class AutomergeServer extends PartyServer {
   repo: Repo;
@@ -42,8 +45,6 @@ export class AutomergeServer extends PartyServer {
     const auth = params.get('auth');
     let isAuthorised = false;
 
-    console.log('CONNECT', { auth, id: connection.id, server: connection.server, url: connection.url });
-
     if (auth === this.env.API_TOKEN) {
       isAuthorised = true;
     } else {
@@ -53,6 +54,8 @@ export class AutomergeServer extends PartyServer {
 
       if (response.ok) isAuthorised = true;
     }
+
+    console.log('onConnect', { auth, isAuthorised, id: connection.id, server: connection.server, url: connection.url });
     if (isAuthorised) {
       this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
     } else {
@@ -81,6 +84,7 @@ export class AutomergeServer extends PartyServer {
 
 export default {
   fetch(request: Request, env) {
+    console.log('CONNECT', { env });
     return routePartykitRequest(request, env) || new Response('Not found', { status: 404 });
   },
 };
