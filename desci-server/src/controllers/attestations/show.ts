@@ -1,4 +1,4 @@
-import { AttestationVersion, DesciCommunity, NodeAttestation } from '@prisma/client';
+import { Attestation, AttestationVersion, DesciCommunity, NodeAttestation } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { BadRequestError } from '../../core/ApiError.js';
@@ -14,6 +14,10 @@ export type NodeAttestationFragment = NodeAttestation & {
     verifications: number;
     annotations: number;
   };
+};
+
+export type AttestationWithNodeAttestations = Attestation & {
+  NodeAttestation: NodeAttestation[];
 };
 
 type ShowNodeAttestationsResponse = {
@@ -81,4 +85,18 @@ export const showCommunityClaims = async (
     },
   }));
   return new SuccessResponse(attestations).send(res);
+};
+
+export const showAllAttestationsWithUnverifiedNodes = async (
+  req: Request,
+  res: Response<AttestationWithNodeAttestations[]>,
+) => {
+  const logger = parentLogger.child({
+    module: 'ATTESTATIONS::showAllAttestationsWithUnverifiedNodes',
+    user: (req as any).user,
+  });
+  logger.trace(`showAllAttestationsWithUnverifiedNodes`);
+
+  const attestations = await attestationService.getAllAttestationsWithUnverifiedNodes({ page: 1, pageSize: 20 });
+  return new SuccessResponse(attestations.data).send(res);
 };

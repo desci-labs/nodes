@@ -1141,6 +1141,52 @@ export class AttestationService {
       logger.info({ err }, '[EMAIL]::ERROR');
     }
   }
+
+  async getAllAttestationsWithUnverifiedNodes({ page = 1, pageSize = 10 }: { page: number; pageSize: number }) {
+    const offset = (page - 1) * pageSize;
+
+    const attestationsWithUnverifiedNodes = await prisma.attestation.findMany({
+      skip: offset,
+      take: pageSize,
+      where: {
+        NodeAttestation: {
+          some: {
+            revoked: false,
+            NodeAttestationVerification: {
+              none: {}, // Ensure the attestation is unverified
+            },
+          },
+        },
+      },
+      include: {
+        NodeAttestation: true, // Optionally include related node attestations
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const totalAttestations = await prisma.attestation.count({
+      where: {
+        NodeAttestation: {
+          some: {
+            revoked: false,
+            NodeAttestationVerification: {
+              none: {}, // Ensure the attestation is unverified
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      data: attestationsWithUnverifiedNodes,
+      pagination: {
+        page,
+        pageSize,
+        total: totalAttestations,
+        totalPages: Math.ceil(totalAttestations / pageSize),
+      },
+    };
+  }
 }
 
 export const attestationService = new AttestationService();

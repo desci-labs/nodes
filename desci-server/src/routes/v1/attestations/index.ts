@@ -7,7 +7,11 @@ import {
   getAllRecommendations,
   getValidatedRecommendations,
 } from '../../../controllers/attestations/recommendations.js';
-import { showCommunityClaims, showNodeAttestations } from '../../../controllers/attestations/show.js';
+import {
+  showAllAttestationsWithUnverifiedNodes,
+  showCommunityClaims,
+  showNodeAttestations,
+} from '../../../controllers/attestations/show.js';
 import {
   addVerification,
   getAttestationVerifications,
@@ -35,6 +39,8 @@ import {
 } from './schema.js';
 
 const router = Router();
+
+router.get('/unverified/all', [], asyncHandler(showAllAttestationsWithUnverifiedNodes));
 
 router.get('/suggestions/all', [], asyncHandler(getAllRecommendations));
 router.get('/suggestions/protected', [], asyncHandler(getValidatedRecommendations));
