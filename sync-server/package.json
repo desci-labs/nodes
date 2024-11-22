@@ -68,6 +68,7 @@
     "partyserver": "^0.0.57",
     "partysocket": "^1.0.2",
     "pg": "^8.13.1",
+    "pino-std-serializers": "^7.0.0",
     "wrangler": "3.80.0",
     "ws": "^8.14.2"
   },

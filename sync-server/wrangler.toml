@@ -1,7 +1,7 @@
 # Top-level configuration
 name = "automerge-sync-worker"
 main = "src/index.ts"
-compatibility_date = "2024-09-23"
+compatibility_date = "2024-11-12"
 compatibility_flags = ["nodejs_compat_v2"]
 find_additional_modules = true
 ip = "127.0.0.1"

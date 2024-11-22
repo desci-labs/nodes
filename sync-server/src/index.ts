@@ -1,6 +1,8 @@
 import { type PeerId, Repo } from '@automerge/automerge-repo/slim';
 import { DurableObjectState } from '@cloudflare/workers-types';
 import { routePartykitRequest, Server as PartyServer, Connection, ConnectionContext, WSMessage } from 'partyserver';
+import { err as serialiseErr } from 'pino-std-serializers';
+
 import { PartyKitWSServerAdapter } from './automerge-repo-network-websocket/PartykitWsServerAdapter.js';
 
 import database from './automerge-repo-storage-postgres/db.js';
@@ -9,6 +11,10 @@ import { Env } from './types.js';
 
 // run a timeAlive loop to close connection in 30 secs if no other client aside the `worker-server-**` is connected
 export class AutomergeServer extends PartyServer {
+  // private options: {
+  //   hibernate: true;
+  // };
+
   repo: Repo;
   private AUTH_SECRET: string;
   private DATABASE_URL: string;
@@ -32,7 +38,7 @@ export class AutomergeServer extends PartyServer {
 
   async onStart(): Promise<void> {
     const { Repo } = await import('@automerge/automerge-repo');
-    console.log('first connection to server', this.env, process.env);
+    console.log('first connection to server', this.env);
     const { query } = await database.init(this.DATABASE_URL);
     const config = {
       storage: new PostgresStorageAdapter(query),
@@ -43,6 +49,8 @@ export class AutomergeServer extends PartyServer {
     };
 
     this.repo = new Repo(config);
+
+    // this.ctx.waitUntil(pool.end())
   }
 
   async onConnect(connection: Connection, ctx: ConnectionContext): Promise<void> {
@@ -80,7 +88,7 @@ export class AutomergeServer extends PartyServer {
   }
 
   onError(connection: Connection, error: unknown): void | Promise<void> {
-    console.log('[Error]:', { id: connection.id, error });
+    console.log('[Error]:', { id: connection.id, error: serialiseErr(error as Error) });
   }
 
   onClose(connection: Connection, code: number, reason: string, wasClean: boolean): void | Promise<void> {
@@ -95,7 +103,6 @@ export class AutomergeServer extends PartyServer {
 
 export default {
   fetch(request: Request, env) {
-    // console.log('CONNECT', { url: request.url });
     if (!request.url.includes('/parties/automerge')) return new Response('Not found', { status: 404 });
     return routePartykitRequest(request, env) || new Response('Not found', { status: 404 });
   },
