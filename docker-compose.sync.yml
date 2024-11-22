@@ -1,18 +1,16 @@
 services:
-  sync_server:
-    container_name: "sync_server"
-    command: yarn dev
+  desci_sync:
     build: ./sync-server
+    container_name: desci_sync
+    image: worker
     env_file:
       - ./sync-server/.env
     ports:
-      - "5445:5445"
+      - "5445:8080"
     extra_hosts:
       - host.docker.internal:host-gateway
-    # depends_on:
-    #   db_postgres:
-    #     condition: service_healthy
     volumes:
-      - ./sync-server:/app/
-      - /app/node_modules
-      - ./local-data/yarn_cache:/root/.yarn
+      - ./local-data/.storage/cache:/worker/cache
+    depends_on:
+      db_postgres:
+        condition: service_healthy

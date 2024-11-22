@@ -1,4 +1,3 @@
-import * as streams from 'node:stream';
 import { type PeerId, Repo } from '@automerge/automerge-repo/slim';
 import { DurableObjectState } from '@cloudflare/workers-types';
 import { routePartykitRequest, Server as PartyServer, Connection, ConnectionContext, WSMessage } from 'partyserver';
@@ -8,25 +7,35 @@ import database from './automerge-repo-storage-postgres/db.js';
 import { PostgresStorageAdapter } from './automerge-repo-storage-postgres/PostgresStorageAdapter.js';
 import { Env } from './types.js';
 
-const writer = new streams.Writable();
-// console.log('writer ', writer);
 // run a timeAlive loop to close connection in 30 secs if no other client aside the `worker-server-**` is connected
 export class AutomergeServer extends PartyServer {
   repo: Repo;
+  private AUTH_SECRET: string;
+  private DATABASE_URL: string;
+  private environment: string;
 
   constructor(
     private readonly ctx: DurableObjectState,
     private readonly env: Env,
   ) {
     super(ctx, env);
-    console.log('Room: ', ctx.id, env.NODES_DB.connectionString);
+    console.log('Room: ', ctx.id, env);
+    // Add sensible defaults for running worker using workered in docker container
+    // without these defaults the worker crashes because runtime variable/secret bindings are all
+    // when running in docker container
+    this.environment = this.env.ENVIRONMENT || 'dev';
+    const localDbUrl =
+      this.env.DATABASE_URL ??
+      process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ??
+      'postgresql://walter:white@host.docker.internal:5433/boilerplate';
+    this.DATABASE_URL = this.environment === 'dev' ? localDbUrl : this.env.NODES_DB.connectionString;
+    this.AUTH_SECRET = env.API_TOKEN || 'auth-token';
   }
 
   async onStart(): Promise<void> {
     const { Repo } = await import('@automerge/automerge-repo');
-    console.log('first connection to server', this.env.NODES_DB.connectionString);
-    const dbUrl = this.env.ENVIRONMENT === 'local' ? this.env.DATABASE_URL : this.env.NODES_DB.connectionString;
-    const { query } = await database.init(dbUrl);
+    console.log('first connection to server', this.env, process.env);
+    const { query } = await database.init(this.DATABASE_URL);
     const config = {
       storage: new PostgresStorageAdapter(query),
       peerId: `worker-server-${this.ctx.id}` as PeerId,
@@ -45,17 +54,21 @@ export class AutomergeServer extends PartyServer {
     const auth = params.get('auth');
     let isAuthorised = false;
 
-    if (auth === this.env.API_TOKEN) {
+    if (auth === this.AUTH_SECRET) {
       isAuthorised = true;
     } else {
-      const response = await fetch(`${this.env.NODES_API}/v1/auth/check`, {
+      // Add default for missing NODES_API in workered container runtime
+      // I'm still hunting down this bug, will probably open an issue on the
+      // workered repo
+      const authUrl = this.env.NODES_API ?? 'http://host.docker.internal:5420';
+      const response = await fetch(`${authUrl}/v1/auth/check`, {
         headers: { Authorization: `Bearer ${auth}` },
       });
 
       if (response.ok) isAuthorised = true;
     }
 
-    console.log('onConnect', { auth, isAuthorised, id: connection.id, server: connection.server, url: connection.url });
+    console.log('onConnect', { isAuthorised, id: connection.id, server: connection.server });
     if (isAuthorised) {
       this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
     } else {
@@ -84,7 +97,8 @@ export class AutomergeServer extends PartyServer {
 
 export default {
   fetch(request: Request, env) {
-    console.log('CONNECT', { env });
+    // console.log('CONNECT', { url: request.url });
+    if (!request.url.includes('/parties/automerge')) return new Response('Not found', { status: 404 });
     return routePartykitRequest(request, env) || new Response('Not found', { status: 404 });
   },
 };

@@ -17,3 +17,5 @@ repo-tmp
 
 .wrangler
 COMMANDS
+.storage
+worker.capnp

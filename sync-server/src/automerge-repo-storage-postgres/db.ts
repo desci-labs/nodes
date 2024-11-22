@@ -16,7 +16,7 @@ export default {
           const result = await client.query(statement, values);
           return result.rows;
         } catch (err) {
-          console.error('[Hyperdrive Error]::', err);
+          console.error('[Hyperdrive Error]::', { client, err });
           return undefined;
         }
       },

@@ -1,7 +1,7 @@
 import path from 'path';
 
-import { Chunk, StorageKey } from '@automerge/automerge-repo';
-import type { StorageAdapterInterface } from '@automerge/automerge-repo';
+import { Chunk, StorageKey } from '@automerge/automerge-repo/slim';
+import type { StorageAdapterInterface } from '@automerge/automerge-repo/slim';
 
 import { DbDriver } from './db.js';
 
