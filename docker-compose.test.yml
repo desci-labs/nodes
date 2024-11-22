@@ -68,8 +68,6 @@ services:
     build: ./sync-server
     container_name: nodes_sync_test_worker
     image: worker_test
-    env_file:
-      - ./sync-server/.env
     ports:
       - "5446:8080"
     extra_hosts:
