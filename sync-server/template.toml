@@ -21,17 +21,17 @@ head_sampling_rate = 1 # optional. default = 1.
 [[hyperdrive]]
 binding = "NODES_DB"
 id = "856af129675e4140accc0ccabbc2ee20"
-localConnectionString = "postgresql://walter:white@host.docker.internal:5433/boilerplate"
+localConnectionString = "<DATABASE_URL>"
 
 [vars]
 DB_TABLE= "DocumentStore"
 NODES_API= "http://localhost:5420"
 ENVIRONMENT="dev"
-DATABASE_URL= "postgresql://walter:white@host.docker.internal:5433/boilerplate"
+DATABASE_URL= "<DATABASE_URL>"
 
 [env.dev]
 durable_objects.bindings = [{ name = "Automerge", class_name = "AutomergeServer" }]
-vars = { DB_TABLE= "DocumentStore", NODES_API= "http://localhost:5420", ENVIRONMENT="dev", DATABASE_URL= "postgresql://walter:white@host.docker.internal:5433/boilerplate" }
+vars = { DB_TABLE= "DocumentStore", NODES_API= "http://localhost:5420", ENVIRONMENT="dev", DATABASE_URL= "<DATABASE_URL>" }
 hyperdrive = [{ binding = "NODES_DB", id = "856af129675e4140accc0ccabbc2ee20" }]
 
 [env.staging]

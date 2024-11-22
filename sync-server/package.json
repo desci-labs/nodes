@@ -8,8 +8,8 @@
   },
   "scripts": {
     "dev": "wrangler dev --port 5445 --ip 0.0.0.0",
-    "build": "selflare compile",
-    "build:dry": "wrangler deploy --dry-run --outdir .wrangler/dist ",
+    "build": "selflare compile -s .wrangler/dist/index.js",
+    "compile": "wrangler deploy --dry-run --outdir .wrangler/dist ",
     "test": "",
     "lint": "eslint --max-warnings 0 --ext .js,ts src",
     "lint-staged-husky": "lint-staged",

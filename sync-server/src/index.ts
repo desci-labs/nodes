@@ -25,9 +25,7 @@ export class AutomergeServer extends PartyServer {
     // when running in docker container
     this.environment = this.env.ENVIRONMENT || 'dev';
     const localDbUrl =
-      this.env.DATABASE_URL ??
-      process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ??
-      'postgresql://walter:white@host.docker.internal:5433/boilerplate';
+      this.env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
     this.DATABASE_URL = this.environment === 'dev' ? localDbUrl : this.env.NODES_DB.connectionString;
     this.AUTH_SECRET = env.API_TOKEN || 'auth-token';
   }

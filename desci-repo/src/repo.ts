@@ -10,7 +10,6 @@ import {
 } from '@automerge/automerge-repo';
 import WebSocket from 'isomorphic-ws';
 import { logger as parentLogger } from './logger.js';
-// import { verifyNodeDocumentAccess } from './services/nodes.js';
 import { ResearchObjectDocument } from './types.js';
 import * as db from './db/index.js';
 import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
@@ -19,6 +18,7 @@ import { PartykitNodeWsAdapter } from './lib/PartykitNodeWsAdapter.js';
 const partyServerHost = process.env.PARTY_SERVER_URL || 'wss://localhost:5445';
 const partyServerToken = process.env.PARTY_SERVER_TOKEN;
 const isDev = process.env.NODE_ENV == 'dev';
+const isTest = process.env.NODE_ENV == 'test';
 
 if (!(partyServerToken && partyServerHost)) {
   throw new Error('Missing ENVIRONMENT variables: AUTOMERGE_PARTY_URL or AUTOMERGE_PARTY_TOKEN');
@@ -28,17 +28,9 @@ const logger = parentLogger.child({ module: 'repo.ts' });
 
 logger.info({ partyServerHost, partyServerToken }, 'Env checked');
 
-// export const socket = new WebSocketServer({
-//   port: process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 5445,
-//   path: '/sync',
-// });
 const hostname = os.hostname();
 
-// const adapter = new NodeWSServerAdapter(socket);
-
 const config: RepoConfig = {
-  // network: [adapter],
-  // storage: new PostgresStorageAdapter(),
   peerId: `repo-server-${hostname}` as PeerId,
   // Since this is a server, we don't share generously — meaning we only sync documents they already
   // know about and can ask for by ID.
@@ -103,7 +95,7 @@ class RepoManager {
       party: 'automerge',
       room: documentId,
       query: { auth: partyServerToken },
-      protocol: 'ws',
+      protocol: isDev || isTest ? 'ws' : 'wss',
       WebSocket: WebSocket,
     });
 
@@ -123,7 +115,7 @@ class RepoManager {
             'Post disconnect',
           );
           if (adapter.socket?.readyState !== WebSocket.OPEN) this.cleanUp(documentId);
-        }, 5000);
+        }, 60000);
       }
       logger.trace(
         { peer: peer.peerId, remotePeerId: adapter.remotePeerId, documentId, socketState: adapter.socket?.readyState },
