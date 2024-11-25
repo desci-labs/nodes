@@ -21,7 +21,7 @@ const isDev = process.env.NODE_ENV == 'dev';
 const isTest = process.env.NODE_ENV == 'test';
 
 if (!(partyServerToken && partyServerHost)) {
-  throw new Error('Missing ENVIRONMENT variables: AUTOMERGE_PARTY_URL or AUTOMERGE_PARTY_TOKEN');
+  throw new Error('Missing ENVIRONMENT variables: PARTY_SERVER_URL or PARTY_SERVER_TOKEN');
 }
 
 const logger = parentLogger.child({ module: 'repo.ts' });

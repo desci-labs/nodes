@@ -16,7 +16,7 @@ export class AutomergeServer extends PartyServer {
   // };
 
   repo: Repo;
-  private AUTH_SECRET: string;
+  private API_TOKEN: string;
   private DATABASE_URL: string;
   private environment: string;
 
@@ -33,7 +33,7 @@ export class AutomergeServer extends PartyServer {
     const localDbUrl =
       this.env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
     this.DATABASE_URL = this.environment === 'dev' ? localDbUrl : this.env.NODES_DB.connectionString;
-    this.AUTH_SECRET = env.API_TOKEN || 'auth-token';
+    this.API_TOKEN = env.API_TOKEN || 'auth-token';
   }
 
   async onStart(): Promise<void> {
@@ -60,7 +60,7 @@ export class AutomergeServer extends PartyServer {
     const auth = params.get('auth');
     let isAuthorised = false;
 
-    if (auth === this.AUTH_SECRET) {
+    if (auth === this.API_TOKEN) {
       isAuthorised = true;
     } else {
       // Add default for missing NODES_API in workered container runtime
@@ -74,17 +74,16 @@ export class AutomergeServer extends PartyServer {
       if (response.ok) isAuthorised = true;
     }
 
-    console.log('onConnect', { isAuthorised, id: connection.id, server: connection.server });
     if (isAuthorised) {
       this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
     } else {
+      console.log('Auth declined', { id: connection.id, server: connection.server });
       connection.close();
     }
   }
 
   onMessage(connection: Connection, message: WSMessage): void | Promise<void> {
     this.broadcast(message, [connection.id]);
-    // console.log('[peers]:', this.repo.peers);
   }
 
   onError(connection: Connection, error: unknown): void | Promise<void> {
@@ -92,7 +91,7 @@ export class AutomergeServer extends PartyServer {
   }
 
   onClose(connection: Connection, code: number, reason: string, wasClean: boolean): void | Promise<void> {
-    console.log('[close]:', { id: connection.id, url: connection.url, documentId: connection.server });
+    console.info('[close]:', { id: connection.id, url: connection.url, documentId: connection.server });
     try {
       connection.close();
     } catch (err) {
