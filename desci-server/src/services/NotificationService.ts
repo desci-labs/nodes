@@ -200,16 +200,22 @@ export const updateUserNotification = async (
   return updatedNotification;
 };
 
-export const batchUpdateUserNotifications = async (
-  notificationIds: number[],
-  userId: number,
-  updateData: NotificationUpdateData,
-): Promise<number> => {
+export const batchUpdateUserNotifications = async ({
+  notificationIds,
+  userId,
+  updateData,
+  all,
+}: {
+  notificationIds: number[];
+  userId: number;
+  updateData: NotificationUpdateData;
+  all?: boolean;
+}): Promise<number> => {
   logger.info({ notificationIds, userId, updateData }, 'Batch updating user notifications');
 
   const result = await prisma.userNotifications.updateMany({
     where: {
-      id: { in: notificationIds },
+      ...(all ? {} : { id: { in: notificationIds } }),
       userId: userId,
     },
     data: updateData,
