@@ -165,6 +165,7 @@ export const createUserNotification = async (
 
   // Emit websocket push notification
   emitWebsocketEvent(data.userId, { type: WebSocketEventType.NOTIFICATION, data: 'invalidate-cache' });
+  incrementUnseenNotificationCount({ userId: data.userId });
 
   return notification;
 };
@@ -453,12 +454,18 @@ export const emitNotificationOnDoiIssuance = async ({
   await createUserNotification(notificationData);
 };
 
-export const getUnseenNotificationCount = async ({ userId }: { userId: number }) => {
-  const { unseenNotificationCount } = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { unseenNotificationCount: true },
-  });
-  return unseenNotificationCount;
+export const getUnseenNotificationCount = async ({ userId, user }: { userId?: number; user?: User }) => {
+  if (!userId && !user) {
+    throw new Error('Missing userId or user');
+  }
+  if (!user || !user.unseenNotificationCount) {
+    const { unseenNotificationCount } = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { unseenNotificationCount: true },
+    });
+    return unseenNotificationCount;
+  }
+  return user.unseenNotificationCount;
 };
 
 export const incrementUnseenNotificationCount = async ({ userId }: { userId: number }) => {
@@ -468,7 +475,7 @@ export const incrementUnseenNotificationCount = async ({ userId }: { userId: num
   });
 };
 
-export const resetUnseenNotificationCount = async ({ userId }) => {
+export const resetUnseenNotificationCount = async ({ userId }: { userId: number }) => {
   await prisma.user.update({
     where: { id: userId },
     data: { unseenNotificationCount: 0 },
