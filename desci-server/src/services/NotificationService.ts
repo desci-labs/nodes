@@ -452,3 +452,25 @@ export const emitNotificationOnDoiIssuance = async ({
 
   await createUserNotification(notificationData);
 };
+
+export const getUnseenNotificationCount = async ({ userId }: { userId: number }) => {
+  const { unseenNotificationCount } = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { unseenNotificationCount: true },
+  });
+  return unseenNotificationCount;
+};
+
+export const incrementUnseenNotificationCount = async ({ userId }: { userId: number }) => {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { unseenNotificationCount: { increment: 1 } },
+  });
+};
+
+export const resetUnseenNotificationCount = async ({ userId }) => {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { unseenNotificationCount: 0 },
+  });
+};
