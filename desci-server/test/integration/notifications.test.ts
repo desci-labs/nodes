@@ -35,10 +35,10 @@ describe('Notification Service', () => {
         message: 'This is a test notification',
       });
 
-      expect(notification.userId).to.equal(user.id);
-      expect(notification.type).to.equal(NotificationType.PUBLISH);
-      expect(notification.title).to.equal('Test Notification');
-      expect(notification.message).to.equal('This is a test notification');
+      expect(notification?.userId).to.equal(user.id);
+      expect(notification?.type).to.equal(NotificationType.PUBLISH);
+      expect(notification?.title).to.equal('Test Notification');
+      expect(notification?.message).to.equal('This is a test notification');
     });
 
     it('should throw an error when creating a notification for a disabled type', async () => {
@@ -89,7 +89,7 @@ describe('Notification Service', () => {
         message: 'This is a test notification',
       });
 
-      const updatedNotification = await updateUserNotification(notification.id, user.id, { dismissed: true });
+      const updatedNotification = await updateUserNotification(notification!.id, user.id, { dismissed: true });
 
       expect(updatedNotification.dismissed).to.be.true;
     });
@@ -120,7 +120,7 @@ describe('Notification Service', () => {
       ]);
 
       const updatedCount = await batchUpdateUserNotifications({
-        notificationIds: notifications.map((n) => n.id),
+        notificationIds: notifications.map((n) => n!.id),
         userId: user.id,
         updateData: { dismissed: true },
       });
@@ -128,7 +128,7 @@ describe('Notification Service', () => {
       expect(updatedCount).to.equal(2);
 
       const updatedNotifications = await prisma.userNotifications.findMany({
-        where: { id: { in: notifications.map((n) => n.id) } },
+        where: { id: { in: notifications.map((n) => n!.id) } },
       });
 
       expect(updatedNotifications.every((n) => n.dismissed)).to.be.true;
@@ -142,7 +142,7 @@ describe('Notification Service', () => {
       });
 
       const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
-      const settings = updatedUser.notificationSettings as Partial<Record<NotificationType, boolean>>;
+      const settings = updatedUser?.notificationSettings as Partial<Record<NotificationType, boolean>>;
       expect(settings[NotificationType.PUBLISH]).to.be.false;
     });
   });
