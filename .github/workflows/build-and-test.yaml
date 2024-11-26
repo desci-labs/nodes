@@ -9,6 +9,7 @@ on:
       - desci-server/**
       - desci-repo/**
       - desci-contracts/**
+      - sync-server/**
       - Dockerfile
 
 name: Test desci-server
