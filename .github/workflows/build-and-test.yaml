@@ -66,6 +66,13 @@ jobs:
           echo -e "\nSENTRY_AUTH_TOKEN=$SENTRY_AUTH" >> desci-server/.env
           cd desci-server && yarn build
 
+      - name: Set up sync server
+        run: |
+          cd sync-server && yarn --ignore-engines && ./scripts/build.sh test
+          if [ $? -ne 0 ]; then
+            exit 1
+          fi
+
       - name: Run tests
         run: |
           cd desci-server && export DOCKER_BUILDKIT=1 && yarn --ignore-engines && yarn test
