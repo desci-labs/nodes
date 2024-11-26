@@ -14,7 +14,7 @@ export const CreateNotificationSchema = z.object({
   payload: z.record(z.unknown()).optional(),
 });
 
-interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Request {
   user: User;
 }
 

@@ -156,6 +156,7 @@ model User {
   pseudonym                   String?                       @unique
   orcid                       String?                       @unique
   notificationSettings        Json?
+  unseenNotificationCount     Int                           @default(0)
   // rorPid                     String[]              @default([])
   // organization               String[]              @default([])
   isAdmin                     Boolean                       @default(false)

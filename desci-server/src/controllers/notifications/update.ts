@@ -1,4 +1,5 @@
 import { User, UserNotifications } from '@prisma/client';
+import { all } from 'axios';
 import { Request, Response } from 'express';
 import { z } from 'zod';
 
@@ -10,6 +11,7 @@ const UpdateDataSchema = z.object({
 });
 
 const BatchUpdateSchema = z.object({
+  all: z.boolean().optional(),
   notificationIds: z.array(z.number()),
   updateData: UpdateDataSchema,
 });
@@ -56,8 +58,8 @@ export const updateNotification = async (
       return res.status(200).json(updatedNotification);
     } else {
       // Batch update
-      const { notificationIds, updateData } = BatchUpdateSchema.parse(req.body);
-      const count = await batchUpdateUserNotifications(notificationIds, userId, updateData);
+      const { notificationIds, updateData, all } = BatchUpdateSchema.parse(req.body);
+      const count = await batchUpdateUserNotifications({ notificationIds, userId, updateData, all });
       logger.info({ count }, 'Successfully batch updated user notifications');
       return res.status(200).json({ count });
     }
