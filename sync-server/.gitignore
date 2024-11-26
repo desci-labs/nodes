@@ -19,3 +19,4 @@ repo-tmp
 COMMANDS
 .storage
 worker.capnp
+wrangler.toml

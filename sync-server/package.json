@@ -55,7 +55,8 @@
     "selflare": "https://github.com/shadrach-tayo/selflare#tay-fork",
     "ts-node": "10.9.1",
     "ts-node-dev": "^2.0.0",
-    "typescript": "5.1.6"
+    "typescript": "5.1.6",
+    "wrangler": "3.90.0"
   },
   "dependencies": {
     "@automerge/automerge-repo": "^2.0.0-alpha.14",
@@ -69,8 +70,6 @@
     "partysocket": "^1.0.2",
     "pg": "^8.13.1",
     "pino-std-serializers": "^7.0.0",
-    "wrangler": "3.80.0",
     "ws": "^8.14.2"
-  },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  }
 }
