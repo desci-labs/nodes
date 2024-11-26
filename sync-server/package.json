@@ -52,7 +52,7 @@
     "pretty-quick": "^3.1.3",
     "regenerator-runtime": "^0.14.0",
     "rimraf": "^5.0.5",
-    "selflare": "https://github.com/shadrach-tayo/selflare#tay-fork",
+    "selflare": "https://github.com/shadrach-tayo/selflare#tay-fork.git",
     "ts-node": "10.9.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "5.1.6",
