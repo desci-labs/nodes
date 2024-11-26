@@ -119,11 +119,11 @@ describe('Notification Service', () => {
         }),
       ]);
 
-      const updatedCount = await batchUpdateUserNotifications(
-        notifications.map((n) => n.id),
-        user.id,
-        { dismissed: true },
-      );
+      const updatedCount = await batchUpdateUserNotifications({
+        notificationIds: notifications.map((n) => n.id),
+        userId: user.id,
+        updateData: { dismissed: true },
+      });
 
       expect(updatedCount).to.equal(2);
 
