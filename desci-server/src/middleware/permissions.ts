@@ -133,6 +133,7 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
     try {
       if (!token) {
         resolve(null);
+        return;
       }
 
       jwt.verify(token, process.env.JWT_SECRET as string, async (err: any, user: any) => {
@@ -140,12 +141,14 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
           logger.error({ module: 'ExtractAuthUser', err }, 'anon request');
           // reject(err);
           resolve(null);
+          return;
         }
 
         logger.trace({ module: 'ExtractAuthUser', user, tokenFound: !!token }, 'User decrypted');
 
         if (!user) {
           resolve(null);
+          return;
         }
 
         const loggedInUserEmail = user.email as string;
@@ -159,6 +162,7 @@ export const extractUserFromToken = async (token: string): Promise<User | null> 
 
         if (!retrievedUser || !retrievedUser.id) {
           resolve(null);
+          return;
         }
 
         resolve(retrievedUser);
@@ -188,6 +192,7 @@ export const extractUserFromApiKey = (apiKey: string, ip: string): Promise<User 
     try {
       if (!apiKey) {
         resolve(null);
+        return;
       }
 
       const hashedApiKey = hashApiKey(apiKey);
@@ -202,6 +207,7 @@ export const extractUserFromApiKey = (apiKey: string, ip: string): Promise<User 
 
       if (!validKey) {
         resolve(null);
+        return;
       }
 
       logger.trace(
@@ -221,7 +227,7 @@ export const extractUserFromApiKey = (apiKey: string, ip: string): Promise<User 
 
       const { user } = validKey;
 
-      const loggedInUserEmail = user.email as string;
+      const loggedInUserEmail = user?.email as string;
       const shouldFetchUserByOrcId = Boolean(user.orcid);
 
       const retrievedUser = shouldFetchUserByOrcId
@@ -230,6 +236,7 @@ export const extractUserFromApiKey = (apiKey: string, ip: string): Promise<User 
 
       if (!retrievedUser || !retrievedUser.id) {
         resolve(null);
+        return;
       }
 
       resolve(retrievedUser);
