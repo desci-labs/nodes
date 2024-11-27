@@ -1,13 +1,13 @@
 import os from 'os';
 
 import { DocHandleChangePayload, DocHandleEvents, PeerId, Repo, RepoConfig } from '@automerge/automerge-repo';
-import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
-import { WebSocketServer } from 'ws';
+// import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
+// import { WebSocketServer } from 'ws';
 
 import { prisma } from './client.js';
 import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
 import { logger } from './logger.js';
-import { verifyNodeDocumentAccess } from './services/permissions.js';
+// import { verifyNodeDocumentAccess } from './services/permissions.js';
 import { ResearchObjectDocument } from './types/documents.js';
 import { ensureUuidEndsWithDot } from './utils.js';
 
