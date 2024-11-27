@@ -130,42 +130,43 @@ export const extractTokenFromCookie = async (request: ExpressRequest | Request, 
  */
 export const extractUserFromToken = async (token: string): Promise<User | null> => {
   return new Promise(async (resolve, reject) => {
-    if (!token) {
+    try {
+      if (!token) {
+        resolve(null);
+      }
+
+      jwt.verify(token, process.env.JWT_SECRET as string, async (err: any, user: any) => {
+        if (err) {
+          logger.error({ module: 'ExtractAuthUser', err }, 'anon request');
+          // reject(err);
+          resolve(null);
+        }
+
+        logger.trace({ module: 'ExtractAuthUser', user, tokenFound: !!token }, 'User decrypted');
+
+        if (!user) {
+          resolve(null);
+        }
+
+        const loggedInUserEmail = user.email as string;
+        const shouldFetchUserByOrcId = Boolean(user.orcid);
+
+        const retrievedUser = shouldFetchUserByOrcId
+          ? await getUserByOrcId(user.orcid)
+          : await getUserByEmail(loggedInUserEmail);
+
+        // logger.info({ user: retrievedUser.id }, 'User Retrieved');
+
+        if (!retrievedUser || !retrievedUser.id) {
+          resolve(null);
+        }
+
+        resolve(retrievedUser);
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error:extractUserFromToken');
       resolve(null);
-      return;
     }
-
-    jwt.verify(token, process.env.JWT_SECRET as string, async (err: any, user: any) => {
-      if (err) {
-        logger.error({ module: 'ExtractAuthUser', err }, 'anon request');
-        // reject(err);
-        resolve(null);
-        return;
-      }
-
-      logger.trace({ module: 'ExtractAuthUser', user, tokenFound: !!token }, 'User decrypted');
-
-      if (!user) {
-        resolve(null);
-        return;
-      }
-
-      const loggedInUserEmail = user.email as string;
-      const shouldFetchUserByOrcId = Boolean(user.orcid);
-
-      const retrievedUser = shouldFetchUserByOrcId
-        ? await getUserByOrcId(user.orcid)
-        : await getUserByEmail(loggedInUserEmail);
-
-      // logger.info({ user: retrievedUser.id }, 'User Retrieved');
-
-      if (!retrievedUser || !retrievedUser.id) {
-        resolve(null);
-        return;
-      }
-
-      resolve(retrievedUser);
-    });
   });
 };
 
@@ -184,56 +185,58 @@ export const extractApiKey = async (request: ExpressRequest | Request) => {
  */
 export const extractUserFromApiKey = (apiKey: string, ip: string): Promise<User | null> => {
   return new Promise(async (resolve, reject) => {
-    if (!apiKey) {
+    try {
+      if (!apiKey) {
+        resolve(null);
+      }
+
+      const hashedApiKey = hashApiKey(apiKey);
+
+      const validKey = await prisma.apiKey.findFirst({
+        where: {
+          keyHashed: hashedApiKey,
+          isActive: true,
+        },
+        include: { user: true },
+      });
+
+      if (!validKey) {
+        resolve(null);
+      }
+
+      logger.trace(
+        { module: 'Permissions::extractUserFromApiKey', memo: validKey.memo },
+        'User authenticated via API Key',
+      );
+
+      // Bump last used data
+      await prisma.apiKey.update({
+        where: {
+          id: validKey.id,
+        },
+        data: {
+          lastUsedIp: ip,
+        },
+      });
+
+      const { user } = validKey;
+
+      const loggedInUserEmail = user.email as string;
+      const shouldFetchUserByOrcId = Boolean(user.orcid);
+
+      const retrievedUser = shouldFetchUserByOrcId
+        ? await getUserByOrcId(user.orcid)
+        : await getUserByEmail(loggedInUserEmail);
+
+      if (!retrievedUser || !retrievedUser.id) {
+        resolve(null);
+      }
+
+      resolve(retrievedUser);
+    } catch (err) {
+      logger.error({ err }, 'Error:extractUserFromApiKey');
       resolve(null);
-      return;
     }
-
-    const hashedApiKey = hashApiKey(apiKey);
-
-    const validKey = await prisma.apiKey.findFirst({
-      where: {
-        keyHashed: hashedApiKey,
-        isActive: true,
-      },
-      include: { user: true },
-    });
-
-    if (!validKey) {
-      resolve(null);
-      return;
-    }
-
-    logger.trace(
-      { module: 'Permissions::extractUserFromApiKey', memo: validKey.memo },
-      'User authenticated via API Key',
-    );
-
-    // Bump last used data
-    await prisma.apiKey.update({
-      where: {
-        id: validKey.id,
-      },
-      data: {
-        lastUsedIp: ip,
-      },
-    });
-
-    const { user } = validKey;
-
-    const loggedInUserEmail = user.email as string;
-    const shouldFetchUserByOrcId = Boolean(user.orcid);
-
-    const retrievedUser = shouldFetchUserByOrcId
-      ? await getUserByOrcId(user.orcid)
-      : await getUserByEmail(loggedInUserEmail);
-
-    if (!retrievedUser || !retrievedUser.id) {
-      resolve(null);
-      return;
-    }
-
-    resolve(retrievedUser);
   });
 };
 
