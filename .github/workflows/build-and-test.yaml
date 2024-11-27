@@ -50,12 +50,15 @@ jobs:
             desci-repo/yarn.lock
 
       - name: Install dependencies
-        run: cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn --ignore-engines && cd ../desci-repo && yarn
+        run: |
+          cd desci-models && npm i -g yarn && yarn && yarn build && cd ../desci-server && yarn --ignore-engines && cd ../desci-repo && yarn
+          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
 
       - name: Stub contract
         run: |
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-research-object.json
           echo "{\"proxies\":[{\"address\":\"\"}]}" > desci-server/src/desci-contracts-config/unknown-dpid.json
+          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
 
       - name: Set up Sentry CLI
         run: |
@@ -72,10 +75,13 @@ jobs:
           if [ $? -ne 0 ]; then
             exit 1
           fi
+          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
 
       - name: Run tests
         run: |
+          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
           cd desci-server && export DOCKER_BUILDKIT=1 && yarn --ignore-engines && yarn test
           if [ $? -ne 0 ]; then
             exit 1
           fi
+          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
