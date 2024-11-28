@@ -21,6 +21,7 @@ export interface ContributorInviteEmailProps {
   nodeUuid: string;
   contributorId: string;
   privShareCode: string;
+  nodeTitle: string;
   newUser?: boolean;
 }
 
@@ -36,9 +37,11 @@ export const ContributorInvite = ({
   privShareCode,
   contributorId,
   newUser,
+  nodeTitle,
 }: ContributorInviteEmailProps) => {
   if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
   inviter = inviter || 'A user';
+  const fallbackTitle = 'a research object';
   const privShareUrl = `${DAPP_URL}/node/${nodeUuid}?shareId=${privShareCode}`;
   const contributorUrl = `${DAPP_URL}/node/${nodeUuid}/contributors/${contributorId}?shareId=${privShareCode}&src=inv`;
   return (
@@ -52,31 +55,38 @@ export const ContributorInvite = ({
               You've been invited as a contributor!
             </Heading>
             <Text style={heroText}>
-              <strong>{inviter}</strong> has added you as a contributor to their node.{' '}
-              {newUser ? NEW_USER_TEXT : EXISTING_USER_TEXT}
+              <strong>{inviter}</strong> has added you as a contributor to {!!nodeTitle && <cite>{nodeTitle}</cite>}
+              {!!!nodeTitle ? fallbackTitle : ''}. {newUser ? NEW_USER_TEXT : EXISTING_USER_TEXT}
             </Text>
 
             <Section className="mx-auto w-fit my-5" align="center">
               <Button
-                href={privShareUrl}
+                href={contributorUrl}
                 className="backdrop-blur-2xl rounded-sm"
                 style={{
                   color: 'white',
                   padding: '10px 20px',
+                  background: 'black',
                   marginRight: '10px',
-                  // backdropFilter: 'blur(20px)',
-                  background: '#28aac4',
-                  // backgroundOpacity: '0.5',
+                  borderRadius: '2px',
                 }}
               >
-                View Node
+                Verify Contribution
               </Button>
               <Button
-                href={contributorUrl}
+                href={privShareUrl}
                 className="backdrop-blur-2xl rounded-sm"
-                style={{ color: 'white', padding: '10px 20px', background: '#28aac4' }}
+                style={{
+                  color: 'black',
+                  padding: '10px 20px',
+                  // backdropFilter: 'blur(20px)',
+                  background: 'white',
+                  // backgroundOpacity: '0.5',
+                  border: '1px solid black',
+                  borderRadius: '2px',
+                }}
               >
-                Verify Contribution
+                View Research
               </Button>
             </Section>
           </Container>
@@ -91,8 +101,7 @@ export default ContributorInvite;
 const main = {
   backgroundColor: '#ffffff',
   margin: '0 auto',
-  fontFamily:
-    "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
+  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
 };
 
 const container = {

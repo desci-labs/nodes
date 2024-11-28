@@ -30,7 +30,9 @@ export class PublishServices {
     ownerOnly?: boolean;
     verifiedOnly?: boolean;
   }) {
-    const contributors = ownerOnly ? [] : await contributorService.retrieveAllContributionsForNode(node, verifiedOnly);
+    const contributors = ownerOnly
+      ? []
+      : await contributorService.retrieveAllContributionsForNode({ node, verifiedOnly, withEmailOnly: true });
     const nodeOwner = await prisma.user.findUnique({ where: { id: node.ownerId } });
     const manifest = await getLatestManifestFromNode(node);
     const dpid = node.dpidAlias?.toString() ?? manifest.dpid?.id;
@@ -49,16 +51,23 @@ export class PublishServices {
       );
     }
 
-    const ownerEmailIncluded = contributors.find((c) => c.email === nodeOwner.email);
+    const ownerEmailIncluded = contributors.find((c) => c.userId === nodeOwner.id);
+    // debugger; //
     if (!ownerEmailIncluded) {
       // Add the owner to the email list incase they forgot to add themselves as a contributor
-      const ownerContributor = { email: nodeOwner.email, name: nodeOwner.name } as unknown as NodeContribution & {
+      const ownerContributor = {
+        email: nodeOwner.email,
+        name: nodeOwner.name,
+        verified: true,
+      } as unknown as NodeContribution & {
         user: User;
       };
       contributors.push(ownerContributor);
     }
-
-    const emailPromises = contributors.map((contributor) => {
+    // debugger; ////
+    const emailPromises = contributors.map(async (contributor) => {
+      // debugger;
+      const shareCode = await contributorService.generatePrivShareCodeForContribution(contributor, node);
       const emailHtml = SubmissionPackageEmailHtml({
         nodeOwner: nodeOwner.name,
         nodeUuid: node.uuid,
@@ -66,10 +75,14 @@ export class PublishServices {
         nodeDpid: dpid,
         versionUpdate: versionPublished.toString(),
         manuscriptCid: manuscriptCid,
+        contributorId: contributor.contributorId,
+        isNodeOwner: contributor.userId === nodeOwner.id,
+        isAlreadyVerified: contributor.verified ?? false,
+        privShareCode: shareCode,
       });
 
       const emailMsg = {
-        to: contributor.email,
+        to: contributor.email ?? contributor.user?.email,
         from: 'no-reply@desci.com',
         subject: `[nodes.desci.com] Your submission package is ready`,
         text: `${nodeOwner.name} has published their research object titled "${node.title}" that you have contributed to.`,
@@ -80,13 +93,15 @@ export class PublishServices {
 
     if (process.env.SHOULD_SEND_EMAIL && process.env.SENDGRID_API_KEY) {
       await Promise.allSettled(
-        emailPromises.map((emailEntry) => {
-          // if (emailEntry.contributor.id !== undefined) {
-          //   prisma.nodeContribution.update({
-          //     where: { id: emailEntry.contributor.id },
-          //     data: { inviteSent: true },
-          //   });
-          // }
+        emailPromises.map(async (emailPromiseEntry) => {
+          const emailEntry = await emailPromiseEntry;
+          if (!emailEntry.contributor.inviteSent) {
+            // Set invite sent flag to true
+            await prisma.nodeContribution.update({
+              where: { id: emailEntry.contributor.id },
+              data: { inviteSent: true },
+            });
+          }
           return sgMail.send(emailEntry.emailMsg);
         }),
       );

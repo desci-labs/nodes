@@ -96,6 +96,7 @@ class PublishPackageService {
 
     // Generate the PDF with the cover
     this.logger.trace({ pdfCid, doi, title, dpid, license, publishDate, authors }, 'Generating PDF cover');
+    // debugger
     const coverPdfStream = await axios.post(
       `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/pdf/addCover`,
       { cid: pdfCid, doi, title, ...attestationLinks, dpid, license, publishDate, authors },
