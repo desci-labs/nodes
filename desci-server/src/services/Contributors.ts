@@ -189,12 +189,23 @@ class ContributorService {
    * To be used within the backend, if the data from this is returned to the frontend, it can potentially leak data,
    * opt for retrieveSelectedContributionsForNode instead if the data is to be returned to the frontend
    */
-  async retrieveAllContributionsForNode(
-    node: Node,
-    verifiedOnly?: boolean,
-  ): Promise<(NodeContribution & { user: User })[]> {
+  async retrieveAllContributionsForNode({
+    node,
+    verifiedOnly,
+    withEmailOnly,
+  }: {
+    node: Node;
+    verifiedOnly?: boolean;
+    withEmailOnly?: boolean;
+  }): Promise<(NodeContribution & { user: User })[]> {
     return prisma.nodeContribution.findMany({
-      where: { nodeId: node.id, ...(verifiedOnly && { verified: true }) },
+      where: {
+        nodeId: node.id,
+        ...(verifiedOnly && { verified: true }),
+        ...(withEmailOnly && {
+          OR: [{ email: { not: null } }, { user: { email: { not: null } } }],
+        }),
+      },
       include: { user: true },
     });
   }

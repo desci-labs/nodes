@@ -30,7 +30,9 @@ export class PublishServices {
     ownerOnly?: boolean;
     verifiedOnly?: boolean;
   }) {
-    const contributors = ownerOnly ? [] : await contributorService.retrieveAllContributionsForNode(node, verifiedOnly);
+    const contributors = ownerOnly
+      ? []
+      : await contributorService.retrieveAllContributionsForNode({ node, verifiedOnly, withEmailOnly: true });
     const nodeOwner = await prisma.user.findUnique({ where: { id: node.ownerId } });
     const manifest = await getLatestManifestFromNode(node);
     const dpid = node.dpidAlias?.toString() ?? manifest.dpid?.id;
@@ -58,7 +60,8 @@ export class PublishServices {
       contributors.push(ownerContributor);
     }
 
-    const emailPromises = contributors.map((contributor) => {
+    const emailPromises = contributors.map(async (contributor) => {
+      const shareCode = await contributorService.generatePrivShareCodeForContribution(contributor, node);
       const emailHtml = SubmissionPackageEmailHtml({
         nodeOwner: nodeOwner.name,
         nodeUuid: node.uuid,
@@ -66,6 +69,9 @@ export class PublishServices {
         nodeDpid: dpid,
         versionUpdate: versionPublished.toString(),
         manuscriptCid: manuscriptCid,
+        contributorId: contributor.contributorId,
+        isNodeOwner: contributor.userId === nodeOwner.id,
+        privShareCode: shareCode,
       });
 
       const emailMsg = {
@@ -80,7 +86,8 @@ export class PublishServices {
 
     if (process.env.SHOULD_SEND_EMAIL && process.env.SENDGRID_API_KEY) {
       await Promise.allSettled(
-        emailPromises.map((emailEntry) => {
+        emailPromises.map(async (emailPromiseEntry) => {
+          const emailEntry = await emailPromiseEntry;
           // if (emailEntry.contributor.id !== undefined) {
           //   prisma.nodeContribution.update({
           //     where: { id: emailEntry.contributor.id },
