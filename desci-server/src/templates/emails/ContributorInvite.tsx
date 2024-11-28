@@ -55,8 +55,8 @@ export const ContributorInvite = ({
               You've been invited as a contributor!
             </Heading>
             <Text style={heroText}>
-              <strong>{inviter}</strong> has added you as a contributor to{' '}
-              {nodeTitle ? <cite>{nodeTitle}</cite> : fallbackTitle}. {newUser ? NEW_USER_TEXT : EXISTING_USER_TEXT}
+              <strong>{inviter}</strong> has added you as a contributor to {!!nodeTitle && <cite>{nodeTitle}</cite>}
+              {!!!nodeTitle ? fallbackTitle : ''}. {newUser ? NEW_USER_TEXT : EXISTING_USER_TEXT}
             </Text>
 
             <Section className="mx-auto w-fit my-5" align="center">
