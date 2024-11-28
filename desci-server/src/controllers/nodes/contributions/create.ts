@@ -57,7 +57,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
   if (!userId && !email && !orcid) {
     return res.status(400).json({ error: 'userId, Email or Orcid required' });
   }
-  debugger; //
+
   // Add contributor to the db
   try {
     const contributorAdded = await contributorService.addNodeContribution({

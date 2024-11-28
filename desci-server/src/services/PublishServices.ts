@@ -30,6 +30,7 @@ export class PublishServices {
     ownerOnly?: boolean;
     verifiedOnly?: boolean;
   }) {
+    debugger; ////////
     const contributors = ownerOnly
       ? []
       : await contributorService.retrieveAllContributionsForNode({ node, verifiedOnly, withEmailOnly: true });
