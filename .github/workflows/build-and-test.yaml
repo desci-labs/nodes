@@ -33,6 +33,12 @@ jobs:
     #   options: --user 1001
 
     steps:
+      - name: Delete huge unnecessary tools folder
+        run: |
+          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
+          rm -rf /opt/hostedtoolcache
+          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
+
       - name: Check out repository
         uses: actions/checkout@v4
 
