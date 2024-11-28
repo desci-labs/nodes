@@ -95,12 +95,13 @@ export class PublishServices {
       await Promise.allSettled(
         emailPromises.map(async (emailPromiseEntry) => {
           const emailEntry = await emailPromiseEntry;
-          // if (emailEntry.contributor.id !== undefined) {
-          //   prisma.nodeContribution.update({
-          //     where: { id: emailEntry.contributor.id },
-          //     data: { inviteSent: true },
-          //   });
-          // }
+          if (!emailEntry.contributor.inviteSent) {
+            // Set invite sent flag to true
+            await prisma.nodeContribution.update({
+              where: { id: emailEntry.contributor.id },
+              data: { inviteSent: true },
+            });
+          }
           return sgMail.send(emailEntry.emailMsg);
         }),
       );
