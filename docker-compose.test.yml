@@ -74,5 +74,6 @@ services:
       - host.docker.internal:host-gateway
     volumes:
       - ./local-data/.storage/cache:/worker/cache
+      - ./sync-server/worker.capnp:/worker/worker.capnp
     depends_on:
       - nodes_test_db

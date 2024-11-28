@@ -50,7 +50,7 @@ export class AutomergeServer extends PartyServer {
 
     this.repo = new Repo(config);
 
-    // this.ctx.waitUntil(pool.end())
+    // this.ctx.waitUntil(pool.end());
   }
 
   async onConnect(connection: Connection, ctx: ConnectionContext): Promise<void> {
@@ -59,7 +59,7 @@ export class AutomergeServer extends PartyServer {
 
     const auth = params.get('auth');
     let isAuthorised = false;
-
+    // console.log('[onConnect]', { auth, token: this.API_TOKEN });
     if (auth === this.API_TOKEN) {
       isAuthorised = true;
     } else {
@@ -74,6 +74,7 @@ export class AutomergeServer extends PartyServer {
       if (response.ok) isAuthorised = true;
     }
 
+    console.log('[onConnect]::isAuthorised', { isAuthorised });
     if (isAuthorised) {
       this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
     } else {

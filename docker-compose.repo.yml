@@ -1,7 +1,7 @@
 services:
   desci_repo:
     container_name: "desci_repo"
-    # command: yarn dev
+    command: yarn dev
     build: ./desci-repo
     env_file:
       - ./desci-repo/.env

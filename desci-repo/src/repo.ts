@@ -89,7 +89,7 @@ class RepoManager {
   }
 
   connect(documentId: DocumentId) {
-    logger.trace({ documentId, isDev, exists: this.clients.has(documentId) }, 'RepoManager#Connect');
+    logger.trace({ documentId, isDev, isTest, exists: this.clients.has(documentId) }, 'RepoManager#Connect');
     const adapter = new PartykitNodeWsAdapter({
       host: partyServerHost,
       party: 'automerge',
@@ -114,7 +114,7 @@ class RepoManager {
             },
             'Post disconnect',
           );
-          if (adapter.socket?.readyState !== WebSocket.OPEN) this.cleanUp(documentId);
+          if (adapter.socket?.readyState !== WebSocket.OPEN || !adapter?.socket) this.cleanUp(documentId);
         }, 60000);
       }
       logger.trace(
