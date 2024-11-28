@@ -12,6 +12,9 @@ export interface SubmissionPackageEmailProps {
   nodeDpid: string;
   versionUpdate: string;
   manuscriptCid: string;
+  contributorId: string;
+  privShareCode?: string;
+  isNodeOwner: boolean;
 }
 
 const DAPP_URL = process.env.DAPP_URL || 'http://localhost:3000';
@@ -23,6 +26,9 @@ export const SubmissionPackage = ({
   nodeDpid,
   versionUpdate,
   manuscriptCid,
+  contributorId,
+  privShareCode,
+  isNodeOwner,
 }: SubmissionPackageEmailProps) => {
   if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
   nodeOwner = nodeOwner || 'The node owner';
@@ -30,6 +36,10 @@ export const SubmissionPackage = ({
   versionUpdate = versionUpdate || '1'; // For demo case
   const nodeUrl = `${DAPP_URL}/dpid/${nodeDpid}/${versionUpdate}`;
   const manuscriptUrl = `${PUBLIC_IPFS_PATH}/${manuscriptCid}`;
+  const contributorUrl = `${DAPP_URL}/node/${nodeUuid}/contributors/${contributorId}?shareId=${privShareCode}&src=inv`;
+
+  // const nodeUrl = 'stub';
+  // const manuscriptUrl = 'stub';
   return (
     <MainLayout>
       <Html>
@@ -38,38 +48,66 @@ export const SubmissionPackage = ({
         <Body style={main}>
           <Container style={container}>
             <Heading style={h1} className="text-center">
-              A submission package has been created for your node with DPID {nodeDpid}
+              A submission package has been created for the research object{' '}
+              {nodeTitle ? `titled ${(<cite>{nodeTitle}</cite>)}` : ''} with DPID {nodeDpid}
             </Heading>
             <Text style={heroText}>
-              <strong>{nodeOwner}</strong> has published their research object titled <strong>"{nodeTitle}</strong>"
-              that you have contributed to.
+              <strong>{nodeOwner}</strong> has published their research object and listed you as a contributor to their
+              research. Verify your contribution to ensure you're creddited for your work.
             </Text>
-
-            <Section className="mx-auto w-fit my-5" align="center">
-              <Button
-                href={nodeUrl}
-                className="backdrop-blur-2xl rounded-sm"
-                style={{
-                  color: 'white',
-                  padding: '10px 20px',
-                  marginRight: '10px',
-                  background: '#28aac4',
-                }}
-              >
-                View Node
-              </Button>
-              <Button
-                href={manuscriptUrl}
-                className="backdrop-blur-2xl rounded-sm"
-                style={{
-                  color: 'white',
-                  padding: '10px 20px',
-                  marginRight: '10px',
-                  background: '#28aac4',
-                }}
-              >
-                Download PDF
-              </Button>
+            <Section style={{ width: 'fit-content' }} align="center">
+              {!isNodeOwner && (
+                <Button
+                  href={contributorUrl}
+                  style={{
+                    background: 'black',
+                    color: 'white',
+                    width: '100%',
+                    padding: '10px 0px',
+                    textAlign: 'center',
+                    fontSize: '13px',
+                    marginBottom: '15px',
+                    fontWeight: '600',
+                    borderRadius: '2px',
+                  }}
+                >
+                  Verify Contribution
+                </Button>
+              )}
+              <div className="mx-auto w-fit">
+                <Button
+                  href={nodeUrl}
+                  className="backdrop-blur-2xl rounded-sm"
+                  style={{
+                    font: 'inter',
+                    color: 'black',
+                    padding: '10px 20px',
+                    marginRight: '15px',
+                    background: 'white',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    border: '1px solid black',
+                    borderRadius: '2px',
+                  }}
+                >
+                  View Research
+                </Button>
+                <Button
+                  href={manuscriptUrl}
+                  className="backdrop-blur-2xl rounded-sm"
+                  style={{
+                    color: 'black',
+                    padding: '10px 20px',
+                    background: 'white',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    border: '1px solid black',
+                    borderRadius: '2px',
+                  }}
+                >
+                  Download Manuscript PDF
+                </Button>
+              </div>
             </Section>
           </Container>
         </Body>
@@ -83,8 +121,7 @@ export default SubmissionPackage;
 const main = {
   backgroundColor: '#ffffff',
   margin: '0 auto',
-  fontFamily:
-    "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
+  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
 };
 
 const container = {
