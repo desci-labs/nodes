@@ -17,4 +17,3 @@ local-data/
 .idea
 .composedbRuntimeDefinition.json
 openalex-importer
-docker-compose.debug.yml

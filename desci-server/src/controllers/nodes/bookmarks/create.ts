@@ -1,20 +1,32 @@
-import { User } from '@prisma/client';
+import { User, BookmarkType } from '@prisma/client';
 import { Request, Response } from 'express';
+import { z } from 'zod';
 
-import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { ensureUuidEndsWithDot } from '../../../utils.js';
+import { BookmarkService } from '../../../services/BookmarkService.js';
+export const CreateBookmarkSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal(BookmarkType.NODE),
+    nodeUuid: z.string().min(1),
+    shareKey: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal(BookmarkType.DOI),
+    doi: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal(BookmarkType.OA),
+    oaWorkId: z.string().min(1),
+  }),
+]);
 
-export type CreateNodeBookmarkReqBody = {
-  nodeUuid: string;
-  shareKey?: string;
-};
+type CreateBookmarkReqBody = z.infer<typeof CreateBookmarkSchema>;
 
-export type CreateNodeBookmarkRequest = Request<never, never, CreateNodeBookmarkReqBody> & {
+export type CreateBookmarkRequest = Request<never, never, CreateBookmarkReqBody> & {
   user: User; // added by auth middleware
 };
 
-export type CreateNodeBookmarkResBody =
+export type CreateBookmarkResBody =
   | {
       ok: true;
       message: string;
@@ -22,38 +34,38 @@ export type CreateNodeBookmarkResBody =
   | {
       ok: false;
       error: string;
+      details?: z.ZodIssue[] | string;
     };
 
-export const createNodeBookmark = async (req: CreateNodeBookmarkRequest, res: Response<CreateNodeBookmarkResBody>) => {
+export const createNodeBookmark = async (req: CreateBookmarkRequest, res: Response<CreateBookmarkResBody>) => {
   const user = req.user;
 
   if (!user) throw Error('Middleware not properly setup for CreateNodeBookmark controller, requires req.user');
 
-  const { nodeUuid, shareKey } = req.body;
-  if (!nodeUuid) return res.status(400).json({ ok: false, error: 'nodeUuid is required' });
-
   const logger = parentLogger.child({
-    module: 'PrivateShare::CreateNodeBookmarkController',
-    body: req.body,
+    module: 'Bookmarks::CreateNodeBookmarkController',
     userId: user.id,
-    nodeUuid: nodeUuid,
-    shareId: shareKey,
+    body: req.body,
   });
 
   try {
-    logger.trace({}, 'Bookmarking node');
-    const createdBookmark = await prisma.bookmarkedNode.create({
-      data: {
-        userId: user.id,
-        nodeUuid: ensureUuidEndsWithDot(nodeUuid),
-        shareId: shareKey || null,
-      },
+    const bookmarkData = CreateBookmarkSchema.parse(req.body);
+
+    logger.trace({ type: bookmarkData.type }, 'Creating bookmark');
+
+    await BookmarkService.createBookmark({
+      userId: user.id,
+      ...bookmarkData,
     });
 
-    logger.trace({ createdBookmark }, 'Bookmark created successfully');
-    return res.status(200).json({ ok: true, message: 'Bookmark created successfully' });
+    return res.status(201).json({ ok: true, message: 'Bookmark created successfully' });
   } catch (e) {
-    logger.error({ e, message: e?.message }, 'Failed to create bookmark');
-    return res.status(500).json({ ok: false, error: 'Failed to create bookmark for node' });
+    if (e instanceof z.ZodError) {
+      logger.warn({ error: e.errors }, 'Invalid request parameters');
+      return res.status(400).json({ ok: false, error: 'Invalid request parameters', details: e.errors });
+    }
+
+    logger.error({ e }, 'Error creating bookmark');
+    return res.status(500).json({ ok: false, error: 'Internal server error' });
   }
 };

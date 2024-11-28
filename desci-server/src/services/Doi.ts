@@ -45,17 +45,17 @@ export class DoiService {
   async assertHasValidatedAttestations(uuid: string) {
     const doiAttestations = await attestationService.getProtectedAttestations({
       protected: true,
-      community: { slug: 'desci-foundation' },
+      // community: { slug: 'desci-foundation' },
     });
     // logger.info(doiAttestations, 'DOI Requirements');
     let claims = await attestationService.getProtectedNodeClaims(uuid);
     claims = claims.filter((claim) => claim.verifications > 0);
 
-    const hasClaimedRequiredAttestation = doiAttestations.some((attestation) =>
+    const isValidatedClaimVerified = doiAttestations.some((attestation) =>
       claims.find((claim) => claim.attestationId === attestation.id),
     );
-    logger.info({ hasClaimedRequiredAttestation }, 'hasClaimedRequiredAttestation');
-    if (!hasClaimedRequiredAttestation) throw new AttestationsError();
+    logger.trace({ isValidatedClaimVerified, uuid }, 'isValidatedClaimVerified');
+    if (!isValidatedClaimVerified) throw new AttestationsError();
   }
 
   async extractManuscriptDoi(manuscripts: PdfComponent[]) {

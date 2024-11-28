@@ -74,7 +74,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
     if (contributorUpdated) {
       logger.info({ contributorUpdated }, 'Contributor updated successfully');
 
-      if (!email && contributorUpdated.userId !== undefined) {
+      if (!email && !!contributorUpdated.userId) {
         // If the contributor being added has an existing account, their email is available on their profile.
         const invitedContributor = await prisma.user.findUnique({ where: { id: contributorUpdated.userId } });
         if (invitedContributor?.email) email = invitedContributor.email;
@@ -92,7 +92,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
           nodeUuid: node.uuid,
           privShareCode: shareCode,
           contributorId: contributorUpdated.contributorId,
-          newUser: contributorUpdated.userId === undefined,
+          newUser: !!!contributorUpdated.userId,
         });
         const emailMsg = {
           to: email,
@@ -103,7 +103,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
           html: emailHtml,
         };
 
-        if (contribution.userId === undefined && contributorUpdated.userId !== undefined) {
+        if (!!!contribution.userId && !!contributorUpdated.userId) {
           // Emit push notif to contributor if the previous contribution entry didn't have a nodes account associated,
           // but the updated entry now has a nodes account associated.
           await emitNotificationOnContributorInvite({
