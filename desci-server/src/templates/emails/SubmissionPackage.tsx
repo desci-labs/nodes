@@ -15,6 +15,7 @@ export interface SubmissionPackageEmailProps {
   contributorId: string;
   privShareCode?: string;
   isNodeOwner: boolean;
+  isAlreadyVerified: boolean;
 }
 
 const DAPP_URL = process.env.DAPP_URL || 'http://localhost:3000';
@@ -29,6 +30,7 @@ export const SubmissionPackage = ({
   contributorId,
   privShareCode,
   isNodeOwner,
+  isAlreadyVerified,
 }: SubmissionPackageEmailProps) => {
   if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
   nodeOwner = nodeOwner || 'The node owner';
@@ -37,7 +39,7 @@ export const SubmissionPackage = ({
   const nodeUrl = `${DAPP_URL}/dpid/${nodeDpid}/${versionUpdate}`;
   const manuscriptUrl = `${PUBLIC_IPFS_PATH}/${manuscriptCid}`;
   const contributorUrl = `${DAPP_URL}/node/${nodeUuid}/contributors/${contributorId}?shareId=${privShareCode}&src=inv`;
-
+  // debugger; ////
   // const nodeUrl = 'stub';
   // const manuscriptUrl = 'stub';
   return (
@@ -48,15 +50,15 @@ export const SubmissionPackage = ({
         <Body style={main}>
           <Container style={container}>
             <Heading style={h1} className="text-center">
-              A submission package has been created for the research object{' '}
-              {nodeTitle ? `titled ${(<cite>{nodeTitle}</cite>)}` : ''} with DPID {nodeDpid}
+              A submission package has been created for the research object {nodeTitle ? 'titled ' : ''}
+              {nodeTitle ? <cite>"{nodeTitle}"</cite> : ''} with DPID {nodeDpid}
             </Heading>
             <Text style={heroText}>
               <strong>{nodeOwner}</strong> has published their research object and listed you as a contributor to their
-              research. Verify your contribution to ensure you're creddited for your work.
+              research. {!isAlreadyVerified ? "Verify your contribution to ensure you're credited for your work." : ''}
             </Text>
             <Section style={{ width: 'fit-content' }} align="center">
-              {!isNodeOwner && (
+              {!isAlreadyVerified && (
                 <Button
                   href={contributorUrl}
                   style={{

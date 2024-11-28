@@ -30,7 +30,6 @@ export class PublishServices {
     ownerOnly?: boolean;
     verifiedOnly?: boolean;
   }) {
-    debugger; ////////
     const contributors = ownerOnly
       ? []
       : await contributorService.retrieveAllContributionsForNode({ node, verifiedOnly, withEmailOnly: true });
@@ -52,16 +51,22 @@ export class PublishServices {
       );
     }
 
-    const ownerEmailIncluded = contributors.find((c) => c.email === nodeOwner.email);
+    const ownerEmailIncluded = contributors.find((c) => c.userId === nodeOwner.id);
+    // debugger; //
     if (!ownerEmailIncluded) {
       // Add the owner to the email list incase they forgot to add themselves as a contributor
-      const ownerContributor = { email: nodeOwner.email, name: nodeOwner.name } as unknown as NodeContribution & {
+      const ownerContributor = {
+        email: nodeOwner.email,
+        name: nodeOwner.name,
+        verified: true,
+      } as unknown as NodeContribution & {
         user: User;
       };
       contributors.push(ownerContributor);
     }
-
+    // debugger; ////
     const emailPromises = contributors.map(async (contributor) => {
+      // debugger;
       const shareCode = await contributorService.generatePrivShareCodeForContribution(contributor, node);
       const emailHtml = SubmissionPackageEmailHtml({
         nodeOwner: nodeOwner.name,
@@ -72,11 +77,12 @@ export class PublishServices {
         manuscriptCid: manuscriptCid,
         contributorId: contributor.contributorId,
         isNodeOwner: contributor.userId === nodeOwner.id,
+        isAlreadyVerified: contributor.verified ?? false,
         privShareCode: shareCode,
       });
 
       const emailMsg = {
-        to: contributor.email,
+        to: contributor.email ?? contributor.user?.email,
         from: 'no-reply@desci.com',
         subject: `[nodes.desci.com] Your submission package is ready`,
         text: `${nodeOwner.name} has published their research object titled "${node.title}" that you have contributed to.`,
