@@ -21,6 +21,7 @@ export interface ContributorInviteEmailProps {
   nodeUuid: string;
   contributorId: string;
   privShareCode: string;
+  nodeTitle: string;
   newUser?: boolean;
 }
 
@@ -36,9 +37,11 @@ export const ContributorInvite = ({
   privShareCode,
   contributorId,
   newUser,
+  nodeTitle,
 }: ContributorInviteEmailProps) => {
   if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
   inviter = inviter || 'A user';
+  nodeTitle = nodeTitle || 'a research object';
   const privShareUrl = `${DAPP_URL}/node/${nodeUuid}?shareId=${privShareCode}`;
   const contributorUrl = `${DAPP_URL}/node/${nodeUuid}/contributors/${contributorId}?shareId=${privShareCode}&src=inv`;
   return (
@@ -52,31 +55,32 @@ export const ContributorInvite = ({
               You've been invited as a contributor!
             </Heading>
             <Text style={heroText}>
-              <strong>{inviter}</strong> has added you as a contributor to their node.{' '}
+              <strong>{inviter}</strong> has added you as a contributor to {nodeTitle}.{' '}
               {newUser ? NEW_USER_TEXT : EXISTING_USER_TEXT}
             </Text>
 
             <Section className="mx-auto w-fit my-5" align="center">
               <Button
+                href={contributorUrl}
+                className="backdrop-blur-2xl rounded-sm"
+                style={{ color: 'white', padding: '10px 20px', background: 'black' }}
+              >
+                Verify Contribution
+              </Button>
+              <Button
                 href={privShareUrl}
                 className="backdrop-blur-2xl rounded-sm"
                 style={{
-                  color: 'white',
+                  color: 'black',
                   padding: '10px 20px',
                   marginRight: '10px',
                   // backdropFilter: 'blur(20px)',
-                  background: '#28aac4',
+                  background: 'white',
                   // backgroundOpacity: '0.5',
+                  border: '1px solid black',
                 }}
               >
-                View Node
-              </Button>
-              <Button
-                href={contributorUrl}
-                className="backdrop-blur-2xl rounded-sm"
-                style={{ color: 'white', padding: '10px 20px', background: '#28aac4' }}
-              >
-                Verify Contribution
+                View Research
               </Button>
             </Section>
           </Container>
