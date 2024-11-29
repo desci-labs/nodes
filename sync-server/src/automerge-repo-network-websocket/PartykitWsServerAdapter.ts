@@ -46,7 +46,6 @@ export class PartyKitWSServerAdapter extends NetworkAdapter {
   }
 
   connect(peerId: PeerId, peerMetadata: PeerMetadata) {
-    // console.log('Connect', { peerId, peerMetadata, remotePeer: this.remotePeerId });
     this.peerId = peerId;
     this.peerMetadata = peerMetadata;
 
@@ -94,7 +93,6 @@ export class PartyKitWSServerAdapter extends NetworkAdapter {
     const message: FromClientMessage = decode(messageBytes);
 
     const { type, senderId } = message;
-    // console.log('[party]::ReceivedMessage', { type, senderId });
 
     const myPeerId = this.peerId;
     assert(myPeerId);

@@ -75,6 +75,7 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
       repoManager.connect(documentId);
     }
 
+    // logger.trace({ documentId }, 'get document');
     const automergeUrl = getAutomergeUrl(documentId);
     // logger.trace({ documentId }, 'when ready');
     await backendRepo.networkSubsystem.whenReady();

@@ -475,10 +475,14 @@ export const getUnseenNotificationCount = async ({ userId, user }: { userId?: nu
 };
 
 export const incrementUnseenNotificationCount = async ({ userId }: { userId: number }) => {
-  await prisma.user.update({
-    where: { id: userId },
-    data: { unseenNotificationCount: { increment: 1 } },
-  });
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { unseenNotificationCount: { increment: 1 } },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Error');
+  }
 };
 
 export const resetUnseenNotificationCount = async ({ userId }: { userId: number }) => {

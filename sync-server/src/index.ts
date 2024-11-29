@@ -74,7 +74,7 @@ export class AutomergeServer extends PartyServer {
       if (response.ok) isAuthorised = true;
     }
 
-    console.log('[onConnect]::isAuthorised', { isAuthorised });
+    console.log('[onConnect]::isAuthorised', { isAuthorised, remotePeer: connection.id });
     if (isAuthorised) {
       this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
     } else {

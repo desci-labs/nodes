@@ -14,32 +14,82 @@ import { ResearchObjectDocument } from './types.js';
 import * as db from './db/index.js';
 import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
 import { PartykitNodeWsAdapter } from './lib/PartykitNodeWsAdapter.js';
+import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
+import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
+import { WebSocketServer } from 'ws';
+import { verifyNodeDocumentAccess } from './services/nodes.js';
+import { ENABLE_PARTYKIT_FEATURE } from './config.js';
 
 const partyServerHost = process.env.PARTY_SERVER_URL || 'wss://localhost:5445';
 const partyServerToken = process.env.PARTY_SERVER_TOKEN;
 const isDev = process.env.NODE_ENV == 'dev';
 const isTest = process.env.NODE_ENV == 'test';
 
-if (!(partyServerToken && partyServerHost)) {
+const logger = parentLogger.child({ module: 'repo.ts' });
+
+if (ENABLE_PARTYKIT_FEATURE && !(partyServerToken && partyServerHost)) {
   throw new Error('Missing ENVIRONMENT variables: PARTY_SERVER_URL or PARTY_SERVER_TOKEN');
 }
 
-const logger = parentLogger.child({ module: 'repo.ts' });
-
-logger.info({ partyServerHost, partyServerToken }, 'Env checked');
-
 const hostname = os.hostname();
 
-const config: RepoConfig = {
-  peerId: `repo-server-${hostname}` as PeerId,
-  // Since this is a server, we don't share generously — meaning we only sync documents they already
-  // know about and can ask for by ID.
-  sharePolicy: async (peerId, documentId) => {
-    logger.trace({ peerId, documentId }, 'SharePolicy: ');
-    return true;
-  },
-};
+logger.trace({ partyServerHost, partyServerToken, serverName: os.hostname() ?? 'no-hostname' }, 'Env checked');
+
+let config: RepoConfig;
+let socket: WebSocketServer;
+
+if (ENABLE_PARTYKIT_FEATURE) {
+  config = {
+    peerId: `repo-server-${hostname}` as PeerId,
+    // Since this is a server, we don't share generously — meaning we only sync documents they already
+    // know about and can ask for by ID.
+    sharePolicy: async (peerId, documentId) => {
+      // logger.trace({ peerId, documentId }, 'SharePolicy: ');
+      return true;
+    },
+  };
+} else {
+  socket = new WebSocketServer({
+    port: process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 5445,
+    path: '/sync',
+  });
+
+  const adapter = new NodeWSServerAdapter(socket);
+
+  config = {
+    network: [adapter],
+    storage: new PostgresStorageAdapter(),
+    peerId: `repo-server-${hostname}` as PeerId,
+    // Since this is a server, we don't share generously — meaning we only sync documents they already
+    // know about and can ask for by ID.
+    sharePolicy: async (peerId, documentId) => {
+      try {
+        if (!documentId) {
+          logger.trace({ peerId }, 'SharePolicy: Document ID NOT found');
+          return false;
+        }
+        // peer format: `peer-[user#id]:[unique string combination]
+        if (peerId.toString().length < 8) {
+          logger.error({ peerId }, 'SharePolicy: Peer ID invalid');
+          return false;
+        }
+
+        const userId = peerId.split(':')?.[0]?.split('-')?.[1];
+        const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
+        logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
+        return isAuthorised;
+      } catch (err) {
+        logger.error({ err }, 'Error in share policy');
+        return false;
+      }
+    },
+  };
+}
+
+export { socket };
+
 export const backendRepo = new Repo(config);
+
 const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {
   logger.trace({ change: change.handle.documentId, uuid: change.patchInfo.after.uuid }, 'Document Changed');
   const newTitle = change.patchInfo.after.manifest.title;
@@ -71,6 +121,7 @@ const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocumen
 };
 
 backendRepo.on('document', async (doc) => {
+  // logger.trace({ doc: doc.handle }, 'DOCUMENT');
   doc.handle.on<keyof DocHandleEvents<'change'>>('change', handleChange);
 });
 
@@ -85,6 +136,7 @@ class RepoManager {
   constructor(private repo: Repo) {}
 
   isConnected(documentId: DocumentId) {
+    if (!ENABLE_PARTYKIT_FEATURE) return true;
     return this.clients.has(documentId);
   }
 
@@ -99,29 +151,30 @@ class RepoManager {
       WebSocket: WebSocket,
     });
 
+    adapter.on('ready', (ready) => logger.trace({ ready }, 'networkReady'));
     this.repo.networkSubsystem.addNetworkAdapter(adapter);
 
-    this.repo.networkSubsystem.on('peer-disconnected', (peer) => {
-      if (peer.peerId === adapter.remotePeerId) {
-        // clean up adapater and it's document handle after timeout
-        setTimeout(() => {
-          logger.trace(
-            {
-              peer: peer.peerId,
-              remotePeerId: adapter.remotePeerId,
-              documentId,
-              socketState: adapter.socket?.readyState,
-            },
-            'Post disconnect',
-          );
-          if (adapter.socket?.readyState !== WebSocket.OPEN || !adapter?.socket) this.cleanUp(documentId);
-        }, 60000);
-      }
-      logger.trace(
-        { peer: peer.peerId, remotePeerId: adapter.remotePeerId, documentId, socketState: adapter.socket?.readyState },
-        'peer-disconnected',
-      );
-    });
+    // this.repo.networkSubsystem.on('peer-disconnected', (peer) => {
+    //   if (peer.peerId === adapter.remotePeerId) {
+    //     // clean up adapater and it's document handle after timeout
+    //     setTimeout(() => {
+    //       logger.trace(
+    //         {
+    //           peer: peer.peerId,
+    //           remotePeerId: adapter.remotePeerId,
+    //           documentId,
+    //           socketState: adapter.socket?.readyState,
+    //         },
+    //         'Post disconnect',
+    //       );
+    //       if (adapter.socket?.readyState !== WebSocket.OPEN || !adapter?.socket) this.cleanUp(documentId);
+    //     }, 60000);
+    //   }
+    //   logger.trace(
+    //     { peer: peer.peerId, remotePeerId: adapter.remotePeerId, documentId, socketState: adapter.socket?.readyState },
+    //     'peer-disconnected',
+    //   );
+    // });
 
     this.clients.set(documentId, adapter);
   }
@@ -133,7 +186,7 @@ class RepoManager {
   cleanUp(documentId) {
     const adapter = this.clients.get(documentId);
     if (adapter) {
-      this.repo.networkSubsystem.removeNetworkAdapter(adapter);
+      // this.repo.networkSubsystem.removeNetworkAdapter(adapter);
       this.clients.delete(documentId);
       // const handle = this.repo.find(documentId);
       // handle.unload();

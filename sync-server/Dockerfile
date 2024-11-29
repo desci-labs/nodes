@@ -19,7 +19,7 @@ COPY --from=builder /workdir/workerd /workerd
 COPY --from=builder /workdir/lib /lib
 
 WORKDIR /worker
-COPY worker.capnp worker.capnp
+# COPY worker.capnp worker.capnp
 # COPY .wrangler/dist/ .
 
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt

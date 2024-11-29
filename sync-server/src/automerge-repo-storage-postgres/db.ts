@@ -15,9 +15,9 @@ export default {
       // pool,
       async query(statement: string, values?: (string | number | object)[]) {
         try {
-          console.log('[query] ⏰', { statement, values });
+          // console.log('[query] ⏰', { statement });
           const result = await pool.query(statement, values);
-          console.log('[query:::done] ✅', { result: result.rowCount });
+          // console.log('[query:::done] ✅', { result: result.rowCount });
           return result.rows;
         } catch (err) {
           console.error('[Hyperdrive Error]::', { error: serialiseErr(err as Error), pool });

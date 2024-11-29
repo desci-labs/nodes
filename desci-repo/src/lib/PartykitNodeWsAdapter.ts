@@ -17,7 +17,6 @@ import {
 
 import WebSocket from 'ws';
 import { PartySocketOptions, PartySocket } from 'partysocket';
-import { logger } from '../logger.js';
 
 const { encode, decode } = cborHelpers;
 
@@ -43,8 +42,8 @@ export class PartykitNodeWsAdapter extends NetworkAdapter {
   #forceReady() {
     // console.log("[party]::forceReady", this.isReady(), this.resolver);
     if (!this.#ready) {
+      this.emit('ready', { network: this });
       this.#ready = true;
-      this;
       this.resolver?.();
     }
   }
@@ -115,7 +114,6 @@ export class PartykitNodeWsAdapter extends NetworkAdapter {
   // When a socket closes, or disconnects, remove it from the array.
   onClose = () => {
     this.#log('close');
-    logger.error({ socket: this.socket }, 'onClose');
     if (this.remotePeerId) this.emit('peer-disconnected', { peerId: this.remotePeerId });
   };
 
@@ -129,13 +127,11 @@ export class PartykitNodeWsAdapter extends NetworkAdapter {
       | Event // browser
       | ErrorEvent, // node
   ) => {
-    logger.error({ event }, 'error');
     if ('error' in event) {
       // (node)
       if (event.error.code !== 'ECONNREFUSED') {
         /* c8 ignore next */
         // throw event.error;
-        logger.error({ event }, 'PartykitNodeWsAdapter#onError');
       }
     } else {
       // (browser) We get no information about errors. https://stackoverflow.com/a/31003057/239663
@@ -216,7 +212,7 @@ export class PartykitNodeWsAdapter extends NetworkAdapter {
 // export class _PartykitNodeWsAdapter extends NetworkAdapter {
 //   #isReady = false;
 //   #readyPromise;
-//   #readyResolver;
+//   #readyResolver
 
 //   sockets: Set<PeerId> = new Set();
 

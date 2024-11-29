@@ -27,6 +27,7 @@ import { fileURLToPath } from 'url';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import { pinoHttp } from 'pino-http';
 import { RequestWithUser } from './middleware/guard.js';
+import { ENABLE_PARTYKIT_FEATURE } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -136,33 +137,41 @@ class AppServer {
       logger.info(`Server running on port ${this.port}`);
     });
 
-    // wsSocket.on('listening', () => {
-    //   logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
-    // });
+    if (!ENABLE_PARTYKIT_FEATURE) {
+      this.acceptWebsocketConnections();
+    }
+  }
 
-    //   wsSocket.on('connection', async (socket, request) => {
-    //     try {
-    //       logger.info({ module: 'WebSocket SERVER' }, 'WebSocket Connection Attempt');
-    //       const token = await extractAuthToken(request as Request);
-    //       const authUser = await extractUserFromToken(token!);
-    //       if (!authUser) {
-    //         socket.close(); // Close connection if user is not authorized
-    //         return;
-    //       }
-    //       logger.info(
-    //         { module: 'WebSocket SERVER', id: authUser.id, name: authUser.name },
-    //         'WebSocket Connection Authorised',
-    //       );
-    //       socket.on('message', (message) => {
-    //         // Handle incoming messages
-    //         // console.log(`Received message: ${message}`);
-    //       });
-    //       // Additional event listeners (e.g., 'close', 'error') can be set up here
-    //     } catch (error) {
-    //       socket.close(); // Close the connection in case of an error
-    //       logger.error(error, 'Error during WebSocket connection');
-    //     }
-    //   });
+  async acceptWebsocketConnections() {
+    const wsSocket = await import('./repo.js').then((x) => x.socket);
+
+    wsSocket.on('listening', () => {
+      logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
+    });
+
+    wsSocket.on('connection', async (socket, request) => {
+      try {
+        logger.info({ module: 'WebSocket' }, 'WebSocket Connection Attempt');
+        const token = await extractAuthToken(request as Request);
+        const authUser = await extractUserFromToken(token!);
+        if (!authUser) {
+          socket.close(); // Close connection if user is not authorized
+          return;
+        }
+        logger.info(
+          { module: 'WebSocket SERVER', id: authUser.id, name: authUser.name },
+          'WebSocket Connection Authorised',
+        );
+        socket.on('message', (message) => {
+          // Handle incoming messages
+          // console.log(`Received message: ${message}`);
+        });
+        // Additional event listeners (e.g., 'close', 'error') can be set up here
+      } catch (error) {
+        socket.close(); // Close the connection in case of an error
+        logger.error(error, 'Error during WebSocket connection');
+      }
+    });
   }
 
   #initSerialiser() {
