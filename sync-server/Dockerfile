@@ -4,7 +4,8 @@ WORKDIR /workdir
 
 RUN apt-get update && apt-get install -y curl ca-certificates
 
-RUN curl -LO https://github.com/cloudflare/workerd/releases/download/v1.20241112.0/workerd-linux-arm64.gz
+# RUN curl -LO https://github.com/cloudflare/workerd/releases/download/v1.20241112.0/workerd-linux-arm64.gz
+RUN curl -LO https://github.com/cloudflare/workerd/releases/download/v1.20241127.0/workerd-linux-64.gz
 
 RUN ls -la && gunzip workerd*.gz && mv workerd* workerd && chmod +x workerd
 
