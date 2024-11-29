@@ -7,7 +7,7 @@ echo "Building sync server for $ENVIRONMENT"
 # REPLACE <DATABASE_URL> pattern in wrangler.toml with value
 # yarn cache clean --all
 yarn install
-if [[ "${ENVIRONMENT}" == "test" ]]; then
+if [ "${ENVIRONMENT}" == "test" ]; then
     echo "Running test build: $ENVIRONMENT"
     awk '{gsub("<DATABASE_URL>", "postgresql://walter:white@host.docker.internal:5434/boilerplate", $0); print}' template.toml >wrangler.toml
     yarn compile
