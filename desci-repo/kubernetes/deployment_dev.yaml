@@ -51,6 +51,7 @@ spec:
           export DESCI_SERVER_URL={{ .Data.DESCI_SERVER_URL }}
           export PARTY_SERVER_URL={{ .Data.PARTY_SERVER_URL }}
           export PARTY_SERVER_TOKEN={{ .Data.PARTY_SERVER_TOKEN }}
+          export ENABLE_PARTYKIT_FEATURE={{ .Data.ENABLE_PARTYKIT_FEATURE }}
           export PINO_LOG_LEVEL=info
           {{- end -}}
       labels:
