@@ -174,7 +174,12 @@ export class AttestationService {
     if (!attestation) throw new AttestationNotFoundError();
     await prisma.attestation.update({
       where: { id: attestationId },
-      data: { verified_image_url: data.verified_image_url },
+      data: {
+        verified_image_url: data.verified_image_url,
+        protected: data.protected,
+        canMintDoi: data.canMintDoi,
+        canUpdateOrcid: data.canUpdateOrcid,
+      },
     });
     await this.#publishVersion({
       name: data.name as string,
