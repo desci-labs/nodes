@@ -46,6 +46,7 @@ export class DoiService {
   async assertHasValidatedAttestations(uuid: string) {
     const doiAttestations = await attestationService.getProtectedAttestations({
       protected: true,
+      canMintDoi: true,
       // community: { slug: 'desci-foundation' },
     });
     // logger.info(doiAttestations, 'DOI Requirements');
