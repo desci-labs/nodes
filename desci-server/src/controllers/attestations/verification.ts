@@ -122,18 +122,20 @@ export const addVerification = async (
       claimId,
     });
 
-    // trigger doi minting workflow
-    try {
-      const submission = await doiService.autoMintTrigger(node.uuid);
-      const targetDpidUrl = getTargetDpidUrl();
-      discordNotify({
-        channel: DiscordChannel.DoiMinting,
-        type: DiscordNotifyType.INFO,
-        title: 'Mint DOI',
-        message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
-      });
-    } catch (err) {
-      logger.error({ err }, 'Error:  Mint DOI on Publish');
+    if (attestation.canMintDoi) {
+      // trigger doi minting workflow
+      try {
+        const submission = await doiService.autoMintTrigger(node.uuid);
+        const targetDpidUrl = getTargetDpidUrl();
+        discordNotify({
+          channel: DiscordChannel.DoiMinting,
+          type: DiscordNotifyType.INFO,
+          title: 'Mint DOI',
+          message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
+        });
+      } catch (err) {
+        logger.error({ err }, 'Error:  Mint DOI on Publish');
+      }
     }
 
     /**

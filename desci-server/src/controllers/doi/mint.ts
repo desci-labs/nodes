@@ -3,15 +3,12 @@ import { Request, Response, NextFunction } from 'express';
 import _ from 'lodash';
 
 import { prisma } from '../../client.js';
-// import { BadRequestError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
-// import { MintError } from '../../core/doi/error.js';
 import { logger as parentLogger } from '../../logger.js';
 import { EmailTypes, sendEmail } from '../../services/email.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { crossRefClient, doiService } from '../../services/index.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
-// import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export interface RequestWithCrossRefPayload extends Request {
   payload: {
