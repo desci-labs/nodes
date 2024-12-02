@@ -49,6 +49,14 @@ export const addAttestationSchema = z.object({
       .boolean()
       .transform((value) => (value.toString() === 'true' ? true : false))
       .default(false),
+    canMintDoi: z.coerce
+      .boolean()
+      .transform((value) => (value.toString() === 'true' ? true : false))
+      .default(false),
+    canUpdateOrcid: z.coerce
+      .boolean()
+      .transform((value) => (value.toString() === 'true' ? true : false))
+      .default(false),
   }),
 });
 

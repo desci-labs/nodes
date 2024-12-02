@@ -397,7 +397,6 @@ export const emitNotificationOnAttestationValidation = async ({
   const claim = await attestationService.findClaimById(claimId);
   const versionedAttestation = await attestationService.getAttestationVersion(claim.attestationVersionId, claimId);
   const dpid = await getDpidFromNode(node);
-
   const attestationName = versionedAttestation.name;
 
   const payload: AttestationValidationPayload = {

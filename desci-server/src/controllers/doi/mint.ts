@@ -3,37 +3,12 @@ import { Request, Response, NextFunction } from 'express';
 import _ from 'lodash';
 
 import { prisma } from '../../client.js';
-import { BadRequestError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
-import { MintError } from '../../core/doi/error.js';
 import { logger as parentLogger } from '../../logger.js';
 import { EmailTypes, sendEmail } from '../../services/email.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { crossRefClient, doiService } from '../../services/index.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
-
-export const mintDoi = async (req: Request, res: Response, _next: NextFunction) => {
-  const { uuid } = req.params;
-  if (!uuid) throw new BadRequestError();
-  const sanitizedUuid = ensureUuidEndsWithDot(uuid);
-  const isPending = await doiService.hasPendingSubmission(sanitizedUuid);
-  if (isPending) {
-    throw new MintError('You have a pending submission');
-  } else {
-    const submission = await doiService.mintDoi(sanitizedUuid);
-    const data = _.pick(submission, ['id', 'status']);
-    new SuccessResponse(data).send(res);
-
-    const targetDpidUrl = getTargetDpidUrl();
-    discordNotify({
-      channel: DiscordChannel.DoiMinting,
-      type: DiscordNotifyType.INFO,
-      title: 'Mint DOI',
-      message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
-    });
-  }
-};
 
 export interface RequestWithCrossRefPayload extends Request {
   payload: {

@@ -245,12 +245,16 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
   if (!image_url) throw new BadRequestError('No attestation logo uploaded');
 
   const isProtected = body.protected.toString() === 'true' ? true : false;
+  const doiPrivilege = body.canMintDoi.toString() === 'true' ? true : false;
+  const orcidPrivilege = body.canUpdateOrcid.toString() === 'true' ? true : false;
   const attestation = await attestationService.create({
     ...body,
     image_url,
     verified_image_url,
     communityId: community.id,
     protected: isProtected,
+    canMintDoi: doiPrivilege,
+    canUpdateOrcid: orcidPrivilege,
   });
   // logger.trace({ attestation }, 'created');
   const AttestationVersion = await attestationService.getAttestationVersions(attestation.id);
@@ -311,12 +315,16 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
   if (!image_url) throw new BadRequestError('No attestation image uploaded');
 
   const isProtected = body.protected.toString() === 'true' ? true : false;
+  const doiPrivilege = body.canMintDoi.toString() === 'true' ? true : false;
+  const orcidPrivilege = body.canUpdateOrcid.toString() === 'true' ? true : false;
   const attestation = await attestationService.updateAttestation(exists.id, {
     ...body,
     image_url,
     verified_image_url,
     communityId: exists.communityId,
     protected: isProtected,
+    canMintDoi: doiPrivilege,
+    canUpdateOrcid: orcidPrivilege,
   });
   new SuccessResponse(attestation).send(res);
 };

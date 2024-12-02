@@ -1,5 +1,6 @@
 import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DoiStatus, DoiSubmissionQueue, NodeVersion, Prisma, PrismaClient } from '@prisma/client';
+// import _ from 'lodash';
 import { v4 } from 'uuid';
 
 import {
@@ -45,6 +46,7 @@ export class DoiService {
   async assertHasValidatedAttestations(uuid: string) {
     const doiAttestations = await attestationService.getProtectedAttestations({
       protected: true,
+      canMintDoi: true,
       // community: { slug: 'desci-foundation' },
     });
     // logger.info(doiAttestations, 'DOI Requirements');
@@ -206,6 +208,17 @@ export class DoiService {
 
     // return submission queue data
     return submission;
+  }
+
+  async autoMintTrigger(uuid: string) {
+    const sanitizedUuid = ensureUuidEndsWithDot(uuid);
+    const isPending = await this.hasPendingSubmission(sanitizedUuid);
+    if (isPending) {
+      throw new MintError('You have a pending submission');
+    } else {
+      const submission = await this.mintDoi(sanitizedUuid);
+      return submission;
+    }
   }
 
   /**
