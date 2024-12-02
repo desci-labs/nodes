@@ -195,8 +195,10 @@ export class AttestationService {
   }
 
   async getAttestationVersion(id: number, attestationId: number) {
-    return prisma.attestationVersion.findFirst({
-      where: { attestationId, id },
+    logger.trace({ id, attestationId }, 'getAttestationVersion');
+
+    return prisma.attestationVersion.findUnique({
+      where: { id },
       include: { attestation: { select: { communityId: true } } },
     });
   }

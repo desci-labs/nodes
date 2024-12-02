@@ -1,4 +1,4 @@
-import { ActionType } from '@prisma/client';
+import { ActionType, Prisma, User } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 // import { Attestation, NodeAttestation } from '@prisma/client';
 import _ from 'lodash';
@@ -8,9 +8,12 @@ import { ForbiddenError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { attestationService } from '../../services/Attestation.js';
+import { getTargetDpidUrl } from '../../services/fixDpid.js';
+import { doiService } from '../../services/index.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import { emitNotificationOnAttestationValidation } from '../../services/NotificationService.js';
 import orcidApiService from '../../services/orcid.js';
+import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 type RemoveVerificationBody = {
@@ -105,8 +108,12 @@ export const addVerification = async (
     /**
      * Update ORCID Profile
      */
-    const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(claim.nodeUuid) } });
-    const owner = await prisma.user.findFirst({ where: { id: node.ownerId } });
+    const node = await prisma.node.findFirst({
+      where: { uuid: ensureUuidEndsWithDot(claim.nodeUuid) },
+      include: { owner: { select: { id: true, orcid: true } } },
+    });
+
+    const owner = node.owner as User; // await prisma.user.findFirst({ where: { id: node.ownerId } });
     if (owner.orcid) await orcidApiService.postWorkRecord(node.uuid, owner.orcid, node.dpidAlias.toString());
     await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
       ownerId: owner.id,
@@ -115,10 +122,24 @@ export const addVerification = async (
       claimId,
     });
 
+    // trigger doi minting workflow
+    try {
+      const submission = await doiService.autoMintTrigger(node.uuid);
+      const targetDpidUrl = getTargetDpidUrl();
+      discordNotify({
+        channel: DiscordChannel.DoiMinting,
+        type: DiscordNotifyType.INFO,
+        title: 'Mint DOI',
+        message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error:  Mint DOI on Publish');
+    }
+
     /**
      * Fire off notification
      */
-    await emitNotificationOnAttestationValidation({ node, user, claimId: parseInt(claimId) });
+    await emitNotificationOnAttestationValidation({ node, user: owner, claimId: parseInt(claimId) });
   }
 };
 

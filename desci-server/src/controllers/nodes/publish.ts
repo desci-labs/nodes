@@ -10,6 +10,7 @@ import { attestationService } from '../../services/Attestation.js';
 import { directStreamLookup } from '../../services/ceramic.js';
 import { getManifestByCid } from '../../services/data/processing.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
+import { doiService } from '../../services/index.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import {
   cacheNodeMetadata,
@@ -21,7 +22,7 @@ import {
 import { emitNotificationOnPublish } from '../../services/NotificationService.js';
 import { publishServices } from '../../services/PublishServices.js';
 import { _getIndexedResearchObjects, getIndexedResearchObjects } from '../../theGraph.js';
-import { discordNotify } from '../../utils/discordUtils.js';
+import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { getOrCreateDpid, upgradeDpid } from './createDpid.js';
@@ -167,6 +168,20 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       },
       owner.id,
     );
+
+    // trigger doi minting workflow
+    try {
+      const submission = await doiService.autoMintTrigger(node.uuid);
+      const targetDpidUrl = getTargetDpidUrl();
+      discordNotify({
+        channel: DiscordChannel.DoiMinting,
+        type: DiscordNotifyType.INFO,
+        title: 'Mint DOI',
+        message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
+      });
+    } catch (err) {
+      logger.error({ err }, 'Error:  Mint DOI on Publish');
+    }
 
     return res.send({
       ok: true,
