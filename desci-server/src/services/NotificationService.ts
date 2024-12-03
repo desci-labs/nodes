@@ -463,9 +463,9 @@ export const getUnseenNotificationCount = async ({ userId, user }: { userId?: nu
   if (!userId && !user) {
     throw new Error('Missing userId or user');
   }
-  if (!user || !user.unseenNotificationCount) {
+  if (!user || user.unseenNotificationCount === undefined) {
     const { unseenNotificationCount } = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userId ?? user.id },
       select: { unseenNotificationCount: true },
     });
     return unseenNotificationCount;
