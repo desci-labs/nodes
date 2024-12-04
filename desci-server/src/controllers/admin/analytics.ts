@@ -30,6 +30,7 @@ export const createCsv = async (req: Request, res: Response) => {
     const endMonth = new Date().getMonth();
     let curYear = endYear - 1;
     let curMonth = endMonth;
+    let monthsCovered = 0;
     interface DataRow {
       month: string;
       year: string;
@@ -40,7 +41,7 @@ export const createCsv = async (req: Request, res: Response) => {
       bytesUploaded: number;
     }
     const data: DataRow[] = [];
-    while (curYear < endYear || curMonth <= endMonth) {
+    while (monthsCovered < 12) {
       const newUsers = await getCountNewUsersInMonth(curMonth, curYear);
       const newNodes = await getCountNewNodesInMonth(curMonth, curYear);
       const activeUsers = await getCountActiveUsersInMonth(curMonth, curYear);
@@ -61,6 +62,7 @@ export const createCsv = async (req: Request, res: Response) => {
         curYear++;
         curMonth = 0;
       }
+      monthsCovered++;
     }
     // export data to csv
 
