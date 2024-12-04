@@ -41,7 +41,7 @@ export const createCsv = async (req: Request, res: Response) => {
       bytesUploaded: number;
     }
     const data: DataRow[] = [];
-    while (monthsCovered < 12) {
+    while (monthsCovered <= 12) {
       const newUsers = await getCountNewUsersInMonth(curMonth, curYear);
       const newNodes = await getCountNewNodesInMonth(curMonth, curYear);
       const activeUsers = await getCountActiveUsersInMonth(curMonth, curYear);
