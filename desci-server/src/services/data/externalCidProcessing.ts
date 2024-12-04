@@ -81,7 +81,7 @@ export async function processExternalCidDataToIpfs({
       for (const extCid of externalCids) {
         const { isDirectory, size } = await getExternalCidSizeAndType(extCid.cid);
         if (size !== undefined && isDirectory !== undefined) {
-          cidTypesSizes[extCid.cid] = { size, isDirectory };
+          cidTypesSizes[extCid.cid] = { size: Number(size), isDirectory };
         } else {
           throw new Error(`Failed to get size and type of external CID: ${extCid}`);
         }
