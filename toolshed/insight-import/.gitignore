@@ -3,3 +3,4 @@ data
 test
 cids_*.log
 missing*.txt
+.credentials

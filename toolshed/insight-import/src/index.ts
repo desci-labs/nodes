@@ -1,31 +1,44 @@
+import 'dotenv/config'
+import { Convert, IJMetadata } from './ijTypes.js';
+import { makeNode } from './nodes.js';
+import {NODESLIB_CONFIGS, setApiKey, setNodesLibConfig} from '@desci-labs/nodes-lib';
+import {readdir, readFile} from "node:fs/promises";
+import { join } from 'path';
+import {signerFromPkey} from "@desci-labs/nodes-lib/dist/util/signing.js";
 
-import fs from 'fs/promises';
-import path from 'path';
+const PUBLISH_PKEY = process.env.PUBLISH_PKEY;
+const API_TOKEN = process.env.NODES_API_TOKEN;
 
-const IPFS_GATEWAY= 'https://itk.mypinata.cloud/ipfs/';
+if (![PUBLISH_PKEY, API_TOKEN].every(Boolean)) {
+  console.log('Expected PUBLISH_PKEY and API_TOKEN to both be set in .env');
+  process.exit(1);
+}
+export const SIGNER = signerFromPkey(PUBLISH_PKEY);
+
+const ENVS = ['local', 'dev', 'prod'];
+const ENV = process.env.ENV || 'local';
+if (!ENVS.includes(ENV)) {
+  console.log(`Expected ENV to be in ${ENVS}, but got ${ENV}`);
+  process.exit(1);
+}
+
+setNodesLibConfig(NODESLIB_CONFIGS[ENV]);
+setApiKey(API_TOKEN);
 
 const processPublications = async (rootDir: string) => {
-  const pubs = {};
-  const entries = await fs.readdir(rootDir);
+  const pubs: Record<string, IJMetadata> = {};
+  const pubDirs = await readdir(rootDir);
 
-  for (const entry of entries) {
-    const pubDir = path.join(rootDir, entry);
-    const metadataPath = path.join(pubDir, 'metadata.json');
-
-    const data = await fs.readFile(metadataPath, 'utf8');
-    const raw = JSON.parse(data);
-
-    raw.cids = {};
-    raw.cids.article = raw.publication.revisions.map(r => r.article);
-    raw.cids.code = raw.publication.revisions.map(r => r.source_code);
-
-    pubs[entry] = raw;
+  for (const pubDir of pubDirs) {
+    const metadataPath = join(rootDir, pubDir, 'metadata.json');
+    const rawMetadata = await readFile(metadataPath, 'utf8');
+    pubs[pubDir] = Convert.toIJMetadata(rawMetadata);
   }
 
   return pubs;
 }
 
 const pubs = await processPublications('local-data/publications');
-// for (const pub of pubs) {
-//   const 
-// }
+for (const [pub, metadata] of Object.entries(pubs).slice(0,1)) {
+  await makeNode(metadata)
+}
