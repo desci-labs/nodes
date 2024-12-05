@@ -323,6 +323,7 @@ export type PublishResponse = {
  *
  * @param uuid - UUID of the node to publish
  * @param didOrSigner - authenticated did-session DID, or a generic signer
+ * @param mintDoi - opt-in to DOI registration
  */
 export const publishNode = async (
   uuid: string,
@@ -403,6 +404,7 @@ export type LegacyPublishResponse = {
  *
  * @param uuid - UUID of node to publish
  * @param signer - Signer to use for publish, if not set with env
+ * @param mintDoi - opt-in to DOI registration
  * @throws (@link WrongOwnerError) if signer address isn't research object token owner
  * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
  * @depreated use publishNode instead, as this function uses the old on-chain registry
