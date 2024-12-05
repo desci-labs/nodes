@@ -20,7 +20,7 @@ import {
   setDpidAlias,
 } from '../../services/nodeManager.js';
 import { emitNotificationOnPublish } from '../../services/NotificationService.js';
-import { publishServices } from '../../services/PublishServices.js';
+import { PublishServices } from '../../services/PublishServices.js';
 import { _getIndexedResearchObjects, getIndexedResearchObjects } from '../../theGraph.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
@@ -300,7 +300,7 @@ const syncPublish = async (
   const dpid = dpidAlias?.toString() || legacyDpid?.toString();
   // Intentionally of above stacked promise, needs the DPID to be resolved!!!
   // Send emails coupled to the publish event
-  await publishServices.handleDeferredEmails(node.uuid, dpid);
+  await PublishServices.handleDeferredEmails(node.uuid, dpid);
 
   /*
    * Emit notification on publish
@@ -527,7 +527,7 @@ export const publishHandler = async ({
     /**
      * Fire off any deferred emails awaiting publish
      */
-    await publishServices.handleDeferredEmails(node.uuid, dpid);
+    await PublishServices.handleDeferredEmails(node.uuid, dpid);
 
     /*
      * Emit notification on publish
