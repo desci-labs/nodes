@@ -200,6 +200,26 @@ async function handleDeferredEmails(uuid: string, dpid: string) {
     }
   }
 }
+
+async function transformDraftComments(node: Node, owner: User, dpidAlias?: number) {
+  const root = await prisma.publicDataReference.findFirst({
+    where: { nodeId: node.id, root: true, userId: owner.id },
+    orderBy: { updatedAt: 'desc' },
+  });
+  const result = await getIndexedResearchObjects([ensureUuidEndsWithDot(node.uuid)]);
+  // if node is being published for the first time default to 1
+  const version = result ? result.researchObjects?.[0]?.versions.length : 1;
+  logger.info({ root, result, version }, 'publishDraftComments::Root');
+
+  // publish draft comments
+  await attestationService.publishDraftComments({
+    node,
+    userId: owner.id,
+    dpidAlias: dpidAlias,
+    rootCid: root.rootCid,
+    version,
+  });
+}
 export interface NodeUpdatedEmailProps {
   nodeOwner: string;
   nodeTitle: string;
@@ -212,4 +232,5 @@ export const PublishServices = {
   sendVersionUpdateEmailToAllContributors,
   retrieveBlockTimeByManifestCid,
   handleDeferredEmails,
+  transformDraftComments,
 };

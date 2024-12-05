@@ -132,23 +132,11 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
 
     updateAssociatedAttestations(node.uuid, dpidAlias ? dpidAlias.toString() : manifest.dpid?.id);
 
-    const root = await prisma.publicDataReference.findFirst({
-      where: { nodeId: node.id, root: true, userId: owner.id },
-      orderBy: { updatedAt: 'desc' },
-    });
-    const result = await getIndexedResearchObjects([ensureUuidEndsWithDot(uuid)]);
-    // if node is being published for the first time default to 1
-    const version = result ? result.researchObjects?.[0]?.versions.length : 1;
-    logger.info({ root, result, version }, 'publishDraftComments::Root');
-
-    // publish draft comments
-    await attestationService.publishDraftComments({
+    await PublishServices.transformDraftComments(
       node,
-      userId: owner.id,
-      dpidAlias: dpidAlias ?? parseInt(manifest.dpid?.id),
-      rootCid: root.rootCid,
-      version,
-    });
+      owner,
+      dpidAlias ? dpidAlias : manifest.dpid?.id ? parseInt(manifest.dpid.id) : undefined,
+    );
 
     // Make sure we don't serve stale manifest state when a publish is happening
     delFromCache(`node-draft-${ensureUuidEndsWithDot(node.uuid)}`);
