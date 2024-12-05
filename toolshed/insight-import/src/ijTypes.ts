@@ -9,6 +9,7 @@
 
 export type IJMetadata = {
     publication: Publication;
+    coverImage?: string;
 }
 
 export type Publication = {
@@ -306,6 +307,7 @@ function r(name: string) {
 const typeMap: any = {
     "IJMetadata": o([
         { json: "publication", js: "publication", typ: r("Publication") },
+        { json: "coverImage", js: "coverImage", typ: u(undefined, "") },
     ], false),
     "Publication": o([
         { json: "abstract", js: "abstract", typ: u(null, "") },

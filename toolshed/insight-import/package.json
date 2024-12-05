@@ -5,7 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "generate-types": "./generateTsTypes.sh"
+    "generate-types": "./generateTsTypes.sh",
+    "start": "tsx src/index.ts"
   },
   "author": "Edvard Hübinette",
   "license": "MIT",
@@ -19,6 +20,7 @@
   "dependencies": {
     "@desci-labs/desci-models": "file:../../desci-models",
     "@desci-labs/nodes-lib": "file:../../nodes-lib",
-    "axios": "^1.7.7"
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.7"
   }
 }

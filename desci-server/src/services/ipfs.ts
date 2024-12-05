@@ -59,8 +59,9 @@ export const readerClient = create({ url: PUBLIC_IPFS_PATH });
 export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0', options: { agent: httpsAgent } });
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
-const INTERNAL_IPFS_TIMEOUT = 30000;
-const EXTERNAL_IPFS_TIMEOUT = 120000;
+const INTERNAL_IPFS_TIMEOUT = 30_000;
+// We mostly fetch single blocks, so this does not limit transfers
+const EXTERNAL_IPFS_TIMEOUT = 30_000;
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
