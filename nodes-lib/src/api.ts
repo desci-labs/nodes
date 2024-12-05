@@ -301,6 +301,7 @@ type PublishParams = {
   ceramicStream?: string;
   commitId?: string;
   useNewPublish: boolean;
+  mintDoi?: boolean;
 };
 
 /** Result of publishing a draft node */
@@ -325,7 +326,8 @@ export type PublishResponse = {
  */
 export const publishNode = async (
   uuid: string,
-  didOrSigner: DID | Signer
+  didOrSigner: DID | Signer,
+  mintDoi = false
 ): Promise<PublishResponse> => {
   const publishResult = await publish(uuid, didOrSigner);
   const pubParams: PublishParams = {
@@ -335,6 +337,7 @@ export const publishNode = async (
     ceramicStream: publishResult.ceramicIDs.streamID,
     commitId: publishResult.ceramicIDs.commitID,
     useNewPublish: true,
+    mintDoi,
   };
 
   let dpid: number;
@@ -404,11 +407,17 @@ export type LegacyPublishResponse = {
  * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
  * @depreated use publishNode instead, as this function uses the old on-chain registry
  */
-export const publishDraftNode = async (
-  uuid: string,
-  signer: Signer,
-  did?: DID
-): Promise<LegacyPublishResponse> => {
+export const publishDraftNode = async ({
+  uuid,
+  signer,
+  did,
+  mintDoi = false,
+}: {
+  uuid: string;
+  signer: Signer;
+  did?: DID;
+  mintDoi?: boolean;
+}): Promise<LegacyPublishResponse> => {
   const publishResult = await legacyPublish(uuid, signer, did);
 
   const pubParams: PublishParams = {
@@ -419,6 +428,7 @@ export const publishDraftNode = async (
     ceramicStream: publishResult.ceramicIDs?.streamID,
     commitId: publishResult.ceramicIDs?.commitID,
     useNewPublish: false,
+    mintDoi,
   };
 
   try {
