@@ -464,7 +464,7 @@ describe("nodes-lib", () => {
 
         const cidsInDpidHistory = dpidHistory.versions.map((v) => v.cid);
         const cidsInCodex = codexVersionsDpidResolver.versions.map(
-          (v) => v.manifest
+          (v: any) => v.manifest
         );
 
         // debugger
@@ -717,7 +717,7 @@ describe("nodes-lib", () => {
 
         const cidsInDpidHistory = dpidHistory.versions.map((v) => v.cid);
         const cidsInCodex = codexVersionsDpidResolver.versions
-          .map((v) => v.manifest)
+          .map((v: any) => v.manifest)
           .slice(0, -1);
 
         expect(cidsInDpidHistory).toEqual(cidsInCodex);
