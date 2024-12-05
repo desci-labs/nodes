@@ -35,10 +35,10 @@ const DoiMintedEmail = ({ dpidPath, userName, nodeTitle, dpid, doi, doiLink }: D
           <Heading style={h1} className="text-center !text-black">
             Hello {userName}, DPID://{dpid} just received a DOI
           </Heading>
-          <Text className="text-lg text-center font-bold tracking-[0.3em]">
+          <Text className="text-lg text-center font-bold">
             Your DOI registration for the research object {nodeTitle} has been completed. Here is your DOI: {doi}
           </Text>
-          <Text className="text-lg text-center font-bold tracking-[0.3em]">{doiLink}</Text>
+          <Text className="text-lg text-center font-bold">{doiLink}</Text>
           <Section className="mx-auto w-fit my-5 bg-[#dadce0] rounded-md px-14 py-3" align="center">
             <Button
               href={dpidPath}
