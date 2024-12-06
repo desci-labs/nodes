@@ -704,6 +704,8 @@ export type AddExternalTreeParams = {
   componentType: ResearchObjectComponentType;
   /** The subtype of the imported data */
   componentSubtype: ResearchObjectComponentSubtypes;
+  /** Mark the content as particularly important for the node */
+  autoStar?: boolean;
 };
 
 /**
