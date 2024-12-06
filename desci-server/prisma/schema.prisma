@@ -53,7 +53,7 @@ model Node {
   DeferredEmails      DeferredEmails[]
   UserNotifications   UserNotifications[]
   Annotation          Annotation[]
-  PublishStatus       PublishStatus?
+  PublishStatus       PublishStatus[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -942,7 +942,7 @@ model PublishStatus {
   id                     Int          @id @default(autoincrement())
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt
-  nodeUuid               String       @unique
+  nodeUuid               String
   version                Int
   versionId              Int?
   commitId               String?
