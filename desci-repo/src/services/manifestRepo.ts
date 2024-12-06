@@ -196,22 +196,6 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
-      case 'Delete Component':
-        handle.change(
-          (document) => {
-            deleteComponent(document, action.path);
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
-      case 'Update Component':
-        handle.change(
-          (document) => {
-            updateManifestComponent(document, action.component, action.componentIndex);
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
       case 'Upsert Component':
         handle.change(
           (document) => {
@@ -353,9 +337,9 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
       case 'Delete Reference':
         if (!action.referenceId) return;
         const deletedIdx = latestDocument.manifest.references?.findIndex((ref) => ref.id === action.referenceId);
-        if (deletedIdx !== -1) {
+        if (deletedIdx !== undefined && deletedIdx !== -1) {
           handle.change((document) => {
-            document.manifest.references?.splice(deleteIdx, 1);
+            document.manifest.references?.splice(deletedIdx, 1);
           });
         }
         break;
