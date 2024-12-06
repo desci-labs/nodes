@@ -231,10 +231,11 @@ async function transformDraftComments(node: Node, owner: User, dpidAlias?: numbe
 }
 
 async function createPublishStatusEntry(nodeUuid: string) {
+  // debugger; //////
   try {
     const result = await getIndexedResearchObjects([ensureUuidEndsWithDot(nodeUuid)]);
 
-    const version = result ? result.researchObjects?.[0]?.versions.length : 1;
+    const version = result?.researchObjects?.length ? result.researchObjects?.[0]?.versions.length : 1;
     logger.info({
       module: 'PublishServices::createPublishStatusEntry',
       result,

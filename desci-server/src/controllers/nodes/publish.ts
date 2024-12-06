@@ -218,7 +218,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       await PublishServices.updatePublishStatusEntry({
         publishStatusId: publishStatusEntry.id,
         data: {
-          assignDpid: false,
+          triggerDoiMint: false,
         },
       });
     }
