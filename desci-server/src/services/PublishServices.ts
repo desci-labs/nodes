@@ -201,6 +201,14 @@ async function handleDeferredEmails(uuid: string, dpid: string) {
   }
 }
 
+export interface NodeUpdatedEmailProps {
+  nodeOwner: string;
+  nodeTitle: string;
+  nodeUuid: string;
+  nodeDpid: string;
+  versionUpdate: string;
+}
+
 async function transformDraftComments(node: Node, owner: User, dpidAlias?: number) {
   const root = await prisma.publicDataReference.findFirst({
     where: { nodeId: node.id, root: true, userId: owner.id },
@@ -220,15 +228,57 @@ async function transformDraftComments(node: Node, owner: User, dpidAlias?: numbe
     version,
   });
 }
-export interface NodeUpdatedEmailProps {
-  nodeOwner: string;
-  nodeTitle: string;
-  nodeUuid: string;
-  nodeDpid: string;
-  versionUpdate: string;
+
+async function createPublishStatusEntry(nodeUuid: string) {
+  try {
+    const result = await getIndexedResearchObjects([ensureUuidEndsWithDot(nodeUuid)]);
+
+    const version = result ? result.researchObjects?.[0]?.versions.length : 1;
+    logger.info({
+      module: 'PublishServices::createPublishStatusEntry',
+      result,
+      version,
+    });
+
+    // Check if already exists
+    const existingEntry = await prisma.publishStatus.findFirst({
+      where: {
+        nodeUuid: ensureUuidEndsWithDot(nodeUuid),
+        version,
+      },
+    });
+
+    if (existingEntry) {
+      logger.info(
+        {
+          module: 'PublishServices::createPublishStatusEntry',
+          nodeUuid,
+          version,
+          existingEntryId: existingEntry.id,
+        },
+        'Publish status entry already exists',
+      );
+      return existingEntry;
+    }
+
+    const newEntry = await prisma.publishStatus.create({
+      data: {
+        nodeUuid: ensureUuidEndsWithDot(nodeUuid),
+        version,
+      },
+    });
+    return newEntry;
+  } catch (e) {
+    logger.error(
+      { module: 'PublishServices::createPublishStatusEntry', nodeUuid, e },
+      'Error creating publish status entry',
+    );
+    throw 'Error creating publish status entry';
+  }
 }
 
 export const PublishServices = {
+  createPublishStatusEntry,
   sendVersionUpdateEmailToAllContributors,
   retrieveBlockTimeByManifestCid,
   handleDeferredEmails,

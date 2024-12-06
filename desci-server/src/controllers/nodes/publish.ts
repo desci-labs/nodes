@@ -96,6 +96,11 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     logger.warn({ uuid }, `[publish] called with unexpected stream (${ceramicStream}) and/org commit (${commitId})`);
   }
 
+  /*
+   ** Add PublishStatus entry
+   */
+  const publishStatusEntry = await PublishServices.createPublishStatusEntry(uuid);
+
   try {
     /**TODO: MOVE TO MIDDLEWARE */
     const owner = await prisma.user.findFirst({
