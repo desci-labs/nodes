@@ -64,7 +64,7 @@ const componentSchema: z.ZodType<ResearchObjectV1Component> = z
 export const DPID_PATH_REGEX =
   /^https:\/\/(?<domain>dev-beta|beta)\.dpid\.org(?<dpid>\/\d+)(?<version>\/v\d+)?(?<path>\/root.*)?/m;
 
-export const DOI_REGEX = /(https:\/\/doi.org\/)?(?<doi>10.\d{4,9}\/[-<>._;()/:A-Z0-9]+$)/i;
+export const DOI_REGEX = /(https:\/\/doi.org\/)?(?<doi>10.\d{4,9}\/[-+<>._;()/:A-Z0-9]+$)/i;
 
 const referenceSchema: z.ZodType<ResearchObjectReference> = z
   .object({
