@@ -59,8 +59,9 @@ export const readerClient = create({ url: PUBLIC_IPFS_PATH });
 export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0', options: { agent: httpsAgent } });
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
-const INTERNAL_IPFS_TIMEOUT = 30000;
-const EXTERNAL_IPFS_TIMEOUT = 120000;
+const INTERNAL_IPFS_TIMEOUT = 30_000;
+// We mostly fetch single blocks, so this does not limit transfers
+const EXTERNAL_IPFS_TIMEOUT = 30_000;
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
@@ -1113,16 +1114,14 @@ export type BlockMetadata = {
   CumulativeSize: number;
 };
 export async function getCidMetadata(cid: string, external?: boolean): Promise<BlockMetadata | null> {
-  /*
-   ** External handling should be added once our pub node is properly configured
-   */
   try {
-    // const metadata: BlockMetadata = await client.block.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
-    const metadata: BlockMetadata = await client.object.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
-    // let localResolver = process.env.IPFS_RESOLVER_OVERRIDE;
-    // if (localResolver.endsWith('/ipfs')) localResolver = localResolver.slice(0, -5);
-    // const url = `${localResolver}/api/v0/object/stat?arg=${cid}`;
-    // const metadata = await axios.get(url).then((res) => res.data);
+    let metadata: BlockMetadata;
+    if (external) {
+      metadata = await publicIpfs.object.stat(CID.parse(cid), { timeout: EXTERNAL_IPFS_TIMEOUT });
+    } else {
+      metadata = await client.object.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
+    }
+
     return metadata;
   } catch (e) {
     logger.trace({ fn: 'getCidMetadata', cid, e }, 'Failed to get CID metadata');

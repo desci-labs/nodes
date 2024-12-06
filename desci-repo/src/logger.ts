@@ -1,8 +1,10 @@
-import { pino } from 'pino';
-import { fileURLToPath } from 'url';
-import path from 'path';
-import { pool } from './db/index.js';
 import { AsyncLocalStorage } from 'async_hooks';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+import { pino } from 'pino';
+
+import { pool } from './db/index.js';
 
 export const als = new AsyncLocalStorage();
 
