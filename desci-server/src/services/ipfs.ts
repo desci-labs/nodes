@@ -1,3 +1,6 @@
+import fs from 'fs';
+import https from 'https';
+import path from 'path';
 import { Readable } from 'stream';
 
 import {
@@ -43,12 +46,17 @@ export interface UrlWithCid {
   buffer?: Buffer;
   size?: number;
 }
+//
+const cert = fs.readFileSync('./src/ssl/sealstorage-bundle.crt');
+const httpsAgent = new https.Agent({
+  ca: cert,
+});
 
 // connect to a different API
 export const client = create({ url: process.env.IPFS_NODE_URL });
 export const readerClient = create({ url: PUBLIC_IPFS_PATH });
 
-export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0' });
+export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0', options: { agent: httpsAgent } });
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
 const INTERNAL_IPFS_TIMEOUT = 30000;
@@ -1094,4 +1102,30 @@ export async function checkCidSrc(cid: string, assumeExternal = false) {
     return false;
   }
   return false;
+}
+
+export type BlockMetadata = {
+  Hash: { '/': string };
+  NumLinks: number;
+  BlockSize: number;
+  LinkSize: number;
+  DataSize: number;
+  CumulativeSize: number;
+};
+export async function getCidMetadata(cid: string, external?: boolean): Promise<BlockMetadata | null> {
+  /*
+   ** External handling should be added once our pub node is properly configured
+   */
+  try {
+    // const metadata: BlockMetadata = await client.block.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
+    const metadata: BlockMetadata = await client.object.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
+    // let localResolver = process.env.IPFS_RESOLVER_OVERRIDE;
+    // if (localResolver.endsWith('/ipfs')) localResolver = localResolver.slice(0, -5);
+    // const url = `${localResolver}/api/v0/object/stat?arg=${cid}`;
+    // const metadata = await axios.get(url).then((res) => res.data);
+    return metadata;
+  } catch (e) {
+    logger.trace({ fn: 'getCidMetadata', cid, e }, 'Failed to get CID metadata');
+    return null;
+  }
 }

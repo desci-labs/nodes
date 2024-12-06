@@ -4,6 +4,7 @@ import {
   RecursiveLsResult,
   ResearchObjectComponentSubtypes,
   ResearchObjectComponentType,
+  ResearchObjectComponentTypeMap,
   recursiveFlattenTree,
 } from '@desci-labs/desci-models';
 import { User, Node, Prisma } from '@prisma/client';
@@ -19,11 +20,22 @@ import {
   getExternalCidSizeAndType,
   pubRecursiveLs,
 } from '../../services/ipfs.js';
-import { FirstNestingComponent, addComponentsToDraftManifest, getTreeAndFill } from '../../utils/driveUtils.js';
+import { DRAFT_CID } from '../../utils/draftTreeUtils.js';
+import {
+  FirstNestingComponent,
+  addComponentsToDraftManifest,
+  getTreeAndFill,
+  prepareFirstNestingComponents,
+} from '../../utils/driveUtils.js';
 import { NodeUuid, getLatestManifestFromNode } from '../manifestRepo.js';
 import repoService from '../repoService.js';
 
-import { updateDataReferences } from './processing.js';
+import {
+  assignTypeMapInManifest,
+  constructComponentTypeMapFromFiles,
+  predefineComponentsForPinnedFiles,
+  updateDataReferences,
+} from './processing.js';
 import {
   createIpfsUnresolvableError,
   createManifestPersistFailError,
@@ -44,6 +56,7 @@ interface ProcessExternalCidDataToIpfsParams {
   contextPath: string;
   componentType?: ResearchObjectComponentType;
   componentSubtype?: ResearchObjectComponentSubtypes;
+  autoStar?: boolean;
 }
 
 /**
@@ -56,6 +69,7 @@ export async function processExternalCidDataToIpfs({
   contextPath,
   componentType,
   componentSubtype,
+  autoStar,
 }: ProcessExternalCidDataToIpfsParams) {
   try {
     /**
@@ -67,7 +81,7 @@ export async function processExternalCidDataToIpfs({
       for (const extCid of externalCids) {
         const { isDirectory, size } = await getExternalCidSizeAndType(extCid.cid);
         if (size !== undefined && isDirectory !== undefined) {
-          cidTypesSizes[extCid.cid] = { size, isDirectory };
+          cidTypesSizes[extCid.cid] = { size: Number(size), isDirectory };
         } else {
           throw new Error(`Failed to get size and type of external CID: ${extCid}`);
         }
@@ -173,26 +187,70 @@ export async function processExternalCidDataToIpfs({
       };
     });
 
+    const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(entriesDiscovered);
+
     // Predefine components with their types, only happens if a predefined component type is passed
-    if (componentType) {
-      const firstNestingComponents: FirstNestingComponent[] = extCidsBeingAdded.map((file) => {
-        const neutralFullPath = contextPath + '/' + file.name;
-        return {
-          name: file.name,
-          path: neutralFullPath,
-          cid: file.cid,
-          componentType,
-          componentSubtype,
-          star: false,
-        };
-      });
+    // if (componentType) {
+    //   const firstNestingComponents: FirstNestingComponent[] = extCidsBeingAdded.map((file) => {
+    //     const neutralFullPath = contextPath + '/' + file.name;
+    //     return {
+    //       name: file.name,
+    //       path: neutralFullPath,
+    //       cid: file.cid,
+    //       componentType,
+    //       componentSubtype,
+    //       star: autoStar,
+    //     };
+    //   });
 
-      if (firstNestingComponents.length > 0) {
-        await addComponentsToDraftManifest(node, firstNestingComponents);
+    //   if (firstNestingComponents.length > 0) {
+    //     await addComponentsToDraftManifest(node, firstNestingComponents);
+    //   }
+    // }
+
+    let updatedManifest = await getLatestManifestFromNode(ltsNode);
+
+    if (componentTypeMap) {
+      /**
+       * Automatically create a new component(s) for the files added, to the first nesting.
+       * It doesn't need to create a new component for every file, only the first nested ones, as inheritance takes care of the children files.
+       * Only needs to happen if a predefined component type is to be added
+       */
+      if (autoStar) {
+        // debugger;
+        const firstNestingFiles = extCidsBeingAdded.map((file) => {
+          const neutralFullPath = contextPath + '/' + file.name;
+          return {
+            name: file.name,
+            path: neutralFullPath,
+            cid: file.cid,
+            size: 0,
+          };
+        });
+        const firstNestingComponents = predefineComponentsForPinnedFiles({
+          pinnedFirstNestingFiles: firstNestingFiles,
+          contextPath,
+          componentTypeMap,
+          star: true,
+        });
+        const preparedComponents = prepareFirstNestingComponents(firstNestingComponents);
+
+        const updatedDoc = await repoService.dispatchAction({
+          uuid: node.uuid as NodeUuid,
+          documentId: node.manifestDocumentId as DocumentId,
+          actions: [
+            {
+              type: 'Upsert Components',
+              components: preparedComponents,
+            },
+          ],
+        });
+        updatedManifest = updatedDoc.manifest;
       }
-    }
 
-    const updatedManifest = await getLatestManifestFromNode(ltsNode);
+      updatedManifest = await assignTypeMapInManifest(node, updatedManifest, componentTypeMap, contextPath, DRAFT_CID);
+      logger.info({ updatedManifest }, 'assignTypeMapInManifest');
+    }
 
     const upserts = await updateDataReferences({ node, user, updatedManifest });
     if (upserts) logger.info(`${upserts.length} new data references added/modified`);

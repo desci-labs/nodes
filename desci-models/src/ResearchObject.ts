@@ -106,7 +106,7 @@ export interface ResearchObjectV1Author {
   /** Google Scholar profile of the contributor */
   googleScholar?: string;
   /** Type of role in the publication */
-  role: ResearchObjectV1AuthorRole;
+  role: ResearchObjectV1AuthorRole | ResearchObjectV1AuthorRole[] | string | string[];
   /** Organizations the contributor is affiliated with */
   organizations?: ResearchObjectV1Organization[];
   /** GitHub profile of the contributor */

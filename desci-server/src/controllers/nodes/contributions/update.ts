@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { contributorService } from '../../../services/Contributors.js';
+import { emitNotificationOnContributorInvite } from '../../../services/NotificationService.js';
 import { ContributorInviteEmailHtml } from '../../../templates/emails/utils/emailRenderer.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -14,7 +15,7 @@ export type UpdateContributorReqBody = {
   email?: string;
   orcid?: string;
   userId?: number;
-  silent?: boolean;
+  silent?: boolean; // Don't fire an email
 };
 
 export type UpdateContributorRequest = Request<never, never, UpdateContributorReqBody> & {
@@ -73,7 +74,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
     if (contributorUpdated) {
       logger.info({ contributorUpdated }, 'Contributor updated successfully');
 
-      if (!email && contributorUpdated.userId !== undefined) {
+      if (!email && !!contributorUpdated.userId) {
         // If the contributor being added has an existing account, their email is available on their profile.
         const invitedContributor = await prisma.user.findUnique({ where: { id: contributorUpdated.userId } });
         if (invitedContributor?.email) email = invitedContributor.email;
@@ -91,16 +92,30 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
           nodeUuid: node.uuid,
           privShareCode: shareCode,
           contributorId: contributorUpdated.contributorId,
-          newUser: contributorUpdated.userId === undefined,
+          nodeTitle: node.title,
+          newUser: !!!contributorUpdated.userId,
         });
+        const inviterName = user.name || 'A user';
         const emailMsg = {
           to: email,
           from: 'no-reply@desci.com',
-          subject: `[nodes.desci.com] ${user.name} has added you as a contributor to their research node.`,
-          text: `You've been added as a contributor to ${node.title}. Confirm your contribution to ensure you're credited for your work. 
+          subject: `[nodes.desci.com] ${inviterName} has added you as a contributor to their research object.`,
+          text: `${inviterName} has added as a contributor to ${node.title}. Confirm your contribution to ensure you're credited for your work. 
           Your private share code: ${shareCode}`,
           html: emailHtml,
         };
+
+        if (!!!contribution.userId && !!contributorUpdated.userId) {
+          // Emit push notif to contributor if the previous contribution entry didn't have a nodes account associated,
+          // but the updated entry now has a nodes account associated.
+          await emitNotificationOnContributorInvite({
+            node: node,
+            nodeOwner: user,
+            targetUserId: contributorUpdated.userId,
+            privShareCode: shareCode,
+            contributorId: contributorUpdated.contributorId,
+          });
+        }
 
         if (process.env.NODE_ENV === 'production') {
           sgMail.send(emailMsg);

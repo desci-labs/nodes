@@ -1,5 +1,6 @@
 import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DoiStatus, DoiSubmissionQueue, NodeVersion, Prisma, PrismaClient } from '@prisma/client';
+// import _ from 'lodash';
 import { v4 } from 'uuid';
 
 import {
@@ -16,6 +17,7 @@ import { asyncMap, ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 import { attestationService } from './Attestation.js';
 import { WorkSelectOptions } from './crossRef/definitions.js';
 import { getManifestByCid } from './data/processing.js';
+import { emitNotificationOnDoiIssuance } from './NotificationService.js';
 
 import { crossRefClient } from './index.js';
 
@@ -44,17 +46,18 @@ export class DoiService {
   async assertHasValidatedAttestations(uuid: string) {
     const doiAttestations = await attestationService.getProtectedAttestations({
       protected: true,
-      community: { slug: 'desci-foundation' },
+      canMintDoi: true,
+      // community: { slug: 'desci-foundation' },
     });
     // logger.info(doiAttestations, 'DOI Requirements');
     let claims = await attestationService.getProtectedNodeClaims(uuid);
     claims = claims.filter((claim) => claim.verifications > 0);
 
-    const hasClaimedRequiredAttestation = doiAttestations.some((attestation) =>
+    const isValidatedClaimVerified = doiAttestations.some((attestation) =>
       claims.find((claim) => claim.attestationId === attestation.id),
     );
-    logger.info({ hasClaimedRequiredAttestation }, 'hasClaimedRequiredAttestation');
-    if (!hasClaimedRequiredAttestation) throw new AttestationsError();
+    logger.trace({ isValidatedClaimVerified, uuid }, 'isValidatedClaimVerified');
+    if (!isValidatedClaimVerified) throw new AttestationsError();
   }
 
   async extractManuscriptDoi(manuscripts: PdfComponent[]) {
@@ -207,6 +210,17 @@ export class DoiService {
     return submission;
   }
 
+  async autoMintTrigger(uuid: string) {
+    const sanitizedUuid = ensureUuidEndsWithDot(uuid);
+    const isPending = await this.hasPendingSubmission(sanitizedUuid);
+    if (isPending) {
+      throw new MintError('You have a pending submission');
+    } else {
+      const submission = await this.mintDoi(sanitizedUuid);
+      return submission;
+    }
+  }
+
   /**
    * Query for Doi Record entry for a node using it's
    * identifier (dPid, uuid or Doi)
@@ -268,5 +282,12 @@ export class DoiService {
         doiRecordId: doiRecord.id,
       },
     );
+
+    // Emit app push notification on successful registration
+    await emitNotificationOnDoiIssuance({
+      nodeUuid: submission.uuid,
+      doi: submission.uniqueDoi,
+      status: DoiStatus.SUCCESS,
+    });
   }
 }

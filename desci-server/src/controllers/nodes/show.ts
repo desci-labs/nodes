@@ -8,6 +8,7 @@ import { prisma } from '../../client.js';
 import { PUBLIC_IPFS_PATH } from '../../config/index.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
+import { attestationService } from '../../services/Attestation.js';
 import { showNodeDraftManifest } from '../../services/nodeManager.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 

@@ -493,7 +493,7 @@ interface PredefineComponentsForPinnedFilesParams {
 }
 
 /**
- * Create a new component(s) for the files passed in, ~~these components are starred by default~~.
+ * Create a new component(s) for the files passed in
  */
 export function predefineComponentsForPinnedFiles({
   pinnedFirstNestingFiles,
