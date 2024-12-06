@@ -50,6 +50,7 @@ interface ProcessExternalCidDataToIpfsParams {
   externalCids: ExternalCid[];
   user: User;
   node: Node;
+
   /**
    * @type {string} path to the directory to be updated
    */
@@ -71,6 +72,8 @@ export async function processExternalCidDataToIpfs({
   componentSubtype,
   autoStar,
 }: ProcessExternalCidDataToIpfsParams) {
+  logger.debug({ fn: 'processExternalCidDataToIpfs', externalCids, user, node, contextPath, componentType, componentSubtype, autoStar});
+
   try {
     /**
      * Prepare the CIDs for addition, see if they're resolvable and get their sizes and types

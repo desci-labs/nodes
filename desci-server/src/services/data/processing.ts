@@ -505,7 +505,9 @@ export function predefineComponentsForPinnedFiles({
   star,
 }: PredefineComponentsForPinnedFilesParams): FirstNestingComponent[] {
   const firstNestingComponents: FirstNestingComponent[] = pinnedFirstNestingFiles.map((file) => {
-    const neutralFullPath = contextPath + '/' + file.path;
+    const neutralFullPath = file.path.startsWith(contextPath)
+        ? file.path
+        : contextPath + '/' + file.path;
     const pathSplit = file.path.split('/');
     const name = pathSplit.pop();
     return {
