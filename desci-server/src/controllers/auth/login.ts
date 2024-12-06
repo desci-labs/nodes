@@ -14,5 +14,5 @@ export const check = async (req: RequestWithUser, res: Response, next: NextFunct
     return;
   }
 
-  res.send({ ok: false });
+  res.status(401).send({ ok: false });
 };

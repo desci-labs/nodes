@@ -18,7 +18,7 @@ assert_command_available() {
 }
 
 init_node() {
-  if ! printenv NVM_DIR &> /dev/null && ! command -v fnm; then
+  if ! printenv NVM_DIR &>/dev/null && ! command -v fnm; then
     echo "[dockerDev] NVM_DIR not set, please install NVM"
     echo "[dockerDev] curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash"
     exit 1
@@ -60,6 +60,9 @@ make
 echo "[dockerDev:desci-contracts] starting seed of local chain..."
 make -C desci-contracts seed
 
+echo "[Compile:sync-server] building worker binary"
+make -C sync-server build
+
 # compose will initialise non-existing volume directories with root permissions
 echo "[dockerDev] initialising docker volume directories..."
 for volDir in $(grep -o "local-data/[a-z_]*" docker-compose.dev.yml); do
@@ -78,6 +81,7 @@ COMPOSE_HTTP_TIMEOUT=320 docker compose \
   --file docker-compose.yml \
   --file docker-compose.dev.yml \
   --file docker-compose.repo.yml \
+  --file docker-compose.sync.yml \
   $ADDITIONAL_FLAGS \
   --compatibility \
   up \

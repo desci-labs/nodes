@@ -22,11 +22,12 @@ import routes from './routes/index.js';
 // import SocketServer from './wsServer.js';
 
 import { fileURLToPath } from 'url';
-import { socket as wsSocket } from './repo.js';
+// import { socket as wsSocket } from './repo.js';
 
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import { pinoHttp } from 'pino-http';
 import { RequestWithUser } from './middleware/guard.js';
+import { ENABLE_PARTYKIT_FEATURE } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -136,12 +137,21 @@ class AppServer {
       logger.info(`Server running on port ${this.port}`);
     });
 
+    if (!ENABLE_PARTYKIT_FEATURE) {
+      this.acceptWebsocketConnections();
+    }
+  }
+
+  async acceptWebsocketConnections() {
+    const wsSocket = await import('./repo.js').then((x) => x.socket);
+
     wsSocket.on('listening', () => {
       logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
     });
+
     wsSocket.on('connection', async (socket, request) => {
       try {
-        logger.info({ module: 'WebSocket SERVER' }, 'WebSocket Connection Attempt');
+        logger.info({ module: 'WebSocket' }, 'WebSocket Connection Attempt');
         const token = await extractAuthToken(request as Request);
         const authUser = await extractUserFromToken(token!);
         if (!authUser) {

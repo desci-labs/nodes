@@ -1,3 +1,5 @@
+import { logger } from '../logger.js';
+
 const pg = await import('pg').then((value) => value.default);
 const { Pool } = pg;
 
@@ -25,10 +27,9 @@ export const query = async (query: string, values?: (string | number | object)[]
   try {
     // const client = await pool.connect();
     const result = await pool.query(query, values ? values : undefined);
-    // console.log('QUERY RESULT', result.rowCount);
     return result.rows;
   } catch (err) {
-    console.error('[QUERY ERROR]::', err);
+    logger.error({ err }, '[QUERY ERROR]::');
     return undefined;
   }
 };
