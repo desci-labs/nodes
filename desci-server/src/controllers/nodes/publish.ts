@@ -96,11 +96,6 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     logger.warn({ uuid }, `[publish] called with unexpected stream (${ceramicStream}) and/org commit (${commitId})`);
   }
 
-  /*
-   ** Add PublishStatus entry
-   */
-  const publishStatusEntry = await PublishServices.createPublishStatusEntry(uuid);
-
   try {
     /**TODO: MOVE TO MIDDLEWARE */
     const owner = await prisma.user.findFirst({
@@ -132,16 +127,56 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
 
     if (task) return res.status(400).json({ error: 'Node publishing in progress' });
 
+    /*
+     ** Add PublishStatus entry
+     */
+    const publishStatusEntry = await PublishServices.createPublishStatusEntry(uuid);
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId: publishStatusEntry.id,
+      data: {
+        commitId: commitId,
+        ceramicComit: true,
+      },
+    });
+
     logger.info({ ceramicStream, commitId, uuid, owner: owner.id }, 'Triggering new publish flow');
-    const dpidAlias = await syncPublish(ceramicStream, commitId, node, owner, cid, uuid, manifest);
+    const dpidAlias = await syncPublish(
+      ceramicStream,
+      commitId,
+      node,
+      owner,
+      cid,
+      uuid,
+      manifest,
+      publishStatusEntry.id,
+    );
+
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId: publishStatusEntry.id,
+      data: {
+        assignDpid: true,
+      },
+    });
 
     updateAssociatedAttestations(node.uuid, dpidAlias ? dpidAlias.toString() : manifest.dpid?.id);
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId: publishStatusEntry.id,
+      data: {
+        updateAttestations: true,
+      },
+    });
 
     await PublishServices.transformDraftComments(
       node,
       owner,
       dpidAlias ? dpidAlias : manifest.dpid?.id ? parseInt(manifest.dpid.id) : undefined,
     );
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId: publishStatusEntry.id,
+      data: {
+        transformDraftComments: true,
+      },
+    });
 
     // Make sure we don't serve stale manifest state when a publish is happening
     delFromCache(`node-draft-${ensureUuidEndsWithDot(node.uuid)}`);
@@ -172,8 +207,20 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
         title: 'Mint DOI',
         message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
       });
+      await PublishServices.updatePublishStatusEntry({
+        publishStatusId: publishStatusEntry.id,
+        data: {
+          triggerDoiMint: true,
+        },
+      });
     } catch (err) {
       logger.error({ err }, 'Error:  Mint DOI on Publish');
+      await PublishServices.updatePublishStatusEntry({
+        publishStatusId: publishStatusEntry.id,
+        data: {
+          assignDpid: false,
+        },
+      });
     }
 
     return res.send({
@@ -217,6 +264,7 @@ const syncPublish = async (
   cid: string,
   uuid: string,
   manifest: ResearchObjectV1,
+  publishStatusId: number,
 ): Promise<number> => {
   const logger = parentLogger.child({
     module: 'NODE::syncPublish',
@@ -290,15 +338,34 @@ const syncPublish = async (
 
   await Promise.all(promises);
 
+  await PublishServices.updatePublishStatusEntry({
+    publishStatusId,
+    data: {
+      createPdr: true,
+    },
+  });
+
   const dpid = dpidAlias?.toString() || legacyDpid?.toString();
   // Intentionally of above stacked promise, needs the DPID to be resolved!!!
   // Send emails coupled to the publish event
   await PublishServices.handleDeferredEmails(node.uuid, dpid);
+  await PublishServices.updatePublishStatusEntry({
+    publishStatusId,
+    data: {
+      fireDeferredEmails: true,
+    },
+  });
 
   /*
    * Emit notification on publish
    */
   await emitNotificationOnPublish(node, owner, dpid);
+  await PublishServices.updatePublishStatusEntry({
+    publishStatusId,
+    data: {
+      fireNotifications: true,
+    },
+  });
 
   const targetDpidUrl = getTargetDpidUrl();
   discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
