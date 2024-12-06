@@ -1,5 +1,6 @@
-import { DataType, EmailType, Node, NodeContribution, User } from '@prisma/client';
+import { DataType, EmailType, Node, NodeContribution, Prisma, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
+import { update } from 'lodash';
 
 import { prisma } from '../client.js';
 import { getNodeVersion } from '../controllers/communities/util.js';
@@ -277,8 +278,59 @@ async function createPublishStatusEntry(nodeUuid: string) {
   }
 }
 
+async function updatePublishStatusEntry({
+  publishStatusId,
+  nodeUuid,
+  version,
+  data,
+}: {
+  publishStatusId?: number;
+  nodeUuid?: string;
+  version?: number;
+  data: Prisma.PublishStatusUpdateInput;
+}) {
+  try {
+    const identifier = publishStatusId ? { id: publishStatusId } : nodeUuid && version ? { nodeUuid, version } : null;
+    if (!identifier) {
+      throw 'No identifier provided';
+    }
+    const result = await prisma.publishStatus.update({
+      where: {
+        ...identifier,
+      },
+      data,
+    });
+    return result;
+  } catch (e) {
+    logger.error(
+      { module: 'PublishServices::updatePublishStatusEntry', nodeUuid, version, e },
+      'Error updating publish status entry',
+    );
+    throw 'Error updating publish status entry';
+  }
+}
+
+async function getPublishStatusForNode(nodeUuid: string) {
+  try {
+    const result = await prisma.publishStatus.findMany({
+      where: {
+        nodeUuid: ensureUuidEndsWithDot(nodeUuid),
+      },
+    });
+    return result;
+  } catch (e) {
+    logger.error(
+      { module: 'PublishServices::getPublishStatusForNode', nodeUuid, e },
+      'Error getting publish status entry',
+    );
+    throw 'Error getting publish status entry';
+  }
+}
+
 export const PublishServices = {
   createPublishStatusEntry,
+  updatePublishStatusEntry,
+  getPublishStatusForNode,
   sendVersionUpdateEmailToAllContributors,
   retrieveBlockTimeByManifestCid,
   handleDeferredEmails,
