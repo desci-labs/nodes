@@ -4,6 +4,7 @@ import _ from 'lodash';
 import { z } from 'zod';
 
 import { prisma } from '../../../client.js';
+import { PUBLIC_IPFS_PATH } from '../../../config/index.js';
 import { BadRequestError, NotFoundError } from '../../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../../core/ApiResponse.js';
 import { DuplicateDataError } from '../../../core/communities/error.js';
@@ -44,15 +45,15 @@ export const createCommunity = async (req: Request, res: Response, _next: NextFu
 
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
+      logger.info({ orginalname: file.originalname, fieldname: file.fieldname }, 'Upload');
       return file;
     });
-    logger.info({ uploads }, 'Uploads');
     const { ok, value } = await processUploadToIpfs({ files: uploads });
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
-        url: `${process.env.IPFS_RESOLVER_OVERRIDE}/${ipfsImg.cid}`,
+        url: `${PUBLIC_IPFS_PATH}/${ipfsImg.cid}`,
       }));
     } else {
       throw new BadRequestError('Could not upload file to ipfs');
@@ -88,14 +89,14 @@ export const updateCommunity = async (req: Request, res: Response, _next: NextFu
   logger.info({ uploads: !!uploads }, 'Uploads');
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
       return file;
     });
     const { ok, value } = await processUploadToIpfs({ files: uploads });
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
-        url: `${process.env.IPFS_RESOLVER_OVERRIDE}/${ipfsImg.cid}`,
+        url: `${PUBLIC_IPFS_PATH}/${ipfsImg.cid}`,
       }));
     } else {
       throw new BadRequestError('Could not upload file to ipfs');
@@ -219,7 +220,7 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
 
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
       return file;
     });
 
@@ -227,7 +228,7 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
-        url: `${process.env.IPFS_RESOLVER_OVERRIDE}/${ipfsImg.cid}`,
+        url: `${PUBLIC_IPFS_PATH}/${ipfsImg.cid}`,
       }));
     } else {
       throw new BadRequestError('Could not upload file to ipfs');
@@ -286,7 +287,7 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
   logger.info({ uploads: uploads?.map((up) => up.fieldname) }, 'Uploads');
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
       return file;
     });
     const { ok, value } = await processUploadToIpfs({ files: uploads });
@@ -294,7 +295,7 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
-        url: `${process.env.IPFS_RESOLVER_OVERRIDE}/${ipfsImg.cid}`,
+        url: `${PUBLIC_IPFS_PATH}/${ipfsImg.cid}`,
       }));
     } else {
       throw new BadRequestError('Could not upload file to ipfs');
