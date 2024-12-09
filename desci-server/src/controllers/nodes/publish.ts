@@ -88,11 +88,6 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     return res.status(404).send({ error: 'uuid, cid, email, and manifest must be valid' });
   }
 
-  if (email === undefined || email === null) {
-    // Prevent any issues with prisma findFirst with undefined fields
-    return res.status(401).send({ error: 'email must be valid' });
-  }
-
   if (!(ceramicStream && commitId)) {
     logger.warn({ uuid }, `[publish] called with unexpected stream (${ceramicStream}) and/org commit (${commitId})`);
   }
