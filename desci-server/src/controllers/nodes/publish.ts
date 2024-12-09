@@ -69,6 +69,7 @@ async function updateAssociatedAttestations(nodeUuid: string, dpid: string) {
 export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
   const { uuid, cid, manifest, transactionId, ceramicStream, commitId, useNewPublish } = req.body;
   const email = req.user.email;
+  const owner = req.user;
   const logger = parentLogger.child({
     // id: req.id,
     module: 'NODE::publishController',
@@ -79,7 +80,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     ceramicStream,
     commitId,
     email,
-    user: req.user,
+    user: owner,
     useNewPublish,
   });
 
@@ -97,13 +98,6 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
   }
 
   try {
-    /**TODO: MOVE TO MIDDLEWARE */
-    const owner = await prisma.user.findFirst({
-      where: {
-        email,
-      },
-    });
-
     if (!owner.id || owner.id < 1) {
       throw Error('User ID mismatch');
     }
