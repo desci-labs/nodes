@@ -45,10 +45,10 @@ export const createCommunity = async (req: Request, res: Response, _next: NextFu
 
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
+      logger.info({ orginalname: file.originalname, fieldname: file.fieldname }, 'Upload');
       return file;
     });
-    logger.info({ uploads }, 'Uploads');
     const { ok, value } = await processUploadToIpfs({ files: uploads });
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
@@ -89,7 +89,7 @@ export const updateCommunity = async (req: Request, res: Response, _next: NextFu
   logger.info({ uploads: !!uploads }, 'Uploads');
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
       return file;
     });
     const { ok, value } = await processUploadToIpfs({ files: uploads });
@@ -220,7 +220,7 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
 
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
       return file;
     });
 
@@ -287,7 +287,7 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
   logger.info({ uploads: uploads?.map((up) => up.fieldname) }, 'Uploads');
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
       return file;
     });
     const { ok, value } = await processUploadToIpfs({ files: uploads });
