@@ -93,10 +93,6 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
   }
 
   try {
-    if (!owner.id || owner.id < 1) {
-      throw Error('User ID mismatch');
-    }
-
     const node = await prisma.node.findFirst({
       where: {
         ownerId: owner.id,
