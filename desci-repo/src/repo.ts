@@ -154,27 +154,27 @@ class RepoManager {
     adapter.on('ready', (ready) => logger.trace({ ready }, 'networkReady'));
     this.repo.networkSubsystem.addNetworkAdapter(adapter);
 
-    // this.repo.networkSubsystem.on('peer-disconnected', (peer) => {
-    //   if (peer.peerId === adapter.remotePeerId) {
-    //     // clean up adapater and it's document handle after timeout
-    //     setTimeout(() => {
-    //       logger.trace(
-    //         {
-    //           peer: peer.peerId,
-    //           remotePeerId: adapter.remotePeerId,
-    //           documentId,
-    //           socketState: adapter.socket?.readyState,
-    //         },
-    //         'Post disconnect',
-    //       );
-    //       if (adapter.socket?.readyState !== WebSocket.OPEN || !adapter?.socket) this.cleanUp(documentId);
-    //     }, 60000);
-    //   }
-    //   logger.trace(
-    //     { peer: peer.peerId, remotePeerId: adapter.remotePeerId, documentId, socketState: adapter.socket?.readyState },
-    //     'peer-disconnected',
-    //   );
-    // });
+    this.repo.networkSubsystem.on('peer-disconnected', (peer) => {
+      if (peer.peerId === adapter.remotePeerId) {
+        // clean up adapater and it's document handle after timeout
+        // setTimeout(() => {
+        //   logger.trace(
+        //     {
+        //       peer: peer.peerId,
+        //       remotePeerId: adapter.remotePeerId,
+        //       documentId,
+        //       socketState: adapter.socket?.readyState,
+        //     },
+        //     'Post disconnect',
+        //   );
+        //   if (adapter.socket?.readyState !== WebSocket.OPEN || !adapter?.socket) this.cleanUp(documentId);
+        // }, 60000);
+      }
+      logger.trace(
+        { peer: peer.peerId, remotePeerId: adapter.remotePeerId, documentId, socketState: adapter.socket?.readyState },
+        'peer-disconnected',
+      );
+    });
 
     this.clients.set(documentId, adapter);
   }

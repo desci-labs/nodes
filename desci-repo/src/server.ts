@@ -1,3 +1,6 @@
+import 'reflect-metadata';
+import path from 'path';
+
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
@@ -5,9 +8,6 @@ const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
 const IS_DEV = !ENABLE_TELEMETRY;
 
 // @ts-check
-import 'dotenv/config';
-import 'reflect-metadata';
-import path from 'path';
 
 import express from 'express';
 import type { Express, Request } from 'express';

@@ -59,7 +59,7 @@ export class AutomergeServer extends PartyServer {
 
     const auth = params.get('auth');
     let isAuthorised = false;
-    // console.log('[onConnect]', { auth, token: this.API_TOKEN });
+    console.log('[onConnect]', { auth, token: this.API_TOKEN });
     if (auth === this.API_TOKEN) {
       isAuthorised = true;
     } else {
