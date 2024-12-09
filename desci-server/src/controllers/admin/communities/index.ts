@@ -52,7 +52,7 @@ export const createCommunity = async (req: Request, res: Response, _next: NextFu
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
-        url: `${process.env.IPFS_RESOLVER_OVERRIDE}/${ipfsImg.cid}`,
+        url: `${process.env.IPFS_RESOLVER_URL}/${ipfsImg.cid}`,
       }));
     } else {
       throw new BadRequestError('Could not upload file to ipfs');
