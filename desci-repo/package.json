@@ -71,7 +71,7 @@
     "typescript": "5.1.6"
   },
   "dependencies": {
-    "@desci-labs/desci-models": "^0.2.17",
+    "@desci-labs/desci-models": "^0.2.19",
     "@sentry/node": "8.29.0",
     "@sentry/profiling-node": "8.32.0",
     "@sentry/tracing": "^7.84.0",
