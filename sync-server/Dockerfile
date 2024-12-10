@@ -4,8 +4,10 @@ WORKDIR /workdir
 
 RUN apt-get update && apt-get install -y curl ca-certificates
 
-# RUN curl -LO https://github.com/cloudflare/workerd/releases/download/v1.20241112.0/workerd-linux-arm64.gz
-RUN curl -LO https://github.com/cloudflare/workerd/releases/download/v1.20241127.0/workerd-linux-64.gz
+RUN ARCH="$(dpkg --print-architecture)" && echo "${ARCH}"
+RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then curl -LO https://github.com/cloudflare/workerd/releases/download/v1.20241112.0/workerd-linux-64.gz; fi
+RUN if [ "$(dpkg --print-architecture)" = "arm64" ]; then curl -LO https://github.com/cloudflare/workerd/releases/download/v1.20241112.0/workerd-linux-arm64.gz; fi
+
 
 RUN ls -la && gunzip workerd*.gz && mv workerd* workerd && chmod +x workerd
 
@@ -20,8 +22,6 @@ COPY --from=builder /workdir/workerd /workerd
 COPY --from=builder /workdir/lib /lib
 
 WORKDIR /worker
-# COPY worker.capnp worker.capnp
-# COPY .wrangler/dist/ .
 
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
