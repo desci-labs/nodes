@@ -1,11 +1,11 @@
 import { FileType, ResearchObjectV1, isNodeRoot, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
-import { DataReference, DataType, NodeVersion, Prisma, Node } from '@prisma/client';
+import { DataReference, DataType, Prisma, Node } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
-import { discoveryLs, getDirectoryTree, getSizeForCid } from '../services/ipfs.js';
+import { discoveryLs, getDirectoryTree, getSizeForCid, RecursiveLsResult } from '../services/ipfs.js';
 import { ensureUuidEndsWithDot, objectPropertyXor, omitKeys } from '../utils.js';
 
 import { DRAFT_CID, TimestampMap, draftNodeTreeEntriesToFlatIpfsTree } from './draftTreeUtils.js';
@@ -97,7 +97,7 @@ export async function generateDataReferences({
   const externalCidMap = workingTreeUrl
     ? await extractExternalCidMapFromTreeUrl(workingTreeUrl)
     : await generateExternalCidMap(node.uuid);
-  let dataTree;
+  let dataTree: RecursiveLsResult[];
   if (isPublished) {
     if (markExternals) {
       dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
@@ -106,7 +106,7 @@ export async function generateDataReferences({
     }
   } else {
     const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
-    dataTree = await draftNodeTreeEntriesToFlatIpfsTree(dbTree);
+    dataTree = draftNodeTreeEntriesToFlatIpfsTree(dbTree);
   }
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
 
@@ -135,7 +135,11 @@ export async function generateDataReferences({
   return [...(isPublished ? [dataRootEntry, ...manifestRefIncluded] : [...manifestRefIncluded]), ...dataTreeToPubRef];
 }
 
-// used to prepare data refs for a given dag and manifest (differs from generateDataReferences in that you don't need the updated manifestCid ahead of time)
+/**
+ * used to prepare data refs for a given dag and manifest. Differs from generateDataReferences in that you don't
+ * need the updated manifestCid ahead of time.
+ * @deprecated - unused
+ */
 export async function prepareDataRefs(
   nodeUuid: string,
   manifest: ResearchObjectV1,
@@ -207,7 +211,7 @@ export async function prepareDataRefsForDraftTrees(
   const manifestEntry: ResearchObjectV1 = manifest;
 
   const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
-  const dataTree = await draftNodeTreeEntriesToFlatIpfsTree(dbTree);
+  const dataTree = draftNodeTreeEntriesToFlatIpfsTree(dbTree);
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
   // debugger;
 
@@ -284,6 +288,9 @@ export async function prepareDataRefsForDagSkeleton({
   return [dataRootEntry, ...dataTreeToPubRef];
 }
 
+/**
+ * @deprecated - unused
+ */
 export async function prepareDataRefsExternalCids(
   nodeUuid: string,
   manifest: ResearchObjectV1,

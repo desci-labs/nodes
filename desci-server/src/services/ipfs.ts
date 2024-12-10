@@ -1,6 +1,5 @@
 import fs from 'fs';
 import https from 'https';
-import path from 'path';
 import { Readable } from 'stream';
 
 import {
@@ -95,10 +94,12 @@ export const updateManifestAndAddToIpfs = async (
   return { cid: result.cid.toString(), size: result.size, ref, nodeVersion: version };
 };
 
-export const addBufferToIpfs = (buf: Buffer, key: string) => {
-  return client.add(buf, { cidVersion: 1 }).then((res) => {
-    return { cid: res.cid.toString(), size: res.size, key };
-  });
+export const addBufferToIpfs = async (
+  buf: Buffer,
+  key: string,
+): Promise<{ cid: string; size: number; key: string }> => {
+  const { cid, size } = await client.add(buf, { cidVersion: 1 });
+  return { cid: cid.toString(), size: Number(size), key };
 };
 
 export const getSizeForCid = async (cid: string, asDirectory: boolean | undefined): Promise<number> => {
@@ -182,7 +183,7 @@ interface CodeComponentSingle {
 const processUrls = (key: string, data: Array<string>): Array<Promise<UrlWithCid>> => {
   logger.trace({ fn: 'processUrls' }, `processUrls key: ${key}, data: ${data}`);
 
-  return data.map(async (e, i) => {
+  return data.map(async (e) => {
     // if our payload points to github, download a zip of the main branch
     if (key === 'code') {
       if (e.indexOf('github.com') > -1) {
@@ -205,10 +206,10 @@ export const downloadFile = async (url: string, key: string): Promise<UrlWithCid
     return addBufferToIpfs(buf, key);
   }
 
-  return new Promise(async (resolve, reject) => {
+  return new Promise(async (resolve, _reject) => {
     try {
       logger.info({ fn: 'downloadFile' }, `start download ${url.substring(0, 256)}`);
-      const { data, headers } = await axios({
+      const { data } = await axios({
         method: 'get',
         url: url,
         responseType: 'stream',
@@ -322,12 +323,9 @@ export interface RecursiveLsResult extends IpfsPinnedResult {
 
 export const convertToCidV1 = (cid: string | multiformats.CID): string => {
   if (typeof cid === 'string') {
-    const c = multiformats.CID.parse(cid);
-    return c.toV1().toString();
-  } else {
-    const cV1 = cid.toV1().toString();
-    return cV1;
+    cid = multiformats.CID.parse(cid);
   }
+  return cid.toV1().toString();
 };
 
 export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
@@ -361,8 +359,7 @@ export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
       targetValue = (targetValue as Uint8Array).buffer;
     }
 
-    const buffer = Buffer.from(targetValue);
-    return buffer;
+    return Buffer.from(targetValue);
   }
 };
 
@@ -486,7 +483,7 @@ export async function mixedLs(
   carryPath = carryPath || convertToCidV1(dagCid);
   const tree: RecursiveLsResult[] = [];
   const cidObject = multiformats.CID.parse(dagCid);
-  let block;
+  let block: Uint8Array;
   try {
     block = await client.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT }); //instead of throwing, catch and print cid
   } catch (err) {
@@ -518,7 +515,7 @@ export async function mixedLs(
       if (linkCidObject.code === rawCode || isFile) {
         result.size = link.Tsize;
       } else {
-        let linkBlock;
+        let linkBlock: Uint8Array;
         try {
           linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT }); //instead of throwing, catch and print cid
         } catch (err) {
@@ -596,12 +593,18 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
     const tree: RecursiveLsResult[] = [];
     const cidObject = multiformats.CID.parse(dagCid);
     let block = await client.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
-    if (!block) block = await publicIpfs.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
-    if (!block) throw new Error('Could not find block for cid: ' + dagCid);
+    if (!block) {
+      block = await publicIpfs.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+    }
+    if (!block) {
+      throw new Error('Could not find block for cid: ' + dagCid);
+    }
     const { Data, Links } = dagPb.decode(block);
     const unixFs = UnixFS.unmarshal(Data);
     const isDir = dirTypes.includes(unixFs?.type);
-    if (!isDir) return null;
+    if (!isDir) {
+      return null;
+    }
     for (const link of Links) {
       const result: RecursiveLsResult = {
         name: link.Name,
@@ -611,15 +614,21 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
         type: 'file',
       };
       const externalCidMapEntry = externalCidMap[result.cid];
-      if (externalCidMapEntry) result.external = true;
+      if (externalCidMapEntry) {
+        result.external = true;
+      }
       const isExternalFile = externalCidMapEntry && externalCidMapEntry.directory == false;
       const linkCidObject = multiformats.CID.parse(result.cid);
       if (linkCidObject.code === rawCode || isExternalFile) {
         result.size = link.Tsize;
       } else {
         let linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
-        if (!linkBlock) linkBlock = await publicIpfs.block.get(cidObject, { timeout: EXTERNAL_IPFS_TIMEOUT });
-        if (!linkBlock) throw new Error('Could not find block for cid: ' + dagCid);
+        if (!linkBlock) {
+          linkBlock = await publicIpfs.block.get(cidObject, { timeout: EXTERNAL_IPFS_TIMEOUT });
+        }
+        if (!linkBlock) {
+          throw new Error('Could not find block for cid: ' + dagCid);
+        }
         const { Data: linkData } = dagPb.decode(linkBlock);
         const unixFsLink = UnixFS.unmarshal(linkData);
         const isLinkDir = dirTypes.includes(unixFsLink?.type);
@@ -646,16 +655,14 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
 }
 
 export const getDag = async (cid: CID) => {
-  const dag = await client.dag.get(cid);
-  return dag;
+  return await client.dag.get(cid);
 };
 
-export const getDatasetTar = async (cid) => {
-  const files = await client.get(cid, { archive: true });
-  return files;
+export const getDatasetTar = async (cid: CID | string): Promise<AsyncIterable<Uint8Array>> => {
+  return client.get(cid, { archive: true });
 };
 
-export const getDataset = async (cid: CID) => {
+export const getDataset = async (cid: CID | string) => {
   const files = [];
   for await (const file of client.get(cid)) {
     files.push(file);
@@ -702,7 +709,7 @@ type FileInfo = { cid: string; size?: number };
 export type FilesToAddToDag = Record<FilePath, FileInfo>;
 
 export const addFilesToDag = async (rootCid: string, contextPath: string, filesToAddToDag: FilesToAddToDag) => {
-  const dagCidsToBeReset = [];
+  const dagCidsToBeReset: CID[] = [];
   //                  CID(String): DAGNode     - cached to prevent duplicate calls
   const dagsLoaded: Record<string, PBNode> = {};
   dagCidsToBeReset.push(CID.parse(rootCid));
@@ -711,8 +718,7 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
     for (let i = 0; i < stagingDagNames.length; i++) {
       const dagLinkName = stagingDagNames[i];
       const containingDagCid = dagCidsToBeReset[i];
-      //FIXME containingDag is of type PBNode
-      const containingDag: any = await client.object.get(containingDagCid);
+      const containingDag: PBNode = await client.object.get(containingDagCid);
       if (!containingDag) {
         throw Error('Failed updating dataset, existing DAG not found');
       }
@@ -727,9 +733,7 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
 
   //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
   if (!dagsLoaded.length) {
-    //FIXME rootDag is of type PBNode
-    const rootDag = await client.object.get(dagCidsToBeReset[0]);
-    dagsLoaded[rootCid] = rootDag;
+    dagsLoaded[rootCid] = await client.object.get(dagCidsToBeReset[0]);
   }
 
   //establishing the tail dag that's being updated
@@ -748,8 +752,7 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
 
   while (dagCidsToBeReset.length) {
     const currentNodeCid = dagCidsToBeReset.pop();
-    //FIXME should be PBLink
-    const currentNode: any = dagsLoaded[currentNodeCid.toString()]
+    const currentNode: PBNode = dagsLoaded[currentNodeCid.toString()]
       ? dagsLoaded[currentNodeCid.toString()]
       : await client.object.get(currentNodeCid);
     const linkName = stagingDagNames.pop();
@@ -771,7 +774,7 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
 };
 
 export const removeFileFromDag = async (rootCid: string, contextPath: string, fileNameToRemove: string) => {
-  const dagCidsToBeReset = [];
+  const dagCidsToBeReset: CID[] = [];
   //                  CID(String): DAGNode     - cached to prevent duplicate calls
   const dagsLoaded: Record<string, PBNode> = {};
   dagCidsToBeReset.push(CID.parse(rootCid));
@@ -780,8 +783,7 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
     for (let i = 0; i < stagingDagNames.length; i++) {
       const dagLinkName = stagingDagNames[i];
       const containingDagCid = dagCidsToBeReset[i];
-      //FIXME containingDag is of type PBNode
-      const containingDag: any = await client.object.get(containingDagCid);
+      const containingDag: PBNode = await client.object.get(containingDagCid);
       if (!containingDag) {
         throw Error('Failed updating dataset, existing DAG not found');
       }
@@ -796,9 +798,7 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
 
   //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
   if (!dagsLoaded.length) {
-    //FIXME rootDag is of type PBNode
-    const rootDag = await client.object.get(dagCidsToBeReset[0]);
-    dagsLoaded[rootCid] = rootDag;
+    dagsLoaded[rootCid] = await client.object.get(dagCidsToBeReset[0]);
   }
 
   //establishing the tail dag that's being updated
@@ -814,8 +814,7 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
   let lastUpdatedCid = updatedTailNodeCid;
   while (dagCidsToBeReset.length) {
     const currentNodeCid = dagCidsToBeReset.pop();
-    //FIXME should be PBLink
-    const currentNode: any = dagsLoaded[currentNodeCid.toString()]
+    const currentNode: PBNode = dagsLoaded[currentNodeCid.toString()]
       ? dagsLoaded[currentNodeCid.toString()]
       : await client.object.get(currentNodeCid);
     const linkName = stagingDagNames.pop();
@@ -830,7 +829,9 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
 };
 
 export async function removeDagLink(dagCid: string | multiformats.CID, linkName: string) {
-  if (typeof dagCid === 'string') dagCid = multiformats.CID.parse(dagCid);
+  if (typeof dagCid === 'string') {
+    dagCid = multiformats.CID.parse(dagCid);
+  }
 
   if (dagCid.code == rawCode) {
     throw new Error('raw cid -- not a directory');
@@ -860,7 +861,7 @@ export async function removeDagLink(dagCid: string | multiformats.CID, linkName:
 }
 
 export const renameFileInDag = async (rootCid: string, contextPath: string, linkToRename: string, newName: string) => {
-  const dagCidsToBeReset = [];
+  const dagCidsToBeReset: CID[] = [];
   //                  CID(String): DAGNode     - cached to prevent duplicate calls
   const dagsLoaded: Record<string, PBNode> = {};
   dagCidsToBeReset.push(CID.parse(rootCid));
@@ -869,8 +870,7 @@ export const renameFileInDag = async (rootCid: string, contextPath: string, link
     for (let i = 0; i < stagingDagNames.length; i++) {
       const dagLinkName = stagingDagNames[i];
       const containingDagCid = dagCidsToBeReset[i];
-      //FIXME containingDag is of type PBNode
-      const containingDag: any = await client.object.get(containingDagCid);
+      const containingDag: PBNode = await client.object.get(containingDagCid);
       if (!containingDag) {
         throw Error('Failed updating dataset, existing DAG not found');
       }
@@ -885,9 +885,7 @@ export const renameFileInDag = async (rootCid: string, contextPath: string, link
 
   //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
   if (!dagsLoaded.length) {
-    //FIXME rootDag is of type PBNode
-    const rootDag = await client.object.get(dagCidsToBeReset[0]);
-    dagsLoaded[rootCid] = rootDag;
+    dagsLoaded[rootCid] = await client.object.get(dagCidsToBeReset[0]);
   }
 
   //establishing the tail dag that's being updated
@@ -903,8 +901,7 @@ export const renameFileInDag = async (rootCid: string, contextPath: string, link
   let lastUpdatedCid = updatedTailNodeCid;
   while (dagCidsToBeReset.length) {
     const currentNodeCid = dagCidsToBeReset.pop();
-    //FIXME should be PBLink
-    const currentNode: any = dagsLoaded[currentNodeCid.toString()]
+    const currentNode: PBNode = dagsLoaded[currentNodeCid.toString()]
       ? dagsLoaded[currentNodeCid.toString()]
       : await client.object.get(currentNodeCid);
     const linkName = stagingDagNames.pop();
@@ -946,7 +943,9 @@ export const moveFileInDag = async (rootCid: string, contextPath: string, fileTo
 };
 
 export async function renameDagLink(dagCid: string | multiformats.CID, linkName: string, newName: string) {
-  if (typeof dagCid === 'string') dagCid = multiformats.CID.parse(dagCid);
+  if (typeof dagCid === 'string') {
+    dagCid = multiformats.CID.parse(dagCid);
+  }
 
   if (dagCid.code == rawCode) {
     throw new Error('raw cid -- not a directory');
@@ -999,8 +998,8 @@ export async function getExternalCidSizeAndType(cid: string) {
     const { Data } = dagPb.decode(block);
 
     const unixFs = UnixFS.unmarshal(Data);
-    let isDirectory;
-    let size;
+    let isDirectory: boolean;
+    let size: number;
     const isDir = dirTypes.includes(unixFs?.type);
     if (code === 0x70 && isDir) {
       //0x70 === dag-pb
@@ -1010,12 +1009,14 @@ export async function getExternalCidSizeAndType(cid: string) {
       isDirectory = false;
       const fSize = unixFs.fileSize();
       if (fSize) {
-        size = fSize;
+        size = Number(fSize);
       } else {
-        size = unixFs.blockSizes.reduce((a, b) => a + b, BigInt(0));
+        size = unixFs.blockSizes.map(Number).reduce((a, b) => a + b, 0);
       }
     }
-    if (isDirectory !== undefined && size !== undefined) return { isDirectory, size };
+    if (size !== undefined) {
+      return { isDirectory, size };
+    }
     throw new Error(`Failed to resolve CID or determine file size/type for cid: ${cid}`);
   } catch (error) {
     logger.error({ fn: 'getExternalCidSizeAndType', error }, `[getExternalCidSizeAndType]Error: ${error.message}`);
@@ -1048,8 +1049,7 @@ export function strIsCid(cid: string) {
     const cidObj = multiformats.CID.parse(cid);
     const validCid = multiformats.CID.asCID(cidObj);
 
-    if (!!validCid) return true;
-    return false;
+    return !!validCid;
   } catch (e) {
     return false;
   }
