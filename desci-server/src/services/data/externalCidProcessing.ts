@@ -13,20 +13,10 @@ import { prisma } from '../../client.js';
 import { ExternalCid } from '../../controllers/data/updateExternalCid.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
-import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
-import {
-  GetExternalSizeAndTypeResult,
-  convertToCidV1,
-  getExternalCidSizeAndType,
-  pubRecursiveLs,
-} from '../../services/ipfs.js';
 import { DRAFT_CID } from '../../utils/draftTreeUtils.js';
-import {
-  FirstNestingComponent,
-  addComponentsToDraftManifest,
-  getTreeAndFill,
-  prepareFirstNestingComponents,
-} from '../../utils/driveUtils.js';
+import { getTreeAndFill, prepareFirstNestingComponents } from '../../utils/driveUtils.js';
+import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../draftTrees.js';
+import { GetExternalSizeAndTypeResult, convertToCidV1, getExternalCidSizeAndType, pubRecursiveLs } from '../ipfs.js';
 import { NodeUuid, getLatestManifestFromNode } from '../manifestRepo.js';
 import repoService from '../repoService.js';
 
@@ -72,7 +62,16 @@ export async function processExternalCidDataToIpfs({
   componentSubtype,
   autoStar,
 }: ProcessExternalCidDataToIpfsParams) {
-  logger.debug({ fn: 'processExternalCidDataToIpfs', externalCids, user, node, contextPath, componentType, componentSubtype, autoStar});
+  logger.debug({
+    fn: 'processExternalCidDataToIpfs',
+    externalCids,
+    user,
+    node,
+    contextPath,
+    componentType,
+    componentSubtype,
+    autoStar,
+  });
 
   try {
     /**
