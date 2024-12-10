@@ -35,7 +35,10 @@ interface IpfsDagToDraftNodeTreeEntriesParams {
 
 /**
  * Converts an IPFS tree to an array of DraftNodeTree entries ready to be added to the DraftNodeTree table
+ * @param ipfsTree
+ * @param node
  * @param timestampMap - Optional map that maps drive paths to their created/last modified timestamps, if not provided then they'll be generated automatically by the DB.
+ * @param contextPath
  */
 export function ipfsDagToDraftNodeTreeEntries({
   ipfsTree,
@@ -69,7 +72,7 @@ export function ipfsDagToDraftNodeTreeEntries({
  * Converts a draftNodeTree to a flat IPFS tree, ready to be consumed by functions that take a flat IPFS tree.
  * More efficient than converting to an IPFS tree and then flattening it, when unflatenned variant is unnecessary.
  */
-export function draftNodeTreeEntriesToFlatIpfsTree(draftNodeTree: DraftNodeTree[]) {
+export function draftNodeTreeEntriesToFlatIpfsTree(draftNodeTree: DraftNodeTree[]): RecursiveLsResult[] {
   const flatIpfsTree: RecursiveLsResult[] = [];
   draftNodeTree.forEach((entry) => {
     const { cid, size, directory, path, external } = entry;
@@ -117,14 +120,12 @@ export function flatTreeToHierarchicalTree(flatTree: RecursiveLsResult[]): Recur
 /*
  * Function to add a DAGNode to IPFS and return its CID
  */
-async function addDagNodeToIpfs(dagNode) {
-  const cid = await client.block.put(encode(prepare(dagNode)), {
+async function addDagNodeToIpfs(dagNode: unknown): Promise<CID> {
+  return await client.block.put(encode(prepare(dagNode)), {
     version: 1,
     format: 'dag-pb',
     // pin: true,
   });
-  // logger.debug(`Added DAGNode to IPFS: ${cid.toString()}`);
-  return cid;
 }
 
 /*
