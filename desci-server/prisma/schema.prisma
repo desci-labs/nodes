@@ -948,6 +948,7 @@ model PublishStatus {
   commitId               String?
   ceramicComit           Boolean?
   assignDpid             Boolean?
+  handleNodeVersionEntry Boolean?
   createPdr              Boolean?
   fireDeferredEmails     Boolean?
   fireNotifications      Boolean?
