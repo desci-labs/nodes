@@ -19,6 +19,6 @@ RUN yarn build
 EXPOSE 5484
 
 # websocket
-EXPOSE 5445
+# EXPOSE 5445
 
 CMD [ "yarn", "start" ]

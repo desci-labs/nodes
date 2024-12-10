@@ -7,14 +7,13 @@ services:
       - ./desci-repo/.env
     ports:
       - "5484:5484"
-      - "5445:5445"
       - "9232:9232"
+      # - "5445:5445"
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
       db_postgres:
-        condition:
-          service_healthy
+        condition: service_healthy
     links:
       - db_postgres
     volumes:
