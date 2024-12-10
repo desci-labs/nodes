@@ -50,21 +50,6 @@ export type PublishResBody =
   | {
       error: string;
     };
-async function updateAssociatedAttestations(nodeUuid: string, dpid: string) {
-  const logger = parentLogger.child({
-    // id: req.id,
-    module: 'NODE::publishController',
-  });
-  logger.info({ nodeUuid, dpid }, `[updateAssociatedAttestations]`);
-  return await prisma.nodeAttestation.updateMany({
-    where: {
-      nodeUuid,
-    },
-    data: {
-      nodeDpid10: dpid,
-    },
-  });
-}
 
 export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
   const { uuid, cid, manifest, transactionId, ceramicStream, commitId, useNewPublish } = req.body;
@@ -136,31 +121,17 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       publishStatusEntry.id,
     );
 
-    await PublishServices.updatePublishStatusEntry({
-      publishStatusId: publishStatusEntry.id,
-      data: {
-        assignDpid: true,
-      },
-    });
+    PublishServices.updateAssociatedAttestations(
+      node.uuid,
+      dpidAlias ? dpidAlias.toString() : manifest.dpid?.id,
+      publishStatusEntry.id,
+    );
 
-    updateAssociatedAttestations(node.uuid, dpidAlias ? dpidAlias.toString() : manifest.dpid?.id);
-    await PublishServices.updatePublishStatusEntry({
-      publishStatusId: publishStatusEntry.id,
-      data: {
-        updateAttestations: true,
-      },
-    });
-
-    await PublishServices.transformDraftComments(
+    await PublishServices.transformDraftComments({
       node,
       owner,
-      dpidAlias ? dpidAlias : manifest.dpid?.id ? parseInt(manifest.dpid.id) : undefined,
-    );
-    await PublishServices.updatePublishStatusEntry({
+      dpidAlias: dpidAlias ? dpidAlias : manifest.dpid?.id ? parseInt(manifest.dpid.id) : undefined,
       publishStatusId: publishStatusEntry.id,
-      data: {
-        transformDraftComments: true,
-      },
     });
 
     // Make sure we don't serve stale manifest state when a publish is happening
@@ -307,7 +278,9 @@ const syncPublish = async (
     // The only reason this isn't just fire-and-forget is that we want the dpid
     // for the discord notification, which won't be available otherwise for
     // first time publishes.
-    promises.push(createOrUpgradeDpidAlias(legacyDpid, ceramicStream, uuid).then((dpid) => (dpidAlias = dpid)));
+    promises.push(
+      createOrUpgradeDpidAlias(legacyDpid, ceramicStream, uuid, publishStatusId).then((dpid) => (dpidAlias = dpid)),
+    );
   }
 
   promises.push(
@@ -318,28 +291,16 @@ const syncPublish = async (
       manifestCid: cid,
       nodeVersionId: nodeVersion.id,
       nodeUuid: node.uuid,
+      publishStatusId,
     }),
   );
 
   await Promise.all(promises);
 
-  await PublishServices.updatePublishStatusEntry({
-    publishStatusId,
-    data: {
-      createPdr: true,
-    },
-  });
-
   const dpid = dpidAlias?.toString() || legacyDpid?.toString();
-  // Intentionally of above stacked promise, needs the DPID to be resolved!!!
+  // Intentionally above stacked promise, needs the DPID to be resolved!!!
   // Send emails coupled to the publish event
-  await PublishServices.handleDeferredEmails(node.uuid, dpid);
-  await PublishServices.updatePublishStatusEntry({
-    publishStatusId,
-    data: {
-      fireDeferredEmails: true,
-    },
-  });
+  await PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId);
 
   /*
    * Emit notification on publish
@@ -370,12 +331,14 @@ const createOrUpgradeDpidAlias = async (
   legacyDpid: number | undefined,
   ceramicStream: string,
   uuid: string,
+  publishStatusId: number,
 ): Promise<number> => {
   const logger = parentLogger.child({
     module: 'NODE::createOrUpgradeDpidAlias',
     legacyDpid,
     ceramicStream,
     uuid,
+    publishStatusId,
   });
 
   let dpidAlias: number;
@@ -411,6 +374,22 @@ const createOrUpgradeDpidAlias = async (
     dpidAlias = await getOrCreateDpid(ceramicStream);
   }
   await setDpidAlias(uuid, dpidAlias);
+  if (dpidAlias) {
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        assignDpid: true,
+      },
+    });
+  } else {
+    console.error({ fn: 'createOrUpgradeDpidAlias', dpidAlias, uuid, publishStatusId }, 'Failed DPID assignment');
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        assignDpid: false,
+      },
+    });
+  }
   return dpidAlias;
 };
 
@@ -420,6 +399,7 @@ type PublishData = {
   userId: number;
   manifestCid: string;
   nodeVersionId: number;
+  publishStatusId: number;
 };
 
 const handlePublicDataRefs = async (params: PublishData): Promise<void> => {
@@ -454,6 +434,12 @@ const handlePublicDataRefs = async (params: PublishData): Promise<void> => {
       params,
       result: { newPublicDataRefs },
     });
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId: params.publishStatusId,
+      data: {
+        createPdr: true,
+      },
+    });
   } catch (error) {
     logger.error({ error }, `[publish::publish] error=${error}`);
     /**
@@ -462,6 +448,12 @@ const handlePublicDataRefs = async (params: PublishData): Promise<void> => {
     await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_FAIL, {
       params,
       error,
+    });
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId: params.publishStatusId,
+      data: {
+        createPdr: false,
+      },
     });
     throw error;
   }
@@ -515,6 +507,18 @@ export const publishHandler = async ({
     }
     /**TODO: END MOVE TO MIDDLEWARE */
 
+    /*
+     ** Add PublishStatus entry
+     */
+    const publishStatusEntry = await PublishServices.createPublishStatusEntry(uuid);
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId: publishStatusEntry.id,
+      data: {
+        commitId: commitId,
+        ceramicComit: true,
+      },
+    });
+
     // update node version
     const latestNodeVersion = await prisma.nodeVersion.findFirst({
       where: {
@@ -561,6 +565,7 @@ export const publishHandler = async ({
       userId: owner.id,
       manifestCid: cid,
       nodeVersionId: nodeVersion.id,
+      publishStatusId: publishStatusEntry.id,
     });
 
     const manifest = await getManifestByCid(cid);
@@ -572,7 +577,7 @@ export const publishHandler = async ({
     /**
      * Fire off any deferred emails awaiting publish
      */
-    await PublishServices.handleDeferredEmails(node.uuid, dpid);
+    await PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusEntry.id);
 
     /*
      * Emit notification on publish

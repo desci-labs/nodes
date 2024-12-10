@@ -144,61 +144,81 @@ async function retrieveBlockTimeByManifestCid(uuid: string, manifestCid: string)
 /**
  * Some emails are deferred until the node is published. This function will handle those deferred emails.
  */
-async function handleDeferredEmails(uuid: string, dpid: string) {
-  logger.info({ fn: 'handleDeferredEmails', uuid, dpid }, 'Init deferred emails');
-  const deferred = await prisma.deferredEmails.findMany({
-    where: {
-      nodeUuid: ensureUuidEndsWithDot(uuid),
-    },
-    include: {
-      User: true,
-    },
-  });
+async function handleDeferredEmails(uuid: string, dpid: string, publishStatusId: number) {
+  logger.info({ fn: 'handleDeferredEmails', uuid, dpid, publishStatusId }, 'Init deferred emails');
 
-  logger.info({ fn: 'handleDeferredEmails', uuid, dpid, deferred }, 'Init deferred emails, step 2');
+  try {
+    const deferred = await prisma.deferredEmails.findMany({
+      where: {
+        nodeUuid: ensureUuidEndsWithDot(uuid),
+      },
+      include: {
+        User: true,
+      },
+    });
 
-  const protectedAttestationEmails = deferred.filter((d) => d.emailType === EmailType.PROTECTED_ATTESTATION);
+    logger.info({ fn: 'handleDeferredEmails', uuid, dpid, deferred }, 'Init deferred emails, step 2');
 
-  logger.info({ fn: 'handleDeferredEmails', uuid, dpid, protectedAttestationEmails }, 'Init deferred emails, step 3');
+    const protectedAttestationEmails = deferred.filter((d) => d.emailType === EmailType.PROTECTED_ATTESTATION);
 
-  if (protectedAttestationEmails.length) {
-    // Handle the emails related to protected attestation claims
-    const nodeVersion = await getNodeVersion(uuid);
+    logger.info({ fn: 'handleDeferredEmails', uuid, dpid, protectedAttestationEmails }, 'Init deferred emails, step 3');
 
-    const indexed = await getIndexedResearchObjects([uuid]);
-    const isNodePublished = indexed?.researchObjects?.length > 0;
+    if (protectedAttestationEmails.length) {
+      // Handle the emails related to protected attestation claims
+      const nodeVersion = await getNodeVersion(uuid);
 
-    logger.info({ fn: 'handleDeferredEmails', uuid, dpid, indexed, isNodePublished }, 'Init deferred emails, step 4');
+      const indexed = await getIndexedResearchObjects([uuid]);
+      const isNodePublished = indexed?.researchObjects?.length > 0;
 
-    if (isNodePublished) {
-      await Promise.allSettled(
-        protectedAttestationEmails.map((entry) => {
-          return attestationService.emailProtectedAttestationCommunityMembers(
-            entry.attestationId,
-            entry.attestationVersionId,
-            nodeVersion - 1, // 0-indexed total expected
-            dpid,
-            entry.User,
-            ensureUuidEndsWithDot(uuid),
-          );
-        }),
-      );
-      logger.info(
-        { fn: 'handleDeferredEmails', uuid, dpid, protectedAttestationEmails },
-        `Sent ${protectedAttestationEmails.length} deferred protected attestation emails`,
-      );
-      // Remove the deferred emails after they have been sent
-      const executedDeferredEmailIds = protectedAttestationEmails.map((e) => e.id);
-      const deleted = await prisma.deferredEmails.deleteMany({
-        where: {
-          id: { in: executedDeferredEmailIds },
+      logger.info({ fn: 'handleDeferredEmails', uuid, dpid, indexed, isNodePublished }, 'Init deferred emails, step 4');
+
+      if (isNodePublished) {
+        await Promise.allSettled(
+          protectedAttestationEmails.map((entry) => {
+            return attestationService.emailProtectedAttestationCommunityMembers(
+              entry.attestationId,
+              entry.attestationVersionId,
+              nodeVersion - 1, // 0-indexed total expected
+              dpid,
+              entry.User,
+              ensureUuidEndsWithDot(uuid),
+            );
+          }),
+        );
+        logger.info(
+          { fn: 'handleDeferredEmails', uuid, dpid, protectedAttestationEmails },
+          `Sent ${protectedAttestationEmails.length} deferred protected attestation emails`,
+        );
+        // Remove the deferred emails after they have been sent
+        const executedDeferredEmailIds = protectedAttestationEmails.map((e) => e.id);
+        const deleted = await prisma.deferredEmails.deleteMany({
+          where: {
+            id: { in: executedDeferredEmailIds },
+          },
+        });
+        logger.info(
+          { fn: 'handleDeferredEmails', uuid, dpid, protectedAttestationEmails },
+          `removed ${deleted?.count} deferred protected attestation email entries as they have been executed`,
+        );
+      }
+      await PublishServices.updatePublishStatusEntry({
+        publishStatusId,
+        data: {
+          fireDeferredEmails: true,
         },
       });
-      logger.info(
-        { fn: 'handleDeferredEmails', uuid, dpid, protectedAttestationEmails },
-        `removed ${deleted?.count} deferred protected attestation email entries as they have been executed`,
-      );
     }
+  } catch (e) {
+    console.error(
+      { error: e, fn: 'handleDeferredEmails', uuid, dpid, publishStatusId },
+      'Something went wrong whilst firing deferred emails',
+    );
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        fireDeferredEmails: false,
+      },
+    });
   }
 }
 
@@ -210,24 +230,86 @@ export interface NodeUpdatedEmailProps {
   versionUpdate: string;
 }
 
-async function transformDraftComments(node: Node, owner: User, dpidAlias?: number) {
-  const root = await prisma.publicDataReference.findFirst({
-    where: { nodeId: node.id, root: true, userId: owner.id },
-    orderBy: { updatedAt: 'desc' },
-  });
-  const result = await getIndexedResearchObjects([ensureUuidEndsWithDot(node.uuid)]);
-  // if node is being published for the first time default to 1
-  const version = result ? result.researchObjects?.[0]?.versions.length : 1;
-  logger.info({ root, result, version }, 'publishDraftComments::Root');
+async function transformDraftComments({
+  node,
+  owner,
+  dpidAlias,
+  publishStatusId,
+}: {
+  node: Node;
+  owner: User;
+  dpidAlias?: number;
+  publishStatusId: number;
+}) {
+  // Moved from controllers/nodes/publish.ts
 
-  // publish draft comments
-  await attestationService.publishDraftComments({
-    node,
-    userId: owner.id,
-    dpidAlias: dpidAlias,
-    rootCid: root.rootCid,
-    version,
-  });
+  try {
+    const root = await prisma.publicDataReference.findFirst({
+      where: { nodeId: node.id, root: true, userId: owner.id },
+      orderBy: { updatedAt: 'desc' },
+    });
+    const result = await getIndexedResearchObjects([ensureUuidEndsWithDot(node.uuid)]);
+    // if node is being published for the first time default to 1
+    const version = result ? result.researchObjects?.[0]?.versions.length : 1;
+    logger.info({ root, result, version, publishStatusId }, 'publishDraftComments::Root');
+
+    // publish draft comments
+    await attestationService.publishDraftComments({
+      node,
+      userId: owner.id,
+      dpidAlias: dpidAlias,
+      rootCid: root.rootCid,
+      version,
+    });
+
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        transformDraftComments: true,
+      },
+    });
+  } catch (e) {
+    logger.error({ node, owner, dpidAlias, publishStatusId, error: e }, 'Failed to transform draft comments');
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        transformDraftComments: false,
+      },
+    });
+  }
+}
+
+async function updateAssociatedAttestations(nodeUuid: string, dpid: string, publishStatusId: number) {
+  // Moved from controllers/nodes/publish.ts
+  logger.info({ nodeUuid, dpid, publishStatusId }, `[updateAssociatedAttestations]`);
+  if (!nodeUuid) throw 'No nodeUuid provided';
+  try {
+    await prisma.nodeAttestation.updateMany({
+      where: {
+        nodeUuid,
+      },
+      data: {
+        nodeDpid10: dpid,
+      },
+    });
+
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        updateAttestations: true,
+      },
+    });
+  } catch (e) {
+    logger.error({ error: e, nodeUuid, publishStatusId }, 'Failed updating associated attestations on publish');
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        updateAttestations: false,
+      },
+    });
+  }
+
+  return;
 }
 
 async function createPublishStatusEntry(nodeUuid: string) {
@@ -330,6 +412,7 @@ async function getPublishStatusForNode(nodeUuid: string) {
 
 export const PublishServices = {
   createPublishStatusEntry,
+  updateAssociatedAttestations,
   updatePublishStatusEntry,
   getPublishStatusForNode,
   sendVersionUpdateEmailToAllContributors,
