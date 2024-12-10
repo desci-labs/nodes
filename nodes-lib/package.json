@@ -28,7 +28,7 @@
   "dependencies": {
     "@desci-labs/desci-codex-lib": "^1.1.7",
     "@desci-labs/desci-contracts": "^0.2.7",
-    "@desci-labs/desci-models": "^0.2.18",
+    "@desci-labs/desci-models": "^0.2.19",
     "@didtools/cacao": "^3.0.1",
     "@didtools/pkh-ethereum": "^0.5.0",
     "@stablelib/random": "^1.0.2",
