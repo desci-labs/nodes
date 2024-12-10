@@ -29,9 +29,6 @@ import { DRIVE_NODE_ROOT_PATH, type ExternalCidMap, type newCid, type oldCid } f
 import { getGithubExternalUrl, processGithubUrl } from '../utils/githubUtils.js';
 import { createManifest, getUrlsFromParam, makePublic } from '../utils/manifestDraftUtils.js';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-export const IPFS_PATH_TMP = '/tmp/ipfs';
-
 const logger = parentLogger.child({
   module: 'Services::Ipfs',
 });
@@ -404,32 +401,20 @@ export const getDirectoryTree = async (
     { fn: 'getDirectoryTree', cid, returnFiles, returnExternalFiles },
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
   );
-  try {
-    // const tree = await getOrCache(
-    //   `full-tree-${cid}${!returnFiles ? '-no-files' : ''}${cid}${!returnExternalFiles ? '-no-ext-files' : ''}`,
-    //   getTree,
-    // );
-    const tree = null;
-    if (tree) return tree;
-    throw new Error('[getDirectoryTree] Failed to retrieve tree from cache');
-  } catch (err) {
-    logger.warn({ fn: 'getDirectoryTree', err }, '[getDirectoryTree] error');
-    logger.info('[getDirectoryTree] Falling back on uncached tree retrieval');
-    const startTime = process.hrtime();
-    const treeRes = await getTree();
-    // return getTree();
-    const endTime = process.hrtime(startTime);
-    logger.info(`[getDirectoryTree] Execution time: ${endTime[0]}s ${endTime[1] / 1000000}ms`);
-    return treeRes;
-  }
+
+  const startTime = process.hrtime();
+  const treeRes = await getTree();
+  const endTime = process.hrtime(startTime);
+  logger.info(`[getDirectoryTree] Execution time: ${endTime[0]}s ${endTime[1] / 1000000}ms`);
+  return treeRes;
+
   async function getTree() {
     if (Object.keys(externalCidMap).length === 0) {
       logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using standard ls, dagCid: ${cid}`);
       return await recursiveLs(cid);
     } else {
       logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using mixed ls, dagCid: ${cid}`);
-      const tree = await mixedLs(cid, externalCidMap, returnFiles, returnExternalFiles);
-      return tree;
+      return await mixedLs(cid, externalCidMap, returnFiles, returnExternalFiles);
     }
   }
 };
@@ -442,7 +427,7 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
     const lsOp = client.ls(cid, { timeout: INTERNAL_IPFS_TIMEOUT });
 
     for await (const filedir of lsOp) {
-      const promise = new Promise<void>(async (resolve, reject) => {
+      const promise = new Promise<void>(async (resolve, _reject) => {
         const res: any = filedir;
         // if (parent) {
         //   res.parent = parent;
