@@ -305,13 +305,7 @@ const syncPublish = async (
   /*
    * Emit notification on publish
    */
-  await emitNotificationOnPublish(node, owner, dpid);
-  await PublishServices.updatePublishStatusEntry({
-    publishStatusId,
-    data: {
-      fireNotifications: true,
-    },
-  });
+  await emitNotificationOnPublish(node, owner, dpid, publishStatusId);
 
   const targetDpidUrl = getTargetDpidUrl();
   discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
@@ -582,7 +576,7 @@ export const publishHandler = async ({
     /*
      * Emit notification on publish
      */
-    await emitNotificationOnPublish(node, owner, dpid);
+    await emitNotificationOnPublish(node, owner, dpid, publishStatusEntry.id);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
