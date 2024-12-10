@@ -223,6 +223,7 @@ export async function prepareDataRefsForDraftTrees(
       size: entry.size,
       type: dbType,
       nodeId: node.id,
+      external: entry.external || null,
     };
   });
 
