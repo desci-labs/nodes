@@ -370,7 +370,7 @@ async function updatePublishStatusEntry({
   publishStatusId?: number;
   nodeUuid?: string;
   version?: number;
-  data: Prisma.PublishStatusUpdateInput;
+  data: Prisma.PublishStatusUncheckedUpdateInput;
 }) {
   try {
     const identifier = publishStatusId ? { id: publishStatusId } : nodeUuid && version ? { nodeUuid, version } : null;
@@ -410,10 +410,71 @@ async function getPublishStatusForNode(nodeUuid: string) {
   }
 }
 
+async function updateNodeVersionEntry({
+  manifestCid,
+  commitId,
+  node,
+  publishStatusId,
+}: {
+  manifestCid: string;
+  commitId: string;
+  node: Node;
+  publishStatusId: number;
+}) {
+  try {
+    // Prevent duplicating the NodeVersion entry if the latest version is the same as the one we're trying to publish, as a draft save is triggered before publishing
+    const latestNodeVersion = await prisma.nodeVersion.findFirst({
+      where: {
+        nodeId: node.id,
+      },
+      orderBy: {
+        id: 'desc',
+      },
+    });
+
+    const latestNodeVersionId = latestNodeVersion?.manifestUrl === manifestCid ? latestNodeVersion.id : -1;
+
+    const nodeVersion = await prisma.nodeVersion.upsert({
+      where: {
+        id: latestNodeVersionId,
+      },
+      update: {
+        commitId,
+      },
+      create: {
+        nodeId: node.id,
+        manifestUrl: manifestCid,
+        commitId,
+      },
+    });
+
+    // Update NodeVersion link in PublishStatus Table, check off nodeVersionHandled
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        versionId: nodeVersion.id,
+        commitId: nodeVersion.commitId,
+        handleNodeVersionEntry: true,
+      },
+    });
+    return nodeVersion;
+  } catch (e) {
+    console.error({ error: e, fn: 'updateNodeVersionEntry' }, 'Failed updating NodeVersion entry');
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        handleNodeVersionEntry: false,
+      },
+    });
+    return null;
+  }
+}
+
 export const PublishServices = {
   createPublishStatusEntry,
   updateAssociatedAttestations,
   updatePublishStatusEntry,
+  updateNodeVersionEntry,
   getPublishStatusForNode,
   sendVersionUpdateEmailToAllContributors,
   retrieveBlockTimeByManifestCid,

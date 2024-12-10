@@ -230,30 +230,11 @@ const syncPublish = async (
     commitId,
   });
 
-  const latestNodeVersion = await prisma.nodeVersion.findFirst({
-    where: {
-      nodeId: node.id,
-    },
-    orderBy: {
-      id: 'desc',
-    },
-  });
-
-  // Prevent duplicating the NodeVersion entry if the latest version is the same as the one we're trying to publish, as a draft save is triggered before publishing
-  const latestNodeVersionId = latestNodeVersion?.manifestUrl === cid ? latestNodeVersion.id : -1;
-
-  const nodeVersion = await prisma.nodeVersion.upsert({
-    where: {
-      id: latestNodeVersionId,
-    },
-    update: {
-      commitId,
-    },
-    create: {
-      nodeId: node.id,
-      manifestUrl: cid,
-      commitId,
-    },
+  const nodeVersion = await PublishServices.updateNodeVersionEntry({
+    manifestCid: cid,
+    commitId,
+    node,
+    publishStatusId,
   });
 
   // first time we see a stream for this node, make sure we bind it in the db
