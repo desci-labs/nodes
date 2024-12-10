@@ -10,17 +10,27 @@ import {
   ResearchObjectV1AuthorRole,
 } from '@desci-labs/desci-models';
 import type { AuthorElement, CitationList, IJMetadata, Revision, SubmittedByAuthor } from './ijTypes.js';
-import { addExternalCid, addLinkComponent, changeManifest, createDraftNode, prePublishDraftNode, publishNode, uploadFiles } from '@desci-labs/nodes-lib';
+import {
+  addExternalCid,
+  addLinkComponent,
+  AddLinkComponentParams,
+  changeManifest,
+  claimAttestation,
+  createDraftNode,
+  publishNode,
+  uploadFiles
+} from '@desci-labs/nodes-lib';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
+import {ATTESTATION_IDS, ENV, SIGNER, USER_ID} from "./index.js";
+import {getCodexHistory} from "@desci-labs/nodes-lib/dist/codex.js";
 
 /** Whacky little DB approximation that saves pub:uuid mappings to enable re-runs to continue */
-let NODE_FILE = 'existingNodes.json';
 let existingNodes: Record<number, string>;
 const getExistingNode = (pubId: number): string | undefined => {
   if (existingNodes) {
     return existingNodes[pubId];
-  } else if (existsSync(NODE_FILE)) {
-    existingNodes = JSON.parse(readFileSync(NODE_FILE, 'utf8'));
+  } else if (existsSync(`existingNodes_${ENV}.json`)) {
+    existingNodes = JSON.parse(readFileSync(`existingNodes_${ENV}.json`, 'utf8'));
     return existingNodes[pubId];
   } else {
     existingNodes = {};
@@ -29,9 +39,9 @@ const getExistingNode = (pubId: number): string | undefined => {
 };
 
 process.on('exit', () => {
-  console.log(`Process exits; writing uuid mappings to ${NODE_FILE}...`);
+  console.log(`Process exits; writing uuid mappings to ${`existingNodes_${ENV}.json`}...`);
   if (existingNodes) {
-    writeFileSync(NODE_FILE, JSON.stringify(existingNodes, undefined, 2));
+    writeFileSync(`existingNodes_${ENV}.json`, JSON.stringify(existingNodes, undefined, 2));
   }
 });
 
@@ -40,7 +50,7 @@ export const makeNode = async (ijMetadata: IJMetadata) => {
 
   let uuid = getExistingNode(ijPub.publication_id);
   if (uuid) {
-    console.log(`Pub ${ijPub.publication_id}: Re-using node ${uuid}`);
+    console.log(`📗 Pub ${ijPub.publication_id}: Re-using node ${uuid}`);
   } else {
     const draftResult = await createDraftNode({
       title: ijPub.title,
@@ -48,18 +58,20 @@ export const makeNode = async (ijMetadata: IJMetadata) => {
       // Unclear how to map categories and/or tags to this, not much overlap
       researchFields: [],
     });
-    console.log(`Pub: ${ijPub.publication_id}: Created new node ${draftResult.node.uuid}`);
+    console.log(`📗 Pub: ${ijPub.publication_id}: Created new node ${draftResult.node.uuid}`);
     uuid = draftResult.node.uuid;
     existingNodes[ijPub.publication_id] = uuid
   }
 
   if (ijPub.source_code_git_repo) {
-    await addLinkComponent(uuid, {
+    const params: AddLinkComponentParams = {
       name: 'External git repo',
       url: ijPub.source_code_git_repo,
       subtype: ResearchObjectComponentLinkSubtype.OTHER,
       starred: false,
-    })
+    };
+
+    await addLinkComponent(uuid, params);
   }
 
   const manifestActions = renderStaticManifestActions(ijMetadata);
@@ -72,7 +84,7 @@ export const makeNode = async (ijMetadata: IJMetadata) => {
   ].filter(p => p !== undefined)
   await uploadMissingFiles(uuid, filePathsToUpload);
 
-  await handleRevisions(uuid, ijPub.revisions);
+  await publishRevisions(uuid, ijPub.revisions);
 }
 
 const renderStaticManifestActions = (ijMetadata: IJMetadata): ManifestActions[] => {
@@ -138,39 +150,66 @@ const renderReviewsMarkdown = (ijPub: IJMetadata['publication']): string | undef
 /**
  * Iterates over revisions to perform draft updates and publishes
  */
-const handleRevisions = async (uuid: string, revisions: Revision[]) => {
+const publishRevisions = async (uuid: string, revisions: Revision[]): Promise<void> => {
   for (const rev of revisions) {
+    const currentRev = revisions.indexOf(rev);
+    console.log('- Handling rev', currentRev, '...');
     if (rev.article) {
-      console.log('Adding article', rev.article, '...');
-      await addExternalCid({
-        uuid,
-        externalCids: [{ name: 'article.pdf', cid: rev.article }],
-        contextPath: '/',
-        componentType: ResearchObjectComponentType.PDF,
-        componentSubtype: ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
-        // TODO autostar
-      })
+      try {
+        await addExternalCid({
+          uuid,
+          externalCids: [{ name: 'article.pdf', cid: rev.article }],
+          contextPath: '/',
+          componentType: ResearchObjectComponentType.PDF,
+          componentSubtype: ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
+          autoStar: true,
+        })
+        console.log('  - Added article CID:', rev.article);
+      } catch (e) {
+        const err = e as Error;
+        if (err.message.includes('409')) {
+          console.log('  - Skipping duplicate CID for article:', rev.article);
+        } else {
+          console.log({err: err.name, msg: err.message})
+          throw err;
+        }
+      }
     }
 
     if (rev.source_code) {
-      console.log('Adding source_code', rev.source_code, '...');
-      await addExternalCid({
-        uuid,
-        externalCids: [{ name: 'code', cid: rev.source_code }],
-        contextPath: '/',
-        componentType: ResearchObjectComponentType.CODE,
-        componentSubtype: ResearchObjectComponentCodeSubtype.CODE_SCRIPTS,
-        // TODO autostar
-      })
+      try {
+        await addExternalCid({
+          uuid,
+          externalCids: [{ name: 'code', cid: rev.source_code }],
+          contextPath: '/',
+          componentType: ResearchObjectComponentType.CODE,
+          componentSubtype: ResearchObjectComponentCodeSubtype.CODE_SCRIPTS,
+          autoStar: true,
+        })
+        console.log('  - Added code CID:', rev.source_code);
+      } catch (e) {
+        const err = e as Error;
+        if (err.message.includes('409')) {
+          console.log('  - Skipping duplicate CID for code:', rev.source_code);
+        } else {
+          console.log({err: err.name, msg: err.message})
+          throw err;
+        }
+      }
     }
 
     const references = parseReferences(rev?.citation_list);
     if (references) {
+      console.log('  - Settings references...');
       await changeManifest(uuid, [{ type: 'Set References', references: references }]);
     }
 
-    // await publishNode(uuid, SIGNER);
+    console.log('  - Calling publish...');
+    const { dpid } = await publishNode(uuid, SIGNER);
+    console.log('  - Claiming attestations...');
+    await claimAttestations(uuid, dpid, !!rev.source_code);
   }
+
 }
 
 // Seems to be only cc-by-3.0, so we do a safety check and write a constant instead of parsing
@@ -253,7 +292,7 @@ const maybeWriteTmpFile = (filename: string, content?: string): string | undefin
 }
 
 
-async function uploadMissingFiles(uuid: string, filePathsToUpload: string[]): Promise<void> {
+const uploadMissingFiles = async (uuid: string, filePathsToUpload: string[]): Promise<void> => {
   for (const file of filePathsToUpload) {
     try {
       await uploadFiles({
@@ -261,15 +300,40 @@ async function uploadMissingFiles(uuid: string, filePathsToUpload: string[]): Pr
         contextPath: '/',
         files: [file],
       });
-      console.log('Uploaded file', file);
+      console.log('- Uploaded file', file);
     } catch (e) {
       const err = e as Error;
       if (err.message.includes('409')) {
-        console.log('Skipping duplicate file', file);
+        console.log('- Skipping duplicate file', file);
       } else {
         console.log({err: err.name, msg: err.message})
         throw err;
       }
     }
   }
+}
+
+const claimAttestations = async (
+  nodeUuid: string,
+  nodeDpid: number,
+  openCode: boolean,
+) => {
+  if (openCode) {
+    console.log('    - Claiming OpenCode...')
+    await claimAttestation({
+      attestationId: ATTESTATION_IDS.openCode,
+      claimerId: USER_ID,
+      nodeDpid: String(nodeDpid),
+      nodeUuid,
+      nodeVersion: 0
+    });
+  }
+  console.log('    - Claiming Published in Insight Journal...')
+  await claimAttestation({
+    attestationId: ATTESTATION_IDS.ij,
+    claimerId: USER_ID,
+    nodeDpid: String(nodeDpid),
+    nodeUuid,
+    nodeVersion: 0
+  });
 }
