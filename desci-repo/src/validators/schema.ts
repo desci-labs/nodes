@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import {
   ResearchObjectComponentType,
   ResearchObjectV1AuthorRole,
@@ -8,6 +7,7 @@ import {
   ManifestActions,
   ResearchObjectReference,
 } from '@desci-labs/desci-models';
+import { z } from 'zod';
 
 const researchObject = z
   .object({
@@ -64,7 +64,7 @@ const componentSchema: z.ZodType<ResearchObjectV1Component> = z
 export const DPID_PATH_REGEX =
   /^https:\/\/(?<domain>dev-beta|beta)\.dpid\.org(?<dpid>\/\d+)(?<version>\/v\d+)?(?<path>\/root.*)?/m;
 
-export const DOI_REGEX = /(https:\/\/doi.org\/)?(?<doi>10.\d{4,9}\/[-._;()/:A-Z0-9]+$)/i;
+export const DOI_REGEX = /(https:\/\/doi.org\/)?(?<doi>10.\d{4,9}\/[-+<>._;()/:A-Z0-9]+$)/i;
 
 const referenceSchema: z.ZodType<ResearchObjectReference> = z
   .object({
@@ -98,6 +98,7 @@ export const actionsSchema = z.array(
     z.object({ type: z.literal<Action>('Update CoverImage'), cid: z.string().optional() }),
     z.object({ type: z.literal<Action>('Add Reference'), reference: referenceSchema }),
     z.object({ type: z.literal<Action>('Add References'), references: z.array(referenceSchema) }),
+    z.object({ type: z.literal<Action>('Set References'), references: z.array(referenceSchema) }),
     z.object({ type: z.literal<Action>('Delete Reference'), referenceId: z.string() }),
   ]),
 );
