@@ -98,6 +98,10 @@ We use `quicktype` to generate types and parsers that match all of the IJ metada
 
 This is checked in as [src/ijTypes.ts](src/ijTypes.ts), and can be regenerated with `npm run generate-types`.
 
+#### Create nodes
+1. Run `cp .env.example .env` and fill it in according to the instructions
+2. Run `npm start`, which will start creating nodes using nodes-lib against the configured API.
+
 ## Noteworthy fields
 Some IJ metadata fields are a bit different than what we're used to in `desci-models`.
 
