@@ -102,8 +102,7 @@ export const addBufferToIpfs = (buf: Buffer, key: string) => {
 };
 
 export const getSizeForCid = async (cid: string, asDirectory: boolean | undefined): Promise<number> => {
-  const size = await getSize(client, cid, asDirectory);
-  return size;
+  return await getSize(client, cid, asDirectory);
 };
 
 export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf, code, researchFields }) => {
