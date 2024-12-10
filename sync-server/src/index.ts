@@ -1,13 +1,22 @@
 import { type PeerId, Repo } from '@automerge/automerge-repo/slim';
-import { DurableObjectState } from '@cloudflare/workers-types';
+import { DurableObjectState, EventContext } from '@cloudflare/workers-types';
 import { routePartykitRequest, Server as PartyServer, Connection, ConnectionContext, WSMessage } from 'partyserver';
 import { err as serialiseErr } from 'pino-std-serializers';
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
 
 import { PartyKitWSServerAdapter } from './automerge-repo-network-websocket/PartykitWsServerAdapter.js';
 
 import database from './automerge-repo-storage-postgres/db.js';
 import { PostgresStorageAdapter } from './automerge-repo-storage-postgres/PostgresStorageAdapter.js';
 import { Env } from './types.js';
+import { ensureUuidEndsWithDot } from './utils.js';
+import { assert } from './automerge-repo-network-websocket/assert.js';
+
+interface ResearchObjectDocument {
+  manifest: ResearchObjectV1;
+  uuid: string;
+  driveClock: string;
+}
 
 // run a timeAlive loop to close connection in 30 secs if no other client aside the `worker-server-**` is connected
 export class AutomergeServer extends PartyServer {
@@ -45,7 +54,10 @@ export class AutomergeServer extends PartyServer {
       peerId: `worker-server-${this.ctx.id}` as PeerId,
       // Since this is a server, we don't share generously — meaning we only sync documents they already
       // know about and can ask for by ID.
-      sharePolicy: async () => true,
+      sharePolicy: async (peer, docId) => {
+        console.log('SharePolicy called', { peer, docId });
+        return true;
+      },
     };
 
     this.repo = new Repo(config);
@@ -59,7 +71,7 @@ export class AutomergeServer extends PartyServer {
 
     const auth = params.get('auth');
     let isAuthorised = false;
-    console.log('[onConnect]', { auth, token: this.API_TOKEN });
+    console.log('[onConnect]', { params });
     if (auth === this.API_TOKEN) {
       isAuthorised = true;
     } else {
@@ -74,7 +86,11 @@ export class AutomergeServer extends PartyServer {
       if (response.ok) isAuthorised = true;
     }
 
-    console.log('[onConnect]::isAuthorised', { isAuthorised, remotePeer: connection.id });
+    console.log('[onConnect]::isAuthorised', {
+      isAuthorised,
+      remotePeer: connection.id,
+      source: this.API_TOKEN === auth ? 'server' : 'client',
+    });
     if (isAuthorised) {
       this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
     } else {
@@ -101,8 +117,50 @@ export class AutomergeServer extends PartyServer {
   }
 }
 
+async function handleCreateDocument(request: Request, env: Env) {
+  console.log('Request: ', { env });
+  const environment = env.ENVIRONMENT || 'dev';
+  const localDbUrl =
+    env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
+  const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
+
+  const { Repo } = await import('@automerge/automerge-repo');
+  const { query } = await database.init(DATABASE_URL);
+  const config = {
+    storage: new PostgresStorageAdapter(query),
+    peerId: `cloudflare-ephemeral-peer` as PeerId,
+    // Since this is a server, we don't share generously — meaning we only sync documents they already
+    // know about and can ask for by ID.
+    sharePolicy: async (peer, docId) => {
+      console.log('SharePolicy called', { peer, docId });
+      return true;
+    },
+  };
+
+  const repo = new Repo(config);
+
+  let body = (await request.clone().json()) as { uuid: string; manifest: ResearchObjectV1 };
+  assert(body && body.uuid && body.manifest, 'Invalid request body');
+  let uuid = ensureUuidEndsWithDot(body.uuid);
+
+  const handle = repo.create<ResearchObjectDocument>();
+  handle.change(
+    (d) => {
+      d.manifest = body.manifest;
+      d.uuid = uuid;
+      d.driveClock = Date.now().toString();
+    },
+    { message: 'Init Document', time: Date.now() },
+  );
+
+  const document = await handle.doc();
+  return new Response(JSON.stringify({ documentId: handle.documentId, document }), { status: 200 });
+}
+
 export default {
   fetch(request: Request, env) {
+    if (request.url.includes('/api/documents') && request.method.toLowerCase() === 'post')
+      return handleCreateDocument(request, env);
     if (!request.url.includes('/parties/automerge')) return new Response('Not found', { status: 404 });
     return routePartykitRequest(request, env) || new Response('Not found', { status: 404 });
   },

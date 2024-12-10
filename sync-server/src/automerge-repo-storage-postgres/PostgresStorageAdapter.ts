@@ -33,7 +33,7 @@ export class PostgresStorageAdapter implements StorageAdapterInterface {
   async save(keyArray: StorageKey, binary: Uint8Array): Promise<void> {
     const key = getKey(keyArray);
     this.cache[key] = binary;
-
+    console.log('[save]', { key });
     try {
       await this.query(
         `INSERT INTO "${this.tableName}" (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = $2 RETURNING key`,

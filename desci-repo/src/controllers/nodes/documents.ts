@@ -11,6 +11,26 @@ import { ZodError } from 'zod';
 import { actionsSchema } from '../../validators/schema.js';
 import { ensureUuidEndsWithDot } from './utils.js';
 import { ManifestActions } from '@desci-labs/desci-models';
+import { IS_DEV, IS_TEST, PARTY_SERVER_HOST } from '../../config.js';
+
+const protocol = IS_TEST || IS_DEV ? 'http://' : 'https://';
+
+const getDocument = async (documentId: DocumentId) => {
+  const logger = parentLogger.child({ module: 'getDocument', documentId });
+
+  if (!repoManager.isConnected(documentId)) {
+    repoManager.connect(documentId);
+  }
+
+  const automergeUrl = getAutomergeUrl(documentId);
+  await backendRepo.networkSubsystem.whenReady();
+  logger.trace({ documentId }, 'ready');
+  const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+  logger.trace({ handle: handle.url }, 'handle resolved');
+  const document = await handle.doc();
+  logger.trace({ automergeUrl, Retrieved: !!document, document }, 'DOCUMENT Retrieved');
+  return document;
+};
 
 export const createNodeDocument = async function (req: Request, res: Response) {
   const logger = parentLogger.child({ module: 'createNodeDocument', body: req.body, param: req.params });
@@ -23,42 +43,17 @@ export const createNodeDocument = async function (req: Request, res: Response) {
     }
 
     let { uuid, manifest } = req.body;
-    uuid = ensureUuidEndsWithDot(uuid);
-    logger.info({ peerId: backendRepo.networkSubsystem.peerId, uuid }, '[Backend REPO]:');
-    const handle = backendRepo.create<ResearchObjectDocument>();
-    handle.change(
-      (d) => {
-        d.manifest = manifest;
-        d.uuid = uuid;
-        d.driveClock = Date.now().toString();
-      },
-      { message: 'Init Document', time: Date.now() },
-    );
 
-    logger.trace({ peerId: backendRepo.networkSubsystem.peerId, uuid }, 'Document Created');
+    logger.trace({ url: `${protocol}${PARTY_SERVER_HOST}/api/documents`, uuid }, 'API Request to worker');
+    const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents`, {
+      method: 'POST',
+      body: JSON.stringify({ uuid, manifest }),
+    });
+    const data = await response.json();
+    logger.trace({ data }, 'Document Created');
+    res.status(200).send({ ok: true, ...data });
 
-    const document = await handle.doc();
-
-    logger.trace({ handleReady: handle.isReady() }, 'Document Retrieved');
-
-    // const node = await findNodeByUuid(uuid);
-    // logger.trace({ node }, 'Node Retrieved');
-    // await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
-    // const result = await query('UPDATE "Node" SET "manifestDocumentId" = $1 WHERE uuid = $2', [
-    //   handle.documentId,
-    //   uuid,
-    // ]);
-
-    // logger.trace(
-    //   { node, uuid, documentId: handle.documentId, url: handle.url, isReady: handle.isReady() },
-    //   'Node Updated',
-    // );
-
-    // logger.info({ result }, 'UPDATE DOCUMENT ID');
-
-    res.status(200).send({ ok: true, documentId: handle.documentId, document });
-
-    logger.info({ documentId: handle.documentId, document }, 'END');
+    // logger.info({ documentId: handle.documentId, document }, 'END');
   } catch (err) {
     logger.error({ err }, 'Error');
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
@@ -69,23 +64,6 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
   const logger = parentLogger.child({ module: 'getLatestNodeManifest', query: req.query, params: req.params });
   const { uuid } = req.params;
   const { documentId } = req.query;
-
-  const getDocument = async (documentId: DocumentId) => {
-    if (!repoManager.isConnected(documentId)) {
-      repoManager.connect(documentId);
-    }
-
-    // logger.trace({ documentId }, 'get document');
-    const automergeUrl = getAutomergeUrl(documentId);
-    // logger.trace({ documentId }, 'when ready');
-    await backendRepo.networkSubsystem.whenReady();
-    logger.trace({ documentId }, 'ready');
-    const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
-    logger.trace({ handle: handle.url }, 'handle resolved');
-    const document = await handle.doc();
-    logger.trace({ uuid, automergeUrl, Retrieved: !!document, document }, 'DOCUMENT Retrieved');
-    return document;
-  };
 
   try {
     // todo: add support for documentId params and skip querying node

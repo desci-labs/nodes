@@ -18,17 +18,15 @@ import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
 import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import { WebSocketServer } from 'ws';
 import { verifyNodeDocumentAccess } from './services/nodes.js';
-import { ENABLE_PARTYKIT_FEATURE } from './config.js';
+import { ENABLE_PARTYKIT_FEATURE, IS_DEV, IS_TEST, PARTY_SERVER_HOST } from './config.js';
 
-const partyServerHost = process.env.PARTY_SERVER_URL || 'wss://localhost:5445';
+const partyServerHost = PARTY_SERVER_HOST || 'localhost:5445';
 const partyServerToken = process.env.PARTY_SERVER_TOKEN;
-const isDev = process.env.NODE_ENV == 'dev';
-const isTest = process.env.NODE_ENV == 'test';
 
 const logger = parentLogger.child({ module: 'repo.ts' });
 
 if (ENABLE_PARTYKIT_FEATURE && !(partyServerToken && partyServerHost)) {
-  throw new Error('Missing ENVIRONMENT variables: PARTY_SERVER_URL or PARTY_SERVER_TOKEN');
+  throw new Error('Missing ENVIRONMENT variables: PARTY_SERVER_HOST or PARTY_SERVER_TOKEN');
 }
 
 const hostname = os.hostname();
@@ -44,7 +42,7 @@ if (ENABLE_PARTYKIT_FEATURE) {
     // Since this is a server, we don't share generously — meaning we only sync documents they already
     // know about and can ask for by ID.
     sharePolicy: async (peerId, documentId) => {
-      // logger.trace({ peerId, documentId }, 'SharePolicy: ');
+      logger.trace({ peerId, documentId }, 'SharePolicy called');
       return true;
     },
   };
@@ -121,7 +119,7 @@ const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocumen
 };
 
 backendRepo.on('document', async (doc) => {
-  // logger.trace({ doc: doc.handle }, 'DOCUMENT');
+  logger.trace({ documentId: doc.handle.documentId }, 'DOCUMENT Ready');
   doc.handle.on<keyof DocHandleEvents<'change'>>('change', handleChange);
 });
 
@@ -141,13 +139,13 @@ class RepoManager {
   }
 
   connect(documentId: DocumentId) {
-    logger.trace({ documentId, isDev, isTest, exists: this.clients.has(documentId) }, 'RepoManager#Connect');
+    logger.trace({ documentId, IS_DEV, IS_TEST, exists: this.clients.has(documentId) }, 'RepoManager#Connect');
     const adapter = new PartykitNodeWsAdapter({
       host: partyServerHost,
       party: 'automerge',
       room: documentId,
       query: { auth: partyServerToken },
-      protocol: isDev || isTest ? 'ws' : 'wss',
+      protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
       WebSocket: WebSocket,
     });
 
