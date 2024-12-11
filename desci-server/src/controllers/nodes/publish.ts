@@ -105,7 +105,8 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       publishStatusId: publishStatusEntry.id,
       data: {
         commitId: commitId,
-        ceramicComit: true,
+        manifestCid: cid, // Ideally extracted from the stream commit, so we know they align
+        ceramicCommit: true,
       },
     });
 
@@ -302,7 +303,7 @@ const syncPublish = async (
  * Creates new dPID if legacyDpid is falsy, otherwise tries to upgrade
  * the dPID by binding the stream in the alias registry for that dPID.
  */
-const createOrUpgradeDpidAlias = async (
+export const createOrUpgradeDpidAlias = async (
   legacyDpid: number | undefined,
   ceramicStream: string,
   uuid: string,
@@ -377,7 +378,7 @@ type PublishData = {
   publishStatusId: number;
 };
 
-const handlePublicDataRefs = async (params: PublishData): Promise<void> => {
+export const handlePublicDataRefs = async (params: PublishData): Promise<void> => {
   const { nodeId, nodeUuid, userId, manifestCid, nodeVersionId } = params;
 
   const logger = parentLogger.child({
@@ -490,7 +491,7 @@ export const publishHandler = async ({
       publishStatusId: publishStatusEntry.id,
       data: {
         commitId: commitId,
-        ceramicComit: true,
+        ceramicCommit: true,
       },
     });
 

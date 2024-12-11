@@ -1,9 +1,10 @@
-import { DataType, EmailType, Node, NodeContribution, Prisma, User } from '@prisma/client';
+import { DataType, EmailType, Node, NodeContribution, NodeVersion, Prisma, PublishStatus, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import { update } from 'lodash';
 
 import { prisma } from '../client.js';
 import { getNodeVersion } from '../controllers/communities/util.js';
+import { createOrUpgradeDpidAlias, handlePublicDataRefs } from '../controllers/nodes/publish.js';
 import { logger as parentLogger } from '../logger.js';
 import { SubmissionPackageEmailHtml } from '../templates/emails/utils/emailRenderer.js';
 import { getIndexedResearchObjects, getTimeForTxOrCommits } from '../theGraph.js';
@@ -11,7 +12,9 @@ import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { contributorService } from './Contributors.js';
+import { getManifestFromNode } from './data/processing.js';
 import { getLatestManifestFromNode } from './manifestRepo.js';
+import { emitNotificationOnPublish } from './NotificationService.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -393,7 +396,7 @@ async function updatePublishStatusEntry({
   }
 }
 
-async function getPublishStatusForNode(nodeUuid: string) {
+async function getPublishStatusForNode(nodeUuid: string): Promise<PublishStatus[]> {
   try {
     const result = await prisma.publishStatus.findMany({
       where: {
@@ -406,6 +409,20 @@ async function getPublishStatusForNode(nodeUuid: string) {
       { module: 'PublishServices::getPublishStatusForNode', nodeUuid, e },
       'Error getting publish status entry',
     );
+    throw 'Error getting publish status entries for node';
+  }
+}
+
+async function getPublishStatusEntryById(id: number): Promise<PublishStatus> {
+  try {
+    const result = await prisma.publishStatus.findUnique({
+      where: {
+        id,
+      },
+    });
+    return result;
+  } catch (e) {
+    logger.error({ module: 'PublishServices::getPublishStatusEntryById', id, e }, 'Error getting publish status entry');
     throw 'Error getting publish status entry';
   }
 }
@@ -470,6 +487,192 @@ async function updateNodeVersionEntry({
   }
 }
 
+async function checkPrerequisites(publishStatusEntry: PublishStatus, step: PublishStep) {
+  const prerequisites = PublishStepPrerequisites[step];
+  const unmetPrerequisites = prerequisites.filter((prerequisite) => !publishStatusEntry[prerequisite]);
+  return unmetPrerequisites;
+}
+
+enum PublishStep {
+  CERAMIC_COMMIT = 'ceramicCommit',
+  HANDLE_NODE_VERSION_ENTRY = 'handleNodeVersionEntry',
+  ASSIGN_DPID = 'assignDpid',
+  CREATE_PDR = 'createPdr',
+  UPDATE_ATTESTATIONS = 'updateAttestations',
+  TRANSFORM_DRAFT_COMMENTS = 'transformDraftComments',
+  FIRE_DEFERRED_EMAILS = 'fireDeferredEmails',
+  FIRE_NOTIFICATIONS = 'fireNotifications',
+}
+
+const PublishStepPrerequisites: Record<PublishStep, PublishStep[]> = {
+  [PublishStep.CERAMIC_COMMIT]: [],
+  [PublishStep.HANDLE_NODE_VERSION_ENTRY]: [PublishStep.CERAMIC_COMMIT],
+  [PublishStep.ASSIGN_DPID]: [PublishStep.CERAMIC_COMMIT],
+  [PublishStep.CREATE_PDR]: [PublishStep.CERAMIC_COMMIT, PublishStep.HANDLE_NODE_VERSION_ENTRY],
+  [PublishStep.UPDATE_ATTESTATIONS]: [PublishStep.CERAMIC_COMMIT, PublishStep.ASSIGN_DPID],
+  [PublishStep.TRANSFORM_DRAFT_COMMENTS]: [PublishStep.CERAMIC_COMMIT, PublishStep.ASSIGN_DPID],
+  [PublishStep.FIRE_DEFERRED_EMAILS]: [PublishStep.CERAMIC_COMMIT, PublishStep.ASSIGN_DPID],
+  [PublishStep.FIRE_NOTIFICATIONS]: [PublishStep.CERAMIC_COMMIT, PublishStep.ASSIGN_DPID],
+};
+
+/**
+ * To be used to resume started publishes that abruptly ended or failed at some point.
+ * Pass in either: publishStatusId | commitId | nodeUuid & version
+ * @param version - Indexed from 1, not 0
+ */
+export async function publishSequencer({
+  publishStatusId,
+  commitId,
+  nodeUuid,
+  version,
+}: {
+  publishStatusId?: number;
+  nodeUuid?: string;
+  version?: number;
+  commitId?: string;
+}) {
+  try {
+    // Find the publishStatus entry using either publishStatusId | nodeUUid && version | commitId
+    let publishStatusEntry: PublishStatus;
+    if (publishStatusId) {
+      publishStatusEntry = await PublishServices.getPublishStatusEntryById(publishStatusId);
+    } else if (nodeUuid && version) {
+      publishStatusEntry = await prisma.publishStatus.findFirst({
+        where: { nodeUuid: ensureUuidEndsWithDot(nodeUuid), version },
+      });
+    } else if (commitId) {
+      publishStatusEntry = await prisma.publishStatus.findFirst({ where: { commitId } });
+    } else {
+      throw 'No publishStatusId or nodeUuid and version provided';
+    }
+    if (!publishStatusEntry) {
+      throw 'No publish status entry found';
+    }
+
+    let node = await prisma.node.findUnique({ where: { uuid: ensureUuidEndsWithDot(publishStatusEntry.nodeUuid) } });
+    const ceramicStream = node.ceramicStream;
+    const { manifest } = await getManifestFromNode(node);
+    const legacyDpid = manifest.dpid?.id ? parseInt(manifest.dpid.id) : undefined;
+    const owner = await prisma.user.findUnique({ where: { id: node.ownerId } });
+
+    // Execute next steps
+    if (!publishStatusEntry.ceramicCommit) {
+      // Step 1: Ceramic commit
+      // This step is handled by the client, we can't proceed if it's not provided
+      throw 'Ceramic commit not found';
+    }
+
+    if (!publishStatusEntry.assignDpid) {
+      // Step 2: Assign DPID
+      const unmetPrereqs = await checkPrerequisites(publishStatusEntry, PublishStep.ASSIGN_DPID);
+      if (unmetPrereqs.length) throw `Unmet prerequisites for assigning DPID, requires: ${unmetPrereqs.join(', ')}`;
+
+      await createOrUpgradeDpidAlias(legacyDpid, ceramicStream, node.uuid, publishStatusId);
+      node = await prisma.node.findUnique({ where: { uuid: ensureUuidEndsWithDot(publishStatusEntry.nodeUuid) } }); // Refetch for later steps
+
+      publishStatusEntry = await PublishServices.getPublishStatusEntryById(publishStatusEntry.id);
+      if (!publishStatusEntry.assignDpid) throw 'Failed to assign DPID';
+    }
+
+    if (!publishStatusEntry.handleNodeVersionEntry) {
+      // Step 3: Update NodeVersion entry
+      const unmetPrereqs = await checkPrerequisites(publishStatusEntry, PublishStep.HANDLE_NODE_VERSION_ENTRY);
+      if (unmetPrereqs.length)
+        throw `Unmet prerequisites for handling NodeVersion entry update, requires: ${unmetPrereqs.join(', ')}`;
+
+      await updateNodeVersionEntry({
+        manifestCid: publishStatusEntry.manifestCid,
+        commitId: publishStatusEntry.commitId,
+        node,
+        publishStatusId,
+      });
+
+      publishStatusEntry = await PublishServices.getPublishStatusEntryById(publishStatusEntry.id);
+      if (!publishStatusEntry.handleNodeVersionEntry) throw 'Failed to update NodeVersion entry';
+    }
+
+    if (!publishStatusEntry.createPdr) {
+      // Step 4: Create public data refs
+      const unmetPrereqs = await checkPrerequisites(publishStatusEntry, PublishStep.CREATE_PDR);
+      if (unmetPrereqs.length)
+        throw `Unmet prerequisites for creating public data refs, requires: ${unmetPrereqs.join(', ')}`;
+
+      await handlePublicDataRefs({
+        nodeId: node.id,
+        userId: node.ownerId,
+        manifestCid: publishStatusEntry.manifestCid,
+        nodeVersionId: publishStatusEntry.versionId,
+        nodeUuid: node.uuid,
+        publishStatusId,
+      });
+
+      publishStatusEntry = await PublishServices.getPublishStatusEntryById(publishStatusEntry.id);
+      if (!publishStatusEntry.createPdr) throw 'Failed to create public data refs';
+    }
+
+    if (!publishStatusEntry.updateAttestations) {
+      // Step 5: Update draft attestations
+      const unmetPrereqs = await checkPrerequisites(publishStatusEntry, PublishStep.UPDATE_ATTESTATIONS);
+      if (unmetPrereqs.length)
+        throw `Unmet prerequisites for updating attestations, requires: ${unmetPrereqs.join(', ')}`;
+
+      await PublishServices.updateAssociatedAttestations(node.uuid, legacyDpid.toString(), publishStatusEntry.id);
+
+      publishStatusEntry = await PublishServices.getPublishStatusEntryById(publishStatusEntry.id);
+      if (!publishStatusEntry.updateAttestations) throw 'Failed to update draft attestations';
+    }
+
+    if (!publishStatusEntry.transformDraftComments) {
+      // Step 6: Transform draft comments
+      const unmetPrereqs = await checkPrerequisites(publishStatusEntry, PublishStep.TRANSFORM_DRAFT_COMMENTS);
+      if (unmetPrereqs.length)
+        throw `Unmet prerequisites for transforming draft comments, requires: ${unmetPrereqs.join(', ')}`;
+
+      await PublishServices.transformDraftComments({
+        node,
+        owner,
+        dpidAlias: node.dpidAlias,
+        publishStatusId: publishStatusEntry.id,
+      });
+
+      publishStatusEntry = await PublishServices.getPublishStatusEntryById(publishStatusEntry.id);
+      if (!publishStatusEntry.transformDraftComments) throw 'Failed to transform draft comments';
+    }
+
+    if (!publishStatusEntry.fireDeferredEmails) {
+      // Step 7: Fire deferred emails
+      const unmetPrereqs = await checkPrerequisites(publishStatusEntry, PublishStep.FIRE_DEFERRED_EMAILS);
+      if (unmetPrereqs.length)
+        throw `Unmet prerequisites for sending off deferred emails, requires: ${unmetPrereqs.join(', ')}`;
+
+      await PublishServices.handleDeferredEmails(node.uuid, node.dpidAlias.toString(), publishStatusId);
+
+      publishStatusEntry = await PublishServices.getPublishStatusEntryById(publishStatusEntry.id);
+      if (!publishStatusEntry.fireDeferredEmails) throw 'Failed to send deferred emails';
+    }
+
+    if (!publishStatusEntry.fireNotifications) {
+      // Step 8: Fire app notifications
+      const unmetPrereqs = await checkPrerequisites(publishStatusEntry, PublishStep.FIRE_NOTIFICATIONS);
+      if (unmetPrereqs.length)
+        throw `Unmet prerequisites for firing notifications, requires: ${unmetPrereqs.join(', ')}`;
+
+      await emitNotificationOnPublish(node, owner, node.dpidAlias.toString(), publishStatusId);
+
+      publishStatusEntry = await PublishServices.getPublishStatusEntryById(publishStatusEntry.id);
+      if (!publishStatusEntry.fireNotifications) throw 'Failed to fire notifications';
+    }
+
+    return true;
+  } catch (e) {
+    logger.error(
+      { fn: 'publishSequencer', error: e, publishStatusId, nodeUuid, version, commitId },
+      'Errors in publish',
+    );
+    return false;
+  }
+}
+
 export const PublishServices = {
   createPublishStatusEntry,
   updateAssociatedAttestations,
@@ -480,4 +683,5 @@ export const PublishServices = {
   retrieveBlockTimeByManifestCid,
   handleDeferredEmails,
   transformDraftComments,
+  getPublishStatusEntryById,
 };
