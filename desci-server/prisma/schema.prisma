@@ -946,6 +946,7 @@ model PublishStatus {
   version                Int
   versionId              Int?
   commitId               String?      @unique
+  manifestCid            String?
   ceramicCommit          Boolean?
   assignDpid             Boolean?
   handleNodeVersionEntry Boolean?
