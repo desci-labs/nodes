@@ -21,8 +21,9 @@ import {
   uploadFiles
 } from '@desci-labs/nodes-lib';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import {ATTESTATION_IDS, ENV, SIGNER, USER_ID} from "./index.js";
-import {getCodexHistory} from "@desci-labs/nodes-lib/dist/codex.js";
+import { ATTESTATION_IDS, ENV, SIGNER, USER_ID } from "./index.js";
+import { getCodexHistory } from "@desci-labs/nodes-lib/dist/codex.js";
+import { AxiosError } from 'axios';
 
 /** Whacky little DB approximation that saves pub:uuid mappings to enable re-runs to continue */
 let existingNodes: Record<number, string>;
@@ -130,7 +131,7 @@ const renderReviewsMarkdown = (ijPub: IJMetadata['publication']): string | undef
     return undefined;
   }
 
-  const mdShards = [ '# Reviews'];
+  const mdShards = ['# Reviews'];
   for (const { author: authorObj, content, date } of ijPub.reviews) {
     const { author_firstname, author_lastname, author_email } = authorObj;
     const author = `${author_firstname} ${author_lastname} <${author_email}>`;
@@ -170,7 +171,7 @@ const publishRevisions = async (uuid: string, revisions: Revision[]): Promise<vo
         if (err.message.includes('409')) {
           console.log('  - Skipping duplicate CID for article:', rev.article);
         } else {
-          console.log({err: err.name, msg: err.message})
+          console.log({ err: err.name, msg: err.message })
           throw err;
         }
       }
@@ -192,7 +193,7 @@ const publishRevisions = async (uuid: string, revisions: Revision[]): Promise<vo
         if (err.message.includes('409')) {
           console.log('  - Skipping duplicate CID for code:', rev.source_code);
         } else {
-          console.log({err: err.name, msg: err.message})
+          console.log({ err: err.name, msg: err.message })
           throw err;
         }
       }
@@ -282,7 +283,7 @@ const formatDatetime = (date: Date): string =>
     hourCycle: 'h23',
   });
 
-const maybeWriteTmpFile = (filename: string, content?: string): string | undefined  => {
+const maybeWriteTmpFile = (filename: string, content?: string): string | undefined => {
   if (!content) {
     return undefined;
   }
@@ -306,7 +307,7 @@ const uploadMissingFiles = async (uuid: string, filePathsToUpload: string[]): Pr
       if (err.message.includes('409')) {
         console.log('- Skipping duplicate file', file);
       } else {
-        console.log({err: err.name, msg: err.message})
+        console.log({ err: err.name, msg: err.message })
         throw err;
       }
     }
@@ -320,20 +321,34 @@ const claimAttestations = async (
 ) => {
   if (openCode) {
     console.log('    - Claiming OpenCode...')
-    await claimAttestation({
+    await tryClaimIgnoreDupeErr(() => claimAttestation({
       attestationId: ATTESTATION_IDS.openCode,
       claimerId: USER_ID,
       nodeDpid: String(nodeDpid),
       nodeUuid,
       nodeVersion: 0
-    });
+    }));
   }
   console.log('    - Claiming Published in Insight Journal...')
-  await claimAttestation({
+  await tryClaimIgnoreDupeErr(() => claimAttestation({
     attestationId: ATTESTATION_IDS.ij,
     claimerId: USER_ID,
     nodeDpid: String(nodeDpid),
     nodeUuid,
     nodeVersion: 0
-  });
+  }));
+}
+
+const tryClaimIgnoreDupeErr = async (apiCall: () => Promise<any>) => {
+  try {
+    return await apiCall()
+  } catch (e) {
+    const err = e as Error;
+    if (err.message.includes('403')) {
+      // If it was actually an auth issue, we wouldn't get this far, so assume it's already-exists
+      console.log('    - Skipping duplicate claim...')
+    } else {
+      throw e;
+    }
+  }
 }
