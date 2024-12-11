@@ -47,6 +47,7 @@ export const prepublish = async (req: RequestWithNode, res: Response<PrepublishR
   if (!uuid) {
     return res.status(400).json({ ok: false, error: 'UUID is required.' });
   }
+  // debugger; ////
 
   try {
     // Sourced from middleware EnsureUser

@@ -11,31 +11,8 @@ import { EmailTypes, sendEmail } from '../../services/email.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { crossRefClient, doiService } from '../../services/index.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
 
-export const mintDoi = async (req: Request, res: Response, _next: NextFunction) => {
-  const { uuid } = req.params;
-  if (!uuid) throw new BadRequestError();
-  const sanitizedUuid = ensureUuidEndsWithDot(uuid);
-  const isPending = await doiService.hasPendingSubmission(sanitizedUuid);
-  if (isPending) {
-    throw new MintError('You have a pending submission');
-  } else {
-    const submission = await doiService.mintDoi(sanitizedUuid);
-    const data = _.pick(submission, ['id', 'status']);
-    new SuccessResponse(data).send(res);
-
-    const targetDpidUrl = getTargetDpidUrl();
-    discordNotify({
-      channel: DiscordChannel.DoiMinting,
-      type: DiscordNotifyType.INFO,
-      title: 'Mint DOI',
-      message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
-    });
-  }
-};
-
-export const retryMint = async (req: Request, res: Response, _next: NextFunction) => {
+export const retryDoiMint = async (req: Request, res: Response, _next: NextFunction) => {
   const { submissionId } = req.params;
   if (!submissionId) throw new BadRequestError();
 
@@ -44,7 +21,7 @@ export const retryMint = async (req: Request, res: Response, _next: NextFunction
     throw new MintError('No pending submission found');
   }
 
-  await doiService.retryMint(submission);
+  await doiService.retryDoiMint(submission);
 
   const targetDpidUrl = getTargetDpidUrl();
   discordNotify({

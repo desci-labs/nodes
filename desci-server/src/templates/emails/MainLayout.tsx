@@ -1,18 +1,6 @@
-
-import {
-  Body,
-  Container,
-  Column,
-  Head,
-  Html,
-  Img,
-  Link,
-  Row,
-  Section,
-  Text,
-  Font,
-} from '@react-email/components';
+import { Body, Container, Column, Head, Html, Img, Link, Row, Section, Text, Font } from '@react-email/components';
 import React from 'react';
+
 import { BaseProvider } from './BaseProvider.js';
 
 export const emailAssetsBaseUrl = 'https://pub.desci.com/ipfs';
@@ -35,6 +23,7 @@ const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.
             fontWeight={400}
             fontStyle="normal"
           />
+          <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" />
         </Head>
         <Body className="text-black">
           <Container
@@ -51,7 +40,7 @@ const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.
             <Container className="backdrop-blur-2xl bg-opacity-50">
               <Section className="h-full backdrop-blur-lg w-full" align="center">
                 <Img
-                  src={ `${emailAssetsBaseUrl}/${labsLogo}` }
+                  src={`${emailAssetsBaseUrl}/${labsLogo}`}
                   width="193"
                   height="60"
                   alt="Desci Labs"
@@ -66,7 +55,7 @@ const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.
                 <Column className="">
                   <Link href="https://desci.com" target="_blank" rel="noopener noreferrer">
                     <Img
-                      src={ `${emailAssetsBaseUrl}/${labsLogo}` }
+                      src={`${emailAssetsBaseUrl}/${labsLogo}`}
                       width="135"
                       height="42"
                       alt="Desci Labs"

@@ -40,6 +40,7 @@ export const showNodeAttestations = async (
   let attestations = await attestationService.getAllNodeAttestations(uuid);
   attestations = attestations.map((att) => ({
     ...att,
+    revokedAt: undefined,
     _count: undefined,
     node: undefined,
     selfAssigned: att.claimedById === att.node.ownerId,

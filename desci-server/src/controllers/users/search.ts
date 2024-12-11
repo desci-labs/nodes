@@ -2,6 +2,7 @@ import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
+import { emailRegex } from '../../core/helper.js';
 import { logger as parentLogger } from '../../logger.js';
 import { formatOrcidString, orcidRegex } from '../../utils.js';
 
@@ -44,6 +45,20 @@ export const searchProfiles = async (req: SearchProfilesRequest, res: Response<S
     return res.status(400).json({ error: 'Name query must be at least 2 characters' });
 
   try {
+    const isEmail = emailRegex.test(name);
+    let emailMatches = [];
+    if (isEmail) {
+      emailMatches = await prisma.user.findMany({
+        where: {
+          email: {
+            mode: 'insensitive',
+            equals: name as string,
+          },
+        },
+        include: { userOrganizations: { include: { organization: { select: { name: true } } } } },
+      });
+    }
+
     const profiles = orcid
       ? await prisma.user.findMany({
           where: { orcid: orcid },
@@ -55,8 +70,8 @@ export const searchProfiles = async (req: SearchProfilesRequest, res: Response<S
         });
 
     // logger.info({ profiles }, 'PROFILES');
-    if (profiles) {
-      const profilesReturn: UserProfile[] = profiles.map((profile) => ({
+    if (profiles || emailMatches) {
+      const profilesReturn: UserProfile[] = [...emailMatches, ...profiles].map((profile) => ({
         name: profile.name,
         id: profile.id,
         organisations: profile.userOrganizations.map((org) => org.organization.name),

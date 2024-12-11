@@ -16,11 +16,16 @@ export async function getUserByOrcId(orcid: string): Promise<any | null> {
 }
 
 export async function getUserByEmail(email: string): Promise<any | null> {
-  logger.trace({ email: ` ${hideEmail(email)}` }, `user::getUserByEmail`);
-  const rows = await query('SELECT * FROM "User" WHERE lower(email) = $1', [email.toLowerCase()]);
-  logger.trace({ rowLength: rows?.length }, 'getUserByEmail query');
+  try {
+    logger.trace({ email: ` ${hideEmail(email)}` }, `user::getUserByEmail`);
+    const rows = await query('SELECT * FROM "User" WHERE lower(email) = $1', [email.toLowerCase()]);
+    logger.trace({ rowLength: rows?.length }, 'getUserByEmail query');
 
-  const user = rows?.[0];
+    const user = rows?.[0];
 
-  return user;
+    return user;
+  } catch (err) {
+    logger.error({ err }, 'getUserByEmail');
+    return null;
+  }
 }

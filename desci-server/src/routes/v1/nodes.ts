@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { showNodeAttestations } from '../../controllers/attestations/show.js';
 import { createNodeBookmark } from '../../controllers/nodes/bookmarks/create.js';
 import { deleteNodeBookmark } from '../../controllers/nodes/bookmarks/delete.js';
 import { listBookmarkedNodes } from '../../controllers/nodes/bookmarks/index.js';
@@ -65,7 +66,7 @@ import { ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
-import { getCommentsSchema } from './attestations/schema.js';
+import { getCommentsSchema, showNodeAttestationsSchema } from './attestations/schema.js';
 
 const router = Router();
 
@@ -96,19 +97,29 @@ router.get(
   asyncHandler(checkUserPublishConsent),
 );
 router.post('/terms', [ensureUser], consent);
+
+// Share
 router.get('/share/verify/:shareId', checkPrivateShareId);
 router.get('/share', [ensureUser], listSharedNodes);
 router.get('/share/:uuid', [ensureUser], getPrivateShare);
 router.post('/share/:uuid', [ensureUser], createPrivateShare);
 router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
+
+// Bookmarks
 router.get('/bookmarks', [ensureUser], listBookmarkedNodes);
-router.delete('/bookmarks/:nodeUuid', [ensureUser], deleteNodeBookmark);
+router.delete('/bookmarks/:type/:bId', [ensureUser], deleteNodeBookmark);
+router.delete('/bookmarks/:type/:bId/*', [ensureUser], deleteNodeBookmark);
 router.post('/bookmarks', [ensureUser], createNodeBookmark);
+
+// Cover
 router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
+
 router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
 router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatchDocumentChange);
 router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
+
+// Contributions
 router.post('/contributions/node/:uuid', [attachUser], getNodeContributions);
 router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addContributor);
 router.patch('/contributions/verify', [ensureUser], verifyContribution);
@@ -116,8 +127,11 @@ router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], update
 router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], deleteContributor);
 router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
+
+// Prepub (distribution)
 router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
+router.post('/distribution/email', [ensureUser], emailPublishPackage);
 
 // Doi api routes
 router.get('/:identifier/doi', [], asyncHandler(retrieveNodeDoi));
@@ -127,7 +141,6 @@ router.post(
   automateMetadata,
 );
 router.post('/generate-metadata', [ensureUser, validate(generateMetadataSchema)], generateMetadata);
-router.post('/distribution/email', [ensureUser], emailPublishPackage);
 
 // doi automation
 router.post(
@@ -139,6 +152,8 @@ router.post(
 router.delete('/:uuid', [ensureUser], deleteNode);
 
 router.get('/:uuid/comments', [validate(getCommentsSchema), attachUser], asyncHandler(getGeneralComments));
+
+router.get('/:uuid/attestations', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
 
 router.get('/feed', [], feed);
 

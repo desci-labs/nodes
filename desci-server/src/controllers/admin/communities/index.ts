@@ -4,6 +4,7 @@ import _ from 'lodash';
 import { z } from 'zod';
 
 import { prisma } from '../../../client.js';
+import { PUBLIC_IPFS_PATH } from '../../../config/index.js';
 import { BadRequestError, NotFoundError } from '../../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../../core/ApiResponse.js';
 import { DuplicateDataError } from '../../../core/communities/error.js';
@@ -14,6 +15,7 @@ import {
   addEntryAttestationSchema,
   addMemberSchema,
   removeMemberSchema,
+  toggleEntryAttestationSchema,
   updateAttestationSchema,
   updateCommunitySchema,
 } from '../../../routes/v1/admin/communities/schema.js';
@@ -43,15 +45,15 @@ export const createCommunity = async (req: Request, res: Response, _next: NextFu
 
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
+      logger.info({ orginalname: file.originalname, fieldname: file.fieldname }, 'Upload');
       return file;
     });
-    logger.info({ uploads }, 'Uploads');
     const { ok, value } = await processUploadToIpfs({ files: uploads });
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
-        url: `${process.env.IPFS_RESOLVER_OVERRIDE}/${ipfsImg.cid}`,
+        url: `${PUBLIC_IPFS_PATH}/${ipfsImg.cid}`,
       }));
     } else {
       throw new BadRequestError('Could not upload file to ipfs');
@@ -87,14 +89,14 @@ export const updateCommunity = async (req: Request, res: Response, _next: NextFu
   logger.info({ uploads: !!uploads }, 'Uploads');
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
       return file;
     });
     const { ok, value } = await processUploadToIpfs({ files: uploads });
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
-        url: `${process.env.IPFS_RESOLVER_OVERRIDE}/${ipfsImg.cid}`,
+        url: `${PUBLIC_IPFS_PATH}/${ipfsImg.cid}`,
       }));
     } else {
       throw new BadRequestError('Could not upload file to ipfs');
@@ -156,7 +158,7 @@ export const listCommunityAttestations = async (
       attestationId: attestation.id,
       communityId: attestation.communityId,
       name: attestation.name,
-      imageUrl: attestation.AttestationVersion[0].image_url,
+      imageUrl: attestation.AttestationVersion[attestation.AttestationVersion.length - 1].image_url,
       description: attestation.description,
       protected: attestation.protected,
       isRequired: !!attestation.CommunityEntryAttestation.length,
@@ -172,7 +174,7 @@ export const listCommunityAttestations = async (
     imageUrl: entry.attestationVersion.image_url,
     description: entry.attestationVersion.description,
     protected: entry.attestation.protected,
-    isRequired: true,
+    isRequired: entry.required,
     entryAttestationId: entry.id,
     isExternal: entry.desciCommunityId !== parseInt(communityId),
     communityName: entry.attestation.community.name,
@@ -218,7 +220,7 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
 
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
       return file;
     });
 
@@ -226,7 +228,7 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
-        url: `${process.env.IPFS_RESOLVER_OVERRIDE}/${ipfsImg.cid}`,
+        url: `${PUBLIC_IPFS_PATH}/${ipfsImg.cid}`,
       }));
     } else {
       throw new BadRequestError('Could not upload file to ipfs');
@@ -244,14 +246,26 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
   if (!image_url) throw new BadRequestError('No attestation logo uploaded');
 
   const isProtected = body.protected.toString() === 'true' ? true : false;
+  const doiPrivilege = body.canMintDoi.toString() === 'true' ? true : false;
+  const orcidPrivilege = body.canUpdateOrcid.toString() === 'true' ? true : false;
   const attestation = await attestationService.create({
     ...body,
     image_url,
     verified_image_url,
     communityId: community.id,
     protected: isProtected,
+    canMintDoi: doiPrivilege,
+    canUpdateOrcid: orcidPrivilege,
   });
   // logger.trace({ attestation }, 'created');
+  const AttestationVersion = await attestationService.getAttestationVersions(attestation.id);
+  await attestationService.addCommunityEntryAttestation({
+    communityId: Number(communityId),
+    attestationId: attestation.id,
+    // set to the lastest version
+    attestationVersion: AttestationVersion[AttestationVersion.length - 1].id,
+  });
+
   new SuccessResponse(attestation).send(res);
 };
 
@@ -273,7 +287,7 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
   logger.info({ uploads: uploads?.map((up) => up.fieldname) }, 'Uploads');
   if (uploads?.length > 0) {
     uploads = uploads.map((file) => {
-      file.originalname = `${file.fieldname}.${file.originalname.split('.')?.[1]}`;
+      file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
       return file;
     });
     const { ok, value } = await processUploadToIpfs({ files: uploads });
@@ -281,7 +295,7 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
-        url: `${process.env.IPFS_RESOLVER_OVERRIDE}/${ipfsImg.cid}`,
+        url: `${PUBLIC_IPFS_PATH}/${ipfsImg.cid}`,
       }));
     } else {
       throw new BadRequestError('Could not upload file to ipfs');
@@ -302,12 +316,16 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
   if (!image_url) throw new BadRequestError('No attestation image uploaded');
 
   const isProtected = body.protected.toString() === 'true' ? true : false;
+  const doiPrivilege = body.canMintDoi.toString() === 'true' ? true : false;
+  const orcidPrivilege = body.canUpdateOrcid.toString() === 'true' ? true : false;
   const attestation = await attestationService.updateAttestation(exists.id, {
     ...body,
     image_url,
     verified_image_url,
     communityId: exists.communityId,
     protected: isProtected,
+    canMintDoi: doiPrivilege,
+    canUpdateOrcid: orcidPrivilege,
   });
   new SuccessResponse(attestation).send(res);
 };
@@ -389,4 +407,10 @@ export const removeEntryAttestation = async (req: Request, res: Response, _next:
   });
 
   new SuccessResponse(data).send(res);
+};
+
+export const toggleEntryAttestationRequirement = async (req: Request, res: Response, _next: NextFunction) => {
+  const { entryId }: z.infer<typeof toggleEntryAttestationSchema>['params'] = req.params;
+  await attestationService.toggleEntryAttestation(+entryId);
+  new SuccessMessageResponse().send(res);
 };

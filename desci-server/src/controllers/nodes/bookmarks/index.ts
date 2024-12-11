@@ -1,103 +1,59 @@
-import { User } from '@prisma/client';
+import { BookmarkType, User } from '@prisma/client';
 import { Request, Response } from 'express';
+import { z } from 'zod';
 
-import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { getLatestManifestFromNode } from '../../../services/manifestRepo.js';
+import { BookmarkService, FilledBookmark } from '../../../services/BookmarkService.js';
+import { PaginatedResponse } from '../../notifications/index.js';
 
-export type BookmarkedNode = {
-  uuid: string;
-  title?: string;
-  published?: boolean;
-  dpid?: number;
-  shareKey: string;
-};
-export type ListBookmarkedNodesRequest = Request<never, never> & {
-  user: User; // added by auth middleware
-};
+export const GetBookmarksQuerySchema = z.object({
+  page: z.string().regex(/^\d+$/).transform(Number).optional().default('1'),
+  perPage: z.string().regex(/^\d+$/).transform(Number).optional(),
+  type: z.enum([BookmarkType.NODE, BookmarkType.DOI, BookmarkType.OA]).optional(),
+});
 
-export type ListBookmarkedNodesResBody =
-  | {
-      ok: boolean;
-      bookmarkedNodes: BookmarkedNode[];
-    }
+export type ListBookmarksRequest = Request & {
+  user: User;
+  query: z.infer<typeof GetBookmarksQuerySchema>;
+};
+export type ListBookmarksResBody =
+  | PaginatedResponse<FilledBookmark>
   | {
       error: string;
+      details?: z.ZodIssue[] | string;
     };
 
-export const listBookmarkedNodes = async (
-  req: ListBookmarkedNodesRequest,
-  res: Response<ListBookmarkedNodesResBody>,
-) => {
+export const listBookmarkedNodes = async (req: ListBookmarksRequest, res: Response<ListBookmarksResBody>) => {
   const user = req.user;
-
   if (!user) throw Error('Middleware not properly setup for ListBookmarkedNodes controller, requires req.user');
 
   const logger = parentLogger.child({
-    module: 'PrivateShare::ListBookmarkedNodesController',
-    body: req.body,
+    module: 'Bookmarks::ListBookmarksController',
+    query: req.query,
     userId: user.id,
   });
 
   try {
     logger.trace({}, 'Retrieving bookmarked nodes for user');
-    const bookmarkedNodes = await prisma.bookmarkedNode.findMany({
-      where: {
-        userId: user.id,
+    const query = GetBookmarksQuerySchema.parse(req.query);
+    const bookmarks = await BookmarkService.getBookmarks(user.id, query);
+
+    logger.info(
+      {
+        totalItems: bookmarks.pagination.totalItems,
+        page: bookmarks.pagination.currentPage,
+        totalPages: bookmarks.pagination.totalPages,
       },
-      select: {
-        shareId: true,
-        node: {
-          select: {
-            uuid: true,
-            dpidAlias: true,
-            manifestUrl: true,
-            manifestDocumentId: true,
-            // Get published versions, if any
-            versions: {
-              where: {
-                OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
-              },
-            },
-          },
-        },
-      },
-    });
-
-    logger.trace({ bookmarkedNodesLength: bookmarkedNodes.length }, 'Bookmarked nodes retrieved successfully');
-
-    if (bookmarkedNodes?.length === 0) {
-      return res.status(200).json({ ok: true, bookmarkedNodes: [] });
-    }
-
-    const filledBookmarkedNodes = await Promise.all(
-      bookmarkedNodes.map(async ({ shareId, node }) => {
-        const latestManifest = await getLatestManifestFromNode(node);
-        const manifestDpid = latestManifest.dpid ? parseInt(latestManifest.dpid.id) : undefined;
-        const published = node.versions.length > 0;
-
-        return {
-          uuid: node.uuid,
-          title: latestManifest.title,
-          dpid: node.dpidAlias ?? manifestDpid,
-          published,
-          shareKey: shareId,
-        };
-      }),
+      'Successfully fetched bookmarks',
     );
-    logger.trace({ filledBookmarkedNodesLength: filledBookmarkedNodes.length }, 'Bookmarked nodes filled successfully');
 
-    if (filledBookmarkedNodes) {
-      logger.info(
-        { totalBookmarkedNodesFound: filledBookmarkedNodes.length },
-        'Bookmarked nodes retrieved successfully',
-      );
-      return res.status(200).json({ ok: true, bookmarkedNodes: filledBookmarkedNodes });
-    }
+    return res.status(200).json(bookmarks);
   } catch (e) {
-    logger.error({ e, message: e?.message }, 'Failed to retrieve bookmarked nodes for user');
-    return res.status(500).json({ error: 'Failed to retrieve bookmarked nodes' });
+    if (e instanceof z.ZodError) {
+      logger.warn({ error: e.errors }, 'Invalid request parameters');
+      return res.status(400).json({ error: 'Invalid request parameters', details: e.errors });
+    }
+    logger.error({ e }, 'Error fetching bookmarks');
+    return res.status(500).json({ error: 'Internal server error' });
   }
-
-  return res.status(500).json({ error: 'Something went wrong' });
 };

@@ -290,6 +290,7 @@ describe('Desci Communities', () => {
         const versions = await attestationService.getAttestationVersions(attestation.id);
         version = versions[versions.length - 1];
         selectedAttestation = await attestationService.addCommunityEntryAttestation({
+          required: true,
           communityId: daoCommunity.id,
           attestationId: attestation.id,
           attestationVersion: version.id,
@@ -298,6 +299,7 @@ describe('Desci Communities', () => {
         const versions2 = await attestationService.getAttestationVersions(attestation2.id);
         selectedVersion = versions2[versions2.length - 1];
         selectedAttestation2 = await attestationService.addCommunityEntryAttestation({
+          required: true,
           communityId: daoCommunity.id,
           attestationId: attestation2.id,
           attestationVersion: selectedVersion.id,
@@ -316,6 +318,7 @@ describe('Desci Communities', () => {
         try {
           assert(daoCommunity);
           await attestationService.addCommunityEntryAttestation({
+            required: true,
             communityId: daoCommunity.id,
             attestationId: attestation.id,
             attestationVersion: version.id,

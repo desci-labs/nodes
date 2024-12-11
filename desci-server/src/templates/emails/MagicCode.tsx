@@ -1,13 +1,4 @@
-import {
-  Body,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Preview,
-  Text,
-  Section,
-} from '@react-email/components';
+import { Body, Container, Head, Heading, Html, Preview, Text, Section } from '@react-email/components';
 import * as React from 'react';
 
 import MainLayout from './MainLayout.js';
@@ -45,8 +36,7 @@ export default MagicCodeEmail;
 const main = {
   backgroundColor: '#ffffff',
   margin: '0 auto',
-  fontFamily:
-    "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
+  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
 };
 
 const container = {

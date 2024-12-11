@@ -4,7 +4,7 @@ apt-get install bash
 
 # Exit on error
 set -e
-./desci-server/scripts/wait-for-it.sh $PG_HOST:5432 --timeout=5 --strict -- echo "postgres up and running"
+./desci-server/scripts/wait-for-it.sh $PG_HOST:$PG_PORT --timeout=5 --strict -- echo "postgres up and running"
 
 # npm run migration:run
 # npm run seed:run

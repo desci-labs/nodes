@@ -156,6 +156,7 @@ model User {
   pseudonym                   String?                       @unique
   orcid                       String?                       @unique
   notificationSettings        Json?
+  unseenNotificationCount     Int                           @default(0)
   // rorPid                     String[]              @default([])
   // organization               String[]              @default([])
   isAdmin                     Boolean                       @default(false)
@@ -472,15 +473,19 @@ model PrivateShare {
 model BookmarkedNode {
   id           Int           @id @default(autoincrement())
   userId       Int
-  nodeUuid     String
+  nodeUuid     String?
+  title        String?
+  doi          String?
+  oaWorkId     String?
+  type         BookmarkType  @default(NODE) // Default for existing records
   shareId      String?
   privateShare PrivateShare? @relation(fields: [shareId], references: [shareId])
-  node         Node          @relation(fields: [nodeUuid], references: [uuid])
+  node         Node?         @relation(fields: [nodeUuid], references: [uuid])
   user         User          @relation(fields: [userId], references: [id])
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  @@unique([userId, nodeUuid])
+  @@unique([userId, type, nodeUuid, doi, oaWorkId])
 }
 
 model NodeCover {
@@ -729,6 +734,8 @@ model Attestation {
   protected                 Boolean                     @default(false)
   createdAt                 DateTime                    @default(now())
   updatedAt                 DateTime                    @updatedAt
+  canMintDoi                Boolean                     @default(false)
+  canUpdateOrcid            Boolean                     @default(false)
   community                 DesciCommunity              @relation(fields: [communityId], references: [id])
   template                  AttestationTemplate?        @relation(fields: [templateId], references: [id])
   AttestationVersion        AttestationVersion[]
@@ -1057,4 +1064,13 @@ enum DoiStatus {
 enum NotificationType {
   PUBLISH
   COMMENTS
+  CONTRIBUTOR_INVITE
+  DOI_ISSUANCE_STATUS
+  ATTESTATION_VALIDATION
+}
+
+enum BookmarkType {
+  NODE
+  DOI
+  OA
 }
