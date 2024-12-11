@@ -317,7 +317,7 @@ export class AutomatedMetadataClient {
             ({
               id: uuidv4(),
               name: author.name,
-              role: ResearchObjectV1AuthorRole.AUTHOR,
+              role: [],
               ...(author.affiliations.length > 0 && { organizations: author.affiliations }),
               ...(author.orcid && { orcid: getOrcidFromURL(author.orcid) }),
             }) as ResearchObjectV1Author,
