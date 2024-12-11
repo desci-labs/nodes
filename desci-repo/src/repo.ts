@@ -29,18 +29,15 @@ const config: RepoConfig = {
   sharePolicy: async (peerId, documentId) => {
     try {
       if (!documentId) {
-        logger.trace({ peerId }, 'SharePolicy: Document ID NOT found');
         return false;
       }
       // peer format: `peer-[user#id]:[unique string combination]
       if (peerId.toString().length < 8) {
-        logger.error({ peerId }, 'SharePolicy: Peer ID invalid');
         return false;
       }
 
       const userId = peerId.split(':')?.[0]?.split('-')?.[1];
       const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
-      logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
       return isAuthorised;
     } catch (err) {
       logger.error({ err }, 'Error in share policy');
