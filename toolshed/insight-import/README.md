@@ -99,7 +99,12 @@ We use `quicktype` to generate types and parsers that match all of the IJ metada
 This is checked in as [src/ijTypes.ts](src/ijTypes.ts), and can be regenerated with `npm run generate-types`.
 
 #### Create nodes
-1. Run `cp .env.example .env` and fill it in according to the instructions
+If running locally, first do these steps:
+1. Tunnel to the `pub.desci.com` RPC service: `kubectl port-forward --address 0.0.0.0 s3-public-ipfs-prod-xx-yy 5005:5001`
+2. Configure the backend to run locally, but with `PUBLIC_IPFS_RESOLVER=http://host.docker.internal:5005` so it can find content via `pub.desci.com`
+
+Regardless, do these steps:
+1. Run `cp .env.example .env` and fill it in according to the instructions. You need to setup an account, generate an API key, etc.
 2. Run `npm start`, which will start creating nodes using nodes-lib against the configured API.
 
 ## Noteworthy fields

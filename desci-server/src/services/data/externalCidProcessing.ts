@@ -191,25 +191,6 @@ export async function processExternalCidDataToIpfs({
 
     const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(entriesDiscovered);
 
-    // Predefine components with their types, only happens if a predefined component type is passed
-    // if (componentType) {
-    //   const firstNestingComponents: FirstNestingComponent[] = extCidsBeingAdded.map((file) => {
-    //     const neutralFullPath = contextPath + '/' + file.name;
-    //     return {
-    //       name: file.name,
-    //       path: neutralFullPath,
-    //       cid: file.cid,
-    //       componentType,
-    //       componentSubtype,
-    //       star: autoStar,
-    //     };
-    //   });
-
-    //   if (firstNestingComponents.length > 0) {
-    //     await addComponentsToDraftManifest(node, firstNestingComponents);
-    //   }
-    // }
-
     let updatedManifest = await getLatestManifestFromNode(ltsNode);
 
     if (componentTypeMap) {
@@ -233,6 +214,8 @@ export async function processExternalCidDataToIpfs({
           pinnedFirstNestingFiles: firstNestingFiles,
           contextPath,
           componentTypeMap,
+          componentType,
+          componentSubtype,
           star: true,
         });
         const preparedComponents = prepareFirstNestingComponents(firstNestingComponents);
