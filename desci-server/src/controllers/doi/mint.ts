@@ -3,12 +3,36 @@ import { Request, Response, NextFunction } from 'express';
 import _ from 'lodash';
 
 import { prisma } from '../../client.js';
+import { BadRequestError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
+import { MintError } from '../../core/doi/error.js';
 import { logger as parentLogger } from '../../logger.js';
 import { EmailTypes, sendEmail } from '../../services/email.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { crossRefClient, doiService } from '../../services/index.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
+
+export const retryDoiMint = async (req: Request, res: Response, _next: NextFunction) => {
+  const { submissionId } = req.params;
+  if (!submissionId) throw new BadRequestError();
+
+  const submission = await doiService.getSubmissionById(parseInt(submissionId));
+  if (!submission) {
+    throw new MintError('No pending submission found');
+  }
+
+  await doiService.retryDoiMint(submission);
+
+  const targetDpidUrl = getTargetDpidUrl();
+  discordNotify({
+    channel: DiscordChannel.DoiMinting,
+    type: DiscordNotifyType.INFO,
+    title: 'Retry DOI Minting',
+    message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
+  });
+
+  new SuccessMessageResponse().send(res);
+};
 
 export interface RequestWithCrossRefPayload extends Request {
   payload: {
