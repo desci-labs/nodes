@@ -945,8 +945,8 @@ model PublishStatus {
   nodeUuid               String
   version                Int
   versionId              Int?
-  commitId               String?
-  ceramicComit           Boolean?
+  commitId               String?      @unique
+  ceramicCommit          Boolean?
   assignDpid             Boolean?
   handleNodeVersionEntry Boolean?
   createPdr              Boolean?
