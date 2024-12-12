@@ -193,15 +193,18 @@ class ContributorService {
     node,
     verifiedOnly,
     withEmailOnly,
+    nonDeniedOnly,
   }: {
     node: Node;
     verifiedOnly?: boolean;
+    nonDeniedOnly?: boolean;
     withEmailOnly?: boolean;
   }): Promise<(NodeContribution & { user: User })[]> {
     let contributions = await prisma.nodeContribution.findMany({
       where: {
         nodeId: node.id,
         ...(verifiedOnly ? { verified: true } : {}),
+        ...(nonDeniedOnly ? { denied: false } : {}),
       },
       include: { user: true },
     });
