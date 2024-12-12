@@ -67,8 +67,8 @@ spec:
           ports:
             - containerPort: 5484
               name: server-api
-            - containerPort: 5445
-              name: ws-api
+            # - containerPort: 5445
+            #   name: ws-api
           resources:
             limits:
               cpu: '4'
