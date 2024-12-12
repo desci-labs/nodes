@@ -63,7 +63,6 @@
     "@automerge/automerge-repo": "^1.2.1",
     "@automerge/automerge-repo-network-websocket": "^1.2.1",
     "@automerge/automerge-repo-react-hooks": "^1.0.19",
-    "@automerge/automerge-repo-storage-indexeddb": "^1.2.1",
     "@cloudflare/workers-types": "^4.20241022.0",
     "@desci-labs/desci-models": "^0.2.18",
     "isomorphic-ws": "^5.0.0",

@@ -26,13 +26,6 @@
     react-dom "^18.2.0"
     react-usestateref "^1.0.8"
 
-"@automerge/automerge-repo-storage-indexeddb@^1.2.1":
-  version "1.2.1"
-  resolved "https://registry.yarnpkg.com/@automerge/automerge-repo-storage-indexeddb/-/automerge-repo-storage-indexeddb-1.2.1.tgz#1c6080079b5ffaf862afd00757404f12b2aadead"
-  integrity sha512-u+9eZZJK7DAr541buF4ut1ipkuiKRoaAtoFYo/ilq7zOLO7JX+GQOFx/8eKKRDlGt/AHTcDaFktkcaX0vKahQQ==
-  dependencies:
-    "@automerge/automerge-repo" "1.2.1"
-
 "@automerge/automerge-repo@1.2.1", "@automerge/automerge-repo@^1.2.1":
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/@automerge/automerge-repo/-/automerge-repo-1.2.1.tgz#73ae042accee275ee74f014f7ddbed6950c77204"
