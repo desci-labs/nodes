@@ -1,37 +1,37 @@
-import { AxiosError } from "axios";
+import {AxiosError} from "axios";
 import {
-  ResearchObjectComponentType,
   type CodeComponent,
   type DataComponent,
   type DriveObject,
   type ExternalLinkComponent,
+  type License,
+  type ManifestActions,
   type PdfComponent,
-  type ResearchObjectV1,
+  type ResearchField,
+  ResearchObjectComponentCodeSubtype,
   ResearchObjectComponentDocumentSubtype,
   ResearchObjectComponentLinkSubtype,
-  ResearchObjectComponentCodeSubtype,
-  type ManifestActions,
-  type ResearchObjectV1Component,
-  type License,
-  type ResearchObjectV1Author,
-  type ResearchField,
   type ResearchObjectComponentSubtypes,
+  ResearchObjectComponentType,
+  type ResearchObjectV1,
+  type ResearchObjectV1Author,
+  type ResearchObjectV1Component,
 } from "@desci-labs/desci-models";
 import FormData from "form-data";
-import { createReadStream } from "fs";
-import type { NodeIDs } from "@desci-labs/desci-codex-lib";
-import { legacyPublish, publish } from "./publish.js";
-import type { ResearchObjectDocument } from "./automerge.js";
-import { randomUUID } from "crypto";
-import { getNodesLibInternalConfig } from "./config/index.js";
-import { makeRequest } from "./routes.js";
-import { Signer } from "ethers";
-import { type DID } from "dids";
-import { getFullState } from "./codex.js";
-import { bnToString, convertUUIDToDecimal } from "./util/converting.js";
-import { lookupLegacyDpid } from "./chain.js";
-import { PublishError } from "./errors.js";
-import { errWithCause } from "pino-std-serializers";
+import {createReadStream} from "fs";
+import type {NodeIDs} from "@desci-labs/desci-codex-lib";
+import {legacyPublish, publish} from "./publish.js";
+import type {ResearchObjectDocument} from "./automerge.js";
+import {randomUUID} from "crypto";
+import {makeRequest} from "./routes.js";
+import {Signer} from "ethers";
+import {type DID} from "dids";
+import {getFullState} from "./codex.js";
+import {bnToString, convertUUIDToDecimal} from "./util/converting.js";
+import {lookupLegacyDpid} from "./chain.js";
+import {PublishError} from "./errors.js";
+import {errWithCause} from "pino-std-serializers";
+import {getHeaders} from "./util/headers.js";
 
 export const ENDPOINTS = {
   deleteData: {
@@ -143,6 +143,12 @@ export const ENDPOINTS = {
     route: `/v1/pub/versions`,
     _payloadT: undefined,
     _responseT: <IndexedNode>{},
+  },
+  claimAttestation: {
+    method: "post",
+    route: `/v1/attestations/claim`,
+    _payloadT: <ClaimAttestationParams>{},
+    _responseT: <NodeAttestation>{},
   },
 } as const;
 
@@ -704,6 +710,8 @@ export type AddExternalTreeParams = {
   componentType: ResearchObjectComponentType;
   /** The subtype of the imported data */
   componentSubtype: ResearchObjectComponentSubtypes;
+  /** Mark the content as particularly important for the node */
+  autoStar?: boolean;
 };
 
 /**
@@ -1085,13 +1093,30 @@ export const updateCoverImage = async (
 ): Promise<ManifestDocumentResponse> =>
   await changeManifest(uuid, [{ type: "Update CoverImage", cid }]);
 
-const getHeaders = (isFormData: boolean = false) => {
-  const headers = {
-    "api-key": getNodesLibInternalConfig().apiKey,
-    ...(isFormData ? { "content-type": "multipart/form-data" } : {}),
-  };
-  return headers;
-};
+export type ClaimAttestationParams = {
+  attestationId: number;
+  nodeVersion: number;
+  nodeUuid: string;
+  nodeDpid: string;
+  claimerId: number;
+}
+type NodeAttestation = {
+  id: number,attestationId: number,
+  attestationVersionId: number,
+  desciCommunityId: number,
+  claimedById: number,
+  nodeDpid10: string | null,
+  nodeUuid: string,
+  nodeVersion: number,
+  claimedAt: Date,
+  revoked: boolean,
+  revokedAt: Date | null
+}
+
+export const claimAttestation = async (
+  params: ClaimAttestationParams
+): Promise<NodeAttestation> =>
+  await makeRequest(ENDPOINTS.claimAttestation, getHeaders(), params);
 
 /**
  * Best-effort way of ensuring reasonable representations of absolute paths

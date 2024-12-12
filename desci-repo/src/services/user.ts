@@ -1,5 +1,5 @@
-import { logger as parentLogger } from '../logger.js';
 import { query } from '../db/index.js';
+import { logger as parentLogger } from '../logger.js';
 
 export const hideEmail = (email: string) => {
   return email.replace(/(.{1,1})(.*)(@.*)/, '$1...$3');
