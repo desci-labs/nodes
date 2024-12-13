@@ -71,7 +71,6 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
         res.status(200).send({ ok: true, document });
         return;
       }
-      // return;
     }
 
     // calls might never reach this place again now that documentId is
@@ -124,7 +123,7 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
 
     let document: Doc<ResearchObjectDocument> | undefined;
 
-    const dispatchChange = getDocumentUpdater(documentId);
+    const dispatchChange = await getDocumentUpdater(documentId);
 
     for (const action of actions) {
       document = await dispatchChange(action);
@@ -144,7 +143,6 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
 
 export const dispatchDocumentActions = async function (req: RequestWithNode, res: Response) {
   const logger = parentLogger.child({ module: 'dispatchDocumentActions' });
-  // logger.info({ body: req.body }, 'START [dispatchDocumentActions]');
   try {
     if (!(req.body.uuid && req.body.documentId && req.body.actions)) {
       logger.error({ body: req.body }, 'Invalid data');
@@ -166,7 +164,7 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
 
     let document: Doc<ResearchObjectDocument> | undefined;
 
-    const dispatchChange = getDocumentUpdater(documentId);
+    const dispatchChange = await getDocumentUpdater(documentId);
 
     for (const action of actions) {
       document = await dispatchChange(action);
