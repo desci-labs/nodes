@@ -11,7 +11,7 @@ import { ZodError } from 'zod';
 import { actionsSchema } from '../../validators/schema.js';
 import { ensureUuidEndsWithDot } from './utils.js';
 import { ManifestActions } from '@desci-labs/desci-models';
-import { IS_DEV, IS_TEST, PARTY_SERVER_HOST } from '../../config.js';
+import { IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from '../../config.js';
 
 const protocol = IS_TEST || IS_DEV ? 'http://' : 'https://';
 
@@ -42,7 +42,7 @@ export const createNodeDocument = async function (req: Request, res: Response) {
     }
 
     let { uuid, manifest } = req.body;
-
+    logger.trace({ protocol, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN }, 'ENV');
     const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents`, {
       method: 'POST',
       body: JSON.stringify({ uuid, manifest }),

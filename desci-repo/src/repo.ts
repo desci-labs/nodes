@@ -18,10 +18,10 @@ import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
 import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import { WebSocketServer } from 'ws';
 import { verifyNodeDocumentAccess } from './services/nodes.js';
-import { ENABLE_PARTYKIT_FEATURE, IS_DEV, IS_TEST, PARTY_SERVER_HOST } from './config.js';
+import { ENABLE_PARTYKIT_FEATURE, IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from './config.js';
 
 const partyServerHost = PARTY_SERVER_HOST || 'localhost:5445';
-const partyServerToken = process.env.PARTY_SERVER_TOKEN;
+const partyServerToken = PARTY_SERVER_TOKEN;
 
 const logger = parentLogger.child({ module: 'repo.ts' });
 
