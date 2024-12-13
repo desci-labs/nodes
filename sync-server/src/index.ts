@@ -1,5 +1,5 @@
 import { type PeerId, Repo } from '@automerge/automerge-repo/slim';
-import { DurableObjectState, EventContext } from '@cloudflare/workers-types';
+import { DurableObjectState } from '@cloudflare/workers-types';
 import { routePartykitRequest, Server as PartyServer, Connection, ConnectionContext, WSMessage } from 'partyserver';
 import { err as serialiseErr } from 'pino-std-serializers';
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
@@ -61,8 +61,6 @@ export class AutomergeServer extends PartyServer {
     };
 
     this.repo = new Repo(config);
-
-    // this.ctx.waitUntil(pool.end());
   }
 
   async onConnect(connection: Connection, ctx: ConnectionContext): Promise<void> {
@@ -117,8 +115,12 @@ export class AutomergeServer extends PartyServer {
   }
 }
 
+export const delay = async (timeMs: number) => {
+  return new Promise((resolve) => setTimeout(resolve, timeMs));
+};
+
 async function handleCreateDocument(request: Request, env: Env) {
-  console.log('Request: ', { env });
+  console.log('[Request]::handleCreateDocument ', { env });
   const environment = env.ENVIRONMENT || 'dev';
   const localDbUrl =
     env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
@@ -129,12 +131,7 @@ async function handleCreateDocument(request: Request, env: Env) {
   const config = {
     storage: new PostgresStorageAdapter(query),
     peerId: `cloudflare-ephemeral-peer` as PeerId,
-    // Since this is a server, we don't share generously — meaning we only sync documents they already
-    // know about and can ask for by ID.
-    sharePolicy: async (peer, docId) => {
-      console.log('SharePolicy called', { peer, docId });
-      return true;
-    },
+    sharePolicy: async () => true,
   };
 
   const repo = new Repo(config);
@@ -153,7 +150,9 @@ async function handleCreateDocument(request: Request, env: Env) {
     { message: 'Init Document', time: Date.now() },
   );
 
-  const document = await handle.doc();
+  let document = await handle.doc();
+  await repo.flush();
+
   return new Response(JSON.stringify({ documentId: handle.documentId, document }), { status: 200 });
 }
 

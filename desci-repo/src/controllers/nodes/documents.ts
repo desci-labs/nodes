@@ -33,8 +33,7 @@ const getDocument = async (documentId: DocumentId) => {
 };
 
 export const createNodeDocument = async function (req: Request, res: Response) {
-  const logger = parentLogger.child({ module: 'createNodeDocument', body: req.body, param: req.params });
-  logger.trace('createNodeDocument');
+  const logger = parentLogger.child({ module: 'createNodeDocument' });
 
   try {
     if (!(req.body.uuid && req.body.manifest)) {
@@ -44,18 +43,16 @@ export const createNodeDocument = async function (req: Request, res: Response) {
 
     let { uuid, manifest } = req.body;
 
-    logger.trace({ url: `${protocol}${PARTY_SERVER_HOST}/api/documents`, uuid }, 'API Request to worker');
     const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents`, {
       method: 'POST',
       body: JSON.stringify({ uuid, manifest }),
     });
     const data = await response.json();
-    logger.trace({ data }, 'Document Created');
-    res.status(200).send({ ok: true, ...data });
 
-    // logger.info({ documentId: handle.documentId, document }, 'END');
+    logger.trace({ uuid }, 'Document Created');
+    res.status(200).send({ ok: true, ...data });
   } catch (err) {
-    logger.error({ err }, 'Error');
+    logger.error({ err }, '[Error]::createNodeDocument');
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
   }
 };

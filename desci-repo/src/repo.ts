@@ -88,6 +88,7 @@ export { socket };
 
 export const backendRepo = new Repo(config);
 
+// move logic to sync server
 const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {
   logger.trace({ change: change.handle.documentId, uuid: change.patchInfo.after.uuid }, 'Document Changed');
   const newTitle = change.patchInfo.after.manifest.title;
@@ -149,7 +150,7 @@ class RepoManager {
       WebSocket: WebSocket,
     });
 
-    adapter.on('ready', (ready) => logger.trace({ ready }, 'networkReady'));
+    // adapter.on('ready', (ready) => logger.trace({ ready: ready.network.peerId }, 'networkReady'));
     this.repo.networkSubsystem.addNetworkAdapter(adapter);
 
     this.repo.networkSubsystem.on('peer-disconnected', (peer) => {
