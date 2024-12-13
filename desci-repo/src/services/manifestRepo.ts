@@ -207,22 +207,6 @@ export const getDocumentUpdater = async (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
-      case 'Delete Component':
-        handle.change(
-          (document) => {
-            deleteComponent(document, action.path);
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
-      case 'Update Component':
-        handle.change(
-          (document) => {
-            updateManifestComponent(document, action.component, action.componentIndex);
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
       case 'Upsert Component':
         handle.change(
           (document) => {
@@ -258,7 +242,7 @@ export const getDocumentUpdater = async (documentId: DocumentId) => {
         );
         break;
       case 'Pin Component':
-        let componentIndex = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
+        const componentIndex = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
         if (componentIndex && componentIndex != -1) {
           handle.change(
             (document) => {
@@ -269,7 +253,7 @@ export const getDocumentUpdater = async (documentId: DocumentId) => {
         }
         break;
       case 'UnPin Component':
-        let index = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
+        const index = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
         if (index && index != -1) {
           handle.change(
             (document) => {
@@ -353,12 +337,20 @@ export const getDocumentUpdater = async (documentId: DocumentId) => {
           }
         });
         break;
+      // case 'Set References':
+      //   handle.change((document) => {
+      //     if (!document.manifest.references) {
+      //       document.manifest.references = [];
+      //     }
+      //     document.manifest.references = action.references;
+      //   });
+      //   break;
       case 'Delete Reference':
         if (!action.referenceId) return;
         const deletedIdx = latestDocument.manifest.references?.findIndex((ref) => ref.id === action.referenceId);
-        if (deletedIdx !== -1) {
+        if (deletedIdx !== undefined && deletedIdx !== -1) {
           handle.change((document) => {
-            document.manifest.references?.splice(deleteIdx, 1);
+            document.manifest.references?.splice(deletedIdx, 1);
           });
         }
         break;
@@ -505,6 +497,7 @@ const upsertManifestComponent = (doc: Doc<ResearchObjectDocument>, component: Re
   }
 };
 
+// eslint-disable-next-line @typescript-eslint/ban-types
 type TypeInitialisers = {} | '' | 0 | [];
 
 const getTypeDefault = (value: unknown): TypeInitialisers => {

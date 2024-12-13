@@ -174,7 +174,12 @@ export class AttestationService {
     if (!attestation) throw new AttestationNotFoundError();
     await prisma.attestation.update({
       where: { id: attestationId },
-      data: { verified_image_url: data.verified_image_url },
+      data: {
+        verified_image_url: data.verified_image_url,
+        protected: data.protected,
+        canMintDoi: data.canMintDoi,
+        canUpdateOrcid: data.canUpdateOrcid,
+      },
     });
     await this.#publishVersion({
       name: data.name as string,
@@ -195,8 +200,10 @@ export class AttestationService {
   }
 
   async getAttestationVersion(id: number, attestationId: number) {
-    return prisma.attestationVersion.findFirst({
-      where: { attestationId, id },
+    logger.trace({ id, attestationId }, 'getAttestationVersion');
+
+    return prisma.attestationVersion.findUnique({
+      where: { id },
       include: { attestation: { select: { communityId: true } } },
     });
   }
@@ -290,7 +297,7 @@ export class AttestationService {
       where: { nodeUuid, revoked: false },
       include: {
         community: { select: { name: true } },
-        attestation: { select: { protected: true } },
+        attestation: { select: { protected: true, canUpdateOrcid: true, canMintDoi: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
         _count: {
           select: { NodeAttestationVerification: true },
@@ -309,10 +316,18 @@ export class AttestationService {
         community: claim.community.name,
         attestationId: claim.attestationId,
         nodeVersion: claim.nodeVersion,
+        privileges: { doiMint: claim.attestation.canMintDoi, orcidUpdate: claim.attestation.canUpdateOrcid },
       }))
       .value();
 
     return protectedClaims;
+  }
+
+  async getAttestationPrivileges(id: number) {
+    return await prisma.attestation.findUnique({
+      where: { id },
+      select: { canMintDoi: true, canUpdateOrcid: true },
+    });
   }
 
   async getNodeCommunityAttestations(dpid: string, communityId: number) {

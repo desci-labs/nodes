@@ -69,7 +69,7 @@ router.get('/nft/:id', nft);
 router.use('/referral', referral);
 router.get('/researchFields', [ensureUser], queryResearchFields);
 router.get('/ror', [ensureUser], queryRor);
-router.get('/ipfs/:cid', ipfsReadGatewayProxy);
+router.get('/cidmd/:cid', ipfsReadGatewayProxy);
 
 // potential notification fallback catch
 router.post(

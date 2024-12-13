@@ -15,5 +15,6 @@ ipfs-data/
 local-data/
 **/node_modules
 .idea
+**/*.iml
 .composedbRuntimeDefinition.json
 openalex-importer

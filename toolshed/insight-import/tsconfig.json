@@ -1,0 +1,17 @@
+{
+  /** https://www.typescriptlang.org/docs/handbook/modules/guides/choosing-compiler-options.html */
+  "compilerOptions": {
+    /** Maximise compatibility with ESM/cjs and importer `moduleResolution: bundler` setting */
+    "module": "nodenext",
+    "target": "es2020",
+
+    /** Import friendliness */
+    "noEmit": true,
+
+//    "resolveJsonModule": true,
+
+    /** Misc hygiene */
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitReturns": true
+  }
+}

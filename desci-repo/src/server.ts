@@ -9,24 +9,23 @@ const IS_DEV = !ENABLE_TELEMETRY;
 
 // @ts-check
 
+import type { Server as HttpServer } from 'http';
+import { fileURLToPath } from 'url';
+
+import 'dotenv/config';
+import 'reflect-metadata';
+import bodyParser from 'body-parser';
+import cors from 'cors';
 import express from 'express';
 import type { Express, Request } from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-
-import type { Server as HttpServer } from 'http';
+import { pinoHttp } from 'pino-http';
 import { v4 } from 'uuid';
 
 import { als, logger } from './logger.js';
-import routes from './routes/index.js';
-// import SocketServer from './wsServer.js';
-
-import { fileURLToPath } from 'url';
-// import { socket as wsSocket } from './repo.js';
-
-import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
-import { pinoHttp } from 'pino-http';
 import { RequestWithUser } from './middleware/guard.js';
+import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
+import routes from './routes/index.js';
+
 import { ENABLE_PARTYKIT_FEATURE } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);

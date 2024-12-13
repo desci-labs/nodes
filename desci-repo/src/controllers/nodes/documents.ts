@@ -1,16 +1,18 @@
-import { Request, Response } from 'express';
-import { ResearchObjectDocument } from '../../types.js';
-import { logger as parentLogger } from '../../logger.js';
+import { Doc } from '@automerge/automerge';
 import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
+import { ManifestActions } from '@desci-labs/desci-models';
+import { Request, Response } from 'express';
+import { ZodError } from 'zod';
+
+import { findNodeByUuid } from '../../db/index.js';
+import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/guard.js';
 import { backendRepo, repoManager } from '../../repo.js';
 import { getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
-import { findNodeByUuid, query } from '../../db/index.js';
-import { Doc } from '@automerge/automerge';
-import { ZodError } from 'zod';
+import { ResearchObjectDocument } from '../../types.js';
 import { actionsSchema } from '../../validators/schema.js';
+
 import { ensureUuidEndsWithDot } from './utils.js';
-import { ManifestActions } from '@desci-labs/desci-models';
 import { IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from '../../config.js';
 
 const protocol = IS_TEST || IS_DEV ? 'http://' : 'https://';

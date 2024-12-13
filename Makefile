@@ -5,6 +5,7 @@ build: .env desci-contracts/.env
 	$(MAKE) -C desci-server install
 	$(MAKE) -C desci-repo install
 	$(MAKE) -C sync-server install
+	$(MAKE) -C nodes-lib build
 
 .PHONY: sterile
 sterile: clean-rec
