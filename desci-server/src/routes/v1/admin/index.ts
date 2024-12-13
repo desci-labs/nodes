@@ -9,6 +9,7 @@ import { ensureUser } from '../../../middleware/permissions.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
 import communities from './communities/index.js';
+import doiRouter from './doi.js';
 import usersRouter from './users/index.js';
 
 const router = Router();
@@ -25,5 +26,7 @@ router.get('/debug/:uuid', [ensureUser, ensureAdmin], asyncHandler(debugNodeHand
 router.use('/communities', [ensureUser, ensureAdmin], communities);
 router.get('/attestations', [ensureUser, ensureAdmin], asyncHandler(listAttestations));
 // router.use('/users', [ensureUser, ensureAdmin], usersRouter);
+
+router.use('/doi', doiRouter);
 
 export default router;
