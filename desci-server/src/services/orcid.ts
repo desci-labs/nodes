@@ -258,6 +258,8 @@ class OrcidApiService {
       }
 
       let claims = await attestationService.getProtectedNodeClaims(nodeUuid);
+      // don't filter by orcid privilege as it prevents existing claims
+      // from being revoked if unverified
       claims = claims.filter((claim) => claim.verifications > 0);
 
       if (claims.length === 0) {
@@ -283,6 +285,9 @@ class OrcidApiService {
         dpid,
         title: latestManifest.title,
       });
+
+      // filter by privilege here to prevent non-privilege updates to work record
+      claims = claims.filter((claim) => claim.privileges.orcidUpdate);
       const claimRecordPromises = claims.map((claim) => {
         const versionIndex = claims[claims.length - 1].nodeVersion;
         const claimedVersionNumber = versionIndex + 1;

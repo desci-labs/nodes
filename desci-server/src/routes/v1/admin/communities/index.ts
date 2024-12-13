@@ -47,12 +47,12 @@ const upload = isS3Configured
         bucket: process.env.AWS_S3_BUCKET_NAME,
         key: (req, file, cb) => {
           // const userId = (req as any).user.id;
-          const { name, communitySlug } = (req as any).body;
-          if (!name || !name) {
+          const { name } = (req as any).body;
+          if (!name) {
             cb(new Error('Missing required params to form key'));
           }
-          const key = `${communitySlug}${name ? +'/' + name : ''}/${file.filename}`; // adjust for dir uploads, doesn't start with '/'
-          logger.info({ fileName: key }, 'Upload asset');
+          const key = `community-assets/${name ? +'/' + name : ''}/${file.fieldname}`; // adjust for dir uploads, doesn't start with '/'
+          logger.info({ key }, 'Upload asset');
           cb(null, key);
         },
       }),

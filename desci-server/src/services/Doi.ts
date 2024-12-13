@@ -1,5 +1,6 @@
 import { PdfComponent, ResearchObjectComponentType, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { DoiStatus, DoiSubmissionQueue, NodeVersion, Prisma, PrismaClient } from '@prisma/client';
+// import _ from 'lodash';
 import { v4 } from 'uuid';
 
 import {
@@ -45,6 +46,7 @@ export class DoiService {
   async assertHasValidatedAttestations(uuid: string) {
     const doiAttestations = await attestationService.getProtectedAttestations({
       protected: true,
+      canMintDoi: true,
       // community: { slug: 'desci-foundation' },
     });
     // logger.info(doiAttestations, 'DOI Requirements');
@@ -208,6 +210,58 @@ export class DoiService {
     return submission;
   }
 
+  async retryDoiMint(submission: DoiSubmissionQueue) {
+    const { dpid, uuid, manifest, researchObject } = await this.checkMintability(submission.uuid);
+    // mint new doi
+
+    const latestVersionTimestamp = researchObject.versions[researchObject.versions.length - 1]?.time;
+    const publicationDate = latestVersionTimestamp
+      ? new Date(parseInt(latestVersionTimestamp) * 1000).toLocaleDateString().replaceAll('/', '-')
+      : (await this.getLastPublishedDate(uuid)).toLocaleDateString().replaceAll('/', '-');
+    logger.trace(
+      {
+        latestVersionTimestamp: new Date(parseInt(latestVersionTimestamp) * 1000)
+          .toLocaleDateString()
+          .replaceAll('/', '-'),
+        publicationDate,
+      },
+      'latestVersionTimestamp',
+    );
+
+    const [month, day, year] = publicationDate.split('-');
+
+    const metadataResponse = await crossRefClient.registerDoi({
+      manifest,
+      doi: submission.uniqueDoi,
+      dpid,
+      publicationDate: { day, month, year },
+    });
+
+    logger.info({ doi: submission.uniqueDoi, uuid, metadataResponse }, 'DOI SUBMITTED');
+    if (!metadataResponse.ok) {
+      throw new MintError("We couldn't register a DOI for this research object");
+    }
+
+    await this.dbClient.doiSubmissionQueue.update({
+      where: { id: submission.id },
+      data: { status: DoiStatus.PENDING },
+    });
+
+    // return submission queue data
+    return submission;
+  }
+
+  async autoMintTrigger(uuid: string) {
+    const sanitizedUuid = ensureUuidEndsWithDot(uuid);
+    const isPending = await this.hasPendingSubmission(sanitizedUuid);
+    if (isPending) {
+      throw new MintError('You have a pending submission');
+    } else {
+      const submission = await this.mintDoi(sanitizedUuid);
+      return submission;
+    }
+  }
+
   /**
    * Query for Doi Record entry for a node using it's
    * identifier (dPid, uuid or Doi)
@@ -238,6 +292,12 @@ export class DoiService {
   async getPendingSubmission(batchId: string) {
     return await this.dbClient.doiSubmissionQueue.findFirst({
       where: { batchId, status: DoiStatus.PENDING },
+    });
+  }
+
+  async getSubmissionById(id: number) {
+    return await this.dbClient.doiSubmissionQueue.findFirst({
+      where: { id },
     });
   }
 

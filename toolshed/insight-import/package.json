@@ -1,0 +1,26 @@
+{
+  "name": "insight-import",
+  "version": "1.0.0",
+  "description": "Import Insight Journal entries into Nodes",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "generate-types": "./generateTsTypes.sh",
+    "start": "tsx src/index.ts"
+  },
+  "author": "Edvard Hübinette",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.8.1",
+    "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-plugin-import": "^2.31.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "@desci-labs/desci-models": "file:../../desci-models",
+    "@desci-labs/nodes-lib": "file:../../nodes-lib",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.7"
+  }
+}

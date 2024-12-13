@@ -397,7 +397,6 @@ export const emitNotificationOnAttestationValidation = async ({
   const claim = await attestationService.findClaimById(claimId);
   const versionedAttestation = await attestationService.getAttestationVersion(claim.attestationVersionId, claimId);
   const dpid = await getDpidFromNode(node);
-
   const attestationName = versionedAttestation.name;
 
   const payload: AttestationValidationPayload = {
@@ -464,9 +463,9 @@ export const getUnseenNotificationCount = async ({ userId, user }: { userId?: nu
   if (!userId && !user) {
     throw new Error('Missing userId or user');
   }
-  if (!user || !user.unseenNotificationCount) {
+  if (!user || user.unseenNotificationCount === undefined) {
     const { unseenNotificationCount } = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userId ?? user.id },
       select: { unseenNotificationCount: true },
     });
     return unseenNotificationCount;

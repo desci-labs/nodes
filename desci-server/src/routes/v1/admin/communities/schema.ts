@@ -10,7 +10,9 @@ export const addCommunitySchema = z.object({
       .boolean()
       .transform((value) => (value.toString() === 'true' ? true : false))
       .default(false),
-    keywords: z.array(z.string()).min(1, 'Community must have at least one keyword'),
+    keywords: z
+      .array(z.string().min(1, 'Keyword cannot be an empty string'))
+      .min(1, 'Community must have at least one keyword'),
     imageUrl: z.string().url().optional(), //"https://pub.desci.com/ipfs/bafkreie7kxhzpzhsbywcrpgyv5yvy3qxcjsibuxsnsh5olaztl2uvnrzx4",
     slug: z.string().min(3),
     links: z.array(z.string().url()),
@@ -26,7 +28,10 @@ export const updateCommunitySchema = z.object({
       .boolean()
       .transform((value) => (value.toString() === 'true' ? true : false))
       .default(false),
-    keywords: z.array(z.string()).min(1, 'Community must have at least one keyword').optional(),
+    keywords: z
+      .array(z.string().min(1, 'Keyword cannot be an empty string'))
+      .min(1, 'Community must have at least one keyword')
+      .optional(),
     imageUrl: z.string().url().optional(), //"https://pub.desci.com/ipfs/bafkreie7kxhzpzhsbywcrpgyv5yvy3qxcjsibuxsnsh5olaztl2uvnrzx4",
     slug: z.string().min(3).optional(),
     links: z.array(z.string().url()).optional(),
@@ -46,6 +51,14 @@ export const addAttestationSchema = z.object({
     imageUrl: z.string().url().optional(), //"https://pub.desci.com/ipfs/bafkreie7kxhzpzhsbywcrpgyv5yvy3qxcjsibuxsnsh5olaztl2uvnrzx4",
     verifiedImageUrl: z.string().url().optional(), //"https://pub.desci.com/ipfs/bafkreie7kxhzpzhsbywcrpgyv5yvy3qxcjsibuxsnsh5olaztl2uvnrzx4",
     protected: z.coerce
+      .boolean()
+      .transform((value) => (value.toString() === 'true' ? true : false))
+      .default(false),
+    canMintDoi: z.coerce
+      .boolean()
+      .transform((value) => (value.toString() === 'true' ? true : false))
+      .default(false),
+    canUpdateOrcid: z.coerce
       .boolean()
       .transform((value) => (value.toString() === 'true' ? true : false))
       .default(false),

@@ -1,9 +1,10 @@
-import axios from 'axios';
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import axios from 'axios';
+
 import { PUBLIC_IPFS_PATH } from '../../config.js';
-import { logger as parentLogger } from '../../logger.js';
-import { createIpfsUnresolvableError } from '../../lib/errors.js';
 import { findNodeByUuid } from '../../db/index.js';
+import { createIpfsUnresolvableError } from '../../lib/errors.js';
+import { logger as parentLogger } from '../../logger.js';
 import { Node } from '../../middleware/guard.js';
 
 export async function getLatestManifest(

@@ -13,8 +13,9 @@ export const ContributorInviteEmailHtml = ({
   privShareCode,
   contributorId,
   newUser,
+  nodeTitle,
 }: ContributorInviteEmailProps) =>
-  render(ContributorInvite({ inviter, nodeUuid, privShareCode, contributorId, newUser }));
+  render(ContributorInvite({ inviter, nodeUuid, privShareCode, contributorId, newUser, nodeTitle }));
 
 export const MagicCodeEmailHtml = ({ magicCode, ip }: MagicCodeEmailProps) => render(MagicCodeEmail({ magicCode }));
 

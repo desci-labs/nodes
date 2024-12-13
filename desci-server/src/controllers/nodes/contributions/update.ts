@@ -92,13 +92,15 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
           nodeUuid: node.uuid,
           privShareCode: shareCode,
           contributorId: contributorUpdated.contributorId,
+          nodeTitle: node.title,
           newUser: !!!contributorUpdated.userId,
         });
+        const inviterName = user.name || 'A user';
         const emailMsg = {
           to: email,
           from: 'no-reply@desci.com',
-          subject: `[nodes.desci.com] ${user.name} has added you as a contributor to their research node.`,
-          text: `You've been added as a contributor to ${node.title}. Confirm your contribution to ensure you're credited for your work. 
+          subject: `[nodes.desci.com] ${inviterName} has added you as a contributor to their research object.`,
+          text: `${inviterName} has added as a contributor to ${node.title}. Confirm your contribution to ensure you're credited for your work. 
           Your private share code: ${shareCode}`,
           html: emailHtml,
         };

@@ -10,6 +10,7 @@ import { attestationService } from '../../services/Attestation.js';
 import { directStreamLookup } from '../../services/ceramic.js';
 import { getManifestByCid } from '../../services/data/processing.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
+import { doiService } from '../../services/index.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import {
   cacheNodeMetadata,
@@ -21,7 +22,7 @@ import {
 import { emitNotificationOnPublish } from '../../services/NotificationService.js';
 import { publishServices } from '../../services/PublishServices.js';
 import { _getIndexedResearchObjects, getIndexedResearchObjects } from '../../theGraph.js';
-import { discordNotify } from '../../utils/discordUtils.js';
+import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { getOrCreateDpid, upgradeDpid } from './createDpid.js';
@@ -34,6 +35,7 @@ export type PublishReqBody = {
   ceramicStream?: string;
   commitId?: string;
   useNewPublish: boolean;
+  mintDoi: boolean;
 };
 
 export type PublishRequest = Request<never, never, PublishReqBody> & {
@@ -66,7 +68,7 @@ async function updateAssociatedAttestations(nodeUuid: string, dpid: string) {
 }
 
 export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
-  const { uuid, cid, manifest, transactionId, ceramicStream, commitId, useNewPublish } = req.body;
+  const { uuid, cid, manifest, transactionId, ceramicStream, commitId, useNewPublish, mintDoi } = req.body;
   const email = req.user.email;
   const logger = parentLogger.child({
     // id: req.id,
@@ -167,6 +169,22 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       },
       owner.id,
     );
+
+    if (mintDoi) {
+      // trigger doi minting workflow
+      try {
+        const submission = await doiService.autoMintTrigger(node.uuid);
+        const targetDpidUrl = getTargetDpidUrl();
+        discordNotify({
+          channel: DiscordChannel.DoiMinting,
+          type: DiscordNotifyType.INFO,
+          title: 'Mint DOI',
+          message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
+        });
+      } catch (err) {
+        logger.error({ err }, 'Error:  Mint DOI on Publish');
+      }
+    }
 
     return res.send({
       ok: true,

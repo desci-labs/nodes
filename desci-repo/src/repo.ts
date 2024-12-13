@@ -1,5 +1,6 @@
 import os from 'os';
 
+<<<<<<< HEAD
 import {
   DocHandleChangePayload,
   DocHandleEvents,
@@ -9,8 +10,18 @@ import {
   RepoConfig,
 } from '@automerge/automerge-repo';
 import WebSocket from 'isomorphic-ws';
+=======
+import { DocHandleChangePayload, DocHandleEvents, PeerId, Repo, RepoConfig } from '@automerge/automerge-repo';
+import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
+import { WebSocketServer } from 'ws';
+
+import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
+import * as db from './db/index.js';
+import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
+>>>>>>> develop
 import { logger as parentLogger } from './logger.js';
 import { ResearchObjectDocument } from './types.js';
+<<<<<<< HEAD
 import * as db from './db/index.js';
 import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
 import { PartykitNodeWsAdapter } from './lib/PartykitNodeWsAdapter.js';
@@ -19,6 +30,8 @@ import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket
 import { WebSocketServer } from 'ws';
 import { verifyNodeDocumentAccess } from './services/nodes.js';
 import { ENABLE_PARTYKIT_FEATURE } from './config.js';
+=======
+>>>>>>> develop
 
 const partyServerHost = process.env.PARTY_SERVER_URL || 'wss://localhost:5445';
 const partyServerToken = process.env.PARTY_SERVER_TOKEN;
@@ -27,6 +40,7 @@ const isTest = process.env.NODE_ENV == 'test';
 
 const logger = parentLogger.child({ module: 'repo.ts' });
 
+<<<<<<< HEAD
 if (ENABLE_PARTYKIT_FEATURE && !(partyServerToken && partyServerHost)) {
   throw new Error('Missing ENVIRONMENT variables: PARTY_SERVER_URL or PARTY_SERVER_TOKEN');
 }
@@ -88,6 +102,34 @@ if (ENABLE_PARTYKIT_FEATURE) {
 
 export { socket };
 
+=======
+const adapter = new NodeWSServerAdapter(socket);
+const config: RepoConfig = {
+  network: [adapter],
+  storage: new PostgresStorageAdapter(),
+  peerId: `storage-server-${hostname}` as PeerId,
+  // Since this is a server, we don't share generously — meaning we only sync documents they already
+  // know about and can ask for by ID.
+  sharePolicy: async (peerId, documentId) => {
+    try {
+      if (!documentId) {
+        return false;
+      }
+      // peer format: `peer-[user#id]:[unique string combination]
+      if (peerId.toString().length < 8) {
+        return false;
+      }
+
+      const userId = peerId.split(':')?.[0]?.split('-')?.[1];
+      const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
+      return isAuthorised;
+    } catch (err) {
+      logger.error({ err }, 'Error in share policy');
+      return false;
+    }
+  },
+};
+>>>>>>> develop
 export const backendRepo = new Repo(config);
 
 const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {

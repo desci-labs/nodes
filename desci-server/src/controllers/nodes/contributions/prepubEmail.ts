@@ -48,7 +48,7 @@ export const emailPublishPackage = async (
     nodeUuid,
     userId: user.id,
   });
-  // debugger;
+  // debugger; //
   logger.trace({ fn: 'Distributing Publish Package' });
 
   if (!nodeUuid) return res.status(400).json({ ok: false, error: 'nodeUuid is required.' });

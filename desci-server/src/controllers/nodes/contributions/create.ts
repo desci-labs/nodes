@@ -57,7 +57,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
   if (!userId && !email && !orcid) {
     return res.status(400).json({ error: 'userId, Email or Orcid required' });
   }
-  debugger; //
+
   // Add contributor to the db
   try {
     const contributorAdded = await contributorService.addNodeContribution({
@@ -90,13 +90,15 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
         nodeUuid: node.uuid,
         privShareCode: shareCode,
         contributorId: contributorAdded.contributorId,
+        nodeTitle: node.title,
         newUser: !!!contributorAdded.userId,
       });
+      const inviterName = user.name || 'A user';
       const emailMsg = {
         to: email,
         from: 'no-reply@desci.com',
-        subject: `[nodes.desci.com] ${user.name} has added you as a contributor to their research node.`,
-        text: `You've been added as a contributor to ${node.title}. Confirm your contribution to ensure you're credited for your work. 
+        subject: `[nodes.desci.com] ${inviterName} has added you as a contributor to their research object.`,
+        text: `${inviterName} has added as a contributor to ${node.title}. Confirm your contribution to ensure you're credited for your work. 
         Your private share code: ${shareCode}`,
         html: emailHtml,
       };
