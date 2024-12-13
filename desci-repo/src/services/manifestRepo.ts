@@ -331,20 +331,20 @@ export const getDocumentUpdater = async (documentId: DocumentId) => {
             document.manifest.references = [];
           }
 
-          for (const reference of action.reference) {
+          for (const reference of action.references) {
             if (!document.manifest.references.find((ref) => ref.id === reference.id))
               document.manifest.references.push(reference);
           }
         });
         break;
-      // case 'Set References':
-      //   handle.change((document) => {
-      //     if (!document.manifest.references) {
-      //       document.manifest.references = [];
-      //     }
-      //     document.manifest.references = action.references;
-      //   });
-      //   break;
+      case 'Set References':
+        handle.change((document) => {
+          if (!document.manifest.references) {
+            document.manifest.references = [];
+          }
+          document.manifest.references = action.references;
+        });
+        break;
       case 'Delete Reference':
         if (!action.referenceId) return;
         const deletedIdx = latestDocument.manifest.references?.findIndex((ref) => ref.id === action.referenceId);
