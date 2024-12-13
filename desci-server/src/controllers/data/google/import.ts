@@ -51,7 +51,14 @@ export const googleImport = async (
     fileStream = await googleService.getFileStream(googleFileId);
   }
   // debugger;
-  const files = [{ originalname: '/' + fileName, content: fileStream, size: fileMd.size }];
+  const files = [
+    {
+      originalname: '/' + fileName,
+      content: fileStream,
+      // If unset (should only happen on folders and links, which prob don't work anyway), pass undefined instead of NaN
+      size: Number(fileMd.size) || undefined,
+    },
+  ];
   const { ok, value } = await processS3DataToIpfs({
     files,
     user: owner,
