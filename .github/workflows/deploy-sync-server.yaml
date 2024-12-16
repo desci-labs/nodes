@@ -17,6 +17,8 @@ jobs:
       - name: Show github ref
         run: |
           echo ${{ github.ref }}
+          echo ${{ github.ref_name }}
+          echo ${{ github.head_ref }}
       - name: Build & Deploy Worker (Dev)
         if: github.ref == 'refs/heads/tay/automerge-party-flagged'
         uses: cloudflare/wrangler-action@v3
