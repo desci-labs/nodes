@@ -15,12 +15,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build & Deploy Worker (Dev)
+        if: github.ref == 'refs/heads/tay/automerge-party-flagged'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          environment: staging
+          workingDirectory: sync-server
+      - name: Build & Deploy Worker (Staging)
         if: github.ref == 'refs/heads/develop'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           environment: staging
+          workingDirectory: sync-server
       - name: Build & Deploy Worker (Production)
         if: github.ref == 'refs/heads/main'
         uses: cloudflare/wrangler-action@v3
@@ -28,3 +37,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           environment: production
+          workingDirectory: sync-server
