@@ -20,7 +20,7 @@ jobs:
           echo ${{ github.ref_name }}
           echo ${{ github.head_ref }}
       - name: Build & Deploy Worker (Dev)
-        if: github.ref == 'refs/heads/tay/automerge-party-flagged'
+        if: github.head_ref == 'tay/automerge-party-flagged'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
