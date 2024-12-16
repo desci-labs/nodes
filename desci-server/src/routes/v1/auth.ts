@@ -3,7 +3,6 @@ import { Router } from 'express';
 import {
   login,
   logout,
-  register,
   profile,
   orcidAuth,
   orcidAuthClose,
@@ -28,7 +27,6 @@ router.post('/login/did', asyncHandler(walletLogin));
 router.get('/login/did/:walletAddress', asyncHandler(walletNonce));
 router.delete('/logout', logout);
 router.get('/profile', [ensureUser], profile);
-router.post('/register', register);
 router.get('/orcid/auth', orcidAuth);
 router.get('/orcid/auth/close', orcidAuthClose);
 router.get('/orcid/connect', orcidConnect);
