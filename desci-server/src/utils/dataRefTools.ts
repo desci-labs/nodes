@@ -64,7 +64,7 @@ export async function generateDataReferences({
       uuid: nodeUuid,
     },
   });
-  // debugger;
+
   if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
   const manifestEntry: ResearchObjectV1 = (await axios.get(`${PUBLIC_IPFS_PATH}/${manifestCid}`)).data;
   const dataBucketCid = manifestEntry.components.find((c) => isNodeRoot(c)).payload.cid;
@@ -102,7 +102,7 @@ export async function generateDataReferences({
     if (markExternals) {
       dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
     } else {
-      dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
+      dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, true));
     }
   } else {
     const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
@@ -128,7 +128,6 @@ export async function generateDataReferences({
       // ...(!markExternals ? {} : entry.external ? { external: true } : { external: null }),
     };
   });
-  // debugger;
 
   const manifestRefIncluded = includeManifestRef ? [manifestRefEntry] : [];
 
@@ -209,11 +208,9 @@ export async function prepareDataRefsForDraftTrees(
   });
   if (!node) throw new Error(`Node not found for uuid ${nodeUuid}`);
   const manifestEntry: ResearchObjectV1 = manifest;
-
   const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
   const dataTree = draftNodeTreeEntriesToFlatIpfsTree(dbTree);
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
-  // debugger;
 
   const dataTreeToPubRef: Prisma.DataReferenceCreateManyInput[] = dataTree.map((entry) => {
     const dbType = inheritComponentType(entry.path, manifestPathsToDbTypes);
@@ -230,6 +227,17 @@ export async function prepareDataRefsForDraftTrees(
       external: entry.external || null,
     };
   });
+
+  /**
+   * We want to include all local file refs, but for dirs during draft mode we don't create DAGs until prepublish, so we exclude them.
+   * Local files refers to files in our private IPFS swarm, external files are files in the public IPFS swarm.
+   */
+  // const isLocalFile = (ref: Prisma.DataReferenceCreateManyInput) => !ref.directory && !ref.external;
+
+  // /**
+  //  * For External CIDs we don't store the files locally, only the DAGs, the need references for dirs in this case as they're already existing DAG Cids.
+  //  */
+  // const isExternalDir = (ref: Prisma.DataReferenceCreateManyInput) => ref.directory && ref.external;
 
   return dataTreeToPubRef.filter((ref) => !ref.directory);
 }
@@ -375,7 +383,7 @@ export async function validateDataReferences({
   includeManifestRef = false,
 }: ValidateAndHealDataRefsArgs) {
   if (nodeUuid.endsWith('.')) nodeUuid = nodeUuid.slice(0, -1);
-  // debugger;
+
   const node = await prisma.node.findFirst({
     where: {
       uuid: ensureUuidEndsWithDot(nodeUuid),

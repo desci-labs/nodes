@@ -200,7 +200,6 @@ export async function processExternalCidDataToIpfs({
        * Only needs to happen if a predefined component type is to be added
        */
       if (autoStar) {
-        // debugger;
         const firstNestingFiles = extCidsBeingAdded.map((file) => {
           const neutralFullPath = contextPath + '/' + file.name;
           return {

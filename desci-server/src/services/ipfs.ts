@@ -304,7 +304,6 @@ export async function pinExternalDags(cids: string[]): Promise<string[]> {
 
 export const pinFile = async (file: Buffer | Readable | ReadableStream): Promise<IpfsPinnedResult> => {
   const isOnline = await client.isOnline();
-  // debugger;
   logger.debug({ fn: 'pinFile' }, `isOnline: ${isOnline}`);
   const uploadedFile = await client.add(file, { cidVersion: 1, pin: true });
   return { ...uploadedFile, cid: uploadedFile.cid.toString() };
@@ -493,6 +492,7 @@ export async function mixedLs(
       };
       const externalCidMapEntry = externalCidMap[result.cid];
       const toggleExternalMode = !!externalCidMapEntry || externalMode;
+
       if (toggleExternalMode) result.external = true;
       const isFile =
         (externalMode && !externalCidMapEntry) || (externalCidMapEntry && externalCidMapEntry.directory == false);
