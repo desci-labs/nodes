@@ -7,7 +7,7 @@ import { ZodError } from 'zod';
 import { findNodeByUuid } from '../../db/index.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/guard.js';
-import { backendRepo } from '../../repo.js';
+import { backendRepo, repoManager } from '../../repo.js';
 import { getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
 import { ResearchObjectDocument } from '../../types.js';
 import { actionsSchema } from '../../validators/schema.js';
@@ -69,15 +69,24 @@ export const createNodeDocument = async function (req: Request, res: Response) {
 };
 
 export const getLatestNodeManifest = async function (req: Request, res: Response) {
-  const logger = parentLogger.child({ module: 'getLatestNodeManifest', params: req.params });
+  const logger = parentLogger.child({ module: 'getLatestNodeManifest', query: req.query, params: req.params });
   const { uuid } = req.params;
   const { documentId } = req.query;
 
   const getDocument = async (documentId: DocumentId) => {
+    if (!repoManager.isConnected(documentId)) {
+      repoManager.connect(documentId);
+    }
+
+    // logger.trace({ documentId }, 'get document');
     const automergeUrl = getAutomergeUrl(documentId);
+    // logger.trace({ documentId }, 'when ready');
+    await backendRepo.networkSubsystem.whenReady();
+    logger.trace({ documentId }, 'ready');
     const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+    logger.trace({ handle: handle.url }, 'handle resolved');
     const document = await handle.doc();
-    logger.trace({ uuid, automergeUrl }, 'DOCUMENT Retrieved');
+    logger.trace({ uuid, automergeUrl, Retrieved: !!document, document }, 'DOCUMENT Retrieved');
     return document;
   };
 
@@ -86,8 +95,11 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
     // fast track call if documentId is available
     if (documentId) {
       const document = await getDocument(documentId as DocumentId);
-      if (document) res.status(200).send({ ok: true, document });
-      return;
+      if (document) {
+        res.status(200).send({ ok: true, document });
+        return;
+      }
+      // return;
     }
 
     // calls might never reach this place again now that documentId is
@@ -114,6 +126,7 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
 
     const document = await getDocument(node.manifestDocumentId as DocumentId);
 
+    logger.trace({ document: !!document }, 'return DOCUMENT');
     res.status(200).send({ ok: true, document });
   } catch (err) {
     logger.error({ err }, 'Error');
