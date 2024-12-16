@@ -43,6 +43,7 @@ export class AutomergeServer extends PartyServer {
       this.env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
     this.DATABASE_URL = this.environment === 'dev' ? localDbUrl : this.env.NODES_DB.connectionString;
     this.API_TOKEN = env.API_TOKEN || 'auth-token';
+    console.log('[Values]', { db: this.DATABASE_URL, api: this.API_TOKEN, env: this.environment });
   }
 
   async onStart(): Promise<void> {
