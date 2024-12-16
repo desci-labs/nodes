@@ -36,7 +36,7 @@ export const validateOrcid = async (req: Request, res: Response) => {
     res.send({ data, ok: true });
   } catch (err) {
     logger.error({ err, fn: 'validateOrcid', req });
-    res.status(400).send({ ok: false, err });
+    res.status(400).send({ ok: false, msg: 'Validation failed' });
   }
 };
 
@@ -144,7 +144,7 @@ const processOrcidConnect = async (req: Request, res: Response, closing: boolean
     return;
   } catch (err) {
     logger.error({ fn: 'processOrcidConnect', err }, 'error processing orcid connect');
-    res.status(400).send({ err });
+    res.status(400).send('Orcid connect failed');
   }
 };
 
@@ -203,6 +203,6 @@ const processOrcidAuth = async (req: Request, res: Response, closing: boolean) =
     return;
   } catch (err) {
     logger.error({ fn: 'processOrcidAuth', err }, 'error processing orcid auth');
-    res.status(400).send({ err });
+    res.status(500).send({ msg: 'processing ORCID auth failed' });
   }
 };
