@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 
 import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
-import { publishServices } from '../../../services/PublishServices.js';
+import { PublishServices } from '../../../services/PublishServices.js';
 import { CidString } from '../../../services/Thumbnails.js';
 import { ensureUuidEndsWithDot } from '../../../utils.js';
 
@@ -70,7 +70,7 @@ export const emailPublishPackage = async (
     // if (!distPdfEntry) return res.status(404).json({ ok: false, error: 'Distribution PDF not found' });
 
     // Fire off email
-    await publishServices.sendVersionUpdateEmailToAllContributors({
+    await PublishServices.sendVersionUpdateEmailToAllContributors({
       node,
       manuscriptCid: prepubDistPdfCid,
       ownerOnly: !emailAllContributors,

@@ -20,7 +20,7 @@ import {
   setDpidAlias,
 } from '../../services/nodeManager.js';
 import { emitNotificationOnPublish } from '../../services/NotificationService.js';
-import { publishServices } from '../../services/PublishServices.js';
+import { PublishServices } from '../../services/PublishServices.js';
 import { _getIndexedResearchObjects, getIndexedResearchObjects } from '../../theGraph.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
@@ -51,25 +51,11 @@ export type PublishResBody =
   | {
       error: string;
     };
-async function updateAssociatedAttestations(nodeUuid: string, dpid: string) {
-  const logger = parentLogger.child({
-    // id: req.id,
-    module: 'NODE::publishController',
-  });
-  logger.info({ nodeUuid, dpid }, `[updateAssociatedAttestations]`);
-  return await prisma.nodeAttestation.updateMany({
-    where: {
-      nodeUuid,
-    },
-    data: {
-      nodeDpid10: dpid,
-    },
-  });
-}
 
 export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
   const { uuid, cid, manifest, transactionId, ceramicStream, commitId, useNewPublish, mintDoi } = req.body;
   const email = req.user.email;
+  const owner = req.user;
   const logger = parentLogger.child({
     // id: req.id,
     module: 'NODE::publishController',
@@ -80,7 +66,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     ceramicStream,
     commitId,
     email,
-    user: req.user,
+    user: owner,
     useNewPublish,
   });
 
@@ -88,27 +74,11 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     return res.status(404).send({ error: 'uuid, cid, email, and manifest must be valid' });
   }
 
-  if (email === undefined || email === null) {
-    // Prevent any issues with prisma findFirst with undefined fields
-    return res.status(401).send({ error: 'email must be valid' });
-  }
-
   if (!(ceramicStream && commitId)) {
     logger.warn({ uuid }, `[publish] called with unexpected stream (${ceramicStream}) and/org commit (${commitId})`);
   }
 
   try {
-    /**TODO: MOVE TO MIDDLEWARE */
-    const owner = await prisma.user.findFirst({
-      where: {
-        email,
-      },
-    });
-
-    if (!owner.id || owner.id < 1) {
-      throw Error('User ID mismatch');
-    }
-
     const node = await prisma.node.findFirst({
       where: {
         ownerId: owner.id,
@@ -128,27 +98,42 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
 
     if (task) return res.status(400).json({ error: 'Node publishing in progress' });
 
-    logger.info({ ceramicStream, commitId, uuid, owner: owner.id }, 'Triggering new publish flow');
-    const dpidAlias = await syncPublish(ceramicStream, commitId, node, owner, cid, uuid, manifest);
-
-    updateAssociatedAttestations(node.uuid, dpidAlias ? dpidAlias.toString() : manifest.dpid?.id);
-
-    const root = await prisma.publicDataReference.findFirst({
-      where: { nodeId: node.id, root: true, userId: owner.id },
-      orderBy: { updatedAt: 'desc' },
+    /*
+     ** Add PublishStatus entry
+     */
+    const publishStatusEntry = await PublishServices.createPublishStatusEntry(uuid);
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId: publishStatusEntry.id,
+      data: {
+        commitId: commitId,
+        manifestCid: cid, // Ideally extracted from the stream commit, so we know they align
+        ceramicCommit: true,
+      },
     });
-    const result = await getIndexedResearchObjects([ensureUuidEndsWithDot(uuid)]);
-    // if node is being published for the first time default to 1
-    const version = result ? result.researchObjects?.[0]?.versions.length : 1;
-    logger.info({ root, result, version }, 'publishDraftComments::Root');
 
-    // publish draft comments
-    await attestationService.publishDraftComments({
+    logger.info({ ceramicStream, commitId, uuid, owner: owner.id }, 'Triggering new publish flow');
+    const dpidAlias = await syncPublish(
+      ceramicStream,
+      commitId,
       node,
-      userId: owner.id,
-      dpidAlias: dpidAlias ?? parseInt(manifest.dpid?.id),
-      rootCid: root.rootCid,
-      version,
+      owner,
+      cid,
+      uuid,
+      manifest,
+      publishStatusEntry.id,
+    );
+
+    PublishServices.updateAssociatedAttestations(
+      node.uuid,
+      dpidAlias ? dpidAlias.toString() : manifest.dpid?.id,
+      publishStatusEntry.id,
+    );
+
+    await PublishServices.transformDraftComments({
+      node,
+      owner,
+      dpidAlias: dpidAlias ? dpidAlias : manifest.dpid?.id ? parseInt(manifest.dpid.id) : undefined,
+      publishStatusId: publishStatusEntry.id,
     });
 
     // Make sure we don't serve stale manifest state when a publish is happening
@@ -181,8 +166,20 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
           title: 'Mint DOI',
           message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
         });
+        await PublishServices.updatePublishStatusEntry({
+          publishStatusId: publishStatusEntry.id,
+          data: {
+            triggerDoiMint: true,
+          },
+        });
       } catch (err) {
         logger.error({ err }, 'Error:  Mint DOI on Publish');
+        await PublishServices.updatePublishStatusEntry({
+          publishStatusId: publishStatusEntry.id,
+          data: {
+            triggerDoiMint: false,
+          },
+        });
       }
     }
 
@@ -227,6 +224,7 @@ const syncPublish = async (
   cid: string,
   uuid: string,
   manifest: ResearchObjectV1,
+  publishStatusId: number,
 ): Promise<number> => {
   const logger = parentLogger.child({
     module: 'NODE::syncPublish',
@@ -236,30 +234,11 @@ const syncPublish = async (
     commitId,
   });
 
-  const latestNodeVersion = await prisma.nodeVersion.findFirst({
-    where: {
-      nodeId: node.id,
-    },
-    orderBy: {
-      id: 'desc',
-    },
-  });
-
-  // Prevent duplicating the NodeVersion entry if the latest version is the same as the one we're trying to publish, as a draft save is triggered before publishing
-  const latestNodeVersionId = latestNodeVersion?.manifestUrl === cid ? latestNodeVersion.id : -1;
-
-  const nodeVersion = await prisma.nodeVersion.upsert({
-    where: {
-      id: latestNodeVersionId,
-    },
-    update: {
-      commitId,
-    },
-    create: {
-      nodeId: node.id,
-      manifestUrl: cid,
-      commitId,
-    },
+  const nodeVersion = await PublishServices.updateNodeVersionEntry({
+    manifestCid: cid,
+    commitId,
+    node,
+    publishStatusId,
   });
 
   // first time we see a stream for this node, make sure we bind it in the db
@@ -284,7 +263,9 @@ const syncPublish = async (
     // The only reason this isn't just fire-and-forget is that we want the dpid
     // for the discord notification, which won't be available otherwise for
     // first time publishes.
-    promises.push(createOrUpgradeDpidAlias(legacyDpid, ceramicStream, uuid).then((dpid) => (dpidAlias = dpid)));
+    promises.push(
+      createOrUpgradeDpidAlias(legacyDpid, ceramicStream, uuid, publishStatusId).then((dpid) => (dpidAlias = dpid)),
+    );
   }
 
   promises.push(
@@ -295,20 +276,21 @@ const syncPublish = async (
       manifestCid: cid,
       nodeVersionId: nodeVersion.id,
       nodeUuid: node.uuid,
+      publishStatusId,
     }),
   );
 
   await Promise.all(promises);
 
   const dpid = dpidAlias?.toString() || legacyDpid?.toString();
-  // Intentionally of above stacked promise, needs the DPID to be resolved!!!
+  // Intentionally above stacked promise, needs the DPID to be resolved!!!
   // Send emails coupled to the publish event
-  await publishServices.handleDeferredEmails(node.uuid, dpid);
+  await PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusId);
 
   /*
    * Emit notification on publish
    */
-  await emitNotificationOnPublish(node, owner, dpid);
+  await emitNotificationOnPublish(node, owner, dpid, publishStatusId);
 
   const targetDpidUrl = getTargetDpidUrl();
   discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
@@ -324,16 +306,18 @@ const syncPublish = async (
  * Creates new dPID if legacyDpid is falsy, otherwise tries to upgrade
  * the dPID by binding the stream in the alias registry for that dPID.
  */
-const createOrUpgradeDpidAlias = async (
+export const createOrUpgradeDpidAlias = async (
   legacyDpid: number | undefined,
   ceramicStream: string,
   uuid: string,
+  publishStatusId: number,
 ): Promise<number> => {
   const logger = parentLogger.child({
     module: 'NODE::createOrUpgradeDpidAlias',
     legacyDpid,
     ceramicStream,
     uuid,
+    publishStatusId,
   });
 
   let dpidAlias: number;
@@ -369,6 +353,22 @@ const createOrUpgradeDpidAlias = async (
     dpidAlias = await getOrCreateDpid(ceramicStream);
   }
   await setDpidAlias(uuid, dpidAlias);
+  if (dpidAlias) {
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        assignDpid: true,
+      },
+    });
+  } else {
+    console.error({ fn: 'createOrUpgradeDpidAlias', dpidAlias, uuid, publishStatusId }, 'Failed DPID assignment');
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        assignDpid: false,
+      },
+    });
+  }
   return dpidAlias;
 };
 
@@ -378,9 +378,10 @@ type PublishData = {
   userId: number;
   manifestCid: string;
   nodeVersionId: number;
+  publishStatusId: number;
 };
 
-const handlePublicDataRefs = async (params: PublishData): Promise<void> => {
+export const handlePublicDataRefs = async (params: PublishData): Promise<void> => {
   const { nodeId, nodeUuid, userId, manifestCid, nodeVersionId } = params;
 
   const logger = parentLogger.child({
@@ -412,6 +413,12 @@ const handlePublicDataRefs = async (params: PublishData): Promise<void> => {
       params,
       result: { newPublicDataRefs },
     });
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId: params.publishStatusId,
+      data: {
+        createPdr: true,
+      },
+    });
   } catch (error) {
     logger.error({ error }, `[publish::publish] error=${error}`);
     /**
@@ -420,6 +427,12 @@ const handlePublicDataRefs = async (params: PublishData): Promise<void> => {
     await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_FAIL, {
       params,
       error,
+    });
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId: params.publishStatusId,
+      data: {
+        createPdr: false,
+      },
     });
     throw error;
   }
@@ -473,6 +486,18 @@ export const publishHandler = async ({
     }
     /**TODO: END MOVE TO MIDDLEWARE */
 
+    /*
+     ** Add PublishStatus entry
+     */
+    const publishStatusEntry = await PublishServices.createPublishStatusEntry(uuid);
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId: publishStatusEntry.id,
+      data: {
+        commitId: commitId,
+        ceramicCommit: true,
+      },
+    });
+
     // update node version
     const latestNodeVersion = await prisma.nodeVersion.findFirst({
       where: {
@@ -519,6 +544,7 @@ export const publishHandler = async ({
       userId: owner.id,
       manifestCid: cid,
       nodeVersionId: nodeVersion.id,
+      publishStatusId: publishStatusEntry.id,
     });
 
     const manifest = await getManifestByCid(cid);
@@ -530,12 +556,12 @@ export const publishHandler = async ({
     /**
      * Fire off any deferred emails awaiting publish
      */
-    await publishServices.handleDeferredEmails(node.uuid, dpid);
+    await PublishServices.handleDeferredEmails(node.uuid, dpid, publishStatusEntry.id);
 
     /*
      * Emit notification on publish
      */
-    await emitNotificationOnPublish(node, owner, dpid);
+    await emitNotificationOnPublish(node, owner, dpid, publishStatusEntry.id);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version
