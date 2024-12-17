@@ -14,19 +14,32 @@ Usage Examples:
 invalidateByUuid:     OPERATION=invalidateByUuid NODE_UUID=noDeUuiD. npm run script:invalidate-redis-cache
 
 */
+async function main() {
+  try {
+    const { operation, nodeUuid } = getOperationEnvs();
 
-main();
-function main() {
-  const { operation, nodeUuid } = getOperationEnvs();
-
-  switch (operation) {
-    case 'invalidateByUuid':
-      if (!nodeUuid) return logger.error('Missing NODE_UUID or MANIFEST_CID');
-      invalidateByUuid({ nodeUuid });
-      break;
-    default:
-      logger.error('Invalid operation, valid operations include: invalidateByUuid');
-      return;
+    switch (operation) {
+      case 'invalidateByUuid':
+        if (!nodeUuid) return logger.error('Missing NODE_UUID or MANIFEST_CID');
+        await invalidateByUuid({ nodeUuid });
+        break;
+      case 'invalidateAll':
+        if (nodeUuid) {
+          logger.error('NODE_UUID was passed to invalidateAll, aborting in case of mistake');
+          throw new Error('invalidateAll does not take NODE_UUID');
+        }
+        await invalidateAll();
+        break;
+      default:
+        logger.error('Invalid operation, valid operations include: invalidateByUuid');
+        return;
+    }
+  } catch (e) {
+    const err = e as Error;
+    console.error('Script failed:', err.message);
+    process.exit(1);
+  } finally {
+    await redisClient.quit();
   }
 }
 
@@ -35,6 +48,11 @@ function getOperationEnvs() {
     operation: process.env.OPERATION || null,
     nodeUuid: process.env.NODE_UUID || null,
   };
+}
+
+async function invalidateAll() {
+  await redisClient.flushDb();
+  logger.info('[invalidateAll] Wiped all keys from cache');
 }
 
 async function invalidateByUuid({ nodeUuid }: { nodeUuid: string }) {
@@ -98,3 +116,5 @@ async function deleteKeys(pattern: string) {
 
   logger.info({ pattern }, `All matching keys deleted.`);
 }
+
+main();

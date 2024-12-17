@@ -35,12 +35,17 @@ async function sendVersionUpdateEmailToAllContributors({
 }) {
   const contributors = ownerOnly
     ? []
-    : await contributorService.retrieveAllContributionsForNode({ node, verifiedOnly, withEmailOnly: true });
+    : await contributorService.retrieveAllContributionsForNode({
+        node,
+        verifiedOnly,
+        withEmailOnly: true,
+        nonDeniedOnly: true,
+      });
   const nodeOwner = await prisma.user.findUnique({ where: { id: node.ownerId } });
   const manifest = await getLatestManifestFromNode(node);
   const dpid = node.dpidAlias?.toString() ?? manifest.dpid?.id;
   const versionPublished = await getNodeVersion(node.uuid);
-
+  // debugger; ////
   if (!dpid) {
     logger.error(
       {
@@ -95,7 +100,7 @@ async function sendVersionUpdateEmailToAllContributors({
   });
 
   if (process.env.SHOULD_SEND_EMAIL && process.env.SENDGRID_API_KEY) {
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       emailPromises.map(async (emailPromiseEntry) => {
         const emailEntry = await emailPromiseEntry;
         if (!emailEntry.contributor.inviteSent) {
@@ -107,6 +112,28 @@ async function sendVersionUpdateEmailToAllContributors({
         }
         return sgMail.send(emailEntry.emailMsg);
       }),
+    );
+
+    const successCount = results.filter((r) => r.status === 'fulfilled').length;
+    const failureCount = results.filter((r) => r.status === 'rejected').length;
+
+    logger.info(
+      {
+        totalEmails: results.length,
+        successCount,
+        failureCount,
+        failedEmails: results
+          .map((r, i) =>
+            r.status === 'rejected'
+              ? {
+                  index: i,
+                  reason: (r as PromiseRejectedResult).reason?.message,
+                }
+              : null,
+          )
+          .filter(Boolean),
+      },
+      'Submission package email sending complete',
     );
   } else {
     logger.info({ nodeEnv: process.env.NODE_ENV }, 'Skipping add contributor email send in non-production environment');

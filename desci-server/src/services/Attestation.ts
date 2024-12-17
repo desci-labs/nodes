@@ -126,6 +126,7 @@ export class AttestationService {
   }
 
   async create(data: Prisma.AttestationUncheckedCreateInput) {
+    logger.trace({ data }, 'AttestationService#create');
     const community = await communityService.findCommunityById(data.communityId);
 
     if (!community) throw new CommunityNotFoundError();
@@ -133,7 +134,19 @@ export class AttestationService {
     const existing = await prisma.attestation.findFirst({ where: { name: data.name, communityId: data.communityId } });
     if (existing) throw new DuplicateDataError();
 
-    const attestation = await prisma.attestation.create({ data: { communityId: community.id, ...data } });
+    const attestation = await prisma.attestation.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        image_url: data.image_url,
+        verified_image_url: data.verified_image_url,
+        protected: data.protected,
+        canMintDoi: data.canMintDoi,
+        canUpdateOrcid: data.canUpdateOrcid,
+        communityId: community.id,
+        templateId: data.templateId,
+      },
+    });
 
     await this.#publishVersion({
       name: attestation.name,
@@ -181,12 +194,22 @@ export class AttestationService {
         canUpdateOrcid: data.canUpdateOrcid,
       },
     });
-    await this.#publishVersion({
+    const attestationVersion = await this.#publishVersion({
       name: data.name as string,
       description: data.description,
       image_url: data.image_url,
       attestationId: attestation.id,
     });
+
+    const communityEntryAttestation = await prisma.communityEntryAttestation.findFirst({
+      where: { attestationId: attestation.id },
+    });
+    if (communityEntryAttestation) {
+      await prisma.communityEntryAttestation.update({
+        where: { id: communityEntryAttestation.id },
+        data: { attestationVersionId: attestationVersion.id },
+      });
+    }
     const updated = await this.findAttestationById(attestation.id);
     return updated;
   }

@@ -1,20 +1,41 @@
-import { Request, Response } from 'express';
-import { ResearchObjectDocument } from '../../types.js';
-import { logger as parentLogger } from '../../logger.js';
-import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
-import { RequestWithNode } from '../../middleware/guard.js';
-import { backendRepo } from '../../repo.js';
-import { getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
-import { findNodeByUuid, query } from '../../db/index.js';
 import { Doc } from '@automerge/automerge';
-import { ZodError } from 'zod';
-import { actionsSchema } from '../../validators/schema.js';
-import { ensureUuidEndsWithDot } from './utils.js';
+import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
 import { ManifestActions } from '@desci-labs/desci-models';
+import { Request, Response } from 'express';
+import { ZodError } from 'zod';
+
+import { findNodeByUuid } from '../../db/index.js';
+import { logger as parentLogger } from '../../logger.js';
+import { RequestWithNode } from '../../middleware/guard.js';
+import { backendRepo, repoManager } from '../../repo.js';
+import { getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
+import { ResearchObjectDocument } from '../../types.js';
+import { actionsSchema } from '../../validators/schema.js';
+
+import { ensureUuidEndsWithDot } from './utils.js';
+import { IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from '../../config.js';
+
+const protocol = IS_TEST || IS_DEV ? 'http://' : 'https://';
+
+const getDocument = async (documentId: DocumentId) => {
+  const logger = parentLogger.child({ module: 'getDocument', documentId });
+
+  if (!repoManager.isConnected(documentId)) {
+    repoManager.connect(documentId);
+  }
+
+  const automergeUrl = getAutomergeUrl(documentId);
+  await backendRepo.networkSubsystem.whenReady();
+  logger.trace({ documentId }, 'ready');
+  const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+  logger.trace({ handle: handle.url }, 'handle resolved');
+  const document = await handle.doc();
+  logger.trace({ automergeUrl, Retrieved: !!document, document }, 'DOCUMENT Retrieved');
+  return document;
+};
 
 export const createNodeDocument = async function (req: Request, res: Response) {
-  const logger = parentLogger.child({ module: 'createNodeDocument', body: req.body, param: req.params });
-  logger.trace('createNodeDocument');
+  const logger = parentLogger.child({ module: 'createNodeDocument' });
 
   try {
     if (!(req.body.uuid && req.body.manifest)) {
@@ -23,68 +44,35 @@ export const createNodeDocument = async function (req: Request, res: Response) {
     }
 
     let { uuid, manifest } = req.body;
-    uuid = ensureUuidEndsWithDot(uuid);
-    logger.info({ peerId: backendRepo.networkSubsystem.peerId, uuid }, '[Backend REPO]:');
-    const handle = backendRepo.create<ResearchObjectDocument>();
-    handle.change(
-      (d) => {
-        d.manifest = manifest;
-        d.uuid = uuid;
-        d.driveClock = Date.now().toString();
-      },
-      { message: 'Init Document', time: Date.now() },
-    );
+    logger.trace({ protocol, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN }, 'ENV');
+    const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents`, {
+      method: 'POST',
+      body: JSON.stringify({ uuid, manifest }),
+    });
+    const data = await response.json();
 
-    logger.trace({ peerId: backendRepo.networkSubsystem.peerId, uuid }, 'Document Created');
-
-    const document = await handle.doc();
-
-    logger.trace({ handleReady: handle.isReady() }, 'Document Retrieved');
-
-    // const node = await findNodeByUuid(uuid);
-    // logger.trace({ node }, 'Node Retrieved');
-    // await prisma.node.update({ where: { id: node.id }, data: { manifestDocumentId: handle.documentId } });
-    // const result = await query('UPDATE "Node" SET "manifestDocumentId" = $1 WHERE uuid = $2', [
-    //   handle.documentId,
-    //   uuid,
-    // ]);
-
-    // logger.trace(
-    //   { node, uuid, documentId: handle.documentId, url: handle.url, isReady: handle.isReady() },
-    //   'Node Updated',
-    // );
-
-    // logger.info({ result }, 'UPDATE DOCUMENT ID');
-
-    res.status(200).send({ ok: true, documentId: handle.documentId, document });
-
-    logger.info({ documentId: handle.documentId, document }, 'END');
+    logger.trace({ uuid }, 'Document Created');
+    res.status(200).send({ ok: true, ...data });
   } catch (err) {
-    logger.error({ err }, 'Error');
+    logger.error({ err }, '[Error]::createNodeDocument');
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
   }
 };
 
 export const getLatestNodeManifest = async function (req: Request, res: Response) {
-  const logger = parentLogger.child({ module: 'getLatestNodeManifest', params: req.params });
+  const logger = parentLogger.child({ module: 'getLatestNodeManifest', query: req.query, params: req.params });
   const { uuid } = req.params;
   const { documentId } = req.query;
-
-  const getDocument = async (documentId: DocumentId) => {
-    const automergeUrl = getAutomergeUrl(documentId);
-    const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
-    const document = await handle.doc();
-    logger.trace({ uuid, automergeUrl }, 'DOCUMENT Retrieved');
-    return document;
-  };
 
   try {
     // todo: add support for documentId params and skip querying node
     // fast track call if documentId is available
     if (documentId) {
       const document = await getDocument(documentId as DocumentId);
-      if (document) res.status(200).send({ ok: true, document });
-      return;
+      if (document) {
+        res.status(200).send({ ok: true, document });
+        return;
+      }
     }
 
     // calls might never reach this place again now that documentId is
@@ -111,6 +99,7 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
 
     const document = await getDocument(node.manifestDocumentId as DocumentId);
 
+    logger.trace({ document: !!document }, 'return DOCUMENT');
     res.status(200).send({ ok: true, document });
   } catch (err) {
     logger.error({ err }, 'Error');
@@ -136,7 +125,7 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
 
     let document: Doc<ResearchObjectDocument> | undefined;
 
-    const dispatchChange = getDocumentUpdater(documentId);
+    const dispatchChange = await getDocumentUpdater(documentId);
 
     for (const action of actions) {
       document = await dispatchChange(action);
@@ -156,7 +145,6 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
 
 export const dispatchDocumentActions = async function (req: RequestWithNode, res: Response) {
   const logger = parentLogger.child({ module: 'dispatchDocumentActions' });
-  // logger.info({ body: req.body }, 'START [dispatchDocumentActions]');
   try {
     if (!(req.body.uuid && req.body.documentId && req.body.actions)) {
       logger.error({ body: req.body }, 'Invalid data');
@@ -178,7 +166,7 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
 
     let document: Doc<ResearchObjectDocument> | undefined;
 
-    const dispatchChange = getDocumentUpdater(documentId);
+    const dispatchChange = await getDocumentUpdater(documentId);
 
     for (const action of actions) {
       document = await dispatchChange(action);

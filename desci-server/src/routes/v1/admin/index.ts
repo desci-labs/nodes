@@ -10,6 +10,7 @@ import { ensureUser } from '../../../middleware/permissions.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
 import communities from './communities/index.js';
+import doiRouter from './doi.js';
 
 const router = Router();
 
@@ -27,5 +28,7 @@ router.post('/resumePublish', [ensureUser, ensureAdmin], asyncHandler(resumePubl
 router.use('/communities', [ensureUser, ensureAdmin], communities);
 router.get('/attestations', [ensureUser, ensureAdmin], asyncHandler(listAttestations));
 // router.use('/users', [ensureUser, ensureAdmin], usersRouter);
+
+router.use('/doi', doiRouter);
 
 export default router;

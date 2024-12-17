@@ -8,7 +8,7 @@ import { code as rawCode } from 'multiformats/codecs/raw';
 // const { default: UnixFS } = IpfsUnixFS;
 
 // ===========================================================================
-export async function getSize(ipfs, cid, allowDir = false) {
+export async function getSize(ipfs, cid, allowDir = false): Promise<number> {
   const block = await ipfs.block.get(cid);
   // console.log('cid: ', cid);
   if (typeof cid === 'string') cid = CID.parse(cid);
@@ -30,9 +30,9 @@ export async function getSize(ipfs, cid, allowDir = false) {
   if (unixfs.data) {
     return unixfs.data.length;
   } else if (!unixfs.isDirectory()) {
-    return unixfs.fileSize();
+    return Number(unixfs.fileSize());
   } else {
-    return unixfs.blockSizes.reduce((a, b) => a + b, BigInt(0));
+    return unixfs.blockSizes.map(Number).reduce((a, b) => a + b, 0);
   }
 }
 

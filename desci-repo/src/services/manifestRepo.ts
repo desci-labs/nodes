@@ -15,7 +15,7 @@ import {
 import isEqual from 'deep-equal';
 
 import { logger as parentLogger } from '../logger.js';
-import { backendRepo } from '../repo.js';
+import { backendRepo, repoManager } from '../repo.js';
 import { ResearchObjectDocument } from '../types.js';
 
 const logger = parentLogger.child({ module: 'manifestRepo.ts' });
@@ -31,11 +31,24 @@ export function assertNever(value: never) {
   throw Error('Not Possible');
 }
 
-export const getDocumentUpdater = (documentId: DocumentId) => {
+const getDocumentHandle = async (documentId: DocumentId) => {
+  const logger = parentLogger.child({ module: 'connectRepoToDocument', documentId });
+
+  if (!repoManager.isConnected(documentId)) {
+    repoManager.connect(documentId);
+  }
+
   const automergeUrl = getAutomergeUrl(documentId);
-  logger.trace({ automergeUrl }, 'Find handle');
+  await backendRepo.networkSubsystem.whenReady();
+  logger.trace({ documentId }, 'ready');
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
-  logger.trace({ automergeUrl }, 'Retrieved handle');
+  logger.trace({ handle: handle.url }, 'handle resolved');
+  return handle;
+};
+
+export const getDocumentUpdater = async (documentId: DocumentId) => {
+  const handle = await getDocumentHandle(documentId); //backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+  logger.trace({ handle: handle.isReady() }, 'Retrieved handle');
 
   return async (action: ManifestActions) => {
     if (!handle) return;
@@ -45,12 +58,10 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
 
     if (!latestDocument) {
       logger.error({ node: documentId }, 'Automerge document not found');
-      // throw new Error('Automerge Document Not found');
       return;
     }
 
     const heads = getHeads(latestDocument);
-    // logger.info({ heads, action }, `Document Heads`);
     logger.trace({ action, heads }, `DocumentUpdater::Dispatched`);
 
     switch (action.type) {
@@ -196,22 +207,6 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
           { time: Date.now(), message: action.type },
         );
         break;
-      case 'Delete Component':
-        handle.change(
-          (document) => {
-            deleteComponent(document, action.path);
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
-      case 'Update Component':
-        handle.change(
-          (document) => {
-            updateManifestComponent(document, action.component, action.componentIndex);
-          },
-          { time: Date.now(), message: action.type },
-        );
-        break;
       case 'Upsert Component':
         handle.change(
           (document) => {
@@ -247,7 +242,7 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
         );
         break;
       case 'Pin Component':
-        let componentIndex = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
+        const componentIndex = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
         if (componentIndex && componentIndex != -1) {
           handle.change(
             (document) => {
@@ -258,7 +253,7 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
         }
         break;
       case 'UnPin Component':
-        let index = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
+        const index = latestDocument?.manifest.components.findIndex((c) => c.payload?.path === action.path);
         if (index && index != -1) {
           handle.change(
             (document) => {
@@ -336,18 +331,26 @@ export const getDocumentUpdater = (documentId: DocumentId) => {
             document.manifest.references = [];
           }
 
-          for (const reference of action.reference) {
+          for (const reference of action.references) {
             if (!document.manifest.references.find((ref) => ref.id === reference.id))
               document.manifest.references.push(reference);
           }
         });
         break;
+      case 'Set References':
+        handle.change((document) => {
+          if (!document.manifest.references) {
+            document.manifest.references = [];
+          }
+          document.manifest.references = action.references;
+        });
+        break;
       case 'Delete Reference':
         if (!action.referenceId) return;
         const deletedIdx = latestDocument.manifest.references?.findIndex((ref) => ref.id === action.referenceId);
-        if (deletedIdx !== -1) {
+        if (deletedIdx !== undefined && deletedIdx !== -1) {
           handle.change((document) => {
-            document.manifest.references?.splice(deleteIdx, 1);
+            document.manifest.references?.splice(deletedIdx, 1);
           });
         }
         break;
@@ -494,6 +497,7 @@ const upsertManifestComponent = (doc: Doc<ResearchObjectDocument>, component: Re
   }
 };
 
+// eslint-disable-next-line @typescript-eslint/ban-types
 type TypeInitialisers = {} | '' | 0 | [];
 
 const getTypeDefault = (value: unknown): TypeInitialisers => {

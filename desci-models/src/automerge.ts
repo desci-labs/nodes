@@ -60,6 +60,7 @@ export type ManifestActions =
       cid: string | undefined;
     }
   | { type: 'Add Reference'; reference: ResearchObjectReference }
-  | { type: 'Add References'; reference: ResearchObjectReference[] }
+  | { type: 'Add References'; references: ResearchObjectReference[] }
+  | { type: 'Set References'; references: ResearchObjectReference[] }
   | { type: 'Delete Reference'; referenceId: string }
   | { type: 'Set Contributors'; contributors: ResearchObjectV1Author[] };

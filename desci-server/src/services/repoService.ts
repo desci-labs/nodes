@@ -17,7 +17,7 @@ class RepoService {
 
   baseUrl: string;
 
-  defaultTimeoutInMilliseconds: 5000;
+  defaultTimeoutInMilliseconds = 5000;
   timeoutErrorMessage = 'Timeout: Call to Repo service timed out';
 
   constructor() {
@@ -105,18 +105,28 @@ class RepoService {
       logger.warn({ arg }, 'Attempt to retrieve draft manifest for empty UUID');
       return null;
     }
-    logger.info({ arg }, 'Retrieve Draft Document');
     try {
+      // const controller = new AbortController();
+      // setTimeout(() => {
+      //   logger.trace('Abort request');
+      //   controller.abort();
+      // }, arg.timeout ?? this.defaultTimeoutInMilliseconds);
+      logger.trace(
+        { timout: arg.timeout || this.defaultTimeoutInMilliseconds, uuid: arg.uuid, documentId: arg.documentId },
+        '[getDraftDocument]',
+      );
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
         `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}?documentId=${arg.documentId}`,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
           },
-          timeout: arg.timeout ?? this.defaultTimeoutInMilliseconds,
+          // timeout: arg.timeout ?? this.defaultTimeoutInMilliseconds,
+          signal: AbortSignal.timeout(arg.timeout ?? this.defaultTimeoutInMilliseconds), // controller.signal,
           timeoutErrorMessage: this.timeoutErrorMessage,
         },
       );
+      logger.info({ arg }, 'Retrieve Draft Document');
       if (response.status === 200 && response.data.ok) {
         return response.data.document;
       } else {
@@ -141,7 +151,6 @@ class RepoService {
     documentId?: string | DocumentId;
     timeout?: number;
   }) {
-    logger.info({ uuid }, 'Retrieve Draft Document');
     try {
       const response = await this.getDraftDocument({ uuid, timeout, documentId });
       return response ? response.manifest : null;

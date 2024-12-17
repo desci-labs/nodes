@@ -35,6 +35,7 @@ export type PublishReqBody = {
   ceramicStream?: string;
   commitId?: string;
   useNewPublish: boolean;
+  mintDoi: boolean;
 };
 
 export type PublishRequest = Request<never, never, PublishReqBody> & {
@@ -52,7 +53,7 @@ export type PublishResBody =
     };
 
 export const publish = async (req: PublishRequest, res: Response<PublishResBody>, _next: NextFunction) => {
-  const { uuid, cid, manifest, transactionId, ceramicStream, commitId, useNewPublish } = req.body;
+  const { uuid, cid, manifest, transactionId, ceramicStream, commitId, useNewPublish, mintDoi } = req.body;
   const email = req.user.email;
   const owner = req.user;
   const logger = parentLogger.child({
@@ -154,30 +155,32 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       owner.id,
     );
 
-    // trigger doi minting workflow
-    try {
-      const submission = await doiService.autoMintTrigger(node.uuid);
-      const targetDpidUrl = getTargetDpidUrl();
-      discordNotify({
-        channel: DiscordChannel.DoiMinting,
-        type: DiscordNotifyType.INFO,
-        title: 'Mint DOI',
-        message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
-      });
-      await PublishServices.updatePublishStatusEntry({
-        publishStatusId: publishStatusEntry.id,
-        data: {
-          triggerDoiMint: true,
-        },
-      });
-    } catch (err) {
-      logger.error({ err }, 'Error:  Mint DOI on Publish');
-      await PublishServices.updatePublishStatusEntry({
-        publishStatusId: publishStatusEntry.id,
-        data: {
-          triggerDoiMint: false,
-        },
-      });
+    if (mintDoi) {
+      // trigger doi minting workflow
+      try {
+        const submission = await doiService.autoMintTrigger(node.uuid);
+        const targetDpidUrl = getTargetDpidUrl();
+        discordNotify({
+          channel: DiscordChannel.DoiMinting,
+          type: DiscordNotifyType.INFO,
+          title: 'Mint DOI',
+          message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${submission.uniqueDoi}`,
+        });
+        await PublishServices.updatePublishStatusEntry({
+          publishStatusId: publishStatusEntry.id,
+          data: {
+            triggerDoiMint: true,
+          },
+        });
+      } catch (err) {
+        logger.error({ err }, 'Error:  Mint DOI on Publish');
+        await PublishServices.updatePublishStatusEntry({
+          publishStatusId: publishStatusEntry.id,
+          data: {
+            triggerDoiMint: false,
+          },
+        });
+      }
     }
 
     return res.send({

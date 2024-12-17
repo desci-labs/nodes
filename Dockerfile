@@ -1,10 +1,8 @@
-FROM node:20.8.1-bullseye-slim
+FROM node:20.18.1-bullseye-slim
 
 VOLUME /root/.yarn
 
-RUN apt-get -qy update && apt-get -qy install openssl curl
-
-RUN npm install -g npm@9.8.1
+RUN apt-get -qy update && apt-get -qy install openssl curl socat jq
 
 RUN mkdir /app
 RUN chown -R node:node /app

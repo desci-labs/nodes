@@ -55,19 +55,20 @@ export const ContributorInvite = ({
               You've been invited as a contributor!
             </Heading>
             <Text style={heroText}>
-              <strong>{inviter}</strong> has added you as a contributor to {!!nodeTitle && <cite>{nodeTitle}</cite>}
+              <strong>{inviter}</strong> has added you as a co-author to {!!nodeTitle && <cite>{nodeTitle}</cite>}
               {!!!nodeTitle ? fallbackTitle : ''}. {newUser ? NEW_USER_TEXT : EXISTING_USER_TEXT}
             </Text>
 
-            <Section className="mx-auto w-fit my-5" align="center">
+            <Section className="flex flex-col max-w-[284px] mx-auto w-full my-5" align="center">
               <Button
                 href={contributorUrl}
-                className="backdrop-blur-2xl rounded-sm"
+                className="backdrop-blur-2xl rounded-sm w-full text-center mb-4"
                 style={{
                   color: 'white',
                   padding: '10px 20px',
                   background: 'black',
                   marginRight: '10px',
+                  border: '1px solid black',
                   borderRadius: '2px',
                 }}
               >
@@ -75,7 +76,7 @@ export const ContributorInvite = ({
               </Button>
               <Button
                 href={privShareUrl}
-                className="backdrop-blur-2xl rounded-sm"
+                className="backdrop-blur-2xl rounded-sm w-full text-center"
                 style={{
                   color: 'black',
                   padding: '10px 20px',

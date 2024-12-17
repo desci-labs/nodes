@@ -342,7 +342,7 @@ describe("nodes-lib", () => {
     beforeAll(async () => {
       const { node } = await createBoilerplateNode();
       uuid = node.uuid;
-      publishResult = await publishDraftNode(uuid, testSigner, did);
+      publishResult = await publishDraftNode({ uuid, signer: testSigner, did });
       // Wait for repo and subgraph changes to go through
       // await sleep(2_500);
     });
@@ -384,14 +384,16 @@ describe("nodes-lib", () => {
 
       test("can optionally derive DID from just a signer", async () => {
         const { node } = await createBoilerplateNode();
-        const result = await publishDraftNode(node.uuid, testSigner);
+        const result = await publishDraftNode({
+          uuid: node.uuid,
+          signer: testSigner,
+        });
         const streamState = await getRawState(result.ceramicIDs!.streamID);
         const controller = streamState.state.metadata.controllers.at(0);
         const signerAddress = (await testSigner.getAddress()).toLowerCase();
         expect(controller!.replace(/did:pkh.*:/, "")).toEqual(signerAddress);
       });
     });
-
 
     describe("node with long legacy history", async () => {
       let uuid: string;
@@ -402,7 +404,6 @@ describe("nodes-lib", () => {
         const { node } = await createBoilerplateNode();
         uuid = node.uuid;
 
-
         let updatedManifestCids = [];
         // make a dpid-only publish
         for (let i = 0; i < 5; i++) {
@@ -412,12 +413,11 @@ describe("nodes-lib", () => {
             prepubResult: { updatedManifest, updatedManifestCid },
           } = await dpidPublish(uuid, dpidExists, testSigner);
           legacyDpid = parseInt(updatedManifest.dpid!.id!);
-          updatedManifestCids.push(updatedManifestCid)
+          updatedManifestCids.push(updatedManifestCid);
         }
 
         // Allow graph node to index
         await sleep(2_500);
-
 
         // Import as legacy entry (i.e., fake migration step)
         // Publish uses this to validate history before migrating dPID
@@ -433,13 +433,13 @@ describe("nodes-lib", () => {
         );
         const tx = await aliasRegistry.importLegacyDpid(legacyDpid!, {
           owner: await testSigner.getAddress(),
-          versions: updatedManifestCids.map((cid) => ({ cid, time: 1337 }))
+          versions: updatedManifestCids.map((cid) => ({ cid, time: 1337 })),
         });
         await tx.wait();
 
         // make a regular publish
         try {
-          await publishDraftNode(uuid, testSigner)
+          await publishDraftNode({ uuid, signer: testSigner });
         } catch (e) {
           // Expect this to fail
           // To be able to test incorrect histories, we ignore the error thrown from the publish route
@@ -455,28 +455,29 @@ describe("nodes-lib", () => {
         expect(dpidHistory.versions.length).toEqual(5);
 
         // codex history has the legacy and the new update
-        const codexHistory = await getCodexHistory(
-          ceramicStream!
-        );
+        const codexHistory = await getCodexHistory(ceramicStream!);
         expect(codexHistory.length).toEqual(6);
 
-        const codexVersionsDpidResolver = await (await fetch(`http://localhost:5460/api/v2/resolve/dpid/${legacyDpid}`)).json()
+        const codexVersionsDpidResolver = await (
+          await fetch(`http://localhost:5460/api/v2/resolve/dpid/${legacyDpid}`)
+        ).json();
 
-        const cidsInDpidHistory = dpidHistory.versions.map(v => v.cid)
-        const cidsInCodex = codexVersionsDpidResolver.versions.map(v => v.manifest)
+        const cidsInDpidHistory = dpidHistory.versions.map((v) => v.cid);
+        const cidsInCodex = codexVersionsDpidResolver.versions.map(
+          (v: any) => v.manifest
+        );
 
         // debugger
 
-        expect(cidsInDpidHistory).toEqual(cidsInCodex)
+        expect(cidsInDpidHistory).toEqual(cidsInCodex);
       });
     });
-
 
     describe("node update", async () => {
       beforeAll(async () => {
         // async publish errors on re-publish before it finishes
         await sleep(5_000);
-        await publishDraftNode(uuid, testSigner, did);
+        await publishDraftNode({ uuid, signer: testSigner, did });
         // Allow graph node to index
         await sleep(2_500);
       });
@@ -519,7 +520,11 @@ describe("nodes-lib", () => {
         await sleep(2_500);
 
         // make a regular publish
-        const pubResult = await publishDraftNode(uuid, testSigner, did);
+        const pubResult = await publishDraftNode({
+          uuid,
+          signer: testSigner,
+          did,
+        });
 
         // Allow graph node to index
         await sleep(5_000);
@@ -542,8 +547,6 @@ describe("nodes-lib", () => {
       expect(node.manifestData.dpid).toBeUndefined();
     });
   });
-
-
 
   describe("publishing ", async () => {
     let uuid: string;
@@ -660,7 +663,6 @@ describe("nodes-lib", () => {
         const { node } = await createBoilerplateNode();
         uuid = node.uuid;
 
-
         let updatedManifestCids = [];
         // make a dpid-only publish
         for (let i = 0; i < 5; i++) {
@@ -670,12 +672,11 @@ describe("nodes-lib", () => {
             prepubResult: { updatedManifest, updatedManifestCid },
           } = await dpidPublish(uuid, dpidExists, testSigner);
           legacyDpid = parseInt(updatedManifest.dpid!.id!);
-          updatedManifestCids.push(updatedManifestCid)
+          updatedManifestCids.push(updatedManifestCid);
         }
 
         // Allow graph node to index
         await sleep(2_500);
-
 
         // Import as legacy entry (i.e., fake migration step)
         // Publish uses this to validate history before migrating dPID
@@ -691,7 +692,7 @@ describe("nodes-lib", () => {
         );
         const tx = await aliasRegistry.importLegacyDpid(legacyDpid!, {
           owner: await testSigner.getAddress(),
-          versions: updatedManifestCids.map((cid) => ({ cid, time: 1337 }))
+          versions: updatedManifestCids.map((cid) => ({ cid, time: 1337 })),
         });
         await tx.wait();
 
@@ -710,12 +711,16 @@ describe("nodes-lib", () => {
         );
         expect(codexHistory.length).toEqual(6);
 
-        const codexVersionsDpidResolver = await (await fetch(`http://localhost:5460/api/v2/resolve/dpid/${legacyDpid}`)).json()
+        const codexVersionsDpidResolver = await (
+          await fetch(`http://localhost:5460/api/v2/resolve/dpid/${legacyDpid}`)
+        ).json();
 
-        const cidsInDpidHistory = dpidHistory.versions.map(v => v.cid)
-        const cidsInCodex = codexVersionsDpidResolver.versions.map(v => v.manifest).slice(0, -1)
+        const cidsInDpidHistory = dpidHistory.versions.map((v) => v.cid);
+        const cidsInCodex = codexVersionsDpidResolver.versions
+          .map((v: any) => v.manifest)
+          .slice(0, -1);
 
-        expect(cidsInDpidHistory).toEqual(cidsInCodex)
+        expect(cidsInDpidHistory).toEqual(cidsInCodex);
       });
     });
     describe("node with legacy history", async () => {
@@ -1136,5 +1141,3 @@ const createBoilerplateNode = async () => {
 
   return await createDraftNode(node);
 };
-
-

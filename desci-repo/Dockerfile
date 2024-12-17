@@ -4,6 +4,8 @@ VOLUME /root/.yarn
 
 RUN npm install -g npm@9.8.1
 
+RUN apt-get update && apt-get install -y curl
+
 RUN mkdir /app
 WORKDIR /app
 RUN mkdir /app/repo-tmp
@@ -19,6 +21,6 @@ RUN yarn build
 EXPOSE 5484
 
 # websocket
-EXPOSE 5445
+# EXPOSE 5445
 
 CMD [ "yarn", "start" ]

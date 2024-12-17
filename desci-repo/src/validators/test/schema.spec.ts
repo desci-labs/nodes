@@ -1,7 +1,4 @@
 import 'mocha';
-import { expect } from 'chai';
-import { actionsSchema } from '../../validators/schema.js';
-import { ZodError } from 'zod';
 import {
   CodeComponent,
   ExternalLinkComponent,
@@ -11,6 +8,10 @@ import {
   ResearchObjectV1AuthorRole,
   ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
+import { expect } from 'chai';
+import { ZodError } from 'zod';
+
+import { actionsSchema } from '../../validators/schema.js';
 
 describe('ManifestActions Schema', () => {
   describe('Valid Actions', () => {
@@ -312,8 +313,9 @@ describe('ManifestActions Schema', () => {
       console.log('error' in validated && validated.error);
       expect(validated.success).to.be.true;
     });
+
     it('should validate add new references', () => {
-      let validated = actionsSchema.safeParse([
+      const validated = actionsSchema.safeParse([
         {
           type: 'Add References',
           references: [
@@ -325,8 +327,21 @@ describe('ManifestActions Schema', () => {
       expect(validated.success).to.be.true;
     });
 
+    it('should validate ovewriting references', () => {
+      const validated = actionsSchema.safeParse([
+        {
+          type: 'Set References',
+          references: [
+            { id: 'https://doi.org/10.1111/af325', type: 'doi' },
+            { id: 'https://beta.dpid.org/165/v6', type: 'dpid' },
+          ],
+        },
+      ]);
+      expect(validated.success).to.be.true;
+    });
+
     it('should reject invalid references', () => {
-      let validated = actionsSchema.safeParse([
+      const validated = actionsSchema.safeParse([
         {
           type: 'Add References',
           references: [
@@ -339,7 +354,7 @@ describe('ManifestActions Schema', () => {
     });
 
     it('should reject reference Id/type mismatch', () => {
-      let validated = actionsSchema.safeParse([
+      const validated = actionsSchema.safeParse([
         {
           type: 'Add References',
           references: [
@@ -370,7 +385,7 @@ describe('ManifestActions Schema', () => {
     });
 
     it('should validate delete existing reference', () => {
-      let validated = actionsSchema.safeParse([
+      const validated = actionsSchema.safeParse([
         { type: 'Delete Reference', referenceId: 'https://doi.org/10.111/af325' },
       ]);
       expect(validated.success).to.be.true;

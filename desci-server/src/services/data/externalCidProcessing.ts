@@ -13,20 +13,10 @@ import { prisma } from '../../client.js';
 import { ExternalCid } from '../../controllers/data/updateExternalCid.js';
 import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
-import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../../services/draftTrees.js';
-import {
-  GetExternalSizeAndTypeResult,
-  convertToCidV1,
-  getExternalCidSizeAndType,
-  pubRecursiveLs,
-} from '../../services/ipfs.js';
 import { DRAFT_CID } from '../../utils/draftTreeUtils.js';
-import {
-  FirstNestingComponent,
-  addComponentsToDraftManifest,
-  getTreeAndFill,
-  prepareFirstNestingComponents,
-} from '../../utils/driveUtils.js';
+import { getTreeAndFill, prepareFirstNestingComponents } from '../../utils/driveUtils.js';
+import { ensureUniquePathsDraftTree, getLatestDriveTime } from '../draftTrees.js';
+import { GetExternalSizeAndTypeResult, convertToCidV1, getExternalCidSizeAndType, pubRecursiveLs } from '../ipfs.js';
 import { NodeUuid, getLatestManifestFromNode } from '../manifestRepo.js';
 import repoService from '../repoService.js';
 
@@ -50,6 +40,7 @@ interface ProcessExternalCidDataToIpfsParams {
   externalCids: ExternalCid[];
   user: User;
   node: Node;
+
   /**
    * @type {string} path to the directory to be updated
    */
@@ -71,6 +62,17 @@ export async function processExternalCidDataToIpfs({
   componentSubtype,
   autoStar,
 }: ProcessExternalCidDataToIpfsParams) {
+  logger.debug({
+    fn: 'processExternalCidDataToIpfs',
+    externalCids,
+    user,
+    node,
+    contextPath,
+    componentType,
+    componentSubtype,
+    autoStar,
+  });
+
   try {
     /**
      * Prepare the CIDs for addition, see if they're resolvable and get their sizes and types
@@ -81,7 +83,7 @@ export async function processExternalCidDataToIpfs({
       for (const extCid of externalCids) {
         const { isDirectory, size } = await getExternalCidSizeAndType(extCid.cid);
         if (size !== undefined && isDirectory !== undefined) {
-          cidTypesSizes[extCid.cid] = { size, isDirectory };
+          cidTypesSizes[extCid.cid] = { size: Number(size), isDirectory };
         } else {
           throw new Error(`Failed to get size and type of external CID: ${extCid}`);
         }
@@ -189,25 +191,6 @@ export async function processExternalCidDataToIpfs({
 
     const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(entriesDiscovered);
 
-    // Predefine components with their types, only happens if a predefined component type is passed
-    // if (componentType) {
-    //   const firstNestingComponents: FirstNestingComponent[] = extCidsBeingAdded.map((file) => {
-    //     const neutralFullPath = contextPath + '/' + file.name;
-    //     return {
-    //       name: file.name,
-    //       path: neutralFullPath,
-    //       cid: file.cid,
-    //       componentType,
-    //       componentSubtype,
-    //       star: autoStar,
-    //     };
-    //   });
-
-    //   if (firstNestingComponents.length > 0) {
-    //     await addComponentsToDraftManifest(node, firstNestingComponents);
-    //   }
-    // }
-
     let updatedManifest = await getLatestManifestFromNode(ltsNode);
 
     if (componentTypeMap) {
@@ -231,6 +214,8 @@ export async function processExternalCidDataToIpfs({
           pinnedFirstNestingFiles: firstNestingFiles,
           contextPath,
           componentTypeMap,
+          componentType,
+          componentSubtype,
           star: true,
         });
         const preparedComponents = prepareFirstNestingComponents(firstNestingComponents);
