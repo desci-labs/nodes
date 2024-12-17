@@ -359,11 +359,11 @@ async function getLatestDocument(request: Request, env: Env) {
 
 export default {
   fetch(request: Request, env) {
+    const secretKey = env.ENVIRONMENT === null ? 'test-api-secret' : env.API_TOKEN;
     console.log('Request Fetch:', {
       env,
       url: request.url,
     });
-    const secretKey = env.ENVIRONMENT === null ? 'test-api-secret' : env.API_TOKEN;
     if (request.url.includes('/api/') && request.headers.get('x-api-key') != secretKey) {
       console.log('[Error]::Api key error');
       return new Response('UnAuthorized', { status: 401 });

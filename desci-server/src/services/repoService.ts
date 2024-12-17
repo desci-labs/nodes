@@ -9,9 +9,9 @@ import { NodeUuid } from './manifestRepo.js';
 
 const logger = parentLogger.child({ module: 'Repo Service' });
 
-const cloudflareWorkerApi = process.env.CLOUDFLARE_WORKER_API;
-const cloudflareWorkerApiSecret = process.env.CLOUDFLARE_WORKER_API_SECRET;
-const enableWorkersApi = process.env.ENABLE_WORKERS_API == 'true';
+const cloudflareWorkerApi = 'https://nodes-dev-sync.desci.com'; // process.env.CLOUDFLARE_WORKER_API;
+const cloudflareWorkerApiSecret = 'auth-token'; // process.env.CLOUDFLARE_WORKER_API_SECRET;
+const enableWorkersApi = true; // process.env.ENABLE_WORKERS_API == 'true';
 
 type ApiResponse<B> = { ok: boolean } & B;
 
