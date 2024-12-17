@@ -50,7 +50,7 @@ const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseM
   return { node: updatedNode || node, documentId: response?.documentId };
 };
 
-describe('Automerge Integration', () => {
+describe.only('Automerge Integration', () => {
   let user: User;
   let unauthedUser: User;
   // let node: Node;

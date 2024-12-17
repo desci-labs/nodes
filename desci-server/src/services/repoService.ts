@@ -9,6 +9,10 @@ import { NodeUuid } from './manifestRepo.js';
 
 const logger = parentLogger.child({ module: 'Repo Service' });
 
+const cloudflareWorkerApi = process.env.CLOUDFLARE_WORKER_API;
+const cloudflareWorkerApiSecret = process.env.CLOUDFLARE_WORKER_API_SECRET;
+const enableWorkersApi = process.env.ENABLE_WORKERS_API == 'true';
+
 type ApiResponse<B> = { ok: boolean } & B;
 
 class RepoService {
@@ -36,21 +40,24 @@ class RepoService {
   }
 
   async dispatchAction(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
-    logger.info({ arg }, 'Disatch Changes');
+    logger.info({ arg, enableWorkersApi, cloudflareWorkerApi }, 'Disatch Changes');
     const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-      `${this.baseUrl}/v1/nodes/documents/dispatch`,
+      enableWorkersApi
+        ? `${cloudflareWorkerApi}/api/documents/dispatch`
+        : `${this.baseUrl}/v1/nodes/documents/dispatch`,
       arg,
       {
         headers: {
           'x-api-remote-traceid': (als.getStore() as any)?.traceId,
+          ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
         },
       },
     );
-    logger.info({ arg, ok: response.data.ok }, 'Disatch Changes Response');
+    logger.trace({ arg, ok: response.data.ok }, 'Disatch Actions Response');
     if (response.status === 200 && response.data.ok) {
       return response.data.document;
     } else {
-      // logger.info({ response: response.data }, 'Disatch Changes Response');
+      logger.trace({ response: response.data }, 'Disatch Actions Failed');
       return null;
     }
   }
@@ -59,11 +66,14 @@ class RepoService {
     logger.info({ arg }, 'Disatch Actions');
     try {
       const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-        `${this.baseUrl}/v1/nodes/documents/actions`,
+        enableWorkersApi
+          ? `${cloudflareWorkerApi}/api/documents/actions`
+          : `${this.baseUrl}/v1/nodes/documents/actions`,
         arg,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
+            ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
           },
         },
       );
@@ -83,19 +93,20 @@ class RepoService {
     try {
       const response = await this.#client.post<
         ApiResponse<{ documentId: DocumentId; document: ResearchObjectDocument }>
-      >(`${this.baseUrl}/v1/nodes/documents`, arg, {
+      >(enableWorkersApi ? `${cloudflareWorkerApi}/api/documents` : `${this.baseUrl}/v1/nodes/documents`, arg, {
         headers: {
           'x-api-remote-traceid': (als.getStore() as any)?.traceId,
+          ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
         },
       });
-      logger.info({ response: response.data }, 'Create Draft Response');
-      if (response.status === 200 && response.data.ok) {
+      logger.info({ status: response.status, response: response.data }, 'Create Draft Response');
+      if (response.status === 200) {
         return response.data;
       } else {
         return null;
       }
     } catch (err) {
-      logger.error({ err }, 'Create Draft Error');
+      logger.error({ err, enableWorkersApi, cloudflareWorkerApi }, 'Create Draft Error');
       return null;
     }
   }
@@ -106,27 +117,24 @@ class RepoService {
       return null;
     }
     try {
-      // const controller = new AbortController();
-      // setTimeout(() => {
-      //   logger.trace('Abort request');
-      //   controller.abort();
-      // }, arg.timeout ?? this.defaultTimeoutInMilliseconds);
       logger.trace(
         { timout: arg.timeout || this.defaultTimeoutInMilliseconds, uuid: arg.uuid, documentId: arg.documentId },
         '[getDraftDocument]',
       );
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
-        `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}?documentId=${arg.documentId}`,
+        enableWorkersApi
+          ? `${cloudflareWorkerApi}/api/documents?documentId=${arg.documentId}`
+          : `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}?documentId=${arg.documentId}`,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
+            ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
           },
-          // timeout: arg.timeout ?? this.defaultTimeoutInMilliseconds,
-          signal: AbortSignal.timeout(arg.timeout ?? this.defaultTimeoutInMilliseconds), // controller.signal,
+          signal: AbortSignal.timeout(arg.timeout ?? this.defaultTimeoutInMilliseconds),
           timeoutErrorMessage: this.timeoutErrorMessage,
         },
       );
-      logger.info({ arg }, 'Retrieve Draft Document');
+      logger.info({ arg, doc: response.data }, 'Retrieve Draft Document');
       if (response.status === 200 && response.data.ok) {
         return response.data.document;
       } else {

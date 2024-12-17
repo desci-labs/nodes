@@ -64,7 +64,7 @@ const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseM
   return { node: updatedNode || node, documentId: response?.documentId };
 };
 
-describe('Data Controllers', () => {
+describe.only('Data Controllers', () => {
   let user: User;
   let unauthedUser: User;
   // let node: Node;

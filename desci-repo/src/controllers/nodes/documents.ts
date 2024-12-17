@@ -1,6 +1,6 @@
 import { Doc } from '@automerge/automerge';
 import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
-import { ManifestActions } from '@desci-labs/desci-models';
+import { ManifestActions, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Request, Response } from 'express';
 import { ZodError } from 'zod';
 
@@ -13,7 +13,7 @@ import { ResearchObjectDocument } from '../../types.js';
 import { actionsSchema } from '../../validators/schema.js';
 
 import { ensureUuidEndsWithDot } from './utils.js';
-import { IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from '../../config.js';
+import { ENABLE_PARTYKIT_FEATURE, IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from '../../config.js';
 
 const protocol = IS_TEST || IS_DEV ? 'http://' : 'https://';
 
@@ -68,10 +68,24 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
     // todo: add support for documentId params and skip querying node
     // fast track call if documentId is available
     if (documentId) {
-      const document = await getDocument(documentId as DocumentId);
-      if (document) {
-        res.status(200).send({ ok: true, document });
+      if (ENABLE_PARTYKIT_FEATURE) {
+        const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents?documentId=${documentId}`, {
+          // body: JSON.stringify({ uuid, documentId }),
+          headers: {
+            'x-api-key': PARTY_SERVER_TOKEN!,
+          },
+        });
+        const data = (await response.json()) as { document: ResearchObjectV1 };
+
+        logger.trace({ document: !!data.document, ENABLE_PARTYKIT_FEATURE }, 'Document Retrieved');
+        res.status(200).send({ ok: true, document: data.document });
         return;
+      } else {
+        const document = await getDocument(documentId as DocumentId);
+        if (document) {
+          res.status(200).send({ ok: true, document });
+          return;
+        }
       }
     }
 
@@ -97,10 +111,24 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
       return;
     }
 
-    const document = await getDocument(node.manifestDocumentId as DocumentId);
+    if (ENABLE_PARTYKIT_FEATURE) {
+      const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents?documentId=${documentId}`, {
+        headers: {
+          'x-api-key': PARTY_SERVER_TOKEN!,
+        },
+      });
+      const data = (await response.json()) as { document: ResearchObjectV1 };
 
-    logger.trace({ document: !!document }, 'return DOCUMENT');
-    res.status(200).send({ ok: true, document });
+      logger.trace({ document: !!data.document, ENABLE_PARTYKIT_FEATURE }, 'Document Retrieved');
+      res.status(200).send({ ok: true, document: data.document });
+      return;
+    } else {
+      const document = await getDocument(node.manifestDocumentId as DocumentId);
+
+      logger.trace({ document: !!document, ENABLE_PARTYKIT_FEATURE }, 'return DOCUMENT');
+      res.status(200).send({ ok: true, document });
+      return;
+    }
   } catch (err) {
     logger.error({ err }, 'Error');
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
