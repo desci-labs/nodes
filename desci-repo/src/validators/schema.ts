@@ -97,8 +97,8 @@ export const actionsSchema = z.array(
     z.object({ type: z.literal<Action>('UnPin Component'), componentIndex: z.number() }),
     z.object({ type: z.literal<Action>('Update CoverImage'), cid: z.string().optional() }),
     z.object({ type: z.literal<Action>('Add Reference'), reference: referenceSchema }),
-    z.object({ type: z.literal<Action>('Add References'), references: z.array(referenceSchema) }),
-    z.object({ type: z.literal<Action>('Set References'), references: z.array(referenceSchema) }),
+    z.object({ type: z.literal<Action>('Add References'), reference: z.array(referenceSchema) }),
+    // z.object({ type: z.literal<Action>('Set References'), references: z.array(referenceSchema) }),
     z.object({ type: z.literal<Action>('Delete Reference'), referenceId: z.string() }),
   ]),
 );
