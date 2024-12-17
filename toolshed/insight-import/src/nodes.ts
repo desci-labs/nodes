@@ -22,8 +22,6 @@ import {
 } from '@desci-labs/nodes-lib';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { ATTESTATION_IDS, ENV, SIGNER, USER_ID } from "./index.js";
-import { getCodexHistory } from "@desci-labs/nodes-lib/dist/codex.js";
-import { AxiosError } from 'axios';
 
 /** Whacky little DB approximation that saves pub:uuid mappings to enable re-runs to continue */
 let existingNodes: Record<number, string>;
