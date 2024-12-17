@@ -107,6 +107,41 @@ Regardless, do these steps:
 1. Run `cp .env.example .env` and fill it in according to the instructions. You need to setup an account, generate an API key, etc.
 2. Run `npm start`, which will start creating nodes using nodes-lib against the configured API.
 
+Note:
+If you get aborted by some failure, you can find the node to restart from by checking the current pub ID (66 here):
+```
+  Pub: 66: Created new node m7HBJMvU4FIB21xAd2HoiLd554Mwup8yAqD-ZS1q-Sc
+- Uploaded file /tmp/reviews.md
+- Uploaded file /tmp/insight-journal-metadata.json
+- Handling rev 0 ...
+  - Added article CID: bafkreihj32me2xpwlhiheg2nd2s56xops7ggwyfnuqb3tnw6o4okiefnyq
+
+      AxiosError: Request failed with status code 502:
+      post to https://nodes-api-dev.desci.com/v1/data/updateExternalCid got 502:Bad Gateway
+      Body: "<html>\r\n<head><title>502 Bad Gateway</title></head>\r\n<body>\r\n<center><h1>502 Bad Gateway</h1></center>\r\n<hr><center>nginx/1.17.10</center>\r\n</body>\r\n</html>\r\n"
+
+{ err: 'Error', msg: 'Request failed with status code 502' }
+Process exits; writing uuid mappings to existingNodes_dev.json...
+```
+
+Then, list out the publications and map them with indexes (IJ pub ID isn't strictly increasing):
+```bash
+❯ ls local-data/publications | sort -n | nl -v0
+0  9
+1  10
+2  11
+3  12
+...
+50 66  # <--
+```
+
+Now set the script to start from that index in `index.ts`, and run `npm start` again:
+```ts
+for (const [pub, metadata] of Object.entries(pubs).slice(50)) {
+  await makeNode(metadata)
+}
+```
+
 ## Noteworthy fields
 Some IJ metadata fields are a bit different than what we're used to in `desci-models`.
 
