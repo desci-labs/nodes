@@ -208,7 +208,7 @@ async function handleCreateDocument(request: Request, env: Env) {
 
 async function dispatchDocumentChanges(request: Request, env: Env) {
   try {
-    console.log('[Request]::handleCreateDocument ', { env });
+    console.log('[Request]::dispatchDocumentChanges ', { env });
     const environment = env.ENVIRONMENT || 'dev';
     const localDbUrl =
       env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
@@ -359,7 +359,7 @@ async function getLatestDocument(request: Request, env: Env) {
 
 export default {
   fetch(request: Request, env) {
-    const secretKey = env.ENVIRONMENT === null ? 'test-api-secret' : env.API_TOKEN;
+    const secretKey = env.ENVIRONMENT === null ? 'auth-token' : env.API_TOKEN;
     console.log('Request Fetch:', {
       env,
       url: request.url,

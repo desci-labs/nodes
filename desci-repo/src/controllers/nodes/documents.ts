@@ -4,6 +4,7 @@ import { ManifestActions, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Request, Response } from 'express';
 import { ZodError } from 'zod';
 
+import { ENABLE_PARTYKIT_FEATURE, IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from '../../config.js';
 import { findNodeByUuid } from '../../db/index.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/guard.js';
@@ -13,7 +14,6 @@ import { ResearchObjectDocument } from '../../types.js';
 import { actionsSchema } from '../../validators/schema.js';
 
 import { ensureUuidEndsWithDot } from './utils.js';
-import { ENABLE_PARTYKIT_FEATURE, IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from '../../config.js';
 
 const protocol = IS_TEST || IS_DEV ? 'http://' : 'https://';
 
@@ -43,7 +43,7 @@ export const createNodeDocument = async function (req: Request, res: Response) {
       return;
     }
 
-    let { uuid, manifest } = req.body;
+    const { uuid, manifest } = req.body;
     logger.trace({ protocol, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN }, 'ENV');
     const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents`, {
       method: 'POST',

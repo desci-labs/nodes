@@ -97,7 +97,7 @@ spec:
           export OPEN_ALEX_DATABASE_URL="{{ .Data.OPEN_ALEX_DATABASE_URL }}"
           CLOUDFLARE_WORKER_API=https://nodes-sync.desci.com
           CLOUDFLARE_WORKER_API_SECRET=auth-token
-          ENABLE_WORKERS_API=true
+          ENABLE_WORKERS_API=false
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";
