@@ -33,7 +33,7 @@ export class PostgresStorageAdapter implements StorageAdapterInterface {
   async save(keyArray: StorageKey, binary: Uint8Array): Promise<void> {
     const key = getKey(keyArray);
     this.cache[key] = binary;
-    console.log('[save]', { key });
+
     try {
       await this.query(
         `INSERT INTO "${this.tableName}" (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = $2 RETURNING key`,
@@ -87,10 +87,7 @@ export class PostgresStorageAdapter implements StorageAdapterInterface {
   }
 
   private async loadRangeKeys(keyPrefix: string[]): Promise<string[]> {
-    console.log('LoadRange Keys', { keyPrefix });
     const response = await this.query(`SELECT key FROM "${this.tableName}" WHERE key LIKE $1`, [`${keyPrefix}%`]);
-    // console.log({ keyPrefix, response: response?.length }, '[LOADED RANGE Keys]');
-
     return response ? response.map((row) => row.key) : [];
   }
 }
