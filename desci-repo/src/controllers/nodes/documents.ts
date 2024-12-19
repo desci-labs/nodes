@@ -48,11 +48,18 @@ export const createNodeDocument = async function (req: Request, res: Response) {
     const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents`, {
       method: 'POST',
       body: JSON.stringify({ uuid, manifest }),
+      headers: {
+        'x-api-key': process.env.CLOUDFLARE_WORKER_API_SECRET ?? 'auth-token',
+      },
     });
-    const data = await response.json();
+    if (response.status === 200) {
+      const data = await response.json();
 
-    logger.trace({ uuid }, 'Document Created');
-    res.status(200).send({ ok: true, ...data });
+      logger.trace({ uuid }, 'Document Created');
+      res.status(200).send({ ok: true, ...data });
+    } else {
+      res.status(response.status).send({ ok: false });
+    }
   } catch (err) {
     logger.error({ err }, '[Error]::createNodeDocument');
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
@@ -160,7 +167,7 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
     }
 
     if (!document) {
-      res.status(400).send({ ok: false, message: 'Document not found' });
+      res.status(500).send({ ok: false, message: 'Document not found' });
       return;
     }
 
@@ -202,7 +209,7 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
 
     if (!document) {
       logger.error({ document }, 'Document not found');
-      res.status(400).send({ ok: false, message: 'Document not found' });
+      res.status(500).send({ ok: false, message: 'Document not found' });
       return;
     }
 

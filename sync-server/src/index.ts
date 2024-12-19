@@ -48,18 +48,18 @@ export class AutomergeServer extends PartyServer {
     // Add sensible defaults for running worker using workered in docker container
     // without these defaults the worker crashes because runtime variable/secret bindings are all
     // when running in docker container
-    this.environment = this.env.ENVIRONMENT || 'dev';
-    const localDbUrl =
-      this.env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
-    this.DATABASE_URL = this.environment === 'dev' ? localDbUrl : this.env.NODES_DB.connectionString;
-    this.API_TOKEN = env.API_TOKEN || 'auth-token';
-    console.log('[Values]', { db: this.DATABASE_URL, api: this.API_TOKEN, env: this.environment });
+    // this.environment = this.env.ENVIRONMENT || 'dev';
+    // const localDbUrl =
+    //   this.env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
+    // this.DATABASE_URL = this.environment === 'dev' ? localDbUrl : this.env.NODES_DB.connectionString;
+    // this.API_TOKEN = env.API_TOKEN || 'auth-token';
+    // console.log('[Values]', { db: this.DATABASE_URL, api: this.API_TOKEN, env: this.environment });
   }
 
   async onStart(): Promise<void> {
     const { Repo } = await import('@automerge/automerge-repo');
     console.log('first connection to server', this.env);
-    const { query } = await database.init(this.DATABASE_URL);
+    const { query } = await database.init(this.env.NODES_DB.connectionString);
     const config = {
       storage: new PostgresStorageAdapter(query),
       peerId: `worker-server-${this.ctx.id}` as PeerId,
@@ -120,18 +120,19 @@ export class AutomergeServer extends PartyServer {
     const auth = params.get('auth');
     let isAuthorised = false;
     console.log('[onConnect]', { params });
-    if (auth === this.API_TOKEN) {
+    if (auth === this.env.API_TOKEN) {
       isAuthorised = true;
     } else {
-      // Add default for missing NODES_API in workered container runtime
-      // I'm still hunting down this bug, will probably open an issue on the
-      // workered repo
-      const authUrl = this.env.NODES_API ?? 'http://host.docker.internal:5420';
-      const response = await fetch(`${authUrl}/v1/auth/check`, {
-        headers: { Authorization: `Bearer ${auth}` },
-      });
+      try {
+        const authUrl = this.env.NODES_API;
+        const response = await fetch(`${authUrl}/v1/auth/check`, {
+          headers: { Authorization: `Bearer ${auth}` },
+        });
 
-      if (response.ok) isAuthorised = true;
+        if (response.ok) isAuthorised = true;
+      } catch (err) {
+        console.error('Auth Error:', { err, url: this.env.NODES_API });
+      }
     }
 
     console.log('[onConnect]::isAuthorised', {
@@ -171,13 +172,12 @@ export const delay = async (timeMs: number) => {
 
 async function handleCreateDocument(request: Request, env: Env) {
   console.log('[Request]::handleCreateDocument ', { env });
-  const environment = env.ENVIRONMENT || 'dev';
-  const localDbUrl =
-    env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
-  const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
+  // const environment = env.ENVIRONMENT || 'dev';
+  // const localDbUrl = env.DATABASE_URL;
+  // const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
 
   const { Repo } = await import('@automerge/automerge-repo');
-  const { query } = await database.init(DATABASE_URL);
+  const { query } = await database.init(env.NODES_DB.connectionString);
   const config = {
     storage: new PostgresStorageAdapter(query),
     peerId: `cloudflare-ephemeral-peer` as PeerId,
@@ -200,8 +200,8 @@ async function handleCreateDocument(request: Request, env: Env) {
     { message: 'Init Document', time: Date.now() },
   );
 
-  let document = await handle.doc();
   await repo.flush();
+  let document = await handle.doc();
 
   return new Response(JSON.stringify({ documentId: handle.documentId, document }), { status: 200 });
 }
@@ -209,13 +209,13 @@ async function handleCreateDocument(request: Request, env: Env) {
 async function dispatchDocumentChanges(request: Request, env: Env) {
   try {
     console.log('[Request]::dispatchDocumentChanges ', { env });
-    const environment = env.ENVIRONMENT || 'dev';
-    const localDbUrl =
-      env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
-    const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
+    // const environment = env.ENVIRONMENT || 'dev';
+    // const localDbUrl =
+    //   env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
+    // const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
 
     const { Repo } = await import('@automerge/automerge-repo');
-    const { query } = await database.init(DATABASE_URL);
+    const { query } = await database.init(env.NODES_DB.connectionString);
     const config = {
       storage: new PostgresStorageAdapter(query),
       peerId: `cloudflare-ephemeral-peer` as PeerId,
@@ -239,6 +239,7 @@ async function dispatchDocumentChanges(request: Request, env: Env) {
 
     for (const action of actions) {
       document = await dispatchChange(action);
+      await repo.flush();
     }
 
     if (!document) {
@@ -264,13 +265,13 @@ async function dispatchDocumentChanges(request: Request, env: Env) {
 async function handleAutomergeActions(request: Request, env: Env) {
   try {
     console.log('[Request]::handleCreateDocument ', { env });
-    const environment = env.ENVIRONMENT || 'dev';
-    const localDbUrl =
-      env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
-    const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
+    // const environment = env.ENVIRONMENT || 'dev';
+    // const localDbUrl =
+    //   env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
+    // const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
 
     const { Repo } = await import('@automerge/automerge-repo');
-    const { query } = await database.init(DATABASE_URL);
+    const { query } = await database.init(env.NODES_DB.connectionString);
     const config = {
       storage: new PostgresStorageAdapter(query),
       peerId: `cloudflare-ephemeral-peer` as PeerId,
@@ -297,6 +298,7 @@ async function handleAutomergeActions(request: Request, env: Env) {
 
     for (const action of actions) {
       document = await dispatchChange(action);
+      await repo.flush();
     }
 
     if (!document) {
@@ -322,13 +324,13 @@ async function handleAutomergeActions(request: Request, env: Env) {
 async function getLatestDocument(request: Request, env: Env) {
   try {
     console.log('[Request]::getLatestDocument ', { env });
-    const environment = env.ENVIRONMENT || 'dev';
-    const localDbUrl =
-      env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
-    const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
+    // const environment = env.ENVIRONMENT || 'dev';
+    // const localDbUrl =
+    //   env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
+    // const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
 
     const { Repo } = await import('@automerge/automerge-repo');
-    const { query } = await database.init(DATABASE_URL);
+    const { query } = await database.init(env.NODES_DB.connectionString);
     const config = {
       storage: new PostgresStorageAdapter(query),
       peerId: `cloudflare-ephemeral-peer` as PeerId,

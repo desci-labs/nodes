@@ -8,17 +8,18 @@ import {
   Repo,
   RepoConfig,
 } from '@automerge/automerge-repo';
+import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
 import WebSocket from 'isomorphic-ws';
-import { logger as parentLogger } from './logger.js';
-import { ResearchObjectDocument } from './types.js';
-import * as db from './db/index.js';
+import { WebSocketServer } from 'ws';
+
+import { ENABLE_PARTYKIT_FEATURE, IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from './config.js';
 import { ensureUuidEndsWithDot } from './controllers/nodes/utils.js';
+import * as db from './db/index.js';
 import { PartykitNodeWsAdapter } from './lib/PartykitNodeWsAdapter.js';
 import { PostgresStorageAdapter } from './lib/PostgresStorageAdapter.js';
-import { NodeWSServerAdapter } from '@automerge/automerge-repo-network-websocket';
-import { WebSocketServer } from 'ws';
+import { logger as parentLogger } from './logger.js';
 import { verifyNodeDocumentAccess } from './services/nodes.js';
-import { ENABLE_PARTYKIT_FEATURE, IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from './config.js';
+import { ResearchObjectDocument } from './types.js';
 
 const partyServerHost = PARTY_SERVER_HOST || 'localhost:5445';
 const partyServerToken = PARTY_SERVER_TOKEN;
