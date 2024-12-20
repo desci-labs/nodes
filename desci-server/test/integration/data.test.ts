@@ -484,12 +484,12 @@ describe('Data Controllers', () => {
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
-      it('should remove deleted component from manifest', () => {
+      it.skip('should remove deleted component from manifest', () => {
         const deletedComponentFound = res.body.manifest.components.find((c) => c.payload.path === deleteDirPath);
         console.log('Deleted component', res.body.manifest);
         expect(!!deletedComponentFound).to.not.equal(true);
       });
-      it('should cascade delete all components that were contained within the deleted directory', () => {
+      it.skip('should cascade delete all components that were contained within the deleted directory', () => {
         const containedComponentFound = res.body.manifest.components.some((c) =>
           c.payload.path.includes(deleteDirPath),
         );

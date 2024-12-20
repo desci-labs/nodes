@@ -66,10 +66,12 @@ class RepoService {
       },
     );
     logger.trace({ arg, ok: response.data.ok }, 'Disatch Actions Response');
+    console.log({ arg, ok: response.data.ok }, 'Disatch Actions Response');
     if (response.status === 200 && response.data.ok) {
       return response.data.document;
     } else {
       logger.trace({ response: response.data }, 'Disatch Actions Failed');
+      console.log({ response: response.data }, 'Disatch Actions Failed');
       return null;
     }
   }
@@ -90,13 +92,16 @@ class RepoService {
           },
         },
       );
-      logger.info({ arg, response: response.data }, 'Disatch Actions Response');
+      logger.info({ arg, response: response.data }, 'dispatchChanges Response');
+      console.log({ arg, response: response.data }, 'dispatchChanges Response');
       if (response.status === 200 && response.data.ok) {
         return response.data.document;
       } else {
         return { ok: false, status: response.status, message: response.data };
       }
     } catch (err) {
+      logger.info({ arg, err }, 'dispatchChanges Error');
+      console.log({ arg, err }, 'dispatchChanges Error');
       return { ok: false, status: err.status, message: err?.response?.data };
     }
   }

@@ -181,7 +181,7 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
     await repo.networkSubsystem.whenReady();
 
     const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
-    handle.broadcast([documentId, { type: 'dispatch-action', actions }]);
+    handle.broadcast([documentId, { type: 'dispatch-changes', actions }]);
 
     // await new Promise((resolve) => setTimeout(resolve, 2000));
     // console.log('[TIMEOUT]', { documentId, actions });
@@ -251,12 +251,12 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
     const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
     handle.broadcast([documentId, { type: 'dispatch-action', actions }]);
 
-    // await new Promise((resolve) => setTimeout(resolve, 1000));
     logger.trace({ documentId, validatedActions }, 'Actions');
 
     let document: Doc<ResearchObjectDocument> | undefined;
 
     const dispatchChange = await getDocumentUpdater(documentId, actions);
+    // await new Promise((resolve) => setTimeout(resolve, 300));
 
     for (const action of actions) {
       document = await dispatchChange(action);
