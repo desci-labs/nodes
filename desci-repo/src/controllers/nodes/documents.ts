@@ -258,7 +258,7 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
 
     let document: Doc<ResearchObjectDocument> | undefined;
 
-    const dispatchChange = await getDocumentUpdater(documentId, actions);
+    const dispatchChange = await getDocumentUpdater(documentId);
     // await new Promise((resolve) => setTimeout(resolve, 300));
 
     for (const action of actions) {

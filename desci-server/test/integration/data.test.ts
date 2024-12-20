@@ -64,7 +64,7 @@ const createDraftNode = async (user: User, baseManifest: ResearchObjectV1, baseM
   return { node: updatedNode || node, documentId: response?.documentId };
 };
 
-describe('Data Controllers', () => {
+describe.only('Data Controllers', () => {
   let user: User;
   let unauthedUser: User;
   // let node: Node;
@@ -115,6 +115,7 @@ describe('Data Controllers', () => {
           .field('contextPath', 'root')
           // .send({ uuid: node.uuid, manifest, contextPath: 'root' })
           .attach('files', Buffer.from('test'), 'test.txt');
+        console.log('[Update Test]', res.body);
       });
 
       it('should return status 200', () => {
