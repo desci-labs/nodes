@@ -81,6 +81,7 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
   try {
     // todo: add support for documentId params and skip querying node
     // fast track call if documentId is available
+    console.log('[getLatestNodeManifest]', { documentId, ENABLE_PARTYKIT_FEATURE });
     if (documentId) {
       if (ENABLE_PARTYKIT_FEATURE) {
         const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents?documentId=${documentId}`, {
