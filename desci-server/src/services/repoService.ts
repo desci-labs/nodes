@@ -1,6 +1,7 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import { ResearchObjectV1, ManifestActions } from '@desci-labs/desci-models';
 import axios, { AxiosError, AxiosInstance } from 'axios';
+import axiosRetry from 'axios-retry';
 
 import { als, logger as parentLogger } from '../logger.js';
 import { ResearchObjectDocument } from '../types/documents.js';
@@ -11,7 +12,8 @@ const logger = parentLogger.child({ module: 'Repo Service' });
 
 const cloudflareWorkerApi = process.env.CLOUDFLARE_WORKER_API || 'https://nodes-dev-sync.desci.com';
 const cloudflareWorkerApiSecret = process.env.CLOUDFLARE_WORKER_API_SECRET || 'auth-token';
-const enableWorkersApi = true; // process.env.ENABLE_WORKERS_API == 'true';
+const enableWorkersApi = process.env.ENABLE_WORKERS_API == 'true';
+// const enableWorkersPullApi = process.env.ENABLE_WORKERS_API == 'true';
 
 type ApiResponse<B> = { ok: boolean } & B;
 
@@ -37,19 +39,29 @@ class RepoService {
       baseURL: this.baseUrl,
       headers: { 'x-api-key': this.#apiKey },
     });
+
+    axiosRetry(this.#client, {
+      retries: 2,
+      retryDelay: axiosRetry.exponentialDelay,
+      retryCondition(error) {
+        logger.error({ error }, 'Retry request');
+        return error.response?.status === 500 || axiosRetry.isNetworkOrIdempotentRequestError(error);
+      },
+    });
   }
 
   async dispatchAction(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
     logger.info({ arg, enableWorkersApi, cloudflareWorkerApi }, 'Disatch Changes');
     const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-      enableWorkersApi
-        ? `${cloudflareWorkerApi}/api/documents/dispatch`
-        : `${this.baseUrl}/v1/nodes/documents/dispatch`,
+      // enableWorkersApi
+      //   ? `${cloudflareWorkerApi}/api/documents/dispatch`
+      //   :
+      `${this.baseUrl}/v1/nodes/documents/dispatch`,
       arg,
       {
         headers: {
           'x-api-remote-traceid': (als.getStore() as any)?.traceId,
-          ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
+          // ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
         },
       },
     );
@@ -66,14 +78,15 @@ class RepoService {
     logger.info({ arg }, 'Disatch Actions');
     try {
       const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-        enableWorkersApi
-          ? `${cloudflareWorkerApi}/api/documents/actions`
-          : `${this.baseUrl}/v1/nodes/documents/actions`,
+        // enableWorkersApi
+        //   ? `${cloudflareWorkerApi}/api/documents/actions`
+        //   :
+        `${this.baseUrl}/v1/nodes/documents/actions`,
         arg,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
-            ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
+            // ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
           },
         },
       );
@@ -89,14 +102,14 @@ class RepoService {
   }
 
   async initDraftDocument(arg: { uuid: string; manifest: ResearchObjectV1 }) {
-    logger.info({ arg }, 'Create Draft');
+    logger.info({ arg, enableWorkersApi }, 'Create Draft');
     try {
       const response = await this.#client.post<
         ApiResponse<{ documentId: DocumentId; document: ResearchObjectDocument }>
       >(enableWorkersApi ? `${cloudflareWorkerApi}/api/documents` : `${this.baseUrl}/v1/nodes/documents`, arg, {
         headers: {
           'x-api-remote-traceid': (als.getStore() as any)?.traceId,
-          ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
+          ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
         },
       });
       logger.info({ status: response.status, response: response.data }, 'Create Draft Response');

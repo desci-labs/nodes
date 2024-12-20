@@ -39,6 +39,7 @@ export class PostgresStorageAdapter implements StorageAdapterInterface {
         `INSERT INTO "${this.tableName}" (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = $2 RETURNING key`,
         [key, Buffer.from(binary)],
       );
+      console.log('[saved]', { key });
     } catch (e) {
       console.error({ e, key }, 'PostgresStorageAdapter::Save ==> Error saving document');
     }

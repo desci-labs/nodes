@@ -1,9 +1,11 @@
 // import WebSocket from 'isomorphic-ws';
 
+import { cbor as cborHelpers, NetworkAdapter, type PeerMetadata, type PeerId } from '@automerge/automerge-repo/slim';
 import debug from 'debug';
+import { PartySocketOptions, PartySocket } from 'partysocket';
+import WebSocket from 'ws';
 const log = debug('WebsocketServer');
 
-import { cbor as cborHelpers, NetworkAdapter, type PeerMetadata, type PeerId } from '@automerge/automerge-repo/slim';
 import {
   FromClientMessage,
   FromServerMessage,
@@ -14,9 +16,6 @@ import {
   isPeerMessage,
   isErrorMessage,
 } from './automerge-repo-network-websocket/index.js';
-
-import WebSocket from 'ws';
-import { PartySocketOptions, PartySocket } from 'partysocket';
 
 const { encode, decode } = cborHelpers;
 
@@ -127,6 +126,7 @@ export class PartykitNodeWsAdapter extends NetworkAdapter {
       | Event // browser
       | ErrorEvent, // node
   ) => {
+    console.log('[Socket Error]', event);
     if ('error' in event) {
       // (node)
       if (event.error.code !== 'ECONNREFUSED') {
