@@ -39,15 +39,15 @@ export const getDocumentHandle = async (documentId: DocumentId) => {
   }
 
   const automergeUrl = getAutomergeUrl(documentId);
-  await backendRepo.networkSubsystem.whenReady();
-  // logger.trace({ documentId }, 'ready');
+  // await backendRepo.networkSubsystem.whenReady();
+  logger.trace({ documentId }, 'ready');
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
   // await handle.whenReady();
   logger.trace({ handle: handle.url }, 'handle resolved');
   return handle;
 };
 
-export const getDocumentUpdater = async (documentId: DocumentId, actions?: ManifestActions[]) => {
+export const getDocumentUpdater = async (documentId: DocumentId) => {
   const handle = await getDocumentHandle(documentId); //backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
   logger.trace({ handle: handle.isReady() }, 'Retrieved handle');
 

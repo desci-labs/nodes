@@ -28,8 +28,8 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
-      nodes_test_sync_service:
-        condition: service_started
+      # nodes_test_sync_service:
+      #   condition: service_started
       nodes_test_db:
         condition: service_healthy
       nodes_test_ipfs:
@@ -63,7 +63,7 @@ services:
       - ./desci-repo/.env.test
     ports:
       - "5485:5484"
-      # - "5446:5445"
+      - "5446:5445"
     extra_hosts:
       - host.docker.internal:host-gateway
     healthcheck:
@@ -78,20 +78,20 @@ services:
     volumes:
       - .:/app/
       - ./local-data/yarn_cache:/root/.yarn
-  nodes_test_sync_service:
-    build:
-      context: ./sync-server
-      dockerfile: Dockerfile
-    container_name: nodes_sync_test_worker
-    image: worker_test
-    ports:
-      - "5446:5445"
-    extra_hosts:
-      - host.docker.internal:host-gateway
-    volumes:
-      - ./sync-server:/usr/src/app
-      - /usr/src/app/node_modules
-    depends_on:
-      - nodes_test_db
-    env_file:
-      - ./sync-server/.env.test
+  # nodes_test_sync_service:
+  #   build:
+  #     context: ./sync-server
+  #     dockerfile: Dockerfile
+  #   container_name: nodes_sync_test_worker
+  #   image: worker_test
+  #   ports:
+  #     - "5446:5445"
+  #   extra_hosts:
+  #     - host.docker.internal:host-gateway
+  #   volumes:
+  #     - ./sync-server:/usr/src/app
+  #     - /usr/src/app/node_modules
+  #   depends_on:
+  #     - nodes_test_db
+  #   env_file:
+  #     - ./sync-server/.env.test

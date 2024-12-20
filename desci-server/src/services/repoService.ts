@@ -40,14 +40,14 @@ class RepoService {
       headers: { 'x-api-key': this.#apiKey },
     });
 
-    axiosRetry(this.#client, {
-      retries: 2,
-      retryDelay: axiosRetry.exponentialDelay,
-      retryCondition(error) {
-        logger.error({ error }, 'Retry request');
-        return error.response?.status === 500 || axiosRetry.isNetworkOrIdempotentRequestError(error);
-      },
-    });
+    // axiosRetry(this.#client, {
+    //   retries: 2,
+    //   retryDelay: axiosRetry.exponentialDelay,
+    //   retryCondition(error) {
+    //     logger.error({ error }, 'Retry request');
+    //     return error.response?.status === 500 || axiosRetry.isNetworkOrIdempotentRequestError(error);
+    //   },
+    // });
   }
 
   async dispatchAction(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
@@ -111,12 +111,17 @@ class RepoService {
     try {
       const response = await this.#client.post<
         ApiResponse<{ documentId: DocumentId; document: ResearchObjectDocument }>
-      >(enableWorkersApi ? `${cloudflareWorkerApi}/api/documents` : `${this.baseUrl}/v1/nodes/documents`, arg, {
-        headers: {
-          'x-api-remote-traceid': (als.getStore() as any)?.traceId,
-          ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
+      >(
+        // enableWorkersApi ? `${cloudflareWorkerApi}/api/documents` :
+        `${this.baseUrl}/v1/nodes/documents`,
+        arg,
+        {
+          headers: {
+            'x-api-remote-traceid': (als.getStore() as any)?.traceId,
+            // ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
+          },
         },
-      });
+      );
       logger.info({ status: response.status, response: response.data }, 'Create Draft Response');
       if (response.status === 200) {
         return response.data;
@@ -140,15 +145,16 @@ class RepoService {
         '[getDraftDocument]',
       );
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
-        enableWorkersApi
-          ? `${cloudflareWorkerApi}/api/documents?documentId=${arg.documentId}`
-          : `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}?documentId=${arg.documentId}`,
+        // enableWorkersApi
+        //   ? `${cloudflareWorkerApi}/api/documents?documentId=${arg.documentId}`
+        //   :
+        `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}?documentId=${arg.documentId}`,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
-            ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
+            // ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
           },
-          signal: AbortSignal.timeout(arg.timeout ?? this.defaultTimeoutInMilliseconds),
+          // signal: AbortSignal.timeout(arg.timeout ?? this.defaultTimeoutInMilliseconds),
           timeoutErrorMessage: this.timeoutErrorMessage,
         },
       );

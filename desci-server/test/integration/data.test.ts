@@ -115,6 +115,7 @@ describe('Data Controllers', () => {
           .field('contextPath', 'root')
           // .send({ uuid: node.uuid, manifest, contextPath: 'root' })
           .attach('files', Buffer.from('test'), 'test.txt');
+        console.log('[Update Test]', res.body);
       });
 
       it('should return status 200', () => {
@@ -484,12 +485,12 @@ describe('Data Controllers', () => {
         const correctRefs = missingRefs.length === 0 && unusedRefs.length === 0 && Object.keys(diffRefs).length === 0;
         expect(correctRefs).to.equal(true);
       });
-      it.skip('should remove deleted component from manifest', () => {
+      it('should remove deleted component from manifest', () => {
         const deletedComponentFound = res.body.manifest.components.find((c) => c.payload.path === deleteDirPath);
         console.log('Deleted component', res.body.manifest);
         expect(!!deletedComponentFound).to.not.equal(true);
       });
-      it.skip('should cascade delete all components that were contained within the deleted directory', () => {
+      it('should cascade delete all components that were contained within the deleted directory', () => {
         const containedComponentFound = res.body.manifest.components.some((c) =>
           c.payload.path.includes(deleteDirPath),
         );

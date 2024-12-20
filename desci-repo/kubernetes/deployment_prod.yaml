@@ -52,7 +52,7 @@ spec:
           export DESCI_SERVER_URL={{ .Data.DESCI_SERVER_URL }}
           export PARTY_SERVER_HOST=nodes-sync.desci.com
           export PARTY_SERVER_TOKEN=auth-token
-          export ENABLE_PARTYKIT_FEATURE=true
+          export ENABLE_PARTYKIT_FEATURE=false
           export PINO_LOG_LEVEL=info
           {{- end -}}
       labels:
@@ -67,8 +67,8 @@ spec:
           ports:
             - containerPort: 5484
               name: server-api
-            # - containerPort: 5445
-            #   name: ws-api
+            - containerPort: 5445
+              name: ws-api
           resources:
             limits:
               cpu: '4'

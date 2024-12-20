@@ -30,7 +30,7 @@ const getDocument = async (documentId: DocumentId) => {
   }
 
   const automergeUrl = getAutomergeUrl(documentId);
-  await backendRepo.networkSubsystem.whenReady();
+  // await backendRepo.networkSubsystem.whenReady();
   logger.trace({ documentId }, 'ready');
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
   logger.trace({ handle: handle.url }, 'handle resolved');
@@ -48,23 +48,25 @@ export const createNodeDocument = async function (req: Request, res: Response) {
       return;
     }
 
-    const { uuid, manifest } = req.body;
-    logger.trace({ protocol, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN }, 'ENV');
-    const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents`, {
-      method: 'POST',
-      body: JSON.stringify({ uuid, manifest }),
-      headers: {
-        'x-api-key': process.env.CLOUDFLARE_WORKER_API_SECRET ?? 'auth-token',
+    let uuid = req.body.uuid;
+    const manifest = req.body.manifest;
+    uuid = ensureUuidEndsWithDot(uuid);
+    logger.info({ peerId: backendRepo.networkSubsystem.peerId, uuid }, '[Backend REPO]:');
+    const handle = backendRepo.create<ResearchObjectDocument>();
+    handle.change(
+      (d) => {
+        d.manifest = manifest;
+        d.uuid = uuid;
+        d.driveClock = Date.now().toString();
       },
-    });
-    if (response.status === 200) {
-      const data = await response.json();
+      { message: 'Init Document', time: Date.now() },
+    );
 
-      logger.trace({ uuid }, 'Document Created');
-      res.status(200).send({ ok: true, ...data });
-    } else {
-      res.status(response.status).send({ ok: false });
-    }
+    logger.trace({ peerId: backendRepo.networkSubsystem.peerId, uuid }, 'Document Created');
+
+    const document = await handle.doc();
+
+    res.status(200).send({ ok: true, document, documentId: handle.documentId });
   } catch (err) {
     logger.error({ err }, '[Error]::createNodeDocument');
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
@@ -79,25 +81,27 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
   try {
     // todo: add support for documentId params and skip querying node
     // fast track call if documentId is available
+    console.log('[getLatestNodeManifest]', { documentId, ENABLE_PARTYKIT_FEATURE });
     if (documentId) {
-      if (ENABLE_PARTYKIT_FEATURE) {
-        const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents?documentId=${documentId}`, {
-          // body: JSON.stringify({ uuid, documentId }),
-          headers: {
-            'x-api-key': PARTY_SERVER_TOKEN!,
-          },
-        });
-        const data = (await response.json()) as { document: ResearchObjectV1 };
+      // if (ENABLE_PARTYKIT_FEATURE) {
+      //   const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents?documentId=${documentId}`, {
+      //     // body: JSON.stringify({ uuid, documentId }),
+      //     headers: {
+      //       'x-api-key': PARTY_SERVER_TOKEN!,
+      //     },
+      //   });
+      //   const data = (await response.json()) as { document: ResearchObjectV1 };
 
-        logger.trace({ document: !!data.document, ENABLE_PARTYKIT_FEATURE }, 'Document Retrieved');
-        res.status(200).send({ ok: true, document: data.document });
+      //   logger.trace({ document: !!data.document, ENABLE_PARTYKIT_FEATURE }, 'Document Retrieved');
+      //   res.status(200).send({ ok: true, document: data.document });
+      //   return;
+      // } else {
+      const document = await getDocument(documentId as DocumentId);
+      console.log('[getLatestNodeManifest::document]', { document });
+      if (document) {
+        res.status(200).send({ ok: true, document });
         return;
-      } else {
-        const document = await getDocument(documentId as DocumentId);
-        if (document) {
-          res.status(200).send({ ok: true, document });
-          return;
-        }
+        // }
       }
     }
 
@@ -123,24 +127,24 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
       return;
     }
 
-    if (ENABLE_PARTYKIT_FEATURE) {
-      const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents?documentId=${documentId}`, {
-        headers: {
-          'x-api-key': PARTY_SERVER_TOKEN!,
-        },
-      });
-      const data = (await response.json()) as { document: ResearchObjectV1 };
+    // if (ENABLE_PARTYKIT_FEATURE) {
+    //   const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents?documentId=${documentId}`, {
+    //     headers: {
+    //       'x-api-key': PARTY_SERVER_TOKEN!,
+    //     },
+    //   });
+    //   const data = (await response.json()) as { document: ResearchObjectV1 };
 
-      logger.trace({ document: !!data.document, ENABLE_PARTYKIT_FEATURE }, 'Document Retrieved');
-      res.status(200).send({ ok: true, document: data.document });
-      return;
-    } else {
-      const document = await getDocument(node.manifestDocumentId as DocumentId);
+    //   logger.trace({ document: !!data.document, ENABLE_PARTYKIT_FEATURE }, 'Document Retrieved');
+    //   res.status(200).send({ ok: true, document: data.document });
+    //   return;
+    // } else {
+    const document = await getDocument(node.manifestDocumentId as DocumentId);
 
-      logger.trace({ document: !!document, ENABLE_PARTYKIT_FEATURE }, 'return DOCUMENT');
-      res.status(200).send({ ok: true, document });
-      return;
-    }
+    logger.trace({ document: !!document, ENABLE_PARTYKIT_FEATURE }, 'return DOCUMENT');
+    res.status(200).send({ ok: true, document });
+    return;
+    // }
   } catch (err) {
     logger.error({ err }, 'Error');
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
@@ -163,29 +167,29 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
       return;
     }
 
-    const repo = new Repo({
-      peerId: `repo-server-${hostname}` as PeerId,
-      // Since this is a server, we don't share generously — meaning we only sync documents they already
-      // know about and can ask for by ID.
-      sharePolicy: async () => true,
-    });
-    const adapter = new PartykitNodeWsAdapter({
-      host: PARTY_SERVER_HOST!,
-      party: 'automerge',
-      room: documentId,
-      query: { auth: PARTY_SERVER_TOKEN, documentId },
-      protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
-      WebSocket: WebSocket,
-    });
-    repo.networkSubsystem.addNetworkAdapter(adapter);
-    await repo.networkSubsystem.whenReady();
+    // const repo = new Repo({
+    //   peerId: `repo-server-${hostname}` as PeerId,
+    //   // Since this is a server, we don't share generously — meaning we only sync documents they already
+    //   // know about and can ask for by ID.
+    //   sharePolicy: async () => true,
+    // });
+    // const adapter = new PartykitNodeWsAdapter({
+    //   host: PARTY_SERVER_HOST!,
+    //   party: 'automerge',
+    //   room: documentId,
+    //   query: { auth: PARTY_SERVER_TOKEN, documentId },
+    //   protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
+    //   WebSocket: WebSocket,
+    // });
+    // repo.networkSubsystem.addNetworkAdapter(adapter);
+    // await repo.networkSubsystem.whenReady();
 
-    const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
-    handle.broadcast([documentId, { type: 'dispatch-changes', actions }]);
+    // const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+    // handle.broadcast([documentId, { type: 'dispatch-changes', actions }]);
 
-    // await new Promise((resolve) => setTimeout(resolve, 2000));
-    // console.log('[TIMEOUT]', { documentId, actions });
-    logger.trace({ documentId, actions }, 'Actions');
+    // // await new Promise((resolve) => setTimeout(resolve, 2000));
+    // // console.log('[TIMEOUT]', { documentId, actions });
+    // logger.trace({ documentId, actions }, 'Actions');
 
     let document: Doc<ResearchObjectDocument> | undefined;
 
@@ -231,31 +235,31 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
     logger.trace({ validatedActions }, 'Actions validated');
 
     // const handle = await getDocumentHandle(documentId);
-    const repo = new Repo({
-      peerId: `repo-server-${hostname}` as PeerId,
-      // Since this is a server, we don't share generously — meaning we only sync documents they already
-      // know about and can ask for by ID.
-      sharePolicy: async () => true,
-    });
-    const adapter = new PartykitNodeWsAdapter({
-      host: PARTY_SERVER_HOST!,
-      party: 'automerge',
-      room: documentId,
-      query: { auth: PARTY_SERVER_TOKEN, documentId },
-      protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
-      WebSocket: WebSocket,
-    });
-    repo.networkSubsystem.addNetworkAdapter(adapter);
-    await repo.networkSubsystem.whenReady();
+    // const repo = new Repo({
+    //   peerId: `repo-server-${hostname}` as PeerId,
+    //   // Since this is a server, we don't share generously — meaning we only sync documents they already
+    //   // know about and can ask for by ID.
+    //   sharePolicy: async () => true,
+    // });
+    // const adapter = new PartykitNodeWsAdapter({
+    //   host: PARTY_SERVER_HOST!,
+    //   party: 'automerge',
+    //   room: documentId,
+    //   query: { auth: PARTY_SERVER_TOKEN, documentId },
+    //   protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
+    //   WebSocket: WebSocket,
+    // });
+    // repo.networkSubsystem.addNetworkAdapter(adapter);
+    // await repo.networkSubsystem.whenReady();
 
-    const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
-    handle.broadcast([documentId, { type: 'dispatch-action', actions }]);
+    // const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+    // handle.broadcast([documentId, { type: 'dispatch-action', actions }]);
 
-    logger.trace({ documentId, validatedActions }, 'Actions');
+    // logger.trace({ documentId, validatedActions }, 'Actions');
 
     let document: Doc<ResearchObjectDocument> | undefined;
 
-    const dispatchChange = await getDocumentUpdater(documentId, actions);
+    const dispatchChange = await getDocumentUpdater(documentId);
     // await new Promise((resolve) => setTimeout(resolve, 300));
 
     for (const action of actions) {
