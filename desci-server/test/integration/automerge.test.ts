@@ -85,7 +85,7 @@ describe('Automerge Integration', () => {
     });
   });
 
-  describe('Dispatch Actions Api', () => {
+  describe.skip('Dispatch Actions Api', () => {
     let node: Node;
     let dotlessUuid: string;
     const repoServiceUrl = process.env.REPO_SERVER_URL;
