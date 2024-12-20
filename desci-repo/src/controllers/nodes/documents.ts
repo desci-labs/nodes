@@ -30,7 +30,7 @@ const getDocument = async (documentId: DocumentId) => {
   }
 
   const automergeUrl = getAutomergeUrl(documentId);
-  await backendRepo.networkSubsystem.whenReady();
+  // await backendRepo.networkSubsystem.whenReady();
   logger.trace({ documentId }, 'ready');
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
   logger.trace({ handle: handle.url }, 'handle resolved');
@@ -83,24 +83,25 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
     // fast track call if documentId is available
     console.log('[getLatestNodeManifest]', { documentId, ENABLE_PARTYKIT_FEATURE });
     if (documentId) {
-      if (ENABLE_PARTYKIT_FEATURE) {
-        const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents?documentId=${documentId}`, {
-          // body: JSON.stringify({ uuid, documentId }),
-          headers: {
-            'x-api-key': PARTY_SERVER_TOKEN!,
-          },
-        });
-        const data = (await response.json()) as { document: ResearchObjectV1 };
+      // if (ENABLE_PARTYKIT_FEATURE) {
+      //   const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents?documentId=${documentId}`, {
+      //     // body: JSON.stringify({ uuid, documentId }),
+      //     headers: {
+      //       'x-api-key': PARTY_SERVER_TOKEN!,
+      //     },
+      //   });
+      //   const data = (await response.json()) as { document: ResearchObjectV1 };
 
-        logger.trace({ document: !!data.document, ENABLE_PARTYKIT_FEATURE }, 'Document Retrieved');
-        res.status(200).send({ ok: true, document: data.document });
+      //   logger.trace({ document: !!data.document, ENABLE_PARTYKIT_FEATURE }, 'Document Retrieved');
+      //   res.status(200).send({ ok: true, document: data.document });
+      //   return;
+      // } else {
+      const document = await getDocument(documentId as DocumentId);
+      console.log('[getLatestNodeManifest::document]', { document });
+      if (document) {
+        res.status(200).send({ ok: true, document });
         return;
-      } else {
-        const document = await getDocument(documentId as DocumentId);
-        if (document) {
-          res.status(200).send({ ok: true, document });
-          return;
-        }
+        // }
       }
     }
 
@@ -126,24 +127,24 @@ export const getLatestNodeManifest = async function (req: Request, res: Response
       return;
     }
 
-    if (ENABLE_PARTYKIT_FEATURE) {
-      const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents?documentId=${documentId}`, {
-        headers: {
-          'x-api-key': PARTY_SERVER_TOKEN!,
-        },
-      });
-      const data = (await response.json()) as { document: ResearchObjectV1 };
+    // if (ENABLE_PARTYKIT_FEATURE) {
+    //   const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents?documentId=${documentId}`, {
+    //     headers: {
+    //       'x-api-key': PARTY_SERVER_TOKEN!,
+    //     },
+    //   });
+    //   const data = (await response.json()) as { document: ResearchObjectV1 };
 
-      logger.trace({ document: !!data.document, ENABLE_PARTYKIT_FEATURE }, 'Document Retrieved');
-      res.status(200).send({ ok: true, document: data.document });
-      return;
-    } else {
-      const document = await getDocument(node.manifestDocumentId as DocumentId);
+    //   logger.trace({ document: !!data.document, ENABLE_PARTYKIT_FEATURE }, 'Document Retrieved');
+    //   res.status(200).send({ ok: true, document: data.document });
+    //   return;
+    // } else {
+    const document = await getDocument(node.manifestDocumentId as DocumentId);
 
-      logger.trace({ document: !!document, ENABLE_PARTYKIT_FEATURE }, 'return DOCUMENT');
-      res.status(200).send({ ok: true, document });
-      return;
-    }
+    logger.trace({ document: !!document, ENABLE_PARTYKIT_FEATURE }, 'return DOCUMENT');
+    res.status(200).send({ ok: true, document });
+    return;
+    // }
   } catch (err) {
     logger.error({ err }, 'Error');
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
