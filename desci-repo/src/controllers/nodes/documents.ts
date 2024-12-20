@@ -48,23 +48,25 @@ export const createNodeDocument = async function (req: Request, res: Response) {
       return;
     }
 
-    const { uuid, manifest } = req.body;
-    logger.trace({ protocol, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN }, 'ENV');
-    const response = await fetch(`${protocol}${PARTY_SERVER_HOST}/api/documents`, {
-      method: 'POST',
-      body: JSON.stringify({ uuid, manifest }),
-      headers: {
-        'x-api-key': process.env.CLOUDFLARE_WORKER_API_SECRET ?? 'auth-token',
+    let uuid = req.body.uuid;
+    const manifest = req.body.manifest;
+    uuid = ensureUuidEndsWithDot(uuid);
+    logger.info({ peerId: backendRepo.networkSubsystem.peerId, uuid }, '[Backend REPO]:');
+    const handle = backendRepo.create<ResearchObjectDocument>();
+    handle.change(
+      (d) => {
+        d.manifest = manifest;
+        d.uuid = uuid;
+        d.driveClock = Date.now().toString();
       },
-    });
-    if (response.status === 200) {
-      const data = await response.json();
+      { message: 'Init Document', time: Date.now() },
+    );
 
-      logger.trace({ uuid }, 'Document Created');
-      res.status(200).send({ ok: true, ...data });
-    } else {
-      res.status(response.status).send({ ok: false });
-    }
+    logger.trace({ peerId: backendRepo.networkSubsystem.peerId, uuid }, 'Document Created');
+
+    const document = await handle.doc();
+
+    res.status(200).send({ ok: true, document, documentId: handle.documentId });
   } catch (err) {
     logger.error({ err }, '[Error]::createNodeDocument');
     res.status(500).send({ ok: false, message: JSON.stringify(err) });
