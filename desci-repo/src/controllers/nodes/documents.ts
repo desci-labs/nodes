@@ -1,21 +1,26 @@
+import os from 'os';
+
 import { Doc } from '@automerge/automerge';
-import { AutomergeUrl, DocumentId } from '@automerge/automerge-repo';
+import { AutomergeUrl, DocHandleEphemeralMessagePayload, DocumentId, PeerId, Repo } from '@automerge/automerge-repo';
 import { ManifestActions, ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Request, Response } from 'express';
+import WebSocket from 'isomorphic-ws';
 import { ZodError } from 'zod';
 
 import { ENABLE_PARTYKIT_FEATURE, IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from '../../config.js';
 import { findNodeByUuid } from '../../db/index.js';
+import { PartykitNodeWsAdapter } from '../../lib/PartykitNodeWsAdapter.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/guard.js';
 import { backendRepo, repoManager } from '../../repo.js';
-import { getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
+import { getAutomergeUrl, getDocumentHandle, getDocumentUpdater } from '../../services/manifestRepo.js';
 import { ResearchObjectDocument } from '../../types.js';
 import { actionsSchema } from '../../validators/schema.js';
 
 import { ensureUuidEndsWithDot } from './utils.js';
 
 const protocol = IS_TEST || IS_DEV ? 'http://' : 'https://';
+const hostname = os.hostname();
 
 const getDocument = async (documentId: DocumentId) => {
   const logger = parentLogger.child({ module: 'getDocument', documentId });
@@ -158,16 +163,42 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
       return;
     }
 
+    const repo = new Repo({
+      peerId: `repo-server-${hostname}` as PeerId,
+      // Since this is a server, we don't share generously — meaning we only sync documents they already
+      // know about and can ask for by ID.
+      sharePolicy: async () => true,
+    });
+    const adapter = new PartykitNodeWsAdapter({
+      host: PARTY_SERVER_HOST!,
+      party: 'automerge',
+      room: documentId,
+      query: { auth: PARTY_SERVER_TOKEN, documentId },
+      protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
+      WebSocket: WebSocket,
+    });
+    repo.networkSubsystem.addNetworkAdapter(adapter);
+    await repo.networkSubsystem.whenReady();
+
+    const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+    handle.broadcast([documentId, { type: 'dispatch-action', actions }]);
+
+    // await new Promise((resolve) => setTimeout(resolve, 2000));
+    // console.log('[TIMEOUT]', { documentId, actions });
+    logger.trace({ documentId, actions }, 'Actions');
+
     let document: Doc<ResearchObjectDocument> | undefined;
 
     const dispatchChange = await getDocumentUpdater(documentId);
+
+    // await new Promise((resolve) => setTimeout(resolve, 5000));
 
     for (const action of actions) {
       document = await dispatchChange(action);
     }
 
     if (!document) {
-      res.status(500).send({ ok: false, message: 'Document not found' });
+      res.status(400).send({ ok: false, message: 'Document not found' });
       return;
     }
 
@@ -199,17 +230,42 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
     const validatedActions = await actionsSchema.parseAsync(actions);
     logger.trace({ validatedActions }, 'Actions validated');
 
+    // const handle = await getDocumentHandle(documentId);
+    const repo = new Repo({
+      peerId: `repo-server-${hostname}` as PeerId,
+      // Since this is a server, we don't share generously — meaning we only sync documents they already
+      // know about and can ask for by ID.
+      sharePolicy: async () => true,
+    });
+    const adapter = new PartykitNodeWsAdapter({
+      host: PARTY_SERVER_HOST!,
+      party: 'automerge',
+      room: documentId,
+      query: { auth: PARTY_SERVER_TOKEN, documentId },
+      protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
+      WebSocket: WebSocket,
+    });
+    repo.networkSubsystem.addNetworkAdapter(adapter);
+    await repo.networkSubsystem.whenReady();
+
+    const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+    handle.broadcast([documentId, { type: 'dispatch-action', actions }]);
+
+    // await new Promise((resolve) => setTimeout(resolve, 1000));
+    logger.trace({ documentId, validatedActions }, 'Actions');
+
     let document: Doc<ResearchObjectDocument> | undefined;
 
-    const dispatchChange = await getDocumentUpdater(documentId);
+    const dispatchChange = await getDocumentUpdater(documentId, actions);
 
     for (const action of actions) {
       document = await dispatchChange(action);
     }
 
+    logger.trace({ actions, document }, '[Post Action]');
     if (!document) {
       logger.error({ document }, 'Document not found');
-      res.status(500).send({ ok: false, message: 'Document not found' });
+      res.status(400).send({ ok: false, message: 'Document not found' });
       return;
     }
 

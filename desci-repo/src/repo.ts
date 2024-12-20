@@ -43,7 +43,7 @@ if (ENABLE_PARTYKIT_FEATURE) {
     // Since this is a server, we don't share generously — meaning we only sync documents they already
     // know about and can ask for by ID.
     sharePolicy: async (peerId, documentId) => {
-      logger.trace({ peerId, documentId }, 'SharePolicy called');
+      // logger.trace({ peerId, documentId }, 'SharePolicy called');
       return true;
     },
   };
@@ -121,7 +121,8 @@ const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocumen
 };
 
 backendRepo.on('document', async (doc) => {
-  logger.trace({ documentId: doc.handle.documentId }, 'DOCUMENT Ready');
+  const document = await doc.handle.doc();
+  logger.trace({ documentId: doc.handle.documentId, document }, 'DOCUMENT Ready');
   doc.handle.on<keyof DocHandleEvents<'change'>>('change', handleChange);
 });
 
@@ -140,18 +141,18 @@ class RepoManager {
     return this.clients.has(documentId);
   }
 
-  connect(documentId: DocumentId) {
+  async connect(documentId: DocumentId) {
     logger.trace({ documentId, IS_DEV, IS_TEST, exists: this.clients.has(documentId) }, 'RepoManager#Connect');
     const adapter = new PartykitNodeWsAdapter({
       host: partyServerHost,
       party: 'automerge',
       room: documentId,
-      query: { auth: partyServerToken },
+      query: { auth: partyServerToken, documentId },
       protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
       WebSocket: WebSocket,
     });
 
-    // adapter.on('ready', (ready) => logger.trace({ ready: ready.network.peerId }, 'networkReady'));
+    adapter.on('ready', (ready) => logger.trace({ ready: ready.network.peerId }, 'networkReady'));
     this.repo.networkSubsystem.addNetworkAdapter(adapter);
 
     this.repo.networkSubsystem.on('peer-disconnected', (peer) => {

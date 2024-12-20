@@ -53,8 +53,9 @@ export class PartyKitWSServerAdapter extends NetworkAdapter {
 
     const socket = this.socket;
 
-    socket.addEventListener('close', () => {
+    socket.addEventListener('close', (reason) => {
       // clearInterval(keepAliveId);
+      console.log('[close partykit]', { reason });
       this.disconnect();
     });
 
@@ -141,6 +142,7 @@ export class PartyKitWSServerAdapter extends NetworkAdapter {
   }
 
   #terminate(socket: WebSocket) {
+    console.log('[Terminat socket]', socket);
     this.sockets.delete(this.remotePeerId);
     this.emit('peer-disconnected', { peerId: this.remotePeerId });
   }

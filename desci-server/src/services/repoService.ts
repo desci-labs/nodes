@@ -53,14 +53,15 @@ class RepoService {
   async dispatchAction(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
     logger.info({ arg, enableWorkersApi, cloudflareWorkerApi }, 'Disatch Changes');
     const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-      enableWorkersApi
-        ? `${cloudflareWorkerApi}/api/documents/dispatch`
-        : `${this.baseUrl}/v1/nodes/documents/dispatch`,
+      // enableWorkersApi
+      //   ? `${cloudflareWorkerApi}/api/documents/dispatch`
+      //   :
+      `${this.baseUrl}/v1/nodes/documents/dispatch`,
       arg,
       {
         headers: {
           'x-api-remote-traceid': (als.getStore() as any)?.traceId,
-          ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
+          // ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
         },
       },
     );
@@ -77,14 +78,15 @@ class RepoService {
     logger.info({ arg }, 'Disatch Actions');
     try {
       const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-        enableWorkersApi
-          ? `${cloudflareWorkerApi}/api/documents/actions`
-          : `${this.baseUrl}/v1/nodes/documents/actions`,
+        // enableWorkersApi
+        //   ? `${cloudflareWorkerApi}/api/documents/actions`
+        //   :
+        `${this.baseUrl}/v1/nodes/documents/actions`,
         arg,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
-            ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
+            // ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
           },
         },
       );
@@ -133,14 +135,13 @@ class RepoService {
         '[getDraftDocument]',
       );
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
-        // enableWorkersPullApi
-        //   ? `${cloudflareWorkerApi}/api/documents?documentId=${arg.documentId}`
-        // :
-        `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}?documentId=${arg.documentId}`,
+        enableWorkersApi
+          ? `${cloudflareWorkerApi}/api/documents?documentId=${arg.documentId}`
+          : `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}?documentId=${arg.documentId}`,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
-            // ...(enableWorkersPullApi && { 'x-api-key': cloudflareWorkerApiSecret }),
+            ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
           },
           signal: AbortSignal.timeout(arg.timeout ?? this.defaultTimeoutInMilliseconds),
           timeoutErrorMessage: this.timeoutErrorMessage,

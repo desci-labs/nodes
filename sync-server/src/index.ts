@@ -1,10 +1,13 @@
 import {
   Doc,
+  DocHandle,
   DocHandleChangePayload,
+  DocHandleEphemeralMessagePayload,
   DocHandleEvents,
   DocumentId,
   type PeerId,
   Repo,
+  cbor as cborHelpers,
 } from '@automerge/automerge-repo/slim';
 import { DurableObjectState } from '@cloudflare/workers-types';
 import { routePartykitRequest, Server as PartyServer, Connection, ConnectionContext, WSMessage } from 'partyserver';
@@ -19,8 +22,11 @@ import { Env } from './types.js';
 import { ensureUuidEndsWithDot } from './utils.js';
 import { assert } from './automerge-repo-network-websocket/assert.js';
 import { actionsSchema } from './lib/schema.js';
-import { getAutomergeUrl, getDocumentUpdater } from './manifestRepo.js';
+import { actionDispatcher, getAutomergeUrl, getDocumentUpdater } from './manifestRepo.js';
 import { ZodError } from 'zod';
+import { FromClientMessage } from './automerge-repo-network-websocket/messages.js';
+
+const { encode, decode } = cborHelpers;
 
 interface ResearchObjectDocument {
   manifest: ResearchObjectV1;
@@ -44,21 +50,12 @@ export class AutomergeServer extends PartyServer {
     private readonly env: Env,
   ) {
     super(ctx, env);
-    console.log('Room: ', ctx.id, env);
-    // Add sensible defaults for running worker using workered in docker container
-    // without these defaults the worker crashes because runtime variable/secret bindings are all
-    // when running in docker container
-    // this.environment = this.env.ENVIRONMENT || 'dev';
-    // const localDbUrl =
-    //   this.env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
-    // this.DATABASE_URL = this.environment === 'dev' ? localDbUrl : this.env.NODES_DB.connectionString;
-    // this.API_TOKEN = env.API_TOKEN || 'auth-token';
-    // console.log('[Values]', { db: this.DATABASE_URL, api: this.API_TOKEN, env: this.environment });
+    // console.log('Room: ', ctx.id, env);
   }
 
   async onStart(): Promise<void> {
     const { Repo } = await import('@automerge/automerge-repo');
-    console.log('first connection to server', this.env);
+    // console.log('first connection to server', this.env);
     const { query } = await database.init(this.env.NODES_DB.connectionString);
     const config = {
       storage: new PostgresStorageAdapter(query),
@@ -74,7 +71,7 @@ export class AutomergeServer extends PartyServer {
     this.repo = new Repo(config);
 
     const handleChange = async (change: DocHandleChangePayload<ResearchObjectDocument>) => {
-      console.log({ change: change.handle.documentId, uuid: change.patchInfo.after.uuid }, 'Document Changed');
+      // console.log({ change: change.handle.documentId, uuid: change.patchInfo.after.uuid }, 'Document Changed');
       const newTitle = change.patchInfo.after.manifest.title;
       const newCover = change.patchInfo.after.manifest.coverImage;
       const uuid = ensureUuidEndsWithDot(change.doc.uuid);
@@ -104,7 +101,7 @@ export class AutomergeServer extends PartyServer {
     };
 
     this.repo.on('document', async (doc) => {
-      console.log({ documentId: doc.handle.documentId }, 'DOCUMENT Ready');
+      // console.log({ documentId: doc.handle.documentId }, 'DOCUMENT Ready');
       doc.handle.on<keyof DocHandleEvents<'change'>>('change', handleChange);
     });
 
@@ -119,7 +116,7 @@ export class AutomergeServer extends PartyServer {
 
     const auth = params.get('auth');
     let isAuthorised = false;
-    console.log('[onConnect]', { params });
+    // console.log('[onConnect]', { params });
     if (auth === this.env.API_TOKEN) {
       isAuthorised = true;
     } else {
@@ -135,13 +132,47 @@ export class AutomergeServer extends PartyServer {
       }
     }
 
-    console.log('[onConnect]::isAuthorised', {
-      isAuthorised,
-      remotePeer: connection.id,
-      source: this.API_TOKEN === auth ? 'server' : 'client',
-    });
+    // console.log('[onConnect]::isAuthorised', {
+    //   isAuthorised,
+    //   remotePeer: connection.id,
+    //   source: this.env.API_TOKEN === auth ? 'server' : 'client',
+    //   params,
+    // });
+
     if (isAuthorised) {
       this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
+      connection.addEventListener('message', async (msg) => {
+        const messageBytes = new Uint8Array(msg.data as ArrayBufferLike);
+        const message: FromClientMessage = decode(messageBytes);
+
+        if (message.type === 'ephemeral' && message.data) {
+          const contents = decode(new Uint8Array(message.data));
+          // console.log('connection message', contents);
+
+          const [documentId, payload] = contents as [
+            DocumentId,
+            { type: 'dispatch-action' | 'dispatch-changes'; actions: ManifestActions[] },
+          ];
+          console.log('ephemeral-message', { documentId, message: payload.type, action: payload.actions });
+          const handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+          console.log('ephemeral-handle', { ready: handle.isReady(), doc: await handle.doc() });
+          let document = await handle.doc();
+          for (const action of payload.actions) {
+            // console.log('[ephemeral Apply Action]', action);
+            document = await actionDispatcher({
+              action,
+              documentId,
+              handle,
+            });
+          }
+          this.repo.flush();
+          console.log('ephemeral-message-done', { documentId, document });
+
+          handle.broadcast([documentId, { type: 'document', document }]);
+        }
+
+        // const { type, senderId } = message;
+      });
     } else {
       console.log('Auth declined', { id: connection.id, server: connection.server });
       connection.close();
@@ -171,11 +202,6 @@ export const delay = async (timeMs: number) => {
 };
 
 async function handleCreateDocument(request: Request, env: Env) {
-  console.log('[Request]::handleCreateDocument ', { env });
-  // const environment = env.ENVIRONMENT || 'dev';
-  // const localDbUrl = env.DATABASE_URL;
-  // const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
-
   const { Repo } = await import('@automerge/automerge-repo');
   const { query } = await database.init(env.NODES_DB.connectionString);
   const config = {
@@ -203,6 +229,7 @@ async function handleCreateDocument(request: Request, env: Env) {
   await repo.flush();
   let document = await handle.doc();
 
+  // console.log('[Request]::handleCreateDocument ', { env, document: !!document });
   return new Response(JSON.stringify({ documentId: handle.documentId, document }), { status: 200 });
 }
 
@@ -264,11 +291,7 @@ async function dispatchDocumentChanges(request: Request, env: Env) {
 
 async function handleAutomergeActions(request: Request, env: Env) {
   try {
-    console.log('[Request]::handleCreateDocument ', { env });
-    // const environment = env.ENVIRONMENT || 'dev';
-    // const localDbUrl =
-    //   env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
-    // const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
+    console.log('[Request]::handleAutomergeActions ', { env });
 
     const { Repo } = await import('@automerge/automerge-repo');
     const { query } = await database.init(env.NODES_DB.connectionString);
@@ -324,10 +347,6 @@ async function handleAutomergeActions(request: Request, env: Env) {
 async function getLatestDocument(request: Request, env: Env) {
   try {
     console.log('[Request]::getLatestDocument ', { env });
-    // const environment = env.ENVIRONMENT || 'dev';
-    // const localDbUrl =
-    //   env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
-    // const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
 
     const { Repo } = await import('@automerge/automerge-repo');
     const { query } = await database.init(env.NODES_DB.connectionString);
@@ -349,7 +368,7 @@ async function getLatestDocument(request: Request, env: Env) {
 
     const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
     document = await handle.doc();
-    console.log('Document Retrieved', { document: !!document });
+    console.log('LatestDocument', { documentId, document: document?.manifest.components });
 
     return new Response(JSON.stringify({ document, ok: true }), { status: 200 });
   } catch (err) {
@@ -361,12 +380,7 @@ async function getLatestDocument(request: Request, env: Env) {
 
 export default {
   fetch(request: Request, env) {
-    const secretKey = env.ENVIRONMENT === null ? 'auth-token' : env.API_TOKEN;
-    console.log('Request Fetch:', {
-      env,
-      url: request.url,
-    });
-    if (request.url.includes('/api/') && request.headers.get('x-api-key') != secretKey) {
+    if (request.url.includes('/api/') && request.headers.get('x-api-key') != env.API_TOKEN) {
       console.log('[Error]::Api key error');
       return new Response('UnAuthorized', { status: 401 });
     }
