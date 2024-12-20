@@ -166,29 +166,29 @@ export const dispatchDocumentChange = async function (req: RequestWithNode, res:
       return;
     }
 
-    const repo = new Repo({
-      peerId: `repo-server-${hostname}` as PeerId,
-      // Since this is a server, we don't share generously — meaning we only sync documents they already
-      // know about and can ask for by ID.
-      sharePolicy: async () => true,
-    });
-    const adapter = new PartykitNodeWsAdapter({
-      host: PARTY_SERVER_HOST!,
-      party: 'automerge',
-      room: documentId,
-      query: { auth: PARTY_SERVER_TOKEN, documentId },
-      protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
-      WebSocket: WebSocket,
-    });
-    repo.networkSubsystem.addNetworkAdapter(adapter);
-    await repo.networkSubsystem.whenReady();
+    // const repo = new Repo({
+    //   peerId: `repo-server-${hostname}` as PeerId,
+    //   // Since this is a server, we don't share generously — meaning we only sync documents they already
+    //   // know about and can ask for by ID.
+    //   sharePolicy: async () => true,
+    // });
+    // const adapter = new PartykitNodeWsAdapter({
+    //   host: PARTY_SERVER_HOST!,
+    //   party: 'automerge',
+    //   room: documentId,
+    //   query: { auth: PARTY_SERVER_TOKEN, documentId },
+    //   protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
+    //   WebSocket: WebSocket,
+    // });
+    // repo.networkSubsystem.addNetworkAdapter(adapter);
+    // await repo.networkSubsystem.whenReady();
 
-    const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
-    handle.broadcast([documentId, { type: 'dispatch-changes', actions }]);
+    // const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+    // handle.broadcast([documentId, { type: 'dispatch-changes', actions }]);
 
-    // await new Promise((resolve) => setTimeout(resolve, 2000));
-    // console.log('[TIMEOUT]', { documentId, actions });
-    logger.trace({ documentId, actions }, 'Actions');
+    // // await new Promise((resolve) => setTimeout(resolve, 2000));
+    // // console.log('[TIMEOUT]', { documentId, actions });
+    // logger.trace({ documentId, actions }, 'Actions');
 
     let document: Doc<ResearchObjectDocument> | undefined;
 
@@ -234,27 +234,27 @@ export const dispatchDocumentActions = async function (req: RequestWithNode, res
     logger.trace({ validatedActions }, 'Actions validated');
 
     // const handle = await getDocumentHandle(documentId);
-    const repo = new Repo({
-      peerId: `repo-server-${hostname}` as PeerId,
-      // Since this is a server, we don't share generously — meaning we only sync documents they already
-      // know about and can ask for by ID.
-      sharePolicy: async () => true,
-    });
-    const adapter = new PartykitNodeWsAdapter({
-      host: PARTY_SERVER_HOST!,
-      party: 'automerge',
-      room: documentId,
-      query: { auth: PARTY_SERVER_TOKEN, documentId },
-      protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
-      WebSocket: WebSocket,
-    });
-    repo.networkSubsystem.addNetworkAdapter(adapter);
-    await repo.networkSubsystem.whenReady();
+    // const repo = new Repo({
+    //   peerId: `repo-server-${hostname}` as PeerId,
+    //   // Since this is a server, we don't share generously — meaning we only sync documents they already
+    //   // know about and can ask for by ID.
+    //   sharePolicy: async () => true,
+    // });
+    // const adapter = new PartykitNodeWsAdapter({
+    //   host: PARTY_SERVER_HOST!,
+    //   party: 'automerge',
+    //   room: documentId,
+    //   query: { auth: PARTY_SERVER_TOKEN, documentId },
+    //   protocol: IS_DEV || IS_TEST ? 'ws' : 'wss',
+    //   WebSocket: WebSocket,
+    // });
+    // repo.networkSubsystem.addNetworkAdapter(adapter);
+    // await repo.networkSubsystem.whenReady();
 
-    const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
-    handle.broadcast([documentId, { type: 'dispatch-action', actions }]);
+    // const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+    // handle.broadcast([documentId, { type: 'dispatch-action', actions }]);
 
-    logger.trace({ documentId, validatedActions }, 'Actions');
+    // logger.trace({ documentId, validatedActions }, 'Actions');
 
     let document: Doc<ResearchObjectDocument> | undefined;
 
