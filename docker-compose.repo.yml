@@ -8,7 +8,7 @@ services:
     ports:
       - "5484:5484"
       - "9232:9232"
-      # - "5445:5445"
+      - "5445:5445"
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
