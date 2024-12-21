@@ -60,9 +60,6 @@ make
 echo "[dockerDev:desci-contracts] starting seed of local chain..."
 make -C desci-contracts seed
 
-# echo "[Compile:sync-server] building worker binary"
-# make -C sync-server build
-
 # compose will initialise non-existing volume directories with root permissions
 echo "[dockerDev] initialising docker volume directories..."
 for volDir in $(grep -o "local-data/[a-z_]*" docker-compose.dev.yml); do
@@ -73,7 +70,6 @@ done
 # kicking off the rest of the cluster
 ./bootstrapCeramic.sh
 
-# --file docker-compose.sync.yml \
 # Default to empty if unset
 ADDITIONAL_FLAGS=${ADDITIONAL_FLAGS:-""}
 echo "[dockerDev] PWD=$PWD"
@@ -82,6 +78,7 @@ COMPOSE_HTTP_TIMEOUT=320 docker compose \
   --file docker-compose.yml \
   --file docker-compose.dev.yml \
   --file docker-compose.repo.yml \
+  --file docker-compose.sync.yml \
   $ADDITIONAL_FLAGS \
   --compatibility \
   up \
