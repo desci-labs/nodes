@@ -7,7 +7,8 @@ on:
     branches: # array of glob patterns matching against refs/heads. Optional; defaults to all
       - main # triggers on pushes that contain changes
       - develop
-
+env:
+  API_TOKEN: ${{ secrets.API_TOKEN }}
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -37,6 +38,8 @@ jobs:
           environment: staging
           workingDirectory: sync-server
           wranglerVersion: 3.95.0
+          secrets: API_TOKEN
+
       - name: Build & Deploy Worker (Production)
         if: github.ref == 'refs/heads/main'
         uses: cloudflare/wrangler-action@v3
@@ -46,3 +49,4 @@ jobs:
           environment: production
           workingDirectory: sync-server
           wranglerVersion: 3.95.0
+          secrets: API_TOKEN
