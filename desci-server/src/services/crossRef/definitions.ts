@@ -23,6 +23,7 @@ export interface Items<T> {
 }
 
 export interface Work {
+  abstract?: string;
   author: Author[];
   DOI: string;
   prefix: string;
