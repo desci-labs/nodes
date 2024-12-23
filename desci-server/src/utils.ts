@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+import { randomBytes, createCipheriv } from 'crypto';
 import fs from 'fs';
 import * as path from 'path';
 import { Readable } from 'stream';
@@ -62,10 +62,11 @@ export const hexToCid = (hexCid: string) => {
 
 export const convertCidTo0xHex = (cid: string) => {
   const rawHex = CID.parse(cid).toString(base16);
-  const paddedAndPrefixed = "0x"
+  const paddedAndPrefixed =
+    '0x' +
     // left pad to even pairs if odd length
-    + (rawHex.length % 2 !== 0 ? "0" : "")
-    + rawHex;
+    (rawHex.length % 2 !== 0 ? '0' : '') +
+    rawHex;
   return paddedAndPrefixed;
 };
 
@@ -113,8 +114,7 @@ export function ensureUuidEndsWithDot(uuid: string): string {
   return uuid.endsWith('.') ? uuid : uuid + '.';
 }
 
-export const unpadUuid = (uuid: string): string =>
-  uuid.replace(".", "");
+export const unpadUuid = (uuid: string): string => uuid.replace('.', '');
 
 export async function calculateTotalZipUncompressedSize(zipPath: string): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -293,3 +293,16 @@ export function toKebabCase(name: string) {
 
   return trimmedName;
 }
+
+/*
+ ** Used to log sensitive information in a secure way
+ */
+export const encryptForLog = (text: string, key: string) => {
+  const paddedKey = key.padEnd(32, '0');
+  const keyBytes = new Uint8Array(Buffer.from(paddedKey));
+
+  const cipher = createCipheriv('aes-256-ecb' as any, keyBytes, null);
+  let encrypted = cipher.update(text, 'utf8', 'base64');
+  encrypted += cipher.final('base64');
+  return encrypted;
+};
