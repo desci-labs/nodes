@@ -33,15 +33,9 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
   if (process.env.NODE_ENV === 'production') {
     if (code) {
-      logger.info(
-        { fn: 'magic', email: req.body.email },
-        `[MAGIC] User attempting to auth with magic code: XXXX${code.slice(-2)}`,
-      );
+      logger.info({ email: req.body.email }, `[MAGIC] User attempting to auth with magic code: XXXX${code.slice(-2)}`);
     } else {
-      logger.info(
-        { fn: 'magic', email: req.body.email },
-        `[MAGIC] User requested a magic code, cleanEmail: ${cleanEmail}`,
-      );
+      logger.info({ email: req.body.email }, `[MAGIC] User requested a magic code, cleanEmail: ${cleanEmail}`);
     }
   } else {
     logger.info({ fn: 'magic', reqBody: req.body }, `magic link`);
@@ -86,9 +80,10 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     try {
       const ip = req.ip;
       const ok = await sendMagicLink(cleanEmail, ip);
-      res.send({ ok });
+      logger.info({ ok }, 'Magic link sent');
+      res.send({ ok: !!ok });
     } catch (err) {
-      logger.error({ ...err, fn: 'magic' });
+      logger.error({ err }, 'Failed sending code');
       res.status(400).send({ ok: false, error: 'Failed sending code' });
     }
   } else {
@@ -96,8 +91,10 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     try {
       const user = await magicLinkRedeem(cleanEmail, code);
 
+      if (!user) throw new Error('User not found');
+
       if (orcid && user) {
-        logger.trace({ fn: 'magic', orcid }, `setting orcid for user`);
+        logger.trace({ orcid }, `setting orcid for user`);
 
         if (!user.name) {
           const orcidRecord = await getOrcidRecord(orcid, access_token);
@@ -124,12 +121,14 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
       res.send({ ok: true, user: { email: user.email, token, termsAccepted } });
 
+      logger.info('[MAGIC] User logged in successfully');
+
       if (!termsAccepted) {
         // saveInteraction(req, ActionType.USER_TERMS_CONSENT, { userId: user.id, email: user.email }, user.id);
       }
       saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
     } catch (err) {
-      logger.error({ ...err, fn: 'magic' });
+      logger.error({ err }, 'Failed redeeming code');
       res.status(400).send({ ok: false, error: 'Failed redeeming code' });
     }
   }
