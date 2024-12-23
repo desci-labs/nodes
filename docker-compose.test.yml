@@ -78,6 +78,7 @@ services:
     volumes:
       - .:/app/
       - ./local-data/yarn_cache:/root/.yarn
+
   nodes_test_sync_service:
     build:
       context: ./sync-server

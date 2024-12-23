@@ -13,7 +13,6 @@ const logger = parentLogger.child({ module: 'Repo Service' });
 const cloudflareWorkerApi = process.env.CLOUDFLARE_WORKER_API || 'https://nodes-dev-sync.desci.com';
 const cloudflareWorkerApiSecret = process.env.CLOUDFLARE_WORKER_API_SECRET || 'auth-token';
 const enableWorkersApi = process.env.ENABLE_WORKERS_API == 'true';
-// const enableWorkersPullApi = process.env.ENABLE_WORKERS_API == 'true';
 
 type ApiResponse<B> = { ok: boolean } & B;
 
@@ -40,28 +39,27 @@ class RepoService {
       headers: { 'x-api-key': this.#apiKey },
     });
 
-    axiosRetry(this.#client, {
-      retries: 2,
-      retryDelay: axiosRetry.exponentialDelay,
-      retryCondition(error) {
-        logger.error({ error }, 'Retry request');
-        return error.response?.status === 500 || axiosRetry.isNetworkOrIdempotentRequestError(error);
-      },
-    });
+    // axiosRetry(this.#client, {
+    //   retries: 2,
+    //   retryDelay: axiosRetry.exponentialDelay,
+    //   retryCondition(error) {
+    //     logger.error({ error }, 'Retry request');
+    //     return error.response?.status === 500 || axiosRetry.isNetworkOrIdempotentRequestError(error);
+    //   },
+    // });
   }
 
   async dispatchAction(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
     logger.info({ arg, enableWorkersApi, cloudflareWorkerApi }, 'Disatch Changes');
     const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-      // enableWorkersApi
-      //   ? `${cloudflareWorkerApi}/api/documents/dispatch`
-      //   :
-      `${this.baseUrl}/v1/nodes/documents/dispatch`,
+      enableWorkersApi
+        ? `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`
+        : `${this.baseUrl}/v1/nodes/documents/dispatch`,
       arg,
       {
         headers: {
           'x-api-remote-traceid': (als.getStore() as any)?.traceId,
-          // ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
+          ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
         },
       },
     );
@@ -80,15 +78,14 @@ class RepoService {
     logger.info({ arg }, 'Disatch Actions');
     try {
       const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-        // enableWorkersApi
-        //   ? `${cloudflareWorkerApi}/api/documents/actions`
-        //   :
-        `${this.baseUrl}/v1/nodes/documents/actions`,
+        enableWorkersApi
+          ? `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`
+          : `${this.baseUrl}/v1/nodes/documents/actions`,
         arg,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
-            // ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
+            ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
           },
         },
       );
@@ -141,14 +138,14 @@ class RepoService {
       );
       const response = await this.#client.get<ApiResponse<{ document: ResearchObjectDocument }>>(
         enableWorkersApi
-          ? `${cloudflareWorkerApi}/api/documents?documentId=${arg.documentId}`
+          ? `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`
           : `${this.baseUrl}/v1/nodes/documents/draft/${arg.uuid}?documentId=${arg.documentId}`,
         {
           headers: {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
             ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
           },
-          signal: AbortSignal.timeout(arg.timeout ?? this.defaultTimeoutInMilliseconds),
+          // signal: AbortSignal.timeout(arg.timeout ?? this.defaultTimeoutInMilliseconds),
           timeoutErrorMessage: this.timeoutErrorMessage,
         },
       );

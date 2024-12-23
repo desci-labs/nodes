@@ -2,16 +2,16 @@ import {
   Doc,
   DocHandle,
   DocHandleChangePayload,
-  DocHandleEphemeralMessagePayload,
+  // DocHandleEphemeralMessagePayload,
   DocHandleEvents,
   DocumentId,
   type PeerId,
   Repo,
-  cbor as cborHelpers,
+  // cbor as cborHelpers,
 } from '@automerge/automerge-repo/slim';
 import { DurableObjectState } from '@cloudflare/workers-types';
 import { routePartykitRequest, Server as PartyServer, Connection, ConnectionContext, WSMessage } from 'partyserver';
-import { req, err as serialiseErr } from 'pino-std-serializers';
+import { err as serialiseErr } from 'pino-std-serializers';
 import { ManifestActions, ResearchObjectV1 } from '@desci-labs/desci-models';
 
 import { PartyKitWSServerAdapter } from './automerge-repo-network-websocket/PartykitWsServerAdapter.js';
@@ -21,12 +21,12 @@ import { PostgresStorageAdapter } from './automerge-repo-storage-postgres/Postgr
 import { Env } from './types.js';
 import { ensureUuidEndsWithDot } from './utils.js';
 import { assert } from './automerge-repo-network-websocket/assert.js';
-import { actionsSchema } from './lib/schema.js';
+// import { actionsSchema } from './lib/schema.js';
 import { actionDispatcher, getAutomergeUrl, getDocumentUpdater } from './manifestRepo.js';
 import { ZodError } from 'zod';
-import { FromClientMessage } from './automerge-repo-network-websocket/messages.js';
+// import { FromClientMessage } from './automerge-repo-network-websocket/messages.js';
 
-const { encode, decode } = cborHelpers;
+// const { encode, decode } = cborHelpers;
 
 interface ResearchObjectDocument {
   manifest: ResearchObjectV1;
@@ -39,18 +39,15 @@ export class AutomergeServer extends PartyServer {
   // private options: {
   //   hibernate: true;
   // };
-
   repo: Repo;
-  private API_TOKEN: string;
-  private DATABASE_URL: string;
-  private environment: string;
+  handle: DocHandle<ResearchObjectDocument>;
 
   constructor(
     private readonly ctx: DurableObjectState,
     private readonly env: Env,
   ) {
     super(ctx, env);
-    // console.log('Room: ', ctx.id, env);
+    console.log('Room: ', ctx.id, env);
   }
 
   async onStart(): Promise<void> {
@@ -75,7 +72,7 @@ export class AutomergeServer extends PartyServer {
       const newTitle = change.patchInfo.after.manifest.title;
       const newCover = change.patchInfo.after.manifest.coverImage;
       const uuid = ensureUuidEndsWithDot(change.doc.uuid);
-      // console.log({ uuid: uuid, newTitle }, 'UPDATE NODE');
+      // console.log({ uuid: uuid, documentId: change.handle.documentId, newTitle }, 'UPDATE NODE');
 
       try {
         // TODO: Check if update message is 'UPDATE TITLE'
@@ -141,42 +138,30 @@ export class AutomergeServer extends PartyServer {
 
     if (isAuthorised) {
       this.repo.networkSubsystem.addNetworkAdapter(new PartyKitWSServerAdapter(connection));
-      connection.addEventListener('message', async (msg) => {
-        const messageBytes = new Uint8Array(msg.data as ArrayBufferLike);
-        const message: FromClientMessage = decode(messageBytes);
-
-        if (message.type === 'ephemeral' && message.data) {
-          const contents = decode(new Uint8Array(message.data));
-          // console.log('connection message', contents);
-
-          const [documentId, payload] = contents as [
-            DocumentId,
-            { type: 'dispatch-action' | 'dispatch-changes'; actions: ManifestActions[] },
-          ];
-          console.log('ephemeral-message', { documentId, message: payload.type, action: payload.actions });
-          const handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
-          console.log('ephemeral-handle', { ready: handle.isReady(), doc: await handle.doc() });
-          let document = await handle.doc();
-          for (const action of payload.actions) {
-            // console.log('[ephemeral Apply Action]', action);
-            document = await actionDispatcher({
-              action,
-              documentId,
-              handle,
-            });
-          }
-          this.repo.flush();
-          console.log('ephemeral-message-done', { documentId, document });
-
-          handle.broadcast([documentId, { type: 'document', document }]);
-        }
-
-        // const { type, senderId } = message;
-      });
     } else {
       console.log('Auth declined', { id: connection.id, server: connection.server });
       connection.close();
     }
+  }
+
+  async onRequest(request: Request) {
+    console.log('Incoming Request', request.url);
+
+    if (request.headers.get('x-api-key') != this.env.API_TOKEN) {
+      console.log('[Error]::Api key error');
+      return new Response('UnAuthorized', { status: 401 });
+    }
+
+    // push new message
+    if (request.method === 'POST') {
+      return this.dispatchAction(request);
+    }
+
+    if (request.method.toLowerCase() === 'get') {
+      return this.getLatestDocument(request);
+    }
+
+    return new Response('Method not allowed', { status: 405 });
   }
 
   onMessage(connection: Connection, message: WSMessage): void | Promise<void> {
@@ -194,6 +179,54 @@ export class AutomergeServer extends PartyServer {
     } catch (err) {
       console.error({ err, msg: 'Failed to close connection', code, reason, wasClean });
     }
+  }
+
+  async getLatestDocument(request) {
+    const documentId = request.url.split('/').pop() as DocumentId;
+    console.log('getLatestDocument: ', { documentId });
+    if (!documentId) {
+      console.error('No DocumentID found');
+      return new Response(JSON.stringify({ ok: false, message: 'Invalid body' }), { status: 400 });
+    }
+
+    if (!this.handle) this.handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+    const document: Doc<ResearchObjectDocument> | undefined = await this.handle.doc();
+    return new Response(JSON.stringify({ document, ok: true }), { status: 200 });
+  }
+
+  async dispatchAction(request: Request) {
+    let body = (await request.clone().json()) as { uuid: string; documentId: DocumentId; actions: ManifestActions[] };
+    const actions = body.actions as ManifestActions[];
+    const documentId = body.documentId as DocumentId;
+
+    if (!(actions && actions.length > 0)) {
+      console.error({ body }, 'No actions to dispatch');
+      return new Response(JSON.stringify({ ok: false, message: 'No actions to dispatch' }), { status: 400 });
+    }
+
+    console.log('dispatchAction', { actions });
+    if (!this.handle) this.handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+
+    for (const action of actions) {
+      await actionDispatcher({ action, handle: this.handle, documentId });
+    }
+
+    const document: Doc<ResearchObjectDocument> | undefined = await this.handle.doc();
+    if (!document) {
+      console.error({ document }, 'Document not found');
+      return new Response(JSON.stringify({ ok: false, message: 'Document not found' }), { status: 400 });
+    }
+
+    return new Response(JSON.stringify({ document, ok: true }), { status: 200 });
+  }
+  catch(err) {
+    console.error('[dispatchAction Error]', { err });
+
+    if (err instanceof ZodError) {
+      return new Response(JSON.stringify({ ok: false, message: JSON.stringify(err) }), { status: 400 });
+    }
+
+    return new Response(JSON.stringify({ ok: false, message: JSON.stringify(err) }), { status: 500 });
   }
 }
 
@@ -229,175 +262,15 @@ async function handleCreateDocument(request: Request, env: Env) {
   await repo.flush();
   let document = await handle.doc();
 
-  // console.log('[Request]::handleCreateDocument ', { env, document: !!document });
+  console.log('[Request]::handleCreateDocument ', { created: !!document });
   return new Response(JSON.stringify({ documentId: handle.documentId, document }), { status: 200 });
-}
-
-async function dispatchDocumentChanges(request: Request, env: Env) {
-  try {
-    console.log('[Request]::dispatchDocumentChanges ', { env });
-    // const environment = env.ENVIRONMENT || 'dev';
-    // const localDbUrl =
-    //   env.DATABASE_URL ?? process.env.WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_NODES_DB ?? '<DATABASE_URL>';
-    // const DATABASE_URL = environment === 'dev' ? localDbUrl : env.NODES_DB.connectionString;
-
-    const { Repo } = await import('@automerge/automerge-repo');
-    const { query } = await database.init(env.NODES_DB.connectionString);
-    const config = {
-      storage: new PostgresStorageAdapter(query),
-      peerId: `cloudflare-ephemeral-peer` as PeerId,
-      sharePolicy: async () => true,
-    };
-
-    const repo = new Repo(config);
-
-    let body = (await request.clone().json()) as { uuid: string; documentId: DocumentId; actions: ManifestActions[] };
-    const actions = body.actions as ManifestActions[];
-    const documentId = body.documentId as DocumentId;
-
-    if (!(actions && actions.length > 0)) {
-      console.error({ body }, 'No actions to dispatch');
-      return new Response(JSON.stringify({ ok: false, message: 'No actions to dispatch' }), { status: 400 });
-    }
-
-    let document: Doc<ResearchObjectDocument> | undefined;
-
-    const dispatchChange = await getDocumentUpdater(repo, documentId);
-
-    for (const action of actions) {
-      document = await dispatchChange(action);
-      await repo.flush();
-    }
-
-    if (!document) {
-      console.error({ document }, 'Document not found');
-      return new Response(JSON.stringify({ ok: false, message: 'Document not found' }), { status: 400 });
-    }
-
-    await repo.flush();
-
-    return new Response(JSON.stringify({ document, ok: true }), { status: 200 });
-  } catch (err) {
-    console.error(err, 'Error [dispatchDocumentChange]');
-
-    if (err instanceof ZodError) {
-      // res.status(400).send({ ok: false, error: err });
-      return new Response(JSON.stringify({ ok: false, message: JSON.stringify(err) }), { status: 400 });
-    }
-
-    return new Response(JSON.stringify({ ok: false, message: JSON.stringify(err) }), { status: 500 });
-  }
-}
-
-async function handleAutomergeActions(request: Request, env: Env) {
-  try {
-    console.log('[Request]::handleAutomergeActions ', { env });
-
-    const { Repo } = await import('@automerge/automerge-repo');
-    const { query } = await database.init(env.NODES_DB.connectionString);
-    const config = {
-      storage: new PostgresStorageAdapter(query),
-      peerId: `cloudflare-ephemeral-peer` as PeerId,
-      sharePolicy: async () => true,
-    };
-
-    const repo = new Repo(config);
-
-    let body = (await request.clone().json()) as { uuid: string; documentId: DocumentId; actions: ManifestActions[] };
-    const actions = body.actions as ManifestActions[];
-    const documentId = body.documentId as DocumentId;
-
-    if (!(actions && actions.length > 0)) {
-      console.error({ body }, 'No actions to dispatch');
-      return new Response(JSON.stringify({ ok: false, message: 'No actions to dispatch' }), { status: 400 });
-    }
-
-    const validatedActions = await actionsSchema.parseAsync(actions);
-    console.log({ validatedActions }, 'Actions validated');
-
-    let document: Doc<ResearchObjectDocument> | undefined;
-
-    const dispatchChange = await getDocumentUpdater(repo, documentId);
-
-    for (const action of actions) {
-      document = await dispatchChange(action);
-      await repo.flush();
-    }
-
-    if (!document) {
-      console.error({ document }, 'Document not found');
-      return new Response(JSON.stringify({ ok: false, message: 'Document not found' }), { status: 400 });
-    }
-
-    await repo.flush();
-
-    return new Response(JSON.stringify({ document, ok: true }), { status: 200 });
-  } catch (err) {
-    console.error(err, 'Error [dispatchDocumentChange]');
-
-    if (err instanceof ZodError) {
-      // res.status(400).send({ ok: false, error: err });
-      return new Response(JSON.stringify({ ok: false, message: JSON.stringify(err) }), { status: 400 });
-    }
-
-    return new Response(JSON.stringify({ ok: false, message: JSON.stringify(err) }), { status: 500 });
-  }
-}
-
-async function getLatestDocument(request: Request, env: Env) {
-  try {
-    console.log('[Request]::getLatestDocument ', { env });
-
-    const { Repo } = await import('@automerge/automerge-repo');
-    const { query } = await database.init(env.NODES_DB.connectionString);
-    const config = {
-      storage: new PostgresStorageAdapter(query),
-      peerId: `cloudflare-ephemeral-peer` as PeerId,
-      sharePolicy: async () => true,
-    };
-
-    const repo = new Repo(config);
-    const url = new URL(request.url);
-    const documentId = url.searchParams.get('documentId') as DocumentId;
-    if (!documentId) {
-      console.error('No DocumentID found');
-      return new Response(JSON.stringify({ ok: false, message: 'Invalid body' }), { status: 400 });
-    }
-
-    let document: Doc<ResearchObjectDocument> | undefined;
-
-    const handle = repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
-    document = await handle.doc();
-    console.log('LatestDocument', { documentId, document: document?.manifest.components });
-
-    return new Response(JSON.stringify({ document, ok: true }), { status: 200 });
-  } catch (err) {
-    console.error({ err }, 'Error [getLatestDocument]');
-
-    return new Response(JSON.stringify({ ok: false, message: JSON.stringify(err) }), { status: 500 });
-  }
 }
 
 export default {
   fetch(request: Request, env) {
-    if (request.url.includes('/api/') && request.headers.get('x-api-key') != env.API_TOKEN) {
-      console.log('[Error]::Api key error');
-      return new Response('UnAuthorized', { status: 401 });
-    }
-
-    if (request.url.includes('/api/documents') && request.method.toLowerCase() === 'get')
-      return getLatestDocument(request, env);
-
-    if (request.url.includes('/api/documents/actions') && request.method.toLowerCase() === 'post')
-      return handleAutomergeActions(request, env);
-
-    if (request.url.includes('/api/documents/dispatch') && request.method.toLowerCase() === 'post')
-      return dispatchDocumentChanges(request, env);
-
     if (request.url.includes('/api/documents') && request.method.toLowerCase() === 'post')
       return handleCreateDocument(request, env);
 
-    if (!request.url.includes('/parties/automerge')) return new Response('Not found', { status: 404 });
     return routePartykitRequest(request, env) || new Response('Not found', { status: 404 });
   },
 };

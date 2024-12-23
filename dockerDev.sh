@@ -60,9 +60,6 @@ make
 echo "[dockerDev:desci-contracts] starting seed of local chain..."
 make -C desci-contracts seed
 
-# echo "[Compile:sync-server] building worker binary"
-# make -C sync-server build
-
 # compose will initialise non-existing volume directories with root permissions
 echo "[dockerDev] initialising docker volume directories..."
 for volDir in $(grep -o "local-data/[a-z_]*" docker-compose.dev.yml); do
