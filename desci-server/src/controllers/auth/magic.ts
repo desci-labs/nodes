@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { prisma as prismaClient } from '../../client.js';
-import { logger } from '../../logger.js';
+import { logger as parentLogger } from '../../logger.js';
 import { magicLinkRedeem, sendMagicLink } from '../../services/auth.js';
 import { contributorService } from '../../services/Contributors.js';
 import { saveInteraction } from '../../services/interactionLog.js';
@@ -20,14 +20,32 @@ export const oneYear = 1000 * 60 * 60 * 24 * 365;
 export const oneDay = 1000 * 60 * 60 * 24;
 export const oneMinute = 1000 * 60;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
+  const { email, code, dev, orcid, access_token, refresh_token, expires_in } = req.body;
+  const cleanEmail = email.toLowerCase().trim();
+
+  const logger = parentLogger.child({
+    module: '[Auth]::Magic',
+    email: email,
+    cleanEmail: cleanEmail,
+    code: `${code ? 'XXXX' + code.slice(-2) : ''}`,
+    orcid,
+  });
+
   if (process.env.NODE_ENV === 'production') {
-    logger.info({ fn: 'magic', email: req.body.email }, `magic link requested`);
+    if (code) {
+      logger.info(
+        { fn: 'magic', email: req.body.email },
+        `[MAGIC] User attempting to auth with magic code: XXXX${code.slice(-2)}`,
+      );
+    } else {
+      logger.info(
+        { fn: 'magic', email: req.body.email },
+        `[MAGIC] User requested a magic code, cleanEmail: ${cleanEmail}`,
+      );
+    }
   } else {
     logger.info({ fn: 'magic', reqBody: req.body }, `magic link`);
   }
-
-  const { email, code, dev, orcid, access_token, refresh_token, expires_in } = req.body;
-  const cleanEmail = email.toLowerCase().trim();
 
   if (!code) {
     // we are sending the magic code
@@ -71,7 +89,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       res.send({ ok });
     } catch (err) {
       logger.error({ ...err, fn: 'magic' });
-      res.status(400).send({ ok: false, error: err.message });
+      res.status(400).send({ ok: false, error: 'Failed sending code' });
     }
   } else {
     // we are validating the magic code is correct
@@ -111,7 +129,8 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       }
       saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
     } catch (err) {
-      res.status(200).send({ ok: false, error: err.message });
+      logger.error({ ...err, fn: 'magic' });
+      res.status(400).send({ ok: false, error: 'Failed redeeming code' });
     }
   }
 };
