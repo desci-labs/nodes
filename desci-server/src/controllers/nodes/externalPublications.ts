@@ -150,7 +150,7 @@ export const externalPublications = async (req: RequestWithNode, res: Response, 
           ((publication.title?.score ?? 0) + (publication.abstract?.score ?? 0) + (publication.authors?.score ?? 0)) /
           3,
       }))
-      .filter((entry) => entry.score >= 0.4);
+      .filter((entry) => entry.score >= 0.8);
 
     logger.trace({ publications, uuid }, 'externalPublications');
 
