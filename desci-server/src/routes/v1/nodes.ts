@@ -18,7 +18,12 @@ import { verifyContribution } from '../../controllers/nodes/contributions/verify
 import { createDpid } from '../../controllers/nodes/createDpid.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { explore } from '../../controllers/nodes/explore.js';
-import { externalPublications, externalPublicationsSchema } from '../../controllers/nodes/externalPublications.js';
+import {
+  addExternalPublication,
+  addExternalPublicationsSchema,
+  externalPublications,
+  externalPublicationsSchema,
+} from '../../controllers/nodes/externalPublications.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
 import { getDraftNodeStats } from '../../controllers/nodes/getDraftNodeStats.js';
@@ -152,6 +157,17 @@ router.post(
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 
+router.get(
+  '/:uuid/external-publications',
+  [validate(externalPublicationsSchema), attachUser],
+  asyncHandler(externalPublications),
+);
+router.post(
+  '/:uuid/external-publications',
+  [validate(addExternalPublicationsSchema), ensureUser, ensureNodeAccess],
+  asyncHandler(addExternalPublication),
+);
+
 router.get('/:uuid/comments', [validate(getCommentsSchema), attachUser], asyncHandler(getGeneralComments));
 
 router.get('/:uuid/attestations', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
@@ -161,8 +177,6 @@ router.get('/feed', [], feed);
 router.get('/legacy/retrieveTitle', retrieveTitle);
 
 router.post('/api/*', [], api);
-
-router.get('/:uuid/external-publications', [validate(externalPublicationsSchema)], asyncHandler(externalPublications));
 
 // must be last
 router.get('/showPrivate/*', show);
