@@ -94,7 +94,18 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       if (!user) throw new Error('User not found');
 
       if (orcid && user) {
-        logger.trace({ orcid }, `setting orcid for user`);
+        logger.trace(
+          {
+            orcid,
+            accessTokenLength: access_token?.length,
+            accessTokenPresent: !!access_token,
+            refreshTokenLength: refresh_token?.length,
+            refreshTokenPresent: !!refresh_token,
+            orcidAccessExpiry: expires_in,
+          },
+
+          `setting orcid for user`,
+        );
 
         if (!user.name) {
           const orcidRecord = await getOrcidRecord(orcid, access_token);
