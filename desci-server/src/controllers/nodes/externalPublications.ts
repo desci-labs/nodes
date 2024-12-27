@@ -60,34 +60,34 @@ export const externalPublications = async (req: RequestWithNode, res: Response, 
   if (data.length > 0) {
     const titleSearcher = new Searcher(data, { keySelector: (entry) => entry.title });
     const titleResult = titleSearcher.search(manifest.title, { returnMatchData: true });
-    // logger.trace(
-    //   {
-    //     data: titleResult.map((data) => ({
-    //       title: data.item.title,
-    //       publisher: data.item.publisher,
-    //       source_url: data.item?.resource?.primary?.URL || data.item.URL || '',
-    //       doi: data.item.DOI,
-    //       key: data.key,
-    //       match: data.match,
-    //       score: data.score,
-    //     })),
-    //   },
-    //   'Title search result',
-    // );
+    logger.trace(
+      {
+        data: titleResult.map((data) => ({
+          title: data.item.title,
+          publisher: data.item.publisher,
+          source_url: data.item?.resource?.primary?.URL || data.item.URL || '',
+          doi: data.item.DOI,
+          key: data.key,
+          match: data.match,
+          score: data.score,
+        })),
+      },
+      'Title search result',
+    );
 
     const descSearcher = new Searcher(data, { keySelector: (entry) => entry?.abstract ?? '' });
     const descResult = descSearcher.search(manifest.description ?? '', { returnMatchData: true });
-    // logger.trace(
-    //   {
-    //     data: descResult.map((data) => ({
-    //       title: data.item.title,
-    //       key: data.key,
-    //       match: data.match,
-    //       score: data.score,
-    //     })),
-    //   },
-    //   'Desc search result',
-    // );
+    logger.trace(
+      {
+        data: descResult.map((data) => ({
+          title: data.item.title,
+          key: data.key,
+          match: data.match,
+          score: data.score,
+        })),
+      },
+      'Abstract search result',
+    );
 
     const authorsSearchScores = data.map((work) => {
       const authorSearcher = new Searcher(work.author, { keySelector: (entry) => `${entry.given} ${entry.family}` });
@@ -108,6 +108,18 @@ export const externalPublications = async (req: RequestWithNode, res: Response, 
         })),
       };
     });
+
+    logger.trace(
+      {
+        data: descResult.map((data) => ({
+          title: data.item.title,
+          key: data.key,
+          match: data.match,
+          score: data.score,
+        })),
+      },
+      'Authors search result',
+    );
 
     const publications = data
       .map((data) => ({
@@ -155,29 +167,6 @@ export const externalPublications = async (req: RequestWithNode, res: Response, 
     logger.trace({ publications, uuid }, 'externalPublications');
 
     if (publications.length > 0) return new SuccessResponse(publications).send(res);
-
-    // return new SuccessResponse({
-    //   title: titleResult.map((data) => ({
-    //     title: data.item.title,
-    //     publisher: data.item.publisher,
-    //     source_url: data.item?.resource?.primary?.URL || data.item.URL || '',
-    //     doi: data.item.DOI,
-    //     key: data.key,
-    //     match: data.match,
-    //     score: data.score,
-    //     'is-referenced-by-count': data.item['is-referenced-by-count'],
-    //   })),
-    //   abstract: descResult.map((data) => ({
-    //     key: data.key,
-    //     match: data.match,
-    //     score: data.score,
-    //     abstract: data.item?.abstract ?? '',
-    //     publisher: data.item.publisher,
-    //     source_url: data.item?.resource?.primary?.URL || data.item.URL || '',
-    //     doi: data.item.DOI,
-    //   })),
-    //   authors: authorsSearchScores,
-    // }).send(res);
   }
 
   return new SuccessResponse([]).send(res);
