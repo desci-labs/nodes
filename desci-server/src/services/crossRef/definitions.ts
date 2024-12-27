@@ -23,10 +23,34 @@ export interface Items<T> {
 }
 
 export interface Work {
+  abstract?: string;
   author: Author[];
   DOI: string;
   prefix: string;
   title: string[];
+  resource?: {
+    primary?: {
+      URL?: string;
+    };
+  };
+  publisher: string;
+  'is-referenced-by-count': number;
+  URL?: string;
+  published: {
+    'date-parts': Array<number[]>;
+  };
+  license: [
+    {
+      start: {
+        'date-parts': Array<number[]>;
+        'date-time': string;
+        timestamp: number;
+      };
+      'content-version': 'vor';
+      'delay-in-days': number;
+      URL: string; // 'http://onlinelibrary.wiley.com/termsAndConditions#vor';
+    },
+  ];
 }
 
 export interface Author {

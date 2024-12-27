@@ -380,6 +380,28 @@ class CrossRefClient {
       return { success: false, failure: false };
     }
   }
+
+  async searchWorks({ queryTitle }: QueryWorkParams) {
+    const crossRefResponse = await fetch(
+      `https://api.crossref.org/works?filter=has-full-text:true&mailto=sina@desci.com&query.title=${encodeURIComponent(
+        queryTitle,
+      )}&rows=3`,
+      {
+        headers: {
+          Accept: '*/*',
+        },
+      },
+    );
+
+    if (crossRefResponse.ok) {
+      const apiRes = (await crossRefResponse.json()) as Items<Work>;
+      // console.log('[api/publications/search.ts]', apiRes);
+      const data = apiRes.message.items ?? []; // sort((a, b) => b['is-referenced-by-count'] - a['is-referenced-by-count'])?.[0];
+      return data;
+    } else {
+      return [];
+    }
+  }
 }
 
 export default CrossRefClient;
