@@ -22,9 +22,9 @@ jobs:
         uses: unfor19/install-aws-cli-action@v1
         with:
           version: 1
-          working_dir: ${{ runner.temp }}/aws_cli_install
-          root_dir: ${{ runner.temp }}/aws_cli
-          install_dir: ${{ runner.temp }}/aws
+          workdir: ${{ runner.temp }}/aws_cli_install
+          rootdir: ${{ runner.temp }}/aws_cli
+          installrootdir: ${{ runner.temp }}/aws
 
       - name: Add AWS tools to PATH
         run: |
