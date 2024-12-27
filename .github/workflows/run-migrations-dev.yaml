@@ -22,6 +22,14 @@ jobs:
         uses: unfor19/install-aws-cli-action@v1
         with:
           version: 1
+          working_dir: ${{ runner.temp }}/aws_cli_install
+          root_dir: ${{ runner.temp }}/aws_cli
+          install_dir: ${{ runner.temp }}/aws
+
+      - name: Add AWS tools to PATH
+        run: |
+          echo "${{ runner.temp }}/aws/bin" >> $GITHUB_PATH
+          echo "${{ runner.temp }}/aws_cli/bin" >> $GITHUB_PATH
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
