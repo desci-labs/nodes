@@ -206,3 +206,9 @@ export const removeClaimSchema = z.object({
     claimId: z.coerce.number(),
   }),
 });
+
+export const searchAttestationsSchema = z.object({
+  query: z.object({
+    search: z.string().optional(),
+  }),
+});

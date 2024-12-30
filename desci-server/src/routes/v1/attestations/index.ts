@@ -32,11 +32,13 @@ import {
   showCommunityClaimsSchema,
   showNodeAttestationsSchema,
   claimEntryAttestationsSchema,
+  searchAttestationsSchema,
 } from './schema.js';
 
 const router = Router();
 
-router.get('/suggestions/all', [], asyncHandler(getAllRecommendations));
+// router.get('/', [validate(searchAttestationsSchema)], asyncHandler(searchAttestations));
+router.get('/suggestions/all', [validate(searchAttestationsSchema)], asyncHandler(getAllRecommendations));
 router.get('/suggestions/protected', [], asyncHandler(getValidatedRecommendations));
 router.get(
   '/claims/:communityId/:dpid',
