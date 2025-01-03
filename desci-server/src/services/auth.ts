@@ -8,7 +8,7 @@ import { prisma as client } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { MagicCodeEmailHtml } from '../templates/emails/utils/emailRenderer.js';
 import createRandomCode from '../utils/createRandomCode.js';
-import { hideEmail } from '../utils.js';
+import { encryptForLog, hideEmail } from '../utils.js';
 
 AWS.config.update({ region: 'us-east-2' });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -29,6 +29,7 @@ const registerUser = async (email: string) => {
 
 const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
   email = email.toLowerCase();
+  if (!email) throw Error('Email is required');
   logger.trace({ fn: 'magicLinkRedeem', email: hideEmail(email) }, 'auth::magicLinkRedeem');
 
   const link = await client.magicLink.findFirst({
@@ -36,13 +37,34 @@ const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
       email,
     },
     orderBy: {
-      createdAt: 'desc',
+      id: 'desc',
     },
   });
 
   if (!link) {
     throw Error('No magic link found for the provided email.');
   }
+
+  const logEncryptionKeyPresent = process.env.LOG_ENCRYPTION_KEY && process.env.LOG_ENCRYPTION_KEY.length > 0;
+  logger.trace(
+    {
+      fn: 'magicLinkRedeem',
+      email: hideEmail(email),
+      tokenProvided: 'XXXX' + token.slice(-2),
+      tokenProvidedLength: token.length,
+      latestLinkFound: 'XXXX' + link.token.slice(-2),
+      linkEqualsToken: link.token === token,
+      latestLinkExpiry: link.expiresAt,
+      latestLinkId: link.id,
+      ...(logEncryptionKeyPresent
+        ? {
+            eTokenProvided: encryptForLog(token, process.env.LOG_ENCRYPTION_KEY),
+            eEmail: encryptForLog(email, process.env.LOG_ENCRYPTION_KEY),
+          }
+        : {}),
+    },
+    '[MAGIC]auth::magicLinkRedeem comparison debug',
+  );
 
   if (link.failedAttempts >= 5) {
     // Invalidate the token immediately
@@ -69,6 +91,21 @@ const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
         },
       },
     });
+    logger.info(
+      {
+        fn: 'magicLinkRedeem',
+        linkId: link.id,
+        token: 'XXXX' + token.slice(-2),
+        ...(logEncryptionKeyPresent
+          ? {
+              eTokenProvided: encryptForLog(token, process.env.LOG_ENCRYPTION_KEY),
+              eEmail: encryptForLog(email, process.env.LOG_ENCRYPTION_KEY),
+            }
+          : {}),
+        newFailedAttempts: link.failedAttempts + 1,
+      },
+      'Invalid token attempt',
+    );
     throw Error('Invalid token.');
   }
 
@@ -176,9 +213,17 @@ const sendMagicLinkEmail = async (email: string, ip?: string) => {
       //   .sendEmail(params)
       //   .promise();
       // const data = await sendPromise;
-      logger.info({ fn: 'sendMagicLinkEmail', email, msg }, 'Email sent');
+      logger.info({ fn: 'sendMagicLinkEmail', email, tokenSent: 'XXXX' + token.slice(-2) }, '[MAGIC]Email sent');
     } catch (err) {
       logger.error({ fn: 'sendMagicLinkEmail', err, email }, 'Mail error');
+    }
+    if (process.env.NODE_ENV === 'dev') {
+      // Print this anyway whilst developing, even if emails are being sent
+      const Reset = '\x1b[0m';
+      const BgGreen = '\x1b[42m';
+      const BgYellow = '\x1b[43m';
+      const BIG_SIGNAL = `\n\n${BgYellow}$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$${Reset}\n\n`;
+      logger.info(`${BIG_SIGNAL}Email sent to ${email}\n\nToken: ${BgGreen}${token}${Reset}${BIG_SIGNAL}`);
     }
     return true;
   } else {
