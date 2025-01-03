@@ -9,51 +9,52 @@ datasource db {
 }
 
 model Node {
-  id                  Int                   @id @default(autoincrement())
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  title               String
-  cid                 String                @default("")
-  state               NodeState             @default(NEW)
-  isFeatured          Boolean               @default(false)
-  manifestUrl         String
-  restBody            Json                  @default("{}")
-  replicationFactor   Int
-  ownerId             Int
-  uuid                String?               @unique @default(uuid())
-  manifestDocumentId  String                @default("")
-  owner               User                  @relation(fields: [ownerId], references: [id])
-  authorInvites       AuthorInvite[]
-  transactions        ChainTransaction[]
-  interactionLogs     InteractionLog[]
-  authors             NodeAuthor[]
-  versions            NodeVersion[]
-  votes               NodeVote[]
-  DataReference       DataReference[]
-  PublicDataReference PublicDataReference[]
-  CidPruneList        CidPruneList[]
-  NodeCover           NodeCover[]
-  isDeleted           Boolean               @default(false)
-  deletedAt           DateTime?
-  UploadJobs          UploadJobs[]
-  DraftNodeTree       DraftNodeTree[]
-  ceramicStream       String?
-  NodeAttestation     NodeAttestation[]
-  NodeThumbnails      NodeThumbnails[]
-  PublishTaskQueue    PublishTaskQueue[]
-  NodeContribution    NodeContribution[]
-  PrivateShare        PrivateShare[]
-  OrcidPutCodes       OrcidPutCodes[]
-  DistributionPdfs    DistributionPdfs[]
-  PdfPreviews         PdfPreviews[]
-  DoiRecord           DoiRecord[]
-  dpidAlias           Int?
-  DoiSubmissionQueue  DoiSubmissionQueue[]
-  BookmarkedNode      BookmarkedNode[]
-  DeferredEmails      DeferredEmails[]
-  UserNotifications   UserNotifications[]
-  Annotation          Annotation[]
-  PublishStatus       PublishStatus[]
+  id                   Int                    @id @default(autoincrement())
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  title                String
+  cid                  String                 @default("")
+  state                NodeState              @default(NEW)
+  isFeatured           Boolean                @default(false)
+  manifestUrl          String
+  restBody             Json                   @default("{}")
+  replicationFactor    Int
+  ownerId              Int
+  uuid                 String?                @unique @default(uuid())
+  manifestDocumentId   String                 @default("")
+  owner                User                   @relation(fields: [ownerId], references: [id])
+  authorInvites        AuthorInvite[]
+  transactions         ChainTransaction[]
+  interactionLogs      InteractionLog[]
+  authors              NodeAuthor[]
+  versions             NodeVersion[]
+  votes                NodeVote[]
+  DataReference        DataReference[]
+  PublicDataReference  PublicDataReference[]
+  CidPruneList         CidPruneList[]
+  NodeCover            NodeCover[]
+  isDeleted            Boolean                @default(false)
+  deletedAt            DateTime?
+  UploadJobs           UploadJobs[]
+  DraftNodeTree        DraftNodeTree[]
+  ceramicStream        String?
+  NodeAttestation      NodeAttestation[]
+  NodeThumbnails       NodeThumbnails[]
+  PublishTaskQueue     PublishTaskQueue[]
+  NodeContribution     NodeContribution[]
+  PrivateShare         PrivateShare[]
+  OrcidPutCodes        OrcidPutCodes[]
+  DistributionPdfs     DistributionPdfs[]
+  PdfPreviews          PdfPreviews[]
+  DoiRecord            DoiRecord[]
+  dpidAlias            Int?
+  DoiSubmissionQueue   DoiSubmissionQueue[]
+  BookmarkedNode       BookmarkedNode[]
+  DeferredEmails       DeferredEmails[]
+  UserNotifications    UserNotifications[]
+  Annotation           Annotation[]
+  PublishStatus        PublishStatus[]
+  ExternalPublications ExternalPublications[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -961,6 +962,21 @@ model PublishStatus {
 
   @@unique([nodeUuid, version])
   @@index([nodeUuid])
+}
+
+model ExternalPublications {
+  id          Int      @id @default(autoincrement())
+  uuid        String
+  node        Node     @relation(fields: [uuid], references: [uuid])
+  score       Float
+  doi         String
+  publisher   String
+  publishYear String
+  sourceUrl   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // @@unique([uuid, publisher])
 }
 
 enum ORCIDRecord {

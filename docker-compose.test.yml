@@ -78,16 +78,21 @@ services:
     volumes:
       - .:/app/
       - ./local-data/yarn_cache:/root/.yarn
+
   nodes_test_sync_service:
-    build: ./sync-server
+    build:
+      context: ./sync-server
+      dockerfile: Dockerfile
     container_name: nodes_sync_test_worker
     image: worker_test
     ports:
-      - "5446:8080"
+      - "5446:5445"
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
-      - ./local-data/.storage/cache:/worker/cache
-      - ./sync-server/worker.capnp:/worker/worker.capnp
+      - ./sync-server:/usr/src/app
+      - /usr/src/app/node_modules
     depends_on:
       - nodes_test_db
+    env_file:
+      - ./sync-server/.env.test

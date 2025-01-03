@@ -31,17 +31,18 @@ export function assertNever(value: never) {
   throw Error('Not Possible');
 }
 
-const getDocumentHandle = async (documentId: DocumentId) => {
+export const getDocumentHandle = async (documentId: DocumentId) => {
   const logger = parentLogger.child({ module: 'connectRepoToDocument', documentId });
 
   if (!repoManager.isConnected(documentId)) {
-    repoManager.connect(documentId);
+    await repoManager.connect(documentId);
   }
 
   const automergeUrl = getAutomergeUrl(documentId);
-  await backendRepo.networkSubsystem.whenReady();
+  // await backendRepo.networkSubsystem.whenReady();
   logger.trace({ documentId }, 'ready');
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+  // await handle.whenReady();
   logger.trace({ handle: handle.url }, 'handle resolved');
   return handle;
 };
@@ -52,14 +53,20 @@ export const getDocumentUpdater = async (documentId: DocumentId) => {
 
   return async (action: ManifestActions) => {
     if (!handle) return;
-    logger.trace({ documentId, action }, 'get doc');
+    // logger.trace({ documentId, action }, 'get doc');
     let latestDocument = await handle.doc();
-    logger.trace({ latestDocument }, 'retrieved doc');
+    logger.trace({ available: !!latestDocument, documentId }, 'retrieved doc');
 
     if (!latestDocument) {
       logger.error({ node: documentId }, 'Automerge document not found');
       return;
     }
+
+    // if (actions) {
+    //   console.log('[send actions]', action);
+    //   handle.broadcast([documentId, { type: 'dispatch-action', actions }]);
+    //   return [latestDocument, handle];
+    // }
 
     const heads = getHeads(latestDocument);
     logger.trace({ action, heads }, `DocumentUpdater::Dispatched`);

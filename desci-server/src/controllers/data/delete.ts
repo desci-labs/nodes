@@ -45,7 +45,7 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
   }
 
   const latestManifest = await getLatestManifestFromNode(node);
-
+  console.log('latestManifest', latestManifest);
   try {
     /**
      * Remove draft node tree entries, add them to the cid prune list
@@ -109,14 +109,17 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       .filter((c) => c.payload?.path?.startsWith(path + '/') || c.payload?.path === path)
       .map((c) => (c.payload?.path as string) || '');
 
+    console.log('[DELETE]::Pre', { pathsToDelete, components: latestManifest.components.length });
     let updatedManifest = latestManifest;
     try {
       updatedManifest = await deleteComponentsFromManifest({
         node,
         pathsToDelete,
       });
+      console.log('[DELETED]::Post', { pathsToDelete, components: latestManifest.components.length });
     } catch (err) {
       logger.error({ err }, 'Error: deleteComponentsFromManifest');
+      console.log('[DELETE]::ERROR', { err, pathsToDelete, latestManifest });
     }
 
     const { persistedManifestCid } = await persistManifest({ manifest: updatedManifest, node, userId: owner.id });
@@ -138,10 +141,12 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
       if (response?.manifest) {
         updatedManifest = response.manifest;
       }
+      console.log('[getLatestDriveTime]::', { latestDriveClock, clock: response });
     } catch (err) {
       logger.error({ err }, 'Set Drive Clock');
     }
 
+    console.log('[DELETE RETURN', { updatedManifest });
     return res.status(200).json({
       manifest: updatedManifest,
       manifestCid: persistedManifestCid,

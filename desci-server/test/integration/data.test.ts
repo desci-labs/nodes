@@ -115,6 +115,7 @@ describe('Data Controllers', () => {
           .field('contextPath', 'root')
           // .send({ uuid: node.uuid, manifest, contextPath: 'root' })
           .attach('files', Buffer.from('test'), 'test.txt');
+        console.log('[Update Test]', res.body);
       });
 
       it('should return status 200', () => {
@@ -421,6 +422,7 @@ describe('Data Controllers', () => {
         const nodeData = await createDraftNode(user, manifest, baseManifestCid);
         node = nodeData.node;
 
+        console.log('[Pre Delete Request]', manifest);
         manifest = (await addComponentsToDraftManifest(node, componentsToAdd)) ?? manifest;
         const manifestCid = (await ipfs.add(JSON.stringify(manifest), { cidVersion: 1, pin: true })).cid.toString();
         await prisma.node.update({ where: { id: node.id }, data: { manifestUrl: manifestCid } });
@@ -440,10 +442,13 @@ describe('Data Controllers', () => {
         await prisma.dataReference.create({ data: manifestEntry });
         await validateAndHealDataRefs({ nodeUuid: node.uuid!, manifestCid, publicRefs: false });
 
+        console.log('[Delete Request]', manifest);
         res = await request(app)
           .post(`/v1/data/delete`)
           .set('authorization', authHeaderVal)
           .send({ uuid: node.uuid!, path: deleteDirPath });
+
+        console.log('[Delete Response]', res.body.manifest);
       });
 
       it('should return status 200', () => {
@@ -482,6 +487,7 @@ describe('Data Controllers', () => {
       });
       it('should remove deleted component from manifest', () => {
         const deletedComponentFound = res.body.manifest.components.find((c) => c.payload.path === deleteDirPath);
+        console.log('Deleted component', res.body.manifest);
         expect(!!deletedComponentFound).to.not.equal(true);
       });
       it('should cascade delete all components that were contained within the deleted directory', () => {
