@@ -102,7 +102,7 @@ services:
     environment:
       # https://github.com/graphprotocol/graph-node/blob/master/docs/environment-variables.md
       postgres_host: db_postgres
-      postgres_port: 5433
+      # postgres_port: 5433
       postgres_user: walter
       postgres_pass: white
       postgres_db: postgres
