@@ -637,7 +637,6 @@ export async function publishSequencer({
       publishStatusEntry = await PublishServices.getPublishStatusEntryById(publishStatusEntry.id);
       if (!publishStatusEntry.createPdr) throw 'Failed to create public data refs';
     }
-    debugger;
 
     if (!publishStatusEntry.updateAttestations) {
       // Step 5: Update draft attestations
