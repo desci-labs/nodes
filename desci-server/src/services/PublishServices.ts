@@ -231,13 +231,13 @@ async function handleDeferredEmails(uuid: string, dpid: string, publishStatusId:
           `removed ${deleted?.count} deferred protected attestation email entries as they have been executed`,
         );
       }
-      await PublishServices.updatePublishStatusEntry({
-        publishStatusId,
-        data: {
-          fireDeferredEmails: true,
-        },
-      });
     }
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        fireDeferredEmails: true,
+      },
+    });
   } catch (e) {
     console.error(
       { error: e, fn: 'handleDeferredEmails', uuid, dpid, publishStatusId },
