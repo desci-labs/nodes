@@ -35,7 +35,6 @@ export const resumePublish = async (
     userId: req.user?.id,
     body: req.body,
   });
-
   try {
     const args = ResumePublishSchema.parse(req.body);
     logger.debug({ args }, 'Resuming publish');

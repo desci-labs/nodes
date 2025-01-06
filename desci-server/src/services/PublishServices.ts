@@ -576,6 +576,8 @@ export async function publishSequencer({
       throw 'No publish status entry found';
     }
 
+    publishStatusId = publishStatusEntry.id;
+
     let node = await prisma.node.findUnique({ where: { uuid: ensureUuidEndsWithDot(publishStatusEntry.nodeUuid) } });
     const ceramicStream = node.ceramicStream;
     const { manifest } = await getManifestFromNode(node);
@@ -623,7 +625,6 @@ export async function publishSequencer({
       const unmetPrereqs = await checkPrerequisites(publishStatusEntry, PublishStep.CREATE_PDR);
       if (unmetPrereqs.length)
         throw `Unmet prerequisites for creating public data refs, requires: ${unmetPrereqs.join(', ')}`;
-
       await handlePublicDataRefs({
         nodeId: node.id,
         userId: node.ownerId,
@@ -636,6 +637,7 @@ export async function publishSequencer({
       publishStatusEntry = await PublishServices.getPublishStatusEntryById(publishStatusEntry.id);
       if (!publishStatusEntry.createPdr) throw 'Failed to create public data refs';
     }
+    debugger;
 
     if (!publishStatusEntry.updateAttestations) {
       // Step 5: Update draft attestations
