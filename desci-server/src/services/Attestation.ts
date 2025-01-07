@@ -1,7 +1,7 @@
 import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { AnnotationType, Attestation, Node, Prisma, User } from '@prisma/client';
+import { AnnotationType, Attestation, AttestationVersion, Node, Prisma, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import _ from 'lodash';
 
@@ -181,7 +181,7 @@ export class AttestationService {
     return prisma.attestationTemplate.create({ data: template });
   }
 
-  async updateAttestation(attestationId: number, data: Prisma.AttestationUncheckedCreateInput) {
+  async updateAttestation(attestationId: number, data: Prisma.AttestationUncheckedCreateInput, publishNew = true) {
     const attestation = await this.findAttestationById(attestationId);
 
     if (!attestation) throw new AttestationNotFoundError();
@@ -194,12 +194,26 @@ export class AttestationService {
         canUpdateOrcid: data.canUpdateOrcid,
       },
     });
-    const attestationVersion = await this.#publishVersion({
-      name: data.name as string,
-      description: data.description,
-      image_url: data.image_url,
-      attestationId: attestation.id,
-    });
+
+    let attestationVersion: AttestationVersion;
+
+    if (publishNew) {
+      attestationVersion = await this.#publishVersion({
+        name: data.name as string,
+        description: data.description,
+        image_url: data.image_url,
+        attestationId: attestation.id,
+      });
+    } else {
+      const latestVersion = await prisma.attestationVersion.findFirst({
+        where: { attestationId: attestation.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      attestationVersion = await prisma.attestationVersion.update({
+        where: { id: latestVersion.id },
+        data: { name: data.name as string, description: data.description, image_url: data.image_url },
+      });
+    }
 
     const communityEntryAttestation = await prisma.communityEntryAttestation.findFirst({
       where: { attestationId: attestation.id },

@@ -67,6 +67,7 @@ export const addAttestationSchema = z.object({
 
 export const updateAttestationSchema = addAttestationSchema.extend({
   params: z.object({ attestationId: z.coerce.number(), communityId: z.coerce.number() }),
+  body: z.object({ publishNew: z.coerce.boolean().optional() }),
 });
 
 export const addMemberSchema = z.object({
