@@ -1,10 +1,4 @@
-import path from 'path';
-
-import { fileURLToPath } from 'url';
 import { pino } from 'pino';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const logLevel = process.env.PINO_LOG_LEVEL || 'trace';
 
@@ -16,14 +10,6 @@ const devTransport = {
   },
 };
 
-const fileTransport = {
-  target: 'pino/file',
-  options: { destination: `${__dirname}/../../log/server.log` },
-  level: 'trace',
-};
-
-console.log('[DIR NAME]::', __dirname, __filename, logLevel);
-
 export const logger = pino({
   level: logLevel,
   serializers: {
@@ -33,7 +19,7 @@ export const logger = pino({
     process.env.NODE_ENV === 'production'
       ? { targets: [] }
       : {
-          targets: [devTransport, fileTransport],
+          targets: [devTransport],
         },
   redact: {
     paths: [],
@@ -42,6 +28,7 @@ export const logger = pino({
 
 function omitBuffer(array) {
   return array.map((obj) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { buffer, ...rest } = obj;
     return rest;
   });

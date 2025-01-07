@@ -1,8 +1,0 @@
-{
-  "watch": ["."],
-  "ext": ".ts,.js,*",
-  "ignore": ["log/server.log", "logs/", "postgres/"],
-  "verbose": true,
-  "exec": "node NODE_OPTIONS='--max-old-space-size=81192' -r ts-node/register",
-  "delay": 300
-}
