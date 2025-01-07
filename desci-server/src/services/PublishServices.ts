@@ -454,6 +454,23 @@ async function getPublishStatusEntryById(id: number): Promise<PublishStatus> {
   }
 }
 
+async function getPublishStatusEntryByCommitId(commitId: string): Promise<PublishStatus> {
+  try {
+    const result = await prisma.publishStatus.findUnique({
+      where: {
+        commitId,
+      },
+    });
+    return result;
+  } catch (e) {
+    logger.error(
+      { module: 'PublishServices::getPublishStatusEntryByCommitId', commitId, e },
+      'Error getting publish status entry',
+    );
+    throw 'Error getting publish status entry';
+  }
+}
+
 async function updateNodeVersionEntry({
   manifestCid,
   commitId,
@@ -712,4 +729,5 @@ export const PublishServices = {
   handleDeferredEmails,
   transformDraftComments,
   getPublishStatusEntryById,
+  getPublishStatusEntryByCommitId,
 };

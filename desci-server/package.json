@@ -17,6 +17,7 @@
     "script:fix-data-refs": "debug=* node --inspect=0.0.0.0:9277 --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/dataRefDoctor.ts",
     "script:active-users": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/activeUsers.ts",
     "script:invalidate-redis-cache": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/invalidate-redis-cache.ts",
+    "script:fix-publish": "NODE_OPTIONS='--loader ts-node/esm' debug=* node --inspect=0.0.0.0:9277 --no-warnings --enable-source-maps ./src/scripts/fixPublish.ts",
     "script:increase-base-drive-storage": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/increase-base-drive-storage.ts",
     "script:testing": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/testing.ts",
     "script:migrate-draft-trees": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/migrate-draft-trees.ts",

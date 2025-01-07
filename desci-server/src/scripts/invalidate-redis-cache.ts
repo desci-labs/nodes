@@ -55,7 +55,7 @@ async function invalidateAll() {
   logger.info('[invalidateAll] Wiped all keys from cache');
 }
 
-async function invalidateByUuid({ nodeUuid }: { nodeUuid: string }) {
+export async function invalidateByUuid({ nodeUuid }: { nodeUuid: string }) {
   // Find all published versions of the node
   if (!nodeUuid.endsWith('.')) nodeUuid += '.';
   const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
