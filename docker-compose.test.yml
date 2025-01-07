@@ -34,8 +34,8 @@ services:
         condition: service_healthy
       nodes_test_ipfs:
         condition: service_started
-      nodes_test_repo_service:
-        condition: service_healthy
+      # nodes_test_repo_service:
+      #   condition: service_healthy
     links:
       - nodes_test_db
     container_name: "nodes_backend_test"

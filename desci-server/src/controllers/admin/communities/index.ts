@@ -272,7 +272,8 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
 export const updateAttestation = async (req: Request, res: Response, _next: NextFunction) => {
   const body = req.body as Required<z.infer<typeof addAttestationSchema>['body']>;
   const { attestationId } = req.params as z.infer<typeof updateAttestationSchema>['params'];
-  logger.info({ attestationId, body }, 'Payload');
+  const { publishNew } = req.body as z.infer<typeof updateAttestationSchema>['body'];
+  logger.info({ attestationId, publishNew, body }, 'Payload');
 
   const exists = await attestationService.findAttestationById(Number(attestationId));
   if (!exists) throw new NotFoundError(`Attestation ${attestationId} not found`);
@@ -311,22 +312,26 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
   delete body.imageUrl;
   delete body.verifiedImageUrl;
 
-  // logger.info({ image_url, verified_image_url }, 'Assets');
-
   if (!image_url) throw new BadRequestError('No attestation image uploaded');
 
   const isProtected = body.protected.toString() === 'true' ? true : false;
   const doiPrivilege = body.canMintDoi.toString() === 'true' ? true : false;
   const orcidPrivilege = body.canUpdateOrcid.toString() === 'true' ? true : false;
-  const attestation = await attestationService.updateAttestation(exists.id, {
-    ...body,
-    image_url,
-    verified_image_url,
-    communityId: exists.communityId,
-    protected: isProtected,
-    canMintDoi: doiPrivilege,
-    canUpdateOrcid: orcidPrivilege,
-  });
+  logger.trace({ publishNew }, 'PUBLISH NEW');
+  const publishNewVersion = publishNew?.toString() == 'false' ? false : true;
+  const attestation = await attestationService.updateAttestation(
+    exists.id,
+    {
+      ...body,
+      image_url,
+      verified_image_url,
+      communityId: exists.communityId,
+      protected: isProtected,
+      canMintDoi: doiPrivilege,
+      canUpdateOrcid: orcidPrivilege,
+    },
+    publishNewVersion,
+  );
   new SuccessResponse(attestation).send(res);
 };
 
