@@ -332,15 +332,17 @@ class ContributorService {
     const contributorEmailMatchesUser = user.email === contribution.email;
     const contributionUserIdMatchesUser = user.id === contribution.userId;
     const verified = contributorEmailMatchesUser || contributionOrcidMatchesUser || contributionUserIdMatchesUser;
-    if (verified) {
-      const updated = await prisma.nodeContribution.update({
-        where: { id: contribution.id },
-        data: { denied: true, verified: false },
-      });
+    if (!verified) return false;
 
-      // TBC: Consider revoking the share code as well.
-      if (updated) return true;
-    }
+    const updated = await prisma.nodeContribution.update({
+      where: { id: contribution.id },
+      data: { denied: true, verified: false },
+    });
+
+    const node = await prisma.node.findUnique({ where: { id: contribution.nodeId } });
+    this.removePrivShareCodeForContribution(updated, node);
+
+    if (updated) return true;
 
     return false;
   }
