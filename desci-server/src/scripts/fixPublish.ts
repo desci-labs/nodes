@@ -16,13 +16,16 @@ Runs the publish sequencer script on the nodes provided
 Will only work for ceramic migrated nodes!
 
 Usage Examples:
-fixByCommitIds:     OPERATION=fixByNodeUuids INVALIDATE_CACHE=true NODE_UUIDS=abc123,def456,ghi789 npm run script:fix-publish
+fixByNodeUuids:     OPERATION=fixByNodeUuids INVALIDATE_CACHE=true NODE_UUIDS=abc123,def456,ghi789 npm run script:fix-publish
 
 // Add IJ publishStatus entries for the commitIds
-fixByCommitIds:     OPERATION=fixByNodeUuids CREATE_IJ_PUBLISH_STATUS_ENTRIES=true INVALIDATE_CACHE=true NODE_UUIDS=abc123,def456,ghi789 npm run script:fix-publish
+fixByNodeUuids:     OPERATION=fixByNodeUuids CREATE_IJ_PUBLISH_STATUS_ENTRIES=true INVALIDATE_CACHE=true NODE_UUIDS=abc123,def456,ghi789 npm run script:fix-publish
 
 */
 async function main() {
+  // console.log('entered main');
+  debugger;
+  logger.info(`[fixPublish]Starting fixPublish script`);
   try {
     const {
       operation,
@@ -30,7 +33,6 @@ async function main() {
       createIjPublishStatusEntries: createIjPublishStatusEntry,
       invalidateCache,
     } = getOperationEnvs();
-
     switch (operation) {
       case 'fixByNodeUuids':
         if (!nodeUuids) return logger.error('Missing NODE_UUIDS env, a list of UUIDs seperated by commas');
@@ -43,7 +45,6 @@ async function main() {
   } catch (e) {
     const err = e as Error;
     console.error('Script failed:', err.message);
-    process.exit(1);
   } finally {
     await redisClient.quit();
   }
@@ -53,8 +54,8 @@ function getOperationEnvs() {
   return {
     operation: process.env.OPERATION || null,
     nodeUuids: process.env.NODE_UUIDS || null, // Seperated by commas
-    invalidateCache: process.env.INVALIDATE_CACHE.toLowerCase() === 'true',
-    createIjPublishStatusEntries: process.env.CREATE_IJ_PUBLISH_STATUS_ENTRIES.toLowerCase() === 'true',
+    invalidateCache: process.env.INVALIDATE_CACHE?.toLowerCase() === 'true',
+    createIjPublishStatusEntries: process.env.CREATE_IJ_PUBLISH_STATUS_ENTRIES?.toLowerCase() === 'true',
   };
 }
 
@@ -122,9 +123,9 @@ async function fixByNodeUuids({
   }
 }
 
-/*
- ** Purposefully built for adding IJ publishStatus entries to repair IJ nodes, can be repurposed or removed in the future
- */
+/**
+ * Purposefully built for adding IJ publishStatus entries to repair IJ nodes, can be repurposed or removed in the future
+ **/
 async function addIjPublishStatusEntry({
   commitId,
   version,
