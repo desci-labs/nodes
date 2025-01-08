@@ -175,6 +175,7 @@ class ContributorService {
       acc[contributor.contributorId] = {
         name: contributor.user?.name,
         verified: !!contributor.verified,
+        denied: !!contributor.denied,
         userId: contributor.user?.id,
         deleted: contributor.deleted,
         deletedAt: contributor.deletedAt,
