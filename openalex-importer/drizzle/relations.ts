@@ -1,3 +1,3 @@
-import { relations } from "drizzle-orm/relations";
-import {  } from "./schema";
+import { relations } from 'drizzle-orm/relations';
 
+import {} from './schema';
