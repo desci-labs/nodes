@@ -15,6 +15,7 @@ export type NodeContributorMapAuthed = Record<ContributorId, NodeContributorAuth
 export interface NodeContributor {
   name: string | undefined;
   verified: boolean;
+  denied: boolean;
   userId: number;
   deleted: boolean;
   deletedAt: string;
