@@ -18,8 +18,8 @@ async function main() {
     });
   } else if (cliArgs.start) {
     logger.info('Running Script in Time travel moide ⏰✈️');
-    let startDate = cliArgs.start;
-    let endDate = cliArgs.end || cliArgs.start;
+    const startDate = cliArgs.start;
+    const endDate = cliArgs.end || cliArgs.start;
     let diffInDays = differenceInDays(endDate, startDate);
     logger.info({ diffInDays }, 'differenceInDays');
     // run script from start date to end date in a loop
@@ -63,9 +63,9 @@ function parseArgs() {
 
   logger.info({ args: process.argv }, 'ARGS');
   if (process.argv.length > 2) {
-    let param: { start?: Date | undefined; end?: Date | undefined } = {};
-    let start = process.argv[2];
-    let end = process.argv[3];
+    const param: { start?: Date | undefined; end?: Date | undefined } = {};
+    const start = process.argv[2];
+    const end = process.argv[3];
     if (start.startsWith('--start=')) {
       param.start = parseDate(start.split('=')[1]);
     } else {

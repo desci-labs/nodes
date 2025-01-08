@@ -1,15 +1,13 @@
-// import * as pg from 'pg';
-
 const pg = await import('pg').then((value) => value.default);
 const { Pool } = pg;
-import { and, eq, ExtractTablesWithRelations } from 'drizzle-orm';
-import { drizzle, NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
+import { and, eq, type ExtractTablesWithRelations } from 'drizzle-orm';
+import { drizzle, type NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import { PgTransaction } from 'drizzle-orm/pg-core';
 
 import * as batchesSchema from '../../drizzle/batches-schema.js';
 import * as openAlexSchema from '../../drizzle/schema.js';
 import { logger } from '../logger.js';
-import { DataModels } from '../transformers.js';
+import { type DataModels } from '../transformers.js';
 
 export * from '../../drizzle/schema.js';
 export * from './types.js';
@@ -231,7 +229,7 @@ const updateWorksOpenAccess = async (tx: PgTransactionType, data: DataModels['wo
   );
 };
 
-const updateWorkAuthorships = async (tx: PgTransactionType, data: DataModels['works_authorships']) => {
+const _updateWorkAuthorships = async (tx: PgTransactionType, data: DataModels['works_authorships']) => {
   await Promise.all(
     data.map(async (entry) => {
       await tx

@@ -1,11 +1,10 @@
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 
-// import { startOfDay, endOfDay, subDays } from "date-fns";
 import { saveData } from './db/index.js';
 import { logger } from './logger.js';
 import { transformDataModel } from './transformers.js';
-import { Institution, Work } from './types/index.js';
+import type { Work } from './types/index.js';
 
 const OPEN_ALEX_API = 'https://api.openalex.org/';
 

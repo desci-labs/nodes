@@ -6,6 +6,7 @@
     "outDir": "./dist",
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
     "inlineSourceMap": true,
     "strictNullChecks": true,
     "exactOptionalPropertyTypes": true

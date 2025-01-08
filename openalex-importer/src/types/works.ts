@@ -1,4 +1,4 @@
-import { Institution } from './institutions.js';
+import type { Institution } from './institutions.js';
 
 export interface Work {
   id: string;

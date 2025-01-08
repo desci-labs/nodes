@@ -1,6 +1,5 @@
 import _ from 'lodash';
 
-// import { Prisma } from "@prisma/client";
 import type {
   authors_idsInOpenalex,
   authorsInOpenalex,
@@ -13,8 +12,8 @@ import type {
   WorksLocation,
   WorksPrimaryLocation,
 } from './db/index.js';
-import { Institution } from './types/institutions.js';
-import type { Mesh, Work } from './types/works.js';
+import type { Institution } from './types/institutions.js';
+import type { Work } from './types/works.js';
 
 interface ModelMap {
   works: ReturnType<typeof transformToWork>[];
@@ -123,7 +122,7 @@ export const transformDataModel = (data: Work[]) => {
             work_id: work.id,
             topic_id: topic.id,
             score: topic.score,
-          } as typeof works_topicsInOpenalex.$inferInsert),
+          }) as typeof works_topicsInOpenalex.$inferInsert,
       ),
     ),
   );
@@ -140,7 +139,7 @@ export const transformDataModel = (data: Work[]) => {
             is_oa: location.is_oa,
             version: location.version,
             license: location.license,
-          } as WorksLocation),
+          }) as WorksLocation,
       ),
     ),
   ) as WorksLocation[];
@@ -156,7 +155,7 @@ export const transformDataModel = (data: Work[]) => {
             qualifier_name: mesh.qualifier_name,
             qualifier_ui: mesh.qualifier_ui,
             is_major_topic: mesh.is_major_topic,
-          } as typeof works_meshInOpenalex.$inferInsert),
+          }) as typeof works_meshInOpenalex.$inferInsert,
       ),
     ),
   );
@@ -232,7 +231,7 @@ export const transformDataModel = (data: Work[]) => {
           last_known_institution: values[0].last_known_institution,
           works_api_url: values[0].works_api_url,
           updated_date: values[0].updated_date,
-        } as typeof authorsInOpenalex.$inferInsert),
+        }) as typeof authorsInOpenalex.$inferInsert,
     )
     .value();
 
@@ -251,7 +250,7 @@ export const transformDataModel = (data: Work[]) => {
           scopus: values[0].scopus,
           wikipedia: values[0].wikipedia,
           mag: values[0].mag,
-        } as typeof authors_idsInOpenalex.$inferInsert),
+        }) as typeof authors_idsInOpenalex.$inferInsert,
     )
     .value();
 

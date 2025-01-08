@@ -1,23 +1,23 @@
-import { defineConfig } from "drizzle-kit";
-import "dotenv/config";
+import { defineConfig } from 'drizzle-kit';
+import 'dotenv/config';
 
 export default defineConfig({
-  schema: "./drizzle/schema.ts",
-  out: "./drizzle",
-  dialect: "postgresql",
+  schema: './drizzle/schema.ts',
+  out: './drizzle',
+  dialect: 'postgresql',
   dbCredentials: {
     database: process.env.POSTGRES_DB as string,
     host: process.env.PG_HOST as string,
     user: process.env.POSTGRES_USER as string,
     password: process.env.POSTGRES_PASSWORD as string,
-    secretArn: "",
-    resourceArn: "",
+    secretArn: '',
+    resourceArn: '',
     ssl: false,
   },
-  schemaFilter: ["openalex", "public"],
+  schemaFilter: ['openalex', 'public'],
   migrations: {
-    table: "__migrations__",
-    schema: "public",
+    table: '__migrations__',
+    schema: 'public',
   },
   verbose: true,
   strict: true,
