@@ -21,9 +21,11 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     nodeDpid: string;
     claimerId: number;
   };
+
+  // TODO: verify attestationVersions[0] === latest
   const attestationVersions = await attestationService.getAttestationVersions(body.attestationId);
   const latest = attestationVersions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const attestationVersion = latest[0];
+  const attestationVersion = attestationVersions[0];
   logger.info({ body, latest, attestationVersion }, 'CLAIM');
   const uuid = ensureUuidEndsWithDot(body.nodeUuid);
 

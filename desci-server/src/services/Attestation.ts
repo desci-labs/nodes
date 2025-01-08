@@ -233,7 +233,7 @@ export class AttestationService {
   }
 
   async getAttestationVersions(attestationId: number) {
-    return prisma.attestationVersion.findMany({ where: { attestationId } });
+    return prisma.attestationVersion.findMany({ where: { attestationId }, orderBy: { createdAt: 'desc' } });
   }
 
   async getAttestationVersion(id: number, attestationId: number) {

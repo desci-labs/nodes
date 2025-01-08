@@ -366,6 +366,33 @@ export class CommunityService {
   async removeMemberById(id: number) {
     return prisma.communityMember.delete({ where: { id } });
   }
+
+  async addToRadar(desciCommunityId: number, nodeUuid: string) {
+    // check if node has claimed all community entry attestations
+    const entryAttestations = await communityService.getEntryAttestations({
+      desciCommunityId,
+    });
+
+    const claimedAttestations = await prisma.nodeAttestation.findMany({
+      where: { desciCommunityId, nodeUuid },
+    });
+
+    const isEntriesClaimed = entryAttestations.every((entry) =>
+      claimedAttestations.find(
+        (claimed) =>
+          claimed.attestationId === entry.attestationId && claimed.attestationVersionId === entry.attestationVersionId,
+      ),
+    );
+
+    if (!isEntriesClaimed) return undefined;
+
+    return await prisma.communityRadarEntry.create({
+      data: {
+        desciCommunityId,
+        nodeUuid,
+      },
+    });
+  }
 }
 
 export const communityService = new CommunityService();

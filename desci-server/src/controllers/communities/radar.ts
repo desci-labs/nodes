@@ -17,10 +17,6 @@ export const getCommunityRadar = async (req: Request, res: Response, next: NextF
   // THIS is necessary because the engagement signal returned from getCommunityRadar
   // accounts for only engagements on community selected attestations
   const nodes = await asyncMap(communityRadar, async (node) => {
-    // const engagements = await communityService.getNodeCommunityEngagementSignals(
-    //   parseInt(req.params.communityId),
-    //   node.nodeDpid10,
-    // );
     const engagements = await attestationService.getNodeEngagementSignals(node.nodeDpid10);
 
     const verifiedEngagements = node.NodeAttestation.reduce(
