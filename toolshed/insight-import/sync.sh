@@ -2,13 +2,13 @@
 
 set -euo pipefail
 
-if ! command -v lassie > /dev/null; then
-  echo '🙅 Lassie and go-car are required, please install these tools!'
-  echo "👉 https://github.com/filecoin-project/lassie?tab=readme-ov-file#installation"
-  # shellcheck disable=SC2016
-  echo '(psst, make sure ~/go/bin is in your $PATH !)'
-  exit 1
-fi
+# if ! command -v lassie > /dev/null; then
+#   echo '🙅 Lassie and go-car are required, please install these tools!'
+#   echo "👉 https://github.com/filecoin-project/lassie?tab=readme-ov-file#installation"
+#   # shellcheck disable=SC2016
+#   echo '(psst, make sure ~/go/bin is in your $PATH !)'
+#   exit 1
+# fi
 
 insight_path=.insight-journal-clone
 data_path=local-data
@@ -102,11 +102,11 @@ while read -r file; do
   fi
 
   cids=$(grep -Eo 'b[0-9a-z]{58}' "$file" || true)
-  if [ -n "$cids" ]; then
-    while read -r cid; do
-      fetch "$cid" "$cardir"
-    done <<< "$cids"
-  fi
+  # if [ -n "$cids" ]; then
+  #   while read -r cid; do
+  #     fetch "$cid" "$cardir"
+  #   done <<< "$cids"
+  # fi
 done < <(find $insight_path/data/publications -type f -name "metadata.json")
 
 echo "Data fetch successful 🏁"

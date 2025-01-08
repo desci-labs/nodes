@@ -62,26 +62,26 @@ export const makeNode = async (ijMetadata: IJMetadata) => {
     existingNodes[ijPub.publication_id] = uuid
   }
 
-  if (ijPub.source_code_git_repo) {
-    const params: AddLinkComponentParams = {
-      name: 'External git repo',
-      url: ijPub.source_code_git_repo,
-      subtype: ResearchObjectComponentLinkSubtype.OTHER,
-      starred: false,
-    };
+  // if (ijPub.source_code_git_repo) {
+  //   const params: AddLinkComponentParams = {
+  //     name: 'External git repo',
+  //     url: ijPub.source_code_git_repo,
+  //     subtype: ResearchObjectComponentLinkSubtype.OTHER,
+  //     starred: false,
+  //   };
 
-    await addLinkComponent(uuid, params);
-  }
+  //   await addLinkComponent(uuid, params);
+  // }
 
   const manifestActions = renderStaticManifestActions(ijMetadata);
   await changeManifest(uuid, manifestActions);
 
-  const filePathsToUpload = [
-    maybeWriteTmpFile('comments.md', renderCommentsMarkdown(ijPub)),
-    maybeWriteTmpFile('reviews.md', renderReviewsMarkdown(ijPub)),
-    maybeWriteTmpFile('insight-journal-metadata.json', JSON.stringify(ijPub, undefined, 2)),
-  ].filter(p => p !== undefined)
-  await uploadMissingFiles(uuid, filePathsToUpload);
+  // const filePathsToUpload = [
+  //   maybeWriteTmpFile('comments.md', renderCommentsMarkdown(ijPub)),
+  //   maybeWriteTmpFile('reviews.md', renderReviewsMarkdown(ijPub)),
+  //   maybeWriteTmpFile('insight-journal-metadata.json', JSON.stringify(ijPub, undefined, 2)),
+  // ].filter(p => p !== undefined)
+  // await uploadMissingFiles(uuid, filePathsToUpload);
 
   await publishRevisions(uuid, ijPub.revisions);
 }
@@ -153,55 +153,55 @@ const publishRevisions = async (uuid: string, revisions: Revision[]): Promise<vo
   for (const rev of revisions) {
     const currentRev = revisions.indexOf(rev);
     console.log('- Handling rev', currentRev, '...');
-    if (rev.article) {
-      try {
-        await addExternalCid({
-          uuid,
-          externalCids: [{ name: 'article.pdf', cid: rev.article }],
-          contextPath: '/',
-          componentType: ResearchObjectComponentType.PDF,
-          componentSubtype: ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
-          autoStar: true,
-        })
-        console.log('  - Added article CID:', rev.article);
-      } catch (e) {
-        const err = e as Error;
-        if (err.message.includes('409')) {
-          console.log('  - Skipping duplicate CID for article:', rev.article);
-        } else {
-          console.log({ err: err.name, msg: err.message })
-          throw err;
-        }
-      }
-    }
+    // if (rev.article) {
+    //   try {
+    //     await addExternalCid({
+    //       uuid,
+    //       externalCids: [{ name: 'article.pdf', cid: rev.article }],
+    //       contextPath: '/',
+    //       componentType: ResearchObjectComponentType.PDF,
+    //       componentSubtype: ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
+    //       autoStar: true,
+    //     })
+    //     console.log('  - Added article CID:', rev.article);
+    //   } catch (e) {
+    //     const err = e as Error;
+    //     if (err.message.includes('409')) {
+    //       console.log('  - Skipping duplicate CID for article:', rev.article);
+    //     } else {
+    //       console.log({ err: err.name, msg: err.message })
+    //       throw err;
+    //     }
+    //   }
+    // }
 
-    if (rev.source_code) {
-      try {
-        await addExternalCid({
-          uuid,
-          externalCids: [{ name: 'code', cid: rev.source_code }],
-          contextPath: '/',
-          componentType: ResearchObjectComponentType.CODE,
-          componentSubtype: ResearchObjectComponentCodeSubtype.CODE_SCRIPTS,
-          autoStar: true,
-        })
-        console.log('  - Added code CID:', rev.source_code);
-      } catch (e) {
-        const err = e as Error;
-        if (err.message.includes('409')) {
-          console.log('  - Skipping duplicate CID for code:', rev.source_code);
-        } else {
-          console.log({ err: err.name, msg: err.message })
-          throw err;
-        }
-      }
-    }
+    // if (rev.source_code) {
+    //   try {
+    //     await addExternalCid({
+    //       uuid,
+    //       externalCids: [{ name: 'code', cid: rev.source_code }],
+    //       contextPath: '/',
+    //       componentType: ResearchObjectComponentType.CODE,
+    //       componentSubtype: ResearchObjectComponentCodeSubtype.CODE_SCRIPTS,
+    //       autoStar: true,
+    //     })
+    //     console.log('  - Added code CID:', rev.source_code);
+    //   } catch (e) {
+    //     const err = e as Error;
+    //     if (err.message.includes('409')) {
+    //       console.log('  - Skipping duplicate CID for code:', rev.source_code);
+    //     } else {
+    //       console.log({ err: err.name, msg: err.message })
+    //       throw err;
+    //     }
+    //   }
+    // }
 
-    const references = parseReferences(rev?.citation_list);
-    if (references) {
-      console.log('  - Settings references...');
-      await changeManifest(uuid, [{ type: 'Set References', references: references }]);
-    }
+    // const references = parseReferences(rev?.citation_list);
+    // if (references) {
+    //   console.log('  - Settings references...');
+    //   await changeManifest(uuid, [{ type: 'Set References', references: references }]);
+    // }
 
     console.log('  - Calling publish...');
     const { dpid } = await publishNode(uuid, SIGNER);
