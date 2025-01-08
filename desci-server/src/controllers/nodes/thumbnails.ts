@@ -6,9 +6,13 @@ import { NodeUuid } from '../../services/manifestRepo.js';
 import { type ThumbnailMap, thumbnailsService } from '../../services/Thumbnails.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
-type ThumbnailsReqBodyParams = {
+type ThumbnailsReqParams = {
   uuid: string;
   manifestCid?: string;
+};
+
+type ThumbnailsQueryParams = {
+  shareCode?: string;
 };
 
 type ThumbnailsResponse = {
@@ -29,11 +33,12 @@ type ThumbnailsErrorResponse = {
  * @return {ThumbnailMap} ThumbnailMap = Record<ComponentCidString, Record<HeightPx, ThumbnailCidString>>
  */
 export const thumbnails = async (
-  req: Request<any, any, ThumbnailsReqBodyParams>,
+  req: Request<any, any, ThumbnailsReqParams, ThumbnailsQueryParams>,
   res: Response<ThumbnailsResponse | ThumbnailsErrorResponse>,
 ) => {
   const user = (req as any).user;
   const { uuid, manifestCid } = req.params;
+  const { shareCode } = req.query;
   // debugger;
   const logger = parentLogger.child({
     module: 'NODES::Thumbnails',
@@ -45,13 +50,23 @@ export const thumbnails = async (
 
   if (!uuid) return res.status(400).json({ ok: false, error: 'UUID is required.' });
 
-  if (!user && !manifestCid) {
-    // If there's no manifestCid passed in, we're looking at a draft node, and it requires auth.
+  let validShareCode = null;
+  if (shareCode) {
+    // Validate sharecode belongs to node and is valid
+    const validShare = await prisma.privateShare.findFirst({
+      where: { shareId: shareCode, nodeUUID: ensureUuidEndsWithDot(uuid) },
+    });
+    if (validShare) validShareCode = true;
+  }
+
+  if (!user && !manifestCid && !validShareCode) {
+    // If there's no manifestCid passed in, we're looking at a draft node, and it requires auth or a valid share code
     return res.status(401).json({ ok: false, error: 'Unauthorized' });
   }
 
-  if (user && !manifestCid) {
+  if (user && !manifestCid && !validShareCode) {
     // Check if user owns node, if requesting draft thumbnails
+    // validShareCode already does the check if the shareCode belongs to that node
     const node = await prisma.node.findFirst({
       where: {
         ownerId: user.id,
