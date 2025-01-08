@@ -117,4 +117,10 @@ async function deleteKeys(pattern: string) {
   logger.info({ pattern }, `All matching keys deleted.`);
 }
 
-main();
+const runAsScript =
+  process.argv[0].includes('/bin/node') && process.argv[1].includes('scripts/invalidate-redis-cache.ts');
+console.log(process.argv);
+
+if (runAsScript) {
+  main();
+}
