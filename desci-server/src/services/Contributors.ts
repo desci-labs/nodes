@@ -307,8 +307,36 @@ class ContributorService {
     if (verified) {
       const updated = await prisma.nodeContribution.update({
         where: { id: contribution.id },
-        data: { verified: true },
+        data: { verified: true, denied: false },
       });
+      if (updated) return true;
+    }
+
+    return false;
+  }
+
+  async denyContribution(user: User, contributorId: string): Promise<boolean> {
+    if (!contributorId) throw Error('contributorId required');
+    const contribution = await prisma.nodeContribution.findUnique({ where: { contributorId } });
+    if (!contribution) throw Error('Invalid contributorId');
+
+    const contributionPointsToUser =
+      contribution.email === user.email || contribution.orcid === user.orcid || contribution.userId === user.id;
+    if (!contributionPointsToUser) throw Error('Unauthorized to deny contribution');
+
+    const userHasOrcidValidated = user.orcid !== undefined && user.orcid !== null;
+
+    const contributionOrcidMatchesUser = userHasOrcidValidated && contribution.orcid === user.orcid;
+    const contributorEmailMatchesUser = user.email === contribution.email;
+    const contributionUserIdMatchesUser = user.id === contribution.userId;
+    const verified = contributorEmailMatchesUser || contributionOrcidMatchesUser || contributionUserIdMatchesUser;
+    if (verified) {
+      const updated = await prisma.nodeContribution.update({
+        where: { id: contribution.id },
+        data: { denied: true, verified: false },
+      });
+
+      // TBC: Consider revoking the share code as well.
       if (updated) return true;
     }
 
