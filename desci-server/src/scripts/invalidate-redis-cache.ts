@@ -68,8 +68,10 @@ export async function invalidateByUuid({ nodeUuid }: { nodeUuid: string }) {
   const totalVersionsIndexed = indexedNode.versions.length || 0;
   try {
     for (let nodeVersIdx = 0; nodeVersIdx < totalVersionsIndexed; nodeVersIdx++) {
+      const txHash = indexedNode.versions[nodeVersIdx]?.id;
+      const commitId = indexedNode.versions[nodeVersIdx]?.commitId;
       logger.info(
-        `[invalidateByUuid] Deleting keys for indexed version: ${nodeVersIdx}, with txHash: ${indexedNode.versions[nodeVersIdx]?.id}`,
+        `[invalidateByUuid] Deleting keys for indexed version: ${nodeVersIdx}, with ${txHash ? 'txHash: ' + txHash : 'commitId: ' + commitId}`,
       );
       const hexCid = indexedNode.versions[nodeVersIdx]?.cid || indexedNode.recentCid;
       const manifestCid = hexToCid(hexCid);

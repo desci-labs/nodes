@@ -3,7 +3,6 @@ import { logger as parentLogger } from '../logger.js';
 import { redisClient } from '../redisClient.js';
 import { publishSequencer, PublishServices } from '../services/PublishServices.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
-import { cleanupManifestUrl } from '../utils/manifest.js';
 import { hexToCid } from '../utils.js';
 
 import { invalidateByUuid } from './invalidate-redis-cache.js';
@@ -71,7 +70,7 @@ async function fixByNodeUuids({
   const nodeUuidsArr = nodeUuids.split(',');
   const total = nodeUuidsArr.length;
   logger.info(`[fixByNodeUuids] nodeUuids loaded for fixing: ${total}`);
-  //   debugger;
+  debugger;
 
   for (let index = 0; index < nodeUuidsArr.length; index++) {
     let nodeUuid = nodeUuidsArr[index];
@@ -97,7 +96,7 @@ async function fixByNodeUuids({
         const commitId = ascendingVersions[nodeVersIdx]?.commitId;
         // const manifestUrl = cleanupManifestUrl(manifestCid);
 
-        cLogger.info(`[fixByNodeUuids] Fixing version: ${nodeVersIdx}, with commitId: ${commitId}`);
+        cLogger.info(`[fixByNodeUuids] Fixing version: ${nodeVersIdx + 1}, with commitId: ${commitId}`);
 
         if (createIjPublishStatusEntry) {
           // Add IJ publishStatus entry for the commitId
