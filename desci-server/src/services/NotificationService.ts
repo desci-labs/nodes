@@ -6,12 +6,12 @@ import { CreateNotificationSchema } from '../controllers/notifications/create.js
 import { GetNotificationsQuerySchema, PaginatedResponse } from '../controllers/notifications/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { server } from '../server.js';
-import { emitWebsocketEvent, WebSocketEventType } from '../utils/websocketHelpers.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { getDpidFromNode, getDpidFromNodeUuid } from './node.js';
 import { PublishServices } from './PublishServices.js';
+import { emitWebsocketEvent, WebSocketEventType } from './websocketService.js';
 
 type GetNotificationsQuery = z.infer<typeof GetNotificationsQuerySchema>;
 export type CreateNotificationData = z.infer<typeof CreateNotificationSchema>;

@@ -1,6 +1,5 @@
 import { DataType, EmailType, Node, NodeContribution, NodeVersion, Prisma, PublishStatus, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
-import { update } from 'lodash';
 
 import { prisma } from '../client.js';
 import { getNodeVersion } from '../controllers/communities/util.js';
