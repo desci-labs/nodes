@@ -9,6 +9,7 @@ import { checkIfPublishedNode } from '../../controllers/nodes/checkIfPublishedNo
 import { checkNodeAccess } from '../../controllers/nodes/checkNodeAccess.js';
 import { addContributor } from '../../controllers/nodes/contributions/create.js';
 import { deleteContributor } from '../../controllers/nodes/contributions/delete.js';
+import { denyContribution } from '../../controllers/nodes/contributions/deny.js';
 import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
 import { getUserContributions } from '../../controllers/nodes/contributions/getUserContributions.js';
 import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
@@ -129,6 +130,7 @@ router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
 router.post('/contributions/node/:uuid', [attachUser], getNodeContributions);
 router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addContributor);
 router.patch('/contributions/verify', [ensureUser], verifyContribution);
+router.patch('/contributions/deny', [ensureUser], denyContribution);
 router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], updateContributor);
 router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], deleteContributor);
 router.get('/contributions/user/:userId', [], getUserContributions);

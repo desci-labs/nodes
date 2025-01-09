@@ -15,6 +15,7 @@ export type NodeContributorMapAuthed = Record<ContributorId, NodeContributorAuth
 export interface NodeContributor {
   name: string | undefined;
   verified: boolean;
+  denied: boolean;
   userId: number;
   deleted: boolean;
   deletedAt: string;
@@ -175,6 +176,7 @@ class ContributorService {
       acc[contributor.contributorId] = {
         name: contributor.user?.name,
         verified: !!contributor.verified,
+        denied: !!contributor.denied,
         userId: contributor.user?.id,
         deleted: contributor.deleted,
         deletedAt: contributor.deletedAt,
@@ -307,10 +309,40 @@ class ContributorService {
     if (verified) {
       const updated = await prisma.nodeContribution.update({
         where: { id: contribution.id },
-        data: { verified: true },
+        data: { verified: true, denied: false },
       });
       if (updated) return true;
     }
+
+    return false;
+  }
+
+  async denyContribution(user: User, contributorId: string): Promise<boolean> {
+    if (!contributorId) throw Error('contributorId required');
+    const contribution = await prisma.nodeContribution.findUnique({ where: { contributorId } });
+    if (!contribution) throw Error('Invalid contributorId');
+
+    const contributionPointsToUser =
+      contribution.email === user.email || contribution.orcid === user.orcid || contribution.userId === user.id;
+    if (!contributionPointsToUser) throw Error('Unauthorized to deny contribution');
+
+    const userHasOrcidValidated = user.orcid !== undefined && user.orcid !== null;
+
+    const contributionOrcidMatchesUser = userHasOrcidValidated && contribution.orcid === user.orcid;
+    const contributorEmailMatchesUser = user.email === contribution.email;
+    const contributionUserIdMatchesUser = user.id === contribution.userId;
+    const verified = contributorEmailMatchesUser || contributionOrcidMatchesUser || contributionUserIdMatchesUser;
+    if (!verified) return false;
+
+    const updated = await prisma.nodeContribution.update({
+      where: { id: contribution.id },
+      data: { denied: true, verified: false },
+    });
+
+    const node = await prisma.node.findUnique({ where: { id: contribution.nodeId } });
+    this.removePrivShareCodeForContribution(updated, node);
+
+    if (updated) return true;
 
     return false;
   }
