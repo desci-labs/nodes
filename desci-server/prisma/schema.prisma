@@ -53,6 +53,7 @@ model Node {
   DeferredEmails       DeferredEmails[]
   UserNotifications    UserNotifications[]
   Annotation           Annotation[]
+  PublishStatus        PublishStatus[]
   ExternalPublications ExternalPublications[]
 
   @@index([ownerId])
@@ -71,6 +72,7 @@ model NodeVersion {
   node                Node?                 @relation(fields: [nodeId], references: [id])
   PublicDataReference PublicDataReference[]
   DataReference       DataReference[]
+  PublishStatus       PublishStatus[]
 }
 
 model InteractionLog {
@@ -935,6 +937,31 @@ model UserNotifications {
   dismissed Boolean          @default(false)
   node      Node?            @relation(fields: [nodeUuid], references: [uuid])
   user      User             @relation(fields: [userId], references: [id])
+}
+
+model PublishStatus {
+  id                     Int          @id @default(autoincrement())
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  nodeUuid               String
+  version                Int
+  versionId              Int?
+  commitId               String?      @unique
+  manifestCid            String?
+  ceramicCommit          Boolean?
+  assignDpid             Boolean?
+  handleNodeVersionEntry Boolean?
+  createPdr              Boolean?
+  fireDeferredEmails     Boolean?
+  fireNotifications      Boolean?
+  updateAttestations     Boolean?
+  transformDraftComments Boolean?
+  triggerDoiMint         Boolean?
+  nodeVersion            NodeVersion? @relation(fields: [versionId], references: [id])
+  node                   Node         @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, version])
+  @@index([nodeUuid])
 }
 
 model ExternalPublications {

@@ -10,7 +10,7 @@ import { ensureUuidEndsWithDot, hexToCid, toKebabCase } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { pinFile } from './ipfs.js';
-import { publishServices } from './PublishServices.js';
+import { PublishServices } from './PublishServices.js';
 import { CidString, HeightPx } from './Thumbnails.js';
 
 export type PrepareDistributionPdfParams = {
@@ -74,7 +74,7 @@ class PublishPackageService {
 
     const publishTime = demoMode
       ? Date.now().toString().slice(0, 10)
-      : (await publishServices.retrieveBlockTimeByManifestCid(nodeUuid, usedManifestCid)).slice(0, 10);
+      : (await PublishServices.retrieveBlockTimeByManifestCid(nodeUuid, usedManifestCid)).slice(0, 10);
 
     const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);
     const authors = manifest.authors?.map((author) => author.name);

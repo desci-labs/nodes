@@ -55,7 +55,7 @@ async function invalidateAll() {
   logger.info('[invalidateAll] Wiped all keys from cache');
 }
 
-async function invalidateByUuid({ nodeUuid }: { nodeUuid: string }) {
+export async function invalidateByUuid({ nodeUuid }: { nodeUuid: string }) {
   // Find all published versions of the node
   if (!nodeUuid.endsWith('.')) nodeUuid += '.';
   const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
@@ -68,8 +68,10 @@ async function invalidateByUuid({ nodeUuid }: { nodeUuid: string }) {
   const totalVersionsIndexed = indexedNode.versions.length || 0;
   try {
     for (let nodeVersIdx = 0; nodeVersIdx < totalVersionsIndexed; nodeVersIdx++) {
+      const txHash = indexedNode.versions[nodeVersIdx]?.id;
+      const commitId = indexedNode.versions[nodeVersIdx]?.commitId;
       logger.info(
-        `[invalidateByUuid] Deleting keys for indexed version: ${nodeVersIdx}, with txHash: ${indexedNode.versions[nodeVersIdx]?.id}`,
+        `[invalidateByUuid] Deleting keys for indexed version: ${nodeVersIdx}, with ${txHash ? 'txHash: ' + txHash : 'commitId: ' + commitId}`,
       );
       const hexCid = indexedNode.versions[nodeVersIdx]?.cid || indexedNode.recentCid;
       const manifestCid = hexToCid(hexCid);
@@ -117,4 +119,10 @@ async function deleteKeys(pattern: string) {
   logger.info({ pattern }, `All matching keys deleted.`);
 }
 
-main();
+const runAsScript =
+  process.argv[0].includes('/bin/node') && process.argv[1].includes('scripts/invalidate-redis-cache.ts');
+console.log(process.argv);
+
+if (runAsScript) {
+  main();
+}
