@@ -1679,7 +1679,7 @@ describe('Attestations Service', async () => {
         .set('authorization', authHeaderVal)
         .field('communityId', desciCommunity.id);
 
-      apiResponse = res.body.data;
+      apiResponse = res.body.data.data;
       console.log(apiResponse[0]);
       console.log(apiResponse[1]);
       console.log(apiResponse[2]);
@@ -2079,7 +2079,7 @@ describe('Attestations Service', async () => {
         .get(`/v1/communities/${desciCommunity.id}/radar`)
         .set('authorization', authHeaderVal)
         .field('communityId', desciCommunity.id);
-      const radar = res1.body.data as NodeRadar[];
+      const radar = res1.body.data.data as NodeRadar[];
       expect(res1.status).to.equal(200);
       expect(radar.length).to.equal(1);
       const radarNode = radar[0];
