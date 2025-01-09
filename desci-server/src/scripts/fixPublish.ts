@@ -3,7 +3,7 @@ import { logger as parentLogger } from '../logger.js';
 import { redisClient } from '../redisClient.js';
 import { publishSequencer, PublishServices } from '../services/PublishServices.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
-import { hexToCid } from '../utils.js';
+import { ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 
 import { invalidateByUuid } from './invalidate-redis-cache.js';
 
@@ -96,7 +96,12 @@ async function fixByNodeUuids({
         cLogger.info(`[fixByNodeUuids] Fixing version: ${nodeVersIdx + 1}, with commitId: ${commitId}`);
 
         if (createIjPublishStatusEntry) {
-          // Add IJ publishStatus entry for the commitId
+          // Add IJ publishStatus entry for the commitId + remove existing PDRs
+          const node = await prisma.node.findUnique({
+            where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
+            select: { id: true },
+          });
+          await prisma.publicDataReference.deleteMany({ where: { nodeId: node.id } });
           await addIjPublishStatusEntry({ commitId, version: nodeVersIdx + 1, nodeUuid, manifestCid });
         }
 
