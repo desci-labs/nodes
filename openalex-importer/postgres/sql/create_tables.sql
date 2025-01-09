@@ -579,12 +579,12 @@ CREATE TABLE openalex."works_batch"
 
 
 -- AddForeignKey
-ALTER TABLE "works_batch" ADD CONSTRAINT "works_batch_work_id_fkey" FOREIGN KEY ("work_id") REFERENCES "works"("id")
+ALTER TABLE openalex."works_batch" ADD CONSTRAINT "works_batch_work_id_fkey" FOREIGN KEY ("work_id") REFERENCES openalex."works"("id")
 ON DELETE RESTRICT ON
 UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "works_batch" ADD CONSTRAINT "works_batch_batch_id_fkey" FOREIGN KEY ("batch_id") REFERENCES "batch"("id")
+ALTER TABLE openalex."works_batch" ADD CONSTRAINT "works_batch_batch_id_fkey" FOREIGN KEY ("batch_id") REFERENCES openalex."batch"("id")
 ON DELETE RESTRICT ON
 UPDATE CASCADE;
 
