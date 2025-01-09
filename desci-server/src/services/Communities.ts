@@ -233,7 +233,7 @@ export class CommunityService {
           verifications ASC,
           cre."createdAt" DESC
       LIMIT
-          ${limit};
+          ${limit}
       OFFSET ${offset};
       `;
 

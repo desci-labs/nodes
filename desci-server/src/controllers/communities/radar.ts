@@ -4,11 +4,12 @@ import _ from 'lodash';
 
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getCommunityFeedSchema } from '../../routes/v1/communities/schema.js';
 import { attestationService } from '../../services/Attestation.js';
 import { communityService } from '../../services/Communities.js';
 import { asyncMap } from '../../utils.js';
 
-import { resolveLatestNode } from './util.js';
+import { getCommunityNodeDetails, resolveLatestNode } from './util.js';
 
 const logger = parentLogger.child({ module: 'GET COMMUNITY RADAR' });
 export const getCommunityRadar = async (req: Request, res: Response, next: NextFunction) => {
@@ -62,15 +63,20 @@ export const getCommunityRadar = async (req: Request, res: Response, next: NextF
 };
 
 export const listCommunityRadar = async (req: Request, res: Response, next: NextFunction) => {
+  const { query, params } = await getCommunityFeedSchema.parseAsync(req);
+  const limit = 20;
+  const page = Math.max(Math.max((query.cursor ?? 0) - 1, 0), 0);
+  const offset = limit * page;
+
   const communityRadar = await communityService.listCommunityRadar({
-    communityId: parseInt(req.params.communityId as string),
-    offset: 0,
-    limit: 20,
+    communityId: parseInt(params.communityId.toString()),
+    offset,
+    limit,
   });
-  logger.info({ communityRadar }, 'Radar');
+  logger.trace({ offset, page, cursor: query.cursor }, 'Radar');
   // THIS is necessary because the engagement signal returned from getCommunityRadar
   // accounts for only engagements on community selected attestations
-  const nodes = await asyncMap(communityRadar, async (entry) => {
+  const entries = await asyncMap(communityRadar, async (entry) => {
     const engagements = await attestationService.getNodeEngagementSignalsByUuid(entry.nodeUuid);
     return {
       ...entry,
@@ -84,8 +90,7 @@ export const listCommunityRadar = async (req: Request, res: Response, next: Next
   });
 
   // rank nodes by sum of sum of verified and non verified signals
-
-  logger.info({ nodes }, 'CHECK Verification SignalS');
-
-  return new SuccessResponse(nodes).send(res);
+  const data = await Promise.all(entries.map(getCommunityNodeDetails));
+  // logger.trace({ count: data.length }, 'listCommunityRadar');
+  return new SuccessResponse({ count: data.length, cursor: page + 1, data }).send(res);
 };
