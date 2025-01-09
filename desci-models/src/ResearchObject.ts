@@ -43,6 +43,8 @@ export interface ResearchObjectV1 extends ResearchObject {
   dpid?: ResearchObjectV1Dpid;
   /** Research fields relevant for the publication */
   researchFields?: string[];
+  /** Keywords associated with the research object */
+  keywords?: string[];
   /** Contributors to this publication */
   authors?: ResearchObjectV1Author[];
 
