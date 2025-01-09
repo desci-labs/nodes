@@ -801,8 +801,8 @@ model NodeAttestation {
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
   OrcidPutCodes               OrcidPutCodes[]
-  CommunityRadarEntry         CommunityRadarEntry?          @relation(fields: [nodeUuid, desciCommunityId], references: [nodeUuid, desciCommunityId])
-  // communityRadarEntryId       Int?
+  CommunityRadarEntry         CommunityRadarEntry?          @relation(fields: [communityRadarEntryId], references: [id])
+  communityRadarEntryId       Int?
 
   @@unique([nodeUuid, nodeVersion, attestationId, attestationVersionId])
 }

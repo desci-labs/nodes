@@ -60,3 +60,32 @@ export const getCommunityRadar = async (req: Request, res: Response, next: NextF
 
   return new SuccessResponse(data).send(res);
 };
+
+export const listCommunityRadar = async (req: Request, res: Response, next: NextFunction) => {
+  const communityRadar = await communityService.listCommunityRadar({
+    communityId: parseInt(req.params.communityId as string),
+    offset: 0,
+    limit: 20,
+  });
+  logger.info({ communityRadar }, 'Radar');
+  // THIS is necessary because the engagement signal returned from getCommunityRadar
+  // accounts for only engagements on community selected attestations
+  const nodes = await asyncMap(communityRadar, async (entry) => {
+    const engagements = await attestationService.getNodeEngagementSignalsByUuid(entry.nodeUuid);
+    return {
+      ...entry,
+      engagements,
+      verifiedEngagements: {
+        reactions: entry.reactions,
+        annotations: entry.annotations,
+        verifications: entry.verifications,
+      },
+    };
+  });
+
+  // rank nodes by sum of sum of verified and non verified signals
+
+  logger.info({ nodes }, 'CHECK Verification SignalS');
+
+  return new SuccessResponse(nodes).send(res);
+};

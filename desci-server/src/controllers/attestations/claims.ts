@@ -9,6 +9,7 @@ import { logger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
 import { attestationService } from '../../services/Attestation.js';
+import { communityService } from '../../services/Communities.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
 import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
@@ -38,6 +39,8 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
   if (claim && claim.revoked) {
     const reclaimed = await attestationService.reClaimAttestation(claim.id);
     await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: reclaimed.id });
+    // trigger update radar entry
+    await communityService.addToRadar(reclaimed.desciCommunityId, reclaimed.nodeUuid);
     new SuccessResponse(reclaimed).send(res);
     return;
   }
@@ -48,6 +51,8 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     nodeUuid: uuid,
     attestationVersion: attestationVersion.id,
   });
+  // trigger update radar entry
+  await communityService.addToRadar(nodeClaim.desciCommunityId, nodeClaim.nodeUuid);
 
   await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: nodeClaim.id });
 
@@ -127,6 +132,9 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
     totalSignal > 0
       ? await attestationService.revokeAttestation(claim.id)
       : await attestationService.unClaimAttestation(claim.id);
+
+  // trigger update radar entry
+  await communityService.addToRadar(claim.desciCommunityId, claim.nodeUuid);
 
   await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
 

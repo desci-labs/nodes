@@ -1,6 +1,6 @@
 import { prisma } from '../client.js';
 import { logger } from '../logger.js';
-import { communityService } from '../services/Communities.js';
+// import { communityService } from '../services/Communities.js';
 
 const main = async () => {
   const nodeAttestations = await prisma.nodeAttestation.findMany({ where: { revoked: false } });
@@ -21,12 +21,20 @@ const main = async () => {
     }
 
     // check if node has claimed all community entry attestations
-    const entryAttestations = await communityService.getEntryAttestations({
-      desciCommunityId: nodeAttestation.desciCommunityId,
+    const entryAttestations = await prisma.communityEntryAttestation.findMany({
+      orderBy: { createdAt: 'asc' },
+      where: { desciCommunityId: nodeAttestation.desciCommunityId },
+      include: {
+        attestation: { select: { protected: true, community: { select: { name: true } } } },
+        // desciCommunity: { select: { name: true } },
+        attestationVersion: {
+          select: { id: true, attestationId: true, name: true, image_url: true, description: true },
+        },
+      },
     });
 
     const claimedAttestations = await prisma.nodeAttestation.findMany({
-      where: { desciCommunityId: nodeAttestation.desciCommunityId, nodeUuid: nodeAttestation.nodeUuid },
+      where: { desciCommunityId: nodeAttestation.desciCommunityId, nodeUuid: nodeAttestation.nodeUuid, revoked: false },
     });
 
     const isEntriesClaimed = entryAttestations.every((entry) =>
@@ -49,13 +57,20 @@ const main = async () => {
     }
     // End check if node has claimed all community entry attestations
 
-    await prisma.communityRadarEntry.create({
+    const radarEntry = await prisma.communityRadarEntry.create({
       data: {
         desciCommunityId: nodeAttestation.desciCommunityId,
         nodeUuid: nodeAttestation.nodeUuid,
       },
     });
     radarCount++;
+
+    const claims = await prisma.$transaction(
+      claimedAttestations.map((claim) =>
+        prisma.nodeAttestation.update({ where: { id: claim.id }, data: { communityRadarEntryId: radarEntry.id } }),
+      ),
+    );
+    logger.info({ rows: claims.length }, 'Claims Updated');
   }
   logger.info({ radarCount }, 'Community radar fields: ');
   return radarCount;
