@@ -22,8 +22,6 @@ fixByNodeUuids:     OPERATION=fixByNodeUuids CREATE_IJ_PUBLISH_STATUS_ENTRIES=tr
 
 */
 async function main() {
-  // console.log('entered main');
-  debugger;
   logger.info(`[fixPublish]Starting fixPublish script`);
   try {
     const {
@@ -70,7 +68,6 @@ async function fixByNodeUuids({
   const nodeUuidsArr = nodeUuids.split(',');
   const total = nodeUuidsArr.length;
   logger.info(`[fixByNodeUuids] nodeUuids loaded for fixing: ${total}`);
-  debugger;
 
   for (let index = 0; index < nodeUuidsArr.length; index++) {
     let nodeUuid = nodeUuidsArr[index];
