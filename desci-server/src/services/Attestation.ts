@@ -677,6 +677,7 @@ export class AttestationService {
       links,
       uuid,
       visible,
+      createdAt: new Date(),
     };
     return this.createAnnotation(data);
   }
@@ -720,6 +721,7 @@ export class AttestationService {
       highlights: highlights.map((h) => JSON.stringify(h)),
       uuid,
       visible,
+      createdAt: new Date(),
     };
     return this.createAnnotation(data);
   }
@@ -867,7 +869,6 @@ export class AttestationService {
   }
 
   async getComments(filter: Prisma.AnnotationWhereInput) {
-    logger.info({ filter }, 'GET COMMENTS');
     return prisma.annotation.findMany({
       where: filter,
       include: {
