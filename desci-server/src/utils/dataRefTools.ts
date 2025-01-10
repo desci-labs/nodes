@@ -102,7 +102,7 @@ export async function generateDataReferences({
     if (markExternals) {
       dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
     } else {
-      dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
+      dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, true));
     }
   } else {
     const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
