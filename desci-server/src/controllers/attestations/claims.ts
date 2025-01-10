@@ -9,6 +9,7 @@ import { logger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
 import { attestationService } from '../../services/Attestation.js';
+import { communityService } from '../../services/Communities.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
 import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
@@ -21,9 +22,11 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     nodeDpid: string;
     claimerId: number;
   };
+
+  // TODO: verify attestationVersions[0] === latest
   const attestationVersions = await attestationService.getAttestationVersions(body.attestationId);
   const latest = attestationVersions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const attestationVersion = latest[0];
+  const attestationVersion = attestationVersions[0];
   logger.info({ body, latest, attestationVersion }, 'CLAIM');
   const uuid = ensureUuidEndsWithDot(body.nodeUuid);
 
@@ -36,6 +39,8 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
   if (claim && claim.revoked) {
     const reclaimed = await attestationService.reClaimAttestation(claim.id);
     await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: reclaimed.id });
+    // trigger update radar entry
+    await communityService.addToRadar(reclaimed.desciCommunityId, reclaimed.nodeUuid);
     new SuccessResponse(reclaimed).send(res);
     return;
   }
@@ -46,6 +51,8 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     nodeUuid: uuid,
     attestationVersion: attestationVersion.id,
   });
+  // trigger update radar entry
+  await communityService.addToRadar(nodeClaim.desciCommunityId, nodeClaim.nodeUuid);
 
   await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: nodeClaim.id });
 
@@ -126,6 +133,9 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
       ? await attestationService.revokeAttestation(claim.id)
       : await attestationService.unClaimAttestation(claim.id);
 
+  // trigger update radar entry
+  await communityService.removeFromRadar(claim.desciCommunityId, claim.nodeUuid);
+
   await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
 
   logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
@@ -181,6 +191,8 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     nodeUuid: uuid,
     attestations: claims,
   });
+  // trigger update radar entry
+  await communityService.addToRadar(communityId, uuid);
 
   await saveInteraction(req, ActionType.CLAIM_ENTRY_ATTESTATIONS, {
     communityId,

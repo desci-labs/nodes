@@ -22,7 +22,7 @@ import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { NodeAttestationFragment } from '../../src/controllers/attestations/show.js';
-import { Engagement, NodeRadar, NodeRadarItem } from '../../src/controllers/communities/types.js';
+import { Engagement, NodeRadar, NodeRadarEntry, NodeRadarItem } from '../../src/controllers/communities/types.js';
 import {
   DuplicateReactionError,
   DuplicateVerificationError,
@@ -129,7 +129,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe('Attestations Service', async () => {
+describe.only('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -264,6 +264,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node.uuid);
 
       // publish new node version
       nodeVersion2 = await prisma.nodeVersion.create({
@@ -1567,7 +1569,7 @@ describe('Attestations Service', async () => {
     let fairMetadataAttestationVersion: AttestationVersion;
 
     let res: request.Response;
-    let apiResponse: NodeRadar[];
+    let apiResponse: NodeRadarEntry[];
 
     before(async () => {
       node = nodes[0];
@@ -1621,6 +1623,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node.uuid);
 
       // claim all entry requirements for node 2
       [claim2, openDataAttestationClaim2] = await attestationService.claimAttestations({
@@ -1639,6 +1643,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author2.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node2.uuid);
 
       // claim all entry requirements for node 3
       [claim3, openDataAttestationClaim3] = await attestationService.claimAttestations({
@@ -1657,6 +1663,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author3.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node3.uuid);
 
       // verify both claims for node 1
       await attestationService.verifyClaim(claim.id, users[3].id);
@@ -1679,7 +1687,7 @@ describe('Attestations Service', async () => {
         .set('authorization', authHeaderVal)
         .field('communityId', desciCommunity.id);
 
-      apiResponse = res.body.data;
+      apiResponse = res.body.data.data;
       console.log(apiResponse[0]);
       console.log(apiResponse[1]);
       console.log(apiResponse[2]);
@@ -1696,9 +1704,9 @@ describe('Attestations Service', async () => {
     it('should return nodes in radar in ASC order of verified engagements sorted by last submission/claim date', async () => {
       expect(res.status).to.equal(200);
       expect(apiResponse.length).to.equal(3);
-      expect(apiResponse[0].nodeDpid10).to.be.equal('2');
-      expect(apiResponse[1].nodeDpid10).to.be.equal('3');
-      expect(apiResponse[2].nodeDpid10).to.be.equal('1');
+      expect(apiResponse[0].nodeUuid).to.be.equal(node2.uuid);
+      expect(apiResponse[1].nodeUuid).to.be.equal(node3.uuid);
+      expect(apiResponse[2].nodeUuid).to.be.equal(node.uuid);
     });
   });
 
@@ -2003,6 +2011,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node.uuid);
 
       [claim2, openDataAttestationClaim2] = await attestationService.claimAttestations({
         attestations: [
@@ -2020,6 +2030,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author2.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node2.uuid);
 
       // verify both claims for node 1
       await attestationService.verifyClaim(claim.id, users[1].id);
@@ -2074,24 +2086,26 @@ describe('Attestations Service', async () => {
       expect(communityEngagementSignal.reactions).to.equal(0);
     });
 
-    it('should remove node from radar and curated if an entry attestation claim is revoked', async () => {
+    it('should remove node from radar and curated if claim is revoked', async () => {
       const res1 = await request(app)
         .get(`/v1/communities/${desciCommunity.id}/radar`)
         .set('authorization', authHeaderVal)
         .field('communityId', desciCommunity.id);
-      const radar = res1.body.data as NodeRadar[];
+      console.log('radar', res1.body);
+      const radar = res1.body.data.data as NodeRadarEntry[];
       expect(res1.status).to.equal(200);
       expect(radar.length).to.equal(1);
       const radarNode = radar[0];
-      expect(radarNode.nodeDpid10).to.be.equal('2');
-      expect(radarNode.nodeuuid).to.be.equal(node2.uuid);
+      // expect(radarNode.nodeDpid10).to.be.equal('2');
+      expect(radarNode.nodeUuid).to.be.equal(node2.uuid);
 
       const res = await request(app)
         .get(`/v1/communities/${desciCommunity.id}/feed`)
         .set('authorization', authHeaderVal)
         .field('communityId', desciCommunity.id);
 
-      const curatedNodes = res.body.data as NodeRadar[];
+      console.log('feed', res.body);
+      const curatedNodes = res.body.data.data as NodeRadarEntry[];
       expect(res.status).to.equal(200);
       expect(curatedNodes.length).to.equal(0);
     });
