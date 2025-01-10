@@ -856,7 +856,7 @@ model Annotation {
   node              Node?            @relation(fields: [uuid], references: [uuid])
   visible           Boolean          @default(true)
   createdAt         DateTime?
-  updatedAt         DateTime         @updatedAt
+  updatedAt         DateTime?        @updatedAt
 }
 
 //An emoji reaction to a node
