@@ -116,7 +116,7 @@ async function fixByNodeUuids({
 
       if (invalidateCache) {
         // Invalidate cache for the node once every version is repaired
-        invalidateByUuid({ nodeUuid });
+        await invalidateByUuid({ nodeUuid });
       }
     } catch (e) {
       cLogger.info({ error: e }, `[fixByNodeUuids] Failed`);
