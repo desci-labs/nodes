@@ -55,6 +55,7 @@ model Node {
   Annotation           Annotation[]
   PublishStatus        PublishStatus[]
   ExternalPublications ExternalPublications[]
+  CommunityRadarEntry  CommunityRadarEntry[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -699,6 +700,7 @@ model DesciCommunity {
   NodeAttestation           NodeAttestation[]
   AttestationTemplate       AttestationTemplate[]
   CommunityEntryAttestation CommunityEntryAttestation[]
+  CommunityRadarEntry       CommunityRadarEntry[]
 }
 
 model CommunityMember {
@@ -801,8 +803,23 @@ model NodeAttestation {
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
   OrcidPutCodes               OrcidPutCodes[]
+  CommunityRadarEntry         CommunityRadarEntry?          @relation(fields: [communityRadarEntryId], references: [id])
+  communityRadarEntryId       Int?
 
   @@unique([nodeUuid, nodeVersion, attestationId, attestationVersionId])
+}
+
+model CommunityRadarEntry {
+  id               Int               @id @default(autoincrement())
+  desciCommunityId Int
+  community        DesciCommunity    @relation(fields: [desciCommunityId], references: [id])
+  nodeUuid         String
+  node             Node              @relation(fields: [nodeUuid], references: [uuid])
+  nodeAttestations NodeAttestation[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([nodeUuid, desciCommunityId])
 }
 
 // Deferred emails are usually used when a published node is required, e.g. unpublished attestation claims, emails are deferred until node is published.

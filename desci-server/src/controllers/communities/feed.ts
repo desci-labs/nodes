@@ -1,14 +1,16 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
+import z from 'zod';
 
 import { NotFoundError } from '../../core/ApiError.js';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getCommunityFeedSchema } from '../../routes/v1/communities/schema.js';
 import { attestationService } from '../../services/Attestation.js';
 import { communityService } from '../../services/Communities.js';
 import { asyncMap } from '../../utils.js';
 
-import { resolveLatestNode } from './util.js';
+import { getCommunityNodeDetails, resolveLatestNode } from './util.js';
 
 const logger = parentLogger.child({ module: 'communities/feed.ts' });
 
@@ -44,6 +46,38 @@ export const getCommunityFeed = async (req: Request, res: Response, next: NextFu
     })
     .reverse();
   return new SuccessResponse(data).send(res);
+};
+
+export const listCommunityFeed = async (req: Request, res: Response, next: NextFunction) => {
+  const { query, params } = await getCommunityFeedSchema.parseAsync(req);
+  const limit = 20;
+  const page = Math.max(Math.max((query.cursor ?? 0) - 1, 0), 0);
+  const offset = limit * page;
+
+  const curatedNodes = await communityService.listCommunityCuratedFeed({
+    communityId: parseInt(params.communityId.toString()),
+    offset,
+    limit,
+  });
+  logger.trace({ offset, page, cursor: query.cursor }, 'Feed');
+  // THIS is necessary because the engagement signal returned from getcuratedNodes
+  // accounts for only engagements on community selected attestations
+  const entries = await asyncMap(curatedNodes, async (entry) => {
+    const engagements = await attestationService.getNodeEngagementSignalsByUuid(entry.nodeUuid);
+    return {
+      ...entry,
+      engagements,
+      verifiedEngagements: {
+        reactions: entry.reactions,
+        annotations: entry.annotations,
+        verifications: entry.verifications,
+      },
+    };
+  });
+
+  const data = await Promise.all(entries.map(getCommunityNodeDetails));
+  // logger.info({ count: data.length, page: offset }, 'listCommunityFeed');
+  return new SuccessResponse({ count: data.length, cursor: page + 1, data }).send(res);
 };
 
 export const getCommunityDetails = async (req: Request, res: Response, next: NextFunction) => {
