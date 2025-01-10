@@ -87,6 +87,7 @@ export const getCommunityNodeDetails = async (
       uuid: true,
       title: true,
       NodeCover: true,
+      dpidAlias: true,
     },
   });
 

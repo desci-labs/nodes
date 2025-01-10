@@ -134,7 +134,7 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
       : await attestationService.unClaimAttestation(claim.id);
 
   // trigger update radar entry
-  await communityService.addToRadar(claim.desciCommunityId, claim.nodeUuid);
+  await communityService.removeFromRadar(claim.desciCommunityId, claim.nodeUuid);
 
   await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
 
@@ -191,6 +191,8 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     nodeUuid: uuid,
     attestations: claims,
   });
+  // trigger update radar entry
+  await communityService.addToRadar(communityId, uuid);
 
   await saveInteraction(req, ActionType.CLAIM_ENTRY_ATTESTATIONS, {
     communityId,

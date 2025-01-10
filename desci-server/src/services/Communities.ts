@@ -518,8 +518,15 @@ export class CommunityService {
 
     if (!isEntriesClaimed) return undefined;
 
-    const radarEntry = await prisma.communityRadarEntry.create({
-      data: {
+    const radarEntry = await prisma.communityRadarEntry.upsert({
+      where: {
+        nodeUuid_desciCommunityId: { desciCommunityId, nodeUuid },
+      },
+      create: {
+        nodeUuid,
+        desciCommunityId,
+      },
+      update: {
         desciCommunityId,
         nodeUuid,
       },
