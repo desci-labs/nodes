@@ -30,12 +30,12 @@ const PUB_IPFS_URL = process.env.PUBLIC_IPFS_RESOLVER || 'https://pub.desci.com/
 
 async function indexResearchObject(nodeUuid: string) {
   nodeUuid = unpadUuid(nodeUuid);
-  debugger;
   try {
     const workId = NODES_ID_PREFIX + nodeUuid;
 
     const workData = await fillNodeData(nodeUuid);
 
+    debugger;
     await elasticClient.index({
       index: 'works_nodes_v1',
       id: workId,
@@ -69,8 +69,8 @@ async function fillNodeData(nodeUuid: string) {
 
   const citedByCount = 0; // Get from external publication data
 
+  debugger;
   const aiData = await getAiData(manifest);
-
   const workData = {
     title: node.title,
     doi,
@@ -120,6 +120,8 @@ interface AiApiResult {
   error?: string;
 }
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function getAiData(manifest: ResearchObjectV1) {
   try {
     debugger;
@@ -156,9 +158,16 @@ async function getAiData(manifest: ResearchObjectV1) {
       },
     });
 
-    const resultRes = await axios.get(
-      `${process.env.NEXT_PUBLIC_SCORE_RESULT_API}/prod/get-result?UploadedFileName=${s3FileName}`,
-    );
+    debugger;
+    const resultUrl = `${process.env.NEXT_PUBLIC_SCORE_RESULT_API}/prod/get-result?UploadedFileName=${s3FileName}`;
+    let resultRes;
+    do {
+      resultRes = await axios.get(resultUrl);
+    } while (resultRes.data && resultRes?.data.status !== 'SUCCEEDED' && resultRes.data.status !== 'FAILED');
+    {
+      resultRes = await axios.get(resultUrl);
+      await delay(1500);
+    }
 
     const data = resultRes.data as any;
 
