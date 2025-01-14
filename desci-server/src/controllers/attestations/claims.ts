@@ -7,6 +7,7 @@ import { AuthFailureError, NotFoundError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
+import { delFromCache } from '../../redisClient.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
 import { attestationService } from '../../services/Attestation.js';
 import { communityService } from '../../services/Communities.js';
@@ -41,6 +42,10 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: reclaimed.id });
     // trigger update radar entry
     await communityService.addToRadar(reclaimed.desciCommunityId, reclaimed.nodeUuid);
+    // invalidate radar and curated feed count cache
+    await delFromCache(`radar-${reclaimed.desciCommunityId}-count`);
+    await delFromCache(`curated-${reclaimed.desciCommunityId}-count`);
+
     new SuccessResponse(reclaimed).send(res);
     return;
   }
@@ -53,6 +58,9 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
   });
   // trigger update radar entry
   await communityService.addToRadar(nodeClaim.desciCommunityId, nodeClaim.nodeUuid);
+  // invalidate radar and curated feed count cache
+  await delFromCache(`radar-${nodeClaim.desciCommunityId}-count`);
+  await delFromCache(`curated-${nodeClaim.desciCommunityId}-count`);
 
   await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: nodeClaim.id });
 
@@ -193,6 +201,9 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
   });
   // trigger update radar entry
   await communityService.addToRadar(communityId, uuid);
+  // invalidate radar and curated feed count cache
+  await delFromCache(`radar-${communityId}-count`);
+  await delFromCache(`curated-${communityId}-count`);
 
   await saveInteraction(req, ActionType.CLAIM_ENTRY_ATTESTATIONS, {
     communityId,

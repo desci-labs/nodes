@@ -4,6 +4,7 @@ import _ from 'lodash';
 
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getFromCache, redisClient, setToCache } from '../../redisClient.js';
 import { getCommunityFeedSchema } from '../../routes/v1/communities/schema.js';
 import { attestationService } from '../../services/Attestation.js';
 import { communityService } from '../../services/Communities.js';
@@ -65,15 +66,23 @@ export const getCommunityRadar = async (req: Request, res: Response, next: NextF
 export const listCommunityRadar = async (req: Request, res: Response, next: NextFunction) => {
   const { query, params } = await getCommunityFeedSchema.parseAsync(req);
   const limit = 20;
-  const page = Math.max(Math.max((query.cursor ?? 0) - 1, 0), 0);
+  const page = Math.max(Math.max((query.page ?? 0) - 1, 0), 0);
   const offset = limit * page;
+
+  let totalCount = await getFromCache<number>(`radar-${params.communityId}-count`);
+  if (!totalCount) {
+    totalCount = await communityService.countCommunityRadar(parseInt(params.communityId.toString()));
+    logger.trace({ totalCount }, 'RadarCount');
+    setToCache(`radar-${params.communityId}-count`, totalCount);
+  }
 
   const communityRadar = await communityService.listCommunityRadar({
     communityId: parseInt(params.communityId.toString()),
     offset,
     limit,
   });
-  logger.trace({ offset, page, cursor: query.cursor }, 'Radar');
+
+  logger.trace({ offset, page, cursor: query.page }, 'Radar');
   // THIS is necessary because the engagement signal returned from getCommunityRadar
   // accounts for only engagements on community selected attestations
   const entries = await asyncMap(communityRadar, async (entry) => {
@@ -92,5 +101,12 @@ export const listCommunityRadar = async (req: Request, res: Response, next: Next
   // rank nodes by sum of sum of verified and non verified signals
   const data = await Promise.all(entries.map(getCommunityNodeDetails));
   // logger.trace({ count: data.length }, 'listCommunityRadar');
-  return new SuccessResponse({ count: data.length, cursor: page + 1, data }).send(res);
+
+  return new SuccessResponse({
+    data,
+    count: totalCount,
+    page: page + 1,
+    nextPage: data.length === limit ? page + 2 : undefined,
+    communityId: params.communityId,
+  }).send(res);
 };

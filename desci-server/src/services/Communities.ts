@@ -184,6 +184,50 @@ export class CommunityService {
     return radar;
   }
 
+  async countCommunityRadar(desciCommunityId: number) {
+    const entryAttestations = await attestationService.getCommunityEntryAttestations(desciCommunityId);
+
+    const count = (await prisma.$queryRaw`
+      SELECT
+          count(*)
+      FROM
+          "CommunityRadarEntry" cre
+          LEFT JOIN (
+              SELECT
+                  Na."id",
+                  Na."communityRadarEntryId",
+                  Na."attestationId",
+                  Na."attestationVersionId"
+              FROM
+                  "NodeAttestation" Na
+                  LEFT JOIN "NodeAttestationVerification" Nav ON Na."id" = Nav."nodeAttestationId"
+              WHERE
+                  Na."revoked" = false
+                  AND Na."nodeDpid10" IS NOT NULL
+              GROUP BY
+                  Na."id",
+                  Na."communityRadarEntryId"
+          ) NaFiltered ON cre."id" = NaFiltered."communityRadarEntryId"
+      WHERE
+          EXISTS (
+              SELECT
+                  1
+              FROM
+                  "CommunityEntryAttestation" Cea
+              WHERE
+                  NaFiltered."attestationId" = Cea."attestationId"
+                  AND NaFiltered."attestationVersionId" = Cea."attestationVersionId"
+                  AND Cea."desciCommunityId" = ${desciCommunityId}
+                  AND Cea."required" = TRUE
+          )
+      GROUP BY
+          cre.id
+      HAVING
+          COUNT(DISTINCT NaFiltered."id") = ${entryAttestations.length}
+    `) as any[];
+    return count.length;
+  }
+
   async listCommunityRadar({ communityId, offset, limit }: { communityId: number; offset: number; limit: number }) {
     const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
     const entries = await prisma.$queryRaw`
@@ -238,6 +282,52 @@ export class CommunityService {
       `;
 
     return entries as RadarEntry[];
+  }
+
+  async countCommunityCuratedFeed(desciCommunityId: number) {
+    const entryAttestations = await attestationService.getCommunityEntryAttestations(desciCommunityId);
+
+    const count = (await prisma.$queryRaw`
+      SELECT
+          count(*)
+      FROM
+          "CommunityRadarEntry" cre
+          LEFT JOIN (
+              SELECT
+                  Na."id",
+                  Na."communityRadarEntryId",
+                  Na."attestationId",
+                  Na."attestationVersionId"
+              FROM
+                  "NodeAttestation" Na
+                  LEFT JOIN "NodeAttestationVerification" Nav ON Na."id" = Nav."nodeAttestationId"
+              WHERE
+                  Na."revoked" = false
+                  AND Na."nodeDpid10" IS NOT NULL
+              GROUP BY
+                  Na."id",
+                  Na."communityRadarEntryId"
+              HAVING
+                  COUNT(Nav."id") > 0
+          ) NaFiltered ON cre."id" = NaFiltered."communityRadarEntryId"
+      WHERE
+          EXISTS (
+              SELECT
+                  1
+              FROM
+                  "CommunityEntryAttestation" Cea
+              WHERE
+                  NaFiltered."attestationId" = Cea."attestationId"
+                  AND NaFiltered."attestationVersionId" = Cea."attestationVersionId"
+                  AND Cea."desciCommunityId" = ${desciCommunityId}
+                  AND Cea."required" = TRUE
+          )
+      GROUP BY
+          cre.id
+      HAVING
+          COUNT(DISTINCT NaFiltered."id") = ${entryAttestations.length}
+    `) as any[];
+    return count.length;
   }
 
   async listCommunityCuratedFeed({

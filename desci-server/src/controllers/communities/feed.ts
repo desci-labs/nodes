@@ -5,6 +5,7 @@ import z from 'zod';
 import { NotFoundError } from '../../core/ApiError.js';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getFromCache, setToCache } from '../../redisClient.js';
 import { getCommunityFeedSchema } from '../../routes/v1/communities/schema.js';
 import { attestationService } from '../../services/Attestation.js';
 import { communityService } from '../../services/Communities.js';
@@ -51,15 +52,22 @@ export const getCommunityFeed = async (req: Request, res: Response, next: NextFu
 export const listCommunityFeed = async (req: Request, res: Response, next: NextFunction) => {
   const { query, params } = await getCommunityFeedSchema.parseAsync(req);
   const limit = 20;
-  const page = Math.max(Math.max((query.cursor ?? 0) - 1, 0), 0);
+  const page = Math.max(Math.max((query.page ?? 0) - 1, 0), 0);
   const offset = limit * page;
+
+  let totalCount = await getFromCache<number>(`curated-${params.communityId}-count`);
+  if (!totalCount) {
+    totalCount = await communityService.countCommunityCuratedFeed(parseInt(params.communityId.toString()));
+    logger.trace({ totalCount }, 'FeedCount');
+    setToCache(`curated-${params.communityId}-count`, totalCount);
+  }
 
   const curatedNodes = await communityService.listCommunityCuratedFeed({
     communityId: parseInt(params.communityId.toString()),
     offset,
     limit,
   });
-  logger.trace({ offset, page, cursor: query.cursor }, 'Feed');
+  logger.trace({ offset, page }, 'Feed');
   // THIS is necessary because the engagement signal returned from getcuratedNodes
   // accounts for only engagements on community selected attestations
   const entries = await asyncMap(curatedNodes, async (entry) => {
@@ -77,7 +85,13 @@ export const listCommunityFeed = async (req: Request, res: Response, next: NextF
 
   const data = await Promise.all(entries.map(getCommunityNodeDetails));
   // logger.info({ count: data.length, page: offset }, 'listCommunityFeed');
-  return new SuccessResponse({ count: data.length, cursor: page + 1, data }).send(res);
+  return new SuccessResponse({
+    data,
+    page: page + 1,
+    count: totalCount,
+    nextPage: data.length === limit ? page + 2 : undefined,
+    communityId: params.communityId,
+  }).send(res);
 };
 
 export const getCommunityDetails = async (req: Request, res: Response, next: NextFunction) => {
