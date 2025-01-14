@@ -2,8 +2,19 @@
  ** This service contains functionality for indexing published nodes on ElasticSearch
  */
 
+import {
+  PdfComponent,
+  ResearchObjectComponentDocumentSubtype,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+  ResearchObjectV1Component,
+} from '@desci-labs/desci-models';
+import axios from 'axios';
+
 import { prisma } from '../client.js';
+import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { elasticClient } from '../elasticSearchClient.js';
+import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { unpadUuid } from '../utils.js';
 
@@ -11,6 +22,11 @@ import { getManifestFromNode } from './data/processing.js';
 
 export const NODES_INDEX = 'works_nodes_v1';
 const NODES_ID_PREFIX = 'nodes/';
+
+const logger = parentLogger.child({ module: 'Services::ElasticNodesService' });
+
+const IPFS_URL = PUBLIC_IPFS_PATH; // Confusing, but refers to priv swarm IPFS public gateway
+const PUB_IPFS_URL = process.env.PUBLIC_IPFS_RESOLVER || 'https://pub.desci.com/ipfs';
 
 async function indexResearchObject(nodeUuid: string) {
   nodeUuid = unpadUuid(nodeUuid);
@@ -52,6 +68,8 @@ async function fillNodeData(nodeUuid: string) {
 
   const citedByCount = 0; // Get from external publication data
 
+  const aiData = await getAiData(manifest);
+
   const workData = {
     title: node.title,
     doi,
@@ -63,11 +81,104 @@ async function fillNodeData(nodeUuid: string) {
     is_retracted: false,
     is_paratext: false,
     language: 'en', // Later update with some ML tool
-    content_novelty_percentile: 0,
-    context_novelty_percentile: 0,
+    content_novelty_percentile: aiData ? aiData.contentNovelty.percentile : 0,
+    context_novelty_percentile: aiData ? aiData.contextNovelty.percentile : 0,
   };
 
   return workData;
+}
+
+interface AiApiResult {
+  UploadedFileName: string;
+  status: 'SUCCEEDED' | 'RUNNING' | 'FAILED';
+  result: {
+    predictions: {
+      content: { novelty_score: number; percentile: number };
+      context: { novelty_score: number; percentile: number };
+    };
+    info: string;
+  };
+  modelVersion?: string;
+  apiVersion?: string;
+  concepts?: {
+    concept_ids: string[];
+    concept_scores: number[];
+    concept_names: string[];
+  };
+  topics?: {
+    topic_ids: string[];
+    topic_scores: number[];
+    topic_names: string[];
+  };
+  references?: {
+    work_ids: string[];
+    source_ids: string[];
+    source_names: string[];
+    source_scores: number[];
+  };
+  error?: string;
+}
+
+async function getAiData(manifest: ResearchObjectV1) {
+  try {
+    const firstManuscript = manifest.components.find(
+      (c) =>
+        c.type === ResearchObjectComponentType.PDF &&
+        (c as PdfComponent).subtype === ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
+    );
+    const firstManuscriptCid = firstManuscript.payload.cid || firstManuscript.payload.url; // Old PDF payloads used .url field for CID
+
+    const fileName = firstManuscriptCid + '.pdf';
+    const presignedUrlEndpoint = `${process.env.NEXT_PUBLIC_SCORE_GEN_SERVER}/prod/gen-s3-url?file_name=${fileName}`;
+
+    const presignedUrlData = await axios.get(presignedUrlEndpoint);
+    const { url: presignedUrl, UploadedFileName: s3FileName } = presignedUrlData.data as {
+      url: string;
+      UploadedFileName: string;
+    };
+
+    const external = false; // TODO: Add external handling
+
+    const pdfUrl = external ? `${PUB_IPFS_URL}/${firstManuscriptCid}` : `${IPFS_URL}/${firstManuscriptCid}`;
+    const pdfRes = await axios({
+      url: pdfUrl,
+      method: 'GET',
+      responseType: 'blob',
+    });
+    const pdfBlob = new Blob([pdfRes.data]);
+
+    // Upload the PDF
+    await axios.put(presignedUrl as string, pdfBlob, {
+      headers: {
+        'Content-Type': 'application/pdf',
+      },
+    });
+
+    const resultRes = await axios.get(
+      `${process.env.NEXT_PUBLIC_SCORE_RESULT_API}/prod/get-result?UploadedFileName=${s3FileName}`,
+    );
+
+    const data = resultRes.data as any;
+
+    const deserializedData: AiApiResult = {
+      ...data,
+      ...(data.result ? { result: JSON.parse(data.result) } : {}),
+      ...(data.concepts ? { concepts: JSON.parse(data.concepts) } : {}),
+      ...(data.topics ? { topics: JSON.parse(data.topics) } : {}),
+      ...(data.references ? { references: JSON.parse(data.references) } : {}),
+    };
+
+    return {
+      contentNovelty: deserializedData.result.predictions.content,
+      contextNovelty: deserializedData.result.predictions.context,
+      concepts: deserializedData.concepts,
+      topics: deserializedData.topics,
+      references: deserializedData.references,
+    };
+  } catch (error) {
+    logger.error({ error }, 'Error retrieving AI data');
+    return null;
+  }
 }
 
 export const ElasticNodesService = {
