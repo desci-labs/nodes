@@ -63,7 +63,7 @@ async function fillNodeData(nodeUuid: string) {
   const firstVersionTime = new Date(parseInt(firstVersion.time) * 1000);
   const { manifest } = await getManifestFromNode(node);
 
-  const doi = node?.DoiRecord?.[0].doi;
+  const doi = node?.DoiRecord?.[0]?.doi;
 
   const publication_year = firstVersionTime?.getFullYear() || new Date().getFullYear();
 
