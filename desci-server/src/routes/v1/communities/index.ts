@@ -8,6 +8,7 @@ import {
   getAllFeeds,
   getCommunityDetails,
   getCommunityFeed,
+  listAllCommunityCuratedFeeds,
   listCommunityFeed,
 } from '../../../controllers/communities/feed.js';
 import { checkMemberGuard } from '../../../controllers/communities/guard.js';
@@ -17,13 +18,18 @@ import { ensureUser } from '../../../middleware/permissions.js';
 import { validate } from '../../../middleware/validator.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
-import { getCommunityDetailsSchema, getCommunityFeedSchema, memberGuardSchema } from './schema.js';
+import {
+  getAllCommunitiesFeedSchema,
+  getCommunityDetailsSchema,
+  getCommunityFeedSchema,
+  memberGuardSchema,
+} from './schema.js';
 
 const router = Router();
 
 // list all communities and curated nodes()
 router.get('/list', [], asyncHandler(listCommunities));
-router.get('/feeds', [], asyncHandler(getAllFeeds));
+router.get('/feeds', [validate(getAllCommunitiesFeedSchema)], asyncHandler(listAllCommunityCuratedFeeds));
 router.get('/:communityName', [validate(getCommunityDetailsSchema)], asyncHandler(getCommunityDetails));
 router.get(
   '/:communityName/attestations',

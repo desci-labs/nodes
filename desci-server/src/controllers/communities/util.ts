@@ -71,7 +71,7 @@ export const resolveLatestNode = async (radar: Partial<NodeRadar>) => {
 };
 
 export const getCommunityNodeDetails = async (
-  radar: RadarEntry & { node?: Partial<Node & { versions: number }>; manifest?: ResearchObjectV1 },
+  radar: RadarEntry & { node?: Partial<Node & { versions: number; dpid?: number }>; manifest?: ResearchObjectV1 },
 ) => {
   const uuid = ensureUuidEndsWithDot(radar.nodeUuid);
 
@@ -95,8 +95,8 @@ export const getCommunityNodeDetails = async (
     logger.warn({ uuid }, 'uuid not found');
   }
 
-  const selectAttributes: (keyof typeof discovery)[] = ['ownerId', 'NodeCover'];
-  const node: Partial<Node & { versions: number }> = _.pick(discovery, selectAttributes);
+  const selectAttributes: (keyof typeof discovery)[] = ['ownerId', 'NodeCover', 'dpidAlias'];
+  const node: Partial<Node & { versions: number; dpid?: number }> = _.pick(discovery, selectAttributes);
   const publishedVersions =
     (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND ("transactionId" IS NOT NULL or "commitId" IS NOT NULL) ORDER BY "createdAt" DESC`) as NodeVersion[];
 
@@ -106,6 +106,8 @@ export const getCommunityNodeDetails = async (
   node['publishedDate'] = publishedVersions[0].createdAt;
   node.manifestUrl = publishedVersions[0].manifestUrl;
   radar.node = node;
+  radar.node.dpid = node.dpidAlias;
+  delete radar.node.dpidAlias;
 
   let gatewayUrl = publishedVersions[0].manifestUrl;
 

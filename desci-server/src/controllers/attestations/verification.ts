@@ -7,6 +7,7 @@ import { prisma } from '../../client.js';
 import { ForbiddenError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
+import { delFromCache } from '../../redisClient.js';
 import { attestationService } from '../../services/Attestation.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { doiService } from '../../services/index.js';
@@ -60,6 +61,11 @@ export const removeVerification = async (
     const claim = await attestationService.findClaimById(verification.nodeAttestationId);
     const attestation = await attestationService.findAttestationById(claim.attestationId);
 
+    // invalidate radar and curated feed count cache
+    await delFromCache(`radar-${claim.desciCommunityId}-count`);
+    await delFromCache(`curated-${claim.desciCommunityId}-count`);
+    await delFromCache(`all-communities-curated-count`);
+
     if (attestation.protected) {
       /**
        * Update ORCID Profile
@@ -102,6 +108,11 @@ export const addVerification = async (
   await saveInteraction(req, ActionType.VERIFY_ATTESTATION, { claimId: claimId, userId: user.id });
 
   new SuccessMessageResponse().send(res);
+
+  // invalidate radar and curated feed count cache
+  await delFromCache(`radar-${claim.desciCommunityId}-count`);
+  await delFromCache(`curated-${claim.desciCommunityId}-count`);
+  await delFromCache(`all-communities-curated-count`);
 
   const attestation = await attestationService.findAttestationById(claim.attestationId);
   if (attestation.protected) {
