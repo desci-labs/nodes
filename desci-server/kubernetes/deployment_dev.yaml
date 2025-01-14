@@ -95,6 +95,8 @@ spec:
           export ELASTIC_SEARCH_USER="{{ .Data.ELASTIC_SEARCH_USER }}"
           export ELASTIC_SEARCH_PW="{{ .Data.ELASTIC_SEARCH_PW }}"
           export OPEN_ALEX_DATABASE_URL="{{ .Data.OPEN_ALEX_DATABASE_URL }}"
+          export SCORE_GEN_SERVER="{{ .Data.SCORE_GEN_SERVER }}"
+          export SCORE_RESULT_API="{{ .Data.SCORE_RESULT_API }}"
           CLOUDFLARE_WORKER_API=https://nodes-dev-sync.desci.com
           CLOUDFLARE_WORKER_API_SECRET=auth-token
           ENABLE_WORKERS_API=true
