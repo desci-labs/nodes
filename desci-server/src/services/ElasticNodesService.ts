@@ -16,7 +16,7 @@ import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { elasticClient } from '../elasticSearchClient.js';
 import { logger as parentLogger } from '../logger.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
-import { unpadUuid } from '../utils.js';
+import { ensureUuidEndsWithDot, unpadUuid } from '../utils.js';
 
 import { getManifestFromNode } from './data/processing.js';
 
@@ -30,6 +30,7 @@ const PUB_IPFS_URL = process.env.PUBLIC_IPFS_RESOLVER || 'https://pub.desci.com/
 
 async function indexResearchObject(nodeUuid: string) {
   nodeUuid = unpadUuid(nodeUuid);
+  debugger;
   try {
     const workId = NODES_ID_PREFIX + nodeUuid;
 
@@ -53,13 +54,13 @@ async function indexResearchObject(nodeUuid: string) {
 
 async function fillNodeData(nodeUuid: string) {
   const node = await prisma.node.findFirst({
-    where: { uuid: nodeUuid },
+    where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
     include: { DoiRecord: true },
   });
   const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
   const versions = researchObjects[0].versions;
   const firstVersion = versions.at(-1);
-  const firstVersionTime = new Date(firstVersion.time);
+  const firstVersionTime = new Date(parseInt(firstVersion.time) * 1000);
   const { manifest } = await getManifestFromNode(node);
 
   const doi = node?.DoiRecord?.[0].doi;
@@ -121,6 +122,7 @@ interface AiApiResult {
 
 async function getAiData(manifest: ResearchObjectV1) {
   try {
+    debugger;
     const firstManuscript = manifest.components.find(
       (c) =>
         c.type === ResearchObjectComponentType.PDF &&
