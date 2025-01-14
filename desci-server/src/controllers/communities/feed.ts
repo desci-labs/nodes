@@ -6,7 +6,7 @@ import { NotFoundError } from '../../core/ApiError.js';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getFromCache, setToCache } from '../../redisClient.js';
-import { getCommunityFeedSchema } from '../../routes/v1/communities/schema.js';
+import { getAllCommunitiesFeedSchema, getCommunityFeedSchema } from '../../routes/v1/communities/schema.js';
 import { attestationService } from '../../services/Attestation.js';
 import { communityService } from '../../services/Communities.js';
 import { asyncMap } from '../../utils.js';
@@ -148,4 +148,49 @@ export const getAllFeeds = async (req: Request, res: Response, next: NextFunctio
     .reverse();
 
   return new SuccessResponse(data).send(res);
+};
+
+export const listAllCommunityCuratedFeeds = async (req: Request, res: Response, next: NextFunction) => {
+  const { query } = await getAllCommunitiesFeedSchema.parseAsync(req);
+  const limit = 20;
+  const page = Math.max(Math.max((query.page ?? 0) - 1, 0), 0);
+  const offset = limit * page;
+
+  let totalCount = await getFromCache<number>(`all-communities-curated-count`);
+  if (!totalCount) {
+    totalCount = await communityService.countAllCommunityCuratedFeeds();
+    logger.trace({ totalCount }, 'countAllCommunityCuratedFeeds');
+    setToCache(`all-communities-curated-count`, totalCount);
+  }
+
+  const curatedNodes = await communityService.listAllCommunityCuratedFeeds({
+    // communityId: parseInt(params.communityId.toString()),
+    offset,
+    limit,
+  });
+  logger.trace({ offset, page }, 'countAllCommunityCuratedFeeds');
+  // THIS is necessary because the engagement signal returned from getcuratedNodes
+  // accounts for only engagements on community selected attestations
+  const entries = await asyncMap(curatedNodes, async (entry) => {
+    const engagements = await attestationService.getNodeEngagementSignalsByUuid(entry.nodeUuid);
+    return {
+      ...entry,
+      engagements,
+      verifiedEngagements: {
+        reactions: entry.reactions,
+        annotations: entry.annotations,
+        verifications: entry.verifications,
+      },
+    };
+  });
+
+  const data = await Promise.all(entries.map(getCommunityNodeDetails));
+  // logger.info({ count: data.length, page: offset }, 'listCommunityFeed');
+  return new SuccessResponse({
+    data,
+    page: page + 1,
+    count: totalCount,
+    nextPage: data.length === limit ? page + 2 : undefined,
+    // communityId: params.communityId,
+  }).send(res);
 };

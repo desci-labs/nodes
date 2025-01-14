@@ -45,6 +45,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     // invalidate radar and curated feed count cache
     await delFromCache(`radar-${reclaimed.desciCommunityId}-count`);
     await delFromCache(`curated-${reclaimed.desciCommunityId}-count`);
+    await delFromCache(`all-communities-curated-count`);
 
     new SuccessResponse(reclaimed).send(res);
     return;
@@ -61,6 +62,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
   // invalidate radar and curated feed count cache
   await delFromCache(`radar-${nodeClaim.desciCommunityId}-count`);
   await delFromCache(`curated-${nodeClaim.desciCommunityId}-count`);
+  await delFromCache(`all-communities-curated-count`);
 
   await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: nodeClaim.id });
 
@@ -144,6 +146,11 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
   // trigger update radar entry
   await communityService.removeFromRadar(claim.desciCommunityId, claim.nodeUuid);
 
+  // invalidate radar and curated feed count cache
+  await delFromCache(`radar-${claim.desciCommunityId}-count`);
+  await delFromCache(`curated-${claim.desciCommunityId}-count`);
+  await delFromCache(`all-communities-curated-count`);
+
   await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
 
   logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
@@ -204,6 +211,7 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
   // invalidate radar and curated feed count cache
   await delFromCache(`radar-${communityId}-count`);
   await delFromCache(`curated-${communityId}-count`);
+  await delFromCache(`all-communities-curated-count`);
 
   await saveInteraction(req, ActionType.CLAIM_ENTRY_ATTESTATIONS, {
     communityId,

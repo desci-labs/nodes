@@ -397,6 +397,187 @@ export class CommunityService {
     return entries as RadarEntry[];
   }
 
+  async listAllCommunityCuratedFeeds({ offset, limit }: { offset: number; limit: number }) {
+    const entries = (await prisma.$queryRaw`
+      SELECT
+          cre.*,
+          COUNT(DISTINCT "Annotation".id) :: int AS annotations,
+          COUNT(DISTINCT "NodeAttestationReaction".id) :: int AS reactions,
+          COUNT(DISTINCT "NodeAttestationVerification".id) :: int AS verifications,
+          COUNT(DISTINCT NaFiltered."id") :: int AS valid_attestations,
+          COUNT(DISTINCT NaEntry."id") :: int AS entry_attestations
+      FROM
+          "CommunityRadarEntry" cre
+          LEFT JOIN (
+              SELECT
+                  Na."id",
+                  Na."communityRadarEntryId",
+                  Na."attestationId",
+                  Na."attestationVersionId",
+                  Na."desciCommunityId"
+              FROM
+                  "NodeAttestation" Na
+                  LEFT JOIN "NodeAttestationVerification" Nav ON Na."id" = Nav."nodeAttestationId"
+              WHERE
+                  Na."revoked" = false
+                  AND Na."nodeDpid10" IS NOT NULL
+                  AND EXISTS (
+                      SELECT
+                          1
+                      FROM
+                          "CommunityEntryAttestation" Cea
+                      WHERE
+                          Na."attestationId" = Cea."attestationId"
+                          AND Na."attestationVersionId" = Cea."attestationVersionId"
+                          AND Na."desciCommunityId" = Cea."desciCommunityId"
+                          AND Cea."required" = TRUE
+                  )
+              GROUP BY
+                  Na."id",
+                  Na."communityRadarEntryId"
+              HAVING
+                  COUNT(Nav."id") > 0
+          ) NaFiltered ON cre."id" = NaFiltered."communityRadarEntryId"
+          LEFT JOIN "Annotation" ON NaFiltered."id" = "Annotation"."nodeAttestationId"
+          LEFT JOIN "NodeAttestationReaction" ON NaFiltered."id" = "NodeAttestationReaction"."nodeAttestationId"
+          LEFT JOIN "NodeAttestationVerification" ON NaFiltered."id" = "NodeAttestationVerification"."nodeAttestationId"
+          LEFT JOIN (
+              SELECT
+                  Na."id",
+                  Na."communityRadarEntryId",
+                  Na."attestationId",
+                  Na."attestationVersionId",
+                  Na."desciCommunityId"
+              FROM
+                  "NodeAttestation" Na
+              WHERE
+                  Na."revoked" = false
+                  AND Na."nodeDpid10" IS NOT NULL
+                  AND EXISTS (
+                      SELECT
+                          1
+                      FROM
+                          "CommunityEntryAttestation" Cea
+                      WHERE
+                          Na."attestationId" = Cea."attestationId"
+                          AND Na."attestationVersionId" = Cea."attestationVersionId"
+                          AND Na."desciCommunityId" = Cea."desciCommunityId"
+                          AND Cea."required" = TRUE
+                  )
+              GROUP BY
+                  Na."id",
+                  Na."communityRadarEntryId"
+          ) NaEntry ON cre."id" = NaEntry."communityRadarEntryId"
+      WHERE
+          EXISTS (
+              SELECT
+                  1
+              FROM
+                  "CommunityEntryAttestation" Cea
+              WHERE
+                  NaFiltered."attestationId" = Cea."attestationId"
+                  AND NaFiltered."attestationVersionId" = Cea."attestationVersionId"
+                  AND Cea."required" = TRUE
+          )
+      GROUP BY
+          cre.id,
+          cre."nodeUuid"
+      HAVING
+          COUNT(DISTINCT NaFiltered."id") = COUNT(DISTINCT NaEntry."id")
+      ORDER BY
+          verifications DESC,
+          cre."createdAt" DESC
+      LIMIT ${limit} 
+      OFFSET ${offset}
+      `) as RadarEntry[];
+
+    return entries as RadarEntry[];
+  }
+
+  async countAllCommunityCuratedFeeds() {
+    const count = (await prisma.$queryRaw`
+      SELECT
+        count(*),
+        cre."nodeUuid",
+        COUNT(DISTINCT NaFiltered."id") :: int AS valid_attestations,
+        COUNT(DISTINCT NaEntry."id") :: int AS entry_attestations
+      FROM
+        "CommunityRadarEntry" cre
+        LEFT JOIN (
+            SELECT
+                Na."id",
+                Na."communityRadarEntryId",
+                Na."attestationId",
+                Na."attestationVersionId",
+                Na."desciCommunityId"
+            FROM
+                "NodeAttestation" Na
+                LEFT JOIN "NodeAttestationVerification" Nav ON Na."id" = Nav."nodeAttestationId"
+            WHERE
+                Na."revoked" = false
+                AND Na."nodeDpid10" IS NOT NULL
+                AND EXISTS (
+                    SELECT
+                        1
+                    FROM
+                        "CommunityEntryAttestation" Cea
+                    WHERE
+                        Na."attestationId" = Cea."attestationId"
+                        AND Na."attestationVersionId" = Cea."attestationVersionId"
+                        AND Na."desciCommunityId" = Cea."desciCommunityId"
+                        AND Cea."required" = TRUE
+                )
+            GROUP BY
+                Na."id",
+                Na."communityRadarEntryId"
+            HAVING
+                COUNT(Nav."id") > 0
+        ) NaFiltered ON cre."id" = NaFiltered."communityRadarEntryId"
+        LEFT JOIN (
+            SELECT
+                Na."id",
+                Na."communityRadarEntryId",
+                Na."attestationId",
+                Na."attestationVersionId"
+            FROM
+                "NodeAttestation" Na 
+            WHERE
+                Na."revoked" = false
+                AND Na."nodeDpid10" IS NOT NULL
+                AND EXISTS (
+                    SELECT
+                        1
+                    FROM
+                        "CommunityEntryAttestation" Cea
+                    WHERE
+                        Na."attestationId" = Cea."attestationId"
+                        AND Na."attestationVersionId" = Cea."attestationVersionId"
+                        AND Cea."required" = TRUE
+                )
+            GROUP BY
+                Na."id",
+                Na."communityRadarEntryId"
+        ) NaEntry ON cre."id" = NaEntry."communityRadarEntryId"
+      WHERE
+        EXISTS (
+            SELECT
+                1
+            FROM
+                "CommunityEntryAttestation" Cea
+            WHERE
+                NaFiltered."attestationId" = Cea."attestationId"
+                AND NaFiltered."attestationVersionId" = Cea."attestationVersionId"
+                AND Cea."required" = TRUE
+        )
+      GROUP BY
+        cre.id,
+        cre."nodeUuid"
+      HAVING
+        COUNT(DISTINCT NaFiltered."id") = COUNT(DISTINCT NaEntry."id")
+`) as any[];
+    return count.length;
+  }
+
   /**
    * This methods takes the result of getCommunityRadar and
    * filter out entries(nodes) whose NodeAttestations don't have atleast on verification

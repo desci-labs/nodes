@@ -64,6 +64,7 @@ export const removeVerification = async (
     // invalidate radar and curated feed count cache
     await delFromCache(`radar-${claim.desciCommunityId}-count`);
     await delFromCache(`curated-${claim.desciCommunityId}-count`);
+    await delFromCache(`all-communities-curated-count`);
 
     if (attestation.protected) {
       /**
@@ -111,6 +112,7 @@ export const addVerification = async (
   // invalidate radar and curated feed count cache
   await delFromCache(`radar-${claim.desciCommunityId}-count`);
   await delFromCache(`curated-${claim.desciCommunityId}-count`);
+  await delFromCache(`all-communities-curated-count`);
 
   const attestation = await attestationService.findAttestationById(claim.attestationId);
   if (attestation.protected) {
