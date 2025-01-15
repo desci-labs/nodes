@@ -94,6 +94,7 @@ spec:
           export ELASTIC_SEARCH_NODE_URL="{{ .Data.ELASTIC_SEARCH_NODE_URL }}"
           export ELASTIC_SEARCH_USER="{{ .Data.ELASTIC_SEARCH_USER }}"
           export ELASTIC_SEARCH_PW="{{ .Data.ELASTIC_SEARCH_PW }}"
+          export ELASTIC_SEARCH_WRITE_API_KEY="{{ .Data.ELASTIC_SEARCH_WRITE_API_KEY }}"
           export OPEN_ALEX_DATABASE_URL="{{ .Data.OPEN_ALEX_DATABASE_URL }}"
           export SCORE_GEN_SERVER="{{ .Data.SCORE_GEN_SERVER }}"
           export SCORE_RESULT_API="{{ .Data.SCORE_RESULT_API }}"

@@ -72,7 +72,7 @@ async function fillNodeData(nodeUuid: string) {
   const citedByCount = 0; // Get from external publication data
 
   debugger;
-  const aiData = await getAiData(manifest);
+  const aiData = await getAiData(manifest, true);
   const workData = {
     title: node.title,
     doi,
@@ -140,7 +140,7 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean) {
       // Check if AI data is already cached for this manuscript
       const cachedData = await getFromCache(cacheKey);
       if (cachedData) {
-        return cachedData;
+        return cachedData as AiApiResult;
       }
     }
 
