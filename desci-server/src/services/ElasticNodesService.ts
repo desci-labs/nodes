@@ -57,6 +57,7 @@ async function fillNodeData(nodeUuid: string) {
     where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
     include: { DoiRecord: true },
   });
+  debugger;
   const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
   const versions = researchObjects[0].versions;
   const firstVersion = versions.at(-1);
@@ -124,7 +125,6 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function getAiData(manifest: ResearchObjectV1) {
   try {
-    debugger;
     const firstManuscript = manifest.components.find(
       (c) =>
         c.type === ResearchObjectComponentType.PDF &&
@@ -133,7 +133,7 @@ async function getAiData(manifest: ResearchObjectV1) {
     const firstManuscriptCid = firstManuscript.payload.cid || firstManuscript.payload.url; // Old PDF payloads used .url field for CID
 
     const fileName = firstManuscriptCid + '.pdf';
-    const presignedUrlEndpoint = `${process.env.NEXT_PUBLIC_SCORE_GEN_SERVER}/prod/gen-s3-url?file_name=${fileName}`;
+    const presignedUrlEndpoint = `${process.env.SCORE_GEN_SERVER}/prod/gen-s3-url?file_name=${fileName}`;
 
     const presignedUrlData = await axios.get(presignedUrlEndpoint);
     const { url: presignedUrl, UploadedFileName: s3FileName } = presignedUrlData.data as {
@@ -143,13 +143,17 @@ async function getAiData(manifest: ResearchObjectV1) {
 
     const external = false; // TODO: Add external handling
 
+    debugger;
+
     const pdfUrl = external ? `${PUB_IPFS_URL}/${firstManuscriptCid}` : `${IPFS_URL}/${firstManuscriptCid}`;
     const pdfRes = await axios({
       url: pdfUrl,
       method: 'GET',
       responseType: 'blob',
     });
-    const pdfBlob = new Blob([pdfRes.data]);
+    debugger;
+    // const pdfBlob = new Blob([pdfRes.data]);
+    const pdfBlob = pdfRes.data;
 
     // Upload the PDF
     await axios.put(presignedUrl as string, pdfBlob, {
@@ -159,7 +163,7 @@ async function getAiData(manifest: ResearchObjectV1) {
     });
 
     debugger;
-    const resultUrl = `${process.env.NEXT_PUBLIC_SCORE_RESULT_API}/prod/get-result?UploadedFileName=${s3FileName}`;
+    const resultUrl = `${process.env.SCORE_RESULT_API}/prod/get-result?UploadedFileName=${s3FileName}`;
     let resultRes;
     do {
       resultRes = await axios.get(resultUrl);
