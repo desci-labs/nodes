@@ -149,14 +149,13 @@ async function getAiData(manifest: ResearchObjectV1) {
     const pdfRes = await axios({
       url: pdfUrl,
       method: 'GET',
-      responseType: 'blob',
+      responseType: 'arraybuffer',
     });
-    debugger;
-    // const pdfBlob = new Blob([pdfRes.data]);
-    const pdfBlob = pdfRes.data;
+
+    const pdfBuffer = pdfRes.data;
 
     // Upload the PDF
-    await axios.put(presignedUrl as string, pdfBlob, {
+    const uploadRes = await axios.put(presignedUrl as string, pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
       },
@@ -167,10 +166,16 @@ async function getAiData(manifest: ResearchObjectV1) {
     let resultRes;
     do {
       resultRes = await axios.get(resultUrl);
+      await delay(1500);
     } while (resultRes.data && resultRes?.data.status !== 'SUCCEEDED' && resultRes.data.status !== 'FAILED');
     {
       resultRes = await axios.get(resultUrl);
       await delay(1500);
+    }
+
+    if (resultRes.data.status === 'FAILED') {
+      logger.error({ resultRes }, 'AI processing failed');
+      return null;
     }
 
     const data = resultRes.data as any;
