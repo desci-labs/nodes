@@ -99,10 +99,12 @@ services:
         condition: service_healthy
       db_postgres:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       # https://github.com/graphprotocol/graph-node/blob/master/docs/environment-variables.md
       postgres_host: db_postgres
-      # postgres_port: 5433
+      postgres_port: ${PG_PORT:-5432}
       postgres_user: walter
       postgres_pass: white
       postgres_db: postgres
