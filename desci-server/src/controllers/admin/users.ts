@@ -53,7 +53,10 @@ export const searchUserProfiles = async (req: SearchProfilesRequest, res: Respon
   logger.trace({ page, cursor, limit, search });
 
   const count = await prisma.user.count({});
-  const users = await prisma.user.findMany({ cursor: { id: cursor }, skip: page * limit, take: limit });
+  //   const users = await prisma.user.findMany({ cursor: { id: cursor }, skip: page * limit, take: limit });
+  const users = await prisma.user.findMany({
+    select: { id: true, email: true, name: true, orcid: true, isAdmin: true, createdAt: true },
+  });
 
   new SuccessResponse({ cursor: users[users.length - 1].id, page, count, data: users }).send(res);
   return;
