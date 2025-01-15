@@ -15,6 +15,7 @@ import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { elasticClient } from '../elasticSearchClient.js';
 import { logger as parentLogger } from '../logger.js';
+import { getFromCache, setToCache } from '../redisClient.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { ensureUuidEndsWithDot, unpadUuid } from '../utils.js';
 
@@ -123,7 +124,9 @@ interface AiApiResult {
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function getAiData(manifest: ResearchObjectV1) {
+const AI_DATA_CACHE_PREFIX = 'AI-';
+
+async function getAiData(manifest: ResearchObjectV1, useCache: boolean) {
   try {
     const firstManuscript = manifest.components.find(
       (c) =>
@@ -131,6 +134,15 @@ async function getAiData(manifest: ResearchObjectV1) {
         (c as PdfComponent).subtype === ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
     );
     const firstManuscriptCid = firstManuscript.payload.cid || firstManuscript.payload.url; // Old PDF payloads used .url field for CID
+
+    const cacheKey = AI_DATA_CACHE_PREFIX + firstManuscriptCid;
+    if (useCache) {
+      // Check if AI data is already cached for this manuscript
+      const cachedData = await getFromCache(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+    }
 
     const fileName = firstManuscriptCid + '.pdf';
     const presignedUrlEndpoint = `${process.env.SCORE_GEN_SERVER}/prod/gen-s3-url?file_name=${fileName}`;
@@ -143,8 +155,6 @@ async function getAiData(manifest: ResearchObjectV1) {
 
     const external = false; // TODO: Add external handling
 
-    debugger;
-
     const pdfUrl = external ? `${PUB_IPFS_URL}/${firstManuscriptCid}` : `${IPFS_URL}/${firstManuscriptCid}`;
     const pdfRes = await axios({
       url: pdfUrl,
@@ -155,13 +165,12 @@ async function getAiData(manifest: ResearchObjectV1) {
     const pdfBuffer = pdfRes.data;
 
     // Upload the PDF
-    const uploadRes = await axios.put(presignedUrl as string, pdfBuffer, {
+    await axios.put(presignedUrl as string, pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
       },
     });
 
-    debugger;
     const resultUrl = `${process.env.SCORE_RESULT_API}/prod/get-result?UploadedFileName=${s3FileName}`;
     let resultRes;
     do {
@@ -187,6 +196,10 @@ async function getAiData(manifest: ResearchObjectV1) {
       ...(data.topics ? { topics: JSON.parse(data.topics) } : {}),
       ...(data.references ? { references: JSON.parse(data.references) } : {}),
     };
+
+    if (resultRes.data.status === 'SUCCEEDED') {
+      setToCache(cacheKey, deserializedData);
+    }
 
     return {
       contentNovelty: deserializedData.result.predictions.content,
