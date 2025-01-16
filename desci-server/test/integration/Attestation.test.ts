@@ -2460,9 +2460,11 @@ describe('Attestations Service', async () => {
 
       const comments = await attestationService.getComments({ visible: true });
       expect(comments.length).to.be.equal(2);
-      const [commentVotes, comment1Votes] = comments;
-      expect(commentVotes.CommentVote.length).to.be.equal(3);
-      expect(comment1Votes.CommentVote.length).to.be.equal(3);
+      // const [commentVotes, comment1Votes] = comments;
+
+      expect((await attestationService.getVotesByCommentId(comment.id)).length).to.be.equal(3);
+      expect((await attestationService.getVotesByCommentId(comment1.id)).length).to.be.equal(3);
+      // expect(comment1Votes.CommentVote.length).to.be.equal(3);
 
       // verify voter comments
       const voterComment = await attestationService.getUserCommentVote(voter.id, comment.id);

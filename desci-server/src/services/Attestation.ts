@@ -877,9 +877,9 @@ export class AttestationService {
       where: filter,
       include: {
         author: { select: { id: true, name: true, orcid: true } },
-        CommentVote: {
-          select: { id: true, userId: true, annotationId: true, type: true },
-        },
+        // CommentVote: {
+        //   select: { id: true, userId: true, annotationId: true, type: true },
+        // },
         attestation: {
           include: {
             attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },

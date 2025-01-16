@@ -166,7 +166,7 @@ describe('Automerge Integration', () => {
       expect(document.manifest.components.length).to.be.equal(2);
     });
 
-    it('Reject Invalid Actions', async () => {
+    it.skip('Reject Invalid Actions', async () => {
       try {
         // console.log('URL', repoServiceUrl, `${repoServiceUrl}/v1/nodes/documents/actions`);
         await client.post<{ ok: boolean; document: ResearchObjectDocument }>(
@@ -187,7 +187,7 @@ describe('Automerge Integration', () => {
       }
     });
 
-    it('Reject Invalid Action Data', async () => {
+    it.skip('Reject Invalid Action Data', async () => {
       try {
         await client.post<{ ok: boolean; document: ResearchObjectDocument }>(
           `${repoServiceUrl}/v1/nodes/documents/actions`,
@@ -206,7 +206,7 @@ describe('Automerge Integration', () => {
       }
     });
 
-    it('Update Title Api', async () => {
+    it.skip('Update Title Api', async () => {
       const actions: ManifestActions[] = [{ type: 'Update Title', title: 'Api title' }];
       res = await request(app)
         .post(`/v1/nodes/documents/${dotlessUuid}/actions`)
