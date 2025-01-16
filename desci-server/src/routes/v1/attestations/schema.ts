@@ -43,6 +43,14 @@ export const getCommentsSchema = z.object({
   }),
 });
 
+export const postCommentVoteSchema = z.object({
+  params: z.object({
+    // quickly disqualify false uuid strings
+    uuid: z.string().min(10),
+    commentId: z.coerce.number(),
+  }),
+});
+
 const dpidPathRegexPlusLocalResolver =
   /^https?:\/\/(?<domain>dev-beta\.dpid\.org|beta\.dpid\.org|localhost:5460)\/(?<dpid>\d+)\/(?<version>v\d+)\/(?<path>\S+.*)?/m;
 

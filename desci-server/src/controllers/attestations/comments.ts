@@ -27,9 +27,17 @@ export const getAttestationComments = async (req: Request, res: Response, next: 
     // type: AnnotationType.COMMENT,
   });
 
-  const data = comments.map((comment) => {
-    const author = _.pick(comment.author, ['id', 'name', 'orcid']);
-    return { ...comment, author, highlights: comment.highlights.map((h) => JSON.parse(h as string)) };
+  const data = asyncMap(comments, async (comment) => {
+    // const author = _.pick(comment.author, ['id', 'name', 'orcid']);
+    const upvotes = await attestationService.getCommentUpvotes(comment.id);
+    const downvotes = await attestationService.getCommentDownvotes(comment.id);
+    return {
+      ...comment,
+      // author,
+      upvotes,
+      downvotes,
+      highlights: comment.highlights.map((h) => JSON.parse(h as string)),
+    };
   });
 
   return new SuccessResponse(data).send(res);
