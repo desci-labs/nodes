@@ -1,7 +1,7 @@
 import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { AnnotationType, Attestation, AttestationVersion, Node, Prisma, User } from '@prisma/client';
+import { AnnotationType, Attestation, AttestationVersion, Node, Prisma, User, VoteType } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import _ from 'lodash';
 
@@ -858,7 +858,11 @@ export class AttestationService {
     return prisma.annotation.findMany({
       where: filter,
       include: {
-        author: true,
+        _count: {
+          select: { CommentVote: true },
+        },
+        CommentVote: { select: { id: true, type: true } },
+        author: { select: { id: true, name: true, orcid: true } },
         attestation: {
           include: {
             attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },
@@ -872,13 +876,63 @@ export class AttestationService {
     return prisma.annotation.findMany({
       where: filter,
       include: {
-        author: true,
+        author: { select: { id: true, name: true, orcid: true } },
+        // CommentVote: {
+        //   select: { id: true, userId: true, annotationId: true, type: true },
+        // },
         attestation: {
           include: {
             attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },
           },
         },
       },
+    });
+  }
+
+  async getVotesByCommentId(annotationId: number) {
+    return prisma.commentVote.findMany({
+      where: { annotationId },
+    });
+  }
+
+  async upvoteComment(data: Prisma.CommentVoteCreateArgs['data']) {
+    return await prisma.commentVote.upsert({
+      where: { userId_annotationId: { userId: data.userId, annotationId: data.annotationId } },
+      create: { userId: data.userId, annotationId: data.annotationId, type: VoteType.Yes },
+      update: { type: VoteType.Yes },
+    });
+  }
+
+  async downvoteComment(data: Prisma.CommentVoteCreateArgs['data']) {
+    return await prisma.commentVote.upsert({
+      where: { userId_annotationId: { userId: data.userId, annotationId: data.annotationId } },
+      create: { userId: data.userId, annotationId: data.annotationId, type: VoteType.No },
+      update: { type: VoteType.No },
+    });
+  }
+
+  async getCommentUpvotes(annotationId: number) {
+    return prisma.commentVote.count({ where: { annotationId, type: VoteType.Yes } });
+  }
+
+  async getCommentDownvotes(annotationId: number) {
+    return prisma.commentVote.count({ where: { annotationId, type: VoteType.No } });
+  }
+
+  async countUserCommentVote(userId: number, annotationId: number) {
+    return prisma.commentVote.count({ where: { userId, annotationId } });
+  }
+
+  async getUserCommentVote(userId: number, annotationId: number) {
+    return prisma.commentVote.findFirst({
+      where: { userId, annotationId },
+      // select: { id: true, annotationId createdAt: true, type: true },
+    });
+  }
+
+  async deleteCommentVote(id: number) {
+    return prisma.commentVote.delete({
+      where: { id },
     });
   }
 

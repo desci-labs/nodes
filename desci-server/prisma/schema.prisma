@@ -207,6 +207,7 @@ model User {
   BookmarkedNode              BookmarkedNode[]
   DeferredEmails              DeferredEmails[]
   UserNotifications           UserNotifications[]
+  CommentVote                 CommentVote[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -857,6 +858,7 @@ model Annotation {
   visible           Boolean          @default(true)
   createdAt         DateTime?
   updatedAt         DateTime?        @updatedAt
+  CommentVote       CommentVote[]
 }
 
 //An emoji reaction to a node
@@ -996,6 +998,24 @@ model ExternalPublications {
   updatedAt   DateTime @updatedAt
 
   // @@unique([uuid, publisher])
+}
+
+model CommentVote {
+  id           Int        @id @default(autoincrement())
+  type         VoteType
+  userId       Int
+  user         User       @relation(fields: [userId], references: [id])
+  annotationId Int
+  annotation   Annotation @relation(fields: [annotationId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([userId, annotationId])
+}
+
+enum VoteType {
+  Yes
+  No
 }
 
 enum ORCIDRecord {
