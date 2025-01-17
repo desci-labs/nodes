@@ -34,12 +34,20 @@ export const getAttestationCommentsSchema = z.object({
   params: z.object({
     claimId: z.coerce.number(),
   }),
+  query: z.object({
+    cursor: z.coerce.number().optional(),
+    limit: z.coerce.number().optional().default(20),
+  }),
 });
 
 export const getCommentsSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings
     uuid: z.string().min(10),
+  }),
+  query: z.object({
+    cursor: z.coerce.number().optional(),
+    limit: z.coerce.number().optional().default(20),
   }),
 });
 
