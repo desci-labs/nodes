@@ -1,12 +1,10 @@
 import { VoteType } from '@prisma/client';
 import { Response, NextFunction } from 'express';
-import _ from 'lodash';
 import z from 'zod';
 
 import { prisma } from '../../client.js';
-import { ForbiddenError, NotFoundError } from '../../core/ApiError.js';
+import { NotFoundError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
-import { logger } from '../../logger.js';
 import { RequestWithNode, RequestWithUser } from '../../middleware/authorisation.js';
 import { getCommentsSchema, postCommentVoteSchema } from '../../routes/v1/attestations/schema.js';
 import { attestationService } from '../../services/Attestation.js';
@@ -14,18 +12,31 @@ import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
 export const getGeneralComments = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid } = req.params as z.infer<typeof getCommentsSchema>['params'];
+  const { cursor, limit } = req.query as z.infer<typeof getCommentsSchema>['query'];
   const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
   if (!node) throw new NotFoundError("Can't comment on unknown research object");
 
   const restrictVisibility = node.ownerId !== req?.user?.id;
 
-  // console.log({ restrictVisibility, uuid }, 'Query Comments');
-  const comments = await attestationService.getComments({
+  if (cursor) {
+    /// intentional delay
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+
+  const count = await attestationService.countComments({
     uuid: ensureUuidEndsWithDot(uuid),
     ...(restrictVisibility && { visible: true }),
   });
-  // console.log('getGeneralComments', { comments });
-  const data = await asyncMap(comments, async (comment) => {
+
+  const data = await attestationService.getComments(
+    {
+      uuid: ensureUuidEndsWithDot(uuid),
+      ...(restrictVisibility && { visible: true }),
+    },
+    { cursor: cursor ? parseInt(cursor.toString()) : undefined, limit: 5 /* parseInt(limit.toString()) */ },
+  );
+
+  const comments = await asyncMap(data, async (comment) => {
     const upvotes = await attestationService.getCommentUpvotes(comment.id);
     const downvotes = await attestationService.getCommentDownvotes(comment.id);
     return {
@@ -35,8 +46,9 @@ export const getGeneralComments = async (req: RequestWithNode, res: Response, _n
       highlights: comment.highlights.map((h) => JSON.parse(h as string)),
     };
   });
-  console.log('data', { data });
-  return new SuccessResponse(data).send(res);
+
+  const nextCursor = comments[comments.length - 1]?.id;
+  return new SuccessResponse({ cursor: nextCursor, count, comments }).send(res);
 };
 
 export const upvoteComment = async (req: RequestWithUser, res: Response, _next: NextFunction) => {
