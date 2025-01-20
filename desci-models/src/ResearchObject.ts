@@ -453,4 +453,15 @@ export interface ResearchObjectReference {
   type: 'dpid' | 'doi';
   /** Identifier (https://doi.org/<doi>) | <doi> | https://dpid.org/<dpid> */
   id: string;
+  /** Title of the publication */
+  title: string;
+  /** URL, a link to the reference */
+  url?: string;
+  /** Author names for the references */
+  authors?: { name: string }[];
+  journal?: string;
+  page?: string;
+  volume?: string;
+  issue?: string;
+  year?: string;
 }
