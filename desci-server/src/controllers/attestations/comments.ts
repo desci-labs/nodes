@@ -9,7 +9,7 @@ import { PUBLIC_IPFS_PATH } from '../../config/index.js';
 import { ForbiddenError, NotFoundError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
-import { createCommentSchema } from '../../routes/v1/attestations/schema.js';
+import { createCommentSchema, getAttestationCommentsSchema } from '../../routes/v1/attestations/schema.js';
 import { attestationService } from '../../services/Attestation.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { client } from '../../services/ipfs.js';
@@ -19,28 +19,33 @@ import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
 export const getAttestationComments = async (req: Request, res: Response, next: NextFunction) => {
   const { claimId } = req.params;
+  const { cursor, limit } = req.query as zod.infer<typeof getAttestationCommentsSchema>['query'];
   const claim = await attestationService.findClaimById(parseInt(claimId));
   if (!claim) throw new NotFoundError('Claim not found');
 
-  const comments = await attestationService.getAllClaimComments({
+  const count = await attestationService.countComments({
     nodeAttestationId: claim.id,
-    // type: AnnotationType.COMMENT,
   });
+  const comments = await attestationService.getAllClaimComments(
+    {
+      nodeAttestationId: claim.id,
+    },
+    { cursor: cursor ? parseInt(cursor.toString()) : undefined, limit: parseInt(limit.toString()) },
+  );
 
-  const data = asyncMap(comments, async (comment) => {
-    // const author = _.pick(comment.author, ['id', 'name', 'orcid']);
+  const data = await asyncMap(comments, async (comment) => {
     const upvotes = await attestationService.getCommentUpvotes(comment.id);
     const downvotes = await attestationService.getCommentDownvotes(comment.id);
     return {
       ...comment,
-      // author,
       upvotes,
       downvotes,
       highlights: comment.highlights.map((h) => JSON.parse(h as string)),
     };
   });
 
-  return new SuccessResponse(data).send(res);
+  const nextCursor = data[data.length - 1]?.id;
+  return new SuccessResponse({ cursor: nextCursor, count, comments: data }).send(res);
 };
 
 type RemoveCommentBody = {

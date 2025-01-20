@@ -854,7 +854,7 @@ export class AttestationService {
   }
 
   // TODO: write raw sql query to optimize this
-  async getAllClaimComments(filter: Prisma.AnnotationWhereInput) {
+  async getAllClaimComments(filter: Prisma.AnnotationWhereInput, options?: { cursor?: number; limit?: number }) {
     return prisma.annotation.findMany({
       where: filter,
       include: {
@@ -869,10 +869,16 @@ export class AttestationService {
           },
         },
       },
+      orderBy: {
+        id: 'asc',
+      },
+      skip: options?.cursor ? 1 : 0,
+      ...(options?.limit && { take: options.limit }),
+      ...(options?.cursor && { cursor: { id: options.cursor } }),
     });
   }
 
-  async getComments(filter: Prisma.AnnotationWhereInput) {
+  async getComments(filter: Prisma.AnnotationWhereInput, options?: { cursor?: number; limit?: number }) {
     return prisma.annotation.findMany({
       where: filter,
       include: {
@@ -886,6 +892,18 @@ export class AttestationService {
           },
         },
       },
+      orderBy: {
+        id: 'asc',
+      },
+      skip: options?.cursor ? 1 : 0,
+      ...(options?.limit && { take: options.limit }),
+      ...(options?.cursor && { cursor: { id: options.cursor } }),
+    });
+  }
+
+  async countComments(filter: Prisma.AnnotationWhereInput) {
+    return prisma.annotation.count({
+      where: filter,
     });
   }
 

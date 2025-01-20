@@ -2328,7 +2328,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe('Annotations(Comments) Vote', async () => {
+  describe.only('Annotations(Comments) Vote', async () => {
     let claim: NodeAttestation;
     let node: Node;
     const nodeVersion = 0;
@@ -2537,8 +2537,7 @@ describe('Attestations Service', async () => {
       const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
       res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
       expect(res.statusCode).to.equal(200);
-
-      const comments = (await res.body.data) as {
+      const comments = (await res.body.data.comments) as {
         upvotes: number;
         downvotes: number;
         highlights: any[];
@@ -2583,7 +2582,7 @@ describe('Attestations Service', async () => {
       const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
       res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
       expect(res.statusCode).to.equal(200);
-      const comments = (await res.body.data) as {
+      const comments = (await res.body.data.comments) as {
         upvotes: number;
         downvotes: number;
         highlights: any[];
@@ -2626,7 +2625,7 @@ describe('Attestations Service', async () => {
       const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
       res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
       expect(res.statusCode).to.equal(200);
-      const comments = (await res.body.data) as {
+      const comments = (await res.body.data.comments) as {
         upvotes: number;
         downvotes: number;
         highlights: any[];
