@@ -303,12 +303,12 @@ describe('ManifestActions Schema', () => {
   describe('ResearchObject References', () => {
     it('should validate add new reference', () => {
       let validated = actionsSchema.safeParse([
-        { type: 'Add Reference', reference: { id: 'https://doi.org/10.1111/af325', type: 'doi' } },
+        { type: 'Add Reference', reference: { id: 'https://doi.org/10.1111/af325', type: 'doi', title: 'node title' } },
       ]);
       expect(validated.success).to.be.true;
 
       validated = actionsSchema.safeParse([
-        { type: 'Add Reference', reference: { id: 'https://beta.dpid.org/165', type: 'dpid' } },
+        { type: 'Add Reference', reference: { id: 'https://beta.dpid.org/165', type: 'dpid', title: 'node title' } },
       ]);
       console.log('error' in validated && validated.error);
       expect(validated.success).to.be.true;
@@ -319,8 +319,8 @@ describe('ManifestActions Schema', () => {
         {
           type: 'Add References',
           references: [
-            { id: 'https://doi.org/10.1111/af325', type: 'doi' },
-            { id: 'https://beta.dpid.org/165/v6', type: 'dpid' },
+            { id: 'https://doi.org/10.1111/af325', type: 'doi', title: 'node title' },
+            { id: 'https://beta.dpid.org/165/v6', type: 'dpid', title: 'node title' },
           ],
         },
       ]);
@@ -332,8 +332,8 @@ describe('ManifestActions Schema', () => {
         {
           type: 'Set References',
           references: [
-            { id: 'https://doi.org/10.1111/af325', type: 'doi' },
-            { id: 'https://beta.dpid.org/165/v6', type: 'dpid' },
+            { id: 'https://doi.org/10.1111/af325', type: 'doi', title: 'node title' },
+            { id: 'https://beta.dpid.org/165/v6', type: 'dpid', title: 'node title' },
           ],
         },
       ]);
@@ -345,8 +345,8 @@ describe('ManifestActions Schema', () => {
         {
           type: 'Add References',
           references: [
-            { id: 'https://doi/10.111/af325', type: 'doi' },
-            { id: 'https://dpid.org/165', type: 'dpid' },
+            { id: 'https://doi/10.111/af325', type: 'doi', title: 'node title' },
+            { id: 'https://dpid.org/165', type: 'dpid', title: 'node title' },
           ],
         },
       ]);
@@ -358,8 +358,8 @@ describe('ManifestActions Schema', () => {
         {
           type: 'Add References',
           references: [
-            { id: 'https://doi/10.111/af325', type: 'dpid' },
-            { id: 'https://dpid.org/165', type: 'doi' },
+            { id: 'https://doi/10.111/af325', type: 'dpid', title: 'node title' },
+            { id: 'https://dpid.org/165', type: 'doi', title: 'node title' },
           ],
         },
       ]);
@@ -368,17 +368,22 @@ describe('ManifestActions Schema', () => {
 
     it('should reject invalid actions payload', () => {
       let validated = actionsSchema.safeParse([
-        { type: 'Add Reference', reference: [{ id: 'https://doi.org/10.1111/af325', type: 'doi' }] },
+        {
+          type: 'Add Reference',
+          reference: [{ id: 'https://doi.org/10.1111/af325', type: 'doi', title: 'node title' }],
+        },
       ]);
       expect(validated.success).to.be.false;
 
-      validated = actionsSchema.safeParse([{ type: 'Add Reference', reference: { type: 'dpid' } }]);
+      validated = actionsSchema.safeParse([
+        { type: 'Add Reference', reference: { type: 'dpid', title: 'node title' } },
+      ]);
       expect(validated.success).to.be.false;
 
       validated = actionsSchema.safeParse([
         {
           type: 'Add References',
-          references: { id: 'https://dpid.org/165', type: 'dpid' },
+          references: { id: 'https://dpid.org/165', type: 'dpid', title: 'node title' },
         },
       ]);
       expect(validated.success).to.be.false;

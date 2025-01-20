@@ -183,10 +183,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@desci-labs/desci-models@^0.2.19":
-  version "0.2.19"
-  resolved "https://registry.yarnpkg.com/@desci-labs/desci-models/-/desci-models-0.2.19.tgz#430f8e6b6a1967d6b06fc8a36e6c32536e1a4a42"
-  integrity sha512-XaZyLom2z4vi+A47qS5G1ecc65fw3MxfAKutH1iXrb92AXmxQG7TcH313O3qv4206pIDdNfmJNfgjo4h78cVJw==
+"@desci-labs/desci-models@^0.2.22":
+  version "0.2.22"
+  resolved "https://registry.yarnpkg.com/@desci-labs/desci-models/-/desci-models-0.2.22.tgz#d380d80a2593f4d5ce23e933a54bdae04f83a995"
+  integrity sha512-CALUEXxCvqSgzn+KeyiUJ+ohEMeJxYRxZUcIQbTT/1NdFg9SSsToZx/HNwhp6JD+XdJ8yzn4I8rSimvfYHa0yg==
   dependencies:
     jsonld "^8.1.1"
     schema-dts "^1.1.2"
