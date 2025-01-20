@@ -47,7 +47,7 @@ export const getCommentsSchema = z.object({
   }),
   query: z.object({
     cursor: z.coerce.number().optional(),
-    limit: z.coerce.number().optional().default(20),
+    limit: z.coerce.number().optional(),
   }),
 });
 

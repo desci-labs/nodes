@@ -18,10 +18,10 @@ export const getGeneralComments = async (req: RequestWithNode, res: Response, _n
 
   const restrictVisibility = node.ownerId !== req?.user?.id;
 
-  if (cursor) {
-    /// intentional delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-  }
+  // if (cursor) {
+  //   /// intentional delay
+  //   await new Promise((resolve) => setTimeout(resolve, 1500));
+  // }
 
   const count = await attestationService.countComments({
     uuid: ensureUuidEndsWithDot(uuid),
@@ -33,7 +33,7 @@ export const getGeneralComments = async (req: RequestWithNode, res: Response, _n
       uuid: ensureUuidEndsWithDot(uuid),
       ...(restrictVisibility && { visible: true }),
     },
-    { cursor: cursor ? parseInt(cursor.toString()) : undefined, limit: 5 /* parseInt(limit.toString()) */ },
+    { cursor: cursor ? parseInt(cursor.toString()) : undefined, limit: limit ? parseInt(limit.toString()) : undefined },
   );
 
   const comments = await asyncMap(data, async (comment) => {
