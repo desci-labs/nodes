@@ -27,7 +27,6 @@
     },
     "strictNullChecks": true,
     "exactOptionalPropertyTypes": true,
-    "strict": true,
   },
   "include": ["./src/**/*.ts"],
   "exclude": ["test/**/*.ts", "./src/party/"],
