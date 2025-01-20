@@ -1,5 +1,5 @@
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { ActionType, Annotation, AnnotationType } from '@prisma/client';
+import { ActionType, Annotation, AnnotationType, CommentVote, VoteType } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import zod from 'zod';
@@ -9,6 +9,7 @@ import { PUBLIC_IPFS_PATH } from '../../config/index.js';
 import { ForbiddenError, NotFoundError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
+import { RequestWithUser } from '../../middleware/authorisation.js';
 import { createCommentSchema, getAttestationCommentsSchema } from '../../routes/v1/attestations/schema.js';
 import { attestationService } from '../../services/Attestation.js';
 import { saveInteraction } from '../../services/interactionLog.js';
@@ -17,7 +18,7 @@ import { emitNotificationForAnnotation } from '../../services/NotificationServic
 import { base64ToBlob } from '../../utils/upload.js';
 import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
-export const getAttestationComments = async (req: Request, res: Response, next: NextFunction) => {
+export const getAttestationComments = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   const { claimId } = req.params;
   const { cursor, limit } = req.query as zod.infer<typeof getAttestationCommentsSchema>['query'];
   const claim = await attestationService.findClaimById(parseInt(claimId));
@@ -34,13 +35,23 @@ export const getAttestationComments = async (req: Request, res: Response, next: 
   );
 
   const data = await asyncMap(comments, async (comment) => {
-    const upvotes = await attestationService.getCommentUpvotes(comment.id);
-    const downvotes = await attestationService.getCommentDownvotes(comment.id);
+    let upvotes: number, downvotes: number, vote: CommentVote;
+    if (req?.user?.id) {
+      upvotes = await attestationService.getCommentUpvotes(comment.id);
+      downvotes = await attestationService.getCommentDownvotes(comment.id);
+      vote = await attestationService.getUserCommentVote(req.user.id, comment.id);
+    }
     return {
       ...comment,
-      upvotes,
-      downvotes,
       highlights: comment.highlights.map((h) => JSON.parse(h as string)),
+      ...(req?.user?.id && {
+        meta: {
+          upvotes,
+          downvotes,
+          isUpvoted: vote?.type === VoteType.Yes,
+          isDownVoted: vote?.type === VoteType.No,
+        },
+      }),
     };
   });
 
