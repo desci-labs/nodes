@@ -2021,10 +2021,10 @@
   resolved "https://registry.yarnpkg.com/@desci-labs/desci-contracts/-/desci-contracts-0.2.7.tgz#4047e52e405c361f0c1723bb966364ccc2dfb865"
   integrity sha512-T5XhH0qn7z93jb9MlGd68i4mf0tJP+ppfyWKfFBjp+dCUC4GeTMM3Z/6eqaD8QXsBpvRfi+cvb0or3BY47MR2A==
 
-"@desci-labs/desci-models@^0.2.21":
-  version "0.2.21"
-  resolved "https://registry.yarnpkg.com/@desci-labs/desci-models/-/desci-models-0.2.21.tgz#ecaded42fba4ecbc6fe1d43da5befbbb88fc1569"
-  integrity sha512-VvKX9FMSt47q/blxPL6wrkhFQaJzfGA8dXvHR8n5sqCq29eHYrlqNAm5k170m3/eE7dfAl99PH4VLuXw/D6MPg==
+"@desci-labs/desci-models@^0.2.22":
+  version "0.2.22"
+  resolved "https://registry.yarnpkg.com/@desci-labs/desci-models/-/desci-models-0.2.22.tgz#d380d80a2593f4d5ce23e933a54bdae04f83a995"
+  integrity sha512-CALUEXxCvqSgzn+KeyiUJ+ohEMeJxYRxZUcIQbTT/1NdFg9SSsToZx/HNwhp6JD+XdJ8yzn4I8rSimvfYHa0yg==
   dependencies:
     jsonld "^8.1.1"
     schema-dts "^1.1.2"
