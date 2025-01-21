@@ -39,11 +39,16 @@ export const getGeneralComments = async (req: RequestWithNode, res: Response, _n
   const comments = await asyncMap(data, async (comment) => {
     const upvotes = await attestationService.getCommentUpvotes(comment.id);
     const downvotes = await attestationService.getCommentDownvotes(comment.id);
+    const vote = await attestationService.getUserCommentVote(req.user.id, comment.id);
     return {
       ...comment,
-      upvotes,
-      downvotes,
       highlights: comment.highlights.map((h) => JSON.parse(h as string)),
+      meta: {
+        upvotes,
+        downvotes,
+        isUpvoted: vote?.type === VoteType.Yes,
+        isDownVoted: vote?.type === VoteType.No,
+      },
     };
   });
 

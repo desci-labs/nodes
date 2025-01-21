@@ -2506,7 +2506,7 @@ describe('Attestations Service', async () => {
       await prisma.commentVote.deleteMany({});
     });
 
-    it('should test user upvote via api', async () => {
+    it.only('should test user upvote via api', async () => {
       const voterJwtToken = jwt.sign({ email: voter.email }, process.env.JWT_SECRET!, {
         expiresIn: '1y',
       });
@@ -2537,18 +2537,44 @@ describe('Attestations Service', async () => {
       const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
       res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
       expect(res.statusCode).to.equal(200);
-      const comments = (await res.body.data.comments) as {
-        upvotes: number;
-        downvotes: number;
+      let comments = (await res.body.data.comments) as {
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
         highlights: any[];
         id: number;
         body: string;
         links: string[];
         authorId: number;
       }[];
-      const c1 = comments.find((c) => c.id === comment.id);
-      expect(c1?.upvotes).to.be.equal(1);
-      expect(c1?.downvotes).to.be.equal(0);
+      let c1 = comments.find((c) => c.id === comment.id);
+      expect(c1?.meta.upvotes).to.be.equal(1);
+      expect(c1?.meta.downvotes).to.be.equal(0);
+
+      const voterRes = await request(app)
+        .get(`/v1/nodes/${node.uuid}/comments`)
+        .set('authorization', voterJwtHeader)
+        .send();
+      expect(voterRes.statusCode).to.equal(200);
+      comments = (await voterRes.body.data.comments) as {
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
+        highlights: any[];
+        id: number;
+        body: string;
+        links: string[];
+        authorId: number;
+      }[];
+      c1 = comments.find((c) => c.id === comment.id);
+      expect(c1?.meta.isUpvoted).to.be.true;
+      expect(c1?.meta.isDownVoted).to.be.false;
     });
 
     it('should test user downvote via api', async () => {
@@ -2564,7 +2590,7 @@ describe('Attestations Service', async () => {
         .send();
       expect(res.statusCode).to.equal(200);
 
-      // check upvote
+      // check downvote
       res = await request(app)
         .get(`/v1/nodes/${node.uuid}/comments/${comment.id}/vote`)
         .set('authorization', voterJwtHeader)
@@ -2582,18 +2608,44 @@ describe('Attestations Service', async () => {
       const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
       res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
       expect(res.statusCode).to.equal(200);
-      const comments = (await res.body.data.comments) as {
-        upvotes: number;
-        downvotes: number;
+      let comments = (await res.body.data.comments) as {
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
         highlights: any[];
         id: number;
         body: string;
         links: string[];
         authorId: number;
       }[];
-      const c1 = comments.find((c) => c.id === comment.id);
-      expect(c1?.upvotes).to.be.equal(0);
-      expect(c1?.downvotes).to.be.equal(1);
+      let c1 = comments.find((c) => c.id === comment.id);
+      expect(c1?.meta.upvotes).to.be.equal(0);
+      expect(c1?.meta.downvotes).to.be.equal(1);
+
+      const voterRes = await request(app)
+        .get(`/v1/nodes/${node.uuid}/comments`)
+        .set('authorization', voterJwtHeader)
+        .send();
+      expect(voterRes.statusCode).to.equal(200);
+      comments = (await voterRes.body.data.comments) as {
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
+        highlights: any[];
+        id: number;
+        body: string;
+        links: string[];
+        authorId: number;
+      }[];
+      c1 = comments.find((c) => c.id === comment.id);
+      expect(c1?.meta.isUpvoted).to.be.false;
+      expect(c1?.meta.isDownVoted).to.be.true;
     });
 
     it('should delete user vote via api', async () => {
@@ -2626,8 +2678,12 @@ describe('Attestations Service', async () => {
       res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
       expect(res.statusCode).to.equal(200);
       const comments = (await res.body.data.comments) as {
-        upvotes: number;
-        downvotes: number;
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
         highlights: any[];
         id: number;
         body: string;
@@ -2635,8 +2691,10 @@ describe('Attestations Service', async () => {
         authorId: number;
       }[];
       const c1 = comments.find((c) => c.id === comment.id);
-      expect(c1?.upvotes).to.be.equal(0);
-      expect(c1?.downvotes).to.be.equal(0);
+      expect(c1?.meta.upvotes).to.be.equal(0);
+      expect(c1?.meta.downvotes).to.be.equal(0);
+      expect(c1?.meta.isUpvoted).to.be.false;
+      expect(c1?.meta.isDownVoted).to.be.false;
     });
   });
 });

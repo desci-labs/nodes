@@ -174,7 +174,7 @@ router.post(
   asyncHandler(addExternalPublication),
 );
 
-router.get('/:uuid/comments', [validate(getCommentsSchema), attachUser], asyncHandler(getGeneralComments));
+router.get('/:uuid/comments', [ensureUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
 router.get('/:uuid/comments/:commentId/vote', [ensureUser, validate(postCommentVoteSchema)], asyncHandler(getUserVote));
 router.post(
   '/:uuid/comments/:commentId/upvote',
