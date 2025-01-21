@@ -18,11 +18,6 @@ export const getGeneralComments = async (req: RequestWithNode, res: Response, _n
 
   const restrictVisibility = node.ownerId !== req?.user?.id;
 
-  // if (cursor) {
-  //   /// intentional delay
-  //   await new Promise((resolve) => setTimeout(resolve, 1500));
-  // }
-
   const count = await attestationService.countComments({
     uuid: ensureUuidEndsWithDot(uuid),
     ...(restrictVisibility && { visible: true }),

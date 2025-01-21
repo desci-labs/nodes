@@ -838,6 +838,10 @@ export class CommunityService {
       },
     });
 
+    logger.trace({ entry }, 'removeFromRadar');
+
+    if (!entry) return null;
+
     await prisma.$transaction(
       claimedAttestations.map((claim) =>
         prisma.nodeAttestation.update({ where: { id: claim.id }, data: { communityRadarEntryId: null } }),
