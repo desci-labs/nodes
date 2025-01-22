@@ -144,7 +144,7 @@ export class AutomergeServer extends PartyServer {
     console.log('Incoming Request', request.url);
 
     if (request.headers.get('x-api-key') != this.env.API_TOKEN) {
-      console.log('[Error]::Api key error');
+      console.log('[Error]::Api key error', { api: this.env.API_TOKEN, key: request.headers.get('x-api-key') });
       return new Response('UnAuthorized', { status: 401 });
     }
 
@@ -263,6 +263,7 @@ async function handleCreateDocument(request: Request, env: Env) {
 
 export default {
   fetch(request: Request, env) {
+    console.log('Fetch handler: ', env, 'request api key: ', request.headers.get('x-api'));
     if (request.url.includes('/api/documents') && request.method.toLowerCase() === 'post')
       return handleCreateDocument(request, env);
 
