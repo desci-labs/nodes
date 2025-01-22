@@ -15,22 +15,40 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      # - name: Show github ref
+      #   run: |
+      #     echo ${{ github.ref }}
+      #     echo ${{ github.ref_name }}
+      #     echo ${{ github.head_ref }}
+      # - name: Build & Deploy Worker (Dev)
+      #   if: github.head_ref == 'tay/automerge-party-flagged'
+      #   uses: cloudflare/wrangler-action@v3
+      #   with:
+      #     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      #     environment: staging
+      #     workingDirectory: sync-server
+      #     wranglerVersion: 3.95.0
       - name: Build & Deploy Worker (Staging)
         if: github.ref == 'refs/heads/develop'
         uses: cloudflare/wrangler-action@v3
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN_PROD }}
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN_DEV }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           environment: staging
           workingDirectory: sync-server
           wranglerVersion: 3.95.0
-          secrets: API_TOKEN
+          # secrets: API_TOKEN
 
       - name: Build & Deploy Worker (Production)
         if: github.ref == 'refs/heads/main'
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN_PROD }}
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN_PROD }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           environment: production
           workingDirectory: sync-server
