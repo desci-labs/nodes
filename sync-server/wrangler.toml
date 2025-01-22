@@ -4,6 +4,7 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat_v2"]
 find_additional_modules = true
+tail_consumers = [{service = "automerge-sync-server-tail"}]
 
 [[durable_objects.bindings]]
 name = "Automerge"
@@ -41,7 +42,6 @@ durable_objects.bindings = [{ name = "Automerge", class_name = "AutomergeServer"
 routes = [
   { pattern = "nodes-dev-sync.desci.com", custom_domain = true }
 ]
-tail_consumers = [{service = "automerge-sync-server-staging-tail"}]
 
 [env.production]
 vars = { ENVIRONMENT = "production", DB_TABLE= "DocumentStore", NODES_API= "https://nodes-api.desci.com" }
@@ -50,7 +50,6 @@ durable_objects.bindings = [{ name = "Automerge", class_name = "AutomergeServer"
 routes = [
   { pattern = "nodes-sync.desci.com", custom_domain = true }
 ]
-tail_consumers = [{service = "automerge-sync-server-prod-tail"}]
 
 [[rules]]
 type = "CompiledWasm"

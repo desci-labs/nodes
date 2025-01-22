@@ -24,9 +24,6 @@ import { assert } from './automerge-repo-network-websocket/assert.js';
 // import { actionsSchema } from './lib/schema.js';
 import { actionDispatcher, getAutomergeUrl, getDocumentUpdater } from './manifestRepo.js';
 import { ZodError } from 'zod';
-// import { FromClientMessage } from './automerge-repo-network-websocket/messages.js';
-
-// const { encode, decode } = cborHelpers;
 
 interface ResearchObjectDocument {
   manifest: ResearchObjectV1;
