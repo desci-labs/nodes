@@ -226,6 +226,11 @@
   resolved "https://registry.yarnpkg.com/@cloudflare/workers-types/-/workers-types-4.20241112.0.tgz#174f8ccbfe1cc2e07b86622f82b84698f62d14c7"
   integrity sha512-Q4p9bAWZrX14bSCKY9to19xl0KMU7nsO5sJ2cTVspHoypsjPUMeQCsjHjmsO2C4Myo8/LPeDvmqFmkyNAPPYZw==
 
+"@cloudflare/workers-types@^4.x":
+  version "4.20250121.0"
+  resolved "https://registry.yarnpkg.com/@cloudflare/workers-types/-/workers-types-4.20250121.0.tgz#7a535deba310ee68c70b424b0f75a1069c70741c"
+  integrity sha512-2bBosmudcwvUOKzuCL/Jum18LDh3QoU0QnTNMXIgcVwuq3LaNzyZnOW14bFXPhLU/84ZjNO3zO5R/U11Zgag2Q==
+
 "@cspotcode/source-map-support@0.8.1", "@cspotcode/source-map-support@^0.8.0":
   version "0.8.1"
   resolved "https://registry.yarnpkg.com/@cspotcode/source-map-support/-/source-map-support-0.8.1.tgz#00629c35a688e05a88b1cda684fb9d5e73f000a1"
@@ -619,6 +624,20 @@
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@rtsao/scc/-/scc-1.1.0.tgz#927dd2fae9bc3361403ac2c7a00c32ddce9ad7e8"
   integrity sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==
+
+"@sentry/cloudflare@^8.50.0":
+  version "8.50.0"
+  resolved "https://registry.yarnpkg.com/@sentry/cloudflare/-/cloudflare-8.50.0.tgz#65d281b8700f9cd6e2a85ff40fa93558d1b25578"
+  integrity sha512-i+NITuKoK5wVrzKx3TAdhRJ1OoXMak/+/w0TvTY8K3qJudqJOgAb5u2a7cJHCpCyZ1VPMUq/ZvSjksE+K2zHOA==
+  dependencies:
+    "@sentry/core" "8.50.0"
+  optionalDependencies:
+    "@cloudflare/workers-types" "^4.x"
+
+"@sentry/core@8.50.0":
+  version "8.50.0"
+  resolved "https://registry.yarnpkg.com/@sentry/core/-/core-8.50.0.tgz#cfc9983bb7ea3ad8c6f3332addd2816a791f5aeb"
+  integrity sha512-q71m8Ha9YGwqn4Gd7sWvcFTRgbHXxEfU4QeIFtwMBpwHfq2Q+9koiF8DOoOHqIEOsnlvZWRQgGggIOdHzajnVw==
 
 "@tsconfig/node10@^1.0.7":
   version "1.0.11"

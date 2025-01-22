@@ -65,6 +65,7 @@
     "@automerge/automerge-repo-react-hooks": "^1.0.19",
     "@cloudflare/workers-types": "^4.20241022.0",
     "@desci-labs/desci-models": "^0.2.19",
+    "@sentry/cloudflare": "^8.50.0",
     "deep-equal": "^2.2.3",
     "isomorphic-ws": "^5.0.0",
     "partykit": "^0.0.111",
