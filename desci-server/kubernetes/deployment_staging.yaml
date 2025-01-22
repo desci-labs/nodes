@@ -107,9 +107,9 @@ spec:
           export ELASTIC_SEARCH_USER="{{ .Data.ELASTIC_SEARCH_USER }}"
           export ELASTIC_SEARCH_PW="{{ .Data.ELASTIC_SEARCH_PW }}"
           export OPEN_ALEX_DATABASE_URL="{{ .Data.OPEN_ALEX_DATABASE_URL }}"
-          CLOUDFLARE_WORKER_API=https://nodes-sync.desci.com
-          CLOUDFLARE_WORKER_API_SECRET="{{ .Data.CLOUDFLARE_WORKER_API_SECRET }}"
-          ENABLE_WORKERS_API=true
+          export CLOUDFLARE_WORKER_API=https://nodes-sync.desci.com
+          export CLOUDFLARE_WORKER_API_SECRET="{{ .Data.CLOUDFLARE_WORKER_API_SECRET }}"
+          export ENABLE_WORKERS_API=true
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
