@@ -24,7 +24,6 @@ services:
       - ./postgres/sql/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
   openalex-importer:
     container_name: 'openalex-importer'
-    command: yarn dev
     build: .
     env_file:
       - .env

@@ -1,15 +1,11 @@
-FROM node:20.8.1-bullseye-slim
-
-VOLUME /root/.yarn
-
-RUN npm install -g npm@10.8.2
+FROM node:20.18.1-bullseye-slim
 
 RUN mkdir /app
 WORKDIR /app
 
 COPY . .
 
-RUN --mount=type=cache,target=/root/.yarn YARN_CACHE_FOLDER=/root/.yarn yarn install
-RUN yarn build
+RUN npm ci
+RUN npm run build
 
-CMD [ "yarn", "start" ]
+CMD [ "npm", "start" ]

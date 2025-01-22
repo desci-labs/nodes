@@ -18,3 +18,4 @@ repo-tmp
 postgres-data/
 
 logs
+heap-snapshots
