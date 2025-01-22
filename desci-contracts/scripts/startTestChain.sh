@@ -66,7 +66,6 @@ makeDeployments() {
     deployDpidSubgraph
 }
 
-makeDeployments &
 
 echo "[startTestChain] starting ganache..."
 # Ganache is very spammy with eth_getBlock etc so we filter these out
@@ -76,3 +75,12 @@ npx ganache \
   --wallet.mnemonic="${MNEMONIC}" \
   --database.dbPath="/data" \
   | grep --line-buffered -v '^eth_.*$'
+
+  GANACHE_PID=$!
+
+until curl -s -o /dev/null -w '' http://localhost:8545; do
+  sleep 1
+done
+
+makeDeployments
+wait $GANACHE_PID
