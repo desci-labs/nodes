@@ -1,7 +1,7 @@
 import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { AnnotationType, Attestation, AttestationVersion, Node, Prisma, User } from '@prisma/client';
+import { AnnotationType, Attestation, AttestationVersion, Node, Prisma, User, VoteType } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import _ from 'lodash';
 
@@ -854,31 +854,103 @@ export class AttestationService {
   }
 
   // TODO: write raw sql query to optimize this
-  async getAllClaimComments(filter: Prisma.AnnotationWhereInput) {
+  async getAllClaimComments(filter: Prisma.AnnotationWhereInput, options?: { cursor?: number; limit?: number }) {
     return prisma.annotation.findMany({
       where: filter,
       include: {
-        author: true,
+        _count: {
+          select: { CommentVote: true },
+        },
+        CommentVote: { select: { id: true, type: true } },
+        author: { select: { id: true, name: true, orcid: true } },
         attestation: {
           include: {
             attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },
           },
         },
       },
+      orderBy: {
+        id: 'asc',
+      },
+      skip: options?.cursor ? 1 : 0,
+      ...(options?.limit && { take: options.limit }),
+      ...(options?.cursor && { cursor: { id: options.cursor } }),
     });
   }
 
-  async getComments(filter: Prisma.AnnotationWhereInput) {
+  async getComments(filter: Prisma.AnnotationWhereInput, options?: { cursor?: number; limit?: number }) {
     return prisma.annotation.findMany({
       where: filter,
       include: {
-        author: true,
+        author: { select: { id: true, name: true, orcid: true } },
+        // CommentVote: {
+        //   select: { id: true, userId: true, annotationId: true, type: true },
+        // },
         attestation: {
           include: {
             attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },
           },
         },
       },
+      orderBy: {
+        id: 'asc',
+      },
+      skip: options?.cursor ? 1 : 0,
+      ...(options?.limit && { take: options.limit }),
+      ...(options?.cursor && { cursor: { id: options.cursor } }),
+    });
+  }
+
+  async countComments(filter: Prisma.AnnotationWhereInput) {
+    return prisma.annotation.count({
+      where: filter,
+    });
+  }
+
+  async getVotesByCommentId(annotationId: number) {
+    return prisma.commentVote.findMany({
+      where: { annotationId },
+    });
+  }
+
+  async upvoteComment(data: Prisma.CommentVoteCreateArgs['data']) {
+    return await prisma.commentVote.upsert({
+      where: { userId_annotationId: { userId: data.userId, annotationId: data.annotationId } },
+      create: { userId: data.userId, annotationId: data.annotationId, type: VoteType.Yes },
+      update: { type: VoteType.Yes },
+    });
+  }
+
+  async downvoteComment(data: Prisma.CommentVoteCreateArgs['data']) {
+    return await prisma.commentVote.upsert({
+      where: { userId_annotationId: { userId: data.userId, annotationId: data.annotationId } },
+      create: { userId: data.userId, annotationId: data.annotationId, type: VoteType.No },
+      update: { type: VoteType.No },
+    });
+  }
+
+  async getCommentUpvotes(annotationId: number) {
+    return prisma.commentVote.count({ where: { annotationId, type: VoteType.Yes } });
+  }
+
+  async getCommentDownvotes(annotationId: number) {
+    return prisma.commentVote.count({ where: { annotationId, type: VoteType.No } });
+  }
+
+  async countUserCommentVote(userId: number, annotationId: number) {
+    return prisma.commentVote.count({ where: { userId, annotationId } });
+  }
+
+  async getUserCommentVote(userId: number, annotationId: number) {
+    return prisma.commentVote.findFirst({
+      where: { userId, annotationId },
+      // select: { id: true, annotationId createdAt: true, type: true },
+    });
+  }
+
+  async deleteCommentVote(id: number) {
+    return prisma.commentVote.delete({
+      where: { id },
     });
   }
 

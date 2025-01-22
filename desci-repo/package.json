@@ -72,7 +72,7 @@
     "@automerge/automerge-repo-network-websocket": "^1.2.1",
     "@automerge/automerge-repo-storage-indexeddb": "^1.2.1",
     "@cloudflare/workers-types": "^4.20241022.0",
-    "@desci-labs/desci-models": "^0.2.19",
+    "@desci-labs/desci-models": "^0.2.22",
     "@sentry/node": "8.29.0",
     "@sentry/profiling-node": "8.32.0",
     "@sentry/tracing": "^7.84.0",

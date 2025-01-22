@@ -47,7 +47,6 @@ export class AutomergeServer extends PartyServer {
     private readonly env: Env,
   ) {
     super(ctx, env);
-    console.log('Room: ', ctx.id, env);
   }
 
   async onStart(): Promise<void> {
@@ -204,7 +203,6 @@ export class AutomergeServer extends PartyServer {
       return new Response(JSON.stringify({ ok: false, message: 'No actions to dispatch' }), { status: 400 });
     }
 
-    console.log('dispatchAction', { actions });
     if (!this.handle) this.handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
 
     for (const action of actions) {
@@ -262,7 +260,7 @@ async function handleCreateDocument(request: Request, env: Env) {
   await repo.flush();
   let document = await handle.doc();
 
-  console.log('[Request]::handleCreateDocument ', { created: !!document });
+  console.log('[Request]::handleCreateDocument ', { uuid: body.uuid, created: !!document });
   return new Response(JSON.stringify({ documentId: handle.documentId, document }), { status: 200 });
 }
 

@@ -11,7 +11,13 @@ export const getCommunityFeedSchema = z.object({
     communityId: z.coerce.number(),
   }),
   query: z.object({
-    cursor: z.coerce.number().optional().default(0),
+    page: z.coerce.number().optional().default(0),
+  }),
+});
+
+export const getAllCommunitiesFeedSchema = z.object({
+  query: z.object({
+    page: z.coerce.number().optional().default(0),
   }),
 });
 

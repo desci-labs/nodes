@@ -63,6 +63,10 @@ import {
   searchNodes,
   versionDetails,
   thumbnails,
+  upvoteComment,
+  getUserVote,
+  deleteUserVote,
+  downvoteComment,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
@@ -73,7 +77,7 @@ import { ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
-import { getCommentsSchema, showNodeAttestationsSchema } from './attestations/schema.js';
+import { getCommentsSchema, postCommentVoteSchema, showNodeAttestationsSchema } from './attestations/schema.js';
 
 const router = Router();
 
@@ -170,7 +174,23 @@ router.post(
   asyncHandler(addExternalPublication),
 );
 
-router.get('/:uuid/comments', [validate(getCommentsSchema), attachUser], asyncHandler(getGeneralComments));
+router.get('/:uuid/comments', [ensureUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
+router.get('/:uuid/comments/:commentId/vote', [ensureUser, validate(postCommentVoteSchema)], asyncHandler(getUserVote));
+router.post(
+  '/:uuid/comments/:commentId/upvote',
+  [ensureUser, validate(postCommentVoteSchema)],
+  asyncHandler(upvoteComment),
+);
+router.post(
+  '/:uuid/comments/:commentId/downvote',
+  [ensureUser, validate(postCommentVoteSchema)],
+  asyncHandler(downvoteComment),
+);
+router.delete(
+  '/:uuid/comments/:commentId/vote',
+  [ensureUser, validate(postCommentVoteSchema)],
+  asyncHandler(deleteUserVote),
+);
 
 router.get('/:uuid/attestations', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
 

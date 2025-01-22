@@ -70,12 +70,26 @@ const referenceSchema: z.ZodType<ResearchObjectReference> = z
   .object({
     type: z.union([z.literal('doi'), z.literal('dpid')]),
     id: z.string().refine((id) => DPID_PATH_REGEX.test(id) || DOI_REGEX.test(id)),
+    title: z.string(),
+    // url: z.union([z.undefined(), z.string().optional()]),
+    // authors: z
+    //   .array(
+    //     z.object({
+    //       name: z.string().optional(),
+    //     }),
+    //   )
+    //   .optional(),
+    // journal: z.string().optional(),
+    // page: z.string().optional(),
+    // volume: z.string().optional(),
+    // issue: z.string().optional(),
+    // year: z.string().optional(),
   })
   .refine((arg) => {
     if (arg.type === 'doi') return DOI_REGEX.test(arg.id);
     return DPID_PATH_REGEX.test(arg.id);
   });
-
+type Ref = z.infer<typeof referenceSchema>['authors'];
 type Action = ManifestActions['type'];
 
 export const actionsSchema = z.array(
