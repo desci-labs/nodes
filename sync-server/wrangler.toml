@@ -42,6 +42,7 @@ durable_objects.bindings = [{ name = "Automerge", class_name = "AutomergeServer"
 routes = [
   { pattern = "nodes-dev-sync.desci.com", custom_domain = true }
 ]
+tail_consumers = [{service = "automerge-sync-server-tail"}]
 
 [env.production]
 vars = { ENVIRONMENT = "production", DB_TABLE= "DocumentStore", NODES_API= "https://nodes-api.desci.com" }
@@ -50,6 +51,7 @@ durable_objects.bindings = [{ name = "Automerge", class_name = "AutomergeServer"
 routes = [
   { pattern = "nodes-sync.desci.com", custom_domain = true }
 ]
+tail_consumers = [{service = "automerge-sync-server-tail"}]
 
 [[rules]]
 type = "CompiledWasm"
