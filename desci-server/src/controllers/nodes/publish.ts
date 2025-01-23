@@ -9,6 +9,7 @@ import { delFromCache } from '../../redisClient.js';
 import { attestationService } from '../../services/Attestation.js';
 import { directStreamLookup } from '../../services/ceramic.js';
 import { getManifestByCid } from '../../services/data/processing.js';
+import { ElasticNodesService } from '../../services/ElasticNodesService.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { doiService } from '../../services/index.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
@@ -183,10 +184,17 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
       }
     }
 
-    return res.send({
+    res.send({
       ok: true,
       dpid: dpidAlias ?? parseInt(manifest.dpid?.id),
     });
+
+    // Index on ES
+    try {
+      ElasticNodesService.indexResearchObject(node.uuid);
+    } catch (err) {
+      logger.error({ err }, 'Error: Indexing published node in ElasticSearch failed');
+    }
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
     saveInteraction(req, ActionType.PUBLISH_NODE, {
