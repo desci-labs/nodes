@@ -34,12 +34,28 @@ export const getAttestationCommentsSchema = z.object({
   params: z.object({
     claimId: z.coerce.number(),
   }),
+  query: z.object({
+    cursor: z.coerce.number().optional(),
+    limit: z.coerce.number().optional().default(20),
+  }),
 });
 
 export const getCommentsSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings
     uuid: z.string().min(10),
+  }),
+  query: z.object({
+    cursor: z.coerce.number().optional(),
+    limit: z.coerce.number().optional(),
+  }),
+});
+
+export const postCommentVoteSchema = z.object({
+  params: z.object({
+    // quickly disqualify false uuid strings
+    uuid: z.string().min(10),
+    commentId: z.coerce.number(),
   }),
 });
 
@@ -204,5 +220,11 @@ export const removeClaimSchema = z.object({
     dpid: z.coerce.number().optional(),
     nodeUuid: z.string(),
     claimId: z.coerce.number(),
+  }),
+});
+
+export const searchAttestationsSchema = z.object({
+  query: z.object({
+    search: z.string().optional(),
   }),
 });

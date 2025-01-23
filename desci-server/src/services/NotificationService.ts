@@ -6,11 +6,12 @@ import { CreateNotificationSchema } from '../controllers/notifications/create.js
 import { GetNotificationsQuerySchema, PaginatedResponse } from '../controllers/notifications/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { server } from '../server.js';
-import { emitWebsocketEvent, WebSocketEventType } from '../utils/websocketHelpers.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
 import { getDpidFromNode, getDpidFromNodeUuid } from './node.js';
+import { PublishServices } from './PublishServices.js';
+import { emitWebsocketEvent, WebSocketEventType } from './websocketService.js';
 
 type GetNotificationsQuery = z.infer<typeof GetNotificationsQuerySchema>;
 export type CreateNotificationData = z.infer<typeof CreateNotificationSchema>;
@@ -324,24 +325,40 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
   await createUserNotification(notificationData);
 };
 //
-export const emitNotificationOnPublish = async (node: Node, user: User, dpid: string) => {
-  const dotlessUuid = node.uuid.replace(/\./g, '');
-  const payload: PublishPayload = {
-    type: NotificationType.PUBLISH,
-    nodeUuid: dotlessUuid,
-    dpid,
-    nodeTitle: node.title,
-  };
-  const notificationData: CreateNotificationData = {
-    userId: user.id,
-    type: NotificationType.PUBLISH,
-    title: `Your research object has been published!`,
-    message: `Your research object titled "${node.title}" has been published and is now available for public access.`,
-    nodeUuid: node.uuid,
-    payload,
-  };
+export const emitNotificationOnPublish = async (node: Node, user: User, dpid: string, publishStatusId: number) => {
+  try {
+    const dotlessUuid = node.uuid.replace(/\./g, '');
+    const payload: PublishPayload = {
+      type: NotificationType.PUBLISH,
+      nodeUuid: dotlessUuid,
+      dpid,
+      nodeTitle: node.title,
+    };
+    const notificationData: CreateNotificationData = {
+      userId: user.id,
+      type: NotificationType.PUBLISH,
+      title: `Your research object has been published!`,
+      message: `Your research object titled "${node.title}" has been published and is now available for public access.`,
+      nodeUuid: node.uuid,
+      payload,
+    };
 
-  await createUserNotification(notificationData);
+    await createUserNotification(notificationData);
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        fireNotifications: true,
+      },
+    });
+  } catch (e) {
+    logger.error({ fn: 'emitNotificationOnPublish', error: e }, 'Error emitting notification on publish');
+    await PublishServices.updatePublishStatusEntry({
+      publishStatusId,
+      data: {
+        fireNotifications: false,
+      },
+    });
+  }
 };
 
 export const emitNotificationOnContributorInvite = async ({
@@ -474,10 +491,14 @@ export const getUnseenNotificationCount = async ({ userId, user }: { userId?: nu
 };
 
 export const incrementUnseenNotificationCount = async ({ userId }: { userId: number }) => {
-  await prisma.user.update({
-    where: { id: userId },
-    data: { unseenNotificationCount: { increment: 1 } },
-  });
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { unseenNotificationCount: { increment: 1 } },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Error');
+  }
 };
 
 export const resetUnseenNotificationCount = async ({ userId }: { userId: number }) => {

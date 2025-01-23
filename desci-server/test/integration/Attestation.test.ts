@@ -3,8 +3,10 @@ import 'mocha';
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import {
   Annotation,
+  AnnotationType,
   Attestation,
   AttestationVersion,
+  CommentVote,
   CommunityMember,
   CommunityMembershipRole,
   DesciCommunity,
@@ -15,6 +17,7 @@ import {
   NodeVersion,
   Prisma,
   User,
+  VoteType,
 } from '@prisma/client';
 import { assert, expect } from 'chai';
 import jwt from 'jsonwebtoken';
@@ -22,7 +25,7 @@ import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { NodeAttestationFragment } from '../../src/controllers/attestations/show.js';
-import { Engagement, NodeRadar, NodeRadarItem } from '../../src/controllers/communities/types.js';
+import { Engagement, NodeRadar, NodeRadarEntry, NodeRadarItem } from '../../src/controllers/communities/types.js';
 import {
   DuplicateReactionError,
   DuplicateVerificationError,
@@ -264,6 +267,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node.uuid);
 
       // publish new node version
       nodeVersion2 = await prisma.nodeVersion.create({
@@ -1567,7 +1572,7 @@ describe('Attestations Service', async () => {
     let fairMetadataAttestationVersion: AttestationVersion;
 
     let res: request.Response;
-    let apiResponse: NodeRadar[];
+    let apiResponse: NodeRadarEntry[];
 
     before(async () => {
       node = nodes[0];
@@ -1621,6 +1626,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node.uuid);
 
       // claim all entry requirements for node 2
       [claim2, openDataAttestationClaim2] = await attestationService.claimAttestations({
@@ -1639,6 +1646,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author2.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node2.uuid);
 
       // claim all entry requirements for node 3
       [claim3, openDataAttestationClaim3] = await attestationService.claimAttestations({
@@ -1657,6 +1666,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author3.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node3.uuid);
 
       // verify both claims for node 1
       await attestationService.verifyClaim(claim.id, users[3].id);
@@ -1679,7 +1690,7 @@ describe('Attestations Service', async () => {
         .set('authorization', authHeaderVal)
         .field('communityId', desciCommunity.id);
 
-      apiResponse = res.body.data;
+      apiResponse = res.body.data.data;
       console.log(apiResponse[0]);
       console.log(apiResponse[1]);
       console.log(apiResponse[2]);
@@ -1696,9 +1707,9 @@ describe('Attestations Service', async () => {
     it('should return nodes in radar in ASC order of verified engagements sorted by last submission/claim date', async () => {
       expect(res.status).to.equal(200);
       expect(apiResponse.length).to.equal(3);
-      expect(apiResponse[0].nodeDpid10).to.be.equal('2');
-      expect(apiResponse[1].nodeDpid10).to.be.equal('3');
-      expect(apiResponse[2].nodeDpid10).to.be.equal('1');
+      expect(apiResponse[0].nodeUuid).to.be.equal(node2.uuid);
+      expect(apiResponse[1].nodeUuid).to.be.equal(node3.uuid);
+      expect(apiResponse[2].nodeUuid).to.be.equal(node.uuid);
     });
   });
 
@@ -2003,6 +2014,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node.uuid);
 
       [claim2, openDataAttestationClaim2] = await attestationService.claimAttestations({
         attestations: [
@@ -2020,6 +2033,8 @@ describe('Attestations Service', async () => {
         nodeVersion,
         claimerId: author2.id,
       });
+      // trigger update radar entry
+      await communityService.addToRadar(desciCommunity.id, node2.uuid);
 
       // verify both claims for node 1
       await attestationService.verifyClaim(claim.id, users[1].id);
@@ -2074,24 +2089,26 @@ describe('Attestations Service', async () => {
       expect(communityEngagementSignal.reactions).to.equal(0);
     });
 
-    it('should remove node from radar and curated if an entry attestation claim is revoked', async () => {
+    it('should remove node from radar and curated if claim is revoked', async () => {
       const res1 = await request(app)
         .get(`/v1/communities/${desciCommunity.id}/radar`)
         .set('authorization', authHeaderVal)
         .field('communityId', desciCommunity.id);
-      const radar = res1.body.data as NodeRadar[];
+      console.log('radar', res1.body);
+      const radar = res1.body.data.data as NodeRadarEntry[];
       expect(res1.status).to.equal(200);
       expect(radar.length).to.equal(1);
       const radarNode = radar[0];
-      expect(radarNode.nodeDpid10).to.be.equal('2');
-      expect(radarNode.nodeuuid).to.be.equal(node2.uuid);
+      // expect(radarNode.nodeDpid10).to.be.equal('2');
+      expect(radarNode.nodeUuid).to.be.equal(node2.uuid);
 
       const res = await request(app)
         .get(`/v1/communities/${desciCommunity.id}/feed`)
         .set('authorization', authHeaderVal)
         .field('communityId', desciCommunity.id);
 
-      const curatedNodes = res.body.data as NodeRadar[];
+      console.log('feed', res.body);
+      const curatedNodes = res.body.data.data as NodeRadarEntry[];
       expect(res.status).to.equal(200);
       expect(curatedNodes.length).to.equal(0);
     });
@@ -2308,6 +2325,376 @@ describe('Attestations Service', async () => {
 
       const comments = await attestationService.getAllClaimComments({ nodeAttestationId: openCodeClaim.id });
       expect(comments.length).to.equal(2);
+    });
+  });
+
+  describe.only('Annotations(Comments) Vote', async () => {
+    let claim: NodeAttestation;
+    let node: Node;
+    const nodeVersion = 0;
+    let attestationVersion: AttestationVersion;
+    let author: User;
+    let commenter: User;
+    let commenter1: User;
+    let comment: Annotation;
+    let comment1: Annotation;
+    let voter: User;
+    let voter1: User;
+    let voter2: User;
+
+    let vote: CommentVote;
+
+    before(async () => {
+      node = nodes[0];
+      author = users[0];
+      commenter = users[1];
+      commenter1 = users[5];
+      voter = users[2];
+      voter1 = users[3];
+      voter2 = users[4];
+      assert(node.uuid);
+      const versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
+      attestationVersion = versions[versions.length - 1];
+      claim = await attestationService.claimAttestation({
+        attestationId: reproducibilityAttestation.id,
+        attestationVersion: attestationVersion.id,
+        nodeDpid: '1',
+        nodeUuid: node.uuid,
+        nodeVersion,
+        claimerId: author.id,
+      });
+
+      comment = await attestationService.createComment({
+        links: [],
+        claimId: claim.id,
+        authorId: commenter.id,
+        comment: 'Love the attestation',
+        visible: true,
+        uuid: node.uuid,
+      });
+      comment1 = await attestationService.createComment({
+        links: [],
+        claimId: claim.id,
+        authorId: commenter1.id,
+        comment: 'Comment1',
+        visible: true,
+        uuid: node.uuid,
+      });
+    });
+
+    after(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeAttestation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Annotation" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "CommentVote" CASCADE;`;
+    });
+
+    it('should upvote comment', async () => {
+      const vote = await attestationService.upvoteComment({
+        userId: voter.id,
+        annotationId: comment.id,
+        type: VoteType.Yes,
+      });
+      expect(vote.annotationId).to.be.equal(comment.id);
+      expect(vote.userId).to.be.equal(voter.id);
+      expect(vote.type).to.be.equal(VoteType.Yes);
+
+      const cVote = await attestationService.getCommentUpvotes(comment.id);
+      expect(cVote).to.be.equal(1);
+    });
+
+    it('should downvote comment', async () => {
+      vote = await attestationService.downvoteComment({
+        userId: voter.id,
+        annotationId: comment.id,
+        type: VoteType.No,
+      });
+      expect(vote.annotationId).to.be.equal(comment.id);
+      expect(vote.userId).to.be.equal(voter.id);
+      expect(vote.type).to.be.equal(VoteType.No);
+
+      let cVote = await attestationService.getCommentUpvotes(comment.id);
+      expect(cVote).to.be.equal(0);
+      cVote = await attestationService.getCommentDownvotes(comment.id);
+      expect(cVote).to.be.equal(1);
+    });
+
+    it('should delete comment vote', async () => {
+      await attestationService.deleteCommentVote(vote.id);
+      let cVote = await attestationService.getCommentUpvotes(comment.id);
+      expect(cVote).to.be.equal(0);
+      cVote = await attestationService.getCommentDownvotes(comment.id);
+      expect(cVote).to.be.equal(0);
+    });
+
+    it('should account for multiple upvotes/downvotes on comment', async () => {
+      await attestationService.upvoteComment({
+        userId: voter.id,
+        annotationId: comment.id,
+        type: VoteType.Yes,
+      });
+      await attestationService.downvoteComment({
+        userId: voter.id,
+        annotationId: comment1.id,
+        type: VoteType.No,
+      });
+      await attestationService.upvoteComment({
+        userId: voter1.id,
+        annotationId: comment.id,
+        type: VoteType.Yes,
+      });
+      await attestationService.downvoteComment({
+        userId: voter1.id,
+        annotationId: comment1.id,
+        type: VoteType.No,
+      });
+      await attestationService.downvoteComment({
+        userId: voter2.id,
+        annotationId: comment.id,
+        type: VoteType.No,
+      });
+      await attestationService.upvoteComment({
+        userId: voter2.id,
+        annotationId: comment1.id,
+        type: VoteType.Yes,
+      });
+
+      const comments = await attestationService.getComments({ visible: true });
+      expect(comments.length).to.be.equal(2);
+      // const [commentVotes, comment1Votes] = comments;
+
+      expect((await attestationService.getVotesByCommentId(comment.id)).length).to.be.equal(3);
+      expect((await attestationService.getVotesByCommentId(comment1.id)).length).to.be.equal(3);
+      // expect(comment1Votes.CommentVote.length).to.be.equal(3);
+
+      // verify voter comments
+      const voterComment = await attestationService.getUserCommentVote(voter.id, comment.id);
+      const voterComment1 = await attestationService.getUserCommentVote(voter.id, comment1.id);
+      expect(voterComment).to.not.be.undefined;
+      expect(voterComment1).to.not.be.undefined;
+      expect(voterComment?.type).to.be.equal(VoteType.Yes);
+      expect(voterComment1?.type).to.be.equal(VoteType.No);
+      // verify voter1 comments
+      const voter1Comment = await attestationService.getUserCommentVote(voter1.id, comment.id);
+      const voter1Comment1 = await attestationService.getUserCommentVote(voter1.id, comment1.id);
+      expect(voter1Comment).to.not.be.undefined;
+      expect(voter1Comment1).to.not.be.undefined;
+      expect(voter1Comment?.type).to.be.equal(VoteType.Yes);
+      expect(voter1Comment1?.type).to.be.equal(VoteType.No);
+      // verify voter2 comments
+      const voter2Comment = await attestationService.getUserCommentVote(voter2.id, comment.id);
+      const voter2Comment1 = await attestationService.getUserCommentVote(voter2.id, comment1.id);
+      expect(voter2Comment).to.not.be.undefined;
+      expect(voter2Comment1).to.not.be.undefined;
+      expect(voter2Comment?.type).to.be.equal(VoteType.No);
+      expect(voter2Comment1?.type).to.be.equal(VoteType.Yes);
+
+      // verify comment upvotes
+      let cVote = await attestationService.getCommentUpvotes(comment.id);
+      expect(cVote).to.be.equal(2);
+      // verify comment downvotes
+      cVote = await attestationService.getCommentDownvotes(comment.id);
+      expect(cVote).to.be.equal(1);
+
+      // verify comment1 upvotes
+      cVote = await attestationService.getCommentUpvotes(comment1.id);
+      expect(cVote).to.be.equal(1);
+      // verify comment downvotes
+      cVote = await attestationService.getCommentDownvotes(comment1.id);
+      expect(cVote).to.be.equal(2);
+
+      // clean up
+      await prisma.commentVote.deleteMany({});
+    });
+
+    it.only('should test user upvote via api', async () => {
+      const voterJwtToken = jwt.sign({ email: voter.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const voterJwtHeader = `Bearer ${voterJwtToken}`;
+
+      // send upvote request
+      let res = await request(app)
+        .post(`/v1/nodes/${node.uuid}/comments/${comment.id}/upvote`)
+        .set('authorization', voterJwtHeader)
+        .send();
+      expect(res.statusCode).to.equal(200);
+
+      // check upvote
+      res = await request(app)
+        .get(`/v1/nodes/${node.uuid}/comments/${comment.id}/vote`)
+        .set('authorization', voterJwtHeader)
+        .send();
+      expect(res.statusCode).to.equal(200);
+      const data = (await res.body.data) as CommentVote;
+      expect(data.userId).to.be.equal(voter.id);
+      expect(data.annotationId).to.be.equal(comment.id);
+      expect(data.type).to.be.equal(VoteType.Yes);
+
+      // check comment has votes
+      const commenterJwtToken = jwt.sign({ email: commenter.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
+      res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
+      expect(res.statusCode).to.equal(200);
+      let comments = (await res.body.data.comments) as {
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
+        highlights: any[];
+        id: number;
+        body: string;
+        links: string[];
+        authorId: number;
+      }[];
+      let c1 = comments.find((c) => c.id === comment.id);
+      expect(c1?.meta.upvotes).to.be.equal(1);
+      expect(c1?.meta.downvotes).to.be.equal(0);
+
+      const voterRes = await request(app)
+        .get(`/v1/nodes/${node.uuid}/comments`)
+        .set('authorization', voterJwtHeader)
+        .send();
+      expect(voterRes.statusCode).to.equal(200);
+      comments = (await voterRes.body.data.comments) as {
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
+        highlights: any[];
+        id: number;
+        body: string;
+        links: string[];
+        authorId: number;
+      }[];
+      c1 = comments.find((c) => c.id === comment.id);
+      expect(c1?.meta.isUpvoted).to.be.true;
+      expect(c1?.meta.isDownVoted).to.be.false;
+    });
+
+    it('should test user downvote via api', async () => {
+      const voterJwtToken = jwt.sign({ email: voter.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const voterJwtHeader = `Bearer ${voterJwtToken}`;
+
+      // send upvote request
+      let res = await request(app)
+        .post(`/v1/nodes/${node.uuid}/comments/${comment.id}/downvote`)
+        .set('authorization', voterJwtHeader)
+        .send();
+      expect(res.statusCode).to.equal(200);
+
+      // check downvote
+      res = await request(app)
+        .get(`/v1/nodes/${node.uuid}/comments/${comment.id}/vote`)
+        .set('authorization', voterJwtHeader)
+        .send();
+      expect(res.statusCode).to.equal(200);
+      const data = (await res.body.data) as CommentVote;
+      expect(data.userId).to.be.equal(voter.id);
+      expect(data.annotationId).to.be.equal(comment.id);
+      expect(data.type).to.be.equal(VoteType.No);
+
+      // check comment has votes
+      const commenterJwtToken = jwt.sign({ email: commenter.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
+      res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
+      expect(res.statusCode).to.equal(200);
+      let comments = (await res.body.data.comments) as {
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
+        highlights: any[];
+        id: number;
+        body: string;
+        links: string[];
+        authorId: number;
+      }[];
+      let c1 = comments.find((c) => c.id === comment.id);
+      expect(c1?.meta.upvotes).to.be.equal(0);
+      expect(c1?.meta.downvotes).to.be.equal(1);
+
+      const voterRes = await request(app)
+        .get(`/v1/nodes/${node.uuid}/comments`)
+        .set('authorization', voterJwtHeader)
+        .send();
+      expect(voterRes.statusCode).to.equal(200);
+      comments = (await voterRes.body.data.comments) as {
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
+        highlights: any[];
+        id: number;
+        body: string;
+        links: string[];
+        authorId: number;
+      }[];
+      c1 = comments.find((c) => c.id === comment.id);
+      expect(c1?.meta.isUpvoted).to.be.false;
+      expect(c1?.meta.isDownVoted).to.be.true;
+    });
+
+    it('should delete user vote via api', async () => {
+      const voterJwtToken = jwt.sign({ email: voter.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const voterJwtHeader = `Bearer ${voterJwtToken}`;
+
+      // send delete vote request
+      let res = await request(app)
+        .delete(`/v1/nodes/${node.uuid}/comments/${comment.id}/vote`)
+        .set('authorization', voterJwtHeader)
+        .send();
+      expect(res.statusCode).to.equal(200);
+
+      // check upvote
+      res = await request(app)
+        .get(`/v1/nodes/${node.uuid}/comments/${comment.id}/vote`)
+        .set('authorization', voterJwtHeader)
+        .send();
+      expect(res.statusCode).to.equal(200);
+      const data = (await res.body.data) as CommentVote;
+      expect(data).to.be.undefined;
+
+      // check comment has votes
+      const commenterJwtToken = jwt.sign({ email: commenter.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
+      res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', commenterJwtHeader).send();
+      expect(res.statusCode).to.equal(200);
+      const comments = (await res.body.data.comments) as {
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
+        highlights: any[];
+        id: number;
+        body: string;
+        links: string[];
+        authorId: number;
+      }[];
+      const c1 = comments.find((c) => c.id === comment.id);
+      expect(c1?.meta.upvotes).to.be.equal(0);
+      expect(c1?.meta.downvotes).to.be.equal(0);
+      expect(c1?.meta.isUpvoted).to.be.false;
+      expect(c1?.meta.isDownVoted).to.be.false;
     });
   });
 });

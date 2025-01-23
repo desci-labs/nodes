@@ -9,6 +9,7 @@ import { checkIfPublishedNode } from '../../controllers/nodes/checkIfPublishedNo
 import { checkNodeAccess } from '../../controllers/nodes/checkNodeAccess.js';
 import { addContributor } from '../../controllers/nodes/contributions/create.js';
 import { deleteContributor } from '../../controllers/nodes/contributions/delete.js';
+import { denyContribution } from '../../controllers/nodes/contributions/deny.js';
 import { getNodeContributions } from '../../controllers/nodes/contributions/getNodeContributions.js';
 import { getUserContributions } from '../../controllers/nodes/contributions/getUserContributions.js';
 import { getUserContributionsAuthed } from '../../controllers/nodes/contributions/getUserContributionsAuthed.js';
@@ -18,6 +19,12 @@ import { verifyContribution } from '../../controllers/nodes/contributions/verify
 import { createDpid } from '../../controllers/nodes/createDpid.js';
 import { dispatchDocumentChange, getNodeDocument } from '../../controllers/nodes/documents.js';
 import { explore } from '../../controllers/nodes/explore.js';
+import {
+  addExternalPublication,
+  addExternalPublicationsSchema,
+  externalPublications,
+  externalPublicationsSchema,
+} from '../../controllers/nodes/externalPublications.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
 import { getDraftNodeStats } from '../../controllers/nodes/getDraftNodeStats.js';
@@ -56,6 +63,10 @@ import {
   searchNodes,
   versionDetails,
   thumbnails,
+  upvoteComment,
+  getUserVote,
+  deleteUserVote,
+  downvoteComment,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
@@ -66,7 +77,7 @@ import { ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
-import { getCommentsSchema, showNodeAttestationsSchema } from './attestations/schema.js';
+import { getCommentsSchema, postCommentVoteSchema, showNodeAttestationsSchema } from './attestations/schema.js';
 
 const router = Router();
 
@@ -123,6 +134,7 @@ router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
 router.post('/contributions/node/:uuid', [attachUser], getNodeContributions);
 router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addContributor);
 router.patch('/contributions/verify', [ensureUser], verifyContribution);
+router.patch('/contributions/deny', [ensureUser], denyContribution);
 router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], updateContributor);
 router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], deleteContributor);
 router.get('/contributions/user/:userId', [], getUserContributions);
@@ -151,7 +163,34 @@ router.post(
 
 router.delete('/:uuid', [ensureUser], deleteNode);
 
-router.get('/:uuid/comments', [validate(getCommentsSchema), attachUser], asyncHandler(getGeneralComments));
+router.get(
+  '/:uuid/external-publications',
+  [validate(externalPublicationsSchema), attachUser],
+  asyncHandler(externalPublications),
+);
+router.post(
+  '/:uuid/external-publications',
+  [validate(addExternalPublicationsSchema), ensureUser, ensureNodeAccess],
+  asyncHandler(addExternalPublication),
+);
+
+router.get('/:uuid/comments', [ensureUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
+router.get('/:uuid/comments/:commentId/vote', [ensureUser, validate(postCommentVoteSchema)], asyncHandler(getUserVote));
+router.post(
+  '/:uuid/comments/:commentId/upvote',
+  [ensureUser, validate(postCommentVoteSchema)],
+  asyncHandler(upvoteComment),
+);
+router.post(
+  '/:uuid/comments/:commentId/downvote',
+  [ensureUser, validate(postCommentVoteSchema)],
+  asyncHandler(downvoteComment),
+);
+router.delete(
+  '/:uuid/comments/:commentId/vote',
+  [ensureUser, validate(postCommentVoteSchema)],
+  asyncHandler(deleteUserVote),
+);
 
 router.get('/:uuid/attestations', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
 

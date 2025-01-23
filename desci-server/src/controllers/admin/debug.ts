@@ -1,10 +1,11 @@
-import { DataType, Node, NodeVersion, PublicDataReference } from '@prisma/client';
+import { DataType, Node, NodeVersion, PublicDataReference, PublishStatus } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { directStreamLookup, RawStream } from '../../services/ceramic.js';
 import { getAliasRegistry, getHotWallet } from '../../services/chain.js';
+import { PublishServices } from '../../services/PublishServices.js';
 import { _getIndexedResearchObjects, getIndexedResearchObjects, IndexedResearchObject } from '../../theGraph.js';
 import { ensureUuidEndsWithDot, hexToCid } from '../../utils.js';
 
@@ -127,6 +128,7 @@ type NodeDebugReport =
       database: any;
       indexer: any;
       migration: any;
+      publishStatus: DebugPublishStatusResponse;
     }
   | { hasError: true; reason: string };
 
@@ -158,6 +160,7 @@ const debugNode = async (uuid: string): Promise<NodeDebugReport> => {
   const shouldBeIndexed = database.nVersions > 0 || stream.nVersions > 0;
   const indexer = await debugIndexer(uuid, shouldBeIndexed);
   const migration = await debugMigration(uuid, stream);
+  const publishStatus = await debugPublishStatus(uuid);
 
   const nVersionsAgree = new Set([database.nVersions ?? 0, stream.nVersions ?? 0, indexer.nVersions ?? 0]).size === 1;
 
@@ -174,6 +177,7 @@ const debugNode = async (uuid: string): Promise<NodeDebugReport> => {
     database,
     indexer,
     migration,
+    publishStatus,
   };
 };
 
@@ -233,6 +237,32 @@ const debugStream = async (stream?: string): Promise<DebugStreamResponse> => {
     anchoring,
     raw,
   };
+};
+
+type DebugPublishStatusResponse =
+  | {
+      present: boolean;
+      error: false;
+      publishStatus: PublishStatus[];
+    }
+  | {
+      present: boolean;
+      error: true;
+      name: string;
+      message: string;
+      stack: unknown;
+    };
+/*
+ ** PublishStatus shows the steps taken during the publish process and which have suceeded/failed/uninitialized
+ */
+const debugPublishStatus = async (nodeUuid: string): Promise<DebugPublishStatusResponse> => {
+  try {
+    const publishStatus = await PublishServices.getPublishStatusForNode(ensureUuidEndsWithDot(nodeUuid));
+    return { present: true, publishStatus, error: false };
+  } catch (e) {
+    const err = e as Error;
+    return { present: true, error: true, name: err.name, message: err.message, stack: err.stack };
+  }
 };
 
 const debugDpid = async (dpidAlias?: number) => {

@@ -9,50 +9,53 @@ datasource db {
 }
 
 model Node {
-  id                  Int                   @id @default(autoincrement())
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  title               String
-  cid                 String                @default("")
-  state               NodeState             @default(NEW)
-  isFeatured          Boolean               @default(false)
-  manifestUrl         String
-  restBody            Json                  @default("{}")
-  replicationFactor   Int
-  ownerId             Int
-  uuid                String?               @unique @default(uuid())
-  manifestDocumentId  String                @default("")
-  owner               User                  @relation(fields: [ownerId], references: [id])
-  authorInvites       AuthorInvite[]
-  transactions        ChainTransaction[]
-  interactionLogs     InteractionLog[]
-  authors             NodeAuthor[]
-  versions            NodeVersion[]
-  votes               NodeVote[]
-  DataReference       DataReference[]
-  PublicDataReference PublicDataReference[]
-  CidPruneList        CidPruneList[]
-  NodeCover           NodeCover[]
-  isDeleted           Boolean               @default(false)
-  deletedAt           DateTime?
-  UploadJobs          UploadJobs[]
-  DraftNodeTree       DraftNodeTree[]
-  ceramicStream       String?
-  NodeAttestation     NodeAttestation[]
-  NodeThumbnails      NodeThumbnails[]
-  PublishTaskQueue    PublishTaskQueue[]
-  NodeContribution    NodeContribution[]
-  PrivateShare        PrivateShare[]
-  OrcidPutCodes       OrcidPutCodes[]
-  DistributionPdfs    DistributionPdfs[]
-  PdfPreviews         PdfPreviews[]
-  DoiRecord           DoiRecord[]
-  dpidAlias           Int?
-  DoiSubmissionQueue  DoiSubmissionQueue[]
-  BookmarkedNode      BookmarkedNode[]
-  DeferredEmails      DeferredEmails[]
-  UserNotifications   UserNotifications[]
-  Annotation          Annotation[]
+  id                   Int                    @id @default(autoincrement())
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  title                String
+  cid                  String                 @default("")
+  state                NodeState              @default(NEW)
+  isFeatured           Boolean                @default(false)
+  manifestUrl          String
+  restBody             Json                   @default("{}")
+  replicationFactor    Int
+  ownerId              Int
+  uuid                 String?                @unique @default(uuid())
+  manifestDocumentId   String                 @default("")
+  owner                User                   @relation(fields: [ownerId], references: [id])
+  authorInvites        AuthorInvite[]
+  transactions         ChainTransaction[]
+  interactionLogs      InteractionLog[]
+  authors              NodeAuthor[]
+  versions             NodeVersion[]
+  votes                NodeVote[]
+  DataReference        DataReference[]
+  PublicDataReference  PublicDataReference[]
+  CidPruneList         CidPruneList[]
+  NodeCover            NodeCover[]
+  isDeleted            Boolean                @default(false)
+  deletedAt            DateTime?
+  UploadJobs           UploadJobs[]
+  DraftNodeTree        DraftNodeTree[]
+  ceramicStream        String?
+  NodeAttestation      NodeAttestation[]
+  NodeThumbnails       NodeThumbnails[]
+  PublishTaskQueue     PublishTaskQueue[]
+  NodeContribution     NodeContribution[]
+  PrivateShare         PrivateShare[]
+  OrcidPutCodes        OrcidPutCodes[]
+  DistributionPdfs     DistributionPdfs[]
+  PdfPreviews          PdfPreviews[]
+  DoiRecord            DoiRecord[]
+  dpidAlias            Int?
+  DoiSubmissionQueue   DoiSubmissionQueue[]
+  BookmarkedNode       BookmarkedNode[]
+  DeferredEmails       DeferredEmails[]
+  UserNotifications    UserNotifications[]
+  Annotation           Annotation[]
+  PublishStatus        PublishStatus[]
+  ExternalPublications ExternalPublications[]
+  CommunityRadarEntry  CommunityRadarEntry[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -70,6 +73,7 @@ model NodeVersion {
   node                Node?                 @relation(fields: [nodeId], references: [id])
   PublicDataReference PublicDataReference[]
   DataReference       DataReference[]
+  PublishStatus       PublishStatus[]
 }
 
 model InteractionLog {
@@ -203,6 +207,7 @@ model User {
   BookmarkedNode              BookmarkedNode[]
   DeferredEmails              DeferredEmails[]
   UserNotifications           UserNotifications[]
+  CommentVote                 CommentVote[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -696,6 +701,7 @@ model DesciCommunity {
   NodeAttestation           NodeAttestation[]
   AttestationTemplate       AttestationTemplate[]
   CommunityEntryAttestation CommunityEntryAttestation[]
+  CommunityRadarEntry       CommunityRadarEntry[]
 }
 
 model CommunityMember {
@@ -798,8 +804,23 @@ model NodeAttestation {
   NodeAttestationVerification NodeAttestationVerification[]
   NodeAttestationReaction     NodeAttestationReaction[]
   OrcidPutCodes               OrcidPutCodes[]
+  CommunityRadarEntry         CommunityRadarEntry?          @relation(fields: [communityRadarEntryId], references: [id])
+  communityRadarEntryId       Int?
 
   @@unique([nodeUuid, nodeVersion, attestationId, attestationVersionId])
+}
+
+model CommunityRadarEntry {
+  id               Int               @id @default(autoincrement())
+  desciCommunityId Int
+  community        DesciCommunity    @relation(fields: [desciCommunityId], references: [id])
+  nodeUuid         String
+  node             Node              @relation(fields: [nodeUuid], references: [uuid])
+  nodeAttestations NodeAttestation[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([nodeUuid, desciCommunityId])
 }
 
 // Deferred emails are usually used when a published node is required, e.g. unpublished attestation claims, emails are deferred until node is published.
@@ -835,6 +856,9 @@ model Annotation {
   uuid              String?
   node              Node?            @relation(fields: [uuid], references: [uuid])
   visible           Boolean          @default(true)
+  createdAt         DateTime?
+  updatedAt         DateTime?        @updatedAt
+  CommentVote       CommentVote[]
 }
 
 //An emoji reaction to a node
@@ -934,6 +958,64 @@ model UserNotifications {
   dismissed Boolean          @default(false)
   node      Node?            @relation(fields: [nodeUuid], references: [uuid])
   user      User             @relation(fields: [userId], references: [id])
+}
+
+model PublishStatus {
+  id                     Int          @id @default(autoincrement())
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  nodeUuid               String
+  version                Int
+  versionId              Int?
+  commitId               String?      @unique
+  manifestCid            String?
+  ceramicCommit          Boolean?
+  assignDpid             Boolean?
+  handleNodeVersionEntry Boolean?
+  createPdr              Boolean?
+  fireDeferredEmails     Boolean?
+  fireNotifications      Boolean?
+  updateAttestations     Boolean?
+  transformDraftComments Boolean?
+  triggerDoiMint         Boolean?
+  nodeVersion            NodeVersion? @relation(fields: [versionId], references: [id])
+  node                   Node         @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([nodeUuid, version])
+  @@index([nodeUuid])
+}
+
+model ExternalPublications {
+  id          Int      @id @default(autoincrement())
+  uuid        String
+  node        Node     @relation(fields: [uuid], references: [uuid])
+  score       Float
+  doi         String
+  publisher   String
+  publishYear String
+  sourceUrl   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // @@unique([uuid, publisher])
+}
+
+model CommentVote {
+  id           Int        @id @default(autoincrement())
+  type         VoteType
+  userId       Int
+  user         User       @relation(fields: [userId], references: [id])
+  annotationId Int
+  annotation   Annotation @relation(fields: [annotationId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([userId, annotationId])
+}
+
+enum VoteType {
+  Yes
+  No
 }
 
 enum ORCIDRecord {

@@ -15,7 +15,7 @@ import {
 import isEqual from 'deep-equal';
 
 import { logger as parentLogger } from '../logger.js';
-import { backendRepo } from '../repo.js';
+import { backendRepo, repoManager } from '../repo.js';
 import { ResearchObjectDocument } from '../types.js';
 
 const logger = parentLogger.child({ module: 'manifestRepo.ts' });
@@ -31,26 +31,44 @@ export function assertNever(value: never) {
   throw Error('Not Possible');
 }
 
-export const getDocumentUpdater = (documentId: DocumentId) => {
+export const getDocumentHandle = async (documentId: DocumentId) => {
+  const logger = parentLogger.child({ module: 'connectRepoToDocument', documentId });
+
+  if (!repoManager.isConnected(documentId)) {
+    await repoManager.connect(documentId);
+  }
+
   const automergeUrl = getAutomergeUrl(documentId);
-  logger.trace({ automergeUrl }, 'Find handle');
+  // await backendRepo.networkSubsystem.whenReady();
+  logger.trace({ documentId }, 'ready');
   const handle = backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
-  logger.trace({ automergeUrl }, 'Retrieved handle');
+  // await handle.whenReady();
+  logger.trace({ handle: handle.url }, 'handle resolved');
+  return handle;
+};
+
+export const getDocumentUpdater = async (documentId: DocumentId) => {
+  const handle = await getDocumentHandle(documentId); //backendRepo.find<ResearchObjectDocument>(automergeUrl as AutomergeUrl);
+  logger.trace({ handle: handle.isReady() }, 'Retrieved handle');
 
   return async (action: ManifestActions) => {
     if (!handle) return;
-    logger.trace({ documentId, action }, 'get doc');
+    // logger.trace({ documentId, action }, 'get doc');
     let latestDocument = await handle.doc();
-    logger.trace({ latestDocument }, 'retrieved doc');
+    logger.trace({ available: !!latestDocument, documentId }, 'retrieved doc');
 
     if (!latestDocument) {
       logger.error({ node: documentId }, 'Automerge document not found');
-      // throw new Error('Automerge Document Not found');
       return;
     }
 
+    // if (actions) {
+    //   console.log('[send actions]', action);
+    //   handle.broadcast([documentId, { type: 'dispatch-action', actions }]);
+    //   return [latestDocument, handle];
+    // }
+
     const heads = getHeads(latestDocument);
-    // logger.info({ heads, action }, `Document Heads`);
     logger.trace({ action, heads }, `DocumentUpdater::Dispatched`);
 
     switch (action.type) {

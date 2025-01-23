@@ -49,6 +49,6 @@ const processPublications = async (rootDir: string) => {
 }
 
 const pubs = await processPublications('local-data/publications');
-for (const [pub, metadata] of Object.entries(pubs).slice(0,10)) {
+for (const [pub, metadata] of Object.entries(pubs)) {
   await makeNode(metadata)
 }

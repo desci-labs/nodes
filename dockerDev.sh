@@ -18,7 +18,7 @@ assert_command_available() {
 }
 
 init_node() {
-  if ! printenv NVM_DIR &> /dev/null && ! command -v fnm; then
+  if ! printenv NVM_DIR &>/dev/null && ! command -v fnm; then
     echo "[dockerDev] NVM_DIR not set, please install NVM"
     echo "[dockerDev] curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash"
     exit 1
@@ -78,6 +78,7 @@ COMPOSE_HTTP_TIMEOUT=320 docker compose \
   --file docker-compose.yml \
   --file docker-compose.dev.yml \
   --file docker-compose.repo.yml \
+  --file docker-compose.sync.yml \
   $ADDITIONAL_FLAGS \
   --compatibility \
   up \

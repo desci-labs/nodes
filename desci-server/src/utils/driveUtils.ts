@@ -238,7 +238,7 @@ export async function getTreeAndFill(
         );
         blockTimeMap = await getTimeForTxOrCommits(uniqueTxOrCommits);
         // Short 5 min TTL to ease the spam when loading during anchoring, as this can take ~45 mins worst case
-        // setToCache(blockTimeMapCacheKey, blockTimeMap, 60 * 5); 
+        // setToCache(blockTimeMapCacheKey, blockTimeMap, 60 * 5);
       }
     } catch (e) {
       logger.warn({ fn: 'getTreeAndFill', nodeUuid }, 'Failed to get blockTimeMap from redis, redis likely down');

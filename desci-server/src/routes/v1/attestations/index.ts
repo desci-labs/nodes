@@ -13,6 +13,7 @@ import {
   getAttestationVerifications,
   removeVerification,
 } from '../../../controllers/attestations/verification.js';
+import { attachUser } from '../../../middleware/attachUser.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 import { validate } from '../../../middleware/validator.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
@@ -32,11 +33,13 @@ import {
   showCommunityClaimsSchema,
   showNodeAttestationsSchema,
   claimEntryAttestationsSchema,
+  searchAttestationsSchema,
 } from './schema.js';
 
 const router = Router();
 
-router.get('/suggestions/all', [], asyncHandler(getAllRecommendations));
+// router.get('/', [validate(searchAttestationsSchema)], asyncHandler(searchAttestations));
+router.get('/suggestions/all', [validate(searchAttestationsSchema)], asyncHandler(getAllRecommendations));
 router.get('/suggestions/protected', [], asyncHandler(getValidatedRecommendations));
 router.get(
   '/claims/:communityId/:dpid',
@@ -51,7 +54,11 @@ router.get(
   [validate(getAttestationVerificationsSchema)],
   asyncHandler(getAttestationVerifications),
 );
-router.get('/:claimId/comments', [validate(getAttestationCommentsSchema)], asyncHandler(getAttestationComments));
+router.get(
+  '/:claimId/comments',
+  [validate(getAttestationCommentsSchema), attachUser],
+  asyncHandler(getAttestationComments),
+);
 
 router.post('/claim', [ensureUser, validate(claimAttestationSchema)], asyncHandler(claimAttestation));
 router.post('/unclaim', [ensureUser, validate(removeClaimSchema)], asyncHandler(removeClaim));

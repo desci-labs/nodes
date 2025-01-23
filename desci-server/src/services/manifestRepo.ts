@@ -19,6 +19,7 @@ export const getLatestManifestFromNode = async (node: Pick<Node, 'manifestUrl' |
     documentId: node.manifestDocumentId,
   });
   if (!manifest) {
+    logger.trace({ uuid: node.uuid }, 'getLatestManifestFromNode::No draft manifest returned');
     const publishedManifest = await getManifestFromNode(node);
     manifest = publishedManifest.manifest;
   }

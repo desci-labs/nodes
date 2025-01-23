@@ -25,7 +25,7 @@ import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import routes from './routes/index.js';
-import { initializeWebSocketServer } from './websocketServer.js';
+import { initializeWebSockets, getIO } from './services/websocketService.js';
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 import { runWorkerUntilStopped } from './workers/publish.js';
 
@@ -179,8 +179,8 @@ class AppServer {
 
     while (retries < maxRetries) {
       try {
-        this._io = await initializeWebSocketServer(this.server);
-        this.app.set('io', this._io);
+        await initializeWebSockets(this.server);
+        this.app.set('io', getIO());
         logger.info('WebSocket server initialized successfully');
         return;
       } catch (error) {
@@ -295,4 +295,5 @@ function getRemoteAddress(req) {
     return req.socket.remoteAddress;
   }
 }
+
 export const server = new AppServer();

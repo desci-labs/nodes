@@ -7,8 +7,10 @@ import { AuthFailureError, NotFoundError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
+import { delFromCache } from '../../redisClient.js';
 import { removeClaimSchema } from '../../routes/v1/attestations/schema.js';
 import { attestationService } from '../../services/Attestation.js';
+import { communityService } from '../../services/Communities.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { getIndexedResearchObjects } from '../../theGraph.js';
 import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
@@ -21,9 +23,11 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     nodeDpid: string;
     claimerId: number;
   };
+
+  // TODO: verify attestationVersions[0] === latest
   const attestationVersions = await attestationService.getAttestationVersions(body.attestationId);
   const latest = attestationVersions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const attestationVersion = latest[0];
+  const attestationVersion = attestationVersions[0];
   logger.info({ body, latest, attestationVersion }, 'CLAIM');
   const uuid = ensureUuidEndsWithDot(body.nodeUuid);
 
@@ -36,6 +40,13 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
   if (claim && claim.revoked) {
     const reclaimed = await attestationService.reClaimAttestation(claim.id);
     await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: reclaimed.id });
+    // trigger update radar entry
+    await communityService.addToRadar(reclaimed.desciCommunityId, reclaimed.nodeUuid);
+    // invalidate radar and curated feed count cache
+    await delFromCache(`radar-${reclaimed.desciCommunityId}-count`);
+    await delFromCache(`curated-${reclaimed.desciCommunityId}-count`);
+    await delFromCache(`all-communities-curated-count`);
+
     new SuccessResponse(reclaimed).send(res);
     return;
   }
@@ -46,6 +57,12 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
     nodeUuid: uuid,
     attestationVersion: attestationVersion.id,
   });
+  // trigger update radar entry
+  await communityService.addToRadar(nodeClaim.desciCommunityId, nodeClaim.nodeUuid);
+  // invalidate radar and curated feed count cache
+  await delFromCache(`radar-${nodeClaim.desciCommunityId}-count`);
+  await delFromCache(`curated-${nodeClaim.desciCommunityId}-count`);
+  await delFromCache(`all-communities-curated-count`);
 
   await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: nodeClaim.id });
 
@@ -126,6 +143,14 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
       ? await attestationService.revokeAttestation(claim.id)
       : await attestationService.unClaimAttestation(claim.id);
 
+  // trigger update radar entry
+  await communityService.removeFromRadar(claim.desciCommunityId, claim.nodeUuid);
+
+  // invalidate radar and curated feed count cache
+  await delFromCache(`radar-${claim.desciCommunityId}-count`);
+  await delFromCache(`curated-${claim.desciCommunityId}-count`);
+  await delFromCache(`all-communities-curated-count`);
+
   await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
 
   logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
@@ -181,6 +206,12 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
     nodeUuid: uuid,
     attestations: claims,
   });
+  // trigger update radar entry
+  await communityService.addToRadar(communityId, uuid);
+  // invalidate radar and curated feed count cache
+  await delFromCache(`radar-${communityId}-count`);
+  await delFromCache(`curated-${communityId}-count`);
+  await delFromCache(`all-communities-curated-count`);
 
   await saveInteraction(req, ActionType.CLAIM_ENTRY_ATTESTATIONS, {
     communityId,

@@ -4,6 +4,11 @@ services:
     container_name: "nodes_test_db"
     image: "postgres:12.6-alpine"
     restart: on-failure
+    healthcheck:
+      test: "pg_isready -U walter -d postgres"
+      interval: 5s
+      timeout: 15s
+      retries: 5
     env_file:
       - .env.test
     ports:
@@ -23,9 +28,14 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
-      - nodes_test_db
-      - nodes_test_ipfs
-      - nodes_test_repo_service
+      nodes_test_sync_service:
+        condition: service_started
+      nodes_test_db:
+        condition: service_healthy
+      nodes_test_ipfs:
+        condition: service_started
+      # nodes_test_repo_service:
+      #   condition: service_healthy
     links:
       - nodes_test_db
     container_name: "nodes_backend_test"
@@ -53,9 +63,14 @@ services:
       - ./desci-repo/.env.test
     ports:
       - "5485:5484"
-      - "5446:5445"
+      # - "5446:5445"
     extra_hosts:
       - host.docker.internal:host-gateway
+    healthcheck:
+      test: curl -f http://localhost:5484/readyz || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
     depends_on:
       - nodes_test_db
     links:
@@ -63,18 +78,21 @@ services:
     volumes:
       - .:/app/
       - ./local-data/yarn_cache:/root/.yarn
-  # desci_nodes_backend_test:
-  #   container_name: 'be_test_boilerplate'
-  #   command: echo 'Test container ready'
-  #   build: .
-  #   stdin_open: true
-  #   tty: true
-  #   depends_on:
-  #     - db_postgres
-  #   links:
-  #     - db_postgres
-  #   env_file:
-  #     - .env
-  #   volumes:
-  #     - .:/app/
-  #     - /app/node_modules
+
+  nodes_test_sync_service:
+    build:
+      context: ./sync-server
+      dockerfile: Dockerfile
+    container_name: nodes_sync_test_worker
+    image: worker_test
+    ports:
+      - "5446:5445"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./sync-server:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - nodes_test_db
+    env_file:
+      - ./sync-server/.env.test

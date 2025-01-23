@@ -4,21 +4,32 @@ import {
   getCommunityRecommendations,
   getValidatedAttestations,
 } from '../../../controllers/attestations/recommendations.js';
-import { getAllFeeds, getCommunityDetails, getCommunityFeed } from '../../../controllers/communities/feed.js';
+import {
+  getAllFeeds,
+  getCommunityDetails,
+  getCommunityFeed,
+  listAllCommunityCuratedFeeds,
+  listCommunityFeed,
+} from '../../../controllers/communities/feed.js';
 import { checkMemberGuard } from '../../../controllers/communities/guard.js';
 import { listCommunities } from '../../../controllers/communities/list.js';
-import { getCommunityRadar } from '../../../controllers/communities/radar.js';
+import { getCommunityRadar, listCommunityRadar } from '../../../controllers/communities/radar.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 import { validate } from '../../../middleware/validator.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
-import { getCommunityDetailsSchema, getCommunityFeedSchema, memberGuardSchema } from './schema.js';
+import {
+  getAllCommunitiesFeedSchema,
+  getCommunityDetailsSchema,
+  getCommunityFeedSchema,
+  memberGuardSchema,
+} from './schema.js';
 
 const router = Router();
 
 // list all communities and curated nodes()
 router.get('/list', [], asyncHandler(listCommunities));
-router.get('/feeds', [], asyncHandler(getAllFeeds));
+router.get('/feeds', [validate(getAllCommunitiesFeedSchema)], asyncHandler(listAllCommunityCuratedFeeds));
 router.get('/:communityName', [validate(getCommunityDetailsSchema)], asyncHandler(getCommunityDetails));
 router.get(
   '/:communityName/attestations',
@@ -32,8 +43,11 @@ router.get(
   asyncHandler(getValidatedAttestations),
 );
 
-router.get('/:communityId/feed', [validate(getCommunityFeedSchema)], asyncHandler(getCommunityFeed));
-router.get('/:communityId/radar', [validate(getCommunityFeedSchema)], asyncHandler(getCommunityRadar));
+// router.get('/:communityId/feed', [validate(getCommunityFeedSchema)], asyncHandler(getCommunityFeed));
+// router.get('/:communityId/radar', [validate(getCommunityFeedSchema)], asyncHandler(getCommunityRadar));
+
+router.get('/:communityId/feed', [validate(getCommunityFeedSchema)], asyncHandler(listCommunityFeed));
+router.get('/:communityId/radar', [validate(getCommunityFeedSchema)], asyncHandler(listCommunityRadar));
 
 router.post('/:communityId/memberGuard', [ensureUser, validate(memberGuardSchema)], asyncHandler(checkMemberGuard));
 

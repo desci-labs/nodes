@@ -1,0 +1,58 @@
+# Top-level configuration
+name = "automerge-sync-server"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat_v2"]
+find_additional_modules = true
+tail_consumers = [{service = "automerge-sync-server-tail"}]
+
+[[durable_objects.bindings]]
+name = "Automerge"
+class_name = "AutomergeServer"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["AutomergeServer"]
+
+[observability]
+enabled = true
+head_sampling_rate = 1 # optional. default = 1.
+
+[[hyperdrive]]
+binding = "NODES_DB"
+id = "856af129675e4140accc0ccabbc2ee20"
+localConnectionString = "postgresql://walter:white@host.docker.internal:5433/boilerplate"
+
+[vars]
+DB_TABLE= "DocumentStore"
+NODES_API= "http://host.docker.internal:5420"
+ENVIRONMENT="dev"
+DATABASE_URL= "postgresql://walter:white@host.docker.internal:5433/boilerplate"
+
+[env.dev]
+durable_objects.bindings = [{ name = "Automerge", class_name = "AutomergeServer" }]
+vars = { DB_TABLE= "DocumentStore", NODES_API= "http://localhost:5420", ENVIRONMENT="dev", DATABASE_URL= "postgresql://walter:white@host.docker.internal:5433/boilerplate" }
+hyperdrive = [{ binding = "NODES_DB", id = "856af129675e4140accc0ccabbc2ee20" }]
+
+[env.staging]
+vars = { ENVIRONMENT = "staging", DB_TABLE= "DocumentStore", NODES_API= "https://nodes-api-dev.desci.com" }
+hyperdrive = [{ binding = "NODES_DB", id = "0475d48544a641ffa514488c6e94911e" }]
+durable_objects.bindings = [{ name = "Automerge", class_name = "AutomergeServer" }]
+routes = [
+  { pattern = "nodes-dev-sync.desci.com", custom_domain = true }
+]
+tail_consumers = [{service = "automerge-sync-server-tail"}]
+
+[env.production]
+vars = { ENVIRONMENT = "production", DB_TABLE= "DocumentStore", NODES_API= "https://nodes-api.desci.com" }
+hyperdrive = [{ binding = "NODES_DB", id = "21c45695583b4d8aa6655735efc4aa28" }]
+durable_objects.bindings = [{ name = "Automerge", class_name = "AutomergeServer" }]
+routes = [
+  { pattern = "nodes-sync.desci.com", custom_domain = true }
+]
+tail_consumers = [{service = "automerge-sync-server-tail"}]
+
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*automerge_wasm_bg.wasm"]
+fallthrough = true

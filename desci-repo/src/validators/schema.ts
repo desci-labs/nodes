@@ -70,12 +70,26 @@ const referenceSchema: z.ZodType<ResearchObjectReference> = z
   .object({
     type: z.union([z.literal('doi'), z.literal('dpid')]),
     id: z.string().refine((id) => DPID_PATH_REGEX.test(id) || DOI_REGEX.test(id)),
+    title: z.string(),
+    // url: z.union([z.undefined(), z.string().optional()]),
+    // authors: z
+    //   .array(
+    //     z.object({
+    //       name: z.string().optional(),
+    //     }),
+    //   )
+    //   .optional(),
+    // journal: z.string().optional(),
+    // page: z.string().optional(),
+    // volume: z.string().optional(),
+    // issue: z.string().optional(),
+    // year: z.string().optional(),
   })
   .refine((arg) => {
     if (arg.type === 'doi') return DOI_REGEX.test(arg.id);
     return DPID_PATH_REGEX.test(arg.id);
   });
-
+type Ref = z.infer<typeof referenceSchema>['authors'];
 type Action = ManifestActions['type'];
 
 export const actionsSchema = z.array(
@@ -97,8 +111,8 @@ export const actionsSchema = z.array(
     z.object({ type: z.literal<Action>('UnPin Component'), componentIndex: z.number() }),
     z.object({ type: z.literal<Action>('Update CoverImage'), cid: z.string().optional() }),
     z.object({ type: z.literal<Action>('Add Reference'), reference: referenceSchema }),
-    z.object({ type: z.literal<Action>('Add References'), references: z.array(referenceSchema) }),
-    z.object({ type: z.literal<Action>('Set References'), references: z.array(referenceSchema) }),
+    z.object({ type: z.literal<Action>('Add References'), reference: z.array(referenceSchema) }),
+    // z.object({ type: z.literal<Action>('Set References'), references: z.array(referenceSchema) }),
     z.object({ type: z.literal<Action>('Delete Reference'), referenceId: z.string() }),
   ]),
 );

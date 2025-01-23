@@ -1,7 +1,7 @@
 import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { AnnotationType, Attestation, Node, Prisma, User } from '@prisma/client';
+import { AnnotationType, Attestation, AttestationVersion, Node, Prisma, User, VoteType } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import _ from 'lodash';
 
@@ -181,7 +181,7 @@ export class AttestationService {
     return prisma.attestationTemplate.create({ data: template });
   }
 
-  async updateAttestation(attestationId: number, data: Prisma.AttestationUncheckedCreateInput) {
+  async updateAttestation(attestationId: number, data: Prisma.AttestationUncheckedCreateInput, publishNew = true) {
     const attestation = await this.findAttestationById(attestationId);
 
     if (!attestation) throw new AttestationNotFoundError();
@@ -194,12 +194,26 @@ export class AttestationService {
         canUpdateOrcid: data.canUpdateOrcid,
       },
     });
-    const attestationVersion = await this.#publishVersion({
-      name: data.name as string,
-      description: data.description,
-      image_url: data.image_url,
-      attestationId: attestation.id,
-    });
+
+    let attestationVersion: AttestationVersion;
+
+    if (publishNew) {
+      attestationVersion = await this.#publishVersion({
+        name: data.name as string,
+        description: data.description,
+        image_url: data.image_url,
+        attestationId: attestation.id,
+      });
+    } else {
+      const latestVersion = await prisma.attestationVersion.findFirst({
+        where: { attestationId: attestation.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      attestationVersion = await prisma.attestationVersion.update({
+        where: { id: latestVersion.id },
+        data: { name: data.name as string, description: data.description, image_url: data.image_url },
+      });
+    }
 
     const communityEntryAttestation = await prisma.communityEntryAttestation.findFirst({
       where: { attestationId: attestation.id },
@@ -219,7 +233,7 @@ export class AttestationService {
   }
 
   async getAttestationVersions(attestationId: number) {
-    return prisma.attestationVersion.findMany({ where: { attestationId } });
+    return prisma.attestationVersion.findMany({ where: { attestationId }, orderBy: { createdAt: 'desc' } });
   }
 
   async getAttestationVersion(id: number, attestationId: number) {
@@ -663,6 +677,7 @@ export class AttestationService {
       links,
       uuid,
       visible,
+      createdAt: new Date(),
     };
     return this.createAnnotation(data);
   }
@@ -706,6 +721,7 @@ export class AttestationService {
       highlights: highlights.map((h) => JSON.stringify(h)),
       uuid,
       visible,
+      createdAt: new Date(),
     };
     return this.createAnnotation(data);
   }
@@ -838,32 +854,103 @@ export class AttestationService {
   }
 
   // TODO: write raw sql query to optimize this
-  async getAllClaimComments(filter: Prisma.AnnotationWhereInput) {
+  async getAllClaimComments(filter: Prisma.AnnotationWhereInput, options?: { cursor?: number; limit?: number }) {
     return prisma.annotation.findMany({
       where: filter,
       include: {
-        author: true,
+        _count: {
+          select: { CommentVote: true },
+        },
+        CommentVote: { select: { id: true, type: true } },
+        author: { select: { id: true, name: true, orcid: true } },
         attestation: {
           include: {
             attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },
           },
         },
       },
+      orderBy: {
+        id: 'asc',
+      },
+      skip: options?.cursor ? 1 : 0,
+      ...(options?.limit && { take: options.limit }),
+      ...(options?.cursor && { cursor: { id: options.cursor } }),
     });
   }
 
-  async getComments(filter: Prisma.AnnotationWhereInput) {
-    logger.info({ filter }, 'GET COMMENTS');
+  async getComments(filter: Prisma.AnnotationWhereInput, options?: { cursor?: number; limit?: number }) {
     return prisma.annotation.findMany({
       where: filter,
       include: {
-        author: true,
+        author: { select: { id: true, name: true, orcid: true } },
+        // CommentVote: {
+        //   select: { id: true, userId: true, annotationId: true, type: true },
+        // },
         attestation: {
           include: {
             attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },
           },
         },
       },
+      orderBy: {
+        id: 'asc',
+      },
+      skip: options?.cursor ? 1 : 0,
+      ...(options?.limit && { take: options.limit }),
+      ...(options?.cursor && { cursor: { id: options.cursor } }),
+    });
+  }
+
+  async countComments(filter: Prisma.AnnotationWhereInput) {
+    return prisma.annotation.count({
+      where: filter,
+    });
+  }
+
+  async getVotesByCommentId(annotationId: number) {
+    return prisma.commentVote.findMany({
+      where: { annotationId },
+    });
+  }
+
+  async upvoteComment(data: Prisma.CommentVoteCreateArgs['data']) {
+    return await prisma.commentVote.upsert({
+      where: { userId_annotationId: { userId: data.userId, annotationId: data.annotationId } },
+      create: { userId: data.userId, annotationId: data.annotationId, type: VoteType.Yes },
+      update: { type: VoteType.Yes },
+    });
+  }
+
+  async downvoteComment(data: Prisma.CommentVoteCreateArgs['data']) {
+    return await prisma.commentVote.upsert({
+      where: { userId_annotationId: { userId: data.userId, annotationId: data.annotationId } },
+      create: { userId: data.userId, annotationId: data.annotationId, type: VoteType.No },
+      update: { type: VoteType.No },
+    });
+  }
+
+  async getCommentUpvotes(annotationId: number) {
+    return prisma.commentVote.count({ where: { annotationId, type: VoteType.Yes } });
+  }
+
+  async getCommentDownvotes(annotationId: number) {
+    return prisma.commentVote.count({ where: { annotationId, type: VoteType.No } });
+  }
+
+  async countUserCommentVote(userId: number, annotationId: number) {
+    return prisma.commentVote.count({ where: { userId, annotationId } });
+  }
+
+  async getUserCommentVote(userId: number, annotationId: number) {
+    return prisma.commentVote.findFirst({
+      where: { userId, annotationId },
+      // select: { id: true, annotationId createdAt: true, type: true },
+    });
+  }
+
+  async deleteCommentVote(id: number) {
+    return prisma.commentVote.delete({
+      where: { id },
     });
   }
 
@@ -905,8 +992,9 @@ export class AttestationService {
     return queryResult;
   }
 
-  async getRecommendedAttestations() {
+  async getRecommendedAttestations(filter?: Prisma.CommunityEntryAttestationFindManyArgs) {
     const attestations = await prisma.communityEntryAttestation.findMany({
+      ...filter,
       include: {
         attestation: { select: { community: true } },
         attestationVersion: {
@@ -918,11 +1006,8 @@ export class AttestationService {
         },
         desciCommunity: { select: { name: true, hidden: true, image_url: true } },
       },
-      where: {
-        desciCommunity: {
-          hidden: false,
-        },
-      },
+      where: filter?.where ?? { desciCommunity: { hidden: false } },
+      take: filter ? 50 : 5,
     });
 
     return attestations;
@@ -979,6 +1064,38 @@ export class AttestationService {
         left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
         left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
       WHERE t1."nodeDpid10" = ${dpid} AND t1."revoked" = false
+        GROUP BY
+  		t1.id
+    `) as CommunityRadarNode[];
+
+    const groupedEngagements = claims.reduce(
+      (total, claim) => ({
+        reactions: total.reactions + claim.reactions,
+        annotations: total.annotations + claim.annotations,
+        verifications: total.verifications + claim.verifications,
+      }),
+      { reactions: 0, annotations: 0, verifications: 0 },
+    );
+    return groupedEngagements;
+  }
+
+  /**
+   * Returns all engagement signals for a node across all claimed attestations
+   * This verification signal is the number returned for the verification field
+   * @param dpid
+   * @returns
+   */
+  async getNodeEngagementSignalsByUuid(uuid: string) {
+    const claims = (await prisma.$queryRaw`
+      SELECT t1.*,
+      count(DISTINCT "Annotation".id)::int AS annotations,
+      count(DISTINCT "NodeAttestationReaction".id)::int AS reactions,
+      count(DISTINCT "NodeAttestationVerification".id)::int AS verifications
+      FROM "NodeAttestation" t1
+        left outer JOIN "Annotation" ON t1."id" = "Annotation"."nodeAttestationId"
+        left outer JOIN "NodeAttestationReaction" ON t1."id" = "NodeAttestationReaction"."nodeAttestationId"
+        left outer JOIN "NodeAttestationVerification" ON t1."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE t1."nodeUuid" = ${uuid} AND t1."revoked" = false
         GROUP BY
   		t1.id
     `) as CommunityRadarNode[];

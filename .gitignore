@@ -18,4 +18,3 @@ local-data/
 **/*.iml
 .composedbRuntimeDefinition.json
 openalex-importer
-sync-server

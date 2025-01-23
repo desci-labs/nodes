@@ -264,6 +264,10 @@ export async function setOrcidForUser(
 
 export async function getUserByOrcId(orcid: string): Promise<User | null> {
   logger.trace({ fn: 'getUserByOrcId' }, 'user::getUserByOrcId');
+  if (!orcid) {
+    logger.error({ fn: 'getUserByOrcId' }, 'user::getUserByOrcId No orcid');
+    return null;
+  }
   const user = await client.user.findFirst({ where: { orcid } });
 
   return user;
@@ -272,6 +276,12 @@ export async function getUserByOrcId(orcid: string): Promise<User | null> {
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
     logger.trace({ fn: 'getUserByEmail' }, `user::getUserByEmail ${hideEmail(email)}`);
+
+    if (!email) {
+      logger.error({ email }, 'getUserByEmail: No email');
+      return null;
+    }
+
     const user = await client.user.findFirst({
       where: {
         email: {

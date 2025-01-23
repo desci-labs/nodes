@@ -33,13 +33,14 @@ export const SubmissionPackage = ({
   isAlreadyVerified,
 }: SubmissionPackageEmailProps) => {
   if (nodeUuid?.endsWith('.') || nodeUuid?.endsWith('=')) nodeUuid = nodeUuid.slice(0, -1);
+  isAlreadyVerified = true; // Hide this button for now
   nodeOwner = nodeOwner || 'The node owner';
   nodeDpid = nodeDpid || '(DEMO)';
   versionUpdate = versionUpdate || '1'; // For demo case
   const nodeUrl = `${DAPP_URL}/dpid/${nodeDpid}/${versionUpdate}`;
   const manuscriptUrl = `${PUBLIC_IPFS_PATH}/${manuscriptCid}`;
   const contributorUrl = `${DAPP_URL}/node/${nodeUuid}/contributors/${contributorId}?shareId=${privShareCode}&src=inv`;
-  // debugger; ////
+
   // const nodeUrl = 'stub';
   // const manuscriptUrl = 'stub';
   return (

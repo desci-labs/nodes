@@ -1,16 +1,34 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
+import z from 'zod';
 
 import { NotFoundError } from '../../core/ApiError.js';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
+import { searchAttestationsSchema } from '../../routes/v1/attestations/schema.js';
 import { attestationService } from '../../services/Attestation.js';
 import { communityService } from '../../services/Communities.js';
 
 const logger = parentLogger.child({ module: 'Recommendations' });
 
-export const getAllRecommendations = async (_req: Request, res: Response, _next: NextFunction) => {
-  const attestations = await attestationService.getRecommendedAttestations();
+export const getAllRecommendations = async (req: Request, res: Response, _next: NextFunction) => {
+  const { query } = await searchAttestationsSchema.parseAsync(req);
+  logger.trace({ query }, 'getAllRecommendations');
+  const attestations = await attestationService.getRecommendedAttestations(
+    query.search
+      ? {
+          where: {
+            attestationVersion: {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' } },
+                { description: { contains: query.search, mode: 'insensitive' } },
+              ],
+            },
+            desciCommunity: { hidden: false },
+          },
+        }
+      : undefined,
+  );
   const attestationEntries = _(attestations)
     .groupBy((x) => x.attestationId)
     .map((value, _) => ({
@@ -30,7 +48,7 @@ export const getAllRecommendations = async (_req: Request, res: Response, _next:
     .value()
     .sort((entryA, entryB) => entryB.communities.length - entryA.communities.length);
 
-  logger.info({ attestationEntries }, 'getAllRecommendations');
+  logger.info({ attestationEntries: attestationEntries.length }, 'getAllRecommendations');
   return new SuccessResponse(attestationEntries).send(res);
 };
 
@@ -47,7 +65,7 @@ export const getCommunityRecommendations = async (req: Request, res: Response, _
     const key2 = c2.verifications + c2.annotations + c2.reactions;
     return key2 - key1;
   });
-  logger.info({ attestations });
+  // logger.info({ attestations });
 
   logger.info({ attestations: attestations.length, communityName }, 'GetCommunityRecommendations');
   return new SuccessResponse(attestations).send(res);

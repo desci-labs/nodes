@@ -1,7 +1,7 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 
-import { CommunityRadarNode } from '../../services/Communities.js';
+import { CommunityRadarNode, RadarEntry } from '../../services/Communities.js';
 
 export type NodeRadarItem = {
   NodeAttestation: CommunityRadarNode[];
@@ -46,3 +46,5 @@ export type NodeRadar = NodeRadarItem & {
     verifications: number;
   };
 };
+
+export type NodeRadarEntry = RadarEntry & { node?: Partial<Node & { versions: number }>; manifest?: ResearchObjectV1 };

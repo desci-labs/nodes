@@ -1,0 +1,19 @@
+services:
+  desci_sync:
+    build:
+      context: ./sync-server
+      dockerfile: Dockerfile
+    container_name: desci_sync
+    image: desci_sync_worker
+    env_file:
+      - ./sync-server/.env
+    ports:
+      - "5445:5445"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./sync-server:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      db_postgres:
+        condition: service_healthy

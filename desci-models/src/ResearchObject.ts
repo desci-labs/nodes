@@ -43,6 +43,8 @@ export interface ResearchObjectV1 extends ResearchObject {
   dpid?: ResearchObjectV1Dpid;
   /** Research fields relevant for the publication */
   researchFields?: string[];
+  /** Keywords associated with the research object */
+  keywords?: string[];
   /** Contributors to this publication */
   authors?: ResearchObjectV1Author[];
 
@@ -451,4 +453,15 @@ export interface ResearchObjectReference {
   type: 'dpid' | 'doi';
   /** Identifier (https://doi.org/<doi>) | <doi> | https://dpid.org/<dpid> */
   id: string;
+  /** Title of the publication */
+  title: string;
+  /** URL, a link to the reference */
+  url?: string;
+  /** Author names for the references */
+  authors?: { name: string }[];
+  journal?: string;
+  page?: string;
+  volume?: string;
+  issue?: string;
+  year?: string;
 }

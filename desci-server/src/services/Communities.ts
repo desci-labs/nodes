@@ -1,4 +1,11 @@
-import { Attestation, CommunityMembershipRole, NodeAttestation, NodeFeedItem, Prisma } from '@prisma/client';
+import {
+  Attestation,
+  CommunityMembershipRole,
+  CommunityRadarEntry,
+  NodeAttestation,
+  NodeFeedItem,
+  Prisma,
+} from '@prisma/client';
 import _, { includes } from 'lodash';
 
 import { prisma } from '../client.js';
@@ -8,6 +15,7 @@ import { logger } from '../logger.js';
 import { attestationService } from './Attestation.js';
 
 export type CommunityRadarNode = NodeAttestation & { annotations: number; reactions: number; verifications: number };
+export type RadarEntry = CommunityRadarEntry & { annotations: number; reactions: number; verifications: number };
 export class CommunityService {
   async createCommunity(data: Prisma.DesciCommunityCreateManyInput) {
     const exists = await prisma.desciCommunity.findFirst({ where: { name: data.name } });
@@ -174,6 +182,400 @@ export class CommunityService {
       .filter((entry) => entry.NodeAttestation.length === entryAttestations.length)
       .value();
     return radar;
+  }
+
+  async countCommunityRadar(desciCommunityId: number) {
+    const entryAttestations = await attestationService.getCommunityEntryAttestations(desciCommunityId);
+
+    const count = (await prisma.$queryRaw`
+      SELECT
+          count(*)
+      FROM
+          "CommunityRadarEntry" cre
+          LEFT JOIN (
+              SELECT
+                  Na."id",
+                  Na."communityRadarEntryId",
+                  Na."attestationId",
+                  Na."attestationVersionId"
+              FROM
+                  "NodeAttestation" Na
+                  LEFT JOIN "NodeAttestationVerification" Nav ON Na."id" = Nav."nodeAttestationId"
+              WHERE
+                  Na."revoked" = false
+                  AND Na."nodeDpid10" IS NOT NULL
+              GROUP BY
+                  Na."id",
+                  Na."communityRadarEntryId"
+          ) NaFiltered ON cre."id" = NaFiltered."communityRadarEntryId"
+      WHERE
+          EXISTS (
+              SELECT
+                  1
+              FROM
+                  "CommunityEntryAttestation" Cea
+              WHERE
+                  NaFiltered."attestationId" = Cea."attestationId"
+                  AND NaFiltered."attestationVersionId" = Cea."attestationVersionId"
+                  AND Cea."desciCommunityId" = ${desciCommunityId}
+                  AND Cea."required" = TRUE
+          )
+      GROUP BY
+          cre.id
+      HAVING
+          COUNT(DISTINCT NaFiltered."id") = ${entryAttestations.length}
+    `) as any[];
+    return count.length;
+  }
+
+  async listCommunityRadar({ communityId, offset, limit }: { communityId: number; offset: number; limit: number }) {
+    const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
+    const entries = await prisma.$queryRaw`
+      SELECT
+          cre.*,
+          count(DISTINCT "Annotation".id) :: int AS annotations,
+          count(DISTINCT "NodeAttestationReaction".id) :: int AS reactions,
+          count(DISTINCT "NodeAttestationVerification".id) :: int AS verifications,
+          COUNT(DISTINCT NaFiltered."id") :: int AS valid_attestations
+      FROM
+          "CommunityRadarEntry" cre
+        LEFT JOIN (
+          SELECT
+              Na."id",
+              Na."communityRadarEntryId",
+              Na."attestationId",
+              Na."attestationVersionId"
+          FROM
+              "NodeAttestation" Na
+          WHERE
+              Na."revoked" = false
+              AND Na."nodeDpid10" IS NOT NULL
+          GROUP BY
+              Na."id",
+              Na."communityRadarEntryId"
+      ) NaFiltered ON cre."id" = NaFiltered."communityRadarEntryId"
+          LEFT OUTER JOIN "Annotation" ON NaFiltered."id" = "Annotation"."nodeAttestationId"
+          LEFT OUTER JOIN "NodeAttestationReaction" ON NaFiltered."id" = "NodeAttestationReaction"."nodeAttestationId"
+          LEFT OUTER JOIN "NodeAttestationVerification" ON NaFiltered."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE
+          EXISTS (
+              SELECT
+                  *
+              FROM
+                  "CommunityEntryAttestation" Cea
+              WHERE
+                  NaFiltered."attestationId" = Cea."attestationId"
+                  AND NaFiltered."attestationVersionId" = cea."attestationVersionId"
+                  AND Cea."desciCommunityId" = ${communityId}
+                  AND Cea."required" = TRUE
+          )
+      GROUP BY
+          cre.id
+      HAVING
+          COUNT(DISTINCT NaFiltered."id") = ${entryAttestations.length}
+      ORDER BY
+          verifications ASC,
+          cre."createdAt" DESC
+      LIMIT
+          ${limit}
+      OFFSET ${offset};
+      `;
+
+    return entries as RadarEntry[];
+  }
+
+  async countCommunityCuratedFeed(desciCommunityId: number) {
+    const entryAttestations = await attestationService.getCommunityEntryAttestations(desciCommunityId);
+
+    const count = (await prisma.$queryRaw`
+      SELECT
+          count(*)
+      FROM
+          "CommunityRadarEntry" cre
+          LEFT JOIN (
+              SELECT
+                  Na."id",
+                  Na."communityRadarEntryId",
+                  Na."attestationId",
+                  Na."attestationVersionId"
+              FROM
+                  "NodeAttestation" Na
+                  LEFT JOIN "NodeAttestationVerification" Nav ON Na."id" = Nav."nodeAttestationId"
+              WHERE
+                  Na."revoked" = false
+                  AND Na."nodeDpid10" IS NOT NULL
+              GROUP BY
+                  Na."id",
+                  Na."communityRadarEntryId"
+              HAVING
+                  COUNT(Nav."id") > 0
+          ) NaFiltered ON cre."id" = NaFiltered."communityRadarEntryId"
+      WHERE
+          EXISTS (
+              SELECT
+                  1
+              FROM
+                  "CommunityEntryAttestation" Cea
+              WHERE
+                  NaFiltered."attestationId" = Cea."attestationId"
+                  AND NaFiltered."attestationVersionId" = Cea."attestationVersionId"
+                  AND Cea."desciCommunityId" = ${desciCommunityId}
+                  AND Cea."required" = TRUE
+          )
+      GROUP BY
+          cre.id
+      HAVING
+          COUNT(DISTINCT NaFiltered."id") = ${entryAttestations.length}
+    `) as any[];
+    return count.length;
+  }
+
+  async listCommunityCuratedFeed({
+    communityId,
+    offset,
+    limit,
+  }: {
+    communityId: number;
+    offset: number;
+    limit: number;
+  }) {
+    const entryAttestations = await attestationService.getCommunityEntryAttestations(communityId);
+
+    const entries = await prisma.$queryRaw`
+      SELECT
+          cre.*,
+          COUNT(DISTINCT "Annotation".id) :: int AS annotations,
+          COUNT(DISTINCT "NodeAttestationReaction".id) :: int AS reactions,
+          COUNT(DISTINCT "NodeAttestationVerification".id) :: int AS verifications,
+          COUNT(DISTINCT NaFiltered."id") :: int AS valid_attestations
+      FROM
+          "CommunityRadarEntry" cre
+      LEFT JOIN (
+          SELECT
+              Na."id",
+              Na."communityRadarEntryId",
+              Na."attestationId",
+              Na."attestationVersionId"
+          FROM
+              "NodeAttestation" Na
+          LEFT JOIN "NodeAttestationVerification" Nav ON Na."id" = Nav."nodeAttestationId"
+          WHERE
+              Na."revoked" = false
+              AND Na."nodeDpid10" IS NOT NULL
+          GROUP BY
+              Na."id",
+              Na."communityRadarEntryId"
+          HAVING
+              COUNT(Nav."id") > 0
+      ) NaFiltered ON cre."id" = NaFiltered."communityRadarEntryId"
+      LEFT JOIN "Annotation" ON NaFiltered."id" = "Annotation"."nodeAttestationId"
+      LEFT JOIN "NodeAttestationReaction" ON NaFiltered."id" = "NodeAttestationReaction"."nodeAttestationId"
+      LEFT JOIN "NodeAttestationVerification" ON NaFiltered."id" = "NodeAttestationVerification"."nodeAttestationId"
+      WHERE
+          EXISTS (
+              SELECT
+                  1
+              FROM
+                  "CommunityEntryAttestation" Cea
+              WHERE
+                  NaFiltered."attestationId" = Cea."attestationId"
+                  AND NaFiltered."attestationVersionId" = Cea."attestationVersionId"
+                  AND Cea."desciCommunityId" = ${communityId}
+                  AND Cea."required" = TRUE
+          )
+      GROUP BY
+          cre.id
+      HAVING
+          COUNT(DISTINCT NaFiltered."id") = ${entryAttestations.length}
+      ORDER BY
+          verifications DESC
+      OFFSET ${offset}
+      LIMIT
+          ${limit};
+      `;
+
+    return entries as RadarEntry[];
+  }
+
+  async listAllCommunityCuratedFeeds({ offset, limit }: { offset: number; limit: number }) {
+    const entries = (await prisma.$queryRaw`
+      SELECT
+          cre.*,
+          COUNT(DISTINCT "Annotation".id) :: int AS annotations,
+          COUNT(DISTINCT "NodeAttestationReaction".id) :: int AS reactions,
+          COUNT(DISTINCT "NodeAttestationVerification".id) :: int AS verifications,
+          COUNT(DISTINCT NaFiltered."id") :: int AS valid_attestations,
+          COUNT(DISTINCT NaEntry."id") :: int AS entry_attestations
+      FROM
+          "CommunityRadarEntry" cre
+          LEFT JOIN (
+              SELECT
+                  Na."id",
+                  Na."communityRadarEntryId",
+                  Na."attestationId",
+                  Na."attestationVersionId",
+                  Na."desciCommunityId"
+              FROM
+                  "NodeAttestation" Na
+                  LEFT JOIN "NodeAttestationVerification" Nav ON Na."id" = Nav."nodeAttestationId"
+              WHERE
+                  Na."revoked" = false
+                  AND Na."nodeDpid10" IS NOT NULL
+                  AND EXISTS (
+                      SELECT
+                          1
+                      FROM
+                          "CommunityEntryAttestation" Cea
+                      WHERE
+                          Na."attestationId" = Cea."attestationId"
+                          AND Na."attestationVersionId" = Cea."attestationVersionId"
+                          AND Na."desciCommunityId" = Cea."desciCommunityId"
+                          AND Cea."required" = TRUE
+                  )
+              GROUP BY
+                  Na."id",
+                  Na."communityRadarEntryId"
+              HAVING
+                  COUNT(Nav."id") > 0
+          ) NaFiltered ON cre."id" = NaFiltered."communityRadarEntryId"
+          LEFT JOIN "Annotation" ON NaFiltered."id" = "Annotation"."nodeAttestationId"
+          LEFT JOIN "NodeAttestationReaction" ON NaFiltered."id" = "NodeAttestationReaction"."nodeAttestationId"
+          LEFT JOIN "NodeAttestationVerification" ON NaFiltered."id" = "NodeAttestationVerification"."nodeAttestationId"
+          LEFT JOIN (
+              SELECT
+                  Na."id",
+                  Na."communityRadarEntryId",
+                  Na."attestationId",
+                  Na."attestationVersionId",
+                  Na."desciCommunityId"
+              FROM
+                  "NodeAttestation" Na
+              WHERE
+                  Na."revoked" = false
+                  AND Na."nodeDpid10" IS NOT NULL
+                  AND EXISTS (
+                      SELECT
+                          1
+                      FROM
+                          "CommunityEntryAttestation" Cea
+                      WHERE
+                          Na."attestationId" = Cea."attestationId"
+                          AND Na."attestationVersionId" = Cea."attestationVersionId"
+                          AND Na."desciCommunityId" = Cea."desciCommunityId"
+                          AND Cea."required" = TRUE
+                  )
+              GROUP BY
+                  Na."id",
+                  Na."communityRadarEntryId"
+          ) NaEntry ON cre."id" = NaEntry."communityRadarEntryId"
+      WHERE
+          EXISTS (
+              SELECT
+                  1
+              FROM
+                  "CommunityEntryAttestation" Cea
+              WHERE
+                  NaFiltered."attestationId" = Cea."attestationId"
+                  AND NaFiltered."attestationVersionId" = Cea."attestationVersionId"
+                  AND Cea."required" = TRUE
+          )
+      GROUP BY
+          cre.id,
+          cre."nodeUuid"
+      HAVING
+          COUNT(DISTINCT NaFiltered."id") = COUNT(DISTINCT NaEntry."id")
+      ORDER BY
+          verifications DESC,
+          cre."createdAt" DESC
+      LIMIT ${limit} 
+      OFFSET ${offset}
+      `) as RadarEntry[];
+
+    return entries as RadarEntry[];
+  }
+
+  async countAllCommunityCuratedFeeds() {
+    const count = (await prisma.$queryRaw`
+      SELECT
+        count(*),
+        cre."nodeUuid",
+        COUNT(DISTINCT NaFiltered."id") :: int AS valid_attestations,
+        COUNT(DISTINCT NaEntry."id") :: int AS entry_attestations
+      FROM
+        "CommunityRadarEntry" cre
+        LEFT JOIN (
+            SELECT
+                Na."id",
+                Na."communityRadarEntryId",
+                Na."attestationId",
+                Na."attestationVersionId",
+                Na."desciCommunityId"
+            FROM
+                "NodeAttestation" Na
+                LEFT JOIN "NodeAttestationVerification" Nav ON Na."id" = Nav."nodeAttestationId"
+            WHERE
+                Na."revoked" = false
+                AND Na."nodeDpid10" IS NOT NULL
+                AND EXISTS (
+                    SELECT
+                        1
+                    FROM
+                        "CommunityEntryAttestation" Cea
+                    WHERE
+                        Na."attestationId" = Cea."attestationId"
+                        AND Na."attestationVersionId" = Cea."attestationVersionId"
+                        AND Na."desciCommunityId" = Cea."desciCommunityId"
+                        AND Cea."required" = TRUE
+                )
+            GROUP BY
+                Na."id",
+                Na."communityRadarEntryId"
+            HAVING
+                COUNT(Nav."id") > 0
+        ) NaFiltered ON cre."id" = NaFiltered."communityRadarEntryId"
+        LEFT JOIN (
+            SELECT
+                Na."id",
+                Na."communityRadarEntryId",
+                Na."attestationId",
+                Na."attestationVersionId"
+            FROM
+                "NodeAttestation" Na 
+            WHERE
+                Na."revoked" = false
+                AND Na."nodeDpid10" IS NOT NULL
+                AND EXISTS (
+                    SELECT
+                        1
+                    FROM
+                        "CommunityEntryAttestation" Cea
+                    WHERE
+                        Na."attestationId" = Cea."attestationId"
+                        AND Na."attestationVersionId" = Cea."attestationVersionId"
+                        AND Cea."required" = TRUE
+                )
+            GROUP BY
+                Na."id",
+                Na."communityRadarEntryId"
+        ) NaEntry ON cre."id" = NaEntry."communityRadarEntryId"
+      WHERE
+        EXISTS (
+            SELECT
+                1
+            FROM
+                "CommunityEntryAttestation" Cea
+            WHERE
+                NaFiltered."attestationId" = Cea."attestationId"
+                AND NaFiltered."attestationVersionId" = Cea."attestationVersionId"
+                AND Cea."required" = TRUE
+        )
+      GROUP BY
+        cre.id,
+        cre."nodeUuid"
+      HAVING
+        COUNT(DISTINCT NaFiltered."id") = COUNT(DISTINCT NaEntry."id")
+`) as any[];
+    return count.length;
   }
 
   /**
@@ -365,6 +767,92 @@ export class CommunityService {
 
   async removeMemberById(id: number) {
     return prisma.communityMember.delete({ where: { id } });
+  }
+
+  async addToRadar(desciCommunityId: number, nodeUuid: string) {
+    // check if node has claimed all community entry attestations
+    const entryAttestations = await communityService.getEntryAttestations({
+      desciCommunityId,
+      required: true,
+    });
+
+    const claimedAttestations = await prisma.nodeAttestation.findMany({
+      where: { desciCommunityId, nodeUuid, revoked: false },
+    });
+
+    const isEntriesClaimed = entryAttestations.every((entry) =>
+      claimedAttestations.find(
+        (claimed) =>
+          claimed.attestationId === entry.attestationId && claimed.attestationVersionId === entry.attestationVersionId,
+      ),
+    );
+
+    if (!isEntriesClaimed) return undefined;
+
+    const radarEntry = await prisma.communityRadarEntry.upsert({
+      where: {
+        nodeUuid_desciCommunityId: { desciCommunityId, nodeUuid },
+      },
+      create: {
+        nodeUuid,
+        desciCommunityId,
+      },
+      update: {
+        desciCommunityId,
+        nodeUuid,
+      },
+    });
+
+    await prisma.$transaction(
+      claimedAttestations.map((claim) =>
+        prisma.nodeAttestation.update({ where: { id: claim.id }, data: { communityRadarEntryId: radarEntry.id } }),
+      ),
+    );
+
+    return radarEntry;
+  }
+
+  async removeFromRadar(desciCommunityId: number, nodeUuid: string) {
+    // check if node has claimed all community entry attestations
+    const entryAttestations = await communityService.getEntryAttestations({
+      desciCommunityId,
+      required: true,
+    });
+
+    const claimedAttestations = await prisma.nodeAttestation.findMany({
+      where: { desciCommunityId, nodeUuid, revoked: false },
+    });
+
+    const isEntriesClaimed = entryAttestations.every((entry) =>
+      claimedAttestations.find(
+        (claimed) =>
+          claimed.attestationId === entry.attestationId && claimed.attestationVersionId === entry.attestationVersionId,
+      ),
+    );
+
+    if (isEntriesClaimed) return undefined;
+    const entry = await prisma.communityRadarEntry.findFirst({
+      where: {
+        desciCommunityId,
+        nodeUuid,
+      },
+    });
+
+    logger.trace({ entry }, 'removeFromRadar');
+
+    if (!entry) return null;
+
+    await prisma.$transaction(
+      claimedAttestations.map((claim) =>
+        prisma.nodeAttestation.update({ where: { id: claim.id }, data: { communityRadarEntryId: null } }),
+      ),
+    );
+
+    return await prisma.communityRadarEntry.delete({
+      where: {
+        id: entry.id,
+      },
+    });
   }
 }
 
