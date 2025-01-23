@@ -13,7 +13,7 @@ import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
-import { elasticClient } from '../elasticSearchClient.js';
+import { elasticWriteClient } from '../elasticSearchClient.js';
 import { logger as parentLogger } from '../logger.js';
 import { getFromCache, setToCache } from '../redisClient.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
@@ -37,7 +37,7 @@ async function indexResearchObject(nodeUuid: string) {
     const workData = await fillNodeData(nodeUuid);
 
     debugger;
-    await elasticClient.index({
+    await elasticWriteClient.index({
       index: 'works_nodes_v1',
       id: workId,
       document: {
