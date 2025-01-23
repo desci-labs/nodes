@@ -4,7 +4,7 @@ import { ElasticNodesService } from '../services/ElasticNodesService.js';
 
 const logger = parentLogger.child({ module: 'SCRIPTS::Testing' });
 
-const nodeUuid = '02czPbGSXpaFwwoTA8MIBrQeLCN6Amc7rDkWyIEAfPg.';
+const nodeUuid = 'AHV7nEuoSQZBk_8X137m7HvStraR30_df42EOtnIMfY.';
 
 async function testExec() {
   logger.info('Testing script run');

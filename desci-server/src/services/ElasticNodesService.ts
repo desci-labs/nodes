@@ -124,9 +124,17 @@ interface AiApiResult {
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+type AiData = {
+  contentNovelty: AiApiResult['result']['predictions']['content'];
+  contextNovelty: AiApiResult['result']['predictions']['context'];
+  concepts: AiApiResult['concepts'];
+  topics: AiApiResult['topics'];
+  references: AiApiResult['references'];
+};
+
 const AI_DATA_CACHE_PREFIX = 'AI-';
 
-async function getAiData(manifest: ResearchObjectV1, useCache: boolean) {
+async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise<AiData | null> {
   try {
     const firstManuscript = manifest.components.find(
       (c) =>
@@ -140,7 +148,7 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean) {
       // Check if AI data is already cached for this manuscript
       const cachedData = await getFromCache(cacheKey);
       if (cachedData) {
-        return cachedData as AiApiResult;
+        return cachedData as AiData;
       }
     }
 
