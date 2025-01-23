@@ -6,7 +6,7 @@
 set -euo pipefail
 trap "catch" ERR
 catch() {
-    "[startTestChain] script failed!"
+    echo "[startTestChain] script failed!"
     exit 1
 }
 
@@ -70,7 +70,11 @@ npx ganache \
   --wallet.mnemonic="${MNEMONIC}" \
   --database.dbPath="/data" \
   | grep --line-buffered -v '^eth_.*$' &
-GANACHE_PID=$(pgrep -P $$ ganache)
+
+# Wait for ganache process to be findable
+until GANACHE_PID=$(pgrep -P $$ ganache); do
+  sleep 0.1
+done
 
 until curl -s -o /dev/null -w '' http://localhost:8545; do
   sleep 1
