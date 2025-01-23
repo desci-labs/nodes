@@ -17,16 +17,11 @@ scripts/stubHardhatAnalytics.sh
 
 checkTestDeployments() {
     echo "[startTestChain] checking test deployments..."
-    echo "[startTestChain] waiting for ganache..."
-    sleep 10
 
     if ! scripts/checkTestDeployments.sh ".openzeppelin/unknown-dpid.json"; then
         echo "[startTestChain] deploying dpid contract..."
         yarn deploy:dpid:ganache
     fi
-
-    echo "[startTestChain] waiting for ganache..."
-    sleep 10
 
     if ! scripts/checkTestDeployments.sh ".openzeppelin/unknown-research-object.json"; then
         echo "[startTestChain] deploying RO contract..."
