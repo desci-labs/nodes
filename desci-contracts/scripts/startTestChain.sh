@@ -69,9 +69,8 @@ npx ganache \
   --chain.networkId="1337" \
   --wallet.mnemonic="${MNEMONIC}" \
   --database.dbPath="/data" \
-  | grep --line-buffered -v '^eth_.*$'
-
-  GANACHE_PID=$!
+  | grep --line-buffered -v '^eth_.*$' &
+GANACHE_PID=$(pgrep -P $$ ganache)
 
 until curl -s -o /dev/null -w '' http://localhost:8545; do
   sleep 1
