@@ -4,6 +4,7 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat_v2"]
 find_additional_modules = true
+tail_consumers = [{service = "automerge-sync-server-tail"}]
 
 [[durable_objects.bindings]]
 name = "Automerge"
@@ -27,11 +28,10 @@ DB_TABLE= "DocumentStore"
 NODES_API= "http://host.docker.internal:5420"
 ENVIRONMENT="dev"
 DATABASE_URL= "postgresql://walter:white@host.docker.internal:5433/boilerplate"
-API_TOKEN="auth-token"
 
 [env.dev]
 durable_objects.bindings = [{ name = "Automerge", class_name = "AutomergeServer" }]
-vars = { DB_TABLE= "DocumentStore", NODES_API= "http://localhost:5420", ENVIRONMENT="dev", DATABASE_URL= "postgresql://walter:white@host.docker.internal:5433/boilerplate", API_TOKEN="auth-token" }
+vars = { DB_TABLE= "DocumentStore", NODES_API= "http://localhost:5420", ENVIRONMENT="dev", DATABASE_URL= "postgresql://walter:white@host.docker.internal:5433/boilerplate" }
 hyperdrive = [{ binding = "NODES_DB", id = "856af129675e4140accc0ccabbc2ee20" }]
 
 [env.staging]
@@ -41,7 +41,7 @@ durable_objects.bindings = [{ name = "Automerge", class_name = "AutomergeServer"
 routes = [
   { pattern = "nodes-dev-sync.desci.com", custom_domain = true }
 ]
-tail_consumers = [{service = "automerge-sync-server-staging-tail"}]
+tail_consumers = [{service = "automerge-sync-server-tail"}]
 
 [env.production]
 vars = { ENVIRONMENT = "production", DB_TABLE= "DocumentStore", NODES_API= "https://nodes-api.desci.com" }
@@ -50,7 +50,7 @@ durable_objects.bindings = [{ name = "Automerge", class_name = "AutomergeServer"
 routes = [
   { pattern = "nodes-sync.desci.com", custom_domain = true }
 ]
-tail_consumers = [{service = "automerge-sync-server-prod-tail"}]
+tail_consumers = [{service = "automerge-sync-server-tail"}]
 
 [[rules]]
 type = "CompiledWasm"
