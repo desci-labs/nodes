@@ -78,7 +78,7 @@ async function fillNodeData(nodeUuid: string) {
     doi,
     type: 'preprint',
     abstract: manifest.description,
-    citedByCount,
+    cited_by_count: citedByCount,
     publication_year,
     publication_date: firstVersionTime,
     is_retracted: false,
