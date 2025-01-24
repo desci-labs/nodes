@@ -5,6 +5,7 @@ import {
   works_primary_locationsInOpenalex,
   worksInOpenalex,
 } from '../../drizzle/schema.js';
+import type { UTCDate } from '@date-fns/utc';
 
 // filter object fields to remove undefined fields but allow null fields
 type NoUndefinedField<T> = {
@@ -27,3 +28,10 @@ export type WorksBestOaLocation = NoUndefinedField<typeof works_best_oa_location
 export type WorksPrimaryLocation = NoUndefinedField<typeof works_primary_locationsInOpenalex.$inferInsert>;
 
 export type WorksLocation = NoUndefinedField<typeof works_locationsInOpenalex.$inferInsert>;
+
+export type QueryInfo = {
+  query_type: 'created' | 'updated',
+  query_from: UTCDate,
+  query_to: UTCDate,
+};
+

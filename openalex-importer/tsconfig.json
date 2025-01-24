@@ -7,9 +7,14 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
-    "inlineSourceMap": true,
+    "sourceMap": true,
+    "inlineSources": true,
     "strictNullChecks": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["./src/**/*.ts", "*.ts", "./drizzle/schema.ts"]
+  "include": [
+    "./src/**/*.ts",
+    "*.ts",
+    "./drizzle/*schema.ts"
+  ]
 }

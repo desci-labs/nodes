@@ -48,7 +48,7 @@ export const transformToWork = (data: Work): Works => {
     cited_by_api_url: data.cited_by_api_url,
     abstract_inverted_index: data.abstract_inverted_index,
     language: data.language,
-    publication_date_date: data.publication_date,
+    // publication_date_date: data.publication_date,
   };
 };
 

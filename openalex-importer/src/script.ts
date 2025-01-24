@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
-
-import { saveData } from './db/index.js';
+import { type QueryInfo, saveData } from './db/index.js';
 import { logger } from './logger.js';
-import { transformDataModel } from './transformers.js';
+import { type DataModels, transformDataModel } from './transformers.js';
 import type { Work } from './types/index.js';
+import { errWithCause } from 'pino-std-serializers';
 
 const OPEN_ALEX_API = 'https://api.openalex.org/';
 
@@ -36,27 +36,25 @@ type FilterParam = {
   has_ror?: boolean;
 };
 
-const MAX_PAGES_TO_FETCH = 100;
+const MAX_PAGES_TO_FETCH = parseInt(process.env.MAX_PAGES_TO_FETCH || '100');
+const IS_DEV = process.env.NODE_ENV === 'development';
 
 async function importWorks(filter?: FilterParam): Promise<Work[] | null> {
-  logger.info(filter, 'Filter');
+  logger.info({ filter }, 'Fetching data from OpenAlex API...');
   try {
     const url = `${OPEN_ALEX_API}/works`;
     const works = await performFetch<Work[]>(url, {
       filter: {
         ...filter,
-        // from_created_date: "2024-07-27",
-        // to_created_date: "2024-07-27",
-        // from_updated_date: "2024-07-30T20:00:00.347Z",
-        // to_updated_date: "2024-07-30T23:29:50.347Z",
       },
       'per-page': 200,
       cursor: '*',
     });
     logger.info({ totalWorks: works.length }, 'Fetch done');
     return works;
-  } catch (err) {
-    logger.error({ err }, 'ERROR::');
+  } catch (e) {
+    const err = e as Error;
+    logger.error(errWithCause(err), 'ERROR::');
     return null;
   }
 }
@@ -65,23 +63,14 @@ async function performFetch<T>(url: string, searchQuery: Query): Promise<T> {
   logger.info(searchQuery, 'QUERY');
   let data = [];
 
-  const getFilter = (param: FilterParam) => {
-    const filter = Object.entries(param).reduce(
-      (queryStr, [key, value]) => (queryStr ? `${queryStr},${key}:${value}` : `${key}:${value}`),
-      '',
-    );
-    return filter;
-  };
-
   let cursor = searchQuery.cursor || true;
   let roundtrip = 0;
-
   while (cursor) {
-    if (process.env.NODE_ENV === 'development') {
-      /* When running script locally,
-        break loop prematurely to avoid overloading memory
-      */
-      if (roundtrip >= MAX_PAGES_TO_FETCH) break; // todo: remove line before push to prod
+    if (IS_DEV) {
+      if (roundtrip >= MAX_PAGES_TO_FETCH) {
+        logger.warn({ MAX_PAGES_TO_FETCH }, 'Skipping rest of of pages');
+        break;
+      }
     }
 
     const query = Object.entries(searchQuery).reduce((queryStr, [key, value]) => {
@@ -94,15 +83,12 @@ async function performFetch<T>(url: string, searchQuery: Query): Promise<T> {
       return queryStr ? `${queryStr}&${param}` : param;
     }, '');
 
-    // logger.info("QUERY: ", query);
     const request = new Request(`${url}?${query}`, {
       headers: { 'API-KEY': process.env.OPENALEX_API_KEY as string },
     });
     const response = (await fetch(request)) as Response;
 
     if (response.ok && response.status === 200) {
-      // logger.info("Api success: ", response.status, response.statusText);
-
       if (response.headers.get('content-type')?.includes('application/json')) {
         const apiRes = (await response.json()) as ApiResponse<T>;
         data = data.concat(...(apiRes.results as any[]));
@@ -113,104 +99,82 @@ async function performFetch<T>(url: string, searchQuery: Query): Promise<T> {
         break;
       }
     } else {
-      logger.info(
+      logger.error(
         {
+          searchQuery,
           status: response.status,
           message: response.statusText,
           data: await response.json(),
         },
-        'Api error: ',
+        'Failed to fetch from OpenAlex; results may be truncated',
       );
-      break;
+      throw new Error('Fetch failed');
     }
   }
-
+  logger.info({ totalPages: roundtrip }, 'Data fetching finished');
   return data as T;
 }
 
-const saveToLogs = (data: string, logFile: string) => {
-  const TMP_DIR = path.join(process.cwd(), 'logs');
-  const LOG_FILE = path.join(TMP_DIR, logFile);
-  if (!existsSync(TMP_DIR)) {
-    mkdirSync(TMP_DIR);
+export const runImport = async (queryInfo: QueryInfo) => {
+  const { query_type, query_from, query_to } = queryInfo;
+  logger.info(queryInfo, 'Running Import');
+
+  const formattedFromDate = query_from.toISOString().replace('Z','');
+  const formattedToDate = query_to.toISOString().replace('Z','');
+
+  const filter: FilterParam =
+    query_type === 'created'
+      ? { from_created_date: formattedFromDate, to_created_date: formattedToDate }
+      : { from_updated_date: formattedFromDate, to_updated_date: formattedToDate };
+
+  const reuseLastFetch = process.env.REUSE_LAST_FETCH;
+  let openAlexData: Work[] | null;
+  if (reuseLastFetch) {
+    logger.warn('Reusing last fetch results from logs/works_raw.json');
+    openAlexData = JSON.parse(readFileSync('logs/works_raw.json', 'utf8'));
+  } else {
+    openAlexData = await importWorks(filter);
   }
-  if (data) {
-    writeFileSync(LOG_FILE, data);
-  }
-};
-
-export const runImport = async ({ from, to }: { from: Date; to: Date }) => {
-  // figure time parameters
-  // let currentDate = new Date();
-  // let from_created_date = startOfDay(subDays(currentDate, 1));
-  // let to_created_date = endOfDay(subDays(currentDate, 1));
-  logger.info({ from, to }, 'Running Import');
-
-  const from_created_date = from; // startOfDay(subDays(currentDate, 0));
-  const to_created_date = to; // endOfDay(subDays(currentDate, 0));
-
-  const dateFormatter = new Intl.DateTimeFormat('fr-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const openAlexData = await importWorks({
-    from_created_date: dateFormatter.format(from_created_date),
-    to_created_date: dateFormatter.format(to_created_date),
-    // from_updated_date: from_created_date.toISOString(),
-    // to_updated_date: to_created_date.toISOString(),
-  });
 
   if (!openAlexData) {
-    // logger issue or result
-    logger.info('Nothing to import');
+    logger.warn('Nothing to import');
     return 0;
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    saveToLogs(JSON.stringify(openAlexData?.slice(0, 100)), 'works_raw.json');
+  if (IS_DEV && !reuseLastFetch && !process.env.SKIP_LOG_WRITE) {
+    // Denormalized works (relations nested into each work)
+    saveToLogs(openAlexData, 'works_raw.json');
   }
 
-  const transformedData = transformDataModel(openAlexData);
-  const {
-    authors,
-    authors_ids,
-    works_authorships,
-    works,
-    works_id,
-    works_concepts,
-    works_biblio,
-    works_locations,
-    works_mesh,
-    works_open_access,
-    works_primary_locations,
-    works_best_oa_locations,
-    works_referenced_works,
-    works_related_works,
-    works_topics,
-  } = transformedData;
+  const data: DataModels = transformDataModel(openAlexData);
 
-  // const models = transformApiResponseToDbModel(works);
-
-  if (process.env.NODE_ENV === 'development') {
-    saveToLogs(JSON.stringify(authors), 'authors.json');
-    saveToLogs(JSON.stringify(authors_ids), 'authors_ids.json');
-    saveToLogs(JSON.stringify(works_authorships), 'works_authorships.json');
-    saveToLogs(JSON.stringify(works.slice(1, 100)), 'works.json');
-    saveToLogs(JSON.stringify(works_id), 'works_id.json');
-    saveToLogs(JSON.stringify(works_concepts), 'works_concepts.json');
-    saveToLogs(JSON.stringify(works_biblio), 'works_biblio.json');
-    saveToLogs(JSON.stringify(works_locations), 'works_locations.json');
-    saveToLogs(JSON.stringify(works_best_oa_locations), 'works_best_oa_locations.json');
-    saveToLogs(JSON.stringify(works_open_access), 'works_open_access.json');
-    saveToLogs(JSON.stringify(works_mesh), 'works_mesh.json');
-    saveToLogs(JSON.stringify(works_primary_locations), 'works_primary_locations.json');
-    saveToLogs(JSON.stringify(works_referenced_works), 'works_referenced_works.json');
-    saveToLogs(JSON.stringify(works_related_works), 'works_related_works.json');
-    saveToLogs(JSON.stringify(works_topics), 'works_topics.json');
+  if (IS_DEV && !reuseLastFetch && !process.env.SKIP_LOG_WRITE) {
+    // Normalized into "tables"
+    Object.entries(data).forEach(([key, content]) => saveToLogs(content, `${key}.json`));
   }
 
-  await saveData(transformedData);
+  await saveData(data, queryInfo);
 
-  return works?.length;
+  return data.works?.length;
+};
+
+const getFilter = (param: FilterParam) => {
+  const filter = Object.entries(param).reduce(
+    (queryStr, [key, value]) => (queryStr ? `${queryStr},${key}:${value}` : `${key}:${value}`),
+    '',
+  );
+  return filter;
+};
+
+const saveToLogs = (data: any, logFile: string) => {
+  const TMP_DIR = path.join(process.cwd(), 'logs');
+  const LOG_FILE = path.join(TMP_DIR, logFile);
+
+  if (!existsSync(TMP_DIR)) {
+    mkdirSync(TMP_DIR);
+  }
+
+  if (data) {
+    writeFileSync(LOG_FILE, JSON.stringify(data));
+  }
 };

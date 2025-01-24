@@ -24,6 +24,7 @@ export const logger = pino({
   redact: {
     paths: [],
   },
+
 });
 
 function omitBuffer(array) {

@@ -3,94 +3,166 @@ import { addDays, differenceInDays, endOfDay, startOfDay, subDays } from 'date-f
 import cron from 'node-cron';
 import { runImport } from './src/script.js';
 import { logger } from './src/logger.js';
+import type { QueryInfo } from './src/db/index.js';
+import { type Optional, parseDate } from './src/util.js';
+import { errWithCause } from 'pino-std-serializers';
+import { UTCDate } from '@date-fns/utc';
+
+/** Every day at noon */
+const DEFAULT_SCHEDULE = '0 12 * * *';
 
 async function main() {
-  const cliArgs = parseArgs();
-  if (!cliArgs) {
-    cron.schedule('*/2 * * * *', async () => {
-      logger.info('Running a task evey day at 12:00 AM');
-      const currentDate = new Date();
-      // let from_created_date = startOfDay(subDays(currentDate, 1));
-      // let to_created_date = endOfDay(subDays(currentDate, 1));
-      const from_created_date = startOfDay(subDays(currentDate, 0));
-      const to_created_date = endOfDay(subDays(currentDate, 0));
-      await runImport({ from: from_created_date, to: to_created_date });
-    });
-  } else if (cliArgs.start) {
-    logger.info('Running Script in Time travel moide ⏰✈️');
-    const startDate = cliArgs.start;
-    const endDate = cliArgs.end || cliArgs.start;
-    let diffInDays = differenceInDays(endDate, startDate);
+  const args = getRuntimeArgs();
+  if (!args.query_from && !args.query_to) {
+    logger.info({ args }, 'Time range not passed, configuring recurring task...');
+    const schedule = args.query_schedule ?? DEFAULT_SCHEDULE;
+    if (!args.query_schedule) {
+      logger.info({ DEFAULT_SCHEDULE }, 'No schedule passed, using default');
+    }
+
+    cron.schedule(
+      schedule,
+      async () => {
+        logger.info(
+          { query_type: args.query_type },
+          '🔔 Recurring task triggered, running import from previous day...',
+        );
+        const currentDate = new UTCDate();
+        const query_from: UTCDate = startOfDay(subDays<UTCDate, UTCDate>(currentDate, 1));
+        const query_to: UTCDate = endOfDay(subDays<UTCDate, UTCDate>(currentDate, 1));
+        await runImport({ query_type: args.query_type, query_from, query_to });
+        logger.info({ currentDate }, '🏁 Recurring import finished, idling until next trigger');
+      },
+      { timezone: 'UTC' },
+    );
+  } else if (args.query_from) {
+    logger.info('Running Script in Time travel mode ⏰✈️');
+    const startDate = args.query_from;
+    const endDate = args.query_to || args.query_from;
+    if (!args.query_to) {
+      logger.info('query_to not set, treating as single day');
+    }
+
+    let diffInDays = differenceInDays(endDate, args.query_from);
     logger.info({ diffInDays }, 'differenceInDays');
+
     // run script from start date to end date in a loop
     if (diffInDays === 0) {
-      logger.info({ from: startOfDay(startDate), to: endOfDay(startDate) }, 'Single Day time travel');
-      await runImport({ from: startOfDay(startDate), to: endOfDay(startDate) });
+      const queryInfo: QueryInfo = {
+        query_type: args.query_type,
+        query_from: startOfDay(startDate),
+        query_to: endOfDay(startDate),
+      };
+      logger.info(queryInfo, 'Single Day time travel');
+      await runImport(queryInfo);
     } else {
       // run import from start to end date
       let currentDate = startDate;
 
       while (diffInDays > 0) {
-        logger.info({ diffInDays, currentDate }, 'Run import script');
-        // await runImport({ from: startOfDay(currentDate), to: endOfDay(currentDate) });
+        const queryInfo: QueryInfo = {
+          query_type: args.query_type,
+          query_from: startOfDay(currentDate),
+          query_to: endOfDay(currentDate),
+        };
+        logger.info({ diffInDays, currentDate, queryInfo }, 'Running import for currentDate...');
+        await runImport(queryInfo);
         currentDate = addDays(currentDate, 1);
         diffInDays = differenceInDays(endDate, currentDate);
       }
 
       logger.info({ currentDate, diffInDays, endDate }, 'Time travel completed ⏰✈️');
     }
+  } else {
+    logger.warn('Unexpected args; doing nothing.');
   }
-
-  return;
 }
+
+const CLI_HELP = `Invalid args.
+
+Usage: node index.js --query_type=created|updated [OPTIONALS]
+
+Flags:
+  --query_type=created|updated
+  [--query_from=YYYY-MM-DD]
+  [--query_to=YYYY-MM-DD]
+  [--query_schedule='CRONTAB']
+
+Corresponding environment variables:
+  QUERY_TYPE
+  QUERY_FROM
+  QUERY_TO
+  QUERY_SCHEDULE
+
+Note: Dates are always UTC. Always queries full days.
+`;
 
 /**
- * Parses command line arguments for start and end dates.
- *
- * @returns An object with 'start' and 'end' Date properties if valid args are provided,
- *          or undefined if no valid args are found.
- * @throws {Error} If the start argument is invalid or missing.
- */
-function parseArgs() {
-  const parseDate = (dateString: string) => {
-    try {
-      return new Date(dateString);
-    } catch (err) {
-      logger.error({ err }, '[Error]::Parsing Date args');
-      return undefined;
-    }
-  };
+ * Checks for 'VAR_NAME' in env and '--var_name=' in CLI flags, if empty throws with instructions
+ * IF optional is true
+ **/
+const getParam = (name: string, required: boolean) => {
+  let val = process.env[name.toUpperCase()];
 
-  logger.info({ args: process.argv }, 'ARGS');
-  if (process.argv.length > 2) {
-    const param: { start?: Date | undefined; end?: Date | undefined } = {};
-    const start = process.argv[2];
-    const end = process.argv[3];
-    if (start.startsWith('--start=')) {
-      param.start = parseDate(start.split('=')[1]);
-    } else {
-      throw new Error(
-        `Invalid cli args\n
-        Usage node ./index.js --start=[MM-DD-YYYY] --end=[MM-DD-YYYY]`,
-      );
-    }
-    if (end.startsWith('--end=')) {
-      param.end = parseDate(end.split('=')[1]);
-    }
-    logger.info(param, 'ARGS');
-    console.log(param, 'ARGS');
-    if (param.start) return param;
-    return;
+  // Explicit flags override env
+  const rawFlag = process.argv.find((arg) => arg.startsWith(`--${name.toLowerCase()}=`));
+  if (rawFlag) {
+    val = rawFlag.split('=')[1] as string;
   }
 
-  return;
+  if (!val && required) {
+    throw new Error(CLI_HELP);
+  }
+
+  return val;
+};
+
+type RuntimeArgs = Optional<QueryInfo, 'query_from' | 'query_to'> & { query_schedule?: string };
+/**
+ * Parses and validates configuration arguments from env and/or flags
+ */
+const getRuntimeArgs = (): RuntimeArgs => {
+  const raw = {
+    query_type: getParam('query_type', true) as string,
+    query_from: getParam('query_from', false),
+    query_to: getParam('query_to', false),
+    query_schedule: getParam('query_schedule', false),
+  };
+
+  const args: Partial<RuntimeArgs> = {};
+  if (raw.query_type === 'created' || raw.query_type === 'updated') {
+    args.query_type = raw.query_type;
+  } else throw new Error(CLI_HELP);
+
+  if (raw.query_from) {
+    const parsed = parseDate(raw.query_from);
+    if (!parsed) throw new Error(CLI_HELP);
+    args.query_from = parsed;
+  }
+
+  if (raw.query_to) {
+    const parsed = parseDate(raw.query_to);
+    // Also throws if there is an end date but no start
+    if (!parsed || !args.query_from) throw new Error(CLI_HELP);
+    args.query_to = parsed;
+  }
+
+  if (raw.query_schedule) {
+    if (cron.validate(raw.query_schedule)) {
+      args.query_schedule = raw.query_schedule;
+    } else {
+      logger.error({ query_schedule: raw.query_schedule }, 'Got invalid crontab schedule');
+      throw new Error(CLI_HELP);
+    }
+  }
+
+  logger.info(args, 'Parsed runtime arguments');
+  return args as RuntimeArgs;
+};
+
+try {
+  await main();
+} catch (e) {
+  const err = e as Error;
+  logger.error(errWithCause(err), 'Data import caught unexpected error');
 }
-
-main()
-  .then((_) => logger.info('Open Alex Import script Scheduled'))
-  .catch((err) => {
-    logger.info({ err }, 'ERROR: data import crashed due to: ');
-    console.log('Error: ', err);
-  });
-
-// Todo: Add k8s config file
