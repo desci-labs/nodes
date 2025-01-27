@@ -1,4 +1,7 @@
 import { pino } from 'pino';
+import path from 'path';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { appendFileSync } from 'node:fs';
 
 const logLevel = process.env.PINO_LOG_LEVEL || 'trace';
 
@@ -35,6 +38,26 @@ function omitBuffer(array) {
   });
 }
 
-process.on('uncaughtException', (err) => {
-  logger.fatal(err, 'uncaught exception');
-});
+const TMP_DIR = path.join(process.cwd(), 'logs');
+if (!existsSync(TMP_DIR)) {
+  mkdirSync(TMP_DIR);
+}
+
+/** Write raw and transformed data to logfiles for manual inspection */
+export const saveToLogs = (data: any, logFile: string) => {
+  const LOG_FILE = path.join(TMP_DIR, logFile);
+
+  if (data) {
+    writeFileSync(LOG_FILE, JSON.stringify(data));
+  }
+};
+
+export const appendToLogs = (
+  data: unknown,
+  logFile: string,
+) => {
+  const LOG_FILE = path.join(TMP_DIR, logFile);
+  appendFileSync(LOG_FILE, JSON.stringify(data));
+  appendFileSync(LOG_FILE, '\n');
+}
+

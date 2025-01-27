@@ -1,6 +1,9 @@
 import { getHeapStatistics, writeHeapSnapshot } from 'node:v8';
 import { logger } from './logger.js';
 import { UTCDate } from '@date-fns/utc';
+import path from 'path';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { appendFileSync } from 'node:fs';
 
 /**
  * Dumps the heap to a file in heap-snapshots IF the DUMP_HEAP envvar is set.
@@ -62,3 +65,12 @@ export const parseDate = (dateString: string): UTCDate | undefined => {
 };
 
 export type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
+
+export const countArrayLengths = (obj: Record<string, any[]>): Record<string, number> => {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [key, value.length])
+  );
+};
+
+export const dropTime = (datestr: string) =>
+  datestr.split('T')[0];

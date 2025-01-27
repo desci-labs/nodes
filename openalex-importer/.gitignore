@@ -19,3 +19,4 @@ postgres-data/
 
 logs
 heap-snapshots
+.node_trace*

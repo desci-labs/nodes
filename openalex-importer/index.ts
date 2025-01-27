@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { addDays, differenceInDays, endOfDay, startOfDay, subDays } from 'date-fns';
 import cron from 'node-cron';
-import { runImport } from './src/script.js';
 import { logger } from './src/logger.js';
-import type { QueryInfo } from './src/db/index.js';
+import { pool, type QueryInfo } from './src/db/index.js';
 import { type Optional, parseDate } from './src/util.js';
 import { errWithCause } from 'pino-std-serializers';
 import { UTCDate } from '@date-fns/utc';
+import { runImportPipeline } from './src/pipeline.js';
 
 /** Every day at noon */
 const DEFAULT_SCHEDULE = '0 12 * * *';
@@ -30,7 +30,7 @@ async function main() {
         const currentDate = new UTCDate();
         const query_from: UTCDate = startOfDay(subDays<UTCDate, UTCDate>(currentDate, 1));
         const query_to: UTCDate = endOfDay(subDays<UTCDate, UTCDate>(currentDate, 1));
-        await runImport({ query_type: args.query_type, query_from, query_to });
+        await runImportPipeline({ query_type: args.query_type, query_from, query_to });
         logger.info({ currentDate }, '🏁 Recurring import finished, idling until next trigger');
       },
       { timezone: 'UTC' },
@@ -54,7 +54,7 @@ async function main() {
         query_to: endOfDay(startDate),
       };
       logger.info(queryInfo, 'Single Day time travel');
-      await runImport(queryInfo);
+      await runImportPipeline(queryInfo);
     } else {
       // run import from start to end date
       let currentDate = startDate;
@@ -66,7 +66,7 @@ async function main() {
           query_to: endOfDay(currentDate),
         };
         logger.info({ diffInDays, currentDate, queryInfo }, 'Running import for currentDate...');
-        await runImport(queryInfo);
+        await runImportPipeline(queryInfo);
         currentDate = addDays(currentDate, 1);
         diffInDays = differenceInDays(endDate, currentDate);
       }
@@ -160,9 +160,18 @@ const getRuntimeArgs = (): RuntimeArgs => {
   return args as RuntimeArgs;
 };
 
+process.on('uncaughtException', async (err) => {
+  logger.fatal(errWithCause(err), 'uncaught exception');
+  process.exit(1);
+});
+
 try {
   await main();
 } catch (e) {
   const err = e as Error;
   logger.error(errWithCause(err), 'Data import caught unexpected error');
+} finally {
+  await pool.end();
 }
+
+

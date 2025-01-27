@@ -10,7 +10,7 @@ import * as batchesSchema from '../../drizzle/batches-schema.js';
 import * as openAlexSchema from '../../drizzle/schema.js';
 import { logger } from '../logger.js';
 import { type DataModels } from '../transformers.js';
-import { chunkGenerator, getDuration, getHeapStats, logMetricsAndGetTime, maybeDumpHeap } from '../util.js';
+import { chunkGenerator, getHeapStats, logMetricsAndGetTime, maybeDumpHeap } from '../util.js';
 import { UTCDate } from '@date-fns/utc';
 
 export * from '../../drizzle/schema.js';
@@ -52,7 +52,7 @@ type OpenAlexSchema = {
   works_topicsInOpenalex: typeof works_topicsInOpenalex;
 };
 
-type PgTransactionType = PgTransaction<
+export type PgTransactionType = PgTransaction<
   NodePgQueryResultHKT,
   OpenAlexSchema,
   ExtractTablesWithRelations<OpenAlexSchema>
@@ -82,14 +82,8 @@ export function conflictUpdateAllExcept<
   ) as Omit<Record<keyof typeof table.$inferInsert, SQL>, E[number]>
 }
 
-export const saveData = async (
-  models: DataModels,
-  queryInfo: QueryInfo,
-) => {
-  logger.info('Connecting to database...');
-  const startTime = Date.now();
-  const client = await pool.connect();
-  const db = drizzle({
+export const getDrizzle = () => {
+  return drizzle({
     client: pool,
     schema: {
       worksInOpenalex,
@@ -103,75 +97,89 @@ export const saveData = async (
       works_topicsInOpenalex,
     },
   });
-  logger.info('Successfully connected to database, persisting data...')
+}
+
+export const createBatch = async (
+  tx: PgTransactionType,
+  queryInfo: QueryInfo
+) => {
+  const savedBatch = await tx
+    .insert(batchesInOpenAlex)
+    .values(queryInfo)
+    .returning({ id: batchesInOpenAlex.id });
+  return savedBatch[0].id;
+}
+
+export const finalizeBatch = async (
+  tx: PgTransactionType,
+  batchId: number,
+) =>
+  await tx.update(batchesInOpenAlex)
+    .set({ finished_at: new UTCDate() })
+    .where(
+      eq(batchesInOpenAlex.id, batchId)
+    );
+
+export const saveData = async (
+  tx: PgTransactionType,
+  batchId: number,
+  models: DataModels,
+) => {
+  const startTime = Date.now();
 
   try {
     maybeDumpHeap('heap-start');
-    let tPrev = logMetricsAndGetTime(startTime, 'start tx');
-    await db.transaction(async (tx) => {
-      const savedBatch = await tx
-        .insert(batchesInOpenAlex)
-        .values(queryInfo)
-        .returning({ id: batchesInOpenAlex.id });
-      const batchId = savedBatch[0].id;
+    // let tPrev = logMetricsAndGetTime(startTime, 'start tx');
 
-      await updateWorks(tx, models, batchId);
-      tPrev = logMetricsAndGetTime(tPrev, 'saved works')
+    await updateWorks(tx, models, batchId);
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved works')
 
-      await updateAuthors(tx, models['authors'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved authors')
+    await updateAuthors(tx, models['authors'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved authors')
 
-      await updateAuthorIds(tx, models['authors_ids'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved authorIds')
+    await updateAuthorIds(tx, models['authors_ids'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved authorIds')
 
-      await updateWorkIds(tx, models['works_id'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved workIds')
+    await updateWorkIds(tx, models['works_id'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved workIds')
 
-      await updateWorksBiblio(tx, models['works_biblio'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved worksBiblio')
+    await updateWorksBiblio(tx, models['works_biblio'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved worksBiblio')
 
-      await updateWorksBestOaLocations(tx, models['works_best_oa_locations'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved worksBestOaLoc')
+    await updateWorksBestOaLocations(tx, models['works_best_oa_locations'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved worksBestOaLoc')
 
-      await updateWorksPrimaryLocations(tx, models['works_primary_locations'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved worksPrimLoc')
+    await updateWorksPrimaryLocations(tx, models['works_primary_locations'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved worksPrimLoc')
 
-      await updateWorksLocations(tx, models['works_locations'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved worksLoc')
+    await updateWorksLocations(tx, models['works_locations'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved worksLoc')
 
-      await updateWorksOpenAccess(tx, models['works_open_access'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved worksOA')
+    await updateWorksOpenAccess(tx, models['works_open_access'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved worksOA')
 
-      await updateWorksReferencedWorks(tx, models['works_referenced_works'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved worksRefWorks')
+    await updateWorksReferencedWorks(tx, models['works_referenced_works'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved worksRefWorks')
 
-      await updateWorksRelatedWorks(tx, models['works_related_works'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved worksRelWorks')
+    await updateWorksRelatedWorks(tx, models['works_related_works'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved worksRelWorks')
 
-      await updateWorksConcepts(tx, models['works_concepts'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved worksConcepts')
+    await updateWorksConcepts(tx, models['works_concepts'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved worksConcepts')
 
-      await updateWorksMesh(tx, models['works_mesh'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved worksMesh')
+    await updateWorksMesh(tx, models['works_mesh'])
+    // tPrev = logMetricsAndGetTime(tPrev, 'saved worksMesh')
 
-      await updateWorksTopics(tx, models['works_topics'])
-      tPrev = logMetricsAndGetTime(tPrev, 'saved worksTopics')
+    await updateWorksTopics(tx, models['works_topics'])
+    // logMetricsAndGetTime(tPrev, 'saved worksTopics')
 
-      // todo: add unique constraint [work_id, author_id] before uncommenting
-      // updateWorkAuthorships(tx, models["works_authorships"]),
-
-      await tx.update(batchesInOpenAlex)
-        .set({ finished_at: new UTCDate() })
-        .where(
-          eq(batchesInOpenAlex.id, batchId)
-        );
-    });
-    tPrev = logMetricsAndGetTime(tPrev, 'end tx')
+    // todo: add unique constraint [work_id, author_id] before uncommenting
+    // updateWorkAuthorships(tx, models["works_authorships"]),
   } catch (err) {
     logger.error({ err }, 'Error Saving data to DB');
   } finally {
-    logger.info({ duration: `${getDuration(startTime, Date.now())} s`}, '🏁 saveData finished')
-    client.release();
+    // logger.info({ duration: `${getDuration(startTime, Date.now())} s`}, '🏁 saveData finished')
+    // client.release();
   }
 };
 
@@ -185,7 +193,7 @@ const updateWorks = async (
 
   let chunkIx = 0;
   for await (const chunk of chunkGenerator(models.works, chunkSize)) {
-    logger.info({ chunk: chunkIx, heapStats: getHeapStats() }, 'starting works chunk')
+    // logger.info({ chunk: chunkIx, heapStats: getHeapStats() }, 'starting works chunk')
 
     // Batch insert works and get their IDs
     const insertedWorks = await tx
