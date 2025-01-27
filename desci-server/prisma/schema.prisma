@@ -986,16 +986,18 @@ model PublishStatus {
 }
 
 model ExternalPublications {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   uuid        String
-  node        Node     @relation(fields: [uuid], references: [uuid])
+  node        Node      @relation(fields: [uuid], references: [uuid])
   score       Float
   doi         String
   publisher   String
   publishYear String
   sourceUrl   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isVerified  Boolean   @default(true)
+  verifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // @@unique([uuid, publisher])
 }

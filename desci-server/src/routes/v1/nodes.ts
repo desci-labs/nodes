@@ -24,6 +24,8 @@ import {
   addExternalPublicationsSchema,
   externalPublications,
   externalPublicationsSchema,
+  verifyExternalPublication,
+  verifyExternalPublicationSchema,
 } from '../../controllers/nodes/externalPublications.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
@@ -172,6 +174,11 @@ router.post(
   '/:uuid/external-publications',
   [validate(addExternalPublicationsSchema), ensureUser, ensureNodeAccess],
   asyncHandler(addExternalPublication),
+);
+router.post(
+  '/:uuid/verify-publication',
+  [validate(verifyExternalPublicationSchema), ensureUser, ensureNodeAccess],
+  asyncHandler(verifyExternalPublication),
 );
 
 router.get('/:uuid/comments', [ensureUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
