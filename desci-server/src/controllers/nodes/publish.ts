@@ -8,6 +8,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { delFromCache } from '../../redisClient.js';
 import { attestationService } from '../../services/Attestation.js';
 import { directStreamLookup } from '../../services/ceramic.js';
+import { sendExternalPublicationsNotification } from '../../services/crossRef/externalPublication.js';
 import { getManifestByCid } from '../../services/data/processing.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { doiService } from '../../services/index.js';
@@ -182,6 +183,9 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
         });
       }
     }
+
+    // trigger external publications email if any
+    sendExternalPublicationsNotification(node);
 
     return res.send({
       ok: true,
