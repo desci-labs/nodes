@@ -1,7 +1,5 @@
 const pg = await import('pg').then((value) => value.default);
 const { Client } = pg;
-import { z } from 'zod';
-
 import { WorksDetails } from '../controllers/doi/check.js';
 import { logger as parentLogger } from '../logger.js';
 
@@ -130,7 +128,37 @@ group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type",
   return { ...work, abstract, doi: getRawDoi(doi) };
 }
 
+export type OpenAlexTopic = {
+  id: string;
+  display_name: string;
+  subfield_id: string;
+  subfield_display_name: string;
+};
+export async function getTopicsByIds(topicIds: string[]): Promise<OpenAlexTopic[]> {
+  logger.info(`Fetching OpenAlex topics for IDs: ${topicIds}`);
+
+  // Format each topic ID to ensure it's in the correct OpenAlex URL format
+  const formattedIds = topicIds.map((id) => {
+    const idPart = id.split('/').pop()?.toUpperCase();
+    return `https://openalex.org/${idPart}`;
+  });
+
+  const { rows } = await client.query(
+    `SELECT
+        id,
+        display_name,
+        subfield_id,
+        subfield_display_name
+     FROM openalex.topics 
+     WHERE id = ANY($1)`,
+    [formattedIds],
+  );
+
+  return rows;
+}
+
 export const OpenAlexService = {
   getMetadataByWorkId,
   getMetadataByDoi,
+  getTopicsByIds,
 };
