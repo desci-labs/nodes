@@ -73,6 +73,8 @@ async function fillNodeData(nodeUuid: string) {
 
   debugger;
   const aiData = await getAiData(manifest, true);
+  const concepts = formatConceptsData(aiData?.concepts);
+
   const workData = {
     title: node.title,
     doi,
@@ -84,11 +86,23 @@ async function fillNodeData(nodeUuid: string) {
     is_retracted: false,
     is_paratext: false,
     language: 'en', // Later update with some ML tool
-    content_novelty_percentile: aiData ? aiData.contentNovelty.percentile : 0,
-    context_novelty_percentile: aiData ? aiData.contextNovelty.percentile : 0,
+    content_novelty_percentile: aiData ? aiData.contentNovelty?.percentile : 0,
+    context_novelty_percentile: aiData ? aiData.contextNovelty?.percentile : 0,
+    concepts: concepts,
   };
 
   return workData;
+}
+
+function formatConceptsData(rawConcepts: AiData['concepts']) {
+  if (!rawConcepts) return [];
+  debugger;
+  const concepts = rawConcepts.concept_ids.map((conceptId, i) => ({
+    concept_id: conceptId,
+    display_name: rawConcepts.concept_names[i],
+  }));
+
+  return concepts;
 }
 
 interface AiApiResult {
