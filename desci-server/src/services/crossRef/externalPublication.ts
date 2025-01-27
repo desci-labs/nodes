@@ -112,6 +112,7 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
     where: { uuid: node.uuid },
   });
 
+  if (!publications.length) return;
   // send email to node owner about potential publications
   const user = await prisma.user.findFirst({ where: { id: node.ownerId } });
   const message = {
@@ -126,7 +127,7 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
     html: ExternalPublicationsEmailHtml({
       dpid: node.dpidAlias.toString(),
       dpidPath: `${process.env.DAPP_URL}/dpid/${node.dpidAlias}`,
-      publisherName: publications[0].publisher,
+      publisherName: publications?.[0]?.publisher,
       multiple: publications.length > 1,
     }),
   };
