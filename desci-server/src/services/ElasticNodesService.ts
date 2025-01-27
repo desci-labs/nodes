@@ -181,14 +181,24 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
 
     const resultUrl = `${process.env.SCORE_RESULT_API}/prod/get-result?UploadedFileName=${s3FileName}`;
     let resultRes;
+    await delay(2000); // Wait for the file to be available in the lambda service
     do {
-      resultRes = await axios.get(resultUrl);
-      await delay(1500);
-    } while (resultRes.data && resultRes?.data.status !== 'SUCCEEDED' && resultRes.data.status !== 'FAILED');
-    {
-      resultRes = await axios.get(resultUrl);
-      await delay(1500);
-    }
+      try {
+        resultRes = await axios.get(resultUrl);
+        debugger;
+        await delay(1500);
+      } catch (e) {
+        if (e.response?.status === 404) {
+          logger.warn('File not ready yet in AI lambda service, retrying in 2s');
+          await delay(2000);
+        } else {
+          throw e;
+        }
+      }
+    } while (
+      (resultRes?.data && resultRes?.data?.status !== 'SUCCEEDED' && resultRes?.data?.status !== 'FAILED') ||
+      !resultRes?.data
+    );
 
     if (resultRes.data.status === 'FAILED') {
       logger.error({ resultRes }, 'AI processing failed');
