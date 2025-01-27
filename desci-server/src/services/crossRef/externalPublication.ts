@@ -1,5 +1,5 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { Node } from '@prisma/client';
+import { ExternalPublications, Node } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import { Searcher } from 'fast-fuzzy';
 
@@ -34,35 +34,9 @@ export const getExternalPublications = async (node: Node) => {
 
   const titleSearcher = new Searcher(data, { keySelector: (entry) => entry.title });
   const titleResult = titleSearcher.search(manifest.title, { returnMatchData: true });
-  // logger.trace(
-  //   {
-  //     data: titleResult.map((data) => ({
-  //       title: data.item.title,
-  //       publisher: data.item.publisher,
-  //       source_url: data.item?.resource?.primary?.URL || data.item.URL || '',
-  //       doi: data.item.DOI,
-  //       key: data.key,
-  //       match: data.match,
-  //       score: data.score,
-  //     })),
-  //   },
-  //   'Title search result',
-  // );
 
   const descSearcher = new Searcher(data, { keySelector: (entry) => entry?.abstract ?? '' });
   const descResult = descSearcher.search(manifest.description ?? '', { returnMatchData: true });
-  // logger.trace(
-  //   {
-  //     data: descResult.map((data) => ({
-  //       title: data.item.title,
-  //       key: data.key,
-  //       match: data.match,
-  //       score: data.score,
-  //       publisher: data.item.publisher,
-  //     })),
-  //   },
-  //   'Abstract search result',
-  // );
 
   const authorsSearchScores = data.map((work) => {
     const authorSearcher = new Searcher(work.author, { keySelector: (entry) => `${entry.given} ${entry.family}` });
@@ -83,19 +57,6 @@ export const getExternalPublications = async (node: Node) => {
       })),
     };
   });
-
-  // logger.trace(
-  //   {
-  //     data: descResult.map((data) => ({
-  //       title: data.item.title,
-  //       key: data.key,
-  //       match: data.match,
-  //       score: data.score,
-  //       publisher: data.item.publisher,
-  //     })),
-  //   },
-  //   'Authors search result',
-  // );
 
   const publications = data
     .map((data) => ({
@@ -146,21 +107,9 @@ export const getExternalPublications = async (node: Node) => {
 };
 
 export const sendExternalPublicationsNotification = async (node: Node) => {
-  const publications = await getExternalPublications(node);
-
-  if (!publications.length) return;
-
-  await prisma.externalPublications.createMany({
-    skipDuplicates: true,
-    data: publications.map((pub) => ({
-      doi: pub.doi,
-      score: pub.score,
-      sourceUrl: pub.sourceUrl,
-      publisher: pub.publisher,
-      publishYear: pub.publishYear,
-      uuid: ensureUuidEndsWithDot(node.uuid),
-      isVerified: false,
-    })),
+  // const publications = await getExternalPublications(node);
+  const publications = await prisma.externalPublications.findMany({
+    where: { uuid: node.uuid },
   });
 
   // send email to node owner about potential publications
@@ -193,4 +142,8 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
   } catch (err) {
     logger.info({ err }, '[ExternalPublications EMAIL]::ERROR');
   }
+};
+
+export const checkExternalPublications = async (node: Node) => {
+  return await getExternalPublications(node);
 };

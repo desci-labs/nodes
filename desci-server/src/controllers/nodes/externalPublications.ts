@@ -13,7 +13,7 @@ import {
   getExternalPublications,
   sendExternalPublicationsNotification,
 } from '../../services/crossRef/externalPublication.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
+import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
 const logger = parentLogger.child({ module: 'ExternalPublications' });
 export const externalPublicationsSchema = z.object({
@@ -59,12 +59,13 @@ export const externalPublications = async (req: RequestWithNode, res: Response, 
     where: { uuid: ensureUuidEndsWithDot(uuid) },
   });
 
-  logger.trace({ externalPublications }, 'externalPublications');
-  if (externalPublications.length == 1 && !externalPublications[0].verifiedAt)
-    return new SuccessResponse(externalPublications).send(res);
+  // logger.trace({ externalPublications }, 'externalPublications');
+  // if (externalPublications.length == 1 && !externalPublications[0].verifiedAt)
+  //   return new SuccessResponse(externalPublications).send(res);
 
   const nonVerified = externalPublications.every((pub) => !pub.isVerified);
-  if (nonVerified && !userIsOwner) return new SuccessResponse(externalPublications).send(res);
+  if (nonVerified && !userIsOwner)
+    return new SuccessResponse(externalPublications.sort((a, b) => b.score - a.score).slice(0, 1)).send(res);
 
   if (externalPublications.length > 1)
     return new SuccessResponse(externalPublications.filter((pub) => pub.isVerified)).send(res);
@@ -76,23 +77,51 @@ export const externalPublications = async (req: RequestWithNode, res: Response, 
 
   await redisClient.set(`external-pub-checked-${ensureUuidEndsWithDot(uuid)}`, 'true');
 
-  const entries = await prisma.$transaction(
-    publications.map((pub) =>
-      prisma.externalPublications.upsert({
-        update: {},
-        where: {},
-        create: {
-          doi: pub.doi,
-          score: pub.score,
-          sourceUrl: pub.sourceUrl,
-          publisher: pub.publisher,
-          publishYear: pub.publishYear,
-          uuid: ensureUuidEndsWithDot(node.uuid),
-          isVerified: false,
-        },
-      }),
-    ),
-  );
+  // const entries = await prisma.$transaction(
+  //   publications.map((pub) =>
+  //     prisma.externalPublications.upsert({
+  //       update: {
+  //         doi: pub.doi,
+  //         score: pub.score,
+  //         sourceUrl: pub.sourceUrl,
+  //         publisher: pub.publisher,
+  //         publishYear: pub.publishYear,
+  //         uuid: ensureUuidEndsWithDot(node.uuid),
+  //         isVerified: false,
+  //       },
+  //       where: { id: -1 },
+  //       create: {
+  //         doi: pub.doi,
+  //         score: pub.score,
+  //         sourceUrl: pub.sourceUrl,
+  //         publisher: pub.publisher,
+  //         publishYear: pub.publishYear,
+  //         uuid: ensureUuidEndsWithDot(node.uuid),
+  //         isVerified: false,
+  //       },
+  //     }),
+  //   ),
+  // );
+
+  const entries = await asyncMap(publications, async (pub) => {
+    const exists = await prisma.externalPublications.findFirst({
+      where: { AND: { uuid: ensureUuidEndsWithDot(uuid), doi: pub.doi } },
+    });
+    logger.trace({ pub: { publisher: pub.publisher, doi: pub.doi }, exists }, '[pub exists]');
+    if (exists) return exists;
+
+    return prisma.externalPublications.create({
+      data: {
+        doi: pub.doi,
+        score: pub.score,
+        sourceUrl: pub.sourceUrl,
+        publisher: pub.publisher,
+        publishYear: pub.publishYear,
+        uuid: ensureUuidEndsWithDot(node.uuid),
+        isVerified: false,
+      },
+    });
+  });
 
   sendExternalPublicationsNotification(node);
   return new SuccessResponse(entries).send(res);
