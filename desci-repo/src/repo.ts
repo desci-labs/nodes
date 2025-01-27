@@ -34,8 +34,16 @@ const hostname = os.hostname();
 
 logger.trace({ partyServerHost, partyServerToken, serverName: os.hostname() ?? 'no-hostname' }, 'Env checked');
 
-let config: RepoConfig;
-let socket: WebSocketServer;
+let config: RepoConfig = {
+  peerId: `repo-server-${hostname}` as PeerId,
+  // Since this is a server, we don't share generously — meaning we only sync documents they already
+  // know about and can ask for by ID.
+  sharePolicy: async (peerId, documentId) => {
+    // logger.trace({ peerId, documentId }, 'SharePolicy called');
+    return true;
+  },
+};
+// let socket: WebSocketServer;
 
 if (ENABLE_PARTYKIT_FEATURE) {
   config = {
@@ -48,44 +56,41 @@ if (ENABLE_PARTYKIT_FEATURE) {
     },
   };
 } else {
-  socket = new WebSocketServer({
-    port: process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 5445,
-    path: '/sync',
-  });
-
-  const adapter = new NodeWSServerAdapter(socket);
-
-  config = {
-    network: [adapter],
-    storage: new PostgresStorageAdapter(),
-    peerId: `repo-server-${hostname}` as PeerId,
-    // Since this is a server, we don't share generously — meaning we only sync documents they already
-    // know about and can ask for by ID.
-    sharePolicy: async (peerId, documentId) => {
-      try {
-        if (!documentId) {
-          logger.trace({ peerId }, 'SharePolicy: Document ID NOT found');
-          return false;
-        }
-        // peer format: `peer-[user#id]:[unique string combination]
-        if (peerId.toString().length < 8) {
-          logger.error({ peerId }, 'SharePolicy: Peer ID invalid');
-          return false;
-        }
-
-        const userId = peerId.split(':')?.[0]?.split('-')?.[1];
-        const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
-        logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
-        return isAuthorised;
-      } catch (err) {
-        logger.error({ err }, 'Error in share policy');
-        return false;
-      }
-    },
-  };
+  // socket = new WebSocketServer({
+  //   port: process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 5445,
+  //   path: '/sync',
+  // });
+  // const adapter = new NodeWSServerAdapter(socket);
+  // config = {
+  //   network: [adapter],
+  //   storage: new PostgresStorageAdapter(),
+  //   peerId: `repo-server-${hostname}` as PeerId,
+  //   // Since this is a server, we don't share generously — meaning we only sync documents they already
+  //   // know about and can ask for by ID.
+  //   sharePolicy: async (peerId, documentId) => {
+  //     try {
+  //       if (!documentId) {
+  //         logger.trace({ peerId }, 'SharePolicy: Document ID NOT found');
+  //         return false;
+  //       }
+  //       // peer format: `peer-[user#id]:[unique string combination]
+  //       if (peerId.toString().length < 8) {
+  //         logger.error({ peerId }, 'SharePolicy: Peer ID invalid');
+  //         return false;
+  //       }
+  //       const userId = peerId.split(':')?.[0]?.split('-')?.[1];
+  //       const isAuthorised = await verifyNodeDocumentAccess(Number(userId), documentId);
+  //       logger.trace({ peerId, userId, documentId, isAuthorised }, '[SHARE POLICY CALLED]::');
+  //       return isAuthorised;
+  //     } catch (err) {
+  //       logger.error({ err }, 'Error in share policy');
+  //       return false;
+  //     }
+  //   },
+  // };
 }
 
-export { socket };
+// export { socket };
 
 export const backendRepo = new Repo(config);
 
