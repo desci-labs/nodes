@@ -91,6 +91,8 @@ async function fillNodeData(nodeUuid: string) {
     language: 'en', // Later update with some ML tool
     content_novelty_percentile: aiData ? aiData.contentNovelty?.percentile : 0,
     context_novelty_percentile: aiData ? aiData.contextNovelty?.percentile : 0,
+    content_novelty_percentile_last_updated: aiData.generationDate,
+    context_novelty_percentile_last_updated: aiData.generationDate,
     concepts,
     topics,
   };
@@ -150,6 +152,7 @@ interface AiApiResult {
     source_scores: number[];
   };
   error?: string;
+  generationDate?: Date;
 }
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -160,6 +163,7 @@ type AiData = {
   concepts: AiApiResult['concepts'];
   topics: AiApiResult['topics'];
   references: AiApiResult['references'];
+  generationDate: Date;
 };
 
 const AI_DATA_CACHE_PREFIX = 'AI-';
@@ -243,6 +247,7 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
       ...(data.concepts ? { concepts: JSON.parse(data.concepts) } : {}),
       ...(data.topics ? { topics: JSON.parse(data.topics) } : {}),
       ...(data.references ? { references: JSON.parse(data.references) } : {}),
+      generationDate: Date.now(),
     };
 
     if (resultRes.data.status === 'SUCCEEDED') {
@@ -255,6 +260,7 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
       concepts: deserializedData.concepts,
       topics: deserializedData.topics,
       references: deserializedData.references,
+      generationDate: deserializedData.generationDate,
     };
   } catch (error) {
     logger.error({ error }, 'Error retrieving AI data');
