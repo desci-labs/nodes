@@ -12,6 +12,8 @@ import {
 
 import { Filter } from '../controllers/search/types.js';
 
+export const MAIN_WORKS_ALIAS = 'works_local'; // works_opt
+
 export const VALID_ENTITIES = [
   'authors',
   'concepts',
@@ -117,7 +119,7 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
     },
   ];
 
-  if (entity === 'works' || entity === 'works_single' || entity === 'works_opt') {
+  if (entity === 'works' || entity === 'works_single' || entity === MAIN_WORKS_ALIAS) {
     functions.push(
       // Boost for articles and preprints
       {
@@ -774,7 +776,7 @@ export function buildMultiMatchQuery(
     return createAutocompleteFunctionScoreQuery(query);
   }
 
-  if (entity === 'works' || entity === 'works_single' || entity === 'works_opt') {
+  if (entity === 'works' || entity === 'works_single' || entity === MAIN_WORKS_ALIAS) {
     return createEnhancedWorksQueryV2(query);
     // return createEnhancedWorksQuery(query);
   }

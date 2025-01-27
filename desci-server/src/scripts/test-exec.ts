@@ -8,7 +8,7 @@ const nodeUuid = 'AHV7nEuoSQZBk_8X137m7HvStraR30_df42EOtnIMfY.';
 
 async function testExec() {
   logger.info('Testing script run');
-  ElasticNodesService.indexResearchObject(nodeUuid);
+  await ElasticNodesService.indexResearchObject(nodeUuid);
 
   process.exit(0);
 }

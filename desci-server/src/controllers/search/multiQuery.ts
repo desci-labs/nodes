@@ -6,6 +6,7 @@ import {
   buildBoolQuery,
   buildMultiMatchQuery,
   buildSortQuery,
+  MAIN_WORKS_ALIAS,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
@@ -83,7 +84,7 @@ export const multiQuery = async (
   }
 
   if (primaryEntity === 'works') {
-    primaryEntity = 'works_opt';
+    primaryEntity = MAIN_WORKS_ALIAS;
   }
 
   const finalQuery = {
