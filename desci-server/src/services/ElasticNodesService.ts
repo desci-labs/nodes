@@ -20,6 +20,7 @@ import { getIndexedResearchObjects } from '../theGraph.js';
 import { ensureUuidEndsWithDot, unpadUuid } from '../utils.js';
 
 import { getManifestFromNode } from './data/processing.js';
+import { OpenAlexService } from './OpenAlexService.js';
 
 export const NODES_INDEX = 'works_nodes_v1';
 const NODES_ID_PREFIX = 'nodes/';
@@ -47,6 +48,7 @@ async function indexResearchObject(nodeUuid: string) {
       },
       refresh: true, // ensures immediate indexing
     });
+    logger.info(`Indexed work: ${workId}`);
   } catch (error) {
     console.error('Error indexing work:', error);
     throw error;
@@ -74,6 +76,7 @@ async function fillNodeData(nodeUuid: string) {
   debugger;
   const aiData = await getAiData(manifest, true);
   const concepts = formatConceptsData(aiData?.concepts);
+  const topics = await fillTopicsData(aiData?.topics);
 
   const workData = {
     title: node.title,
@@ -88,7 +91,8 @@ async function fillNodeData(nodeUuid: string) {
     language: 'en', // Later update with some ML tool
     content_novelty_percentile: aiData ? aiData.contentNovelty?.percentile : 0,
     context_novelty_percentile: aiData ? aiData.contextNovelty?.percentile : 0,
-    concepts: concepts,
+    concepts,
+    topics,
   };
 
   return workData;
@@ -96,13 +100,25 @@ async function fillNodeData(nodeUuid: string) {
 
 function formatConceptsData(rawConcepts: AiData['concepts']) {
   if (!rawConcepts) return [];
-  debugger;
+
   const concepts = rawConcepts.concept_ids.map((conceptId, i) => ({
     concept_id: conceptId,
     display_name: rawConcepts.concept_names[i],
   }));
 
   return concepts;
+}
+
+async function fillTopicsData(rawTopics: AiData['topics']) {
+  if (!rawTopics) return [];
+
+  const dbTopics = await OpenAlexService.getTopicsByIds(rawTopics.topic_ids);
+  const formattedTopics = dbTopics.map((topic) => ({
+    ...topic,
+    topic_id: topic.id,
+  }));
+
+  return formattedTopics;
 }
 
 interface AiApiResult {
