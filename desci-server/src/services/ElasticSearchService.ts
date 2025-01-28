@@ -12,8 +12,13 @@ import {
 
 import { Filter } from '../controllers/search/types.js';
 
-export const MAIN_WORKS_ALIAS = 'works_local'; // works_opt
+const SERVER_ENV_ES_ALIAS_MAPPING = {
+  'http://localhost:5420': 'works_all_local',
+  'https://nodes-api-dev.desci.com': 'works_all_dev',
+  'https://nodes-api.desci.com': 'works_all_prod',
+};
 
+export const MAIN_WORKS_ALIAS = SERVER_ENV_ES_ALIAS_MAPPING[process.env.SERVER_URL || 'https://localhost:5420'];
 export const VALID_ENTITIES = [
   'authors',
   'concepts',

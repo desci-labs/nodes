@@ -39,7 +39,7 @@ async function indexResearchObject(nodeUuid: string) {
 
     debugger;
     await elasticWriteClient.index({
-      index: 'works_nodes_v1',
+      index: 'works_native_local',
       id: workId,
       document: {
         work_id: workId,
