@@ -11,6 +11,7 @@ import {
 } from '@elastic/elasticsearch/lib/api/types.js';
 
 import { Filter } from '../controllers/search/types.js';
+import { elasticClient } from '../elasticSearchClient.js';
 
 const SERVER_ENV_ES_ALIAS_MAPPING = {
   'http://localhost:5420': 'works_all_local',
@@ -899,4 +900,84 @@ export interface MultiMatchQuery {
   fields: any[];
   type: QueryDslTextQueryType;
   fuzziness: string | number;
+}
+
+/**
+ Searches the elastic search Authors index for authors with their names or orcids.
+ **/
+export async function searchEsAuthors(authors: { display_name?: string; orcid?: string }[]) {
+  const query: QueryDslQueryContainer = {
+    function_score: {
+      query: {
+        bool: {
+          should: authors.map((author) => ({
+            bool: {
+              should: [
+                ...(author.display_name
+                  ? [
+                      {
+                        match_phrase: {
+                          'display_name.keyword': {
+                            query: author.display_name,
+                            boost: 100,
+                          },
+                        },
+                      },
+                      {
+                        match: {
+                          display_name: {
+                            query: author.display_name,
+                            minimum_should_match: '80%',
+                            boost: 50,
+                            fuzziness: 'AUTO',
+                          },
+                        },
+                      },
+                    ]
+                  : []),
+                ...(author.orcid
+                  ? [
+                      {
+                        term: {
+                          orcid: {
+                            value: author.orcid.startsWith('https://orcid.org/')
+                              ? author.orcid
+                              : `https://orcid.org/${author.orcid.replace(/[^0-9X]/g, '').replace(/(.{4})(.{4})(.{4})(.{4})/, '$1-$2-$3-$4')}`,
+                            boost: 200,
+                          },
+                        },
+                      },
+                    ]
+                  : []),
+              ],
+              minimum_should_match: 1,
+            },
+          })),
+          minimum_should_match: 1,
+        },
+      },
+      functions: [
+        {
+          field_value_factor: {
+            field: 'cited_by_count',
+            factor: 0.001,
+            modifier: 'log1p',
+          },
+        },
+      ],
+      boost_mode: 'sum',
+      score_mode: 'sum',
+      min_score: 0.1,
+    },
+  };
+  debugger;
+  const results = await elasticClient.search({
+    index: 'authors',
+    body: {
+      query,
+      sort: [{ _score: { order: 'desc' } }, { cited_by_count: { order: 'desc' } }],
+    },
+  });
+  debugger;
+  return results;
 }
