@@ -30,6 +30,15 @@ const logger = parentLogger.child({ module: 'Services::ElasticNodesService' });
 const IPFS_URL = PUBLIC_IPFS_PATH; // Confusing, but refers to priv swarm IPFS public gateway
 const PUB_IPFS_URL = process.env.PUBLIC_IPFS_RESOLVER || 'https://pub.desci.com/ipfs';
 
+const SERVER_ENV_ES_NATIVE_WORKS_INDEX_MAP = {
+  'http://localhost:5420': 'works_native_local',
+  'https://nodes-api-dev.desci.com': 'works_native_dev',
+  'https://nodes-api.desci.com': 'works_native_prod',
+};
+
+export const NATIVE_WORKS_INDEX =
+  SERVER_ENV_ES_NATIVE_WORKS_INDEX_MAP[process.env.SERVER_URL || 'https://localhost:5420'];
+
 async function indexResearchObject(nodeUuid: string) {
   nodeUuid = unpadUuid(nodeUuid);
   try {
@@ -39,7 +48,7 @@ async function indexResearchObject(nodeUuid: string) {
 
     debugger;
     await elasticWriteClient.index({
-      index: 'works_native_local',
+      index: NATIVE_WORKS_INDEX,
       id: workId,
       document: {
         work_id: workId,
