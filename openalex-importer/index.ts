@@ -8,6 +8,10 @@ import { errWithCause } from 'pino-std-serializers';
 import { UTCDate } from '@date-fns/utc';
 import { runImportPipeline } from './src/pipeline.js';
 
+export const MAX_PAGES_TO_FETCH = parseInt(process.env.MAX_PAGES_TO_FETCH || '100');
+export const IS_DEV = process.env.NODE_ENV === 'development';
+export const SKIP_LOG_WRITE = process.env.SKIP_LOG_WRITE;
+
 /** Every day at noon */
 const DEFAULT_SCHEDULE = '0 12 * * *';
 
@@ -173,5 +177,3 @@ try {
 } finally {
   await pool.end();
 }
-
-

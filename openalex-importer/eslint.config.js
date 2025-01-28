@@ -6,7 +6,7 @@ export default tseslint.config(
   eslint.configs.recommended,
   tseslint.configs.recommended,
   {
-    ignores: ['drizzle/', 'dist/'],
+    ignores: ['drizzle/', 'dist/', 'postgres/'],
   },
   {
     rules: {

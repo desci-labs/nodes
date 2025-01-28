@@ -8,27 +8,16 @@ import {
   type QueryInfo,
   saveData,
 } from './db/index.js';
-import {
-  fetchPage,
-  type FilterParam,
-  getInitialWorksQuery,
-  IS_DEV,
-  MAX_PAGES_TO_FETCH,
-  SKIP_LOG_WRITE,
-  WORKS_URL,
-} from './fetch.js';
-import { appendToLogs, logger } from './logger.js';
+import { fetchWorksPage, filterFromQueryInfo, type FilterParam, getInitialWorksQuery } from './fetch.js';
+import { appendToLogs, logger, nukeOldLogs } from './logger.js';
 import { errWithCause } from 'pino-std-serializers';
 import type { Work } from './types/index.js';
 import { type DataModels, transformDataModel } from './transformers.js';
-import path from 'path';
-import { rimraf } from 'rimraf';
-import { countArrayLengths, dropTime } from './util.js';
+import { countArrayLengths } from './util.js';
 import { Writable } from 'node:stream';
+import { IS_DEV, MAX_PAGES_TO_FETCH, SKIP_LOG_WRITE } from '../index.js';
 
-const createWorksAPIStream = (
-  filter: FilterParam
-): Readable => {
+const createWorksAPIStream = (filter: FilterParam): Readable => {
   let isDone = false;
   const searchQuery = getInitialWorksQuery(filter);
 
@@ -49,7 +38,7 @@ const createWorksAPIStream = (
       try {
         const idleTime = Date.now() - lastFetchEnd;
         const fetchStart = Date.now();
-        const { data, next_cursor } = await fetchPage<Work>(WORKS_URL, searchQuery);
+        const { data, next_cursor } = await fetchWorksPage(searchQuery);
         const fetchDuration = Date.now() - fetchStart;
 
         const pushStart = Date.now();
@@ -58,14 +47,17 @@ const createWorksAPIStream = (
         lastFetchEnd = Date.now();
 
         pageCount++;
-        logger.info({
-          page: pageCount,
-          fetchMs: fetchDuration,
-          pushMs: pushDuration,
-          idleMs: idleTime,
-          bufferedPages: this.readableLength,
-          pushWouldAcceptMore: pushOk,
-        }, 'Work readable metrics');
+        logger.info(
+          {
+            page: pageCount,
+            fetchMs: fetchDuration,
+            pushMs: pushDuration,
+            idleMs: idleTime,
+            bufferedPages: this.readableLength,
+            pushWouldAcceptMore: pushOk,
+          },
+          'Work readable metrics',
+        );
 
         searchQuery.cursor = next_cursor;
 
@@ -83,7 +75,7 @@ const createWorksAPIStream = (
         logger.error(errWithCause(err), 'Work readable failed to yield');
         this.destroy(err);
       }
-    }
+    },
   });
 };
 
@@ -100,7 +92,7 @@ const createTransformStream = (): Transform => {
         logger.error(errWithCause(err), 'DataModel transform failed');
         callback(err);
       }
-    }
+    },
   });
 };
 
@@ -111,23 +103,18 @@ const createLogStream = (): Transform => {
       try {
         if (IS_DEV && !SKIP_LOG_WRITE) {
           appendToLogs(chunk, 'works_raw.json');
-          Object.entries(chunk).forEach(
-            ([key, content]) => appendToLogs(content, `${key}.json`)
-          );
+          Object.entries(chunk).forEach(([key, content]) => appendToLogs(content, `${key}.json`));
         }
 
         callback(null, chunk); // Pass through the data unchanged
       } catch (error) {
         callback(error as Error);
       }
-    }
+    },
   });
 };
 
-const createSaveStream = (
-  tx: PgTransactionType,
-  batchId: number,
-): Writable => {
+const createSaveStream = (tx: PgTransactionType, batchId: number): Writable => {
   return new Writable({
     objectMode: true,
     async write(chunk: DataModels, _encoding, callback) {
@@ -137,27 +124,14 @@ const createSaveStream = (
       } catch (error) {
         callback(error as Error);
       }
-    }
+    },
   });
 };
 
-export const runImportPipeline = async (
-  queryInfo: QueryInfo,
-): Promise<void> => {
-  const TMP_DIR = path.join(process.cwd(), 'logs');
-  const rmGlob = `${TMP_DIR || 'VERY_UNLIKELY_DIR_JUST_TO_BE_SURE'}/*`;
-  await rimraf(rmGlob, { glob: true });
-
-  const { query_type, query_from, query_to } = queryInfo;
-  logger.info(queryInfo, 'Running import pipeline');
-
-  const formattedFromDate = query_from.toISOString().replace('Z','');
-  const formattedToDate = query_to.toISOString().replace('Z','');
-
-  const filter: FilterParam =
-    query_type === 'created'
-      ? { from_created_date: dropTime(formattedFromDate), to_created_date: dropTime(formattedToDate) }
-      : { from_updated_date: formattedFromDate, to_updated_date: formattedToDate };
+export const runImportPipeline = async (queryInfo: QueryInfo): Promise<void> => {
+  logger.info(queryInfo, 'Starting import pipeline');
+  await nukeOldLogs();
+  const filter = filterFromQueryInfo(queryInfo);
 
   const db = getDrizzle();
   await db.transaction(async (tx) => {
@@ -166,10 +140,10 @@ export const runImportPipeline = async (
       createWorksAPIStream(filter),
       createTransformStream(),
       createLogStream(),
-      createSaveStream(tx, batchId)
+      createSaveStream(tx, batchId),
     );
 
     await finalizeBatch(tx, batchId);
-  })
+  });
   logger.info('Import pipeline finished!');
 };

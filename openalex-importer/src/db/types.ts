@@ -30,8 +30,7 @@ export type WorksPrimaryLocation = NoUndefinedField<typeof works_primary_locatio
 export type WorksLocation = NoUndefinedField<typeof works_locationsInOpenalex.$inferInsert>;
 
 export type QueryInfo = {
-  query_type: 'created' | 'updated',
-  query_from: UTCDate,
-  query_to: UTCDate,
+  query_type: 'created' | 'updated';
+  query_from: UTCDate;
+  query_to: UTCDate;
 };
-
