@@ -1,15 +1,18 @@
-import { VoteType } from '@prisma/client';
+import { ActionType, VoteType } from '@prisma/client';
 import { Response, NextFunction } from 'express';
 import z from 'zod';
 
 import { prisma } from '../../client.js';
 import { NotFoundError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
+import { logger } from '../../logger.js';
 import { RequestWithNode, RequestWithUser } from '../../middleware/authorisation.js';
-import { getCommentsSchema, postCommentVoteSchema } from '../../routes/v1/attestations/schema.js';
+import { editCommentsSchema, getCommentsSchema, postCommentVoteSchema } from '../../routes/v1/attestations/schema.js';
 import { attestationService } from '../../services/Attestation.js';
+import { saveInteraction } from '../../services/interactionLog.js';
 import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
+const parentLogger = logger.child({ module: 'Comments' });
 export const getGeneralComments = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid } = req.params as z.infer<typeof getCommentsSchema>['params'];
   const { cursor, limit } = req.query as z.infer<typeof getCommentsSchema>['query'];
@@ -49,6 +52,64 @@ export const getGeneralComments = async (req: RequestWithNode, res: Response, _n
 
   const nextCursor = comments[comments.length - 1]?.id;
   return new SuccessResponse({ cursor: nextCursor, count, comments }).send(res);
+};
+
+export const editComment = async (req: RequestWithUser, res: Response) => {
+  const { id } = req.body as z.infer<typeof editCommentsSchema>['params'];
+  const { links, body } = req.body as z.infer<typeof editCommentsSchema>['body'];
+
+  const user = req.user;
+
+  const logger = parentLogger.child({
+    commentId: req.params.id,
+    module: 'Comments::Edit',
+    user,
+    body: req.body,
+  });
+
+  // if (uuid) {
+  //   const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
+  //   if (!node) throw new NotFoundError('Node with uuid ${uuid} not found');
+  // }
+  logger.trace(`EditComment`);
+
+  // let comment = await attestationService.getComment({ id });
+  // if (!comment) throw new NotFoundError();
+
+  // if (comment.authorId !== user.id) throw new ForbiddenError();
+  const comment = await attestationService.editComment({ authorId: req.user.id, id, update: { body, links } });
+  // if (highlights?.length > 0) {
+  //   const processedHighlights = await asyncMap(highlights, async (highlight) => {
+  //     if (!('image' in highlight)) return highlight;
+  //     const blob = base64ToBlob(highlight.image);
+  //     const storedCover = await client.add(blob, { cidVersion: 1 });
+
+  //     return { ...highlight, image: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` };
+  //   });
+  //   logger.info({ processedHighlights }, 'processedHighlights');
+  //   annotation = await attestationService.createHighlight({
+  //     claimId: claimId && parseInt(claimId.toString()),
+  //     authorId: user.id,
+  //     comment: body,
+  //     links,
+  //     highlights: processedHighlights as unknown as HighlightBlock[],
+  //     visible,
+  //     ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
+  //   });
+  //   await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
+  // } else {
+  //   annotation = await attestationService.createComment({
+  //     claimId: claimId && parseInt(claimId.toString()),
+  //     authorId: user.id,
+  //     comment: body,
+  //     links,
+  //     visible,
+  //     ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
+  //   });
+  // }
+  await saveInteraction(req, ActionType.EDIT_COMMENT, { commentId: comment.id });
+  // await emitNotificationForAnnotation(annotation.id);
+  new SuccessResponse(comment).send(res);
 };
 
 export const upvoteComment = async (req: RequestWithUser, res: Response, _next: NextFunction) => {

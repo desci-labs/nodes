@@ -19,13 +19,15 @@ import {
   User,
   VoteType,
 } from '@prisma/client';
-import { assert, expect } from 'chai';
+import chai, { assert } from 'chai';
+import chaiAsPromised from 'chai-as-promised';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { NodeAttestationFragment } from '../../src/controllers/attestations/show.js';
 import { Engagement, NodeRadar, NodeRadarEntry, NodeRadarItem } from '../../src/controllers/communities/types.js';
+import { ForbiddenError } from '../../src/core/ApiError.js';
 import {
   DuplicateReactionError,
   DuplicateVerificationError,
@@ -37,6 +39,10 @@ import { communityService } from '../../src/services/Communities.js';
 import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
 import { randomUUID64 } from '../../src/utils.js';
 import { createDraftNode, createUsers } from '../util.js';
+
+// use async chai assertions
+chai.use(chaiAsPromised);
+const expect = chai.expect;
 
 const communitiesData = [
   {
@@ -132,7 +138,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe('Attestations Service', async () => {
+describe.only('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -832,7 +838,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe('Annotations(Comments)', async () => {
+  describe.only('Annotations(Comments)', async () => {
     let claim: NodeAttestation;
     let node: Node;
     const nodeVersion = 0;
@@ -885,6 +891,52 @@ describe('Attestations Service', async () => {
       const voidComment = await attestationService.getUserClaimComments(claim.id, users[1].id);
       expect(voidComment.length).to.be.equal(0);
       expect(voidComment[0]).to.be.undefined;
+    });
+
+    it('should edit a comment', async () => {
+      comment = await attestationService.createComment({
+        links: [],
+        claimId: claim.id,
+        authorId: users[1].id,
+        comment: 'Old comment to be edited',
+        visible: true,
+      });
+
+      const editedComment = await attestationService.editComment({
+        update: { body: 'edited comment', links: ['https://google.com'] },
+        authorId: users[1].id,
+        id: comment.id,
+      });
+      expect(editedComment.body).to.be.equal('edited comment');
+      expect(editedComment.links[0]).to.be.equal('https://google.com');
+    });
+
+    it('should not allow another author to edit a comment', async () => {
+      try {
+        await attestationService.editComment({
+          update: { body: 'edited comment', links: ['https://google.com'] },
+          authorId: users[2].id,
+          id: comment.id,
+        });
+      } catch (error) {
+        expect(error).to.be.instanceOf(ForbiddenError);
+      }
+    });
+
+    it('should edit a comment(via api)', async () => {
+      const commenterJwtToken = jwt.sign({ email: users[1].email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
+      const res = await request(app)
+        .put(`/v1/nodes/comments/${comment.id}`)
+        .set('authorization', commenterJwtHeader)
+        .send({ body: 'edit comment via api', links: ['https://desci.com'] });
+      expect(res.statusCode).to.equal(200);
+      const editedComment = (await res.body.data) as Annotation;
+
+      expect(editedComment.body).to.be.equal('edit comment via api');
+      expect(editedComment.links[0]).to.be.equal('https://desci.com');
     });
   });
 
@@ -2328,7 +2380,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe.only('Annotations(Comments) Vote', async () => {
+  describe('Annotations(Comments) Vote', async () => {
     let claim: NodeAttestation;
     let node: Node;
     const nodeVersion = 0;
@@ -2506,7 +2558,7 @@ describe('Attestations Service', async () => {
       await prisma.commentVote.deleteMany({});
     });
 
-    it.only('should test user upvote via api', async () => {
+    it('should test user upvote via api', async () => {
       const voterJwtToken = jwt.sign({ email: voter.email }, process.env.JWT_SECRET!, {
         expiresIn: '1y',
       });
