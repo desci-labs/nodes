@@ -99,6 +99,12 @@ Corresponding environment variables:
   QUERY_SCHEDULE
 
 Note: Dates are always UTC. Always queries full days.
+
+Semantics:
+- No specified query range => schedule recurring job
+- Only query_from => query that single day
+- Both query_from and query_to => query range (inclusive)
+- No query_schedule => default to noon UTC daily, importing the previous day
 `;
 
 /**

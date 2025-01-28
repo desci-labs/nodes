@@ -4,9 +4,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --inspect 0.0.0.0:9231 index.ts",
     "build": "rimraf dist && tsc",
-    "start": "node --enable-source-maps --max-semi-space-size=256  ./dist/index.js",
+    "start": "node --enable-source-maps --max-semi-space-size=256 ./dist/index.js",
     "generate": "sed -i 's|/schema.js|/schema|' drizzle/batches-schema.ts && drizzle-kit generate; sed -i 's|/schema|/schema.js|' drizzle/batches-schema.ts",
     "migrate": "sed -i 's|/schema.js|/schema|' drizzle/batches-schema.ts && drizzle-kit migrate; sed -i 's|/schema|/schema.js|' drizzle/batches-schema.ts",
     "lint": "prettier . --write '!./postgres/postgres-data' && eslint --max-warnings 0 --fix ."
@@ -26,7 +25,6 @@
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.4.2",
     "rimraf": "^6.0.1",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.19.1"
   },

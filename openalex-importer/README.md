@@ -9,25 +9,44 @@ ensure atomic delta imports.
 ### Running Locally
 
 1. Install deps: `npm ci`
-2. Start database: `docker-compose up postgres`
+2. Start database: `docker compose up postgres`
 3. Apply migrations: `npm run migrate`
+4. Either:
+   - `npm run build && npm run start -- --query_type=created --query_from=2025-01-01`
+   - `docker compose up openalex-importer` (defaults to scheduled, set variables in `.env` to configure)
 
 ### Running in Production
 
-1. Install dependencies
-2. Start Docker service to run script
+Start container. Without env configuration, will run import of previous day every day at noon UTC.
 
 ### Script Arguments
 
-Run the script using:
+```
+Usage: node index.js --query_type=created|updated [OPTIONALS]
 
-```bash
-node ./index.js --start=08-24-2024 --end=09-05-2024
+Flags:
+  --query_type=created|updated
+  [--query_from=YYYY-MM-DD]
+  [--query_to=YYYY-MM-DD]
+  [--query_schedule='CRONTAB']
+
+Corresponding environment variables:
+  QUERY_TYPE
+  QUERY_FROM
+  QUERY_TO
+  QUERY_SCHEDULE
+
+Note: Dates are always UTC. Always queries full days.
+
+Semantics:
+- No specified query range => schedule recurring job
+- Only `query_from` => query that single day
+- Both `query_from` and `query_to` => query range (inclusive)
+- No `query_schedule` => default to noon UTC daily, importing the previous day
 ```
 
-Note: Arguments are optional. **The format is MMDDYYYY**.
-
 #### Environment variable configuration
+The flags have corresponding envvars, additionally these are available:
 
 - `NODE_ENV=development`
   - Saves raw and normalised data to the `logs` directory
@@ -35,6 +54,9 @@ Note: Arguments are optional. **The format is MMDDYYYY**.
 - `MAX_PAGES_TO_FETCH`
   - Configure cutoff for fetch in `development` (default 100)
   - Use to test larger datasets in testing
+- `SKIP_LOG_WRITE=true`
+  - Do not write fetched data to `logs/` (dev only)
+  - Can reach several gigs of space when using `--query-type=updated`
 
 ## Common Commands
 
@@ -49,7 +71,8 @@ npm run migrate
 
 ### Introspect Remote OpenAlex Schema
 
-Note: this overwrites the `schema.ts` file, which has multiple change to indices and keys. Only do this to reset the base state, and be ready to rebuild the migrations directory.
+Note: this overwrites the `schema.ts` file, which has multiple change to indices and keys.
+Only do this to reset the base state, and be ready to rebuild the migrations directory.
 
 To introspect a schema file from the remote database, first tunnel
 `openalex-big-dev.ctzyam40vcxa.us-east-2.rds.amazonaws.com:5432` to `5438` to your local machine.
@@ -165,5 +188,3 @@ Solution: use `text`
 
 1. Use Job+CronJob to schedule execution without having to provision 24/7
 2. Add pkeys and indices to other tables if we want to use them too
-3. Use a generator for fetching instead of accumulating everything in memory
-   - Pick this if memory starts being an issue
