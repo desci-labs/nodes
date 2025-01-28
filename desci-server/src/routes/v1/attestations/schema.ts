@@ -51,6 +51,17 @@ export const getCommentsSchema = z.object({
   }),
 });
 
+export const editCommentsSchema = z.object({
+  params: z.object({
+    // quickly disqualify false uuid strings
+    id: z.coerce.number(),
+  }),
+  body: z.object({
+    body: z.string(),
+    links: z.array(z.string()).optional(),
+  }),
+});
+
 export const postCommentVoteSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings

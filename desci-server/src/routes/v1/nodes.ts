@@ -69,6 +69,7 @@ import {
   getUserVote,
   deleteUserVote,
   downvoteComment,
+  editComment,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
@@ -79,7 +80,12 @@ import { ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
-import { getCommentsSchema, postCommentVoteSchema, showNodeAttestationsSchema } from './attestations/schema.js';
+import {
+  editCommentsSchema,
+  getCommentsSchema,
+  postCommentVoteSchema,
+  showNodeAttestationsSchema,
+} from './attestations/schema.js';
 
 const router = Router();
 
@@ -188,6 +194,7 @@ router.post(
   [ensureUser, validate(postCommentVoteSchema)],
   asyncHandler(upvoteComment),
 );
+router.put('/comments/:id', [ensureUser, validate(editCommentsSchema)], asyncHandler(editComment));
 router.post(
   '/:uuid/comments/:commentId/downvote',
   [ensureUser, validate(postCommentVoteSchema)],
