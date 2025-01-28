@@ -14,6 +14,11 @@ const devTransport = {
   },
 };
 
+const stdoutTransport = {
+  target: 'pino/file',
+  options: { destination: 1 } // this writes to STDOUT,
+};
+
 export const logger = pino({
   level: logLevel,
   serializers: {
@@ -21,7 +26,7 @@ export const logger = pino({
   },
   transport:
     process.env.NODE_ENV === 'production'
-      ? { targets: [] }
+      ? { targets: [stdoutTransport] }
       : {
           targets: [devTransport],
         },

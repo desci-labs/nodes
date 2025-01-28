@@ -138,6 +138,7 @@ const getRuntimeArgs = (): RuntimeArgs => {
     query_to: getParam('query_to', false),
     query_schedule: getParam('query_schedule', false),
   };
+  console.log()
 
   const args: Partial<RuntimeArgs> = {};
   if (raw.query_type === 'created' || raw.query_type === 'updated') {

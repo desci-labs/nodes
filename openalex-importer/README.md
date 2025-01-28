@@ -19,6 +19,18 @@ ensure atomic delta imports.
 
 Start container. Without env configuration, will run import of previous day every day at noon UTC.
 
+#### Deployment
+There is no CI build/deploy for this service, since there is no dev environment for the openalex database.
+Alas, be careful 🙏
+
+```bash
+# This overwrites openalex-importer:latest ⚠
+./build-and-push-to-gcr.sh
+
+# Edit kubernetes/deployment.yaml (this is a job spec, so edit the envvars in the spec to start it in the cluster)
+kubectl apply -f kubernetes/deployment.yaml
+```
+
 ### Script Arguments
 
 ```
@@ -188,3 +200,31 @@ Solution: use `text`
 
 1. Use Job+CronJob to schedule execution without having to provision 24/7
 2. Add pkeys and indices to other tables if we want to use them too
+
+## Supported datatypes
+Not all OA datatypes are fully supported, the table below shows the status of each.
+
+| Table                   | Support | Note                                  |
+|-------------------------|---------|---------------------------------------|
+| authors                 | 🌓      | only: id, display_name, orcid (1) (2) |
+| authors_counts_by_year  | ❌       | (2)                                   |
+| authors_ids             | 🌓      | only: id + orcid (1) (2)              |
+| topics                  | ❌       | (2)                                   |
+| concepts                | ❌       | (2)                                   |
+| institutions            | ❌       | (2)                                   |
+| sources                 | ❌       | (2)                                   |
+| works                   | ✅       |                                       |
+| works_primary_locations | ✅       |                                       |
+| works_locations         | ✅       | no unique constraint available        |
+| works_best_oa_locations | ✅       |                                       |
+| works_authorships       | ❌       |                                       |
+| works_topics            | ✅       | maps work -> topic ID                 |
+| works_concepts          | ✅       | maps work -> concept ID               |
+| works_ids               | ✅       |                                       |
+| works_open_access       | ✅       |                                       |
+| works_referenced_works  | ✅       |                                       |
+| works_related_works     | ✅       |                                       |
+q
+Footnotes:
+1. Populated from the dehydrated `author` field in `work.authorship`, which lacks the rest
+2. Needs support for separate API route/format

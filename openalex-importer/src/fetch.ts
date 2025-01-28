@@ -22,6 +22,7 @@ type Query = {
   filter?: FilterParam;
   'per-page'?: number;
   cursor: string | undefined;
+  mailto?: string | undefined;
 };
 
 export type FilterParam = {
@@ -52,6 +53,8 @@ export const getInitialWorksQuery = (filter: FilterParam): Query => ({
   filter,
   'per-page': 200,
   cursor: '*',
+  // https://docs.openalex.org/how-to-use-the-api/rate-limits-and-authentication#the-polite-pool
+  mailto: 'edvard@desci.com',
 });
 
 export const fetchWorksPage = (searchQuery: Query) => fetchPage<Work>(WORKS_URL, searchQuery);
@@ -61,7 +64,6 @@ export async function fetchPage<T>(
   searchQuery: Query,
 ): Promise<{ data: T[]; next_cursor: string | undefined }> {
   const query = buildQueryString(searchQuery);
-  logger.info({ searchQuery }, 'Fetching page...');
   const request = new Request(`${url}?${query}`, {
     headers: { 'API-KEY': process.env.OPENALEX_API_KEY as string },
   });

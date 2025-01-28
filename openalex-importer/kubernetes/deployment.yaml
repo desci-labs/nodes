@@ -1,48 +1,56 @@
-apiVersion: v1
-kind: Service
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: openalex-importer-service
+  name: openalex-importer
   labels:
     App: OpenAlexImporter
 spec:
-  replicas: 1
-  revisionHistoryLimit: 2
-  selector:
-    matchLabels:
-      App: OpenAlexImporter
-  strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
+#  replicas: 1
+#  revisionHistoryLimit: 2
+#  selector:
+#    matchLabels:
+#      App: OpenAlexImporter
+#  strategy:
+#    type: Recreate
   template:
     metadata:
       annotations:
         vault.hashicorp.com/agent-inject: 'true'
         vault.hashicorp.com/agent-inject-status: 'update'
         vault.hashicorp.com/role: app-vault-reader
-        vault.hashicorp.com/agent-inject-secret-config: secrets/openalex/db
+        vault.hashicorp.com/agent-inject-secret-config: secrets/openalex-importer
         vault.hashicorp.com/agent-inject-template-config: |
-          {{- with secret "secrets/desci-server/dev/repo" -}}
-          echo "sourcing";
-          export OPENALEX_API_KEY={{ .Data.OPENALEX_API_KEY }}
-          export NODE_ENV=production
-          export DATABASE_URL={{ .Data.DATABASE_URL }}
-          {{- end -}}
+          {{- with secret "secrets/openalex-importer" -}}
+          {{- range $k, $v := .Data }}
+          export {{ $k }}={{ $v }}
+          {{- end }}
+          {{- end }}
       labels:
         App: OpenAlexImporter
     spec:
+      # TODO: change before ultimately deploying
+      restartPolicy: Never
       containers:
         - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/openalex-importer:latest
           name: openalex-importer
+#          command: [ 'tail', '-f', '/dev/null' ]
           command: ['/bin/bash', '-c']
           args:
-            - echo "SOURCING ENV"; source /vault/secrets/config; NODE_PATH=./dist node ./dist/index.js;
+            - echo "SOURCING ENV"; source /vault/secrets/config; node ./dist/index.js;
+          env:
+            - name: QUERY_TYPE
+              value: "updated"
+            - name: QUERY_FROM
+              value: "2024-12-06"
+            - name: QUERY_TO
+              value: "2024-12-31"
+            - name: NODE_OPTIONS
+              value: "--enable-source-maps --max-semi-space-size=256"
           resources:
             limits:
               cpu: '2'
-              memory: 16Gi
+              memory: 4Gi
             requests:
-              cpu: '1'
-              memory: 8Gi
+              cpu: '2'
+              memory: 2Gi
       serviceAccountName: 'vault-auth'

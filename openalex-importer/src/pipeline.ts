@@ -13,7 +13,7 @@ import { appendToLogs, logger, nukeOldLogs } from './logger.js';
 import { errWithCause } from 'pino-std-serializers';
 import type { Work } from './types/index.js';
 import { type DataModels, transformDataModel } from './transformers.js';
-import { countArrayLengths } from './util.js';
+import { countArrayLengths, getDuration } from './util.js';
 import { Writable } from 'node:stream';
 import { IS_DEV, MAX_PAGES_TO_FETCH, SKIP_LOG_WRITE } from '../index.js';
 
@@ -130,6 +130,7 @@ const createSaveStream = (tx: PgTransactionType, batchId: number): Writable => {
 
 export const runImportPipeline = async (queryInfo: QueryInfo): Promise<void> => {
   logger.info(queryInfo, 'Starting import pipeline');
+  const startTime = Date.now();
   await nukeOldLogs();
   const filter = filterFromQueryInfo(queryInfo);
 
@@ -145,5 +146,6 @@ export const runImportPipeline = async (queryInfo: QueryInfo): Promise<void> => 
 
     await finalizeBatch(tx, batchId);
   });
-  logger.info('Import pipeline finished!');
+  const duration = getDuration(startTime, Date.now());
+  logger.info({ duration: `${duration} s`, queryInfo }, 'Import pipeline finished!');
 };
