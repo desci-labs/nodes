@@ -218,7 +218,7 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
       // Check if AI data is already cached for this manuscript
       const cachedData = await getFromCache(cacheKey);
       if (cachedData) {
-        // return cachedData as AiData;
+        return cachedData as AiData;
       }
     }
 
@@ -243,12 +243,13 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
     const pdfBuffer = pdfRes.data;
 
     // Upload the PDF
-    await axios.put(presignedUrl as string, pdfBuffer, {
+    const uploaded = await axios.put(presignedUrl as string, pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
       },
     });
 
+    debugger;
     const resultUrl = `${process.env.SCORE_RESULT_API}/prod/get-result?UploadedFileName=${s3FileName}`;
     let resultRes;
     await delay(2000); // Wait for the file to be available in the lambda service
@@ -257,12 +258,11 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
       try {
         retries--;
         resultRes = await axios.get(resultUrl);
-        debugger;
         await delay(1500);
       } catch (e) {
         debugger;
         if (e.response?.data?.message === 'No item found with that UploadedFileName') {
-          logger.warn('File not ready yet in AI lambda service, retrying in 2s');
+          logger.warn({ retriesRemaining: retries }, 'File not ready yet in AI lambda service, retrying in 2s');
           await delay(2000);
         } else {
           throw e;
@@ -275,6 +275,10 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
         resultRes?.data?.status !== 'FAILED') ||
       !resultRes?.data
     );
+
+    if (retries <= 0) {
+      throw new Error('AI Data result fetch retry limit exceeded');
+    }
 
     if (resultRes.data.status === 'FAILED') {
       logger.error({ resultRes }, 'AI processing failed');
