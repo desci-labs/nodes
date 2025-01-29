@@ -109,6 +109,7 @@ async function fillNodeData(nodeUuid: string) {
     context_novelty_percentile_last_updated: aiData.generationDate,
     concepts,
     topics,
+    authors,
   };
 
   return workData;
