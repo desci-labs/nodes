@@ -173,14 +173,15 @@ const getRuntimeArgs = (): RuntimeArgs => {
 
 process.on('uncaughtException', async (err) => {
   logger.fatal(errWithCause(err), 'uncaught exception');
+  await pool.end();
   process.exit(1);
 });
 
 try {
   await main();
+  await pool.end();
 } catch (e) {
   const err = e as Error;
   logger.error(errWithCause(err), 'Data import caught unexpected error');
-} finally {
   await pool.end();
 }

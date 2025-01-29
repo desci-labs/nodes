@@ -30,7 +30,6 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
     highWaterMark: 5,
     async read() {
       if (isDone) {
-        logger.info('Work readable done!');
         this.push(null);
         return;
       }
@@ -63,12 +62,12 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
 
         if (!searchQuery.cursor) {
           isDone = true;
-          logger.info('Work readable done!');
+          logger.info({ pageCount }, 'Work readable done!');
         }
 
         if (IS_DEV && pageCount >= MAX_PAGES_TO_FETCH) {
           isDone = true;
-          logger.warn({ IS_DEV, MAX_PAGES_TO_FETCH }, 'Fetch limit hit, stopping API requests');
+          logger.warn({ pageCount, IS_DEV, MAX_PAGES_TO_FETCH }, 'Fetch limit hit, work readable done!');
         }
       } catch (e) {
         const err = e as Error;
@@ -79,13 +78,43 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
   });
 };
 
+// Joins 5 pages into one chunk as postgres likes larger batch inserts
+const createBufferStream = (targetBatchSize = 5) => {
+  let batch: Work[] = [];
+  let chunks = 0;
+
+  return new Transform({
+    objectMode: true,
+    transform(chunk: Work[], _encoding, callback) {
+      batch.push(...chunk);
+      chunks++;
+
+      if (chunks >= targetBatchSize) {
+        this.push(batch);
+        batch = [];
+        chunks = 0;
+      }
+
+      callback();
+    },
+
+    flush(callback) {
+      if (batch.length > 0) {
+        this.push(batch);
+      }
+      callback();
+    }
+  });
+};
+
 const createTransformStream = (): Transform => {
   return new Transform({
     objectMode: true,
     async transform(chunk: Work[], _encoding, callback) {
       try {
+        const start = Date.now();
         const transformed: DataModels = transformDataModel(chunk);
-        logger.info(countArrayLengths(transformed), 'Transformer pushed new batch of data models');
+        logger.info({ duration: getDuration(start, Date.now())}, 'Transformed chunk');
         callback(null, transformed);
       } catch (e) {
         const err = e as Error;
@@ -119,7 +148,9 @@ const createSaveStream = (tx: PgTransactionType, batchId: number): Writable => {
     objectMode: true,
     async write(chunk: DataModels, _encoding, callback) {
       try {
+        const start = Date.now();
         await saveData(tx, batchId, chunk);
+        logger.info({ duration: getDuration(start, Date.now())}, 'Saved chunk to database');
         callback();
       } catch (error) {
         callback(error as Error);
@@ -139,6 +170,7 @@ export const runImportPipeline = async (queryInfo: QueryInfo): Promise<void> => 
     const batchId = await createBatch(tx, queryInfo);
     await pipeline(
       createWorksAPIStream(filter),
+      createBufferStream(),
       createTransformStream(),
       createLogStream(),
       createSaveStream(tx, batchId),

@@ -199,7 +199,9 @@ Solution: use `text`
 ## Future improvements
 
 1. Use Job+CronJob to schedule execution without having to provision 24/7
-2. Add pkeys and indices to other tables if we want to use them too
+2. Add support for other endpoints to support missing data (see footnote 2 in table)
+3. Fix works_authorships (overloaded with dupe info, breaks `ON CONFLICT UPDATE` within batches)
+4. Add retries to API readable for stability (haven't seen a failure yet though)
 
 ## Supported datatypes
 Not all OA datatypes are fully supported, the table below shows the status of each.
@@ -224,7 +226,7 @@ Not all OA datatypes are fully supported, the table below shows the status of ea
 | works_open_access       | ✅       |                                       |
 | works_referenced_works  | ✅       |                                       |
 | works_related_works     | ✅       |                                       |
-q
+
 Footnotes:
 1. Populated from the dehydrated `author` field in `work.authorship`, which lacks the rest
 2. Needs support for separate API route/format
