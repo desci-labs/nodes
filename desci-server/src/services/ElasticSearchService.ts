@@ -984,40 +984,49 @@ export async function searchEsAuthors(authors: { display_name?: string; orcid?: 
         { index: 'authors_with_institutions' },
         {
           query: authorQuery,
-          size: 5, // Limit results per author
+          size: 3,
           sort: [{ _score: { order: 'desc' } }, { cited_by_count: { order: 'desc' } }],
         },
       ];
     });
 
-    logger.info('Sending ES msearch request for authors:', authors.map((a) => a.display_name || a.orcid).join(', '));
+    logger.info({ authors: authors.map((a) => a.display_name).join(', ') }, 'Sending ES msearch request for authors');
 
     const results = await elasticClient
       .msearch({
         body: msearchBody,
       })
       .catch((error) => {
-        logger.error('Elasticsearch msearch error:', {
-          message: error.message,
-          meta: error.meta,
-          statusCode: error?.meta?.statusCode,
-          body: error?.meta?.body,
-        });
+        logger.error(
+          {
+            message: error.message,
+            meta: error.meta,
+            statusCode: error?.meta?.statusCode,
+            body: error?.meta?.body,
+          },
+          'Elasticsearch msearch error',
+        );
         throw error;
       });
 
-    logger.info('Search completed successfully:', {
-      totalResponses: results.responses?.length,
-      totalHits: results.responses?.map((r) => r.hits?.total?.value || 0),
-    });
+    logger.info(
+      {
+        totalResponses: results.responses?.length,
+        totalHits: results.responses?.map((r) => r.hits?.total?.value || 0),
+      },
+      'Search completed successfully',
+    );
 
     return results;
   } catch (error) {
-    logger.error('Error in searchEsAuthors:', {
-      error,
-      message: error.message,
-      stack: error.stack,
-    });
+    logger.error(
+      {
+        error,
+        message: error.message,
+        stack: error.stack,
+      },
+      'Error in searchEsAuthors',
+    );
     throw error;
   }
 }

@@ -84,14 +84,11 @@ async function fillNodeData(nodeUuid: string) {
 
   const citedByCount = 0; // Get from external publication data
 
-  // debugger;
   const authors = await fillAuthorData(manifest.authors);
-  // debugger;
-  // process.exit(0);
   const aiData = await getAiData(manifest, true);
   const concepts = formatConceptsData(aiData?.concepts);
   const topics = await fillTopicsData(aiData?.topics);
-
+  debugger;
   const workData = {
     title: node.title,
     doi,
@@ -127,29 +124,16 @@ async function fillAuthorData(manifestAuthors: ResearchObjectV1Author[]) {
     const authors = oaMatches.responses.map((res) => {
       const hits = res.hits?.hits;
       const firstHit = hits?.[0];
-      debugger;
       return {
         ...firstHit._source,
       };
     });
-    // debugger;
+
     return authors;
   } catch (error) {
     console.error('Error in fillAuthorData:', error);
     throw error;
   }
-
-  // const placeholder = {
-  //   cited_by_count: 1990,
-  //   affiliation: null,
-  //   last_known_institution: null,
-  //   orcid: null,
-  //   position: 'first',
-  //   author_id: 'https://openalex.org/A5020386947',
-  //   display_name: 'B Noble',
-  //   works_count: 39970,
-  //   institution_id: 'https://openalex.org/I201448701',
-  // };
 }
 
 function formatConceptsData(rawConcepts: AiData['concepts']) {
@@ -234,7 +218,7 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
       // Check if AI data is already cached for this manuscript
       const cachedData = await getFromCache(cacheKey);
       if (cachedData) {
-        return cachedData as AiData;
+        // return cachedData as AiData;
       }
     }
 
@@ -268,13 +252,16 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
     const resultUrl = `${process.env.SCORE_RESULT_API}/prod/get-result?UploadedFileName=${s3FileName}`;
     let resultRes;
     await delay(2000); // Wait for the file to be available in the lambda service
+    let retries = 15;
     do {
       try {
+        retries--;
         resultRes = await axios.get(resultUrl);
         debugger;
         await delay(1500);
       } catch (e) {
-        if (e.response?.status === 404) {
+        debugger;
+        if (e.response?.data?.message === 'No item found with that UploadedFileName') {
           logger.warn('File not ready yet in AI lambda service, retrying in 2s');
           await delay(2000);
         } else {
@@ -282,7 +269,10 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
         }
       }
     } while (
-      (resultRes?.data && resultRes?.data?.status !== 'SUCCEEDED' && resultRes?.data?.status !== 'FAILED') ||
+      (retries > 0 &&
+        resultRes?.data &&
+        resultRes?.data?.status !== 'SUCCEEDED' &&
+        resultRes?.data?.status !== 'FAILED') ||
       !resultRes?.data
     );
 
@@ -302,18 +292,20 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
       generationDate: Date.now(),
     };
 
-    if (resultRes.data.status === 'SUCCEEDED') {
-      setToCache(cacheKey, deserializedData);
-    }
-
-    return {
-      contentNovelty: deserializedData.result.predictions.content,
-      contextNovelty: deserializedData.result.predictions.context,
+    const aiData = {
+      contentNovelty: deserializedData?.result?.predictions?.content,
+      contextNovelty: deserializedData?.result?.predictions?.context,
       concepts: deserializedData.concepts,
       topics: deserializedData.topics,
       references: deserializedData.references,
       generationDate: deserializedData.generationDate,
     };
+
+    if (resultRes.data.status === 'SUCCEEDED') {
+      setToCache(cacheKey, aiData);
+    }
+
+    return aiData;
   } catch (error) {
     logger.error({ error }, 'Error retrieving AI data');
     return null;
