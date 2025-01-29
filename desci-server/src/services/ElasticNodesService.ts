@@ -7,6 +7,7 @@ import {
   ResearchObjectComponentDocumentSubtype,
   ResearchObjectComponentType,
   ResearchObjectV1,
+  ResearchObjectV1Author,
   ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
 import axios from 'axios';
@@ -20,6 +21,8 @@ import { getIndexedResearchObjects } from '../theGraph.js';
 import { ensureUuidEndsWithDot, unpadUuid } from '../utils.js';
 
 import { getManifestFromNode } from './data/processing.js';
+// import { searchEsAuthors } from './ElasticSearchService.js';
+import { searchEsAuthors } from './ElasticSearchService.js';
 import { OpenAlexService } from './OpenAlexService.js';
 
 export const NODES_INDEX = 'works_nodes_v1';
@@ -69,7 +72,6 @@ async function fillNodeData(nodeUuid: string) {
     where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
     include: { DoiRecord: true },
   });
-  debugger;
   const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
   const versions = researchObjects[0].versions;
   const firstVersion = versions.at(-1);
@@ -82,7 +84,10 @@ async function fillNodeData(nodeUuid: string) {
 
   const citedByCount = 0; // Get from external publication data
 
-  debugger;
+  // debugger;
+  const authors = await fillAuthorData(manifest.authors);
+  // debugger;
+  // process.exit(0);
   const aiData = await getAiData(manifest, true);
   const concepts = formatConceptsData(aiData?.concepts);
   const topics = await fillTopicsData(aiData?.topics);
@@ -107,6 +112,43 @@ async function fillNodeData(nodeUuid: string) {
   };
 
   return workData;
+}
+
+async function fillAuthorData(manifestAuthors: ResearchObjectV1Author[]) {
+  try {
+    const nameOrcids = manifestAuthors.map((a) => ({
+      display_name: a.name,
+      ...(a.orcid ? { orcid: a.orcid } : {}),
+    }));
+
+    const oaMatches = await searchEsAuthors(nameOrcids);
+    console.log('Search results:', oaMatches);
+    const authors = oaMatches.responses.map((res) => {
+      const hits = res.hits?.hits;
+      const firstHit = hits?.[0];
+      debugger;
+      return {
+        ...firstHit._source,
+      };
+    });
+    // debugger;
+    return authors;
+  } catch (error) {
+    console.error('Error in fillAuthorData:', error);
+    throw error;
+  }
+
+  // const placeholder = {
+  //   cited_by_count: 1990,
+  //   affiliation: null,
+  //   last_known_institution: null,
+  //   orcid: null,
+  //   position: 'first',
+  //   author_id: 'https://openalex.org/A5020386947',
+  //   display_name: 'B Noble',
+  //   works_count: 39970,
+  //   institution_id: 'https://openalex.org/I201448701',
+  // };
 }
 
 function formatConceptsData(rawConcepts: AiData['concepts']) {

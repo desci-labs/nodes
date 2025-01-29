@@ -992,7 +992,6 @@ export async function searchEsAuthors(authors: { display_name?: string; orcid?: 
 
     logger.info('Sending ES msearch request for authors:', authors.map((a) => a.display_name || a.orcid).join(', '));
 
-    debugger;
     const results = await elasticClient
       .msearch({
         body: msearchBody,
@@ -1006,7 +1005,6 @@ export async function searchEsAuthors(authors: { display_name?: string; orcid?: 
         });
         throw error;
       });
-    debugger;
 
     logger.info('Search completed successfully:', {
       totalResponses: results.responses?.length,
