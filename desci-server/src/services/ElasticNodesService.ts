@@ -165,7 +165,11 @@ async function fillBestLocationsData(manifest: ResearchObjectV1, dpid: string | 
   const firstManuscriptCid = firstManuscript.payload.cid || firstManuscript.payload.url; // Old PDF payloads used .url field for CID
 
   const external = false;
-  const pdfUrl = external ? `${PUB_IPFS_URL}/${firstManuscriptCid}` : `${IPFS_URL}/${firstManuscriptCid}`;
+
+  const pubDataRefEntry = await prisma.publicDataReference.findFirst({ where: { cid: firstManuscriptCid } });
+  const isExternal = pubDataRefEntry?.external ? true : false;
+
+  const pdfUrl = isExternal ? `${PUB_IPFS_URL}/${firstManuscriptCid}` : `${IPFS_URL}/${firstManuscriptCid}`;
 
   const best_locations = [
     {
@@ -278,9 +282,10 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
       UploadedFileName: string;
     };
 
-    const external = false; // TODO: Add external handling
+    const pubDataRefEntry = await prisma.publicDataReference.findFirst({ where: { cid: firstManuscriptCid } });
+    const isExternal = pubDataRefEntry?.external ? true : false;
 
-    const pdfUrl = external ? `${PUB_IPFS_URL}/${firstManuscriptCid}` : `${IPFS_URL}/${firstManuscriptCid}`;
+    const pdfUrl = isExternal ? `${PUB_IPFS_URL}/${firstManuscriptCid}` : `${IPFS_URL}/${firstManuscriptCid}`;
     const pdfRes = await axios({
       url: pdfUrl,
       method: 'GET',
