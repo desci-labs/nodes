@@ -100,7 +100,7 @@ spec:
           export SCORE_RESULT_API="{{ .Data.SCORE_RESULT_API }}"
           export CLOUDFLARE_WORKER_API=https://nodes-dev-sync.desci.com
           export CLOUDFLARE_WORKER_API_SECRET="{{ .Data.CLOUDFLARE_WORKER_API_SECRET }}"
-          ENABLE_WORKERS_API=true
+          export ENABLE_WORKERS_API=true
           export LOG_ENCRYPTION_KEY="{{ .Data.LOG_ENCRYPTION_KEY }}"
           export DEBUG_TEST=0;
           echo "appfinish";
