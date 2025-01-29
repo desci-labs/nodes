@@ -1,15 +1,26 @@
 import assert from 'assert';
 
 import { HighlightBlock } from '@desci-labs/desci-models';
-import { AnnotationType, Attestation, AttestationVersion, Node, Prisma, User, VoteType } from '@prisma/client';
+import {
+  Annotation,
+  AnnotationType,
+  Attestation,
+  AttestationVersion,
+  Node,
+  Prisma,
+  User,
+  VoteType,
+} from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import _ from 'lodash';
 
 import { prisma } from '../client.js';
+import { ForbiddenError } from '../core/ApiError.js';
 import {
   AttestationNotFoundError,
   AttestationVersionNotFoundError,
   ClaimNotFoundError,
+  CommentNotFoundError,
   CommunityNotFoundError,
   DuplicateClaimError,
   DuplicateDataError,
@@ -682,6 +693,38 @@ export class AttestationService {
     return this.createAnnotation(data);
   }
 
+  async editComment({
+    update: { body, links },
+    id,
+    authorId,
+  }: {
+    update: { body: string; links?: string[] };
+    id: number;
+    authorId: number;
+  }) {
+    const comment = await prisma.annotation.findFirst({ where: { id } });
+    if (!comment) throw new CommentNotFoundError();
+
+    if (comment.authorId !== authorId) throw new ForbiddenError();
+
+    if (comment.nodeAttestationId) {
+      const claim = await this.findClaimById(comment.nodeAttestationId);
+      if (!claim) throw new ClaimNotFoundError();
+
+      const attestation = await this.findAttestationById(claim.attestationId);
+      if (attestation.protected) {
+        await this.assertUserIsMember(comment.authorId, attestation.communityId);
+      }
+    }
+
+    const data: Prisma.AnnotationUpdateInput = {
+      type: AnnotationType.COMMENT,
+      body,
+      links: links || comment.links,
+    };
+    return prisma.annotation.update({ where: { id: comment.id }, data });
+  }
+
   async createHighlight({
     claimId,
     authorId,
@@ -898,6 +941,12 @@ export class AttestationService {
       skip: options?.cursor ? 1 : 0,
       ...(options?.limit && { take: options.limit }),
       ...(options?.cursor && { cursor: { id: options.cursor } }),
+    });
+  }
+
+  async getComment(filter: Prisma.AnnotationWhereInput) {
+    return prisma.annotation.findFirst({
+      where: filter,
     });
   }
 

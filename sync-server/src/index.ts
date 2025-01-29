@@ -141,10 +141,10 @@ export class AutomergeServer extends PartyServer {
   }
 
   async onRequest(request: Request) {
-    console.log('Incoming Request', request.url);
+    console.log('Incoming Request', request.method, request.url);
 
     if (request.headers.get('x-api-key') != this.env.API_TOKEN) {
-      console.log('[Error]::Api key error');
+      console.log('[Error]::Api key error', { api: this.env.API_TOKEN, key: request.headers.get('x-api-key') });
       return new Response('UnAuthorized', { status: 401 });
     }
 
@@ -157,7 +157,7 @@ export class AutomergeServer extends PartyServer {
       return this.getLatestDocument(request);
     }
 
-    return new Response('Method not allowed', { status: 405 });
+    return new Response('Method not allowed', { status: 404 });
   }
 
   onMessage(connection: Connection, message: WSMessage): void | Promise<void> {
@@ -179,7 +179,7 @@ export class AutomergeServer extends PartyServer {
 
   async getLatestDocument(request) {
     const documentId = request.url.split('/').pop() as DocumentId;
-    console.log('getLatestDocument: ', { documentId });
+    console.log(`getLatestDocument: ${documentId}`, { documentId });
     if (!documentId) {
       console.error('No DocumentID found');
       return new Response(JSON.stringify({ ok: false, message: 'Invalid body' }), { status: 400 });
@@ -263,6 +263,7 @@ async function handleCreateDocument(request: Request, env: Env) {
 
 export default {
   fetch(request: Request, env) {
+    console.log('Fetch handler: ', request.url, env);
     if (request.url.includes('/api/documents') && request.method.toLowerCase() === 'post')
       return handleCreateDocument(request, env);
 

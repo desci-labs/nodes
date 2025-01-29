@@ -17,9 +17,9 @@ export const attachUser = async (req: Request, res: Response, next: NextFunction
   const authHeader = req.headers['authorization'];
   const apiKeyHeader = req.headers['api-key'];
 
-  const token = authHeader ? await extractAuthToken(req) : undefined;
+  const token = await extractAuthToken(req);
   const apiKey = apiKeyHeader ? await await extractApiKey(req) : undefined;
-  const authTokenRetrieval = authHeader ? await extractUserFromToken(token) : undefined;
+  const authTokenRetrieval = await extractUserFromToken(token);
   const apiKeyRetrieval = apiKeyHeader ? await extractUserFromApiKey(apiKey, req.ip) : undefined;
 
   const retrievedUser = authTokenRetrieval || apiKeyRetrieval;

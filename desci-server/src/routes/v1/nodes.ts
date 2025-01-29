@@ -24,6 +24,8 @@ import {
   addExternalPublicationsSchema,
   externalPublications,
   externalPublicationsSchema,
+  verifyExternalPublication,
+  verifyExternalPublicationSchema,
 } from '../../controllers/nodes/externalPublications.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
@@ -67,6 +69,7 @@ import {
   getUserVote,
   deleteUserVote,
   downvoteComment,
+  editComment,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
@@ -77,7 +80,12 @@ import { ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
-import { getCommentsSchema, postCommentVoteSchema, showNodeAttestationsSchema } from './attestations/schema.js';
+import {
+  editCommentsSchema,
+  getCommentsSchema,
+  postCommentVoteSchema,
+  showNodeAttestationsSchema,
+} from './attestations/schema.js';
 
 const router = Router();
 
@@ -173,6 +181,11 @@ router.post(
   [validate(addExternalPublicationsSchema), ensureUser, ensureNodeAccess],
   asyncHandler(addExternalPublication),
 );
+router.post(
+  '/:uuid/verify-publication',
+  [validate(verifyExternalPublicationSchema), ensureUser, ensureNodeAccess],
+  asyncHandler(verifyExternalPublication),
+);
 
 router.get('/:uuid/comments', [ensureUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
 router.get('/:uuid/comments/:commentId/vote', [ensureUser, validate(postCommentVoteSchema)], asyncHandler(getUserVote));
@@ -181,6 +194,7 @@ router.post(
   [ensureUser, validate(postCommentVoteSchema)],
   asyncHandler(upvoteComment),
 );
+router.put('/comments/:id', [ensureUser, validate(editCommentsSchema)], asyncHandler(editComment));
 router.post(
   '/:uuid/comments/:commentId/downvote',
   [ensureUser, validate(postCommentVoteSchema)],

@@ -51,6 +51,12 @@ export interface Work {
       URL: string; // 'http://onlinelibrary.wiley.com/termsAndConditions#vor';
     },
   ];
+  type: 'journal-article' | 'posted-content';
+  'short-container-title'?: string[];
+  'container-title'?: string[];
+  institution?: Array<{
+    name: string;
+  }>;
 }
 
 export interface Author {

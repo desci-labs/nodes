@@ -164,8 +164,6 @@ async function fillBestLocationsData(manifest: ResearchObjectV1, dpid: string | 
   );
   const firstManuscriptCid = firstManuscript.payload.cid || firstManuscript.payload.url; // Old PDF payloads used .url field for CID
 
-  const external = false;
-
   const pubDataRefEntry = await prisma.publicDataReference.findFirst({ where: { cid: firstManuscriptCid } });
   const isExternal = pubDataRefEntry?.external ? true : false;
 

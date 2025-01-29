@@ -1,15 +1,13 @@
-// import WebSocket from 'isomorphic-ws';
-// import { type WebSocketServer } from 'isomorphic-ws';
-
-import debug from 'debug';
-const log = debug('WebsocketServer');
-
 import { cbor as cborHelpers, NetworkAdapter, type PeerMetadata, type PeerId } from '@automerge/automerge-repo/slim';
+import debug from 'debug';
+import { Connection as WebSocket } from 'partyserver';
+
+import { assert } from './assert.js';
 import { FromClientMessage, FromServerMessage, isJoinMessage, isLeaveMessage } from './messages.js';
 import { ProtocolV1, ProtocolVersion } from './protocolVersion.js';
-import { assert } from './assert.js';
 import { toArrayBuffer } from './toArrayBuffer.js';
-import { Connection as WebSocket } from 'partyserver';
+
+const log = debug('WebsocketServer');
 // import { handleChunked, sendChunked } from './chunking.js';
 
 const { encode, decode } = cborHelpers;
