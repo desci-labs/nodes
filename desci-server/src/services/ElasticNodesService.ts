@@ -18,11 +18,12 @@ import { elasticWriteClient } from '../elasticSearchClient.js';
 import { logger as parentLogger } from '../logger.js';
 import { getFromCache, setToCache } from '../redisClient.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
-import { ensureUuidEndsWithDot, unpadUuid } from '../utils.js';
+import { ensureUuidEndsWithDot, hexToCid, unpadUuid } from '../utils.js';
 
-import { getManifestFromNode } from './data/processing.js';
+import { getManifestByCid, getManifestFromNode } from './data/processing.js';
 // import { searchEsAuthors } from './ElasticSearchService.js';
 import { searchEsAuthors } from './ElasticSearchService.js';
+import { getDpidFromNode, getDpidFromNodeUuid } from './node.js';
 import { OpenAlexService } from './OpenAlexService.js';
 
 export const NODES_INDEX = 'works_nodes_v1';
@@ -41,6 +42,14 @@ const SERVER_ENV_ES_NATIVE_WORKS_INDEX_MAP = {
 
 export const NATIVE_WORKS_INDEX =
   SERVER_ENV_ES_NATIVE_WORKS_INDEX_MAP[process.env.SERVER_URL || 'https://localhost:5420'];
+
+const DPID_ENV_MAPPING = {
+  'http://localhost:5420': 'http://localhost:5460/',
+  'https://nodes-api-dev.desci.com': 'https://beta-dev.dpid.org/',
+  'https://nodes-api.desci.com': 'https://beta.dpid.org/',
+};
+
+const DPID_URL = DPID_ENV_MAPPING[process.env.SERVER_URL || 'https://localhost:5420'];
 
 async function indexResearchObject(nodeUuid: string) {
   nodeUuid = unpadUuid(nodeUuid);
@@ -73,10 +82,15 @@ async function fillNodeData(nodeUuid: string) {
     include: { DoiRecord: true },
   });
   const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
-  const versions = researchObjects[0].versions;
+  const researchObject = researchObjects[0];
+  const versions = researchObject.versions;
   const firstVersion = versions.at(-1);
   const firstVersionTime = new Date(parseInt(firstVersion.time) * 1000);
   const { manifest } = await getManifestFromNode(node);
+  // debugger;
+  const latestPublishedManifestCid = hexToCid(researchObject.recentCid);
+  const latestManifest = await getManifestByCid(latestPublishedManifestCid);
+  const dpid = await getDpidFromNode(node);
 
   const doi = node?.DoiRecord?.[0]?.doi;
 
@@ -88,6 +102,8 @@ async function fillNodeData(nodeUuid: string) {
   const aiData = await getAiData(manifest, true);
   const concepts = formatConceptsData(aiData?.concepts);
   const topics = await fillTopicsData(aiData?.topics);
+  const best_locations = await fillBestLocationsData(latestManifest, dpid);
+
   debugger;
   const workData = {
     title: node.title,
@@ -104,9 +120,10 @@ async function fillNodeData(nodeUuid: string) {
     context_novelty_percentile: aiData ? aiData.contextNovelty?.percentile : 0,
     content_novelty_percentile_last_updated: aiData.generationDate,
     context_novelty_percentile_last_updated: aiData.generationDate,
+    best_locations,
+    authors,
     concepts,
     topics,
-    authors,
   };
 
   return workData;
@@ -134,6 +151,36 @@ async function fillAuthorData(manifestAuthors: ResearchObjectV1Author[]) {
     console.error('Error in fillAuthorData:', error);
     throw error;
   }
+}
+
+async function fillBestLocationsData(manifest: ResearchObjectV1, dpid: string | number) {
+  const license = manifest.defaultLicense;
+  const works_count = 0;
+
+  const firstManuscript = manifest.components.find(
+    (c) =>
+      c.type === ResearchObjectComponentType.PDF &&
+      (c as PdfComponent).subtype === ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
+  );
+  const firstManuscriptCid = firstManuscript.payload.cid || firstManuscript.payload.url; // Old PDF payloads used .url field for CID
+
+  const external = false;
+  const pdfUrl = external ? `${PUB_IPFS_URL}/${firstManuscriptCid}` : `${IPFS_URL}/${firstManuscriptCid}`;
+
+  const best_locations = [
+    {
+      license,
+      cited_by_count: 0,
+      publisher: 'Desci Labs',
+      pdf_url: pdfUrl,
+      is_oa: true,
+      source_id: DPID_URL + dpid,
+      display_name: 'Desci Labs',
+      works_count,
+      version: 'preprint',
+    },
+  ];
+  return best_locations;
 }
 
 function formatConceptsData(rawConcepts: AiData['concepts']) {
