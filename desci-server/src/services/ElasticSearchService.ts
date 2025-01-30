@@ -946,9 +946,9 @@ export async function searchEsAuthors(authors: { display_name?: string; orcid?: 
                         match: {
                           display_name: {
                             query: author.display_name,
-                            minimum_should_match: '80%',
+                            minimum_should_match: '85%',
                             boost: 50,
-                            fuzziness: 'AUTO',
+                            fuzziness: '1',
                           },
                         },
                       },
