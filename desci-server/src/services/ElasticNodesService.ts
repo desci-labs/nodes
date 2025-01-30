@@ -45,7 +45,7 @@ export const NATIVE_WORKS_INDEX =
 
 const DPID_ENV_MAPPING = {
   'http://localhost:5420': 'http://localhost:5460/',
-  'https://nodes-api-dev.desci.com': 'https://beta-dev.dpid.org/',
+  'https://nodes-api-dev.desci.com': 'https://dev-beta.dpid.org/',
   'https://nodes-api.desci.com': 'https://beta.dpid.org/',
 };
 
@@ -108,6 +108,7 @@ async function fillNodeData(nodeUuid: string) {
   const workData = {
     title: node.title,
     doi,
+    dpid,
     type: 'preprint',
     abstract: manifest.description,
     cited_by_count: citedByCount,
