@@ -88,7 +88,7 @@ export const getExternalPublications = async (node: Node) => {
           abstract: data.item?.abstract ?? '',
         }))?.[0],
       authors: authorsSearchScores
-        .filter((res) => res.publisher === getPublisherTitle(data))
+        .filter((res) => res?.publisher === getPublisherTitle(data))
         .map((data) => ({
           score: data.score,
           authors: data.match,
@@ -121,12 +121,12 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
     text: `${
       publications.length > 1
         ? `We found a similar publications to ${node.title}, View your publication to verify external publications`
-        : `We linked ${publications.length} external publications from publishers like ${publications[0].publisher} to your node, open your node to verify the external publication.`
+        : `We linked ${publications.length} external publications from publishers like ${publications[0]?.publisher} to your node, open your node to verify the external publication.`
     }`,
     html: ExternalPublicationsEmailHtml({
       dpid: node.dpidAlias.toString(),
       dpidPath: `${process.env.DAPP_URL}/dpid/${node.dpidAlias}`,
-      publisherName: publications[0].publisher,
+      publisherName: publications[0]?.publisher,
       multiple: publications.length > 1,
     }),
   };
