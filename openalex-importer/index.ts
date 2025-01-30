@@ -63,7 +63,7 @@ async function main() {
       // run import from start to end date
       let currentDate = startDate;
 
-      while (diffInDays > 0) {
+      while (diffInDays >= 0) {
         const queryInfo: QueryInfo = {
           query_type: args.query_type,
           query_from: startOfDay(currentDate),
