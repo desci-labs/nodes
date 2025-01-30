@@ -18,7 +18,7 @@ type ApiResponse<T> = {
   results: T;
 };
 
-type Query = {
+export type Query = {
   filter?: FilterParam;
   'per-page'?: number;
   cursor: string | undefined;
@@ -86,7 +86,7 @@ export async function fetchPage<T>(
         searchQuery,
         status: response.status,
         message: response.statusText,
-        data: await response.json(),
+        data: await response.text(),
       },
       'OpenAlex API request failed',
     );

@@ -16,6 +16,8 @@ export const maybeDumpHeap = (id: string) => {
   }
 };
 
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const getDuration = (start: number, end: number) => Math.floor((end - start) / 1_000);
 
 export async function* chunkGenerator<T>(array: T[], size: number): AsyncGenerator<T[]> {

@@ -8,18 +8,48 @@ import {
   type QueryInfo,
   saveData,
 } from './db/index.js';
-import { fetchWorksPage, filterFromQueryInfo, type FilterParam, getInitialWorksQuery } from './fetch.js';
+import { fetchWorksPage, filterFromQueryInfo, type FilterParam, getInitialWorksQuery, type Query } from './fetch.js';
 import { appendToLogs, logger, nukeOldLogs } from './logger.js';
 import { errWithCause } from 'pino-std-serializers';
 import type { Work } from './types/index.js';
 import { type DataModels, transformDataModel } from './transformers.js';
-import { countArrayLengths, getDuration } from './util.js';
+import { getDuration, sleep } from './util.js';
 import { Writable } from 'node:stream';
 import { IS_DEV, MAX_PAGES_TO_FETCH, SKIP_LOG_WRITE } from '../index.js';
+
+const MAX_RETRIES = 5;
+const BASE_DELAY = 1_000;
 
 const createWorksAPIStream = (filter: FilterParam): Readable => {
   let isDone = false;
   const searchQuery = getInitialWorksQuery(filter);
+
+  const fetchWithRetry = async (query: Query) => {
+    let lastError: Error | null = null;
+    let retries = 0;
+
+    while (retries < MAX_RETRIES) {
+      try {
+        return await fetchWorksPage(query);
+      } catch (error) {
+        lastError = error;
+        retries++;
+
+        const delayMs = retries * BASE_DELAY;
+        logger.warn(
+          { error: errWithCause(error), retries, MAX_RETRIES, backoff: delayMs },
+          'Fetch attempt failed'
+        );
+
+        await sleep(delayMs);
+      }
+    }
+
+    throw new Error(
+      `Fetch failed after ${MAX_RETRIES} retries`,
+      { cause: lastError }
+    );
+  };
 
   // Metrics
   let pageCount = 0;
@@ -37,7 +67,7 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
       try {
         const idleTime = Date.now() - lastFetchEnd;
         const fetchStart = Date.now();
-        const { data, next_cursor } = await fetchWorksPage(searchQuery);
+        const { data, next_cursor } = await fetchWithRetry(searchQuery);
         const fetchDuration = Date.now() - fetchStart;
 
         const pushStart = Date.now();
@@ -46,6 +76,7 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
         lastFetchEnd = Date.now();
 
         pageCount++;
+
         logger.info(
           {
             page: pageCount,
