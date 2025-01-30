@@ -443,6 +443,15 @@ function createEnhancedWorksQueryV2(query: string): QueryDslQueryContainer {
         },
         weight: 2,
       },
+      // Boost for native nodes (those with dpids)
+      {
+        filter: {
+          exists: {
+            field: 'dpid',
+          },
+        },
+        weight: 100,
+      },
     ],
     score_mode: 'sum' as QueryDslFunctionScoreMode,
     boost_mode: 'sum' as QueryDslFunctionBoostMode,
