@@ -6,7 +6,7 @@
 set -euo pipefail
 trap "catch" ERR
 catch() {
-    "[startTestChain] script failed!"
+    echo "[startTestChain] script failed!"
     exit 1
 }
 
@@ -17,16 +17,11 @@ scripts/stubHardhatAnalytics.sh
 
 checkTestDeployments() {
     echo "[startTestChain] checking test deployments..."
-    echo "[startTestChain] waiting for ganache..."
-    sleep 10
 
     if ! scripts/checkTestDeployments.sh ".openzeppelin/unknown-dpid.json"; then
         echo "[startTestChain] deploying dpid contract..."
         yarn deploy:dpid:ganache
     fi
-
-    echo "[startTestChain] waiting for ganache..."
-    sleep 10
 
     if ! scripts/checkTestDeployments.sh ".openzeppelin/unknown-research-object.json"; then
         echo "[startTestChain] deploying RO contract..."
@@ -66,7 +61,6 @@ makeDeployments() {
     deployDpidSubgraph
 }
 
-makeDeployments &
 
 echo "[startTestChain] starting ganache..."
 # Ganache is very spammy with eth_getBlock etc so we filter these out
@@ -75,4 +69,16 @@ npx ganache \
   --chain.networkId="1337" \
   --wallet.mnemonic="${MNEMONIC}" \
   --database.dbPath="/data" \
-  | grep --line-buffered -v '^eth_.*$'
+  | grep --line-buffered -v '^eth_.*$' &
+
+# Wait for ganache process to be findable
+until GANACHE_PID=$(pgrep -P $$ ganache); do
+  sleep 0.1
+done
+
+until curl -s -o /dev/null -w '' http://localhost:8545; do
+  sleep 1
+done
+
+makeDeployments
+wait $GANACHE_PID
