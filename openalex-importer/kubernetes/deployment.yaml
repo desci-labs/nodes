@@ -41,9 +41,9 @@ spec:
             - name: QUERY_TYPE
               value: "updated"
             - name: QUERY_FROM
-              value: "2024-12-06"
+              value: "2024-12-11"
             - name: QUERY_TO
-              value: "2024-12-31"
+              value: "2025-01-30"
             - name: NODE_OPTIONS
               value: "--enable-source-maps --max-semi-space-size=256"
           resources:

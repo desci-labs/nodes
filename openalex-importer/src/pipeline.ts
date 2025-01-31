@@ -16,6 +16,7 @@ import { type DataModels, transformDataModel } from './transformers.js';
 import { getDuration, sleep } from './util.js';
 import { Writable } from 'node:stream';
 import { IS_DEV, MAX_PAGES_TO_FETCH, SKIP_LOG_WRITE } from '../index.js';
+import { RateLimiter } from './rateLimiter.js';
 
 const MAX_RETRIES = 5;
 const BASE_DELAY = 1_000;
@@ -23,6 +24,8 @@ const BASE_DELAY = 1_000;
 const createWorksAPIStream = (filter: FilterParam): Readable => {
   let isDone = false;
   const searchQuery = getInitialWorksQuery(filter);
+
+  const rateLimiter = new RateLimiter(100);
 
   const fetchWithRetry = async (query: Query) => {
     let lastError: Error | null = null;
@@ -65,6 +68,9 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
       }
 
       try {
+        // API gets sad if we send more than 10 RPS, naively make sure we wait at least 100ms between rounds
+        await rateLimiter.waitIfNeeded();
+
         const idleTime = Date.now() - lastFetchEnd;
         const fetchStart = Date.now();
         const { data, next_cursor } = await fetchWithRetry(searchQuery);
