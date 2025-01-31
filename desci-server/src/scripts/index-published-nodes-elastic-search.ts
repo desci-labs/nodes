@@ -35,8 +35,15 @@ async function main() {
 
   logger.info(`[ES Native Node Backfill] Found ${nodeUuids.length} published nodes`);
 
-  debugger;
+  let i = 0;
+  for (const { id, uuid } of nodeUuids) {
+    logger.info({ uuid, nodeId: id }, `[ES Native Node Backfill] Indexing node ${i}/${nodeUuids.length}`);
+    await ElasticNodesService.indexResearchObject(uuid);
+    logger.info({ uuid, nodeId: id }, `[ES Native Node Backfill] Completed indexing node ${i}/${nodeUuids.length}`);
+    i++;
+  }
 
+  logger.info('[ES Native Node Backfill] Script finished executing');
   process.exit(0);
 }
 

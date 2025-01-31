@@ -58,7 +58,6 @@ async function indexResearchObject(nodeUuid: string) {
 
     const workData = await fillNodeData(nodeUuid);
 
-    debugger;
     await elasticWriteClient.index({
       index: NATIVE_WORKS_INDEX,
       id: workId,
@@ -87,15 +86,15 @@ async function fillNodeData(nodeUuid: string) {
   const firstVersion = versions.at(-1);
   const firstVersionTime = new Date(parseInt(firstVersion.time) * 1000);
   const { manifest } = await getManifestFromNode(node);
-  // debugger;
+
   const latestPublishedManifestCid = hexToCid(researchObject.recentCid);
   const latestManifest = await getManifestByCid(latestPublishedManifestCid);
   const dpid = await getDpidFromNode(node);
 
   const doi = node?.DoiRecord?.[0]?.doi;
-
+  // logger.error({ timeReturned: firstVersionTime?.getFullYear() }, 'FIRST VERSION TIME');
   const publication_year = firstVersionTime?.getFullYear() || new Date().getFullYear();
-
+  // debug here, 1970
   const citedByCount = 0; // Get from external publication data
 
   const authors = await fillAuthorData(manifest.authors);
@@ -103,8 +102,7 @@ async function fillNodeData(nodeUuid: string) {
   const concepts = formatConceptsData(aiData?.concepts);
   const topics = await fillTopicsData(aiData?.topics);
   const best_locations = await fillBestLocationsData(latestManifest, dpid);
-
-  debugger;
+  //
   const workData = {
     title: node.title,
     doi,
@@ -300,7 +298,6 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
       },
     });
 
-    debugger;
     const resultUrl = `${process.env.SCORE_RESULT_API}/prod/get-result?UploadedFileName=${s3FileName}`;
     let resultRes;
     await delay(2000); // Wait for the file to be available in the lambda service
@@ -311,7 +308,6 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
         resultRes = await axios.get(resultUrl);
         await delay(1500);
       } catch (e) {
-        debugger;
         if (e.response?.data?.message === 'No item found with that UploadedFileName') {
           logger.warn({ retriesRemaining: retries }, 'File not ready yet in AI lambda service, retrying in 2s');
           await delay(2000);
