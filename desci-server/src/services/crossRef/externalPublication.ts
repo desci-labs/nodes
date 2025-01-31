@@ -1,12 +1,12 @@
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { ExternalPublications, Node } from '@prisma/client';
+// import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import { Node } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import { Searcher } from 'fast-fuzzy';
 
 import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
 import { ExternalPublicationsEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
+// import { ensureUuidEndsWithDot } from '../../utils.js';
 import { crossRefClient } from '../index.js';
 import { NodeUuid } from '../manifestRepo.js';
 import repoService from '../repoService.js';
@@ -40,7 +40,7 @@ export const getExternalPublications = async (node: Node) => {
 
   const authorsSearchScores = data.map((work) => {
     const authorSearcher = new Searcher(
-      work.author.map((author) => ({ name: `${author.given} ${author.family}`, orcid: author.ORCID })),
+      work?.author?.map((author) => ({ name: `${author.given} ${author.family}`, orcid: author.ORCID })) ?? [],
       { keySelector: (entry) => entry.name },
     );
 
@@ -82,16 +82,16 @@ export const getExternalPublications = async (node: Node) => {
           score: data.score,
         }))?.[0],
       abstract: descResult
-        .filter((res) => getPublisherTitle(res.item) === getPublisherTitle(data))
-        .map((data) => ({
+        ?.filter((res) => getPublisherTitle(res.item) === getPublisherTitle(data))
+        ?.map((data) => ({
           key: data.key,
           match: data.match,
           score: data.score,
           abstract: data.item?.abstract ?? '',
         }))?.[0],
       authors: authorsSearchScores
-        .filter((res) => res.publisher === getPublisherTitle(data))
-        .map((data) => ({
+        ?.filter((res) => res.publisher === getPublisherTitle(data))
+        ?.map((data) => ({
           score: data.score,
           authors: data.match,
         }))?.[0],
@@ -124,10 +124,10 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
     text: `${
       publications.length > 1
         ? `We found a similar publications to ${node.title}, View your publication to verify external publications`
-        : `We linked ${publications.length} external publications from publishers like ${publications[0].publisher} to your node, open your node to verify the external publication.`
+        : `We linked ${publications.length} external publications from publishers like ${publications?.[0]?.publisher} to your node, open your node to verify the external publication.`
     }`,
     html: ExternalPublicationsEmailHtml({
-      dpid: node.dpidAlias.toString(),
+      dpid: node?.dpidAlias?.toString(),
       dpidPath: `${process.env.DAPP_URL}/dpid/${node.dpidAlias}`,
       publisherName: publications?.[0]?.publisher,
       multiple: publications.length > 1,

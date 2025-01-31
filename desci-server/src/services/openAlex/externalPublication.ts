@@ -82,7 +82,7 @@ export const getExternalPublicationsFromOpenAlex = async (node: Node) => {
   const descResult = descSearcher.search(manifest.description ?? '', { returnMatchData: true });
 
   const authorsSearchScores = data.map((work) => {
-    const authorSearcher = new Searcher(work.authors, { keySelector: (entry) => entry.name });
+    const authorSearcher = new Searcher(work.authors ?? [], { keySelector: (entry) => entry.name });
 
     const nodeAuthorsMatch = manifest.authors.map((author) =>
       authorSearcher.search(author.name, { returnMatchData: true }),
