@@ -25,7 +25,8 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
   let isDone = false;
   const searchQuery = getInitialWorksQuery(filter);
 
-  const rateLimiter = new RateLimiter(100);
+  // Ensure at least 100ms between writes
+  const rateLimiter = new RateLimiter(120);
 
   const fetchWithRetry = async (query: Query) => {
     let lastError: Error | null = null;
@@ -60,7 +61,7 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
 
   return new Readable({
     objectMode: true,
-    highWaterMark: 5,
+    highWaterMark: 10,
     async read() {
       if (isDone) {
         this.push(null);
@@ -68,7 +69,6 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
       }
 
       try {
-        // API gets sad if we send more than 10 RPS, naively make sure we wait at least 100ms between rounds
         await rateLimiter.waitIfNeeded();
 
         const idleTime = Date.now() - lastFetchEnd;
@@ -121,37 +121,41 @@ const createBufferStream = (targetBatchSize = 5) => {
   let chunks = 0;
 
   return new Transform({
+    highWaterMark: 1,
     objectMode: true,
     transform(chunk: Work[], _encoding, callback) {
       batch.push(...chunk);
       chunks++;
 
       if (chunks >= targetBatchSize) {
-        this.push(batch);
+        callback(null, batch);
         batch = [];
         chunks = 0;
+      } else {
+        callback();
       }
 
-      callback();
     },
 
     flush(callback) {
       if (batch.length > 0) {
-        this.push(batch);
+        callback(null, batch);
+      } else {
+        callback();
       }
-      callback();
     }
   });
 };
 
 const createTransformStream = (): Transform => {
   return new Transform({
+    highWaterMark: 1,
     objectMode: true,
     async transform(chunk: Work[], _encoding, callback) {
       try {
         const start = Date.now();
         const transformed: DataModels = transformDataModel(chunk);
-        logger.info({ duration: getDuration(start, Date.now())}, 'Transformed chunk');
+        logger.info({ duration: Date.now() - start}, 'Transformed chunk');
         callback(null, transformed);
       } catch (e) {
         const err = e as Error;
@@ -164,6 +168,7 @@ const createTransformStream = (): Transform => {
 
 const createLogStream = (): Transform => {
   return new Transform({
+    highWaterMark: 1,
     objectMode: true,
     async transform(chunk: DataModels, _encoding, callback) {
       try {
@@ -182,12 +187,13 @@ const createLogStream = (): Transform => {
 
 const createSaveStream = (tx: PgTransactionType, batchId: number): Writable => {
   return new Writable({
+    highWaterMark: 1,
     objectMode: true,
     async write(chunk: DataModels, _encoding, callback) {
       try {
         const start = Date.now();
         await saveData(tx, batchId, chunk);
-        logger.info({ duration: getDuration(start, Date.now())}, 'Saved chunk to database');
+        logger.info({ duration: Date.now() - start}, 'Saved chunk to database');
         callback();
       } catch (error) {
         callback(error as Error);
