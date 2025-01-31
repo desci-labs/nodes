@@ -23,6 +23,11 @@ async function main() {
         if (!nodeUuid) return logger.error('Missing NODE_UUID or MANIFEST_CID');
         await invalidateByUuid({ nodeUuid });
         break;
+      case 'invalidateByPrefix':
+        const prefix = process.argv[2];
+        if (!prefix) return logger.error('Missing ARGUMENT <prefix>');
+        await deleteKeys(`*${prefix}*`);
+        break;
       case 'invalidateAll':
         if (nodeUuid) {
           logger.error('NODE_UUID was passed to invalidateAll, aborting in case of mistake');
