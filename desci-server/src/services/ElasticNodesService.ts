@@ -92,9 +92,7 @@ async function fillNodeData(nodeUuid: string) {
   const dpid = await getDpidFromNode(node);
 
   const doi = node?.DoiRecord?.[0]?.doi;
-  // logger.error({ timeReturned: firstVersionTime?.getFullYear() }, 'FIRST VERSION TIME');
-  const publication_year = firstVersionTime?.getFullYear() || new Date().getFullYear();
-  // debug here, 1970
+  const publication_year = firstVersionTime?.getFullYear().toString() || new Date().getFullYear().toString();
   const citedByCount = 0; // Get from external publication data
 
   const authors = await fillAuthorData(manifest.authors);
