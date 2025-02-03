@@ -128,14 +128,14 @@ async function fillNodeData(nodeUuid: string) {
 
 async function fillAuthorData(manifestAuthors: ResearchObjectV1Author[]) {
   try {
-    const nameOrcids = manifestAuthors.map((a) => ({
+    const nameOrcids = manifestAuthors?.map((a) => ({
       display_name: a.name,
       ...(a.orcid ? { orcid: a.orcid } : {}),
     }));
 
     const oaMatches = await searchEsAuthors(nameOrcids);
     console.log('Search results:', oaMatches);
-    const authors = oaMatches.responses.map((res) => {
+    const authors = oaMatches.responses?.map((res) => {
       const hits = res.hits?.hits;
       const firstHit = hits?.[0];
       return {
@@ -185,7 +185,7 @@ async function fillBestLocationsData(manifest: ResearchObjectV1, dpid: string | 
 function formatConceptsData(rawConcepts: AiData['concepts']) {
   if (!rawConcepts) return [];
 
-  const concepts = rawConcepts.concept_ids.map((conceptId, i) => ({
+  const concepts = rawConcepts.concept_ids?.map((conceptId, i) => ({
     concept_id: conceptId,
     display_name: rawConcepts.concept_names[i],
   }));
@@ -197,7 +197,7 @@ async function fillTopicsData(rawTopics: AiData['topics']) {
   if (!rawTopics) return [];
 
   const dbTopics = await OpenAlexService.getTopicsByIds(rawTopics.topic_ids);
-  const formattedTopics = dbTopics.map((topic) => ({
+  const formattedTopics = dbTopics?.map((topic) => ({
     ...topic,
     topic_id: topic.id,
   }));
