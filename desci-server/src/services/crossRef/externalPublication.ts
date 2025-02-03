@@ -124,20 +124,12 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
     text: `${
       publications.length > 1
         ? `We found a similar publications to ${node.title}, View your publication to verify external publications`
-<<<<<<< HEAD
-        : `We linked ${publications.length} external publications from publishers like ${publications[0]?.publisher} to your node, open your node to verify the external publication.`
-=======
         : `We linked ${publications.length} external publications from publishers like ${publications?.[0]?.publisher} to your node, open your node to verify the external publication.`
->>>>>>> 2a1611a76c667f272c31fbaa838bdb1c4011541e
     }`,
     html: ExternalPublicationsEmailHtml({
       dpid: node?.dpidAlias?.toString(),
       dpidPath: `${process.env.DAPP_URL}/dpid/${node.dpidAlias}`,
-<<<<<<< HEAD
-      publisherName: publications[0]?.publisher,
-=======
       publisherName: publications?.[0]?.publisher,
->>>>>>> 2a1611a76c667f272c31fbaa838bdb1c4011541e
       multiple: publications.length > 1,
     }),
   };
