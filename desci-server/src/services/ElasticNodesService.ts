@@ -150,7 +150,7 @@ async function fillAuthorData(manifestAuthors: ResearchObjectV1Author[]) {
     }));
 
     const oaMatches = await searchEsAuthors(nameOrcids);
-    console.log('Search results:', oaMatches);
+    logger.info('Search results:', oaMatches);
     const authors = oaMatches?.responses?.map((res) => {
       const hits = res.hits?.hits;
       const firstHit = hits?.[0];
@@ -161,7 +161,7 @@ async function fillAuthorData(manifestAuthors: ResearchObjectV1Author[]) {
 
     return authors;
   } catch (error) {
-    console.error('Error in fillAuthorData:', error);
+    logger.error('Error in fillAuthorData:', error);
     throw error;
   }
 }
