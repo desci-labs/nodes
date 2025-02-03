@@ -191,7 +191,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     // trigger external publications email if any
     checkExternalPublications(node).then((_) => sendExternalPublicationsNotification(node));
 
-    res.send({
+    res.status(200).send({
       ok: true,
       dpid: dpidAlias ?? parseInt(manifest.dpid?.id),
     });
@@ -202,6 +202,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     } catch (err) {
       logger.error({ err }, 'Error: Indexing published node in ElasticSearch failed');
     }
+    return null;
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
     saveInteraction(req, ActionType.PUBLISH_NODE, {
