@@ -908,7 +908,7 @@ export class AttestationService {
       where: filter,
       include: {
         _count: {
-          select: { CommentVote: true },
+          select: { CommentVote: true, replies: true },
         },
         CommentVote: { select: { id: true, type: true } },
         author: { select: { id: true, name: true, orcid: true } },
@@ -933,9 +933,6 @@ export class AttestationService {
       include: {
         _count: { select: { replies: true } },
         author: { select: { id: true, name: true, orcid: true } },
-        // CommentVote: {
-        //   select: { id: true, userId: true, annotationId: true, type: true },
-        // },
         attestation: {
           include: {
             attestationVersion: { select: { name: true, description: true, image_url: true, createdAt: true } },

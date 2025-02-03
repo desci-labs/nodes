@@ -20,7 +20,7 @@ import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
 export const getAttestationComments = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   const { claimId } = req.params;
-  const { cursor, limit } = req.query as zod.infer<typeof getAttestationCommentsSchema>['query'];
+  const { cursor, limit, replyTo } = req.query as zod.infer<typeof getAttestationCommentsSchema>['query'];
   const claim = await attestationService.findClaimById(parseInt(claimId));
   if (!claim) throw new NotFoundError('Claim not found');
 
@@ -30,6 +30,7 @@ export const getAttestationComments = async (req: RequestWithUser, res: Response
   const comments = await attestationService.getAllClaimComments(
     {
       nodeAttestationId: claim.id,
+      ...(replyTo ? { replyToId: { equals: replyTo } } : { replyToId: null }),
     },
     { cursor: cursor ? parseInt(cursor.toString()) : undefined, limit: parseInt(limit.toString()) },
   );
@@ -48,6 +49,7 @@ export const getAttestationComments = async (req: RequestWithUser, res: Response
         meta: {
           upvotes,
           downvotes,
+          replyCount: comment._count.replies,
           isUpvoted: vote?.type === VoteType.Yes,
           isDownVoted: vote?.type === VoteType.No,
         },
@@ -149,6 +151,7 @@ export const postComment = async (
       comment: body,
       links,
       visible,
+      replyTo,
       ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
     });
   }

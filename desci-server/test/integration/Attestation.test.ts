@@ -846,9 +846,14 @@ describe.only('Attestations Service', async () => {
     let author: User;
     let comment: Annotation;
 
+    let author1: User;
+    let reply: Annotation;
+
     before(async () => {
       node = nodes[0];
       author = users[0];
+      author1 = users[1];
+
       assert(node.uuid);
       const versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
       attestationVersion = versions[versions.length - 1];
@@ -937,6 +942,84 @@ describe.only('Attestations Service', async () => {
 
       expect(editedComment.body).to.be.equal('edit comment via api');
       expect(editedComment.links[0]).to.be.equal('https://desci.com');
+    });
+
+    it('should reply a comment', async () => {
+      comment = await attestationService.createComment({
+        links: [],
+        claimId: claim.id,
+        authorId: users[1].id,
+        comment: 'Old comment to be edited',
+        visible: true,
+      });
+
+      const reply = await attestationService.createComment({
+        authorId: users[2].id,
+        replyTo: comment.id,
+        links: [],
+        claimId: claim.id,
+        comment: 'Reply to Old comment to be edited',
+        visible: true,
+      });
+      expect(reply.body).to.be.equal('Reply to Old comment to be edited');
+      expect(reply.replyToId).to.be.equal(comment.id);
+    });
+
+    // should post comments and reply, should validate comments length,  getComments Api, replyCount and pull reply via api
+    it('should create and reply a comment', async () => {
+      const authorJwtToken = jwt.sign({ email: author.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const authorJwtHeader = `Bearer ${authorJwtToken}`;
+
+      // send create a comment request
+      let res = await request(app).post(`/v1/attestations/comments`).set('authorization', authorJwtHeader).send({
+        authorId: author.id,
+        body: 'post comment with reply',
+        links: [],
+        uuid: node.uuid,
+        visible: true,
+      });
+      expect(res.statusCode).to.equal(200);
+      console.log('comment', res.body.data);
+      comment = res.body.data as Annotation;
+      expect(comment.body).to.equal('post comment with reply');
+
+      const author1JwtToken = jwt.sign({ email: author1.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const author1JwtHeader = `Bearer ${author1JwtToken}`;
+      // send reply to a comment request
+      res = await request(app).post(`/v1/attestations/comments`).set('authorization', author1JwtHeader).send({
+        authorId: author1.id,
+        body: 'reply to post comment with reply',
+        links: [],
+        uuid: node.uuid,
+        visible: true,
+        replyTo: comment.id,
+      });
+      console.log('reply', res.body.data);
+      reply = res.body.data as Annotation;
+
+      expect(res.statusCode).to.equal(200);
+      expect(reply.replyToId).to.equal(comment.id);
+
+      // check comment
+      res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', authorJwtHeader).send();
+      expect(res.statusCode).to.equal(200);
+      expect(res.body.data.count).to.be.equal(1);
+      const data = (await res.body.data.comments) as (Annotation & {
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          replyCount: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
+      })[];
+      console.log('commentsss', data);
+      const parentComment = data.find((c) => c.id === comment.id);
+      expect(parentComment?.meta.replyCount).to.be.equal(1);
     });
   });
 

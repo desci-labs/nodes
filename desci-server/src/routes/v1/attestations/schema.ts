@@ -37,6 +37,7 @@ export const getAttestationCommentsSchema = z.object({
   query: z.object({
     cursor: z.coerce.number().optional(),
     limit: z.coerce.number().optional().default(20),
+    replyTo: z.coerce.number().optional(),
   }),
 });
 
