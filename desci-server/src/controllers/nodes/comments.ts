@@ -15,7 +15,7 @@ import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 const parentLogger = logger.child({ module: 'Comments' });
 export const getGeneralComments = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid } = req.params as z.infer<typeof getCommentsSchema>['params'];
-  const { cursor, limit } = req.query as z.infer<typeof getCommentsSchema>['query'];
+  const { cursor, limit, replyTo } = req.query as z.infer<typeof getCommentsSchema>['query'];
   const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
   if (!node) throw new NotFoundError("Can't comment on unknown research object");
 
@@ -29,6 +29,7 @@ export const getGeneralComments = async (req: RequestWithNode, res: Response, _n
   const data = await attestationService.getComments(
     {
       uuid: ensureUuidEndsWithDot(uuid),
+      replyToId: replyTo,
       ...(restrictVisibility && { visible: true }),
     },
     { cursor: cursor ? parseInt(cursor.toString()) : undefined, limit: limit ? parseInt(limit.toString()) : undefined },

@@ -659,6 +659,7 @@ export class AttestationService {
     links,
     uuid,
     visible = true,
+    replyTo,
   }: {
     claimId?: number;
     authorId: number;
@@ -666,6 +667,7 @@ export class AttestationService {
     links: string[];
     uuid?: string;
     visible: boolean;
+    replyTo?: number;
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
     claimId && assert(claimId > 0, 'Error: claimId is zero');
@@ -688,6 +690,7 @@ export class AttestationService {
       links,
       uuid,
       visible,
+      replyToId: replyTo,
       createdAt: new Date(),
     };
     return this.createAnnotation(data);
@@ -733,6 +736,7 @@ export class AttestationService {
     links,
     uuid,
     visible,
+    replyTo,
   }: {
     claimId: number;
     authorId: number;
@@ -741,6 +745,7 @@ export class AttestationService {
     highlights: HighlightBlock[];
     uuid?: string;
     visible: boolean;
+    replyTo?: number;
   }) {
     assert(authorId > 0, 'Error: authorId is zero');
     claimId && assert(claimId > 0, 'Error: claimId is zero');
@@ -765,6 +770,7 @@ export class AttestationService {
       uuid,
       visible,
       createdAt: new Date(),
+      replyToId: replyTo,
     };
     return this.createAnnotation(data);
   }
@@ -925,6 +931,7 @@ export class AttestationService {
     return prisma.annotation.findMany({
       where: filter,
       include: {
+        _count: { select: { replies: true } },
         author: { select: { id: true, name: true, orcid: true } },
         // CommentVote: {
         //   select: { id: true, userId: true, annotationId: true, type: true },

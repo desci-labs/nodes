@@ -99,8 +99,11 @@ export const removeComment = async (req: Request<RemoveCommentBody, any, any>, r
 
 type AddCommentBody = zod.infer<typeof createCommentSchema>;
 
-export const addComment = async (req: Request<any, any, AddCommentBody['body']>, res: Response<AddCommentResponse>) => {
-  const { authorId, claimId, body, highlights, links, uuid, visible } = req.body;
+export const postComment = async (
+  req: Request<any, any, AddCommentBody['body']>,
+  res: Response<AddCommentResponse>,
+) => {
+  const { authorId, claimId, body, highlights, links, uuid, visible, replyTo } = req.body;
   const user = (req as any).user;
 
   if (parseInt(authorId.toString()) !== user.id) throw new ForbiddenError();
@@ -129,12 +132,13 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
     });
     logger.info({ processedHighlights }, 'processedHighlights');
     annotation = await attestationService.createHighlight({
-      claimId: claimId && parseInt(claimId.toString()),
-      authorId: user.id,
-      comment: body,
       links,
-      highlights: processedHighlights as unknown as HighlightBlock[],
       visible,
+      replyTo,
+      comment: body,
+      authorId: user.id,
+      claimId: claimId && parseInt(claimId.toString()),
+      highlights: processedHighlights as unknown as HighlightBlock[],
       ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
     });
     await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
