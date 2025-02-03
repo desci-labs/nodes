@@ -18,6 +18,7 @@ import { elasticWriteClient } from '../elasticSearchClient.js';
 import { logger as parentLogger } from '../logger.js';
 import { getFromCache, setToCache } from '../redisClient.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
+import { getFirstManuscript } from '../utils/manifest.js';
 import { ensureUuidEndsWithDot, hexToCid, unpadUuid } from '../utils.js';
 
 import { getManifestByCid, getManifestFromNode } from './data/processing.js';
@@ -69,9 +70,14 @@ async function indexResearchObject(nodeUuid: string) {
       refresh: true, // ensures immediate indexing
     });
     logger.info(`Indexed work: ${workId}`);
+    return { success: true };
   } catch (error) {
-    console.error('Error indexing work:', error);
-    throw error;
+    logger.error({ error }, 'Error indexing work:');
+    return {
+      success: false,
+      nodeUuid,
+      error: error?.message,
+    };
   }
 }
 
@@ -86,6 +92,8 @@ async function fillNodeData(nodeUuid: string) {
   const firstVersion = versions.at(-1);
   const firstVersionTime = new Date(parseInt(firstVersion.time) * 1000);
   const { manifest } = await getManifestFromNode(node);
+  const firstManuscript = getFirstManuscript(manifest);
+  if (!firstManuscript) throw 'Manifest does not contain a manuscript';
 
   const latestPublishedManifestCid = hexToCid(researchObject.recentCid);
   const latestManifest = await getManifestByCid(latestPublishedManifestCid);
@@ -95,11 +103,19 @@ async function fillNodeData(nodeUuid: string) {
   const publication_year = firstVersionTime?.getFullYear().toString() || new Date().getFullYear().toString();
   const citedByCount = 0; // Get from external publication data
 
-  const authors = await fillAuthorData(manifest.authors);
-  const aiData = await getAiData(manifest, true);
+  const [authors, aiData, best_locations] = await Promise.all([
+    fillAuthorData(manifest.authors).catch((err) => logger.error({ err, nodeUuid }, 'Error filling author data')),
+    getAiData(manifest, true).catch((err) => {
+      logger.error({ err, nodeUuid }, 'Error getting AI data');
+      throw 'Failed getting AI data';
+    }),
+    fillBestLocationsData(latestManifest, dpid).catch((err) =>
+      logger.error({ err, nodeUuid }, 'Error filling best locations data'),
+    ),
+  ]);
+
   const concepts = formatConceptsData(aiData?.concepts);
   const topics = await fillTopicsData(aiData?.topics);
-  const best_locations = await fillBestLocationsData(latestManifest, dpid);
   //
   const workData = {
     title: node.title,
@@ -134,8 +150,8 @@ async function fillAuthorData(manifestAuthors: ResearchObjectV1Author[]) {
     }));
 
     const oaMatches = await searchEsAuthors(nameOrcids);
-    console.log('Search results:', oaMatches);
-    const authors = oaMatches.responses?.map((res) => {
+    logger.info('Search results:', oaMatches);
+    const authors = oaMatches?.responses?.map((res) => {
       const hits = res.hits?.hits;
       const firstHit = hits?.[0];
       return {
@@ -145,7 +161,7 @@ async function fillAuthorData(manifestAuthors: ResearchObjectV1Author[]) {
 
     return authors;
   } catch (error) {
-    console.error('Error in fillAuthorData:', error);
+    logger.error('Error in fillAuthorData:', error);
     throw error;
   }
 }
@@ -154,11 +170,8 @@ async function fillBestLocationsData(manifest: ResearchObjectV1, dpid: string | 
   const license = manifest.defaultLicense;
   const works_count = 0;
 
-  const firstManuscript = manifest.components.find(
-    (c) =>
-      c.type === ResearchObjectComponentType.PDF &&
-      (c as PdfComponent).subtype === ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
-  );
+  const firstManuscript = getFirstManuscript(manifest);
+  if (!firstManuscript) return [];
   const firstManuscriptCid = firstManuscript.payload.cid || firstManuscript.payload.url; // Old PDF payloads used .url field for CID
 
   const pubDataRefEntry = await prisma.publicDataReference.findFirst({ where: { cid: firstManuscriptCid } });
@@ -252,11 +265,8 @@ const AI_DATA_CACHE_PREFIX = 'AI-';
 
 async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise<AiData | null> {
   try {
-    const firstManuscript = manifest.components.find(
-      (c) =>
-        c.type === ResearchObjectComponentType.PDF &&
-        (c as PdfComponent).subtype === ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
-    );
+    const firstManuscript = getFirstManuscript(manifest);
+    if (!firstManuscript) return null;
     const firstManuscriptCid = firstManuscript.payload.cid || firstManuscript.payload.url; // Old PDF payloads used .url field for CID
 
     const cacheKey = AI_DATA_CACHE_PREFIX + firstManuscriptCid;

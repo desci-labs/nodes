@@ -2,10 +2,11 @@
  * Indexing job for backfilling published nodes onto elastic search
  */
 
+import fs from 'fs/promises';
+
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { ElasticNodesService } from '../services/ElasticNodesService.js';
-
 const logger = parentLogger.child({ module: 'SCRIPTS::IndexPublishedNodesES' });
 
 async function main() {
@@ -47,13 +48,27 @@ async function main() {
     );
   }
 
+  const failures = [];
+
   let i = 0;
   for (const { id, uuid } of slicedNodeUuids) {
     logger.info({ uuid, nodeId: id }, `[ES Native Node Backfill] Indexing node ${i}/${nodeUuids.length}`);
-    await ElasticNodesService.indexResearchObject(uuid);
+    const result = await ElasticNodesService.indexResearchObject(uuid);
+    if ('success' in result && !result.success) {
+      logger.error({ uuid, nodeId: id, error: result.error }, 'Error indexing node');
+      failures.push(result);
+    }
     logger.info({ uuid, nodeId: id }, `[ES Native Node Backfill] Completed indexing node ${i}/${nodeUuids.length}`);
     i++;
   }
+
+  if (failures.length > 0) {
+    logger.error({ failures }, `[ES Native Node Backfill] ${failures.length} Failures during ES indexing`);
+    const failuresPath = './es-indexing-failures.json';
+    await fs.writeFile(failuresPath, JSON.stringify(failures, null, 2));
+    logger.info(`[ES Native Node Backfill] Saved failures to ${failuresPath}`);
+  }
+  logger.info(`[ES Native Node Backfill] ${failures.length} failures during indexing`);
 
   logger.info('[ES Native Node Backfill] Script finished executing');
   process.exit(0);

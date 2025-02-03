@@ -1,11 +1,16 @@
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
+import {
+  PdfComponent,
+  ResearchObjectComponentDocumentSubtype,
+  ResearchObjectComponentType,
+  ResearchObjectV1,
+} from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 import axios from 'axios';
 
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
-import { hexToCid, isCid } from '../utils.js';
 import { getOrCache } from '../redisClient.js';
+import { hexToCid, isCid } from '../utils.js';
 
 const IPFS_RESOLVER_OVERRIDE = process.env.IPFS_RESOLVER_OVERRIDE;
 
@@ -35,16 +40,13 @@ export const transformManifestWithHistory = (data: ResearchObjectV1, researchNod
 };
 
 /** Resolve manifest given its CID, in either hex or plain-text format */
-export const resolveNodeManifest = async (
-  targetCid: string,
-  gateway?: string
-) => {
+export const resolveNodeManifest = async (targetCid: string, gateway?: string) => {
   const ipfsResolver = IPFS_RESOLVER_OVERRIDE || gateway || 'https://ipfs.desci.com/ipfs';
   let cidString = targetCid;
 
   if (!isCid(targetCid)) {
     cidString = hexToCid(targetCid);
-  };
+  }
 
   try {
     parentLogger.info(`Calling IPFS Resolver ${ipfsResolver} for CID ${cidString}`);
@@ -56,15 +58,10 @@ export const resolveNodeManifest = async (
   }
 };
 
-export const cachedGetDpidFromManifest = async (
-  cid: string,
-  gateway?: string
-) => {
+export const cachedGetDpidFromManifest = async (cid: string, gateway?: string) => {
   const fnGetDpidFromManifest = async () => {
-    const manifest = await resolveNodeManifest(cid, gateway) as ResearchObjectV1;
-    return manifest.dpid
-      ? parseInt(manifest.dpid.id)
-      : -1;
+    const manifest = (await resolveNodeManifest(cid, gateway)) as ResearchObjectV1;
+    return manifest.dpid ? parseInt(manifest.dpid.id) : -1;
   };
 
   const manifestDpid = await getOrCache(`manifest-dpid-${cid}`, fnGetDpidFromManifest);
@@ -73,6 +70,17 @@ export const cachedGetDpidFromManifest = async (
   } else {
     return manifestDpid;
   }
-}
+};
 
 export const zeropad = (data: string) => (data.length < 2 ? `0${data}` : data);
+
+export function getFirstManuscript(manifest: ResearchObjectV1) {
+  if (!manifest?.components) return null;
+  const firstManuscript = manifest?.components.find(
+    (c) =>
+      c?.type === ResearchObjectComponentType.PDF &&
+      (c as PdfComponent)?.subtype === ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
+  );
+  if (!firstManuscript) return null;
+  return firstManuscript;
+}
