@@ -90,7 +90,7 @@ export const getExternalPublications = async (node: Node) => {
           abstract: data.item?.abstract ?? '',
         }))?.[0],
       authors: authorsSearchScores
-        ?.filter((res) => res.publisher === getPublisherTitle(data))
+        .filter((res) => res?.publisher === getPublisherTitle(data))
         ?.map((data) => ({
           score: data.score,
           authors: data.match,

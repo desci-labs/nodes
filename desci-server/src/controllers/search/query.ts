@@ -6,6 +6,7 @@ import {
   buildBoolQuery,
   buildMultiMatchQuery,
   buildSortQuery,
+  MAIN_WORKS_ALIAS,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
@@ -69,7 +70,7 @@ export const singleQuery = async (
   let searchEntity = entity;
 
   if (entity === 'works') {
-    searchEntity = 'works_opt';
+    searchEntity = MAIN_WORKS_ALIAS;
   }
 
   if (entity === 'fields') {

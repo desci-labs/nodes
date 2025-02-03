@@ -13,6 +13,7 @@ import {
   sendExternalPublicationsNotification,
 } from '../../services/crossRef/externalPublication.js';
 import { getManifestByCid } from '../../services/data/processing.js';
+import { ElasticNodesService } from '../../services/ElasticNodesService.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { doiService } from '../../services/index.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
@@ -190,10 +191,18 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     // trigger external publications email if any
     checkExternalPublications(node).then((_) => sendExternalPublicationsNotification(node));
 
-    return res.send({
+    res.status(200).send({
       ok: true,
       dpid: dpidAlias ?? parseInt(manifest.dpid?.id),
     });
+
+    // Index on ES
+    try {
+      ElasticNodesService.indexResearchObject(node.uuid);
+    } catch (err) {
+      logger.error({ err }, 'Error: Indexing published node in ElasticSearch failed');
+    }
+    return null;
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
     saveInteraction(req, ActionType.PUBLISH_NODE, {
