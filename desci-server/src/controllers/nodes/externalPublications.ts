@@ -13,6 +13,7 @@ import {
   getExternalPublications,
   sendExternalPublicationsNotification,
 } from '../../services/crossRef/externalPublication.js';
+import { getExternalPublicationsFromOpenAlex } from '../../services/openAlex/externalPublication.js';
 import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
 const logger = parentLogger.child({ module: 'ExternalPublications' });
@@ -50,6 +51,7 @@ export const verifyExternalPublicationSchema = z.object({
 });
 
 export const externalPublications = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
+  logger.trace('externalPublications');
   const { uuid } = req.params as z.infer<typeof externalPublicationsSchema>['params'];
   const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
   if (!node) throw new NotFoundError(`Node ${uuid} not found`);
@@ -58,10 +60,6 @@ export const externalPublications = async (req: RequestWithNode, res: Response, 
   const externalPublications = await prisma.externalPublications.findMany({
     where: { uuid: ensureUuidEndsWithDot(uuid) },
   });
-
-  // logger.trace({ externalPublications }, 'externalPublications');
-  // if (externalPublications.length == 1 && !externalPublications[0].verifiedAt)
-  //   return new SuccessResponse(externalPublications).send(res);
 
   const nonVerified = externalPublications.every((pub) => !pub.isVerified);
   if (nonVerified && !userIsOwner)
@@ -73,35 +71,15 @@ export const externalPublications = async (req: RequestWithNode, res: Response, 
   const isChecked = await redisClient.get(`external-pub-checked-${ensureUuidEndsWithDot(uuid)}`);
   if (isChecked === 'true') return new SuccessResponse(externalPublications).send(res);
 
-  const publications = await getExternalPublications(node);
+  const [CrossrefPublications, openAlexPublications] = await Promise.all([
+    getExternalPublications(node),
+    getExternalPublicationsFromOpenAlex(node),
+  ]);
 
   await redisClient.set(`external-pub-checked-${ensureUuidEndsWithDot(uuid)}`, 'true');
 
-  // const entries = await prisma.$transaction(
-  //   publications.map((pub) =>
-  //     prisma.externalPublications.upsert({
-  //       update: {
-  //         doi: pub.doi,
-  //         score: pub.score,
-  //         sourceUrl: pub.sourceUrl,
-  //         publisher: pub.publisher,
-  //         publishYear: pub.publishYear,
-  //         uuid: ensureUuidEndsWithDot(node.uuid),
-  //         isVerified: false,
-  //       },
-  //       where: { id: -1 },
-  //       create: {
-  //         doi: pub.doi,
-  //         score: pub.score,
-  //         sourceUrl: pub.sourceUrl,
-  //         publisher: pub.publisher,
-  //         publishYear: pub.publishYear,
-  //         uuid: ensureUuidEndsWithDot(node.uuid),
-  //         isVerified: false,
-  //       },
-  //     }),
-  //   ),
-  // );
+  logger.trace({ CrossrefPublications, openAlexPublications }, 'externalPublication');
+  const publications = CrossrefPublications?.length > 0 ? CrossrefPublications : openAlexPublications;
 
   const entries = await asyncMap(publications, async (pub) => {
     const exists = await prisma.externalPublications.findFirst({
@@ -125,6 +103,7 @@ export const externalPublications = async (req: RequestWithNode, res: Response, 
 
   sendExternalPublicationsNotification(node);
   return new SuccessResponse(entries).send(res);
+  // return new SuccessResponse({ publications, openAlexPublications }).send(res);
 };
 
 export const addExternalPublication = async (req: RequestWithNode, res: Response, _next: NextFunction) => {

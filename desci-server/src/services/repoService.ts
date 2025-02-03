@@ -149,7 +149,7 @@ class RepoService {
           timeoutErrorMessage: this.timeoutErrorMessage,
         },
       );
-      logger.info({ arg, doc: response.data }, 'Retrieve Draft Document');
+      logger.info({ arg, doc: response.data.ok }, 'Retrieve Draft Document');
       if (response.status === 200 && response.data.ok) {
         return response.data.document;
       } else {
