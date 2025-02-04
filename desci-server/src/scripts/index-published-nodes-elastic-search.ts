@@ -52,13 +52,16 @@ async function main() {
 
   let i = 0;
   for (const { id, uuid } of slicedNodeUuids) {
-    logger.info({ uuid, nodeId: id }, `[ES Native Node Backfill] Indexing node ${i}/${nodeUuids.length}`);
+    logger.info({ uuid, nodeId: id }, `[ES Native Node Backfill] Indexing node ${i}/${slicedNodeUuids.length}`);
     const result = await ElasticNodesService.indexResearchObject(uuid);
     if ('success' in result && !result.success) {
       logger.error({ uuid, nodeId: id, error: result.error }, 'Error indexing node');
       failures.push(result);
     }
-    logger.info({ uuid, nodeId: id }, `[ES Native Node Backfill] Completed indexing node ${i}/${nodeUuids.length}`);
+    logger.info(
+      { uuid, nodeId: id },
+      `[ES Native Node Backfill] Completed indexing node ${i}/${slicedNodeUuids.length}`,
+    );
     i++;
   }
 
