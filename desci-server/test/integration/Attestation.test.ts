@@ -138,7 +138,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe.only('Attestations Service', async () => {
+describe('Attestations Service', async () => {
   let baseManifest: ResearchObjectV1;
   let baseManifestCid: string;
   let users: User[];
@@ -838,7 +838,7 @@ describe.only('Attestations Service', async () => {
     });
   });
 
-  describe.only('Annotations(Comments)', async () => {
+  describe('Annotations(Comments)', async () => {
     let claim: NodeAttestation;
     let node: Node;
     const nodeVersion = 0;
@@ -867,6 +867,7 @@ describe.only('Attestations Service', async () => {
         authorId: users[1].id,
         comment: 'Love the attestation',
         visible: true,
+        uuid: nodes[1].uuid ?? '',
       });
     });
 
@@ -900,6 +901,7 @@ describe.only('Attestations Service', async () => {
         authorId: users[1].id,
         comment: 'Old comment to be edited',
         visible: true,
+        uuid: nodes[1].uuid ?? '',
       });
 
       const editedComment = await attestationService.editComment({
@@ -928,10 +930,12 @@ describe.only('Attestations Service', async () => {
         expiresIn: '1y',
       });
       const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
+      console.log('edit comment', nodes[1], comment);
       const res = await request(app)
-        .put(`/v1/nodes/comments/${comment.id}`)
+        .put(`/v1/nodes/${nodes[1].uuid}/comments/${comment.id}`)
         .set('authorization', commenterJwtHeader)
         .send({ body: 'edit comment via api', links: ['https://desci.com'] });
+      console.log('response', res.body);
       expect(res.statusCode).to.equal(200);
       const editedComment = (await res.body.data) as Annotation;
 
