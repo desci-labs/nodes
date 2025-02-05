@@ -705,7 +705,6 @@ export class AttestationService {
     const comment = await prisma.annotation.findFirst({ where: { id } });
     if (!comment) throw new CommentNotFoundError();
 
-    logger.trace({ commentAuthor: comment.authorId, authorId }, 'Inspect authors');
     if (comment.authorId !== authorId) throw new ForbiddenError();
 
     if (comment.nodeAttestationId) {

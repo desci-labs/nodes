@@ -55,7 +55,7 @@ export const getGeneralComments = async (req: RequestWithNode, res: Response, _n
 };
 
 export const editComment = async (req: RequestWithUser, res: Response) => {
-  const { id } = req.body as z.infer<typeof editCommentsSchema>['params'];
+  const { id } = req.params as z.infer<typeof editCommentsSchema>['params'];
   const { links, body } = req.body as z.infer<typeof editCommentsSchema>['body'];
 
   const user = req.user;
@@ -71,7 +71,7 @@ export const editComment = async (req: RequestWithUser, res: Response) => {
   logger.trace(`EditComment`);
   const comment = await attestationService.editComment({
     authorId: parseInt(user.id.toString()),
-    id,
+    id: parseInt(id.toString()),
     update: { body, links },
   });
   logger.trace({ comment }, `EditCommentedComment`);
