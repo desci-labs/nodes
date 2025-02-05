@@ -998,7 +998,6 @@ describe.only('Attestations Service', async () => {
         visible: true,
         replyTo: comment.id,
       });
-      console.log('reply', res.body.data);
       reply = res.body.data as Annotation;
 
       expect(res.statusCode).to.equal(200);
