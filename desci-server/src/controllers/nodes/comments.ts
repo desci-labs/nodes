@@ -65,50 +65,18 @@ export const editComment = async (req: RequestWithUser, res: Response) => {
     module: 'Comments::Edit',
     user,
     body: req.body,
+    params: req.params,
   });
 
-  // if (uuid) {
-  //   const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
-  //   if (!node) throw new NotFoundError('Node with uuid ${uuid} not found');
-  // }
   logger.trace(`EditComment`);
+  const comment = await attestationService.editComment({
+    authorId: parseInt(user.id.toString()),
+    id,
+    update: { body, links },
+  });
+  logger.trace({ comment }, `EditCommentedComment`);
 
-  // let comment = await attestationService.getComment({ id });
-  // if (!comment) throw new NotFoundError();
-
-  // if (comment.authorId !== user.id) throw new ForbiddenError();
-  const comment = await attestationService.editComment({ authorId: req.user.id, id, update: { body, links } });
-  // if (highlights?.length > 0) {
-  //   const processedHighlights = await asyncMap(highlights, async (highlight) => {
-  //     if (!('image' in highlight)) return highlight;
-  //     const blob = base64ToBlob(highlight.image);
-  //     const storedCover = await client.add(blob, { cidVersion: 1 });
-
-  //     return { ...highlight, image: `${PUBLIC_IPFS_PATH}/${storedCover.cid}` };
-  //   });
-  //   logger.info({ processedHighlights }, 'processedHighlights');
-  //   annotation = await attestationService.createHighlight({
-  //     claimId: claimId && parseInt(claimId.toString()),
-  //     authorId: user.id,
-  //     comment: body,
-  //     links,
-  //     highlights: processedHighlights as unknown as HighlightBlock[],
-  //     visible,
-  //     ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
-  //   });
-  //   await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
-  // } else {
-  //   annotation = await attestationService.createComment({
-  //     claimId: claimId && parseInt(claimId.toString()),
-  //     authorId: user.id,
-  //     comment: body,
-  //     links,
-  //     visible,
-  //     ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
-  //   });
-  // }
   await saveInteraction(req, ActionType.EDIT_COMMENT, { commentId: comment.id });
-  // await emitNotificationForAnnotation(annotation.id);
   new SuccessResponse(comment).send(res);
 };
 
