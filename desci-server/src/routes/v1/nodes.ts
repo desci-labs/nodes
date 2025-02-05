@@ -194,7 +194,11 @@ router.post(
   [ensureUser, validate(postCommentVoteSchema)],
   asyncHandler(upvoteComment),
 );
-router.put('/comments/:id', [ensureUser, validate(editCommentsSchema)], asyncHandler(editComment));
+router.put(
+  '/:uuid/comments/:id',
+  [ensureUser, ensureNodeAccess, validate(editCommentsSchema)],
+  asyncHandler(editComment),
+);
 router.post(
   '/:uuid/comments/:commentId/downvote',
   [ensureUser, validate(postCommentVoteSchema)],

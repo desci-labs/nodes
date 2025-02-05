@@ -722,7 +722,23 @@ export class AttestationService {
       body,
       links: links || comment.links,
     };
-    return prisma.annotation.update({ where: { id: comment.id }, data });
+    return prisma.annotation.upsert({
+      update: { ...data },
+      create: { ...comment },
+      where: { id: comment.id },
+      select: {
+        id: true,
+        body: true,
+        links: true,
+        uuid: true,
+        authorId: true,
+        nodeAttestationId: true,
+        updatedAt: true,
+        type: true,
+        visible: true,
+        highlights: true,
+      },
+    });
   }
 
   async createHighlight({

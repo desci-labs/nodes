@@ -54,6 +54,7 @@ export const getCommentsSchema = z.object({
 export const editCommentsSchema = z.object({
   params: z.object({
     // quickly disqualify false uuid strings
+    uuid: z.string().min(10),
     id: z.coerce.number(),
   }),
   body: z.object({
