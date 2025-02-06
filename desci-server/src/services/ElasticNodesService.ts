@@ -280,35 +280,28 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
       }
     }
 
-    const fileName = firstManuscriptCid + '.pdf';
-    const presignedUrlEndpoint = `${process.env.SCORE_GEN_SERVER}/prod/gen-s3-url?file_name=${fileName}`;
-
-    const presignedUrlData = await axios.get(presignedUrlEndpoint);
-    const { url: presignedUrl, UploadedFileName: s3FileName } = presignedUrlData.data as {
-      url: string;
-      UploadedFileName: string;
-    };
-
     const pubDataRefEntry = await prisma.publicDataReference.findFirst({ where: { cid: firstManuscriptCid } });
     const isExternal = pubDataRefEntry?.external ? true : false;
 
-    const pdfUrl = isExternal ? `${PUB_IPFS_URL}/${firstManuscriptCid}` : `${IPFS_URL}/${firstManuscriptCid}`;
-    const pdfRes = await axios({
-      url: pdfUrl,
-      method: 'GET',
-      responseType: 'arraybuffer',
-    });
+    const sendCidUrl = `${process.env.AI_CID_SEND_SERVER}/v1/send-cid?cid=${firstManuscriptCid}${
+      isExternal ? '&external=true' : '&external=false'
+    }&force_run=false`;
 
-    const pdfBuffer = pdfRes.data;
+    const sendCidRes = await axios.get(sendCidUrl as string);
 
-    // Upload the PDF
-    const uploaded = await axios.put(presignedUrl as string, pdfBuffer, {
-      headers: {
-        'Content-Type': 'application/pdf',
-      },
-    });
+    const urlData = sendCidRes.data as {
+      message: {
+        UploadedFileName: { novelty_api: string; full_ref_api: string };
+      };
+    };
 
-    const resultUrl = `${process.env.SCORE_RESULT_API}/prod/get-result?UploadedFileName=${s3FileName}`;
+    const { UploadedFileName } = urlData.message;
+    if (!UploadedFileName) {
+      logger.error({ urlData }, 'Error getting AI data, missing UploadedFileName');
+      return null;
+    }
+
+    const resultUrl = `${process.env.SCORE_RESULT_API}/prod/get-result?UploadedFileName=${UploadedFileName.novelty_api}`;
     let resultRes;
     await delay(2000); // Wait for the file to be available in the lambda service
     let retries = 15;
