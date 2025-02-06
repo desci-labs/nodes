@@ -267,7 +267,9 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
   try {
     const firstManuscript = getFirstManuscript(manifest);
     if (!firstManuscript) return null;
-    const firstManuscriptCid = firstManuscript.payload.cid || firstManuscript.payload.url; // Old PDF payloads used .url field for CID
+    const firstManuscriptCid = firstManuscript.payload?.cid || firstManuscript.payload?.url; // Old PDF payloads used .url field for CID
+
+    if (!firstManuscriptCid) return null;
 
     const cacheKey = AI_DATA_CACHE_PREFIX + firstManuscriptCid;
     if (useCache) {
@@ -373,4 +375,5 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
 
 export const ElasticNodesService = {
   indexResearchObject,
+  getAiData,
 };
