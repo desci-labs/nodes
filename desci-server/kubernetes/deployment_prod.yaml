@@ -98,6 +98,7 @@ spec:
           export OPEN_ALEX_DATABASE_URL="{{ .Data.OPEN_ALEX_DATABASE_URL }}"
           export SCORE_GEN_SERVER="{{ .Data.SCORE_GEN_SERVER }}"
           export SCORE_RESULT_API="{{ .Data.SCORE_RESULT_API }}"
+          export AI_CID_SEND_SERVER="{{ .Data.AI_CID_SEND_SERVER }}"
           export CLOUDFLARE_WORKER_API=https://nodes-sync.desci.com
           export CLOUDFLARE_WORKER_API_SECRET="{{ .Data.CLOUDFLARE_WORKER_API_SECRET }}"
           export ENABLE_WORKERS_API=true
