@@ -156,6 +156,7 @@ async function fillAuthorData(manifestAuthors: ResearchObjectV1Author[]) {
       const firstHit = hits?.[0];
       return {
         ...firstHit?._source,
+        author_id: firstHit?._id,
       };
     });
 
