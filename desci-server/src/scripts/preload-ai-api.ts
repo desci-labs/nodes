@@ -117,6 +117,8 @@ async function preloadAiData(node: Node) {
   if (!aiData) {
     logger.error({ nodeId: node.id, uuid: node.uuid, manuscriptCid }, 'Failed getting AI data for manuscript');
     throw new Error('Failed getting AI data for manuscript');
+  } else {
+    logger.info({ nodeId: node.id, uuid: node.uuid, manuscriptCid }, 'Successfully preloaded AI data for manuscript');
   }
   return true;
   // We can go about making mutations here to the manifest, without the mutations the data is already cached with a long TTL,
