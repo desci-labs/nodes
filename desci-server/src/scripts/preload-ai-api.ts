@@ -46,14 +46,19 @@ async function main() {
       try {
         const result = await preloadAiData(node);
         if (!result) {
+          //   debugger;
           logger.error({ uuid, nodeId: id }, 'Error preloading AI data for node');
           failures.push({ uuid, nodeId: id });
         }
+        logger.info({ uuid, nodeId: id }, `[Preload AI API] Completed processing node ${nodeIndex}/${nodes.length}`);
       } catch (e) {
-        logger.error({ uuid, nodeId: id }, 'Error preloading AI data for node');
+        // debugger;
+        logger.error(
+          { uuid, nodeId: id, node: `${nodeIndex}/${nodes.length}`, error: e },
+          'Error preloading AI data for node',
+        );
         failures.push({ uuid, nodeId: id, error: e });
       }
-      logger.info({ uuid, nodeId: id }, `[Preload AI API] Completed processing node ${nodeIndex}/${nodes.length}`);
     });
     await Promise.allSettled(promises);
   }
