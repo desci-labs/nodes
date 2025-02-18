@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import { claimAttestation, claimEntryRequirements, removeClaim } from '../../../controllers/attestations/claims.js';
-import { addComment, getAttestationComments, removeComment } from '../../../controllers/attestations/comments.js';
+import { postComment, getAttestationComments, removeComment } from '../../../controllers/attestations/comments.js';
 import { addReaction, getAttestationReactions, removeReaction } from '../../../controllers/attestations/reactions.js';
 import {
   getAllRecommendations,
@@ -64,7 +64,7 @@ router.post('/claim', [ensureUser, validate(claimAttestationSchema)], asyncHandl
 router.post('/unclaim', [ensureUser, validate(removeClaimSchema)], asyncHandler(removeClaim));
 router.post('/claimAll', [ensureUser, validate(claimEntryAttestationsSchema)], asyncHandler(claimEntryRequirements));
 
-router.post('/comments', [ensureUser, validate(createCommentSchema)], asyncHandler(addComment));
+router.post('/comments', [ensureUser, validate(createCommentSchema)], asyncHandler(postComment));
 router.post('/reaction', [ensureUser, validate(addReactionSchema)], asyncHandler(addReaction));
 router.post('/verification', [ensureUser, validate(addVerificationSchema)], asyncHandler(addVerification));
 

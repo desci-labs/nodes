@@ -859,6 +859,9 @@ model Annotation {
   createdAt         DateTime?
   updatedAt         DateTime?        @updatedAt
   CommentVote       CommentVote[]
+  replies           Annotation[]     @relation("CommentReply")
+  replyTo           Annotation?      @relation("CommentReply", fields: [replyToId], references: [id])
+  replyToId         Int?
 }
 
 //An emoji reaction to a node

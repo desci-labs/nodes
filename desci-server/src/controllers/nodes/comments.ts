@@ -15,7 +15,7 @@ import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 const parentLogger = logger.child({ module: 'Comments' });
 export const getGeneralComments = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid } = req.params as z.infer<typeof getCommentsSchema>['params'];
-  const { cursor, limit } = req.query as z.infer<typeof getCommentsSchema>['query'];
+  const { cursor, limit, replyTo } = req.query as z.infer<typeof getCommentsSchema>['query'];
   const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
   if (!node) throw new NotFoundError("Can't comment on unknown research object");
 
@@ -23,12 +23,14 @@ export const getGeneralComments = async (req: RequestWithNode, res: Response, _n
 
   const count = await attestationService.countComments({
     uuid: ensureUuidEndsWithDot(uuid),
+    ...(replyTo ? { replyToId: { equals: replyTo } } : { replyToId: null }),
     ...(restrictVisibility && { visible: true }),
   });
 
   const data = await attestationService.getComments(
     {
       uuid: ensureUuidEndsWithDot(uuid),
+      ...(replyTo ? { replyToId: { equals: replyTo } } : { replyToId: null }),
       ...(restrictVisibility && { visible: true }),
     },
     { cursor: cursor ? parseInt(cursor.toString()) : undefined, limit: limit ? parseInt(limit.toString()) : undefined },
@@ -38,12 +40,15 @@ export const getGeneralComments = async (req: RequestWithNode, res: Response, _n
     const upvotes = await attestationService.getCommentUpvotes(comment.id);
     const downvotes = await attestationService.getCommentDownvotes(comment.id);
     const vote = await attestationService.getUserCommentVote(req.user.id, comment.id);
+    const count = comment._count;
+    delete comment._count;
     return {
       ...comment,
       highlights: comment.highlights.map((h) => JSON.parse(h as string)),
       meta: {
         upvotes,
         downvotes,
+        replyCount: count.replies,
         isUpvoted: vote?.type === VoteType.Yes,
         isDownVoted: vote?.type === VoteType.No,
       },

@@ -37,6 +37,7 @@ export const getAttestationCommentsSchema = z.object({
   query: z.object({
     cursor: z.coerce.number().optional(),
     limit: z.coerce.number().optional().default(20),
+    replyTo: z.coerce.number().optional(),
   }),
 });
 
@@ -48,6 +49,7 @@ export const getCommentsSchema = z.object({
   query: z.object({
     cursor: z.coerce.number().optional(),
     limit: z.coerce.number().optional(),
+    replyTo: z.coerce.number().optional(),
   }),
 });
 
@@ -164,6 +166,7 @@ const commentSchema = z
     highlights: z.array(highlightBlockSchema).optional(),
     uuid: z.string(),
     visible: z.boolean().default(true),
+    replyTo: z.coerce.number().optional(),
   })
   .refine((comment) => comment.body?.length > 0 || !!comment?.highlights?.length, {
     message: 'Either Comment body or highlights is required',
