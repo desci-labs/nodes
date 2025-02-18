@@ -86,6 +86,7 @@ import {
   postCommentVoteSchema,
   showNodeAttestationsSchema,
 } from './attestations/schema.js';
+import { nodeByStream } from '../../controllers/nodes/byStream.js';
 
 const router = Router();
 
@@ -95,6 +96,7 @@ router.get('/stats', [ensureUser], getDraftNodeStats);
 router.get('/stats/published', [ensureUser], getPublishedNodeStats);
 router.get('/published/list', [ensureUser], getPublishedNodes);
 router.get('/published/:dpid([0-9]+)', [], nodeByDpid);
+router.get('/published/:stream([a-z0-9]{50,})', [], nodeByStream);
 router.get('/published/:uuid', [], checkIfPublishedNode);
 router.get('/access/:uuid', [ensureUserIfPresent], checkNodeAccess);
 router.post('/search/:query', [ensureUser], searchNodes);
