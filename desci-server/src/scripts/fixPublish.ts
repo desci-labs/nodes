@@ -102,7 +102,19 @@ async function fixByNodeUuids({
             select: { id: true },
           });
           await prisma.publicDataReference.deleteMany({ where: { nodeId: node.id } });
-          await addIjPublishStatusEntry({ commitId, version: nodeVersIdx + 1, nodeUuid, manifestCid });
+          const publishStatusEntry = await addIjPublishStatusEntry({
+            commitId,
+            version: nodeVersIdx + 1,
+            nodeUuid,
+            manifestCid,
+          });
+          if (publishStatusEntry.createPdr) {
+            // Incase the publish status entry already exists, reset it's PDR status to false, as we have deleted the PDRs for the node.
+            await prisma.publishStatus.update({
+              where: { id: publishStatusEntry.id },
+              data: { createPdr: false },
+            });
+          }
         }
 
         // Check for existing publishStatus entry for the commitId, throws if non existent
