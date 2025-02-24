@@ -2,9 +2,6 @@ import { CreativeWork, Dataset, SoftwareSourceCode } from 'schema-dts';
 import {
   CommonComponentPayload,
   DataComponentMetadata,
-  DataComponentPayload,
-  PdfComponent,
-  PdfComponentPayload,
   ResearchObject,
   ResearchObjectComponentType,
   ResearchObjectV1,
@@ -13,12 +10,14 @@ import {
 } from '../ResearchObject';
 import { RoCrateGraph } from '../RoCrate';
 import { BaseTransformer } from './BaseTransformer';
-import { isNodeRoot, isResearchObjectComponentTypeMap } from '../trees/treeTools';
+import { isNodeRoot } from '../trees/treeTools';
 
-const IPFS_RESOLVER_HTTP = 'https://ipfs.io/ipfs/';
+const EXTERNAL_IPFS_RESOLVER_HTTP = 'https://ipfs.io/ipfs/';
 const cleanupUrlOrCid = (str: string) => {
-  return str?.replace(new RegExp(`^${IPFS_RESOLVER_HTTP}`), '');
+  return str?.replace(new RegExp(`^${EXTERNAL_IPFS_RESOLVER_HTTP}`), '');
 };
+
+const DESCI_IPFS_RESOLVER_HTTP = 'https://ipfs.desci.com/ipfs/';
 
 const formatOrcid = (str: string | undefined) => {
   if (!str) {
@@ -178,7 +177,7 @@ export class RoCrateTransformer implements BaseTransformer {
       };
       creativeWork.encodingFormat = 'application/pdf';
       (creativeWork as any)['/'] = cleanupUrlOrCid((component.payload as any).url);
-      creativeWork.url = `https://ipfs.io/ipfs/${cleanupUrlOrCid((component.payload as any).url)}`;
+      creativeWork.url = `${DESCI_IPFS_RESOLVER_HTTP}${cleanupUrlOrCid((component.payload as any).url)}`;
       creativeWork['@type'] = 'CreativeWork';
       crateComponent = creativeWork;
     } else if (component.type === ResearchObjectComponentType.CODE) {
@@ -188,7 +187,7 @@ export class RoCrateTransformer implements BaseTransformer {
       softwareSourceCode.encodingFormat = 'text/plain';
 
       (softwareSourceCode as any)['/'] = cleanupUrlOrCid(component.payload.url);
-      softwareSourceCode.url = `https://ipfs.io/ipfs/${cleanupUrlOrCid(component.payload.url)}`;
+      softwareSourceCode.url = `${DESCI_IPFS_RESOLVER_HTTP}${cleanupUrlOrCid(component.payload.url)}`;
       softwareSourceCode.discussionUrl = component.payload.externalUrl;
       softwareSourceCode['@type'] = 'SoftwareSourceCode';
       crateComponent = softwareSourceCode;
@@ -214,7 +213,7 @@ export class RoCrateTransformer implements BaseTransformer {
       }
       dataset.encodingFormat = 'application/octet-stream';
       (dataset as any)['/'] = cleanupUrlOrCid((component.payload as any).url || (component.payload as any).cid);
-      dataset.url = `https://ipfs.io/ipfs/${cleanupUrlOrCid(
+      dataset.url = `${DESCI_IPFS_RESOLVER_HTTP}${cleanupUrlOrCid(
         (component.payload as any).url || (component.payload as any).cid,
       )}`;
       dataset['@type'] = 'Dataset';
