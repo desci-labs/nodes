@@ -12,9 +12,8 @@ import { RoCrateGraph } from '../RoCrate';
 import { BaseTransformer } from './BaseTransformer';
 import { isNodeRoot } from '../trees/treeTools';
 
-const EXTERNAL_IPFS_RESOLVER_HTTP = 'https://ipfs.io/ipfs/';
 const cleanupUrlOrCid = (str: string) => {
-  return str?.replace(new RegExp(`^${EXTERNAL_IPFS_RESOLVER_HTTP}`), '');
+  return str?.replace(new RegExp(`^http.*/ipfs/`), '');
 };
 
 const DESCI_IPFS_RESOLVER_HTTP = 'https://ipfs.desci.com/ipfs/';

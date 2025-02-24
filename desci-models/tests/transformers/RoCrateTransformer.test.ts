@@ -81,7 +81,7 @@ describe('RoCrateTransformer', () => {
 
     expect(pdfComponent).to.not.be.undefined;
     expect(pdfComponent.url).to.equal(
-      'https://ipfs.io/ipfs/bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy',
+      'https://ipfs.desci.com/ipfs/bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy',
     );
     expect((pdfComponent as any)['/']).to.equal('bafybeic3ach4ibambafznjsa3p446ghds3hp7742fkisldroe4wt6q5bsy');
   });
@@ -99,7 +99,7 @@ describe('RoCrateTransformer', () => {
     expect(codeComponent).to.not.be.undefined;
     expect(codeComponent['/']).to.equal('bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i');
     expect(codeComponent.url).to.equal(
-      'https://ipfs.io/ipfs/bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i',
+      'https://ipfs.desci.com/ipfs/bafybeibzxn2il4q7att4bf3lvrcc2peovcdokv3jsbzne5v6ad5tr6mi6i',
     );
   });
 
@@ -113,7 +113,7 @@ describe('RoCrateTransformer', () => {
 
     expect(dataComponent).to.not.be.undefined;
     expect(dataComponent.url).to.equal(
-      'https://ipfs.io/ipfs/bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m',
+      'https://ipfs.desci.com/ipfs/bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m',
     );
     expect(dataComponent['/']).to.equal('bafybeigzwjr6xkcdy4b7rrtzbbpwq3isx3zaesfopnpr3bqld3uddc5k3m');
   });
