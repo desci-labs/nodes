@@ -103,6 +103,7 @@ spec:
           export CLOUDFLARE_WORKER_API_SECRET="{{ .Data.CLOUDFLARE_WORKER_API_SECRET }}"
           export ENABLE_WORKERS_API=true
           export LOG_ENCRYPTION_KEY="{{ .Data.LOG_ENCRYPTION_KEY }}"
+          export ORCID_PUBLIC_API="{{ .Data.ORCID_PUBLIC_API }}"
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";

@@ -1,4 +1,4 @@
-import { AuthTokenSource, User } from '@prisma/client';
+import { AuthTokenSource, Prisma, User } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma as client } from '../client.js';
@@ -357,6 +357,96 @@ export const getCountNewUsersInXDays = async (daysAgo: number): Promise<number> 
   return newUsersInXDays;
 };
 
+export const getNewUsersInXDays = async (dateXDaysAgo: Date) => {
+  logger.trace({ fn: 'getCountNewUsersInXDays' }, 'user::getCountNewUsersInXDays');
+
+  const newUsersInXDays = await client.user.findMany({
+    where: {
+      createdAt: {
+        gte: dateXDaysAgo,
+      },
+    },
+    select: {
+      id: true,
+      email: true,
+      orcid: true,
+    },
+  });
+
+  return newUsersInXDays;
+};
+
+export const getNewOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
+  logger.trace({ fn: 'getCountNewUsersInXDays' }, 'user::getCountNewUsersInXDays');
+
+  const newUsersInXDays = await client.user.findMany({
+    where: {
+      createdAt: {
+        gte: dateXDaysAgo,
+      },
+      orcid: {
+        not: null,
+      },
+    },
+    select: {
+      id: true,
+      email: true,
+      orcid: true,
+    },
+  });
+
+  return newUsersInXDays;
+};
+
+export const getCountAllUsers = async (): Promise<number> => {
+  logger.trace({ fn: 'getCountAllUsers' }, 'user::getCountAllUsers');
+  const allUsers = await client.user.count({});
+  return allUsers;
+};
+
+export const getCountAllOrcidUsers = async (): Promise<number> => {
+  logger.trace({ fn: 'getCountAllUsers' }, 'user::getCountAllUsers');
+  const allUsers = await client.user.count({ where: { orcid: { not: null } } });
+  return allUsers;
+};
+
+export const getCountAllNonDesciUsers = async (): Promise<number> => {
+  logger.trace({ fn: 'getCountAllNonDesciUsers' }, 'user::getCountAllNonDesciUsers');
+
+  const newUsersInXDays = await client.user.count({
+    where: {
+      email: {
+        not: { contains: '@desci.com' },
+      },
+    },
+  });
+
+  return newUsersInXDays;
+};
+
+/**
+ * Count the new users in X days with ORCID profile linked
+ * @param daysAgo
+ * @returns
+ */
+export const getCountNewOrcidUsersInXDays = async (daysAgo: number): Promise<number> => {
+  logger.trace({ fn: 'getCountNewUsersInXDays' }, 'user::getCountNewUsersInXDays');
+  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+
+  const newUsersInXDays = await client.user.count({
+    where: {
+      createdAt: {
+        gte: dateXDaysAgo,
+      },
+      orcid: {
+        not: null,
+      },
+    },
+  });
+
+  return newUsersInXDays;
+};
+
 // get new user count for specified month
 export const getCountNewUsersInMonth = async (month: number, year: number): Promise<number> => {
   logger.trace({ fn: 'getCountNewUsersInMonth' }, 'user::getCountNewUsersInMonth');
@@ -368,6 +458,27 @@ export const getCountNewUsersInMonth = async (month: number, year: number): Prom
       createdAt: {
         gte: startDate,
         lt: endDate,
+      },
+    },
+  });
+
+  return newUsersInMonth;
+};
+
+// get new orcid user count for specified month
+export const getCountNewUsersWithOrcidInMonth = async (month: number, year: number): Promise<number> => {
+  logger.trace({ fn: 'getCountNewUsersInMonth' }, 'user::getCountNewUsersInMonth');
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 1);
+
+  const newUsersInMonth = await client.user.count({
+    where: {
+      createdAt: {
+        gte: startDate,
+        lt: endDate,
+      },
+      orcid: {
+        not: null,
       },
     },
   });
