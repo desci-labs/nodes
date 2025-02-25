@@ -53,9 +53,73 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
         createdAt: {
           gte: dateXDaysAgo,
         },
+        // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
+        // from poluting returned data
+        userId: {
+          not: null,
+        },
       },
     })
   ).length;
+};
+
+export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
+  logger.info({ fn: 'getCountActiveUsersInXDays', dateXDaysAgo }, 'interactionLog::getCountActiveUsersInXDays');
+
+  return await prisma.interactionLog.findMany({
+    distinct: ['userId'],
+    where: {
+      createdAt: {
+        gte: dateXDaysAgo,
+      },
+      // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
+      // from poluting returned data
+      userId: {
+        not: null,
+      },
+    },
+    select: { id: true, action: true, user: { select: { id: true, email: true, orcid: true } } },
+  });
+};
+
+export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<number> => {
+  logger.info({ fn: 'getCountActiveOrcidUsersInXDays' }, 'interactionLog::getCountActiveOrcidUsersInXDays');
+
+  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  return (
+    await prisma.interactionLog.findMany({
+      distinct: ['userId'],
+      where: {
+        createdAt: {
+          gte: dateXDaysAgo,
+        },
+        user: {
+          orcid: {
+            not: null,
+          },
+        },
+      },
+    })
+  ).length;
+};
+
+export const getActiveOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
+  logger.info({ fn: 'getActiveOrcidUsersInXDays', dateXDaysAgo }, 'interactionLog::getActiveOrcidUsersInXDays');
+  return await prisma.interactionLog.findMany({
+    distinct: ['userId'],
+    where: {
+      createdAt: {
+        gte: dateXDaysAgo,
+      },
+      user: {
+        orcid: {
+          not: null,
+        },
+      },
+    },
+    select: { user: { select: { id: true, email: true, orcid: true } } },
+    // include: { user: { select: { id: true, email: true, orcid: true } } },
+  });
 };
 
 export const getCountActiveUsersInMonth = async (month: number, year: number): Promise<number> => {
@@ -67,6 +131,31 @@ export const getCountActiveUsersInMonth = async (month: number, year: number): P
       createdAt: {
         gte: new Date(year, month, 1),
         lt: new Date(year, month + 1, 1),
+      },
+      // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
+      // from poluting returned data
+      // userId: {
+      //   not: null,
+      // },
+    },
+  });
+  return activeCount.length;
+};
+
+export const getCountActiveOrcidUsersInMonth = async (month: number, year: number): Promise<number> => {
+  logger.info({ fn: 'getCountActiveOrcidUsersInMonth' }, 'interactionLog::getCountActiveOrcidUsersInMonth');
+
+  const activeCount = await prisma.interactionLog.findMany({
+    distinct: ['userId'],
+    where: {
+      createdAt: {
+        gte: new Date(year, month, 1),
+        lt: new Date(year, month + 1, 1),
+      },
+      user: {
+        orcid: {
+          not: null,
+        },
       },
     },
   });
@@ -87,6 +176,11 @@ export const getEmailsActiveUsersInXDays = async (daysAgo: number): Promise<stri
       createdAt: {
         gte: dateXDaysAgo,
       },
+      // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
+      // from poluting returned data
+      // userId: {
+      //   not: null,
+      // },
     },
   });
   return activeUsers.filter((a) => a.user).map((a) => a.user.email);

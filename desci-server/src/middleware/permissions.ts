@@ -43,7 +43,15 @@ export const extractAuthToken = async (request: ExpressRequest | Request) => {
     if (authHeader) {
       token = authHeader.split(' ')[1];
     }
-    logger.trace({ module: 'Permissions::extractToken', authHeaderLength: authHeader?.length || 0 }, 'Request');
+    logger.trace(
+      {
+        module: 'Permissions::extractToken',
+        authHeaderLength: authHeader?.length || 0,
+        authHeader,
+        headers: request.headers,
+      },
+      'Request',
+    );
 
     // Sanitize null or undefined string tokens passed from frontend
     if (token === 'null' || token === 'undefined') token = null;
