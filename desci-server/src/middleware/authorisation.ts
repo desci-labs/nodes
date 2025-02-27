@@ -85,6 +85,37 @@ export const ensureNodeAccess = async (req: RequestWithUser, res: Response, next
   next();
 };
 
+export const ensureNodeExists = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+  const user = req.user;
+  const uuid = req.body?.uuid || req.query?.uuid || req.params?.uuid;
+  const logger = parentLogger.child({
+    module: 'MIDDLEWARE::ensureNodeExists',
+    user: { id: user?.id },
+    uuid,
+  });
+  logger.info('START ensureNodeExists');
+
+  if (!uuid) {
+    logger.error({ uuid: req.body.uuid, body: req.body }, 'No UUID Found');
+    res.status(400).send({ ok: false, message: 'Bad Request: Uuid Missing' });
+    return;
+  }
+  logger.info('[ensureNodeExists]:: => ', { email: hideEmail(user.email), uuid });
+
+  const node = await prisma.node.findFirst({
+    where: { uuid: ensureUuidEndsWithDot(uuid) },
+  });
+
+  if (!node) {
+    res.status(400).send({ ok: false, message: `Node: ${uuid} not found` });
+    return;
+  }
+
+  (req as RequestWithNode).node = node;
+  logger.info({ uuid, user: user.id }, 'Node Exists');
+  next();
+};
+
 interface EnsureWriteAccessCheckResult {
   ok: boolean;
   node?: Node;
