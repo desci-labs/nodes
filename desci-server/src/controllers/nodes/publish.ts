@@ -64,7 +64,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
   const logger = parentLogger.child({
     // id: req.id,
     module: 'NODE::publishController',
-    body: req.body,
+    // body: req.body,
     uuid,
     cid,
     transactionId,
@@ -297,6 +297,7 @@ const syncPublish = async (
   );
 
   await Promise.all(promises);
+  logger.trace('[publish promises fulfilled]');
 
   const dpid = dpidAlias?.toString() || legacyDpid?.toString();
   // Intentionally above stacked promise, needs the DPID to be resolved!!!
@@ -385,6 +386,7 @@ export const createOrUpgradeDpidAlias = async (
       },
     });
   }
+  logger.trace({ dpidAlias }, 'createOrUpgradeDpidAlias');
   return dpidAlias;
 };
 

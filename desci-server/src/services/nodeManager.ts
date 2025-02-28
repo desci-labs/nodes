@@ -198,7 +198,7 @@ export const getAllCidsRequiredForPublish = async (
         versionId,
         nodeUuid,
       },
-      `[nodeManager::getAllCidsRequiredForPublish] manifestString=${latestManifestEntry} cid=${manifestCid}`,
+      `[nodeManager::getAllCidsRequiredForPublish] cid=${manifestCid}`,
     );
   }
 
@@ -213,7 +213,7 @@ export const getAllCidsRequiredForPublish = async (
     versionId,
   };
   const dataBucketEntries = await generateDataReferences({ nodeUuid, manifestCid, versionId });
-
+  logger.trace({ dataBucketEntries: dataBucketEntries.length }, '[generateDataReferences]::done');
   return [manifestEntry, ...dataBucketEntries];
 };
 

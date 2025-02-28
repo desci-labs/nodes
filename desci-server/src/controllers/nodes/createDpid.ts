@@ -73,7 +73,7 @@ export const getOrCreateDpid = async (streamId: string): Promise<number> => {
     logger.info(`Skipping alias creation, stream ${streamId} already bound to ${existingDpid}`);
     return existingDpid;
   }
-
+  logger.trace({ checkDpid, wallet: wallet.address, registry: registry.address });
   const tx = await registry.mintDpid(streamId);
   const receipt = await tx.wait();
   const {

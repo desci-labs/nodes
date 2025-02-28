@@ -45,9 +45,10 @@ export const SERVER_ENV = serverIsLocal
       : 'PRODUCTION';
 
 if (serverIsLocal) {
-  ALIAS_REGISTRY_ADDRESS = contracts.localDpidAliasInfo.proxies.at(0).address;
+  ALIAS_REGISTRY_ADDRESS = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0'; // contracts.localDpidAliasInfo.proxies.at(0).address;
   CERAMIC_API_URL = CERAMIC_API_URLS.local;
   OPTIMISM_RPC_URL = OPTIMISM_RPC_URLS.local;
+  console.log('[Contract Addresses]', { ALIAS_REGISTRY_ADDRESS });
 } else if (serverIsDev) {
   ALIAS_REGISTRY_ADDRESS = contracts.devDpidAliasInfo.proxies.at(0).address;
   CERAMIC_API_URL = CERAMIC_API_URLS.dev;
