@@ -149,3 +149,44 @@ spec:
             failureThreshold: 200
             periodSeconds: 1
       serviceAccountName: 'vault-auth'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: desci-server-prod-service
+  labels:
+    App: DesciServer
+spec:
+  type: LoadBalancer
+  selector:
+    App: DesciServer
+  ports:
+    - protocol: TCP
+      name: api
+      port: 80
+      targetPort: 5420
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: desci-server-prod-ingress-new
+  annotations:
+    kubernetes.io/ingress.class: 'alb'
+    alb.ingress.kubernetes.io/scheme: 'internet-facing'
+    alb.ingress.kubernetes.io/target-type: 'ip'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    # alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # If you have a certificate for SSL termination at ALB
+    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:us-east-2:523044037273:certificate/9b192c61-a321-4f65-9309-b2f326b99d05'
+spec:
+  rules:
+    - host: 'nodes-api.desci.com'
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: desci-server-prod-service
+                port:
+                  number: 80
