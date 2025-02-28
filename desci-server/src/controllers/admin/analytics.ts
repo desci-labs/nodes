@@ -8,6 +8,7 @@ import { crossRefClient } from '../../services/index.js';
 import {
   getActiveOrcidUsersInXDays,
   getActiveUsersInXDays,
+  getCountActiveOrcidUsersInMonth,
   getCountActiveOrcidUsersInXDays,
   getCountActiveUsersInMonth,
   getCountActiveUsersInXDays,
@@ -26,6 +27,7 @@ import {
   getCountNewOrcidUsersInXDays,
   getCountNewUsersInMonth,
   getCountNewUsersInXDays,
+  getCountNewUsersWithOrcidInMonth,
   getNewOrcidUsersInXDays,
   getNewUsersInXDays,
 } from '../../services/user.js';
@@ -34,7 +36,7 @@ import { asyncMap } from '../../utils.js';
 const logger = parentLogger.child({ module: 'ADMIN::AnalyticsController' });
 
 // create a csv with the following fields for each month
-// - new users, new nodes, active users, node views, bytes uploaded
+// new users(orcid), active users(orcid), new nodes, node views, bytes uploaded
 export const createCsv = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user as User;
@@ -49,26 +51,28 @@ export const createCsv = async (req: Request, res: Response) => {
     interface DataRow {
       month: string;
       year: string;
-      newUsers: number;
+      newUsers: string;
+      activeUsers: string;
       newNodes: number;
-      activeUsers: number;
       nodeViews: number;
       bytesUploaded: number;
     }
     const data: DataRow[] = [];
     while (monthsCovered <= 12) {
       const newUsers = await getCountNewUsersInMonth(curMonth, curYear);
-      const newNodes = await getCountNewNodesInMonth(curMonth, curYear);
+      const newOrcidUsers = await getCountNewUsersWithOrcidInMonth(curMonth, curYear);
       const activeUsers = await getCountActiveUsersInMonth(curMonth, curYear);
+      const activeOrcidUsers = await getCountActiveOrcidUsersInMonth(curMonth, curYear);
+      const newNodes = await getCountNewNodesInMonth(curMonth, curYear);
       const nodeViews = await getNodeViewsInMonth(curMonth, curYear);
       const bytesUploaded = await getBytesInMonth(curMonth, curYear);
 
       data.push({
         month: (curMonth + 1).toString(),
         year: curYear.toString(),
-        newUsers,
+        newUsers: `${newUsers} (${newOrcidUsers})`,
+        activeUsers: `${activeUsers} (${activeOrcidUsers})`,
         newNodes,
-        activeUsers,
         nodeViews,
         bytesUploaded,
       });
@@ -82,11 +86,11 @@ export const createCsv = async (req: Request, res: Response) => {
     // export data to csv
 
     const csv = [
-      'month,year,newUsers,newNodes,activeUsers,nodeViews,bytesUploaded',
+      'month,year,newUsers (orcid),activeUsers (orcid),newNodes,nodeViews,bytesUploaded',
       ...data
         .reverse()
         .map((row) =>
-          [row.month, row.year, row.newUsers, row.newNodes, row.activeUsers, row.nodeViews, row.bytesUploaded].join(
+          [row.month, row.year, row.newUsers, row.activeUsers, row.newNodes, row.nodeViews, row.bytesUploaded].join(
             ',',
           ),
         ),
