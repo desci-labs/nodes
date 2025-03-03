@@ -129,7 +129,6 @@ group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type",
   const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
 
   const noveltyScores = await getWorkNoveltyScoresById(work?.works_id);
-
   return { ...work, abstract, doi: getRawDoi(doi), ...noveltyScores };
 }
 

@@ -1051,24 +1051,33 @@ export async function getWorkNoveltyScoresById(workId: string): Promise<NoveltyS
     if (!workId.startsWith('https://openalex.org/')) {
       workId = `https://openalex.org/${workId}`;
     }
-    const result = await elasticClient.get({
+    const searchResult = await elasticClient.search({
       index: MAIN_WORKS_ALIAS,
-      id: workId,
-      _source: ['content_novelty_percentile', 'context_novelty_percentile'],
+      body: {
+        query: {
+          ids: {
+            values: [workId],
+          },
+        },
+        _source: ['content_novelty_percentile', 'context_novelty_percentile'],
+        size: 1,
+      },
     });
+
+    const hits = searchResult.hits.hits;
 
     logger.info(
       {
         workId,
-        found: result.found,
+        totalHits: searchResult.hits.total.value,
       },
-      'Retrieved work by direct ID lookup',
+      'Retrieved work novelty scores',
     );
 
-    if (result.found) {
+    if (hits.length > 0) {
       return {
-        content_novelty_percentile: result._source.content_novelty_percentile,
-        context_novelty_percentile: result._source.context_novelty_percentile,
+        content_novelty_percentile: hits[0]._source.content_novelty_percentile,
+        context_novelty_percentile: hits[0]._source.context_novelty_percentile,
       };
     }
   } catch (error) {
