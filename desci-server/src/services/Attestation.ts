@@ -1076,7 +1076,7 @@ export class AttestationService {
         desciCommunity: { select: { name: true, hidden: true, image_url: true } },
       },
       where: filter?.where ?? { desciCommunity: { hidden: false } },
-      take: filter ? 50 : 5,
+      take: filter ? 50 : undefined,
     });
 
     return attestations;
