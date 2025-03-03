@@ -29,6 +29,8 @@ export const getAllRecommendations = async (req: Request, res: Response, _next: 
         }
       : undefined,
   );
+  const grouped = _(attestations).groupBy((x) => x.attestationId);
+  // logger.trace({ grouped }, 'getAllRecommendations');
   const attestationEntries = _(attestations)
     .groupBy((x) => x.attestationId)
     .map((value, _) => ({
