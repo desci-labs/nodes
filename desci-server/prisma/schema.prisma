@@ -56,6 +56,7 @@ model Node {
   PublishStatus        PublishStatus[]
   ExternalPublications ExternalPublications[]
   CommunityRadarEntry  CommunityRadarEntry[]
+  NodeLike             NodeLike[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -208,6 +209,7 @@ model User {
   DeferredEmails              DeferredEmails[]
   UserNotifications           UserNotifications[]
   CommentVote                 CommentVote[]
+  NodeLike                    NodeLike[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1016,6 +1018,18 @@ model CommentVote {
   updatedAt    DateTime   @updatedAt
 
   @@unique([userId, annotationId])
+}
+
+model NodeLike {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  nodeUuid  String
+  node      Node     @relation(fields: [nodeUuid], references: [uuid])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([nodeUuid, userId])
 }
 
 enum VoteType {
