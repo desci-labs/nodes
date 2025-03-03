@@ -150,3 +150,5 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
 export const checkExternalPublications = async (node: Node) => {
   return await getExternalPublications(node);
 };
+
+export const EXTERNAL_PUB_REDIS_KEY = 'external-pub-checked';
