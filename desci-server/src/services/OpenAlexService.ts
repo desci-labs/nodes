@@ -1,9 +1,10 @@
 const pg = await import('pg').then((value) => value.default);
 const { Client } = pg;
-import { WorksDetails } from '../controllers/doi/check.js';
+import { NoveltyScoreDetails, WorksDetails } from '../controllers/doi/check.js';
 import { logger as parentLogger } from '../logger.js';
 
 import { OpenAlexWork, transformInvertedAbstractToText } from './AutomatedMetadata.js';
+import { getWorkNoveltyScoresById } from './ElasticSearchService.js';
 
 const logger = parentLogger.child({
   module: 'OpenAlexService::',
@@ -35,7 +36,7 @@ function getRawDoi(doi: string) {
   return doi;
 }
 
-export async function getMetadataByWorkId(workId: string): Promise<WorksDetails> {
+export async function getMetadataByWorkId(workId: string): Promise<WorksDetails & NoveltyScoreDetails> {
   logger.info(`Fetching OpenAlex work: ${workId}`);
   workId = ensureFormattedWorkId(workId);
 
@@ -78,10 +79,12 @@ export async function getMetadataByWorkId(workId: string): Promise<WorksDetails>
   const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
   const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
 
-  return { ...work, abstract };
+  const noveltyScores = await getWorkNoveltyScoresById(workId);
+
+  return { ...work, abstract, ...noveltyScores };
 }
 
-export async function getMetadataByDoi(doi: string): Promise<WorksDetails> {
+export async function getMetadataByDoi(doi: string): Promise<WorksDetails & NoveltyScoreDetails> {
   logger.info(`Fetching OpenAlex work by DOI: ${doi}`);
   doi = ensureFormattedDoi(doi);
 
@@ -125,7 +128,9 @@ group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type",
   const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
   const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
 
-  return { ...work, abstract, doi: getRawDoi(doi) };
+  const noveltyScores = await getWorkNoveltyScoresById(work?.works_id);
+
+  return { ...work, abstract, doi: getRawDoi(doi), ...noveltyScores };
 }
 
 export type OpenAlexTopic = {
