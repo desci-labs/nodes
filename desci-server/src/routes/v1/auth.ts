@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { googleAuth } from '../../controllers/auth/google.js';
 import {
   login,
   logout,
@@ -32,6 +33,8 @@ router.get('/orcid/auth/close', orcidAuthClose);
 router.get('/orcid/connect', orcidConnect);
 router.get('/orcid/connect/close', orcidConnectClose);
 router.get('/orcid/validate', validateOrcid);
+router.get('/orcid/validate', validateOrcid);
+router.get('/google/auth', googleAuth);
 router.post('/magic', magic);
 router.post('/apiKey/issue', [ensureUser], issueApiKey);
 router.delete('/apiKey/revoke', [ensureUser], revokeApiKey);
