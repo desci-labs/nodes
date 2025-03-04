@@ -10,7 +10,6 @@ import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/authorisation.js';
 import { redisClient } from '../../redisClient.js';
 import {
-  EXTERNAL_PUB_REDIS_KEY,
   getExternalPublications,
   sendExternalPublicationsNotification,
 } from '../../services/crossRef/externalPublication.js';
@@ -69,7 +68,7 @@ export const externalPublications = async (req: RequestWithNode, res: Response, 
   if (externalPublications.length > 1)
     return new SuccessResponse(externalPublications.filter((pub) => pub.isVerified)).send(res);
 
-  const isChecked = await redisClient.get(`${EXTERNAL_PUB_REDIS_KEY}-${ensureUuidEndsWithDot(uuid)}`);
+  const isChecked = await redisClient.get(`external-pub-checked-${ensureUuidEndsWithDot(uuid)}`);
   if (isChecked === 'true') return new SuccessResponse(externalPublications).send(res);
 
   const [CrossrefPublications, openAlexPublications] = await Promise.all([
@@ -77,7 +76,7 @@ export const externalPublications = async (req: RequestWithNode, res: Response, 
     getExternalPublicationsFromOpenAlex(node),
   ]);
 
-  await redisClient.set(`${EXTERNAL_PUB_REDIS_KEY}-${ensureUuidEndsWithDot(uuid)}`, 'true');
+  await redisClient.set(`external-pub-checked-${ensureUuidEndsWithDot(uuid)}`, 'true');
 
   logger.trace({ CrossrefPublications, openAlexPublications }, 'externalPublication');
   const publications = CrossrefPublications?.length > 0 ? CrossrefPublications : openAlexPublications;
