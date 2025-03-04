@@ -363,7 +363,7 @@ model OauthApplication {
 }
 
 model UserIdentity {
-  id        String   @id
+  id        String   @id @default(uuid())
   userId    Int
   provider  String
   uid       String
