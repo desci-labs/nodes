@@ -48,6 +48,11 @@ export interface WorksDetails {
   abstract?: string;
 }
 
+export interface NoveltyScoreDetails {
+  content_novelty_percentile?: number;
+  context_novelty_percentile?: number;
+}
+
 export const retrieveDoi = async (req: Request, res: Response, _next: NextFunction) => {
   const { doi: doiQuery } = req.query;
   const identifier = doiQuery;

@@ -10,6 +10,7 @@ import {
   QueryDslTextQueryType,
 } from '@elastic/elasticsearch/lib/api/types.js';
 
+import { NoveltyScoreDetails } from '../controllers/doi/check.js';
 import { Filter } from '../controllers/search/types.js';
 import { elasticClient } from '../elasticSearchClient.js';
 import { logger as parentLogger } from '../logger.js';
@@ -1038,4 +1039,57 @@ export async function searchEsAuthors(authors: { display_name?: string; orcid?: 
     );
     throw error;
   }
+}
+
+/**
+ * Retrieves the content_novelty_percentile and context_novelty_percentile for a specific work by ID.
+ * @param workId The openAlex work ID to search for, with or without https://openalex.org/ prefix
+ * @returns The novelty percentiles or undefined if not found
+ */
+export async function getWorkNoveltyScoresById(workId: string): Promise<NoveltyScoreDetails | undefined> {
+  try {
+    if (!workId.startsWith('https://openalex.org/')) {
+      workId = `https://openalex.org/${workId}`;
+    }
+    const searchResult = await elasticClient.search({
+      index: MAIN_WORKS_ALIAS,
+      body: {
+        query: {
+          ids: {
+            values: [workId],
+          },
+        },
+        _source: ['content_novelty_percentile', 'context_novelty_percentile'],
+        size: 1,
+      },
+    });
+
+    const hits = searchResult.hits.hits;
+
+    logger.info(
+      {
+        workId,
+        totalHits: searchResult.hits.total.value,
+      },
+      'Retrieved work novelty scores',
+    );
+
+    if (hits.length > 0) {
+      return {
+        content_novelty_percentile: hits[0]._source.content_novelty_percentile,
+        context_novelty_percentile: hits[0]._source.context_novelty_percentile,
+      };
+    }
+  } catch (error) {
+    logger.error(
+      {
+        error,
+        message: error.message,
+        stack: error.stack,
+        workId,
+      },
+      'Error in getWorkNoveltyScoresById',
+    );
+  }
+  return undefined;
 }
