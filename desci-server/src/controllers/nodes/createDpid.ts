@@ -73,7 +73,6 @@ export const getOrCreateDpid = async (streamId: string): Promise<number> => {
     logger.info(`Skipping alias creation, stream ${streamId} already bound to ${existingDpid}`);
     return existingDpid;
   }
-  logger.trace({ checkDpid, wallet: wallet.address, registry: registry.address });
   const tx = await registry.mintDpid(streamId);
   const receipt = await tx.wait();
   const {
@@ -104,7 +103,10 @@ export const upgradeDpid = async (dpid: number, ceramicStream: string): Promise<
 
   const ownerWallet = await getRegistryOwnerWallet();
   const dpidAliasRegistry = getAliasRegistry(ownerWallet);
-
+  logger.trace(
+    { ownerWallet: ownerWallet.address, registry: await dpidAliasRegistry.resolvedAddress },
+    '[upgradeDpid]',
+  );
   const historyValid = await validateHistory(dpid, ceramicStream, dpidAliasRegistry, logger);
   if (!historyValid) {
     logger.warn({ dpid, ceramicStream }, 'version histories disagree; refusing to upgrade dPID');

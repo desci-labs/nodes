@@ -103,8 +103,8 @@ services:
       - .env
     environment:
       # https://github.com/graphprotocol/graph-node/blob/master/docs/environment-variables.md
-      postgres_host: db_postgres
-      postgres_port: ${PG_PORT:-5432}
+      postgres_host: ${PG_HOST:-db_postgres}
+      postgres_port: ${PG_PORT:-5433}
       postgres_user: walter
       postgres_pass: white
       postgres_db: postgres
