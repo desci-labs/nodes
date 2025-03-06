@@ -34,7 +34,7 @@ router.get('/orcid/connect', orcidConnect);
 router.get('/orcid/connect/close', orcidConnectClose);
 router.get('/orcid/validate', validateOrcid);
 router.get('/orcid/validate', validateOrcid);
-router.get('/google/auth', googleAuth);
+router.post('/google/login', googleAuth);
 router.post('/magic', magic);
 router.post('/apiKey/issue', [ensureUser], issueApiKey);
 router.delete('/apiKey/revoke', [ensureUser], revokeApiKey);

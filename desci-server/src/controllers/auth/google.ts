@@ -10,7 +10,6 @@ import { sendCookie } from '../../utils/sendCookie.js';
 
 import { generateAccessToken } from './magic.js';
 
-const logger = parentLogger.child({ module: 'AUTH::GoogleOAuthController' });
 const googleClient = new OAuth2Client({
   clientId: process.env.GOOGLE_CLIENT_ID_AUTH,
 });
@@ -19,16 +18,16 @@ const googleClient = new OAuth2Client({
  * Handles Google OAuth callback and authentication
  */
 export const googleAuth = async (req: Request, res: Response) => {
+  const { idToken, dev } = req.body;
+  const logger = parentLogger.child({ module: 'AUTH::GoogleOAuthController', googleIdToken: idToken });
   try {
-    const { credential, dev } = req.body;
-
-    if (!credential) {
-      return res.status(400).send({ ok: false, message: 'Missing Google credential' });
+    if (!idToken) {
+      return res.status(400).send({ ok: false, message: 'Missing Google idToken' });
     }
-
+    logger.info({ idToken }, 'Google OAuth login attempt');
     // Verify the Google token
     const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
+      idToken: idToken,
       audience: process.env.GOOGLE_CLIENT_ID_AUTH,
     });
 
@@ -36,7 +35,6 @@ export const googleAuth = async (req: Request, res: Response) => {
     if (!payload || !payload.email) {
       return res.status(400).send({ ok: false, message: 'Invalid Google credential' });
     }
-    debugger;
     const { email, name, sub: googleId } = payload;
     logger.info({ email: email, googleId }, 'Google OAuth login attempt');
 
@@ -54,6 +52,8 @@ export const googleAuth = async (req: Request, res: Response) => {
         },
       });
       logger.info({ userId: user.id, email: user.email }, 'Created new user from Google OAuth');
+    } else {
+      logger.info({ userId: user.id, email: user.email }, 'Found existing user from Google OAuth');
     }
 
     // Store Google identity if not already stored
@@ -78,6 +78,8 @@ export const googleAuth = async (req: Request, res: Response) => {
         },
       });
       logger.info({ userId: user.id, provider: 'google' }, 'Linked Google identity to user');
+    } else {
+      logger.info({ userId: user.id, provider: 'google' }, 'Found existing Google identity');
     }
 
     // Generate jwt
@@ -89,6 +91,7 @@ export const googleAuth = async (req: Request, res: Response) => {
 
     saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
 
+    logger.info({ userId: user.id, email: user.email }, 'Successful login with google auth');
     // Send response with jwt
     return res.send({
       ok: true,
