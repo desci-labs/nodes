@@ -112,8 +112,7 @@ export const getExternalPublicationsFromOpenAlex = async (manifest: ResearchObje
   if (manifest.authors && manifest.authors.length > 0) relevantSourceFields.push('authors');
 
   const totalMatchingFields = relevantSourceFields.length;
-  const minimunMatchScore = totalMatchingFields * 0.8;
-
+  const minimunMatchScore = (0.9 * totalMatchingFields) / 3;
   logger.trace({ relevantSourceFields, totalMatchingFields, minimunMatchScore }, '[openAlexPublicationsPubParameters]');
 
   const matches = data
