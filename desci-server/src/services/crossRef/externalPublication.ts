@@ -120,5 +120,3 @@ export const getExternalPublications = async (manifest: ResearchObjectV1) => {
 
   return { publications, matches };
 };
-
-export const EXTERNAL_PUB_REDIS_KEY = 'external-pub-checked';

@@ -28,6 +28,31 @@ export const createBookmark = async (data: CreateBookmarkData): Promise<Bookmark
     type: data.type,
   };
 
+  // Check if bookmark already exists, db @@uniqueness constraint fails when any value included is null
+  const existingWhereClause = {
+    userId: data.userId,
+    type: data.type,
+    ...(() => {
+      switch (data.type) {
+        case BookmarkType.NODE:
+          return { nodeUuid: ensureUuidEndsWithDot(data.nodeUuid) };
+        case BookmarkType.DOI:
+          return { doi: data.doi };
+        case BookmarkType.OA:
+          return { oaWorkId: data.oaWorkId };
+      }
+    })(),
+  };
+
+  const existingBookmark = await prisma.bookmarkedNode.findFirst({
+    where: existingWhereClause,
+  });
+
+  if (existingBookmark) {
+    logger.info({ bookmarkId: existingBookmark.id }, 'Bookmark already exists');
+    return existingBookmark;
+  }
+
   const extraData = (() => {
     switch (data.type) {
       case BookmarkType.NODE:

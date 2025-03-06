@@ -158,3 +158,5 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
     logger.info({ err }, '[ExternalPublications EMAIL]::ERROR');
   }
 };
+
+export const EXTERNAL_PUB_REDIS_KEY = 'external-pub-checked';

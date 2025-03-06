@@ -9,8 +9,7 @@ import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode, RequestWithUser } from '../../middleware/authorisation.js';
 import { redisClient } from '../../redisClient.js';
-import { EXTERNAL_PUB_REDIS_KEY, getExternalPublications } from '../../services/crossRef/externalPublication.js';
-import { searchExternalPublications } from '../../services/externalPublications.js';
+import { EXTERNAL_PUB_REDIS_KEY, searchExternalPublications } from '../../services/externalPublications.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';

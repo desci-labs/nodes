@@ -5,14 +5,11 @@ import { prisma } from '../../client.js';
 import { NotFoundError } from '../../core/ApiError.js';
 import { SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
-import { RequestWithNode, RequestWithUser } from '../../middleware/authorisation.js';
+import { RequestWithNode } from '../../middleware/authorisation.js';
 import { redisClient } from '../../redisClient.js';
-import { EXTERNAL_PUB_REDIS_KEY } from '../../services/crossRef/externalPublication.js';
-import { searchExternalPublications } from '../../services/externalPublications.js';
+import { EXTERNAL_PUB_REDIS_KEY, searchExternalPublications } from '../../services/externalPublications.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
-import { externalPublicationsSchema } from '../nodes/externalPublications.js';
 
 const logger = parentLogger.child({ module: 'ADMIN::Nodes' });
 
