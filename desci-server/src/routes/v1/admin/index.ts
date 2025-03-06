@@ -20,6 +20,7 @@ import { asyncHandler } from '../../../utils/asyncHandler.js';
 
 import communities from './communities/index.js';
 import doiRouter from './doi.js';
+import nodesRouter from './nodes.js';
 import usersRouter from './users/index.js';
 
 const router = Router();
@@ -57,6 +58,7 @@ router.use('/users', usersRouter);
 // router.use('/nodes', [ensureUser, ensureAdmin], usersRouter);
 
 router.use('/doi', doiRouter);
+router.use('/nodes', nodesRouter);
 // router.use('/users', usersRouter);
 
 export default router;

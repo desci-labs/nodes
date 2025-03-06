@@ -12,6 +12,7 @@ import { NodeUuid } from '../manifestRepo.js';
 import repoService from '../repoService.js';
 
 import { Work } from './definitions.js';
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -21,16 +22,16 @@ const getPublisherTitle = (data: Work): string =>
   data?.institution?.[0]?.name ||
   data?.publisher;
 
-export const getExternalPublications = async (node: Node) => {
-  const manifest = await repoService.getDraftManifest({
-    uuid: node.uuid as NodeUuid,
-    documentId: node.manifestDocumentId,
-  });
+export const getExternalPublications = async (manifest: ResearchObjectV1) => {
+  // const manifest = await repoService.getDraftManifest({
+  //   uuid: node.uuid as NodeUuid,
+  //   documentId: node.manifestDocumentId,
+  // });
   let data = await crossRefClient.searchWorks({ queryTitle: manifest?.title });
 
   data = data?.filter((works) => works.type === 'journal-article');
 
-  if (!data || data.length === 0) return [];
+  if (!data || data.length === 0) return { publications: [], matches: [] };
 
   const titleSearcher = new Searcher(data, { keySelector: (entry) => entry.title });
   const titleResult = titleSearcher.search(manifest.title, { returnMatchData: true });
@@ -61,11 +62,22 @@ export const getExternalPublications = async (node: Node) => {
     };
   });
 
-  const publications = data
+  const relevantSourceFields = [];
+
+  if (manifest.title) relevantSourceFields.push('title');
+  if (manifest.description) relevantSourceFields.push('abstract');
+  if (manifest.authors && manifest.authors.length > 0) relevantSourceFields.push('authors');
+
+  const totalMatchingFields = relevantSourceFields.length;
+  const minimunMatchScore = (0.9 * totalMatchingFields) / 3;
+
+  logger.trace({ relevantSourceFields, totalMatchingFields, minimunMatchScore }, '[CrossrefPubParameters]');
+  const matches = data
     .map((data) => ({
       publisher: getPublisherTitle(data),
       sourceUrl: data?.resource?.primary?.URL || data.URL || '',
-      doi: data.DOI,
+      // doi: 10.1016\/j.joep.2006.11.002
+      doi: data.DOI?.replace(/\\/g, '').toLowerCase(),
       isVerified: false,
       publishYear:
         data.published['date-parts']?.[0]?.[0].toString() ??
@@ -99,54 +111,12 @@ export const getExternalPublications = async (node: Node) => {
     .map((publication) => ({
       ...publication,
       score:
-        ((publication.title?.score ?? 0) + (publication.abstract?.score ?? 0) + (publication.authors?.score ?? 0)) / 3,
-    }))
-    .filter((entry) => entry.score >= 0.8);
+        ((publication.title?.score ?? 0) + (publication.abstract?.score ?? 0) + (publication.authors?.score ?? 0)) /
+        totalMatchingFields,
+    }));
 
-  logger.trace({ publications }, 'CrossrefPublications');
+  // logger.trace({ publications }, 'CrossrefPublications');
+  const publications = matches.filter((entry) => entry.score >= minimunMatchScore);
 
-  return publications;
-};
-
-export const sendExternalPublicationsNotification = async (node: Node) => {
-  // const publications = await getExternalPublications(node);
-  const publications = await prisma.externalPublications.findMany({
-    where: { uuid: node.uuid },
-  });
-
-  if (!publications.length) return;
-  // send email to node owner about potential publications
-  const user = await prisma.user.findFirst({ where: { id: node.ownerId } });
-  const message = {
-    to: user.email,
-    from: 'no-reply@desci.com',
-    subject: `[nodes.desci.com] Verify your external publications`,
-    text: `${
-      publications.length > 1
-        ? `We found a similar publications to ${node.title}, View your publication to verify external publications`
-        : `We linked ${publications.length} external publications from publishers like ${publications?.[0]?.publisher} to your node, open your node to verify the external publication.`
-    }`,
-    html: ExternalPublicationsEmailHtml({
-      dpid: node?.dpidAlias?.toString(),
-      dpidPath: `${process.env.DAPP_URL}/dpid/${node.dpidAlias}`,
-      publisherName: publications?.[0]?.publisher,
-      multiple: publications.length > 1,
-    }),
-  };
-
-  try {
-    logger.info({ message, NODE_ENV: process.env.NODE_ENV }, '[EMAIL]:: ExternalPublications EMAIL');
-    if (process.env.SHOULD_SEND_EMAIL) {
-      const response = await sgMail.send(message);
-      logger.info(response, '[EMAIL]:: Response');
-    } else {
-      logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject);
-    }
-  } catch (err) {
-    logger.info({ err }, '[ExternalPublications EMAIL]::ERROR');
-  }
-};
-
-export const checkExternalPublications = async (node: Node) => {
-  return await getExternalPublications(node);
+  return { publications, matches };
 };
