@@ -52,7 +52,9 @@ export const createCsv = async (req: Request, res: Response) => {
       month: string;
       year: string;
       newUsers: string;
+      newOrcidUsers: string;
       activeUsers: string;
+      activeOrcidUsers: string;
       newNodes: number;
       nodeViews: number;
       bytesUploaded: number;
@@ -70,8 +72,10 @@ export const createCsv = async (req: Request, res: Response) => {
       data.push({
         month: (curMonth + 1).toString(),
         year: curYear.toString(),
-        newUsers: `${newUsers} (${newOrcidUsers})`,
-        activeUsers: `${activeUsers} (${activeOrcidUsers})`,
+        newUsers: newUsers.toString(),
+        newOrcidUsers: newOrcidUsers.toString(),
+        activeUsers: activeUsers.toString(),
+        activeOrcidUsers: activeOrcidUsers.toString(),
         newNodes,
         nodeViews,
         bytesUploaded,
@@ -86,13 +90,21 @@ export const createCsv = async (req: Request, res: Response) => {
     // export data to csv
 
     const csv = [
-      'month,year,newUsers (orcid),activeUsers (orcid),newNodes,nodeViews,bytesUploaded',
+      'month,year,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,bytesUploaded',
       ...data
         .reverse()
         .map((row) =>
-          [row.month, row.year, row.newUsers, row.activeUsers, row.newNodes, row.nodeViews, row.bytesUploaded].join(
-            ',',
-          ),
+          [
+            row.month,
+            row.year,
+            row.newUsers,
+            row.newOrcidUsers,
+            row.activeUsers,
+            row.activeOrcidUsers,
+            row.newNodes,
+            row.nodeViews,
+            row.bytesUploaded,
+          ].join(','),
         ),
     ].join('\n');
     res.setHeader('Content-disposition', 'attachment; filename=analytics.csv');
