@@ -1,10 +1,12 @@
 import { Router } from 'express';
 
 import {
+  analyticsChartSchema,
   createCsv,
   getActiveOrcidUserAnalytics,
   getActiveUserAnalytics,
   getAnalytics,
+  getAnalyticsChartData,
   getNewOrcidUserAnalytics,
   getNewUserAnalytics,
   userAnalyticsSchema,
@@ -27,6 +29,11 @@ const router = Router();
 
 router.get('/analytics', [ensureUser, ensureUserIsAdmin], getAnalytics);
 router.get('/analytics/csv', [ensureUser, ensureUserIsAdmin], createCsv);
+router.get(
+  '/analytics/query',
+  [validate(analyticsChartSchema), ensureUser, ensureUserIsAdmin],
+  asyncHandler(getAnalyticsChartData),
+);
 router.get('/analytics/new-users', [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin], getNewUserAnalytics);
 router.get(
   '/analytics/new-orcid-users',

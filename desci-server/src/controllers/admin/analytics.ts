@@ -1,18 +1,24 @@
 import { User } from '@prisma/client';
+import { differenceInDays, subDays, interval, eachDayOfInterval, isSameDay } from 'date-fn-latest';
 import { Request, Response } from 'express';
+import _ from 'lodash';
 import zod from 'zod';
 
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
+import { RequestWithUser } from '../../middleware/authorisation.js';
 import { crossRefClient } from '../../services/index.js';
 import {
+  getActiveOrcidUsersInRange,
   getActiveOrcidUsersInXDays,
+  getActiveUsersInRange,
   getActiveUsersInXDays,
   getCountActiveOrcidUsersInMonth,
   getCountActiveOrcidUsersInXDays,
   getCountActiveUsersInMonth,
   getCountActiveUsersInXDays,
   getNodeViewsInMonth,
+  getNodeViewsInRange,
   getNodeViewsInXDays,
 } from '../../services/interactionLog.js';
 import {
@@ -20,6 +26,8 @@ import {
   getBytesInXDays,
   getCountNewNodesInMonth,
   getBytesInMonth,
+  getNewNodesInRange,
+  getBytesInRange,
 } from '../../services/nodeManager.js';
 import {
   getCountAllOrcidUsers,
@@ -28,7 +36,9 @@ import {
   getCountNewUsersInMonth,
   getCountNewUsersInXDays,
   getCountNewUsersWithOrcidInMonth,
+  getNewOrcidUsersInRange,
   getNewOrcidUsersInXDays,
+  getNewUsersInRange,
   getNewUsersInXDays,
 } from '../../services/user.js';
 import { asyncMap } from '../../utils.js';
@@ -198,6 +208,85 @@ export const getAnalytics = async (req: Request, res: Response) => {
     logger.error({ fn: 'getAnalytics', error }, 'Failed to GET getAnalytics');
     return res.status(500).send();
   }
+};
+
+export const analyticsChartSchema = zod.object({
+  query: zod.object({
+    from: zod.string(),
+    to: zod.string(),
+  }),
+});
+
+export const getAnalyticsChartData = async (req: RequestWithUser, res: Response) => {
+  const user = req.user;
+  logger.info(
+    { fn: 'getAnalyticsChartData', query: req.query },
+    `GET getAnalyticsChartData called by ${user.email} at ${new Date().toLocaleTimeString()}`,
+  );
+  const {
+    query: { from, to },
+  } = req as zod.infer<typeof analyticsChartSchema>;
+
+  const diffInDays = differenceInDays(new Date(to), new Date(from));
+  const startDate = subDays(new Date(from), diffInDays);
+  const endDate = to;
+  logger.trace({ fn: 'getAnalyticsChartData', diffInDays, from, to, startDate, endDate }, 'Fetching new users');
+
+  // todo: make calls parallel
+  logger.trace({ fn: 'getAnalyticsChartData' }, 'Fetching active users');
+  const newUsers = await getNewUsersInRange({ from: startDate, to: new Date(to) });
+  const newOrcidUsers = await getNewOrcidUsersInRange({ from: startDate, to: new Date(to) });
+
+  const activeUsers = await getActiveUsersInRange({ from: startDate, to: new Date(to) });
+  const activeOrcidUsers = await getActiveOrcidUsersInRange({ from: startDate, to: new Date(to) });
+
+  const newNodes = await getNewNodesInRange({ from: startDate, to: new Date(to) });
+  const nodeViews = await getNodeViewsInRange({ from: startDate, to: new Date(to) });
+
+  const bytes = await getBytesInRange({ from: startDate, to: new Date(to) });
+
+  const selectedDatesInterval = interval(from, to);
+  const daysOfInterval = eachDayOfInterval(interval(startDate, to));
+  const aggregatedData = daysOfInterval.map((period) => {
+    const newUsersAgg = newUsers.filter((user) => isSameDay(user.createdAt, period));
+    const newOrcidUsersAgg = newOrcidUsers.filter((user) => isSameDay(user.createdAt, period));
+    const activeUsersAgg = activeUsers.filter((user) => isSameDay(user.user.createdAt, period));
+    const activeOrcidUsersAgg = activeOrcidUsers.filter((user) => isSameDay(user.user.createdAt, period));
+    const newNodesAgg = newNodes.filter((node) => isSameDay(node.createdAt, period));
+    const nodeViewsAgg = nodeViews.filter((node) => isSameDay(node.createdAt, period));
+    const bytesAgg = bytes.filter((byte) => isSameDay(byte.createdAt, period));
+    return {
+      date: period,
+      newUsers: newUsersAgg.length,
+      newOrcidUsers: newOrcidUsersAgg.length,
+      activeUsers: activeUsersAgg.length,
+      activeOrcidUsers: activeOrcidUsersAgg.length,
+      nodeViews: nodeViewsAgg.length,
+      newNodes: newNodesAgg.length,
+      bytes: bytesAgg.reduce((total, byte) => total + byte.size, 0),
+    };
+  });
+
+  const data = {
+    // newUsers,
+    // newOrcidUsers,
+    // activeUsers,
+    // activeOrcidUsers,
+    // newNodes,
+    // nodeViews,
+    // bytes,
+    analytics: aggregatedData,
+    meta: {
+      selectedDatesInterval,
+      diffInDays,
+      startDate,
+      endDate,
+    },
+  };
+
+  logger.info({ fn: 'getAnalyticsChartData' }, 'getAnalyticsChartData returning');
+
+  return new SuccessResponse(data).send(res);
 };
 
 export const userAnalyticsSchema = zod.object({

@@ -514,3 +514,38 @@ const getTimeDiffInSec = (date: string) => {
 
   return (now - start) / 1000;
 };
+
+/**
+ * Minimal Data query methods with range arguments
+ */
+
+export const getNewNodesInRange = async ({ from, to }: { from: Date; to: Date }) => {
+  logger.trace({ fn: 'getNewNodesInXDays', from, to }, 'node::getNewNodesInXDays');
+
+  return await prisma.node.findMany({
+    where: {
+      createdAt: {
+        gte: from,
+        lt: to,
+      },
+    },
+    select: { createdAt: true },
+  });
+};
+
+export const getBytesInRange = async ({ from, to }: { from: Date; to: Date }) => {
+  logger.trace({ fn: 'getBytesInRange', from, to }, 'node::getBytesInRange');
+
+  return await prisma.dataReference.findMany({
+    // _sum: { size: true },
+    where: {
+      createdAt: {
+        gte: from,
+        lt: to,
+      },
+    },
+    select: { size: true, createdAt: true },
+  });
+
+  // return bytesInXDays._sum.size;
+};

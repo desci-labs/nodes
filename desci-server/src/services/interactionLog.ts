@@ -206,3 +206,54 @@ export const getNodeViewsInMonth = async (month: number, year: number): Promise<
   const count = (res as any[])[0].count.toString();
   return parseInt(count);
 };
+
+/**
+ * Minimal Data query methods with range arguments
+ */
+
+export const getActiveUsersInRange = async (range: { from: Date; to: Date }) => {
+  logger.trace({ fn: 'getNewUsersInRange' }, 'user::getNewUsersInRange');
+
+  return await prisma.interactionLog.findMany({
+    distinct: ['userId'],
+    where: {
+      createdAt: {
+        gte: range.from,
+        lt: range.to,
+      },
+      // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
+      // from poluting returned data
+      userId: {
+        not: null,
+      },
+    },
+    select: { user: { select: { createdAt: true } } },
+  });
+};
+
+export const getActiveOrcidUsersInRange = async (range: { from: Date; to: Date }) => {
+  logger.trace({ fn: 'getActiveOrcidUsersInRange' }, 'user::getActiveOrcidUsersInRange');
+
+  return await prisma.interactionLog.findMany({
+    distinct: ['userId'],
+    where: {
+      createdAt: {
+        gte: range.from,
+        lt: range.to,
+      },
+      user: {
+        orcid: {
+          not: null,
+        },
+      },
+    },
+    select: { user: { select: { createdAt: true } } },
+  });
+};
+
+export const getNodeViewsInRange = async (range: { from: Date; to: Date }) => {
+  logger.info({ fn: 'getNodeViewsInRange' }, 'interactionLog::getNodeViewsInRange');
+  const res =
+    await prisma.$queryRaw`select "createdAt" from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"viewedNode"'::jsonb and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`;
+  return res as { createdAt: string }[];
+};
