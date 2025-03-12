@@ -1,13 +1,16 @@
 import { Router } from 'express';
 
 import {
+  analyticsChartSchema,
   createCsv,
   getActiveOrcidUserAnalytics,
   getActiveUserAnalytics,
   getAnalytics,
+  getAggregatedAnalytics,
   getNewOrcidUserAnalytics,
   getNewUserAnalytics,
   userAnalyticsSchema,
+  getAggregatedAnalyticsCsv,
 } from '../../../controllers/admin/analytics.js';
 import { listAttestations } from '../../../controllers/admin/communities/index.js';
 import { debugAllNodesHandler, debugNodeHandler } from '../../../controllers/admin/debug.js';
@@ -27,6 +30,16 @@ const router = Router();
 
 router.get('/analytics', [ensureUser, ensureUserIsAdmin], getAnalytics);
 router.get('/analytics/csv', [ensureUser, ensureUserIsAdmin], createCsv);
+router.get(
+  '/analytics/query',
+  [validate(analyticsChartSchema), ensureUser, ensureUserIsAdmin],
+  asyncHandler(getAggregatedAnalytics),
+);
+router.get(
+  '/analytics/querycsv',
+  [validate(analyticsChartSchema), ensureUser, ensureUserIsAdmin],
+  asyncHandler(getAggregatedAnalyticsCsv),
+);
 router.get('/analytics/new-users', [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin], getNewUserAnalytics);
 router.get(
   '/analytics/new-orcid-users',
