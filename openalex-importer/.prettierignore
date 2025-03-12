@@ -1,0 +1,5 @@
+dist
+drizzle
+postgres
+logs
+heap-snapshots
