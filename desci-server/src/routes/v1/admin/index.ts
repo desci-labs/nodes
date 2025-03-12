@@ -6,10 +6,11 @@ import {
   getActiveOrcidUserAnalytics,
   getActiveUserAnalytics,
   getAnalytics,
-  getAnalyticsChartData,
+  getAggregatedAnalytics,
   getNewOrcidUserAnalytics,
   getNewUserAnalytics,
   userAnalyticsSchema,
+  getAggregatedAnalyticsCsv,
 } from '../../../controllers/admin/analytics.js';
 import { listAttestations } from '../../../controllers/admin/communities/index.js';
 import { debugAllNodesHandler, debugNodeHandler } from '../../../controllers/admin/debug.js';
@@ -32,7 +33,12 @@ router.get('/analytics/csv', [ensureUser, ensureUserIsAdmin], createCsv);
 router.get(
   '/analytics/query',
   [validate(analyticsChartSchema), ensureUser, ensureUserIsAdmin],
-  asyncHandler(getAnalyticsChartData),
+  asyncHandler(getAggregatedAnalytics),
+);
+router.get(
+  '/analytics/querycsv',
+  [validate(analyticsChartSchema), ensureUser, ensureUserIsAdmin],
+  asyncHandler(getAggregatedAnalyticsCsv),
 );
 router.get('/analytics/new-users', [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin], getNewUserAnalytics);
 router.get(

@@ -1,5 +1,24 @@
 import { User } from '@prisma/client';
-import { differenceInDays, subDays, interval, eachDayOfInterval, isSameDay } from 'date-fn-latest';
+import {
+  differenceInDays,
+  subDays,
+  interval,
+  eachDayOfInterval,
+  isSameDay,
+  eachWeekOfInterval,
+  eachMonthOfInterval,
+  eachYearOfInterval,
+  formatDate,
+  isWithinInterval,
+  startOfDay,
+  endOfDay,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+} from 'date-fn-latest';
 import { Request, Response } from 'express';
 import _ from 'lodash';
 import zod from 'zod';
@@ -214,47 +233,96 @@ export const analyticsChartSchema = zod.object({
   query: zod.object({
     from: zod.string(),
     to: zod.string(),
+    interval: zod
+      .union([zod.literal('daily'), zod.literal('weekly'), zod.literal('monthly'), zod.literal('yearly')])
+      .optional()
+      .default('daily'),
   }),
 });
 
-export const getAnalyticsChartData = async (req: RequestWithUser, res: Response) => {
+async function aggregateAnalytics(from: Date, to: Date) {
+  const newUsers = await getNewUsersInRange({ from, to });
+  const newOrcidUsers = await getNewOrcidUsersInRange({ from, to });
+  const activeUsers = await getActiveUsersInRange({ from, to });
+  const activeOrcidUsers = await getActiveOrcidUsersInRange({ from, to });
+  const newNodes = await getNewNodesInRange({ from, to });
+  const nodeViews = await getNodeViewsInRange({ from, to });
+  const bytes = await getBytesInRange({ from, to });
+  return { newUsers, newOrcidUsers, activeUsers, activeOrcidUsers, newNodes, nodeViews, bytes };
+}
+
+export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response) => {
   const user = req.user;
   logger.info(
-    { fn: 'getAnalyticsChartData', query: req.query },
-    `GET getAnalyticsChartData called by ${user.email} at ${new Date().toLocaleTimeString()}`,
+    { fn: 'getAggregatedAnalytics', query: req.query },
+    `GET getAggregatedAnalytics called by ${user.email} at ${new Date().toLocaleTimeString()}`,
   );
   const {
-    query: { from, to },
+    query: { from, to, interval: timeInterval },
   } = req as zod.infer<typeof analyticsChartSchema>;
 
   const diffInDays = differenceInDays(new Date(to), new Date(from));
   const startDate = subDays(new Date(from), diffInDays);
   const endDate = to;
-  logger.trace({ fn: 'getAnalyticsChartData', diffInDays, from, to, startDate, endDate }, 'Fetching new users');
+  logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, startDate, endDate }, 'Fetching new users');
 
   // todo: make calls parallel
-  logger.trace({ fn: 'getAnalyticsChartData' }, 'Fetching active users');
-  const newUsers = await getNewUsersInRange({ from: startDate, to: new Date(to) });
-  const newOrcidUsers = await getNewOrcidUsersInRange({ from: startDate, to: new Date(to) });
+  logger.trace({ fn: 'getAggregatedAnalytics' }, 'Fetching active users');
 
-  const activeUsers = await getActiveUsersInRange({ from: startDate, to: new Date(to) });
-  const activeOrcidUsers = await getActiveOrcidUsersInRange({ from: startDate, to: new Date(to) });
-
-  const newNodes = await getNewNodesInRange({ from: startDate, to: new Date(to) });
-  const nodeViews = await getNodeViewsInRange({ from: startDate, to: new Date(to) });
-
-  const bytes = await getBytesInRange({ from: startDate, to: new Date(to) });
+  const { bytes, nodeViews, newNodes, newUsers, activeUsers, newOrcidUsers, activeOrcidUsers } =
+    await aggregateAnalytics(startDate, new Date(to));
 
   const selectedDatesInterval = interval(from, to);
-  const daysOfInterval = eachDayOfInterval(interval(startDate, to));
-  const aggregatedData = daysOfInterval.map((period) => {
-    const newUsersAgg = newUsers.filter((user) => isSameDay(user.createdAt, period));
-    const newOrcidUsersAgg = newOrcidUsers.filter((user) => isSameDay(user.createdAt, period));
-    const activeUsersAgg = activeUsers.filter((user) => isSameDay(user.user.createdAt, period));
-    const activeOrcidUsersAgg = activeOrcidUsers.filter((user) => isSameDay(user.user.createdAt, period));
-    const newNodesAgg = newNodes.filter((node) => isSameDay(node.createdAt, period));
-    const nodeViewsAgg = nodeViews.filter((node) => isSameDay(node.createdAt, period));
-    const bytesAgg = bytes.filter((byte) => isSameDay(byte.createdAt, period));
+
+  const selectedDates = { from: startDate, to: new Date(to) };
+  const getIntervals = () => {
+    switch (timeInterval) {
+      case 'daily':
+        return selectedDates?.from && selectedDates?.to
+          ? eachDayOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      case 'weekly':
+        return selectedDates?.from && selectedDates?.to
+          ? eachWeekOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      case 'monthly':
+        return selectedDates?.from && selectedDates?.to
+          ? eachMonthOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      case 'yearly':
+        return selectedDates?.from && selectedDates?.to
+          ? eachYearOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      default:
+        return selectedDates?.from && selectedDates?.to
+          ? eachDayOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+    }
+  };
+  const allDatesInInterval = getIntervals();
+
+  const aggregatedData = allDatesInInterval.map((period) => {
+    const selectedDatesInterval =
+      timeInterval === 'daily'
+        ? interval(startOfDay(period), endOfDay(period))
+        : timeInterval === 'weekly'
+          ? interval(startOfWeek(period), endOfWeek(period))
+          : timeInterval === 'monthly'
+            ? interval(startOfMonth(period), endOfMonth(period))
+            : timeInterval === 'yearly'
+              ? interval(startOfYear(period), endOfYear(period))
+              : interval(startOfDay(period), endOfDay(period));
+
+    const newUsersAgg = newUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
+    const newOrcidUsersAgg = newOrcidUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
+    const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.user.createdAt, selectedDatesInterval));
+    const activeOrcidUsersAgg = activeOrcidUsers.filter((user) =>
+      isWithinInterval(user.user.createdAt, selectedDatesInterval),
+    );
+    const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
+    const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
+    const bytesAgg = bytes.filter((byte) => isWithinInterval(byte.createdAt, selectedDatesInterval));
+
     return {
       date: period,
       newUsers: newUsersAgg.length,
@@ -268,13 +336,6 @@ export const getAnalyticsChartData = async (req: RequestWithUser, res: Response)
   });
 
   const data = {
-    // newUsers,
-    // newOrcidUsers,
-    // activeUsers,
-    // activeOrcidUsers,
-    // newNodes,
-    // nodeViews,
-    // bytes,
     analytics: aggregatedData,
     meta: {
       selectedDatesInterval,
@@ -284,9 +345,143 @@ export const getAnalyticsChartData = async (req: RequestWithUser, res: Response)
     },
   };
 
-  logger.info({ fn: 'getAnalyticsChartData' }, 'getAnalyticsChartData returning');
+  logger.info({ fn: 'getAggregatedAnalytics' }, 'getAggregatedAnalytics returning');
 
   return new SuccessResponse(data).send(res);
+};
+
+export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Response) => {
+  const user = req.user;
+  logger.info(
+    { fn: 'getAggregatedAnalytics', query: req.query },
+    `GET getAggregatedAnalytics called by ${user.email} at ${new Date().toLocaleTimeString()}`,
+  );
+  const {
+    query: { from, to, interval: timeInterval },
+  } = req as zod.infer<typeof analyticsChartSchema>;
+
+  const diffInDays = differenceInDays(new Date(to), new Date(from));
+  const startDate = subDays(new Date(from), diffInDays);
+  const endDate = to;
+  logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, startDate, endDate }, 'Fetching new users');
+
+  // todo: make calls parallel
+  logger.trace({ fn: 'getAggregatedAnalytics' }, 'Fetching active users');
+
+  const { bytes, nodeViews, newNodes, newUsers, activeUsers, newOrcidUsers, activeOrcidUsers } =
+    await aggregateAnalytics(startDate, new Date(to));
+
+  const selectedDates = { from: startDate, to: new Date(to) };
+
+  const getIntervals = () => {
+    switch (timeInterval) {
+      // case "hourly":
+      //   return selectedDates?.from && selectedDates?.to
+      //     ? eachHourOfInterval(interval(selectedDates.from, selectedDates.to))
+      //     : null;
+      case 'daily':
+        return selectedDates?.from && selectedDates?.to
+          ? eachDayOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      case 'weekly':
+        return selectedDates?.from && selectedDates?.to
+          ? eachWeekOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      case 'monthly':
+        return selectedDates?.from && selectedDates?.to
+          ? eachMonthOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      case 'yearly':
+        return selectedDates?.from && selectedDates?.to
+          ? eachYearOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+      default:
+        return selectedDates?.from && selectedDates?.to
+          ? eachDayOfInterval(interval(selectedDates.from, selectedDates.to))
+          : null;
+    }
+  };
+  const allDatesInInterval = getIntervals();
+
+  interface DataRow {
+    date: string;
+    newUsers: number;
+    newOrcidUsers: number;
+    activeUsers: number;
+    activeOrcidUsers: number;
+    newNodes: number;
+    nodeViews: number;
+    bytesUploaded: string;
+  }
+
+  const byteValueNumberFormatter = Intl.NumberFormat('en', {
+    notation: 'compact',
+    style: 'unit',
+    unit: 'byte',
+    unitDisplay: 'narrow',
+  });
+
+  const aggregatedData: DataRow[] = allDatesInInterval.map((period) => {
+    const selectedDatesInterval =
+      timeInterval === 'daily'
+        ? interval(startOfDay(period), endOfDay(period))
+        : timeInterval === 'weekly'
+          ? interval(startOfWeek(period), endOfWeek(period))
+          : timeInterval === 'monthly'
+            ? interval(startOfMonth(period), endOfMonth(period))
+            : timeInterval === 'yearly'
+              ? interval(startOfYear(period), endOfYear(period))
+              : interval(startOfDay(period), endOfDay(period));
+
+    const newUsersAgg = newUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
+    const newOrcidUsersAgg = newOrcidUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
+    const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.user.createdAt, selectedDatesInterval));
+    const activeOrcidUsersAgg = activeOrcidUsers.filter((user) =>
+      isWithinInterval(user.user.createdAt, selectedDatesInterval),
+    );
+    const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
+    const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
+    const bytesAgg = bytes.filter((byte) => isWithinInterval(byte.createdAt, selectedDatesInterval));
+    return {
+      date:
+        timeInterval === 'yearly'
+          ? formatDate(period, 'yyyy')
+          : timeInterval === 'monthly'
+            ? formatDate(period, 'MMM yyyy')
+            : formatDate(period, 'dd MMM yyyy'),
+      newUsers: newUsersAgg.length,
+      newOrcidUsers: newOrcidUsersAgg.length,
+      activeUsers: activeUsersAgg.length,
+      activeOrcidUsers: activeOrcidUsersAgg.length,
+      nodeViews: nodeViewsAgg.length,
+      newNodes: newNodesAgg.length,
+      bytesUploaded: byteValueNumberFormatter.format(bytesAgg.reduce((total, byte) => total + byte.size, 0)),
+    };
+  });
+
+  const csv = [
+    'date,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,bytesUploaded',
+    ...aggregatedData
+      .reverse()
+      .map((row) =>
+        [
+          row.date,
+          row.newUsers,
+          row.newOrcidUsers,
+          row.activeUsers,
+          row.activeOrcidUsers,
+          row.newNodes,
+          row.nodeViews,
+          row.bytesUploaded,
+        ].join(','),
+      ),
+  ].join('\n');
+  res.setHeader('Content-disposition', 'attachment; filename=analytics.csv');
+  res.set('Content-Type', 'text/csv');
+
+  logger.info({ fn: 'getAggregatedAnalytics' }, 'getAggregatedAnalytics returning');
+
+  res.status(200).send(csv);
 };
 
 export const userAnalyticsSchema = zod.object({
