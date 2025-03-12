@@ -1,48 +1,93 @@
 import 'dotenv/config';
-import { addDays, differenceInDays, endOfDay, startOfDay, subDays } from 'date-fns';
-import cron from 'node-cron';
+import { addDays, differenceInDays, endOfDay, isAfter, isSameDay, startOfDay } from 'date-fns';
 import { logger } from './src/logger.js';
-import { pool, type QueryInfo } from './src/db/index.js';
+import { getNextDayToImport, pool, type QueryInfo } from './src/db/index.js';
 import { type Optional, parseDate } from './src/util.js';
 import { errWithCause } from 'pino-std-serializers';
 import { UTCDate } from '@date-fns/utc';
 import { runImportPipeline } from './src/pipeline.js';
+import { Cron } from 'croner';
 
 export const MAX_PAGES_TO_FETCH = parseInt(process.env.MAX_PAGES_TO_FETCH || '100');
 export const IS_DEV = process.env.NODE_ENV === 'development';
 export const SKIP_LOG_WRITE = process.env.SKIP_LOG_WRITE;
 
-/** Every day at noon */
-const DEFAULT_SCHEDULE = '0 12 * * *';
+/** crontab specifying every 10 minutes */
+const DEFAULT_SCHEDULE = '*/5 * * * *';
 
-async function main() {
+/**
+ * Runs an import job for the first day not included in an 'updated' batch, unless an import is currently ongoing.
+ */
+const runImportTask = async (query_type: QueryInfo['query_type']) => {
+  const nextDay: UTCDate = await getNextDayToImport(query_type);
+  const currentDate: UTCDate = new UTCDate();
+  if (isSameDay(nextDay, currentDate) || isAfter(nextDay, currentDate)) {
+    logger.info(
+      { nextDay, currentDate },
+      '💤 Next day to import is today or in the future, snoozing...'
+    );
+    return;
+  }
+
+  const importParams: QueryInfo = {
+    query_from: startOfDay(nextDay),
+    query_to: endOfDay(nextDay),
+    query_type,
+  };
+
+  logger.info(
+    {
+      nextDay,
+      importParams
+    },
+    '🔔 Recurring task triggered, running import for next unhandled day...'
+  );
+
+  await runImportPipeline(importParams);
+  logger.info({ currentDate }, '🏁 Recurring import finished, idling until next trigger');
+}
+
+/**
+ * Without configuring a specific time, main defaults to forking a background cronjob.
+ *
+ */
+async function main(): Promise<void> {
   const args = getRuntimeArgs();
   if (!args.query_from && !args.query_to) {
-    logger.info({ args }, 'Time range not passed, configuring recurring task...');
+    logger.info({ args }, '➿  Time range not passed, configuring recurring task...');
     const schedule = args.query_schedule ?? DEFAULT_SCHEDULE;
     if (!args.query_schedule) {
       logger.info({ DEFAULT_SCHEDULE }, 'No schedule passed, using default');
     }
 
-    cron.schedule(
+    const job = new Cron(
       schedule,
-      async () => {
-        logger.info(
-          { query_type: args.query_type },
-          '🔔 Recurring task triggered, running import from previous day...',
-        );
-        const currentDate = new UTCDate();
-        const query_from: UTCDate = startOfDay(subDays<UTCDate, UTCDate>(currentDate, 1));
-        const query_to: UTCDate = endOfDay(subDays<UTCDate, UTCDate>(currentDate, 1));
-        await runImportPipeline({ query_type: args.query_type, query_from, query_to });
-        logger.info({ currentDate }, '🏁 Recurring import finished, idling until next trigger');
+      async () => runImportTask(args.query_type),
+      {
+        timezone: 'UTC',
+        protect: () => {
+          logger.info(
+            '💤 Recurring task invoked while an import is already running, snoozing...'
+          );
+        },
+        // For some reason this doesn't trigger if the stream callbacks catches errors, but the app exits anyway so OK
+        catch: (e, job) => {
+          logger.error(
+            { error: errWithCause(e as Error) },
+            '💥 Cron job caught an error'
+          );
+          job.stop();
+          throw e;
+        }
       },
-      { timezone: 'UTC' },
     );
+
+    // Kick off first run right away
+    void job.trigger();
   } else if (args.query_from) {
-    logger.info('Running Script in Time travel mode ⏰✈️');
-    const startDate = args.query_from;
-    const endDate = args.query_to || args.query_from;
+    logger.info('Running Script in Time travel mode ⏰✈');
+    const startDate: UTCDate = args.query_from;
+    const endDate: UTCDate = args.query_to || args.query_from;
     if (!args.query_to) {
       logger.info('query_to not set, treating as single day');
     }
@@ -75,7 +120,7 @@ async function main() {
         diffInDays = differenceInDays(endDate, currentDate);
       }
 
-      logger.info({ currentDate, diffInDays, endDate }, 'Time travel completed ⏰✈️');
+      logger.info({ currentDate, diffInDays, endDate }, 'Time travel completed ⏰✈');
     }
   } else {
     logger.warn('Unexpected args; doing nothing.');
@@ -101,10 +146,10 @@ Corresponding environment variables:
 Note: Dates are always UTC. Always queries full days.
 
 Semantics:
-- No specified query range => schedule recurring job
+- No specified query range => schedule recurring job trying to continue updates from the last successful import
 - Only query_from => query that single day
 - Both query_from and query_to => query range (inclusive)
-- No query_schedule => default to noon UTC daily, importing the previous day
+- No query_schedule => defaults to trying to perform next import every 5 minutes, no-op if already in progress
 `;
 
 /**
@@ -143,28 +188,23 @@ const getRuntimeArgs = (): RuntimeArgs => {
   const args: Partial<RuntimeArgs> = {};
   if (raw.query_type === 'created' || raw.query_type === 'updated') {
     args.query_type = raw.query_type;
-  } else throw new Error(CLI_HELP);
+  } else throw new Error(CLI_HELP, { cause: raw });
 
   if (raw.query_from) {
     const parsed = parseDate(raw.query_from);
-    if (!parsed) throw new Error(CLI_HELP);
+    if (!parsed) throw new Error(CLI_HELP, { cause: raw });
     args.query_from = parsed;
   }
 
   if (raw.query_to) {
     const parsed = parseDate(raw.query_to);
     // Also throws if there is an end date but no start
-    if (!parsed || !args.query_from) throw new Error(CLI_HELP);
+    if (!parsed || !args.query_from) throw new Error(CLI_HELP, { cause: raw });
     args.query_to = parsed;
   }
 
   if (raw.query_schedule) {
-    if (cron.validate(raw.query_schedule)) {
-      args.query_schedule = raw.query_schedule;
-    } else {
-      logger.error({ query_schedule: raw.query_schedule }, 'Got invalid crontab schedule');
-      throw new Error(CLI_HELP);
-    }
+    args.query_schedule = raw.query_schedule;
   }
 
   logger.info(args, 'Parsed runtime arguments');
@@ -173,15 +213,14 @@ const getRuntimeArgs = (): RuntimeArgs => {
 
 process.on('uncaughtException', async (err) => {
   logger.fatal(errWithCause(err), 'uncaught exception');
-  await pool.end();
+  if (!pool.ended) {
+    await pool.end();
+  }
   process.exit(1);
 });
 
-try {
-  await main();
-  await pool.end();
-} catch (e) {
-  const err = e as Error;
-  logger.error(errWithCause(err), 'Data import caught unexpected error');
-  await pool.end();
-}
+/**
+ * If app is running it's cron jobs, main() will exit but the cron cycle keeps running in the background,
+ * so don't call pool.end() after main()!
+ */
+await main();

@@ -18,7 +18,7 @@ import { Writable } from 'node:stream';
 import { IS_DEV, MAX_PAGES_TO_FETCH, SKIP_LOG_WRITE } from '../index.js';
 import { RateLimiter } from './rateLimiter.js';
 
-const MAX_RETRIES = 5;
+const MAX_RETRIES = 10;
 const BASE_DELAY = 1_000;
 
 const createWorksAPIStream = (filter: FilterParam): Readable => {
@@ -39,7 +39,7 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
         lastError = error;
         retries++;
 
-        const delayMs = retries * BASE_DELAY;
+        const delayMs = BASE_DELAY * (2 ** retries);
         logger.warn(
           { error: errWithCause(error), retries, MAX_RETRIES, backoff: delayMs },
           'Fetch attempt failed'
@@ -99,7 +99,7 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
 
         if (!searchQuery.cursor) {
           isDone = true;
-          logger.info({ pageCount }, 'Work readable done!');
+          logger.info({ pageCount, day: filter.from_updated_date || filter.from_created_date }, 'Work readable done!');
         }
 
         if (IS_DEV && pageCount >= MAX_PAGES_TO_FETCH) {

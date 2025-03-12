@@ -1,17 +1,17 @@
-apiVersion: batch/v1
-kind: Job
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: openalex-importer
   labels:
     App: OpenAlexImporter
 spec:
-#  replicas: 1
-#  revisionHistoryLimit: 2
-#  selector:
-#    matchLabels:
-#      App: OpenAlexImporter
-#  strategy:
-#    type: Recreate
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      App: OpenAlexImporter
+  strategy:
+    type: Recreate
   template:
     metadata:
       annotations:
@@ -28,8 +28,6 @@ spec:
       labels:
         App: OpenAlexImporter
     spec:
-      # TODO: change before ultimately deploying
-      restartPolicy: Never
       containers:
         - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/openalex-importer:latest
           name: openalex-importer
@@ -40,10 +38,6 @@ spec:
           env:
             - name: QUERY_TYPE
               value: "updated"
-            - name: QUERY_FROM
-              value: "2024-12-11"
-            - name: QUERY_TO
-              value: "2025-01-30"
             - name: NODE_OPTIONS
               value: "--enable-source-maps --max-semi-space-size=256"
           resources:

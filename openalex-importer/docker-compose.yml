@@ -2,7 +2,7 @@ services:
   postgres:
     container_name: 'openalex_db'
     image: 'ankane/pgvector'
-    restart: always
+    restart: on-failure
     healthcheck:
       test: 'pg_isready -U postgres -d postgres'
       interval: 5s
@@ -24,6 +24,7 @@ services:
       - ./postgres/sql/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
   openalex-importer:
     container_name: 'openalex-importer'
+    restart: on-failure
     build: .
     env_file:
       - .env

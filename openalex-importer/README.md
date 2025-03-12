@@ -1,8 +1,29 @@
-# OpenAlex Data Importer Script
+# `openalex-importer`
 
-This script aims to aid with realtime update of our openalex data imports. Denormalized data is fetched from the
-OpenAlex API, which is then normalised into separate tables. This is all done in a single transaction, so we can
-ensure atomic delta imports.
+This service runs continually, scraping the OpenAlex works API for works updated every day. Each day queried returns
+a (large) chunk of denormalised works, which is then normalised into separate tables. This is all done in a single
+transaction, so we can ensure atomic delta updates.
+
+Data is upserted into the tables to the extent that primary keys allow it, so the database will inch toward equalling
+the OpenAlex works dataset every time a work is updated. This means that we don't duplicate the different versions of
+a work, instead it's updated in place with the latest information.
+
+To keep track of what works have been updated, the service uses two special tables: `batch` and `works_batch`:
+- For each import operation, a row is created in `batch` which includes the date range it queried the OpenAlex API.
+- For each work in that data, a row is created in `works_batch` mapping it to the relevant batch.
+
+This can be used to figure out which works have been updated between certain dates, by selecting batches between those
+dates and joining that with the `works_batch` table to get which `work_id`'s have been affected by updates during that
+time.
+
+There are two types of filters that can be used in the OpenAlex API: `created` and `updated` works. `created` only
+returns works created that day, and `updated` returns the state of works either created or updated that day. Running
+continuously with `created` would get all works, but they would drift into increasing staleness.
+
+> [!WARNING]
+> Since data is mutated for every updated work, running imports of previous dates **is destructive** as it could
+> overwrite fresh data with stale data. This would eventually be corrected, but it will basically force us to re-run
+> the sync from that point onward.
 
 ## Usage
 
@@ -17,7 +38,7 @@ ensure atomic delta imports.
 
 ### Running in Production
 
-Start container. Without env configuration, will run import of previous day every day at noon UTC.
+Start container. By default, it will start from the first day not covered by an `updated` batch.
 
 #### Deployment
 There is no CI build/deploy for this service, since there is no dev environment for the openalex database.
@@ -51,10 +72,10 @@ Corresponding environment variables:
 Note: Dates are always UTC. Always queries full days.
 
 Semantics:
-- No specified query range => schedule recurring job
-- Only `query_from` => query that single day
-- Both `query_from` and `query_to` => query range (inclusive)
-- No `query_schedule` => default to noon UTC daily, importing the previous day
+- No specified query range => schedule recurring job trying to continue updates from the last successful import
+- Only query_from => query that single day
+- Both query_from and query_to => query range (inclusive)
+- No query_schedule => defaults to trying to perform next import every 5 minutes, no-op if already in progress
 ```
 
 #### Environment variable configuration
@@ -62,19 +83,19 @@ The flags have corresponding envvars, additionally these are available:
 
 - `NODE_ENV=development`
   - Saves raw and normalised data to the `logs` directory
-  - Caps fetching at `MAX_PAGES_TO_FETCH`
+  - Caps fetching at `MAX_PAGES_TO_FETCH` (incomplete data, useful for testing)
 - `MAX_PAGES_TO_FETCH`
-  - Configure cutoff for fetch in `development` (default 100)
+  - Configure cutoff for fetch (dev only, default 100)
   - Use to test larger datasets in testing
 - `SKIP_LOG_WRITE=true`
   - Do not write fetched data to `logs/` (dev only)
-  - Can reach several gigs of space when using `--query-type=updated`
+  - Can use many gigs of space when using `--query-type=updated`
 
 ## Common Commands
 
 ### Generate new migrations
 
-If you change either schema, run this to create new migration files.
+If you change either schema, run this to create new migration files and apply the to the database.
 
 ```bash
 npm run generate
@@ -83,13 +104,14 @@ npm run migrate
 
 ### Introspect Remote OpenAlex Schema
 
-Note: this overwrites the `schema.ts` file, which has multiple change to indices and keys.
-Only do this to reset the base state, and be ready to rebuild the migrations directory.
+> [!WARNING]  
+> This overwrites the `schema.ts` file, which has multiple change to indices and keys.
+> Only do this to reset the base state, and be ready to rebuild the migrations directory.
 
-To introspect a schema file from the remote database, first tunnel
-`openalex-big-dev.ctzyam40vcxa.us-east-2.rds.amazonaws.com:5432` to `5438` to your local machine.
+To introspect a schema file from the remote database, first tunnel the remote database to `5438` to your local machine
+using kubectl.
 
-Then, set the following envvars:
+Then, set the following environment variables:
 
 ```bash
 PG_HOST=localhost
@@ -111,18 +133,14 @@ schema by setting it to `text_ops`.
 
 ### Manually generate batches migration
 
-Note: this shouldn't be necessary now that `drizzle.config.ts` includes both schemas.
+> [!NOTE]  
+> This shouldn't be necessary now that `drizzle.config.ts` includes both schemas.
 
 ```bash
 npx drizzle-kit generate --schema=./drizzle/migrations/batches-schema.ts --out=./drizzle --dialect=postgresql
 ```
 
 ## Troubleshooting
-
-- Some days can run with the default heap max, but some days have so many updates that it not sufficient.
-  - The max long-term heap size can be increased with `--max-old-space-size=8192` (or some other number)
-- To control GC frequency, bump the short-lived heap with `--max-semi-space-size=256`
-  - This has a big effect with the very parallel async map requests in the older methods, not so much with bulk ops
 
 ### Drizzle bug: `maximum call stack size exceeded`
 
@@ -198,10 +216,8 @@ Solution: use `text`
 
 ## Future improvements
 
-1. Use Job+CronJob to schedule execution without having to provision 24/7
-2. Add support for other endpoints to support missing data (see footnote 2 in table)
-3. Fix works_authorships (overloaded with dupe info, breaks `ON CONFLICT UPDATE` within batches)
-4. Add retries to API readable for stability (haven't seen a failure yet though)
+1. Add support for other endpoints to support missing data (see footnote 2 in table)
+2. Fix `works_authorships` (overloaded with dupe info, breaks `ON CONFLICT UPDATE` within batches)
 
 ## Supported datatypes
 Not all OA datatypes are fully supported, the table below shows the status of each.

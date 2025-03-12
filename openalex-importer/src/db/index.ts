@@ -2,7 +2,7 @@ import type { QueryInfo } from './types.js';
 
 const pg = await import('pg').then((value) => value.default);
 const { Pool } = pg;
-import { eq, type ExtractTablesWithRelations, getTableColumns, SQL, sql, type Table } from 'drizzle-orm';
+import { desc, eq, type ExtractTablesWithRelations, getTableColumns, SQL, sql, type Table } from 'drizzle-orm';
 import { drizzle, type NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import { PgTransaction } from 'drizzle-orm/pg-core';
 
@@ -12,14 +12,24 @@ import { logger } from '../logger.js';
 import { type DataModels } from '../transformers.js';
 import { chunkGenerator } from '../util.js';
 import { UTCDate } from '@date-fns/utc';
+import { addDays, startOfDay } from 'date-fns';
+import type { PoolConfig } from 'pg';
 
 export * from '../../drizzle/schema.js';
 export * from './types.js';
 
-export const pool = new Pool({
+const poolConfig: PoolConfig = {
   connectionString: process.env.DATABASE_URL,
   options: '-c search_path=public',
-});
+};
+export const pool = new Pool(poolConfig);
+logger.info(
+  {
+    connectionString: poolConfig.connectionString?.replace(/:\/\/.*@/, `://${process.env.POSTGRES_USER}:[redacted]@`),
+    options: poolConfig.options,
+  },
+  'Postgres connection pool started'
+);
 
 const { batchesInOpenAlex, workBatchesInOpenAlex } = batchesSchema;
 
@@ -124,6 +134,7 @@ export const saveData = async (tx: PgTransactionType, batchId: number, models: D
     // updateWorkAuthorships(tx, models["works_authorships"]),
   } catch (err) {
     logger.error({ err }, 'Error Saving data to DB');
+    throw err;
   }
 };
 
@@ -307,3 +318,25 @@ const updateWorksTopics = async (tx: PgTransactionType, data: DataModels['works_
       });
   }
 };
+
+/**
+ * Returns the date AFTER the last import, i.e. the start of the first date where an import has not been run.
+ */
+export const getNextDayToImport = async (queryType: QueryInfo['query_type']): Promise<UTCDate> => {
+  const db = getDrizzle();
+  const lastBatchEnd = await db
+    .select({ query_to: batchesInOpenAlex.query_to })
+    .from(batchesInOpenAlex)
+    .where(eq(batchesInOpenAlex.query_type, queryType))
+    .orderBy(desc(batchesInOpenAlex.query_to))
+    .limit(1);
+
+  if (lastBatchEnd.length === 0) {
+    throw new Error('Failed to get the end range from last batch');
+  }
+
+  const latestQueryTo = new UTCDate(lastBatchEnd[0].query_to);
+  const nextDay: UTCDate = addDays(new UTCDate(latestQueryTo), 1);
+
+  return startOfDay<UTCDate, UTCDate>(nextDay);
+}
