@@ -28,7 +28,7 @@ logger.info(
     connectionString: poolConfig.connectionString?.replace(/:\/\/.*@/, `://${process.env.POSTGRES_USER}:[redacted]@`),
     options: poolConfig.options,
   },
-  'Postgres connection pool started'
+  'Postgres connection pool started',
 );
 
 const { batchesInOpenAlex, workBatchesInOpenAlex } = batchesSchema;
@@ -339,4 +339,4 @@ export const getNextDayToImport = async (queryType: QueryInfo['query_type']): Pr
   const nextDay: UTCDate = addDays(new UTCDate(latestQueryTo), 1);
 
   return startOfDay<UTCDate, UTCDate>(nextDay);
-}
+};

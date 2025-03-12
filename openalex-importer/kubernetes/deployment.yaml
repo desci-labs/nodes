@@ -31,15 +31,15 @@ spec:
       containers:
         - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/openalex-importer:latest
           name: openalex-importer
-#          command: [ 'tail', '-f', '/dev/null' ]
+          #          command: [ 'tail', '-f', '/dev/null' ]
           command: ['/bin/bash', '-c']
           args:
             - echo "SOURCING ENV"; source /vault/secrets/config; node ./dist/index.js;
           env:
             - name: QUERY_TYPE
-              value: "updated"
+              value: 'updated'
             - name: NODE_OPTIONS
-              value: "--enable-source-maps --max-semi-space-size=256"
+              value: '--enable-source-maps --max-semi-space-size=256'
           resources:
             limits:
               cpu: '2'

@@ -22,10 +22,7 @@ const runImportTask = async (query_type: QueryInfo['query_type']) => {
   const nextDay: UTCDate = await getNextDayToImport(query_type);
   const currentDate: UTCDate = new UTCDate();
   if (isSameDay(nextDay, currentDate) || isAfter(nextDay, currentDate)) {
-    logger.info(
-      { nextDay, currentDate },
-      '💤 Next day to import is today or in the future, snoozing...'
-    );
+    logger.info({ nextDay, currentDate }, '💤 Next day to import is today or in the future, snoozing...');
     return;
   }
 
@@ -38,14 +35,14 @@ const runImportTask = async (query_type: QueryInfo['query_type']) => {
   logger.info(
     {
       nextDay,
-      importParams
+      importParams,
     },
-    '🔔 Recurring task triggered, running import for next unhandled day...'
+    '🔔 Recurring task triggered, running import for next unhandled day...',
   );
 
   await runImportPipeline(importParams);
   logger.info({ currentDate }, '🏁 Recurring import finished, idling until next trigger');
-}
+};
 
 /**
  * Without configuring a specific time, main defaults to forking a background cronjob.
@@ -60,27 +57,18 @@ async function main(): Promise<void> {
       logger.info({ DEFAULT_SCHEDULE }, 'No schedule passed, using default');
     }
 
-    const job = new Cron(
-      schedule,
-      async () => runImportTask(args.query_type),
-      {
-        timezone: 'UTC',
-        protect: () => {
-          logger.info(
-            '💤 Recurring task invoked while an import is already running, snoozing...'
-          );
-        },
-        // For some reason this doesn't trigger if the stream callbacks catches errors, but the app exits anyway so OK
-        catch: (e, job) => {
-          logger.error(
-            { error: errWithCause(e as Error) },
-            '💥 Cron job caught an error'
-          );
-          job.stop();
-          throw e;
-        }
+    const job = new Cron(schedule, async () => runImportTask(args.query_type), {
+      timezone: 'UTC',
+      protect: () => {
+        logger.info('💤 Recurring task invoked while an import is already running, snoozing...');
       },
-    );
+      // For some reason this doesn't trigger if the stream callbacks catches errors, but the app exits anyway so OK
+      catch: (e, job) => {
+        logger.error({ error: errWithCause(e as Error) }, '💥 Cron job caught an error');
+        job.stop();
+        throw e;
+      },
+    });
 
     // Kick off first run right away
     void job.trigger();
@@ -183,7 +171,7 @@ const getRuntimeArgs = (): RuntimeArgs => {
     query_to: getParam('query_to', false),
     query_schedule: getParam('query_schedule', false),
   };
-  console.log()
+  console.log();
 
   const args: Partial<RuntimeArgs> = {};
   if (raw.query_type === 'created' || raw.query_type === 'updated') {

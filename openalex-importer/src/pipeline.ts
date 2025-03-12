@@ -39,20 +39,14 @@ const createWorksAPIStream = (filter: FilterParam): Readable => {
         lastError = error;
         retries++;
 
-        const delayMs = BASE_DELAY * (2 ** retries);
-        logger.warn(
-          { error: errWithCause(error), retries, MAX_RETRIES, backoff: delayMs },
-          'Fetch attempt failed'
-        );
+        const delayMs = BASE_DELAY * 2 ** retries;
+        logger.warn({ error: errWithCause(error), retries, MAX_RETRIES, backoff: delayMs }, 'Fetch attempt failed');
 
         await sleep(delayMs);
       }
     }
 
-    throw new Error(
-      `Fetch failed after ${MAX_RETRIES} retries`,
-      { cause: lastError }
-    );
+    throw new Error(`Fetch failed after ${MAX_RETRIES} retries`, { cause: lastError });
   };
 
   // Metrics
@@ -134,7 +128,6 @@ const createBufferStream = (targetBatchSize = 5) => {
       } else {
         callback();
       }
-
     },
 
     flush(callback) {
@@ -143,7 +136,7 @@ const createBufferStream = (targetBatchSize = 5) => {
       } else {
         callback();
       }
-    }
+    },
   });
 };
 
@@ -155,7 +148,7 @@ const createTransformStream = (): Transform => {
       try {
         const start = Date.now();
         const transformed: DataModels = transformDataModel(chunk);
-        logger.info({ duration: Date.now() - start}, 'Transformed chunk');
+        logger.info({ duration: Date.now() - start }, 'Transformed chunk');
         callback(null, transformed);
       } catch (e) {
         const err = e as Error;
@@ -193,7 +186,7 @@ const createSaveStream = (tx: PgTransactionType, batchId: number): Writable => {
       try {
         const start = Date.now();
         await saveData(tx, batchId, chunk);
-        logger.info({ duration: Date.now() - start}, 'Saved chunk to database');
+        logger.info({ duration: Date.now() - start }, 'Saved chunk to database');
         callback();
       } catch (error) {
         callback(error as Error);

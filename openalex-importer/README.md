@@ -9,6 +9,7 @@ the OpenAlex works dataset every time a work is updated. This means that we don'
 a work, instead it's updated in place with the latest information.
 
 To keep track of what works have been updated, the service uses two special tables: `batch` and `works_batch`:
+
 - For each import operation, a row is created in `batch` which includes the date range it queried the OpenAlex API.
 - For each work in that data, a row is created in `works_batch` mapping it to the relevant batch.
 
@@ -41,6 +42,7 @@ continuously with `created` would get all works, but they would drift into incre
 Start container. By default, it will start from the first day not covered by an `updated` batch.
 
 #### Deployment
+
 There is no CI build/deploy for this service, since there is no dev environment for the openalex database.
 Alas, be careful 🙏
 
@@ -79,6 +81,7 @@ Semantics:
 ```
 
 #### Environment variable configuration
+
 The flags have corresponding envvars, additionally these are available:
 
 - `NODE_ENV=development`
@@ -220,29 +223,31 @@ Solution: use `text`
 2. Fix `works_authorships` (overloaded with dupe info, breaks `ON CONFLICT UPDATE` within batches)
 
 ## Supported datatypes
+
 Not all OA datatypes are fully supported, the table below shows the status of each.
 
 | Table                   | Support | Note                                  |
-|-------------------------|---------|---------------------------------------|
+| ----------------------- | ------- | ------------------------------------- |
 | authors                 | 🌓      | only: id, display_name, orcid (1) (2) |
-| authors_counts_by_year  | ❌       | (2)                                   |
+| authors_counts_by_year  | ❌      | (2)                                   |
 | authors_ids             | 🌓      | only: id + orcid (1) (2)              |
-| topics                  | ❌       | (2)                                   |
-| concepts                | ❌       | (2)                                   |
-| institutions            | ❌       | (2)                                   |
-| sources                 | ❌       | (2)                                   |
-| works                   | ✅       |                                       |
-| works_primary_locations | ✅       |                                       |
-| works_locations         | ✅       | no unique constraint available        |
-| works_best_oa_locations | ✅       |                                       |
-| works_authorships       | ❌       |                                       |
-| works_topics            | ✅       | maps work -> topic ID                 |
-| works_concepts          | ✅       | maps work -> concept ID               |
-| works_ids               | ✅       |                                       |
-| works_open_access       | ✅       |                                       |
-| works_referenced_works  | ✅       |                                       |
-| works_related_works     | ✅       |                                       |
+| topics                  | ❌      | (2)                                   |
+| concepts                | ❌      | (2)                                   |
+| institutions            | ❌      | (2)                                   |
+| sources                 | ❌      | (2)                                   |
+| works                   | ✅      |                                       |
+| works_primary_locations | ✅      |                                       |
+| works_locations         | ✅      | no unique constraint available        |
+| works_best_oa_locations | ✅      |                                       |
+| works_authorships       | ❌      |                                       |
+| works_topics            | ✅      | maps work -> topic ID                 |
+| works_concepts          | ✅      | maps work -> concept ID               |
+| works_ids               | ✅      |                                       |
+| works_open_access       | ✅      |                                       |
+| works_referenced_works  | ✅      |                                       |
+| works_related_works     | ✅      |                                       |
 
 Footnotes:
+
 1. Populated from the dehydrated `author` field in `work.authorship`, which lacks the rest
 2. Needs support for separate API route/format

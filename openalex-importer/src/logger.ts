@@ -16,7 +16,7 @@ const devTransport = {
 
 const stdoutTransport = {
   target: 'pino/file',
-  options: { destination: 1 } // this writes to STDOUT,
+  options: { destination: 1 }, // this writes to STDOUT,
 };
 
 export const logger = pino({

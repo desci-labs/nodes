@@ -1,4 +1,3 @@
-
 /** Rate limiter for sequential requests.
  *
  * Does not work with concurrency, nor allows bursts. Should prob implement smt like token buckets algorithm
@@ -19,7 +18,7 @@ export class RateLimiter {
 
     if (timeSinceLastRequest < this.minGap) {
       const waitTime = this.minGap - timeSinceLastRequest;
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
 
     this.lastRequest = Date.now();
