@@ -1,0 +1,42 @@
+{
+  "name": "openalex-importer",
+  "version": "1.0.1",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "rimraf dist && tsc",
+    "start": "node --enable-source-maps --max-semi-space-size=256 ./dist/index.js",
+    "generate": "sed -i 's|/schema.js|/schema|' drizzle/batches-schema.ts && drizzle-kit generate; sed -i 's|/schema|/schema.js|' drizzle/batches-schema.ts",
+    "migrate": "sed -i 's|/schema.js|/schema|' drizzle/batches-schema.ts && drizzle-kit migrate; sed -i 's|/schema|/schema.js|' drizzle/batches-schema.ts",
+    "lint": "prettier . --write '!./postgres/postgres-data' && eslint --max-warnings 0 --fix ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/lodash": "^4.17.14",
+    "@types/node": "^20.17.12",
+    "@types/pg": "^8.11.6",
+    "drizzle-kit": "^0.30.1",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.19.1"
+  },
+  "dependencies": {
+    "@date-fns/utc": "^2.1.0",
+    "croner": "^9.0.0",
+    "date-fns": "^4.1.0",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.38.3",
+    "lodash": "^4.17.21",
+    "pg": "^8.12.0",
+    "pino": "^9.3.2",
+    "pino-pretty": "^13.0.0",
+    "pino-std-serializers": "^7.0.0"
+  }
+}

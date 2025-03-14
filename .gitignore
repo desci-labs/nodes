@@ -18,3 +18,4 @@ local-data/
 **/*.iml
 .composedbRuntimeDefinition.json
 openalex-importer
+desci-server/preload-ai-failures.json

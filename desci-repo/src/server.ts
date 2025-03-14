@@ -1,17 +1,10 @@
 import 'reflect-metadata';
+import type { Server as HttpServer } from 'http';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
-
-const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
-const IS_DEV = !ENABLE_TELEMETRY;
-
-// @ts-check
-
-import type { Server as HttpServer } from 'http';
-import { fileURLToPath } from 'url';
-
 import 'dotenv/config';
 import 'reflect-metadata';
 import bodyParser from 'body-parser';
@@ -23,10 +16,10 @@ import { v4 } from 'uuid';
 
 import { als, logger } from './logger.js';
 import { RequestWithUser } from './middleware/guard.js';
-import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import routes from './routes/index.js';
 
-import { ENABLE_PARTYKIT_FEATURE } from './config.js';
+const ENABLE_TELEMETRY = process.env.NODE_ENV === 'production';
+const IS_DEV = !ENABLE_TELEMETRY;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -136,41 +129,39 @@ class AppServer {
       logger.info(`Server running on port ${this.port}`);
     });
 
-    if (!ENABLE_PARTYKIT_FEATURE) {
-      this.acceptWebsocketConnections();
-    }
+    // if (!ENABLE_PARTYKIT_FEATURE) {
+    //   this.acceptWebsocketConnections();
+    // }
   }
 
   async acceptWebsocketConnections() {
-    const wsSocket = await import('./repo.js').then((x) => x.socket);
-
-    wsSocket.on('listening', () => {
-      logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
-    });
-
-    wsSocket.on('connection', async (socket, request) => {
-      try {
-        logger.info({ module: 'WebSocket' }, 'WebSocket Connection Attempt');
-        const token = await extractAuthToken(request as Request);
-        const authUser = await extractUserFromToken(token!);
-        if (!authUser) {
-          socket.close(); // Close connection if user is not authorized
-          return;
-        }
-        logger.info(
-          { module: 'WebSocket SERVER', id: authUser.id, name: authUser.name },
-          'WebSocket Connection Authorised',
-        );
-        socket.on('message', (message) => {
-          // Handle incoming messages
-          // console.log(`Received message: ${message}`);
-        });
-        // Additional event listeners (e.g., 'close', 'error') can be set up here
-      } catch (error) {
-        socket.close(); // Close the connection in case of an error
-        logger.error(error, 'Error during WebSocket connection');
-      }
-    });
+    // const wsSocket = await import('./repo.js').then((x) => x.socket);
+    // wsSocket.on('listening', () => {
+    //   logger.info({ module: 'WebSocket SERVER', port: wsSocket.address() }, 'WebSocket Server Listening');
+    // });
+    // wsSocket.on('connection', async (socket, request) => {
+    //   try {
+    //     logger.info({ module: 'WebSocket' }, 'WebSocket Connection Attempt');
+    //     const token = await extractAuthToken(request as Request);
+    //     const authUser = await extractUserFromToken(token!);
+    //     if (!authUser) {
+    //       socket.close(); // Close connection if user is not authorized
+    //       return;
+    //     }
+    //     logger.info(
+    //       { module: 'WebSocket SERVER', id: authUser.id, name: authUser.name },
+    //       'WebSocket Connection Authorised',
+    //     );
+    //     socket.on('message', (message) => {
+    //       // Handle incoming messages
+    //       // console.log(`Received message: ${message}`);
+    //     });
+    //     // Additional event listeners (e.g., 'close', 'error') can be set up here
+    //   } catch (error) {
+    //     socket.close(); // Close the connection in case of an error
+    //     logger.error(error, 'Error during WebSocket connection');
+    //   }
+    // });
   }
 
   #initSerialiser() {

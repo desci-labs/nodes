@@ -1,11 +1,10 @@
 const pg = await import('pg').then((value) => value.default);
 const { Client } = pg;
-import { z } from 'zod';
-
-import { WorksDetails } from '../controllers/doi/check.js';
+import { NoveltyScoreDetails, WorksDetails } from '../controllers/doi/check.js';
 import { logger as parentLogger } from '../logger.js';
 
 import { OpenAlexWork, transformInvertedAbstractToText } from './AutomatedMetadata.js';
+import { getWorkNoveltyScoresById } from './ElasticSearchService.js';
 
 const logger = parentLogger.child({
   module: 'OpenAlexService::',
@@ -37,7 +36,7 @@ function getRawDoi(doi: string) {
   return doi;
 }
 
-export async function getMetadataByWorkId(workId: string): Promise<WorksDetails> {
+export async function getMetadataByWorkId(workId: string): Promise<WorksDetails & NoveltyScoreDetails> {
   logger.info(`Fetching OpenAlex work: ${workId}`);
   workId = ensureFormattedWorkId(workId);
 
@@ -80,10 +79,12 @@ export async function getMetadataByWorkId(workId: string): Promise<WorksDetails>
   const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
   const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
 
-  return { ...work, abstract };
+  const noveltyScores = await getWorkNoveltyScoresById(workId);
+
+  return { ...work, abstract, ...noveltyScores };
 }
 
-export async function getMetadataByDoi(doi: string): Promise<WorksDetails> {
+export async function getMetadataByDoi(doi: string): Promise<WorksDetails & NoveltyScoreDetails> {
   logger.info(`Fetching OpenAlex work by DOI: ${doi}`);
   doi = ensureFormattedDoi(doi);
 
@@ -127,10 +128,41 @@ group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type",
   const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
   const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
 
-  return { ...work, abstract, doi: getRawDoi(doi) };
+  const noveltyScores = await getWorkNoveltyScoresById(work?.works_id);
+  return { ...work, abstract, doi: getRawDoi(doi), ...noveltyScores };
+}
+
+export type OpenAlexTopic = {
+  id: string;
+  display_name: string;
+  subfield_id: string;
+  subfield_display_name: string;
+};
+export async function getTopicsByIds(topicIds: string[]): Promise<OpenAlexTopic[]> {
+  logger.info(`Fetching OpenAlex topics for IDs: ${topicIds}`);
+
+  // Format each topic ID to ensure it's in the correct OpenAlex URL format
+  const formattedIds = topicIds.map((id) => {
+    const idPart = id.split('/').pop()?.toUpperCase();
+    return `https://openalex.org/${idPart}`;
+  });
+
+  const { rows } = await client.query(
+    `SELECT
+        id,
+        display_name,
+        subfield_id,
+        subfield_display_name
+     FROM openalex.topics 
+     WHERE id = ANY($1)`,
+    [formattedIds],
+  );
+
+  return rows;
 }
 
 export const OpenAlexService = {
   getMetadataByWorkId,
   getMetadataByDoi,
+  getTopicsByIds,
 };

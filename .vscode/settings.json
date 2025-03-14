@@ -52,5 +52,6 @@
   },
   "[shellscript]": {
     "editor.defaultFormatter": "foxundermoon.shell-format"
-  }
+  },
+  "window.title": "BACKEND ${dirty}${activeEditorShort}${separator}${rootName}${separator}"
 }

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openalex-importer
+  labels:
+    App: OpenAlexImporter
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      App: OpenAlexImporter
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-status: 'update'
+        vault.hashicorp.com/role: app-vault-reader
+        vault.hashicorp.com/agent-inject-secret-config: secrets/openalex-importer
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secrets/openalex-importer" -}}
+          {{- range $k, $v := .Data }}
+          export {{ $k }}={{ $v }}
+          {{- end }}
+          {{- end }}
+      labels:
+        App: OpenAlexImporter
+    spec:
+      containers:
+        - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/openalex-importer:latest
+          name: openalex-importer
+          #          command: [ 'tail', '-f', '/dev/null' ]
+          command: ['/bin/bash', '-c']
+          args:
+            - echo "SOURCING ENV"; source /vault/secrets/config; node ./dist/index.js;
+          env:
+            - name: QUERY_TYPE
+              value: 'updated'
+            - name: NODE_OPTIONS
+              value: '--enable-source-maps --max-semi-space-size=256'
+          resources:
+            limits:
+              cpu: '2'
+              memory: 4Gi
+            requests:
+              cpu: '2'
+              memory: 2Gi
+      serviceAccountName: 'vault-auth'

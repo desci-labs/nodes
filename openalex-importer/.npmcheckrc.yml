@@ -1,0 +1,5 @@
+depcheck:
+  ignoreMatches:
+    - 'rimraf'
+    - '@types/node'
+    - 'pino-pretty'

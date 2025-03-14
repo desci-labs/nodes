@@ -1,5 +1,5 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { Node } from '@prisma/client';
+import { Node, Prisma } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
@@ -38,4 +38,36 @@ export async function getDpidFromNodeUuid(nodeUuid: string): Promise<number | st
   }
 
   return dpid;
+}
+
+export async function getLikesByUuid(nodeUuid: string) {
+  return prisma.nodeLike.findMany({
+    where: { nodeUuid },
+  });
+}
+
+export async function countLikesByUuid(nodeUuid: string) {
+  return prisma.nodeLike.count({
+    where: { nodeUuid },
+  });
+}
+
+export async function likeNode(data: Prisma.NodeLikeCreateArgs['data']) {
+  return await prisma.nodeLike.upsert({
+    where: { nodeUuid_userId: { userId: data.userId, nodeUuid: data.nodeUuid } },
+    create: { userId: data.userId, nodeUuid: data.nodeUuid },
+    update: {},
+  });
+}
+
+export async function unlikeNode(id: number) {
+  return await prisma.nodeLike.delete({
+    where: { id },
+  });
+}
+
+export async function getUserNodeLike(userId: number, nodeUuid: string) {
+  return prisma.nodeLike.findFirst({
+    where: { userId, nodeUuid },
+  });
 }

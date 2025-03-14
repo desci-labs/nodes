@@ -11,7 +11,11 @@ import { ONE_DAY_TTL, getFromCache, setToCache } from '../../redisClient.js';
 import { asyncMap } from '../../utils.js';
 
 import { CrossRefHttpResponse, Items, QueryWorkParams, RegisterDoiResponse, Work } from './definitions.js';
+import { ProfileSummary } from './types/summary.js';
+import { WorksResponse } from './types/works.js';
 import { keysToDotsAndDashses } from './utils.js';
+
+const ORCID_PUBLIC_API = process.env.ORCID_PUBLIC_API || 'https://pub.sandbox.orcid.org/v3.0';
 
 const logger = parentLogger.child({ module: '[CrossRefClient]' });
 
@@ -395,11 +399,34 @@ class CrossRefClient {
 
     if (crossRefResponse.ok) {
       const apiRes = (await crossRefResponse.json()) as Items<Work>;
-      // console.log('[api/publications/search.ts]', apiRes);
+      console.log('[api/publications/search.ts]', apiRes.status, apiRes?.message?.items?.length);
       const data = apiRes.message.items ?? []; // sort((a, b) => b['is-referenced-by-count'] - a['is-referenced-by-count'])?.[0];
       return data;
     } else {
       return [];
+    }
+  }
+
+  async profileSummary(orcid: string) {
+    try {
+      const response = await fetch(`${ORCID_PUBLIC_API}/${orcid}`, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+      const profile = response.status === 200 ? ((await response.json()) as ProfileSummary) : undefined;
+
+      const worksResponse = await fetch(`${ORCID_PUBLIC_API}/${orcid}/works`, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+      const works = worksResponse.status === 200 ? ((await worksResponse.json()) as WorksResponse) : undefined;
+
+      return { profile, works };
+    } catch (err) {
+      logger.error({ err }, '[ORCID]::profileSummary');
+      return { works: undefined, profile: undefined };
     }
   }
 }

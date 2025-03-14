@@ -20,7 +20,7 @@ import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
 export const getAttestationComments = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   const { claimId } = req.params;
-  const { cursor, limit } = req.query as zod.infer<typeof getAttestationCommentsSchema>['query'];
+  const { cursor, limit, replyTo } = req.query as zod.infer<typeof getAttestationCommentsSchema>['query'];
   const claim = await attestationService.findClaimById(parseInt(claimId));
   if (!claim) throw new NotFoundError('Claim not found');
 
@@ -30,6 +30,7 @@ export const getAttestationComments = async (req: RequestWithUser, res: Response
   const comments = await attestationService.getAllClaimComments(
     {
       nodeAttestationId: claim.id,
+      ...(replyTo ? { replyToId: { equals: replyTo } } : { replyToId: null }),
     },
     { cursor: cursor ? parseInt(cursor.toString()) : undefined, limit: parseInt(limit.toString()) },
   );
@@ -48,6 +49,7 @@ export const getAttestationComments = async (req: RequestWithUser, res: Response
         meta: {
           upvotes,
           downvotes,
+          replyCount: comment._count.replies,
           isUpvoted: vote?.type === VoteType.Yes,
           isDownVoted: vote?.type === VoteType.No,
         },
@@ -99,8 +101,11 @@ export const removeComment = async (req: Request<RemoveCommentBody, any, any>, r
 
 type AddCommentBody = zod.infer<typeof createCommentSchema>;
 
-export const addComment = async (req: Request<any, any, AddCommentBody['body']>, res: Response<AddCommentResponse>) => {
-  const { authorId, claimId, body, highlights, links, uuid, visible } = req.body;
+export const postComment = async (
+  req: Request<any, any, AddCommentBody['body']>,
+  res: Response<AddCommentResponse>,
+) => {
+  const { authorId, claimId, body, highlights, links, uuid, visible, replyTo } = req.body;
   const user = (req as any).user;
 
   if (parseInt(authorId.toString()) !== user.id) throw new ForbiddenError();
@@ -129,12 +134,13 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
     });
     logger.info({ processedHighlights }, 'processedHighlights');
     annotation = await attestationService.createHighlight({
-      claimId: claimId && parseInt(claimId.toString()),
-      authorId: user.id,
-      comment: body,
       links,
-      highlights: processedHighlights as unknown as HighlightBlock[],
       visible,
+      replyTo,
+      comment: body,
+      authorId: user.id,
+      claimId: claimId && parseInt(claimId.toString()),
+      highlights: processedHighlights as unknown as HighlightBlock[],
       ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
     });
     await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
@@ -145,6 +151,7 @@ export const addComment = async (req: Request<any, any, AddCommentBody['body']>,
       comment: body,
       links,
       visible,
+      replyTo,
       ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
     });
   }

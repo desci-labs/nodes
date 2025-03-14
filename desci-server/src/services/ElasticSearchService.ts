@@ -10,8 +10,22 @@ import {
   QueryDslTextQueryType,
 } from '@elastic/elasticsearch/lib/api/types.js';
 
+import { NoveltyScoreDetails } from '../controllers/doi/check.js';
 import { Filter } from '../controllers/search/types.js';
+import { elasticClient } from '../elasticSearchClient.js';
+import { logger as parentLogger } from '../logger.js';
 
+const logger = parentLogger.child({
+  module: 'ElasticSearch::ElasticSearchService',
+});
+
+const SERVER_ENV_ES_ALIAS_MAPPING = {
+  'http://localhost:5420': 'works_all_local',
+  'https://nodes-api-dev.desci.com': 'works_all_dev',
+  'https://nodes-api.desci.com': 'works_all_prod',
+};
+
+export const MAIN_WORKS_ALIAS = SERVER_ENV_ES_ALIAS_MAPPING[process.env.SERVER_URL || 'https://localhost:5420'];
 export const VALID_ENTITIES = [
   'authors',
   'concepts',
@@ -117,7 +131,7 @@ export function createFunctionScoreQuery(query: QueryDslQueryContainer, entity: 
     },
   ];
 
-  if (entity === 'works' || entity === 'works_single' || entity === 'works_opt') {
+  if (entity === 'works' || entity === 'works_single' || entity === MAIN_WORKS_ALIAS) {
     functions.push(
       // Boost for articles and preprints
       {
@@ -429,6 +443,15 @@ function createEnhancedWorksQueryV2(query: string): QueryDslQueryContainer {
           term: { language: 'en' },
         },
         weight: 2,
+      },
+      // Boost for native nodes (those with dpids)
+      {
+        filter: {
+          exists: {
+            field: 'dpid',
+          },
+        },
+        weight: 100,
       },
     ],
     score_mode: 'sum' as QueryDslFunctionScoreMode,
@@ -774,7 +797,7 @@ export function buildMultiMatchQuery(
     return createAutocompleteFunctionScoreQuery(query);
   }
 
-  if (entity === 'works' || entity === 'works_single' || entity === 'works_opt') {
+  if (entity === 'works' || entity === 'works_single' || entity === MAIN_WORKS_ALIAS) {
     return createEnhancedWorksQueryV2(query);
     // return createEnhancedWorksQuery(query);
   }
@@ -892,4 +915,181 @@ export interface MultiMatchQuery {
   fields: any[];
   type: QueryDslTextQueryType;
   fuzziness: string | number;
+}
+
+/**
+ * Searches the elastic search Authors index for authors with their names or orcids.
+ */
+export async function searchEsAuthors(authors: { display_name?: string; orcid?: string }[]) {
+  try {
+    if (!authors || authors.length === 0) {
+      logger.warn('No authors provided to searchEsAuthors');
+      return null;
+    }
+
+    const msearchBody = authors.flatMap((author) => {
+      const authorQuery: QueryDslQueryContainer = {
+        function_score: {
+          query: {
+            bool: {
+              should: [
+                ...(author.display_name
+                  ? [
+                      {
+                        match_phrase: {
+                          'display_name.keyword': {
+                            query: author.display_name,
+                            boost: 100,
+                          },
+                        },
+                      },
+                      {
+                        match: {
+                          display_name: {
+                            query: author.display_name,
+                            minimum_should_match: '85%',
+                            boost: 50,
+                            fuzziness: '1',
+                          },
+                        },
+                      },
+                    ]
+                  : []),
+                ...(author.orcid
+                  ? [
+                      {
+                        term: {
+                          orcid: {
+                            value: author.orcid.startsWith('https://orcid.org/')
+                              ? author.orcid
+                              : `https://orcid.org/${author.orcid
+                                  .replace(/[^0-9X]/g, '')
+                                  .replace(/(.{4})(.{4})(.{4})(.{4})/, '$1-$2-$3-$4')}`,
+                            boost: 200,
+                          },
+                        },
+                      },
+                    ]
+                  : []),
+              ],
+              minimum_should_match: 1,
+            },
+          },
+          functions: [
+            {
+              field_value_factor: {
+                field: 'cited_by_count',
+                factor: 0.001,
+                modifier: 'log1p',
+              },
+            },
+          ],
+          boost_mode: 'sum',
+          score_mode: 'sum',
+          min_score: 0.1,
+        },
+      };
+
+      return [
+        { index: 'authors_with_institutions' },
+        {
+          query: authorQuery,
+          size: 3,
+          sort: [{ _score: { order: 'desc' } }, { cited_by_count: { order: 'desc' } }],
+        },
+      ];
+    });
+
+    logger.info({ authors: authors.map((a) => a.display_name).join(', ') }, 'Sending ES msearch request for authors');
+
+    const results = await elasticClient
+      .msearch({
+        body: msearchBody,
+      })
+      .catch((error) => {
+        logger.error(
+          {
+            message: error.message,
+            meta: error.meta,
+            statusCode: error?.meta?.statusCode,
+            body: error?.meta?.body,
+          },
+          'Elasticsearch msearch error',
+        );
+        throw error;
+      });
+
+    logger.info(
+      {
+        totalResponses: results.responses?.length,
+        totalHits: results.responses?.map((r) => r.hits?.total?.value || 0),
+      },
+      'Search completed successfully',
+    );
+
+    return results;
+  } catch (error) {
+    logger.error(
+      {
+        error,
+        message: error.message,
+        stack: error.stack,
+      },
+      'Error in searchEsAuthors',
+    );
+    throw error;
+  }
+}
+
+/**
+ * Retrieves the content_novelty_percentile and context_novelty_percentile for a specific work by ID.
+ * @param workId The openAlex work ID to search for, with or without https://openalex.org/ prefix
+ * @returns The novelty percentiles or undefined if not found
+ */
+export async function getWorkNoveltyScoresById(workId: string): Promise<NoveltyScoreDetails | undefined> {
+  try {
+    if (!workId.startsWith('https://openalex.org/')) {
+      workId = `https://openalex.org/${workId}`;
+    }
+    const searchResult = await elasticClient.search({
+      index: MAIN_WORKS_ALIAS,
+      body: {
+        query: {
+          ids: {
+            values: [workId],
+          },
+        },
+        _source: ['content_novelty_percentile', 'context_novelty_percentile'],
+        size: 1,
+      },
+    });
+
+    const hits = searchResult.hits.hits;
+
+    logger.info(
+      {
+        workId,
+        totalHits: searchResult.hits.total.value,
+      },
+      'Retrieved work novelty scores',
+    );
+
+    if (hits.length > 0) {
+      return {
+        content_novelty_percentile: hits[0]._source.content_novelty_percentile,
+        context_novelty_percentile: hits[0]._source.context_novelty_percentile,
+      };
+    }
+  } catch (error) {
+    logger.error(
+      {
+        error,
+        message: error.message,
+        stack: error.stack,
+        workId,
+      },
+      'Error in getWorkNoveltyScoresById',
+    );
+  }
+  return undefined;
 }

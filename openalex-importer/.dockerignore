@@ -1,0 +1,9 @@
+.idea
+config
+dist
+node_modules
+.git
+.env
+logs
+heap-snapshots
+postgres

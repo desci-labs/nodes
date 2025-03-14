@@ -5,6 +5,7 @@ import { createNodeBookmark } from '../../controllers/nodes/bookmarks/create.js'
 import { deleteNodeBookmark } from '../../controllers/nodes/bookmarks/delete.js';
 import { listBookmarkedNodes } from '../../controllers/nodes/bookmarks/index.js';
 import { nodeByDpid } from '../../controllers/nodes/byDpid.js';
+import { nodeByStream } from '../../controllers/nodes/byStream.js';
 import { checkIfPublishedNode } from '../../controllers/nodes/checkIfPublishedNode.js';
 import { checkNodeAccess } from '../../controllers/nodes/checkNodeAccess.js';
 import { addContributor } from '../../controllers/nodes/contributions/create.js';
@@ -24,6 +25,8 @@ import {
   addExternalPublicationsSchema,
   externalPublications,
   externalPublicationsSchema,
+  verifyExternalPublication,
+  verifyExternalPublicationSchema,
 } from '../../controllers/nodes/externalPublications.js';
 import { feed } from '../../controllers/nodes/feed.js';
 import { frontmatterPreview } from '../../controllers/nodes/frontmatterPreview.js';
@@ -67,17 +70,30 @@ import {
   getUserVote,
   deleteUserVote,
   downvoteComment,
+  editComment,
 } from '../../controllers/nodes/index.js';
 import { retrieveTitle } from '../../controllers/nodes/legacyManifestApi.js';
+import {
+  deleteNodeLIke,
+  getNodeLikes,
+  likeNodeSchema,
+  postNodeLike,
+  unlikeNodeSchema,
+} from '../../controllers/nodes/likes.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
 import { attachUser } from '../../middleware/attachUser.js';
-import { ensureNodeAccess, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
+import { ensureNodeAccess, ensureNodeExists, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUserIfPresent } from '../../middleware/ensureUserIfPresent.js';
 import { ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
-import { getCommentsSchema, postCommentVoteSchema, showNodeAttestationsSchema } from './attestations/schema.js';
+import {
+  editCommentsSchema,
+  getCommentsSchema,
+  postCommentVoteSchema,
+  showNodeAttestationsSchema,
+} from './attestations/schema.js';
 
 const router = Router();
 
@@ -87,6 +103,7 @@ router.get('/stats', [ensureUser], getDraftNodeStats);
 router.get('/stats/published', [ensureUser], getPublishedNodeStats);
 router.get('/published/list', [ensureUser], getPublishedNodes);
 router.get('/published/:dpid([0-9]+)', [], nodeByDpid);
+router.get('/published/:stream([a-z0-9]{50,})', [], nodeByStream);
 router.get('/published/:uuid', [], checkIfPublishedNode);
 router.get('/access/:uuid', [ensureUserIfPresent], checkNodeAccess);
 router.post('/search/:query', [ensureUser], searchNodes);
@@ -173,6 +190,11 @@ router.post(
   [validate(addExternalPublicationsSchema), ensureUser, ensureNodeAccess],
   asyncHandler(addExternalPublication),
 );
+router.post(
+  '/:uuid/verify-publication',
+  [validate(verifyExternalPublicationSchema), ensureUser, ensureNodeAccess],
+  asyncHandler(verifyExternalPublication),
+);
 
 router.get('/:uuid/comments', [ensureUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
 router.get('/:uuid/comments/:commentId/vote', [ensureUser, validate(postCommentVoteSchema)], asyncHandler(getUserVote));
@@ -180,6 +202,11 @@ router.post(
   '/:uuid/comments/:commentId/upvote',
   [ensureUser, validate(postCommentVoteSchema)],
   asyncHandler(upvoteComment),
+);
+router.put(
+  '/:uuid/comments/:id',
+  [ensureUser, ensureNodeAccess, validate(editCommentsSchema)],
+  asyncHandler(editComment),
 );
 router.post(
   '/:uuid/comments/:commentId/downvote',
@@ -193,6 +220,10 @@ router.delete(
 );
 
 router.get('/:uuid/attestations', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
+
+router.get('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(getNodeLikes));
+router.post('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(postNodeLike));
+router.delete('/:uuid/likes', [ensureUser, ensureNodeExists, validate(unlikeNodeSchema)], asyncHandler(deleteNodeLIke));
 
 router.get('/feed', [], feed);
 

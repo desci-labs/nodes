@@ -22,5 +22,6 @@ declare namespace NodeJS {
     AUTOMATED_METADATA_API: string;
     AUTOMATED_METADATA_API_KEY: string;
     IPFS_RESOLVER_OVERRIDE: string;
+    ORCID_PUBLIC_API: string;
   }
 }

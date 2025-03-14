@@ -19,13 +19,15 @@ import {
   User,
   VoteType,
 } from '@prisma/client';
-import { assert, expect } from 'chai';
+import chai, { assert } from 'chai';
+import chaiAsPromised from 'chai-as-promised';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { NodeAttestationFragment } from '../../src/controllers/attestations/show.js';
 import { Engagement, NodeRadar, NodeRadarEntry, NodeRadarItem } from '../../src/controllers/communities/types.js';
+import { ForbiddenError } from '../../src/core/ApiError.js';
 import {
   DuplicateReactionError,
   DuplicateVerificationError,
@@ -37,6 +39,10 @@ import { communityService } from '../../src/services/Communities.js';
 import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
 import { randomUUID64 } from '../../src/utils.js';
 import { createDraftNode, createUsers } from '../util.js';
+
+// use async chai assertions
+chai.use(chaiAsPromised);
+const expect = chai.expect;
 
 const communitiesData = [
   {
@@ -840,9 +846,14 @@ describe('Attestations Service', async () => {
     let author: User;
     let comment: Annotation;
 
+    let author1: User;
+    let reply: Annotation;
+
     before(async () => {
       node = nodes[0];
       author = users[0];
+      author1 = users[1];
+
       assert(node.uuid);
       const versions = await attestationService.getAttestationVersions(reproducibilityAttestation.id);
       attestationVersion = versions[versions.length - 1];
@@ -861,6 +872,7 @@ describe('Attestations Service', async () => {
         authorId: users[1].id,
         comment: 'Love the attestation',
         visible: true,
+        uuid: nodes[1].uuid ?? '',
       });
     });
 
@@ -885,6 +897,132 @@ describe('Attestations Service', async () => {
       const voidComment = await attestationService.getUserClaimComments(claim.id, users[1].id);
       expect(voidComment.length).to.be.equal(0);
       expect(voidComment[0]).to.be.undefined;
+    });
+
+    it('should edit a comment', async () => {
+      comment = await attestationService.createComment({
+        links: [],
+        claimId: claim.id,
+        authorId: users[1].id,
+        comment: 'Old comment to be edited',
+        visible: true,
+        uuid: nodes[1].uuid ?? '',
+      });
+
+      const editedComment = await attestationService.editComment({
+        update: { body: 'edited comment', links: ['https://google.com'] },
+        authorId: users[1].id,
+        id: comment.id,
+      });
+      expect(editedComment.body).to.be.equal('edited comment');
+      expect(editedComment.links[0]).to.be.equal('https://google.com');
+    });
+
+    it('should not allow another author to edit a comment', async () => {
+      try {
+        await attestationService.editComment({
+          update: { body: 'edited comment', links: ['https://google.com'] },
+          authorId: users[2].id,
+          id: comment.id,
+        });
+      } catch (error) {
+        expect(error).to.be.instanceOf(ForbiddenError);
+      }
+    });
+
+    it('should edit a comment(via api)', async () => {
+      const commenterJwtToken = jwt.sign({ email: users[1].email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const commenterJwtHeader = `Bearer ${commenterJwtToken}`;
+      console.log('edit comment', nodes[1], comment);
+      const res = await request(app)
+        .put(`/v1/nodes/${nodes[1].uuid}/comments/${comment.id}`)
+        .set('authorization', commenterJwtHeader)
+        .send({ body: 'edit comment via api', links: ['https://desci.com'] });
+      console.log('response', res.body);
+      expect(res.statusCode).to.equal(200);
+      const editedComment = (await res.body.data) as Annotation;
+
+      expect(editedComment.body).to.be.equal('edit comment via api');
+      expect(editedComment.links[0]).to.be.equal('https://desci.com');
+    });
+
+    it('should reply a comment', async () => {
+      comment = await attestationService.createComment({
+        links: [],
+        claimId: claim.id,
+        authorId: users[1].id,
+        comment: 'Old comment to be edited',
+        visible: true,
+      });
+
+      const reply = await attestationService.createComment({
+        authorId: users[2].id,
+        replyTo: comment.id,
+        links: [],
+        claimId: claim.id,
+        comment: 'Reply to Old comment to be edited',
+        visible: true,
+      });
+      expect(reply.body).to.be.equal('Reply to Old comment to be edited');
+      expect(reply.replyToId).to.be.equal(comment.id);
+    });
+
+    // should post comments and reply, should validate comments length,  getComments Api, replyCount and pull reply via api
+    it('should create and reply a comment', async () => {
+      const authorJwtToken = jwt.sign({ email: author.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const authorJwtHeader = `Bearer ${authorJwtToken}`;
+
+      // send create a comment request
+      let res = await request(app).post(`/v1/attestations/comments`).set('authorization', authorJwtHeader).send({
+        authorId: author.id,
+        body: 'post comment with reply',
+        links: [],
+        uuid: node.uuid,
+        visible: true,
+      });
+      expect(res.statusCode).to.equal(200);
+      console.log('comment', res.body.data);
+      comment = res.body.data as Annotation;
+      expect(comment.body).to.equal('post comment with reply');
+
+      const author1JwtToken = jwt.sign({ email: author1.email }, process.env.JWT_SECRET!, {
+        expiresIn: '1y',
+      });
+      const author1JwtHeader = `Bearer ${author1JwtToken}`;
+      // send reply to a comment request
+      res = await request(app).post(`/v1/attestations/comments`).set('authorization', author1JwtHeader).send({
+        authorId: author1.id,
+        body: 'reply to post comment with reply',
+        links: [],
+        uuid: node.uuid,
+        visible: true,
+        replyTo: comment.id,
+      });
+      reply = res.body.data as Annotation;
+
+      expect(res.statusCode).to.equal(200);
+      expect(reply.replyToId).to.equal(comment.id);
+
+      // check comment
+      res = await request(app).get(`/v1/nodes/${node.uuid}/comments`).set('authorization', authorJwtHeader).send();
+      expect(res.statusCode).to.equal(200);
+      expect(res.body.data.count).to.be.equal(1);
+      const data = (await res.body.data.comments) as (Annotation & {
+        meta: {
+          upvotes: number;
+          downvotes: number;
+          replyCount: number;
+          isUpvoted: boolean;
+          isDownVoted: boolean;
+        };
+      })[];
+      console.log('commentsss', data);
+      const parentComment = data.find((c) => c.id === comment.id);
+      expect(parentComment?.meta.replyCount).to.be.equal(1);
     });
   });
 
@@ -2328,7 +2466,7 @@ describe('Attestations Service', async () => {
     });
   });
 
-  describe.only('Annotations(Comments) Vote', async () => {
+  describe('Annotations(Comments) Vote', async () => {
     let claim: NodeAttestation;
     let node: Node;
     const nodeVersion = 0;
@@ -2506,7 +2644,7 @@ describe('Attestations Service', async () => {
       await prisma.commentVote.deleteMany({});
     });
 
-    it.only('should test user upvote via api', async () => {
+    it('should test user upvote via api', async () => {
       const voterJwtToken = jwt.sign({ email: voter.email }, process.env.JWT_SECRET!, {
         expiresIn: '1y',
       });

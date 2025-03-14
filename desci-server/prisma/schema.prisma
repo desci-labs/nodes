@@ -56,6 +56,7 @@ model Node {
   PublishStatus        PublishStatus[]
   ExternalPublications ExternalPublications[]
   CommunityRadarEntry  CommunityRadarEntry[]
+  NodeLike             NodeLike[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -208,6 +209,7 @@ model User {
   DeferredEmails              DeferredEmails[]
   UserNotifications           UserNotifications[]
   CommentVote                 CommentVote[]
+  NodeLike                    NodeLike[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -859,6 +861,9 @@ model Annotation {
   createdAt         DateTime?
   updatedAt         DateTime?        @updatedAt
   CommentVote       CommentVote[]
+  replies           Annotation[]     @relation("CommentReply")
+  replyTo           Annotation?      @relation("CommentReply", fields: [replyToId], references: [id])
+  replyToId         Int?
 }
 
 //An emoji reaction to a node
@@ -986,16 +991,18 @@ model PublishStatus {
 }
 
 model ExternalPublications {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   uuid        String
-  node        Node     @relation(fields: [uuid], references: [uuid])
+  node        Node      @relation(fields: [uuid], references: [uuid])
   score       Float
   doi         String
   publisher   String
   publishYear String
   sourceUrl   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isVerified  Boolean   @default(true)
+  verifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // @@unique([uuid, publisher])
 }
@@ -1011,6 +1018,18 @@ model CommentVote {
   updatedAt    DateTime   @updatedAt
 
   @@unique([userId, annotationId])
+}
+
+model NodeLike {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  nodeUuid  String
+  node      Node     @relation(fields: [nodeUuid], references: [uuid])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([nodeUuid, userId])
 }
 
 enum VoteType {
@@ -1091,7 +1110,7 @@ enum ActionType {
   UPDATE_ORCID_RECORD
   REMOVE_ORCID_WORK_RECORD
   ORCID_API_ERROR
-  // AUTOMATE_METADATA
+  EDIT_COMMENT
 }
 
 enum ChainTransactionType {
