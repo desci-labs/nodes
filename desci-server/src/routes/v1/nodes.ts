@@ -81,8 +81,8 @@ import {
   unlikeNodeSchema,
 } from '../../controllers/nodes/likes.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
-import { addPublishedWallet } from '../../controllers/nodes/publishedWallets/create.js';
-import { getUserPublishedWallets } from '../../controllers/nodes/publishedWallets/index.js';
+import { addPublishedWallet } from '../../controllers/users/publishedWallets/create.js';
+import { getUserPublishedWallets } from '../../controllers/users/publishedWallets/index.js';
 import { attachUser } from '../../middleware/attachUser.js';
 import { ensureNodeAccess, ensureNodeExists, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUserIfPresent } from '../../middleware/ensureUserIfPresent.js';
@@ -226,10 +226,6 @@ router.get('/:uuid/attestations', [validate(showNodeAttestationsSchema)], asyncH
 router.get('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(getNodeLikes));
 router.post('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(postNodeLike));
 router.delete('/:uuid/likes', [ensureUser, ensureNodeExists, validate(unlikeNodeSchema)], asyncHandler(deleteNodeLIke));
-
-// Published wallet logging
-router.get('/addresses', [ensureUser], asyncHandler(getUserPublishedWallets));
-router.post('/addresses', [ensureUser], asyncHandler(addPublishedWallet));
 
 router.get('/feed', [], feed);
 
