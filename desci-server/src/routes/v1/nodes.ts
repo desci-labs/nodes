@@ -81,6 +81,8 @@ import {
   unlikeNodeSchema,
 } from '../../controllers/nodes/likes.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
+import { addPublishedWallet } from '../../controllers/nodes/publishedWallets/create.js';
+import { getUserPublishedWallets } from '../../controllers/nodes/publishedWallets/index.js';
 import { attachUser } from '../../middleware/attachUser.js';
 import { ensureNodeAccess, ensureNodeExists, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUserIfPresent } from '../../middleware/ensureUserIfPresent.js';
@@ -157,7 +159,7 @@ router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], delet
 router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 
-// Prepub (distribution)
+// Prepub (distribution pkg)
 router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
 router.post('/distribution/email', [ensureUser], emailPublishPackage);
@@ -224,6 +226,10 @@ router.get('/:uuid/attestations', [validate(showNodeAttestationsSchema)], asyncH
 router.get('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(getNodeLikes));
 router.post('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(postNodeLike));
 router.delete('/:uuid/likes', [ensureUser, ensureNodeExists, validate(unlikeNodeSchema)], asyncHandler(deleteNodeLIke));
+
+// Published wallet logging
+router.get('/published/wallets', [ensureUser], asyncHandler(getUserPublishedWallets));
+router.post('/published/wallet', [ensureUser], asyncHandler(addPublishedWallet));
 
 router.get('/feed', [], feed);
 

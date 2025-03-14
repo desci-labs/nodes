@@ -21,7 +21,6 @@ export const addPublishedWallet = async (req: Request, res: Response) => {
   });
 
   try {
-    // Validate request body
     const validatedData = AddPublishedWalletSchema.parse(req.body);
     logger.info({ validatedData }, 'Adding published wallet');
 
@@ -44,6 +43,7 @@ export const addPublishedWallet = async (req: Request, res: Response) => {
         nodeUuid: result.wallet.nodeUuid,
         provider: result.wallet.provider,
         createdAt: result.wallet.createdAt,
+        updatedAt: result.wallet.updatedAt,
       },
     });
   } catch (e) {
