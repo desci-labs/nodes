@@ -57,6 +57,7 @@ model Node {
   ExternalPublications ExternalPublications[]
   CommunityRadarEntry  CommunityRadarEntry[]
   NodeLike             NodeLike[]
+  PublishedWallet      PublishedWallet[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -143,6 +144,25 @@ model Wallet {
   @@index([userId])
 }
 
+// This table is used to store the public key of the wallet that was used to publish a node,
+// it does not focus on associated wallets, just any wallet that was used to publish a node,
+// to help users figure out which method they used to publish a node in the past.
+model PublishedWallet {
+  id        Int            @id @default(autoincrement())
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  pubKey    String
+  userId    Int
+  nodeUuid  String
+  provider  WalletProvider
+  user      User           @relation(fields: [userId], references: [id])
+  node      Node           @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([pubKey, nodeUuid, provider])
+  @@index([userId])
+  @@index([nodeUuid])
+}
+
 model User {
   id                          Int                           @id @default(autoincrement())
   createdAt                   DateTime                      @default(now())
@@ -210,6 +230,7 @@ model User {
   UserNotifications           UserNotifications[]
   CommentVote                 CommentVote[]
   NodeLike                    NodeLike[]
+  PublishedWallet             PublishedWallet[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1042,6 +1063,12 @@ enum ORCIDRecord {
   QUALIFICATION
   EDUCATION
   EMPLOYMENT
+}
+
+enum WalletProvider {
+  GOOGLE
+  ORCID
+  DID
 }
 
 enum PutcodeReference {
