@@ -5,6 +5,33 @@ import { z } from 'zod';
 import { logger as parentLogger } from '../../../logger.js';
 import { PublishedWalletService } from '../../../services/PublishedWalletService.js';
 
+export interface AddPublishedWalletReqBody {
+  pubKey: string;
+  nodeUuid: string;
+  provider: WalletProvider;
+}
+
+export interface AddPublishedWalletSuccessResponse {
+  ok: true;
+  message: string;
+  isNew: boolean;
+  wallet: {
+    id: number;
+    pubKey: string;
+    nodeUuid: string;
+    provider: WalletProvider;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+}
+
+export interface AddPublishedWalletErrorResponse {
+  ok: false;
+  error: string;
+  details?: z.ZodIssue[];
+}
+export type AddPublishedWalletResponse = AddPublishedWalletSuccessResponse | AddPublishedWalletErrorResponse;
+
 const AddPublishedWalletSchema = z.object({
   pubKey: z.string().min(1, 'Public key is required'),
   nodeUuid: z.string().min(1, 'Node UUID is required'),
@@ -13,7 +40,10 @@ const AddPublishedWalletSchema = z.object({
   }),
 });
 
-export const addPublishedWallet = async (req: Request, res: Response) => {
+export const addPublishedWallet = async (
+  req: Request<any, any, AddPublishedWalletReqBody>,
+  res: Response<AddPublishedWalletResponse>,
+) => {
   const user = (req as any).user;
   const logger = parentLogger.child({
     module: 'CONTROLLERS::AddPublishedWalletController',
