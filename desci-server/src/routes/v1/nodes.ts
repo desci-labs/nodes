@@ -228,8 +228,8 @@ router.post('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSche
 router.delete('/:uuid/likes', [ensureUser, ensureNodeExists, validate(unlikeNodeSchema)], asyncHandler(deleteNodeLIke));
 
 // Published wallet logging
-router.get('/published/wallets', [ensureUser], asyncHandler(getUserPublishedWallets));
-router.post('/published/wallet', [ensureUser], asyncHandler(addPublishedWallet));
+router.get('/addresses', [ensureUser], asyncHandler(getUserPublishedWallets));
+router.post('/addresses', [ensureUser], asyncHandler(addPublishedWallet));
 
 router.get('/feed', [], feed);
 
