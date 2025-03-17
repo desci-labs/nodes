@@ -42,6 +42,7 @@ import {
   getNodeViewsInRange,
   getNodeViewsInXDays,
 } from '../../services/interactionLog.js';
+import { getPublishedNodesInRange } from '../../services/node.js';
 import {
   getCountNewNodesInXDays,
   getBytesInXDays,
@@ -75,6 +76,7 @@ interface DataRow {
   newNodes: number;
   nodeViews: number;
   bytesUploaded: string;
+  publishedNodes: number;
 }
 interface AnalyticsData {
   date: Date | string;
@@ -85,6 +87,7 @@ interface AnalyticsData {
   newNodes: number;
   nodeViews: number;
   bytes: number;
+  publishedNodes: number;
 }
 
 // create a csv with the following fields for each month
@@ -265,17 +268,19 @@ export const analyticsChartSchema = zod.object({
 
 async function aggregateAnalytics(from: Date, to: Date) {
   const start = Date.now();
-  const [newUsers, newOrcidUsers, activeUsers, activeOrcidUsers, newNodes, nodeViews, bytes] = await Promise.all([
-    getNewUsersInRange({ from, to }),
-    getNewOrcidUsersInRange({ from, to }),
-    getActiveUsersInRange({ from, to }),
-    getActiveOrcidUsersInRange({ from, to }),
-    getNewNodesInRange({ from, to }),
-    getNodeViewsInRange({ from, to }),
-    getBytesInRange({ from, to }),
-  ]);
+  const [newUsers, newOrcidUsers, activeUsers, activeOrcidUsers, newNodes, nodeViews, bytes, publishedNodes] =
+    await Promise.all([
+      getNewUsersInRange({ from, to }),
+      getNewOrcidUsersInRange({ from, to }),
+      getActiveUsersInRange({ from, to }),
+      getActiveOrcidUsersInRange({ from, to }),
+      getNewNodesInRange({ from, to }),
+      getNodeViewsInRange({ from, to }),
+      getBytesInRange({ from, to }),
+      getPublishedNodesInRange({ from, to }),
+    ]);
   logger.trace({ duration: formatDistanceToNow(start), delta: Date.now() - start }, 'END: aggregateAnalytics');
-  return { newUsers, newOrcidUsers, activeUsers, activeOrcidUsers, newNodes, nodeViews, bytes };
+  return { newUsers, newOrcidUsers, activeUsers, activeOrcidUsers, newNodes, nodeViews, bytes, publishedNodes };
 }
 
 export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response) => {
@@ -301,7 +306,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
   let aggregatedData = await getFromCache<AnalyticsData[]>(cacheKey);
 
   if (!aggregatedData) {
-    const { bytes, nodeViews, newNodes, newUsers, activeUsers, newOrcidUsers, activeOrcidUsers } =
+    const { bytes, nodeViews, newNodes, newUsers, activeUsers, newOrcidUsers, activeOrcidUsers, publishedNodes } =
       await aggregateAnalytics(selectedDates.from, selectedDates.to);
 
     const getIntervals = () => {
@@ -351,6 +356,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
       const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const bytesAgg = bytes.filter((byte) => isWithinInterval(byte.createdAt, selectedDatesInterval));
+      const publishedNodesAgg = publishedNodes.filter((node) =>
+        isWithinInterval(node.createdAt, selectedDatesInterval),
+      );
 
       return {
         date: period,
@@ -360,6 +368,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
         activeOrcidUsers: activeOrcidUsersAgg.length,
         nodeViews: nodeViewsAgg.length,
         newNodes: newNodesAgg.length,
+        publishedNodes: publishedNodesAgg.length,
         bytes: bytesAgg.reduce((total, byte) => total + byte.size, 0),
       };
     });
@@ -446,7 +455,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
     // todo: make calls parallel
     logger.trace({ fn: 'getAggregatedAnalytics' }, 'Fetching active users');
 
-    const { bytes, nodeViews, newNodes, newUsers, activeUsers, newOrcidUsers, activeOrcidUsers } =
+    const { bytes, nodeViews, newNodes, newUsers, activeUsers, newOrcidUsers, activeOrcidUsers, publishedNodes } =
       await aggregateAnalytics(selectedDates.from, selectedDates.to);
 
     aggregatedData = allDatesInInterval.map((period) => {
@@ -469,6 +478,9 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
       );
       const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
+      const publishedNodesAgg = publishedNodes.filter((node) =>
+        isWithinInterval(node.createdAt, selectedDatesInterval),
+      );
       const bytesAgg = bytes.filter((byte) => isWithinInterval(byte.createdAt, selectedDatesInterval));
       return {
         date:
@@ -483,6 +495,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
         activeOrcidUsers: activeOrcidUsersAgg.length,
         nodeViews: nodeViewsAgg.length,
         newNodes: newNodesAgg.length,
+        publishedNodes: publishedNodesAgg.length,
         bytesUploaded: byteValueNumberFormatter.format(bytesAgg.reduce((total, byte) => total + byte.size, 0)),
       };
     });
@@ -503,7 +516,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
   }
 
   const csv = [
-    'date,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,bytesUploaded',
+    'date,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded',
     ...aggregatedData
       .reverse()
       .map((row) =>
@@ -515,6 +528,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
           row.activeOrcidUsers,
           row.newNodes,
           row.nodeViews,
+          row.publishedNodes,
           row.bytesUploaded,
         ].join(','),
       ),
