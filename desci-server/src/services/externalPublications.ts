@@ -68,7 +68,7 @@ export const dispatchExternalPublicationsCheck = async (node: Node) => {
   const dataSource =
     publications.length > 0
       ? publications
-      : commonPublicationsAcrossSources.length > 0
+      : commonPublicationsAcrossSources?.length > 0
         ? commonPublicationsAcrossSources
         : undefined;
 
