@@ -42,7 +42,7 @@ import {
   getNodeViewsInRange,
   getNodeViewsInXDays,
 } from '../../services/interactionLog.js';
-import { getPublishedNodesInRange } from '../../services/node.js';
+import { countPublishedNodesInRange, getPublishedNodesInRange } from '../../services/node.js';
 import {
   getCountNewNodesInXDays,
   getBytesInXDays,
@@ -113,6 +113,7 @@ export const createCsv = async (req: Request, res: Response) => {
       newNodes: number;
       nodeViews: number;
       bytesUploaded: number;
+      publishedNodes: number;
     }
     const data: DataRow[] = [];
     while (monthsCovered <= 12) {
@@ -123,6 +124,10 @@ export const createCsv = async (req: Request, res: Response) => {
       const newNodes = await getCountNewNodesInMonth(curMonth, curYear);
       const nodeViews = await getNodeViewsInMonth(curMonth, curYear);
       const bytesUploaded = await getBytesInMonth(curMonth, curYear);
+      const publishedNodes = await countPublishedNodesInRange({
+        from: new Date(curYear, curMonth, 1),
+        to: new Date(curYear, curMonth + 1, 1),
+      });
 
       data.push({
         month: (curMonth + 1).toString(),
@@ -134,6 +139,7 @@ export const createCsv = async (req: Request, res: Response) => {
         newNodes,
         nodeViews,
         bytesUploaded,
+        publishedNodes,
       });
       curMonth++;
       if (curMonth > 11) {
@@ -145,7 +151,7 @@ export const createCsv = async (req: Request, res: Response) => {
     // export data to csv
 
     const csv = [
-      'month,year,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,bytesUploaded',
+      'month,year,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded',
       ...data
         .reverse()
         .map((row) =>
@@ -158,6 +164,7 @@ export const createCsv = async (req: Request, res: Response) => {
             row.activeOrcidUsers,
             row.newNodes,
             row.nodeViews,
+            row.publishedNodes,
             row.bytesUploaded,
           ].join(','),
         ),
@@ -203,10 +210,23 @@ export const getAnalytics = async (req: Request, res: Response) => {
     const activeOrcidUsersInLast7Days = await getCountActiveOrcidUsersInXDays(7);
     const activeOrcidUsersInLast30Days = await getCountActiveOrcidUsersInXDays(30);
 
-    logger.trace({ fn: 'getAnalytics' }, 'Fetching views');
     const nodeViewsToday = await getNodeViewsInXDays(1);
     const nodeViewsInLast7Days = await getNodeViewsInXDays(7);
     const nodeViewsInLast30Days = await getNodeViewsInXDays(30);
+
+    const publishedNodesToday = await countPublishedNodesInRange({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+    });
+    const publishedNodesInLast7Days = await countPublishedNodesInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 7)),
+    });
+    const publishedNodesInLast30Days = await countPublishedNodesInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 30)),
+    });
+    logger.trace({ fn: 'getAnalytics' }, 'Fetching views');
 
     logger.trace({ fn: 'getAnalytics' }, 'Fetching bytes');
     const bytesToday = await getBytesInXDays(1);
@@ -244,6 +264,10 @@ export const getAnalytics = async (req: Request, res: Response) => {
       allUsers,
       allOrcidUsers,
       allExternalUsers,
+
+      publishedNodesToday,
+      publishedNodesInLast7Days,
+      publishedNodesInLast30Days,
     };
 
     logger.info({ fn: 'getAnalytics', analytics }, 'getAnalytics returning');

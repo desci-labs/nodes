@@ -88,3 +88,17 @@ export const getPublishedNodesInRange = async (range: { from: Date; to: Date }) 
 
   return publishes;
 };
+
+export const countPublishedNodesInRange = async (range: { from: Date; to: Date }) => {
+  const publishes = await prisma.nodeVersion.count({
+    where: {
+      createdAt: {
+        gte: range.from,
+        lt: range.to,
+      },
+      OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+    },
+  });
+
+  return publishes;
+};
