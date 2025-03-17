@@ -18,6 +18,7 @@ export interface AddPublishedWalletParams {
 async function addPublishedWallet({ pubKey, userId, nodeUuid, provider }: AddPublishedWalletParams) {
   try {
     if (!nodeUuid.endsWith('.')) nodeUuid = ensureUuidEndsWithDot(nodeUuid);
+    pubKey = pubKey.toLowerCase();
 
     // upsert to handle the case where the wallet is already recorded
     const result = await prisma.publishedWallet.upsert({
