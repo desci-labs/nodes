@@ -67,5 +67,4 @@ export const retrieveDoi = async (req: Request, res: Response, _next: NextFuncti
     logger.warn({ doiQuery, error: e }, 'Error fetching DOI metadata from openAlex');
     new InternalErrorResponse('Error fetching DOI metadata from openAlex').send(res);
   }
-  new InternalErrorResponse('Error fetching DOI metadata from openAlex').send(res);
 };
