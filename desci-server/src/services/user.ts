@@ -485,3 +485,46 @@ export const getCountNewUsersWithOrcidInMonth = async (month: number, year: numb
 
   return newUsersInMonth;
 };
+
+/**
+ * Minimal Data query methods with range arguments
+ */
+
+export const getNewUsersInRange = async (range: { from: Date; to: Date }) => {
+  logger.trace({ fn: 'getCountNewUsersInXDays' }, 'user::getCountNewUsersInXDays');
+
+  const newUsers = await client.user.findMany({
+    where: {
+      createdAt: {
+        gte: range.from,
+        lt: range.to,
+      },
+    },
+    select: {
+      createdAt: true,
+    },
+  });
+
+  return newUsers;
+};
+
+export const getNewOrcidUsersInRange = async (range: { from: Date; to: Date }) => {
+  logger.trace({ fn: 'getCountNewUsersInXDays' }, 'user::getCountNewUsersInXDays');
+
+  const newUsers = await client.user.findMany({
+    where: {
+      createdAt: {
+        gte: range.from,
+        lt: range.to,
+      },
+      orcid: {
+        not: null,
+      },
+    },
+    select: {
+      createdAt: true,
+    },
+  });
+
+  return newUsers;
+};

@@ -399,7 +399,7 @@ class CrossRefClient {
 
     if (crossRefResponse.ok) {
       const apiRes = (await crossRefResponse.json()) as Items<Work>;
-      console.log('[api/publications/search.ts]', apiRes.message.items);
+      console.log('[api/publications/search.ts]', apiRes.status, apiRes?.message?.items?.length);
       const data = apiRes.message.items ?? []; // sort((a, b) => b['is-referenced-by-count'] - a['is-referenced-by-count'])?.[0];
       return data;
     } else {

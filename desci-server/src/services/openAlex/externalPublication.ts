@@ -1,3 +1,4 @@
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Node } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import { Searcher } from 'fast-fuzzy';
@@ -7,8 +8,6 @@ import { logger } from '../../logger.js';
 import { ExternalPublicationsEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 import { transformInvertedAbstractToText } from '../AutomatedMetadata.js';
 import { getOrcidFromURL } from '../crossRef/utils.js';
-import { NodeUuid } from '../manifestRepo.js';
-import repoService from '../repoService.js';
 
 import { OpenAlexWork } from './types.js';
 
@@ -18,7 +17,7 @@ const getPublisherTitle = (data: OpenAlexWork): string =>
   data?.primary_location?.source?.display_name ||
   data?.locations?.find((location) => location.source.type === 'journal').source.display_name;
 
-interface WorkMetadata {
+interface WorkPublication {
   title: string;
   doi: string;
   authors: {
@@ -30,7 +29,7 @@ interface WorkMetadata {
   sourceUrl: string;
   publishYear: string | number;
 }
-const transformOpenAlexWorkToMetadata = (work: OpenAlexWork): WorkMetadata => {
+const transformOpenAlexWorkToPublication = (work: OpenAlexWork): WorkPublication => {
   const authors = work.authorships.map((author) => ({
     orcid: author.author?.orcid ? getOrcidFromURL(author.author.orcid) : null,
     name: author.author.display_name,
@@ -43,7 +42,11 @@ const transformOpenAlexWorkToMetadata = (work: OpenAlexWork): WorkMetadata => {
   const sourceUrl = work?.primary_location?.landing_page_url || work.doi;
   return {
     title: work.title,
-    doi: work.doi,
+    // Strip doi of escape characters, https prefix and set to lowercase
+    doi: work.doi
+      ?.replace(/^https?:\/\/doi.org\//i, '')
+      .replace(/\\/g, '')
+      .toLowerCase(),
     publishYear: work?.publication_year || work?.publication_date?.split('-')?.[0] || '',
     authors,
     abstract,
@@ -52,11 +55,11 @@ const transformOpenAlexWorkToMetadata = (work: OpenAlexWork): WorkMetadata => {
   };
 };
 
-export const getExternalPublicationsFromOpenAlex = async (node: Node) => {
-  const manifest = await repoService.getDraftManifest({
-    uuid: node.uuid as NodeUuid,
-    documentId: node.manifestDocumentId,
-  });
+export const getExternalPublicationsFromOpenAlex = async (manifest: ResearchObjectV1) => {
+  // const manifest = await repoService.getDraftManifest({
+  //   uuid: node.uuid as NodeUuid,
+  //   documentId: node.manifestDocumentId,
+  // });
 
   const queryTitle = (manifest.title as string).replaceAll(/[,'":]/g, ' ').trim();
   const response = await fetch(`https://api.openalex.org/works?per-page=3&filter=title.search:${queryTitle}`, {
@@ -64,16 +67,16 @@ export const getExternalPublicationsFromOpenAlex = async (node: Node) => {
       Accept: '*/*',
     },
   });
-
-  if (response.status !== 200) return [];
+  if (response.status !== 200) return { publications: [], matches: [] };
   const results = (await response.json()) as { results: OpenAlexWork[] };
   const works = results?.['results'];
+  // logger.trace({ data: works }, '[getExternalPublicationsFromOpenAlex]::Works');
 
   const data = works
     ?.filter((works) => works.type_crossref === 'journal-article')
-    ?.map(transformOpenAlexWorkToMetadata);
+    ?.map(transformOpenAlexWorkToPublication);
 
-  if (!data || data.length === 0) return [];
+  if (!data || data.length === 0) return { publications: [], matches: [] };
 
   const titleSearcher = new Searcher(data, { keySelector: (entry) => entry.title });
   const titleResult = titleSearcher.search(manifest.title, { returnMatchData: true });
@@ -101,7 +104,18 @@ export const getExternalPublicationsFromOpenAlex = async (node: Node) => {
     };
   });
 
-  const publications = data
+  // set fuzzing algorithm scoring parameters
+  const relevantSourceFields = [];
+
+  if (manifest.title) relevantSourceFields.push('title');
+  if (manifest.description) relevantSourceFields.push('abstract');
+  if (manifest.authors && manifest.authors.length > 0) relevantSourceFields.push('authors');
+
+  const totalMatchingFields = relevantSourceFields.length;
+  const minimunMatchScore = (0.9 * totalMatchingFields) / 3;
+  logger.trace({ relevantSourceFields, totalMatchingFields, minimunMatchScore }, '[openAlexPublicationsPubParameters]');
+
+  const matches = data
     .map((data) => ({
       publisher: data.publisher,
       sourceUrl: data.sourceUrl ?? '',
@@ -134,13 +148,67 @@ export const getExternalPublicationsFromOpenAlex = async (node: Node) => {
     .map((publication) => ({
       ...publication,
       score:
-        ((publication.title?.score ?? 0) + (publication.abstract?.score ?? 0) + (publication.authors?.score ?? 0)) / 3,
-    }))
-    .filter((entry) => entry.score >= 0.8);
+        ((publication.title?.score ?? 0) + (publication.abstract?.score ?? 0) + (publication.authors?.score ?? 0)) /
+        totalMatchingFields,
+    }));
 
-  logger.trace({ publications }, 'openAlexPublications');
+  const publications = matches.filter((entry) => entry.score >= minimunMatchScore);
 
-  return publications;
+  // logger.trace({ publications }, 'openAlexPublications');
+
+  return { publications, matches };
+};
+
+interface ArticleRecommenderResponse {
+  status: 'success' | 'error';
+  message: string | undefined;
+  data: {
+    recommendations: {
+      work_id: string; // 'https://openalex.org/W3193815771';
+      score: number;
+      pub_year: number; // 2021;
+    }[];
+  };
+}
+export const getExternalPublicationsFromArticleRecommender = async (abstract: string) => {
+  const options = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      input_value: abstract,
+      n: 3,
+      exact_matches: true,
+      full_search: true,
+    }),
+  };
+
+  try {
+    const response = (await fetch(
+      'https://exzk6vdozf.execute-api.us-east-2.amazonaws.com/dev/ml-article-recommender',
+      options,
+    )
+      .then((response) => response.json())
+      // .then((response) => console.log(response))
+      .catch((err) => console.error(err))) as ArticleRecommenderResponse;
+
+    if (!response.data) return null;
+
+    const recommendation = response.data.recommendations.find((match) => match.score > 0.95);
+    if (!recommendation) return null;
+
+    const work = (await fetch(`https://api.openalex.org/works/${recommendation.work_id}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    })
+      .then((response) => response.json())
+      // .then((response) => console.log(response))
+      .catch((err) => console.error(err))) as OpenAlexWork;
+
+    return { ...transformOpenAlexWorkToPublication(work), score: recommendation.score };
+  } catch (err) {
+    logger.error({ err }, '[getExternalPublicationsFromArticleRecommender]');
+    return null;
+  }
 };
 
 export const sendExternalPublicationsNotification = async (node: Node) => {
@@ -181,6 +249,6 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
   }
 };
 
-export const checkOpenAlexExternalPublications = async (node: Node) => {
-  return await getExternalPublicationsFromOpenAlex(node);
-};
+// export const checkOpenAlexExternalPublications = async (node: Node) => {
+//   return await getExternalPublicationsFromOpenAlex(node);
+// };

@@ -8,10 +8,6 @@ import { logger as parentLogger } from '../../logger.js';
 import { delFromCache } from '../../redisClient.js';
 import { attestationService } from '../../services/Attestation.js';
 import { directStreamLookup } from '../../services/ceramic.js';
-import {
-  checkExternalPublications,
-  sendExternalPublicationsNotification,
-} from '../../services/crossRef/externalPublication.js';
 import { getManifestByCid } from '../../services/data/processing.js';
 import { ElasticNodesService } from '../../services/ElasticNodesService.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
@@ -31,6 +27,7 @@ import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/di
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { getOrCreateDpid, upgradeDpid } from './createDpid.js';
+import { dispatchExternalPublicationsCheck } from '../../services/externalPublications.js';
 
 export type PublishReqBody = {
   uuid: string;
@@ -64,7 +61,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
   const logger = parentLogger.child({
     // id: req.id,
     module: 'NODE::publishController',
-    body: req.body,
+    // body: req.body,
     uuid,
     cid,
     transactionId,
@@ -189,7 +186,7 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     }
 
     // trigger external publications email if any
-    checkExternalPublications(node).then((_) => sendExternalPublicationsNotification(node));
+    dispatchExternalPublicationsCheck(node);
 
     res.status(200).send({
       ok: true,
@@ -297,6 +294,7 @@ const syncPublish = async (
   );
 
   await Promise.all(promises);
+  logger.trace('[publish promises fulfilled]');
 
   const dpid = dpidAlias?.toString() || legacyDpid?.toString();
   // Intentionally above stacked promise, needs the DPID to be resolved!!!
@@ -385,6 +383,7 @@ export const createOrUpgradeDpidAlias = async (
       },
     });
   }
+  logger.trace({ dpidAlias }, 'createOrUpgradeDpidAlias');
   return dpidAlias;
 };
 
