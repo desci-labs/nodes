@@ -81,6 +81,8 @@ import {
   unlikeNodeSchema,
 } from '../../controllers/nodes/likes.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
+import { addPublishedWallet } from '../../controllers/users/publishedWallets/create.js';
+import { getUserPublishedWallets } from '../../controllers/users/publishedWallets/index.js';
 import { attachUser } from '../../middleware/attachUser.js';
 import { ensureNodeAccess, ensureNodeExists, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUserIfPresent } from '../../middleware/ensureUserIfPresent.js';
@@ -157,7 +159,7 @@ router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], delet
 router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
 
-// Prepub (distribution)
+// Prepub (distribution pkg)
 router.post('/distribution', preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
 router.post('/distribution/email', [ensureUser], emailPublishPackage);
