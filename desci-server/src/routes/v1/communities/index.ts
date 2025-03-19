@@ -24,6 +24,7 @@ import {
   getCommunityFeedSchema,
   memberGuardSchema,
 } from './schema.js';
+import submissionsRouter from './submissions.js';
 
 const router = Router();
 
@@ -51,4 +52,6 @@ router.get('/:communityId/radar', [validate(getCommunityFeedSchema)], asyncHandl
 
 router.post('/:communityId/memberGuard', [ensureUser, validate(memberGuardSchema)], asyncHandler(checkMemberGuard));
 
+// Add submissions routes
+router.use('/submissions', submissionsRouter);
 export default router;

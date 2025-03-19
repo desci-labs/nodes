@@ -2,6 +2,7 @@ import { Response } from 'express';
 
 enum ResponseStatus {
   SUCCESS = 200,
+  CREATED = 201,
   BAD_REQUEST = 400,
   UNAUTHORIZED = 401,
   FORBIDDEN = 403,
@@ -58,6 +59,19 @@ export class SuccessResponse<T> extends ApiResponse {
 
   send(res: Response, headers?: Headers): Response {
     return super.prepare<SuccessResponse<T>>(res, this, headers ?? {});
+  }
+}
+
+export class CreatedSuccessResponse<T> extends ApiResponse {
+  constructor(
+    private data: T,
+    message?: string,
+  ) {
+    super(ResponseStatus.CREATED, message);
+  }
+
+  send(res: Response, headers?: Headers): Response {
+    return super.prepare<CreatedSuccessResponse<T>>(res, this, headers ?? {});
   }
 }
 

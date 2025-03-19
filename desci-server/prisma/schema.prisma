@@ -57,6 +57,7 @@ model Node {
   ExternalPublications ExternalPublications[]
   CommunityRadarEntry  CommunityRadarEntry[]
   NodeLike             NodeLike[]
+  CommunitySubmission  CommunitySubmission[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -210,6 +211,7 @@ model User {
   UserNotifications           UserNotifications[]
   CommentVote                 CommentVote[]
   NodeLike                    NodeLike[]
+  CommunitySubmission         CommunitySubmission[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -704,6 +706,7 @@ model DesciCommunity {
   AttestationTemplate       AttestationTemplate[]
   CommunityEntryAttestation CommunityEntryAttestation[]
   CommunityRadarEntry       CommunityRadarEntry[]
+  CommunitySubmission       CommunitySubmission[]
 }
 
 model CommunityMember {
@@ -823,6 +826,23 @@ model CommunityRadarEntry {
   updatedAt        DateTime          @updatedAt
 
   @@unique([nodeUuid, desciCommunityId])
+}
+
+model CommunitySubmission {
+  id          Int              @id @default(autoincrement())
+  communityId Int
+  community   DesciCommunity   @relation(fields: [communityId], references: [id])
+  nodeId      String
+  node        Node             @relation(fields: [nodeId], references: [uuid])
+  userId      Int
+  user        User             @relation(fields: [userId], references: [id])
+  status      Submissionstatus @default(PENDING)
+  acceptedAt  DateTime?
+  rejectedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([nodeId, communityId])
 }
 
 // Deferred emails are usually used when a published node is required, e.g. unpublished attestation claims, emails are deferred until node is published.
@@ -1174,4 +1194,10 @@ enum BookmarkType {
   NODE
   DOI
   OA
+}
+
+enum Submissionstatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
