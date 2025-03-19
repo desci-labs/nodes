@@ -16,7 +16,7 @@ data:
   CERAMIC_ONE_STORE_DIR: "/data/ceramic-one"
   CERAMIC_ONE_P2P_KEY_DIR: "/data/ceramic-one"
   CERAMIC_ONE_BIND_ADDRESS: "0.0.0.0:5101"
-  CERAMIC_ONE_SWARM_ADDRESSES: "/ip4/0.0.0.0/tcp/4101,/ip4/0.0.0.0/udp/4101/quic-v1"
+  CERAMIC_ONE_SWARM_ADDRESSES: "/ip4/0.0.0.0/tcp/4101,/ip4/0.0.0.0/udp/4102/quic-v1"
   CERAMIC_ONE_METRICS_BIND_ADDRESS: "0.0.0.0:9465"
   CERAMIC_ONE_LOCAL_NETWORK_ID: "0"
   CERAMIC_ONE_NETWORK: "testnet-clay"
@@ -26,76 +26,8 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: js-ceramic-env
-data:
-  NODE_ENV: "production"
-  CERAMIC_NETWORK: "testnet-clay"
-  CERAMIC_STATE_STORE_PATH: "/js-ceramic-data/statestore"
-  CERAMIC_CORS_ALLOWED_ORIGINS: ".*"
-  CERAMIC_LOG_LEVEL: "2"
-  CERAMIC_IPFS_HOST: "http://localhost:5101"
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
   name: ceramic-init
 data:
-  # TODO: add anchor.authMethod and node.privateSeedUrl to config when duplicating for prod
-  daemon-config.json: |
-    {
-      "anchor": {
-        "ethereum-rpc-url": "${ANCHOR_RPC_URL}"
-      },
-      "http-api": {
-          "cors-allowed-origins": [
-              "${CERAMIC_CORS_ALLOWED_ORIGINS}"
-          ],
-          "admin-dids": [
-              "${CERAMIC_ADMIN_DID}"
-          ]
-      },
-      "ipfs": {
-          "mode": "remote",
-          "host": "${CERAMIC_IPFS_HOST}"
-      },
-      "logger": {
-          "log-level": ${CERAMIC_LOG_LEVEL},
-          "log-to-files": false
-      },
-      "metrics": {
-          "metrics-exporter-enabled": false,
-          "prometheus-exporter-enabled": true,
-          "prometheus-exporter-port": 9464
-      },
-      "network": {
-          "name": "${CERAMIC_NETWORK}"
-      },
-      "node": {},
-      "state-store": {
-          "mode": "fs",
-          "local-directory": "${CERAMIC_STATE_STORE_PATH}"
-      },
-      "indexing": {
-          "db": "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}/${POSTGRES_DB}",
-          "allow-queries-before-historical-sync": true
-      }
-    }
-
-  js-ceramic-init.sh: |
-    #!/bin/bash
-
-    set -eo pipefail
-
-    source /vault/secrets/config
-
-    export CERAMIC_ADMIN_DID=$(composedb did:from-private-key ${CERAMIC_ADMIN_PRIVATE_KEY})
-
-    envsubst \
-      < /ceramic-init/daemon-config.json \
-      > /config/daemon-config.json
-
-    echo "Config file generated successfully"
-
   get-external-multiaddr.sh: |
     #!/bin/bash
 
@@ -107,7 +39,7 @@ data:
     
     LB_DOMAIN=$(curl -s --header "Authorization: Bearer $TOKEN" \
         --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-        https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/services/ceramic-recon-dev-$MY_POD_INDEX-public \
+        https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/services/ceramic-recon-dev-$MY_POD_INDEX-swarm\
       | grep -oE "k8s-.*.elb.*.amazonaws.com")
 
     if [ -z "$LB_DOMAIN" ]; then
@@ -115,12 +47,12 @@ data:
       exit 1
     fi
 
-    EXTERNAL_MULTIADDR="/dns4/${LB_DOMAIN}/tcp/4101,/dns4/${LB_DOMAIN}/udp/4101/quic-v1"
+    EXTERNAL_MULTIADDR="/dns4/${LB_DOMAIN}/tcp/4101,/dns4/${LB_DOMAIN}/udp/4102/quic-v1"
     echo -n "$EXTERNAL_MULTIADDR" > /config/external-multiaddr
     echo "Wrote $EXTERNAL_MULTIADDR to /config/external-multiaddr"
 ---
 
-# Stateful set for pairs of js-ceramic & ceramic-one
+# Stateful set to manage container and volume in pairs
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -155,61 +87,13 @@ spec:
     spec:
       serviceAccountName: "vault-auth"
       containers:
-        - name: js-ceramic
-          image: ceramicnetwork/js-ceramic:6.5.0
-          command:
-            - /js-ceramic/packages/cli/bin/ceramic.js
-            - daemon
-            - --config
-            - /config/daemon-config.json
-          env:
-            - name: BASH_ENV
-              value: /vault/secrets/config
-          envFrom:
-            - configMapRef:
-                name: js-ceramic-env
-          ports:
-            - name: http-api
-              containerPort: 7007
-              protocol: TCP
-            - name: metrics
-              containerPort: 9464
-              protocol: TCP
-          resources:
-            limits:
-              cpu: 2
-              memory: 4Gi
-            requests:
-              cpu: 1
-              memory: 4Gi
-          livenessProbe:
-            httpGet:
-              path: /api/v0/node/healthcheck
-              port: http-api
-              scheme: HTTP
-            failureThreshold: 3
-            initialDelaySeconds: 60
-            periodSeconds: 5
-            timeoutSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /api/v0/node/healthcheck
-              port: http-api
-              scheme: HTTP
-            failureThreshold: 3
-            initialDelaySeconds: 60
-            periodSeconds: 5
-            timeoutSeconds: 10
-          volumeMounts:
-            - mountPath: /config
-              name: config-volume
-            - mountPath: /js-ceramic-data
-              name: js-ceramic-data
-
         - name: ceramic-one
-          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.39.0
+          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.54.1
           command: [ "bash", "-c" ]
-          args: [ 'ceramic-one daemon --external-swarm-addresses="$(< /config/external-multiaddr)"']
+          args:
+            # - echo "Container idling..."; tail --follow /dev/null
+            - ceramic-one daemon
+              --external-swarm-addresses="$(< /config/external-multiaddr)"
           env:
             - name: BASH_ENV
               value: /vault/secrets/config
@@ -217,10 +101,13 @@ spec:
             - configMapRef:
                 name: ceramic-one-env
           ports:
+            - containerPort: 5102
+              name: flight-sql
+              protocol: TCP
             - containerPort: 4101
               name: swarm-tcp
               protocol: TCP
-            - containerPort: 4101
+            - containerPort: 4102
               name: swarm-udp
               protocol: UDP
             - containerPort: 5101
@@ -231,39 +118,37 @@ spec:
               protocol: TCP
           resources:
             limits:
-              cpu: 1
-              memory: 1Gi
+              cpu: 4
+              memory: 4Gi
             requests:
               cpu: 1
               memory: 1Gi
-          livenessProbe:
-            httpGet:
-              path: /ceramic/liveness
-              port: rpc
-              scheme: HTTP
-          readinessProbe:
-            httpGet:
-              path: /ceramic/liveness
-              port: rpc
-              scheme: HTTP
+          # livenessProbe:
+          #   httpGet:
+          #     path: /ceramic/liveness
+          #     port: rpc
+          #     scheme: HTTP
+          # readinessProbe:
+          #   httpGet:
+          #     path: /ceramic/liveness
+          #     port: rpc
+          #     scheme: HTTP
           volumeMounts:
             - name: ceramic-one-data
               mountPath: /data/ceramic-one
             - name: config-volume
               mountPath: /config
-
       initContainers:
         - name: init-ceramic-config
-          command: [ "bash", "-c" ]
-          args: [ "/ceramic-init/js-ceramic-init.sh && /ceramic-init/get-external-multiaddr.sh" ]
+          image: alpine:3
+          imagePullPolicy: Always
+          command: [ "sh", "-c" ]
+          args:
+            - apk add --no-cache bash curl &&
+              bash /ceramic-init/get-external-multiaddr.sh
           env:
             - name: BASH_ENV
               value: /vault/secrets/config
-          envFrom:
-            - configMapRef:
-                name: js-ceramic-env
-          image: ceramicnetwork/composedb-cli
-          imagePullPolicy: Always
           volumeMounts:
             - mountPath: /config
               name: config-volume
@@ -282,23 +167,8 @@ spec:
         - configMap:
             name: ceramic-one-env
           name: ceramic-one-env
-        - name: js-ceramic-data
-          persistentVolumeClaim:
-            claimName: js-ceramic-data
 
   volumeClaimTemplates:
-    - metadata:
-        name: js-ceramic-data
-        labels:
-          App: CeramicReconDev
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        storageClassName: retained-standard
-        resources:
-          requests:
-            storage: 100Gi
-
     - metadata:
         name: ceramic-one-data
         labels:
@@ -324,18 +194,16 @@ spec:
   selector:
     App: CeramicReconDev
   ports:
-    - port: 7007
-      name: http-api
+    - port: 5102
+      name: flight-sql
     - port: 4101
       name: swarm-tcp
       protocol: TCP
-    - port: 4101
+    - port: 4102
       name: swarm-udp
       protocol: UDP
     - port: 5101
       name: rpc
-    - port: 9464
-      name: js-metrics
     - port: 9465
       name: one-metrics
 ---
@@ -354,45 +222,75 @@ spec:
     App: CeramicReconDev
     statefulset.kubernetes.io/pod-name: ceramic-recon-dev-0
   ports:
-    - port: 80
-      name: http-api
-      targetPort: http-api
-    - port: 4101
-      name: swarm-tcp
-      protocol: TCP
-      targetPort: swarm-tcp
-    - port: 4101
-      name: swarm-udp
-      protocol: UDP
-      targetPort: swarm-udp
+    # - port: 4101
+    #   name: swarm-tcp
+    #   protocol: TCP
+    #   targetPort: swarm-tcp
+    # - port: 4102
+    #   name: swarm-udp
+    #   protocol: UDP
+    #   targetPort: swarm-udp
+    - port: 5102
+      name: flight-sql
+      targetPort: flight-sql
     - port: 5101
       name: rpc
       targetPort: rpc
-    - port: 9464
-      name: js-metrics
-      targetPort: js-metrics
     - port: 9465
       name: one-metrics
       targetPort: one-metrics
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: ceramic-recon-dev-0-public
+# spec:
+#   type: LoadBalancer
+#   selector:
+#     App: CeramicReconDev
+#     statefulset.kubernetes.io/pod-name: ceramic-recon-dev-0
+#   ports:
+#     - port: 4101
+#       name: swarm-tcp
+#       protocol: TCP
+#       targetPort: swarm-tcp
+#     - port: 4102
+#       name: swarm-udp
+#       protocol: UDP
+#       targetPort: swarm-udp
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: ceramic-recon-dev-0-public
+  name: ceramic-recon-dev-0-swarm
+  labels:
+    App: CeramicReconDev
+  annotations:
+    # NLB is preferred for libp2p/Kubo due to connection handling and UDP use
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    # Required for mixed protocol support
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    # AWS targetgroups doesn't support UDP checks, but defaults to creating one on the UDP port
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "4101"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: TCP
+    # Enable cross-AZ load balancing for better availability
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    # External access required for IPFS network participation
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    # Long timeout for libp2p connections
+    service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "3600"
+    service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: preserve_client_ip.enabled=true
 spec:
   type: LoadBalancer
+  externalTrafficPolicy: Local
   selector:
     App: CeramicReconDev
-    statefulset.kubernetes.io/pod-name: ceramic-recon-dev-0
   ports:
-    - port: 80
-      name: http-api
-      targetPort: http-api
-    - port: 4101
-      name: swarm-tcp
+    - name: swarm-tcp
       protocol: TCP
-      targetPort: swarm-tcp
-    - port: 4101
-      name: swarm-udp
+      port: 4101
+      targetPort: 4101
+    - name: swarm-udp
       protocol: UDP
-      targetPort: swarm-udp
+      port: 4102
+      targetPort: 4102
