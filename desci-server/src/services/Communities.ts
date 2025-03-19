@@ -5,6 +5,7 @@ import {
   NodeAttestation,
   NodeFeedItem,
   Prisma,
+  Submissionstatus,
 } from '@prisma/client';
 import _, { includes } from 'lodash';
 
@@ -851,6 +852,75 @@ export class CommunityService {
     return await prisma.communityRadarEntry.delete({
       where: {
         id: entry.id,
+      },
+    });
+  }
+
+  async createSubmission({
+    communityId,
+    nodeId,
+    userId,
+  }: {
+    nodeId: string;
+    communityId: number;
+    userId: number;
+    // status: Submissionstatus;
+  }) {
+    return await prisma.communitySubmission.create({
+      data: {
+        nodeId,
+        communityId,
+        userId,
+        status: Submissionstatus.PENDING,
+      },
+    });
+  }
+  async getCommunitySubmissions({ communityId, status }: { communityId: number; status?: Submissionstatus }) {
+    return await prisma.communitySubmission.findMany({
+      where: {
+        communityId: Number(communityId),
+        ...(status && { status: status as Submissionstatus }),
+      },
+      include: {
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        community: { select: { id: true, name: true, image_url: true, description: true } },
+      },
+    });
+  }
+  async getUserSubmissions(userId: number, status?: Submissionstatus) {
+    return await prisma.communitySubmission.findMany({
+      where: {
+        node: {
+          ownerId: userId,
+        },
+        ...(status && { status: status as Submissionstatus }),
+      },
+      include: {
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        community: { select: { id: true, name: true, image_url: true, description: true } },
+      },
+    });
+  }
+  async updateSubmissionStatus(id: number, status: Submissionstatus) {
+    return await prisma.communitySubmission.update({
+      where: { id },
+      data: {
+        status: status as Submissionstatus,
+        ...(status === 'ACCEPTED' ? { acceptedAt: new Date() } : {}),
+        ...(status === 'REJECTED' ? { rejectedAt: new Date() } : {}),
+      },
+      include: {
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        community: { select: { id: true, name: true, image_url: true, description: true } },
+      },
+    });
+  }
+  async getSubmission(submissionId: number) {
+    return prisma.communitySubmission.findUnique({
+      where: { id: submissionId },
+      include: {
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        community: { select: { id: true, name: true, image_url: true, description: true } },
       },
     });
   }

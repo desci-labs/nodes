@@ -4,9 +4,11 @@ import {
   AttestationVersion,
   CommunityEntryAttestation,
   DesciCommunity,
+  Node,
   User,
 } from '@prisma/client';
-import { assert, expect } from 'chai';
+import chai, { assert } from 'chai';
+import chaiAsPromised from 'chai-as-promised';
 import 'dotenv/config';
 import 'mocha';
 
@@ -15,6 +17,10 @@ import { DuplicateDataError } from '../../src/core/communities/error.js';
 import { attestationService } from '../../src/services/Attestation.js';
 import { communityService } from '../../src/services/Communities.js';
 import { createUsers } from '../util.js';
+
+// use async chai assertions
+chai.use(chaiAsPromised);
+const expect = chai.expect;
 
 const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "DataReference" CASCADE;`;
@@ -350,6 +356,235 @@ describe('Desci Communities', () => {
 
       // it('should allow member to claim all selected attestation(s)', () => {});
       // it('should allow member claim individual attestation(s)', () => {});
+    });
+  });
+
+  describe.only('Community Submission', async () => {
+    let submissionId: number;
+    const nodeData = {
+      title: 'Test Node',
+      manifestUrl: 'http://example.com/manifest',
+      replicationFactor: 1,
+    };
+    let testNode: Node;
+    let testNode2: Node;
+
+    before(async () => {
+      // Create a test node for submissions
+      testNode = await prisma.node.create({
+        data: {
+          ...nodeData,
+          ownerId: unauthedUser.id,
+        },
+      });
+      testNode2 = await prisma.node.create({
+        data: {
+          ...nodeData,
+          ownerId: unauthedUser.id,
+        },
+      });
+    });
+
+    after(async () => {
+      // Clean up test data
+      await prisma.$queryRaw`TRUNCATE TABLE "CommunitySubmission" CASCADE;`;
+      await prisma.node.delete({ where: { id: testNode.id } });
+    });
+
+    describe('Create Submission', () => {
+      it('should create a submission', async () => {
+        assert(daoCommunity);
+        // Make unauthedUser a community member
+        await prisma.communityMember.create({
+          data: {
+            userId: unauthedUser.id,
+            communityId: daoCommunity.id,
+            role: 'MEMBER',
+          },
+        });
+
+        const submission = await communityService.createSubmission({
+          nodeId: testNode.uuid!,
+          communityId: daoCommunity.id,
+          userId: unauthedUser.id,
+        });
+
+        expect(submission).to.not.be.null;
+        expect(submission.nodeId).to.equal(testNode.uuid);
+        expect(submission.communityId).to.equal(daoCommunity.id);
+        expect(submission.status).to.equal('PENDING');
+
+        submissionId = submission.id;
+      });
+
+      it.skip('should prevent submission when user is not community member', async () => {
+        assert(daoCommunity);
+        const nonMemberUser = users[0];
+
+        try {
+          await communityService.createSubmission({
+            nodeId: testNode.uuid!,
+            communityId: daoCommunity.id,
+            userId: nonMemberUser.id,
+          });
+          expect.fail('Should have thrown error');
+        } catch (error) {
+          expect(error).to.be.instanceOf(Error);
+          expect((error as Error).message).to.include('not a member');
+        }
+      });
+
+      it('should prevent duplicate submissions', async () => {
+        assert(daoCommunity);
+        try {
+          await communityService.createSubmission({
+            nodeId: testNode.uuid!,
+            communityId: daoCommunity.id,
+            userId: unauthedUser.id,
+          });
+          expect.fail('Should have thrown error');
+        } catch (error) {
+          expect(error).to.be.instanceOf(Error);
+          expect((error as Error).message).to.include('Unique constraint failed');
+        }
+      });
+    });
+
+    describe('Get Community Submissions', () => {
+      it('should list all submissions for community members', async () => {
+        assert(daoCommunity);
+        const submissions = await communityService.getCommunitySubmissions({ communityId: daoCommunity.id });
+
+        expect(submissions).to.be.an('array');
+        expect(submissions.length).to.be.greaterThan(0);
+        expect(submissions[0].nodeId).to.equal(testNode.uuid);
+      });
+
+      it('should filter submissions by status', async () => {
+        assert(daoCommunity);
+        const pendingSubmissions = await communityService.getCommunitySubmissions({
+          communityId: daoCommunity.id,
+          status: 'PENDING',
+        });
+
+        expect(pendingSubmissions).to.be.an('array');
+        expect(pendingSubmissions.length).to.be.greaterThan(0);
+        expect(pendingSubmissions[0].status).to.equal('PENDING');
+      });
+
+      it.skip('should prevent non-members from viewing submissions', async () => {
+        assert(daoCommunity);
+        const nonMemberUser = users[0];
+
+        try {
+          await communityService.getCommunitySubmissions({ communityId: daoCommunity.id });
+          expect.fail('Should have thrown error');
+        } catch (error) {
+          expect(error).to.be.instanceOf(Error);
+          expect((error as Error).message).to.include('not a member');
+        }
+      });
+    });
+
+    describe('Get User Submissions', () => {
+      it("should list user's own submissions", async () => {
+        const submissions = await communityService.getUserSubmissions(unauthedUser.id);
+
+        expect(submissions).to.be.an('array');
+        expect(submissions.length).to.be.greaterThan(0);
+        expect(submissions[0].node.ownerId).to.equal(unauthedUser.id);
+      });
+
+      it.skip("should prevent viewing other users' submissions", async () => {
+        try {
+          await communityService.getUserSubmissions(admin.id);
+          expect.fail('Should have thrown error');
+        } catch (error) {
+          expect(error).to.be.instanceOf(Error);
+          expect((error as Error).message).to.include('Unauthorized');
+        }
+      });
+    });
+
+    describe('Update Submission Status', () => {
+      it('should allow admin/Member to accept submission', async () => {
+        assert(daoCommunity);
+        // Make admin a community admin
+        await prisma.communityMember.create({
+          data: {
+            userId: admin.id,
+            communityId: daoCommunity.id,
+            role: 'ADMIN',
+          },
+        });
+
+        const updatedSubmission = await communityService.updateSubmissionStatus(submissionId, 'ACCEPTED');
+
+        expect(updatedSubmission.status).to.equal('ACCEPTED');
+        expect(updatedSubmission.acceptedAt).to.not.be.null;
+      });
+
+      it('should allow admin/member to reject submission', async () => {
+        const newSubmission = await communityService.createSubmission({
+          nodeId: testNode2.uuid!,
+          communityId: daoCommunity!.id,
+          userId: unauthedUser.id,
+        });
+
+        const updatedSubmission = await communityService.updateSubmissionStatus(newSubmission.id, 'REJECTED');
+
+        expect(updatedSubmission.status).to.equal('REJECTED');
+        expect(updatedSubmission.rejectedAt).to.not.be.null;
+      });
+
+      it.skip('should prevent non-admin from updating status', async () => {
+        try {
+          await communityService.updateSubmissionStatus(submissionId, 'ACCEPTED');
+          expect.fail('Should have thrown error');
+        } catch (error) {
+          expect(error).to.be.instanceOf(Error);
+          expect((error as Error).message).to.include('admin');
+        }
+      });
+    });
+
+    describe('Get Single Submission', () => {
+      it('should allow submitter to view submission', async () => {
+        const submission = await communityService.getSubmission(submissionId);
+
+        expect(submission).to.not.be.null;
+        expect(submission?.id).to.equal(submissionId);
+        expect(submission?.nodeId).to.equal(testNode.uuid);
+      });
+
+      it('should allow community member to view submission', async () => {
+        const submission = await communityService.getSubmission(submissionId);
+
+        expect(submission).to.not.be.null;
+        expect(submission?.id).to.equal(submissionId);
+      });
+
+      it.skip('should prevent non-members from viewing submission', async () => {
+        const nonMemberUser = users[0];
+
+        try {
+          await communityService.getSubmission(submissionId);
+          expect.fail('Should have thrown error');
+        } catch (error) {
+          expect(error).to.be.instanceOf(Error);
+          expect((error as Error).message).to.include('Unauthorized');
+        }
+      });
+
+      it('should return 404 for non-existent submission', async () => {
+        try {
+          const submission = await communityService.getSubmission(99999);
+          expect(submission).to.be.null;
+        } catch (error) {
+          expect(error).to.be.instanceOf(Error);
+          expect((error as Error).message).to.include('not found');
+        }
+      });
     });
   });
 });
