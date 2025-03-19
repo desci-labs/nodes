@@ -62,12 +62,15 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
     },
   });
 
-  if (!isMember) {
-    throw new ForbiddenError('User is not a member of this community');
-  }
+  //   if (!isMember) {
+  //     throw new ForbiddenError('User is not a member of this community');
+  //   }
 
   // Get submissions
-  const submissions = await communityService.getCommunitySubmissions({ communityId: Number(communityId), status });
+  const submissions = await communityService.getCommunitySubmissions({
+    communityId: Number(communityId),
+    status: isMember ? status : 'ACCEPTED',
+  });
 
   new SuccessResponse(submissions).send(res);
 };
