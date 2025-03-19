@@ -103,7 +103,7 @@ spec:
           export CLOUDFLARE_WORKER_API_SECRET="{{ .Data.CLOUDFLARE_WORKER_API_SECRET }}"
           export ENABLE_WORKERS_API=true
           export LOG_ENCRYPTION_KEY="{{ .Data.LOG_ENCRYPTION_KEY }}"
-          export ORCID_PUBLIC_API={{ .Data.ORCID_PUBLIC_API }}"
+          export ORCID_PUBLIC_API="{{ .Data.ORCID_PUBLIC_API }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
@@ -173,21 +173,21 @@ kind: Ingress
 metadata:
   name: desci-server-dev-ingress-new
   annotations:
-    kubernetes.io/ingress.class: "alb"
-    alb.ingress.kubernetes.io/scheme: "internet-facing"
-    alb.ingress.kubernetes.io/target-type: "ip"
+    kubernetes.io/ingress.class: 'alb'
+    alb.ingress.kubernetes.io/scheme: 'internet-facing'
+    alb.ingress.kubernetes.io/target-type: 'ip'
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-2:523044037273:certificate/b6ddf370-5957-4996-bc09-4f48894c0c1f
     alb.ingress.kubernetes.io/ssl-redirect: '443'
 spec:
   rules:
-  - host: "nodes-api-dev.desci.com"
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: desci-server-dev-service
-            port:
-              number: 80
+    - host: 'nodes-api-dev.desci.com'
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: desci-server-dev-service
+                port:
+                  number: 80
