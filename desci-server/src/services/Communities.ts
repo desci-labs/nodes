@@ -119,7 +119,12 @@ export class CommunityService {
   }
 
   async findCommunityByNameOrSlug(name: string) {
-    return prisma.desciCommunity.findFirst({ where: { OR: [{ name }, { slug: name }] } });
+    return prisma.desciCommunity.findFirst({
+      where: { OR: [{ name }, { slug: name }] },
+      include: {
+        CommunityMember: { select: { id: true, role: true, userId: true, user: { select: { name: true } } } },
+      },
+    });
   }
 
   async updateCommunity(name: string, community: Prisma.DesciCommunityUpdateInput) {

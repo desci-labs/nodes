@@ -359,7 +359,7 @@ describe('Desci Communities', () => {
     });
   });
 
-  describe.only('Community Submission', async () => {
+  describe('Community Submission', async () => {
     let submissionId: number;
     const nodeData = {
       title: 'Test Node',

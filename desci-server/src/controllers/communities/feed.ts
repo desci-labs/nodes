@@ -103,7 +103,14 @@ export const getCommunityDetails = async (req: Request, res: Response, next: Nex
   const verifiedEngagements = await communityService.getCommunityRadarEngagementSignal(community.id);
 
   // todo: update api return type in web app
-  return new SuccessResponse({ community, engagements, verifiedEngagements }).send(res);
+  return new SuccessResponse({
+    community: {
+      ...community,
+      members: community.CommunityMember.map((member) => ({ ...member, name: member.user.name })),
+    },
+    engagements,
+    verifiedEngagements,
+  }).send(res);
 };
 
 export const getAllFeeds = async (req: Request, res: Response, next: NextFunction) => {
