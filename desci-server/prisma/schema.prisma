@@ -985,6 +985,7 @@ model DoiSubmissionQueue {
   doi          DoiRecord? @relation(fields: [doiRecordId], references: [id])
   notification Json?
   status       DoiStatus  @default(PENDING)
+  attempts     Int?       @default(0)
   uniqueDoi    String     @unique
   uuid         String
   node         Node       @relation(fields: [uuid], references: [uuid])
