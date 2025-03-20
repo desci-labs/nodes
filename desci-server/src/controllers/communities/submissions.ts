@@ -39,6 +39,8 @@ export const createSubmission = async (req: RequestWithNode, res: Response) => {
   //   if (!isMember) {
   //     throw new ForbiddenError('User is not a member of this community');
   //   }
+  const nodeExists = await prisma.node.findFirst({ where: { uuid: nodeId } });
+  if (!nodeExists) throw new BadRequestError('Node not found!');
 
   // Create submission
   const submission = await communityService.createSubmission({
