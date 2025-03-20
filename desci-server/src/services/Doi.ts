@@ -327,6 +327,7 @@ export class DoiService {
       {
         status: DoiStatus.SUCCESS,
         doiRecordId: doiRecord.id,
+        attempts: submission.attempts + 1,
       },
     );
 

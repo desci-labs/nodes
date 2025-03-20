@@ -61,6 +61,15 @@ export const onTick = async () => {
             },
           });
         }
+      } else {
+        // mark doi task as failed after 10 attempts
+        await doiService.updateSubmission(
+          { id: job.id },
+          {
+            attempts: job.attempts + 1,
+            status: job.attempts > 9 ? 'FAILED' : job.status,
+          },
+        );
       }
       return { doi: job.uniqueDoi, jobId: job.id, isResolved };
     } catch (err) {
