@@ -10,17 +10,11 @@ import { ensureUser } from '../../../middleware/permissions.js';
 import { validate } from '../../../middleware/validator.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
-import {
-  createSubmissionSchema,
-  getCommunitySubmissionsSchema,
-  getUserSubmissionsSchema,
-  updateSubmissionStatusSchema,
-  getSubmissionSchema,
-} from './submissions-schema.js';
+import { createSubmissionSchema, updateSubmissionStatusSchema, getSubmissionSchema } from './submissions-schema.js';
 
 const router = Router();
 
-router.post('/', [ensureUser, ensureNodeAccess, validate(createSubmissionSchema)], asyncHandler(createSubmission));
+router.post('/', [ensureUser, validate(createSubmissionSchema)], asyncHandler(createSubmission));
 
 router.patch(
   '/:submissionId/status',
