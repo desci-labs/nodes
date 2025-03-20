@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { googleAuth } from '../../controllers/auth/google.js';
+import { createGuestUser } from '../../controllers/auth/guest.js';
 import {
   login,
   logout,
@@ -27,6 +28,7 @@ router.post('/login', login);
 router.post('/login/did', asyncHandler(walletLogin));
 router.get('/login/did/:walletAddress', asyncHandler(walletNonce));
 router.delete('/logout', logout);
+router.post('/guest', createGuestUser);
 router.get('/profile', [ensureUser], profile);
 router.get('/orcid/auth', orcidAuth);
 router.get('/orcid/auth/close', orcidAuthClose);
