@@ -41,21 +41,21 @@ router.get(
   asyncHandler(getAggregatedAnalyticsCsv),
 );
 router.get('/analytics/new-users', [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin], getNewUserAnalytics);
-router.get(
-  '/analytics/new-orcid-users',
-  [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin],
-  getNewOrcidUserAnalytics,
-);
+// router.get(
+//   '/analytics/new-orcid-users',
+//   [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin],
+//   getNewOrcidUserAnalytics,
+// );
 router.get(
   '/analytics/active-users',
   [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin],
   getActiveUserAnalytics,
 );
-router.get(
-  '/analytics/active-orcid-users',
-  [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin],
-  getActiveOrcidUserAnalytics,
-);
+// router.get(
+//   '/analytics/active-orcid-users',
+//   [validate(userAnalyticsSchema), ensureUser, ensureUserIsAdmin],
+//   getActiveOrcidUserAnalytics,
+// );
 
 router.get('/doi/list', [ensureUser, ensureAdmin], listDoiRecords);
 router.post('/mint/:uuid', [ensureUser, ensureAdmin], asyncHandler(mintDoi));
