@@ -286,4 +286,97 @@ const sendMagicLink = async (email: string, ip?: string, ignoreTestEnv?: boolean
   throw Error('Not found');
 };
 
-export { registerUser, sendMagicLink, magicLinkRedeem };
+const verifyMagicCode = async (email: string, token: string): Promise<boolean> => {
+  email = email.toLowerCase();
+  if (!email) return false;
+
+  logger.trace({ fn: 'verifyMagicCode', email: hideEmail(email) }, 'auth::verifyMagicCode');
+
+  try {
+    const link = await client.magicLink.findFirst({
+      where: {
+        email,
+      },
+      orderBy: {
+        id: 'desc',
+      },
+    });
+
+    if (!link) {
+      logger.info({ fn: 'verifyMagicCode', email: hideEmail(email) }, 'No magic link found for email');
+      return false;
+    }
+
+    const logEncryptionKeyPresent = process.env.LOG_ENCRYPTION_KEY && process.env.LOG_ENCRYPTION_KEY.length > 0;
+    logger.trace(
+      {
+        fn: 'verifyMagicCode',
+        email: hideEmail(email),
+        tokenProvided: 'XXXX' + token.slice(-2),
+        tokenProvidedLength: token.length,
+        latestLinkFound: 'XXXX' + link.token.slice(-2),
+        linkEqualsToken: link.token === token,
+        latestLinkExpiry: link.expiresAt,
+        latestLinkId: link.id,
+        ...(logEncryptionKeyPresent
+          ? {
+              eTokenProvided: encryptForLog(token, process.env.LOG_ENCRYPTION_KEY),
+              eEmail: encryptForLog(email, process.env.LOG_ENCRYPTION_KEY),
+            }
+          : {}),
+      },
+      '[MAGIC]auth::verifyMagicCode comparison debug',
+    );
+
+    // Check for too many failed attempts
+    if (link.failedAttempts >= 5) {
+      logger.info({ fn: 'verifyMagicCode', linkId: link.id, email: hideEmail(email) }, 'Too many failed attempts');
+      return false;
+    }
+
+    // Verify token is valid and not expired
+    if (link.token !== token || new Date() > link.expiresAt) {
+      // Increment failedAttempts
+      await client.magicLink.update({
+        where: {
+          id: link.id,
+        },
+        data: {
+          failedAttempts: {
+            increment: 1,
+          },
+        },
+      });
+
+      logger.info(
+        {
+          fn: 'verifyMagicCode',
+          linkId: link.id,
+          token: 'XXXX' + token.slice(-2),
+          ...(logEncryptionKeyPresent
+            ? {
+                eTokenProvided: encryptForLog(token, process.env.LOG_ENCRYPTION_KEY),
+                eEmail: encryptForLog(email, process.env.LOG_ENCRYPTION_KEY),
+              }
+            : {}),
+          newFailedAttempts: link.failedAttempts + 1,
+        },
+        'Invalid token attempt',
+      );
+
+      return false;
+    }
+
+    logger.info(
+      { fn: 'verifyMagicCode', linkId: link.id, email: hideEmail(email) },
+      'Magic code verified successfully',
+    );
+
+    return true;
+  } catch (error) {
+    logger.error({ error, fn: 'verifyMagicCode' }, 'Error verifying magic code');
+    return false;
+  }
+};
+
+export { registerUser, sendMagicLink, magicLinkRedeem, verifyMagicCode };
