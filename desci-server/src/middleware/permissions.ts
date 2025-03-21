@@ -25,7 +25,7 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
     logger.trace({ token, apiKey }, 'ENSURE USER');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
   } else if (retrievedUser.isGuest) {
-    res.status(401).send({ ok: false, message: 'Unauthorized' });
+    res.status(403).send({ ok: false, message: 'Registration required' });
   } else {
     (req as any).user = retrievedUser;
     (req as any).authMethod = authTokenRetrieval ? AuthMethods.AUTH_TOKEN : AuthMethods.API_KEY;
