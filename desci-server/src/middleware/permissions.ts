@@ -24,6 +24,25 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
   if (!retrievedUser) {
     logger.trace({ token, apiKey }, 'ENSURE USER');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
+  } else if (retrievedUser.isGuest) {
+    res.status(401).send({ ok: false, message: 'Unauthorized' });
+  } else {
+    (req as any).user = retrievedUser;
+    (req as any).authMethod = authTokenRetrieval ? AuthMethods.AUTH_TOKEN : AuthMethods.API_KEY;
+    next();
+  }
+};
+
+export const ensureGuestOrUser = async (req: ExpressRequest, res: Response, next: NextFunction) => {
+  const token = await extractAuthToken(req);
+  const apiKey = await extractApiKey(req);
+  const authTokenRetrieval = await extractUserFromToken(token);
+  const apiKeyRetrieval = await extractUserFromApiKey(apiKey, req.ip);
+  const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
+
+  if (!retrievedUser) {
+    logger.trace({ token, apiKey }, 'ENSURE GUEST OR USER');
+    res.status(401).send({ ok: false, message: 'Unauthorized' });
   } else {
     (req as any).user = retrievedUser;
     (req as any).authMethod = authTokenRetrieval ? AuthMethods.AUTH_TOKEN : AuthMethods.API_KEY;
