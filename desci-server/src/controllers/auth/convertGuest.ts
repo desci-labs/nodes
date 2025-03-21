@@ -39,14 +39,6 @@ export const convertGuestToUser = async (req: AuthenticatedRequest, res: Respons
       return res.status(400).send({ ok: false, error: 'Invalid or expired magic code' });
     }
 
-    // redeem it and invalidate the token
-    try {
-      //   await magicLinkRedeem(email, magicCode);
-    } catch (error) {
-      logger.error({ userId: guestUser.id, email: hideEmail(email), error }, 'Error redeeming magic link');
-      return res.status(400).send({ ok: false, error: 'Failed to verify email' });
-    }
-
     const updatedUser = await prisma.user.update({
       where: { id: guestUser.id },
       data: {

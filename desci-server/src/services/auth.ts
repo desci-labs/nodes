@@ -372,6 +372,16 @@ const verifyMagicCode = async (email: string, token: string): Promise<boolean> =
       'Magic code verified successfully',
     );
 
+    // Invalidate the token by setting its expiresAt to a past date
+    await client.magicLink.update({
+      where: {
+        id: link.id,
+      },
+      data: {
+        expiresAt: new Date('1980-01-01'),
+      },
+    });
+
     return true;
   } catch (error) {
     logger.error({ error, fn: 'verifyMagicCode' }, 'Error verifying magic code');
