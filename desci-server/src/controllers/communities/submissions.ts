@@ -14,7 +14,8 @@ import {
   updateSubmissionStatusSchema,
 } from '../../routes/v1/communities/submissions-schema.js';
 import { communityService } from '../../services/Communities.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
+import { getNodeDetails } from '../../services/node.js';
+import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
 export const createSubmission = async (req: RequestWithNode, res: Response) => {
   const { nodeId, communityId } = req.body as z.infer<typeof createSubmissionSchema>['body'];
@@ -28,17 +29,6 @@ export const createSubmission = async (req: RequestWithNode, res: Response) => {
     throw new BadRequestError('Community not found');
   }
 
-  // Check if user is a member of the community
-  //   const isMember = await prisma.communityMember.findFirst({
-  //     where: {
-  //       userId: req.user.id,
-  //       communityId: communityId,
-  //     },
-  //   });
-
-  //   if (!isMember) {
-  //     throw new ForbiddenError('User is not a member of this community');
-  //   }
   const nodeExists = await prisma.node.findFirst({ where: { uuid: nodeId } });
   if (!nodeExists) throw new BadRequestError('Node not found!');
 
@@ -64,17 +54,17 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
     },
   });
 
-  //   if (!isMember) {
-  //     throw new ForbiddenError('User is not a member of this community');
-  //   }
-
   // Get submissions
   const submissions = await communityService.getCommunitySubmissions({
     communityId: Number(communityId),
-    status: isMember ? status : 'ACCEPTED',
+    status: isMember ? status : Submissionstatus.ACCEPTED,
   });
 
-  new SuccessResponse(submissions).send(res);
+  const data = await asyncMap(submissions, async (submission) => {
+    const node = await getNodeDetails(submission.nodeId);
+    return { ...submission, node: { ...submission.node, ...node } };
+  });
+  new SuccessResponse(data).send(res);
 };
 
 export const getUserSubmissions = async (req: RequestWithUser, res: Response) => {
@@ -120,7 +110,8 @@ export const updateSubmissionStatus = async (req: RequestWithUser, res: Response
   // Update submission status
   const updatedSubmission = await communityService.updateSubmissionStatus(Number(submissionId), status);
 
-  new SuccessResponse(updatedSubmission).send(res);
+  const node = await getNodeDetails(submission.nodeId);
+  new SuccessResponse({ ...updatedSubmission, ...node }).send(res);
 };
 
 export const getSubmission = async (req: RequestWithUser, res: Response) => {
@@ -145,5 +136,7 @@ export const getSubmission = async (req: RequestWithUser, res: Response) => {
     throw new ForbiddenError('Unauthorized to view this submission');
   }
 
-  new SuccessResponse(submission).send(res);
+  const node = await getNodeDetails(submission.nodeId);
+
+  new SuccessResponse({ ...submission, ...node }).send(res);
 };

@@ -855,6 +855,7 @@ model CommunitySubmission {
   community   DesciCommunity   @relation(fields: [communityId], references: [id])
   nodeId      String
   node        Node             @relation(fields: [nodeId], references: [uuid])
+  nodeVersion Int?
   userId      Int
   user        User             @relation(fields: [userId], references: [id])
   status      Submissionstatus @default(PENDING)
