@@ -862,27 +862,55 @@ export class CommunityService {
     });
   }
 
-  async createSubmission({
-    communityId,
-    nodeId,
-    userId,
-  }: {
-    nodeId: string;
-    communityId: number;
-    userId: number;
-    // status: Submissionstatus;
-  }) {
-    const isPublished = await prisma.nodeVersion.count({
+  async createSubmission({ communityId, nodeId, userId }: { nodeId: string; communityId: number; userId: number }) {
+    const nodeVersion = await prisma.nodeVersion.count({
       where: { node: { uuid: nodeId }, OR: [{ transactionId: { not: null } }, { commitId: { not: null } }] },
     });
 
-    if (isPublished === 0) throw new ForbiddenError('Only published nodes can be submitted.');
+    const exisiting = await this.getUserSubmissionById({ communityId, userId, nodeId });
+
+    if (exisiting.nodeVersion === nodeVersion) {
+      throw new ForbiddenError('This version of your submission already exists, publish a new version to resubmit');
+    }
+
+    if (exisiting && exisiting.status === Submissionstatus.REJECTED) {
+      return await prisma.communitySubmission.update({
+        where: { id: exisiting.id },
+        data: {
+          status: Submissionstatus.PENDING,
+          nodeVersion,
+        },
+        select: {
+          id: true,
+          status: true,
+          userId: true,
+          communityId: true,
+          nodeVersion: true,
+          node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+          community: { select: { id: true, name: true, image_url: true } },
+        },
+      });
+    } else if (exisiting && exisiting.status !== Submissionstatus.REJECTED) {
+      throw new DuplicateDataError('Submission already exits');
+    }
+
+    if (nodeVersion === 0) throw new ForbiddenError('Only published nodes can be submitted.');
     return await prisma.communitySubmission.create({
       data: {
         nodeId,
-        communityId,
         userId,
+        communityId,
+        nodeVersion,
         status: Submissionstatus.PENDING,
+      },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+        communityId: true,
+        nodeVersion: true,
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        community: { select: { id: true, name: true, image_url: true } },
       },
     });
   }
@@ -912,6 +940,30 @@ export class CommunityService {
       },
     });
   }
+  async getUserSubmissionById({
+    userId,
+    nodeId,
+    communityId,
+  }: {
+    userId: number;
+    communityId: number;
+    nodeId: string;
+  }) {
+    return await prisma.communitySubmission.findFirst({
+      where: {
+        node: {
+          ownerId: userId,
+          uuid: nodeId,
+        },
+        communityId,
+        // ...(status && { status: status as Submissionstatus }),
+      },
+      include: {
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        community: { select: { id: true, name: true, image_url: true, description: true } },
+      },
+    });
+  }
   async updateSubmissionStatus(id: number, status: Submissionstatus) {
     return await prisma.communitySubmission.update({
       where: { id },
@@ -922,7 +974,7 @@ export class CommunityService {
       },
       include: {
         node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
-        community: { select: { id: true, name: true, image_url: true, description: true } },
+        community: { select: { id: true, name: true, image_url: true } },
       },
     });
   }

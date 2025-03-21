@@ -154,7 +154,7 @@ export const getNodeDetails = async (nodeUuid: string) => {
       uuid: uuid as NodeUuid,
       documentId: node.manifestDocumentId,
     });
-    logger.info({ manifest }, '[SHOW API GET LAST PUBLISHED MANIFEST]');
+    logger.info({ manifestFound: !!manifest }, '[SHOW API GET LAST PUBLISHED MANIFEST]');
     data.authors = manifest.authors;
   } catch (err) {
     gatewayUrl = cleanupManifestUrl(gatewayUrl);
