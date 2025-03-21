@@ -86,7 +86,7 @@ import { getUserPublishedWallets } from '../../controllers/users/publishedWallet
 import { attachUser } from '../../middleware/attachUser.js';
 import { ensureNodeAccess, ensureNodeExists, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureUserIfPresent } from '../../middleware/ensureUserIfPresent.js';
-import { ensureUser } from '../../middleware/permissions.js';
+import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
@@ -108,16 +108,16 @@ router.get('/published/:dpid([0-9]+)', [], nodeByDpid);
 router.get('/published/:stream([a-z0-9]{50,})', [], nodeByStream);
 router.get('/published/:uuid', [], checkIfPublishedNode);
 router.get('/access/:uuid', [ensureUserIfPresent], checkNodeAccess);
-router.post('/search/:query', [ensureUser], searchNodes);
+router.post('/search/:query', [ensureGuestOrUser], searchNodes);
 router.get('/explore', [], explore);
 
 router.post('/createDpid', [ensureUser, ensureWriteNodeAccess], createDpid);
-router.post('/createDraft', [ensureUser], draftCreate);
+router.post('/createDraft', [ensureGuestOrUser], draftCreate);
 // is this api deprecated?
-router.post('/addComponentToDraft', [ensureUser], draftAddComponent);
-router.post('/updateDraft', [ensureUser], draftUpdate);
+router.post('/addComponentToDraft', [ensureGuestOrUser], draftAddComponent);
+router.post('/updateDraft', [ensureGuestOrUser], draftUpdate);
 router.get('/versionDetails', [], versionDetails);
-router.get('/', [ensureUser], list);
+router.get('/', [ensureGuestOrUser], list);
 router.get('/pdf', proxyPdf);
 router.post('/consent', [], consent);
 router.post('/consent/publish', [ensureUser, validate(publishConsentSchema)], asyncHandler(publishConsent));
@@ -126,38 +126,38 @@ router.get(
   [ensureUser, validate(checkPublishConsentSchema)],
   asyncHandler(checkUserPublishConsent),
 );
-router.post('/terms', [ensureUser], consent);
+router.post('/terms', [ensureGuestOrUser], consent);
 
 // Share
 router.get('/share/verify/:shareId', checkPrivateShareId);
-router.get('/share', [ensureUser], listSharedNodes);
-router.get('/share/:uuid', [ensureUser], getPrivateShare);
-router.post('/share/:uuid', [ensureUser], createPrivateShare);
-router.post('/revokeShare/:uuid', [ensureUser], revokePrivateShare);
+router.get('/share', [ensureGuestOrUser], listSharedNodes);
+router.get('/share/:uuid', [ensureGuestOrUser], getPrivateShare);
+router.post('/share/:uuid', [ensureGuestOrUser], createPrivateShare);
+router.post('/revokeShare/:uuid', [ensureGuestOrUser], revokePrivateShare);
 
 // Bookmarks
-router.get('/bookmarks', [ensureUser], listBookmarkedNodes);
-router.delete('/bookmarks/:type/:bId', [ensureUser], deleteNodeBookmark);
-router.delete('/bookmarks/:type/:bId/*', [ensureUser], deleteNodeBookmark);
-router.post('/bookmarks', [ensureUser], createNodeBookmark);
+router.get('/bookmarks', [ensureGuestOrUser], listBookmarkedNodes);
+router.delete('/bookmarks/:type/:bId', [ensureGuestOrUser], deleteNodeBookmark);
+router.delete('/bookmarks/:type/:bId/*', [ensureGuestOrUser], deleteNodeBookmark);
+router.post('/bookmarks', [ensureGuestOrUser], createNodeBookmark);
 
 // Cover
 router.get('/cover/:uuid', [], getCoverImage);
 router.get('/cover/:uuid/:version', [], getCoverImage);
 
-router.get('/documents/:uuid', [ensureUser, ensureNodeAccess], getNodeDocument);
-router.post('/documents/:uuid/actions', [ensureUser, ensureNodeAccess], dispatchDocumentChange);
+router.get('/documents/:uuid', [ensureGuestOrUser, ensureNodeAccess], getNodeDocument);
+router.post('/documents/:uuid/actions', [ensureGuestOrUser, ensureNodeAccess], dispatchDocumentChange);
 router.get('/thumbnails/:uuid/:manifestCid?', [attachUser], thumbnails);
 
 // Contributions
 router.post('/contributions/node/:uuid', [attachUser], getNodeContributions);
-router.post('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], addContributor);
+router.post('/contributions/:uuid', [ensureGuestOrUser, ensureWriteNodeAccess], addContributor);
 router.patch('/contributions/verify', [ensureUser], verifyContribution);
 router.patch('/contributions/deny', [ensureUser], denyContribution);
-router.patch('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], updateContributor);
-router.delete('/contributions/:uuid', [ensureUser, ensureWriteNodeAccess], deleteContributor);
+router.patch('/contributions/:uuid', [ensureGuestOrUser, ensureWriteNodeAccess], updateContributor);
+router.delete('/contributions/:uuid', [ensureGuestOrUser, ensureWriteNodeAccess], deleteContributor);
 router.get('/contributions/user/:userId', [], getUserContributions);
-router.get('/contributions/user', [ensureUser], getUserContributionsAuthed);
+router.get('/contributions/user', [ensureGuestOrUser], getUserContributionsAuthed);
 
 // Prepub (distribution pkg)
 router.post('/distribution', preparePublishPackage);
@@ -168,19 +168,19 @@ router.post('/distribution/email', [ensureUser], emailPublishPackage);
 router.get('/:identifier/doi', [], asyncHandler(retrieveNodeDoi));
 router.post(
   '/:uuid/automate-metadata',
-  [ensureUser, ensureNodeAccess, validate(automateMetadataSchema)],
+  [ensureGuestOrUser, ensureNodeAccess, validate(automateMetadataSchema)],
   automateMetadata,
 );
-router.post('/generate-metadata', [ensureUser, validate(generateMetadataSchema)], generateMetadata);
+router.post('/generate-metadata', [ensureGuestOrUser, validate(generateMetadataSchema)], generateMetadata);
 
 // doi automation
 router.post(
   '/:uuid/automate-manuscript',
-  [ensureUser, ensureNodeAccess, validate(attachDoiSchema)],
+  [ensureGuestOrUser, ensureNodeAccess, validate(attachDoiSchema)],
   asyncHandler(automateManuscriptDoi),
 );
 
-router.delete('/:uuid', [ensureUser], deleteNode);
+router.delete('/:uuid', [ensureGuestOrUser], deleteNode);
 
 router.get(
   '/:uuid/external-publications',
@@ -189,17 +189,21 @@ router.get(
 );
 router.post(
   '/:uuid/external-publications',
-  [validate(addExternalPublicationsSchema), ensureUser, ensureNodeAccess],
+  [validate(addExternalPublicationsSchema), ensureGuestOrUser, ensureNodeAccess],
   asyncHandler(addExternalPublication),
 );
 router.post(
   '/:uuid/verify-publication',
-  [validate(verifyExternalPublicationSchema), ensureUser, ensureNodeAccess],
+  [validate(verifyExternalPublicationSchema), ensureGuestOrUser, ensureNodeAccess],
   asyncHandler(verifyExternalPublication),
 );
 
-router.get('/:uuid/comments', [ensureUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
-router.get('/:uuid/comments/:commentId/vote', [ensureUser, validate(postCommentVoteSchema)], asyncHandler(getUserVote));
+router.get('/:uuid/comments', [ensureGuestOrUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
+router.get(
+  '/:uuid/comments/:commentId/vote',
+  [ensureGuestOrUser, validate(postCommentVoteSchema)],
+  asyncHandler(getUserVote),
+);
 router.post(
   '/:uuid/comments/:commentId/upvote',
   [ensureUser, validate(postCommentVoteSchema)],
@@ -223,7 +227,7 @@ router.delete(
 
 router.get('/:uuid/attestations', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
 
-router.get('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(getNodeLikes));
+router.get('/:uuid/likes', [ensureGuestOrUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(getNodeLikes));
 router.post('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(postNodeLike));
 router.delete('/:uuid/likes', [ensureUser, ensureNodeExists, validate(unlikeNodeSchema)], asyncHandler(deleteNodeLIke));
 
@@ -235,6 +239,6 @@ router.post('/api/*', [], api);
 
 // must be last
 router.get('/showPrivate/*', show);
-router.get('/*', [ensureUser], show);
+router.get('/*', [ensureGuestOrUser], show);
 
 export default router;

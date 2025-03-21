@@ -14,7 +14,7 @@ import {
   removeVerification,
 } from '../../../controllers/attestations/verification.js';
 import { attachUser } from '../../../middleware/attachUser.js';
-import { ensureUser } from '../../../middleware/permissions.js';
+import { ensureGuestOrUser, ensureUser } from '../../../middleware/permissions.js';
 import { validate } from '../../../middleware/validator.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -60,9 +60,13 @@ router.get(
   asyncHandler(getAttestationComments),
 );
 
-router.post('/claim', [ensureUser, validate(claimAttestationSchema)], asyncHandler(claimAttestation));
-router.post('/unclaim', [ensureUser, validate(removeClaimSchema)], asyncHandler(removeClaim));
-router.post('/claimAll', [ensureUser, validate(claimEntryAttestationsSchema)], asyncHandler(claimEntryRequirements));
+router.post('/claim', [ensureGuestOrUser, validate(claimAttestationSchema)], asyncHandler(claimAttestation));
+router.post('/unclaim', [ensureGuestOrUser, validate(removeClaimSchema)], asyncHandler(removeClaim));
+router.post(
+  '/claimAll',
+  [ensureGuestOrUser, validate(claimEntryAttestationsSchema)],
+  asyncHandler(claimEntryRequirements),
+);
 
 router.post('/comments', [ensureUser, validate(createCommentSchema)], asyncHandler(postComment));
 router.post('/reaction', [ensureUser, validate(addReactionSchema)], asyncHandler(addReaction));

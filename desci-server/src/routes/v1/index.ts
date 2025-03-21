@@ -7,7 +7,7 @@ import { handleCrossrefNotificationCallback } from '../../controllers/doi/mint.j
 import { queryRor } from '../../controllers/proxy/index.js';
 import { ipfsReadGatewayProxy } from '../../controllers/proxy/ipfsReadGateway.js';
 import { nft } from '../../controllers/raw/nft.js';
-import { ensureUser } from '../../middleware/permissions.js';
+import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
 import admin from './admin/index.js';
@@ -69,8 +69,8 @@ router.use('/submissions', submissions);
 
 router.get('/nft/:id', nft);
 router.use('/referral', referral);
-router.get('/researchFields', [ensureUser], queryResearchFields);
-router.get('/ror', [ensureUser], queryRor);
+router.get('/researchFields', [ensureGuestOrUser], queryResearchFields);
+router.get('/ror', [ensureGuestOrUser], queryRor);
 router.get('/cidmd/:cid', ipfsReadGatewayProxy);
 
 // potential notification fallback catch
