@@ -10,6 +10,7 @@ import {
 import _, { includes } from 'lodash';
 
 import { prisma } from '../client.js';
+import { ForbiddenError } from '../core/ApiError.js';
 import { DuplicateDataError } from '../core/communities/error.js';
 import { logger } from '../logger.js';
 
@@ -871,6 +872,11 @@ export class CommunityService {
     userId: number;
     // status: Submissionstatus;
   }) {
+    const isPublished = await prisma.nodeVersion.count({
+      where: { node: { uuid: nodeId }, OR: [{ transactionId: { not: null } }, { commitId: { not: null } }] },
+    });
+
+    if (isPublished === 0) throw new ForbiddenError('Only published nodes can be submitted.');
     return await prisma.communitySubmission.create({
       data: {
         nodeId,
@@ -888,7 +894,7 @@ export class CommunityService {
       },
       include: {
         node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
-        community: { select: { id: true, name: true, image_url: true, description: true } },
+        // community: { select: { id: true, name: true, image_url: true, description: true } },
       },
     });
   }

@@ -14,7 +14,8 @@ import {
   updateSubmissionStatusSchema,
 } from '../../routes/v1/communities/submissions-schema.js';
 import { communityService } from '../../services/Communities.js';
-import { ensureUuidEndsWithDot } from '../../utils.js';
+import { getNodeDetails } from '../../services/node.js';
+import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
 export const createSubmission = async (req: RequestWithNode, res: Response) => {
   const { nodeId, communityId } = req.body as z.infer<typeof createSubmissionSchema>['body'];
@@ -74,7 +75,11 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
     status: isMember ? status : 'ACCEPTED',
   });
 
-  new SuccessResponse(submissions).send(res);
+  const data = await asyncMap(submissions, async (submission) => {
+    const node = await getNodeDetails(submission.nodeId);
+    return { ...submission, node: { ...submission.node, ...node } };
+  });
+  new SuccessResponse(data).send(res);
 };
 
 export const getUserSubmissions = async (req: RequestWithUser, res: Response) => {
