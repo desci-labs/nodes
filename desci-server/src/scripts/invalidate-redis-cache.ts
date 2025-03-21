@@ -1,17 +1,11 @@
 import { isNodeRoot } from '@desci-labs/desci-models';
 import axios from 'axios';
 
-import dotenv from 'dotenv';
-import 'dotenv/config';
-dotenv.config({ path: path.join(process.cwd(), '../.env') });
-console.log('[env]', path.join(process.cwd(), '../.env'), process.env);
-
 import { logger as parentLogger } from '../logger.js';
 import { redisClient } from '../redisClient.js';
-// import { getIndexedResearchObjects } from '../theGraph.js';
+import { getIndexedResearchObjects } from '../theGraph.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
 import { hexToCid } from '../utils.js';
-import path from 'path';
 
 const logger = parentLogger.child({ module: 'SCRIPTS::invalidateRedisKeys' });
 /*
@@ -22,14 +16,12 @@ invalidateByUuid:     OPERATION=invalidateByUuid NODE_UUID=noDeUuiD. npm run scr
 */
 async function main() {
   try {
-    await redisClient.connect();
-
     const { operation, nodeUuid } = getOperationEnvs();
 
     switch (operation) {
       case 'invalidateByUuid':
         if (!nodeUuid) return logger.error('Missing NODE_UUID or MANIFEST_CID');
-        // await invalidateByUuid({ nodeUuid });
+        await invalidateByUuid({ nodeUuid });
         break;
       case 'invalidateByPrefix':
         const prefix = process.argv[2];
@@ -68,50 +60,50 @@ async function invalidateAll() {
   logger.info('[invalidateAll] Wiped all keys from cache');
 }
 
-// export async function invalidateByUuid({ nodeUuid }: { nodeUuid: string }) {
-//   // Find all published versions of the node
-//   if (!nodeUuid.endsWith('.')) nodeUuid += '.';
-//   const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
-//   if (!researchObjects.length)
-//     logger.error(`[FillPublic] Failed to resolve any public nodes with the uuid: ${nodeUuid}`);
+export async function invalidateByUuid({ nodeUuid }: { nodeUuid: string }) {
+  // Find all published versions of the node
+  if (!nodeUuid.endsWith('.')) nodeUuid += '.';
+  const { researchObjects } = await getIndexedResearchObjects([nodeUuid]);
+  if (!researchObjects.length)
+    logger.error(`[FillPublic] Failed to resolve any public nodes with the uuid: ${nodeUuid}`);
 
-//   // Find every manifest CID and root CID for each node, and iterate a deleteKey run over each
-//   const indexedNode = researchObjects[0];
+  // Find every manifest CID and root CID for each node, and iterate a deleteKey run over each
+  const indexedNode = researchObjects[0];
 
-//   const totalVersionsIndexed = indexedNode.versions.length || 0;
-//   try {
-//     for (let nodeVersIdx = 0; nodeVersIdx < totalVersionsIndexed; nodeVersIdx++) {
-//       const txHash = indexedNode.versions[nodeVersIdx]?.id;
-//       const commitId = indexedNode.versions[nodeVersIdx]?.commitId;
-//       logger.info(
-//         `[invalidateByUuid] Deleting keys for indexed version: ${nodeVersIdx}, with ${txHash ? 'txHash: ' + txHash : 'commitId: ' + commitId}`,
-//       );
-//       const hexCid = indexedNode.versions[nodeVersIdx]?.cid || indexedNode.recentCid;
-//       const manifestCid = hexToCid(hexCid);
-//       const manifestUrl = cleanupManifestUrl(manifestCid);
-//       const manifest = await (await axios.get(manifestUrl)).data;
-//       if (!manifest)
-//         return logger.error(
-//           { manifestUrl, manifestCid },
-//           `[invalidateByUuid] Failed to retrieve manifest from ipfs cid: ${manifestCid}`,
-//         );
-//       const dataBucketCid = manifest.components.find((c) => isNodeRoot(c))?.payload.cid;
+  const totalVersionsIndexed = indexedNode.versions.length || 0;
+  try {
+    for (let nodeVersIdx = 0; nodeVersIdx < totalVersionsIndexed; nodeVersIdx++) {
+      const txHash = indexedNode.versions[nodeVersIdx]?.id;
+      const commitId = indexedNode.versions[nodeVersIdx]?.commitId;
+      logger.info(
+        `[invalidateByUuid] Deleting keys for indexed version: ${nodeVersIdx}, with ${txHash ? 'txHash: ' + txHash : 'commitId: ' + commitId}`,
+      );
+      const hexCid = indexedNode.versions[nodeVersIdx]?.cid || indexedNode.recentCid;
+      const manifestCid = hexToCid(hexCid);
+      const manifestUrl = cleanupManifestUrl(manifestCid);
+      const manifest = await (await axios.get(manifestUrl)).data;
+      if (!manifest)
+        return logger.error(
+          { manifestUrl, manifestCid },
+          `[invalidateByUuid] Failed to retrieve manifest from ipfs cid: ${manifestCid}`,
+        );
+      const dataBucketCid = manifest.components.find((c) => isNodeRoot(c))?.payload.cid;
 
-//       await deleteKeys(`*${manifestCid}*`);
-//       await deleteKeys(`*${dataBucketCid}*`);
-//     }
-//   } catch (e) {
-//     logger.error(
-//       {
-//         err: e,
-//         nodeUuid,
-//         totalVersionsIndexed,
-//         indexedNode,
-//       },
-//       `[invalidateByUuid] Failed to invalidate cache keys for node: ${nodeUuid}, error`,
-//     );
-//   }
-// }
+      await deleteKeys(`*${manifestCid}*`);
+      await deleteKeys(`*${dataBucketCid}*`);
+    }
+  } catch (e) {
+    logger.error(
+      {
+        err: e,
+        nodeUuid,
+        totalVersionsIndexed,
+        indexedNode,
+      },
+      `[invalidateByUuid] Failed to invalidate cache keys for node: ${nodeUuid}, error`,
+    );
+  }
+}
 
 async function deleteKeys(pattern: string) {
   let cursor = 0;

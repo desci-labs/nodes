@@ -22,7 +22,7 @@ import {
 } from 'date-fn-latest';
 import { Request, Response } from 'express';
 import _ from 'lodash';
-import zod from 'zod';
+import zod, { z } from 'zod';
 
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
@@ -569,30 +569,62 @@ export const userAnalyticsSchema = zod.object({
   query: zod.object({
     unit: zod.union([zod.literal('days'), zod.literal('weeks')]),
     value: zod.string(),
+    exportCsv: zod.coerce.boolean().optional().default(false),
   }),
 });
 
+interface UserDataRow {
+  // userId: number;
+  email: string;
+  orcid: string;
+  publications: number;
+  dateJoined: string | number;
+}
+
 export const getNewUserAnalytics = async (req: Request, res: Response) => {
   const query = req.query;
-  const { unit, value } = query as { unit: 'days'; value: string };
+  const { unit, value, exportCsv } = query as z.infer<typeof userAnalyticsSchema>['query'];
 
   const daysAgo = parseInt(value, 10);
 
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
   const users = await getNewUsersInXDays(dateXDaysAgo);
   const data = await asyncMap(users, async (user) => {
-    if (!user.orcid) return user;
+    if (!user.orcid) return { ...user, publications: 0, dateJoined: '' };
     const { profile, works } = await crossRefClient.profileSummary(user.orcid);
     return { ...user, publications: works?.group?.length, dateJoined: profile?.history?.['submission-date'].value };
   });
 
-  new SuccessResponse(data).send(res);
+  logger.trace({ exportCsv }, 'getNewUserAnalytics');
+  if (exportCsv) {
+    const rows: UserDataRow[] = data.map((data) => ({
+      email: data.email,
+      orcid: data.orcid,
+      dateJoined: data.dateJoined,
+      publications: data.publications,
+    }));
+    logger.trace({ rows, data }, 'getNewUserAnalytics');
+    const csv = [
+      'id,email,orcid,publications,dateJoined',
+      ...rows.map((row, idx) =>
+        [idx, row.email, row.orcid ?? '', row.publications, formatDate(new Date(row.dateJoined), 'dd MMM yyyy')].join(
+          ',',
+        ),
+      ),
+    ].join('\n');
+    logger.trace({ csv }, 'getNewUserAnalytics');
+    res.setHeader('Content-disposition', 'attachment; filename=analytics.csv');
+    res.set('Content-Type', 'text/csv');
+    res.status(200).send(csv);
+  } else {
+    new SuccessResponse(data).send(res);
+  }
 };
 
 export const getNewOrcidUserAnalytics = async (req: Request, res: Response) => {
   // const userAnalyticsSchema = zod.object({ unit: zod.string(), value: zod.string() })
   const query = req.query;
-  const { unit, value } = query as { unit: 'days'; value: string };
+  const { unit, value } = query as z.infer<typeof userAnalyticsSchema>['query'];
 
   const daysAgo = parseInt(value, 10);
 
@@ -608,19 +640,40 @@ export const getNewOrcidUserAnalytics = async (req: Request, res: Response) => {
 };
 
 export const getActiveUserAnalytics = async (req: Request, res: Response) => {
-  const { unit, value } = req.query as { unit: 'days'; value: string };
+  const { unit, value, exportCsv } = req.query as z.infer<typeof userAnalyticsSchema>['query'];
 
   const daysAgo = parseInt(value, 10);
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
 
   const rows = await getActiveUsersInXDays(dateXDaysAgo);
-  logger.trace({ rows }, 'getActiveUserAnalytics');
+
   const data = await asyncMap(rows, async (log) => {
-    if (!log.user.orcid) return log.user;
+    if (!log.user.orcid) return { ...log.user, publications: 0, dateJoined: '' };
     const { profile, works } = await crossRefClient.profileSummary(log.user.orcid);
     return { ...log.user, publications: works?.group?.length, dateJoined: profile?.history?.['submission-date'].value };
   });
-  new SuccessResponse(data).send(res);
+
+  if (exportCsv) {
+    const rows: UserDataRow[] = data.map((data) => ({
+      email: data.email,
+      orcid: data.orcid,
+      dateJoined: data.dateJoined,
+      publications: data.publications,
+    }));
+    const csv = [
+      'id,email,orcid,publications,dateJoined',
+      ...rows.map((row, idx) =>
+        [idx, row.email, row.orcid ?? '', row.publications, formatDate(new Date(row.dateJoined), 'dd MMM yyyy')].join(
+          ',',
+        ),
+      ),
+    ].join('\n');
+    res.setHeader('Content-disposition', 'attachment; filename=analytics.csv');
+    res.set('Content-Type', 'text/csv');
+    res.status(200).send(csv);
+  } else {
+    new SuccessResponse(data).send(res);
+  }
 };
 
 export const getActiveOrcidUserAnalytics = async (req: Request, res: Response) => {

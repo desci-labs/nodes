@@ -856,6 +856,7 @@ model CommunitySubmission {
   community   DesciCommunity   @relation(fields: [communityId], references: [id])
   nodeId      String
   node        Node             @relation(fields: [nodeId], references: [uuid])
+  nodeVersion Int?
   userId      Int
   user        User             @relation(fields: [userId], references: [id])
   status      Submissionstatus @default(PENDING)
@@ -986,6 +987,7 @@ model DoiSubmissionQueue {
   doi          DoiRecord? @relation(fields: [doiRecordId], references: [id])
   notification Json?
   status       DoiStatus  @default(PENDING)
+  attempts     Int?       @default(0)
   uniqueDoi    String     @unique
   uuid         String
   node         Node       @relation(fields: [uuid], references: [uuid])
