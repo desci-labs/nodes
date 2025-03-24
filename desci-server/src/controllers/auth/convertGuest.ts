@@ -1,8 +1,10 @@
+import { ActionType } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { magicLinkRedeem, verifyMagicCode } from '../../services/auth.js';
+import { saveInteraction } from '../../services/interactionLog.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
 import { AuthenticatedRequest } from '../notifications/create.js';
@@ -49,9 +51,17 @@ export const convertGuestToUser = async (req: AuthenticatedRequest, res: Respons
     });
 
     // Generate new token for the regular user
-    const token = generateAccessToken({ email: updatedUser.email, isGuest: false });
+    const token = generateAccessToken({ email: updatedUser.email });
     // Return the JWT
     sendCookie(res, token, dev === 'true');
+
+    saveInteraction(
+      req,
+      ActionType.GUEST_USER_CONVERSION,
+      { userId: updatedUser.id, conversionType: 'email' },
+      updatedUser.id,
+    );
+
     logger.info(
       { userId: updatedUser.id, email: hideEmail(email) },
       'Guest user successfully converted to regular user via email/magic code',

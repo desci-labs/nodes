@@ -1161,6 +1161,7 @@ enum ActionType {
   REMOVE_ORCID_WORK_RECORD
   ORCID_API_ERROR
   EDIT_COMMENT
+  GUEST_USER_CONVERSION
 }
 
 enum ChainTransactionType {
