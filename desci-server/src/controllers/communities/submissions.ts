@@ -3,8 +3,8 @@ import { Request, Response } from 'express';
 import z from 'zod';
 
 import { prisma } from '../../client.js';
-import { BadRequestError, ForbiddenError } from '../../core/ApiError.js';
-import { CreatedSuccessResponse, SuccessResponse } from '../../core/ApiResponse.js';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../../core/ApiError.js';
+import { CreatedSuccessResponse, SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { RequestWithNode, RequestWithUser } from '../../middleware/authorisation.js';
 import {
   createSubmissionSchema,
@@ -139,4 +139,16 @@ export const getSubmission = async (req: RequestWithUser, res: Response) => {
   const node = await getNodeDetails(submission.nodeId);
 
   new SuccessResponse({ ...submission, ...node }).send(res);
+};
+
+export const cancelUserSubmission = async (req: RequestWithUser, res: Response) => {
+  const { submissionId } = req.params as z.infer<typeof getSubmissionSchema>['params'];
+
+  const submission = await communityService.getPendingUserSubmissionById(req.user.id, Number(submissionId));
+
+  if (!submission) throw new ForbiddenError('You can only cancel pending submissions');
+
+  await communityService.deleteSubmission(submission.id);
+
+  new SuccessMessageResponse().send(res);
 };
