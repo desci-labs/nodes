@@ -1,4 +1,6 @@
+import { AccessStatus } from '@desci-labs/desci-models';
 import { ActionType } from '@prisma/client';
+import { subDays } from 'date-fn-latest';
 import { Request } from 'express';
 
 import { prisma } from '../client.js';
@@ -256,4 +258,62 @@ export const getNodeViewsInRange = async (range: { from: Date; to: Date }) => {
   const res =
     await prisma.$queryRaw`select "createdAt" from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"viewedNode"'::jsonb and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`;
   return res as { createdAt: string }[];
+};
+
+export const getDownloadedBytesInRange = async (range: { from: Date; to: Date }) => {
+  logger.info({ fn: 'getDownloadedBytesInRange', range }, 'interactionLog::getDownloadedBytesInRange');
+  const res =
+    (await prisma.$queryRaw`select "extra", "createdAt" from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"ctxDriveDownload"'::jsonb and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`) as {
+      createdAt: string;
+      extra: string;
+    }[];
+  const data = res.map((entry) => {
+    const extra = JSON.parse(entry.extra) as {
+      message: string;
+    };
+    const message = JSON.parse(extra.message) as {
+      size: number;
+      cid: string;
+      external: boolean;
+      accessStatus: AccessStatus;
+    };
+
+    logger.info({ entry, extra, message }, 'getDownloadedBytesInRange');
+    return { createdAt: entry.createdAt, size: message.size };
+  });
+  logger.info({ data }, 'getDownloadedBytesInRange');
+
+  return data;
+};
+
+export const getDownloadedBytesInXDays = async (daysAgo: number) => {
+  // const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  const from = subDays(new Date(), daysAgo);
+  const to = new Date();
+  logger.info({ fn: 'getDownloadedBytesInXDays', daysAgo, from, to }, 'interactionLog::getDownloadedBytesInXDays');
+
+  const res =
+    (await prisma.$queryRaw`select "extra", "createdAt" from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"ctxDriveDownload"'::jsonb and "createdAt" >= ${from} and "createdAt" < ${to}`) as {
+      createdAt: string;
+      extra: string;
+    }[];
+
+  const bytes = res
+    .map((entry) => {
+      const extra = JSON.parse(entry.extra) as {
+        message: string;
+      };
+      const message = JSON.parse(extra.message) as {
+        size: number;
+        cid: string;
+        external: boolean;
+        accessStatus: AccessStatus;
+      };
+
+      return { createdAt: entry.createdAt, size: message.size };
+    })
+    .reduce((total, entry) => (total += entry.size), 0);
+  logger.info({ bytes }, 'getDownloadedBytesInXDays');
+
+  return bytes;
 };
