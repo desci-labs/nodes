@@ -2,7 +2,7 @@ import { User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { logger as parentLogger } from '../../logger.js';
-import { cachedGetDpidFromManifest } from '../../utils/manifest.js';
+import { cachedGetDpidFromManifest, cachedGetManifestAndDpid } from '../../utils/manifest.js';
 import { asyncMap } from '../../utils.js';
 
 import { listAllUserNodes, PublishedNode } from './list.js';
@@ -46,17 +46,23 @@ export const getPublishedNodes = async (req: PublishedNodesRequest, res: Publish
   const formattedNodes = await asyncMap(publishedNodes, async (n) => {
     const versionIx = n.versions.length - 1;
     const cid = n.versions[0].manifestUrl;
-    const dpid = n.dpidAlias ?? (await cachedGetDpidFromManifest(cid, gateway));
+    let dpid = n.dpidAlias;
+    let title = n.title;
+    const cachedResult = await cachedGetManifestAndDpid(cid, gateway);
+    title = cachedResult?.manifest?.title ?? title;
+    if (!n.dpidAlias) {
+      dpid = cachedResult?.dpid;
+    }
     const publishedAt = n.versions[0].createdAt;
 
     return {
-      uuid: n.uuid.replace('.', ''),
-      title: n.title,
-      createdAt: n.createdAt,
+      dpid,
+      title,
       versionIx,
       publishedAt,
+      createdAt: n.createdAt,
       isPublished: true as const,
-      dpid,
+      uuid: n.uuid.replace('.', ''),
     };
   });
 
