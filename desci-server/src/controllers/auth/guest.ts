@@ -21,7 +21,7 @@ type GuestResponse = {
 
 export const createGuestUser = async (req: Request, res: Response): Promise<Response<GuestResponse>> => {
   try {
-    debugger;
+    // debugger;
     const { dev } = req.body;
     const guestEmail = `guest-${uuidv4()}`;
 
