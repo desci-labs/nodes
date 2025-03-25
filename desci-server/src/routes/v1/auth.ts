@@ -42,7 +42,7 @@ router.post('/magic', magic);
 router.post('/apiKey/issue', [ensureUser], issueApiKey);
 router.delete('/apiKey/revoke', [ensureUser], revokeApiKey);
 router.get('/apiKey', [ensureUser], listApiKey);
-
+//
 // Guest mode routes
 router.post('/guest', createGuestUser);
 router.post('/guest/convert/email', [ensureGuest], convertGuestToUser);

@@ -9,8 +9,19 @@ import { generateAccessToken } from './magic.js';
 
 const logger = parentLogger.child({ module: '[Auth]::Guest' });
 
-export const createGuestUser = async (req: Request, res: Response) => {
+type GuestResponse = {
+  ok: boolean;
+  user?: {
+    email: string;
+    token: string;
+    isGuest: boolean;
+  };
+  error?: string;
+};
+
+export const createGuestUser = async (req: Request, res: Response): Promise<Response<GuestResponse>> => {
   try {
+    debugger;
     const { dev } = req.body;
     const guestEmail = `guest-${uuidv4()}`;
 

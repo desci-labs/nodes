@@ -21,7 +21,7 @@ export const oneDay = 1000 * 60 * 60 * 24;
 export const oneMinute = 1000 * 60;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
   const { email, code, dev, orcid, access_token, refresh_token, expires_in } = req.body;
-  const cleanEmail = email.toLowerCase().trim();
+  const cleanEmail = email?.toLowerCase().trim();
 
   const logger = parentLogger.child({
     module: '[Auth]::Magic',
