@@ -159,6 +159,7 @@ export const convertGuestToUserOrcid = async (
         name: updatedUser.name,
         orcid: updatedUser.orcid,
         isGuest: false,
+        ...(dev === 'true' && { token }),
       },
     });
   } catch (error) {

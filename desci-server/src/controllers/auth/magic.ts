@@ -130,7 +130,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
       const termsAccepted = await checkIfUserAcceptedTerms(user.email);
       // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
-      res.send({ ok: true, user: { email: user.email, token, termsAccepted } });
+      res.send({ ok: true, user: { email: user.email, token, termsAccepted, isGuest: user.isGuest } });
 
       logger.info('[MAGIC] User logged in successfully');
 

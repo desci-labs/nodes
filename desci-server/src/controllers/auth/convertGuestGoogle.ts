@@ -113,6 +113,7 @@ export const convertGuestToUserGoogle = async (
         email: updatedUser.email,
         name: updatedUser.name,
         isGuest: false,
+        ...(dev === 'true' && { token }),
       },
     });
   } catch (error) {

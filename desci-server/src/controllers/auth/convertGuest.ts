@@ -19,6 +19,8 @@ export type ConvertGuestResponse = {
     name: string | null;
     orcid?: string;
     isGuest: boolean;
+    /** JWT token - only returned when dev=true in request body */
+    token?: string; // Only return when req sent with dev=true in body
   };
   error?: string;
 };
@@ -95,6 +97,7 @@ export const convertGuestToUser = async (
         email: updatedUser.email,
         name: updatedUser.name,
         isGuest: false,
+        ...(dev === 'true' && { token }),
       },
     });
   } catch (error) {
