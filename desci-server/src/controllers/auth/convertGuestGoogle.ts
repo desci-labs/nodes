@@ -9,13 +9,22 @@ import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
 import { AuthenticatedRequest } from '../notifications/create.js';
 
+import { ConvertGuestResponse } from './convertGuest.js';
 import { generateAccessToken } from './magic.js';
 
 const googleClient = new OAuth2Client({
   clientId: process.env.GOOGLE_CLIENT_ID_AUTH,
 });
 
-export const convertGuestToUserGoogle = async (req: AuthenticatedRequest, res: Response) => {
+type ConvertGuestGoogleBody = {
+  idToken: string;
+  dev?: string;
+};
+
+export const convertGuestToUserGoogle = async (
+  req: AuthenticatedRequest<ConvertGuestGoogleBody>,
+  res: Response,
+): Promise<Response<ConvertGuestResponse>> => {
   const guestUser = req.user;
   const logger = parentLogger.child({ module: '[Auth]::ConvertGuestGoogle', guestUser });
 

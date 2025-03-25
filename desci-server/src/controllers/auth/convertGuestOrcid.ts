@@ -10,11 +10,22 @@ import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
 import { AuthenticatedRequest } from '../notifications/create.js';
 
+import { ConvertGuestResponse } from './convertGuest.js';
 import { generateAccessToken } from './magic.js';
 
 import { getOrcidRecord, OrcIdRecordData } from './index.js';
 
-export const convertGuestToUserOrcid = async (req: AuthenticatedRequest, res: Response) => {
+type ConvertGuestOrcidBody = {
+  orcidCode: string;
+  email: string;
+  magicCode: string;
+  dev?: string;
+};
+
+export const convertGuestToUserOrcid = async (
+  req: AuthenticatedRequest<ConvertGuestOrcidBody>,
+  res: Response,
+): Promise<Response<ConvertGuestResponse>> => {
   const guestUser = req.user;
   const logger = parentLogger.child({ module: '[Auth]::ConvertGuestOrcid', guestUser });
 

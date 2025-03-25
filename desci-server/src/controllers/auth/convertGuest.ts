@@ -11,7 +11,29 @@ import { AuthenticatedRequest } from '../notifications/create.js';
 
 import { generateAccessToken } from './magic.js';
 
-export const convertGuestToUser = async (req: AuthenticatedRequest, res: Response) => {
+export type ConvertGuestResponse = {
+  ok: boolean;
+  user?: {
+    id: string;
+    email: string;
+    name: string | null;
+    orcid?: string;
+    isGuest: boolean;
+  };
+  error?: string;
+};
+
+type ConvertGuestBody = {
+  email: string;
+  magicCode: string;
+  name?: string;
+  dev?: string;
+};
+
+export const convertGuestToUser = async (
+  req: AuthenticatedRequest<ConvertGuestBody>,
+  res: Response,
+): Promise<Response<ConvertGuestResponse>> => {
   const guestUser = req.user;
   const logger = parentLogger.child({ module: '[Auth]::Guest', guestUser });
   try {
