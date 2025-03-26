@@ -329,7 +329,16 @@ export class AttestationService {
     return prisma.nodeAttestation.findMany({
       where: { nodeUuid: ensureUuidEndsWithDot(uuid), revoked: false },
       include: {
-        community: { select: { name: true, description: true, keywords: true, image_url: true } },
+        community: {
+          select: {
+            name: true,
+            description: true,
+            slug: true,
+            keywords: true,
+            image_url: true,
+            CommunityMember: { select: { id: true, role: true, user: { select: { id: true, name: true } } } },
+          },
+        },
         attestation: { select: { protected: true, verified_image_url: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
         node: { select: { ownerId: true } },
