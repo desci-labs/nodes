@@ -879,6 +879,8 @@ export class CommunityService {
         data: {
           status: Submissionstatus.PENDING,
           nodeVersion,
+          rejectedAt: null,
+          rejectionReason: null,
         },
         select: {
           id: true,
@@ -974,13 +976,13 @@ export class CommunityService {
     });
   }
 
-  async updateSubmissionStatus(id: number, status: Submissionstatus) {
+  async updateSubmissionStatus(id: number, status: Submissionstatus, rejectionReason?: string) {
     return await prisma.communitySubmission.update({
       where: { id },
       data: {
         status: status as Submissionstatus,
         ...(status === 'ACCEPTED' ? { acceptedAt: new Date() } : {}),
-        ...(status === 'REJECTED' ? { rejectedAt: new Date() } : {}),
+        ...(status === 'REJECTED' ? { rejectedAt: new Date(), rejectionReason } : {}),
       },
       include: {
         node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },

@@ -1,6 +1,6 @@
 {
   "name": "@desci-labs/desci-models",
-  "version": "0.2.23",
+  "version": "0.2.24",
   "description": "Data models for DeSci Nodes",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

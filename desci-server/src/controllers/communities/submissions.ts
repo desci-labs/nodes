@@ -1,20 +1,26 @@
-import { Submissionstatus } from '@prisma/client';
+import { AvailableUserActionLogTypes } from '@desci-labs/desci-models';
+import { ActionType, Submissionstatus } from '@prisma/client';
 import { Request, Response } from 'express';
 import z from 'zod';
 
 import { prisma } from '../../client.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../core/ApiError.js';
 import { CreatedSuccessResponse, SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
+import { logger } from '../../logger.js';
 import { RequestWithNode, RequestWithUser } from '../../middleware/authorisation.js';
 import {
   createSubmissionSchema,
   getCommunitySubmissionsSchema,
   getSubmissionSchema,
   getUserSubmissionsSchema,
+  rejectSubmissionSchema,
   updateSubmissionStatusSchema,
 } from '../../routes/v1/communities/submissions-schema.js';
 import { communityService } from '../../services/Communities.js';
+import { EmailTypes, sendEmail } from '../../services/email.js';
+import { saveInteraction } from '../../services/interactionLog.js';
 import { getNodeDetails } from '../../services/node.js';
+import { cachedGetDpidByUuid } from '../../utils/manifest.js';
 import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
 export const createSubmission = async (req: RequestWithNode, res: Response) => {
@@ -82,7 +88,7 @@ export const getUserSubmissions = async (req: RequestWithUser, res: Response) =>
 
 export const updateSubmissionStatus = async (req: RequestWithUser, res: Response) => {
   const { submissionId } = req.params as z.infer<typeof updateSubmissionStatusSchema>['params'];
-  const { status } = req.body as z.infer<typeof updateSubmissionStatusSchema>['body'];
+  const { status, reason } = req.body as z.infer<typeof rejectSubmissionSchema>['body'];
 
   // Get submission and check if it exists
   const submission = await prisma.communitySubmission.findUnique({
@@ -108,7 +114,32 @@ export const updateSubmissionStatus = async (req: RequestWithUser, res: Response
   }
 
   // Update submission status
-  const updatedSubmission = await communityService.updateSubmissionStatus(Number(submissionId), status);
+  const updatedSubmission = await communityService.updateSubmissionStatus(Number(submissionId), status, reason);
+
+  if (status === Submissionstatus.REJECTED) {
+    // log user action with reason
+    saveInteraction(
+      req,
+      ActionType.USER_ACTION,
+      {
+        action: AvailableUserActionLogTypes.rejectCommunitySubmission,
+        userId: req.user.id,
+        submissionId,
+        reason,
+        status,
+        submissionOwnerId: submission.userId,
+      },
+      req.user.id,
+    );
+
+    const recipient = await prisma.user.findFirst({
+      where: { id: submission.userId },
+      select: { name: true, email: true },
+    });
+    const dpid = await cachedGetDpidByUuid(submission.nodeId);
+    // send user rejection email
+    sendEmail({ type: EmailTypes.RejectedSubmission, payload: { dpid: dpid.toString(), recipient, submission } });
+  }
 
   const node = await getNodeDetails(submission.nodeId);
   new SuccessResponse({ ...updatedSubmission, ...node }).send(res);

@@ -40,6 +40,7 @@ export const showNodeAttestations = async (
   let attestations = await attestationService.getAllNodeAttestations(uuid);
   attestations = attestations.map((att) => ({
     ...att,
+    community: { ...att.community, CommunityMember: undefined, members: att.community.CommunityMember },
     revokedAt: undefined,
     _count: undefined,
     node: undefined,

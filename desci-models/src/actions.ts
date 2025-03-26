@@ -83,4 +83,6 @@ export enum AvailableUserActionLogTypes {
   publishCheckPermissionsError = 'publishCheckPermissionsError',
   automergeError = 'automergeError',
   publishError = 'publishError',
+  rejectCommunitySubmission = 'rejectCommunitySubmission',
+  declineAttestationClaim = 'declineAttestationClaim',
 }
