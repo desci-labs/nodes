@@ -10,7 +10,12 @@ import { ensureUser } from '../../../middleware/permissions.js';
 import { validate } from '../../../middleware/validator.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
-import { createSubmissionSchema, updateSubmissionStatusSchema, getSubmissionSchema } from './submissions-schema.js';
+import {
+  createSubmissionSchema,
+  // updateSubmissionStatusSchema,
+  getSubmissionSchema,
+  rejectSubmissionSchema,
+} from './submissions-schema.js';
 
 const router = Router();
 
@@ -18,7 +23,7 @@ router.post('/', [ensureUser, validate(createSubmissionSchema)], asyncHandler(cr
 
 router.patch(
   '/:submissionId/status',
-  [ensureUser, validate(updateSubmissionStatusSchema)],
+  [ensureUser, validate(rejectSubmissionSchema)],
   asyncHandler(updateSubmissionStatus),
 );
 

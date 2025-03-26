@@ -27,6 +27,7 @@ type RejectSubmissionPayload = {
     // subject: string;
     // name: string;
     dpid: string;
+    reason?: string;
     recipient: {
       email: string;
       name: string;
@@ -78,13 +79,14 @@ async function sendDoiRequested(payload: DoiRequestedPayload['payload']) {
   //
 }
 
-async function sendRejectSubmissionEmail({ submission, dpid, recipient }: RejectSubmissionPayload['payload']) {
+async function sendRejectSubmissionEmail({ submission, dpid, reason, recipient }: RejectSubmissionPayload['payload']) {
   const message = {
     to: recipient.email,
     from: 'no-reply@desci.com',
     subject: `[nodes.desci.com] Your submission to ${submission.community.name} for DPID://${dpid}/v${submission.nodeVersion} was rejected `,
     text: `Hi ${recipient.name}, your submission to ${submission.community.name} was rejected.`,
     html: RejectedSubmissionEmailHtml({
+      reason,
       dpid: dpid.toString(),
       communityName: submission.community.name,
       userName: recipient.name,

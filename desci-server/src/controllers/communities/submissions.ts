@@ -138,7 +138,10 @@ export const updateSubmissionStatus = async (req: RequestWithUser, res: Response
     });
     const dpid = await cachedGetDpidByUuid(submission.nodeId);
     // send user rejection email
-    sendEmail({ type: EmailTypes.RejectedSubmission, payload: { dpid: dpid.toString(), recipient, submission } });
+    sendEmail({
+      type: EmailTypes.RejectedSubmission,
+      payload: { dpid: dpid.toString(), reason, recipient, submission },
+    });
   }
 
   const node = await getNodeDetails(submission.nodeId);

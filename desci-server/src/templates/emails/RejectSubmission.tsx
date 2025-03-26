@@ -32,7 +32,7 @@ export const RejectSubmissionEmail = ({
             Hi {userName}, your submission to {communityName} was rejected.
           </Heading>
           <Section className="mx-auto w-fit my-5 bg-[#dadce0] rounded-md px-14 py-3" align="center">
-            <Text>Reason for submission: {reason ? reason : 'Not stated'}</Text>
+            <Text>Reason for rejection: {reason ? reason : 'Not stated'}</Text>
             <Button
               href={dpidPath}
               className="backdrop-blur-2xl rounded-sm"
