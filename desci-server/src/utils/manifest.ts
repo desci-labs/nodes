@@ -7,6 +7,7 @@ import {
 import { Node } from '@prisma/client';
 import axios from 'axios';
 
+import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { DEFAULT_TTL, getFromCache, getOrCache, ONE_WEEK_TTL, setToCache } from '../redisClient.js';
@@ -65,6 +66,29 @@ export const cachedGetDpidFromManifest = async (cid: string, gateway?: string) =
   };
 
   const manifestDpid = await getOrCache(`manifest-dpid-${cid}`, fnGetDpidFromManifest);
+  if (manifestDpid === -1) {
+    return undefined;
+  } else {
+    return manifestDpid;
+  }
+};
+
+export const cachedGetDpidByUuid = async (uuid: string) => {
+  let gateway: string;
+
+  const node = await prisma.node.findFirst({
+    where: { uuid },
+    select: { cid: true, manifestDocumentId: true, dpidAlias: true },
+  });
+
+  const fnGetDpidFromManifest = async (cid: string) => {
+    const manifest = (await resolveNodeManifest(cid, gateway)) as ResearchObjectV1;
+    return manifest.dpid ? parseInt(manifest.dpid.id) : -1;
+  };
+
+  if (node.dpidAlias) return node.dpidAlias;
+
+  const manifestDpid = await getOrCache<number>(`manifest-dpid-${node.cid}`, fnGetDpidFromManifest.bind(node.cid));
   if (manifestDpid === -1) {
     return undefined;
   } else {
