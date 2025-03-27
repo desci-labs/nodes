@@ -54,18 +54,18 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     });
 
     // force 1 step user creation
-    if (!user) {
-      user = await prismaClient.user.upsert({
-        where: {
-          email: cleanEmail,
-        },
-        create: {
-          email: cleanEmail,
-        },
-        update: {
-          email: cleanEmail,
-        },
-      });
+    // if (!user) {
+    //   user = await prismaClient.user.upsert({
+    //     where: {
+    //       email: cleanEmail,
+    //     },
+    //     create: {
+    //       email: cleanEmail,
+    //     },
+    //     update: {
+    //       email: cleanEmail,
+    //     },
+    //   });
 
       if (user.email) {
         // Inherits existing user contribution entries that were made with the same email
