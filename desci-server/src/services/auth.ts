@@ -10,6 +10,8 @@ import { MagicCodeEmailHtml } from '../templates/emails/utils/emailRenderer.js';
 import createRandomCode from '../utils/createRandomCode.js';
 import { encryptForLog, hideEmail } from '../utils.js';
 
+import { contributorService } from './Contributors.js';
+
 AWS.config.update({ region: 'us-east-2' });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -121,6 +123,15 @@ const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
         email,
       },
     });
+
+    if (user.email) {
+      // Inherits existing user contribution entries that were made with the same email
+      const inheritedContributions = await contributorService.updateContributorEntriesForNewUser({
+        email: user.email,
+        userId: user.id,
+      });
+      logger.trace({ inheritedContributions: inheritedContributions?.count, user, email });
+    }
   }
 
   // Invalidate the token by setting its expiresAt to a past date

@@ -4,6 +4,7 @@ import { OAuth2Client } from 'google-auth-library';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { contributorService } from '../../services/Contributors.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
@@ -72,6 +73,17 @@ export const convertGuestToUserGoogle = async (
         name: name || null,
         isGuest: false,
       },
+    });
+
+    // Inherits existing user contribution entries that were made with the same email
+    const inheritedContributions = await contributorService.updateContributorEntriesForNewUser({
+      email: updatedUser.email,
+      userId: updatedUser.id,
+    });
+    logger.trace({
+      inheritedContributions: inheritedContributions?.count,
+      user: updatedUser,
+      email: updatedUser.email,
     });
 
     // Store Google identity

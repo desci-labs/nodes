@@ -4,6 +4,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { magicLinkRedeem, verifyMagicCode } from '../../services/auth.js';
+import { contributorService } from '../../services/Contributors.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
@@ -36,7 +37,7 @@ export const convertGuestToUser = async (
   req: AuthenticatedRequest<ConvertGuestBody>,
   res: Response,
 ): Promise<Response<ConvertGuestResponse>> => {
-  debugger;
+  // debugger;
   const guestUser = req.user;
   const logger = parentLogger.child({ module: '[Auth]::Guest', guestUser });
   try {
@@ -73,6 +74,17 @@ export const convertGuestToUser = async (
         name: name || null,
         isGuest: false,
       },
+    });
+
+    // Inherits existing user contribution entries that were made with the same email
+    const inheritedContributions = await contributorService.updateContributorEntriesForNewUser({
+      email: updatedUser.email,
+      userId: updatedUser.id,
+    });
+    logger.trace({
+      inheritedContributions: inheritedContributions?.count,
+      user: updatedUser,
+      email: updatedUser.email,
     });
 
     // Generate new token for the regular user

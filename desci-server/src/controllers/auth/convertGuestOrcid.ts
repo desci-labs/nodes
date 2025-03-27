@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { verifyMagicCode } from '../../services/auth.js';
+import { contributorService } from '../../services/Contributors.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import orcidApiService from '../../services/orcid.js';
 import orcid from '../../services/orcid.js';
@@ -120,6 +121,17 @@ export const convertGuestToUserOrcid = async (
         orcid: verifiedOrcid,
         isGuest: false,
       },
+    });
+
+    // Inherits existing user contribution entries that were made with the same email
+    const inheritedContributions = await contributorService.updateContributorEntriesForNewUser({
+      email: updatedUser.email,
+      userId: updatedUser.id,
+    });
+    logger.trace({
+      inheritedContributions: inheritedContributions?.count,
+      user: updatedUser,
+      email: updatedUser.email,
     });
 
     // Store ORCID identity
