@@ -1,5 +1,7 @@
 import { ResearchObjectV1, ResearchObjectV1Author } from '@desci-labs/desci-models';
 import { ActionType, AuthTokenSource, ORCIDRecord, OrcidPutCodes, PutcodeReference } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+import jwksRsa from 'jwks-rsa';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
@@ -588,6 +590,61 @@ class OrcidApiService {
         error: err,
       });
       logger.info({ err }, '[ORCID_API_SERVICE]::CLAIM API Error Response');
+    }
+  }
+
+  /**
+   * Verifies an ORCID ID token and extracts the ORCID identifier
+   *
+   * @param {string} id_token - JWT token received from ORCID authentication
+   * @returns {Promise<string|null>} The verified ORCID identifier or null if validation fails
+   *
+   * @description
+   * This method validates an ORCID JWT token by:
+   * 1. Fetching ORCID's public keys from their JWKS endpoint
+   * 2. Verifying the token signature and claims (audience, issuer)
+   * 3. Extracting the ORCID identifier from the token's subject claim
+   *
+   * @example
+   * const orcidId = await orcidApiService.verifyOrcidId(id_token);
+   * if (orcidId) {
+   *   // Token is valid, use the ORCID identifier
+   * }
+   */
+  async verifyOrcidId(id_token: string) {
+    try {
+      // Get ORCID's public keys from their JWKS endpoint
+      const jwksClient = jwksRsa({
+        jwksUri: `https://${process.env.ORCID_API_DOMAIN}/.well-known/jwks.json`,
+      });
+
+      // Verify the jwt and extract the orcid
+      const decoded = await new Promise<any>((resolve, reject) => {
+        const getKey = (header: jwt.JwtHeader, callback: jwt.SigningKeyCallback) => {
+          jwksClient.getSigningKey(header.kid, (err, key) => {
+            const signingKey = key ? key.getPublicKey() : null;
+            callback(err, signingKey);
+          });
+        };
+
+        jwt.verify(
+          id_token,
+          getKey,
+          {
+            audience: process.env.ORCID_CLIENT_ID,
+            issuer: `https://${process.env.ORCID_API_DOMAIN}`,
+          },
+          (err, decoded) => {
+            if (err) reject(err);
+            else resolve(decoded);
+          },
+        );
+      });
+      const orcid = decoded?.sub;
+      return orcid;
+    } catch (error) {
+      logger.error({ error, id_token }, 'Error verifying ORCID ID');
+      return null;
     }
   }
 }

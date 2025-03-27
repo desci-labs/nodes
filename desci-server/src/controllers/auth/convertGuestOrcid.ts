@@ -6,6 +6,8 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { verifyMagicCode } from '../../services/auth.js';
 import { saveInteraction } from '../../services/interactionLog.js';
+import orcidApiService from '../../services/orcid.js';
+import orcid from '../../services/orcid.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
 import { AuthenticatedRequest } from '../notifications/create.js';
@@ -16,7 +18,7 @@ import { generateAccessToken } from './magic.js';
 import { getOrcidRecord, OrcIdRecordData } from './index.js';
 
 type ConvertGuestOrcidBody = {
-  orcidCode: string;
+  orcidIdToken: string;
   email: string;
   magicCode: string;
   dev?: string;
@@ -30,11 +32,11 @@ export const convertGuestToUserOrcid = async (
   const logger = parentLogger.child({ module: '[Auth]::ConvertGuestOrcid', guestUser });
 
   try {
-    const { orcidCode, email, magicCode, dev } = req.body;
+    const { orcidIdToken, email, magicCode, dev } = req.body;
     const cleanEmail = email?.toLowerCase();
 
-    if (!orcidCode) {
-      return res.status(400).send({ ok: false, error: 'ORCID authorization code is required' });
+    if (!orcidIdToken) {
+      return res.status(400).send({ ok: false, error: 'ORCID id_token is required' });
     }
 
     if (!cleanEmail || !magicCode) {
@@ -55,37 +57,39 @@ export const convertGuestToUserOrcid = async (
       return res.status(400).send({ ok: false, error: 'Invalid or expired magic code' });
     }
 
-    // Exchange the authorization code for an access token
-    const tokenResponse = await axios.post(
-      `https://${process.env.ORCID_API_DOMAIN}/oauth/token`,
-      new URLSearchParams({
-        client_id: process.env.ORCID_CLIENT_ID,
-        client_secret: process.env.ORCID_CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code: orcidCode,
-        redirect_uri: process.env.ORCID_REDIRECT_URI,
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Accept: 'application/json',
-        },
-      },
-    );
+    // // Exchange the authorization code for an access token
+    // const tokenResponse = await axios.post(
+    //   `https://${process.env.ORCID_API_DOMAIN}/oauth/token`,
+    //   new URLSearchParams({
+    //     client_id: process.env.ORCID_CLIENT_ID,
+    //     client_secret: process.env.ORCID_CLIENT_SECRET,
+    //     grant_type: 'authorization_code',
+    //     code: orcidCode,
+    //     redirect_uri: process.env.ORCID_REDIRECT_URI,
+    //   }),
+    //   {
+    //     headers: {
+    //       'Content-Type': 'application/x-www-form-urlencoded',
+    //       Accept: 'application/json',
+    //     },
+    //   },
+    // );
 
-    const { access_token, orcid } = tokenResponse.data;
+    const verifiedOrcid = await orcidApiService.verifyOrcidId(orcidIdToken);
 
-    if (!access_token || !orcid) {
+    if (!orcidIdToken || !verifiedOrcid) {
       return res.status(400).send({ ok: false, error: 'Invalid ORCID credentials' });
     }
 
-    // Fetch user information from ORCID
-    const userData: OrcIdRecordData = await getOrcidRecord(orcid, access_token);
+    // // Fetch user information from ORCID
+    // const userData: OrcIdRecordData = await getOrcidRecord(verifiedOrcid, access_token);
 
     // Get name from ORCID data
-    const firstName = userData.person.name?.['given-names']?.value || null;
-    const familyName = userData.person.name?.['family-name']?.value || null;
-    const fullName = firstName && familyName ? `${firstName} ${familyName}` : firstName || familyName || null;
+    // const firstName = userData.person.name?.['given-names']?.value || null;
+    // const familyName = userData.person.name?.['family-name']?.value || null;
+    // const fullName = firstName && familyName ? `${firstName} ${familyName}` : firstName || familyName || null;
+
+    const fullName = 'User'; // See if availalbe in JWT.
 
     // Check if email is already registered to another user
     const existingEmailUser = await prisma.user.findUnique({
@@ -99,11 +103,11 @@ export const convertGuestToUserOrcid = async (
 
     // Check if ORCID is already registered to another user
     const existingOrcidUser = await prisma.user.findFirst({
-      where: { orcid },
+      where: { orcid: verifiedOrcid },
     });
 
     if (existingOrcidUser && existingOrcidUser.id !== guestUser.id) {
-      logger.info({ userId: guestUser.id, orcid }, 'ORCID ID already registered');
+      logger.info({ userId: guestUser.id, orcid: verifiedOrcid }, 'ORCID ID already registered');
       return res.status(409).send({ ok: false, error: 'ORCID ID already registered' });
     }
 
@@ -113,7 +117,7 @@ export const convertGuestToUserOrcid = async (
       data: {
         email: cleanEmail,
         name: fullName || undefined,
-        orcid: orcid,
+        orcid: verifiedOrcid,
         isGuest: false,
       },
     });
@@ -125,7 +129,7 @@ export const convertGuestToUserOrcid = async (
           connect: { id: updatedUser.id },
         },
         provider: 'orcid',
-        uid: orcid,
+        uid: verifiedOrcid,
         email: cleanEmail,
         name: fullName || null,
       },
@@ -134,7 +138,7 @@ export const convertGuestToUserOrcid = async (
     logger.info({ userId: updatedUser.id, provider: 'orcid' }, 'Linked ORCID identity to converted user');
 
     // Generate new token with both email and orcid
-    const token = generateAccessToken({ email: cleanEmail, orcid });
+    const token = generateAccessToken({ email: cleanEmail, orcid: verifiedOrcid });
 
     // Return the JWT
     sendCookie(res, token, dev === 'true');
