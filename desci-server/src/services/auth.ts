@@ -269,21 +269,21 @@ const sendMagicLink = async (email: string, ip?: string, ignoreTestEnv?: boolean
     },
   });
 
-  if (user) {
-    // check to make sure user doesn't have Login Method associated
-    // Seems unnecessary? why prevent them logging in via email?
-    // const identities = await client.userIdentity.findMany({
-    //   where: {
-    //     userId: user.id,
-    //   },
-    // });
-    // if (identities.length) {
-    //   throw Error('Login Method associated, skipping magic link');
-    // }
-    return sendMagicLinkEmail(user.email, ip);
-  }
+  // if (user) {
+  // check to make sure user doesn't have Login Method associated
+  // Seems unnecessary? why prevent them logging in via email?
+  // const identities = await client.userIdentity.findMany({
+  //   where: {
+  //     userId: user.id,
+  //   },
+  // });
+  // if (identities.length) {
+  //   throw Error('Login Method associated, skipping magic link');
+  // }
+  // }
+  return sendMagicLinkEmail(email.toLowerCase(), ip);
 
-  throw Error('Not found');
+  // throw Error('Not found');
 };
 
 const verifyMagicCode = async (email: string, token: string): Promise<boolean> => {

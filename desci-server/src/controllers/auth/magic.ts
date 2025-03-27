@@ -44,7 +44,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
   if (!code) {
     // we are sending the magic code
 
-    let user = await prismaClient.user.findFirst({
+    const user = await prismaClient.user.findFirst({
       where: {
         email: {
           equals: cleanEmail,
@@ -54,20 +54,20 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
     });
 
     // force 1 step user creation
-    // if (!user) {
-    //   user = await prismaClient.user.upsert({
-    //     where: {
-    //       email: cleanEmail,
-    //     },
-    //     create: {
-    //       email: cleanEmail,
-    //     },
-    //     update: {
-    //       email: cleanEmail,
-    //     },
-    //   });
+    if (!user) {
+      // user = await prismaClient.user.upsert({
+      //   where: {
+      //     email: cleanEmail,
+      //   },
+      //   create: {
+      //     email: cleanEmail,
+      //   },
+      //   update: {
+      //     email: cleanEmail,
+      //   },
+      // });
 
-      if (user.email) {
+      if (user?.email) {
         // Inherits existing user contribution entries that were made with the same email
         const inheritedContributions = await contributorService.updateContributorEntriesForNewUser({
           email: user.email,
@@ -79,6 +79,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
     try {
       const ip = req.ip;
+      // debugger;
       const ok = await sendMagicLink(cleanEmail, ip);
       logger.info({ ok }, 'Magic link sent');
       res.send({ ok: !!ok });

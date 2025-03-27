@@ -36,6 +36,7 @@ export const convertGuestToUser = async (
   req: AuthenticatedRequest<ConvertGuestBody>,
   res: Response,
 ): Promise<Response<ConvertGuestResponse>> => {
+  debugger;
   const guestUser = req.user;
   const logger = parentLogger.child({ module: '[Auth]::Guest', guestUser });
   try {
