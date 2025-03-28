@@ -611,11 +611,11 @@ class OrcidApiService {
    *   // Token is valid, use the ORCID identifier
    * }
    */
-  async verifyOrcidId(id_token: string) {
+  async verifyOrcidId(id_token: string): Promise<{ orcid: string; given_name?: string; family_name?: string } | null> {
     try {
       // Get ORCID's public keys from their JWKS endpoint
       const jwksClient = jwksRsa({
-        jwksUri: `https://${process.env.ORCID_API_DOMAIN}/.well-known/jwks.json`,
+        jwksUri: `https://${process.env.ORCID_API_DOMAIN}/oauth/jwks`,
       });
 
       // Verify the jwt and extract the orcid
@@ -640,8 +640,12 @@ class OrcidApiService {
           },
         );
       });
-      const orcid = decoded?.sub;
-      return orcid;
+      const { orcid, family_name, given_name } = decoded;
+      return {
+        orcid,
+        family_name,
+        given_name,
+      };
     } catch (error) {
       logger.error({ error, id_token }, 'Error verifying ORCID ID');
       return null;

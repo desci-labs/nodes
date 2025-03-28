@@ -75,22 +75,17 @@ export const convertGuestToUserOrcid = async (
     //     },
     //   },
     // );
-
-    const verifiedOrcid = await orcidApiService.verifyOrcidId(orcidIdToken);
+    // debugger;
+    const { orcid: verifiedOrcid, family_name, given_name } = await orcidApiService.verifyOrcidId(orcidIdToken);
 
     if (!orcidIdToken || !verifiedOrcid) {
       return res.status(400).send({ ok: false, error: 'Invalid ORCID credentials' });
     }
 
-    // // Fetch user information from ORCID
-    // const userData: OrcIdRecordData = await getOrcidRecord(verifiedOrcid, access_token);
-
     // Get name from ORCID data
-    // const firstName = userData.person.name?.['given-names']?.value || null;
-    // const familyName = userData.person.name?.['family-name']?.value || null;
-    // const fullName = firstName && familyName ? `${firstName} ${familyName}` : firstName || familyName || null;
-
-    const fullName = 'User'; // See if availalbe in JWT.
+    const firstName = given_name;
+    const familyName = family_name;
+    const fullName = firstName && familyName ? `${firstName} ${familyName}` : firstName || familyName || null;
 
     // Check if email is already registered to another user
     const existingEmailUser = await prisma.user.findUnique({
