@@ -148,7 +148,7 @@ export async function connectOrcidToUserIfPossible(
       })
     : null;
 
-  if (user) {
+  if (user && !user.isGuest) {
     // we are already email auth'd, we have only one to check
     logger.info({ fn: 'orcidCheck', user }, `Requesting user ${user}`);
     if (!user.orcid || user.orcid === orcid) {

@@ -20,6 +20,7 @@ export const orcidCheck =
   (orcidLookup: (orcid: string, accessToken: string) => Promise<OrcIdRecordData> = getOrcidRecord) =>
   async (req: Request, res: Response) => {
     logger.trace({ fn: 'orcid check', body: req.body });
+    debugger;
     if (!req.body || !req.body.orcid || !req.body.access_token || !req.body.refresh_token || !req.body.expires_in) {
       logger.error(
         {
@@ -38,7 +39,7 @@ export const orcidCheck =
     }
     const user = (req as any).user;
     const { access_token, refresh_token, expires_in, orcid, dev } = req.body;
-    // debugger;
+    debugger;
     logger.trace({ access_token, refresh_token, expires_in, orcid, dev }, 'connectOrcidToUserIfPossible');
     const orcidRecord = await connectOrcidToUserIfPossible(
       user?.id,
