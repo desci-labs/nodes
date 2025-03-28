@@ -79,6 +79,7 @@ export const convertGuestToUserOrcid = async (
     const { orcid: verifiedOrcid, family_name, given_name } = await orcidApiService.verifyOrcidId(orcidIdToken);
 
     if (!orcidIdToken || !verifiedOrcid) {
+      logger.trace({ orcidIdTokenPresent: !!orcidIdToken, verifiedOrcid }, 'Invalid ORCID credentials');
       return res.status(400).send({ ok: false, error: 'Invalid ORCID credentials' });
     }
 

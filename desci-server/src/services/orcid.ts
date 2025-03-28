@@ -640,9 +640,9 @@ class OrcidApiService {
           },
         );
       });
-      const { orcid, family_name, given_name } = decoded;
+      const { sub, family_name, given_name } = decoded;
       return {
-        orcid,
+        orcid: sub,
         family_name,
         given_name,
       };
