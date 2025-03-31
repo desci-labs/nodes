@@ -10,15 +10,31 @@ const logger = parentLogger.child({ module: 'Services::InteractionLog' });
 
 export const saveInteraction = async (req: Request, action: ActionType, data: any, userId?: number) => {
   logger.info({ fn: 'saveInteractionController' }, 'interactionLog::saveInteraction');
+  const user = (req as any).user;
   return await prisma.interactionLog.create({
-    data: { userId, ip: req.ip, userAgent: req.headers['user-agent'], rep: 0, action, extra: JSON.stringify(data) },
+    data: {
+      userId,
+      ...(user?.isGuest === true || user?.isGuest === false ? { isGuest: user.isGuest } : {}), // We want null if the information isn't available
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+      rep: 0,
+      action,
+      extra: JSON.stringify(data),
+    },
   });
 };
 
 export const saveInteractionWithoutReq = async (action: ActionType, data: any, userId?: number) => {
   logger.info({ fn: 'saveInteractionController' }, 'interactionLog::saveInteraction');
+  let isGuest;
+  if (userId) {
+    // Distinguish if the user is a guest or not
+    const user = await prisma.user.findFirst({ where: { id: userId } });
+    isGuest = user?.isGuest;
+  }
+
   return await prisma.interactionLog.create({
-    data: { userId, rep: 0, action, extra: JSON.stringify(data) },
+    data: { userId, isGuest, rep: 0, action, extra: JSON.stringify(data) },
   });
 };
 

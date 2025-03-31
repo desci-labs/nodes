@@ -88,6 +88,7 @@ model InteractionLog {
   extra      String?
   action     ActionType?
   userId     Int?
+  isGuest    Boolean? // True = Guest, False = User, Null = Not logged
   rep        Int?
   nodeId     Int?
   waitlistId Int?
