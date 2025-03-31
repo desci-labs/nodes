@@ -21,7 +21,7 @@ export const oneDay = 1000 * 60 * 60 * 24;
 export const oneMinute = 1000 * 60;
 export const magic = async (req: Request, res: Response, next: NextFunction) => {
   const { email, code, dev, orcid, access_token, refresh_token, expires_in } = req.body;
-  const cleanEmail = email.toLowerCase().trim();
+  const cleanEmail = email?.toLowerCase().trim();
 
   const logger = parentLogger.child({
     module: '[Auth]::Magic',
@@ -44,7 +44,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
   if (!code) {
     // we are sending the magic code
 
-    let user = await prismaClient.user.findFirst({
+    const user = await prismaClient.user.findFirst({
       where: {
         email: {
           equals: cleanEmail,
@@ -55,19 +55,19 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
     // force 1 step user creation
     if (!user) {
-      user = await prismaClient.user.upsert({
-        where: {
-          email: cleanEmail,
-        },
-        create: {
-          email: cleanEmail,
-        },
-        update: {
-          email: cleanEmail,
-        },
-      });
+      // user = await prismaClient.user.upsert({
+      //   where: {
+      //     email: cleanEmail,
+      //   },
+      //   create: {
+      //     email: cleanEmail,
+      //   },
+      //   update: {
+      //     email: cleanEmail,
+      //   },
+      // });
 
-      if (user.email) {
+      if (user?.email) {
         // Inherits existing user contribution entries that were made with the same email
         const inheritedContributions = await contributorService.updateContributorEntriesForNewUser({
           email: user.email,
@@ -79,6 +79,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
 
     try {
       const ip = req.ip;
+      // debugger;
       const ok = await sendMagicLink(cleanEmail, ip);
       logger.info({ ok }, 'Magic link sent');
       res.send({ ok: !!ok });
@@ -130,7 +131,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
       const termsAccepted = await checkIfUserAcceptedTerms(user.email);
       // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
-      res.send({ ok: true, user: { email: user.email, token, termsAccepted } });
+      res.send({ ok: true, user: { email: user.email, token, termsAccepted, isGuest: user.isGuest } });
 
       logger.info('[MAGIC] User logged in successfully');
 

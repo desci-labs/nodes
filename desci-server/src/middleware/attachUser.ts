@@ -14,7 +14,6 @@ import {
  * and won't reject with a 401 if not logged in.
  */
 export const attachUser = async (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
   const apiKeyHeader = req.headers['api-key'];
 
   const token = await extractAuthToken(req);

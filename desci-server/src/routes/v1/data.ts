@@ -11,7 +11,7 @@ import { updateExternalCid } from '../../controllers/data/updateExternalCid.js';
 import { logger } from '../../logger.js';
 import { attachUser } from '../../middleware/attachUser.js';
 import { ensureNodeAccess, ensureWriteAccessCheck } from '../../middleware/authorisation.js';
-import { ensureUser } from '../../middleware/permissions.js';
+import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
 import { isS3Configured, s3Client } from '../../services/s3.js';
 
 const router = Router();
@@ -68,12 +68,12 @@ const wrappedHandler = (req, res, next) => {
   });
 };
 
-router.post('/update', [ensureUser, wrappedHandler, ensureNodeAccess], update);
-router.post('/updateExternalCid', [ensureUser, ensureNodeAccess], updateExternalCid);
-router.post('/delete', [ensureUser, ensureNodeAccess], deleteData);
-router.post('/rename', [ensureUser, ensureNodeAccess], renameData);
-router.post('/move', [ensureUser, ensureNodeAccess], moveData);
-router.get('/retrieveTree/:nodeUuid/:manifestCid', [ensureUser], retrieveTree);
+router.post('/update', [ensureGuestOrUser, wrappedHandler, ensureNodeAccess], update);
+router.post('/updateExternalCid', [ensureGuestOrUser, ensureNodeAccess], updateExternalCid);
+router.post('/delete', [ensureGuestOrUser, ensureNodeAccess], deleteData);
+router.post('/rename', [ensureGuestOrUser, ensureNodeAccess], renameData);
+router.post('/move', [ensureGuestOrUser, ensureNodeAccess], moveData);
+router.get('/retrieveTree/:nodeUuid/:manifestCid', [ensureGuestOrUser], retrieveTree);
 router.get('/retrieveTree/:nodeUuid/:manifestCid/:shareId?', retrieveTree);
 router.get('/pubTree/:nodeUuid/:manifestCid/:rootCid?', pubTree);
 router.get('/diff/:nodeUuid/:manifestCidA/:manifestCidB?', [attachUser], diffData);

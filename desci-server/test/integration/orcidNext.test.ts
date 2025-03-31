@@ -12,7 +12,7 @@ import { generateAccessToken } from '../../src/controllers/auth/magic.js';
 import { OrcIdRecordData } from '../../src/controllers/auth/orcid.js';
 import { orcidCheck } from '../../src/controllers/auth/orcidNext.js';
 import { logger } from '../../src/logger.js';
-import { ensureUserIfPresent } from '../../src/middleware/ensureUserIfPresent.js';
+import { attachUser } from '../../src/middleware/attachUser.js';
 // describe('ORCiD Auth', () => {
 //   let user: User;
 
@@ -129,7 +129,7 @@ describe('ORCiD Auth Endpoints', () => {
     };
 
     // Mock route that uses the auth middleware
-    app.post('/orcid/next', ensureUserIfPresent, orcidCheck(mockOrcidLookup));
+    app.post('/orcid/next', attachUser, orcidCheck(mockOrcidLookup));
 
     mockUser = await prisma.user.create({
       data: {

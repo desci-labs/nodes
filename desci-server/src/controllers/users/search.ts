@@ -50,6 +50,7 @@ export const searchProfiles = async (req: SearchProfilesRequest, res: Response<S
     if (isEmail) {
       emailMatches = await prisma.user.findMany({
         where: {
+          isGuest: false,
           email: {
             mode: 'insensitive',
             equals: name as string,
@@ -61,11 +62,11 @@ export const searchProfiles = async (req: SearchProfilesRequest, res: Response<S
 
     const profiles = orcid
       ? await prisma.user.findMany({
-          where: { orcid: orcid },
+          where: { isGuest: false, orcid: orcid },
           include: { userOrganizations: { include: { organization: { select: { name: true } } } } },
         })
       : await prisma.user.findMany({
-          where: { name: { contains: name as string, mode: 'insensitive', not: null } },
+          where: { isGuest: false, name: { contains: name as string, mode: 'insensitive', not: null } },
           include: { userOrganizations: { include: { organization: { select: { name: true } } } } },
         });
 

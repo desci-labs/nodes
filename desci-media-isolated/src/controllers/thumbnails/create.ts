@@ -55,7 +55,7 @@ export const generateThumbnail = async (req: GenerateThumbnailRequest, res: Resp
       const readStream = fs.createReadStream(fullThumbnailPath);
       readStream.pipe(res);
       readStream.on('end', () => {
-        // Cleanup the generated PDF file
+        // Cleanup the generated thumbnail file after it's sent
         fs.unlink(fullThumbnailPath, (unlinkErr) => {
           if (unlinkErr) {
             logger.error({ unlinkErr }, `Failed to delete generated thumbnail file: ${fullThumbnailPath}`);

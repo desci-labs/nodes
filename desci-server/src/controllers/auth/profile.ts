@@ -35,6 +35,7 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
   res.send({
     userId: user.id,
     email: user.email,
+    isGuest: user.isGuest,
     wallets: wallets.map((w: Wallet) => ({
       address: w.address,
       nickname: w.nickname,

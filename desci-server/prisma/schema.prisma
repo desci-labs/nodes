@@ -88,6 +88,7 @@ model InteractionLog {
   extra      String?
   action     ActionType?
   userId     Int?
+  isGuest    Boolean? // True = Guest, False = User, Null = Not logged
   rep        Int?
   nodeId     Int?
   waitlistId Int?
@@ -168,6 +169,8 @@ model User {
   id                          Int                           @id @default(autoincrement())
   createdAt                   DateTime                      @default(now())
   updatedAt                   DateTime                      @updatedAt
+  isGuest                     Boolean                       @default(false)
+  convertedGuest              Boolean                       @default(false)
   email                       String                        @unique
   phoneNumber                 String?                       @unique
   name                        String?
@@ -1161,6 +1164,7 @@ enum ActionType {
   REMOVE_ORCID_WORK_RECORD
   ORCID_API_ERROR
   EDIT_COMMENT
+  GUEST_USER_CONVERSION
 }
 
 enum ChainTransactionType {

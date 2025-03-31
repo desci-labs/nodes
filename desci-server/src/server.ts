@@ -20,8 +20,8 @@ import { orcidConnect } from './controllers/auth/orcid.js';
 import { orcidCheck } from './controllers/auth/orcidNext.js';
 import { NotFoundError } from './core/ApiError.js';
 import { als, logger as parentLogger } from './logger.js';
+import { attachUser } from './middleware/attachUser.js';
 import { RequestWithUser } from './middleware/authorisation.js';
-import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import routes from './routes/index.js';
@@ -209,7 +209,7 @@ class AppServer {
       res.status(200).json({ id: serverUuid, affinity: req.cookies['stickie-dev-ingress61'] });
     });
     this.app.get('/orcid', orcidConnect);
-    this.app.post('/orcid/next', [ensureUserIfPresent], orcidCheck());
+    this.app.post('/orcid/next', [attachUser], orcidCheck());
     this.app.use('/', routes);
   }
 

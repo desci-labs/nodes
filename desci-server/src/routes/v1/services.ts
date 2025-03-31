@@ -4,7 +4,7 @@ import multer from 'multer';
 import { ephemeralThumbnail } from '../../controllers/proxy/ephemeralThumbnail.js';
 import { orcidDid, orcidProfile } from '../../controllers/proxy/orcidProfile.js';
 import { logger as parentLogger } from '../../logger.js';
-import { ensureUser } from '../../middleware/permissions.js';
+import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
 
 const router = Router();
 
@@ -32,6 +32,6 @@ const wrappedHandler = (req, res, next) => {
   });
 };
 
-router.post('/thumbnails/ephemeral', [ensureUser, wrappedHandler], ephemeralThumbnail);
+router.post('/thumbnails/ephemeral', [ensureGuestOrUser, wrappedHandler], ephemeralThumbnail);
 
 export default router;
