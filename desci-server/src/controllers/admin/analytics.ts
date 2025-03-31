@@ -354,7 +354,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
   const endDate = to;
   logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, startDate, endDate }, 'getAggregatedAnalytics');
 
-  const selectedDates = { from: startOfDay(startDate), to: startOfDay(new Date(to)) };
+  const selectedDates = { from: startOfDay(startDate), to: endOfDay(new Date(to)) };
   const selectedDatesInterval = interval(from, to);
 
   const cacheKey = `aggregateAnalytics-${startOfDay(from).toDateString()}-${endOfDay(selectedDates.to).toDateString()}-${timeInterval}`;
