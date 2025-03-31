@@ -85,7 +85,6 @@ import { addPublishedWallet } from '../../controllers/users/publishedWallets/cre
 import { getUserPublishedWallets } from '../../controllers/users/publishedWallets/index.js';
 import { attachUser } from '../../middleware/attachUser.js';
 import { ensureNodeAccess, ensureNodeExists, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
-import { ensureUserIfPresent } from '../../middleware/ensureUserIfPresent.js';
 import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
@@ -107,7 +106,7 @@ router.get('/published/list', [ensureUser], getPublishedNodes);
 router.get('/published/:dpid([0-9]+)', [], nodeByDpid);
 router.get('/published/:stream([a-z0-9]{50,})', [], nodeByStream);
 router.get('/published/:uuid', [], checkIfPublishedNode);
-router.get('/access/:uuid', [ensureUserIfPresent], checkNodeAccess);
+router.get('/access/:uuid', [attachUser], checkNodeAccess);
 router.post('/search/:query', [ensureGuestOrUser], searchNodes);
 router.get('/explore', [], explore);
 
