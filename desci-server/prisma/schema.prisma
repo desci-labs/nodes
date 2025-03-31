@@ -170,6 +170,7 @@ model User {
   createdAt                   DateTime                      @default(now())
   updatedAt                   DateTime                      @updatedAt
   isGuest                     Boolean                       @default(false)
+  convertedGuest              Boolean                       @default(false)
   email                       String                        @unique
   phoneNumber                 String?                       @unique
   name                        String?

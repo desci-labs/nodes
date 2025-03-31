@@ -73,6 +73,7 @@ export const convertGuestToUser = async (
         email,
         name: name || null,
         isGuest: false,
+        convertedGuest: true,
       },
     });
 

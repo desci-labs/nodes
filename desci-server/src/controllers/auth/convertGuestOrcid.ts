@@ -116,6 +116,7 @@ export const convertGuestToUserOrcid = async (
         name: fullName || undefined,
         orcid: verifiedOrcid,
         isGuest: false,
+        convertedGuest: true,
       },
     });
 

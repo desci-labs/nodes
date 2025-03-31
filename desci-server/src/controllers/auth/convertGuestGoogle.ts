@@ -72,6 +72,7 @@ export const convertGuestToUserGoogle = async (
         email: cleanEmail,
         name: name || null,
         isGuest: false,
+        convertedGuest: true,
       },
     });
 
