@@ -71,6 +71,7 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
         createdAt: {
           gte: dateXDaysAgo,
         },
+        OR: [{ isGuest: false }, { isGuest: null }],
         // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
         // from poluting returned data
         userId: {
@@ -86,6 +87,7 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
 
   return await prisma.interactionLog.findMany({
     distinct: ['userId'],
+
     where: {
       createdAt: {
         gte: dateXDaysAgo,
@@ -95,6 +97,7 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
       userId: {
         not: null,
       },
+      OR: [{ isGuest: false }, { isGuest: null }],
     },
     select: { id: true, action: true, user: { select: { id: true, email: true, orcid: true } } },
   });
@@ -146,6 +149,7 @@ export const getCountActiveUsersInMonth = async (month: number, year: number): P
   const activeCount = await prisma.interactionLog.findMany({
     distinct: ['userId'],
     where: {
+      OR: [{ isGuest: false }, { isGuest: null }],
       createdAt: {
         gte: new Date(year, month, 1),
         lt: new Date(year, month + 1, 1),
@@ -244,6 +248,7 @@ export const getActiveUsersInRange = async (range: { from: Date; to: Date }) => 
       userId: {
         not: null,
       },
+      OR: [{ isGuest: false }, { isGuest: null }],
     },
     select: { user: { select: { createdAt: true } } },
   });

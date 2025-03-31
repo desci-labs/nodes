@@ -81,8 +81,6 @@ import {
   unlikeNodeSchema,
 } from '../../controllers/nodes/likes.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
-import { addPublishedWallet } from '../../controllers/users/publishedWallets/create.js';
-import { getUserPublishedWallets } from '../../controllers/users/publishedWallets/index.js';
 import { attachUser } from '../../middleware/attachUser.js';
 import { ensureNodeAccess, ensureNodeExists, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
 import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
