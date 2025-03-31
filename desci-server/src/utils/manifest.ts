@@ -7,9 +7,10 @@ import {
 import { Node } from '@prisma/client';
 import axios from 'axios';
 
+import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
-import { getOrCache } from '../redisClient.js';
+import { DEFAULT_TTL, getFromCache, getOrCache, ONE_WEEK_TTL, setToCache } from '../redisClient.js';
 import { hexToCid, isCid } from '../utils.js';
 
 const IPFS_RESOLVER_OVERRIDE = process.env.IPFS_RESOLVER_OVERRIDE;
@@ -70,6 +71,52 @@ export const cachedGetDpidFromManifest = async (cid: string, gateway?: string) =
   } else {
     return manifestDpid;
   }
+};
+
+export const cachedGetDpidByUuid = async (uuid: string) => {
+  let gateway: string;
+
+  const node = await prisma.node.findFirst({
+    where: { uuid },
+    select: { cid: true, manifestDocumentId: true, dpidAlias: true },
+  });
+
+  const fnGetDpidFromManifest = async (cid: string) => {
+    const manifest = (await resolveNodeManifest(cid, gateway)) as ResearchObjectV1;
+    return manifest.dpid ? parseInt(manifest.dpid.id) : -1;
+  };
+
+  if (node.dpidAlias) return node.dpidAlias;
+
+  const manifestDpid = await getOrCache<number>(`manifest-dpid-${node.cid}`, fnGetDpidFromManifest.bind(node.cid));
+  if (manifestDpid === -1) {
+    return undefined;
+  } else {
+    return manifestDpid;
+  }
+};
+
+export const cachedGetManifest = async (cid: string, gateway?: string) => {
+  let manifest = (await getFromCache(`manifest-${cid}`)) as ResearchObjectV1;
+
+  if (!manifest) {
+    manifest = (await resolveNodeManifest(cid, gateway)) as ResearchObjectV1;
+    await setToCache(`manifest-${cid}`, manifest, DEFAULT_TTL);
+  }
+  return manifest;
+};
+
+export const cachedGetManifestAndDpid = async (cid: string, gateway?: string) => {
+  const manifest = await cachedGetManifest(cid, gateway);
+  if (!manifest) return undefined;
+
+  let manifestDpid = manifest.dpid ? parseInt(manifest.dpid.id) : -1;
+
+  if (manifestDpid === -1) {
+    manifestDpid = await getFromCache(`manifest-dpid-${cid}`);
+    await setToCache(`manifest-dpid-${cid}`, manifest, DEFAULT_TTL);
+  }
+  return { manifest, dpid: manifestDpid };
 };
 
 export const zeropad = (data: string) => (data.length < 2 ? `0${data}` : data);

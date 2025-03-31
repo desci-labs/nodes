@@ -46,3 +46,14 @@ export const getSubmissionSchema = z.object({
     submissionId: z.coerce.number(),
   }),
 });
+
+// Schema for getting a single submission
+export const rejectSubmissionSchema = z.object({
+  params: z.object({
+    submissionId: z.coerce.number(),
+  }),
+  body: z.object({
+    reason: z.string().optional(),
+    status: z.enum([Submissionstatus.PENDING, Submissionstatus.ACCEPTED, Submissionstatus.REJECTED]),
+  }),
+});

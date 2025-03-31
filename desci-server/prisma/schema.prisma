@@ -851,19 +851,20 @@ model CommunityRadarEntry {
 }
 
 model CommunitySubmission {
-  id          Int              @id @default(autoincrement())
-  communityId Int
-  community   DesciCommunity   @relation(fields: [communityId], references: [id])
-  nodeId      String
-  node        Node             @relation(fields: [nodeId], references: [uuid])
-  nodeVersion Int?
-  userId      Int
-  user        User             @relation(fields: [userId], references: [id])
-  status      Submissionstatus @default(PENDING)
-  acceptedAt  DateTime?
-  rejectedAt  DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id              Int              @id @default(autoincrement())
+  communityId     Int
+  community       DesciCommunity   @relation(fields: [communityId], references: [id])
+  nodeId          String
+  node            Node             @relation(fields: [nodeId], references: [uuid])
+  nodeVersion     Int?
+  userId          Int
+  user            User             @relation(fields: [userId], references: [id])
+  status          Submissionstatus @default(PENDING)
+  rejectionReason String?
+  acceptedAt      DateTime?
+  rejectedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@unique([nodeId, communityId])
 }

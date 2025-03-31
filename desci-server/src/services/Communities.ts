@@ -869,7 +869,7 @@ export class CommunityService {
 
     const exisiting = await this.getUserSubmissionById({ communityId, userId, nodeId });
 
-    if (exisiting.nodeVersion === nodeVersion) {
+    if (exisiting && exisiting.nodeVersion === nodeVersion) {
       throw new ForbiddenError('This version of your submission already exists, publish a new version to resubmit');
     }
 
@@ -879,6 +879,8 @@ export class CommunityService {
         data: {
           status: Submissionstatus.PENDING,
           nodeVersion,
+          rejectedAt: null,
+          rejectionReason: null,
         },
         select: {
           id: true,
@@ -966,13 +968,21 @@ export class CommunityService {
       },
     });
   }
-  async updateSubmissionStatus(id: number, status: Submissionstatus) {
+
+  async getPendingUserSubmissionById(userId: number, submissionId: number) {
+    return await prisma.communitySubmission.findFirst({
+      where: { id: submissionId, userId, status: Submissionstatus.PENDING },
+      select: { id: true },
+    });
+  }
+
+  async updateSubmissionStatus(id: number, status: Submissionstatus, rejectionReason?: string) {
     return await prisma.communitySubmission.update({
       where: { id },
       data: {
         status: status as Submissionstatus,
         ...(status === 'ACCEPTED' ? { acceptedAt: new Date() } : {}),
-        ...(status === 'REJECTED' ? { rejectedAt: new Date() } : {}),
+        ...(status === 'REJECTED' ? { rejectedAt: new Date(), rejectionReason } : {}),
       },
       include: {
         node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
@@ -988,6 +998,10 @@ export class CommunityService {
         community: { select: { id: true, name: true, image_url: true, description: true } },
       },
     });
+  }
+
+  async deleteSubmission(id: number) {
+    return prisma.communitySubmission.delete({ where: { id } });
   }
 }
 

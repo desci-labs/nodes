@@ -6,6 +6,7 @@ import DoiMintedEmail, { DoiMintedEmailProps } from '../DoiMinted.js';
 import ExternalPublications, { ExternalPublicationsEmailProps } from '../ExternalPublications.js';
 import MagicCodeEmail, { MagicCodeEmailProps } from '../MagicCode.js';
 import NodeUpdated, { NodeUpdatedEmailProps } from '../NodeUpdated.js';
+import RejectSubmissionEmail, { RejectSubmissionEmailProps } from '../RejectSubmission.js';
 import SubmissionPackage, { SubmissionPackageEmailProps } from '../SubmissionPackage.js';
 
 export const ContributorInviteEmailHtml = ({
@@ -31,3 +32,5 @@ export const ExternalPublicationsEmailHtml = (props: ExternalPublicationsEmailPr
   render(ExternalPublications(props));
 
 export const DoiMintedEmailHtml = (props: DoiMintedEmailProps) => render(DoiMintedEmail(props));
+
+export const RejectedSubmissionEmailHtml = (props: RejectSubmissionEmailProps) => render(RejectSubmissionEmail(props));
