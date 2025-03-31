@@ -59,6 +59,7 @@ model Node {
   NodeLike             NodeLike[]
   CommunitySubmission  CommunitySubmission[]
   PublishedWallet      PublishedWallet[]
+  GuestDataReference   GuestDataReference[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -236,6 +237,7 @@ model User {
   NodeLike                    NodeLike[]
   CommunitySubmission         CommunitySubmission[]
   PublishedWallet             PublishedWallet[]
+  GuestDataReference          GuestDataReference[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -423,6 +425,25 @@ model DataReference {
   node        Node         @relation(fields: [nodeId], references: [id])
   user        User         @relation(fields: [userId], references: [id])
   nodeVersion NodeVersion? @relation(fields: [versionId], references: [id])
+}
+
+model GuestDataReference {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  cid        String
+  root       Boolean
+  rootCid    String?
+  path       String?
+  directory  Boolean
+  size       Int
+  type       DataType
+  external   Boolean?
+  nodeId     Int
+  userId     Int
+  loggedData Json
+  node       Node     @relation(fields: [nodeId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
 }
 
 model CidPruneList {
