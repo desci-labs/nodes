@@ -11,7 +11,7 @@ import {
 } from '@automerge/automerge-repo/slim';
 import { DurableObjectState } from '@cloudflare/workers-types';
 import { routePartykitRequest, Server as PartyServer, Connection, ConnectionContext, WSMessage } from 'partyserver';
-import { err as serialiseErr } from 'pino-std-serializers';
+import { errWithCause, err as serialiseErr } from 'pino-std-serializers';
 import { ManifestActions, ResearchObjectV1 } from '@desci-labs/desci-models';
 
 import { PartyKitWSServerAdapter } from './automerge-repo-network-websocket/PartykitWsServerAdapter.js';
@@ -178,50 +178,56 @@ export class AutomergeServer extends PartyServer {
   }
 
   async getLatestDocument(request) {
-    const documentId = request.url.split('/').pop() as DocumentId;
-    console.log(`getLatestDocument: ${documentId}`, { documentId });
-    if (!documentId) {
-      console.error('No DocumentID found');
-      return new Response(JSON.stringify({ ok: false, message: 'Invalid body' }), { status: 400 });
-    }
+    try {
+      const documentId = request.url.split('/').pop() as DocumentId;
+      console.log(`getLatestDocument: `, { documentId });
+      if (!documentId) {
+        console.error('No DocumentID found');
+        return new Response(JSON.stringify({ ok: false, message: 'Invalid body' }), { status: 400 });
+      }
 
-    if (!this.handle) this.handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
-    const document: Doc<ResearchObjectDocument> | undefined = await this.handle.doc();
-    return new Response(JSON.stringify({ document, ok: true }), { status: 200 });
+      if (!this.handle) this.handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+      const document: Doc<ResearchObjectDocument> | undefined = await this.handle.doc();
+      return new Response(JSON.stringify({ document, ok: true }), { status: 200 });
+    } catch (err) {
+      console.error('[getLatestDocument]', { err: errWithCause(err) });
+      return new Response(JSON.stringify({ ok: false, ...errWithCause(err) }), { status: 500 });
+    }
   }
 
   async dispatchAction(request: Request) {
-    let body = (await request.clone().json()) as { uuid: string; documentId: DocumentId; actions: ManifestActions[] };
-    const actions = body.actions as ManifestActions[];
-    const documentId = body.documentId as DocumentId;
+    try {
+      let body = (await request.clone().json()) as { uuid: string; documentId: DocumentId; actions: ManifestActions[] };
+      const actions = body.actions as ManifestActions[];
+      const documentId = body.documentId as DocumentId;
 
-    if (!(actions && actions.length > 0)) {
-      console.error({ body }, 'No actions to dispatch');
-      return new Response(JSON.stringify({ ok: false, message: 'No actions to dispatch' }), { status: 400 });
+      if (!(actions && actions.length > 0)) {
+        console.error({ body }, 'No actions to dispatch');
+        return new Response(JSON.stringify({ ok: false, message: 'No actions to dispatch' }), { status: 400 });
+      }
+
+      if (!this.handle) this.handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
+
+      for (const action of actions) {
+        await actionDispatcher({ action, handle: this.handle, documentId });
+      }
+
+      const document: Doc<ResearchObjectDocument> | undefined = await this.handle.doc();
+      if (!document) {
+        console.error({ document }, 'Document not found');
+        return new Response(JSON.stringify({ ok: false, message: 'Document not found' }), { status: 400 });
+      }
+
+      return new Response(JSON.stringify({ document, ok: true }), { status: 200 });
+    } catch (err) {
+      console.error('[dispatchAction Error]', { err });
+
+      if (err instanceof ZodError) {
+        return new Response(JSON.stringify({ ok: false, message: JSON.stringify(err) }), { status: 400 });
+      }
+
+      return new Response(JSON.stringify({ ok: false, message: JSON.stringify(err) }), { status: 500 });
     }
-
-    if (!this.handle) this.handle = this.repo.find<ResearchObjectDocument>(getAutomergeUrl(documentId));
-
-    for (const action of actions) {
-      await actionDispatcher({ action, handle: this.handle, documentId });
-    }
-
-    const document: Doc<ResearchObjectDocument> | undefined = await this.handle.doc();
-    if (!document) {
-      console.error({ document }, 'Document not found');
-      return new Response(JSON.stringify({ ok: false, message: 'Document not found' }), { status: 400 });
-    }
-
-    return new Response(JSON.stringify({ document, ok: true }), { status: 200 });
-  }
-  catch(err) {
-    console.error('[dispatchAction Error]', { err });
-
-    if (err instanceof ZodError) {
-      return new Response(JSON.stringify({ ok: false, message: JSON.stringify(err) }), { status: 400 });
-    }
-
-    return new Response(JSON.stringify({ ok: false, message: JSON.stringify(err) }), { status: 500 });
   }
 }
 

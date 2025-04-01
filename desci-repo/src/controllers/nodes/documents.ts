@@ -3,17 +3,17 @@ import os from 'os';
 import { Doc } from '@automerge/automerge';
 import { AutomergeUrl, DocHandleEphemeralMessagePayload, DocumentId, PeerId, Repo } from '@automerge/automerge-repo';
 import { ManifestActions, ResearchObjectV1 } from '@desci-labs/desci-models';
-import { json, Request, Response } from 'express';
-import WebSocket from 'isomorphic-ws';
+import { Request, Response } from 'express';
+// import WebSocket from 'isomorphic-ws';
 import { ZodError } from 'zod';
 
 import { ENABLE_PARTYKIT_FEATURE, IS_DEV, IS_TEST, PARTY_SERVER_HOST, PARTY_SERVER_TOKEN } from '../../config.js';
 import { findNodeByUuid } from '../../db/index.js';
-import { PartykitNodeWsAdapter } from '../../lib/PartykitNodeWsAdapter.js';
+// import { PartykitNodeWsAdapter } from '../../lib/PartykitNodeWsAdapter.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithNode } from '../../middleware/guard.js';
 import { backendRepo, repoManager } from '../../repo.js';
-import { getAutomergeUrl, getDocumentHandle, getDocumentUpdater } from '../../services/manifestRepo.js';
+import { getAutomergeUrl, getDocumentUpdater } from '../../services/manifestRepo.js';
 import { ResearchObjectDocument } from '../../types.js';
 import { actionsSchema } from '../../validators/schema.js';
 
