@@ -329,7 +329,16 @@ export class AttestationService {
     return prisma.nodeAttestation.findMany({
       where: { nodeUuid: ensureUuidEndsWithDot(uuid), revoked: false },
       include: {
-        community: { select: { name: true, description: true, keywords: true, image_url: true } },
+        community: {
+          select: {
+            name: true,
+            description: true,
+            slug: true,
+            keywords: true,
+            image_url: true,
+            CommunityMember: { select: { id: true, role: true, user: { select: { id: true, name: true } } } },
+          },
+        },
         attestation: { select: { protected: true, verified_image_url: true } },
         attestationVersion: { select: { name: true, description: true, image_url: true } },
         node: { select: { ownerId: true } },
@@ -1343,13 +1352,13 @@ export class AttestationService {
       to: member.user.email,
       from: 'no-reply@desci.com',
       subject: `[nodes.desci.com] ${versionedAttestation.name} claimed on DPID://${nodeDpid}/v${nodeVersion + 1}`,
-      text: `${user.name} just claimed ${versionedAttestation.name} on ${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}/attestations/${nodeAttestation.id}`,
+      text: `${user.name} just claimed ${versionedAttestation.name} on ${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}/badges`,
       html: AttestationClaimedEmailHtml({
         dpid: nodeDpid,
         attestationName: versionedAttestation.name,
         communityName: versionedAttestation.name,
         userName: user.name,
-        dpidPath: `${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}/attestations/${nodeAttestation.id}`,
+        dpidPath: `${process.env.DAPP_URL}/dpid/${nodeDpid}/v${nodeVersion + 1}/badges`,
       }),
     }));
 

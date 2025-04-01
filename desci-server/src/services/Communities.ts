@@ -5,10 +5,12 @@ import {
   NodeAttestation,
   NodeFeedItem,
   Prisma,
+  Submissionstatus,
 } from '@prisma/client';
 import _, { includes } from 'lodash';
 
 import { prisma } from '../client.js';
+import { ForbiddenError } from '../core/ApiError.js';
 import { DuplicateDataError } from '../core/communities/error.js';
 import { logger } from '../logger.js';
 
@@ -118,7 +120,12 @@ export class CommunityService {
   }
 
   async findCommunityByNameOrSlug(name: string) {
-    return prisma.desciCommunity.findFirst({ where: { OR: [{ name }, { slug: name }] } });
+    return prisma.desciCommunity.findFirst({
+      where: { OR: [{ name }, { slug: name }] },
+      include: {
+        CommunityMember: { select: { id: true, role: true, userId: true, user: { select: { name: true } } } },
+      },
+    });
   }
 
   async updateCommunity(name: string, community: Prisma.DesciCommunityUpdateInput) {
@@ -853,6 +860,148 @@ export class CommunityService {
         id: entry.id,
       },
     });
+  }
+
+  async createSubmission({ communityId, nodeId, userId }: { nodeId: string; communityId: number; userId: number }) {
+    const nodeVersion = await prisma.nodeVersion.count({
+      where: { node: { uuid: nodeId }, OR: [{ transactionId: { not: null } }, { commitId: { not: null } }] },
+    });
+
+    const exisiting = await this.getUserSubmissionById({ communityId, userId, nodeId });
+
+    if (exisiting && exisiting.nodeVersion === nodeVersion) {
+      throw new ForbiddenError('This version of your submission already exists, publish a new version to resubmit');
+    }
+
+    if (exisiting && exisiting.status === Submissionstatus.REJECTED) {
+      return await prisma.communitySubmission.update({
+        where: { id: exisiting.id },
+        data: {
+          status: Submissionstatus.PENDING,
+          nodeVersion,
+          rejectedAt: null,
+          rejectionReason: null,
+        },
+        select: {
+          id: true,
+          status: true,
+          userId: true,
+          nodeId: true,
+          communityId: true,
+          nodeVersion: true,
+          node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+          community: { select: { id: true, name: true, image_url: true } },
+        },
+      });
+    } else if (exisiting && exisiting.status !== Submissionstatus.REJECTED) {
+      throw new DuplicateDataError('Submission already exits');
+    }
+
+    if (nodeVersion === 0) throw new ForbiddenError('Only published nodes can be submitted.');
+    return await prisma.communitySubmission.create({
+      data: {
+        nodeId,
+        userId,
+        communityId,
+        nodeVersion,
+        status: Submissionstatus.PENDING,
+      },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+        nodeId: true,
+        communityId: true,
+        nodeVersion: true,
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        community: { select: { id: true, name: true, image_url: true } },
+      },
+    });
+  }
+  async getCommunitySubmissions({ communityId, status }: { communityId: number; status?: Submissionstatus }) {
+    return await prisma.communitySubmission.findMany({
+      where: {
+        communityId: Number(communityId),
+        ...(status && { status: status as Submissionstatus }),
+      },
+      include: {
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        // community: { select: { id: true, name: true, image_url: true, description: true } },
+      },
+    });
+  }
+  async getUserSubmissions(userId: number, status?: Submissionstatus) {
+    return await prisma.communitySubmission.findMany({
+      where: {
+        node: {
+          ownerId: userId,
+        },
+        ...(status && { status: status as Submissionstatus }),
+      },
+      include: {
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        community: { select: { id: true, name: true, image_url: true, description: true } },
+      },
+    });
+  }
+  async getUserSubmissionById({
+    userId,
+    nodeId,
+    communityId,
+  }: {
+    userId: number;
+    communityId: number;
+    nodeId: string;
+  }) {
+    return await prisma.communitySubmission.findFirst({
+      where: {
+        node: {
+          ownerId: userId,
+          uuid: nodeId,
+        },
+        communityId,
+        // ...(status && { status: status as Submissionstatus }),
+      },
+      include: {
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        community: { select: { id: true, name: true, image_url: true, description: true } },
+      },
+    });
+  }
+
+  async getPendingUserSubmissionById(userId: number, submissionId: number) {
+    return await prisma.communitySubmission.findFirst({
+      where: { id: submissionId, userId, status: Submissionstatus.PENDING },
+      select: { id: true },
+    });
+  }
+
+  async updateSubmissionStatus(id: number, status: Submissionstatus, rejectionReason?: string) {
+    return await prisma.communitySubmission.update({
+      where: { id },
+      data: {
+        status: status as Submissionstatus,
+        ...(status === 'ACCEPTED' ? { acceptedAt: new Date() } : {}),
+        ...(status === 'REJECTED' ? { rejectedAt: new Date(), rejectionReason } : {}),
+      },
+      include: {
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        community: { select: { id: true, name: true, image_url: true } },
+      },
+    });
+  }
+  async getSubmission(submissionId: number) {
+    return prisma.communitySubmission.findUnique({
+      where: { id: submissionId },
+      include: {
+        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        community: { select: { id: true, name: true, image_url: true, description: true } },
+      },
+    });
+  }
+
+  async deleteSubmission(id: number) {
+    return prisma.communitySubmission.delete({ where: { id } });
   }
 }
 

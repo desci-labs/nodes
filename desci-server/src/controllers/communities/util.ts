@@ -88,6 +88,7 @@ export const getCommunityNodeDetails = async (
       title: true,
       NodeCover: true,
       dpidAlias: true,
+      manifestDocumentId: true,
     },
   });
 

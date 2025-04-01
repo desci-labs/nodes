@@ -22,7 +22,7 @@ import {
 } from 'date-fn-latest';
 import { Request, Response } from 'express';
 import _ from 'lodash';
-import zod from 'zod';
+import zod, { z } from 'zod';
 
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
@@ -38,10 +38,13 @@ import {
   getCountActiveOrcidUsersInXDays,
   getCountActiveUsersInMonth,
   getCountActiveUsersInXDays,
+  getDownloadedBytesInRange,
+  getDownloadedBytesInXDays,
   getNodeViewsInMonth,
   getNodeViewsInRange,
   getNodeViewsInXDays,
 } from '../../services/interactionLog.js';
+import { countPublishedNodesInRange, getPublishedNodesInRange } from '../../services/node.js';
 import {
   getCountNewNodesInXDays,
   getBytesInXDays,
@@ -75,6 +78,8 @@ interface DataRow {
   newNodes: number;
   nodeViews: number;
   bytesUploaded: string;
+  bytesDownloaded: string;
+  publishedNodes: number;
 }
 interface AnalyticsData {
   date: Date | string;
@@ -85,6 +90,8 @@ interface AnalyticsData {
   newNodes: number;
   nodeViews: number;
   bytes: number;
+  publishedNodes: number;
+  downloadedBytes: number;
 }
 
 // create a csv with the following fields for each month
@@ -110,6 +117,7 @@ export const createCsv = async (req: Request, res: Response) => {
       newNodes: number;
       nodeViews: number;
       bytesUploaded: number;
+      publishedNodes: number;
     }
     const data: DataRow[] = [];
     while (monthsCovered <= 12) {
@@ -120,6 +128,10 @@ export const createCsv = async (req: Request, res: Response) => {
       const newNodes = await getCountNewNodesInMonth(curMonth, curYear);
       const nodeViews = await getNodeViewsInMonth(curMonth, curYear);
       const bytesUploaded = await getBytesInMonth(curMonth, curYear);
+      const publishedNodes = await countPublishedNodesInRange({
+        from: new Date(curYear, curMonth, 1),
+        to: new Date(curYear, curMonth + 1, 1),
+      });
 
       data.push({
         month: (curMonth + 1).toString(),
@@ -131,6 +143,7 @@ export const createCsv = async (req: Request, res: Response) => {
         newNodes,
         nodeViews,
         bytesUploaded,
+        publishedNodes,
       });
       curMonth++;
       if (curMonth > 11) {
@@ -142,7 +155,7 @@ export const createCsv = async (req: Request, res: Response) => {
     // export data to csv
 
     const csv = [
-      'month,year,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,bytesUploaded',
+      'month,year,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded',
       ...data
         .reverse()
         .map((row) =>
@@ -155,6 +168,7 @@ export const createCsv = async (req: Request, res: Response) => {
             row.activeOrcidUsers,
             row.newNodes,
             row.nodeViews,
+            row.publishedNodes,
             row.bytesUploaded,
           ].join(','),
         ),
@@ -200,15 +214,32 @@ export const getAnalytics = async (req: Request, res: Response) => {
     const activeOrcidUsersInLast7Days = await getCountActiveOrcidUsersInXDays(7);
     const activeOrcidUsersInLast30Days = await getCountActiveOrcidUsersInXDays(30);
 
-    logger.trace({ fn: 'getAnalytics' }, 'Fetching views');
     const nodeViewsToday = await getNodeViewsInXDays(1);
     const nodeViewsInLast7Days = await getNodeViewsInXDays(7);
     const nodeViewsInLast30Days = await getNodeViewsInXDays(30);
+
+    const publishedNodesToday = await countPublishedNodesInRange({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+    });
+    const publishedNodesInLast7Days = await countPublishedNodesInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 7)),
+    });
+    const publishedNodesInLast30Days = await countPublishedNodesInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 30)),
+    });
+    logger.trace({ fn: 'getAnalytics' }, 'Fetching views');
 
     logger.trace({ fn: 'getAnalytics' }, 'Fetching bytes');
     const bytesToday = await getBytesInXDays(1);
     const bytesInLast7Days = await getBytesInXDays(7);
     const bytesInLast30Days = await getBytesInXDays(30);
+
+    const downloadedBytesToday = await getDownloadedBytesInXDays(1);
+    const downloadedBytesInLast7Days = await getDownloadedBytesInXDays(7);
+    const downloadedBytesInLast30Days = await getDownloadedBytesInXDays(30);
 
     const analytics = {
       newUsersInLast30Days,
@@ -241,6 +272,14 @@ export const getAnalytics = async (req: Request, res: Response) => {
       allUsers,
       allOrcidUsers,
       allExternalUsers,
+
+      publishedNodesToday,
+      publishedNodesInLast7Days,
+      publishedNodesInLast30Days,
+
+      downloadedBytesToday,
+      downloadedBytesInLast7Days,
+      downloadedBytesInLast30Days,
     };
 
     logger.info({ fn: 'getAnalytics', analytics }, 'getAnalytics returning');
@@ -265,7 +304,17 @@ export const analyticsChartSchema = zod.object({
 
 async function aggregateAnalytics(from: Date, to: Date) {
   const start = Date.now();
-  const [newUsers, newOrcidUsers, activeUsers, activeOrcidUsers, newNodes, nodeViews, bytes] = await Promise.all([
+  const [
+    newUsers,
+    newOrcidUsers,
+    activeUsers,
+    activeOrcidUsers,
+    newNodes,
+    nodeViews,
+    bytes,
+    publishedNodes,
+    downloadedBytes,
+  ] = await Promise.all([
     getNewUsersInRange({ from, to }),
     getNewOrcidUsersInRange({ from, to }),
     getActiveUsersInRange({ from, to }),
@@ -273,9 +322,21 @@ async function aggregateAnalytics(from: Date, to: Date) {
     getNewNodesInRange({ from, to }),
     getNodeViewsInRange({ from, to }),
     getBytesInRange({ from, to }),
+    getPublishedNodesInRange({ from, to }),
+    getDownloadedBytesInRange({ from, to }),
   ]);
   logger.trace({ duration: formatDistanceToNow(start), delta: Date.now() - start }, 'END: aggregateAnalytics');
-  return { newUsers, newOrcidUsers, activeUsers, activeOrcidUsers, newNodes, nodeViews, bytes };
+  return {
+    newUsers,
+    newOrcidUsers,
+    activeUsers,
+    activeOrcidUsers,
+    newNodes,
+    nodeViews,
+    bytes,
+    publishedNodes,
+    downloadedBytes,
+  };
 }
 
 export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response) => {
@@ -290,19 +351,28 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
 
   const diffInDays = differenceInDays(new Date(to), new Date(from));
   const startDate = subDays(new Date(from), diffInDays);
-  const endDate = to;
+  const endDate = endOfDay(new Date(to));
   logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, startDate, endDate }, 'getAggregatedAnalytics');
 
-  const selectedDates = { from: startOfDay(startDate), to: startOfDay(new Date(to)) };
-  const selectedDatesInterval = interval(from, to);
+  const selectedDates = { from: startOfDay(startDate), to: endDate };
+  const selectedDatesInterval = interval(from, endDate);
 
   const cacheKey = `aggregateAnalytics-${startOfDay(from).toDateString()}-${endOfDay(selectedDates.to).toDateString()}-${timeInterval}`;
   logger.trace({ cacheKey }, 'GET: CACHE KEY');
-  let aggregatedData = await getFromCache<AnalyticsData[]>(cacheKey);
+  let aggregatedData = null; // await getFromCache<AnalyticsData[]>(cacheKey);
 
   if (!aggregatedData) {
-    const { bytes, nodeViews, newNodes, newUsers, activeUsers, newOrcidUsers, activeOrcidUsers } =
-      await aggregateAnalytics(selectedDates.from, selectedDates.to);
+    const {
+      bytes,
+      nodeViews,
+      newNodes,
+      newUsers,
+      activeUsers,
+      newOrcidUsers,
+      activeOrcidUsers,
+      publishedNodes,
+      downloadedBytes,
+    } = await aggregateAnalytics(selectedDates.from, selectedDates.to);
 
     const getIntervals = () => {
       switch (timeInterval) {
@@ -351,6 +421,12 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
       const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const bytesAgg = bytes.filter((byte) => isWithinInterval(byte.createdAt, selectedDatesInterval));
+      const downloadedBytesAgg = downloadedBytes.filter((byte) =>
+        isWithinInterval(byte.createdAt, selectedDatesInterval),
+      );
+      const publishedNodesAgg = publishedNodes.filter((node) =>
+        isWithinInterval(node.createdAt, selectedDatesInterval),
+      );
 
       return {
         date: period,
@@ -360,7 +436,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
         activeOrcidUsers: activeOrcidUsersAgg.length,
         nodeViews: nodeViewsAgg.length,
         newNodes: newNodesAgg.length,
+        publishedNodes: publishedNodesAgg.length,
         bytes: bytesAgg.reduce((total, byte) => total + byte.size, 0),
+        downloadedBytes: downloadedBytesAgg.reduce((total, byte) => total + byte.size, 0),
       };
     });
 
@@ -391,7 +469,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
     query: { from, to, interval: timeInterval },
   } = req as zod.infer<typeof analyticsChartSchema>;
 
-  const selectedDates = { from: startOfDay(from), to: startOfDay(new Date(to)) };
+  const selectedDates = { from: startOfDay(from), to: endOfDay(new Date(to)) };
 
   const getIntervals = () => {
     switch (timeInterval) {
@@ -440,14 +518,23 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
     logger.trace('PULL FROM Database');
     const diffInDays = differenceInDays(new Date(to), new Date(from));
     const startDate = new Date(from); // subDays(new Date(from), diffInDays);
-    const endDate = to;
+    const endDate = endOfDay(new Date(to));
     logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, startDate, endDate }, 'Fetching new users');
 
     // todo: make calls parallel
     logger.trace({ fn: 'getAggregatedAnalytics' }, 'Fetching active users');
 
-    const { bytes, nodeViews, newNodes, newUsers, activeUsers, newOrcidUsers, activeOrcidUsers } =
-      await aggregateAnalytics(selectedDates.from, selectedDates.to);
+    const {
+      bytes,
+      nodeViews,
+      newNodes,
+      newUsers,
+      activeUsers,
+      newOrcidUsers,
+      activeOrcidUsers,
+      publishedNodes,
+      downloadedBytes,
+    } = await aggregateAnalytics(selectedDates.from, selectedDates.to);
 
     aggregatedData = allDatesInInterval.map((period) => {
       const selectedDatesInterval =
@@ -469,7 +556,13 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
       );
       const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
+      const publishedNodesAgg = publishedNodes.filter((node) =>
+        isWithinInterval(node.createdAt, selectedDatesInterval),
+      );
       const bytesAgg = bytes.filter((byte) => isWithinInterval(byte.createdAt, selectedDatesInterval));
+      const downloadedBytesAgg = downloadedBytes.filter((byte) =>
+        isWithinInterval(byte.createdAt, selectedDatesInterval),
+      );
       return {
         date:
           timeInterval === 'yearly'
@@ -483,7 +576,11 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
         activeOrcidUsers: activeOrcidUsersAgg.length,
         nodeViews: nodeViewsAgg.length,
         newNodes: newNodesAgg.length,
+        publishedNodes: publishedNodesAgg.length,
         bytesUploaded: byteValueNumberFormatter.format(bytesAgg.reduce((total, byte) => total + byte.size, 0)),
+        bytesDownloaded: byteValueNumberFormatter.format(
+          downloadedBytesAgg.reduce((total, byte) => total + byte.size, 0),
+        ),
       };
     });
   } else {
@@ -499,11 +596,12 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
               ? formatDate(data.date, 'MMM yyyy')
               : formatDate(data.date, 'dd MMM yyyy'),
         bytesUploaded: byteValueNumberFormatter.format(data.bytes),
+        bytesDownloaded: byteValueNumberFormatter.format(data.downloadedBytes),
       }));
   }
 
   const csv = [
-    'date,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,bytesUploaded',
+    'date,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded,bytesDownloaded',
     ...aggregatedData
       .reverse()
       .map((row) =>
@@ -515,7 +613,9 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
           row.activeOrcidUsers,
           row.newNodes,
           row.nodeViews,
+          row.publishedNodes,
           row.bytesUploaded,
+          row.bytesDownloaded,
         ].join(','),
       ),
   ].join('\n');
@@ -531,30 +631,62 @@ export const userAnalyticsSchema = zod.object({
   query: zod.object({
     unit: zod.union([zod.literal('days'), zod.literal('weeks')]),
     value: zod.string(),
+    exportCsv: zod.coerce.boolean().optional().default(false),
   }),
 });
 
+interface UserDataRow {
+  // userId: number;
+  email: string;
+  orcid: string;
+  publications: number;
+  dateJoined: string | number;
+}
+
 export const getNewUserAnalytics = async (req: Request, res: Response) => {
   const query = req.query;
-  const { unit, value } = query as { unit: 'days'; value: string };
+  const { unit, value, exportCsv } = query as z.infer<typeof userAnalyticsSchema>['query'];
 
   const daysAgo = parseInt(value, 10);
 
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
   const users = await getNewUsersInXDays(dateXDaysAgo);
   const data = await asyncMap(users, async (user) => {
-    if (!user.orcid) return user;
+    if (!user.orcid) return { ...user, publications: 0, dateJoined: '' };
     const { profile, works } = await crossRefClient.profileSummary(user.orcid);
     return { ...user, publications: works?.group?.length, dateJoined: profile?.history?.['submission-date'].value };
   });
 
-  new SuccessResponse(data).send(res);
+  logger.trace({ exportCsv }, 'getNewUserAnalytics');
+  if (exportCsv) {
+    const rows: UserDataRow[] = data.map((data) => ({
+      email: data.email,
+      orcid: data.orcid,
+      dateJoined: data.dateJoined,
+      publications: data.publications,
+    }));
+    logger.trace({ rows, data }, 'getNewUserAnalytics');
+    const csv = [
+      'id,email,orcid,publications,dateJoined',
+      ...rows.map((row, idx) =>
+        [idx, row.email, row.orcid ?? '', row.publications, formatDate(new Date(row.dateJoined), 'dd MMM yyyy')].join(
+          ',',
+        ),
+      ),
+    ].join('\n');
+    logger.trace({ csv }, 'getNewUserAnalytics');
+    res.setHeader('Content-disposition', 'attachment; filename=analytics.csv');
+    res.set('Content-Type', 'text/csv');
+    res.status(200).send(csv);
+  } else {
+    new SuccessResponse(data).send(res);
+  }
 };
 
 export const getNewOrcidUserAnalytics = async (req: Request, res: Response) => {
   // const userAnalyticsSchema = zod.object({ unit: zod.string(), value: zod.string() })
   const query = req.query;
-  const { unit, value } = query as { unit: 'days'; value: string };
+  const { unit, value } = query as z.infer<typeof userAnalyticsSchema>['query'];
 
   const daysAgo = parseInt(value, 10);
 
@@ -570,19 +702,40 @@ export const getNewOrcidUserAnalytics = async (req: Request, res: Response) => {
 };
 
 export const getActiveUserAnalytics = async (req: Request, res: Response) => {
-  const { unit, value } = req.query as { unit: 'days'; value: string };
+  const { unit, value, exportCsv } = req.query as z.infer<typeof userAnalyticsSchema>['query'];
 
   const daysAgo = parseInt(value, 10);
   const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
 
   const rows = await getActiveUsersInXDays(dateXDaysAgo);
-  logger.trace({ rows }, 'getActiveUserAnalytics');
+
   const data = await asyncMap(rows, async (log) => {
-    if (!log.user.orcid) return log.user;
+    if (!log.user.orcid) return { ...log.user, publications: 0, dateJoined: '' };
     const { profile, works } = await crossRefClient.profileSummary(log.user.orcid);
     return { ...log.user, publications: works?.group?.length, dateJoined: profile?.history?.['submission-date'].value };
   });
-  new SuccessResponse(data).send(res);
+
+  if (exportCsv) {
+    const rows: UserDataRow[] = data.map((data) => ({
+      email: data.email,
+      orcid: data.orcid,
+      dateJoined: data.dateJoined,
+      publications: data.publications,
+    }));
+    const csv = [
+      'id,email,orcid,publications,dateJoined',
+      ...rows.map((row, idx) =>
+        [idx, row.email, row.orcid ?? '', row.publications, formatDate(new Date(row.dateJoined), 'dd MMM yyyy')].join(
+          ',',
+        ),
+      ),
+    ].join('\n');
+    res.setHeader('Content-disposition', 'attachment; filename=analytics.csv');
+    res.set('Content-Type', 'text/csv');
+    res.status(200).send(csv);
+  } else {
+    new SuccessResponse(data).send(res);
+  }
 };
 
 export const getActiveOrcidUserAnalytics = async (req: Request, res: Response) => {

@@ -57,6 +57,8 @@ model Node {
   ExternalPublications ExternalPublications[]
   CommunityRadarEntry  CommunityRadarEntry[]
   NodeLike             NodeLike[]
+  CommunitySubmission  CommunitySubmission[]
+  PublishedWallet      PublishedWallet[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -143,6 +145,25 @@ model Wallet {
   @@index([userId])
 }
 
+// This table is used to store the public key of the wallet that was used to publish a node,
+// it does not focus on associated wallets, just any wallet that was used to publish a node,
+// to help users figure out which method they used to publish a node in the past.
+model PublishedWallet {
+  id        Int            @id @default(autoincrement())
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  pubKey    String
+  userId    Int
+  nodeUuid  String
+  provider  WalletProvider
+  user      User           @relation(fields: [userId], references: [id])
+  node      Node           @relation(fields: [nodeUuid], references: [uuid])
+
+  @@unique([pubKey, nodeUuid, provider])
+  @@index([userId])
+  @@index([nodeUuid])
+}
+
 model User {
   id                          Int                           @id @default(autoincrement())
   createdAt                   DateTime                      @default(now())
@@ -210,6 +231,8 @@ model User {
   UserNotifications           UserNotifications[]
   CommentVote                 CommentVote[]
   NodeLike                    NodeLike[]
+  CommunitySubmission         CommunitySubmission[]
+  PublishedWallet             PublishedWallet[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -363,7 +386,7 @@ model OauthApplication {
 }
 
 model UserIdentity {
-  id        String   @id
+  id        String   @id @default(uuid())
   userId    Int
   provider  String
   uid       String
@@ -704,6 +727,7 @@ model DesciCommunity {
   AttestationTemplate       AttestationTemplate[]
   CommunityEntryAttestation CommunityEntryAttestation[]
   CommunityRadarEntry       CommunityRadarEntry[]
+  CommunitySubmission       CommunitySubmission[]
 }
 
 model CommunityMember {
@@ -825,6 +849,25 @@ model CommunityRadarEntry {
   @@unique([nodeUuid, desciCommunityId])
 }
 
+model CommunitySubmission {
+  id              Int              @id @default(autoincrement())
+  communityId     Int
+  community       DesciCommunity   @relation(fields: [communityId], references: [id])
+  nodeId          String
+  node            Node             @relation(fields: [nodeId], references: [uuid])
+  nodeVersion     Int?
+  userId          Int
+  user            User             @relation(fields: [userId], references: [id])
+  status          Submissionstatus @default(PENDING)
+  rejectionReason String?
+  acceptedAt      DateTime?
+  rejectedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([nodeId, communityId])
+}
+
 // Deferred emails are usually used when a published node is required, e.g. unpublished attestation claims, emails are deferred until node is published.
 model DeferredEmails {
   id                   Int                 @id @default(autoincrement())
@@ -944,6 +987,7 @@ model DoiSubmissionQueue {
   doi          DoiRecord? @relation(fields: [doiRecordId], references: [id])
   notification Json?
   status       DoiStatus  @default(PENDING)
+  attempts     Int?       @default(0)
   uniqueDoi    String     @unique
   uuid         String
   node         Node       @relation(fields: [uuid], references: [uuid])
@@ -1042,6 +1086,12 @@ enum ORCIDRecord {
   QUALIFICATION
   EDUCATION
   EMPLOYMENT
+}
+
+enum WalletProvider {
+  GOOGLE
+  ORCID
+  DID
 }
 
 enum PutcodeReference {
@@ -1174,4 +1224,10 @@ enum BookmarkType {
   NODE
   DOI
   OA
+}
+
+enum Submissionstatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
