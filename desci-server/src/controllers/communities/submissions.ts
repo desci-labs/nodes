@@ -55,7 +55,7 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
   // Check if user is a member of the community
   const isMember = await prisma.communityMember.findFirst({
     where: {
-      userId: req.user.id,
+      userId: req?.user?.id,
       communityId: Number(communityId),
     },
   });
