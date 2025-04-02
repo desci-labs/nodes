@@ -9,7 +9,7 @@ import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
-import { logger as parentLogger } from '../logger.js';
+import { logger, logger as parentLogger } from '../logger.js';
 import { DEFAULT_TTL, getFromCache, getOrCache, ONE_WEEK_TTL, setToCache } from '../redisClient.js';
 import { hexToCid, isCid } from '../utils.js';
 
@@ -78,17 +78,22 @@ export const cachedGetDpidByUuid = async (uuid: string) => {
 
   const node = await prisma.node.findFirst({
     where: { uuid },
-    select: { cid: true, manifestDocumentId: true, dpidAlias: true },
+    select: { manifestUrl: true, manifestDocumentId: true, dpidAlias: true },
   });
 
   const fnGetDpidFromManifest = async (cid: string) => {
+    logger.trace({ cid }, 'fnGetDpidFromManifest');
     const manifest = (await resolveNodeManifest(cid, gateway)) as ResearchObjectV1;
     return manifest.dpid ? parseInt(manifest.dpid.id) : -1;
   };
 
   if (node.dpidAlias) return node.dpidAlias;
 
-  const manifestDpid = await getOrCache<number>(`manifest-dpid-${node.cid}`, fnGetDpidFromManifest.bind(node.cid));
+  logger.trace({ node }, 'fnGetDpidFromManifest');
+  const manifestDpid = await getOrCache<number>(
+    `manifest-dpid-${node.manifestUrl}`,
+    fnGetDpidFromManifest.bind(null, node.manifestUrl),
+  );
   if (manifestDpid === -1) {
     return undefined;
   } else {

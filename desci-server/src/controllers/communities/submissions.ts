@@ -62,6 +62,7 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
       })
     : false;
 
+  logger.trace({ isMember }, 'isMember');
   // Get submissions
   const submissions = await communityService.getCommunitySubmissions({
     communityId: Number(communityId),
