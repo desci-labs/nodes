@@ -15,6 +15,7 @@ import { checkMemberGuard } from '../../../controllers/communities/guard.js';
 import { listCommunities } from '../../../controllers/communities/list.js';
 import { getCommunityRadar, listCommunityRadar } from '../../../controllers/communities/radar.js';
 import { getCommunitySubmissions } from '../../../controllers/communities/submissions.js';
+import { attachUser } from '../../../middleware/attachUser.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 import { validate } from '../../../middleware/validator.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
@@ -26,7 +27,6 @@ import {
   memberGuardSchema,
 } from './schema.js';
 import { getCommunitySubmissionsSchema } from './submissions-schema.js';
-import submissionsRouter from './submissions.js';
 
 const router = Router();
 
@@ -56,7 +56,7 @@ router.post('/:communityId/memberGuard', [ensureUser, validate(memberGuardSchema
 
 router.get(
   '/:communityId/submissions',
-  [ensureUser, validate(getCommunitySubmissionsSchema)],
+  [attachUser, validate(getCommunitySubmissionsSchema)],
   asyncHandler(getCommunitySubmissions),
 );
 
