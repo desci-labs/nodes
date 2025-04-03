@@ -12,7 +12,6 @@ import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { setToCache } from '../../redisClient.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import {
   addBufferToIpfs,

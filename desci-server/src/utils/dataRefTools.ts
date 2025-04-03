@@ -102,7 +102,9 @@ export async function generateDataReferences({
     if (markExternals) {
       dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
     } else {
-      dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, true));
+      dataTree = recursiveFlattenTree(
+        await getDirectoryTree(dataBucketCid, externalCidMap, { returnFiles: true, returnExternalFiles: true }),
+      );
     }
   } else {
     const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
@@ -171,7 +173,9 @@ export async function prepareDataRefs(
   };
 
   const externalCidMap = { ...(await generateExternalCidMap(node.uuid)), ...externalCidMapConcat };
-  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
+  let dataTree = recursiveFlattenTree(
+    await getDirectoryTree(dataBucketCid, externalCidMap, { returnFiles: true, returnExternalFiles: false }),
+  );
   if (markExternals) {
     dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
   }
@@ -264,7 +268,7 @@ export async function prepareDataRefsForDagSkeleton({
   };
 
   const externalCidMap = { ...(await generateExternalCidMap(node.uuid)) };
-  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, false);
+  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, { returnFiles: false });
 
   const dataTree = recursiveFlattenTree(tree).filter((entry) => entry.type === FileType.DIR);
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
@@ -322,7 +326,7 @@ export async function prepareDataRefsExternalCids(
   };
 
   const externalCidMap = { ...(await generateExternalCidMap(node.uuid)), ...externalCidMapConcat };
-  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, false);
+  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, { returnFiles: false });
   let dataTree;
 
   if (markExternals) {

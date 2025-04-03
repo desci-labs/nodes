@@ -119,7 +119,7 @@ describe('IPFS', () => {
         },
       ];
 
-      const uploaded: ipfs.IpfsPinnedResult[] = await ipfs.pinDirectory(structuredFiles, true);
+      const uploaded: ipfs.IpfsPinnedResult[] = await ipfs.pinDirectory(structuredFiles, { wrapWithDirectory: true });
       rootCid = uploaded[uploaded.length - 1].cid;
 
       const newFiles = await ipfs.pinDirectory([{ path: 'd.txt', content: Buffer.from('D') }]);

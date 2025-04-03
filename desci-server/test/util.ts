@@ -41,7 +41,7 @@ export const spawnExampleDirDag = async () => {
     },
   ];
 
-  const uploaded: IpfsPinnedResult[] = await pinDirectory(structuredFiles, true);
+  const uploaded: IpfsPinnedResult[] = await pinDirectory(structuredFiles, { wrapWithDirectory: true });
   const rootCid = uploaded[uploaded.length - 1].cid;
   return rootCid;
 };

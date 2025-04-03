@@ -1,5 +1,5 @@
 import fs from 'fs';
-import https from 'https';
+import https, { get } from 'https';
 import { Readable } from 'stream';
 
 import {
@@ -15,7 +15,7 @@ import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import axios from 'axios';
 import { UnixFS } from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
-import { create, CID, globSource } from 'kubo-rpc-client';
+import { create, CID, globSource, IPFSHTTPClient } from 'kubo-rpc-client';
 import { flatten, uniq } from 'lodash-es';
 import * as multiformats from 'multiformats';
 import { code as rawCode } from 'multiformats/codecs/raw';
@@ -49,13 +49,29 @@ const httpsAgent = new https.Agent({
 });
 
 // connect to a different API
-export const client = create({ url: process.env.IPFS_NODE_URL });
-export const readerClient = create({ url: PUBLIC_IPFS_PATH });
+export const client: IPFSHTTPClient = create({ url: process.env.IPFS_NODE_URL });
+export const readerClient: IPFSHTTPClient = create({ url: PUBLIC_IPFS_PATH });
 
-export const guestIpfsClient = create({ url: process.env.GUEST_IPFS_NODE_URL });
+export const guestIpfsClient: IPFSHTTPClient = create({ url: process.env.GUEST_IPFS_NODE_URL });
 
 export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0', options: { agent: httpsAgent } });
 
+export enum IPFS_NODE {
+  PRIVATE = 'private',
+  GUEST = 'guest',
+  PUBLIC = 'public',
+}
+
+export const getIpfsClient = (node: IPFS_NODE = IPFS_NODE.PRIVATE): IPFSHTTPClient => {
+  switch (node) {
+    case IPFS_NODE.PRIVATE:
+      return client;
+    case IPFS_NODE.GUEST:
+      return guestIpfsClient;
+    case IPFS_NODE.PUBLIC:
+      return readerClient;
+  }
+};
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
 const INTERNAL_IPFS_TIMEOUT = 30_000;
 // We mostly fetch single blocks, so this does not limit transfers
@@ -63,9 +79,9 @@ const EXTERNAL_IPFS_TIMEOUT = 30_000;
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
-  { userId, nodeId }: { userId: number; nodeId: number },
+  { userId, nodeId, ipfsNode }: { userId: number; nodeId: number; ipfsNode?: IPFS_NODE },
 ): Promise<{ cid: string; size: number; ref: DataReference; nodeVersion: NodeVersion }> => {
-  const result = await addBufferToIpfs(createManifest(manifest), '');
+  const result = await addBufferToIpfs(createManifest(manifest), '', ipfsNode);
   const version = await prisma.nodeVersion.create({
     data: {
       manifestUrl: result.cid,
@@ -96,8 +112,9 @@ export const updateManifestAndAddToIpfs = async (
 export const addBufferToIpfs = async (
   buf: Buffer,
   key: string,
+  node?: IPFS_NODE,
 ): Promise<{ cid: string; size: number; key: string }> => {
-  const { cid, size } = await client.add(buf, { cidVersion: 1 });
+  const { cid, size } = await getIpfsClient(node).add(buf, { cidVersion: 1 });
   return { cid: cid.toString(), size: Number(size), key };
 };
 
@@ -197,12 +214,12 @@ const processUrls = (key: string, data: Array<string>): Array<Promise<UrlWithCid
   });
 };
 
-export const downloadFile = async (url: string, key: string): Promise<UrlWithCid> => {
+export const downloadFile = async (url: string, key: string, ipfsNode?: IPFS_NODE): Promise<UrlWithCid> => {
   logger.trace({ fn: 'downloadFile' }, 'createDraft::downloadFile', url.substring(0, 256), key);
 
   if (url.indexOf('data:') === 0) {
     const buf = Buffer.from(url.split(',')[1], 'base64');
-    return addBufferToIpfs(buf, key);
+    return addBufferToIpfs(buf, key, ipfsNode);
   }
 
   return new Promise(async (resolve, _reject) => {
@@ -220,7 +237,7 @@ export const downloadFile = async (url: string, key: string): Promise<UrlWithCid
       });
       logger.info({ fn: 'downloadFile' }, `finish download ${url.substring(0, 256)}`);
 
-      resolve(addBufferToIpfs(data, key));
+      resolve(addBufferToIpfs(data, key, ipfsNode));
     } catch (err) {
       logger.error({ fn: 'downloadFile', err }, 'got error');
       logger.info({ fn: 'downloadFile' }, `try with playwright ${url.substring(0, 256)}`);
@@ -274,20 +291,35 @@ export interface IpfsPinnedResult {
 
 export const pinDirectory = async (
   files: IpfsDirStructuredInput[],
-  wrapWithDirectory = false,
+  options?: {
+    wrapWithDirectory?: boolean;
+    node?: IPFS_NODE;
+  },
 ): Promise<IpfsPinnedResult[]> => {
-  const isOnline = await client.isOnline();
+  options = {
+    // Set defaults
+    wrapWithDirectory: false,
+    node: IPFS_NODE.PRIVATE,
+    ...options,
+  };
+  const isOnline = await getIpfsClient(options.node).isOnline();
   logger.debug({ fn: 'pinDirectory' }, `isOnline: ${isOnline}`);
   //possibly check if uploaded with a root dir, omit the wrapping if there is a root dir
   const uploaded: IpfsPinnedResult[] = [];
-  const addAll = await client.addAll(files, { wrapWithDirectory: wrapWithDirectory, cidVersion: 1 });
+  const addAll = await getIpfsClient(options.node).addAll(files, {
+    wrapWithDirectory: options.wrapWithDirectory,
+    cidVersion: 1,
+  });
   for await (const file of addAll) {
     uploaded.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
   return uploaded;
 };
 
-export async function pinExternalDags(cids: string[]): Promise<string[]> {
+export async function pinExternalDags(
+  cids: string[],
+  { ipfsNode = IPFS_NODE.PRIVATE }: { ipfsNode?: IPFS_NODE },
+): Promise<string[]> {
   const result = [];
   let iterationCount = 0;
   for await (const cid of cids) {
@@ -296,7 +328,7 @@ export async function pinExternalDags(cids: string[]): Promise<string[]> {
     const cidType = multiformats.CID.parse(cid);
     const res = await getOrCache(`pin-block-${cid}`, async () => {
       const block = await publicIpfs.block.get(cidType);
-      const blockRes = await client.block.put(block);
+      const blockRes = await getIpfsClient(ipfsNode).block.put(block);
       return blockRes.toString();
     });
     result.push(res);
@@ -304,11 +336,14 @@ export async function pinExternalDags(cids: string[]): Promise<string[]> {
   return result;
 }
 
-export const pinFile = async (file: Buffer | Readable | ReadableStream): Promise<IpfsPinnedResult> => {
-  const isOnline = await client.isOnline();
+export const pinFile = async (
+  file: Buffer | Readable | ReadableStream,
+  { ipfsNode = IPFS_NODE.PRIVATE }: { ipfsNode?: IPFS_NODE },
+): Promise<IpfsPinnedResult> => {
+  const isOnline = await getIpfsClient(ipfsNode).isOnline();
   // debugger;
   logger.debug({ fn: 'pinFile' }, `isOnline: ${isOnline}`);
-  const uploadedFile = await client.add(file, { cidVersion: 1, pin: true });
+  const uploadedFile = await getIpfsClient(ipfsNode).add(file, { cidVersion: 1, pin: true });
   return { ...uploadedFile, cid: uploadedFile.cid.toString() };
 };
 
@@ -370,8 +405,12 @@ export const convertToCidV0 = (cid: string) => {
   return v0.toString();
 };
 
-export const getDirectoryTreeCids = async (cid: string, externalCidMap: ExternalCidMap): Promise<string[]> => {
-  const tree = await getDirectoryTree(cid, externalCidMap);
+export const getDirectoryTreeCids = async (
+  cid: string,
+  externalCidMap: ExternalCidMap,
+  ipfsNode = IPFS_NODE.PRIVATE,
+): Promise<string[]> => {
+  const tree = await getDirectoryTree(cid, externalCidMap, { ipfsNode });
   const recurse = (arr: RecursiveLsResult[]) => {
     return arr.flatMap((e) => {
       if (e && e.contains) {
@@ -395,10 +434,17 @@ export const nodeKeepFile = '.nodeKeep';
 export const getDirectoryTree = async (
   cid: string,
   externalCidMap: ExternalCidMap,
-  returnFiles = true,
-  returnExternalFiles = true,
+  {
+    returnFiles = true,
+    returnExternalFiles = true,
+    ipfsNode = IPFS_NODE.PRIVATE,
+  }: {
+    returnFiles?: boolean;
+    returnExternalFiles?: boolean;
+    ipfsNode?: IPFS_NODE;
+  } = {},
 ): Promise<RecursiveLsResult[]> => {
-  const isOnline = await client.isOnline();
+  const isOnline = await getIpfsClient(ipfsNode).isOnline();
   logger.info(
     { fn: 'getDirectoryTree', cid, returnFiles, returnExternalFiles },
     `[getDirectoryTree]retrieving tree for cid: ${cid}, ipfs online: ${isOnline}`,
@@ -413,20 +459,27 @@ export const getDirectoryTree = async (
   async function getTree() {
     if (Object.keys(externalCidMap).length === 0) {
       logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using standard ls, dagCid: ${cid}`);
-      return await recursiveLs(cid);
+      return await recursiveLs(cid, { ipfsNode });
     } else {
       logger.info({ fn: 'getDirectoryTree' }, `[getDirectoryTree] using mixed ls, dagCid: ${cid}`);
-      return await mixedLs(cid, externalCidMap, returnFiles, returnExternalFiles);
+      return await mixedLs(cid, externalCidMap, {
+        returnFiles,
+        returnExternalFiles,
+        ipfsNode,
+      });
     }
   }
 };
 
-export const recursiveLs = async (cid: string, carryPath?: string) => {
+export const recursiveLs = async (
+  cid: string,
+  { carryPath, ipfsNode = IPFS_NODE.PRIVATE }: { carryPath?: string; ipfsNode?: IPFS_NODE },
+) => {
   carryPath = carryPath || convertToCidV1(cid);
   const tree = [];
   const promises = [];
   try {
-    const lsOp = client.ls(cid, { timeout: INTERNAL_IPFS_TIMEOUT });
+    const lsOp = getIpfsClient(ipfsNode).ls(cid, { timeout: INTERNAL_IPFS_TIMEOUT });
 
     for await (const filedir of lsOp) {
       const promise = new Promise<void>(async (resolve, _reject) => {
@@ -441,7 +494,7 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
         if (filedir.type === 'file') tree.push({ ...res, cid: v1StrCid });
         if (filedir.type === 'dir') {
           res.cid = v1StrCid;
-          res.contains = await recursiveLs(res.cid, carryPath + '/' + res.name);
+          res.contains = await recursiveLs(res.cid, { carryPath: carryPath + '/' + res.name, ipfsNode });
           tree.push({ ...res, cid: v1StrCid });
         }
         resolve();
@@ -462,17 +515,26 @@ export const recursiveLs = async (cid: string, carryPath?: string) => {
 export async function mixedLs(
   dagCid: string,
   externalCidMap: ExternalCidMap,
-  returnFiles = true,
-  returnExternalFiles = true,
-  externalMode = false,
-  carryPath?: string,
+  {
+    returnFiles = true,
+    returnExternalFiles = true,
+    externalMode = false,
+    carryPath,
+    ipfsNode = IPFS_NODE.PRIVATE,
+  }: {
+    returnFiles?: boolean;
+    returnExternalFiles?: boolean;
+    externalMode?: boolean;
+    carryPath?: string;
+    ipfsNode?: IPFS_NODE;
+  },
 ) {
   carryPath = carryPath || convertToCidV1(dagCid);
   const tree: RecursiveLsResult[] = [];
   const cidObject = multiformats.CID.parse(dagCid);
   let block: Uint8Array;
   try {
-    block = await client.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT }); //instead of throwing, catch and print cid
+    block = await getIpfsClient(ipfsNode).block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT }); //instead of throwing, catch and print cid
   } catch (err) {
     logger.error(
       { fn: 'mixedLs', cid: dagCid, carryPath, err },
@@ -504,7 +566,7 @@ export async function mixedLs(
       } else {
         let linkBlock: Uint8Array;
         try {
-          linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT }); //instead of throwing, catch and print cid
+          linkBlock = await getIpfsClient(ipfsNode).block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT }); //instead of throwing, catch and print cid
         } catch (err) {
           logger.error(
             { fn: 'mixedLs', cid: linkCidObject.toString(), carryPath, err },
@@ -518,14 +580,13 @@ export async function mixedLs(
         if (isLinkDir) {
           result.size = 0;
           result.type = 'dir';
-          result.contains = (await mixedLs(
-            result.cid,
-            externalCidMap,
+          result.contains = (await mixedLs(result.cid, externalCidMap, {
             returnFiles,
             returnExternalFiles,
-            toggleExternalMode,
-            carryPath + '/' + result.name,
-          )) as RecursiveLsResult[];
+            externalMode: toggleExternalMode,
+            carryPath: carryPath + '/' + result.name,
+            ipfsNode,
+          })) as RecursiveLsResult[];
         } else {
           result.size = link.Tsize;
         }
@@ -573,13 +634,17 @@ export const pubRecursiveLs = async (cid: string, carryPath?: string) => {
 };
 
 // Used for recursively lsing a DAG without knowing if it contains public or private cids, slow and INEFFICIENT!
-export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap, carryPath?: string) {
+export async function discoveryLs(
+  dagCid: string,
+  externalCidMap: ExternalCidMap,
+  { carryPath, ipfsNode = IPFS_NODE.PRIVATE }: { carryPath?: string; ipfsNode?: IPFS_NODE } = {},
+) {
   console.log('extCidMap', externalCidMap);
   try {
     carryPath = carryPath || convertToCidV1(dagCid);
     const tree: RecursiveLsResult[] = [];
     const cidObject = multiformats.CID.parse(dagCid);
-    let block = await client.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+    let block = await getIpfsClient(ipfsNode).block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
     if (!block) {
       block = await publicIpfs.block.get(cidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
     }
@@ -609,7 +674,7 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
       if (linkCidObject.code === rawCode || isExternalFile) {
         result.size = link.Tsize;
       } else {
-        let linkBlock = await client.block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
+        let linkBlock = await getIpfsClient(ipfsNode).block.get(linkCidObject, { timeout: INTERNAL_IPFS_TIMEOUT });
         if (!linkBlock) {
           linkBlock = await publicIpfs.block.get(cidObject, { timeout: EXTERNAL_IPFS_TIMEOUT });
         }
@@ -623,11 +688,10 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
         if (isLinkDir) {
           result.size = 0;
           result.type = 'dir';
-          result.contains = (await discoveryLs(
-            result.cid,
-            externalCidMap,
-            carryPath + '/' + result.name,
-          )) as RecursiveLsResult[];
+          result.contains = (await discoveryLs(result.cid, externalCidMap, {
+            carryPath: carryPath + '/' + result.name,
+            ipfsNode,
+          })) as RecursiveLsResult[];
         } else {
           result.size = link.Tsize;
         }
@@ -641,30 +705,33 @@ export async function discoveryLs(dagCid: string, externalCidMap: ExternalCidMap
   }
 }
 
-export const getDag = async (cid: CID) => {
-  return await client.dag.get(cid);
+export const getDag = async (cid: CID, ipfsNode = IPFS_NODE.PRIVATE) => {
+  return await getIpfsClient(ipfsNode).dag.get(cid);
 };
 
-export const getDatasetTar = async (cid: CID | string): Promise<AsyncIterable<Uint8Array>> => {
-  return client.get(cid, { archive: true });
+export const getDatasetTar = async (
+  cid: CID | string,
+  ipfsNode = IPFS_NODE.PRIVATE,
+): Promise<AsyncIterable<Uint8Array>> => {
+  return getIpfsClient(ipfsNode).get(cid, { archive: true });
 };
 
-export const getDataset = async (cid: CID | string) => {
+export const getDataset = async (cid: CID | string, ipfsNode = IPFS_NODE.PRIVATE) => {
   const files = [];
-  for await (const file of client.get(cid)) {
+  for await (const file of getIpfsClient(ipfsNode).get(cid)) {
     files.push(file);
   }
 
   return files;
 };
 
-export const getFilesAndPaths = async (tree: RecursiveLsResult) => {
+export const getFilesAndPaths = async (tree: RecursiveLsResult, ipfsNode = IPFS_NODE.PRIVATE) => {
   const filesAndPaths: { path: string; content: Buffer }[] = [];
   if (!tree.contains) return filesAndPaths;
 
   const promises = tree?.contains.map(async (fd) => {
     if (fd.type === 'file') {
-      const buffer = Buffer.from(await toBuffer(client.cat(fd.cid)));
+      const buffer = Buffer.from(await toBuffer(getIpfsClient(ipfsNode).cat(fd.cid)));
       filesAndPaths.push({ path: fd.path, content: buffer });
     }
     if (fd.type === 'dir') {
@@ -675,9 +742,9 @@ export const getFilesAndPaths = async (tree: RecursiveLsResult) => {
   return filesAndPaths;
 };
 
-export const isDir = async (cid: CID): Promise<boolean> => {
+export const isDir = async (cid: CID, ipfsNode = IPFS_NODE.PRIVATE): Promise<boolean> => {
   try {
-    const files = await client.ls(cid);
+    const files = await getIpfsClient(ipfsNode).ls(cid);
 
     for await (const file of files) {
       if (file.type === 'dir') {
@@ -695,7 +762,12 @@ type FilePath = string;
 type FileInfo = { cid: string; size?: number };
 export type FilesToAddToDag = Record<FilePath, FileInfo>;
 
-export const addFilesToDag = async (rootCid: string, contextPath: string, filesToAddToDag: FilesToAddToDag) => {
+export const addFilesToDag = async (
+  rootCid: string,
+  contextPath: string,
+  filesToAddToDag: FilesToAddToDag,
+  ipfsNode = IPFS_NODE.PRIVATE,
+) => {
   const dagCidsToBeReset: CID[] = [];
   //                  CID(String): DAGNode     - cached to prevent duplicate calls
   const dagsLoaded: Record<string, PBNode> = {};
@@ -705,7 +777,7 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
     for (let i = 0; i < stagingDagNames.length; i++) {
       const dagLinkName = stagingDagNames[i];
       const containingDagCid = dagCidsToBeReset[i];
-      const containingDag: PBNode = await client.object.get(containingDagCid);
+      const containingDag: PBNode = await getIpfsClient(ipfsNode).object.get(containingDagCid);
       if (!containingDag) {
         throw Error('Failed updating dataset, existing DAG not found');
       }
@@ -720,16 +792,16 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
 
   //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
   if (!dagsLoaded.length) {
-    dagsLoaded[rootCid] = await client.object.get(dagCidsToBeReset[0]);
+    dagsLoaded[rootCid] = await getIpfsClient(ipfsNode).object.get(dagCidsToBeReset[0]);
   }
 
   //establishing the tail dag that's being updated
   const tailNodeCid = dagCidsToBeReset.pop();
   const tailNode = dagsLoaded[tailNodeCid.toString()]
     ? dagsLoaded[tailNodeCid.toString()]
-    : await client.object.get(tailNodeCid);
+    : await getIpfsClient(ipfsNode).object.get(tailNodeCid);
 
-  const updatedTailNodeCid = await addToDir(client, tailNodeCid.toString(), filesToAddToDag);
+  const updatedTailNodeCid = await addToDir(getIpfsClient(ipfsNode), tailNodeCid.toString(), filesToAddToDag);
   // oldToNewCidMap[tailNodeCid.toString()] = updatedTailNodeCid.toString();
   // const treehere = await getDirectoryTree(updatedTailNodeCid);
 
@@ -741,14 +813,14 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
     const currentNodeCid = dagCidsToBeReset.pop();
     const currentNode: PBNode = dagsLoaded[currentNodeCid.toString()]
       ? dagsLoaded[currentNodeCid.toString()]
-      : await client.object.get(currentNodeCid);
+      : await getIpfsClient(ipfsNode).object.get(currentNodeCid);
     const linkName = stagingDagNames.pop();
     const dagIdx = currentNode.Links.findIndex((dag) => dag.Name === linkName);
     if (dagIdx === -1) throw Error(`Failed to find DAG link: ${linkName}`);
     const oldCid = currentNode.Links[dagIdx].Hash;
     // const oldLinkRemovedCid = await client.object.patch.rmLink(currentNodeCid, currentNode.Links[dagIdx]);
     // lastUpdatedCid = await addToDir(client, oldLinkRemovedCid, { [linkName]: { cid: lastUpdatedCid } });
-    lastUpdatedCid = await updateDagCid(client, currentNodeCid, oldCid, lastUpdatedCid);
+    lastUpdatedCid = await updateDagCid(getIpfsClient(ipfsNode), currentNodeCid, oldCid, lastUpdatedCid);
     updatedDagCidMap[oldCid.toString()] = lastUpdatedCid.toString();
     // oldToNewCidMap[oldCid] = lastUpdatedCid.toString();
   }
@@ -760,7 +832,12 @@ export const addFilesToDag = async (rootCid: string, contextPath: string, filesT
   };
 };
 
-export const removeFileFromDag = async (rootCid: string, contextPath: string, fileNameToRemove: string) => {
+export const removeFileFromDag = async (
+  rootCid: string,
+  contextPath: string,
+  fileNameToRemove: string,
+  ipfsNode = IPFS_NODE.PRIVATE,
+) => {
   const dagCidsToBeReset: CID[] = [];
   //                  CID(String): DAGNode     - cached to prevent duplicate calls
   const dagsLoaded: Record<string, PBNode> = {};
@@ -770,7 +847,7 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
     for (let i = 0; i < stagingDagNames.length; i++) {
       const dagLinkName = stagingDagNames[i];
       const containingDagCid = dagCidsToBeReset[i];
-      const containingDag: PBNode = await client.object.get(containingDagCid);
+      const containingDag: PBNode = await getIpfsClient(ipfsNode).object.get(containingDagCid);
       if (!containingDag) {
         throw Error('Failed updating dataset, existing DAG not found');
       }
@@ -785,14 +862,14 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
 
   //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
   if (!dagsLoaded.length) {
-    dagsLoaded[rootCid] = await client.object.get(dagCidsToBeReset[0]);
+    dagsLoaded[rootCid] = await getIpfsClient(ipfsNode).object.get(dagCidsToBeReset[0]);
   }
 
   //establishing the tail dag that's being updated
   const tailNodeCid = dagCidsToBeReset.pop();
   const tailNode = dagsLoaded[tailNodeCid.toString()]
     ? dagsLoaded[tailNodeCid.toString()]
-    : await client.object.get(tailNodeCid);
+    : await getIpfsClient(ipfsNode).object.get(tailNodeCid);
 
   const { newDagCid: updatedTailNodeCid, removedLink } = await removeDagLink(tailNodeCid.toString(), fileNameToRemove);
 
@@ -803,19 +880,19 @@ export const removeFileFromDag = async (rootCid: string, contextPath: string, fi
     const currentNodeCid = dagCidsToBeReset.pop();
     const currentNode: PBNode = dagsLoaded[currentNodeCid.toString()]
       ? dagsLoaded[currentNodeCid.toString()]
-      : await client.object.get(currentNodeCid);
+      : await getIpfsClient(ipfsNode).object.get(currentNodeCid);
     const linkName = stagingDagNames.pop();
     const dagIdx = currentNode.Links.findIndex((dag) => dag.Name === linkName);
     if (dagIdx === -1) throw Error(`Failed to find DAG link: ${linkName}`);
     const oldCid = currentNode.Links[dagIdx].Hash;
-    lastUpdatedCid = await updateDagCid(client, currentNodeCid, oldCid, lastUpdatedCid);
+    lastUpdatedCid = await updateDagCid(getIpfsClient(ipfsNode), currentNodeCid, oldCid, lastUpdatedCid);
     updatedDagCidMap[oldCid.toString()] = lastUpdatedCid.toString();
   }
 
   return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap, removedLink };
 };
 
-export async function removeDagLink(dagCid: string | multiformats.CID, linkName: string) {
+export async function removeDagLink(dagCid: string | multiformats.CID, linkName: string, ipfsNode = IPFS_NODE.PRIVATE) {
   if (typeof dagCid === 'string') {
     dagCid = multiformats.CID.parse(dagCid);
   }
@@ -824,7 +901,7 @@ export async function removeDagLink(dagCid: string | multiformats.CID, linkName:
     throw new Error('raw cid -- not a directory');
   }
 
-  const block = await client.block.get(dagCid);
+  const block = await getIpfsClient(ipfsNode).block.get(dagCid);
   const { Data, Links } = dagPb.decode(block);
 
   const node = UnixFS.unmarshal(Data);
@@ -836,18 +913,24 @@ export async function removeDagLink(dagCid: string | multiformats.CID, linkName:
   const newLinks = Links.filter((link) => link.Name !== linkName);
 
   if (newLinks.length === 0) {
-    const nodeKeep = await client.add(Buffer.from(''), { cidVersion: 1 });
+    const nodeKeep = await getIpfsClient(ipfsNode).add(Buffer.from(''), { cidVersion: 1 });
     newLinks.push({ Name: '.nodeKeep', Hash: nodeKeep.cid as any, Tsize: nodeKeep.size });
   }
 
-  const newDagCid = await client.block.put(dagPb.encode(dagPb.prepare({ Data, Links: newLinks })), {
+  const newDagCid = await getIpfsClient(ipfsNode).block.put(dagPb.encode(dagPb.prepare({ Data, Links: newLinks })), {
     version: 1,
     format: 'dag-pb',
   });
   return { newDagCid, removedLink: { [linkName]: removedLink } };
 }
 
-export const renameFileInDag = async (rootCid: string, contextPath: string, linkToRename: string, newName: string) => {
+export const renameFileInDag = async (
+  rootCid: string,
+  contextPath: string,
+  linkToRename: string,
+  newName: string,
+  ipfsNode = IPFS_NODE.PRIVATE,
+) => {
   const dagCidsToBeReset: CID[] = [];
   //                  CID(String): DAGNode     - cached to prevent duplicate calls
   const dagsLoaded: Record<string, PBNode> = {};
@@ -857,7 +940,7 @@ export const renameFileInDag = async (rootCid: string, contextPath: string, link
     for (let i = 0; i < stagingDagNames.length; i++) {
       const dagLinkName = stagingDagNames[i];
       const containingDagCid = dagCidsToBeReset[i];
-      const containingDag: PBNode = await client.object.get(containingDagCid);
+      const containingDag: PBNode = await getIpfsClient(ipfsNode).object.get(containingDagCid);
       if (!containingDag) {
         throw Error('Failed updating dataset, existing DAG not found');
       }
@@ -872,14 +955,14 @@ export const renameFileInDag = async (rootCid: string, contextPath: string, link
 
   //if context path doesn't exist(update add at DAG root level), the dag won't be cached yet.
   if (!dagsLoaded.length) {
-    dagsLoaded[rootCid] = await client.object.get(dagCidsToBeReset[0]);
+    dagsLoaded[rootCid] = await getIpfsClient(ipfsNode).object.get(dagCidsToBeReset[0]);
   }
 
   //establishing the tail dag that's being updated
   const tailNodeCid = dagCidsToBeReset.pop();
   const tailNode = dagsLoaded[tailNodeCid.toString()]
     ? dagsLoaded[tailNodeCid.toString()]
-    : await client.object.get(tailNodeCid);
+    : await getIpfsClient(ipfsNode).object.get(tailNodeCid);
 
   const updatedTailNodeCid = await renameDagLink(tailNodeCid.toString(), linkToRename, newName);
 
@@ -890,24 +973,30 @@ export const renameFileInDag = async (rootCid: string, contextPath: string, link
     const currentNodeCid = dagCidsToBeReset.pop();
     const currentNode: PBNode = dagsLoaded[currentNodeCid.toString()]
       ? dagsLoaded[currentNodeCid.toString()]
-      : await client.object.get(currentNodeCid);
+      : await getIpfsClient(ipfsNode).object.get(currentNodeCid);
     const linkName = stagingDagNames.pop();
     const dagIdx = currentNode.Links.findIndex((dag) => dag.Name === linkName);
     if (dagIdx === -1) throw Error(`Failed to find DAG link: ${linkName}`);
     const oldCid = currentNode.Links[dagIdx].Hash;
-    lastUpdatedCid = await updateDagCid(client, currentNodeCid, oldCid, lastUpdatedCid);
+    lastUpdatedCid = await updateDagCid(getIpfsClient(ipfsNode), currentNodeCid, oldCid, lastUpdatedCid);
     updatedDagCidMap[oldCid.toString()] = lastUpdatedCid.toString();
   }
 
   return { updatedRootCid: lastUpdatedCid.toString(), updatedDagCidMap };
 };
 
-export const moveFileInDag = async (rootCid: string, contextPath: string, fileToMove: string, newPath: string) => {
+export const moveFileInDag = async (
+  rootCid: string,
+  contextPath: string,
+  fileToMove: string,
+  newPath: string,
+  ipfsNode = IPFS_NODE.PRIVATE,
+) => {
   const {
     updatedRootCid: removedDagCid,
     updatedDagCidMap: removedDagCidMap,
     removedLink,
-  } = await removeFileFromDag(rootCid, contextPath, fileToMove);
+  } = await removeFileFromDag(rootCid, contextPath, fileToMove, ipfsNode);
 
   const newPathSplit = newPath.split('/');
   const fileName = newPathSplit.pop();
@@ -915,7 +1004,12 @@ export const moveFileInDag = async (rootCid: string, contextPath: string, fileTo
   const formattedLink = {
     [fileName]: { cid: removedLink[fileToMove].Hash.toString(), size: removedLink[fileToMove].Tsize },
   };
-  const { updatedRootCid, updatedDagCidMap } = await addFilesToDag(removedDagCid, newContextPath, formattedLink);
+  const { updatedRootCid, updatedDagCidMap } = await addFilesToDag(
+    removedDagCid,
+    newContextPath,
+    formattedLink,
+    ipfsNode,
+  );
 
   for (const [key, val] of Object.entries(removedDagCidMap)) {
     // add updatedDagCids in remove step
@@ -929,7 +1023,12 @@ export const moveFileInDag = async (rootCid: string, contextPath: string, fileTo
   return { updatedRootCid, updatedDagCidMap };
 };
 
-export async function renameDagLink(dagCid: string | multiformats.CID, linkName: string, newName: string) {
+export async function renameDagLink(
+  dagCid: string | multiformats.CID,
+  linkName: string,
+  newName: string,
+  ipfsNode = IPFS_NODE.PRIVATE,
+) {
   if (typeof dagCid === 'string') {
     dagCid = multiformats.CID.parse(dagCid);
   }
@@ -938,7 +1037,7 @@ export async function renameDagLink(dagCid: string | multiformats.CID, linkName:
     throw new Error('raw cid -- not a directory');
   }
 
-  const block = await client.block.get(dagCid);
+  const block = await getIpfsClient(ipfsNode).block.get(dagCid);
   const { Data, Links } = dagPb.decode(block);
 
   const node = UnixFS.unmarshal(Data);
@@ -951,19 +1050,19 @@ export async function renameDagLink(dagCid: string | multiformats.CID, linkName:
   logger.info({ Links, linkIdx, linkName, Link: Links[linkIdx] }, '[RENAME DAG LINK INFO]::');
   Links[linkIdx].Name = newName;
 
-  return client.block.put(dagPb.encode(dagPb.prepare({ Data, Links })), {
+  return getIpfsClient(ipfsNode).block.put(dagPb.encode(dagPb.prepare({ Data, Links })), {
     version: 1,
     format: 'dag-pb',
   });
 }
 
-export const createDag = async (files: FilesToAddToDag): Promise<string> => {
-  return await makeDir(client, files);
+export const createDag = async (files: FilesToAddToDag, ipfsNode = IPFS_NODE.PRIVATE): Promise<string> => {
+  return await makeDir(getIpfsClient(ipfsNode), files);
 };
 
-export async function createEmptyDag() {
-  const nodeKeepCid = await client.add(Buffer.from(''));
-  const cid = await makeDir(client, { '.nodeKeep': { cid: nodeKeepCid.cid } });
+export async function createEmptyDag(ipfsNode = IPFS_NODE.PRIVATE) {
+  const nodeKeepCid = await getIpfsClient(ipfsNode).add(Buffer.from(''));
+  const cid = await makeDir(getIpfsClient(ipfsNode), { '.nodeKeep': { cid: nodeKeepCid.cid } });
   return cid.toString();
 }
 
@@ -1017,12 +1116,12 @@ export interface ZipToDagAndPinResult {
 }
 
 // Adds a directory to IPFS and deletes the directory after, returning the root CID
-export async function addDirToIpfs(directoryPath: string): Promise<IpfsPinnedResult[]> {
+export async function addDirToIpfs(directoryPath: string, ipfsNode = IPFS_NODE.PRIVATE): Promise<IpfsPinnedResult[]> {
   // Add all files in the directory to IPFS using globSource
   const files = [];
 
   const source = globSource(directoryPath, '**/*', { hidden: true });
-  for await (const file of client.addAll(source, { cidVersion: 1 })) {
+  for await (const file of getIpfsClient(ipfsNode).addAll(source, { cidVersion: 1 })) {
     files.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
   const totalFiles = files.length;
@@ -1070,9 +1169,12 @@ export enum CidSource {
 
 // assumeExternal is quicker, because it doesn't attempt to check if the CID is available via public resolution
 // Note: when using this function the result can be impacted by the resolvers uptime
-export async function checkCidSrc(cid: string, assumeExternal = false) {
+export async function checkCidSrc(
+  cid: string,
+  { assumeExternal = false, ipfsNode = IPFS_NODE.PRIVATE }: { assumeExternal?: boolean; ipfsNode?: IPFS_NODE },
+) {
   try {
-    const internalStat = await client.block.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
+    const internalStat = await getIpfsClient(ipfsNode).block.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
     if (internalStat) return CidSource.INTERNAL;
   } catch (err) {
     if (assumeExternal) return CidSource.EXTERNAL;
@@ -1099,13 +1201,16 @@ export type BlockMetadata = {
   DataSize: number;
   CumulativeSize: number;
 };
-export async function getCidMetadata(cid: string, external?: boolean): Promise<BlockMetadata | null> {
+export async function getCidMetadata(
+  cid: string,
+  { external = false, ipfsNode = IPFS_NODE.PRIVATE }: { external?: boolean; ipfsNode?: IPFS_NODE },
+): Promise<BlockMetadata | null> {
   try {
     let metadata: BlockMetadata;
     if (external) {
       metadata = await publicIpfs.object.stat(CID.parse(cid), { timeout: EXTERNAL_IPFS_TIMEOUT });
     } else {
-      metadata = await client.object.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
+      metadata = await getIpfsClient(ipfsNode).object.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
     }
 
     return metadata;

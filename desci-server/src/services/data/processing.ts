@@ -435,7 +435,8 @@ export async function pinNewFiles(files: any[], wrapWithDirectory = false): Prom
   );
   let uploaded: IpfsPinnedResult[];
   if (structuredFilesForPinning.length) {
-    if (structuredFilesForPinning.length) uploaded = await pinDirectory(structuredFilesForPinning, wrapWithDirectory);
+    if (structuredFilesForPinning.length)
+      uploaded = await pinDirectory(structuredFilesForPinning, { wrapWithDirectory });
     if (!uploaded.length) throw createIpfsUploadFailureError();
     logger.info({ uploaded }, '[UPDATE DATASET] Pinned files: ');
   }
@@ -505,9 +506,7 @@ export function predefineComponentsForPinnedFiles({
   star,
 }: PredefineComponentsForPinnedFilesParams): FirstNestingComponent[] {
   const firstNestingComponents: FirstNestingComponent[] = pinnedFirstNestingFiles.map((file) => {
-    const neutralFullPath = file.path.startsWith(contextPath)
-        ? file.path
-        : contextPath + '/' + file.path;
+    const neutralFullPath = file.path.startsWith(contextPath) ? file.path : contextPath + '/' + file.path;
     const pathSplit = file.path.split('/');
     const name = pathSplit.pop();
     return {
