@@ -52,6 +52,8 @@ const httpsAgent = new https.Agent({
 export const client = create({ url: process.env.IPFS_NODE_URL });
 export const readerClient = create({ url: PUBLIC_IPFS_PATH });
 
+export const guestIpfsClient = create({ url: process.env.GUEST_IPFS_NODE_URL });
+
 export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0', options: { agent: httpsAgent } });
 
 // Timeouts for resolution on internal and external IPFS nodes, to prevent server hanging, in ms.
