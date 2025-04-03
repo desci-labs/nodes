@@ -351,11 +351,11 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
 
   const diffInDays = differenceInDays(new Date(to), new Date(from));
   const startDate = subDays(new Date(from), diffInDays);
-  const endDate = to;
+  const endDate = endOfDay(new Date(to));
   logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, startDate, endDate }, 'getAggregatedAnalytics');
 
-  const selectedDates = { from: startOfDay(startDate), to: startOfDay(new Date(to)) };
-  const selectedDatesInterval = interval(from, to);
+  const selectedDates = { from: startOfDay(startDate), to: endDate };
+  const selectedDatesInterval = interval(from, endDate);
 
   const cacheKey = `aggregateAnalytics-${startOfDay(from).toDateString()}-${endOfDay(selectedDates.to).toDateString()}-${timeInterval}`;
   logger.trace({ cacheKey }, 'GET: CACHE KEY');
@@ -469,7 +469,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
     query: { from, to, interval: timeInterval },
   } = req as zod.infer<typeof analyticsChartSchema>;
 
-  const selectedDates = { from: startOfDay(from), to: startOfDay(new Date(to)) };
+  const selectedDates = { from: startOfDay(from), to: endOfDay(new Date(to)) };
 
   const getIntervals = () => {
     switch (timeInterval) {
@@ -518,7 +518,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
     logger.trace('PULL FROM Database');
     const diffInDays = differenceInDays(new Date(to), new Date(from));
     const startDate = new Date(from); // subDays(new Date(from), diffInDays);
-    const endDate = to;
+    const endDate = endOfDay(new Date(to));
     logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, startDate, endDate }, 'Fetching new users');
 
     // todo: make calls parallel

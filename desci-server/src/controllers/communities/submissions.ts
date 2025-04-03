@@ -53,13 +53,16 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
   const { status } = req.query as z.infer<typeof getCommunitySubmissionsSchema>['query'];
 
   // Check if user is a member of the community
-  const isMember = await prisma.communityMember.findFirst({
-    where: {
-      userId: req.user.id,
-      communityId: Number(communityId),
-    },
-  });
+  const isMember = req?.user?.id
+    ? await prisma.communityMember.findFirst({
+        where: {
+          userId: req.user.id,
+          communityId: Number(communityId),
+        },
+      })
+    : false;
 
+  logger.trace({ isMember }, 'isMember');
   // Get submissions
   const submissions = await communityService.getCommunitySubmissions({
     communityId: Number(communityId),

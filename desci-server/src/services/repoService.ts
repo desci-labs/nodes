@@ -51,25 +51,31 @@ class RepoService {
 
   async dispatchAction(arg: { uuid: NodeUuid | string; documentId: DocumentId; actions: ManifestActions[] }) {
     logger.info({ arg, enableWorkersApi, cloudflareWorkerApi }, 'Disatch Changes');
-    const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
-      enableWorkersApi
-        ? `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`
-        : `${this.baseUrl}/v1/nodes/documents/dispatch`,
-      arg,
-      {
-        headers: {
-          'x-api-remote-traceid': (als.getStore() as any)?.traceId,
-          ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
+    try {
+      const response = await this.#client.post<{ ok: boolean; document: ResearchObjectDocument }>(
+        enableWorkersApi
+          ? `${cloudflareWorkerApi}/parties/automerge/${arg.documentId}`
+          : `${this.baseUrl}/v1/nodes/documents/dispatch`,
+        arg,
+        {
+          headers: {
+            'x-api-remote-traceid': (als.getStore() as any)?.traceId,
+            ...(enableWorkersApi ? { 'x-api-key': cloudflareWorkerApiSecret } : undefined),
+          },
         },
-      },
-    );
-    logger.trace({ arg, ok: response.data.ok }, 'Disatch Actions Response');
-    console.log({ arg, ok: response.data.ok }, 'Disatch Actions Response');
-    if (response.status === 200 && response.data.ok) {
-      return response.data.document;
-    } else {
-      logger.trace({ response: response.data }, 'Disatch Actions Failed');
-      console.log({ response: response.data }, 'Disatch Actions Failed');
+      );
+      logger.trace({ arg, ok: response.data.ok }, 'Disatch Actions Response');
+      console.log({ arg, ok: response.data.ok }, 'Disatch Actions Response');
+      if (response.status === 200 && response.data.ok) {
+        return response.data.document;
+      } else {
+        logger.trace({ response: response.data }, 'Disatch Actions Failed');
+        console.log({ response: response.data }, 'Disatch Actions Failed');
+        return null;
+      }
+    } catch (err) {
+      logger.info({ arg, err }, 'dispatchChanges Error');
+      console.log({ arg, err }, 'dispatchChanges Error');
       return null;
     }
   }
@@ -145,7 +151,7 @@ class RepoService {
             'x-api-remote-traceid': (als.getStore() as any)?.traceId,
             ...(enableWorkersApi && { 'x-api-key': cloudflareWorkerApiSecret }),
           },
-          // signal: AbortSignal.timeout(arg.timeout ?? this.defaultTimeoutInMilliseconds),
+          signal: AbortSignal.timeout(arg.timeout ?? this.defaultTimeoutInMilliseconds),
           timeoutErrorMessage: this.timeoutErrorMessage,
         },
       );
