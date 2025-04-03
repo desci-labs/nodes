@@ -82,7 +82,12 @@ import {
 } from '../../controllers/nodes/likes.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
 import { attachUser } from '../../middleware/attachUser.js';
-import { ensureNodeAccess, ensureNodeExists, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
+import {
+  ensureNodeAccess,
+  ensureNodeExists,
+  ensureWriteNodeAccess,
+  attachNode,
+} from '../../middleware/authorisation.js';
 import { ensureGuestOrUser, ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
@@ -195,7 +200,7 @@ router.post(
   asyncHandler(verifyExternalPublication),
 );
 
-router.get('/:uuid/comments', [ensureGuestOrUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
+router.get('/:uuid/comments', [attachUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
 router.get(
   '/:uuid/comments/:commentId/vote',
   [ensureGuestOrUser, validate(postCommentVoteSchema)],
@@ -224,7 +229,7 @@ router.delete(
 
 router.get('/:uuid/attestations', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
 
-router.get('/:uuid/likes', [ensureGuestOrUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(getNodeLikes));
+router.get('/:uuid/likes', [attachUser, attachNode, validate(likeNodeSchema)], asyncHandler(getNodeLikes));
 router.post('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(postNodeLike));
 router.delete('/:uuid/likes', [ensureUser, ensureNodeExists, validate(unlikeNodeSchema)], asyncHandler(deleteNodeLIke));
 
