@@ -39,7 +39,7 @@ export const deleteNodeLIke = async (req: RequestWithNode, res: Response, _next:
 
 export const getNodeLikes = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const likes = await countLikesByUuid(req.node.uuid);
-  const like = await getUserNodeLike(req.user.id, req.node.uuid);
+  const like = req?.user?.id ? await getUserNodeLike(req.user.id, req.node.uuid) : false;
 
   return new SuccessResponse({ likes, isLiked: !!like }).send(res);
 };
