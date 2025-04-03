@@ -9,6 +9,7 @@ import { logger } from '../../logger.js';
 import { RequestWithNode, RequestWithUser } from '../../middleware/authorisation.js';
 import { editCommentsSchema, getCommentsSchema, postCommentVoteSchema } from '../../routes/v1/attestations/schema.js';
 import { attestationService } from '../../services/Attestation.js';
+import { delay } from '../../services/crossRef/client.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -39,7 +40,7 @@ export const getGeneralComments = async (req: RequestWithNode, res: Response, _n
   const comments = await asyncMap(data, async (comment) => {
     const upvotes = await attestationService.getCommentUpvotes(comment.id);
     const downvotes = await attestationService.getCommentDownvotes(comment.id);
-    const vote = await attestationService.getUserCommentVote(req.user.id, comment.id);
+    const vote = req?.user?.id ? await attestationService.getUserCommentVote(req.user.id, comment.id) : null;
     const count = comment._count;
     delete comment._count;
     return {
