@@ -1,5 +1,7 @@
 import { isNodeRoot } from '@desci-labs/desci-models';
 import axios from 'axios';
+import dotenv from 'dotenv';
+dotenv.config();
 
 import { logger as parentLogger } from '../logger.js';
 import { redisClient } from '../redisClient.js';
