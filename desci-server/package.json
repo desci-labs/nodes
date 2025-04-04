@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "concurrently \"npm run watch-compile\" \"npm run watch-dev\"",
     "watch-compile": "debug=* tsc -w --preserveWatchOutput",
+    "swagger-autogen": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/swagger.ts",
     "watch-dev": "debug=* nodemon --watch \"dist/**/*\" -e js ./dist/index.js",
     "script:fix-mirrors": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/retry-mirrors.ts",
     "script:upgrade-manifests": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/upgradeManifests.ts",
@@ -137,13 +138,17 @@
     "short-unique-id": "^4.4.4",
     "siwe": "^1.1.6",
     "socket.io": "^4.8.0",
+    "swagger-autogen": "^2.23.7",
+    "swagger-ui-express": "^5.0.1",
     "tar": "^6.2.0",
     "url-safe-base64": "1.2.0",
     "uuid": "^8.3.2",
     "ws": "^8.18.0",
     "xml-js": "^1.6.11",
+    "yaml": "^2.7.0",
     "yauzl": "^2.10.0",
-    "zod": "^3.22.4"
+    "zod": "^3.24.2",
+    "zod-openapi": "^4.2.3"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.2",
@@ -157,6 +162,7 @@
     "@types/multer-s3": "^3.0.1",
     "@types/node": "^20.10.4",
     "@types/supertest": "^2.0.12",
+    "@types/swagger-ui-express": "^4.1.8",
     "@types/ws": "^8.5.12",
     "@types/xmldom": "^0.1.34",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
