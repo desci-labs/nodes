@@ -17,6 +17,7 @@ import {
   addBufferToIpfs,
   downloadFilesAndMakeManifest,
   downloadSingleFile,
+  getNodeToUse,
   updateManifestAndAddToIpfs,
 } from '../../services/ipfs.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
@@ -24,8 +25,11 @@ import { createNodeDraftBlank } from '../../services/nodeManager.js';
 import repoService from '../../services/repoService.js';
 import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
 import { ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
+import { AuthenticatedRequest } from '../notifications/create.js';
 
-export const draftCreate = async (req: Request, res: Response, next: NextFunction) => {
+export const draftCreate = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  const owner = req.user;
+  const { isGuest } = req.user;
   const {
     title,
     links: { pdf, code },
@@ -33,24 +37,17 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
     defaultLicense,
   } = req.body;
   const logger = parentLogger.child({
-    // id: req.id,
     module: 'NODE::DraftCreateController',
+    userId: owner.id,
+    isGuest,
     body: req.body,
     title,
     links: { pdf, code },
     researchFields,
     defaultLicense,
   });
-  logger.trace('MINT');
-
   try {
-    const loggedInUserEmail = (req as any).user.email;
-
-    const owner = await prisma.user.findFirst({
-      where: {
-        email: loggedInUserEmail,
-      },
-    });
+    logger.trace('Draft Create');
 
     if (!owner.id || owner.id < 1) {
       throw Error('User ID mismatch');
@@ -63,7 +60,7 @@ export const draftCreate = async (req: Request, res: Response, next: NextFunctio
       researchFields,
       defaultLicense: defaultLicense || '',
     });
-    const { cid: hash } = await addBufferToIpfs(manifest, '');
+    const { cid: hash } = await addBufferToIpfs(manifest, '', getNodeToUse(isGuest));
     const uri = `${hash}`;
     const node = await prisma.node.create({
       data: {

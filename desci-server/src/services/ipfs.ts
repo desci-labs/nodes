@@ -77,6 +77,13 @@ const INTERNAL_IPFS_TIMEOUT = 30_000;
 // We mostly fetch single blocks, so this does not limit transfers
 const EXTERNAL_IPFS_TIMEOUT = 30_000;
 
+export const getNodeToUse = (isGuest?: boolean) => {
+  if (isGuest) {
+    return IPFS_NODE.GUEST;
+  }
+  return IPFS_NODE.PRIVATE;
+};
+
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
   { userId, nodeId, ipfsNode }: { userId: number; nodeId: number; ipfsNode?: IPFS_NODE },
