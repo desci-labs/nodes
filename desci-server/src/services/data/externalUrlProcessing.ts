@@ -20,7 +20,7 @@ import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import { ensureUniquePathsDraftTree, externalDirCheck, getLatestDriveTime } from '../../services/draftTrees.js';
-import { IpfsDirStructuredInput, addDirToIpfs, getDirectoryTree } from '../../services/ipfs.js';
+import { IpfsDirStructuredInput, addDirToIpfs, getDirectoryTree, getNodeToUse } from '../../services/ipfs.js';
 import { ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
   ExtensionDataTypeMap,
@@ -166,7 +166,10 @@ export async function processExternalUrlDataToIpfs({
     // Pin new files, add draftNodeTree entries
     if (externalUrlFiles?.length) {
       // External URL non-repo
-      pinResult = await pinNewFiles(externalUrlFiles, false);
+      pinResult = await pinNewFiles(externalUrlFiles, {
+        wrapWithDirectory: false,
+        ipfsNode: getNodeToUse(user.isGuest),
+      });
     } else if (zipPath?.length > 0) {
       const outputPath = zipPath.replace('.zip', '');
       logger.debug({ outputPath }, 'Starting unzipping to output directory');

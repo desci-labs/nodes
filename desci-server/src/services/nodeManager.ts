@@ -13,7 +13,7 @@ import { generateDataReferences } from '../utils/dataRefTools.js';
 import { cleanupManifestUrl, transformManifestWithHistory } from '../utils/manifest.js';
 import { hexToCid, randomUUID64, asyncMap, ensureUuidEndsWithDot } from '../utils.js';
 
-import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
+import { addBufferToIpfs, downloadFilesAndMakeManifest, getNodeToUse, getSizeForCid, resolveIpfsData } from './ipfs.js';
 import { NodeUuid } from './manifestRepo.js';
 import repoService from './repoService.js';
 
@@ -30,7 +30,7 @@ export const createNodeDraftBlank = async (
   researchFields: string[],
 ) => {
   const { manifest } = await downloadFilesAndMakeManifest({ title, researchFields, defaultLicense, pdf: [], code: [] });
-  const { cid: hash } = await addBufferToIpfs(manifest, '');
+  const { cid: hash } = await addBufferToIpfs(manifest, '', getNodeToUse(owner.isGuest));
 
   const uri = `${hash}`;
 

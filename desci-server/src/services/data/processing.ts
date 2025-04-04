@@ -26,9 +26,11 @@ import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import { ensureUniquePathsDraftTree, externalDirCheck, getLatestDriveTime } from '../../services/draftTrees.js';
 import {
   FilesToAddToDag,
+  IPFS_NODE,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
   getDirectoryTree,
+  getNodeToUse,
   isDir,
   pinDirectory,
 } from '../../services/ipfs.js';
@@ -107,7 +109,7 @@ export async function processS3DataToIpfs({
     await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, filesBeingAdded: files });
 
     // Pin new files, add draftNodeTree entries
-    pinResult = await pinNewFiles(files, true);
+    pinResult = await pinNewFiles(files, { wrapWithDirectory: true, ipfsNode: getNodeToUse(user.isGuest) });
     if (pinResult) {
       const root = pinResult[pinResult.length - 1];
       const rootTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
@@ -421,7 +423,10 @@ export function ensureUniquePaths({
   return true;
 }
 
-export async function pinNewFiles(files: any[], wrapWithDirectory = false): Promise<IpfsPinnedResult[]> {
+export async function pinNewFiles(
+  files: any[],
+  { wrapWithDirectory = false, ipfsNode }: { wrapWithDirectory?: boolean; ipfsNode: IPFS_NODE },
+): Promise<IpfsPinnedResult[]> {
   const structuredFilesForPinning: IpfsDirStructuredInput[] = await Promise.all(
     files.map(async (f: any) => {
       const path = f.originalname ?? f.path;
@@ -436,7 +441,7 @@ export async function pinNewFiles(files: any[], wrapWithDirectory = false): Prom
   let uploaded: IpfsPinnedResult[];
   if (structuredFilesForPinning.length) {
     if (structuredFilesForPinning.length)
-      uploaded = await pinDirectory(structuredFilesForPinning, { wrapWithDirectory });
+      uploaded = await pinDirectory(structuredFilesForPinning, { wrapWithDirectory, node: ipfsNode });
     if (!uploaded.length) throw createIpfsUploadFailureError();
     logger.info({ uploaded }, '[UPDATE DATASET] Pinned files: ');
   }
@@ -758,18 +763,20 @@ export async function assignTypeMapInManifest(
  */
 export async function processUploadToIpfs({
   files,
+  ipfsNode,
 }: {
   files:
     | {
         [fieldname: string]: Express.Multer.File[];
       }
     | Express.Multer.File[];
+  ipfsNode: IPFS_NODE;
 }): Promise<Either<IpfsPinnedResult[], ProcessingError>> {
   let pinResult: IpfsPinnedResult[] = [];
   try {
     const uploads = Array.isArray(files) ? files : Object.values(files).map((files) => files[0]);
     // Pin new files, add draftNodeTree entries
-    pinResult = await pinNewFiles(uploads, false);
+    pinResult = await pinNewFiles(uploads, { wrapWithDirectory: false, ipfsNode });
     if (pinResult) {
       logger.info({ pinResult }, 'Files uploaded to Ipfs');
     }
