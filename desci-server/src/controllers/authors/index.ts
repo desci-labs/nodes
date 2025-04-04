@@ -36,7 +36,7 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
     // logger.trace({ openalexProfile }, 'openalexProfile');
   }
 
-  // if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
+  if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
 
   return new SuccessResponse(openalexProfile).send(res);
 };
@@ -51,7 +51,7 @@ export const getAuthorWorks = async (req: Request, res: Response, next: NextFunc
   if (!openalexProfile) {
     openalexProfile = await openAlexService.searchAuthorByOrcid(params.id);
     logger.trace({ openalexProfile: openalexProfile.id }, 'openalexProfile');
-    // if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
+    if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
   }
 
   // TODO: Change to openAlex author ID
@@ -64,7 +64,7 @@ export const getAuthorWorks = async (req: Request, res: Response, next: NextFunc
     logger.trace({ openalexWorks }, 'openalexWorks');
 
     // TODO: Change to openAlex author ID
-    // if (openalexProfile) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${openalexWorks.meta.page}`, openalexWorks);
+    if (openalexProfile) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${openalexWorks.meta.page}`, openalexWorks);
   }
 
   return new SuccessResponse({ meta: { ...query }, works: openalexWorks.works }).send(res);
