@@ -10,7 +10,7 @@ export const PUBLIC_IPFS_PATH =
 
 export const MEDIA_SERVER_API_URL = process.env.NODES_MEDIA_SERVER_URL;
 export const MEDIA_SERVER_API_KEY = process.env.MEDIA_SECRET_KEY;
-export const SERVER_URL = process.env.SERVER_URL;
+export const SERVER_URL = process.env.SERVER_URL ?? 'localhost';
 export const THEGRAPH_API_URL = process.env.THEGRAPH_API_URL;
 
 const CERAMIC_API_URLS = {

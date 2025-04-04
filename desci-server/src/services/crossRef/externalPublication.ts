@@ -1,18 +1,13 @@
 // import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { Node } from '@prisma/client';
+import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import sgMail from '@sendgrid/mail';
 import { Searcher } from 'fast-fuzzy';
 
-import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
-import { ExternalPublicationsEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 // import { ensureUuidEndsWithDot } from '../../utils.js';
 import { crossRefClient } from '../index.js';
-import { NodeUuid } from '../manifestRepo.js';
-import repoService from '../repoService.js';
 
 import { Work } from './definitions.js';
-import { ResearchObjectV1 } from '@desci-labs/desci-models';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 

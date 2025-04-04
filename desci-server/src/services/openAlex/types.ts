@@ -94,7 +94,7 @@ export interface OpenAccess {
 
 export interface Authorship {
   author_position: string;
-  author: Author;
+  author: OpenAlexAuthor;
   institutions: Institution[];
   countries: string[];
   is_corresponding: boolean;
@@ -103,11 +103,11 @@ export interface Authorship {
   affiliations: Affiliation[];
 }
 
-export interface Author {
-  id: string;
-  display_name: string;
-  orcid: string;
-}
+// export interface Author {
+//   id: string;
+//   display_name: string;
+//   orcid: string;
+// }
 
 export interface Institution {
   id: string;
@@ -276,5 +276,124 @@ export interface AbstractInvertedIndex {
 
 export interface CountsByYear {
   year: number;
+  cited_by_count: number;
+}
+
+/**
+ * Author
+ */
+export interface OpenAlexAuthor {
+  id: string;
+  orcid: string;
+  display_name: string;
+  display_name_alternatives: string[];
+  works_count: number;
+  cited_by_count: number;
+  summary_stats: SummaryStats;
+  ids: Ids;
+  affiliations: Affiliation[];
+  last_known_institutions: LastKnownInstitution[];
+  topics: Topic[];
+  topic_share: TopicShare[];
+  x_concepts: XConcept[];
+  counts_by_year: CountsByYear[];
+  works_api_url: string;
+  updated_date: string;
+  created_date: string;
+}
+
+export interface SummaryStats {
+  '2yr_mean_citedness': number;
+  h_index: number;
+  i10_index: number;
+}
+
+export interface Ids {
+  openalex: string;
+  orcid: string;
+}
+
+export interface Affiliation {
+  institution: Institution;
+  years: number[];
+}
+
+export interface Institution {
+  id: string;
+  ror: string;
+  display_name: string;
+  country_code: string;
+  type: string;
+  lineage: string[];
+}
+
+export interface LastKnownInstitution {
+  id: string;
+  ror: string;
+  display_name: string;
+  country_code: string;
+  type: string;
+  lineage: string[];
+}
+
+export interface Topic {
+  id: string;
+  display_name: string;
+  count: number;
+  subfield: Subfield;
+  field: Field;
+  domain: Domain;
+}
+
+export interface Subfield {
+  id: string;
+  display_name: string;
+}
+
+export interface Field {
+  id: string;
+  display_name: string;
+}
+
+export interface Domain {
+  id: string;
+  display_name: string;
+}
+
+export interface TopicShare {
+  id: string;
+  display_name: string;
+  value: number;
+  subfield: Subfield2;
+  field: Field2;
+  domain: Domain2;
+}
+
+export interface Subfield2 {
+  id: string;
+  display_name: string;
+}
+
+export interface Field2 {
+  id: string;
+  display_name: string;
+}
+
+export interface Domain2 {
+  id: string;
+  display_name: string;
+}
+
+export interface XConcept {
+  id: string;
+  wikidata: string;
+  display_name: string;
+  level: number;
+  score: number;
+}
+
+export interface CountsByYear {
+  year: number;
+  works_count: number;
   cited_by_count: number;
 }
