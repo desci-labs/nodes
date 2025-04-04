@@ -67,8 +67,6 @@ import {
 } from '../../services/user.js';
 import { asyncMap } from '../../utils.js';
 
-import { analyticsChartSchema } from './schema.js';
-
 const logger = parentLogger.child({ module: 'ADMIN::AnalyticsController' });
 
 interface DataRow {
@@ -292,6 +290,17 @@ export const getAnalytics = async (req: Request, res: Response) => {
     return res.status(500).send();
   }
 };
+
+export const analyticsChartSchema = zod.object({
+  query: zod.object({
+    from: zod.string(),
+    to: zod.string(),
+    interval: zod
+      .union([zod.literal('daily'), zod.literal('weekly'), zod.literal('monthly'), zod.literal('yearly')])
+      .optional()
+      .default('daily'),
+  }),
+});
 
 async function aggregateAnalytics(from: Date, to: Date) {
   const start = Date.now();
