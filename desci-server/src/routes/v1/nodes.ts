@@ -84,7 +84,12 @@ import { preparePublishPackage } from '../../controllers/nodes/preparePublishPac
 import { addPublishedWallet } from '../../controllers/users/publishedWallets/create.js';
 import { getUserPublishedWallets } from '../../controllers/users/publishedWallets/index.js';
 import { attachUser } from '../../middleware/attachUser.js';
-import { ensureNodeAccess, ensureNodeExists, ensureWriteNodeAccess } from '../../middleware/authorisation.js';
+import {
+  attachNode,
+  ensureNodeAccess,
+  ensureNodeExists,
+  ensureWriteNodeAccess,
+} from '../../middleware/authorisation.js';
 import { ensureUserIfPresent } from '../../middleware/ensureUserIfPresent.js';
 import { ensureUser } from '../../middleware/permissions.js';
 import { validate } from '../../middleware/validator.js';
@@ -198,7 +203,7 @@ router.post(
   asyncHandler(verifyExternalPublication),
 );
 
-router.get('/:uuid/comments', [ensureUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
+router.get('/:uuid/comments', [attachUser, validate(getCommentsSchema)], asyncHandler(getGeneralComments));
 router.get('/:uuid/comments/:commentId/vote', [ensureUser, validate(postCommentVoteSchema)], asyncHandler(getUserVote));
 router.post(
   '/:uuid/comments/:commentId/upvote',
@@ -223,7 +228,7 @@ router.delete(
 
 router.get('/:uuid/attestations', [validate(showNodeAttestationsSchema)], asyncHandler(showNodeAttestations));
 
-router.get('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(getNodeLikes));
+router.get('/:uuid/likes', [attachUser, attachNode, validate(likeNodeSchema)], asyncHandler(getNodeLikes));
 router.post('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSchema)], asyncHandler(postNodeLike));
 router.delete('/:uuid/likes', [ensureUser, ensureNodeExists, validate(unlikeNodeSchema)], asyncHandler(deleteNodeLIke));
 

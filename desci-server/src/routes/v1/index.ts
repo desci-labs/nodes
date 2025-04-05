@@ -13,6 +13,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import admin from './admin/index.js';
 import attestations from './attestations/index.js';
 import auth from './auth.js';
+import authors from './authors.js';
 import communities from './communities/index.js';
 import submissions from './communities/submissions.js';
 import { ensureCrossrefNotifier, identifyEndpoint } from './crossref.js';
@@ -66,6 +67,7 @@ router.use('/openalex', openalex);
 router.use('/search', search);
 router.use('/notifications', notifications);
 router.use('/submissions', submissions);
+router.use('/authors', authors);
 
 router.get('/nft/:id', nft);
 router.use('/referral', referral);
