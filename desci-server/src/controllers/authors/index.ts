@@ -7,20 +7,21 @@ import { getFromCache, setToCache } from '../../redisClient.js';
 import { openAlexService } from '../../services/index.js';
 import { WorksResult } from '../../services/openAlex/client.js';
 import { OpenAlexAuthor, OpenAlexWork } from '../../services/openAlex/types.js';
+import 'zod-openapi/extend';
 
 export const getAuthorSchema = z.object({
   params: z.object({
-    id: z.string({ required_error: 'Missing ORCID ID' }),
+    id: z.string({ required_error: 'Missing ORCID ID' }).describe('The ORCID identifier of the author'),
   }),
 });
 
 export const getAuthorWorksSchema = z.object({
   params: z.object({
-    id: z.string({ required_error: 'Missing ORCID ID' }),
+    id: z.string({ required_error: 'Missing ORCID ID' }).describe('The ORCID identifier of the author'),
   }),
   query: z.object({
-    page: z.coerce.number().optional().default(1),
-    limit: z.coerce.number().optional().default(200),
+    page: z.coerce.number().optional().default(1).describe('Page number for pagination of author works'),
+    limit: z.coerce.number().optional().default(200).describe('Number of works to return per page'),
   }),
 });
 
@@ -44,8 +45,6 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
 export const getAuthorWorks = async (req: Request, res: Response, next: NextFunction) => {
   const { query, params } = await getAuthorWorksSchema.parseAsync(req);
   const limit = 20;
-  //  const page = Math.max(Math.max((query.page ?? 0) - 1, 0), 0);
-  // const offset = limit * page;
 
   let openalexProfile = await getFromCache<OpenAlexAuthor>(`${PROFILE_CACHE_PREFIX}-${params.id}-${query.page}`);
   if (!openalexProfile) {
@@ -61,11 +60,9 @@ export const getAuthorWorks = async (req: Request, res: Response, next: NextFunc
       page: query.page,
       perPage: query.limit,
     });
-    logger.trace({ openalexWorks }, 'openalexWorks');
 
-    // TODO: Change to openAlex author ID
     if (openalexProfile) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${openalexWorks.meta.page}`, openalexWorks);
   }
 
-  return new SuccessResponse({ meta: { ...query }, works: openalexWorks.works }).send(res);
+  new SuccessResponse({ meta: { ...query }, works: openalexWorks.works }).send(res);
 };
