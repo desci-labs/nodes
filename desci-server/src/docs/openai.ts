@@ -12,6 +12,7 @@ import {
   getNewUserAnalyticsOperation,
   getNewOrcidUserAnalyticsOperation,
 } from './analytics.js';
+import { authorPaths } from './authors.js';
 import { communityPaths } from './communities.js';
 import {
   cancelUserSubmissionOperation,
@@ -76,11 +77,12 @@ export const openaiDocumentation = createDocument({
     { name: 'Users', description: 'User-related operations' },
     { name: 'Admin', description: 'Admin-only operations' },
     { name: 'Communities', description: 'Community-related operations' },
-    { name: 'Attestations', description: 'Submission-related operations' },
+    { name: 'Attestations', description: 'Attestations-related operations' },
     { name: 'Submission', description: 'Submission-related operations' },
-    { name: 'Nodes', description: 'Submission-related operations' },
-    { name: 'Data', description: 'Submission-related operations' },
-    { name: 'DOI', description: 'Submission-related operations' },
+    { name: 'Nodes', description: 'Nodes-related operations' },
+    { name: 'Data', description: 'Data-related operations' },
+    { name: 'DOI', description: 'DOI-related operations' },
+    { name: 'Authors', description: 'Authors-related operations' },
   ],
   components: {
     securitySchemes: {
@@ -90,12 +92,6 @@ export const openaiDocumentation = createDocument({
         bearerFormat: 'JWT',
         description: 'An bearer token issued by after login',
       },
-      // s2sauth: {
-      //   type: 'http',
-      //   scheme: 'bearer',
-      //   bearerFormat: 'JWT',
-      //   description: 'An s2s token issued by an allow listed consumer',
-      // },
     },
   },
   servers: [
@@ -121,6 +117,7 @@ export const openaiDocumentation = createDocument({
     ...analyticsPaths,
     ...submissionPaths,
     ...communityPaths,
+    ...authorPaths,
   },
 });
 
