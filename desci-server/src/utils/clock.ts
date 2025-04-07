@@ -8,7 +8,7 @@ import { subDays, startOfDay } from 'date-fn-latest';
  */
 export const getUtcDateXDaysAgo = (daysAgo: number): Date => {
   // Use subDays to properly handle month boundaries
-  const targetDate = subDays(new Date(), daysAgo);
+  const targetDate = subDays(new Date(), daysAgo - 1);
 
   // Create a new date at UTC midnight
   return new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate()));

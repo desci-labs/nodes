@@ -363,11 +363,11 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
     query: { from, to, interval: timeInterval },
   } = req as zod.infer<typeof analyticsChartSchema>;
 
-  const toDate = new Date(new Date(to).toISOString());
-  const fromDate = new Date(new Date(from).toISOString());
+  const toDate = new Date(to.split('GMT')[0]);
+  const fromDate = new Date(from.split('GMT')[0]);
 
   const diffInDays = differenceInDays(toDate, fromDate);
-  const startDate = subDays(fromDate, diffInDays);
+  const startDate = fromDate;
   const endDate = endOfDay(toDate);
   logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, startDate, endDate }, 'getAggregatedAnalytics');
 
