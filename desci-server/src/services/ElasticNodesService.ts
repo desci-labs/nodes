@@ -90,11 +90,10 @@ async function fillNodeData(nodeUuid: string) {
   const researchObject = researchObjects[0];
   const versions = researchObject.versions;
   const firstVersion = versions.at(-1);
-  const firstVersionTime = new Date(parseInt(firstVersion.time) * 1000);
+  let firstVersionTime = new Date(parseInt(firstVersion.time) * 1000);
   const { manifest } = await getManifestFromNode(node);
   const firstManuscript = getFirstManuscript(manifest);
   if (!firstManuscript) throw 'Manifest does not contain a manuscript';
-
   const latestPublishedManifestCid = hexToCid(researchObject.recentCid);
   const latestManifest = await getManifestByCid(latestPublishedManifestCid);
   let dpid = await getDpidFromNode(node);
@@ -114,8 +113,17 @@ async function fillNodeData(nodeUuid: string) {
   }
 
   const doi = node?.DoiRecord?.[0]?.doi;
-  const publication_year = firstVersionTime?.getFullYear().toString() || new Date().getFullYear().toString();
+  let publication_year = firstVersionTime?.getFullYear().toString() || new Date().getFullYear().toString();
   const citedByCount = 0; // Get from external publication data
+
+  if (isNaN(parseInt(publication_year))) {
+    publication_year = new Date().getFullYear().toString();
+  }
+
+  if (isNaN(parseInt(firstVersionTime.getTime().toString()))) {
+    // Can be NaN if ceramic timestamp isn't available yet
+    firstVersionTime = new Date();
+  }
 
   const [authors, aiData, best_locations] = await Promise.all([
     fillAuthorData(manifest.authors).catch((err) => logger.error({ err, nodeUuid }, 'Error filling author data')),
@@ -130,7 +138,7 @@ async function fillNodeData(nodeUuid: string) {
 
   const concepts = formatConceptsData(aiData?.concepts);
   const topics = await fillTopicsData(aiData?.topics);
-  //
+
   const workData = {
     title: node.title,
     doi,
