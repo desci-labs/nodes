@@ -260,6 +260,23 @@ export const getNodeViewsInRange = async (range: { from: Date; to: Date }) => {
   return res as { createdAt: string }[];
 };
 
+export const getBadgeVerificationsInRange = async (range: { from: Date; to: Date }) => {
+  logger.info({ fn: 'getBadgeVerificationsInRange' }, 'interactionLog::getBadgeVerificationsInRange');
+  const res =
+    await prisma.$queryRaw`select "createdAt" from "InteractionLog" z where action = 'VERIFY_ATTESTATION' and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`;
+  return res as { createdAt: string }[];
+};
+
+export const getBadgeVerificationsCountInRange = async (range: { from: Date; to: Date }) => {
+  // logger.info({ fn: 'getBadgeVerificationsCountInRange' }, 'interactionLog::getBadgeVerificationsCountInRange');
+  // const res =
+  //   await prisma.$queryRaw`select count(*) from "InteractionLog" z where action = 'VERIFY_ATTESTATION' and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`;
+  // logger.trace({ res }, 'getBadgeVerificationsCountInRange');
+  // return (res as { count: number }[])[0]['count'];
+
+  return prisma.interactionLog.count({ where: { action: ActionType.VERIFY_ATTESTATION } });
+};
+
 export const getDownloadedBytesInRange = async (range: { from: Date; to: Date }) => {
   logger.info({ fn: 'getDownloadedBytesInRange', range }, 'interactionLog::getDownloadedBytesInRange');
   const res =
