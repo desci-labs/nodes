@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ZodOpenApiOperationObject, ZodOpenApiPathsObject } from 'zod-openapi';
 
-import { getAuthorSchema, getAuthorWorksSchema } from '../controllers/authors/index.js';
+import { getAuthorNodesSchema, getAuthorSchema, getAuthorWorksSchema } from '../controllers/authors/index.js';
 export const getAuthorProfileOperation: ZodOpenApiOperationObject = {
   operationId: 'getAuthorProfile',
   tags: ['Authors'],
@@ -240,91 +240,54 @@ export const getAuthorWorksOperation: ZodOpenApiOperationObject = {
   },
 };
 
+export const getAuthorPublishedNodesOperation: ZodOpenApiOperationObject = {
+  operationId: 'getAuthorPublishedNodes',
+  tags: ['Authors'],
+  summary: 'Get author published nodes by ORCID ID',
+  requestParams: {
+    path: getAuthorNodesSchema.shape.params,
+    query: getAuthorNodesSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Successful operation',
+      content: {
+        'application/json': {
+          schema: z.object({
+            data: z.object({
+              meta: z.object({
+                g: z.string().optional().describe('Optional ipfs gateway provider link'),
+                page: z.coerce.number().optional().default(1).describe('Page number for pagination of author works'),
+                limit: z.coerce.number().optional().default(20).describe('Number of works to return per page'),
+              }),
+              nodes: z.array(
+                z.object({
+                  dpid: z.number().optional(),
+                  title: z.string(),
+                  versionIx: z.number(),
+                  publishedAt: z.date(),
+                  createdAt: z.date(),
+                  isPublished: z.literal(true),
+                  uuid: z.string(),
+                }),
+              ),
+            }),
+          }),
+        },
+      },
+    },
+  },
+};
+
 export const authorPaths: ZodOpenApiPathsObject = {
   '/v1/authors/{id}': {
     get: getAuthorProfileOperation,
-    // {
-    //     operationId: 'getAuthorProfile',
-    //     summary: 'Get author profile by ORCID ID',
-    //     tags: ['Authors'],
-    //     requestParams: {
-    //       path: getAuthorSchema.shape.params,
-    //     },
-    //     responses: {
-    //       '200': {
-    //         description: 'Successful operation',
-    //         content: {
-    //           'application/json': {
-    //             schema: z
-    //               .object({
-    //                 id: z.string(),
-    //                 display_name: z.string(),
-    //                 orcid: z.string().optional(),
-    //                 works_count: z.number().optional(),
-    //                 cited_by_count: z.number().optional(),
-    //                 h_index: z.number().optional(),
-    //                 counts_by_year: z
-    //                   .array(
-    //                     z.object({
-    //                       year: z.number(),
-    //                       works_count: z.number(),
-    //                       cited_by_count: z.number(),
-    //                     }),
-    //                   )
-    //                   .optional(),
-    //               })
-    //               .passthrough(),
-    //           },
-    //         },
-    //       },
-    //     },
-    //   },
   },
 
   '/v1/authors/{id}/works': {
     get: getAuthorWorksOperation,
-    // {
-    //     operationId: 'getAuthorWorks',
-    //     summary: 'Get author works by ORCID ID',
-    //     tags: ['Authors'],
-    //     requestParams: {
-    //       path: getAuthorWorksSchema.shape.params,
-    //       query: getAuthorWorksSchema.shape.query,
-    //     },
-    //     responses: {
-    //       '200': {
-    //         description: 'Successful operation',
-    //         content: {
-    //           'application/json': {
-    //             schema: z.object({
-    //               meta: z
-    //                 .object({
-    //                   count: z.number(),
-    //                   db_response_time_ms: z.number(),
-    //                   page: z.number(),
-    //                   per_page: z.number(),
-    //                 })
-    //                 .passthrough(),
-    //               results: z.array(
-    //                 z
-    //                   .object({
-    //                     id: z.string(),
-    //                     doi: z.string().optional(),
-    //                     title: z.string(),
-    //                     publication_year: z.number().optional(),
-    //                     publication_date: z.string().optional(),
-    //                     cited_by_count: z.number().optional(),
-    //                     type: z.string().optional(),
-    //                     open_access: z.object({}).passthrough().optional(),
-    //                     authorships: z.array(z.object({}).passthrough()).optional(),
-    //                   })
-    //                   .passthrough(),
-    //               ),
-    //             }),
-    //           },
-    //         },
-    //       },
-    //     },
-    //   },
+  },
+  '/v1/authors/{id}/publishedNodes': {
+    get: getAuthorPublishedNodesOperation,
   },
 };
