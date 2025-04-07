@@ -97,7 +97,21 @@ async function fillNodeData(nodeUuid: string) {
 
   const latestPublishedManifestCid = hexToCid(researchObject.recentCid);
   const latestManifest = await getManifestByCid(latestPublishedManifestCid);
-  const dpid = await getDpidFromNode(node);
+  let dpid = await getDpidFromNode(node);
+
+  // To prevent collisions on dpid 500 with other devs, we add a namespace to the dpid
+  // as the index for local-dev is shared.
+  if (process.env.SERVER_URL === 'http://localhost:5420') {
+    const dpidNamespace = process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE;
+    if (!dpidNamespace) {
+      logger.warn(
+        'ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE is not set, your ES indexed works may collide with other devs.',
+      );
+    } else {
+      logger.info(`Using dpid namespace ${dpidNamespace} for local-dev`);
+      dpid = dpidNamespace + dpid;
+    }
+  }
 
   const doi = node?.DoiRecord?.[0]?.doi;
   const publication_year = firstVersionTime?.getFullYear().toString() || new Date().getFullYear().toString();
