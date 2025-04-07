@@ -25,7 +25,15 @@ const SERVER_ENV_ES_ALIAS_MAPPING = {
   'https://nodes-api.desci.com': 'works_all_prod',
 };
 
+const SERVER_ENV_ES_NATIVE_WORKS_INDEX_MAPPING = {
+  'http://localhost:5420': 'works_native_local',
+  'https://nodes-api-dev.desci.com': 'works_native_dev',
+  'https://nodes-api.desci.com': 'works_native_prod',
+};
+
 export const MAIN_WORKS_ALIAS = SERVER_ENV_ES_ALIAS_MAPPING[process.env.SERVER_URL || 'https://localhost:5420'];
+export const NATIVE_WORKS_INDEX =
+  SERVER_ENV_ES_NATIVE_WORKS_INDEX_MAPPING[process.env.SERVER_URL || 'https://localhost:5420'];
 export const VALID_ENTITIES = [
   'authors',
   'concepts',
@@ -1089,6 +1097,50 @@ export async function getWorkNoveltyScoresById(workId: string): Promise<NoveltyS
         workId,
       },
       'Error in getWorkNoveltyScoresById',
+    );
+  }
+  return undefined;
+}
+
+/**
+ * Returns the work entry indexed in elastic search by DPID
+ */
+export async function getWorkByDpid(dpid: string | number) {
+  try {
+    const searchResult = await elasticClient.search({
+      index: NATIVE_WORKS_INDEX,
+      body: {
+        query: {
+          term: {
+            dpid: dpid,
+          },
+        },
+        size: 1,
+      },
+    });
+
+    const hits = searchResult.hits.hits;
+
+    logger.info(
+      {
+        dpid,
+        totalHits: searchResult.hits.total.value,
+      },
+      'Retrieved work by dpid',
+    );
+
+    if (hits.length > 0) {
+      return hits[0]._source;
+    }
+  } catch (error) {
+    logger.error(
+      {
+        error,
+        message: error.message,
+        stack: error.stack,
+        dpid,
+      },
+      'Error in getWorkByDpid',
     );
   }
   return undefined;
