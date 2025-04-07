@@ -78,6 +78,18 @@ export async function getUserNodeLike(userId: number, nodeUuid: string) {
   });
 }
 
+export async function getNodeLikesCountInRange({ from, to }: { from: string | Date; to: string | Date }) {
+  return prisma.nodeLike.count({
+    where: { createdAt: { gte: from, lt: to } },
+  });
+}
+export async function getNodeLikesInRange({ from, to }: { from: string | Date; to: string | Date }) {
+  return prisma.nodeLike.findMany({
+    where: { createdAt: { gte: from, lt: to } },
+    select: { createdAt: true },
+  });
+}
+
 export const getPublishedNodesInRange = async (range: { from: Date; to: Date }) => {
   const publishes = await prisma.nodeVersion.findMany({
     where: {

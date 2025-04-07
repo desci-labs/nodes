@@ -44,7 +44,12 @@ import {
   getNodeViewsInRange,
   getNodeViewsInXDays,
 } from '../../services/interactionLog.js';
-import { countPublishedNodesInRange, getPublishedNodesInRange } from '../../services/node.js';
+import {
+  countPublishedNodesInRange,
+  getNodeLikesCountInRange,
+  getNodeLikesInRange,
+  getPublishedNodesInRange,
+} from '../../services/node.js';
 import {
   getCountNewNodesInXDays,
   getBytesInXDays,
@@ -82,6 +87,9 @@ interface DataRow {
   bytesUploaded: string;
   bytesDownloaded: string;
   publishedNodes: number;
+  nodeLikes: number;
+  // badgeVerifications: number;
+  // communitySubmissions: number;
 }
 interface AnalyticsData {
   date: Date | string;
@@ -94,6 +102,9 @@ interface AnalyticsData {
   bytes: number;
   publishedNodes: number;
   downloadedBytes: number;
+  nodeLikes: number;
+  // badgeVerifications: number;
+  // communitySubmissions: number;
 }
 
 // create a csv with the following fields for each month
@@ -120,6 +131,9 @@ export const createCsv = async (req: Request, res: Response) => {
       nodeViews: number;
       bytesUploaded: number;
       publishedNodes: number;
+      nodeLikes: number;
+      // badgeVerifications: number;
+      // communitySubmissions: number;
     }
     const data: DataRow[] = [];
     while (monthsCovered <= 12) {
@@ -131,6 +145,10 @@ export const createCsv = async (req: Request, res: Response) => {
       const nodeViews = await getNodeViewsInMonth(curMonth, curYear);
       const bytesUploaded = await getBytesInMonth(curMonth, curYear);
       const publishedNodes = await countPublishedNodesInRange({
+        from: new Date(curYear, curMonth, 1),
+        to: new Date(curYear, curMonth + 1, 1),
+      });
+      const nodeLikes = await getNodeLikesCountInRange({
         from: new Date(curYear, curMonth, 1),
         to: new Date(curYear, curMonth + 1, 1),
       });
@@ -146,6 +164,7 @@ export const createCsv = async (req: Request, res: Response) => {
         nodeViews,
         bytesUploaded,
         publishedNodes,
+        nodeLikes,
       });
       curMonth++;
       if (curMonth > 11) {
@@ -157,7 +176,7 @@ export const createCsv = async (req: Request, res: Response) => {
     // export data to csv
 
     const csv = [
-      'month,year,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded',
+      'month,year,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded,nodeLikes',
       ...data
         .reverse()
         .map((row) =>
@@ -172,6 +191,7 @@ export const createCsv = async (req: Request, res: Response) => {
             row.nodeViews,
             row.publishedNodes,
             row.bytesUploaded,
+            row.nodeLikes,
           ].join(','),
         ),
     ].join('\n');
@@ -243,6 +263,19 @@ export const getAnalytics = async (req: Request, res: Response) => {
     const downloadedBytesInLast7Days = await getDownloadedBytesInXDays(7);
     const downloadedBytesInLast30Days = await getDownloadedBytesInXDays(30);
 
+    const nodeLikesToday = await getNodeLikesCountInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 1)),
+    });
+    const nodeLikesInLast7Days = await getNodeLikesCountInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 7)),
+    });
+    const nodeLikesInLast30Days = await getNodeLikesCountInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 30)),
+    });
+
     const analytics = {
       newUsersInLast30Days,
       newUsersInLast7Days,
@@ -282,6 +315,10 @@ export const getAnalytics = async (req: Request, res: Response) => {
       downloadedBytesToday,
       downloadedBytesInLast7Days,
       downloadedBytesInLast30Days,
+
+      nodeLikesToday,
+      nodeLikesInLast7Days,
+      nodeLikesInLast30Days,
     };
 
     logger.info({ fn: 'getAnalytics', analytics }, 'getAnalytics returning');
@@ -305,6 +342,7 @@ async function aggregateAnalytics(from: Date, to: Date) {
     bytes,
     publishedNodes,
     downloadedBytes,
+    nodeLikes,
   ] = await Promise.all([
     getNewUsersInRange({ from, to }),
     getNewOrcidUsersInRange({ from, to }),
@@ -315,6 +353,7 @@ async function aggregateAnalytics(from: Date, to: Date) {
     getBytesInRange({ from, to }),
     getPublishedNodesInRange({ from, to }),
     getDownloadedBytesInRange({ from, to }),
+    getNodeLikesInRange({ from, to }),
   ]);
   logger.trace({ duration: formatDistanceToNow(start), delta: Date.now() - start }, 'END: aggregateAnalytics');
   return {
@@ -327,6 +366,7 @@ async function aggregateAnalytics(from: Date, to: Date) {
     bytes,
     publishedNodes,
     downloadedBytes,
+    nodeLikes,
   };
 }
 
@@ -363,6 +403,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
       activeOrcidUsers,
       publishedNodes,
       downloadedBytes,
+      nodeLikes,
     } = await aggregateAnalytics(selectedDates.from, selectedDates.to);
 
     const getIntervals = () => {
@@ -418,7 +459,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
       const publishedNodesAgg = publishedNodes.filter((node) =>
         isWithinInterval(node.createdAt, selectedDatesInterval),
       );
-
+      const nodeLikesAgg = nodeLikes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       return {
         date: period,
         newUsers: newUsersAgg.length,
@@ -430,6 +471,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
         publishedNodes: publishedNodesAgg.length,
         bytes: bytesAgg.reduce((total, byte) => total + byte.size, 0),
         downloadedBytes: downloadedBytesAgg.reduce((total, byte) => total + byte.size, 0),
+        nodeLikes: nodeLikesAgg.length,
       };
     });
 
@@ -525,6 +567,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
       activeOrcidUsers,
       publishedNodes,
       downloadedBytes,
+      nodeLikes,
     } = await aggregateAnalytics(selectedDates.from, selectedDates.to);
 
     aggregatedData = allDatesInInterval.map((period) => {
@@ -554,6 +597,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
       const downloadedBytesAgg = downloadedBytes.filter((byte) =>
         isWithinInterval(byte.createdAt, selectedDatesInterval),
       );
+      const nodeLikesAgg = nodeLikes.filter((like) => isWithinInterval(like.createdAt, selectedDatesInterval));
       return {
         date:
           timeInterval === 'yearly'
@@ -572,6 +616,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
         bytesDownloaded: byteValueNumberFormatter.format(
           downloadedBytesAgg.reduce((total, byte) => total + byte.size, 0),
         ),
+        nodeLikes: nodeLikesAgg.length,
       };
     });
   } else {
@@ -592,7 +637,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
   }
 
   const csv = [
-    'date,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded,bytesDownloaded',
+    'date,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded,bytesDownloaded,nodeLikes',
     ...aggregatedData
       .reverse()
       .map((row) =>
@@ -607,6 +652,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
           row.publishedNodes,
           row.bytesUploaded,
           row.bytesDownloaded,
+          row.nodeLikes,
         ].join(','),
       ),
   ].join('\n');
