@@ -4,6 +4,7 @@ import axios from 'axios';
 import { prisma as client } from '../client.js';
 import { OrcIdRecordData, generateAccessToken, getOrcidRecord } from '../controllers/auth/index.js';
 import { logger as parentLogger } from '../logger.js';
+import { getUtcDateXDaysAgo } from '../utils/clock.js';
 import { hideEmail } from '../utils.js';
 
 import { contributorService } from './Contributors.js';
@@ -344,13 +345,15 @@ export async function createUser({
 
 export const getCountNewUsersInXDays = async (daysAgo: number): Promise<number> => {
   logger.trace({ fn: 'getCountNewUsersInXDays' }, 'user::getCountNewUsersInXDays');
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  const now = new Date();
+
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
 
   const newUsersInXDays = await client.user.count({
     where: {
       isGuest: false,
       createdAt: {
-        gte: dateXDaysAgo,
+        gte: utcMidnightXDaysAgo,
       },
     },
   });
@@ -434,12 +437,14 @@ export const getCountAllNonDesciUsers = async (): Promise<number> => {
  */
 export const getCountNewOrcidUsersInXDays = async (daysAgo: number): Promise<number> => {
   logger.trace({ fn: 'getCountNewUsersInXDays' }, 'user::getCountNewUsersInXDays');
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  const now = new Date();
+
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
 
   const newUsersInXDays = await client.user.count({
     where: {
       createdAt: {
-        gte: dateXDaysAgo,
+        gte: utcMidnightXDaysAgo,
       },
       orcid: {
         not: null,
