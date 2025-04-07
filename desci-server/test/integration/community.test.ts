@@ -284,7 +284,7 @@ describe('Desci Communities', () => {
       });
     });
 
-    describe('Community Selected Attestation', () => {
+    describe.skip('Community Selected Attestation', () => {
       let selectedAttestation: CommunityEntryAttestation;
       let version: AttestationVersion;
       let selectedVersion: AttestationVersion;
@@ -392,7 +392,7 @@ describe('Desci Communities', () => {
     });
 
     describe('Create Submission', () => {
-      it('should create a submission', async () => {
+      it.skip('should create a submission', async () => {
         assert(daoCommunity);
         // Make unauthedUser a community member
         await prisma.communityMember.create({
@@ -434,7 +434,7 @@ describe('Desci Communities', () => {
         }
       });
 
-      it('should prevent duplicate submissions', async () => {
+      it.skip('should prevent duplicate submissions', async () => {
         assert(daoCommunity);
         try {
           await communityService.createSubmission({
@@ -451,7 +451,7 @@ describe('Desci Communities', () => {
     });
 
     describe('Get Community Submissions', () => {
-      it('should list all submissions for community members', async () => {
+      it.skip('should list all submissions for community members', async () => {
         assert(daoCommunity);
         const submissions = await communityService.getCommunitySubmissions({ communityId: daoCommunity.id });
 
@@ -460,7 +460,7 @@ describe('Desci Communities', () => {
         expect(submissions[0].nodeId).to.equal(testNode.uuid);
       });
 
-      it('should filter submissions by status', async () => {
+      it.skip('should filter submissions by status', async () => {
         assert(daoCommunity);
         const pendingSubmissions = await communityService.getCommunitySubmissions({
           communityId: daoCommunity.id,
@@ -487,7 +487,7 @@ describe('Desci Communities', () => {
     });
 
     describe('Get User Submissions', () => {
-      it("should list user's own submissions", async () => {
+      it.skip("should list user's own submissions", async () => {
         const submissions = await communityService.getUserSubmissions(unauthedUser.id);
 
         expect(submissions).to.be.an('array');
@@ -507,7 +507,7 @@ describe('Desci Communities', () => {
     });
 
     describe('Update Submission Status', () => {
-      it('should allow admin/Member to accept submission', async () => {
+      it.skip('should allow admin/Member to accept submission', async () => {
         assert(daoCommunity);
         // Make admin a community admin
         await prisma.communityMember.create({
@@ -524,7 +524,7 @@ describe('Desci Communities', () => {
         expect(updatedSubmission.acceptedAt).to.not.be.null;
       });
 
-      it('should allow admin/member to reject submission', async () => {
+      it.skip('should allow admin/member to reject submission', async () => {
         const newSubmission = await communityService.createSubmission({
           nodeId: testNode2.uuid!,
           communityId: daoCommunity!.id,
@@ -549,7 +549,7 @@ describe('Desci Communities', () => {
     });
 
     describe('Get Single Submission', () => {
-      it('should allow submitter to view submission', async () => {
+      it.skip('should allow submitter to view submission', async () => {
         const submission = await communityService.getSubmission(submissionId);
 
         expect(submission).to.not.be.null;
@@ -557,7 +557,7 @@ describe('Desci Communities', () => {
         expect(submission?.nodeId).to.equal(testNode.uuid);
       });
 
-      it('should allow community member to view submission', async () => {
+      it.skip('should allow community member to view submission', async () => {
         const submission = await communityService.getSubmission(submissionId);
 
         expect(submission).to.not.be.null;

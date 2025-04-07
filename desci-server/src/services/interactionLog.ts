@@ -5,6 +5,7 @@ import { Request } from 'express';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
+import { getUtcDateXDaysAgo } from '../utils/clock.js';
 
 const logger = parentLogger.child({ module: 'Services::InteractionLog' });
 
@@ -47,13 +48,15 @@ export const getUserPublishConsent = async (userId?: number) => {
 export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<number> => {
   logger.info({ fn: 'getCountActiveUsersInXDays' }, 'interactionLog::getCountActiveUsersInXDays');
 
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  const now = new Date();
+
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
   return (
     await prisma.interactionLog.findMany({
       distinct: ['userId'],
       where: {
         createdAt: {
-          gte: dateXDaysAgo,
+          gte: utcMidnightXDaysAgo,
         },
         // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
         // from poluting returned data
@@ -87,13 +90,15 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
 export const getCountActiveOrcidUsersInXDays = async (daysAgo: number): Promise<number> => {
   logger.info({ fn: 'getCountActiveOrcidUsersInXDays' }, 'interactionLog::getCountActiveOrcidUsersInXDays');
 
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  const now = new Date();
+
+  const utcMidnightXDaysAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysAgo));
   return (
     await prisma.interactionLog.findMany({
       distinct: ['userId'],
       where: {
         createdAt: {
-          gte: dateXDaysAgo,
+          gte: utcMidnightXDaysAgo,
         },
         user: {
           orcid: {
@@ -167,7 +172,7 @@ export const getCountActiveOrcidUsersInMonth = async (month: number, year: numbe
 export const getEmailsActiveUsersInXDays = async (daysAgo: number): Promise<string[]> => {
   logger.info({ fn: 'getEmailsActiveUsersInXDays' }, 'interactionLog::getEmailsActiveUsersInXDays');
 
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
 
   const activeUsers = await prisma.interactionLog.findMany({
     distinct: ['userId'],
@@ -176,7 +181,7 @@ export const getEmailsActiveUsersInXDays = async (daysAgo: number): Promise<stri
     },
     where: {
       createdAt: {
-        gte: dateXDaysAgo,
+        gte: utcMidnightXDaysAgo,
       },
       // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
       // from poluting returned data
@@ -190,9 +195,10 @@ export const getEmailsActiveUsersInXDays = async (daysAgo: number): Promise<stri
 
 export const getNodeViewsInXDays = async (daysAgo: number): Promise<number> => {
   logger.info({ fn: 'getNodeViewsInXDays' }, 'interactionLog::getNodeViewsInXDays');
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
   const res =
-    await prisma.$queryRaw`select count(1) as count from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"viewedNode"'::jsonb and "createdAt" >= ${dateXDaysAgo}`;
+    await prisma.$queryRaw`select count(1) as count from "InteractionLog" z where action = 'USER_ACTION' and extra::jsonb->'action' = '"viewedNode"'::jsonb and "createdAt" >= ${utcMidnightXDaysAgo}`;
   const count = (res as any[])[0].count.toString();
   return parseInt(count);
 };

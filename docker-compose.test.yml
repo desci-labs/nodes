@@ -46,14 +46,29 @@ services:
     #   - ./tmp/nebulus:/tmp/nebulus
 
   nodes_test_ipfs:
-    image: ipfs/go-ipfs:v0.13.0
+    image: ipfs/kubo:v0.26.0
     environment:
       IPFS_SWARM_KEY: "/key/swarm/psk/1.0.0/\n/base16/\n9d002c50635a479d29dcc0ccb49d862952a0dcc52baddd253167adcd496c8d04"
     ports:
       - "5003:5001"
       - "8091:8080"
+    command:
+      # These are defaults from the go-ipfs dockerfile CMD
+      - "daemon"
+      - "--migrate=true"
+      - "--agent-version-suffix=docker"
+      # This is necessary before ceramic ships Recon, the new tip gossip protocol
+      - "--enable-pubsub-experiment"
+    extra_hosts:
+      - host.docker.internal:host-gateway
     volumes:
       - ./local-data/test/ipfs:/data/ipfs
+    healthcheck:
+      test: ipfs ls QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn || exit 1
+      interval: 5s
+      retries: 5
+      start_period: 10s
+      timeout: 2s
 
   nodes_test_repo_service:
     container_name: "nodes_test_repo_service"
