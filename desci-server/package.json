@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "concurrently \"npm run watch-compile\" \"npm run watch-dev\"",
     "watch-compile": "debug=* tsc -w --preserveWatchOutput",
-    "swagger-autogen": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/swagger.ts",
+    "gen-docs": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/swagger.ts",
     "watch-dev": "debug=* nodemon --watch \"dist/**/*\" -e js ./dist/index.js",
     "script:fix-mirrors": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/retry-mirrors.ts",
     "script:upgrade-manifests": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/upgradeManifests.ts",
