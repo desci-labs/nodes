@@ -1,10 +1,8 @@
 import fs from 'fs';
-import https, { get } from 'https';
+import https from 'https';
 import { Readable } from 'stream';
 
 import {
-  type CodeComponent,
-  type PdfComponent,
   ResearchObjectComponentType,
   type ResearchObjectV1,
   type ResearchObjectV1Component,
@@ -12,7 +10,6 @@ import {
 import type { PBNode } from '@ipld/dag-pb';
 import * as dagPb from '@ipld/dag-pb';
 import { DataReference, DataType, NodeVersion } from '@prisma/client';
-import axios from 'axios';
 import { UnixFS } from 'ipfs-unixfs';
 import toBuffer from 'it-to-buffer';
 import { create, CID, globSource, IPFSHTTPClient } from 'kubo-rpc-client';
@@ -26,8 +23,7 @@ import { logger as parentLogger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
 import { addToDir, getSize, makeDir, updateDagCid } from '../utils/dagConcat.js';
 import { DRIVE_NODE_ROOT_PATH, type ExternalCidMap, type newCid, type oldCid } from '../utils/driveUtils.js';
-import { getGithubExternalUrl, processGithubUrl } from '../utils/githubUtils.js';
-import { createManifest, getUrlsFromParam, makePublic } from '../utils/manifestDraftUtils.js';
+import { createManifest } from '../utils/manifestDraftUtils.js';
 
 const logger = parentLogger.child({
   module: 'Services::Ipfs',
@@ -129,7 +125,17 @@ export const getSizeForCid = async (cid: string, asDirectory: boolean | undefine
   return await getSize(client, cid, asDirectory);
 };
 
-export const makeManifest = async ({ title, defaultLicense, researchFields }) => {
+export const makeManifest = async ({
+  title,
+  defaultLicense,
+  researchFields,
+  ipfsNode,
+}: {
+  title: string;
+  defaultLicense: string;
+  researchFields: string[];
+  ipfsNode: IPFS_NODE;
+}) => {
   logger.trace({ fn: 'downloadFilesAndMakeManifest' }, `downloadFilesAndMakeManifest`);
 
   // make manifest
@@ -140,7 +146,7 @@ export const makeManifest = async ({ title, defaultLicense, researchFields }) =>
     authors: [],
   };
 
-  const emptyDagCid = await createEmptyDag();
+  const emptyDagCid = await createEmptyDag(ipfsNode);
 
   const dataBucketComponent: ResearchObjectV1Component = {
     id: 'root',
@@ -162,64 +168,6 @@ export const makeManifest = async ({ title, defaultLicense, researchFields }) =>
   const manifest = createManifest(researchObject);
 
   return { manifest, researchObject };
-};
-
-interface PdfComponentSingle {
-  component: PdfComponent;
-  file: UrlWithCid;
-}
-interface CodeComponentSingle {
-  component: CodeComponent;
-  file: UrlWithCid;
-}
-
-const processUrls = (key: string, data: Array<string>): Array<Promise<UrlWithCid>> => {
-  logger.trace({ fn: 'processUrls' }, `processUrls key: ${key}, data: ${data}`);
-
-  return data.map(async (e) => {
-    // if our payload points to github, download a zip of the main branch
-    if (key === 'code') {
-      if (e.indexOf('github.com') > -1) {
-        const { branch, author, repo } = await processGithubUrl(e);
-
-        const newUrl = `https://github.com/${author}/${repo}/archive/refs/heads/${branch}.zip`;
-        logger.debug({ fn: 'processUrls' }, `NEW URL ${newUrl}`);
-        e = newUrl;
-      }
-    }
-    return downloadFile(e, key);
-  });
-};
-
-export const downloadFile = async (url: string, key: string, ipfsNode?: IPFS_NODE): Promise<UrlWithCid> => {
-  logger.trace({ fn: 'downloadFile' }, 'createDraft::downloadFile', url.substring(0, 256), key);
-
-  if (url.indexOf('data:') === 0) {
-    const buf = Buffer.from(url.split(',')[1], 'base64');
-    return addBufferToIpfs(buf, key, ipfsNode);
-  }
-
-  return new Promise(async (resolve, _reject) => {
-    try {
-      logger.info({ fn: 'downloadFile' }, `start download ${url.substring(0, 256)}`);
-      const { data } = await axios({
-        method: 'get',
-        url: url,
-        responseType: 'stream',
-        // cancelToken: source.token,
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.41 Safari/537.36',
-        },
-      });
-      logger.info({ fn: 'downloadFile' }, `finish download ${url.substring(0, 256)}`);
-
-      resolve(addBufferToIpfs(data, key, ipfsNode));
-    } catch (err) {
-      logger.error({ fn: 'downloadFile', err }, 'got error');
-      logger.info({ fn: 'downloadFile' }, `try with playwright ${url.substring(0, 256)}`);
-    }
-  });
 };
 
 export interface IpfsDirStructuredInput {
@@ -1085,8 +1033,8 @@ export function strIsCid(cid: string) {
   }
 }
 
-export async function spawnEmptyManifest() {
-  const emptyDagCid = await createEmptyDag();
+export async function spawnEmptyManifest(ipfsNode: IPFS_NODE) {
+  const emptyDagCid = await createEmptyDag(ipfsNode);
 
   const dataBucketComponent: ResearchObjectV1Component = {
     id: 'root',

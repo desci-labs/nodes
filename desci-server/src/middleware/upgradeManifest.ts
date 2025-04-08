@@ -9,7 +9,14 @@ import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../client.js';
 import { getLatestManifest, persistManifest } from '../controllers/data/utils.js';
-import { createDag, createEmptyDag, FilesToAddToDag, getDirectoryTree, strIsCid } from '../services/ipfs.js';
+import {
+  createDag,
+  createEmptyDag,
+  FilesToAddToDag,
+  getDirectoryTree,
+  getNodeToUse,
+  strIsCid,
+} from '../services/ipfs.js';
 import { DANGEROUSLY_addComponentsToManifest } from '../utils/driveUtils.js';
 import { ensureUniqueString, ensureUuidEndsWithDot } from '../utils.js';
 
@@ -119,7 +126,7 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
     // process.exit(404);
   }
   // debugger;
-  const emptyDag = await createEmptyDag();
+  const emptyDag = await createEmptyDag(getNodeToUse(owner.isGuest));
 
   const researchReportsDagCid = Object.entries(researchReportsDagFiles).length
     ? await createDag(researchReportsDagFiles)

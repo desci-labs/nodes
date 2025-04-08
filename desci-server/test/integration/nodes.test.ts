@@ -9,7 +9,7 @@ import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { app } from '../../src/index.js';
-import { spawnEmptyManifest, client as ipfs } from '../../src/services/ipfs.js';
+import { spawnEmptyManifest, client as ipfs, IPFS_NODE } from '../../src/services/ipfs.js';
 import { randomUUID64 } from '../../src/utils.js';
 import { createDraftNode, createUsers } from '../util.js';
 
@@ -34,7 +34,7 @@ describe('Nodes Service', async () => {
   const setup = async () => {
     users = await createUsers(10);
 
-    const baseManifest = await spawnEmptyManifest();
+    const baseManifest = await spawnEmptyManifest(IPFS_NODE.PRIVATE);
     // baseManifest = BASE_MANIFEST;
     const BASE_MANIFEST_CID = (await ipfs.add(JSON.stringify(baseManifest), { cidVersion: 1, pin: true })).cid;
     baseManifestCid = BASE_MANIFEST_CID.toString();

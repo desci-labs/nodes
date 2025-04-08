@@ -17,7 +17,7 @@ import request from 'supertest';
 
 import { prisma } from '../../src/client.js';
 import { app } from '../../src/index.js';
-import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
+import { client as ipfs, IPFS_NODE, spawnEmptyManifest } from '../../src/services/ipfs.js';
 import repoService from '../../src/services/repoService.js';
 import { ResearchObjectDocument } from '../../src/types/documents.js';
 import { randomUUID64 } from '../../src/utils.js';
@@ -68,7 +68,7 @@ describe('Automerge Integration', () => {
     await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "DocumentStore" CASCADE;`;
 
-    const BASE_MANIFEST = await spawnEmptyManifest();
+    const BASE_MANIFEST = await spawnEmptyManifest(IPFS_NODE.PRIVATE);
     baseManifest = BASE_MANIFEST;
     const BASE_MANIFEST_CID = (await ipfs.add(JSON.stringify(BASE_MANIFEST), { cidVersion: 1, pin: true })).cid;
     baseManifestCid = BASE_MANIFEST_CID.toString();

@@ -145,7 +145,9 @@ export async function upgradeManifestsScript() {
       // process.exit(404);
     }
 
-    const emptyDag = await createEmptyDag();
+    const user = await prisma.user.findUnique({ where: { id: node.ownerId }, select: { isGuest: true } });
+
+    const emptyDag = await createEmptyDag(getNodeToUse(user?.isGuest));
 
     const researchReportsDagCid = Object.entries(researchReportsDagFiles).length
       ? await createDag(researchReportsDagFiles)

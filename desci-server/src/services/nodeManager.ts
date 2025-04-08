@@ -30,7 +30,12 @@ export const createNodeDraftBlank = async (
   defaultLicense: string,
   researchFields: string[],
 ) => {
-  const { manifest } = await makeManifest({ title, researchFields, defaultLicense });
+  const { manifest } = await makeManifest({
+    title,
+    researchFields,
+    defaultLicense,
+    ipfsNode: getNodeToUse(owner.isGuest),
+  });
   const { cid: hash } = await addBufferToIpfs(manifest, '', getNodeToUse(owner.isGuest));
 
   const uri = `${hash}`;

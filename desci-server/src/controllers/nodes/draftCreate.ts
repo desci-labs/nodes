@@ -36,6 +36,7 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
       title,
       researchFields,
       defaultLicense: defaultLicense || '',
+      ipfsNode: getNodeToUse(isGuest),
     });
     const { cid: hash } = await addBufferToIpfs(manifest, '', getNodeToUse(isGuest));
     const uri = `${hash}`;
