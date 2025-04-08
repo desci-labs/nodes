@@ -37,7 +37,6 @@ import {
   show,
   draftUpdate,
   list,
-  draftAddComponent,
   proxyPdf,
   draftCreate,
   consent,

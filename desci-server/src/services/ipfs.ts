@@ -252,39 +252,6 @@ export const downloadFile = async (url: string, key: string, ipfsNode?: IPFS_NOD
   });
 };
 
-export const downloadSingleFile = async (url: string): Promise<PdfComponentSingle | CodeComponentSingle> => {
-  if (url.indexOf('github.com') > -1) {
-    const file = await processUrls('code', getUrlsFromParam([url]))[0];
-    const component: CodeComponent = {
-      id: file.cid,
-      name: 'Code',
-      type: ResearchObjectComponentType.CODE,
-      payload: {
-        cid: makePublic([file])[0].val,
-        externalUrl: await getGithubExternalUrl(url),
-        path: DRIVE_NODE_ROOT_PATH + '/Code',
-      },
-    };
-
-    return { component, file };
-  }
-  const file = await processUrls('pdf', getUrlsFromParam([url]))[0];
-  const cid = makePublic([file])[0].val;
-  const component: PdfComponent = {
-    id: file.cid,
-    name: 'Research Report',
-    type: ResearchObjectComponentType.PDF,
-    payload: {
-      url: cid,
-      cid,
-      annotations: [],
-      path: DRIVE_NODE_ROOT_PATH + '/Research Report',
-    },
-  };
-
-  return { component, file };
-};
-
 export interface IpfsDirStructuredInput {
   path: string;
   content: Buffer | Readable | ReadableStream;

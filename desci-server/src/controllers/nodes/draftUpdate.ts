@@ -3,13 +3,14 @@ import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { updateManifestAndAddToIpfs } from '../../services/ipfs.js';
+import { getNodeToUse, updateManifestAndAddToIpfs } from '../../services/ipfs.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { cleanManifestForSaving } from '../../utils/manifestDraftUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
+import { AuthenticatedRequest } from '../notifications/create.js';
 
-export const draftUpdate = async (req: Request, res: Response, next: NextFunction) => {
+export const draftUpdate = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const { uuid, manifest } = req.body;
   const logger = parentLogger.child({
     // id: req.id,
@@ -27,13 +28,7 @@ export const draftUpdate = async (req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const loggedInUserEmail = (req as any).user.email;
-
-    const loggedIn = await prisma.user.findFirst({
-      where: {
-        email: loggedInUserEmail,
-      },
-    });
+    const loggedIn = req.user;
 
     logger.info(`[draftUpdate] for user id ${loggedIn.id}`);
     const loggedInUser = loggedIn.id;
@@ -72,6 +67,7 @@ export const draftUpdate = async (req: Request, res: Response, next: NextFunctio
     const { cid: hash, nodeVersion } = await updateManifestAndAddToIpfs(manifestParsed, {
       userId: loggedInUser,
       nodeId: node.id,
+      ipfsNode: getNodeToUse(loggedIn.isGuest),
     });
 
     const uri = `${hash}`;

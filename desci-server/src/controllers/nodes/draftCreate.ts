@@ -1,14 +1,7 @@
 // import { DocumentId } from '@automerge/automerge-repo';
-import {
-  ExternalLinkComponent,
-  PdfComponent,
-  ResearchObjectComponentLinkSubtype,
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  isNodeRoot,
-} from '@desci-labs/desci-models';
+import { isNodeRoot } from '@desci-labs/desci-models';
 import { DataReference } from '@prisma/client';
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
@@ -16,16 +9,13 @@ import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import {
   addBufferToIpfs,
   downloadFilesAndMakeManifest,
-  downloadSingleFile,
   getNodeToUse,
   updateManifestAndAddToIpfs,
 } from '../../services/ipfs.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
-import { createNodeDraftBlank } from '../../services/nodeManager.js';
 import repoService from '../../services/repoService.js';
-import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
-import { ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
-import { userAnalyticsSchema } from '../admin/analytics.js';
+import { DRIVE_NODE_ROOT_PATH, getDbComponentType } from '../../utils/driveUtils.js';
+import { randomUUID64 } from '../../utils.js';
 import { AuthenticatedRequest } from '../notifications/create.js';
 
 export const draftCreate = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
