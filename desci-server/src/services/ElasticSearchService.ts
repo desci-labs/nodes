@@ -1149,3 +1149,52 @@ export async function getWorkByDpid(dpid: string | number) {
   }
   return undefined;
 }
+
+/**
+ * Returns the work entry indexed in elastic search by DPID
+ */
+export async function getWorkWithDpid() {
+  // if (process.env.SERVER_URL === 'http://localhost:5420' && process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE) {
+  //   dpid = process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE + dpid;
+  // }
+
+  try {
+    const searchResult = await elasticClient.search({
+      index: NATIVE_WORKS_INDEX,
+      body: {
+        query: {
+          exists: {
+            field: 'dpid',
+          },
+        },
+        size: 20,
+      },
+    });
+
+    const hits = searchResult.hits.hits;
+
+    logger.info(
+      {
+        // dpid,
+        totalHits: searchResult.hits.total.value,
+        hits,
+      },
+      'Retrieved work by dpid',
+    );
+
+    if (hits.length > 0) {
+      return hits[0]._source;
+    }
+  } catch (error) {
+    logger.error(
+      {
+        error,
+        message: error.message,
+        stack: error.stack,
+        // dpid,
+      },
+      'Error in getWorkWithDpid',
+    );
+  }
+  return undefined;
+}
