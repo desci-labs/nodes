@@ -1059,6 +1059,7 @@ export async function getWorkNoveltyScoresById(workId: string): Promise<NoveltyS
     if (!workId.startsWith('https://openalex.org/')) {
       workId = `https://openalex.org/${workId}`;
     }
+
     const searchResult = await elasticClient.search({
       index: MAIN_WORKS_ALIAS,
       body: {
@@ -1153,22 +1154,17 @@ export async function getWorkByDpid(dpid: string | number) {
 /**
  * Returns the work entry indexed in elastic search by DPID
  */
-export async function getWorkWithDpid() {
+export async function getLocallyPublishedWorks(body: any) {
   // if (process.env.SERVER_URL === 'http://localhost:5420' && process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE) {
   //   dpid = process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE + dpid;
   // }
 
+  logger.trace({ body }, 'getLocallyPublishedWorks#elasticClient');
+
   try {
     const searchResult = await elasticClient.search({
       index: NATIVE_WORKS_INDEX,
-      body: {
-        query: {
-          exists: {
-            field: 'dpid',
-          },
-        },
-        size: 20,
-      },
+      body,
     });
 
     const hits = searchResult.hits.hits;
@@ -1179,7 +1175,7 @@ export async function getWorkWithDpid() {
         totalHits: searchResult.hits.total.value,
         hits,
       },
-      'Retrieved work by dpid',
+      'Retrieved works by dpid',
     );
 
     if (hits.length > 0) {
@@ -1193,7 +1189,7 @@ export async function getWorkWithDpid() {
         stack: error.stack,
         // dpid,
       },
-      'Error in getWorkWithDpid',
+      'Error in getWorksWithDpid',
     );
   }
   return undefined;
