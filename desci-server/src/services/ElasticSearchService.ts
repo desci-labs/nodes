@@ -1164,7 +1164,7 @@ export async function getLocallyPublishedWorks(body: any) {
   try {
     const searchResult = await elasticClient.search({
       index: NATIVE_WORKS_INDEX,
-      body,
+      // body,
     });
 
     const hits = searchResult.hits.hits;
@@ -1179,7 +1179,7 @@ export async function getLocallyPublishedWorks(body: any) {
     );
 
     if (hits.length > 0) {
-      return hits[0]._source;
+      return hits;
     }
   } catch (error) {
     logger.error(

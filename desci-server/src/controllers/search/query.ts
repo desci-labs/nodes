@@ -8,6 +8,7 @@ import {
   buildSortQuery,
   getLocallyPublishedWorks,
   MAIN_WORKS_ALIAS,
+  NATIVE_WORKS_INDEX,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 
@@ -142,12 +143,9 @@ export const dpidQuery = async (
     pagination = { page: 1, perPage: 20 },
   }: SingleQuerySearchBodyParams = req.body;
 
-  const entity = 'works';
-
   const logger = parentLogger.child({
     module: 'SEARCH::SingleQuery',
     query,
-    entity,
     filters,
     fuzzy,
     sort,
@@ -156,24 +154,9 @@ export const dpidQuery = async (
 
   logger.trace({ fn: 'Executing elastic search query' });
 
-  if (!VALID_ENTITIES.includes(entity)) {
-    return res.status(400).json({
-      ok: false,
-      error: `Invalid entity: ${entity}, the following entities are supported: ${VALID_ENTITIES.join(' ')}`,
-    });
-  }
-
   // const esQuery = buildSimpleStringQuery(query, entity, fuzzy);
   // const esQuery = buildMultiMatchQuery(query, entity, fuzzy);
   // const esBoolQuery = buildBoolQuery([esQuery], filters);
-
-  const esSort = buildSortQuery(entity, sort.field, sort.order);
-
-  let searchEntity = entity;
-
-  if (entity === 'works') {
-    searchEntity = MAIN_WORKS_ALIAS;
-  }
 
   // if (entity === 'fields') {
   //   searchEntity = 'subfields'; // Overwrite as fields are accessible via 'subfields' index
@@ -192,18 +175,18 @@ export const dpidQuery = async (
   // }
 
   const finalQuery = {
-    index: searchEntity,
+    index: NATIVE_WORKS_INDEX,
     body: {
       // ...esBoolQuery,
       // sort: esSort,
-      query: {
-        exists: {
-          field: 'dpid',
-        },
-      },
+      // query: {
+      //   exists: {
+      //     field: 'dpid',
+      //   },
+      // },
       // size: 20,
       // from: (pagination.page - 1) * pagination.perPage,
-      size: pagination.perPage,
+      // size: pagination.perPage,
     },
   };
 
@@ -212,19 +195,19 @@ export const dpidQuery = async (
   try {
     const startTime = Date.now();
     // const results = await elasticClient.search(finalQuery);
+    // debugger; //
     const results = await getLocallyPublishedWorks(finalQuery);
     const duration = Date.now() - startTime;
-    const hits = results.hits;
+    const hits = results.map((hit) => hit._source);
     logger.info({ hitsReturned: hits.total }, 'Elastic search query executed successfully');
-
     return res.json({
       finalQuery,
       ok: true,
-      index: searchEntity,
+      index: NATIVE_WORKS_INDEX,
       total: hits.total,
       page: pagination.page,
       perPage: pagination.perPage,
-      data: hits.hits,
+      data: hits,
       duration,
     });
   } catch (error) {
