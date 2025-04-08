@@ -129,11 +129,8 @@ export const getSizeForCid = async (cid: string, asDirectory: boolean | undefine
   return await getSize(client, cid, asDirectory);
 };
 
-export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf, code, researchFields }) => {
-  const pdfHashes = pdf ? await Promise.all(processUrls('pdf', getUrlsFromParam(pdf))) : [];
-  const codeHashes = code ? await Promise.all(processUrls('code', getUrlsFromParam(code))) : [];
-  const files = (await Promise.all([pdfHashes, codeHashes].flat())).flat();
-  logger.trace({ fn: 'downloadFilesAndMakeManifest' }, `downloadFilesAndMakeManifest ${files}`);
+export const makeManifest = async ({ title, defaultLicense, researchFields }) => {
+  logger.trace({ fn: 'downloadFilesAndMakeManifest' }, `downloadFilesAndMakeManifest`);
 
   // make manifest
 
@@ -155,43 +152,16 @@ export const downloadFilesAndMakeManifest = async ({ title, defaultLicense, pdf,
     },
   };
 
-  const pdfComponents = pdfHashes.map((d: UrlWithCid) => {
-    const cid = makePublic([d])[0].val;
-    const objectComponent: PdfComponent = {
-      id: d.cid,
-      name: 'Research Report',
-      type: ResearchObjectComponentType.PDF,
-      payload: {
-        cid,
-        annotations: [],
-        path: DRIVE_NODE_ROOT_PATH + '/Research Report',
-      },
-    };
-    return objectComponent;
-  });
-  const codeComponents = codeHashes.map((d: UrlWithCid) => {
-    const objectComponent: CodeComponent = {
-      id: d.cid,
-      name: 'Code',
-      type: ResearchObjectComponentType.CODE,
-      payload: {
-        language: 'bash',
-        cid: makePublic([d])[0].val,
-        path: DRIVE_NODE_ROOT_PATH + '/Code',
-      },
-    };
-    return objectComponent;
-  });
   researchObject.title = title;
   researchObject.defaultLicense = defaultLicense;
   researchObject.researchFields = researchFields;
-  researchObject.components = researchObject.components.concat(dataBucketComponent, pdfComponents, codeComponents);
+  researchObject.components = researchObject.components.concat(dataBucketComponent);
 
   logger.debug({ fn: 'downloadFilesAndMakeManifest' }, 'RESEARCH OBJECT', JSON.stringify(researchObject));
 
   const manifest = createManifest(researchObject);
 
-  return { files, pdfHashes, codeHashes, manifest, researchObject };
+  return { manifest, researchObject };
 };
 
 interface PdfComponentSingle {

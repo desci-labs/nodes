@@ -14,6 +14,7 @@ import {
   createEmptyDag,
   FilesToAddToDag,
   getDirectoryTree,
+  getNodeToUse,
   strIsCid,
   updateManifestAndAddToIpfs,
 } from '../services/ipfs.js';
@@ -277,12 +278,18 @@ export async function persistManifestTimePreserved({
     throw Error(`User: ${userId} doesnt own node ${node.id}`);
   }
 
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isGuest: true } });
+
   try {
     const {
       cid,
       ref: dataRef,
       nodeVersion,
-    } = await updateManifestAndAddToIpfs(manifest, { userId: node.ownerId, nodeId: node.id });
+    } = await updateManifestAndAddToIpfs(manifest, {
+      userId: node.ownerId,
+      nodeId: node.id,
+      ipfsNode: getNodeToUse(user?.isGuest),
+    });
 
     const updated = await prisma.node.update({
       where: {

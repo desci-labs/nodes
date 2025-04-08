@@ -5,13 +5,7 @@ import { Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
-import {
-  addBufferToIpfs,
-  downloadFilesAndMakeManifest,
-  getNodeToUse,
-  updateManifestAndAddToIpfs,
-} from '../../services/ipfs.js';
+import { addBufferToIpfs, makeManifest, getNodeToUse, updateManifestAndAddToIpfs } from '../../services/ipfs.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { DRIVE_NODE_ROOT_PATH, getDbComponentType } from '../../utils/driveUtils.js';
@@ -21,19 +15,13 @@ import { AuthenticatedRequest } from '../notifications/create.js';
 export const draftCreate = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const owner = req.user;
   const { isGuest } = req.user;
-  const {
-    title,
-    links: { pdf, code },
-    researchFields,
-    defaultLicense,
-  } = req.body;
+  const { title, researchFields, defaultLicense } = req.body;
   const logger = parentLogger.child({
     module: 'NODE::DraftCreateController',
     userId: owner.id,
     isGuest,
     body: req.body,
     title,
-    links: { pdf, code },
     researchFields,
     defaultLicense,
   });
@@ -44,10 +32,8 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
       throw Error('User ID mismatch');
     }
 
-    const { manifest, researchObject, files } = await downloadFilesAndMakeManifest({
+    const { manifest, researchObject } = await makeManifest({
       title,
-      pdf,
-      code,
       researchFields,
       defaultLicense: defaultLicense || '',
     });
@@ -64,18 +50,6 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
       },
     });
 
-    // const dataConsumptionBytes = await getDataUsageForUserBytes(owner);
-
-    const uploadSizeBytes = files.map((f) => f.size).reduce((total, size) => total + size, 0);
-
-    const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(owner, { fileSizeBytes: uploadSizeBytes });
-    if (!hasStorageSpaceToUpload) {
-      res.send(400).json({
-        error: `upload size of ${uploadSizeBytes} exceeds users data budget of ${owner.currentDriveStorageLimitGb}GB`,
-      });
-      return;
-    }
-
     const { nodeVersion } = await updateManifestAndAddToIpfs(researchObject, {
       userId: owner.id,
       nodeId: node.id,
@@ -84,21 +58,19 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
 
     const uploadedFiles: Partial<DataReference>[] = researchObject.components.map((component) => {
       const isDataBucket = isNodeRoot(component);
-      const size = isDataBucket ? 0 : files.find((f) => f.cid === component.payload.url)?.size;
 
       const dbCompType = getDbComponentType(component);
 
       const cid = isDataBucket ? component.payload.cid : component.payload.url;
       return {
         cid: cid,
-        size: size,
+        size: 0, // Only the data bucket
         root: isDataBucket,
         type: dbCompType,
         userId: owner.id,
         nodeId: node.id,
         directory: isDataBucket,
         path: isDataBucket ? DRIVE_NODE_ROOT_PATH : DRIVE_NODE_ROOT_PATH + '/' + component.name,
-        // versionId: nodeVersion.id,
       };
     });
 
