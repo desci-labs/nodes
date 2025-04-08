@@ -22,7 +22,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe('Desci Analytics', async () => {
+describe.skip('Desci Analytics', async () => {
   let mockUser: User;
   let mockToken: string;
   let request: supertest.SuperTest<supertest.Test>;

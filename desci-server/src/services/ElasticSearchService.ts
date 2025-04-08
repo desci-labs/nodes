@@ -1106,6 +1106,10 @@ export async function getWorkNoveltyScoresById(workId: string): Promise<NoveltyS
  * Returns the work entry indexed in elastic search by DPID
  */
 export async function getWorkByDpid(dpid: string | number) {
+  if (process.env.SERVER_URL === 'http://localhost:5420' && process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE) {
+    dpid = process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE + dpid;
+  }
+
   try {
     const searchResult = await elasticClient.search({
       index: NATIVE_WORKS_INDEX,
