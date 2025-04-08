@@ -115,8 +115,7 @@ router.get('/explore', [], explore);
 
 router.post('/createDpid', [ensureUser, ensureWriteNodeAccess], createDpid);
 router.post('/createDraft', [ensureGuestOrUser], draftCreate);
-// is this api deprecated?
-router.post('/addComponentToDraft', [ensureGuestOrUser], draftAddComponent);
+
 router.post('/updateDraft', [ensureGuestOrUser], draftUpdate);
 router.get('/versionDetails', [], versionDetails);
 router.get('/', [ensureGuestOrUser], list);

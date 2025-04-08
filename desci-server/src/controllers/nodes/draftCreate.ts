@@ -25,6 +25,7 @@ import { createNodeDraftBlank } from '../../services/nodeManager.js';
 import repoService from '../../services/repoService.js';
 import { DRIVE_NODE_ROOT_PATH, ROTypesToPrismaTypes, getDbComponentType } from '../../utils/driveUtils.js';
 import { ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
+import { userAnalyticsSchema } from '../admin/analytics.js';
 import { AuthenticatedRequest } from '../notifications/create.js';
 
 export const draftCreate = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -85,7 +86,11 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
       return;
     }
 
-    const { nodeVersion } = await updateManifestAndAddToIpfs(researchObject, { userId: owner.id, nodeId: node.id });
+    const { nodeVersion } = await updateManifestAndAddToIpfs(researchObject, {
+      userId: owner.id,
+      nodeId: node.id,
+      ipfsNode: getNodeToUse(owner.isGuest),
+    });
 
     const uploadedFiles: Partial<DataReference>[] = researchObject.components.map((component) => {
       const isDataBucket = isNodeRoot(component);
@@ -149,164 +154,6 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
   } catch (err) {
     logger.error({ err }, 'mint-err');
     res.status(400).send({ ok: false, error: err });
-    return;
-  }
-};
-
-export const draftAddComponent = async (req: Request, res: Response, next: NextFunction) => {
-  const { uuid: bodyUuid, componentUrl, title, componentType, componentSubtype, manifest } = req.body;
-  let uuid = bodyUuid;
-  const logger = parentLogger.child({
-    // id: req.id,
-    module: 'NODE::draftAddComponentController',
-    body: req.body,
-    title,
-    uuid,
-    componentUrl,
-    componentType,
-    componentSubtype,
-    manifest,
-    user: (req as any).user,
-  });
-  logger.trace('addComponentToDraft', req.body.manifest);
-
-  try {
-    const loggedInUserEmail = (req as any).user.email;
-
-    const loggedIn = await prisma.user.findFirst({
-      where: {
-        email: loggedInUserEmail,
-      },
-    });
-
-    const loggedInUser = loggedIn.id;
-
-    if (!loggedInUser || loggedInUser < 1) {
-      throw Error('User ID mismatch');
-    }
-
-    if (!uuid) {
-      // res.status(400).send({ err: 'uuid required' });
-      // return;
-      logger.info({ manifest }, 'creating node upon adding component');
-      const nodeTitle = (manifest as ResearchObjectV1).title;
-      const nodeLicense = (manifest as ResearchObjectV1).defaultLicense;
-      const researchFields = (manifest as ResearchObjectV1).researchFields;
-      const nodeCopy = await createNodeDraftBlank(loggedIn, nodeTitle, nodeLicense, researchFields);
-      uuid = nodeCopy.uuid;
-    }
-
-    const node = await prisma.node.findFirst({
-      where: {
-        ownerId: loggedInUser,
-        uuid: ensureUuidEndsWithDot(uuid),
-      },
-    });
-
-    const manifestParsed: ResearchObjectV1 = req.body.manifest as ResearchObjectV1;
-    let dataRefCallback: (id: number) => void | null = null;
-    if (
-      componentType == ResearchObjectComponentType.CODE ||
-      componentType == ResearchObjectComponentType.PDF ||
-      componentType == ResearchObjectComponentType.DATA
-    ) {
-      const { component, file } = await downloadSingleFile(componentUrl);
-
-      if (manifestParsed.components.filter((c) => c.id === component.id).length > 0) {
-        throw Error('Duplicate component');
-      }
-
-      const hasStorageSpaceToUpload = await hasAvailableDataUsageForUpload(loggedIn, { fileSizeBytes: file.size });
-      if (!hasStorageSpaceToUpload) {
-        res.send(400).json({
-          error: `upload size of ${file.size} exceeds users data budget of ${loggedIn.currentDriveStorageLimitGb} GB`,
-        });
-        return;
-      }
-
-      component.name = title;
-      if (componentType == ResearchObjectComponentType.PDF && componentSubtype) {
-        (component as PdfComponent).subtype = componentSubtype;
-      }
-      manifestParsed.components.push(component);
-
-      dataRefCallback = async (versionId: number) => {
-        await prisma.dataReference.create({
-          data: {
-            cid: file.cid,
-            size: file.size,
-            root: false,
-            type: ROTypesToPrismaTypes[component.type],
-            userId: loggedIn.id,
-            nodeId: node.id,
-            directory: false,
-            // versionId: versionId,
-          },
-        });
-      };
-    } else if (componentType == ResearchObjectComponentType.LINK) {
-      let name = 'Link';
-      switch (componentSubtype as ResearchObjectComponentLinkSubtype) {
-        case ResearchObjectComponentLinkSubtype.COMMUNITY_DISCUSSION:
-          name = 'Link - Community Discussion';
-          break;
-        case ResearchObjectComponentLinkSubtype.EXTERNAL_API:
-          name = 'External API';
-          break;
-        case ResearchObjectComponentLinkSubtype.PRESENTATION_DECK:
-          name = 'External Presentation';
-          break;
-        case ResearchObjectComponentLinkSubtype.RESTRICTED_DATA:
-          name = 'Restricted Data';
-          break;
-        case ResearchObjectComponentLinkSubtype.VIDEO_RESOURCE:
-          name = 'Video Link';
-          break;
-      }
-      const linkComponent: ExternalLinkComponent = {
-        id: componentUrl,
-        name,
-        type: ResearchObjectComponentType.LINK,
-        subtype: componentSubtype,
-        payload: {
-          url: componentUrl,
-          path: DRIVE_NODE_ROOT_PATH + `/${name}`,
-        },
-      };
-      manifestParsed.components.push(linkComponent);
-    }
-    const { cid: hash, nodeVersion } = await updateManifestAndAddToIpfs(manifestParsed, {
-      userId: loggedInUser,
-      nodeId: node.id,
-    });
-    const uri = `${hash}`;
-
-    await prisma.node.update({
-      where: {
-        id: node.id,
-      },
-      data: {
-        manifestUrl: uri,
-        title: (manifest as ResearchObjectV1).title,
-      },
-    });
-
-    dataRefCallback && (await dataRefCallback(nodeVersion.id));
-
-    const nodeCopy = Object.assign({}, node);
-    nodeCopy.uuid = nodeCopy.uuid.replace(/\.$/, '');
-
-    res.send({
-      ok: true,
-      hash,
-      uri,
-      node: nodeCopy,
-      version: nodeVersion,
-    });
-    return;
-  } catch (err) {
-    logger.error({ err }, 'mint-err');
-    res.status(400).send({ ok: false, error: err.message });
     return;
   }
 };
