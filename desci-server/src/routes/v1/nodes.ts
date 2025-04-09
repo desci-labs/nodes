@@ -160,7 +160,7 @@ router.get('/contributions/user/:userId', [], getUserContributions);
 router.get('/contributions/user', [ensureGuestOrUser], getUserContributionsAuthed);
 
 // Prepub (distribution pkg)
-router.post('/distribution', preparePublishPackage);
+router.post('/distribution', [ensureUser], preparePublishPackage);
 router.post('/distribution/preview', [ensureUser], frontmatterPreview);
 router.post('/distribution/email', [ensureUser], emailPublishPackage);
 

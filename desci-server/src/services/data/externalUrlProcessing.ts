@@ -175,7 +175,7 @@ export async function processExternalUrlDataToIpfs({
       logger.debug({ outputPath }, 'Starting unzipping to output directory');
       await extractZipFileAndCleanup(zipPath, outputPath);
       logger.debug({ outputPath }, 'extraction complete, starting pinning');
-      pinResult = await addDirToIpfs(outputPath);
+      pinResult = await addDirToIpfs(outputPath, getNodeToUse(user.isGuest));
       // Overrides the path name of the root directory
       pinResult[pinResult.length - 1].path = externalUrl.path;
 

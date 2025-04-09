@@ -208,26 +208,6 @@ export const pinDirectory = async (
   return uploaded;
 };
 
-export async function pinExternalDags(
-  cids: string[],
-  { ipfsNode = IPFS_NODE.PRIVATE }: { ipfsNode?: IPFS_NODE },
-): Promise<string[]> {
-  const result = [];
-  let iterationCount = 0;
-  for await (const cid of cids) {
-    iterationCount++;
-    logger.debug({ cid, fn: 'pinExternalDags', iterationCount }, `Pinning external dag ${cid}`);
-    const cidType = multiformats.CID.parse(cid);
-    const res = await getOrCache(`pin-block-${cid}`, async () => {
-      const block = await publicIpfs.block.get(cidType);
-      const blockRes = await getIpfsClient(ipfsNode).block.put(block);
-      return blockRes.toString();
-    });
-    result.push(res);
-  }
-  return result;
-}
-
 export const pinFile = async (
   file: Buffer | Readable | ReadableStream,
   { ipfsNode = IPFS_NODE.PRIVATE }: { ipfsNode?: IPFS_NODE },
