@@ -468,7 +468,6 @@ model PublicDataReference {
   createdAt   DateTime                          @default(now())
   updatedAt   DateTime                          @updatedAt
   name        String?
-  description String?
   cid         String
   root        Boolean
   rootCid     String?
@@ -1213,6 +1212,7 @@ enum DataType {
   CODE_REPOS
   DOCUMENT
   SUBMISSION_PACKAGE
+  SUBMISSION_PACKAGE_PREVIEW
   THUMBNAIL
 }
 

@@ -237,8 +237,7 @@ class PublishPackageService {
     const previewImageDataRefs = previewImagePinResults.map((pinned) => ({
       nodeId: node.id,
       cid: pinned.cid,
-      type: DataType.SUBMISSION_PACKAGE,
-      description: `Preview image for submission package`,
+      type: DataType.SUBMISSION_PACKAGE_PREVIEW,
       size: pinned.size,
       root: false,
       directory: false,
