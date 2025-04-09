@@ -527,16 +527,6 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
   }
 }
 
-export type oldCid = string;
-export type newCid = string;
-// export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
-//   manifest.components.forEach((c) => {
-//     if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
-//     if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
-//   });
-//   return manifest;
-// }
-
 export type ExternalCidMap = Record<string, { size: number; path: string; directory: boolean }>;
 
 export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
