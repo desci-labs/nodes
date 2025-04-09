@@ -1,5 +1,5 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { Node } from '@prisma/client';
+import { DataType, Node, User } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
@@ -9,7 +9,7 @@ import { cachedGetDpidFromManifest } from '../utils/manifest.js';
 import { ensureUuidEndsWithDot, hexToCid, toKebabCase } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
-import { pinFile } from './ipfs.js';
+import { getNodeToUse, pinFile } from './ipfs.js';
 import { PublishServices } from './PublishServices.js';
 import { CidString, HeightPx } from './Thumbnails.js';
 
@@ -51,6 +51,7 @@ class PublishPackageService {
       return null;
     }
 
+    const user = await prisma.user.findUnique({ where: { id: node.ownerId } });
     const title = manifest.title;
     const nodeDpid = node.dpidAlias ?? (await cachedGetDpidFromManifest(manifestCid));
     const demoMode = nodeDpid === undefined || nodeDpid === -1;
@@ -107,7 +108,7 @@ class PublishPackageService {
 
     this.logger.trace({ pdfCid, doi, title, dpid, license, publishDate, authors }, 'Generated PDF cover');
     // Save it on IPFS
-    const pinned = await pinFile(coverPdfStream.data);
+    const pinned = await pinFile(coverPdfStream.data, { ipfsNode: getNodeToUse(user.isGuest) });
 
     this.logger.trace({ pdfCid, doi, title, dpid, license, publishDate, authors }, 'Pinned PDF cover');
     // Save it to the database
@@ -120,14 +121,24 @@ class PublishPackageService {
           manifestCid: usedManifestCid,
         },
       });
+
+      await prisma.dataReference.create({
+        data: {
+          nodeId: node.id,
+          cid: pinned.cid,
+          type: DataType.SUBMISSION_PACKAGE,
+          size: pinned.size,
+          root: false,
+          directory: false,
+          userId: user.id,
+        },
+      });
     } catch (e) {
       this.logger.info(
         { fn: 'preparePublishPackage', error: e.message },
         'Failed to create distributionPdf entry, likely because already exists',
       );
     }
-
-    // LATER: Add data ref
 
     this.logger.trace(
       { pdfCid, doi, title, dpid, license, publishDate, authors, pinnedCid: pinned.cid, usedManifestCid },
@@ -177,12 +188,22 @@ class PublishPackageService {
     pdfCid: CidString,
     heightPx: HeightPx,
     pageNums: PageNumber[],
-    nodeUuid: string,
+    node: Node,
+    user: User,
   ): Promise<PreviewMap> {
-    this.logger.trace({ pdfCid, heightPx, pageNums, nodeUuid }, 'Generating PDF preview');
+    this.logger.trace({ pdfCid, heightPx, pageNums, nodeUuid: node.uuid }, 'Generating PDF preview');
     if (process.env.ISOLATED_MEDIA_SERVER_URL === undefined) {
       this.logger.error('process.env.ISOLATED_MEDIA_SERVER_URL is not defined');
       return null;
+    }
+
+    // Check if cached previews available
+    const cachedPreviews = await prisma.pdfPreviews.findFirst({
+      where: { pdfCid, nodeUuid: node.uuid },
+    });
+
+    if (cachedPreviews) {
+      return cachedPreviews.previewMap as PreviewMap;
     }
 
     // debugger;
@@ -195,41 +216,67 @@ class PublishPackageService {
       },
     );
 
-    this.logger.trace({ pdfCid, heightPx, pageNums, nodeUuid }, 'Generated PDF preview');
+    this.logger.trace({ pdfCid, heightPx, pageNums, nodeUuid: node.uuid }, 'Generated PDF preview');
 
     const previewStreams = previewResponse.data;
 
     const previewMap: PreviewMap = {};
+    const previewImagePinResults = [];
 
     for (let i = 0; i < previewStreams.length; i++) {
       const pageNumber = pageNums[i];
       // debugger;
       const previewStream = previewStreams[i];
       // Save it on IPFS
-      const pinned = await pinFile(previewStream.data);
+      const pinned = await pinFile(previewStream.data, { ipfsNode: getNodeToUse(user.isGuest) });
 
       previewMap[pageNumber] = pinned.cid;
+      previewImagePinResults.push(pinned);
     }
 
-    this.logger.trace({ pdfCid, heightPx, pageNums, nodeUuid, previewMap }, 'Pinned PDF preview');
+    const previewImageDataRefs = previewImagePinResults.map((pinned) => ({
+      nodeId: node.id,
+      cid: pinned.cid,
+      type: DataType.SUBMISSION_PACKAGE,
+      description: `Preview image for submission package`,
+      size: pinned.size,
+      root: false,
+      directory: false,
+      userId: user.id,
+    }));
 
-    // Save it to the database
-    // const existingPreviews = await prisma.pdfPreviews.findFirst({
-    //   where: { pdfCid, nodeUuid },
-    // });
+    const dataRefsCreated = await prisma.dataReference.createMany({ data: previewImageDataRefs });
 
-    // if (existingPreviews) {
-    //   await prisma.pdfPreviews.update({
-    //     where: { id: existingPreviews.id },
-    //     data: { previewMap },
-    //   });
-    // } else {
-    //   await prisma.pdfPreviews.create({
-    //     data: { nodeUuid: ensureUuidEndsWithDot(nodeUuid), pdfCid, previewMap },
-    //   });
-    // }
+    this.logger.trace(
+      {
+        pdfCid,
+        heightPx,
+        pageNums,
+        nodeUuid: node.uuid,
+        previewMap,
+        dataRefsCreated: dataRefsCreated?.count,
+      },
+      'Pinned PDF preview, data refs created',
+    );
 
-    // LATER: Add data ref
+    if (previewImagePinResults.length === pageNums.length) {
+      // Save it to the database
+      const existingPreviews = await prisma.pdfPreviews.findFirst({
+        where: { pdfCid, nodeUuid: node.uuid },
+      });
+
+      if (existingPreviews) {
+        await prisma.pdfPreviews.update({
+          where: { id: existingPreviews.id },
+          data: { previewMap },
+        });
+      } else {
+        await prisma.pdfPreviews.create({
+          data: { nodeUuid: ensureUuidEndsWithDot(node.uuid), pdfCid, previewMap },
+        });
+      }
+    }
+
     return previewMap;
   }
 }

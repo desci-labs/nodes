@@ -1212,6 +1212,8 @@ enum DataType {
   VIDEOS
   CODE_REPOS
   DOCUMENT
+  SUBMISSION_PACKAGE
+  THUMBNAIL
 }
 
 enum PublishState {
