@@ -79,14 +79,22 @@ export const deleteData = async (req: Request, res: Response<DeleteResponse | Er
         directory: e.directory,
       };
     });
-    // debugger;
-    const existingDataRefs = await prisma.dataReference.findMany({
-      where: {
-        nodeId: node.id,
-        userId: owner.id,
-        type: { not: DataType.MANIFEST },
-      },
-    });
+
+    const existingDataRefs = owner.isGuest
+      ? await prisma.guestDataReference.findMany({
+          where: {
+            nodeId: node.id,
+            userId: owner.id,
+            type: { not: DataType.MANIFEST },
+          },
+        })
+      : await prisma.dataReference.findMany({
+          where: {
+            nodeId: node.id,
+            userId: owner.id,
+            type: { not: DataType.MANIFEST },
+          },
+        });
 
     const dataRefsToDelete = existingDataRefs.filter((e) => e.path.startsWith(path + '/') || e.path === path);
 

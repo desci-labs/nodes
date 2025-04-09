@@ -333,6 +333,8 @@ async function clonePrivateNode(nodeUuid: string, newNodeUuid: string) {
   const newNodeUser = await prisma.user.findUnique({ where: { id: newNode.ownerId } });
   if (!newNodeUser) return logger.error(`[clonePrivateNode] Failed to find userid: ${newNode.ownerId}`);
 
+  const oldNodeOwner = await prisma.user.findUnique({ where: { id: oldNode.ownerId } });
+
   // clone node state
   const newNodeObj = {
     ...oldNode,
@@ -355,7 +357,9 @@ async function clonePrivateNode(nodeUuid: string, newNodeUuid: string) {
 
   // clone refs
   logger.info('[clonePrivateNode] Cloning data refs...');
-  const oldNodeDataRefs = await prisma.dataReference.findMany({ where: { nodeId: oldNode.id } });
+  const oldNodeDataRefs = oldNodeOwner.isGuest
+    ? await prisma.guestDataReference.findMany({ where: { nodeId: oldNode.id } })
+    : await prisma.dataReference.findMany({ where: { nodeId: oldNode.id } });
   if (!oldNodeDataRefs.length)
     return logger.error({ oldNodeDataRefs }, `[clonePrivateNode] Failed to find data refs for node: ${nodeUuid}`);
 

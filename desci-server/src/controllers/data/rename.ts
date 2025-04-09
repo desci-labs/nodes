@@ -135,13 +135,22 @@ export const renameData = async (req: Request, res: Response<RenameResponse | Er
     /*
      ** Prepare updated refs
      */
-    const existingDataRefs = await prisma.dataReference.findMany({
-      where: {
-        nodeId: node.id,
-        userId: owner.id,
-        type: { not: DataType.MANIFEST },
-      },
-    });
+    const existingDataRefs = owner.isGuest
+      ? await prisma.guestDataReference.findMany({
+          where: {
+            nodeId: node.id,
+            userId: owner.id,
+            type: { not: DataType.MANIFEST },
+          },
+        })
+      : await prisma.dataReference.findMany({
+          where: {
+            nodeId: node.id,
+            userId: owner.id,
+            type: { not: DataType.MANIFEST },
+          },
+        });
+
     const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
 
     const existingRefMap = existingDataRefs.reduce((map, ref) => {
