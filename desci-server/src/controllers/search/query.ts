@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 
+import { prisma } from '../../client.js';
+import { InternalError } from '../../core/ApiError.js';
+import { SuccessResponse } from '../../core/ApiResponse.js';
 import { elasticClient } from '../../elasticSearchClient.js';
 import { logger as parentLogger } from '../../logger.js';
 import {
@@ -7,10 +10,12 @@ import {
   buildMultiMatchQuery,
   buildSortQuery,
   getLocallyPublishedWorks,
+  getWorkByDpid,
   MAIN_WORKS_ALIAS,
   NATIVE_WORKS_INDEX,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
+import { asyncMap } from '../../utils.js';
 
 import { Filter, QueryErrorResponse, QuerySuccessResponse } from './types.js';
 
@@ -130,7 +135,119 @@ export const singleQuery = async (
   }
 };
 
+const DPID_QUERY_CACHE_KEY = 'DPID_QUERY_CACHE_KEY-';
 export const dpidQuery = async (
+  req: Request<any, any, SingleQuerySearchBodyParams>,
+  res: Response<QuerySuccessResponse | QueryErrorResponse>,
+) => {
+  const {
+    // query,
+    // filters = [],
+    // entity,
+    // fuzzy,
+    // sort = { field: '_score', order: 'desc' },
+    pagination = { page: 1, perPage: 20 },
+  }: SingleQuerySearchBodyParams = req.body;
+
+  const logger = parentLogger.child({
+    module: 'SEARCH::SingleQuery',
+    // query,
+    // filters,
+    // fuzzy,
+    // sort,
+    pagination,
+  });
+
+  logger.trace({ fn: 'Executing elastic search query' });
+
+  const finalQuery = {
+    from: (pagination.page - 1) * pagination.perPage,
+    size: pagination.perPage,
+  };
+
+  logger.debug({ query: finalQuery }, 'Executing query');
+
+  try {
+    const startTime = Date.now();
+    const results = await getLocallyPublishedWorks(finalQuery);
+    const duration = Date.now() - startTime;
+    // logger.info(
+    //   {
+    //     results,
+    //   },
+    //   'Retrieved works with dpid',
+    // );
+    const hits = await asyncMap(results, async (hit) => {
+      const data = hit._source;
+      const uuid = data.work_id.replace('node/', '');
+
+      let dpid = data.dpid;
+      if (process.env.SERVER_URL === 'http://localhost:5420' && process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE) {
+        dpid = dpid.replace(process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE, '');
+      }
+
+      const node = await prisma.node.findFirst({
+        select: {
+          createdAt: true,
+          versions: {
+            select: {
+              manifestUrl: true,
+              createdAt: true,
+              commitId: true,
+              transactionId: true,
+            },
+            where: {
+              OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        where: {
+          uuid,
+          isDeleted: false,
+        },
+      });
+      const versionIdx = node ? node?.versions?.length - 1 : null;
+
+      logger.trace(
+        {
+          uuid,
+          dpid,
+          // SERVER_URL: process.env.SERVER_URL,
+          // ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE: process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE,
+        },
+        'Retrieved works with dpid',
+      );
+
+      return {
+        ...data,
+        uuid,
+        dpid,
+        versionIdx,
+      };
+    });
+    logger.trace({ hits }, 'Elastic search query executed successfully');
+    return new SuccessResponse({
+      finalQuery,
+      index: NATIVE_WORKS_INDEX,
+      total: hits?.length ?? 0,
+      from: pagination.page,
+      size: pagination.perPage,
+      data: hits ?? [],
+      duration,
+    }).send(res);
+  } catch (error) {
+    logger.error({ error }, 'Elastic search query failed');
+    throw new InternalError('An error occurred while searching');
+    // return res.status(500).json({
+    //   ok: false,
+    //   error: 'An error occurred while searching',
+    //   finalQuery,
+    // });
+  }
+};
+
+export const singleDpidQuery = async (
   req: Request<any, any, SingleQuerySearchBodyParams>,
   res: Response<QuerySuccessResponse | QueryErrorResponse>,
 ) => {
@@ -143,8 +260,10 @@ export const dpidQuery = async (
     pagination = { page: 1, perPage: 20 },
   }: SingleQuerySearchBodyParams = req.body;
 
+  const { dpid } = req.params;
   const logger = parentLogger.child({
     module: 'SEARCH::SingleQuery',
+    dpid,
     query,
     filters,
     fuzzy,
@@ -154,68 +273,34 @@ export const dpidQuery = async (
 
   logger.trace({ fn: 'Executing elastic search query' });
 
-  // const esQuery = buildSimpleStringQuery(query, entity, fuzzy);
-  // const esQuery = buildMultiMatchQuery(query, entity, fuzzy);
-  // const esBoolQuery = buildBoolQuery([esQuery], filters);
-
-  // if (entity === 'fields') {
-  //   searchEntity = 'subfields'; // Overwrite as fields are accessible via 'subfields' index
-  //   logger.info(
-  //     { entity, searchEntity },
-  //     `Entity provided is '${entity}', overwriting with '${searchEntity}' because ${entity} is accessible in that index.`,
-  //   );
-  // }
-
-  // if (entity === 'authors') {
-  //   searchEntity = 'authors_with_institutions'; // Overwrite as fields are accessible via 'subfields' index
-  //   logger.info(
-  //     { entity, searchEntity },
-  //     `Entity provided is '${entity}', overwriting with '${searchEntity}' because its a more complete index containing institution data`,
-  //   );
-  // }
-
   const finalQuery = {
     index: NATIVE_WORKS_INDEX,
     body: {
-      // ...esBoolQuery,
-      // sort: esSort,
-      // query: {
-      //   exists: {
-      //     field: 'dpid',
-      //   },
-      // },
-      // size: 20,
-      // from: (pagination.page - 1) * pagination.perPage,
-      // size: pagination.perPage,
+      query: {
+        term: {
+          dpid: dpid,
+        },
+      },
+      size: 1,
     },
   };
 
-  logger.debug({ query: finalQuery }, 'Executing query');
+  logger.debug({ dpid }, 'Executing query');
 
   try {
     const startTime = Date.now();
-    // const results = await elasticClient.search(finalQuery);
-    // debugger; //
-    const results = await getLocallyPublishedWorks(finalQuery);
+    const results = await getWorkByDpid(dpid);
     const duration = Date.now() - startTime;
-    const hits = results.map((hit) => hit._source);
-    logger.info({ hitsReturned: hits.total }, 'Elastic search query executed successfully');
-    return res.json({
+    const hits = results?.map((hit) => hit._source);
+    new SuccessResponse({
       finalQuery,
       ok: true,
       index: NATIVE_WORKS_INDEX,
-      total: hits.total,
-      page: pagination.page,
-      perPage: pagination.perPage,
-      data: hits,
+      data: hits?.[0],
       duration,
-    });
+    }).send(res);
   } catch (error) {
     logger.error({ error }, 'Elastic search query failed');
-    return res.status(500).json({
-      ok: false,
-      error: 'An error occurred while searching',
-      finalQuery,
-    });
+    throw new InternalError('An error occurred while searching');
   }
 };
