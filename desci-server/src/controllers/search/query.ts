@@ -5,7 +5,7 @@ import { InternalError } from '../../core/ApiError.js';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { elasticClient } from '../../elasticSearchClient.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getFromCache, setToCache } from '../../redisClient.js';
+import { getFromCache, ONE_DAY_TTL, setToCache } from '../../redisClient.js';
 import {
   buildBoolQuery,
   buildMultiMatchQuery,
@@ -221,7 +221,7 @@ export const dpidQuery = async (
 
       duration = Date.now() - startTime;
 
-      await setToCache(cacheKey, hits);
+      await setToCache(cacheKey, hits, ONE_DAY_TTL);
     }
     logger.trace({ hits: !!hits }, 'Elastic search query executed successfully');
     return new SuccessResponse({
