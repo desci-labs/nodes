@@ -5,6 +5,7 @@ import { InternalError } from '../../core/ApiError.js';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { elasticClient } from '../../elasticSearchClient.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getFromCache, setToCache } from '../../redisClient.js';
 import {
   buildBoolQuery,
   buildMultiMatchQuery,
@@ -13,6 +14,7 @@ import {
   getWorkByDpid,
   MAIN_WORKS_ALIAS,
   NATIVE_WORKS_INDEX,
+  NativeWork,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
 import { asyncMap } from '../../utils.js';
@@ -169,64 +171,59 @@ export const dpidQuery = async (
 
   try {
     const startTime = Date.now();
-    const results = await getLocallyPublishedWorks(finalQuery);
-    const duration = Date.now() - startTime;
-    // logger.info(
-    //   {
-    //     results,
-    //   },
-    //   'Retrieved works with dpid',
-    // );
-    const hits = await asyncMap(results, async (hit) => {
-      const data = hit._source;
-      const uuid = data.work_id.replace('node/', '');
+    const cacheKey = `${DPID_QUERY_CACHE_KEY}-${pagination.page}`;
+    let hits = await getFromCache<(NativeWork & { versionIdx: number })[]>(cacheKey);
+    let duration = Date.now() - startTime;
 
-      let dpid = data.dpid;
-      if (process.env.SERVER_URL === 'http://localhost:5420' && process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE) {
-        dpid = dpid.replace(process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE, '');
-      }
+    logger.trace({ fromCache: !!hits }, 'CACHE LOOKUP');
+    if (!hits) {
+      const results = await getLocallyPublishedWorks(finalQuery);
 
-      const node = await prisma.node.findFirst({
-        select: {
-          createdAt: true,
-          versions: {
-            select: {
-              manifestUrl: true,
-              createdAt: true,
-              commitId: true,
-              transactionId: true,
+      hits = await asyncMap(results, async (hit) => {
+        const data = hit._source;
+        const uuid = data.work_id.replace('node/', '');
+
+        let dpid = data.dpid;
+        if (process.env.SERVER_URL === 'http://localhost:5420' && process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE) {
+          dpid = dpid.replace(process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE, '');
+        }
+
+        const node = await prisma.node.findFirst({
+          select: {
+            createdAt: true,
+            versions: {
+              select: {
+                manifestUrl: true,
+                createdAt: true,
+                commitId: true,
+                transactionId: true,
+              },
+              where: {
+                OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+              },
+              orderBy: { createdAt: 'desc' },
             },
-            where: {
-              OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
-            },
-            orderBy: { createdAt: 'desc' },
           },
-        },
-        where: {
-          uuid,
-          isDeleted: false,
-        },
-      });
-      const versionIdx = node ? node?.versions?.length - 1 : null;
+          where: {
+            uuid,
+            isDeleted: false,
+          },
+        });
+        const versionIdx = node ? node?.versions?.length - 1 : null;
 
-      logger.trace(
-        {
+        return {
+          ...data,
           uuid,
           dpid,
-          // SERVER_URL: process.env.SERVER_URL,
-          // ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE: process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE,
-        },
-        'Retrieved works with dpid',
-      );
+          versionIdx,
+        };
+      });
 
-      return {
-        ...data,
-        uuid,
-        dpid,
-        versionIdx,
-      };
-    });
-    logger.trace({ hits }, 'Elastic search query executed successfully');
+      duration = Date.now() - startTime;
+
+      await setToCache(cacheKey, hits);
+    }
+    logger.trace({ hits: !!hits }, 'Elastic search query executed successfully');
     return new SuccessResponse({
       finalQuery,
       index: NATIVE_WORKS_INDEX,

@@ -1128,7 +1128,7 @@ type ElasticSearchResult<D> = {
   };
 };
 
-interface NativeWork {
+export interface NativeWork {
   work_id: string;
   title: string;
   dpid: string;

@@ -14,6 +14,7 @@ import {
 } from './analytics.js';
 import { authorPaths } from './authors.js';
 import { communityPaths } from './communities.js';
+import { searchPaths } from './search.js';
 import {
   cancelUserSubmissionOperation,
   createSubmissionOperation,
@@ -83,6 +84,7 @@ export const openaiDocumentation = createDocument({
     { name: 'Data', description: 'Data-related operations' },
     { name: 'DOI', description: 'DOI-related operations' },
     { name: 'Authors', description: 'Authors-related operations' },
+    { name: 'Search', description: 'Elastic search api operations' },
   ],
   components: {
     securitySchemes: {
@@ -118,6 +120,7 @@ export const openaiDocumentation = createDocument({
     ...submissionPaths,
     ...communityPaths,
     ...authorPaths,
+    ...searchPaths,
   },
 });
 
