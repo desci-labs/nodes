@@ -16,7 +16,7 @@ import {
   isResearchObjectComponentTypeMap,
   ManifestActions,
 } from '@desci-labs/desci-models';
-import { DataReference, DataType, Node } from '@prisma/client';
+import { DataReference, DataType, GuestDataReference, Node, PublicDataReference } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import { DataReferenceSrc } from '../controllers/data/retrieve.js';
@@ -165,26 +165,45 @@ export async function getTreeAndFill(
     ? await getDirectoryTree(rootCid, externalCidMap)
     : flatTreeToHierarchicalTree(await draftNodeTreeEntriesToFlatIpfsTree(dbTree));
   logger.info('ran getTreeAndFill');
+
+  const nodeOwner = await prisma.user.findFirst({ where: { id: node.ownerId }, select: { isGuest: true } });
   /*
    ** Get all entries for the nodeUuid, for filling the tree
    ** Both entries neccessary to determine publish state, prioritize public entries over private
    */
-  const privEntries = await prisma.dataReference.findMany({
-    select: {
-      cid: true,
-      size: true,
-      createdAt: true,
-      external: true,
-    },
-    where: {
-      userId: ownerId,
-      type: { not: DataType.MANIFEST },
-      rootCid: rootCid,
-      node: {
-        uuid: ensureUuidEndsWithDot(nodeUuid),
-      },
-    },
-  });
+  const privEntries = nodeOwner.isGuest
+    ? await prisma.guestDataReference.findMany({
+        select: {
+          cid: true,
+          size: true,
+          createdAt: true,
+          external: true,
+        },
+        where: {
+          userId: ownerId,
+          type: { not: DataType.MANIFEST },
+          rootCid: rootCid,
+          node: {
+            uuid: ensureUuidEndsWithDot(nodeUuid),
+          },
+        },
+      })
+    : await prisma.dataReference.findMany({
+        select: {
+          cid: true,
+          size: true,
+          createdAt: true,
+          external: true,
+        },
+        where: {
+          userId: ownerId,
+          type: { not: DataType.MANIFEST },
+          rootCid: rootCid,
+          node: {
+            uuid: ensureUuidEndsWithDot(nodeUuid),
+          },
+        },
+      });
   const pubEntries = await prisma.publicDataReference.findMany({
     select: {
       createdAt: true,
@@ -533,6 +552,9 @@ export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
   // dataBucketCid matters for public nodes, if a dataBucketCid is provided, this function will generate external cids for a specific version of the node
   const externalCidMap: ExternalCidMap = {};
 
+  const node = await prisma.node.findUnique({ where: { uuid: ensureUuidEndsWithDot(nodeUuid) } });
+  const nodeOwner = await prisma.user.findFirst({ where: { id: node.ownerId }, select: { isGuest: true } });
+
   const dataReferences = dataBucketCid
     ? await prisma.publicDataReference.findMany({
         where: {
@@ -543,16 +565,25 @@ export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
           external: true,
         },
       })
-    : await prisma.dataReference.findMany({
-        where: {
-          node: {
-            uuid: ensureUuidEndsWithDot(nodeUuid),
+    : nodeOwner.isGuest
+      ? await prisma.guestDataReference.findMany({
+          where: {
+            node: {
+              uuid: ensureUuidEndsWithDot(nodeUuid),
+            },
+            external: true,
           },
-          external: true,
-        },
-      });
+        })
+      : await prisma.dataReference.findMany({
+          where: {
+            node: {
+              uuid: ensureUuidEndsWithDot(nodeUuid),
+            },
+            external: true,
+          },
+        });
 
-  dataReferences.forEach((d: DataReference) => {
+  dataReferences.forEach((d: DataReference | GuestDataReference | PublicDataReference) => {
     externalCidMap[d.cid] = {
       size: d.size,
       path: d.path,

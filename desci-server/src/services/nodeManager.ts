@@ -541,19 +541,31 @@ export const getNewNodesInRange = async ({ from, to }: { from: Date; to: Date })
   });
 };
 
-export const getBytesInRange = async ({ from, to }: { from: Date; to: Date }) => {
+export const getBytesInRange = async ({ from, to, guest }: { from: Date; to: Date; guest?: boolean }) => {
   logger.trace({ fn: 'getBytesInRange', from, to }, 'node::getBytesInRange');
 
-  return await prisma.dataReference.findMany({
-    // _sum: { size: true },
-    where: {
-      createdAt: {
-        gte: from,
-        lt: to,
-      },
-    },
-    select: { size: true, createdAt: true },
-  });
+  const bytesInRange = guest
+    ? await prisma.guestDataReference.findMany({
+        // _sum: { size: true },
+        where: {
+          createdAt: {
+            gte: from,
+            lt: to,
+          },
+        },
+        select: { size: true, createdAt: true },
+      })
+    : await prisma.dataReference.findMany({
+        // _sum: { size: true },
+        where: {
+          createdAt: {
+            gte: from,
+            lt: to,
+          },
+        },
+        select: { size: true, createdAt: true },
+      });
+  return bytesInRange;
 
   // return bytesInXDays._sum.size;
 };

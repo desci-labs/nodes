@@ -404,12 +404,17 @@ export async function validateDataReferences({
       ).id
     : undefined;
 
+  const nodeOwner = await prisma.user.findFirst({ where: { id: node.ownerId }, select: { isGuest: true } });
   const excludeManifestClause = includeManifestRef ? {} : { type: { not: DataType.MANIFEST } };
   const currentRefs = publicRefs
     ? await prisma.publicDataReference.findMany({
         where: { nodeId: node.id, versionId, ...excludeManifestClause },
       })
-    : await prisma.dataReference.findMany({ where: { nodeId: node.id, ...excludeManifestClause } });
+    : nodeOwner.isGuest
+      ? await prisma.guestDataReference.findMany({
+          where: { nodeId: node.id, ...excludeManifestClause },
+        })
+      : await prisma.dataReference.findMany({ where: { nodeId: node.id, ...excludeManifestClause } });
 
   const requiredRefs = await generateDataReferences({
     nodeUuid,
@@ -621,10 +626,15 @@ export async function validateAndHealDataRefs({
 /**
  * Helper function to generate a timestamp map from a node's data refs, mapping paths -> psql db default timestamps
  */
-export async function generateTimestampMapFromDataRefs(nodeId: number): Promise<TimestampMap> {
-  const dataRefs = await prisma.dataReference.findMany({ where: { nodeId, type: { not: DataType.MANIFEST } } });
+export async function generateTimestampMapFromDataRefs(
+  nodeId: number,
+  user: Pick<User, 'isGuest'>,
+): Promise<TimestampMap> {
+  const dataRefs = user.isGuest
+    ? await prisma.guestDataReference.findMany({ where: { nodeId, type: { not: DataType.MANIFEST } } })
+    : await prisma.dataReference.findMany({ where: { nodeId, type: { not: DataType.MANIFEST } } });
   const timestampMap: TimestampMap = {};
-  dataRefs.forEach((ref: DataReference) => {
+  dataRefs.forEach((ref: DataReference | GuestDataReference) => {
     if (ref.path) {
       const neutralPath = neutralizePath(ref.path);
       timestampMap[neutralPath] = { createdAt: ref.createdAt, updatedAt: ref.updatedAt };

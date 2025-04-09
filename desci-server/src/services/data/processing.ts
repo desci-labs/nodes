@@ -537,13 +537,21 @@ export async function updateDataReferences({ node, user, updatedManifest }: Upda
   const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
   // debugger;
   // Get old refs to match their DB entry id's with the updated refs
-  const existingRefs = await prisma.dataReference.findMany({
-    where: {
-      nodeId: node.id,
-      userId: user.id,
-      type: { not: DataType.MANIFEST },
-    },
-  });
+  const existingRefs = user.isGuest
+    ? await prisma.guestDataReference.findMany({
+        where: {
+          nodeId: node.id,
+          userId: user.id,
+          type: { not: DataType.MANIFEST },
+        },
+      })
+    : await prisma.dataReference.findMany({
+        where: {
+          nodeId: node.id,
+          userId: user.id,
+          type: { not: DataType.MANIFEST },
+        },
+      });
   // Map existing ref neutral paths to the ref for constant lookup
   const existingRefMap = existingRefs.reduce((map, ref) => {
     map[neutralizePath(ref.path)] = ref;
