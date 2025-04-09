@@ -7,11 +7,9 @@ import {
   type ResearchObjectV1,
   type ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
-import type { PBNode } from '@ipld/dag-pb';
 import * as dagPb from '@ipld/dag-pb';
 import { DataReference, DataType, NodeVersion } from '@prisma/client';
 import { UnixFS } from 'ipfs-unixfs';
-import toBuffer from 'it-to-buffer';
 import { create, CID, globSource, IPFSHTTPClient } from 'kubo-rpc-client';
 import { flatten, uniq } from 'lodash-es';
 import * as multiformats from 'multiformats';
@@ -21,24 +19,14 @@ import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
 import { logger as parentLogger } from '../logger.js';
 import { getOrCache } from '../redisClient.js';
-import { addToDir, getSize, makeDir, updateDagCid } from '../utils/dagConcat.js';
-import { DRIVE_NODE_ROOT_PATH, type ExternalCidMap, type newCid, type oldCid } from '../utils/driveUtils.js';
+import { getSize, makeDir } from '../utils/dagConcat.js';
+import { DRIVE_NODE_ROOT_PATH, type ExternalCidMap } from '../utils/driveUtils.js';
 import { createManifest } from '../utils/manifestDraftUtils.js';
 
 const logger = parentLogger.child({
   module: 'Services::Ipfs',
 });
 
-// key = type
-// data = array of string URLs
-// returns array of corrected URLs
-export interface UrlWithCid {
-  cid: string;
-  key: string;
-  buffer?: Buffer;
-  size?: number;
-}
-//
 const cert = fs.readFileSync('./src/ssl/sealstorage-bundle.crt');
 const httpsAgent = new https.Agent({
   ca: cert,
@@ -103,7 +91,6 @@ export const updateManifestAndAddToIpfs = async (
       type: DataType.MANIFEST,
       userId,
       nodeId,
-      // versionId: version.id,
       directory: false,
     },
   });

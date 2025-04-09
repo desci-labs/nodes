@@ -41,7 +41,6 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   }
 
   const logger = parentLogger.child({
-    // id: req.id,
     module: 'DATA::RetrieveController',
     uuid: uuid,
     manifestCid,
