@@ -654,11 +654,6 @@ export async function getExternalCidSizeAndType(cid: string) {
   }
 }
 
-export interface ZipToDagAndPinResult {
-  files: IpfsDirStructuredInput[];
-  totalSize: number;
-}
-
 // Adds a directory to IPFS and deletes the directory after, returning the root CID
 export async function addDirToIpfs(directoryPath: string, ipfsNode = IPFS_NODE.PRIVATE): Promise<IpfsPinnedResult[]> {
   // Add all files in the directory to IPFS using globSource
@@ -705,36 +700,6 @@ export async function spawnEmptyManifest(ipfsNode: IPFS_NODE) {
   };
 
   return researchObject;
-}
-export enum CidSource {
-  INTERNAL = 'internal',
-  EXTERNAL = 'external',
-}
-
-// assumeExternal is quicker, because it doesn't attempt to check if the CID is available via public resolution
-// Note: when using this function the result can be impacted by the resolvers uptime
-export async function checkCidSrc(
-  cid: string,
-  { assumeExternal = false, ipfsNode = IPFS_NODE.PRIVATE }: { assumeExternal?: boolean; ipfsNode?: IPFS_NODE },
-) {
-  try {
-    const internalStat = await getIpfsClient(ipfsNode).block.stat(CID.parse(cid), { timeout: INTERNAL_IPFS_TIMEOUT });
-    if (internalStat) return CidSource.INTERNAL;
-  } catch (err) {
-    if (assumeExternal) return CidSource.EXTERNAL;
-  }
-
-  try {
-    const externalStat = await publicIpfs.block.stat(CID.parse(cid), { timeout: EXTERNAL_IPFS_TIMEOUT });
-    if (externalStat) return CidSource.EXTERNAL;
-  } catch (err) {
-    logger.warn(
-      { fn: 'checkCidSrc', err },
-      'CID not found in either internal or public IPFS, or resolution timed out.',
-    );
-    return false;
-  }
-  return false;
 }
 
 export type BlockMetadata = {

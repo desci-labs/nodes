@@ -15,6 +15,7 @@ import {
   FilesToAddToDag,
   getDirectoryTree,
   getNodeToUse,
+  IPFS_NODE,
   strIsCid,
 } from '../services/ipfs.js';
 import { DANGEROUSLY_addComponentsToManifest } from '../utils/driveUtils.js';
@@ -129,17 +130,19 @@ export const upgradeManifestTransformer = async (req: Request, res: Response, ne
   const emptyDag = await createEmptyDag(getNodeToUse(owner.isGuest));
 
   const researchReportsDagCid = Object.entries(researchReportsDagFiles).length
-    ? await createDag(researchReportsDagFiles)
+    ? await createDag(researchReportsDagFiles, IPFS_NODE.PRIVATE)
     : emptyDag;
-  const codeReposDagCid = Object.entries(codeReposDagFiles).length ? await createDag(codeReposDagFiles) : emptyDag;
-  const dataDagCid = Object.entries(dataDagFiles).length ? await createDag(dataDagFiles) : emptyDag;
+  const codeReposDagCid = Object.entries(codeReposDagFiles).length
+    ? await createDag(codeReposDagFiles, IPFS_NODE.PRIVATE)
+    : emptyDag;
+  const dataDagCid = Object.entries(dataDagFiles).length ? await createDag(dataDagFiles, IPFS_NODE.PRIVATE) : emptyDag;
 
   const rootDagFiles: FilesToAddToDag = {
     [researchReportPath]: { cid: researchReportsDagCid },
     [codeReposPath]: { cid: codeReposDagCid },
     [dataPath]: { cid: dataDagCid },
   };
-  const rootDagCid = await createDag(rootDagFiles);
+  const rootDagCid = await createDag(rootDagFiles, IPFS_NODE.PRIVATE);
   const rootDagCidStr = rootDagCid.toString();
 
   const opinionatedDirsFormatted = Object.entries(rootDagFiles).map(([path, { cid }]) => {
