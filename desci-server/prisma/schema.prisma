@@ -441,7 +441,7 @@ model GuestDataReference {
   external   Boolean?
   nodeId     Int
   userId     Int
-  loggedData Json
+  loggedData Json?
   node       Node     @relation(fields: [nodeId], references: [id])
   user       User     @relation(fields: [userId], references: [id])
 }
