@@ -1059,6 +1059,7 @@ export async function getWorkNoveltyScoresById(workId: string): Promise<NoveltyS
     if (!workId.startsWith('https://openalex.org/')) {
       workId = `https://openalex.org/${workId}`;
     }
+
     const searchResult = await elasticClient.search({
       index: MAIN_WORKS_ALIAS,
       body: {
@@ -1102,16 +1103,95 @@ export async function getWorkNoveltyScoresById(workId: string): Promise<NoveltyS
   return undefined;
 }
 
+type ElasticSearchResult<D> = {
+  took: number;
+  timed_out: boolean;
+  _shards: {
+    total: number;
+    successful: number;
+    skipped: number;
+    failed: number;
+  };
+  hits: {
+    total: {
+      value: number;
+      relation: string;
+    };
+    max_score: number;
+    hits: Array<{
+      _index: string;
+      _id: string;
+      _score: number;
+      _ignored?: string[];
+      _source: D;
+    }>;
+  };
+};
+
+export interface NativeWork {
+  work_id: string;
+  title: string;
+  dpid: string;
+  type: string;
+  abstract: string;
+  cited_by_count: number;
+  publication_year: string;
+  publication_date: string;
+  is_retracted: boolean;
+  is_paratext: boolean;
+  language: string;
+  content_novelty_percentile: number;
+  context_novelty_percentile: number;
+  content_novelty_percentile_last_updated: number;
+  context_novelty_percentile_last_updated: number;
+  best_locations: {
+    license: string;
+    cited_by_count: number;
+    publisher: string;
+    pdf_url: string;
+    is_oa: boolean;
+    source_id: string;
+    display_name: string;
+    works_count: number;
+    version: string;
+  }[];
+  authors: {
+    cited_by_count: number;
+    '@timestamp': string;
+    last_known_institution: string | null;
+    works_api_url: string;
+    '@version': string;
+    orcid: string | null;
+    updated_date: string;
+    id: string;
+    display_name: string;
+    works_count: number;
+    author_id: string;
+  }[];
+  concepts: {
+    concept_id: string;
+    display_name: string;
+  }[];
+  topics: {
+    id: string;
+    display_name: string;
+    subfield_id: string;
+    subfield_display_name: string;
+    topic_id: string;
+  }[];
+  '@timestamp': string;
+}
 /**
  * Returns the work entry indexed in elastic search by DPID
  */
 export async function getWorkByDpid(dpid: string | number) {
   if (process.env.SERVER_URL === 'http://localhost:5420' && process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE) {
-    dpid = process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE + dpid;
+    // todo: remove before push
+    dpid = `ADAM${dpid}`; // process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE + dpid;
   }
 
   try {
-    const searchResult = await elasticClient.search({
+    const searchResult = (await elasticClient.search({
       index: NATIVE_WORKS_INDEX,
       body: {
         query: {
@@ -1121,20 +1201,22 @@ export async function getWorkByDpid(dpid: string | number) {
         },
         size: 1,
       },
-    });
+    })) as ElasticSearchResult<NativeWork>;
 
     const hits = searchResult.hits.hits;
 
     logger.info(
       {
         dpid,
-        totalHits: searchResult.hits.total.value,
+        hits,
+        type: typeof hits,
+        searchResult,
       },
       'Retrieved work by dpid',
     );
 
     if (hits.length > 0) {
-      return hits[0]._source;
+      return hits;
     }
   } catch (error) {
     logger.error(
@@ -1145,6 +1227,41 @@ export async function getWorkByDpid(dpid: string | number) {
         dpid,
       },
       'Error in getWorkByDpid',
+    );
+  }
+  return undefined;
+}
+
+/**
+ * Returns the work entry indexed in elastic search by DPID
+ */
+export async function getLocallyPublishedWorks(body: any) {
+  // if (process.env.SERVER_URL === 'http://localhost:5420' && process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE) {
+  //   dpid = process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE + dpid;
+  // }
+
+  logger.trace({ body }, 'getLocallyPublishedWorks#elasticClient');
+
+  try {
+    const searchResult = (await elasticClient.search({
+      index: NATIVE_WORKS_INDEX,
+      body,
+    })) as ElasticSearchResult<NativeWork>;
+
+    const hits = searchResult.hits.hits;
+
+    if (hits.length > 0) {
+      return hits;
+    }
+  } catch (error) {
+    logger.error(
+      {
+        error,
+        message: error.message,
+        stack: error.stack,
+        // dpid,
+      },
+      'Error in getWorksWithDpid',
     );
   }
   return undefined;
