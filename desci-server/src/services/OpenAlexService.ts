@@ -135,7 +135,11 @@ group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type",
   const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
   logger.trace({ orcids: work.authors_orcid }, 'authors_orcid');
   const authors = work.authors.map((name, idx) => ({ name, orcid: work.authors_orcid[idx] }));
+
+  // clean up transformed raw fields
   delete work.authors;
+  delete work.authors_orcid;
+
   const noveltyScores = await getWorkNoveltyScoresById(work?.works_id);
   return { ...work, authors, abstract, doi: getRawDoi(doi), ...noveltyScores };
 }
