@@ -1,10 +1,10 @@
 import { FileType, ResearchObjectV1, isNodeRoot, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
-import { DataReference, DataType, Prisma, Node } from '@prisma/client';
+import { DataReference, DataType, Prisma, Node, GuestDataReference } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
-import { logger as parentLogger } from '../logger.js';
+import { als, logger as parentLogger } from '../logger.js';
 import { discoveryLs, getDirectoryTree, getSizeForCid, RecursiveLsResult } from '../services/ipfs.js';
 import { ensureUuidEndsWithDot, objectPropertyXor, omitKeys } from '../utils.js';
 
@@ -620,4 +620,41 @@ export async function generateTimestampMapFromDataRefs(nodeId: number): Promise<
     }
   });
   return timestampMap;
+}
+
+/**
+ * Helper function to transform DataRefs to GuestDataRefs
+ * There are minor differences between data refs and guest data refs, so we need to transform them
+ */
+export function transformDataRefsToGuestDataRefs(dataRefs: Partial<DataReference>[]): GuestDataReference[] {
+  return dataRefs.map((ref) => {
+    delete ref.description;
+    delete ref.name;
+    delete ref.versionId; // Guests cant publish
+    return {
+      ...ref,
+    } as unknown as GuestDataReference;
+  });
+}
+
+/**
+ * Helper function to transform GuestDataRefs to DataRefs
+ * There are minor differences between data refs and guest data refs, so we need to transform them
+ */
+export function transformGuestDataRefsToDataRefs(guestDataRefs: Partial<GuestDataReference>[]): DataReference[] {
+  return guestDataRefs.map((ref) => {
+    delete ref.loggedData;
+    return {
+      ...ref,
+    } as unknown as DataReference;
+  });
+}
+
+/**
+ * Helper function to attach loggedData for guests to prevent abuse
+ */
+export function attachLoggedData() {
+  const context = (als as any).getStore();
+  const clientIp = context?.clientIp as string;
+  return { loggedData: { clientIp } };
 }

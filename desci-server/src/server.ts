@@ -125,7 +125,10 @@ class AppServer {
       req.traceId = v4();
       res.header('X-Desci-Trace-Id', req.traceId);
 
-      als.run({ traceId: req.traceId, timing: [new Date()], userAuth: req.userAuth }, () => {
+      // Prevent guest abuse
+      const clientIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress;
+
+      als.run({ traceId: req.traceId, timing: [new Date()], userAuth: req.userAuth, clientIp }, () => {
         next();
       });
     });
