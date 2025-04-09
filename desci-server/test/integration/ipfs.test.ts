@@ -53,7 +53,7 @@ describe('IPFS', () => {
     });
 
     it('adds a manifest and adds a data reference', async () => {
-      const res = await ipfs.updateManifestAndAddToIpfs(EXAMPLE_MANIFEST, { userId: admin.id, nodeId: node.id });
+      const res = await ipfs.updateManifestAndAddToIpfs(EXAMPLE_MANIFEST, { user: admin, nodeId: node.id });
       expect(res.cid).to.eq('bafkreidf26rt63gbrwz4inlosn74hgb245tmkj7tbazrkdrchfqdfbn3u4');
       expect(res.ref).to.not.be.undefined;
       expect(res.ref.size).to.eq(42);

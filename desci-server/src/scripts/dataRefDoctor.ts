@@ -1,11 +1,15 @@
-import { DataType, Prisma } from '@prisma/client';
+import { DataType, GuestDataReference, Prisma } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { getSizeForCid } from '../services/ipfs.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
-import { validateAndHealDataRefs, validateDataReferences } from '../utils/dataRefTools.js';
+import {
+  transformDataRefsToGuestDataRefs,
+  validateAndHealDataRefs,
+  validateDataReferences,
+} from '../utils/dataRefTools.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
 import { ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 
@@ -364,7 +368,9 @@ async function clonePrivateNode(nodeUuid: string, newNodeUuid: string) {
     };
   });
 
-  const createdDataRefs = await prisma.dataReference.createMany({ data: newNodeDataRefs });
+  const createdDataRefs = newNodeUser.isGuest
+    ? await prisma.guestDataReference.createMany({ data: transformDataRefsToGuestDataRefs(newNodeDataRefs) })
+    : await prisma.dataReference.createMany({ data: newNodeDataRefs });
 
   if (!createdDataRefs.count)
     return logger.error({ createdDataRefs }, `[clonePrivateNode] Failed to create data refs for: ${newNodeUuid}`);

@@ -1,6 +1,5 @@
-// import { DocumentId } from '@automerge/automerge-repo';
 import { isNodeRoot } from '@desci-labs/desci-models';
-import { DataReference } from '@prisma/client';
+import { DataReference, GuestDataReference } from '@prisma/client';
 import { Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
@@ -8,6 +7,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { addBufferToIpfs, makeManifest, getNodeToUse, updateManifestAndAddToIpfs } from '../../services/ipfs.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
+import { transformDataRefsToGuestDataRefs } from '../../utils/dataRefTools.js';
 import { DRIVE_NODE_ROOT_PATH, getDbComponentType } from '../../utils/driveUtils.js';
 import { randomUUID64 } from '../../utils.js';
 import { AuthenticatedRequest } from '../notifications/create.js';
@@ -51,7 +51,7 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
     });
 
     const { nodeVersion } = await updateManifestAndAddToIpfs(researchObject, {
-      userId: owner.id,
+      user: owner,
       nodeId: node.id,
       ipfsNode: getNodeToUse(owner.isGuest),
     });
@@ -75,8 +75,10 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
     });
 
     if (uploadedFiles.length > 0) {
-      const ref = await prisma.dataReference.createMany({ data: [...uploadedFiles] as DataReference[] });
-      if (ref) logger.info(`${ref.count} data references added`);
+      const ref = owner.isGuest
+        ? await prisma.guestDataReference.createMany({ data: transformDataRefsToGuestDataRefs([...uploadedFiles]) })
+        : await prisma.dataReference.createMany({ data: [...uploadedFiles] as DataReference[] });
+      if (ref) logger.info({ isGuest: owner.isGuest }, `${ref.count} data references added`);
     }
 
     const nodeCopy = Object.assign({}, node);

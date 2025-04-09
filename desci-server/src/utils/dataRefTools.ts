@@ -1,5 +1,5 @@
 import { FileType, ResearchObjectV1, isNodeRoot, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
-import { DataReference, DataType, Prisma, Node, GuestDataReference } from '@prisma/client';
+import { DataReference, DataType, Prisma, Node, GuestDataReference, User } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
@@ -563,16 +563,27 @@ export async function validateAndHealDataRefs({
     workingTreeUrl,
     includeManifestRef,
   });
+  const node = await prisma.node.findFirst({
+    where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
+    select: { ownerId: true },
+  });
+  const user = await prisma.user.findFirst({ where: { id: node.ownerId }, select: { isGuest: true } });
+
   if (missingRefs.length) {
     const addedRefs = publicRefs
       ? await prisma.publicDataReference.createMany({
           data: missingRefs,
           skipDuplicates: true,
         })
-      : await prisma.dataReference.createMany({
-          data: missingRefs,
-          skipDuplicates: true,
-        });
+      : user.isGuest
+        ? await prisma.guestDataReference.createMany({
+            data: missingRefs,
+            skipDuplicates: true,
+          })
+        : await prisma.dataReference.createMany({
+            data: missingRefs,
+            skipDuplicates: true,
+          });
     logger.info(
       { fn: 'validateAndHealDataRefs' },
       `[validateAndFixDataRefs (MISSING)] node id: ${nodeUuid}, added ${addedRefs.count} missing data refs`,

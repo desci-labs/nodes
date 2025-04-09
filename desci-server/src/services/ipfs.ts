@@ -8,7 +8,7 @@ import {
   type ResearchObjectV1Component,
 } from '@desci-labs/desci-models';
 import * as dagPb from '@ipld/dag-pb';
-import { DataReference, DataType, NodeVersion } from '@prisma/client';
+import { DataReference, DataType, GuestDataReference, NodeVersion, User } from '@prisma/client';
 import { UnixFS } from 'ipfs-unixfs';
 import { create, CID, globSource, IPFSHTTPClient } from 'kubo-rpc-client';
 import { flatten, uniq } from 'lodash-es';
@@ -69,8 +69,8 @@ export const getNodeToUse = (isGuest?: boolean) => {
 
 export const updateManifestAndAddToIpfs = async (
   manifest: ResearchObjectV1,
-  { userId, nodeId, ipfsNode }: { userId: number; nodeId: number; ipfsNode?: IPFS_NODE },
-): Promise<{ cid: string; size: number; ref: DataReference; nodeVersion: NodeVersion }> => {
+  { user, nodeId, ipfsNode }: { user: Pick<User, 'id' | 'isGuest'>; nodeId: number; ipfsNode?: IPFS_NODE },
+): Promise<{ cid: string; size: number; ref: DataReference | GuestDataReference; nodeVersion: NodeVersion }> => {
   const result = await addBufferToIpfs(createManifest(manifest), '', ipfsNode);
   const version = await prisma.nodeVersion.create({
     data: {
@@ -82,17 +82,24 @@ export const updateManifestAndAddToIpfs = async (
     { fn: 'updateManifestAndAddToIpfs' },
     `[ipfs::updateManifestAndAddToIpfs] manifestCid=${result.cid} nodeVersion=${version}`,
   );
-  const ref = await prisma.dataReference.create({
-    data: {
-      cid: result.cid.toString(),
-      size: result.size,
-      root: false,
-      type: DataType.MANIFEST,
-      userId,
-      nodeId,
-      directory: false,
-    },
-  });
+
+  const manifestRef = {
+    cid: result.cid.toString(),
+    size: result.size,
+    root: false,
+    type: DataType.MANIFEST,
+    userId: user.id,
+    nodeId,
+    directory: false,
+  };
+
+  const ref = user.isGuest
+    ? await prisma.guestDataReference.create({
+        data: manifestRef,
+      })
+    : await prisma.dataReference.create({
+        data: manifestRef,
+      });
   logger.info({ fn: 'updateManifestAndAddToIpfs' }, '[dataReference Created]', ref);
 
   return { cid: result.cid.toString(), size: result.size, ref, nodeVersion: version };

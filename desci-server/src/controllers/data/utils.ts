@@ -54,7 +54,7 @@ export async function persistManifest({ manifest, node, userId }: PersistManifes
     throw Error(`User: ${userId} doesnt own node ${node.id}`);
   }
 
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isGuest: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, isGuest: true } });
 
   try {
     const {
@@ -62,7 +62,7 @@ export async function persistManifest({ manifest, node, userId }: PersistManifes
       ref: dataRef,
       nodeVersion,
     } = await updateManifestAndAddToIpfs(manifest, {
-      userId: node.ownerId,
+      user,
       nodeId: node.id,
       ipfsNode: getNodeToUse(user?.isGuest),
     });

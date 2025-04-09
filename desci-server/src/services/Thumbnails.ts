@@ -4,9 +4,11 @@ import { ResearchObjectComponentType } from '@desci-labs/desci-models';
 import { DataType, User } from '@prisma/client';
 import axios from 'axios';
 import FormData from 'form-data';
+import { req } from 'pino-std-serializers';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
+import { attachLoggedData } from '../utils/dataRefTools.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { getManifestByCid } from './data/processing.js';
@@ -135,9 +137,12 @@ export class ThumbnailsService {
       root: false,
       directory: false,
       userId: user.id,
+      ...(user.isGuest ? attachLoggedData() : {}),
     };
 
-    const createdDataRef = await prisma.dataReference.create({ data: thumbnailDataRef });
+    const createdDataRef = user.isGuest
+      ? await prisma.guestDataReference.create({ data: thumbnailDataRef })
+      : await prisma.dataReference.create({ data: thumbnailDataRef });
     logger.info({ createdDataRef }, 'Created data ref for thumbnail');
 
     // Save it to the database

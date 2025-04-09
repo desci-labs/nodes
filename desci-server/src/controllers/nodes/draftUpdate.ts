@@ -65,7 +65,7 @@ export const draftUpdate = async (req: AuthenticatedRequest, res: Response, next
     cleanManifestForSaving(manifestParsed);
 
     const { cid: hash, nodeVersion } = await updateManifestAndAddToIpfs(manifestParsed, {
-      userId: loggedInUser,
+      user: loggedIn,
       nodeId: node.id,
       ipfsNode: getNodeToUse(loggedIn.isGuest),
     });

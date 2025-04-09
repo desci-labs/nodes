@@ -36,7 +36,7 @@ import {
 } from '../../services/ipfs.js';
 import { fetchFileStreamFromS3, isS3Configured } from '../../services/s3.js';
 import { ResearchObjectDocument } from '../../types/documents.js';
-import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
+import { attachLoggedData, prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 import { DRAFT_CID, DRAFT_DIR_CID, ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
   ExtensionDataTypeMap,
@@ -557,17 +557,21 @@ export async function updateDataReferences({ node, user, updatedManifest }: Upda
     const newRefNeutralPath = neutralizePath(ref.path);
     const matchingExistingRef = existingRefMap[newRefNeutralPath];
     if (matchingExistingRef) {
-      dataRefUpdates.push({ ...matchingExistingRef, ...ref });
+      dataRefUpdates.push({ ...matchingExistingRef, ...ref, ...(user.isGuest ? attachLoggedData() : {}) });
     } else {
-      dataRefCreates.push(ref);
+      dataRefCreates.push({ ...ref, ...(user.isGuest ? attachLoggedData() : {}) });
     }
   });
 
   const upserts = await prisma.$transaction([
     ...(dataRefUpdates as any).map((fd) => {
-      return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
+      return user.isGuest
+        ? prisma.guestDataReference.update({ where: { id: fd.id }, data: fd })
+        : prisma.dataReference.update({ where: { id: fd.id }, data: fd });
     }),
-    prisma.dataReference.createMany({ data: dataRefCreates }),
+    user.isGuest
+      ? prisma.guestDataReference.createMany({ data: dataRefCreates })
+      : prisma.dataReference.createMany({ data: dataRefCreates }),
   ]);
   return upserts;
 }
