@@ -676,7 +676,7 @@ export async function handleCleanupOnMidProcessingError({
       size: e.size || 0,
       nodeId: node.id,
       userId: user.id,
-      directory: await isDir(CID.parse(e.cid)),
+      directory: await isDir(CID.parse(e.cid), getNodeToUse(user.isGuest)),
     };
   });
   const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });
