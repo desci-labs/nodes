@@ -27,7 +27,6 @@ export const draftCreate = async (req: AuthenticatedRequest, res: Response, next
   });
   try {
     logger.trace('Draft Create');
-
     if (!owner.id || owner.id < 1) {
       throw Error('User ID mismatch');
     }

@@ -35,7 +35,6 @@ const httpsAgent = new https.Agent({
 // connect to a different API
 export const client: IPFSHTTPClient = create({ url: process.env.IPFS_NODE_URL });
 export const readerClient: IPFSHTTPClient = create({ url: PUBLIC_IPFS_PATH });
-
 export const guestIpfsClient: IPFSHTTPClient = create({ url: process.env.GUEST_IPFS_NODE_URL });
 
 export const publicIpfs = create({ url: process.env.PUBLIC_IPFS_RESOLVER + '/api/v0', options: { agent: httpsAgent } });
@@ -132,7 +131,6 @@ export const makeManifest = async ({
     components: [],
     authors: [],
   };
-
   const emptyDagCid = await createEmptyDag(ipfsNode);
 
   const dataBucketComponent: ResearchObjectV1Component = {
@@ -200,7 +198,6 @@ export const pinFile = async (
   { ipfsNode = IPFS_NODE.PRIVATE }: { ipfsNode?: IPFS_NODE },
 ): Promise<IpfsPinnedResult> => {
   const isOnline = await getIpfsClient(ipfsNode).isOnline();
-  // debugger;
   logger.debug({ fn: 'pinFile' }, `isOnline: ${isOnline}`);
   const uploadedFile = await getIpfsClient(ipfsNode).add(file, { cidVersion: 1, pin: true });
   return { ...uploadedFile, cid: uploadedFile.cid.toString() };

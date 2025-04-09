@@ -154,7 +154,7 @@ services:
     environment:
       IPFS_SWARM_KEY: "/key/swarm/psk/1.0.0/\n/base16/\n9d002c50635a479d29dcc0ccb49d862952a0dcc52baddd253167adcd496c8d04"
     ports:
-      - "5005:5005"
+      - "5005:5001"
       - "8085:8080"
     command:
       # These are defaults from the go-ipfs dockerfile CMD
