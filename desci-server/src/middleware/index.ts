@@ -4,5 +4,4 @@ export * from './ensureAdmin.js';
 export * from './attachUser.js';
 export * from './errorHandler.js';
 export * from './permissions.js';
-export * from './upgradeManifest.js';
 export * from './validator.js';
