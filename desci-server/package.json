@@ -65,6 +65,7 @@
     "@automerge/automerge-repo": "^1.0.19",
     "@automerge/automerge-repo-network-websocket": "^1.0.19",
     "@aws-sdk/client-s3": "^3.537.0",
+    "@aws-sdk/client-sqs": "^3.787.0",
     "@desci-labs/desci-codex-lib": "^1.1.7",
     "@desci-labs/desci-contracts": "^0.2.7",
     "@desci-labs/desci-models": "^0.2.25",
