@@ -36,13 +36,14 @@ import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from '
 export function fillDirSizes(tree, cidInfoMap: Record<string, CidEntryDetails>) {
   const contains = [];
   tree.forEach((fd) => {
+    const cidInfo = cidInfoMap[fd.cid];
     if (fd.type === 'dir') {
-      fd.size = cidInfoMap[fd.cid]?.size || 0;
+      fd.size = cidInfo?.size || 0;
       fd.contains = fillDirSizes(fd.contains, cidInfoMap);
     }
-    // debugger
-    fd.date = cidInfoMap[fd.cid]?.date || Date.now();
-    fd.published = cidInfoMap[fd.cid]?.published;
+    fd.date = cidInfo?.date || Date.now();
+    fd.published = cidInfo?.published;
+    if (cidInfo?.dataSource) fd.dataSource = cidInfo.dataSource;
     contains.push(fd);
   });
   return contains;
@@ -50,11 +51,11 @@ export function fillDirSizes(tree, cidInfoMap: Record<string, CidEntryDetails>) 
 
 // Fills in the access status of CIDs and dates
 export function fillCidInfo(tree, cidInfoMap: Record<string, CidEntryDetails>) {
-  // debugger;
   const contains = [];
   tree.forEach((fd) => {
     if (fd.type === 'dir' && fd.contains?.length) fd.contains = fillCidInfo(fd.contains, cidInfoMap);
     const cidInfo = cidInfoMap[fd.cid];
+
     fd.date = cidInfo?.date || Date.now();
     fd.published = cidInfo?.published;
     if (cidInfo?.dataSource) fd.dataSource = cidInfo.dataSource;
@@ -198,7 +199,6 @@ export async function getTreeAndFill(
         where: {
           userId: ownerId,
           type: { not: DataType.MANIFEST },
-          rootCid: rootCid,
           node: {
             uuid: ensureUuidEndsWithDot(nodeUuid),
           },
@@ -214,7 +214,6 @@ export async function getTreeAndFill(
         where: {
           userId: ownerId,
           type: { not: DataType.MANIFEST },
-          rootCid: rootCid,
           node: {
             uuid: ensureUuidEndsWithDot(nodeUuid),
           },
@@ -245,7 +244,6 @@ export async function getTreeAndFill(
   if (privEntries.length | pubEntries.length) {
     const pubCids: Record<string, boolean> = {};
     pubEntries.forEach((e) => (pubCids[e.cid] = true));
-    // debugger;
     // Build cidInfoMap
     privEntries.forEach((ref) => {
       if (pubCids[ref.cid]) return; // Skip if there's a pub entry
@@ -445,13 +443,11 @@ export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataT
     }
   }
 
-  // debugger;
   // No direct types found, so try to inherit from parents
   const pathSplit = path.split('/');
   // If pathSplit.length is < 2, and a direct component doesn't exist on it, it has no parent to inherit from.
   if (pathSplit.length < 2) return DataType.UNKNOWN;
   while (pathSplit.length > 1) {
-    // debugger;
     pathSplit.pop();
 
     const parentPath = pathSplit.join('/');
