@@ -719,3 +719,34 @@ export async function getCidMetadata(
     return null;
   }
 }
+
+export async function migrateCid(
+  cid: string,
+  { fromIpfsNode, toIpfsNode }: { fromIpfsNode: IPFS_NODE; toIpfsNode: IPFS_NODE },
+): Promise<void> {
+  logger.info(
+    { fn: 'migrateCid', cid, fromIpfsNode, toIpfsNode },
+    `Migrating CID from ${fromIpfsNode.toUpperCase()} to ${toIpfsNode.toUpperCase()}`,
+  );
+
+  // NOTE: Tweak for memory efficiency
+  try {
+    const fromIpfsClient = getIpfsClient(fromIpfsNode);
+
+    // Fetch from node
+    const data = [];
+    for await (const chunk of fromIpfsClient.cat(cid)) {
+      data.push(chunk);
+    }
+
+    const buffer = Buffer.concat(data);
+
+    // Add to destination node
+    await addBufferToIpfs(buffer, cid, toIpfsNode);
+
+    logger.info({ fn: 'migrateCid', cid }, 'Successfully migrated CID');
+  } catch (error) {
+    logger.error({ fn: 'migrateCid', cid, error }, 'Failed to migrate CID');
+    throw error;
+  }
+}

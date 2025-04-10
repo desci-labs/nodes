@@ -23,7 +23,7 @@ import { prisma } from '../client.js';
 import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getFromCache, setToCache } from '../redisClient.js';
-import { DataMigrationService } from '../services/data/DataMigrationService.js';
+import { DataMigrationService } from '../services/DataMigration/DataMigrationService.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
 import { NodeUuid } from '../services/manifestRepo.js';
 import repoService from '../services/repoService.js';
