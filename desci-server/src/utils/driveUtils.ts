@@ -307,6 +307,9 @@ export async function getTreeAndFill(
         published: true,
         date: date,
         external: ref.external ? true : false,
+        ...(unmigratedGuestCidsMap[ref.cid] && {
+          dataSource: DATA_SOURCE.GUEST, // Mark cids that may still be on the GUEST node.
+        }),
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
