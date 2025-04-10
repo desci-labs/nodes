@@ -11,18 +11,20 @@ import { openAlexService } from '../../services/index.js';
 import { WorksResult } from '../../services/openAlex/client.js';
 import { OpenAlexAuthor, OpenAlexWork } from '../../services/openAlex/types.js';
 import { cachedGetManifestAndDpid } from '../../utils/manifest.js';
-import { asyncMap } from '../../utils.js';
+import { asyncMap, formatOrcidString } from '../../utils.js';
 import { listAllUserNodes, PublishedNode } from '../nodes/list.js';
 
 export const getAuthorSchema = z.object({
   params: z.object({
-    id: z.string({ required_error: 'Missing ORCID ID' }).describe('The ORCID identifier of the author'),
+    id: z
+      .string({ required_error: 'Missing ORCID or OpenAlex ID' })
+      .describe('The ORCID or OpenAlex identifier of the author'),
   }),
 });
 
 export const getAuthorWorksSchema = z.object({
   params: z.object({
-    id: z.string({ required_error: 'Missing ORCID ID' }).describe('The ORCID identifier of the author'),
+    id: z.string({ required_error: 'Missing ORCID or OpenAlex ID' }).describe('The ORCID identifier of the author'),
   }),
   query: z.object({
     page: z.coerce.number().optional().default(1).describe('Page number for pagination of author works'),
@@ -30,15 +32,25 @@ export const getAuthorWorksSchema = z.object({
   }),
 });
 
-const PROFILE_CACHE_PREFIX = 'OPENALEX_AUTHOR_';
-const WORKS_CACHE_PREFIX = 'OPENALEX_WORKS_';
+const PROFILE_CACHE_PREFIX = 'OPENALEX_AUTHOR';
+const WORKS_CACHE_PREFIX = 'OPENALEX_WORKS';
+
+const OPENALEX_ID_REGEX = /^(?:https:\/\/openalex\.org\/)?A\d+$/;
+const ORCID_REGEX = /^(?:https:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
 
 export const getAuthorProfile = async (req: Request, res: Response, next: NextFunction) => {
   const { params } = await getAuthorSchema.parseAsync(req);
 
+  const isOpenAlexId = OPENALEX_ID_REGEX.test(params.id);
+  const isOrcidId = ORCID_REGEX.test(params.id);
+
   let openalexProfile = await getFromCache(`${PROFILE_CACHE_PREFIX}-${params.id}`);
   if (!openalexProfile) {
-    openalexProfile = await openAlexService.searchAuthorByOrcid(params.id);
+    openalexProfile = isOrcidId
+      ? await openAlexService.searchAuthorByOrcid(params.id)
+      : isOpenAlexId
+        ? await openAlexService.searchAuthorByOpenAlexId(params.id)
+        : null;
     // logger.trace({ openalexProfile }, 'openalexProfile');
   }
 
@@ -51,22 +63,29 @@ export const getAuthorWorks = async (req: Request, res: Response, next: NextFunc
   const { query, params } = await getAuthorWorksSchema.parseAsync(req);
   const limit = 20;
 
-  let openalexProfile = await getFromCache<OpenAlexAuthor>(`${PROFILE_CACHE_PREFIX}-${params.id}-${query.page}`);
+  const isOpenAlexId = OPENALEX_ID_REGEX.test(params.id);
+  const isOrcidId = ORCID_REGEX.test(params.id);
+
+  logger.trace({ isOpenAlexId, isOrcidId, id: params.id }, 'ID TYPE');
+  let openalexProfile = await getFromCache<OpenAlexAuthor>(`${PROFILE_CACHE_PREFIX}-${params.id}`);
   if (!openalexProfile) {
-    openalexProfile = await openAlexService.searchAuthorByOrcid(params.id);
+    openalexProfile = isOrcidId
+      ? await openAlexService.searchAuthorByOrcid(params.id)
+      : isOpenAlexId
+        ? await openAlexService.searchAuthorByOpenAlexId(params.id)
+        : null;
     logger.trace({ openalexProfile: openalexProfile.id }, 'openalexProfile');
     if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
   }
 
-  // TODO: Change to openAlex author ID
-  let openalexWorks = await getFromCache<WorksResult>(`${WORKS_CACHE_PREFIX}-${params.id}`);
+  let openalexWorks = await getFromCache<WorksResult>(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}`);
   if (!openalexWorks) {
     openalexWorks = await openAlexService.searchWorksByOpenAlexId(openalexProfile.id, {
       page: query.page,
       perPage: query.limit,
     });
 
-    if (openalexProfile) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${openalexWorks.meta.page}`, openalexWorks);
+    if (openalexProfile) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}`, openalexWorks);
   }
 
   new SuccessResponse({ meta: { ...query }, works: openalexWorks.works }).send(res);
@@ -78,7 +97,7 @@ const logger = parentLogger.child({
 
 export const getAuthorNodesSchema = z.object({
   params: z.object({
-    id: z.string({ required_error: 'Missing ORCID ID' }).describe('The ORCID identifier of the author'),
+    orcid: z.string({ required_error: 'Missing ORCID ID' }).describe('The ORCID identifier of the author'),
   }),
   query: z.object({
     g: z.string().optional().describe('Optional ipfs gateway provider link'),
@@ -104,8 +123,10 @@ type PublishedNodesResponse = Response<{
 export const getAuthorPublishedNodes = async (req: PublishedNodesRequest, res: PublishedNodesResponse) => {
   const { data } = getAuthorNodesSchema.safeParse(req);
   const { params, query } = data;
-  const { id } = params;
+  const { orcid } = params;
   const { page, limit: size, g: gateway = '' } = query;
+  const id = formatOrcidString(orcid);
+  logger.trace({ id, orcid }, 'ORCID');
   const owner = await prisma.user.findFirst({ where: { orcid: id }, select: { id: true } });
 
   logger.info(
