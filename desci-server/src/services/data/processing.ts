@@ -97,7 +97,6 @@ export async function processS3DataToIpfs({
   if (contextPath.endsWith('/')) contextPath = contextPath.slice(0, -1);
   try {
     ensureSpaceAvailable(files, user);
-
     const manifest = await getLatestManifestFromNode(node);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
     const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(files);
@@ -113,7 +112,7 @@ export async function processS3DataToIpfs({
     if (pinResult) {
       const root = pinResult[pinResult.length - 1];
       const rootTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
-      // debugger;
+
       const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = ipfsDagToDraftNodeTreeEntries({
         ipfsTree: rootTree,
         node,
@@ -153,7 +152,6 @@ export async function processS3DataToIpfs({
        * Only needs to happen if a predefined component type is to be added
        */
       if (autoStar) {
-        // debugger;
         const firstNestingComponents = predefineComponentsForPinnedFiles({
           pinnedFirstNestingFiles: filteredFiles,
           contextPath,
@@ -356,7 +354,6 @@ export async function getManifestFromNode(
   node: { manifestUrl: string; cid?: string },
   queryString?: string,
 ): Promise<{ manifest: ResearchObjectV1; manifestCid: string }> {
-  // debugger;
   const manifestCid = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid as string, queryString as string) : null;
   try {
@@ -535,7 +532,7 @@ interface UpdateDataReferencesParams {
 export async function updateDataReferences({ node, user, updatedManifest }: UpdateDataReferencesParams) {
   // const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString, false, externalCidMap);
   const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
-  // debugger;
+
   // Get old refs to match their DB entry id's with the updated refs
   const existingRefs = user.isGuest
     ? await prisma.guestDataReference.findMany({
@@ -552,9 +549,12 @@ export async function updateDataReferences({ node, user, updatedManifest }: Upda
           type: { not: DataType.MANIFEST },
         },
       });
+
   // Map existing ref neutral paths to the ref for constant lookup
   const existingRefMap = existingRefs.reduce((map, ref) => {
-    map[neutralizePath(ref.path)] = ref;
+    if (ref.path) {
+      map[neutralizePath(ref.path)] = ref;
+    }
     return map;
   }, {});
 
