@@ -60,6 +60,8 @@ model Node {
   CommunitySubmission  CommunitySubmission[]
   PublishedWallet      PublishedWallet[]
   GuestDataReference   GuestDataReference[]
+  DataMigration        DataMigration[]
+  dataMigrationId      Int?
 
   @@index([ownerId])
   @@index([uuid])
@@ -238,6 +240,7 @@ model User {
   CommunitySubmission         CommunitySubmission[]
   PublishedWallet             PublishedWallet[]
   GuestDataReference          GuestDataReference[]
+  DataMigration               DataMigration[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1097,6 +1100,31 @@ model NodeLike {
   updatedAt DateTime @updatedAt
 
   @@unique([nodeUuid, userId])
+}
+
+model DataMigration {
+  id              Int             @id @default(autoincrement())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  migrationType   MigrationType
+  migrationStatus MigrationStatus
+  migrationError  String?
+  migrationData   Json
+  nodes           Node[]
+  userId          Int
+  user            User            @relation(fields: [userId], references: [id])
+}
+
+enum MigrationType {
+  PRIVATE_TO_PUBLIC
+  GUEST_TO_PRIVATE
+}
+
+enum MigrationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
 }
 
 enum VoteType {
