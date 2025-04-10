@@ -67,7 +67,7 @@
     "@aws-sdk/client-s3": "^3.537.0",
     "@desci-labs/desci-codex-lib": "^1.1.7",
     "@desci-labs/desci-contracts": "^0.2.7",
-    "@desci-labs/desci-models": "^0.2.24",
+    "@desci-labs/desci-models": "^0.2.25",
     "@elastic/elasticsearch": "^8.14.0",
     "@honeycombio/opentelemetry-node": "^0.3.2",
     "@ipld/dag-pb": "^4.0.0",

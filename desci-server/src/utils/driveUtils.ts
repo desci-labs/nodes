@@ -15,13 +15,15 @@ import {
   isNodeRoot,
   isResearchObjectComponentTypeMap,
   ManifestActions,
+  DATA_SOURCE,
 } from '@desci-labs/desci-models';
-import { DataReference, DataType, GuestDataReference, Node, PublicDataReference } from '@prisma/client';
+import { DataReference, DataType, GuestDataReference, MigrationType, Node, PublicDataReference } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getFromCache, setToCache } from '../redisClient.js';
+import { DataMigrationService } from '../services/data/DataMigrationService.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
 import { NodeUuid } from '../services/manifestRepo.js';
 import repoService from '../services/repoService.js';
@@ -30,7 +32,8 @@ import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
 
-export function fillDirSizes(tree, cidInfoMap) {
+// NOTE: Try collapse fillDirSizes() and fillCidInfo() into one function - optimization
+export function fillDirSizes(tree, cidInfoMap: Record<string, CidEntryDetails>) {
   const contains = [];
   tree.forEach((fd) => {
     if (fd.type === 'dir') {
@@ -46,13 +49,15 @@ export function fillDirSizes(tree, cidInfoMap) {
 }
 
 // Fills in the access status of CIDs and dates
-export function fillCidInfo(tree, cidInfoMap) {
+export function fillCidInfo(tree, cidInfoMap: Record<string, CidEntryDetails>) {
   // debugger;
   const contains = [];
   tree.forEach((fd) => {
     if (fd.type === 'dir' && fd.contains?.length) fd.contains = fillCidInfo(fd.contains, cidInfoMap);
-    fd.date = cidInfoMap[fd.cid]?.date || Date.now();
-    fd.published = cidInfoMap[fd.cid]?.published;
+    const cidInfo = cidInfoMap[fd.cid];
+    fd.date = cidInfo?.date || Date.now();
+    fd.published = cidInfo?.published;
+    if (cidInfo?.dataSource) fd.dataSource = cidInfo.dataSource;
     contains.push(fd);
   });
   return contains;
@@ -62,6 +67,7 @@ interface CidEntryDetails {
   size?: number;
   published?: boolean;
   date?: string;
+  dataSource?: DATA_SOURCE;
 }
 
 //deprecated tree filling function, used for old datasets, pre unopinionated data model
@@ -166,7 +172,17 @@ export async function getTreeAndFill(
     : flatTreeToHierarchicalTree(await draftNodeTreeEntriesToFlatIpfsTree(dbTree));
   logger.info('ran getTreeAndFill');
 
-  const nodeOwner = await prisma.user.findFirst({ where: { id: node.ownerId }, select: { isGuest: true } });
+  const nodeOwner = await prisma.user.findFirst({
+    where: { id: node.ownerId },
+    select: { isGuest: true, convertedGuest: true },
+  });
+
+  // If a user was previously a guest, their data may be in the process of migration.
+  // We need to mark the data source for these CIDs.
+  const unmigratedGuestCidsMap = nodeOwner.convertedGuest
+    ? await DataMigrationService.getUnmigratedCidsMap(nodeUuid, MigrationType.GUEST_TO_PRIVATE)
+    : {};
+
   /*
    ** Get all entries for the nodeUuid, for filling the tree
    ** Both entries neccessary to determine publish state, prioritize public entries over private
@@ -238,6 +254,14 @@ export async function getTreeAndFill(
         published: false,
         date: ref.createdAt?.getTime().toString(),
         external: ref.external ? true : false,
+        // If a user is a guest, assume the data source for all data is GUEST.
+        // If a user was a guest, but has since converted to a user, the data source for any unmigrated guest data is still GUEST.
+        // Otherwise, the data source is PRIVATE.
+        dataSource: nodeOwner.isGuest
+          ? DATA_SOURCE.GUEST
+          : unmigratedGuestCidsMap[ref.cid]
+            ? DATA_SOURCE.GUEST
+            : DATA_SOURCE.PRIVATE,
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
