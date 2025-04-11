@@ -37,20 +37,34 @@ export class OpenAlexClient {
         return null;
       }
 
-      //   // Get the first author from results
-      //   const authorId = data.results[0].id;
+      return data.results[0] as OpenAlexAuthor;
+    } catch (error) {
+      console.error('Error searching author by ORCID:', error);
+      return null;
+    }
+  }
 
-      //   // Get detailed author profile using the ID
-      //   const profileUrl = `${this.baseurl}authors/${authorId}`;
-      //   const profileResponse = await fetch(profileUrl, {
-      //     headers: {
-      //       Accept: 'application/json',
-      //     },
-      //   });
+  async searchAuthorByOpenAlexId(id: string) {
+    // url should look like this: https://api.openalex.org/authors?filter=id:https://openalex.org/A5059104743
+    try {
+      // Get author by ORCID
+      const url = `${this.baseurl}authors?filter=id:${id}`;
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
 
-      //   if (!profileResponse.ok) {
-      //     return null;
-      //   }
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+
+      // If no results found
+      if (!data.results || data.results.length === 0) {
+        return null;
+      }
 
       return data.results[0] as OpenAlexAuthor;
     } catch (error) {

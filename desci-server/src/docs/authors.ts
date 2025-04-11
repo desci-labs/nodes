@@ -5,7 +5,7 @@ import { getAuthorNodesSchema, getAuthorSchema, getAuthorWorksSchema } from '../
 export const getAuthorProfileOperation: ZodOpenApiOperationObject = {
   operationId: 'getAuthorProfile',
   tags: ['Authors'],
-  summary: 'Get author profile by ORCID ID',
+  summary: 'Get author profile by ORCID or Openalex ID',
   requestParams: {
     path: getAuthorSchema.shape.params,
   },
@@ -149,7 +149,7 @@ export const getAuthorProfileOperation: ZodOpenApiOperationObject = {
 export const getAuthorWorksOperation: ZodOpenApiOperationObject = {
   operationId: 'getAuthorWorks',
   tags: ['Authors'],
-  summary: 'Get author works by ORCID ID',
+  summary: 'Get author works by ORCID or OpenAlex ID',
   requestParams: {
     path: getAuthorWorksSchema.shape.params,
     query: getAuthorWorksSchema.shape.query,
@@ -287,7 +287,7 @@ export const authorPaths: ZodOpenApiPathsObject = {
   '/v1/authors/{id}/works': {
     get: getAuthorWorksOperation,
   },
-  '/v1/authors/{id}/publishedNodes': {
+  '/v1/authors/{orcid}/publishedNodes': {
     get: getAuthorPublishedNodesOperation,
   },
 };
