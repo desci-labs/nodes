@@ -139,6 +139,7 @@ export type UnmigratedCidsMap = Record<cid, true>;
  */
 async function getUnmigratedCidsMap(nodeUuid: uuid, migrationType: MigrationType): Promise<UnmigratedCidsMap> {
   nodeUuid = ensureUuidEndsWithDot(nodeUuid);
+
   const dataMigration = await prisma.dataMigration.findFirst({
     where: {
       migrationType,
@@ -150,6 +151,9 @@ async function getUnmigratedCidsMap(nodeUuid: uuid, migrationType: MigrationType
       },
     },
   });
+  if (!dataMigration) {
+    return {};
+  }
   const migrationData = JSON.parse(dataMigration?.migrationData as string) as MigrationData;
   const nodeCids = migrationData?.nodes[nodeUuid];
   const unmigratedCids = Object.keys(nodeCids).reduce((acc, cid) => {
