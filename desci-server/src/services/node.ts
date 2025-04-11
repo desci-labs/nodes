@@ -126,6 +126,7 @@ export const getNodeDetails = async (nodeUuid: string) => {
       title: true,
       NodeCover: true,
       dpidAlias: true,
+      dpidAliasHint: true,
       manifestDocumentId: true,
     },
   });
@@ -134,7 +135,13 @@ export const getNodeDetails = async (nodeUuid: string) => {
     logger.warn({ uuid }, 'uuid not found');
   }
 
-  const selectAttributes: (keyof typeof discovery)[] = ['ownerId', 'NodeCover', 'dpidAlias', 'manifestDocumentId'];
+  const selectAttributes: (keyof typeof discovery)[] = [
+    'ownerId',
+    'NodeCover',
+    'dpidAlias',
+    'dpidAliasHint',
+    'manifestDocumentId',
+  ];
   const node: Partial<Node & { versions: number; dpid?: number }> = _.pick(discovery, selectAttributes);
   const publishedVersions =
     (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND ("transactionId" IS NOT NULL or "commitId" IS NOT NULL) ORDER BY "createdAt" DESC`) as NodeVersion[];
@@ -145,7 +152,7 @@ export const getNodeDetails = async (nodeUuid: string) => {
   data['publishedDate'] = publishedVersions[0].createdAt;
   node.manifestUrl = publishedVersions[0].manifestUrl;
   // data.node = node;
-  data.dpid = node.dpidAlias;
+  data.dpid = node.dpidAlias || node.dpidAliasHint;
 
   let gatewayUrl = publishedVersions[0].manifestUrl;
 
