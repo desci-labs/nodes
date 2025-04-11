@@ -6,6 +6,7 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { verifyMagicCode } from '../../services/auth.js';
 import { contributorService } from '../../services/Contributors.js';
+import { DataMigrationService } from '../../services/DataMigration/DataMigrationService.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import orcidApiService from '../../services/orcid.js';
 import orcid from '../../services/orcid.js';
@@ -163,6 +164,9 @@ export const convertGuestToUserOrcid = async (
       { userId: updatedUser.id, email: hideEmail(cleanEmail), orcid },
       'Guest user successfully converted to regular user via ORCID',
     );
+
+    // Queue data migration
+    await DataMigrationService.queueGuestToPrivateMigration(updatedUser.id);
 
     return res.send({
       ok: true,

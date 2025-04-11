@@ -11,7 +11,24 @@ export class SqsService {
   private queueUrl: string;
 
   constructor() {
-    this.client = new SQSClient({ region: process.env.AWS_REGION || 'us-east-1' });
+    if (
+      !process.env.AWS_SQS_ACCESS_KEY_ID ||
+      !process.env.AWS_SQS_SECRET_ACCESS_KEY ||
+      !process.env.AWS_SQS_QUEUE_URL
+    ) {
+      logger.error(
+        'SQS Queue is not enabled. AWS_SQS_ACCESS_KEY_ID, AWS_SQS_SECRET_ACCESS_KEY, and AWS_SQS_QUEUE_URL must be set to enable SQS Queuing',
+      );
+      return;
+    }
+
+    this.client = new SQSClient({
+      region: process.env.AWS_SQS_REGION || 'us-east-2',
+      credentials: {
+        accessKeyId: process.env.AWS_SQS_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.AWS_SQS_SECRET_ACCESS_KEY || '',
+      },
+    });
     this.queueUrl = process.env.AWS_SQS_QUEUE_URL;
 
     logger.info(`SQS Service initialized for queue: ${this.queueUrl}`);

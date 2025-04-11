@@ -662,9 +662,15 @@ export function transformDataRefsToGuestDataRefs(dataRefs: Partial<DataReference
  * Helper function to transform GuestDataRefs to DataRefs
  * There are minor differences between data refs and guest data refs, so we need to transform them
  */
-export function transformGuestDataRefsToDataRefs(guestDataRefs: Partial<GuestDataReference>[]): DataReference[] {
+export function transformGuestDataRefsToDataRefs(
+  guestDataRefs: Partial<GuestDataReference>[],
+  stripIds: boolean,
+): DataReference[] {
   return guestDataRefs.map((ref) => {
     delete ref.loggedData;
+    if (stripIds) {
+      delete ref.id;
+    }
     return {
       ...ref,
     } as unknown as DataReference;

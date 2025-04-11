@@ -2,6 +2,7 @@ import { MigrationStatus, MigrationType } from '@prisma/client';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { transformGuestDataRefsToDataRefs } from '../../utils/dataRefTools.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 import { sqsService } from '../sqs/SqsService.js';
 
@@ -48,17 +49,41 @@ async function queueGuestToPrivateMigration(userId: number): Promise<void> {
       },
     });
 
+    // Create regular dataReferences
+    const dataRefs = transformGuestDataRefsToDataRefs(
+      guestRefs.map((ref) => {
+        const sanitizedRef = { ...ref };
+        delete sanitizedRef.node;
+        return sanitizedRef;
+      }),
+      true,
+    );
+
     if (guestRefs.length === 0) {
       logger.info({ fn: 'queueGuestToPrivateMigration', userId }, 'No guest data found for user');
       return;
     }
+
+    const createdDataRefs = await prisma.dataReference.createMany({
+      data: dataRefs,
+    });
+
+    logger.info(
+      { fn: 'queueGuestToPrivateMigration', userId, totalCreatedDataRefs: createdDataRefs.count },
+      'Created data references',
+    );
 
     // Create MigrationData list for CIDS to be migrated
     const migrationData: MigrationData = {
       nodes: guestRefs.reduce(
         (acc, ref) => {
           const nodeUuid = ref.node.uuid;
-          acc[nodeUuid][ref.cid] = false;
+          if (!acc[nodeUuid]) {
+            acc[nodeUuid] = {};
+          }
+          if (ref.directory === false) {
+            acc[nodeUuid][ref.cid] = false;
+          }
           return acc;
         },
         {} as MigrationData['nodes'],

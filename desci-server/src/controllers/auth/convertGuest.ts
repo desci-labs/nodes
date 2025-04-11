@@ -5,6 +5,7 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { magicLinkRedeem, verifyMagicCode } from '../../services/auth.js';
 import { contributorService } from '../../services/Contributors.js';
+import { DataMigrationService } from '../../services/DataMigration/DataMigrationService.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
@@ -104,6 +105,10 @@ export const convertGuestToUser = async (
       { userId: updatedUser.id, email: hideEmail(email) },
       'Guest user successfully converted to regular user via email/magic code',
     );
+
+    // Queue data migration
+    await DataMigrationService.queueGuestToPrivateMigration(updatedUser.id);
+
     return res.send({
       ok: true,
       user: {

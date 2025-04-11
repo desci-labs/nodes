@@ -5,6 +5,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { contributorService } from '../../services/Contributors.js';
+import { DataMigrationService } from '../../services/DataMigration/DataMigrationService.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
@@ -118,6 +119,9 @@ export const convertGuestToUserGoogle = async (
       { userId: updatedUser.id, email: hideEmail(cleanEmail) },
       'Guest user successfully converted to regular user via Google',
     );
+
+    // Queue data migration
+    await DataMigrationService.queueGuestToPrivateMigration(updatedUser.id);
 
     return res.send({
       ok: true,

@@ -5,7 +5,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { IPFS_NODE, migrateCid } from '../ipfs.js';
 import { sqsService } from '../sqs/SqsService.js';
 
-import { MigrationData, DataMigrationService } from './DataMigrationService.js';
+import { MigrationData } from './DataMigrationService.js';
 
 const logger = parentLogger.child({
   module: 'DataMigration::DataMigrationWorker',
@@ -33,8 +33,8 @@ export class DataMigrationWorker {
         if (messageProcessed) {
           backoffMs = 1000;
         } else {
-          // Increase backoff when no messages (up to 30 seconds)
-          backoffMs = Math.min(backoffMs * 1.5, 30000);
+          // Increase backoff when no messages (up to 5 seconds)
+          backoffMs = Math.min(backoffMs * 1.5, 5_000);
           await new Promise((resolve) => setTimeout(resolve, backoffMs));
         }
       } catch (error) {
