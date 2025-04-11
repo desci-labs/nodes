@@ -102,8 +102,8 @@ const router = Router();
 
 router.post('/prepublish', [ensureUser, ensureNodeAccess], prepublish);
 router.post('/publish', [ensureUser], publish);
-router.get('/stats', [ensureUser], getDraftNodeStats);
-router.get('/stats/published', [ensureUser], getPublishedNodeStats);
+router.get('/stats', [ensureGuestOrUser], getDraftNodeStats);
+router.get('/stats/published', [ensureGuestOrUser], getPublishedNodeStats);
 router.get('/published/list', [ensureUser], getPublishedNodes);
 router.get('/published/:dpid([0-9]+)', [], nodeByDpid);
 router.get('/published/:stream([a-z0-9]{50,})', [], nodeByStream);

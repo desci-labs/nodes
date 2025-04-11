@@ -664,7 +664,7 @@ export function transformDataRefsToGuestDataRefs(dataRefs: Partial<DataReference
  */
 export function transformGuestDataRefsToDataRefs(
   guestDataRefs: Partial<GuestDataReference>[],
-  stripIds: boolean,
+  stripIds?: boolean,
 ): DataReference[] {
   return guestDataRefs.map((ref) => {
     delete ref.loggedData;
