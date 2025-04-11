@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { padStart } from 'lodash';
 
 import { prisma } from '../../client.js';
 import { InternalError } from '../../core/ApiError.js';
@@ -19,7 +20,7 @@ import {
 } from '../../services/ElasticSearchService.js';
 import { asyncMap } from '../../utils.js';
 
-import { Filter, QueryErrorResponse, QuerySuccessResponse } from './types.js';
+import { ByMonthQuerySuccessResponse, Filter, QueryErrorResponse, QuerySuccessResponse } from './types.js';
 
 export const MIN_RELEVANCE_SCORE = 0.01;
 interface SingleQuerySearchBodyParams {
@@ -125,6 +126,142 @@ export const singleQuery = async (
       page: pagination.page,
       perPage: pagination.perPage,
       data: hits.hits,
+      duration,
+    });
+  } catch (error) {
+    logger.error({ error }, 'Elastic search query failed');
+    return res.status(500).json({
+      ok: false,
+      error: 'An error occurred while searching',
+      finalQuery,
+    });
+  }
+};
+
+export const byMonthQuery = async (
+  req: Request<any, any, SingleQuerySearchBodyParams>,
+  res: Response<ByMonthQuerySuccessResponse | QueryErrorResponse>,
+) => {
+  const logger = parentLogger.child({
+    module: 'SEARCH::ByMonthQuery',
+  });
+
+  logger.trace({ fn: 'Executing elastic search query' });
+
+  const finalQuery = {
+    index: NATIVE_WORKS_INDEX,
+    // display all months in yyyyMM format
+    body: {
+      size: 0,
+      aggs: {
+        months: {
+          date_histogram: {
+            field: 'publication_date',
+            calendar_interval: 'month',
+            format: 'yyyy-MM',
+            order: { _key: 'desc' },
+          },
+        },
+      },
+    },
+  };
+
+  logger.debug({ query: finalQuery }, 'Executing query');
+
+  try {
+    const startTime = Date.now();
+    const results = await elasticClient.search(finalQuery);
+    const duration = Date.now() - startTime;
+    const hits = results.hits;
+    logger.info({ hitsReturned: hits.total }, 'Elastic search query executed successfully');
+
+    return res.json({
+      finalQuery,
+      ok: true,
+      index: NATIVE_WORKS_INDEX,
+      total: hits.total,
+      data: results.aggregations.months.buckets,
+      duration,
+    });
+  } catch (error) {
+    logger.error({ error }, 'Elastic search query failed');
+    return res.status(500).json({
+      ok: false,
+      error: 'An error occurred while searching',
+      finalQuery,
+    });
+  }
+};
+
+export const byMonthFilterQuery = async (
+  req: Request<any, any, SingleQuerySearchBodyParams>,
+  res: Response<QuerySuccessResponse | QueryErrorResponse>,
+) => {
+  const {
+    // query,
+    // filters = [],
+    // entity,
+    // fuzzy,
+    // sort = { field: '_score', order: 'desc' },
+    pagination = { page: 1, perPage: 20 },
+  }: SingleQuerySearchBodyParams = req.body;
+
+  const logger = parentLogger.child({
+    module: 'SEARCH::ByMonthFilterQuery',
+  });
+
+  logger.trace({ fn: 'Executing elastic search query' });
+  const [yearStr, monthStr] = req.params.yyyyMM.split('-');
+  let year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+
+  // Handle rollover to next year if December
+  let nextMonth = month + 1;
+  if (nextMonth > 12) {
+    nextMonth = 1;
+    year += 1;
+  }
+
+  const finalQuery = {
+    index: NATIVE_WORKS_INDEX,
+    body: {
+      query: {
+        range: {
+          publication_date: {
+            gte: `${yearStr}-${monthStr}-01`,
+            lt: `${year}-${String(nextMonth).padStart(2, '0')}-01`,
+          },
+        },
+      },
+      sort: [
+        {
+          publication_date: {
+            order: 'desc',
+          },
+        },
+      ],
+      from: (pagination.page - 1) * pagination.perPage,
+      size: pagination.perPage,
+    },
+  };
+
+  logger.debug({ query: finalQuery }, 'Executing query');
+
+  try {
+    const startTime = Date.now();
+    const results = await elasticClient.search(finalQuery);
+    const duration = Date.now() - startTime;
+    const hits = results.hits;
+    logger.info({ hitsReturned: hits.total }, 'Elastic search query executed successfully');
+
+    return res.json({
+      finalQuery,
+      ok: true,
+      index: NATIVE_WORKS_INDEX,
+      total: hits.total,
+      data: hits.hits,
+      page: pagination.page,
+      perPage: pagination.perPage,
       duration,
     });
   } catch (error) {
