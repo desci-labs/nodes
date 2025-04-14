@@ -1,5 +1,5 @@
 import { neutralizePath } from '@desci-labs/desci-models';
-import { DataType } from '@prisma/client';
+import { DataType, User } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';

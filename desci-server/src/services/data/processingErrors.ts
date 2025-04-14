@@ -94,6 +94,18 @@ export const createDuplicateFileError = (): DuplicateFileError => ({
   status: 409,
 });
 
+interface GuestFileSizeLimitError extends BaseProcessingError {
+  type: 'GuestFileSizeLimitError';
+  message: string;
+  status: 507;
+}
+
+export const createGuestFileSizeLimitError = (): GuestFileSizeLimitError => ({
+  type: 'GuestFileSizeLimitError',
+  message: 'Guest file size limit exceeded, 100MB limit per upload',
+  status: 507,
+});
+
 interface IpfsUploadFailureError extends BaseProcessingError {
   type: 'IpfsUploadFailureError';
   message: string;

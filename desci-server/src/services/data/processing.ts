@@ -56,6 +56,7 @@ import {
   Either,
   ProcessingError,
   createDuplicateFileError,
+  createGuestFileSizeLimitError,
   createInvalidManifestError,
   createIpfsUnresolvableError,
   createIpfsUploadFailureError,
@@ -96,7 +97,8 @@ export async function processS3DataToIpfs({
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   if (contextPath.endsWith('/')) contextPath = contextPath.slice(0, -1);
   try {
-    ensureSpaceAvailable(files, user);
+    await ensureSpaceAvailable(files, user);
+    await guestFileSizeLimitCheck(files, user);
     const manifest = await getLatestManifestFromNode(node);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
     const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(files);
@@ -341,6 +343,19 @@ export async function ensureSpaceAvailable(files: any[], user: User) {
       `upload size of ${uploadSizeBytes} exceeds users data budget of ${user.currentDriveStorageLimitGb} GB`,
     );
   return true;
+}
+
+/*
+ ** Guest file size upload limit per upload - currently 100MB.
+ */
+export function guestFileSizeLimitCheck(files: File[], user: Pick<User, 'isGuest'>) {
+  if (user.isGuest) {
+    const ONE_HUNDRED_MBS = 1000 * 1000 * 100;
+    const totalSize = files.reduce((acc, file) => acc + file.size, 0);
+    if (totalSize > ONE_HUNDRED_MBS) {
+      throw createGuestFileSizeLimitError();
+    }
+  }
 }
 
 export function extractRootDagCidFromManifest(manifest: ResearchObjectV1, manifestCid: string) {
