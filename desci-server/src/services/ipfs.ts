@@ -110,7 +110,7 @@ export const addBufferToIpfs = async (
   key: string,
   node?: IPFS_NODE,
 ): Promise<{ cid: string; size: number; key: string }> => {
-  const { cid, size } = await getIpfsClient(node).add(buf, { cidVersion: 1 });
+  const { cid, size } = await getIpfsClient(node).add(buf, { pin: true, cidVersion: 1 });
   return { cid: cid.toString(), size: Number(size), key };
 };
 
@@ -193,6 +193,7 @@ export const pinDirectory = async (
   const addAll = await getIpfsClient(options.node).addAll(files, {
     wrapWithDirectory: options.wrapWithDirectory,
     cidVersion: 1,
+    pin: true,
   });
   for await (const file of addAll) {
     uploaded.push({ path: file.path, cid: file.cid.toString(), size: file.size });
@@ -558,7 +559,7 @@ export const createDag = async (files: FilesToAddToDag, ipfsNode = IPFS_NODE.PRI
 };
 
 export async function createEmptyDag(ipfsNode = IPFS_NODE.PRIVATE) {
-  const nodeKeepCid = await getIpfsClient(ipfsNode).add(Buffer.from(''));
+  const nodeKeepCid = await getIpfsClient(ipfsNode).add(Buffer.from(''), { pin: true, cidVersion: 1 });
   const cid = await makeDir(getIpfsClient(ipfsNode), { '.nodeKeep': { cid: nodeKeepCid.cid } });
   return cid.toString();
 }
@@ -619,7 +620,7 @@ export async function addDirToIpfs(directoryPath: string, ipfsNode = IPFS_NODE.P
   const files = [];
 
   const source = globSource(directoryPath, '**/*', { hidden: true });
-  for await (const file of getIpfsClient(ipfsNode).addAll(source, { cidVersion: 1 })) {
+  for await (const file of getIpfsClient(ipfsNode).addAll(source, { cidVersion: 1, pin: true })) {
     files.push({ path: file.path, cid: file.cid.toString(), size: file.size });
   }
   const totalFiles = files.length;
@@ -710,6 +711,7 @@ export async function migrateCid(
     const result = await toIpfsClient.add(sourceStream, {
       cidVersion: 1,
       pin: true,
+      recursive: true,
     });
 
     logger.info({ fn: 'migrateCid', cid }, 'Successfully migrated CID');
@@ -726,11 +728,63 @@ export async function migrateCid(
 export async function migrateCidByPinning(cid: string, { destinationIpfsNode }: { destinationIpfsNode: IPFS_NODE }) {
   try {
     const toIpfsClient = getIpfsClient(destinationIpfsNode);
-    await toIpfsClient.pin.add(cid, { cidVersion: 1 });
+    await toIpfsClient.pin.add(cid, { cidVersion: 1, recursive: true });
 
     logger.info({ fn: 'migrateCidByPinning', cid }, 'Successfully pinned CID');
   } catch (error) {
     logger.error({ fn: 'migrateCidByPinning', cid, error }, 'Failed to pin CID');
     throw error;
+  }
+}
+
+/**
+ * Checks if
+ ** A CID exists in the local datastore
+ ** A CID is pinned in the IPFS node
+ **
+ ** NOTE: A CID can exist in the local blockstore, but not be pinned.
+ * @param cid The CID to check
+ * @param ipfsNode The IPFS node to check
+ */
+export async function isCidPinned(
+  cid: string,
+  ipfsNode: IPFS_NODE,
+): Promise<{ isPinned: boolean; existsInLocalDatastore: boolean }> {
+  try {
+    const ipfsClient = getIpfsClient(ipfsNode);
+
+    let isPinned = false;
+    let existsInLocalDatastore = false;
+
+    try {
+      await ipfsClient.block.stat(cid, { offline: true });
+      logger.debug({ fn: 'isCidPinned', cid }, 'Block found in local datastore');
+      existsInLocalDatastore = true;
+    } catch (blockError) {
+      logger.debug({ fn: 'isCidPinned', cid }, 'Block not found in local datastore');
+      return { isPinned, existsInLocalDatastore };
+    }
+
+    try {
+      for await (const pin of ipfsClient.pin.ls({ paths: [cid] })) {
+        // If we get any result, it's pinned
+        isPinned = true;
+      }
+    } catch (pinError) {
+      if (
+        pinError.message?.includes('not pinned') ||
+        pinError.message?.includes('no such object') ||
+        pinError.message?.includes('not found')
+      ) {
+        logger.debug({ fn: 'isCidPinned', cid }, 'Block not pinned');
+      }
+      throw pinError; // Rethrow unexpected pin errors
+    }
+
+    return { isPinned, existsInLocalDatastore };
+  } catch (error) {
+    logger.error({ fn: 'isCidPinned', cid, ipfsNode, error }, 'Error checking if CID is pinned');
+    // Default to false on errors to be safe
+    return { isPinned: false, existsInLocalDatastore: false };
   }
 }
