@@ -225,44 +225,6 @@ export const convertToCidV1 = (cid: string | multiformats.CID): string => {
   return cid.toV1().toString();
 };
 
-/**
- * @deprecated Hasn't been in use for a long time, review before usage - may be useful for data migration.
- */
-export const resolveIpfsData = async (cid: string): Promise<Buffer> => {
-  try {
-    logger.info({ fn: 'resolveIpfsData' }, `[ipfs:resolveIpfsData] START ipfs.cat cid= ${cid}`);
-    const iterable = await readerClient.cat(cid);
-    logger.info({ fn: 'resolveIpfsData' }, `[ipfs:resolveIpfsData] SUCCESS(1/2) ipfs.cat cid= ${cid}`);
-    const dataArray = [];
-
-    for await (const x of iterable) {
-      dataArray.push(x);
-    }
-    logger.info(
-      { fn: 'resolveIpfsData' },
-      `[ipfs:resolveIpfsData] SUCCESS(2/2) ipfs.cat cid=${cid}, len=${dataArray.length}`,
-    );
-
-    return Buffer.from(dataArray);
-  } catch (err) {
-    const res = await client.dag.get(multiformats.CID.parse(cid));
-    let targetValue = res.value.Data;
-    if (!targetValue) {
-      targetValue = res.value;
-    }
-    logger.error(
-      { fn: 'resolveIpfsData', err },
-      `[ipfs:resolveIpfsData] SUCCESS(2/2) DAG, ipfs.dag.get cid=${cid}, bufferLen=${targetValue.length}`,
-    );
-    const uint8ArrayTarget = targetValue as Uint8Array;
-    if (uint8ArrayTarget.buffer) {
-      targetValue = (targetValue as Uint8Array).buffer;
-    }
-
-    return Buffer.from(targetValue);
-  }
-};
-
 export const convertToCidV0 = (cid: string) => {
   const c = multiformats.CID.parse(cid);
   const v0 = c.toV0();
