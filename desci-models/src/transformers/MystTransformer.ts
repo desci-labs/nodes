@@ -50,6 +50,7 @@ export class MystTransformer implements BaseTransformer {
           path: 'content.md',
           title: researchObject.title,
           description: researchObject.description,
+          content: content,
           cid: '', // This would be populated when the content is stored
         },
       };
@@ -90,9 +91,16 @@ export class MystTransformer implements BaseTransformer {
       license,
     });
 
-    // For now, we'll just return the frontmatter
-    // In a real implementation, we would also include the content from components
-    return frontmatter;
+    // Include content from components
+    let content = '';
+    if (researchObject.components && researchObject.components.length > 0) {
+      const mainComponent = researchObject.components.find((c) => c.id === 'content');
+      if (mainComponent && mainComponent.payload) {
+        content = mainComponent.payload.content || '';
+      }
+    }
+
+    return frontmatter + content;
   }
 
   /**
@@ -285,17 +293,16 @@ export class MystTransformer implements BaseTransformer {
       };
 
       if (author.orcid) {
-        // Handle both full URLs and just IDs
         parsedAuthor.orcid = author.orcid.startsWith('http') ? author.orcid : `https://orcid.org/${author.orcid}`;
       }
 
-      if (author.organizations) {
-        parsedAuthor.organizations = Array.isArray(author.organizations)
-          ? author.organizations.map((org: any) => ({
-              id: org.id || this.generateId(),
-              name: typeof org === 'string' ? org : org.name || '',
-            }))
-          : [];
+      // Handle both organizations and affiliations fields
+      const orgs = author.organizations || author.affiliations || [];
+      if (orgs.length > 0) {
+        parsedAuthor.organizations = orgs.map((org: any) => ({
+          id: this.generateId(),
+          name: typeof org === 'string' ? org : org.name || '',
+        }));
       }
 
       return parsedAuthor;
@@ -341,8 +348,18 @@ export class MystTransformer implements BaseTransformer {
     const { title, description, authors, keywords, tags, license } = data;
 
     let frontmatter = '---\n';
-    frontmatter += `title: ${title}\n`;
-    frontmatter += `description: ${description || ''}\n`;
+    if (title) frontmatter += `title: ${title}\n`;
+    if (description) frontmatter += `description: ${description}\n`;
+    if (license) frontmatter += `license: ${license}\n`;
+
+    if (keywords && keywords.length > 0) {
+      frontmatter += `keywords: [${keywords.join(', ')}]\n`;
+    }
+
+    if (tags && tags.length > 0) {
+      frontmatter += `tags: [${tags.join(', ')}]\n`;
+    }
+
     if (authors && authors.length > 0) {
       frontmatter += 'authors:\n';
       for (const author of authors) {
@@ -354,24 +371,15 @@ export class MystTransformer implements BaseTransformer {
           frontmatter += `    role: ${author.role}\n`;
         }
         if (author.organizations && author.organizations.length > 0) {
-          frontmatter += '    organizations:\n';
+          frontmatter += '    affiliations:\n';
           for (const org of author.organizations) {
-            frontmatter += `      - name: ${org.name}\n`;
+            frontmatter += `      - ${org.name}\n`;
           }
         }
       }
     }
-    if (keywords && keywords.length > 0) {
-      frontmatter += `keywords: [${keywords.join(', ')}]\n`;
-    }
-    if (tags && tags.length > 0) {
-      frontmatter += `tags: [${tags.join(', ')}]\n`;
-    }
-    if (license) {
-      frontmatter += `license: ${license}\n`;
-    }
-    frontmatter += '---\n\n';
 
+    frontmatter += '---\n\n';
     return frontmatter;
   }
 }
