@@ -607,7 +607,13 @@ export async function getExternalCidSizeAndType(cid: string) {
   }
 }
 
-// Adds a directory to IPFS and deletes the directory after, returning the root CID
+/**
+ * Adds a directory to IPFS and deletes the directory after, returning the root CID
+ * @param directoryPath - The path to the directory to add to IPFS
+ * @param ipfsNode - The IPFS node to use
+ * @returns The root CID of the added directory
+ */
+
 export async function addDirToIpfs(directoryPath: string, ipfsNode = IPFS_NODE.PRIVATE): Promise<IpfsPinnedResult[]> {
   // Add all files in the directory to IPFS using globSource
   const files = [];
@@ -682,6 +688,10 @@ export async function getCidMetadata(
   }
 }
 
+/**
+ **  Optimally used when the IPFS nodes are on different swarms,
+ *  otherwise migrateCidByPinning() is preferred.
+ */
 export async function migrateCid(
   cid: string,
   { fromIpfsNode, toIpfsNode }: { fromIpfsNode: IPFS_NODE; toIpfsNode: IPFS_NODE },
@@ -691,24 +701,36 @@ export async function migrateCid(
     `Migrating CID from ${fromIpfsNode.toUpperCase()} to ${toIpfsNode.toUpperCase()}`,
   );
 
-  // NOTE: Tweak for memory efficiency
   try {
     const fromIpfsClient = getIpfsClient(fromIpfsNode);
+    const toIpfsClient = getIpfsClient(toIpfsNode);
 
-    // Fetch from node
-    const data = [];
-    for await (const chunk of fromIpfsClient.cat(cid)) {
-      data.push(chunk);
-    }
+    const sourceStream = fromIpfsClient.cat(cid);
 
-    const buffer = Buffer.concat(data);
-
-    // Add to destination node
-    await addBufferToIpfs(buffer, cid, toIpfsNode);
+    const result = await toIpfsClient.add(sourceStream, {
+      cidVersion: 1,
+      pin: true,
+    });
 
     logger.info({ fn: 'migrateCid', cid }, 'Successfully migrated CID');
+    return result;
   } catch (error) {
     logger.error({ fn: 'migrateCid', cid, error }, 'Failed to migrate CID');
+    throw error;
+  }
+}
+
+/**
+ ** Can only be used when both IPFS nodes are in the same swarm.
+ */
+export async function migrateCidByPinning(cid: string, { destinationIpfsNode }: { destinationIpfsNode: IPFS_NODE }) {
+  try {
+    const toIpfsClient = getIpfsClient(destinationIpfsNode);
+    await toIpfsClient.pin.add(cid, { cidVersion: 1 });
+
+    logger.info({ fn: 'migrateCidByPinning', cid }, 'Successfully pinned CID');
+  } catch (error) {
+    logger.error({ fn: 'migrateCidByPinning', cid, error }, 'Failed to pin CID');
     throw error;
   }
 }
