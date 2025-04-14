@@ -137,7 +137,7 @@ This is a test research paper written in MyST Markdown format.
   it('should handle MyST Markdown without frontmatter', () => {
     const mystMarkdown = `# Test Research Paper
 
-This is a test research paper written in MyST Markdown format.
+This is a test research paper written in MyST Markdown format without frontmatter.
 `;
 
     const researchObject = transformer.importObject(mystMarkdown) as ResearchObjectV1;
@@ -145,12 +145,12 @@ This is a test research paper written in MyST Markdown format.
     // Validate the output as a ResearchObject
     checkers.ResearchObjectV1.check(researchObject);
 
-    // Check that default values are used
+    // Check that default values are set
     expect(researchObject.title).to.equal('');
     expect(researchObject.description).to.equal('');
-    expect(researchObject.authors).to.have.lengthOf(0);
-    expect(researchObject.keywords).to.have.lengthOf(0);
-    expect(researchObject.researchFields).to.have.lengthOf(0);
+    expect(researchObject.authors).to.be.an('array').that.is.empty;
+    expect(researchObject.keywords).to.be.an('array').that.is.empty;
+    expect(researchObject.researchFields).to.be.an('array').that.is.empty;
 
     // Check content component
     expect(researchObject.components).to.have.lengthOf(1);
@@ -158,5 +158,69 @@ This is a test research paper written in MyST Markdown format.
     expect(researchObject.components[0].name).to.equal('Main Content');
     expect(researchObject.components[0].type).to.equal('code');
     expect(researchObject.components[0].payload.path).to.equal('content.md');
+  });
+
+  it('should handle complex MyST frontmatter with nested fields', () => {
+    const mystMarkdown = `---
+title: Using MyST Frontmatter
+subtitle: In JupyterLab
+license: CC-BY-4.0
+github: https://github.com/executablebooks/mystmd
+subject: Tutorial
+venue: MyST Markdown
+biblio:
+  volume: '1'
+  issue: '42'
+authors:
+  - name: Rowan Cockett
+    email: rowan@curvenote.com
+    corresponding: true
+    orcid: 0000-0002-7859-8394
+    affiliations:
+      - Curvenote
+      - ExecutableBooks
+date: 2023/07/05
+math:
+  '\\dobs': '\\mathbf{d}_\\text{obs}'
+  '\\dpred': '\\mathbf{d}_\\text{pred}\\left( #1 \\right)'
+  '\\mref': '\\mathbf{m}_\\text{ref}'
+abbreviations:
+    MyST: Markedly Structured Text
+    TLA: Three Letter Acronym
+---
+
+:::{important} Objective
+
+The goal of this quickstart is to get you up and running with MyST Markdown **Frontmatter**.
+
+For a full guide on frontmatter see the [MyST Markdown Guide](https://mystmd.org/guide/frontmatter).
+:::`;
+
+    const researchObject = transformer.importObject(mystMarkdown) as ResearchObjectV1;
+
+    // Validate the output as a ResearchObject
+    checkers.ResearchObjectV1.check(researchObject);
+
+    // Check specific fields
+    expect(researchObject.title).to.equal('Using MyST Frontmatter');
+    expect(researchObject.defaultLicense).to.equal('CC-BY-4.0');
+
+    // Check authors
+    expect(researchObject.authors).to.have.lengthOf(1);
+    expect(researchObject.authors![0].name).to.equal('Rowan Cockett');
+    expect(researchObject.authors![0].orcid).to.equal('https://orcid.org/0000-0002-7859-8394');
+
+    // Check organizations
+    expect(researchObject.authors![0].organizations).to.have.lengthOf(2);
+    expect(researchObject.authors![0].organizations![0].name).to.equal('Curvenote');
+    expect(researchObject.authors![0].organizations![1].name).to.equal('ExecutableBooks');
+
+    // Check content component
+    expect(researchObject.components).to.have.lengthOf(1);
+    expect(researchObject.components[0].id).to.equal('content');
+    expect(researchObject.components[0].name).to.equal('Main Content');
+    expect(researchObject.components[0].type).to.equal('code');
+    expect(researchObject.components[0].payload.path).to.equal('content.md');
+    expect(researchObject.components[0].payload.title).to.equal('Using MyST Frontmatter');
   });
 });
