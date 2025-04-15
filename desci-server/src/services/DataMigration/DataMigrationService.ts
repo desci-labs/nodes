@@ -228,6 +228,15 @@ async function cleanupGuestToPrivateMigration(migrationId: number): Promise<void
     // migrated then we can delete them from GUEST ipfs.
     const cidsSafeToDelete = cidsInvolved.filter((cid) => !unsafeDeleteCidMap[cid]);
 
+    logger.info(
+      {
+        fn: 'cleanupGuestToPrivateMigration',
+        migrationId,
+        totalCidsSafeToDelete: cidsSafeToDelete?.length,
+        totalOtherDataRefsFound: otherDataRefs?.length,
+      },
+      'Deleting CIDs from GUEST ipfs',
+    );
     // Delete the data from the GUEST ipfs node
     await Promise.all(cidsSafeToDelete.map((cid) => removeCid(cid, IPFS_NODE.GUEST)));
 
@@ -244,11 +253,14 @@ async function cleanupGuestToPrivateMigration(migrationId: number): Promise<void
       },
     });
 
+    logger.info({ guestDataRefsDeleted: guestRefsToDelete.length }, 'Deleted guest data references and data');
+
     // Update cleanup status to COMPLETED
     await prisma.dataMigration.update({
       where: { id: migrationId },
       data: { cleanupStatus: MigrationCleanupStatus.COMPLETED },
     });
+    logger.info({ migrationId }, 'Cleanup completed successfully');
   } catch (error) {
     logger.error({ fn: 'cleanupGuestToPrivateMigration', migrationId, error }, 'Failed to cleanup migration');
     await prisma.dataMigration.update({
