@@ -5,6 +5,7 @@ import { logger as parentLogger } from '../../logger.js';
 import { IPFS_NODE, migrateCid, migrateCidByPinning } from '../ipfs.js';
 import { sqsService } from '../sqs/SqsService.js';
 
+import { DataMigrationService } from './DataMigrationService.js';
 import { MigrationData } from './DataMigrationService.js';
 
 const logger = parentLogger.child({
@@ -82,6 +83,7 @@ export class DataMigrationWorker {
 
       // Delete message from queue on completion
       await sqsService.deleteMessage(message.ReceiptHandle);
+      await DataMigrationService.cleanupGuestToPrivateMigration(migration.id);
       return true;
     } catch (error) {
       logger.error({ fn: 'processMigrationMessage', error }, 'Error processing migration message');

@@ -1,10 +1,10 @@
-import { MigrationStatus, MigrationType } from '@prisma/client';
+import { MigrationCleanupStatus, MigrationStatus, MigrationType } from '@prisma/client';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { transformGuestDataRefsToDataRefs } from '../../utils/dataRefTools.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
-import { IPFS_NODE, isCidPinned } from '../ipfs.js';
+import { IPFS_NODE, isCidPinned, removeCid } from '../ipfs.js';
 import { sqsService } from '../sqs/SqsService.js';
 
 const logger = parentLogger.child({
@@ -99,6 +99,7 @@ async function queueGuestToPrivateMigration(userId: number): Promise<void> {
         migrationType: MigrationType.GUEST_TO_PRIVATE,
         migrationStatus: MigrationStatus.PENDING,
         migrationData: JSON.stringify(migrationData),
+        cleanupStatus: MigrationCleanupStatus.PENDING,
         userId: userId,
         nodes: {
           connect: nodeUuidsInvolved.map((nodeUuid) => ({
@@ -170,6 +171,7 @@ async function getUnmigratedCidsMap(nodeUuid: uuid, migrationType: MigrationType
  * Cleanup after a GUEST -> PRIVATE migration
  ** Checks if all CIDs are migrated
  ** Checks if all CIDs are pinned
+ ** Checks if any other data references exist with the same CIDs
  ** Deletes the data from GUEST ipfs
  ** Deletes the guestDataReferences
  ** Marks migration cleanup as complete
@@ -178,6 +180,12 @@ async function cleanupGuestToPrivateMigration(migrationId: number): Promise<void
   try {
     const migration = await prisma.dataMigration.findUnique({
       where: { id: migrationId },
+    });
+
+    // Update cleanup status to IN_PROGRESS
+    await prisma.dataMigration.update({
+      where: { id: migrationId },
+      data: { cleanupStatus: MigrationCleanupStatus.IN_PROGRESS },
     });
 
     const migrationData = JSON.parse(migration?.migrationData as string) as MigrationData;
@@ -193,13 +201,60 @@ async function cleanupGuestToPrivateMigration(migrationId: number): Promise<void
     );
 
     // Check if all CIDs are pinned
-    const allCidsPinned = await Promise.all(cidsInvolved.map((cid) => isCidPinned(cid, IPFS_NODE.PRIVATE)));
+    const cidPins = await Promise.all(cidsInvolved.map((cid) => isCidPinned(cid, IPFS_NODE.PRIVATE)));
+    const allCidsPinned = cidPins.every((pin) => pin.isPinned === true);
     if (!allCidsPinned) {
       throw new Error('Not all CIDs pinned');
     }
-    debugger;
+
+    // Check if any other guest data references exist with the same CIDs
+    const otherDataRefs = await prisma.guestDataReference.findMany({
+      where: {
+        cid: { in: cidsInvolved },
+        userId: { not: migration.userId },
+      },
+    });
+
+    // Map of the CIDs that have a guest data reference from another user.
+    const unsafeDeleteCidMap = otherDataRefs.reduce(
+      (acc, ref) => {
+        acc[ref.cid] = true;
+        return acc;
+      },
+      {} as Record<cid, true>,
+    );
+
+    // These CIDs don't have another guest data ref from another user, if they're already
+    // migrated then we can delete them from GUEST ipfs.
+    const cidsSafeToDelete = cidsInvolved.filter((cid) => !unsafeDeleteCidMap[cid]);
+
+    // Delete the data from the GUEST ipfs node
+    await Promise.all(cidsSafeToDelete.map((cid) => removeCid(cid, IPFS_NODE.GUEST)));
+
+    // Delete the guestDataReferences
+    const guestRefsToDelete = await prisma.guestDataReference.findMany({
+      where: {
+        userId: migration.userId,
+        cid: { in: cidsInvolved },
+      },
+    });
+    await prisma.guestDataReference.deleteMany({
+      where: {
+        id: { in: guestRefsToDelete.map((ref) => ref.id) },
+      },
+    });
+
+    // Update cleanup status to COMPLETED
+    await prisma.dataMigration.update({
+      where: { id: migrationId },
+      data: { cleanupStatus: MigrationCleanupStatus.COMPLETED },
+    });
   } catch (error) {
     logger.error({ fn: 'cleanupGuestToPrivateMigration', migrationId, error }, 'Failed to cleanup migration');
+    await prisma.dataMigration.update({
+      where: { id: migrationId },
+      data: { cleanupStatus: MigrationCleanupStatus.FAILED },
+    });
   }
 }
 export const DataMigrationService = {

@@ -788,3 +788,11 @@ export async function isCidPinned(
     return { isPinned: false, existsInLocalDatastore: false };
   }
 }
+
+/**
+ * Removes a CID from the IPFS node.
+ **/
+export async function removeCid(cid: string, ipfsNode: IPFS_NODE) {
+  const ipfsClient = getIpfsClient(ipfsNode);
+  await ipfsClient.block.rm(cid, { offline: true });
+}
