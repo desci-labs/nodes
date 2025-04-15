@@ -4,6 +4,7 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { transformGuestDataRefsToDataRefs } from '../../utils/dataRefTools.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
+import { IPFS_NODE, isCidPinned } from '../ipfs.js';
 import { sqsService } from '../sqs/SqsService.js';
 
 const logger = parentLogger.child({
@@ -165,7 +166,44 @@ async function getUnmigratedCidsMap(nodeUuid: uuid, migrationType: MigrationType
   return unmigratedCids;
 }
 
+/**
+ * Cleanup after a GUEST -> PRIVATE migration
+ ** Checks if all CIDs are migrated
+ ** Checks if all CIDs are pinned
+ ** Deletes the data from GUEST ipfs
+ ** Deletes the guestDataReferences
+ ** Marks migration cleanup as complete
+ */
+async function cleanupGuestToPrivateMigration(migrationId: number): Promise<void> {
+  try {
+    const migration = await prisma.dataMigration.findUnique({
+      where: { id: migrationId },
+    });
+
+    const migrationData = JSON.parse(migration?.migrationData as string) as MigrationData;
+    const allCidsMigrated = Object.values(migrationData.nodes).every((nodeCids) =>
+      Object.values(nodeCids).every((cidIsMigrated) => cidIsMigrated === true),
+    );
+    if (!allCidsMigrated) {
+      throw new Error('Not all CIDs migrated');
+    }
+
+    const cidsInvolved = Object.keys(migrationData.nodes).flatMap((nodeUuid) =>
+      Object.keys(migrationData.nodes[nodeUuid]),
+    );
+
+    // Check if all CIDs are pinned
+    const allCidsPinned = await Promise.all(cidsInvolved.map((cid) => isCidPinned(cid, IPFS_NODE.PRIVATE)));
+    if (!allCidsPinned) {
+      throw new Error('Not all CIDs pinned');
+    }
+    debugger;
+  } catch (error) {
+    logger.error({ fn: 'cleanupGuestToPrivateMigration', migrationId, error }, 'Failed to cleanup migration');
+  }
+}
 export const DataMigrationService = {
   getUnmigratedCidsMap,
   queueGuestToPrivateMigration,
+  cleanupGuestToPrivateMigration,
 };
