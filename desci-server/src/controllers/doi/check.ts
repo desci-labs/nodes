@@ -34,7 +34,7 @@ export const checkMintability = async (req: RequestWithNode, res: Response, _nex
 
 export interface WorksDetails {
   doi: string;
-  authors: string[];
+  authors: { name: string; orcid?: string | null }[];
   citation_count: number;
   pdf_url: string;
   publication_year: string;
@@ -46,6 +46,23 @@ export interface WorksDetails {
   source_name: string;
   oa_status: 'diamond' | 'gold' | 'green' | 'hybrid' | 'bronze' | 'closed';
   abstract?: string;
+}
+
+export interface RawWorksDetails {
+  doi: string;
+  authors: string[];
+  authors_orcid: string[];
+  citation_count: number;
+  pdf_url: string;
+  publication_year: string;
+  works_id: string;
+  work_type: string;
+  title: string;
+  landing_page_url: string;
+  publisher: string;
+  source_name: string;
+  oa_status: 'diamond' | 'gold' | 'green' | 'hybrid' | 'bronze' | 'closed';
+  // abstract?: string;
 }
 
 export interface NoveltyScoreDetails {

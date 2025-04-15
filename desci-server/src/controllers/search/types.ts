@@ -31,6 +31,13 @@ export interface QuerySuccessResponse extends QueryDebuggingResponse {
   data: any[];
 }
 
+export interface ByMonthQuerySuccessResponse extends QueryDebuggingResponse {
+  ok: true;
+  index: (typeof VALID_ENTITIES)[number];
+  total: number | SearchTotalHits;
+  data: any[];
+}
+
 export interface QueryDebuggingResponse {
   finalQuery?: any;
   duration?: any;

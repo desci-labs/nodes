@@ -1,6 +1,6 @@
 const pg = await import('pg').then((value) => value.default);
 const { Client } = pg;
-import { NoveltyScoreDetails, WorksDetails } from '../controllers/doi/check.js';
+import { NoveltyScoreDetails, RawWorksDetails, WorksDetails } from '../controllers/doi/check.js';
 import { logger as parentLogger } from '../logger.js';
 
 import { OpenAlexWork, transformInvertedAbstractToText } from './AutomatedMetadata.js';
@@ -106,7 +106,13 @@ export async function getMetadataByDoi(doi: string): Promise<WorksDetails & Nove
         FROM openalex.works_authorships wauth
         LEFT JOIN openalex.authors author on author.id = wauth.author_id
         WHERE wauth.work_id = works.id
-    ) as authors
+    ) as authors,
+    ARRAY(
+        SELECT author.orcid as author_orcid
+        FROM openalex.works_authorships wauth
+        LEFT JOIN openalex.authors author on author.id = wauth.author_id
+        WHERE wauth.work_id = works.id
+    ) as authors_orcid
 from openalex.works works
 left join openalex.works_best_oa_locations wol on works.id = wol.work_id
 left join openalex.works_authorships wa on works.id = wa.work_id
@@ -117,7 +123,7 @@ group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type",
     [doi],
   );
 
-  const work = rows?.[0] as WorksDetails;
+  const work = rows?.[0] as RawWorksDetails;
 
   logger.info({ works_found: rows.length > 0, doi: doi }, 'Retrieve DOI Works');
   const { rows: abstract_result } = await client.query(
@@ -127,9 +133,15 @@ group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type",
 
   const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
   const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
+  logger.trace({ orcids: work.authors_orcid }, 'authors_orcid');
+  const authors = work.authors.map((name, idx) => ({ name, orcid: work.authors_orcid[idx] }));
+
+  // clean up transformed raw fields
+  delete work.authors;
+  delete work.authors_orcid;
 
   const noveltyScores = await getWorkNoveltyScoresById(work?.works_id);
-  return { ...work, abstract, doi: getRawDoi(doi), ...noveltyScores };
+  return { ...work, authors, abstract, doi: getRawDoi(doi), ...noveltyScores };
 }
 
 export type OpenAlexTopic = {
