@@ -25,6 +25,13 @@ export const createGuestUser = async (req: Request, res: Response): Promise<Resp
     const { dev } = req.body;
     const guestEmail = `guest-${uuidv4()}`;
 
+    logger.trace({ fn: 'createGuestUser', guestEmail }, 'Creating guest user');
+
+    // if (process.env.ENABLE_GUEST_MODE !== 'true') {
+    //   logger.info({ fn: 'createGuestUser' }, 'Guest mode is not enabled');
+    //   return res.status(403).send({ ok: false, error: 'Guest mode is unavailable at this moment.' });
+    // }
+
     const user = await prisma.user.create({
       data: {
         email: guestEmail,
