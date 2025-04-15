@@ -1103,16 +1103,17 @@ model NodeLike {
 }
 
 model DataMigration {
-  id              Int             @id @default(autoincrement())
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id              Int                    @id @default(autoincrement())
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
   migrationType   MigrationType
   migrationStatus MigrationStatus
   migrationError  String?
   migrationData   Json
+  cleanupStatus   MigrationCleanupStatus @default(NOT_REQUESTED)
   nodes           Node[]
   userId          Int
-  user            User            @relation(fields: [userId], references: [id])
+  user            User                   @relation(fields: [userId], references: [id])
 }
 
 enum MigrationType {
@@ -1121,6 +1122,14 @@ enum MigrationType {
 }
 
 enum MigrationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum MigrationCleanupStatus {
+  NOT_REQUESTED
   PENDING
   IN_PROGRESS
   COMPLETED
