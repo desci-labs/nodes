@@ -16,7 +16,7 @@ async function testExec() {
   //   destinationIpfsNode: IPFS_NODE.GUEST,
   // });
 
-  // await DataMigrationService.cleanupGuestToPrivateMigration(3);
+  await DataMigrationService.cleanupGuestToPrivateMigration(3);
 
   // logger.error(await isCidPinned('', IPFS_NODE.GUEST));
 

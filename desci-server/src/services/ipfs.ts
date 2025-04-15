@@ -790,9 +790,25 @@ export async function isCidPinned(
 }
 
 /**
- * Removes a CID from the IPFS node.
+ * Removes a CID from the IPFS node, be very careful with this function!!!
  **/
 export async function removeCid(cid: string, ipfsNode: IPFS_NODE) {
-  const ipfsClient = getIpfsClient(ipfsNode);
-  await ipfsClient.block.rm(cid, { offline: true });
+  try {
+    logger.info({ fn: 'removeCid', cid, ipfsNode }, 'Removing CID');
+    const ipfsClient = getIpfsClient(ipfsNode);
+
+    // CID needs to be unpinned first, otherwise it will not be removed
+    try {
+      await ipfsClient.pin.rm(cid);
+      logger.info({ fn: 'removeCid', cid }, 'Successfully unpinned CID');
+    } catch (unpinError) {
+      // If not pinned, that's fine - continue to block removal
+      logger.debug({ fn: 'removeCid', cid, error: unpinError }, 'CID not pinned or unpin failed');
+    }
+
+    await ipfsClient.block.rm(cid, { offline: true });
+    logger.info({ fn: 'removeCid', cid }, 'Successfully removed CID');
+  } catch (e) {
+    logger.error({ fn: 'removeCid', cid, ipfsNode, error: e }, 'Error removing CID');
+  }
 }
