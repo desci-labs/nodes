@@ -102,7 +102,7 @@ export async function processS3DataToIpfs({
     const manifest = await getLatestManifestFromNode(node);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
     const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(files);
-    debugger;
+
     // External dir check
     await externalDirCheck(node.id, contextPath);
 
