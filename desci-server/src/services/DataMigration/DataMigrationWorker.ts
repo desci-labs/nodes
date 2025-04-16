@@ -1,3 +1,4 @@
+import { Message } from '@aws-sdk/client-sqs';
 import { DataMigration, MigrationStatus, MigrationType } from '@prisma/client';
 
 import { prisma } from '../../client.js';
@@ -59,11 +60,28 @@ export class DataMigrationWorker {
     logger.info('Data migration worker stopping (will finish current task)');
   }
 
+  private visibilityTimeoutExtender(message: Message): NodeJS.Timeout {
+    const visibilityExtender = setInterval(async () => {
+      try {
+        // Extend by 5 minutes each time
+        await sqsService.extendMessageVisibility(message.ReceiptHandle, 300);
+        logger.debug({ messageId: message.MessageId }, 'Extended message visibility timeout for 5 minutes');
+      } catch (err) {
+        logger.warn({ err, messageId: message.MessageId }, 'Failed to extend message visibility');
+      }
+    }, 240000); // Run every 4 minutes
+    return visibilityExtender;
+  }
+
   private async processMigrationMessage(): Promise<boolean> {
     const message = await sqsService.receiveMessage();
     if (!message) return false;
 
     logger.info({ fn: 'processMigrationMessage', messageId: message.MessageId }, 'Processing migration message');
+
+    // Extend message visibility timeout while the migration is running
+    // to prevent duplicate processing
+    const visibilityExtender = this.visibilityTimeoutExtender(message);
 
     try {
       const { migrationId, migrationType } = JSON.parse(message.Body);
@@ -88,10 +106,12 @@ export class DataMigrationWorker {
       }
 
       // Delete message from queue on completion
+      clearInterval(visibilityExtender);
       await sqsService.deleteMessage(message.ReceiptHandle);
       await DataMigrationService.cleanupGuestToPrivateMigration(migration.id);
       return true;
     } catch (error) {
+      clearInterval(visibilityExtender);
       logger.error({ fn: 'processMigrationMessage', error }, 'Error processing migration message');
       // Don't delete the message, let it become visible again after timeout
       return true; // Still count as processed for backoff purposes

@@ -1,4 +1,10 @@
-import { SQSClient, SendMessageCommand, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
+import {
+  SQSClient,
+  SendMessageCommand,
+  ReceiveMessageCommand,
+  DeleteMessageCommand,
+  ChangeMessageVisibilityCommand,
+} from '@aws-sdk/client-sqs';
 
 import { logger as parentLogger } from '../../logger.js';
 
@@ -86,6 +92,24 @@ export class SqsService {
       return true;
     } catch (error) {
       logger.error('Error deleting message from SQS', { error });
+      throw error;
+    }
+  }
+
+  async extendMessageVisibility(receiptHandle: string, timeoutSeconds: number) {
+    if (!this.isConfigured) return true;
+
+    try {
+      const command = new ChangeMessageVisibilityCommand({
+        QueueUrl: this.queueUrl,
+        ReceiptHandle: receiptHandle,
+        VisibilityTimeout: timeoutSeconds,
+      });
+
+      await this.client.send(command);
+      return true;
+    } catch (error) {
+      logger.error('Error extending message visibility', { error });
       throw error;
     }
   }
