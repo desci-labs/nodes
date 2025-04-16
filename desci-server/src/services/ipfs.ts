@@ -723,11 +723,11 @@ export async function migrateCid(
 }
 
 /**
- ** Can only be used when both IPFS nodes are in the same swarm.
+ ** Can only be used when both IPFS nodes are in the same swarm, and noFetch is disabled.
  */
 export async function migrateCidByPinning(cid: string, { destinationIpfsNode }: { destinationIpfsNode: IPFS_NODE }) {
   try {
-    debugger;
+    logger.trace({ fn: 'migrateCidByPinning', cid, destinationIpfsNode }, 'Migrating CID by pinning');
     const toIpfsClient = getIpfsClient(destinationIpfsNode);
     await toIpfsClient.pin.add(cid, { cidVersion: 1, recursive: true });
 

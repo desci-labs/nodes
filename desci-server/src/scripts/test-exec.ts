@@ -13,10 +13,10 @@ async function testExec() {
   //   toIpfsNode: IPFS_NODE.GUEST,
   // });
   // await migrateCidByPinning('', {
-  //   destinationIpfsNode: IPFS_NODE.GUEST,
+  //   destinationIpfsNode: IPFS_NODE.PRIVATE,
   // });
 
-  await DataMigrationService.cleanupGuestToPrivateMigration(3);
+  // await DataMigrationService.cleanupGuestToPrivateMigration(3);
 
   // logger.error(await isCidPinned('', IPFS_NODE.GUEST));
 

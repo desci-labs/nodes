@@ -107,7 +107,6 @@ export interface AuthenticatedSocket extends Socket {
  * Socket.IO WS: Authentication Middleware
  */
 export const socketsEnsureUser = async (socket: Socket, next: (err?: ExtendedError) => void) => {
-  // debugger;
   const cookies = parseWsCookies(socket.handshake.headers.cookie);
   if (!cookies) {
     return next(new Error('Authentication error: No cookies provided'));
