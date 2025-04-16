@@ -130,6 +130,19 @@ async function createGuestToPrivateMigrationJob(userId: number): Promise<void> {
 }
 
 async function queueDataMigrationJob(migrationId: number, migrationType: MigrationType): Promise<void> {
+  // If SQS is not configured, process directly
+  if (!sqsService.configured) {
+    logger.info(
+      { fn: 'queueDataMigrationJob', migrationId, migrationType },
+      'SQS not configured, processing migration directly',
+    );
+
+    // avoid circular dependency
+    const { dataMigrationWorker } = await import('./DataMigrationWorker.js');
+    await dataMigrationWorker.processDirectMigration(migrationId, migrationType);
+    return;
+  }
+
   await sqsService.sendMessage({
     migrationId,
     migrationType,

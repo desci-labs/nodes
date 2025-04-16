@@ -2,7 +2,7 @@ import { DataMigration, MigrationStatus, MigrationType } from '@prisma/client';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { IPFS_NODE, migrateCid, migrateCidByPinning } from '../ipfs.js';
+import { IPFS_NODE, migrateCidByPinning } from '../ipfs.js';
 import { sqsService } from '../sqs/SqsService.js';
 
 import { DataMigrationService } from './DataMigrationService.js';
@@ -18,6 +18,12 @@ export class DataMigrationWorker {
 
   async start() {
     if (this.isRunning) return;
+
+    // Don't start polling if SQS is not configured
+    if (!sqsService.configured) {
+      logger.info('Data migration worker not started - SQS not configured');
+      return;
+    }
 
     logger.info('Starting data migration worker');
     this.isRunning = true;
@@ -92,6 +98,38 @@ export class DataMigrationWorker {
     }
   }
 
+  /**
+   ** Process a migration directly, without using SQS for local development
+   */
+  async processDirectMigration(migrationId: number, migrationType: MigrationType): Promise<void> {
+    logger.info({ fn: 'processDirectMigration', migrationId, migrationType }, 'Processing migration directly');
+
+    try {
+      // Get migration record
+      const migration = await prisma.dataMigration.findUnique({
+        where: { id: migrationId },
+      });
+
+      if (!migration || migration.migrationStatus === MigrationStatus.COMPLETED) {
+        logger.info(
+          { fn: 'processDirectMigration', migrationId, migrationStatus: migration?.migrationStatus },
+          'Migration already completed or not found',
+        );
+        return;
+      }
+
+      // Process the migration
+      if (migrationType === MigrationType.GUEST_TO_PRIVATE) {
+        await this.processGuestToPrivateMigration(migration);
+      }
+
+      await DataMigrationService.cleanupGuestToPrivateMigration(migration.id);
+    } catch (error) {
+      logger.error({ fn: 'processDirectMigration', migrationId, error }, 'Error processing migration directly');
+      throw error;
+    }
+  }
+
   private async processGuestToPrivateMigration(migration: DataMigration): Promise<void> {
     logger.info(
       { fn: 'processGuestToPrivateMigration', migrationId: migration.id },
@@ -138,8 +176,8 @@ export class DataMigrationWorker {
         for (const cid of unmigratedCids) {
           try {
             // Migrate the CID from guest to private IPFS
-            await migrateCid(cid, { fromIpfsNode: IPFS_NODE.GUEST, toIpfsNode: IPFS_NODE.PRIVATE });
-            // await migrateCidByPinning(cid, { destinationIpfsNode: IPFS_NODE.PRIVATE });
+            // await migrateCid(cid, { fromIpfsNode: IPFS_NODE.GUEST, toIpfsNode: IPFS_NODE.PRIVATE });
+            await migrateCidByPinning(cid, { destinationIpfsNode: IPFS_NODE.PRIVATE });
 
             // Update migration data to mark this CID as completed
             migrationData.nodes[nodeUuid][cid] = true;

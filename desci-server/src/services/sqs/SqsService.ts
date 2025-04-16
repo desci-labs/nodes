@@ -9,6 +9,7 @@ const logger = parentLogger.child({
 export class SqsService {
   private client: SQSClient;
   private queueUrl: string;
+  private isConfigured: boolean = false;
 
   constructor() {
     if (
@@ -16,9 +17,12 @@ export class SqsService {
       !process.env.AWS_SQS_SECRET_ACCESS_KEY ||
       !process.env.AWS_SQS_QUEUE_URL
     ) {
-      logger.error(
-        'SQS Queue is not enabled. AWS_SQS_ACCESS_KEY_ID, AWS_SQS_SECRET_ACCESS_KEY, and AWS_SQS_QUEUE_URL must be set to enable SQS Queuing',
+      logger.warn(
+        `SQS Queue is not configured, Will use local processing for development.
+        Make sure to configure these ENVs to enable SQS Queuing:
+         AWS_SQS_ACCESS_KEY_ID, AWS_SQS_SECRET_ACCESS_KEY, and AWS_SQS_QUEUE_URL must be set to enable SQS Queuing`,
       );
+      this.isConfigured = false;
       return;
     }
 
@@ -30,8 +34,13 @@ export class SqsService {
       },
     });
     this.queueUrl = process.env.AWS_SQS_QUEUE_URL;
+    this.isConfigured = true;
 
     logger.info(`SQS Service initialized for queue: ${this.queueUrl}`);
+  }
+
+  get configured(): boolean {
+    return this.isConfigured;
   }
 
   async sendMessage(messageBody: any): Promise<string | undefined> {
