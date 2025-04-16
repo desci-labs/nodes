@@ -22,7 +22,6 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
   const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
 
   if (!retrievedUser) {
-    logger.trace({ token, apiKey }, 'ENSURE USER');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
   } else if (retrievedUser.isGuest) {
     res.status(403).send({ ok: false, message: 'Registration required' });
