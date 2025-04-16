@@ -81,7 +81,7 @@ export class DataMigrationWorker {
 
     // Extend message visibility timeout while the migration is running
     // to prevent duplicate processing
-    const visibilityExtender = this.visibilityTimeoutExtender(message);
+    const visibilityTimeoutExtender = this.visibilityTimeoutExtender(message);
 
     try {
       const { migrationId, migrationType } = JSON.parse(message.Body);
@@ -106,12 +106,12 @@ export class DataMigrationWorker {
       }
 
       // Delete message from queue on completion
-      clearInterval(visibilityExtender);
+      clearInterval(visibilityTimeoutExtender);
       await sqsService.deleteMessage(message.ReceiptHandle);
       await DataMigrationService.cleanupGuestToPrivateMigration(migration.id);
       return true;
     } catch (error) {
-      clearInterval(visibilityExtender);
+      clearInterval(visibilityTimeoutExtender);
       logger.error({ fn: 'processMigrationMessage', error }, 'Error processing migration message');
       // Don't delete the message, let it become visible again after timeout
       return true; // Still count as processed for backoff purposes
