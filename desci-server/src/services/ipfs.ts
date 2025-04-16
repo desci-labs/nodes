@@ -727,6 +727,7 @@ export async function migrateCid(
  */
 export async function migrateCidByPinning(cid: string, { destinationIpfsNode }: { destinationIpfsNode: IPFS_NODE }) {
   try {
+    debugger;
     const toIpfsClient = getIpfsClient(destinationIpfsNode);
     await toIpfsClient.pin.add(cid, { cidVersion: 1, recursive: true });
 

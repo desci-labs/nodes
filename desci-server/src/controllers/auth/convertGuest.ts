@@ -107,7 +107,7 @@ export const convertGuestToUser = async (
     );
 
     // Queue data migration
-    await DataMigrationService.queueGuestToPrivateMigration(updatedUser.id);
+    await DataMigrationService.createGuestToPrivateMigrationJob(updatedUser.id);
 
     return res.send({
       ok: true,

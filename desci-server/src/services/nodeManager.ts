@@ -14,7 +14,7 @@ import { generateDataReferences } from '../utils/dataRefTools.js';
 import { cleanupManifestUrl, transformManifestWithHistory } from '../utils/manifest.js';
 import { hexToCid, randomUUID64, asyncMap, ensureUuidEndsWithDot } from '../utils.js';
 
-import { addBufferToIpfs, makeManifest, getNodeToUse, getSizeForCid, resolveIpfsData } from './ipfs.js';
+import { addBufferToIpfs, makeManifest, getNodeToUse, getSizeForCid } from './ipfs.js';
 import { NodeUuid } from './manifestRepo.js';
 import repoService from './repoService.js';
 

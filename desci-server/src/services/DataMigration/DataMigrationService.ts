@@ -36,7 +36,7 @@ export interface MigrationData {
  * @param nodeUuid The UUID of the node to migrate
  * @param userId The ID of the user who owns the node
  */
-async function queueGuestToPrivateMigration(userId: number): Promise<void> {
+async function createGuestToPrivateMigrationJob(userId: number): Promise<void> {
   logger.info({ fn: 'queueGuestToPrivateMigration', userId }, 'Queuing guest to private migration');
 
   try {
@@ -109,10 +109,7 @@ async function queueGuestToPrivateMigration(userId: number): Promise<void> {
       },
     });
 
-    await sqsService.sendMessage({
-      migrationId: migration.id,
-      migrationType: MigrationType.GUEST_TO_PRIVATE,
-    });
+    await queueDataMigrationJob(migration.id, MigrationType.GUEST_TO_PRIVATE);
 
     logger.info(
       {
@@ -130,6 +127,13 @@ async function queueGuestToPrivateMigration(userId: number): Promise<void> {
     logger.error({ fn: 'queueGuestToPrivateMigration', userId, error }, 'Failed to queue migration');
     throw error;
   }
+}
+
+async function queueDataMigrationJob(migrationId: number, migrationType: MigrationType): Promise<void> {
+  await sqsService.sendMessage({
+    migrationId,
+    migrationType,
+  });
 }
 
 export type UnmigratedCidsMap = Record<cid, true>;
@@ -290,6 +294,7 @@ async function cleanupGuestToPrivateMigration(migrationId: number): Promise<void
 }
 export const DataMigrationService = {
   getUnmigratedCidsMap,
-  queueGuestToPrivateMigration,
+  createGuestToPrivateMigrationJob,
+  queueDataMigrationJob,
   cleanupGuestToPrivateMigration,
 };

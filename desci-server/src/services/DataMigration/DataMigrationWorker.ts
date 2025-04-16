@@ -2,7 +2,7 @@ import { DataMigration, MigrationStatus, MigrationType } from '@prisma/client';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { IPFS_NODE, migrateCid, migrateCidByPinning } from '../ipfs.js';
+import { IPFS_NODE, migrateCidByPinning } from '../ipfs.js';
 import { sqsService } from '../sqs/SqsService.js';
 
 import { DataMigrationService } from './DataMigrationService.js';
