@@ -113,7 +113,13 @@ export async function processS3DataToIpfs({
     pinResult = await pinNewFiles(files, { wrapWithDirectory: true, ipfsNode: getNodeToUse(user.isGuest) });
     if (pinResult) {
       const root = pinResult[pinResult.length - 1];
-      const rootTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
+      const rootTree = (await getDirectoryTree(
+        root.cid,
+        {},
+        {
+          ipfsNode: getNodeToUse(user.isGuest),
+        },
+      )) as RecursiveLsResult[];
 
       const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = ipfsDagToDraftNodeTreeEntries({
         ipfsTree: rootTree,
@@ -545,7 +551,6 @@ interface UpdateDataReferencesParams {
   updatedManifest: ResearchObjectV1;
 }
 export async function updateDataReferences({ node, user, updatedManifest }: UpdateDataReferencesParams) {
-  // const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString, false, externalCidMap);
   const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
 
   // Get old refs to match their DB entry id's with the updated refs
@@ -626,7 +631,7 @@ export async function cleanupDanglingRefs({
   // //CLEANUP DANGLING REFERENCES//
 
   const flatTree = recursiveFlattenTree(
-    await getDirectoryTree(newRootCidString, externalCidMap),
+    await getDirectoryTree(newRootCidString, externalCidMap, { ipfsNode: getNodeToUse(user.isGuest) }),
   ) as RecursiveLsResult[];
   flatTree.push({
     name: 'root',

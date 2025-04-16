@@ -187,7 +187,11 @@ export async function processExternalUrlDataToIpfs({
     const isCodeRepo = zipPath.length > 0;
     let uploadedTree;
     if (isCodeRepo) {
-      uploadedTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
+      uploadedTree = (await getDirectoryTree(
+        root.cid,
+        {},
+        { ipfsNode: getNodeToUse(user.isGuest) },
+      )) as RecursiveLsResult[];
       // Overrides the path name of the root directory
       const rootName = externalUrl.path;
       uploadedTree = [{ ...root, type: 'dir', name: rootName, contains: uploadedTree }];
