@@ -9,6 +9,7 @@ import { logger as parentLogger } from '../logger.js';
 import { getFromCache } from '../redisClient.js';
 import { getIndexedResearchObjects } from '../theGraph.js';
 import { ResearchObjectDocument } from '../types/documents.js';
+import { getUtcDateXDaysAgo } from '../utils/clock.js';
 import { generateDataReferences } from '../utils/dataRefTools.js';
 import { cleanupManifestUrl, transformManifestWithHistory } from '../utils/manifest.js';
 import { hexToCid, randomUUID64, asyncMap, ensureUuidEndsWithDot } from '../utils.js';
@@ -298,12 +299,14 @@ export const publishResearchObject = async (publicDataReferences: PublicDataRefe
 
 export const getCountNewNodesInXDays = async (daysAgo: number): Promise<number> => {
   logger.trace({ fn: 'getCountNewNodesInXDays', daysAgo }, 'node::getCountNewNodesInXDays');
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  const now = new Date();
+
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
 
   const newNodesInXDays = await prisma.node.count({
     where: {
       createdAt: {
-        gte: dateXDaysAgo,
+        gte: utcMidnightXDaysAgo,
       },
     },
   });
@@ -327,13 +330,13 @@ export const getCountNewNodesInMonth = async (month: number, year: number): Prom
 
 export const getBytesInXDays = async (daysAgo: number): Promise<number> => {
   logger.trace({ fn: 'getBytesInXDays', daysAgo }, 'node::getBytesInXDays');
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
 
   const bytesInXDays = await prisma.dataReference.aggregate({
     _sum: { size: true },
     where: {
       createdAt: {
-        gte: dateXDaysAgo,
+        gte: utcMidnightXDaysAgo,
       },
     },
   });

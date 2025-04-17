@@ -27,13 +27,16 @@ import zod, { z } from 'zod';
 import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
-import { getFromCache, ONE_DAY_TTL, redisClient, setToCache } from '../../redisClient.js';
+import { getFromCache, ONE_DAY_TTL, setToCache } from '../../redisClient.js';
+import { communityService } from '../../services/Communities.js';
 import { crossRefClient } from '../../services/index.js';
 import {
   getActiveOrcidUsersInRange,
   getActiveOrcidUsersInXDays,
   getActiveUsersInRange,
   getActiveUsersInXDays,
+  getBadgeVerificationsCountInRange,
+  getBadgeVerificationsInRange,
   getCountActiveOrcidUsersInMonth,
   getCountActiveOrcidUsersInXDays,
   getCountActiveUsersInMonth,
@@ -44,7 +47,12 @@ import {
   getNodeViewsInRange,
   getNodeViewsInXDays,
 } from '../../services/interactionLog.js';
-import { countPublishedNodesInRange, getPublishedNodesInRange } from '../../services/node.js';
+import {
+  countPublishedNodesInRange,
+  getNodeLikesCountInRange,
+  getNodeLikesInRange,
+  getPublishedNodesInRange,
+} from '../../services/node.js';
 import {
   getCountNewNodesInXDays,
   getBytesInXDays,
@@ -65,6 +73,7 @@ import {
   getNewUsersInRange,
   getNewUsersInXDays,
 } from '../../services/user.js';
+import { getUtcDateXDaysAgo } from '../../utils/clock.js';
 import { asyncMap } from '../../utils.js';
 
 import { analyticsChartSchema } from './schema.js';
@@ -82,6 +91,9 @@ interface DataRow {
   bytesUploaded: string;
   bytesDownloaded: string;
   publishedNodes: number;
+  nodeLikes: number;
+  badgeVerifications: number;
+  communitySubmissions: number;
 }
 interface AnalyticsData {
   date: Date | string;
@@ -94,6 +106,9 @@ interface AnalyticsData {
   bytes: number;
   publishedNodes: number;
   downloadedBytes: number;
+  nodeLikes: number;
+  badgeVerifications: number;
+  communitySubmissions: number;
 }
 
 // create a csv with the following fields for each month
@@ -120,6 +135,9 @@ export const createCsv = async (req: Request, res: Response) => {
       nodeViews: number;
       bytesUploaded: number;
       publishedNodes: number;
+      nodeLikes: number;
+      badgeVerifications: number;
+      communitySubmissions: number;
     }
     const data: DataRow[] = [];
     while (monthsCovered <= 12) {
@@ -129,8 +147,20 @@ export const createCsv = async (req: Request, res: Response) => {
       const activeOrcidUsers = await getCountActiveOrcidUsersInMonth(curMonth, curYear);
       const newNodes = await getCountNewNodesInMonth(curMonth, curYear);
       const nodeViews = await getNodeViewsInMonth(curMonth, curYear);
+      const badgeVerifications = await getBadgeVerificationsCountInRange({
+        from: new Date(curYear, curMonth, 1),
+        to: new Date(curYear, curMonth + 1, 1),
+      });
       const bytesUploaded = await getBytesInMonth(curMonth, curYear);
       const publishedNodes = await countPublishedNodesInRange({
+        from: new Date(curYear, curMonth, 1),
+        to: new Date(curYear, curMonth + 1, 1),
+      });
+      const nodeLikes = await getNodeLikesCountInRange({
+        from: new Date(curYear, curMonth, 1),
+        to: new Date(curYear, curMonth + 1, 1),
+      });
+      const communitySubmissions = await communityService.getCommunitySubmissionCountInRange({
         from: new Date(curYear, curMonth, 1),
         to: new Date(curYear, curMonth + 1, 1),
       });
@@ -146,6 +176,9 @@ export const createCsv = async (req: Request, res: Response) => {
         nodeViews,
         bytesUploaded,
         publishedNodes,
+        nodeLikes,
+        communitySubmissions,
+        badgeVerifications,
       });
       curMonth++;
       if (curMonth > 11) {
@@ -157,7 +190,7 @@ export const createCsv = async (req: Request, res: Response) => {
     // export data to csv
 
     const csv = [
-      'month,year,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded',
+      'month,year,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded,nodeLikes,communitySubmissions,badgeVerifications',
       ...data
         .reverse()
         .map((row) =>
@@ -172,6 +205,9 @@ export const createCsv = async (req: Request, res: Response) => {
             row.nodeViews,
             row.publishedNodes,
             row.bytesUploaded,
+            row.nodeLikes,
+            row.communitySubmissions,
+            row.badgeVerifications,
           ].join(','),
         ),
     ].join('\n');
@@ -189,59 +225,120 @@ export const getAnalytics = async (req: Request, res: Response) => {
     const user = (req as any).user as User;
     logger.info({ fn: 'getAnalytics' }, `GET getAnalytics called by ${user.email}`);
 
-    logger.trace({ fn: 'getAnalytics' }, 'Fetching new users');
-    const newUsersInLast30Days = await getCountNewUsersInXDays(30);
-    const newUsersInLast7Days = await getCountNewUsersInXDays(7);
-    const newUsersToday = await getCountNewUsersInXDays(1);
+    logger.trace({ fn: 'getAnalytics' }, 'Fetching analytics data in parallel');
 
-    const allUsers = await getCountAllUsers();
-    const allExternalUsers = await getCountAllUsers();
-    const allOrcidUsers = await getCountAllOrcidUsers();
+    // Execute all database queries in parallel
+    const [
+      newUsersInLast30Days,
+      newUsersInLast7Days,
+      newUsersToday,
+      allUsers,
+      allExternalUsers,
+      allOrcidUsers,
+      newOrcidUsersInLast30Days,
+      newOrcidUsersInLast7Days,
+      newOrcidUsersToday,
+      newNodesInLast30Days,
+      newNodesInLast7Days,
+      newNodesToday,
+      activeUsersToday,
+      activeUsersInLast7Days,
+      activeUsersInLast30Days,
+      activeOrcidUsersToday,
+      activeOrcidUsersInLast7Days,
+      activeOrcidUsersInLast30Days,
+      nodeViewsToday,
+      nodeViewsInLast7Days,
+      nodeViewsInLast30Days,
+      publishedNodesToday,
+      publishedNodesInLast7Days,
+      publishedNodesInLast30Days,
+      bytesToday,
+      bytesInLast7Days,
+      bytesInLast30Days,
+      downloadedBytesToday,
+      downloadedBytesInLast7Days,
+      downloadedBytesInLast30Days,
+    ] = await Promise.all([
+      getCountNewUsersInXDays(30),
+      getCountNewUsersInXDays(7),
+      getCountNewUsersInXDays(1),
+      getCountAllUsers(),
+      getCountAllUsers(), // allExternalUsers
+      getCountAllOrcidUsers(),
+      getCountNewOrcidUsersInXDays(30),
+      getCountNewOrcidUsersInXDays(7),
+      getCountNewOrcidUsersInXDays(1),
+      getCountNewNodesInXDays(30),
+      getCountNewNodesInXDays(7),
+      getCountNewNodesInXDays(1),
+      getCountActiveUsersInXDays(1),
+      getCountActiveUsersInXDays(7),
+      getCountActiveUsersInXDays(30),
+      getCountActiveOrcidUsersInXDays(1),
+      getCountActiveOrcidUsersInXDays(7),
+      getCountActiveOrcidUsersInXDays(30),
+      getNodeViewsInXDays(1),
+      getNodeViewsInXDays(7),
+      getNodeViewsInXDays(30),
+      countPublishedNodesInRange({
+        from: startOfDay(new Date()),
+        to: endOfDay(new Date()),
+      }),
+      countPublishedNodesInRange({
+        to: endOfDay(new Date()),
+        from: startOfDay(subDays(new Date(), 7)),
+      }),
+      countPublishedNodesInRange({
+        to: endOfDay(new Date()),
+        from: startOfDay(subDays(new Date(), 30)),
+      }),
+      getBytesInXDays(1),
+      getBytesInXDays(7),
+      getBytesInXDays(30),
+      getDownloadedBytesInXDays(1),
+      getDownloadedBytesInXDays(7),
+      getDownloadedBytesInXDays(30),
+    ]);
 
-    const newOrcidUsersInLast30Days = await getCountNewOrcidUsersInXDays(30);
-    const newOrcidUsersInLast7Days = await getCountNewOrcidUsersInXDays(7);
-    const newOrcidUsersToday = await getCountNewOrcidUsersInXDays(1);
-
-    logger.trace({ fn: 'getAnalytics' }, 'Fetching new nodes');
-    const newNodesInLast30Days = await getCountNewNodesInXDays(30);
-    const newNodesInLast7Days = await getCountNewNodesInXDays(7);
-    const newNodesToday = await getCountNewNodesInXDays(1);
-
-    logger.trace({ fn: 'getAnalytics' }, 'Fetching active users');
-    const activeUsersToday = await getCountActiveUsersInXDays(1);
-    const activeUsersInLast7Days = await getCountActiveUsersInXDays(7);
-    const activeUsersInLast30Days = await getCountActiveUsersInXDays(30);
-
-    const activeOrcidUsersToday = await getCountActiveOrcidUsersInXDays(1);
-    const activeOrcidUsersInLast7Days = await getCountActiveOrcidUsersInXDays(7);
-    const activeOrcidUsersInLast30Days = await getCountActiveOrcidUsersInXDays(30);
-
-    const nodeViewsToday = await getNodeViewsInXDays(1);
-    const nodeViewsInLast7Days = await getNodeViewsInXDays(7);
-    const nodeViewsInLast30Days = await getNodeViewsInXDays(30);
-
-    const publishedNodesToday = await countPublishedNodesInRange({
-      from: startOfDay(new Date()),
+    const nodeLikesToday = await getNodeLikesCountInRange({
       to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 1)),
     });
-    const publishedNodesInLast7Days = await countPublishedNodesInRange({
+    const nodeLikesInLast7Days = await getNodeLikesCountInRange({
       to: endOfDay(new Date()),
       from: startOfDay(subDays(new Date(), 7)),
     });
-    const publishedNodesInLast30Days = await countPublishedNodesInRange({
+    const nodeLikesInLast30Days = await getNodeLikesCountInRange({
       to: endOfDay(new Date()),
       from: startOfDay(subDays(new Date(), 30)),
     });
-    logger.trace({ fn: 'getAnalytics' }, 'Fetching views');
 
-    logger.trace({ fn: 'getAnalytics' }, 'Fetching bytes');
-    const bytesToday = await getBytesInXDays(1);
-    const bytesInLast7Days = await getBytesInXDays(7);
-    const bytesInLast30Days = await getBytesInXDays(30);
+    const badgeVerificationsToday = await getBadgeVerificationsCountInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 1)),
+    });
+    const badgeVerificationsInLast7Days = await getBadgeVerificationsCountInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 7)),
+    });
+    const badgeVerificationsInLast30Days = await getBadgeVerificationsCountInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 30)),
+    });
 
-    const downloadedBytesToday = await getDownloadedBytesInXDays(1);
-    const downloadedBytesInLast7Days = await getDownloadedBytesInXDays(7);
-    const downloadedBytesInLast30Days = await getDownloadedBytesInXDays(30);
+    const communitySubmissionsToday = await communityService.getCommunitySubmissionCountInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 1)),
+    });
+    const communitySubmissionsInLast7Days = await communityService.getCommunitySubmissionCountInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 7)),
+    });
+    const communitySubmissionsInLast30Days = await communityService.getCommunitySubmissionCountInRange({
+      to: endOfDay(new Date()),
+      from: startOfDay(subDays(new Date(), 30)),
+    });
 
     const analytics = {
       newUsersInLast30Days,
@@ -282,14 +379,27 @@ export const getAnalytics = async (req: Request, res: Response) => {
       downloadedBytesToday,
       downloadedBytesInLast7Days,
       downloadedBytesInLast30Days,
+
+      nodeLikesToday,
+      nodeLikesInLast7Days,
+      nodeLikesInLast30Days,
+
+      communitySubmissionsToday,
+      communitySubmissionsInLast7Days,
+      communitySubmissionsInLast30Days,
+
+      badgeVerificationsToday,
+      badgeVerificationsInLast7Days,
+      badgeVerificationsInLast30Days,
     };
 
-    logger.info({ fn: 'getAnalytics', analytics }, 'getAnalytics returning');
+    logger.trace({ analytics }, 'getAnalytics returning');
 
-    return res.status(200).send(analytics);
+    return res.status(200).json(analytics);
   } catch (error) {
+    console.error('Error:', error);
     logger.error({ fn: 'getAnalytics', error }, 'Failed to GET getAnalytics');
-    return res.status(500).send();
+    return res.status(500).send(error);
   }
 };
 
@@ -305,6 +415,9 @@ async function aggregateAnalytics(from: Date, to: Date) {
     bytes,
     publishedNodes,
     downloadedBytes,
+    nodeLikes,
+    badgeVerifications,
+    communitySubmissions,
   ] = await Promise.all([
     getNewUsersInRange({ from, to }),
     getNewOrcidUsersInRange({ from, to }),
@@ -315,6 +428,9 @@ async function aggregateAnalytics(from: Date, to: Date) {
     getBytesInRange({ from, to }),
     getPublishedNodesInRange({ from, to }),
     getDownloadedBytesInRange({ from, to }),
+    getNodeLikesInRange({ from, to }),
+    getBadgeVerificationsInRange({ from, to }),
+    communityService.getCommunitySubmissionInRange({ from, to }),
   ]);
   logger.trace({ duration: formatDistanceToNow(start), delta: Date.now() - start }, 'END: aggregateAnalytics');
   return {
@@ -327,6 +443,9 @@ async function aggregateAnalytics(from: Date, to: Date) {
     bytes,
     publishedNodes,
     downloadedBytes,
+    nodeLikes,
+    badgeVerifications,
+    communitySubmissions,
   };
 }
 
@@ -340,15 +459,18 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
     query: { from, to, interval: timeInterval },
   } = req as zod.infer<typeof analyticsChartSchema>;
 
-  const diffInDays = differenceInDays(new Date(to), new Date(from));
-  const startDate = subDays(new Date(from), diffInDays);
-  const endDate = endOfDay(new Date(to));
+  const toDate = new Date(to.split('GMT')[0]);
+  const fromDate = new Date(from.split('GMT')[0]);
+
+  const diffInDays = differenceInDays(toDate, fromDate);
+  const startDate = fromDate;
+  const endDate = endOfDay(toDate);
   logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, startDate, endDate }, 'getAggregatedAnalytics');
 
   const selectedDates = { from: startOfDay(startDate), to: endDate };
   const selectedDatesInterval = interval(from, endDate);
 
-  const cacheKey = `aggregateAnalytics-${startOfDay(from).toDateString()}-${endOfDay(selectedDates.to).toDateString()}-${timeInterval}`;
+  const cacheKey = `aggregateAnalytics-${selectedDates.from.toDateString()}-${selectedDates.to.toDateString()}-${timeInterval}`;
   logger.trace({ cacheKey }, 'GET: CACHE KEY');
   let aggregatedData = null; // await getFromCache<AnalyticsData[]>(cacheKey);
 
@@ -363,6 +485,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
       activeOrcidUsers,
       publishedNodes,
       downloadedBytes,
+      nodeLikes,
+      communitySubmissions,
+      badgeVerifications,
     } = await aggregateAnalytics(selectedDates.from, selectedDates.to);
 
     const getIntervals = () => {
@@ -418,7 +543,14 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
       const publishedNodesAgg = publishedNodes.filter((node) =>
         isWithinInterval(node.createdAt, selectedDatesInterval),
       );
+      const nodeLikesAgg = nodeLikes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
+      const communitySubmissionsAgg = communitySubmissions.filter((submission) =>
+        isWithinInterval(submission.createdAt, selectedDatesInterval),
+      );
 
+      const badgeVerificationsAgg = badgeVerifications.filter((log) =>
+        isWithinInterval(log.createdAt, selectedDatesInterval),
+      );
       return {
         date: period,
         newUsers: newUsersAgg.length,
@@ -430,6 +562,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
         publishedNodes: publishedNodesAgg.length,
         bytes: bytesAgg.reduce((total, byte) => total + byte.size, 0),
         downloadedBytes: downloadedBytesAgg.reduce((total, byte) => total + byte.size, 0),
+        nodeLikes: nodeLikesAgg.length,
+        communitySubmissions: communitySubmissionsAgg.length,
+        badgeVerifications: badgeVerificationsAgg.length,
       };
     });
 
@@ -525,6 +660,9 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
       activeOrcidUsers,
       publishedNodes,
       downloadedBytes,
+      nodeLikes,
+      communitySubmissions,
+      badgeVerifications,
     } = await aggregateAnalytics(selectedDates.from, selectedDates.to);
 
     aggregatedData = allDatesInInterval.map((period) => {
@@ -554,6 +692,13 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
       const downloadedBytesAgg = downloadedBytes.filter((byte) =>
         isWithinInterval(byte.createdAt, selectedDatesInterval),
       );
+      const nodeLikesAgg = nodeLikes.filter((like) => isWithinInterval(like.createdAt, selectedDatesInterval));
+      const communitySubmissionsAgg = communitySubmissions.filter((submission) =>
+        isWithinInterval(submission.createdAt, selectedDatesInterval),
+      );
+      const badgeVerificationsAgg = badgeVerifications.filter((log) =>
+        isWithinInterval(log.createdAt, selectedDatesInterval),
+      );
       return {
         date:
           timeInterval === 'yearly'
@@ -572,6 +717,9 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
         bytesDownloaded: byteValueNumberFormatter.format(
           downloadedBytesAgg.reduce((total, byte) => total + byte.size, 0),
         ),
+        nodeLikes: nodeLikesAgg.length,
+        communitySubmissions: communitySubmissionsAgg.length,
+        badgeVerifications: badgeVerificationsAgg.length,
       };
     });
   } else {
@@ -592,7 +740,7 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
   }
 
   const csv = [
-    'date,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded,bytesDownloaded',
+    'date,newUsers,newOrcidUsers,activeUsers,activeOrcidUsers,newNodes,nodeViews,publishedNodes,bytesUploaded,bytesDownloaded,nodeLikes,communitySubmissions,badgeVerifications',
     ...aggregatedData
       .reverse()
       .map((row) =>
@@ -607,6 +755,9 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
           row.publishedNodes,
           row.bytesUploaded,
           row.bytesDownloaded,
+          row.nodeLikes,
+          row.communitySubmissions,
+          row.badgeVerifications,
         ].join(','),
       ),
   ].join('\n');
@@ -640,8 +791,9 @@ export const getNewUserAnalytics = async (req: Request, res: Response) => {
 
   const daysAgo = parseInt(value, 10);
 
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
-  const users = await getNewUsersInXDays(dateXDaysAgo);
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
+
+  const users = await getNewUsersInXDays(utcMidnightXDaysAgo);
   const data = await asyncMap(users, async (user) => {
     if (!user.orcid) return { ...user, publications: 0, dateJoined: '' };
     const { profile, works } = await crossRefClient.profileSummary(user.orcid);
@@ -681,8 +833,8 @@ export const getNewOrcidUserAnalytics = async (req: Request, res: Response) => {
 
   const daysAgo = parseInt(value, 10);
 
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
-  const users = await getNewOrcidUsersInXDays(dateXDaysAgo);
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
+  const users = await getNewOrcidUsersInXDays(utcMidnightXDaysAgo);
   const data = await asyncMap(users, async (user) => {
     if (!user.orcid) return user;
     const { profile, works } = await crossRefClient.profileSummary(user.orcid);
@@ -696,9 +848,9 @@ export const getActiveUserAnalytics = async (req: Request, res: Response) => {
   const { unit, value, exportCsv } = req.query as z.infer<typeof userAnalyticsSchema>['query'];
 
   const daysAgo = parseInt(value, 10);
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
 
-  const rows = await getActiveUsersInXDays(dateXDaysAgo);
+  const rows = await getActiveUsersInXDays(utcMidnightXDaysAgo);
 
   const data = await asyncMap(rows, async (log) => {
     if (!log.user.orcid) return { ...log.user, publications: 0, dateJoined: '' };
@@ -733,9 +885,9 @@ export const getActiveOrcidUserAnalytics = async (req: Request, res: Response) =
   const { unit, value } = req.query as { unit: 'days'; value: string };
 
   const daysAgo = parseInt(value, 10);
-  const dateXDaysAgo = new Date(new Date().getTime() - daysAgo * 24 * 60 * 60 * 1000);
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
 
-  const rows = await getActiveOrcidUsersInXDays(dateXDaysAgo);
+  const rows = await getActiveOrcidUsersInXDays(utcMidnightXDaysAgo);
   const data = await asyncMap(rows, async (log) => {
     if (!log.user.orcid) return log.user;
     const { profile, works } = await crossRefClient.profileSummary(log.user.orcid);

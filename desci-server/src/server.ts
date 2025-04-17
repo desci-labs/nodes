@@ -28,7 +28,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import routes from './routes/index.js';
 import { initializeWebSockets, getIO } from './services/websocketService.js';
-import swaggerFile from './swagger_output.json' with { type: 'json' };
+// import swaggerFile from './swagger_output.json' with { type: 'json' };
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
 // import { runWorkerUntilStopped } from './workers/publish.js';
 
@@ -213,7 +213,7 @@ class AppServer {
     });
     this.app.get('/orcid', orcidConnect);
     this.app.post('/orcid/next', [ensureUserIfPresent], orcidCheck());
-    this.app.use('/doc', swaggerUI.serve, swaggerUI.setup(swaggerFile));
+    // this.app.use('/doc', swaggerUI.serve, swaggerUI.setup(swaggerFile));
     this.app.use('/documentation', swaggerUI.serve, swaggerUI.setup(openaiDocumentation));
     this.app.use('/', routes);
   }

@@ -1003,6 +1003,19 @@ export class CommunityService {
   async deleteSubmission(id: number) {
     return prisma.communitySubmission.delete({ where: { id } });
   }
+
+  async getCommunitySubmissionCountInRange({ from, to }: { from: string | Date; to: string | Date }) {
+    return prisma.communitySubmission.count({
+      where: { createdAt: { gte: from, lt: to } },
+    });
+  }
+
+  async getCommunitySubmissionInRange({ from, to }: { from: string | Date; to: string | Date }) {
+    return prisma.communitySubmission.findMany({
+      where: { createdAt: { gte: from, lt: to } },
+      select: { createdAt: true },
+    });
+  }
 }
 
 export const communityService = new CommunityService();
