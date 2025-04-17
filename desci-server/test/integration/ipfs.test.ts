@@ -8,8 +8,9 @@ import { expect } from 'chai';
 import { prisma } from '../../src/client.js';
 import * as ipfs from '../../src/services/ipfs.js';
 import { generateExternalCidMap } from '../../src/utils/driveUtils.js';
+import { randomUUID64 } from '../../src/utils.js';
 
-describe('IPFS', () => {
+describe.only('IPFS', () => {
   let admin: User;
   let node: Node;
   before(async () => {});
@@ -30,6 +31,7 @@ describe('IPFS', () => {
 
     node = await prisma.node.create({
       data: {
+        uuid: randomUUID64(),
         owner: { connect: { id: admin.id } },
         title: '',
         manifestUrl: '',
