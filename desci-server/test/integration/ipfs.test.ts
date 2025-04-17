@@ -10,7 +10,7 @@ import * as ipfs from '../../src/services/ipfs.js';
 import { generateExternalCidMap } from '../../src/utils/driveUtils.js';
 import { randomUUID64 } from '../../src/utils.js';
 
-describe.only('IPFS', () => {
+describe('IPFS', () => {
   let admin: User;
   let node: Node;
   before(async () => {});
