@@ -38,7 +38,6 @@ export const orcidCheck =
     }
     const user = (req as any).user;
     const { access_token, refresh_token, expires_in, orcid, dev } = req.body;
-    // debugger;
     logger.trace({ access_token, refresh_token, expires_in, orcid, dev }, 'connectOrcidToUserIfPossible');
     const orcidRecord = await connectOrcidToUserIfPossible(
       user?.id,

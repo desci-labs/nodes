@@ -1,10 +1,10 @@
 import { FileType, ResearchObjectV1, isNodeRoot, neutralizePath, recursiveFlattenTree } from '@desci-labs/desci-models';
-import { DataReference, DataType, Prisma, Node } from '@prisma/client';
+import { DataReference, DataType, Prisma, Node, GuestDataReference, User } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
 import { PUBLIC_IPFS_PATH } from '../config/index.js';
-import { logger as parentLogger } from '../logger.js';
+import { als, logger as parentLogger } from '../logger.js';
 import { discoveryLs, getDirectoryTree, getSizeForCid, RecursiveLsResult } from '../services/ipfs.js';
 import { ensureUuidEndsWithDot, objectPropertyXor, omitKeys } from '../utils.js';
 
@@ -102,7 +102,9 @@ export async function generateDataReferences({
     if (markExternals) {
       dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
     } else {
-      dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, true));
+      dataTree = recursiveFlattenTree(
+        await getDirectoryTree(dataBucketCid, externalCidMap, { returnFiles: true, returnExternalFiles: true }),
+      );
     }
   } else {
     const dbTree = await prisma.draftNodeTree.findMany({ where: { nodeId: node.id } });
@@ -171,7 +173,9 @@ export async function prepareDataRefs(
   };
 
   const externalCidMap = { ...(await generateExternalCidMap(node.uuid)), ...externalCidMapConcat };
-  let dataTree = recursiveFlattenTree(await getDirectoryTree(dataBucketCid, externalCidMap, true, false));
+  let dataTree = recursiveFlattenTree(
+    await getDirectoryTree(dataBucketCid, externalCidMap, { returnFiles: true, returnExternalFiles: false }),
+  );
   if (markExternals) {
     dataTree = recursiveFlattenTree(await discoveryLs(dataBucketCid, externalCidMap));
   }
@@ -264,7 +268,7 @@ export async function prepareDataRefsForDagSkeleton({
   };
 
   const externalCidMap = { ...(await generateExternalCidMap(node.uuid)) };
-  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, false);
+  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, { returnFiles: false });
 
   const dataTree = recursiveFlattenTree(tree).filter((entry) => entry.type === FileType.DIR);
   const manifestPathsToDbTypes = generateManifestPathsToDbTypeMap(manifestEntry);
@@ -322,7 +326,7 @@ export async function prepareDataRefsExternalCids(
   };
 
   const externalCidMap = { ...(await generateExternalCidMap(node.uuid)), ...externalCidMapConcat };
-  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, false);
+  const tree = await getDirectoryTree(dataBucketCid, externalCidMap, { returnFiles: false });
   let dataTree;
 
   if (markExternals) {
@@ -400,12 +404,17 @@ export async function validateDataReferences({
       ).id
     : undefined;
 
+  const nodeOwner = await prisma.user.findFirst({ where: { id: node.ownerId }, select: { isGuest: true } });
   const excludeManifestClause = includeManifestRef ? {} : { type: { not: DataType.MANIFEST } };
   const currentRefs = publicRefs
     ? await prisma.publicDataReference.findMany({
         where: { nodeId: node.id, versionId, ...excludeManifestClause },
       })
-    : await prisma.dataReference.findMany({ where: { nodeId: node.id, ...excludeManifestClause } });
+    : nodeOwner.isGuest
+      ? await prisma.guestDataReference.findMany({
+          where: { nodeId: node.id, ...excludeManifestClause },
+        })
+      : await prisma.dataReference.findMany({ where: { nodeId: node.id, ...excludeManifestClause } });
 
   const requiredRefs = await generateDataReferences({
     nodeUuid,
@@ -559,16 +568,27 @@ export async function validateAndHealDataRefs({
     workingTreeUrl,
     includeManifestRef,
   });
+  const node = await prisma.node.findFirst({
+    where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
+    select: { ownerId: true },
+  });
+  const user = await prisma.user.findFirst({ where: { id: node.ownerId }, select: { isGuest: true } });
+
   if (missingRefs.length) {
     const addedRefs = publicRefs
       ? await prisma.publicDataReference.createMany({
           data: missingRefs,
           skipDuplicates: true,
         })
-      : await prisma.dataReference.createMany({
-          data: missingRefs,
-          skipDuplicates: true,
-        });
+      : user.isGuest
+        ? await prisma.guestDataReference.createMany({
+            data: missingRefs,
+            skipDuplicates: true,
+          })
+        : await prisma.dataReference.createMany({
+            data: missingRefs,
+            skipDuplicates: true,
+          });
     logger.info(
       { fn: 'validateAndHealDataRefs' },
       `[validateAndFixDataRefs (MISSING)] node id: ${nodeUuid}, added ${addedRefs.count} missing data refs`,
@@ -606,14 +626,62 @@ export async function validateAndHealDataRefs({
 /**
  * Helper function to generate a timestamp map from a node's data refs, mapping paths -> psql db default timestamps
  */
-export async function generateTimestampMapFromDataRefs(nodeId: number): Promise<TimestampMap> {
-  const dataRefs = await prisma.dataReference.findMany({ where: { nodeId, type: { not: DataType.MANIFEST } } });
+export async function generateTimestampMapFromDataRefs(
+  nodeId: number,
+  user: Pick<User, 'isGuest'>,
+): Promise<TimestampMap> {
+  const dataRefs = user.isGuest
+    ? await prisma.guestDataReference.findMany({ where: { nodeId, type: { not: DataType.MANIFEST } } })
+    : await prisma.dataReference.findMany({ where: { nodeId, type: { not: DataType.MANIFEST } } });
   const timestampMap: TimestampMap = {};
-  dataRefs.forEach((ref: DataReference) => {
+  dataRefs.forEach((ref: DataReference | GuestDataReference) => {
     if (ref.path) {
       const neutralPath = neutralizePath(ref.path);
       timestampMap[neutralPath] = { createdAt: ref.createdAt, updatedAt: ref.updatedAt };
     }
   });
   return timestampMap;
+}
+
+/**
+ * Helper function to transform DataRefs to GuestDataRefs
+ * There are minor differences between data refs and guest data refs, so we need to transform them
+ */
+export function transformDataRefsToGuestDataRefs(dataRefs: Partial<DataReference>[]): GuestDataReference[] {
+  return dataRefs.map((ref) => {
+    delete ref.description;
+    delete ref.name;
+    delete ref.versionId; // Guests cant publish
+    return {
+      ...ref,
+    } as unknown as GuestDataReference;
+  });
+}
+
+/**
+ * Helper function to transform GuestDataRefs to DataRefs
+ * There are minor differences between data refs and guest data refs, so we need to transform them
+ */
+export function transformGuestDataRefsToDataRefs(
+  guestDataRefs: Partial<GuestDataReference>[],
+  stripIds?: boolean,
+): DataReference[] {
+  return guestDataRefs.map((ref) => {
+    delete ref.loggedData;
+    if (stripIds) {
+      delete ref.id;
+    }
+    return {
+      ...ref,
+    } as unknown as DataReference;
+  });
+}
+
+/**
+ * Helper function to attach loggedData for guests to prevent abuse
+ */
+export function attachLoggedData() {
+  const context = (als as any).getStore();
+  const clientIp = context?.clientIp as string;
+  return { loggedData: { clientIp } };
 }

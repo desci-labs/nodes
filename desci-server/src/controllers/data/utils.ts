@@ -10,7 +10,7 @@ import { v4 as uuid } from 'uuid';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { updateManifestAndAddToIpfs } from '../../services/ipfs.js';
+import { getNodeToUse, updateManifestAndAddToIpfs } from '../../services/ipfs.js';
 import { cleanupManifestUrl } from '../../utils/manifest.js';
 
 const logger = parentLogger.child({
@@ -54,12 +54,18 @@ export async function persistManifest({ manifest, node, userId }: PersistManifes
     throw Error(`User: ${userId} doesnt own node ${node.id}`);
   }
 
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, isGuest: true } });
+
   try {
     const {
       cid,
       ref: dataRef,
       nodeVersion,
-    } = await updateManifestAndAddToIpfs(manifest, { userId: node.ownerId, nodeId: node.id });
+    } = await updateManifestAndAddToIpfs(manifest, {
+      user,
+      nodeId: node.id,
+      ipfsNode: getNodeToUse(user?.isGuest),
+    });
 
     const updated = await prisma.node.update({
       where: {

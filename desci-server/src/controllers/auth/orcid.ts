@@ -73,10 +73,14 @@ export const getOrcidRecord = async (orcid: string, accessToken: string): Promis
     { fn: 'getOrcidRecord', orcid, orcidDomain: process.env.ORCID_API_DOMAIN },
     `Fetching OrcId Record for ${orcid}`,
   );
-  const { data } = await axios(config);
-  logger.info({ fn: 'getOrcidRecord', orcid }, `Received OrcId Record data`);
-
-  return data as OrcIdRecordData;
+  try {
+    const { data } = await axios(config);
+    logger.info({ fn: 'getOrcidRecord', orcid }, `Received OrcId Record data`);
+    return data as OrcIdRecordData;
+  } catch (e) {
+    logger.debug({ error: e }, 'Failed to fetch orcid record');
+  }
+  return null;
 };
 
 const getAllOrcData = async ({ queryCode, redirectUri }: { queryCode: string; redirectUri: string }) => {

@@ -14,6 +14,8 @@ import {
   createEmptyDag,
   FilesToAddToDag,
   getDirectoryTree,
+  getNodeToUse,
+  IPFS_NODE,
   strIsCid,
   updateManifestAndAddToIpfs,
 } from '../services/ipfs.js';
@@ -144,20 +146,26 @@ export async function upgradeManifestsScript() {
       // process.exit(404);
     }
 
-    const emptyDag = await createEmptyDag();
+    const user = await prisma.user.findUnique({ where: { id: node.ownerId }, select: { isGuest: true } });
+
+    const emptyDag = await createEmptyDag(getNodeToUse(user?.isGuest));
 
     const researchReportsDagCid = Object.entries(researchReportsDagFiles).length
-      ? await createDag(researchReportsDagFiles)
+      ? await createDag(researchReportsDagFiles, IPFS_NODE.PRIVATE)
       : emptyDag;
-    const codeReposDagCid = Object.entries(codeReposDagFiles).length ? await createDag(codeReposDagFiles) : emptyDag;
-    const dataDagCid = Object.entries(dataDagFiles).length ? await createDag(dataDagFiles) : emptyDag;
+    const codeReposDagCid = Object.entries(codeReposDagFiles).length
+      ? await createDag(codeReposDagFiles, IPFS_NODE.PRIVATE)
+      : emptyDag;
+    const dataDagCid = Object.entries(dataDagFiles).length
+      ? await createDag(dataDagFiles, IPFS_NODE.PRIVATE)
+      : emptyDag;
 
     const rootDagFiles: FilesToAddToDag = {
       [researchReportPath]: { cid: researchReportsDagCid },
       [codeReposPath]: { cid: codeReposDagCid },
       [dataPath]: { cid: dataDagCid },
     };
-    const rootDagCid = await createDag(rootDagFiles);
+    const rootDagCid = await createDag(rootDagFiles, IPFS_NODE.PRIVATE);
     const rootDagCidStr = rootDagCid.toString();
 
     const opinionatedDirsFormatted = Object.entries(rootDagFiles).map(([path, { cid }]) => {
@@ -277,12 +285,18 @@ export async function persistManifestTimePreserved({
     throw Error(`User: ${userId} doesnt own node ${node.id}`);
   }
 
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, isGuest: true } });
+
   try {
     const {
       cid,
       ref: dataRef,
       nodeVersion,
-    } = await updateManifestAndAddToIpfs(manifest, { userId: node.ownerId, nodeId: node.id });
+    } = await updateManifestAndAddToIpfs(manifest, {
+      user,
+      nodeId: node.id,
+      ipfsNode: getNodeToUse(user?.isGuest),
+    });
 
     const updated = await prisma.node.update({
       where: {

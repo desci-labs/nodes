@@ -14,7 +14,7 @@ import { generateDataReferences } from '../utils/dataRefTools.js';
 import { cleanupManifestUrl, transformManifestWithHistory } from '../utils/manifest.js';
 import { hexToCid, randomUUID64, asyncMap, ensureUuidEndsWithDot } from '../utils.js';
 
-import { addBufferToIpfs, downloadFilesAndMakeManifest, getSizeForCid, resolveIpfsData } from './ipfs.js';
+import { addBufferToIpfs, makeManifest, getNodeToUse, getSizeForCid } from './ipfs.js';
 import { NodeUuid } from './manifestRepo.js';
 import repoService from './repoService.js';
 
@@ -30,8 +30,13 @@ export const createNodeDraftBlank = async (
   defaultLicense: string,
   researchFields: string[],
 ) => {
-  const { manifest } = await downloadFilesAndMakeManifest({ title, researchFields, defaultLicense, pdf: [], code: [] });
-  const { cid: hash } = await addBufferToIpfs(manifest, '');
+  const { manifest } = await makeManifest({
+    title,
+    researchFields,
+    defaultLicense,
+    ipfsNode: getNodeToUse(owner.isGuest),
+  });
+  const { cid: hash } = await addBufferToIpfs(manifest, '', getNodeToUse(owner.isGuest));
 
   const uri = `${hash}`;
 
@@ -536,19 +541,31 @@ export const getNewNodesInRange = async ({ from, to }: { from: Date; to: Date })
   });
 };
 
-export const getBytesInRange = async ({ from, to }: { from: Date; to: Date }) => {
+export const getBytesInRange = async ({ from, to, guest }: { from: Date; to: Date; guest?: boolean }) => {
   logger.trace({ fn: 'getBytesInRange', from, to }, 'node::getBytesInRange');
 
-  return await prisma.dataReference.findMany({
-    // _sum: { size: true },
-    where: {
-      createdAt: {
-        gte: from,
-        lt: to,
-      },
-    },
-    select: { size: true, createdAt: true },
-  });
+  const bytesInRange = guest
+    ? await prisma.guestDataReference.findMany({
+        // _sum: { size: true },
+        where: {
+          createdAt: {
+            gte: from,
+            lt: to,
+          },
+        },
+        select: { size: true, createdAt: true },
+      })
+    : await prisma.dataReference.findMany({
+        // _sum: { size: true },
+        where: {
+          createdAt: {
+            gte: from,
+            lt: to,
+          },
+        },
+        select: { size: true, createdAt: true },
+      });
+  return bytesInRange;
 
   // return bytesInXDays._sum.size;
 };

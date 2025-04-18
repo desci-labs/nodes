@@ -44,6 +44,8 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
     const node = await prisma.node.findFirst({ where: { uuid: ensureUuidEndsWithDot(nodeUUID) } });
     if (!node) throw Error('Node not found');
 
+    const nodeOwner = await prisma.user.findFirst({ where: { id: node.ownerId } });
+
     logger.trace({ version }, `Version: ${version}`);
 
     if (version !== undefined) {
@@ -113,7 +115,9 @@ export const getCoverImage = async (req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const dataRefExists = await prisma.dataReference.findFirst({ where: { cid, nodeId: node.id } });
+    const dataRefExists = nodeOwner.isGuest
+      ? await prisma.guestDataReference.findFirst({ where: { cid, nodeId: node.id } })
+      : await prisma.dataReference.findFirst({ where: { cid, nodeId: node.id } });
     // console.log('dataRefExists', cid, node.id, nodeUUID);
     if (!dataRefExists) throw Error('Unknown CID reference');
 

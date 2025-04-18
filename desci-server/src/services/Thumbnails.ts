@@ -1,15 +1,18 @@
 import { Readable } from 'stream';
 
 import { ResearchObjectComponentType } from '@desci-labs/desci-models';
+import { DataType, User } from '@prisma/client';
 import axios from 'axios';
 import FormData from 'form-data';
+import { req } from 'pino-std-serializers';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
+import { attachLoggedData } from '../utils/dataRefTools.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { getManifestByCid } from './data/processing.js';
-import { pinFile } from './ipfs.js';
+import { getNodeToUse, IPFS_NODE, pinFile } from './ipfs.js';
 import { NodeUuid, getLatestManifestFromNode } from './manifestRepo.js';
 
 const logger = parentLogger.child({
@@ -107,8 +110,14 @@ export class ThumbnailsService {
       logger.error('process.env.ISOLATED_MEDIA_SERVER_URL is not defined');
       return null;
     }
+
+    const node = await prisma.node.findFirst({
+      where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
+      select: { id: true, ownerId: true },
+    });
+    const user = await prisma.user.findFirst({ where: { id: node.ownerId } });
+
     // Generate the thumbnail
-    // debugger;
     const thumbnailStream = await axios.post(
       `${process.env.ISOLATED_MEDIA_SERVER_URL}/v1/thumbnails?height=${heightPx}`,
       { cid: cid, fileName: componentFileName },
@@ -117,7 +126,25 @@ export class ThumbnailsService {
       },
     );
     // Save it on IPFS
-    const pinned = await pinFile(thumbnailStream.data);
+    const pinned = await pinFile(thumbnailStream.data, { ipfsNode: getNodeToUse(user.isGuest) });
+
+    // Create data ref
+    const thumbnailDataRef = {
+      nodeId: node.id,
+      cid: pinned.cid,
+      type: DataType.THUMBNAIL,
+      size: pinned.size,
+      root: false,
+      directory: false,
+      userId: user.id,
+      ...(user.isGuest ? attachLoggedData() : {}),
+    };
+
+    const createdDataRef = user.isGuest
+      ? await prisma.guestDataReference.create({ data: thumbnailDataRef })
+      : await prisma.dataReference.create({ data: thumbnailDataRef });
+    logger.info({ createdDataRef }, 'Created data ref for thumbnail');
+
     // Save it to the database
     const existingThumbnail = await prisma.nodeThumbnails.findFirst({
       where: { componentCid: cid },
@@ -134,8 +161,6 @@ export class ThumbnailsService {
         data: { nodeUuid: ensureUuidEndsWithDot(nodeUuid), componentCid: cid, thumbnails: { [heightPx]: pinned.cid } },
       });
     }
-
-    // LATER: Add data ref
 
     // Return the CID
     return { componentCid: cid, height: heightPx, thumbnailCid: pinned.cid };

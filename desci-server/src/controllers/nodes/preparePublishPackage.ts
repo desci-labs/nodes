@@ -37,12 +37,14 @@ export const preparePublishPackage = async (
   res: Response<PreparePublishPackageResponse | PreparePublishPackageErrorResponse>,
 ) => {
   const { pdfCid, doi, nodeUuid, manifestCid, withPreviews } = req.body;
+  const user = (req as any).user;
   const logger = parentLogger.child({
     module: 'NODES::PreparePublishPackageController',
     pdfCid,
     doi,
     nodeUuid,
     withPreviews,
+    userId: user?.id,
   });
   // debugger; //
   logger.trace({ fn: 'Retrieving Publish Package' });
@@ -73,6 +75,11 @@ export const preparePublishPackage = async (
       return res.status(404).json({ ok: false, error: 'Node not found' });
     }
 
+    if (node.ownerId !== user.id) {
+      logger.warn({ nodeUuid, userId: user.id }, 'User does not own node');
+      return res.status(403).json({ ok: false, error: 'User does not own node' });
+    }
+
     const manifest = await getManifestByCid(manifestCid);
     if (!manifest) {
       logger.warn({ manifestCid }, 'Manifest not found');
@@ -94,7 +101,7 @@ export const preparePublishPackage = async (
     let previewMap: PreviewMap = {};
     if (withPreviews) {
       logger.trace({ distPdfCid, fn: 'Generating PDF previews' });
-      previewMap = await publishPackageService.generatePdfPreview(distPdfCid, 1000, [1, 2], node.uuid);
+      previewMap = await publishPackageService.generatePdfPreview(distPdfCid, 1000, [1, 2], node, user);
     }
 
     logger.trace({ distPdfCid, previewMap, fn: 'Distribution package prepared' });

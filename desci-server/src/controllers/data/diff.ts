@@ -74,12 +74,19 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
     } else {
       // Attempt to find a private reference for given manifest CID, if user is AUTHED.
       if (!user?.id) return res.status(401).json({ error: `Unauthorized manifest: ${manifestCidA}` });
-      const manifestAPrivRef = await prisma.dataReference.findFirst({
-        where: {
-          cid: manifestCidA,
-          userId: user.id,
-        },
-      });
+      const manifestAPrivRef = user.isGuest
+        ? await prisma.guestDataReference.findFirst({
+            where: {
+              cid: manifestCidA,
+              userId: user.id,
+            },
+          })
+        : await prisma.dataReference.findFirst({
+            where: {
+              cid: manifestCidA,
+              userId: user.id,
+            },
+          });
       if (manifestAPrivRef) manifestAAuthed = true;
     }
   }
@@ -96,12 +103,19 @@ export const diffData = async (req: Request, res: Response<DiffResponse | ErrorR
     } else {
       // Attempt to find a private reference for given manifest CID, if user is AUTHED.
       if (!user?.id) return res.status(401).json({ error: `Unauthorized manifest: ${manifestCidB}` });
-      const manifestBPrivRef = await prisma.dataReference.findFirst({
-        where: {
-          cid: manifestCidB,
-          userId: user.id,
-        },
-      });
+      const manifestBPrivRef = user.isGuest
+        ? await prisma.guestDataReference.findFirst({
+            where: {
+              cid: manifestCidB,
+              userId: user.id,
+            },
+          })
+        : await prisma.dataReference.findFirst({
+            where: {
+              cid: manifestCidB,
+              userId: user.id,
+            },
+          });
       if (manifestBPrivRef) manifestBAuthed = true;
     }
   }

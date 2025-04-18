@@ -104,6 +104,12 @@ spec:
           export ENABLE_WORKERS_API=true
           export LOG_ENCRYPTION_KEY="{{ .Data.LOG_ENCRYPTION_KEY }}"
           export ORCID_PUBLIC_API="{{ .Data.ORCID_PUBLIC_API }}"
+          export GUEST_IPFS_NODE_URL="{{ .Data.GUEST_IPFS_NODE_URL }}"
+          export AWS_SQS_ACCESS_KEY_ID="{{ .Data.AWS_SQS_ACCESS_KEY_ID }}"
+          export AWS_SQS_SECRET_ACCESS_KEY="{{ .Data.AWS_SQS_SECRET_ACCESS_KEY }}"
+          export AWS_SQS_REGION="{{ .Data.AWS_SQS_REGION }}"
+          export AWS_SQS_QUEUE_URL="{{ .Data.AWS_SQS_QUEUE_URL }}"
+          export ENABLE_GUEST_MODE="{{ .Data.ENABLE_GUEST_MODE }}"
           export IGNORE_LINE=0;
           export DEBUG_TEST=0;
           echo "appfinish";

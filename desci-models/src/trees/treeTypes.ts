@@ -27,6 +27,13 @@ export interface DriveObject {
   path?: string;
   starred?: boolean;
   external?: boolean;
+  dataSource?: DATA_SOURCE;
+}
+
+export enum DATA_SOURCE {
+  PRIVATE = 'private',
+  GUEST = 'guest',
+  PUBLIC = 'public',
 }
 
 export const NODE_KEEP_FILE = '.nodeKeep';

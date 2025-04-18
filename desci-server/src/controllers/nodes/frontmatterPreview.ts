@@ -46,20 +46,17 @@ export const frontmatterPreview = async (
   if (!uuid) return res.status(400).json({ ok: false, error: 'UUID is required.' });
   if (!pdfCid) return res.status(400).json({ ok: false, error: 'pdfCid is required.' });
 
-  if (user) {
-    // Check if user owns node, if requesting previews
-    const node = await prisma.node.findFirst({
-      where: {
-        ownerId: user.id,
-        uuid: ensureUuidEndsWithDot(uuid),
-      },
-    });
+  // Check if user owns node, if requesting previews
+  const node = await prisma.node.findFirst({
+    where: {
+      ownerId: user.id,
+      uuid: ensureUuidEndsWithDot(uuid),
+    },
+  });
 
-    if (!node) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-  }
+  if (!node) return res.status(401).json({ ok: false, error: 'Unauthorized' });
 
-  // debugger;
-  const previewMap = await publishPackageService.generatePdfPreview(pdfCid, 1000, [1, 2], ensureUuidEndsWithDot(uuid));
-  // debugger;
+  const previewMap = await publishPackageService.generatePdfPreview(pdfCid, 1000, [1, 2], node, user);
+
   return res.status(200).json({ ok: true, frontmatterPageCid: previewMap[1], contentPageCid: previewMap[2] });
 };
