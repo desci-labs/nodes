@@ -105,22 +105,29 @@ describe('Desci Analytics', async () => {
       }[];
     console.log(JSON.stringify(sanitizeBigInts(userCounts), null, 2));
 
+    const today = new Date();
+    const endDate = new Date(today); // End of today
+    endDate.setHours(23, 59, 59, 999);
+    const startDate = subDays(today, 6); // Start of 6 days ago
+    startDate.setHours(0, 0, 0, 0);
+
+    const fromDate = encodeURIComponent(startDate.toISOString());
+    const toDate = encodeURIComponent(endDate.toISOString());
+
     const response = await request
-      .get(
-        // april 1st 2025 to april 7th 2025
-        '/v1/admin/analytics/query?from=Tue%20Apr%2001%202025%2000%3A00%3A00%20GMT%2B0800%20(Central%20Indonesia%20Time)&to=Mon%20Apr%2007%202025%2023%3A59%3A59%20GMT%2B0800%20(Central%20Indonesia%20Time)&interval=daily',
-      )
+      .get(`/v1/admin/analytics/query?from=${fromDate}&to=${toDate}&interval=daily`)
       .set('authorization', `Bearer ${mockToken}`);
     console.log(JSON.stringify(sanitizeBigInts(response.body), null, 2));
 
     expect(response.status).to.equal(200);
-    expect(response.body.data.analytics[0].newUsers).to.equal(0);
-    expect(response.body.data.analytics[1].newUsers).to.equal(1);
-    expect(response.body.data.analytics[2].newUsers).to.equal(2);
-    expect(response.body.data.analytics[3].newUsers).to.equal(3);
-    expect(response.body.data.analytics[4].newUsers).to.equal(4);
-    expect(response.body.data.analytics[5].newUsers).to.equal(5);
-    expect(response.body.data.analytics[6].newUsers).to.equal(6);
+    expect(response.body.data.analytics).to.be.an('array').with.lengthOf(7);
+    expect(response.body.data.analytics[0].newUsers).to.equal(4); // 6 days ago (j=6)
+    expect(response.body.data.analytics[1].newUsers).to.equal(5); // 5 days ago (j=5)
+    expect(response.body.data.analytics[2].newUsers).to.equal(6); // 4 days ago (j=4)
+    expect(response.body.data.analytics[3].newUsers).to.equal(7); // 3 days ago (j=3)
+    expect(response.body.data.analytics[4].newUsers).to.equal(8); // 2 days ago (j=2)
+    expect(response.body.data.analytics[5].newUsers).to.equal(9); // yesterday (j=1)
+    expect(response.body.data.analytics[6].newUsers).to.equal(10); // today (j=0)
   });
 });
 function sanitizeBigInts(obj: any): any {
