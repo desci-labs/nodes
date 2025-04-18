@@ -22,7 +22,7 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 };
 
-describe.skip('Desci Analytics', async () => {
+describe('Desci Analytics', async () => {
   let mockUser: User;
   let mockToken: string;
   let request: supertest.SuperTest<supertest.Test>;
@@ -87,10 +87,12 @@ describe.skip('Desci Analytics', async () => {
   it('should count users accurately in aggregate route', async () => {
     for (let i = 0; i < 10; i++) {
       for (let j = 0; j < i + 1; j++) {
+        const createdAt = subDays(new Date(), j);
+        console.log(`Adding user ${i}_${j} at ${createdAt}`);
         await prisma.user.create({
           data: {
             email: `test_agg_${i}_${j}@test.com`,
-            createdAt: subDays(new Date(), j),
+            createdAt: createdAt,
           },
         });
       }
@@ -112,13 +114,13 @@ describe.skip('Desci Analytics', async () => {
     console.log(JSON.stringify(sanitizeBigInts(response.body), null, 2));
 
     expect(response.status).to.equal(200);
-    expect(response.body.data.analytics[0].newUsers).to.equal(4);
-    expect(response.body.data.analytics[1].newUsers).to.equal(5);
-    expect(response.body.data.analytics[2].newUsers).to.equal(6);
-    expect(response.body.data.analytics[3].newUsers).to.equal(7);
-    expect(response.body.data.analytics[4].newUsers).to.equal(8);
-    expect(response.body.data.analytics[5].newUsers).to.equal(9);
-    expect(response.body.data.analytics[6].newUsers).to.equal(10);
+    expect(response.body.data.analytics[0].newUsers).to.equal(0);
+    expect(response.body.data.analytics[1].newUsers).to.equal(1);
+    expect(response.body.data.analytics[2].newUsers).to.equal(2);
+    expect(response.body.data.analytics[3].newUsers).to.equal(3);
+    expect(response.body.data.analytics[4].newUsers).to.equal(4);
+    expect(response.body.data.analytics[5].newUsers).to.equal(5);
+    expect(response.body.data.analytics[6].newUsers).to.equal(6);
   });
 });
 function sanitizeBigInts(obj: any): any {
