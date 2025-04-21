@@ -74,12 +74,12 @@ export const getAuthorWorks = async (req: Request, res: Response, next: NextFunc
       : isOpenAlexId
         ? await openAlexService.searchAuthorByOpenAlexId(params.id)
         : null;
-    logger.trace({ openalexProfile: openalexProfile.id }, 'openalexProfile');
+    logger.trace({ openalexProfile: openalexProfile?.id }, 'openalexProfile');
     if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
   }
 
   let openalexWorks = await getFromCache<WorksResult>(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}`);
-  if (!openalexWorks) {
+  if (!openalexWorks && openalexProfile?.id) {
     openalexWorks = await openAlexService.searchWorksByOpenAlexId(openalexProfile.id, {
       page: query.page,
       perPage: query.limit,
@@ -88,7 +88,7 @@ export const getAuthorWorks = async (req: Request, res: Response, next: NextFunc
     if (openalexProfile) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}`, openalexWorks);
   }
 
-  new SuccessResponse({ meta: { ...query }, works: openalexWorks.works }).send(res);
+  new SuccessResponse({ meta: { ...query }, works: openalexWorks?.works ?? [] }).send(res);
 };
 
 const logger = parentLogger.child({
