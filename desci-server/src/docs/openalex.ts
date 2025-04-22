@@ -2,35 +2,13 @@ import 'zod-openapi/extend';
 import z from 'zod';
 import { ZodOpenApiOperationObject, ZodOpenApiPathsObject } from 'zod-openapi';
 
-export const checkMintabilityOperation: ZodOpenApiOperationObject = {
-  operationId: 'checkMintability',
-  tags: ['DOI'],
-  summary: 'Check if a node is mintable for DOI',
+export const getOpenAlexWorkOperation: ZodOpenApiOperationObject = {
+  operationId: 'getOpenAlexWork',
+  tags: ['OpenAlex'],
+  summary: 'Retrieve metadata for an OpenAlex work',
   requestParams: {
-    query: z.object({
-      uuid: z.string().describe('UUID of node to check'),
-    }),
-  },
-  responses: {
-    '200': {
-      description: 'Successful operation',
-      content: {
-        'application/json': {
-          schema: z.null(),
-        },
-      },
-    },
-  },
-  security: [{ BearerAuth: [] }],
-};
-
-export const retrieveDoiOperation: ZodOpenApiOperationObject = {
-  operationId: 'retrieveDoi',
-  tags: ['DOI'],
-  summary: 'Retrieve DOI information',
-  requestParams: {
-    query: z.object({
-      doi: z.string().describe('DOI to retrieve information for'),
+    path: z.object({
+      workId: z.string().describe('OpenAlex work ID to retrieve information for'),
     }),
   },
   responses: {
@@ -50,7 +28,6 @@ export const retrieveDoiOperation: ZodOpenApiOperationObject = {
               oa_status: z.string(),
               publisher: z.string(),
               source_name: z.string(),
-              authors_orcid: z.array(z.string().nullable()),
               authors: z.array(
                 z.object({
                   name: z.string(),
@@ -60,15 +37,26 @@ export const retrieveDoiOperation: ZodOpenApiOperationObject = {
               ),
               abstract: z.string(),
               doi: z.string(),
-              content_novelty_percentile: z.number(),
-              context_novelty_percentile: z.number(),
+              content_novelty_percentile: z.number().optional(),
+              context_novelty_percentile: z.number().optional(),
             }),
           }),
         },
       },
     },
-    '404': {
-      description: 'DOI not found',
+    '400': {
+      description: 'Invalid request parameters',
+      content: {
+        'application/json': {
+          schema: z.object({
+            error: z.string(),
+            details: z.union([z.array(z.any()), z.string()]).optional(),
+          }),
+        },
+      },
+    },
+    '500': {
+      description: 'Internal server error',
       content: {
         'application/json': {
           schema: z.object({
@@ -80,11 +68,8 @@ export const retrieveDoiOperation: ZodOpenApiOperationObject = {
   },
 };
 
-export const doiPaths: ZodOpenApiPathsObject = {
-  '/v1/doi/check/{uuid}': {
-    get: checkMintabilityOperation,
-  },
-  '/v1/doi': {
-    get: retrieveDoiOperation,
+export const openAlexPaths: ZodOpenApiPathsObject = {
+  '/v1/openalex/work/{workId}': {
+    get: getOpenAlexWorkOperation,
   },
 };

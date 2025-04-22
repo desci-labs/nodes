@@ -52,6 +52,7 @@ export interface RawWorksDetails {
   doi: string;
   authors: string[];
   authors_orcid: string[];
+  authors_ids: string[];
   citation_count: number;
   pdf_url: string;
   publication_year: string;
