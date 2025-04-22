@@ -15,6 +15,7 @@ import {
 import { authorPaths } from './authors.js';
 import { communityPaths } from './communities.js';
 import { doiPaths } from './doi.js';
+import { openAlexPaths } from './openalex.js';
 import { searchPaths } from './search.js';
 import {
   cancelUserSubmissionOperation,
@@ -84,6 +85,7 @@ export const openaiDocumentation = createDocument({
     { name: 'Nodes', description: 'Nodes-related operations' },
     { name: 'Data', description: 'Data-related operations' },
     { name: 'DOI', description: 'DOI related operations' },
+    { name: 'OpenAlex', description: 'OpenAlex related operations' },
     { name: 'Authors', description: 'Authors-related operations' },
     { name: 'Search', description: 'Elastic search api operations' },
   ],
@@ -123,6 +125,7 @@ export const openaiDocumentation = createDocument({
     ...authorPaths,
     ...searchPaths,
     ...doiPaths,
+    ...openAlexPaths,
   },
 });
 

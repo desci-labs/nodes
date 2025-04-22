@@ -11,8 +11,10 @@ const logger = parentLogger.child({
 });
 
 const client = new pg.Pool({
-  connectionString: process.env.OPEN_ALEX_DATABASE_URL,
-  connectionTimeoutMillis: 1500,
+  connectionString:
+    'postgresql://reader:2EoGVQvLy@ZzZJZcG6uQ@openalex-big-dev-cluster.cluster-ro-ctzyam40vcxa.us-east-2.rds.amazonaws.com/postgres?schema=openalex',
+  // 'postgresql://postgres:Ok0dWlh6FmprhKqfEW1H@openalex-big-dev.postgres.database.azure.com/postgres?schema=openalex', // process.env.OPEN_ALEX_DATABASE_URL,
+  connectionTimeoutMillis: 10500,
   options: '-c search_path=openalex',
 });
 
@@ -37,51 +39,78 @@ function getRawDoi(doi: string) {
 }
 
 export async function getMetadataByWorkId(workId: string): Promise<WorksDetails & NoveltyScoreDetails> {
-  logger.info(`Fetching OpenAlex work: ${workId}`);
   workId = ensureFormattedWorkId(workId);
+  logger.info({ workId }, `Fetching OpenAlex work: ${workId}`);
 
-  const { rows } = await client.query(
-    `select 
-        COALESCE(wol.pdf_url, '') as pdf_url,
-        COALESCE(wol.landing_page_url, '') as landing_page_url,
-        works.title as title,
-        works.id as works_id,
-        works.doi as doi,
-        works."type" as work_type,
-        works.publication_year,
-        works.cited_by_count as citation_count,
-        COALESCE(woa.oa_status, 'unknown') as oa_status,
-        COALESCE(source.publisher, 'unknown') as publisher,
-        COALESCE(source.display_name, 'unknown') as source_name,
-        ARRAY(
-            SELECT author.display_name as author_name 
-            FROM openalex.works_authorships wauth
-            LEFT JOIN openalex.authors author on author.id = wauth.author_id
-            WHERE wauth.work_id = works.id
-            ) as authors
-            from openalex.works works
-            left join openalex.works_best_oa_locations wol on works.id = wol.work_id
-            left join openalex.works_authorships wa on works.id = wa.work_id
-            left join openalex.works_open_access woa on woa.work_id = works.id
-            left join openalex.sources source on source.id = wol.source_id
-            where works.id = $1
-            group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works.doi, works."type", works.cited_by_count, works.publication_year, woa.oa_status, source.publisher, source.display_name;`,
-    [workId],
-  );
-  // debugger;
-  const work = rows?.[0] as WorksDetails;
+  try {
+    const { rows } = await client.query(
+      `select 
+          COALESCE(wol.pdf_url, '') as pdf_url,
+          COALESCE(wol.landing_page_url, '') as landing_page_url,
+          works.title as title,
+          works.id as works_id,
+          works.doi as doi,
+          works."type" as work_type,
+          works.publication_year,
+          works.cited_by_count as citation_count,
+          COALESCE(woa.oa_status, 'unknown') as oa_status,
+          COALESCE(source.publisher, 'unknown') as publisher,
+          COALESCE(source.display_name, 'unknown') as source_name,
+          ARRAY(
+              SELECT author.display_name as author_name 
+              FROM openalex.works_authorships wauth
+              LEFT JOIN openalex.authors author on author.id = wauth.author_id
+              WHERE wauth.work_id = works.id
+          ) as authors,
+          ARRAY(
+              SELECT author.orcid as author_orcid
+              FROM openalex.works_authorships wauth
+              LEFT JOIN openalex.authors author on author.id = wauth.author_id
+              WHERE wauth.work_id = works.id
+          ) as authors_orcid,
+          ARRAY(
+              SELECT author.id as id
+              FROM openalex.works_authorships wauth
+              LEFT JOIN openalex.authors author on author.id = wauth.author_id
+              WHERE wauth.work_id = works.id
+          ) as authors_ids
+              from openalex.works works
+              left join openalex.works_best_oa_locations wol on works.id = wol.work_id
+              left join openalex.works_authorships wa on works.id = wa.work_id
+              left join openalex.works_open_access woa on woa.work_id = works.id
+              left join openalex.sources source on source.id = wol.source_id
+              where works.id = $1
+              group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works.doi, works."type", works.cited_by_count, works.publication_year, woa.oa_status, source.publisher, source.display_name;`,
+      [workId],
+    );
 
-  const { rows: abstract_result } = await client.query(
-    'select works.abstract_inverted_index AS abstract FROM openalex.works works WHERE works.id = $1',
-    [workId],
-  );
+    const work = rows?.[0] as RawWorksDetails;
 
-  const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
-  const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
+    const { rows: abstract_result } = await client.query(
+      'select works.abstract_inverted_index AS abstract FROM openalex.works works WHERE works.id = $1',
+      [workId],
+    );
 
-  const noveltyScores = await getWorkNoveltyScoresById(workId);
+    const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
+    const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
+    const noveltyScores = await getWorkNoveltyScoresById(workId);
 
-  return { ...work, abstract, ...noveltyScores };
+    const authors = work.authors.map((name, idx) => ({
+      name,
+      orcid: work.authors_orcid[idx],
+      id: work.authors_ids[idx],
+    }));
+
+    // clean up transformed raw fields
+    delete work.authors;
+    delete work.authors_orcid;
+    delete work.authors_ids;
+
+    return { ...work, authors, abstract, ...noveltyScores };
+  } catch (err) {
+    logger.trace({ err }, 'Error');
+    return null;
+  }
 }
 
 export async function getMetadataByDoi(doi: string): Promise<WorksDetails & NoveltyScoreDetails> {
@@ -112,7 +141,13 @@ export async function getMetadataByDoi(doi: string): Promise<WorksDetails & Nove
         FROM openalex.works_authorships wauth
         LEFT JOIN openalex.authors author on author.id = wauth.author_id
         WHERE wauth.work_id = works.id
-    ) as authors_orcid
+    ) as authors_orcid,
+    ARRAY(
+        SELECT author.id as id
+        FROM openalex.works_authorships wauth
+        LEFT JOIN openalex.authors author on author.id = wauth.author_id
+        WHERE wauth.work_id = works.id
+    ) as authors_ids
 from openalex.works works
 left join openalex.works_best_oa_locations wol on works.id = wol.work_id
 left join openalex.works_authorships wa on works.id = wa.work_id
@@ -134,11 +169,16 @@ group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type",
   const abstract_inverted_index = abstract_result[0]?.abstract as OpenAlexWork['abstract_inverted_index'];
   const abstract = abstract_inverted_index ? transformInvertedAbstractToText(abstract_inverted_index) : '';
   logger.trace({ orcids: work.authors_orcid }, 'authors_orcid');
-  const authors = work.authors.map((name, idx) => ({ name, orcid: work.authors_orcid[idx] }));
+  const authors = work.authors.map((name, idx) => ({
+    name,
+    orcid: work.authors_orcid[idx],
+    id: work.authors_ids[idx],
+  }));
 
   // clean up transformed raw fields
   delete work.authors;
   delete work.authors_orcid;
+  delete work.authors_ids;
 
   const noveltyScores = await getWorkNoveltyScoresById(work?.works_id);
   return { ...work, authors, abstract, doi: getRawDoi(doi), ...noveltyScores };
