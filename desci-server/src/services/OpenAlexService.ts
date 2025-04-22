@@ -109,6 +109,7 @@ export async function getMetadataByWorkId(workId: string): Promise<WorksDetails 
     return { ...work, authors, abstract, ...noveltyScores };
   } catch (err) {
     logger.trace({ err }, 'Error');
+    return null;
   }
 }
 
