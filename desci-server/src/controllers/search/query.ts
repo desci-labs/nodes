@@ -279,21 +279,10 @@ export const dpidQuery = async (
   req: Request<any, any, SingleQuerySearchBodyParams>,
   res: Response<QuerySuccessResponse | QueryErrorResponse>,
 ) => {
-  const {
-    // query,
-    // filters = [],
-    // entity,
-    // fuzzy,
-    // sort = { field: '_score', order: 'desc' },
-    pagination = { page: 1, perPage: 20 },
-  }: SingleQuerySearchBodyParams = req.body;
+  const { pagination = { page: 1, perPage: 20 } }: SingleQuerySearchBodyParams = req.body;
 
   const logger = parentLogger.child({
     module: 'SEARCH::SingleQuery',
-    // query,
-    // filters,
-    // fuzzy,
-    // sort,
     pagination,
   });
 
@@ -388,7 +377,6 @@ export const singleDpidQuery = async (
   const {
     query,
     filters = [],
-    // entity,
     fuzzy,
     sort = { field: '_score', order: 'desc' },
     pagination = { page: 1, perPage: 20 },
