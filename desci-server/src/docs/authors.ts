@@ -146,6 +146,34 @@ export const getAuthorProfileOperation: ZodOpenApiOperationObject = {
     },
   },
 };
+
+export const getCoAuthorsOperation: ZodOpenApiOperationObject = {
+  operationId: 'getCoAuthors',
+  tags: ['Authors'],
+  summary: 'Get co-authors for an author by ORCID or OpenAlex ID',
+  requestParams: {
+    path: getAuthorSchema.shape.params,
+  },
+  responses: {
+    '200': {
+      description: 'Successful operation',
+      content: {
+        'application/json': {
+          schema: z.object({
+            data: z.array(
+              z.object({
+                id: z.string().describe('OpenAlex ID of the co-author'),
+                name: z.string().describe('Display name of the co-author'),
+                orcid: z.string().optional().describe('ORCID identifier of the co-author'),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+  },
+};
+
 export const getAuthorWorksOperation: ZodOpenApiOperationObject = {
   operationId: 'getAuthorWorks',
   tags: ['Authors'],
@@ -301,7 +329,9 @@ export const authorPaths: ZodOpenApiPathsObject = {
   '/v1/authors/{id}': {
     get: getAuthorProfileOperation,
   },
-
+  '/v1/authors/{id}/coauthors': {
+    get: getCoAuthorsOperation,
+  },
   '/v1/authors/{id}/works': {
     get: getAuthorWorksOperation,
   },

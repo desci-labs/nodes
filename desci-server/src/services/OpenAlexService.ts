@@ -1,5 +1,7 @@
 const pg = await import('pg').then((value) => value.default);
-const { Client } = pg;
+// const { Client } = pg;
+import _ from 'lodash';
+
 import { NoveltyScoreDetails, RawWorksDetails, WorksDetails } from '../controllers/doi/check.js';
 import { logger as parentLogger } from '../logger.js';
 
@@ -11,9 +13,7 @@ const logger = parentLogger.child({
 });
 
 const client = new pg.Pool({
-  connectionString:
-    'postgresql://reader:2EoGVQvLy@ZzZJZcG6uQ@openalex-big-dev-cluster.cluster-ro-ctzyam40vcxa.us-east-2.rds.amazonaws.com/postgres?schema=openalex',
-  // 'postgresql://postgres:Ok0dWlh6FmprhKqfEW1H@openalex-big-dev.postgres.database.azure.com/postgres?schema=openalex', // process.env.OPEN_ALEX_DATABASE_URL,
+  connectionString: process.env.OPEN_ALEX_DATABASE_URL,
   connectionTimeoutMillis: 10500,
   options: '-c search_path=openalex',
 });
@@ -182,6 +182,69 @@ group by wol.pdf_url, wol.landing_page_url, works.title, works.id, works."type",
 
   const noveltyScores = await getWorkNoveltyScoresById(work?.works_id);
   return { ...work, authors, abstract, doi: getRawDoi(doi), ...noveltyScores };
+}
+
+export interface CoAuthor {
+  id: string;
+  name: string;
+  orcid: string;
+}
+export async function getUniqueCoauthors(authorIds: string[], pubYear: number): Promise<CoAuthor[]> {
+  if (!authorIds || authorIds.length === 0) {
+    return [];
+  }
+
+  const minYear = pubYear - 10;
+  const query = `WITH RecentWorks AS (
+    SELECT
+        wa.work_id
+    FROM
+        openalex.works_authorships wa
+        JOIN openalex.works w ON wa.work_id = w.id
+    WHERE
+        wa.author_id = ANY($1)
+        AND w.publication_year BETWEEN $2 AND $3
+)
+SELECT
+    DISTINCT wa2.author_id AS id,
+    (
+        SELECT
+            author.display_name AS author_name
+        FROM
+            openalex.authors author
+        WHERE
+            author.id = wa2.author_id
+    ) AS "name",
+    (
+        SELECT
+            author.orcid AS orcids
+        FROM
+            openalex.authors author
+        WHERE
+            author.id = wa2.author_id
+    ) AS orcid
+FROM
+    openalex.works_authorships wa2
+    JOIN openalex.authors author ON author.id = wa2.author_id
+    JOIN RecentWorks rw ON wa2.work_id = rw.work_id
+WHERE
+    wa2.author_id <> ALL($4);
+`;
+
+  try {
+    const result = await client.query(query, [authorIds, minYear, pubYear, authorIds]);
+    logger.trace({ rows: result.rowCount }, 'getUniqueCoauthors');
+    let coauthors = result.rows
+      // ?.map((row, rowIdx) => ({ id: row.co_author_id, name: row.author_name, orcid: row.orcid }))
+      .filter(Boolean);
+    coauthors = _.uniqBy(coauthors, (entry) => entry.id);
+    logger.trace({ uniqueAuthors: coauthors.length }, 'getUniqueCoauthors#result');
+    return coauthors;
+  } catch (error) {
+    console.error('Error getting unique coauthors:', error);
+    logger.error({ error: error.toString() }, 'Error getting unique coauthors:');
+    return [];
+  }
 }
 
 export type OpenAlexTopic = {
