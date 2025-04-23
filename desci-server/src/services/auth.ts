@@ -29,7 +29,7 @@ const registerUser = async (email: string) => {
   return true;
 };
 
-const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
+const magicLinkRedeem = async (email: string, token: string): Promise<{ user: User; isNewUser: boolean }> => {
   email = email.toLowerCase();
   if (!email) throw Error('Email is required');
   logger.trace({ fn: 'magicLinkRedeem', email: hideEmail(email) }, 'auth::magicLinkRedeem');
@@ -116,8 +116,9 @@ const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
       email,
     },
   });
-
+  let isNewUser = false;
   if (!user) {
+    isNewUser = true;
     user = await client.user.create({
       data: {
         email,
@@ -144,7 +145,7 @@ const magicLinkRedeem = async (email: string, token: string): Promise<User> => {
     },
   });
 
-  return user;
+  return { user, isNewUser };
 };
 
 const sendMagicLinkEmail = async (email: string, ip?: string) => {

@@ -44,39 +44,6 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
   if (!code) {
     // we are sending the magic code
 
-    const user = await prismaClient.user.findFirst({
-      where: {
-        email: {
-          equals: cleanEmail,
-          mode: 'insensitive',
-        },
-      },
-    });
-
-    // force 1 step user creation
-    if (!user) {
-      // user = await prismaClient.user.upsert({
-      //   where: {
-      //     email: cleanEmail,
-      //   },
-      //   create: {
-      //     email: cleanEmail,
-      //   },
-      //   update: {
-      //     email: cleanEmail,
-      //   },
-      // });
-
-      if (user?.email) {
-        // Inherits existing user contribution entries that were made with the same email
-        const inheritedContributions = await contributorService.updateContributorEntriesForNewUser({
-          email: user.email,
-          userId: user.id,
-        });
-        logger.trace({ inheritedContributions: inheritedContributions?.count, user, email });
-      }
-    }
-
     try {
       const ip = req.ip;
       // debugger;
@@ -90,7 +57,7 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
   } else {
     // we are validating the magic code is correct
     try {
-      const user = await magicLinkRedeem(cleanEmail, code);
+      const { user, isNewUser } = await magicLinkRedeem(cleanEmail, code);
 
       if (!user) throw new Error('User not found');
 
@@ -131,7 +98,11 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       // we want to check if the user exists to show a "create account" prompt with checkbox to accept terms if this is the first login
       const termsAccepted = await checkIfUserAcceptedTerms(user.email);
       // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
-      res.send({ ok: true, user: { email: user.email, token, termsAccepted, isGuest: user.isGuest } });
+      res.send({
+        ok: true,
+        user: { email: user.email, token, termsAccepted, isGuest: user.isGuest },
+        ...(isNewUser ? { isNewUser } : {}), // Indicate to the client that the user is new - for conversion analytics.
+      });
 
       logger.info('[MAGIC] User logged in successfully');
 
