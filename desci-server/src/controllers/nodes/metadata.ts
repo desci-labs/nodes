@@ -30,7 +30,6 @@ export const automateMetadataSchema = z.object({
 });
 
 export const automateMetadata = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
-  debugger;
   const node = req.node;
   const metadata = req.body as MetadataResponse;
   if (metadata) {
