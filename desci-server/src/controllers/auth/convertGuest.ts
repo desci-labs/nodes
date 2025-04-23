@@ -25,6 +25,7 @@ export type ConvertGuestResponse = {
     token?: string; // Only return when req sent with dev=true in body
   };
   error?: string;
+  isNewUser?: boolean;
 };
 
 type ConvertGuestBody = {
@@ -118,6 +119,7 @@ export const convertGuestToUser = async (
         isGuest: false,
         ...(dev === 'true' && { token }),
       },
+      isNewUser: true,
     });
   } catch (error) {
     logger.error({ error }, 'Failed to convert guest user');

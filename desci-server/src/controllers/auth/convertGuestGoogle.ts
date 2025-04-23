@@ -132,6 +132,7 @@ export const convertGuestToUserGoogle = async (
         isGuest: false,
         ...(dev === 'true' && { token }),
       },
+      isNewUser: true,
     });
   } catch (error) {
     logger.error({ error }, 'Failed to convert guest user with Google');
