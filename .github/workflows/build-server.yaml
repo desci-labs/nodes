@@ -38,11 +38,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      # - name: Delete huge unnecessary tools folder
-      #   run: |
-      #     echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
-      #     rm -rf /opt/hostedtoolcache
-      #     echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
+      - name: Delete huge unnecessary tools folder
+        run: |
+          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
+          rm -rf /opt/hostedtoolcache
+          echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
 
       - name: Set up the environment
         # Replace this line with the appropriate setup for your project
