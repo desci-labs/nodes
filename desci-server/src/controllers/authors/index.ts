@@ -10,6 +10,7 @@ import { getFromCache, setToCache } from '../../redisClient.js';
 import { openAlexService } from '../../services/index.js';
 import { WorksResult } from '../../services/openAlex/client.js';
 import { OpenAlexAuthor, OpenAlexWork } from '../../services/openAlex/types.js';
+import { CoAuthor, getUniqueCoauthors } from '../../services/OpenAlexService.js';
 import { cachedGetManifestAndDpid } from '../../utils/manifest.js';
 import { asyncMap, formatOrcidString } from '../../utils.js';
 import { listAllUserNodes, PublishedNode } from '../nodes/list.js';
@@ -34,6 +35,7 @@ export const getAuthorWorksSchema = z.object({
 
 const PROFILE_CACHE_PREFIX = 'OPENALEX_AUTHOR';
 const WORKS_CACHE_PREFIX = 'OPENALEX_WORKS';
+const COAUTHOR_CACHE_PREFIX = 'COAUTHOR';
 
 const OPENALEX_ID_REGEX = /^(?:https:\/\/openalex\.org\/)?A\d+$/;
 const ORCID_REGEX = /^(?:https:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
@@ -57,6 +59,33 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
   if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
 
   return new SuccessResponse(openalexProfile).send(res);
+};
+
+export const getCoAuthors = async (req: Request, res: Response, next: NextFunction) => {
+  const { params } = await getAuthorSchema.parseAsync(req);
+
+  const isOpenAlexId = OPENALEX_ID_REGEX.test(params.id);
+  const isOrcidId = ORCID_REGEX.test(params.id);
+
+  let openalexProfile = await getFromCache<OpenAlexAuthor>(`${PROFILE_CACHE_PREFIX}-${params.id}`);
+  if (!openalexProfile) {
+    openalexProfile = isOrcidId
+      ? await openAlexService.searchAuthorByOrcid(params.id)
+      : isOpenAlexId
+        ? await openAlexService.searchAuthorByOpenAlexId(params.id)
+        : null;
+    setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
+  }
+
+  // setToCache(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile.id}`, null);
+  let coauthors = await getFromCache<CoAuthor[]>(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile?.id}`);
+  if (!coauthors && openalexProfile) {
+    coauthors = await getUniqueCoauthors([openalexProfile.id], new Date().getFullYear());
+
+    if (coauthors) setToCache(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile.id}`, coauthors);
+  }
+
+  return new SuccessResponse(coauthors).send(res);
 };
 
 export const getAuthorWorks = async (req: Request, res: Response, next: NextFunction) => {
@@ -85,7 +114,7 @@ export const getAuthorWorks = async (req: Request, res: Response, next: NextFunc
       perPage: query.limit,
     });
 
-    if (openalexProfile) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}`, openalexWorks);
+    if (openalexWorks) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}`, openalexWorks);
   }
 
   new SuccessResponse({ meta: { ...query }, works: openalexWorks?.works ?? [] }).send(res);
@@ -158,8 +187,8 @@ export const getAuthorPublishedNodes = async (req: PublishedNodesRequest, res: P
       title,
       versionIx,
       publishedAt,
+      authors: cachedResult?.manifest?.authors,
       createdAt: n.createdAt,
-      isPublished: true as const,
       uuid: n.uuid.replace('.', ''),
     };
   });
