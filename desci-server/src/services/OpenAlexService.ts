@@ -11,9 +11,7 @@ const logger = parentLogger.child({
 });
 
 const client = new pg.Pool({
-  connectionString:
-    'postgresql://reader:2EoGVQvLy@ZzZJZcG6uQ@openalex-big-dev-cluster.cluster-ro-ctzyam40vcxa.us-east-2.rds.amazonaws.com/postgres?schema=openalex',
-  // 'postgresql://postgres:Ok0dWlh6FmprhKqfEW1H@openalex-big-dev.postgres.database.azure.com/postgres?schema=openalex', // process.env.OPEN_ALEX_DATABASE_URL,
+  connectionString: process.env.OPEN_ALEX_DATABASE_URL,
   connectionTimeoutMillis: 10500,
   options: '-c search_path=openalex',
 });
