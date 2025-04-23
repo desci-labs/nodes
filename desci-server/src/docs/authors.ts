@@ -269,6 +269,24 @@ export const getAuthorPublishedNodesOperation: ZodOpenApiOperationObject = {
                   createdAt: z.date(),
                   isPublished: z.literal(true),
                   uuid: z.string(),
+                  authors: z
+                    .array(
+                      z.object({
+                        id: z.string(),
+                        name: z.string(),
+                        orcid: z.string().optional(),
+                        organizations: z
+                          .array(
+                            z.object({
+                              id: z.string(),
+                              name: z.string(),
+                            }),
+                          )
+                          .optional(),
+                        role: z.array(z.string()).optional(),
+                      }),
+                    )
+                    .optional(),
                 }),
               ),
             }),
