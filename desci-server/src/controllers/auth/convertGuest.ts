@@ -103,6 +103,14 @@ export const convertGuestToUser = async (
       submitToMixpanel: true,
     });
 
+    await saveInteraction({
+      req,
+      action: ActionType.USER_SIGNUP_SUCCESS,
+      data: { userId: updatedUser.id, email: updatedUser.email, method: 'magic', guestConversion: true },
+      userId: updatedUser.id,
+      submitToMixpanel: true,
+    });
+
     logger.info(
       { userId: updatedUser.id, email: hideEmail(email) },
       'Guest user successfully converted to regular user via email/magic code',

@@ -18,7 +18,11 @@ export class MixpanelService {
 
   track(event: string, properties?: any): void {
     if (this.isEnabled) {
-      this.client.track(event, properties);
+      try {
+        this.client.track(event, properties);
+      } catch (e) {
+        logger.error({ e }, '[Mixpanel] Error tracking event');
+      }
     }
   }
 }

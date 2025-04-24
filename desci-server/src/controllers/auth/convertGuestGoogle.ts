@@ -116,6 +116,14 @@ export const convertGuestToUserGoogle = async (
       submitToMixpanel: true,
     });
 
+    await saveInteraction({
+      req,
+      action: ActionType.USER_SIGNUP_SUCCESS,
+      data: { userId: updatedUser.id, email: updatedUser.email, method: 'google', guestConversion: true },
+      userId: updatedUser.id,
+      submitToMixpanel: true,
+    });
+
     logger.info(
       { userId: updatedUser.id, email: hideEmail(cleanEmail) },
       'Guest user successfully converted to regular user via Google',

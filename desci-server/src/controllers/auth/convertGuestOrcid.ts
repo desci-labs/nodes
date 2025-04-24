@@ -161,6 +161,14 @@ export const convertGuestToUserOrcid = async (
       submitToMixpanel: true,
     });
 
+    await saveInteraction({
+      req,
+      action: ActionType.USER_SIGNUP_SUCCESS,
+      data: { userId: updatedUser.id, email: updatedUser.email, orcid, method: 'orcid', guestConversion: true },
+      userId: updatedUser.id,
+      submitToMixpanel: true,
+    });
+
     logger.info(
       { userId: updatedUser.id, email: hideEmail(cleanEmail), orcid },
       'Guest user successfully converted to regular user via ORCID',
