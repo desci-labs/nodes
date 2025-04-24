@@ -353,6 +353,7 @@ export interface ExternalIds {
 
 export interface Summary {
   'education-summary': EducationSummary;
+  'employment-summary': EmploymentSummary;
 }
 
 export interface EducationSummary {
@@ -474,6 +475,7 @@ export interface ExternalIds2 {
 
 export interface Summary2 {
   'employment-summary': EmploymentSummary;
+  'education-summary': EducationSummary;
 }
 
 export interface EmploymentSummary {
