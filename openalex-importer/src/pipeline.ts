@@ -3,7 +3,7 @@ import { pipeline } from 'stream/promises';
 import {
   createBatch,
   finalizeBatch,
-  getDrizzle,
+  type OaDrizzle,
   type PgTransactionType,
   type QueryInfo,
   saveData,
@@ -189,19 +189,19 @@ const createSaveStream = (tx: PgTransactionType, batchId: number): Writable => {
         logger.info({ duration: Date.now() - start }, 'Saved chunk to database');
         callback();
       } catch (error) {
+        logger.error(error, 'Error saving chunk to database');
         callback(error as Error);
       }
     },
   });
 };
 
-export const runImportPipeline = async (queryInfo: QueryInfo): Promise<void> => {
+export const runImportPipeline = async (db: OaDrizzle, queryInfo: QueryInfo): Promise<void> => {
   logger.info(queryInfo, 'Starting import pipeline');
   const startTime = Date.now();
   await nukeOldLogs();
   const filter = filterFromQueryInfo(queryInfo);
 
-  const db = getDrizzle();
   await db.transaction(async (tx) => {
     const batchId = await createBatch(tx, queryInfo);
     await pipeline(

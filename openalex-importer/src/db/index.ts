@@ -2,6 +2,8 @@ import type { QueryInfo } from './types.js';
 
 const pg = await import('pg').then((value) => value.default);
 const { Pool } = pg;
+import type { PoolConfig } from 'pg';
+
 import { desc, eq, type ExtractTablesWithRelations, getTableColumns, SQL, sql, type Table } from 'drizzle-orm';
 import { drizzle, type NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import { PgTransaction } from 'drizzle-orm/pg-core';
@@ -13,23 +15,52 @@ import { type DataModels } from '../transformers.js';
 import { chunkGenerator } from '../util.js';
 import { UTCDate } from '@date-fns/utc';
 import { addDays, startOfDay } from 'date-fns';
-import type { PoolConfig } from 'pg';
 
 export * from '../../drizzle/schema.js';
 export * from './types.js';
 
-const poolConfig: PoolConfig = {
-  connectionString: process.env.DATABASE_URL,
-  options: '-c search_path=public',
+const dbInfo = {
+  database: process.env.POSTGRES_DB as string,
+  host: process.env.PG_HOST as string,
+  user: process.env.POSTGRES_USER as string,
+  port: parseInt(process.env.PG_PORT || '5432'),
+  password: process.env.POSTGRES_PASSWORD as string,
 };
-export const pool = new Pool(poolConfig);
+const DB_URL = `postgresql://${dbInfo.user}:${dbInfo.password}@${dbInfo.host}:${dbInfo.port}/${dbInfo.database}`;
+
+const poolConfig: PoolConfig = {
+  connectionString: DB_URL,
+  ssl: true,
+  max: 1,
+  connectionTimeoutMillis: 5000,
+};
+
 logger.info(
   {
     connectionString: poolConfig.connectionString?.replace(/:\/\/.*@/, `://${process.env.POSTGRES_USER}:[redacted]@`),
     options: poolConfig.options,
   },
-  'Postgres connection pool started',
+  'Starting postgres connection pool...',
 );
+export const pool = new Pool(poolConfig);
+
+export type OaDrizzle = ReturnType<typeof getDrizzle>;
+export const getDrizzle = () => {
+  return drizzle({
+    client: pool,
+    schema: {
+      worksInOpenalex,
+      works_idsInOpenalex,
+      batchesInOpenAlex,
+      workBatchesInOpenAlex,
+      works_authorshipsInOpenalex,
+      authorsInOpenalex,
+      works_conceptsInOpenalex,
+      works_meshInOpenalex,
+      works_topicsInOpenalex,
+    },
+  });
+};
 
 const { batchesInOpenAlex, workBatchesInOpenAlex } = batchesSchema;
 
@@ -89,23 +120,6 @@ export function conflictUpdateAllExcept<T extends Table, E extends (keyof T['$in
   ) as Omit<Record<keyof typeof table.$inferInsert, SQL>, E[number]>;
 }
 
-export const getDrizzle = () => {
-  return drizzle({
-    client: pool,
-    schema: {
-      worksInOpenalex,
-      works_idsInOpenalex,
-      batchesInOpenAlex,
-      workBatchesInOpenAlex,
-      works_authorshipsInOpenalex,
-      authorsInOpenalex,
-      works_conceptsInOpenalex,
-      works_meshInOpenalex,
-      works_topicsInOpenalex,
-    },
-  });
-};
-
 export const createBatch = async (tx: PgTransactionType, queryInfo: QueryInfo) => {
   const savedBatch = await tx.insert(batchesInOpenAlex).values(queryInfo).returning({ id: batchesInOpenAlex.id });
   return savedBatch[0].id;
@@ -115,21 +129,52 @@ export const finalizeBatch = async (tx: PgTransactionType, batchId: number) =>
   await tx.update(batchesInOpenAlex).set({ finished_at: new UTCDate() }).where(eq(batchesInOpenAlex.id, batchId));
 
 export const saveData = async (tx: PgTransactionType, batchId: number, models: DataModels) => {
+  const counts = Object.entries(models).reduce((acc, [k, a]) => ({ ...acc, [k]: a.length}), {});
+  logger.info({ counts },'Starting saveData...')
+
   try {
+    let lap = Date.now();
     await updateWorks(tx, models, batchId);
+    logger.info({  table: 'works',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateAuthors(tx, models['authors']);
+    logger.info({  table: 'authors',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateAuthorIds(tx, models['authors_ids']);
+    logger.info({  table: 'authorIds',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateWorkIds(tx, models['works_id']);
+    logger.info({  table: 'workIds',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateWorksBiblio(tx, models['works_biblio']);
+    logger.info({  table: 'worksBiblio',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateWorksBestOaLocations(tx, models['works_best_oa_locations']);
+    logger.info({  table: 'worksBestOaLocation',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateWorksPrimaryLocations(tx, models['works_primary_locations']);
+    logger.info({  table: 'worksPrimaryLocations',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateWorksLocations(tx, models['works_locations']);
+    logger.info({  table: 'worksLocations',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateWorksOpenAccess(tx, models['works_open_access']);
+    logger.info({  table: 'authorIds',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateWorksReferencedWorks(tx, models['works_referenced_works']);
+    logger.info({  table: 'worksReferencedWorks',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateWorksRelatedWorks(tx, models['works_related_works']);
+    logger.info({  table: 'worksRelatedWorks',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateWorksConcepts(tx, models['works_concepts']);
+    logger.info({  table: 'worksConcepts',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateWorksMesh(tx, models['works_mesh']);
+    logger.info({  table: 'worksMesh',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
     await updateWorksTopics(tx, models['works_topics']);
+    logger.info({  table: 'worksTopics',  duration: Date.now() - lap }, 'Table inserts done');
     // todo: add unique constraint [work_id, author_id] before uncommenting
     // updateWorkAuthorships(tx, models["works_authorships"]),
   } catch (err) {
@@ -322,8 +367,7 @@ const updateWorksTopics = async (tx: PgTransactionType, data: DataModels['works_
 /**
  * Returns the date AFTER the last import, i.e. the start of the first date where an import has not been run.
  */
-export const getNextDayToImport = async (queryType: QueryInfo['query_type']): Promise<UTCDate> => {
-  const db = getDrizzle();
+export const getNextDayToImport = async (db: OaDrizzle, queryType: QueryInfo['query_type']): Promise<UTCDate> => {
   const lastBatchEnd = await db
     .select({ query_to: batchesInOpenAlex.query_to })
     .from(batchesInOpenAlex)

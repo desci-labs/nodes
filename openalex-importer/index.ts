@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { addDays, differenceInDays, endOfDay, isAfter, isSameDay, startOfDay } from 'date-fns';
 import { logger } from './src/logger.js';
-import { getNextDayToImport, pool, type QueryInfo } from './src/db/index.js';
+import { getDrizzle, getNextDayToImport, pool, type OaDrizzle, type QueryInfo } from './src/db/index.js';
 import { type Optional, parseDate } from './src/util.js';
 import { errWithCause } from 'pino-std-serializers';
 import { UTCDate } from '@date-fns/utc';
@@ -18,8 +18,8 @@ const DEFAULT_SCHEDULE = '*/5 * * * *';
 /**
  * Runs an import job for the first day not included in an 'updated' batch, unless an import is currently ongoing.
  */
-const runImportTask = async (query_type: QueryInfo['query_type']) => {
-  const nextDay: UTCDate = await getNextDayToImport(query_type);
+const runImportTask = async (db: OaDrizzle, query_type: QueryInfo['query_type']) => {
+  const nextDay: UTCDate = await getNextDayToImport(db, query_type);
   const currentDate: UTCDate = new UTCDate();
   if (isSameDay(nextDay, currentDate) || isAfter(nextDay, currentDate)) {
     logger.info({ nextDay, currentDate }, '💤 Next day to import is today or in the future, snoozing...');
@@ -40,7 +40,7 @@ const runImportTask = async (query_type: QueryInfo['query_type']) => {
     '🔔 Recurring task triggered, running import for next unhandled day...',
   );
 
-  await runImportPipeline(importParams);
+  await runImportPipeline(db, importParams);
   logger.info({ currentDate }, '🏁 Recurring import finished, idling until next trigger');
 };
 
@@ -50,6 +50,8 @@ const runImportTask = async (query_type: QueryInfo['query_type']) => {
  */
 async function main(): Promise<void> {
   const args = getRuntimeArgs();
+  const db = getDrizzle();
+
   if (!args.query_from && !args.query_to) {
     logger.info({ args }, '➿  Time range not passed, configuring recurring task...');
     const schedule = args.query_schedule ?? DEFAULT_SCHEDULE;
@@ -57,7 +59,7 @@ async function main(): Promise<void> {
       logger.info({ DEFAULT_SCHEDULE }, 'No schedule passed, using default');
     }
 
-    const job = new Cron(schedule, async () => runImportTask(args.query_type), {
+    const job = new Cron(schedule, async () => runImportTask(db, args.query_type), {
       timezone: 'UTC',
       protect: () => {
         logger.info('💤 Recurring task invoked while an import is already running, snoozing...');
@@ -91,7 +93,7 @@ async function main(): Promise<void> {
         query_to: endOfDay(startDate),
       };
       logger.info(queryInfo, 'Single Day time travel');
-      await runImportPipeline(queryInfo);
+      await runImportPipeline(db, queryInfo);
     } else {
       // run import from start to end date
       let currentDate = startDate;
@@ -103,7 +105,7 @@ async function main(): Promise<void> {
           query_to: endOfDay(currentDate),
         };
         logger.info({ diffInDays, currentDate, queryInfo }, 'Running import for currentDate...');
-        await runImportPipeline(queryInfo);
+        await runImportPipeline(db, queryInfo);
         currentDate = addDays(currentDate, 1);
         diffInDays = differenceInDays(endDate, currentDate);
       }
@@ -201,10 +203,28 @@ const getRuntimeArgs = (): RuntimeArgs => {
 
 process.on('uncaughtException', async (err) => {
   logger.fatal(errWithCause(err), 'uncaught exception');
-  if (!pool.ended) {
+  if (!pool.ending) {
     await pool.end();
   }
   process.exit(1);
+});
+
+process.on('beforeExit', async () => {
+  logger.info('Process exiting, shutting down pool...')
+});
+
+process.on("SIGTERM", async () => {
+  logger.info("Received SIGTERM signal. Shutting down pool...");
+  if (!pool.ending) {
+    await pool.end();
+  }
+});
+
+process.on("SIGINT", async () => {
+  logger.info("Received SIGINT signal. Shutting down pool...");
+  if (!pool.ending) {
+    await pool.end();
+  }
 });
 
 /**
