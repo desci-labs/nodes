@@ -108,12 +108,13 @@ export const convertGuestToUserGoogle = async (
     // Return the JWT
     sendCookie(res, token, dev === 'true');
 
-    saveInteraction(
+    await saveInteraction({
       req,
-      ActionType.GUEST_USER_CONVERSION,
-      { userId: updatedUser.id, conversionType: 'google' },
-      updatedUser.id,
-    );
+      action: ActionType.GUEST_USER_CONVERSION,
+      data: { userId: updatedUser.id, conversionType: 'google' },
+      userId: updatedUser.id,
+      submitToMixpanel: true,
+    });
 
     logger.info(
       { userId: updatedUser.id, email: hideEmail(cleanEmail) },

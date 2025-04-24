@@ -153,12 +153,13 @@ export const convertGuestToUserOrcid = async (
     // Return the JWT
     sendCookie(res, token, dev === 'true');
 
-    saveInteraction(
+    await saveInteraction({
       req,
-      ActionType.GUEST_USER_CONVERSION,
-      { userId: updatedUser.id, conversionType: 'orcid' },
-      updatedUser.id,
-    );
+      action: ActionType.GUEST_USER_CONVERSION,
+      data: { userId: updatedUser.id, conversionType: 'orcid' },
+      userId: updatedUser.id,
+      submitToMixpanel: true,
+    });
 
     logger.info(
       { userId: updatedUser.id, email: hideEmail(cleanEmail), orcid },

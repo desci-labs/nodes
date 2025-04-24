@@ -62,7 +62,12 @@ export const acceptReferralById = async (req: Request, res: Response) => {
       logger.error({ error }, 'Error updating users drive limit');
     }
 
-    await saveInteraction(req, ActionType.ACCEPTED_REFERRAL, { referralUuid });
+    await saveInteraction({
+      req,
+      action: ActionType.ACCEPTED_REFERRAL,
+      data: { referralUuid },
+      userId: user.id,
+    });
 
     res.send({
       user,

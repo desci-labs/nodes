@@ -82,7 +82,12 @@ export const editComment = async (req: RequestWithUser, res: Response) => {
   });
   logger.trace({ comment }, `EditCommentedComment`);
 
-  await saveInteraction(req, ActionType.EDIT_COMMENT, { commentId: comment.id });
+  await saveInteraction({
+    req,
+    action: ActionType.EDIT_COMMENT,
+    data: { commentId: comment.id },
+    userId: user.id,
+  });
   new SuccessResponse(comment).send(res);
 };
 

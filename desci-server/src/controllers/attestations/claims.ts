@@ -39,7 +39,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   if (claim && claim.revoked) {
     const reclaimed = await attestationService.reClaimAttestation(claim.id);
-    await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: reclaimed.id });
+    await saveInteraction({ req, action: ActionType.CLAIM_ATTESTATION, data: { ...body, claimId: reclaimed.id } });
     // trigger update radar entry
     await communityService.addToRadar(reclaimed.desciCommunityId, reclaimed.nodeUuid);
     // invalidate radar and curated feed count cache
@@ -64,7 +64,7 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
   await delFromCache(`curated-${nodeClaim.desciCommunityId}-count`);
   await delFromCache(`all-communities-curated-count`);
 
-  await saveInteraction(req, ActionType.CLAIM_ATTESTATION, { ...body, claimId: nodeClaim.id });
+  await saveInteraction({ req, action: ActionType.CLAIM_ATTESTATION, data: { ...body, claimId: nodeClaim.id } });
 
   // notifiy community members if attestation is protected
   // new attestations should be trigger notification of org members if protected
@@ -151,7 +151,7 @@ export const removeClaim = async (req: RequestWithUser, res: Response, _next: Ne
   await delFromCache(`curated-${claim.desciCommunityId}-count`);
   await delFromCache(`all-communities-curated-count`);
 
-  await saveInteraction(req, ActionType.REVOKE_CLAIM, body);
+  await saveInteraction({ req, action: ActionType.REVOKE_CLAIM, data: body });
 
   logger.info({ removeOrRevoke, totalSignal, claimSignal }, 'Claim Removed|Revoked');
   return new SuccessMessageResponse().send(res);
@@ -213,11 +213,15 @@ export const claimEntryRequirements = async (req: Request, res: Response, _next:
   await delFromCache(`curated-${communityId}-count`);
   await delFromCache(`all-communities-curated-count`);
 
-  await saveInteraction(req, ActionType.CLAIM_ENTRY_ATTESTATIONS, {
-    communityId,
-    nodeDpid,
-    claimerId,
-    claims: attestations.map((att) => att.id),
+  await saveInteraction({
+    req,
+    action: ActionType.CLAIM_ENTRY_ATTESTATIONS,
+    data: {
+      communityId,
+      nodeDpid,
+      claimerId,
+      claims: attestations.map((att) => att.id),
+    },
   });
 
   return new SuccessResponse(attestations).send(res);

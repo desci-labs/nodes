@@ -109,7 +109,13 @@ export const magic = async (req: Request, res: Response, next: NextFunction) => 
       if (!termsAccepted) {
         // saveInteraction(req, ActionType.USER_TERMS_CONSENT, { userId: user.id, email: user.email }, user.id);
       }
-      saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
+      await saveInteraction({
+        req,
+        action: ActionType.USER_LOGIN,
+        data: { userId: user.id, method: 'magic' },
+        userId: user.id,
+        submitToMixpanel: true,
+      });
     } catch (err) {
       logger.error({ err }, 'Failed redeeming code');
       res.status(400).send({ ok: false, error: 'Failed redeeming code' });

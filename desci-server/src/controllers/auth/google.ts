@@ -90,7 +90,13 @@ export const googleAuth = async (req: Request, res: Response) => {
     // Check if user has accepted terms
     const termsAccepted = await checkIfUserAcceptedTerms(user.email);
 
-    saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
+    await saveInteraction({
+      req,
+      action: ActionType.USER_LOGIN,
+      data: { userId: user.id, method: 'google' },
+      userId: user.id,
+      submitToMixpanel: true,
+    });
 
     logger.info({ userId: user.id, email: user.email }, 'Successful login with google auth');
     // Send response with jwt
