@@ -42,8 +42,9 @@ export const googleAuth = async (req: Request, res: Response) => {
     let user = await prisma.user.findFirst({
       where: { email: email.toLowerCase() },
     });
-
+    let isNewUser = false;
     if (!user) {
+      isNewUser = true;
       // Create new user
       user = await prisma.user.create({
         data: {
@@ -99,6 +100,7 @@ export const googleAuth = async (req: Request, res: Response) => {
         email: user.email,
         token,
         termsAccepted,
+        ...(isNewUser ? { isNewUser } : {}),
       },
     });
   } catch (error) {
