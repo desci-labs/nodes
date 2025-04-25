@@ -11,7 +11,7 @@ on:
 #   API_TOKEN: ${{ secrets.API_TOKEN }}
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
