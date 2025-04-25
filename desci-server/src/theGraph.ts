@@ -225,6 +225,12 @@ const isLegacyDupe = (a: IndexedResearchObjectVersion, b: IndexedResearchObjectV
  * For a bunch of publish hashes, get the corresponding timestamps as strings.
  */
 export const getTimeForTxOrCommits = async (txOrCommits: string[]): Promise<Record<string, string>> => {
+  if (!txOrCommits) {
+    logger.error(
+      { fn: 'getTimeForTxOrCommits', txOrCommits },
+      'Empty txOrCommits passed in, expecting a string or array of strings.',
+    );
+  }
   const isTx = (id: string) => id.startsWith('0x');
   const txIds = txOrCommits.filter(isTx);
   const commitIdStrs = txOrCommits.filter((id) => !isTx(id));
