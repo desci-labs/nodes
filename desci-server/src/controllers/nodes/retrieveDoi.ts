@@ -185,7 +185,12 @@ export const retrieveDoi = async (req: Request, res: Response) => {
     processLog.push([m, new Date()]);
   };
 
-  saveInteraction(req, ActionType.RETRIEVE_URL, doi, user.id);
+  saveInteraction({
+    req,
+    action: ActionType.RETRIEVE_URL,
+    data: { doi },
+    userId: user.id,
+  });
   if (doi.indexOf('https://ssrn.com') === 0 || doi.indexOf('https://papers.ssrn.com') === 0) {
     // we got ourselves an SSRN link without DOI
     try {
@@ -235,12 +240,22 @@ export const retrieveDoi = async (req: Request, res: Response) => {
   console.log('LOG OUTPUT \n\n', processLog);
 
   if (!processed) {
-    saveInteraction(req, ActionType.RETRIEVE_URL_FAIL, doi, user.id);
+    saveInteraction({
+      req,
+      action: ActionType.RETRIEVE_URL_FAIL,
+      data: { doi },
+      userId: user.id,
+    });
     res.status(400).send();
     return;
   }
 
-  saveInteraction(req, ActionType.RETREIVE_URL_SUCCESS, doi, user.id);
+  saveInteraction({
+    req,
+    action: ActionType.RETREIVE_URL_SUCCESS,
+    data: { doi },
+    userId: user.id,
+  });
 
   res.send(processed);
 };

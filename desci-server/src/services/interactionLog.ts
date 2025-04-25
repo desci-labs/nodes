@@ -7,11 +7,26 @@ import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { getUtcDateXDaysAgo } from '../utils/clock.js';
 
+import { mixpanel } from './MixpanelService.js';
+
 const logger = parentLogger.child({ module: 'Services::InteractionLog' });
 
-export const saveInteraction = async (req: Request, action: ActionType, data: any, userId?: number) => {
+interface SaveInteractionArgs {
+  req: Request;
+  action: ActionType;
+  data: any;
+  userId?: number;
+  submitToMixpanel?: boolean;
+}
+
+export const saveInteraction = async ({ req, action, data, userId, submitToMixpanel }: SaveInteractionArgs) => {
   logger.info({ fn: 'saveInteractionController' }, 'interactionLog::saveInteraction');
   const user = (req as any).user;
+
+  if (submitToMixpanel) {
+    mixpanel.track(action, data);
+  }
+
   return await prisma.interactionLog.create({
     data: {
       userId,
@@ -25,13 +40,29 @@ export const saveInteraction = async (req: Request, action: ActionType, data: an
   });
 };
 
-export const saveInteractionWithoutReq = async (action: ActionType, data: any, userId?: number) => {
+interface SaveInteractionWithoutReqArgs {
+  action: ActionType;
+  data: any;
+  userId?: number;
+  submitToMixpanel?: boolean;
+}
+
+export const saveInteractionWithoutReq = async ({
+  action,
+  data,
+  userId,
+  submitToMixpanel,
+}: SaveInteractionWithoutReqArgs) => {
   logger.info({ fn: 'saveInteractionController' }, 'interactionLog::saveInteraction');
   let isGuest;
   if (userId) {
     // Distinguish if the user is a guest or not
     const user = await prisma.user.findFirst({ where: { id: userId } });
     isGuest = user?.isGuest;
+  }
+
+  if (submitToMixpanel) {
+    mixpanel.track(action, data);
   }
 
   return await prisma.interactionLog.create({

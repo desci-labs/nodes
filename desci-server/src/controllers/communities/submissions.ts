@@ -120,10 +120,10 @@ export const updateSubmissionStatus = async (req: RequestWithUser, res: Response
 
   if (status === Submissionstatus.REJECTED) {
     // log user action with reason
-    saveInteraction(
+    saveInteraction({
       req,
-      ActionType.USER_ACTION,
-      {
+      action: ActionType.USER_ACTION,
+      data: {
         action: AvailableUserActionLogTypes.rejectCommunitySubmission,
         userId: req.user.id,
         submissionId,
@@ -131,8 +131,8 @@ export const updateSubmissionStatus = async (req: RequestWithUser, res: Response
         status,
         submissionOwnerId: submission.userId,
       },
-      req.user.id,
-    );
+      userId: req.user.id,
+    });
 
     const recipient = await prisma.user.findFirst({
       where: { id: submission.userId },

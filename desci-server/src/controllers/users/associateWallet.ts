@@ -69,16 +69,16 @@ export const associateOrcidWallet = async (req: Request, res: Response, next: Ne
       const addWallet = await prisma.wallet.create({
         data: { address: did, userId: user.id, nickname: ORCID_NICKNAME },
       });
-      saveInteraction(
+      saveInteraction({
         req,
-        ActionType.USER_WALLET_ASSOCIATE,
-        {
+        action: ActionType.USER_WALLET_ASSOCIATE,
+        data: {
           addr: did,
           orcid: req.body.orcid,
           orcidUser: user.orcid,
         },
-        user.id,
-      );
+        userId: user.id,
+      });
       // check if orcid associated
       // add to orcid profile in the did:pkh format
       // did:pkh:eip155:1:0xb9c5714089478a327f09197987f16f9e5d936e8a
@@ -164,15 +164,15 @@ export const associateWallet = async (req: Request, res: Response, next: NextFun
         },
       });
 
-      saveInteraction(
+      saveInteraction({
         req,
-        ActionType.USER_WALLET_ASSOCIATE,
-        {
+        action: ActionType.USER_WALLET_ASSOCIATE,
+        data: {
           addr: walletAddress,
           fields,
         },
-        user.id,
-      );
+        userId: user.id,
+      });
 
       try {
         const hash = await sendGiftTxn(user, walletAddress, addWallet.id);
@@ -274,14 +274,14 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
     },
   });
 
-  saveInteraction(
+  saveInteraction({
     req,
-    ActionType.USER_WALLET_CONNECT,
-    {
+    action: ActionType.USER_WALLET_CONNECT,
+    data: {
       addr: account,
     },
-    user.id,
-  );
+    userId: user.id,
+  });
 
   const token = generateAccessToken({ email: user.email });
 
@@ -291,7 +291,12 @@ export const walletLogin = async (req: Request, res: Response, next: NextFunctio
   // TODO: Bearer token still returned for backwards compatability, should look to remove in the future.
   new SuccessResponse({ user: { email: user.email, token, termsAccepted } }).send(res);
 
-  saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
+  saveInteraction({
+    req,
+    action: ActionType.USER_LOGIN,
+    data: { userId: user.id },
+    userId: user.id,
+  });
 };
 
 const sendGiftTxn = async (user: User, walletAddress: string, addedWalletId: number) => {

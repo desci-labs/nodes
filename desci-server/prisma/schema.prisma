@@ -1222,6 +1222,7 @@ enum ActionType {
   ORCID_API_ERROR
   EDIT_COMMENT
   GUEST_USER_CONVERSION
+  USER_SIGNUP_SUCCESS
 }
 
 enum ChainTransactionType {

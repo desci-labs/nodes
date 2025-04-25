@@ -200,8 +200,9 @@ class OrcidApiService {
     });
 
     if (response.ok) {
-      await saveInteractionWithoutReq(ActionType.REMOVE_ORCID_WORK_RECORD, {
-        orcid,
+      await saveInteractionWithoutReq({
+        action: ActionType.REMOVE_ORCID_WORK_RECORD,
+        data: { orcid },
       });
       await prisma.orcidPutCodes.delete({
         where: {
@@ -222,11 +223,9 @@ class OrcidApiService {
         'ORCID RECORD DELETED',
       );
     } else {
-      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-        orcid,
-        putCode,
-        status: response.status,
-        error: await response.json(),
+      await saveInteractionWithoutReq({
+        action: ActionType.ORCID_API_ERROR,
+        data: { orcid, putCode, status: response.status, error: await response.json() },
       });
       logger.error({ orcid, putCode, status: response.status }, 'Error: REMOVE ORCID WORK RECORD');
     }
@@ -409,11 +408,9 @@ class OrcidApiService {
             },
           });
         }
-        await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
-          userId,
-          orcid,
-          uuid,
-          putCode: returnedCode,
+        await saveInteractionWithoutReq({
+          action: ActionType.UPDATE_ORCID_RECORD,
+          data: { userId, orcid, uuid, putCode: returnedCode },
         });
         logger.info(
           { uuid, userId, status: response.status, returnedCode, reference: PutcodeReference.PREPRINT },
@@ -421,21 +418,16 @@ class OrcidApiService {
         );
       } else {
         const body = await response.text();
-        await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-          userId,
-          orcid,
-          uuid,
-          statusCode: response.status,
-          error: body,
+        await saveInteractionWithoutReq({
+          action: ActionType.ORCID_API_ERROR,
+          data: { userId, orcid, uuid, statusCode: response.status, error: body },
         });
         logger.info({ status: response.status, response, body }, '[ORCID_API_SERVICE]::ORCID NODE API ERROR');
       }
     } catch (err) {
-      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-        userId,
-        orcid,
-        uuid,
-        error: err,
+      await saveInteractionWithoutReq({
+        action: ActionType.ORCID_API_ERROR,
+        data: { userId, orcid, uuid, error: err },
       });
       logger.info({ err }, '[ORCID_API_SERVICE]::NODE API Error Response');
     }
@@ -557,12 +549,9 @@ class OrcidApiService {
           });
         }
 
-        await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
-          userId,
-          orcid,
-          uuid,
-          claimId: claim.id,
-          putCode: returnedCode,
+        await saveInteractionWithoutReq({
+          action: ActionType.UPDATE_ORCID_RECORD,
+          data: { userId, orcid, uuid, claimId: claim.id, putCode: returnedCode },
         });
 
         logger.info(
@@ -571,23 +560,16 @@ class OrcidApiService {
         );
       } else {
         const body = await response.text();
-        await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-          userId,
-          orcid,
-          uuid,
-          claimId: claim.id,
-          statusCode: response.status,
-          error: body,
+        await saveInteractionWithoutReq({
+          action: ActionType.ORCID_API_ERROR,
+          data: { userId, orcid, uuid, claimId: claim.id, statusCode: response.status, error: body },
         });
         logger.info({ status: response.status, response, body }, '[ORCID_API_SERVICE]::ORCID CLAIM API ERROR');
       }
     } catch (err) {
-      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-        userId,
-        orcid,
-        uuid,
-        claimId: claim.id,
-        error: err,
+      await saveInteractionWithoutReq({
+        action: ActionType.ORCID_API_ERROR,
+        data: { userId, orcid, uuid, claimId: claim.id, error: err },
       });
       logger.info({ err }, '[ORCID_API_SERVICE]::CLAIM API Error Response');
     }

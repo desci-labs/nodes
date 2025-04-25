@@ -1,15 +1,15 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
-import { ActionType, Node, Prisma, PublishTaskQueue, PublishTaskQueueStatus, User } from '@prisma/client';
+import { ActionType, Node, Prisma, PublishTaskQueueStatus, User } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 import { stdSerializers } from 'pino';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { delFromCache } from '../../redisClient.js';
-import { attestationService } from '../../services/Attestation.js';
 import { directStreamLookup } from '../../services/ceramic.js';
 import { getManifestByCid } from '../../services/data/processing.js';
 import { ElasticNodesService } from '../../services/ElasticNodesService.js';
+import { dispatchExternalPublicationsCheck } from '../../services/externalPublications.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { doiService } from '../../services/index.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
@@ -22,12 +22,11 @@ import {
 } from '../../services/nodeManager.js';
 import { emitNotificationOnPublish } from '../../services/NotificationService.js';
 import { PublishServices } from '../../services/PublishServices.js';
-import { _getIndexedResearchObjects, getIndexedResearchObjects } from '../../theGraph.js';
+import { _getIndexedResearchObjects } from '../../theGraph.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 import { getOrCreateDpid, upgradeDpid } from './createDpid.js';
-import { dispatchExternalPublicationsCheck } from '../../services/externalPublications.js';
 
 export type PublishReqBody = {
   uuid: string;
@@ -141,10 +140,10 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     // Make sure we don't serve stale manifest state when a publish is happening
     delFromCache(`node-draft-${ensureUuidEndsWithDot(node.uuid)}`);
 
-    saveInteraction(
+    saveInteraction({
       req,
-      ActionType.PUBLISH_NODE,
-      {
+      action: ActionType.PUBLISH_NODE,
+      data: {
         cid,
         dpid: dpidAlias?.toString() ?? manifest.dpid?.id,
         userId: owner.id,
@@ -154,8 +153,8 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
         uuid: ensureUuidEndsWithDot(uuid),
         outcome: 'SUCCESS',
       },
-      owner.id,
-    );
+      userId: owner.id,
+    });
 
     if (mintDoi) {
       // trigger doi minting workflow
@@ -202,15 +201,20 @@ export const publish = async (req: PublishRequest, res: Response<PublishResBody>
     return null;
   } catch (err) {
     logger.error({ err }, '[publish::publish] node-publish-err');
-    saveInteraction(req, ActionType.PUBLISH_NODE, {
-      cid,
-      user: req.user,
-      transactionId,
-      ceramicStream,
-      commitId,
-      uuid: ensureUuidEndsWithDot(uuid),
-      outcome: 'FAILURE',
-      err: stdSerializers.errWithCause(err as Error),
+    saveInteraction({
+      req,
+      action: ActionType.PUBLISH_NODE,
+      data: {
+        cid,
+        user: req.user,
+        transactionId,
+        ceramicStream,
+        commitId,
+        uuid: ensureUuidEndsWithDot(uuid),
+        outcome: 'FAILURE',
+        err: stdSerializers.errWithCause(err as Error),
+      },
+      userId: owner.id,
     });
     return res.status(400).send({ ok: false, error: err.message });
   }
@@ -424,9 +428,12 @@ export const handlePublicDataRefs = async (params: PublishData): Promise<void> =
     /**
      * Save a success for configurable service quality tracking purposes
      */
-    await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_SUCCESS, {
-      params,
-      result: { newPublicDataRefs },
+    await saveInteractionWithoutReq({
+      action: ActionType.PUBLISH_NODE_CID_SUCCESS,
+      data: {
+        params,
+        result: { newPublicDataRefs },
+      },
     });
     await PublishServices.updatePublishStatusEntry({
       publishStatusId: params.publishStatusId,
@@ -439,9 +446,12 @@ export const handlePublicDataRefs = async (params: PublishData): Promise<void> =
     /**
      * Save a failure for configurable service quality tracking purposes
      */
-    await saveInteractionWithoutReq(ActionType.PUBLISH_NODE_CID_FAIL, {
-      params,
-      error,
+    await saveInteractionWithoutReq({
+      action: ActionType.PUBLISH_NODE_CID_FAIL,
+      data: {
+        params,
+        error,
+      },
     });
     await PublishServices.updatePublishStatusEntry({
       publishStatusId: params.publishStatusId,

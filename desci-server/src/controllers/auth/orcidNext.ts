@@ -51,7 +51,12 @@ export const orcidCheck =
     logger.trace({ orcidRecord });
     if (orcidRecord.code === 3) {
       // log an orcid email missing error
-      await saveInteraction(req, ActionType.USER_ACTION, { sub: 'orcid-missing-email', orcid });
+      await saveInteraction({
+        req,
+        action: ActionType.USER_ACTION,
+        data: { sub: 'orcid-missing-email', orcid },
+        userId: user?.id,
+      });
     }
 
     const jwtToken = orcidRecord.jwt;

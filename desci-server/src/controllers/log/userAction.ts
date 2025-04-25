@@ -29,7 +29,12 @@ export const logUserAction = async (req: Request, res: Response, next: NextFunct
       message: message || null,
       user: trimmedUser,
     };
-    await saveInteraction(req, ActionType.USER_ACTION, actionData, user?.id);
+    await saveInteraction({
+      req,
+      action: ActionType.USER_ACTION,
+      data: actionData,
+      userId: user?.id,
+    });
 
     res.send({
       ok: true,

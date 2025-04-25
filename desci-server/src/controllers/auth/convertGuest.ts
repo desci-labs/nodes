@@ -95,12 +95,21 @@ export const convertGuestToUser = async (
     // Return the JWT
     sendCookie(res, token, dev === 'true');
 
-    saveInteraction(
+    await saveInteraction({
       req,
-      ActionType.GUEST_USER_CONVERSION,
-      { userId: updatedUser.id, conversionType: 'email' },
-      updatedUser.id,
-    );
+      action: ActionType.GUEST_USER_CONVERSION,
+      data: { userId: updatedUser.id, conversionType: 'email' },
+      userId: updatedUser.id,
+      submitToMixpanel: true,
+    });
+
+    await saveInteraction({
+      req,
+      action: ActionType.USER_SIGNUP_SUCCESS,
+      data: { userId: updatedUser.id, email: updatedUser.email, method: 'magic', guestConversion: true },
+      userId: updatedUser.id,
+      submitToMixpanel: true,
+    });
 
     logger.info(
       { userId: updatedUser.id, email: hideEmail(email) },

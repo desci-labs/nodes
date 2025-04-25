@@ -130,7 +130,12 @@ const processOrcidConnect = async (req: Request, res: Response, closing: boolean
   try {
     // retrieve additional fields from orcid with auth token
     const { orcAuthData, orcRecord } = await getAllOrcData({ queryCode: req.query.code as string, redirectUri });
-    await saveInteraction(req, ActionType.ORCID_RETRIEVE, { orcAuthData, orcRecord });
+    await saveInteraction({
+      req,
+      action: ActionType.ORCID_RETRIEVE,
+      data: { orcAuthData, orcRecord },
+      userId: user.id,
+    });
 
     const cookieObj = {
       orcid_access_token: orcAuthData.orcidAccessToken,
@@ -158,11 +163,15 @@ const processOrcidAuth = async (req: Request, res: Response, closing: boolean) =
   try {
     const { orcAuthData, orcRecord } = await getAllOrcData({ queryCode: req.query.code as string, redirectUri });
 
-    await saveInteraction(req, ActionType.ORCID_RETRIEVE, { orcAuthData, orcRecord });
+    let user = await getUserByOrcId(orcAuthData.orcid);
+    await saveInteraction({
+      req,
+      action: ActionType.ORCID_RETRIEVE,
+      data: { orcAuthData, orcRecord },
+      userId: user.id,
+    });
 
     const orcid = orcRecord['orcid-identifier'].path;
-
-    let user = await getUserByOrcId(orcAuthData.orcid);
 
     if (!user) {
       const namesInOrcProfile = orcRecord.person.name
