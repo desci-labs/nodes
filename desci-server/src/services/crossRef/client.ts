@@ -15,7 +15,7 @@ import { ProfileSummary } from './types/summary.js';
 import { WorksResponse } from './types/works.js';
 import { keysToDotsAndDashses } from './utils.js';
 
-const ORCID_PUBLIC_API = process.env.ORCID_PUBLIC_API || 'https://pub.orcid.org/v3.0'; // 'https://pub.sandbox.orcid.org/v3.0';
+const ORCID_PUBLIC_API = process.env.ORCID_PUBLIC_API || 'https://pub.sandbox.orcid.org/v3.0'; //  'https://pub.orcid.org/v3.0'; //
 
 const logger = parentLogger.child({ module: '[CrossRefClient]' });
 
@@ -444,8 +444,8 @@ class CrossRefClient {
       profile = orcidProfile;
     }
 
-    const employmentHistory = profile['activities-summary']?.['employments']?.['affiliation-group'];
-    const educationHistory = profile['activities-summary']?.['educations']?.['affiliation-group'];
+    const employmentHistory = profile?.['activities-summary']?.['employments']?.['affiliation-group'];
+    const educationHistory = profile?.['activities-summary']?.['educations']?.['affiliation-group'];
     return { employmentHistory, educationHistory };
   }
   async getEmploymentHistory(orcid: string) {

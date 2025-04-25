@@ -55,7 +55,7 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
       : isOpenAlexId
         ? await openAlexService.searchAuthorByOpenAlexId(params.id)
         : null;
-    // logger.trace({ openalexProfile }, 'openalexProfile');
+    logger.trace({ openalexProfile, isOrcidId }, 'openalexProfile');
   }
 
   const { educationHistory, employmentHistory } = await crossRefClient.getProfileExperience(
