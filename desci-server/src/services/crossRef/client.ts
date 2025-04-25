@@ -418,7 +418,9 @@ class CrossRefClient {
         });
         profile = response.status === 200 ? ((await response.json()) as ProfileSummary) : undefined;
         logger.trace({ profile: profile }, 'ProfileSummary');
-        setToCache(`ORCID-PROFILE-${orcid}`, profile);
+
+        // cache orcid profile
+        if (profile) setToCache(`ORCID-PROFILE-${orcid}`, profile);
       }
 
       const worksResponse = await fetch(`${ORCID_PUBLIC_API}/${orcid}/works`, {

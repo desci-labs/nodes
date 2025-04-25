@@ -59,7 +59,7 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
   }
 
   const { educationHistory, employmentHistory } = await crossRefClient.getProfileExperience(
-    isOrcidId ? params.id : openalexProfile.orcid.split('/').pop(),
+    isOrcidId ? params.id : openalexProfile?.orcid?.split('/').pop(),
   );
   const [education, employment] = await Promise.all([
     transformOrcidAffiliationToEducation(educationHistory),
