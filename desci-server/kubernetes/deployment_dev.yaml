@@ -110,6 +110,7 @@ spec:
           export AWS_SQS_REGION="{{ .Data.AWS_SQS_REGION }}"
           export AWS_SQS_QUEUE_URL="{{ .Data.AWS_SQS_QUEUE_URL }}"
           export ENABLE_GUEST_MODE="{{ .Data.ENABLE_GUEST_MODE }}"
+          export MIXPANEL_TOKEN="{{ .Data.MIXPANEL_TOKEN }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}
