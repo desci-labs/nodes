@@ -2,14 +2,14 @@ import axios from 'axios';
 import { Request, Response } from 'express';
 
 import { logger as parentLogger } from '../../logger.js';
-import { BlockMetadata, getCidMetadata } from '../../services/ipfs.js';
+import { BlockMetadata, getCidMetadata, IPFS_NODE } from '../../services/ipfs.js';
 
 /**
  * Proxy for obtaining CID metadata
  * Temporarily used until we upgrade kubo on the priv swarm node
  */
 export const ipfsReadGatewayProxy = async (
-  req: Request<{ cid: string }, any, any, { external?: boolean }>,
+  req: Request<{ cid: string }, any, any, { external?: boolean; guest?: boolean }>,
   res: Response<BlockMetadata | { error: string }>,
 ) => {
   const logger = parentLogger.child({
@@ -20,11 +20,12 @@ export const ipfsReadGatewayProxy = async (
   logger.trace('Fetching CID metadata');
   try {
     const { cid } = req.params;
-    const { external } = req.query;
+    const { external, guest } = req.query;
     const externalFlag = !!external;
-
+    const guestFlag = !!guest;
+    const ipfsNode = guestFlag ? IPFS_NODE.GUEST : IPFS_NODE.PRIVATE;
     // Forward the request to the IPFS gateway
-    const metadata = await getCidMetadata(cid, externalFlag);
+    const metadata = await getCidMetadata(cid, { external: externalFlag, ipfsNode });
 
     if (metadata) {
       return res.status(200).json(metadata);

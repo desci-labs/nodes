@@ -149,7 +149,7 @@ export async function connectOrcidToUserIfPossible(
       })
     : null;
 
-  if (user) {
+  if (user && !user.isGuest) {
     // we are already email auth'd, we have only one to check
     logger.info({ fn: 'orcidCheck', user }, `Requesting user ${user}`);
     if (!user.orcid || user.orcid === orcid) {
@@ -351,6 +351,7 @@ export const getCountNewUsersInXDays = async (daysAgo: number): Promise<number> 
 
   const newUsersInXDays = await client.user.count({
     where: {
+      isGuest: false,
       createdAt: {
         gte: utcMidnightXDaysAgo,
       },
@@ -365,6 +366,7 @@ export const getNewUsersInXDays = async (dateXDaysAgo: Date) => {
 
   const newUsersInXDays = await client.user.findMany({
     where: {
+      isGuest: false,
       createdAt: {
         gte: dateXDaysAgo,
       },
@@ -403,7 +405,7 @@ export const getNewOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
 
 export const getCountAllUsers = async (): Promise<number> => {
   logger.trace({ fn: 'getCountAllUsers' }, 'user::getCountAllUsers');
-  const allUsers = await client.user.count({});
+  const allUsers = await client.user.count({ where: { isGuest: false } });
   return allUsers;
 };
 
@@ -421,6 +423,7 @@ export const getCountAllNonDesciUsers = async (): Promise<number> => {
       email: {
         not: { contains: '@desci.com' },
       },
+      isGuest: false,
     },
   });
 
@@ -460,6 +463,7 @@ export const getCountNewUsersInMonth = async (month: number, year: number): Prom
 
   const newUsersInMonth = await client.user.count({
     where: {
+      isGuest: false,
       createdAt: {
         gte: startDate,
         lt: endDate,
@@ -478,6 +482,7 @@ export const getCountNewUsersWithOrcidInMonth = async (month: number, year: numb
 
   const newUsersInMonth = await client.user.count({
     where: {
+      isGuest: false,
       createdAt: {
         gte: startDate,
         lt: endDate,
@@ -504,6 +509,7 @@ export const getNewUsersInRange = async (range: { from: Date; to: Date }) => {
         gte: range.from,
         lt: range.to,
       },
+      isGuest: false,
     },
     select: {
       createdAt: true,

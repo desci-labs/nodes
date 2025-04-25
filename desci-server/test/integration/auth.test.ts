@@ -79,7 +79,7 @@ describe('Magic Link Authentication', () => {
           createdAt: 'desc',
         },
       });
-      const redeemedUser = await magicLinkRedeem(user.email, magicLink!.token);
+      const { user: redeemedUser } = await magicLinkRedeem(user.email, magicLink!.token);
       expect(redeemedUser.email).to.equal(user.email);
     });
 

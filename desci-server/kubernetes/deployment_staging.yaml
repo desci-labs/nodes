@@ -111,6 +111,13 @@ spec:
           export CLOUDFLARE_WORKER_API_SECRET="{{ .Data.CLOUDFLARE_WORKER_API_SECRET }}"
           export ENABLE_WORKERS_API=true
           export ORCID_PUBLIC_API="{{ .Data.ORCID_PUBLIC_API }}"
+          export GUEST_IPFS_NODE_URL="{{ .Data.GUEST_IPFS_NODE_URL }}"
+          export AWS_SQS_ACCESS_KEY_ID="{{ .Data.AWS_SQS_ACCESS_KEY_ID }}"
+          export AWS_SQS_SECRET_ACCESS_KEY="{{ .Data.AWS_SQS_SECRET_ACCESS_KEY }}"
+          export AWS_SQS_REGION="{{ .Data.AWS_SQS_REGION }}"
+          export AWS_SQS_QUEUE_URL="{{ .Data.AWS_SQS_QUEUE_URL }}"
+          export ENABLE_GUEST_MODE="{{ .Data.ENABLE_GUEST_MODE }}"
+          export MIXPANEL_TOKEN="{{ .Data.MIXPANEL_TOKEN }}"
           export DEBUG_TEST=0;
           echo "appfinish";
           {{- end -}}

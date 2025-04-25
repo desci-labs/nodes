@@ -1,5 +1,7 @@
 import { ResearchObjectV1, ResearchObjectV1Author } from '@desci-labs/desci-models';
 import { ActionType, AuthTokenSource, ORCIDRecord, OrcidPutCodes, PutcodeReference } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+import jwksRsa from 'jwks-rsa';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
@@ -198,8 +200,9 @@ class OrcidApiService {
     });
 
     if (response.ok) {
-      await saveInteractionWithoutReq(ActionType.REMOVE_ORCID_WORK_RECORD, {
-        orcid,
+      await saveInteractionWithoutReq({
+        action: ActionType.REMOVE_ORCID_WORK_RECORD,
+        data: { orcid },
       });
       await prisma.orcidPutCodes.delete({
         where: {
@@ -220,11 +223,9 @@ class OrcidApiService {
         'ORCID RECORD DELETED',
       );
     } else {
-      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-        orcid,
-        putCode,
-        status: response.status,
-        error: await response.json(),
+      await saveInteractionWithoutReq({
+        action: ActionType.ORCID_API_ERROR,
+        data: { orcid, putCode, status: response.status, error: await response.json() },
       });
       logger.error({ orcid, putCode, status: response.status }, 'Error: REMOVE ORCID WORK RECORD');
     }
@@ -407,11 +408,9 @@ class OrcidApiService {
             },
           });
         }
-        await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
-          userId,
-          orcid,
-          uuid,
-          putCode: returnedCode,
+        await saveInteractionWithoutReq({
+          action: ActionType.UPDATE_ORCID_RECORD,
+          data: { userId, orcid, uuid, putCode: returnedCode },
         });
         logger.info(
           { uuid, userId, status: response.status, returnedCode, reference: PutcodeReference.PREPRINT },
@@ -419,21 +418,16 @@ class OrcidApiService {
         );
       } else {
         const body = await response.text();
-        await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-          userId,
-          orcid,
-          uuid,
-          statusCode: response.status,
-          error: body,
+        await saveInteractionWithoutReq({
+          action: ActionType.ORCID_API_ERROR,
+          data: { userId, orcid, uuid, statusCode: response.status, error: body },
         });
         logger.info({ status: response.status, response, body }, '[ORCID_API_SERVICE]::ORCID NODE API ERROR');
       }
     } catch (err) {
-      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-        userId,
-        orcid,
-        uuid,
-        error: err,
+      await saveInteractionWithoutReq({
+        action: ActionType.ORCID_API_ERROR,
+        data: { userId, orcid, uuid, error: err },
       });
       logger.info({ err }, '[ORCID_API_SERVICE]::NODE API Error Response');
     }
@@ -555,12 +549,9 @@ class OrcidApiService {
           });
         }
 
-        await saveInteractionWithoutReq(ActionType.UPDATE_ORCID_RECORD, {
-          userId,
-          orcid,
-          uuid,
-          claimId: claim.id,
-          putCode: returnedCode,
+        await saveInteractionWithoutReq({
+          action: ActionType.UPDATE_ORCID_RECORD,
+          data: { userId, orcid, uuid, claimId: claim.id, putCode: returnedCode },
         });
 
         logger.info(
@@ -569,25 +560,77 @@ class OrcidApiService {
         );
       } else {
         const body = await response.text();
-        await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-          userId,
-          orcid,
-          uuid,
-          claimId: claim.id,
-          statusCode: response.status,
-          error: body,
+        await saveInteractionWithoutReq({
+          action: ActionType.ORCID_API_ERROR,
+          data: { userId, orcid, uuid, claimId: claim.id, statusCode: response.status, error: body },
         });
         logger.info({ status: response.status, response, body }, '[ORCID_API_SERVICE]::ORCID CLAIM API ERROR');
       }
     } catch (err) {
-      await saveInteractionWithoutReq(ActionType.ORCID_API_ERROR, {
-        userId,
-        orcid,
-        uuid,
-        claimId: claim.id,
-        error: err,
+      await saveInteractionWithoutReq({
+        action: ActionType.ORCID_API_ERROR,
+        data: { userId, orcid, uuid, claimId: claim.id, error: err },
       });
       logger.info({ err }, '[ORCID_API_SERVICE]::CLAIM API Error Response');
+    }
+  }
+
+  /**
+   * Verifies an ORCID ID token and extracts the ORCID identifier
+   *
+   * @param {string} id_token - JWT token received from ORCID authentication
+   * @returns {Promise<string|null>} The verified ORCID identifier or null if validation fails
+   *
+   * @description
+   * This method validates an ORCID JWT token by:
+   * 1. Fetching ORCID's public keys from their JWKS endpoint
+   * 2. Verifying the token signature and claims (audience, issuer)
+   * 3. Extracting the ORCID identifier from the token's subject claim
+   *
+   * @example
+   * const orcidId = await orcidApiService.verifyOrcidId(id_token);
+   * if (orcidId) {
+   *   // Token is valid, use the ORCID identifier
+   * }
+   */
+  async verifyOrcidId(id_token: string): Promise<{ orcid: string; given_name?: string; family_name?: string } | null> {
+    try {
+      // Get ORCID's public keys from their JWKS endpoint
+      const jwksClient = jwksRsa({
+        jwksUri: `https://${process.env.ORCID_API_DOMAIN}/oauth/jwks`,
+      });
+
+      // Verify the jwt and extract the orcid
+      const decoded = await new Promise<any>((resolve, reject) => {
+        const getKey = (header: jwt.JwtHeader, callback: jwt.SigningKeyCallback) => {
+          jwksClient.getSigningKey(header.kid, (err, key) => {
+            const signingKey = key ? key.getPublicKey() : null;
+            callback(err, signingKey);
+          });
+        };
+
+        jwt.verify(
+          id_token,
+          getKey,
+          {
+            audience: process.env.ORCID_CLIENT_ID,
+            issuer: `https://${process.env.ORCID_API_DOMAIN}`,
+          },
+          (err, decoded) => {
+            if (err) reject(err);
+            else resolve(decoded);
+          },
+        );
+      });
+      const { sub, family_name, given_name } = decoded;
+      return {
+        orcid: sub,
+        family_name,
+        given_name,
+      };
+    } catch (error) {
+      logger.error({ error, id_token }, 'Error verifying ORCID ID');
+      return null;
     }
   }
 }

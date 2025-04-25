@@ -42,8 +42,9 @@ export const googleAuth = async (req: Request, res: Response) => {
     let user = await prisma.user.findFirst({
       where: { email: email.toLowerCase() },
     });
-
+    let isNewUser = false;
     if (!user) {
+      isNewUser = true;
       // Create new user
       user = await prisma.user.create({
         data: {
@@ -55,6 +56,15 @@ export const googleAuth = async (req: Request, res: Response) => {
     } else {
       logger.info({ userId: user.id, email: user.email }, 'Found existing user from Google OAuth');
     }
+
+    if (isNewUser)
+      await saveInteraction({
+        req,
+        action: ActionType.USER_SIGNUP_SUCCESS,
+        data: { userId: user.id, email: user.email, method: 'google' },
+        userId: user.id,
+        submitToMixpanel: true,
+      });
 
     // Store Google identity if not already stored
     const existingIdentity = await prisma.userIdentity.findFirst({
@@ -89,7 +99,13 @@ export const googleAuth = async (req: Request, res: Response) => {
     // Check if user has accepted terms
     const termsAccepted = await checkIfUserAcceptedTerms(user.email);
 
-    saveInteraction(req, ActionType.USER_LOGIN, { userId: user.id }, user.id);
+    await saveInteraction({
+      req,
+      action: ActionType.USER_LOGIN,
+      data: { userId: user.id, method: 'google' },
+      userId: user.id,
+      submitToMixpanel: true,
+    });
 
     logger.info({ userId: user.id, email: user.email }, 'Successful login with google auth');
     // Send response with jwt
@@ -99,6 +115,7 @@ export const googleAuth = async (req: Request, res: Response) => {
         email: user.email,
         token,
         termsAccepted,
+        ...(isNewUser ? { isNewUser } : {}),
       },
     });
   } catch (error) {

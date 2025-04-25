@@ -38,7 +38,6 @@ export const orcidCheck =
     }
     const user = (req as any).user;
     const { access_token, refresh_token, expires_in, orcid, dev } = req.body;
-    // debugger;
     logger.trace({ access_token, refresh_token, expires_in, orcid, dev }, 'connectOrcidToUserIfPossible');
     const orcidRecord = await connectOrcidToUserIfPossible(
       user?.id,
@@ -52,7 +51,12 @@ export const orcidCheck =
     logger.trace({ orcidRecord });
     if (orcidRecord.code === 3) {
       // log an orcid email missing error
-      await saveInteraction(req, ActionType.USER_ACTION, { sub: 'orcid-missing-email', orcid });
+      await saveInteraction({
+        req,
+        action: ActionType.USER_ACTION,
+        data: { sub: 'orcid-missing-email', orcid },
+        userId: user?.id,
+      });
     }
 
     const jwtToken = orcidRecord.jwt;

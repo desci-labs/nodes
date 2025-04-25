@@ -22,8 +22,8 @@ import {
 import { attestationService } from '../../../services/Attestation.js';
 import { communityService } from '../../../services/Communities.js';
 import { processUploadToIpfs } from '../../../services/data/processing.js';
+import { IPFS_NODE } from '../../../services/ipfs.js';
 import { asyncMap } from '../../../utils.js';
-
 const logger = parentLogger.child({ module: 'Admin/Communities/controller' });
 
 export const todoApi = async (_req: Request, res: Response, next: NextFunction) => {
@@ -49,7 +49,7 @@ export const createCommunity = async (req: Request, res: Response, _next: NextFu
       logger.info({ orginalname: file.originalname, fieldname: file.fieldname }, 'Upload');
       return file;
     });
-    const { ok, value } = await processUploadToIpfs({ files: uploads });
+    const { ok, value } = await processUploadToIpfs({ files: uploads, ipfsNode: IPFS_NODE.PRIVATE });
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
@@ -92,7 +92,7 @@ export const updateCommunity = async (req: Request, res: Response, _next: NextFu
       file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
       return file;
     });
-    const { ok, value } = await processUploadToIpfs({ files: uploads });
+    const { ok, value } = await processUploadToIpfs({ files: uploads, ipfsNode: IPFS_NODE.PRIVATE });
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
@@ -224,7 +224,7 @@ export const createAttestation = async (req: Request, res: Response, _next: Next
       return file;
     });
 
-    const { ok, value } = await processUploadToIpfs({ files: uploads });
+    const { ok, value } = await processUploadToIpfs({ files: uploads, ipfsNode: IPFS_NODE.PRIVATE });
     if (ok && value) {
       assets = value.map((ipfsImg) => ({
         key: ipfsImg.path,
@@ -291,7 +291,7 @@ export const updateAttestation = async (req: Request, res: Response, _next: Next
       file.originalname = `${file.fieldname}-${Math.random()}.${file.originalname.split('.')?.[1]}`;
       return file;
     });
-    const { ok, value } = await processUploadToIpfs({ files: uploads });
+    const { ok, value } = await processUploadToIpfs({ files: uploads, ipfsNode: IPFS_NODE.PRIVATE });
     logger.trace({ ok, value }, 'Uploads REsult');
     if (ok && value) {
       assets = value.map((ipfsImg) => ({

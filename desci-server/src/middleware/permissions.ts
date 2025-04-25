@@ -22,7 +22,44 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
   const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
 
   if (!retrievedUser) {
-    logger.trace({ token, apiKey }, 'ENSURE USER');
+    res.status(401).send({ ok: false, message: 'Unauthorized' });
+  } else if (retrievedUser.isGuest) {
+    res.status(403).send({ ok: false, message: 'Registration required' });
+  } else {
+    (req as any).user = retrievedUser;
+    (req as any).authMethod = authTokenRetrieval ? AuthMethods.AUTH_TOKEN : AuthMethods.API_KEY;
+    next();
+  }
+};
+
+export const ensureGuest = async (req: ExpressRequest, res: Response, next: NextFunction) => {
+  const token = await extractAuthToken(req);
+  const apiKey = await extractApiKey(req);
+  const authTokenRetrieval = await extractUserFromToken(token);
+  const apiKeyRetrieval = await extractUserFromApiKey(apiKey, req.ip);
+  const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
+  if (!retrievedUser) {
+    logger.trace({ token, apiKey }, 'ENSURE GUEST');
+    res.status(401).send({ ok: false, message: 'Unauthorized' });
+  } else if (!retrievedUser.isGuest) {
+    logger.trace({ userId: retrievedUser.id }, 'Non-guest user attempted to access guest-only route');
+    res.status(403).send({ ok: false, message: 'Guest users only' });
+  } else {
+    (req as any).user = retrievedUser;
+    (req as any).authMethod = authTokenRetrieval ? AuthMethods.AUTH_TOKEN : AuthMethods.API_KEY;
+    next();
+  }
+};
+
+export const ensureGuestOrUser = async (req: ExpressRequest, res: Response, next: NextFunction) => {
+  const token = await extractAuthToken(req);
+  const apiKey = await extractApiKey(req);
+  const authTokenRetrieval = await extractUserFromToken(token);
+  const apiKeyRetrieval = await extractUserFromApiKey(apiKey, req.ip);
+  const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
+
+  if (!retrievedUser) {
+    logger.trace({ token, apiKey }, 'ENSURE GUEST OR USER');
     res.status(401).send({ ok: false, message: 'Unauthorized' });
   } else {
     (req as any).user = retrievedUser;
@@ -70,7 +107,6 @@ export interface AuthenticatedSocket extends Socket {
  * Socket.IO WS: Authentication Middleware
  */
 export const socketsEnsureUser = async (socket: Socket, next: (err?: ExtendedError) => void) => {
-  // debugger;
   const cookies = parseWsCookies(socket.handshake.headers.cookie);
   if (!cookies) {
     return next(new Error('Authentication error: No cookies provided'));

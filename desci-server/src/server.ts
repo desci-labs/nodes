@@ -22,11 +22,12 @@ import { orcidCheck } from './controllers/auth/orcidNext.js';
 import { NotFoundError } from './core/ApiError.js';
 import { openaiDocumentation } from './docs/openai.js';
 import { als, logger as parentLogger } from './logger.js';
+import { attachUser } from './middleware/attachUser.js';
 import { RequestWithUser } from './middleware/authorisation.js';
-import { ensureUserIfPresent } from './middleware/ensureUserIfPresent.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { extractAuthToken, extractUserFromToken } from './middleware/permissions.js';
 import routes from './routes/index.js';
+import { dataMigrationWorker } from './services/DataMigration/DataMigrationWorker.js';
 import { initializeWebSockets, getIO } from './services/websocketService.js';
 // import swaggerFile from './swagger_output.json' with { type: 'json' };
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
@@ -125,7 +126,10 @@ class AppServer {
       req.traceId = v4();
       res.header('X-Desci-Trace-Id', req.traceId);
 
-      als.run({ traceId: req.traceId, timing: [new Date()], userAuth: req.userAuth }, () => {
+      // Prevent guest abuse
+      const clientIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress;
+
+      als.run({ traceId: req.traceId, timing: [new Date()], userAuth: req.userAuth, clientIp }, () => {
         next();
       });
     });
@@ -212,7 +216,7 @@ class AppServer {
       res.status(200).json({ id: serverUuid, affinity: req.cookies['stickie-dev-ingress61'] });
     });
     this.app.get('/orcid', orcidConnect);
-    this.app.post('/orcid/next', [ensureUserIfPresent], orcidCheck());
+    this.app.post('/orcid/next', [attachUser], orcidCheck());
     // this.app.use('/doc', swaggerUI.serve, swaggerUI.setup(swaggerFile));
     this.app.use('/documentation', swaggerUI.serve, swaggerUI.setup(openaiDocumentation));
     this.app.use('/', routes);
@@ -291,6 +295,9 @@ class AppServer {
   async startJobs() {
     // start doi submission cron job
     SubmissionQueueJob.start();
+
+    // Start data migration worker
+    dataMigrationWorker.start();
   }
 }
 function getRemoteAddress(req) {

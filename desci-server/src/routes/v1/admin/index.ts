@@ -12,6 +12,7 @@ import {
   getAggregatedAnalyticsCsv,
 } from '../../../controllers/admin/analytics.js';
 import { listAttestations } from '../../../controllers/admin/communities/index.js';
+import { retryMigration } from '../../../controllers/admin/data/retryMigration.js';
 import { debugAllNodesHandler, debugNodeHandler } from '../../../controllers/admin/debug.js';
 import { listDoiRecords, mintDoi } from '../../../controllers/admin/doi/index.js';
 import { resumePublish } from '../../../controllers/admin/publish/resumePublish.js';
@@ -64,7 +65,7 @@ router.get('/debug', [ensureUser, ensureAdmin], asyncHandler(debugAllNodesHandle
 router.get('/debug/:uuid', [ensureUser, ensureAdmin], asyncHandler(debugNodeHandler));
 
 router.post('/resumePublish', [ensureUser, ensureAdmin], asyncHandler(resumePublish));
-
+router.post('/retryMigration/:migrationId', [ensureUser, ensureAdmin], asyncHandler(retryMigration));
 router.use('/communities', [], communities);
 router.get('/attestations', [ensureUser, ensureAdmin], asyncHandler(listAttestations));
 router.use('/users', usersRouter);

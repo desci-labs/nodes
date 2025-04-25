@@ -59,6 +59,9 @@ model Node {
   NodeLike             NodeLike[]
   CommunitySubmission  CommunitySubmission[]
   PublishedWallet      PublishedWallet[]
+  GuestDataReference   GuestDataReference[]
+  DataMigration        DataMigration[]
+  dataMigrationId      Int?
 
   @@index([ownerId])
   @@index([uuid])
@@ -88,6 +91,7 @@ model InteractionLog {
   extra      String?
   action     ActionType?
   userId     Int?
+  isGuest    Boolean? // True = Guest, False = User, Null = Not logged
   rep        Int?
   nodeId     Int?
   waitlistId Int?
@@ -168,6 +172,8 @@ model User {
   id                          Int                           @id @default(autoincrement())
   createdAt                   DateTime                      @default(now())
   updatedAt                   DateTime                      @updatedAt
+  isGuest                     Boolean                       @default(false)
+  convertedGuest              Boolean                       @default(false)
   email                       String                        @unique
   phoneNumber                 String?                       @unique
   name                        String?
@@ -233,6 +239,8 @@ model User {
   NodeLike                    NodeLike[]
   CommunitySubmission         CommunitySubmission[]
   PublishedWallet             PublishedWallet[]
+  GuestDataReference          GuestDataReference[]
+  DataMigration               DataMigration[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -422,6 +430,25 @@ model DataReference {
   nodeVersion NodeVersion? @relation(fields: [versionId], references: [id])
 }
 
+model GuestDataReference {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  cid        String
+  root       Boolean
+  rootCid    String?
+  path       String?
+  directory  Boolean
+  size       Int
+  type       DataType
+  external   Boolean?
+  nodeId     Int
+  userId     Int
+  loggedData Json?
+  node       Node     @relation(fields: [nodeId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+}
+
 model CidPruneList {
   id          Int      @id @default(autoincrement())
   createdAt   DateTime @default(now())
@@ -444,7 +471,6 @@ model PublicDataReference {
   createdAt   DateTime                          @default(now())
   updatedAt   DateTime                          @updatedAt
   name        String?
-  description String?
   cid         String
   root        Boolean
   rootCid     String?
@@ -1076,6 +1102,40 @@ model NodeLike {
   @@unique([nodeUuid, userId])
 }
 
+model DataMigration {
+  id              Int                    @id @default(autoincrement())
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  migrationType   MigrationType
+  migrationStatus MigrationStatus
+  migrationError  String?
+  migrationData   Json
+  cleanupStatus   MigrationCleanupStatus @default(NOT_REQUESTED)
+  nodes           Node[]
+  userId          Int
+  user            User                   @relation(fields: [userId], references: [id])
+}
+
+enum MigrationType {
+  PRIVATE_TO_PUBLIC
+  GUEST_TO_PRIVATE
+}
+
+enum MigrationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum MigrationCleanupStatus {
+  NOT_REQUESTED
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
 enum VoteType {
   Yes
   No
@@ -1161,6 +1221,8 @@ enum ActionType {
   REMOVE_ORCID_WORK_RECORD
   ORCID_API_ERROR
   EDIT_COMMENT
+  GUEST_USER_CONVERSION
+  USER_SIGNUP_SUCCESS
 }
 
 enum ChainTransactionType {
@@ -1187,6 +1249,9 @@ enum DataType {
   VIDEOS
   CODE_REPOS
   DOCUMENT
+  SUBMISSION_PACKAGE
+  SUBMISSION_PACKAGE_PREVIEW
+  THUMBNAIL
 }
 
 enum PublishState {
