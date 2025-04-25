@@ -19,7 +19,7 @@ env:
 jobs:
   build-isolated-media-server:
     name: Build and deploy desci-isolated-media-server STAGING
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
@@ -75,7 +75,7 @@ jobs:
 
   build-media-server:
     name: Build and deploy nodes-media STAGING
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
@@ -131,7 +131,7 @@ jobs:
 
   build-repo-server:
     name: Build and deploy desci-repo STAGING
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
@@ -192,7 +192,7 @@ jobs:
 
   build-nodes-server:
     name: Build and deploy desci-server STAGING
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
@@ -257,7 +257,7 @@ jobs:
 
   build-reverse-proxy:
     name: Build and deploy reverse-proxy STAGING
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout

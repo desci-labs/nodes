@@ -75,7 +75,7 @@ class PublishPackageService {
 
     const publishTime = demoMode
       ? Date.now().toString().slice(0, 10)
-      : (await PublishServices.retrieveBlockTimeByManifestCid(nodeUuid, usedManifestCid)).slice(0, 10);
+      : (await PublishServices.retrieveBlockTimeByManifestCid(nodeUuid, usedManifestCid)).slice(0, 10); // here
 
     const publishDate = PublishPackageService.convertUnixTimestampToDate(publishTime);
     const authors = manifest.authors?.map((author) => author.name);
@@ -162,7 +162,8 @@ class PublishPackageService {
         { fn: 'ensurePublishedManifestCid', nodeUuid, manifestCid, latestPublishedManifestCid: indexedNode.recentCid },
         `No version match was found for nodeUuid/manifestCid, falling back on latest published manifestCid`,
       );
-      return indexedNode.recentCid;
+      const actualCid = hexToCid(indexedNode.recentCid);
+      return actualCid;
     }
     return manifestCid;
   }

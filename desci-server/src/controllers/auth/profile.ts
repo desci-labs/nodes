@@ -1,4 +1,4 @@
-import { Wallet } from '@prisma/client';
+import { ActionType, Wallet } from '@prisma/client';
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
@@ -31,7 +31,12 @@ export const profile = async (req: Request, res: Response, next: NextFunction) =
   } catch (err) {
     logger.error({ fn: 'profile', err }, 'could not set vscode due to db migration');
   }
-  saveInteraction(req, 'USER_ACTION', { action: 'PROFILE_REQ' }, user.id);
+  await saveInteraction({
+    req,
+    action: ActionType.USER_ACTION,
+    data: { action: 'PROFILE_REQ' },
+    userId: user.id,
+  });
   res.send({
     userId: user.id,
     email: user.email,

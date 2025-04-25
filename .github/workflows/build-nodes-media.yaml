@@ -26,7 +26,7 @@ env:
 jobs:
   build-and-push:
     name: Build and deploy
-    runs-on: ubuntu-22.04
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
