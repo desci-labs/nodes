@@ -27,7 +27,7 @@ env:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-22.04
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     # container:
     #   image: ubuntu:latest
     #   options: --user 1001
@@ -45,7 +45,7 @@ jobs:
       - name: Set up the environment
         # Replace this line with the appropriate setup for your project
         # Examples:
-        uses: actions/setup-node@v4
+        uses: useblacksmith/setup-node@v5
         with:
           node-version-file: ".nvmrc"
           check-latest: false
