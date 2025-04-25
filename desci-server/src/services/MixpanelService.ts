@@ -7,9 +7,9 @@ export class MixpanelService {
   public isEnabled: boolean;
 
   constructor() {
-    this.client = Mixpanel.init(process.env.MIXPANEL_TOKEN || '');
     this.isEnabled = process.env.MIXPANEL_TOKEN !== undefined;
     if (this.isEnabled) {
+      this.client = Mixpanel.init(process.env.MIXPANEL_TOKEN || '');
       logger.info('Mixpanel is enabled');
     } else {
       logger.info('Mixpanel is disabled, no token provided');
