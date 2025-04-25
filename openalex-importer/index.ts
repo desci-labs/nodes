@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import { addDays, differenceInDays, endOfDay, isAfter, isSameDay, startOfDay } from 'date-fns';
 import { logger } from './src/logger.js';
-import { getDrizzle, getNextDayToImport, pool, type OaDrizzle, type QueryInfo } from './src/db/index.js';
+import { db, getNextDayToImport, type OaDb } from './src/db/index.js';
+import { type QueryInfo } from './src/db/types.js';
 import { type Optional, parseDate } from './src/util.js';
 import { errWithCause } from 'pino-std-serializers';
 import { UTCDate } from '@date-fns/utc';
@@ -18,8 +19,8 @@ const DEFAULT_SCHEDULE = '*/5 * * * *';
 /**
  * Runs an import job for the first day not included in an 'updated' batch, unless an import is currently ongoing.
  */
-const runImportTask = async (db: OaDrizzle, query_type: QueryInfo['query_type']) => {
-  const nextDay: UTCDate = await getNextDayToImport(db, query_type);
+const runImportTask = async (db: OaDb, query_type: QueryInfo['query_type']) => {
+  const nextDay: UTCDate = await getNextDayToImport(query_type);
   const currentDate: UTCDate = new UTCDate();
   if (isSameDay(nextDay, currentDate) || isAfter(nextDay, currentDate)) {
     logger.info({ nextDay, currentDate }, '💤 Next day to import is today or in the future, snoozing...');
@@ -50,7 +51,6 @@ const runImportTask = async (db: OaDrizzle, query_type: QueryInfo['query_type'])
  */
 async function main(): Promise<void> {
   const args = getRuntimeArgs();
-  const db = getDrizzle();
 
   if (!args.query_from && !args.query_to) {
     logger.info({ args }, '➿  Time range not passed, configuring recurring task...');
@@ -201,30 +201,37 @@ const getRuntimeArgs = (): RuntimeArgs => {
   return args as RuntimeArgs;
 };
 
+let isPoolEnded = false;
+
+const endPool = async () => {
+  if (!isPoolEnded) {
+    isPoolEnded = true;
+    await db.$pool.end();
+  }
+};
+
 process.on('uncaughtException', async (err) => {
   logger.fatal(errWithCause(err), 'uncaught exception');
-  if (!pool.ending) {
-    await pool.end();
-  }
+  await endPool();
+  process.exit(1);
+});
+
+process.on("SIGTERM", async () => {
+  logger.info("Received SIGTERM signal. Shutting down pool...");
+  await endPool();
+  process.exit(1);
+});
+
+process.on("SIGINT", async () => {
+  logger.info("Received SIGINT signal. Shutting down pool...");
+  await endPool();
   process.exit(1);
 });
 
 process.on('beforeExit', async () => {
   logger.info('Process exiting, shutting down pool...')
-});
-
-process.on("SIGTERM", async () => {
-  logger.info("Received SIGTERM signal. Shutting down pool...");
-  if (!pool.ending) {
-    await pool.end();
-  }
-});
-
-process.on("SIGINT", async () => {
-  logger.info("Received SIGINT signal. Shutting down pool...");
-  if (!pool.ending) {
-    await pool.end();
-  }
+  await endPool();
+  process.exit(0);
 });
 
 /**
