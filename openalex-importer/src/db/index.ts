@@ -178,7 +178,10 @@ const updateWorkIds = async (tx: pgPromise.ITask<any>, data: DataModels['works_i
   if (!data.length) return;
 
   const columns = getColumnSet(works_idsInOpenalex);
-  const query = pgp.helpers.insert(data, columns) + ' ON CONFLICT DO NOTHING';
+  const query = pgp.helpers.insert(data, columns) +
+    ' ON CONFLICT (work_id) DO UPDATE SET ' +
+    columns.assignColumns({ from: 'EXCLUDED', skip: 'work_id' });
+
   await tx.none(query);
 };
 
