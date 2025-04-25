@@ -88,7 +88,7 @@ spec:
       serviceAccountName: "vault-auth"
       containers:
         - name: ceramic-one
-          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.54.1
+          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.54.2
           command: [ "bash", "-c" ]
           args:
             # - echo "Container idling..."; tail --follow /dev/null
