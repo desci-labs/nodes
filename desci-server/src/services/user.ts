@@ -375,6 +375,7 @@ export const getNewUsersInXDays = async (dateXDaysAgo: Date) => {
       id: true,
       email: true,
       orcid: true,
+      createdAt: true,
     },
   });
 
@@ -397,6 +398,7 @@ export const getNewOrcidUsersInXDays = async (dateXDaysAgo: Date) => {
       id: true,
       email: true,
       orcid: true,
+      createdAt: true,
     },
   });
 

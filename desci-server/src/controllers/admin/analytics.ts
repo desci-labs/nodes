@@ -785,45 +785,71 @@ interface UserDataRow {
   dateJoined: string | number;
 }
 
-export const getNewUserAnalytics = async (req: Request, res: Response) => {
-  const query = req.query;
-  const { unit, value, exportCsv } = query as z.infer<typeof userAnalyticsSchema>['query'];
-
-  const daysAgo = parseInt(value, 10);
-
-  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
-
-  const users = await getNewUsersInXDays(utcMidnightXDaysAgo);
-  const data = await asyncMap(users, async (user) => {
-    if (!user.orcid) return { ...user, publications: 0, dateJoined: '' };
+/**
+ * Common function to process user analytics data and handle CSV export
+ * @param users - Array of users or user logs to process
+ * @param exportCsv - Whether to export as CSV
+ * @param res - Express response object
+ * @param isActiveUserLog - Whether the users are from active user logs (which have a nested user object)
+ * @param fetchOrcidData - Whether to fetch ORCID profile data (publications and dateJoined)
+ */
+async function processUserAnalytics(
+  users: any[],
+  exportCsv: boolean,
+  res: Response,
+  isActiveUserLog: boolean = false,
+  fetchOrcidData: boolean = true,
+) {
+  const data = await asyncMap(users, async (item) => {
+    const user = isActiveUserLog ? item.user : item;
+    if (!user.orcid || !fetchOrcidData) return { ...user, dateJoined: user.createdAt };
     const { profile, works } = await crossRefClient.profileSummary(user.orcid);
-    return { ...user, publications: works?.group?.length, dateJoined: profile?.history?.['submission-date'].value };
+    return { ...user, publications: works?.group?.length, dateJoined: user.createdAt };
   });
 
-  logger.trace({ exportCsv }, 'getNewUserAnalytics');
   if (exportCsv) {
     const rows: UserDataRow[] = data.map((data) => ({
       email: data.email,
       orcid: data.orcid,
-      dateJoined: data.dateJoined,
-      publications: data.publications,
+      dateJoined: data.dateJoined || '',
+      publications: data.publications || 0,
     }));
-    logger.trace({ rows, data }, 'getNewUserAnalytics');
     const csv = [
       'id,email,orcid,publications,dateJoined',
-      ...rows.map((row, idx) =>
-        [idx, row.email, row.orcid ?? '', row.publications, formatDate(new Date(row.dateJoined), 'dd MMM yyyy')].join(
-          ',',
-        ),
-      ),
+      ...rows.map((row, idx) => {
+        // Safely format the date if it exists and is valid
+        let formattedDate = '';
+        if (row.dateJoined) {
+          try {
+            const date = new Date(row.dateJoined);
+            if (!isNaN(date.getTime())) {
+              formattedDate = formatDate(date, 'dd MMM yyyy');
+            }
+          } catch (error) {
+            logger.warn({ error, dateJoined: row.dateJoined }, 'Invalid date format in user analytics');
+          }
+        }
+
+        return [idx, row.email, row.orcid ?? '', row.publications, formattedDate].join(',');
+      }),
     ].join('\n');
-    logger.trace({ csv }, 'getNewUserAnalytics');
     res.setHeader('Content-disposition', 'attachment; filename=analytics.csv');
     res.set('Content-Type', 'text/csv');
     res.status(200).send(csv);
   } else {
     new SuccessResponse(data).send(res);
   }
+}
+
+export const getNewUserAnalytics = async (req: Request, res: Response) => {
+  const query = req.query;
+  const { unit, value, exportCsv } = query as z.infer<typeof userAnalyticsSchema>['query'];
+
+  const daysAgo = parseInt(value, 10);
+  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
+
+  const users = await getNewUsersInXDays(utcMidnightXDaysAgo);
+  await processUserAnalytics(users, exportCsv, res);
 };
 
 export const getNewOrcidUserAnalytics = async (req: Request, res: Response) => {
@@ -835,13 +861,7 @@ export const getNewOrcidUserAnalytics = async (req: Request, res: Response) => {
 
   const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
   const users = await getNewOrcidUsersInXDays(utcMidnightXDaysAgo);
-  const data = await asyncMap(users, async (user) => {
-    if (!user.orcid) return user;
-    const { profile, works } = await crossRefClient.profileSummary(user.orcid);
-    return { ...user, publications: works?.group?.length, dateJoined: profile?.history?.['submission-date'].value };
-  });
-
-  new SuccessResponse(data).send(res);
+  await processUserAnalytics(users, false, res, false, false);
 };
 
 export const getActiveUserAnalytics = async (req: Request, res: Response) => {
@@ -851,34 +871,7 @@ export const getActiveUserAnalytics = async (req: Request, res: Response) => {
   const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
 
   const rows = await getActiveUsersInXDays(utcMidnightXDaysAgo);
-
-  const data = await asyncMap(rows, async (log) => {
-    if (!log.user.orcid) return { ...log.user, publications: 0, dateJoined: '' };
-    const { profile, works } = await crossRefClient.profileSummary(log.user.orcid);
-    return { ...log.user, publications: works?.group?.length, dateJoined: profile?.history?.['submission-date'].value };
-  });
-
-  if (exportCsv) {
-    const rows: UserDataRow[] = data.map((data) => ({
-      email: data.email,
-      orcid: data.orcid,
-      dateJoined: data.dateJoined,
-      publications: data.publications,
-    }));
-    const csv = [
-      'id,email,orcid,publications,dateJoined',
-      ...rows.map((row, idx) =>
-        [idx, row.email, row.orcid ?? '', row.publications, formatDate(new Date(row.dateJoined), 'dd MMM yyyy')].join(
-          ',',
-        ),
-      ),
-    ].join('\n');
-    res.setHeader('Content-disposition', 'attachment; filename=analytics.csv');
-    res.set('Content-Type', 'text/csv');
-    res.status(200).send(csv);
-  } else {
-    new SuccessResponse(data).send(res);
-  }
+  await processUserAnalytics(rows, exportCsv, res, true);
 };
 
 export const getActiveOrcidUserAnalytics = async (req: Request, res: Response) => {
@@ -888,11 +881,5 @@ export const getActiveOrcidUserAnalytics = async (req: Request, res: Response) =
   const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
 
   const rows = await getActiveOrcidUsersInXDays(utcMidnightXDaysAgo);
-  const data = await asyncMap(rows, async (log) => {
-    if (!log.user.orcid) return log.user;
-    const { profile, works } = await crossRefClient.profileSummary(log.user.orcid);
-    return { ...log.user, publications: works?.group?.length, dateJoined: profile?.history?.['submission-date'].value };
-  });
-
-  new SuccessResponse(data).send(res);
+  await processUserAnalytics(rows, false, res, true, false);
 };
