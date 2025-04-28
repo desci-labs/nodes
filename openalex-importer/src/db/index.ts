@@ -80,16 +80,15 @@ const {
   works_topicsInOpenalex,
 } = openAlexSchema;
 
-const DB_URL = `postgresql://${dbInfo.user}:${dbInfo.password}@${dbInfo.host}:${dbInfo.port}/${dbInfo.database}`;
-
 logger.info(
   {
-    connectionString: DB_URL.replace(/:\/\/.*@/, `://${process.env.POSTGRES_USER}:[redacted]@`),
+    ...dbInfo,
+    password: '[REDACTED]'
   },
   'Starting postgres connection...',
 );
 
-export const db = pgp(DB_URL);
+export const db = pgp(dbInfo);
 
 export type OaDb = typeof db;
 
