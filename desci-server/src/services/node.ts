@@ -178,3 +178,34 @@ export const getNodeDetails = async (nodeUuid: string) => {
   }
   return data;
 };
+
+export interface NoveltyScoreConfig {
+  hideContentNovelty?: boolean;
+  hideContextNovelty?: boolean;
+}
+
+/**
+ * Visually hides the novelty scores for a node in the UI.
+ */
+export async function updateNoveltyScoreConfig(
+  node: Pick<Node, 'id' | 'noveltyScoreConfig'>,
+  config: NoveltyScoreConfig,
+) {
+  const hideContentNovelty = config.hideContentNovelty;
+  const hideContextNovelty = config.hideContextNovelty;
+
+  const previousConfig = node.noveltyScoreConfig as NoveltyScoreConfig;
+
+  const newConfig = {
+    ...previousConfig,
+    hideContentNovelty,
+    hideContextNovelty,
+  };
+
+  return prisma.node.update({
+    where: { id: node.id },
+    data: {
+      noveltyScoreConfig: newConfig,
+    },
+  });
+}
