@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { NoveltyScoreConfig } from '../../services/node.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 const logger = parentLogger.child({
@@ -20,6 +21,7 @@ type GetCheckNodeAccessResponse = {
   sharedOn?: number;
   recentCid?: string;
   manifestUrl?: string;
+  noveltyScoreConfig?: NoveltyScoreConfig;
 };
 
 type GetCheckNodeAccessErrorResponse = {
@@ -57,6 +59,7 @@ export const checkNodeAccess = async (
         },
         orderBy: { createdAt: 'desc' },
       },
+      noveltyScoreConfig: true,
     },
     where: {
       isDeleted: false,
@@ -95,5 +98,6 @@ export const checkNodeAccess = async (
     sharedOn: privSharedNode?.createdAt.getTime(),
     recentCid: latestPublishedVersion?.manifestUrl,
     manifestUrl: hasAccess ? node.versions[0]?.manifestUrl : undefined,
+    noveltyScoreConfig: node.noveltyScoreConfig as NoveltyScoreConfig,
   });
 };
