@@ -16,6 +16,7 @@ import { asyncMap, formatOrcidString } from '../../utils.js';
 import { listAllUserNodes, PublishedNode } from '../nodes/list.js';
 
 import { transformOrcidAffiliationToEducation, transformOrcidAffiliationToEmployment } from './transformer.js';
+import { Author } from './types.js';
 
 export const getAuthorSchema = z.object({
   params: z.object({
@@ -55,20 +56,28 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
       : isOpenAlexId
         ? await openAlexService.searchAuthorByOpenAlexId(params.id)
         : null;
-    logger.trace({ openalexProfile, isOrcidId }, 'openalexProfile');
+    logger.trace({ openalexProfile: !!openalexProfile, isOrcidId }, 'openalexProfile');
   }
 
-  const { educationHistory, employmentHistory } = await crossRefClient.getProfileExperience(
-    isOrcidId ? params.id : openalexProfile?.orcid?.split('/').pop(),
-  );
-  const [education, employment] = await Promise.all([
-    transformOrcidAffiliationToEducation(educationHistory),
-    transformOrcidAffiliationToEmployment(employmentHistory),
-  ]);
+  let profile: Author = openalexProfile;
 
-  const profile = { ...openalexProfile, employment, education };
+  if (openalexProfile?.orcid) {
+    const { educationHistory, employmentHistory } = await crossRefClient.getProfileExperience(
+      isOrcidId ? params.id : openalexProfile.orcid.split('/').pop(),
+    );
 
-  logger.trace({ education, employment }, 'getAuthorProfile');
+    const [education, employment] = await Promise.all([
+      transformOrcidAffiliationToEducation(educationHistory),
+      transformOrcidAffiliationToEmployment(employmentHistory),
+    ]);
+
+    profile = { ...openalexProfile, employment, education };
+
+    logger.trace({ education, employment }, 'getAuthorProfile');
+  } else {
+    logger.trace({ params, ID: openalexProfile?.ids }, 'NO ORCID ASSOCIATED');
+  }
+
   if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, profile);
 
   return new SuccessResponse(profile).send(res);
