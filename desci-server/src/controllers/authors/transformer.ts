@@ -1,15 +1,5 @@
 import { AffiliationGroup2 } from '../../services/crossRef/types/summary.js';
-
-interface AuthorExperience {
-  title: string;
-  startDate: string;
-  endDate?: string;
-  organisation: {
-    name: string;
-    department: string;
-    location: string;
-  };
-}
+import { AuthorExperience } from './types.js';
 
 export function transformOrcidAffiliationToEmployment(affiliations: AffiliationGroup2[]): AuthorExperience[] {
   return affiliations.map((affiliation) => {
