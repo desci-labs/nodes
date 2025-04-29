@@ -23,6 +23,7 @@ model Node {
   uuid                 String?                @unique @default(uuid())
   manifestDocumentId   String                 @default("")
   owner                User                   @relation(fields: [ownerId], references: [id])
+  noveltyScoreConfig   Json?
   authorInvites        AuthorInvite[]
   transactions         ChainTransaction[]
   interactionLogs      InteractionLog[]

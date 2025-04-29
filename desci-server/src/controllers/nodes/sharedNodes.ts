@@ -59,6 +59,7 @@ export const listSharedNodes = async (req: ListSharedNodesRequest, res: Response
             manifestUrl: true,
             dpidAlias: true,
             manifestDocumentId: true,
+            cid: true,
             // Get published versions, if any
             versions: {
               where: {
