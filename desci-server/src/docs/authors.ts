@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { ZodOpenApiOperationObject, ZodOpenApiPathsObject } from 'zod-openapi';
 
-import { getAuthorNodesSchema, getAuthorSchema, getAuthorWorksSchema } from '../controllers/authors/index.js';
+import {
+  getAuthorNodesSchema,
+  getAuthorSchema,
+  getAuthorWorksSchema,
+  getCoauthorSchema,
+} from '../controllers/authors/index.js';
 export const getAuthorProfileOperation: ZodOpenApiOperationObject = {
   operationId: 'getAuthorProfile',
   tags: ['Authors'],
@@ -188,7 +193,8 @@ export const getCoAuthorsOperation: ZodOpenApiOperationObject = {
   tags: ['Authors'],
   summary: 'Get co-authors for an author by ORCID or OpenAlex ID',
   requestParams: {
-    path: getAuthorSchema.shape.params,
+    path: getCoauthorSchema.shape.params,
+    query: getCoauthorSchema.shape.query,
   },
   responses: {
     '200': {

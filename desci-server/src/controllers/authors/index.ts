@@ -4,9 +4,9 @@ import { Request, Response, NextFunction } from 'express';
 import z from 'zod';
 
 import { prisma } from '../../client.js';
-import { SuccessResponse } from '../../core/ApiResponse.js';
+import { InternalErrorResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getFromCache, setToCache } from '../../redisClient.js';
+import { delFromCache, getFromCache, setToCache } from '../../redisClient.js';
 import { crossRefClient, openAlexService } from '../../services/index.js';
 import { WorksResult } from '../../services/openAlex/client.js';
 import { OpenAlexAuthor, OpenAlexWork } from '../../services/openAlex/types.js';
@@ -23,6 +23,19 @@ export const getAuthorSchema = z.object({
     id: z
       .string({ required_error: 'Missing ORCID or OpenAlex ID' })
       .describe('The ORCID or OpenAlex identifier of the author'),
+  }),
+});
+
+export const getCoauthorSchema = z.object({
+  params: z.object({
+    id: z
+      .string({ required_error: 'Missing ORCID or OpenAlex ID' })
+      .describe('The ORCID or OpenAlex identifier of the author'),
+  }),
+  query: z.object({
+    page: z.coerce.string().optional().default('1').describe('Page number for pagination of returned list'),
+    limit: z.coerce.string().optional().default('50').describe('Number of entries to return per page'),
+    search: z.string().optional().default(' ').describe('filter results by name'),
   }),
 });
 
@@ -84,10 +97,15 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
 };
 
 export const getCoAuthors = async (req: Request, res: Response, next: NextFunction) => {
-  const { params } = await getAuthorSchema.parseAsync(req);
+  const {
+    params,
+    query: { page, limit, search },
+  } = await getCoauthorSchema.parseAsync(req);
 
   const isOpenAlexId = OPENALEX_ID_REGEX.test(params.id);
   const isOrcidId = ORCID_REGEX.test(params.id);
+
+  const start = Date.now();
 
   let openalexProfile = await getFromCache<OpenAlexAuthor>(`${PROFILE_CACHE_PREFIX}-${params.id}`);
   if (!openalexProfile) {
@@ -99,15 +117,41 @@ export const getCoAuthors = async (req: Request, res: Response, next: NextFuncti
     setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
   }
 
-  // setToCache(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile.id}`, null);
-  let coauthors = await getFromCache<CoAuthor[]>(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile?.id}`);
-  if (!coauthors && openalexProfile) {
-    coauthors = await getUniqueCoauthors([openalexProfile.id], new Date().getFullYear());
+  // comment line before pushing upstream
+  // await delFromCache(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile?.id}-${page}-${limit}`);
 
-    if (coauthors) setToCache(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile.id}`, coauthors);
+  let coauthors = await getFromCache<CoAuthor[]>(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile?.id}-${page}-${limit}`);
+
+  try {
+    if (!coauthors && openalexProfile) {
+      coauthors = await getUniqueCoauthors(
+        [openalexProfile.id],
+        new Date().getFullYear(),
+        search,
+        (parseInt(page) - 1) * parseInt(limit),
+        parseInt(limit),
+      );
+
+      if (coauthors) setToCache(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile.id}-${page}-${limit}`, coauthors);
+    }
+  } catch (err) {
+    logger.error({ err }, 'Request to OPEN_ALEX_DATABASE Failed');
+    return new InternalErrorResponse(
+      "Endpoint is currently down, we're currently working on getting it back up asap",
+    ).send(res);
   }
 
-  return new SuccessResponse(coauthors).send(res);
+  const end = Date.now();
+  return new SuccessResponse({
+    meta: {
+      page,
+      limit,
+      duration: end - start,
+      count: coauthors?.length ?? 0,
+      nextPage: coauthors?.length == parseInt(limit) ? parseInt(page) + 1 : null,
+    },
+    results: coauthors,
+  }).send(res);
 };
 
 export const getAuthorWorks = async (req: Request, res: Response, next: NextFunction) => {

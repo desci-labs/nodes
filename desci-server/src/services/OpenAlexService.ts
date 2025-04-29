@@ -16,6 +16,7 @@ const client = new pg.Pool({
   connectionString: process.env.OPEN_ALEX_DATABASE_URL,
   connectionTimeoutMillis: 10500,
   options: '-c search_path=openalex',
+  ssl: true,
 });
 
 function ensureFormattedWorkId(workId: string) {
@@ -189,7 +190,13 @@ export interface CoAuthor {
   name: string;
   orcid: string;
 }
-export async function getUniqueCoauthors(authorIds: string[], pubYear: number): Promise<CoAuthor[]> {
+export async function getUniqueCoauthors(
+  authorIds: string[],
+  pubYear: number,
+  search = ' ',
+  offset = 0,
+  limit = 50,
+): Promise<CoAuthor[]> {
   if (!authorIds || authorIds.length === 0) {
     return [];
   }
@@ -225,26 +232,29 @@ SELECT
     ) AS orcid
 FROM
     openalex.works_authorships wa2
-    JOIN openalex.authors author ON author.id = wa2.author_id
+    JOIN openalex.authors author ON author.id = wa2.author_id and author.display_name ILIKE '%$7%'
     JOIN RecentWorks rw ON wa2.work_id = rw.work_id
 WHERE
-    wa2.author_id <> ALL($4);
+    wa2.author_id <> ALL($4)
+OFFSET $5
+LIMIT $6
+;
 `;
 
-  try {
-    const result = await client.query(query, [authorIds, minYear, pubYear, authorIds]);
-    logger.trace({ rows: result.rowCount }, 'getUniqueCoauthors');
-    let coauthors = result.rows
-      // ?.map((row, rowIdx) => ({ id: row.co_author_id, name: row.author_name, orcid: row.orcid }))
-      .filter(Boolean);
-    coauthors = _.uniqBy(coauthors, (entry) => entry.id);
-    logger.trace({ uniqueAuthors: coauthors.length }, 'getUniqueCoauthors#result');
-    return coauthors;
-  } catch (error) {
-    console.error('Error getting unique coauthors:', error);
-    logger.error({ error: error.toString() }, 'Error getting unique coauthors:');
-    return [];
-  }
+  // try {
+  const result = await client.query(query, [authorIds, minYear, pubYear, authorIds, offset, limit, search]);
+  logger.trace({ query: result.command, rows: result.rowCount }, 'getUniqueCoauthors');
+  let coauthors = result.rows
+    // ?.map((row, rowIdx) => ({ id: row.co_author_id, name: row.author_name, orcid: row.orcid }))
+    .filter(Boolean);
+  coauthors = _.uniqBy(coauthors, (entry) => entry.id);
+  logger.trace({ uniqueAuthors: coauthors.length }, 'getUniqueCoauthors#result');
+  return coauthors;
+  // } catch (error) {
+  // console.error('Error getting unique coauthors:', error);
+  // logger.error({ error: error.toString() }, 'Error getting unique coauthors:');
+  // return [];
+  // }
 }
 
 export type OpenAlexTopic = {

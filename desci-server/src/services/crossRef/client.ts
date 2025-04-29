@@ -446,8 +446,8 @@ class CrossRefClient {
       profile = orcidProfile;
     }
 
-    const employmentHistory = profile?.['activities-summary']?.['employments']?.['affiliation-group'];
-    const educationHistory = profile?.['activities-summary']?.['educations']?.['affiliation-group'];
+    const employmentHistory = profile?.['activities-summary']?.['employments']?.['affiliation-group'] ?? [];
+    const educationHistory = profile?.['activities-summary']?.['educations']?.['affiliation-group'] ?? [];
     return { employmentHistory, educationHistory };
   }
   async getEmploymentHistory(orcid: string) {
