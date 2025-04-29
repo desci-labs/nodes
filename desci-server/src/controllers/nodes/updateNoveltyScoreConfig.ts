@@ -93,7 +93,8 @@ export const updateNoveltyScoreConfigController = async (
 
     if (node.ownerId !== user.id) {
       logger.warn({ nodeOwnerId: node.ownerId }, `User ${user.id} does not own node: ${node.id}`);
-      return res.status(403).json({ ok: false, error: 'Unauthorized' });
+      res.status(403).json({ ok: false, error: 'Unauthorized' });
+      return;
     }
 
     logger.trace({ config: validatedConfig }, 'Updating novelty score config');
@@ -116,19 +117,24 @@ export const updateNoveltyScoreConfigController = async (
     });
     const isNodePublished = publishedVersions?.length > 0;
     if (isNodePublished) {
-      await ElasticNodesService.updateNoveltyScoreDataForEsEntry(
+      ElasticNodesService.updateNoveltyScoreDataForEsEntry(
         node,
         updatedNode.noveltyScoreConfig as NoveltyScoreConfig,
-      );
+      ).catch((err) => {
+        logger.error({ err }, 'Error during background ES update for novelty score config');
+      });
     }
+    return;
   } catch (e) {
     if (e instanceof z.ZodError) {
       logger.warn({ error: e.errors }, 'Invalid request parameters');
-      return res.status(400).json({ ok: false, error: 'Invalid request parameters', details: e.errors });
+      res.status(400).json({ ok: false, error: 'Invalid request parameters', details: e.errors });
+      return;
     }
 
     logger.error({ e }, 'Error updating novelty score config');
-    return res.status(500).json({ ok: false, error: 'Internal server error' });
+    res.status(500).json({ ok: false, error: 'Internal server error' });
+    return;
   }
 };
 
