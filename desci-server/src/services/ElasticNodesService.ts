@@ -386,16 +386,15 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
  ** Hides/Shows the novelty scores for a node in ES Query results.
  */
 async function updateNoveltyScoreDataForEsEntry(
-  node: Pick<Node, 'uuid' | 'noveltyScoreConfig' | 'cid' | 'manifestUrl'>,
+  node: Pick<Node, 'uuid' | 'cid' | 'manifestUrl'>,
+  updatedConfig: NoveltyScoreConfig,
 ): Promise<void> {
   try {
-    const { noveltyScoreConfig } = node;
-
-    const hideContentNovelty = (noveltyScoreConfig as NoveltyScoreConfig)?.hideContentNovelty;
-    const hideContextNovelty = (noveltyScoreConfig as NoveltyScoreConfig)?.hideContextNovelty;
+    const hideContentNovelty = updatedConfig?.hideContentNovelty;
+    const hideContextNovelty = updatedConfig?.hideContextNovelty;
 
     logger.info(
-      { fn: 'updateNoveltyScoreDataForEsEntry', nodeUuid: node.uuid, noveltyScoreConfig },
+      { fn: 'updateNoveltyScoreDataForEsEntry', nodeUuid: node.uuid, updatedConfig },
       'Updating novelty score data for ES entry',
     );
 
@@ -434,7 +433,7 @@ async function updateNoveltyScoreDataForEsEntry(
     if (Object.keys(updateFields).length > 0) {
       const updateResult = await updateIndexedResearchObject(node.uuid, updateFields);
       logger.info(
-        { fn: 'updateNoveltyScoreDataForEsEntry', updateResult, nodeUuid: node.uuid, noveltyScoreConfig, updateFields },
+        { fn: 'updateNoveltyScoreDataForEsEntry', updateResult, nodeUuid: node.uuid, updatedConfig, updateFields },
         'Update result:',
       );
     }
@@ -445,7 +444,7 @@ async function updateNoveltyScoreDataForEsEntry(
           fn: 'updateNoveltyScoreDataForEsEntry',
           removalResult,
           nodeUuid: node.uuid,
-          noveltyScoreConfig,
+          updatedConfig,
           removalFields,
         },
         'Removal result:',

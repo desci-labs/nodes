@@ -12,7 +12,7 @@ async function testExec() {
   const uuid = '';
   const node = await prisma.node.findUnique({ where: { uuid: ensureUuidEndsWithDot(uuid) } });
 
-  await ElasticNodesService.updateNoveltyScoreDataForEsEntry(node);
+  // await ElasticNodesService.updateNoveltyScoreDataForEsEntry(node);
 
   process.exit(0);
 }

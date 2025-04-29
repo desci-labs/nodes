@@ -3,7 +3,9 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { ZodOpenApiOperationObject, ZodOpenApiPathsObject } from 'zod-openapi';
 
+import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { ElasticNodesService } from '../../services/ElasticNodesService.js';
 import { NoveltyScoreConfig, updateNoveltyScoreConfig } from '../../services/node.js';
 
 export const UpdateNoveltyScoreConfigSchema = z.object({
@@ -98,11 +100,27 @@ export const updateNoveltyScoreConfigController = async (
 
     const updatedNode = await updateNoveltyScoreConfig(node, validatedConfig);
 
-    return res.status(200).json({
+    res.status(200).json({
       ok: true,
       message: 'Novelty score configuration updated successfully',
       config: updatedNode.noveltyScoreConfig as NoveltyScoreConfig,
     });
+
+    // Background task
+    // If the node is published, modify its ES entry to hide/show the novelty scores
+    const publishedVersions = await prisma.nodeVersion.findMany({
+      where: {
+        nodeId: node.id,
+        OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+      },
+    });
+    const isNodePublished = publishedVersions?.length > 0;
+    if (isNodePublished) {
+      await ElasticNodesService.updateNoveltyScoreDataForEsEntry(
+        node,
+        updatedNode.noveltyScoreConfig as NoveltyScoreConfig,
+      );
+    }
   } catch (e) {
     if (e instanceof z.ZodError) {
       logger.warn({ error: e.errors }, 'Invalid request parameters');

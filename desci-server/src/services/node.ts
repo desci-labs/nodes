@@ -198,8 +198,8 @@ export async function updateNoveltyScoreConfig(
 
   const newConfig = {
     ...previousConfig,
-    hideContentNovelty,
-    hideContextNovelty,
+    ...(hideContentNovelty !== undefined && { hideContentNovelty }),
+    ...(hideContextNovelty !== undefined && { hideContextNovelty }),
   };
 
   return prisma.node.update({
