@@ -2,14 +2,8 @@
  ** This service contains functionality for indexing published nodes on ElasticSearch
  */
 
-import {
-  PdfComponent,
-  ResearchObjectComponentDocumentSubtype,
-  ResearchObjectComponentType,
-  ResearchObjectV1,
-  ResearchObjectV1Author,
-  ResearchObjectV1Component,
-} from '@desci-labs/desci-models';
+import { ResearchObjectV1, ResearchObjectV1Author } from '@desci-labs/desci-models';
+import { Node } from '@prisma/client';
 import axios from 'axios';
 
 import { prisma } from '../client.js';
@@ -22,9 +16,8 @@ import { getFirstManuscript } from '../utils/manifest.js';
 import { ensureUuidEndsWithDot, hexToCid, unpadUuid } from '../utils.js';
 
 import { getManifestByCid, getManifestFromNode } from './data/processing.js';
-// import { searchEsAuthors } from './ElasticSearchService.js';
 import { searchEsAuthors } from './ElasticSearchService.js';
-import { getDpidFromNode, getDpidFromNodeUuid } from './node.js';
+import { getDpidFromNode, NoveltyScoreConfig } from './node.js';
 import { OpenAlexService } from './OpenAlexService.js';
 
 export const NODES_INDEX = 'works_nodes_v1';
@@ -359,7 +352,6 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
     }
 
     const data = resultRes.data as any;
-
     const deserializedData: AiApiResult = {
       ...data,
       ...(data.result ? { result: JSON.parse(data.result) } : {}),
@@ -389,7 +381,177 @@ async function getAiData(manifest: ResearchObjectV1, useCache: boolean): Promise
   }
 }
 
+/**
+ * Updates the novelty score data for an ES entry.
+ ** Hides/Shows the novelty scores for a node in ES Query results.
+ */
+async function updateNoveltyScoreDataForEsEntry(
+  node: Pick<Node, 'uuid' | 'noveltyScoreConfig' | 'cid' | 'manifestUrl'>,
+): Promise<void> {
+  try {
+    const { noveltyScoreConfig } = node;
+
+    const hideContentNovelty = (noveltyScoreConfig as NoveltyScoreConfig)?.hideContentNovelty;
+    const hideContextNovelty = (noveltyScoreConfig as NoveltyScoreConfig)?.hideContextNovelty;
+
+    logger.info(
+      { fn: 'updateNoveltyScoreDataForEsEntry', nodeUuid: node.uuid, noveltyScoreConfig },
+      'Updating novelty score data for ES entry',
+    );
+
+    const { researchObjects } = await getIndexedResearchObjects([node.uuid]);
+    const researchObject = researchObjects[0];
+    const latestPublishedManifestCid = hexToCid(researchObject.recentCid);
+    const latestManifest = await getManifestByCid(latestPublishedManifestCid);
+    const aiData = await getAiData(latestManifest, false);
+
+    const contentNoveltyPercentile = aiData ? aiData.contentNovelty?.percentile : 0;
+    const contextNoveltyPercentile = aiData ? aiData.contextNovelty?.percentile : 0;
+    const lastUpdatedDate = aiData.generationDate;
+
+    const updateFields = {
+      ...(hideContentNovelty !== true && {
+        content_novelty_percentile: contentNoveltyPercentile,
+        content_novelty_percentile_last_updated: lastUpdatedDate,
+      }),
+      ...(hideContextNovelty !== true && {
+        context_novelty_percentile: contextNoveltyPercentile,
+        context_novelty_percentile_last_updated: lastUpdatedDate,
+      }),
+    };
+
+    const removalFields = [];
+
+    if (hideContentNovelty) {
+      removalFields.push('content_novelty_percentile');
+      removalFields.push('content_novelty_percentile_last_updated');
+    }
+    if (hideContextNovelty) {
+      removalFields.push('context_novelty_percentile');
+      removalFields.push('context_novelty_percentile_last_updated');
+    }
+
+    if (Object.keys(updateFields).length > 0) {
+      const updateResult = await updateIndexedResearchObject(node.uuid, updateFields);
+      logger.info(
+        { fn: 'updateNoveltyScoreDataForEsEntry', updateResult, nodeUuid: node.uuid, noveltyScoreConfig, updateFields },
+        'Update result:',
+      );
+    }
+    if (removalFields.length > 0) {
+      const removalResult = await removeFieldsFromIndexedResearchObject(node.uuid, removalFields);
+      logger.info(
+        {
+          fn: 'updateNoveltyScoreDataForEsEntry',
+          removalResult,
+          nodeUuid: node.uuid,
+          noveltyScoreConfig,
+          removalFields,
+        },
+        'Removal result:',
+      );
+    }
+    logger.info({ fn: 'updateNoveltyScoreDataForEsEntry' }, 'Completed updateNoveltyScoreDataForEsEntry');
+    return;
+  } catch (e) {
+    logger.error({ e }, 'Error updating novelty score data for ES entry');
+  }
+}
+
+/**
+ * Updates specific fields of an indexed research object in Elasticsearch.
+ *
+ * @param nodeUuid The UUID of the node to update. (Period optional)
+ * @param updates An object containing the fields to add or update.
+ */
+async function updateIndexedResearchObject(nodeUuid: string, updates: Record<string, any>) {
+  nodeUuid = unpadUuid(nodeUuid);
+  const workId = NODES_ID_PREFIX + nodeUuid;
+  try {
+    await elasticWriteClient.update({
+      index: NATIVE_WORKS_INDEX,
+      id: workId,
+      doc: updates,
+      refresh: true,
+      doc_as_upsert: false, // don't create if doesnt exist
+    });
+
+    logger.info(
+      { fn: 'updateIndexedResearchObject' },
+      `Updated work: ${workId} with fields: ${Object.keys(updates).join(', ')}`,
+    );
+    return { success: true, workId };
+  } catch (error) {
+    if (error.meta?.statusCode === 404) {
+      logger.warn({ fn: 'updateIndexedResearchObject', nodeUuid, workId, updates }, `Document not found for update.`);
+      return { success: false, nodeUuid, error: 'Document not found' };
+    }
+    logger.error({ fn: 'updateIndexedResearchObject', error, nodeUuid, workId, updates }, 'Error updating work:');
+    return {
+      success: false,
+      nodeUuid,
+      error: error?.message || 'Unknown error during update',
+    };
+  }
+}
+
+/**
+ * Removes specific fields from an indexed research object in Elasticsearch.
+ *
+ * @param nodeUuid The UUID of the node to update.
+ * @param fieldsToRemove An array of field names to remove.
+ */
+async function removeFieldsFromIndexedResearchObject(nodeUuid: string, fieldsToRemove: string[]) {
+  nodeUuid = unpadUuid(nodeUuid);
+  const workId = NODES_ID_PREFIX + nodeUuid;
+  if (!fieldsToRemove || fieldsToRemove.length === 0) {
+    logger.info({ fn: 'removeFieldsFromIndexedResearchObject', nodeUuid }, 'No fields specified for removal.');
+    return { success: true, workId: null, message: 'No fields to remove' };
+  }
+
+  try {
+    await elasticWriteClient.update({
+      index: NATIVE_WORKS_INDEX,
+      id: workId,
+      script: {
+        source: 'for (field in params.fields) { ctx._source.remove(field) }',
+        lang: 'painless',
+        params: {
+          fields: fieldsToRemove,
+        },
+      },
+      refresh: true,
+    });
+
+    logger.info(
+      { fn: 'removeFieldsFromIndexedResearchObject' },
+      `Updated work: ${workId}, removed fields: ${fieldsToRemove.join(', ')}`,
+    );
+    return { success: true, workId };
+  } catch (error) {
+    if (error.meta?.statusCode === 404) {
+      logger.warn(
+        { fn: 'removeFieldsFromIndexedResearchObject', nodeUuid, workId, fieldsToRemove },
+        `Document not found for field removal.`,
+      );
+      return { success: false, nodeUuid, error: 'Document not found' };
+    }
+    logger.error(
+      { fn: 'removeFieldsFromIndexedResearchObject', error, nodeUuid, workId, fieldsToRemove },
+      'Error removing fields from work:',
+    );
+    return {
+      success: false,
+      nodeUuid,
+      error: error?.message || 'Unknown error during field removal',
+    };
+  }
+}
+
 export const ElasticNodesService = {
   indexResearchObject,
   getAiData,
+  updateIndexedResearchObject,
+  removeFieldsFromIndexedResearchObject,
+  updateNoveltyScoreDataForEsEntry,
 };
