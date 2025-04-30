@@ -93,7 +93,7 @@ jobs:
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
         with:
-          version: 2
+          version: 1
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
