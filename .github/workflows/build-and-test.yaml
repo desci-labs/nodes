@@ -91,11 +91,3 @@ jobs:
             exit 1
           fi
           echo "DISK USE:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
-
-      - name: Clean up Docker resources (save disk space)
-        if: always()
-        run: |
-          echo "Running Docker system prune..."
-          docker system prune -af --volumes
-          echo "Docker cleanup complete."
-          echo "DISK USE AFTER CLEANUP:"; find / -maxdepth 1 -mindepth 1 -type d -exec du -hs {} \; 2>/dev/null
