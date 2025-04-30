@@ -241,7 +241,6 @@ LIMIT $6
 ;
 `;
 
-  logger.trace({ query }, 'getUniqueCoauthors');
   const result = await client.query(query, [authorIds, minYear, pubYear, authorIds, offset, limit]);
   let coauthors = result.rows.filter(Boolean);
   coauthors = _.uniqBy(coauthors, (entry) => entry.id);
