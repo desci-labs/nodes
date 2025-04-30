@@ -1,3 +1,6 @@
+import { BookmarkType, PrismaClient, User } from '@prisma/client';
+import { text } from 'body-parser';
+
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 
@@ -64,6 +67,364 @@ async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
   }
   if (existingUser) {
     throw new Error('Existing user is a guest');
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    tx.user.update({
+      where: {
+        id: existingUser.id,
+      },
+      data: {
+        unseenNotificationCount: guest.unseenNotificationCount + existingUser.unseenNotificationCount,
+      },
+    });
+
+    // Change node ownership
+    await tx.node.updateMany({
+      where: {
+        ownerId: guest.id,
+      },
+      data: {
+        ownerId: existingUser.id,
+      },
+    });
+
+    // Update interaction logs
+    await tx.interactionLog.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update AuthToken table entries
+    await tx.authToken.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update Wallet table entries - Shouldn't be any for a guest, but just in case.
+    await tx.wallet.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update PublishedWallet table entries - Shouldn't be any for a guest, but just in case.
+    await tx.publishedWallet.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update UserIdentity table entries
+    await tx.userIdentity.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update DataReferences - Shouldn't be any for a guest, but just in case.
+    await tx.dataReference.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update GuestDataReferences.
+    await tx.guestDataReference.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update CidPruneList entries
+    await tx.cidPruneList.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update Bookmarked Nodes - Deduplicates.
+    await mergeBookmarks(tx, guest, existingUser);
+
+    // Update NodeContributions
+    await tx.nodeContribution.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update UserOrganizations table entries - Probably doesn't apply, just to be sure.
+    await mergeUserOrganizations(tx, guest, existingUser);
+
+    // Remove CommunityMemberships by the Guest, shouldn't be possible.
+    await tx.communityMember.deleteMany({
+      where: {
+        userId: guest.id,
+      },
+    });
+
+    // Update NodeAttestation entries
+    await tx.nodeAttestation.updateMany({
+      where: {
+        claimedById: guest.id,
+      },
+      data: {
+        claimedById: existingUser.id,
+      },
+    });
+
+    // Update DeferredEmails
+    await tx.deferredEmails.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update Annotations
+    await tx.annotation.updateMany({
+      where: {
+        authorId: guest.id,
+      },
+      data: {
+        authorId: existingUser.id,
+      },
+    });
+
+    // Update NodeAttestationReactions
+    await tx.nodeAttestationReaction.updateMany({
+      where: {
+        authorId: guest.id,
+      },
+      data: {
+        authorId: existingUser.id,
+      },
+    });
+
+    // Update NodeAttestationVerifications
+    await tx.nodeAttestationVerification.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update OrcidPutCodes
+    await tx.orcidPutCodes.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update UserNotifications
+    await tx.userNotifications.updateMany({
+      // DO A SMART UPDATE HERE, LOOK AT PAYLOADS!!!
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+
+    // Update DataMigration entries
+    await tx.dataMigration.updateMany({
+      where: {
+        userId: guest.id,
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+  });
+
+  return result;
+}
+
+type PrismaTransactionClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
+
+/**
+ * Merges bookmarks from a guest user into an existing user.
+ ** Takes care of deduplicating the bookmarks between the 2 users.
+ * We use app logic to prevent duplicate bookmarks, we can't rely on the db to do this
+ * as part of the unique constraint dependency array are optional fields.
+ */
+async function mergeBookmarks(tx: PrismaTransactionClient, guest: User, existingUser: User) {
+  // Fetch guest bookmarks
+  const guestBookmarks = await tx.bookmarkedNode.findMany({
+    where: { userId: guest.id },
+  });
+
+  if (guestBookmarks.length === 0) {
+    // No bookmarks to merge, exit early
+    return;
+  }
+
+  // Fetch existing user bookmarks for comparison
+  const existingUserBookmarks = await tx.bookmarkedNode.findMany({
+    where: { userId: existingUser.id },
+    select: {
+      type: true,
+      nodeUuid: true,
+      doi: true,
+      oaWorkId: true,
+    },
+  });
+
+  // Create sets for efficient lookup of existing bookmarks
+  const existingNodeBookmarks = new Set(
+    existingUserBookmarks.filter((b) => b.type === BookmarkType.NODE && b.nodeUuid).map((b) => b.nodeUuid!),
+  );
+  const existingDoiBookmarks = new Set(
+    existingUserBookmarks.filter((b) => b.type === BookmarkType.DOI && b.doi).map((b) => b.doi!),
+  );
+  const existingOaBookmarks = new Set(
+    existingUserBookmarks.filter((b) => b.type === BookmarkType.OA && b.oaWorkId).map((b) => b.oaWorkId!),
+  );
+
+  const bookmarksToDelete: number[] = [];
+  const bookmarksToUpdate: number[] = [];
+
+  for (const guestBookmark of guestBookmarks) {
+    let isDuplicate = false;
+    switch (guestBookmark.type) {
+      case BookmarkType.NODE:
+        if (guestBookmark.nodeUuid && existingNodeBookmarks.has(guestBookmark.nodeUuid)) {
+          isDuplicate = true;
+        }
+        break;
+      case BookmarkType.DOI:
+        if (guestBookmark.doi && existingDoiBookmarks.has(guestBookmark.doi)) {
+          isDuplicate = true;
+        }
+        break;
+      case BookmarkType.OA:
+        if (guestBookmark.oaWorkId && existingOaBookmarks.has(guestBookmark.oaWorkId)) {
+          isDuplicate = true;
+        }
+        break;
+    }
+
+    if (isDuplicate) {
+      bookmarksToDelete.push(guestBookmark.id);
+    } else {
+      bookmarksToUpdate.push(guestBookmark.id);
+    }
+  }
+
+  // Perform deletions and updates
+
+  if (bookmarksToDelete.length > 0) {
+    await tx.bookmarkedNode.deleteMany({
+      where: {
+        id: { in: bookmarksToDelete },
+      },
+    });
+  }
+
+  if (bookmarksToUpdate.length > 0) {
+    await tx.bookmarkedNode.updateMany({
+      where: {
+        id: { in: bookmarksToUpdate },
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
+  }
+}
+
+/**
+ * Merges organizations from a guest user into an existing user. Handles deduplication.
+ */
+async function mergeUserOrganizations(tx: PrismaTransactionClient, guest: User, existingUser: User) {
+  const guestOrgs = await tx.userOrganizations.findMany({
+    where: { userId: guest.id },
+    select: { organizationId: true },
+  });
+
+  if (guestOrgs.length === 0) {
+    return; // Nothing to merge
+  }
+
+  const existingUserOrgIds = await tx.userOrganizations.findMany({
+    where: { userId: existingUser.id },
+    select: { organizationId: true },
+  });
+
+  const existingOrgIdSet = new Set(existingUserOrgIds.map((uo) => uo.organizationId));
+
+  const orgsToDelete: string[] = [];
+  const orgsToUpdate: string[] = [];
+
+  for (const guestOrg of guestOrgs) {
+    if (existingOrgIdSet.has(guestOrg.organizationId)) {
+      // Existing user already in this org, mark guest's entry for deletion
+      orgsToDelete.push(guestOrg.organizationId);
+    } else {
+      // Existing user NOT in this org, mark guest's entry for update
+      orgsToUpdate.push(guestOrg.organizationId);
+    }
+  }
+
+  if (orgsToDelete.length > 0) {
+    await tx.userOrganizations.deleteMany({
+      where: {
+        userId: guest.id,
+        organizationId: { in: orgsToDelete },
+      },
+    });
+  }
+
+  if (orgsToUpdate.length > 0) {
+    await tx.userOrganizations.updateMany({
+      where: {
+        userId: guest.id,
+        organizationId: { in: orgsToUpdate },
+      },
+      data: {
+        userId: existingUser.id,
+      },
+    });
   }
 }
 
