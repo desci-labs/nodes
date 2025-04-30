@@ -22,6 +22,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - run: echo ${{ runner.arch }}
+
       # Add steps here like linting, testing, minification, etc.
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
