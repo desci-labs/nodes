@@ -16,7 +16,9 @@ const client = new pg.Pool({
   connectionString: process.env.OPEN_ALEX_DATABASE_URL,
   connectionTimeoutMillis: 10500,
   options: '-c search_path=openalex',
-  ssl: true,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 function ensureFormattedWorkId(workId: string) {
