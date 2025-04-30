@@ -16,7 +16,7 @@ jobs:
   build-and-push-images:
     # we build and push for every commit, even if tests pass, that way when tests pass deployment is short (run test + build in parallel)
     name: Build and push images
-    runs-on: blacksmith-4vcpu-ubuntu-2204
+    runs-on: ubuntu-22.04
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
