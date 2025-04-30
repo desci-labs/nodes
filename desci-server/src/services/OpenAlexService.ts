@@ -193,7 +193,7 @@ export interface CoAuthor {
 export async function getUniqueCoauthors(
   authorIds: string[],
   pubYear: number,
-  search = ' ',
+  search = '',
   offset = 0,
   limit = 50,
 ): Promise<CoAuthor[]> {
@@ -232,7 +232,7 @@ SELECT
     ) AS orcid
 FROM
     openalex.works_authorships wa2
-    JOIN openalex.authors author ON author.id = wa2.author_id and author.display_name ILIKE '%$7%'
+    JOIN openalex.authors author ON author.id = wa2.author_id and author.display_name ILIKE '%${search || ''}%'
     JOIN RecentWorks rw ON wa2.work_id = rw.work_id
 WHERE
     wa2.author_id <> ALL($4)
@@ -241,20 +241,12 @@ LIMIT $6
 ;
 `;
 
-  // try {
-  const result = await client.query(query, [authorIds, minYear, pubYear, authorIds, offset, limit, search]);
-  logger.trace({ query: result.command, rows: result.rowCount }, 'getUniqueCoauthors');
-  let coauthors = result.rows
-    // ?.map((row, rowIdx) => ({ id: row.co_author_id, name: row.author_name, orcid: row.orcid }))
-    .filter(Boolean);
+  logger.trace({ query }, 'getUniqueCoauthors');
+  const result = await client.query(query, [authorIds, minYear, pubYear, authorIds, offset, limit]);
+  let coauthors = result.rows.filter(Boolean);
   coauthors = _.uniqBy(coauthors, (entry) => entry.id);
   logger.trace({ uniqueAuthors: coauthors.length }, 'getUniqueCoauthors#result');
   return coauthors;
-  // } catch (error) {
-  // console.error('Error getting unique coauthors:', error);
-  // logger.error({ error: error.toString() }, 'Error getting unique coauthors:');
-  // return [];
-  // }
 }
 
 export type OpenAlexTopic = {

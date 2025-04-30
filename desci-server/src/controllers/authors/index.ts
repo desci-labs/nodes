@@ -35,7 +35,7 @@ export const getCoauthorSchema = z.object({
   query: z.object({
     page: z.coerce.string().optional().default('1').describe('Page number for pagination of returned list'),
     limit: z.coerce.string().optional().default('50').describe('Number of entries to return per page'),
-    search: z.string().optional().default(' ').describe('filter results by name'),
+    search: z.string().optional().describe('filter results by name'),
   }),
 });
 
@@ -117,10 +117,8 @@ export const getCoAuthors = async (req: Request, res: Response, next: NextFuncti
     setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
   }
 
-  // comment line before pushing upstream
-  // await delFromCache(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile?.id}-${page}-${limit}`);
-
-  let coauthors = await getFromCache<CoAuthor[]>(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile?.id}-${page}-${limit}`);
+  const coauthorsCacheKey = `${COAUTHOR_CACHE_PREFIX}-${openalexProfile?.id}-${page}-${limit}-${search}`;
+  let coauthors = await getFromCache<CoAuthor[]>(coauthorsCacheKey);
 
   try {
     if (!coauthors && openalexProfile) {
@@ -132,7 +130,7 @@ export const getCoAuthors = async (req: Request, res: Response, next: NextFuncti
         parseInt(limit),
       );
 
-      if (coauthors) setToCache(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile.id}-${page}-${limit}`, coauthors);
+      if (coauthors) setToCache(coauthorsCacheKey, coauthors);
     }
   } catch (err) {
     logger.error({ err }, 'Request to OPEN_ALEX_DATABASE Failed');
