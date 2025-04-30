@@ -22,14 +22,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - run: echo ${{ runner.arch }}
+      - run: python --version
 
       # Add steps here like linting, testing, minification, etc.
       - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
+        uses: unfor19/install-aws-cli-action@v1.0.7
         with:
           version: 1
-          arch: x64
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
