@@ -174,7 +174,6 @@ model User {
   createdAt                   DateTime                      @default(now())
   updatedAt                   DateTime                      @updatedAt
   isGuest                     Boolean                       @default(false)
-  convertedGuest              Boolean                       @default(false)
   email                       String                        @unique
   phoneNumber                 String?                       @unique
   name                        String?
@@ -190,6 +189,8 @@ model User {
   orcid                       String?                       @unique
   notificationSettings        Json?
   unseenNotificationCount     Int                           @default(0)
+  convertedGuest              Boolean                       @default(false)
+  mergedIntoAt                DateTime[] // Timestamps for when a guest was merged into this existing user.
   // rorPid                     String[]              @default([])
   // organization               String[]              @default([])
   isAdmin                     Boolean                       @default(false)
