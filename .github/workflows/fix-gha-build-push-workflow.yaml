@@ -21,15 +21,12 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
         uses: actions/checkout@v4
-
-      - run: python --version
-
       # Add steps here like linting, testing, minification, etc.
-      - name: install-aws-cli
-        run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          sudo ./aws/install
+      # - name: install-aws-cli
+      #   run: |
+      #     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+      #     unzip awscliv2.zip
+      #     sudo ./aws/install
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
