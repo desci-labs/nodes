@@ -11,10 +11,9 @@ const logger = parentLogger.child({
 
 /**
  * Merges a guest account into an existing user, if a user accidentally created work in a guest session.
- * 
- * Relevant Tables
- * 
- * Update:
+ *
+ * Relevant Tables:
+ *
  ** User
  ** Node
  ** NodeVersion
@@ -34,21 +33,15 @@ const logger = parentLogger.child({
  ** UserOrganizations
  ** DraftNodeTree - (Auto)
  ** CommunityMember - Shouldn't be possible to merge as a guest.
-** NodeAttestation
-** DeferredEmails
-** Annotation - Shouldn't be possible (this is leaving comments I think?)
-** NodeAttestationReaction - Shouldn't be possible.
-** NodeAttestationVerification - Shouldn't be possible.
-** OrcidPutCodes
-** DoiRecord
-** UserNotifications
-** DataMigration
-** 
-
-* Delete:
-** MagicLink
-
-
+ ** NodeAttestation
+ ** DeferredEmails
+ ** Annotation - Shouldn't be possible (this is leaving comments I think?)
+ ** NodeAttestationReaction - Shouldn't be possible.
+ ** NodeAttestationVerification - Shouldn't be possible.
+ ** OrcidPutCodes
+ ** DoiRecord
+ ** UserNotifications
+ ** DataMigration
  */
 async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
   const guest = await prisma.user.findUnique({
@@ -66,8 +59,8 @@ async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
   if (!existingUser) {
     throw new Error('Existing user not found');
   }
-  if (existingUser) {
-    throw new Error('Existing user is a guest');
+  if (!guest.isGuest) {
+    throw new Error('Guest user is not a guest');
   }
 
   const result = await prisma.$transaction(async (tx) => {
@@ -265,8 +258,16 @@ async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
         userId: existingUser.id,
       },
     });
-  });
+    debugger;
 
+    // Delete guest user
+    await tx.user.delete({
+      where: {
+        id: guest.id,
+      },
+    });
+  });
+  debugger;
   return result;
 }
 
