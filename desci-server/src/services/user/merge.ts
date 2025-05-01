@@ -1,8 +1,9 @@
-import { BookmarkType, PrismaClient, User } from '@prisma/client';
+import { BookmarkType, NotificationType, Prisma, PrismaClient, User, UserNotifications } from '@prisma/client';
 import { text } from 'body-parser';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { CommentPayload, ContributorInvitePayload } from '../NotificationService.js';
 
 const logger = parentLogger.child({
   module: 'UserServices::Merge',
@@ -253,15 +254,7 @@ async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
     });
 
     // Update UserNotifications
-    await tx.userNotifications.updateMany({
-      // DO A SMART UPDATE HERE, LOOK AT PAYLOADS!!!
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
+    await mergeUserNotifications(tx, guest, existingUser);
 
     // Update DataMigration entries
     await tx.dataMigration.updateMany({
@@ -426,6 +419,80 @@ async function mergeUserOrganizations(tx: PrismaTransactionClient, guest: User, 
       },
     });
   }
+}
+
+/**
+ * Merges notifications from a guest user into an existing user.
+ * Handles payload updates where relevant.
+ */
+async function mergeUserNotifications(tx: PrismaTransactionClient, guest: User, existingUser: User) {
+  const guestNotifications = await tx.userNotifications.findMany({
+    where: { userId: guest.id },
+  });
+
+  if (guestNotifications.length === 0) {
+    logger.info({ guestId: guest.id }, 'No notifications found for guest user to merge.');
+    return; // Nothing to merge
+  }
+
+  logger.info(
+    { guestId: guest.id, existingUserId: existingUser.id, count: guestNotifications.length },
+    'Merging notifications...',
+  );
+
+  // We need to update notifications one by one because payloads might need individual modification
+  const updatePromises: Prisma.PrismaPromise<UserNotifications>[] = [];
+
+  for (const notification of guestNotifications) {
+    let updatedPayload = notification.payload as Prisma.JsonObject | null; // Start with existing payload
+
+    // Check and update payload if necessary
+    if (updatedPayload && typeof updatedPayload === 'object') {
+      try {
+        // Explicitly check the type field if it exists
+        const type = updatedPayload.type as NotificationType;
+
+        if (type === NotificationType.COMMENTS) {
+          const commentPayload = updatedPayload as CommentPayload;
+          if (commentPayload?.commentAuthor?.userId === guest.id) {
+            commentPayload.commentAuthor.userId = existingUser.id;
+            commentPayload.commentAuthor.name = existingUser.name || 'User';
+            updatedPayload = commentPayload;
+          }
+        } else if (type === NotificationType.CONTRIBUTOR_INVITE) {
+          const invitePayload = updatedPayload as ContributorInvitePayload;
+          if (invitePayload?.inviterId === guest.id) {
+            invitePayload.inviterId = existingUser.id;
+            invitePayload.inviterName = existingUser.name || 'User';
+            updatedPayload = invitePayload;
+          }
+        }
+      } catch (error) {
+        logger.error(
+          { error, notificationId: notification.id, payload: notification.payload },
+          'Failed to process notification payload during merge',
+        );
+        updatedPayload = notification.payload as Prisma.JsonObject | null; // Reset to original on error
+      }
+    }
+
+    updatePromises.push(
+      tx.userNotifications.update({
+        where: { id: notification.id },
+        data: {
+          userId: existingUser.id,
+          payload: updatedPayload,
+        },
+      }),
+    );
+  }
+
+  await Promise.all(updatePromises);
+
+  logger.info(
+    { guestId: guest.id, existingUserId: existingUser.id, count: guestNotifications.length },
+    'Finished merging notifications.',
+  );
 }
 
 export const MergeUserService = {
