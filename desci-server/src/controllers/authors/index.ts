@@ -6,17 +6,22 @@ import z from 'zod';
 import { prisma } from '../../client.js';
 import { InternalErrorResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
-import { delFromCache, getFromCache, setToCache } from '../../redisClient.js';
+import { delFromCache, getFromCache, ONE_WEEK_TTL, setToCache } from '../../redisClient.js';
 import { crossRefClient, openAlexService } from '../../services/index.js';
 import { WorksResult } from '../../services/openAlex/client.js';
 import { OpenAlexAuthor, OpenAlexWork } from '../../services/openAlex/types.js';
-import { CoAuthor, getUniqueCoauthors } from '../../services/OpenAlexService.js';
+import {
+  CoAuthor,
+  computeAuthorIndices,
+  getUniqueCoauthors,
+  queryIndicesFeats,
+} from '../../services/OpenAlexService.js';
 import { cachedGetManifestAndDpid } from '../../utils/manifest.js';
 import { asyncMap, formatOrcidString } from '../../utils.js';
 import { listAllUserNodes, PublishedNode } from '../nodes/list.js';
 
 import { transformOrcidAffiliationToEducation, transformOrcidAffiliationToEmployment } from './transformer.js';
-import { Author } from './types.js';
+import { Author, AuthorExperience } from './types.js';
 
 export const getAuthorSchema = z.object({
   params: z.object({
@@ -52,9 +57,48 @@ export const getAuthorWorksSchema = z.object({
 const PROFILE_CACHE_PREFIX = 'OPENALEX_AUTHOR';
 const WORKS_CACHE_PREFIX = 'OPENALEX_WORKS';
 const COAUTHOR_CACHE_PREFIX = 'COAUTHOR';
+const AUTHOR_INDICES_CACHE_PREFIX = 'AUTHOR_INDICES';
+const AUTHOR_EXPERIENCE_CACHE_PREFIX = 'AUTHOR_EXPERIENCE';
 
 const OPENALEX_ID_REGEX = /^(?:https:\/\/openalex\.org\/)?A\d+$/;
 const ORCID_REGEX = /^(?:https:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
+
+async function getAuthorExperience(orcid: string) {
+  let experience: { education: AuthorExperience[]; employment: AuthorExperience[] } = await getFromCache(
+    `${AUTHOR_EXPERIENCE_CACHE_PREFIX}-${orcid}`,
+  );
+
+  if (!experience) {
+    const { educationHistory, employmentHistory } = await crossRefClient.getProfileExperience(orcid);
+
+    const [education, employment] = await Promise.all([
+      transformOrcidAffiliationToEducation(educationHistory),
+      transformOrcidAffiliationToEmployment(employmentHistory),
+    ]);
+
+    experience = { education, employment };
+
+    // update cache
+    setToCache(`${AUTHOR_EXPERIENCE_CACHE_PREFIX}-${orcid}`, experience);
+  }
+
+  return experience;
+}
+
+async function getBibliometrics(id: string) {
+  let bibliometrics = await getFromCache<ReturnType<typeof computeAuthorIndices>>(
+    `${AUTHOR_INDICES_CACHE_PREFIX}-${id}`,
+  );
+  if (!bibliometrics) {
+    const authorIndices = await queryIndicesFeats([id], new Date().getFullYear());
+    bibliometrics = computeAuthorIndices(authorIndices, id, new Date().getFullYear(), 1, 4);
+
+    // update cache
+    setToCache(`${AUTHOR_INDICES_CACHE_PREFIX}-${id}`, bibliometrics, ONE_WEEK_TTL);
+  }
+
+  return bibliometrics;
+}
 
 export const getAuthorProfile = async (req: Request, res: Response, next: NextFunction) => {
   const { params } = await getAuthorSchema.parseAsync(req);
@@ -74,26 +118,14 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
 
   let profile: Author = openalexProfile;
 
-  if (openalexProfile?.orcid) {
-    const { educationHistory, employmentHistory } = await crossRefClient.getProfileExperience(
-      isOrcidId ? params.id : openalexProfile.orcid.split('/').pop(),
-    );
-
-    const [education, employment] = await Promise.all([
-      transformOrcidAffiliationToEducation(educationHistory),
-      transformOrcidAffiliationToEmployment(employmentHistory),
-    ]);
-
-    profile = { ...openalexProfile, employment, education };
-
-    logger.trace({ education, employment }, 'getAuthorProfile');
-  } else {
-    logger.trace({ params, ID: openalexProfile?.ids }, 'NO ORCID ASSOCIATED');
-  }
+  const [experience, bibliometrics] = await Promise.all([
+    getAuthorExperience(openalexProfile?.orcid ?? ''),
+    getBibliometrics(openalexProfile.id),
+  ]);
 
   if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, profile);
 
-  return new SuccessResponse(profile).send(res);
+  return new SuccessResponse({ bibliometrics, ...profile, ...experience }).send(res);
 };
 
 export const getCoAuthors = async (req: Request, res: Response, next: NextFunction) => {

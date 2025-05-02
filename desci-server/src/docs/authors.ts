@@ -7,6 +7,7 @@ import {
   getAuthorWorksSchema,
   getCoauthorSchema,
 } from '../controllers/authors/index.js';
+
 export const getAuthorProfileOperation: ZodOpenApiOperationObject = {
   operationId: 'getAuthorProfile',
   tags: ['Authors'],
@@ -169,7 +170,7 @@ export const getAuthorProfileOperation: ZodOpenApiOperationObject = {
                 .array(
                   z.object({
                     organization: z.object({
-                      name: z.string().describe('Institution name'),
+                      name: z.string().describe('Organization name'),
                       location: z.string().optional().describe('City Region Country').optional(),
                       department: z.string().optional().describe('Department name'),
                     }),
@@ -180,6 +181,12 @@ export const getAuthorProfileOperation: ZodOpenApiOperationObject = {
                 )
                 .optional()
                 .describe('Education history from ORCID'),
+              bibiometrics: z.object({
+                firstPubYear: z.number().optional().describe('First publication year'),
+                citation_count: z.number().optional().describe('Total number of citations'),
+                m_index: z.number().optional().describe('M-index of the author'),
+                contemporary_h_index: z.number().optional().describe('Contemporary h-index of the author'),
+              }),
             }),
           }),
         },
