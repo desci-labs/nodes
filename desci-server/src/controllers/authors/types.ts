@@ -11,4 +11,13 @@ export interface AuthorExperience {
   };
 }
 
-export type Author = OpenAlexAuthor & { education?: AuthorExperience[]; employment?: AuthorExperience[] };
+export type Author = OpenAlexAuthor & {
+  education?: AuthorExperience[];
+  employment?: AuthorExperience[];
+  bibliometrics?: {
+    m_index: number;
+    contemporary_h_index: number;
+    firstPubYear: number;
+    citation_count: number;
+  };
+};
