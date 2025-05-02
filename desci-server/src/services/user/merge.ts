@@ -44,231 +44,239 @@ const logger = parentLogger.child({
  ** DataMigration
  */
 async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
-  const guest = await prisma.user.findUnique({
-    where: {
-      id: guestId,
-    },
-  });
+  try {
+    const guest = await prisma.user.findUnique({
+      where: {
+        id: guestId,
+      },
+    });
 
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      id: userId,
-    },
-  });
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
 
-  if (!existingUser) {
-    throw new Error('Existing user not found');
+    logger.info({ fn: 'mergeGuestIntoExistingUser', guestId, userId }, 'Merging guest into existing user');
+
+    if (!existingUser) {
+      throw new Error('Existing user not found');
+    }
+    if (!guest?.isGuest) {
+      throw new Error('Guest user is not a guest');
+    }
+    const result = await prisma.$transaction(async (tx) => {
+      tx.user.update({
+        where: {
+          id: existingUser.id,
+        },
+        data: {
+          unseenNotificationCount: guest.unseenNotificationCount + existingUser.unseenNotificationCount,
+          mergedIntoAt: {
+            push: new Date(),
+          },
+        },
+      });
+
+      // Change node ownership
+      await tx.node.updateMany({
+        where: {
+          ownerId: guest.id,
+        },
+        data: {
+          ownerId: existingUser.id,
+        },
+      });
+
+      // Update interaction logs
+      await tx.interactionLog.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update AuthToken table entries
+      await tx.authToken.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update Wallet table entries - Shouldn't be any for a guest, but just in case.
+      await tx.wallet.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update PublishedWallet table entries - Shouldn't be any for a guest, but just in case.
+      await tx.publishedWallet.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update UserIdentity table entries
+      await tx.userIdentity.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update DataReferences - Shouldn't be any for a guest, but just in case.
+      await tx.dataReference.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update GuestDataReferences.
+      await tx.guestDataReference.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update CidPruneList entries
+      await tx.cidPruneList.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update Bookmarked Nodes - Deduplicates.
+      await mergeBookmarks(tx, guest, existingUser);
+
+      // Update NodeContributions
+      await tx.nodeContribution.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update UserOrganizations table entries - Probably doesn't apply, just to be sure.
+      await mergeUserOrganizations(tx, guest, existingUser);
+
+      // Remove CommunityMemberships by the Guest, shouldn't be possible.
+      await tx.communityMember.deleteMany({
+        where: {
+          userId: guest.id,
+        },
+      });
+
+      // Update NodeAttestation entries
+      await tx.nodeAttestation.updateMany({
+        where: {
+          claimedById: guest.id,
+        },
+        data: {
+          claimedById: existingUser.id,
+        },
+      });
+
+      // Update DeferredEmails
+      await tx.deferredEmails.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update Annotations
+      await tx.annotation.updateMany({
+        where: {
+          authorId: guest.id,
+        },
+        data: {
+          authorId: existingUser.id,
+        },
+      });
+
+      // Update NodeAttestationReactions
+      await tx.nodeAttestationReaction.updateMany({
+        where: {
+          authorId: guest.id,
+        },
+        data: {
+          authorId: existingUser.id,
+        },
+      });
+
+      // Update NodeAttestationVerifications
+      await tx.nodeAttestationVerification.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update OrcidPutCodes
+      await tx.orcidPutCodes.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Update UserNotifications
+      await mergeUserNotifications(tx, guest, existingUser);
+
+      // Update DataMigration entries
+      await tx.dataMigration.updateMany({
+        where: {
+          userId: guest.id,
+        },
+        data: {
+          userId: existingUser.id,
+        },
+      });
+
+      // Delete guest user
+      await tx.user.delete({
+        where: {
+          id: guest.id,
+        },
+      });
+    });
+    logger.info({ fn: 'mergeGuestIntoExistingUser', guestId, userId }, 'Completed db merging guest into existing user');
+    return { success: true };
+  } catch (e) {
+    logger.error({ error: e }, 'Error merging guest into existing user');
+    return { success: false, error: e };
   }
-  if (!guest.isGuest) {
-    throw new Error('Guest user is not a guest');
-  }
-
-  const result = await prisma.$transaction(async (tx) => {
-    tx.user.update({
-      where: {
-        id: existingUser.id,
-      },
-      data: {
-        unseenNotificationCount: guest.unseenNotificationCount + existingUser.unseenNotificationCount,
-      },
-    });
-
-    // Change node ownership
-    await tx.node.updateMany({
-      where: {
-        ownerId: guest.id,
-      },
-      data: {
-        ownerId: existingUser.id,
-      },
-    });
-
-    // Update interaction logs
-    await tx.interactionLog.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update AuthToken table entries
-    await tx.authToken.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update Wallet table entries - Shouldn't be any for a guest, but just in case.
-    await tx.wallet.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update PublishedWallet table entries - Shouldn't be any for a guest, but just in case.
-    await tx.publishedWallet.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update UserIdentity table entries
-    await tx.userIdentity.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update DataReferences - Shouldn't be any for a guest, but just in case.
-    await tx.dataReference.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update GuestDataReferences.
-    await tx.guestDataReference.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update CidPruneList entries
-    await tx.cidPruneList.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update Bookmarked Nodes - Deduplicates.
-    await mergeBookmarks(tx, guest, existingUser);
-
-    // Update NodeContributions
-    await tx.nodeContribution.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update UserOrganizations table entries - Probably doesn't apply, just to be sure.
-    await mergeUserOrganizations(tx, guest, existingUser);
-
-    // Remove CommunityMemberships by the Guest, shouldn't be possible.
-    await tx.communityMember.deleteMany({
-      where: {
-        userId: guest.id,
-      },
-    });
-
-    // Update NodeAttestation entries
-    await tx.nodeAttestation.updateMany({
-      where: {
-        claimedById: guest.id,
-      },
-      data: {
-        claimedById: existingUser.id,
-      },
-    });
-
-    // Update DeferredEmails
-    await tx.deferredEmails.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update Annotations
-    await tx.annotation.updateMany({
-      where: {
-        authorId: guest.id,
-      },
-      data: {
-        authorId: existingUser.id,
-      },
-    });
-
-    // Update NodeAttestationReactions
-    await tx.nodeAttestationReaction.updateMany({
-      where: {
-        authorId: guest.id,
-      },
-      data: {
-        authorId: existingUser.id,
-      },
-    });
-
-    // Update NodeAttestationVerifications
-    await tx.nodeAttestationVerification.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update OrcidPutCodes
-    await tx.orcidPutCodes.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-
-    // Update UserNotifications
-    await mergeUserNotifications(tx, guest, existingUser);
-
-    // Update DataMigration entries
-    await tx.dataMigration.updateMany({
-      where: {
-        userId: guest.id,
-      },
-      data: {
-        userId: existingUser.id,
-      },
-    });
-    debugger;
-
-    // Delete guest user
-    await tx.user.delete({
-      where: {
-        id: guest.id,
-      },
-    });
-  });
-  debugger;
-  return result;
 }
 
 type PrismaTransactionClient = Omit<
