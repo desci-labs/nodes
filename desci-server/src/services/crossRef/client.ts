@@ -450,6 +450,7 @@ class CrossRefClient {
     const educationHistory = profile?.['activities-summary']?.['educations']?.['affiliation-group'] ?? [];
     return { employmentHistory, educationHistory };
   }
+
   async getEmploymentHistory(orcid: string) {
     let profile = await getFromCache<ProfileSummary>(`ORCID-PROFILE-${orcid}`);
 
