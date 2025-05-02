@@ -333,6 +333,7 @@ export interface CoAuthor {
   id: string;
   name: string;
   orcid: string;
+  workId: string;
 }
 export async function getUniqueCoauthors(
   authorIds: string[],
@@ -346,8 +347,10 @@ export async function getUniqueCoauthors(
   }
 
   const minYear = pubYear - 10;
-  const query = `WITH RecentWorks AS (
+  const query = `
+WITH RecentWorks AS (
     SELECT
+        wa.author_id AS main_author,
         wa.work_id
     FROM
         openalex.works_authorships wa
@@ -357,35 +360,21 @@ export async function getUniqueCoauthors(
         AND w.publication_year BETWEEN $2 AND $3
 )
 SELECT
-    DISTINCT wa2.author_id AS id,
-    (
-        SELECT
-            author.display_name AS author_name
-        FROM
-            openalex.authors author
-        WHERE
-            author.id = wa2.author_id
-    ) AS "name",
-    (
-        SELECT
-            author.orcid AS orcids
-        FROM
-            openalex.authors author
-        WHERE
-            author.id = wa2.author_id
-    ) AS orcid
+    DISTINCT wa_all.author_id AS id,
+    author.display_name AS "name",
+    author.orcid AS orcid,
+    rw.work_id as "workId"
 FROM
-    openalex.works_authorships wa2
-    JOIN openalex.authors author ON author.id = wa2.author_id and author.display_name ILIKE '%${search || ''}%'
-    JOIN RecentWorks rw ON wa2.work_id = rw.work_id
+    RecentWorks rw
+    JOIN openalex.works_authorships wa_all ON rw.work_id = wa_all.work_id
+    LEFT JOIN openalex.authors author ON author.id = wa_all.author_id and author.display_name ILIKE '%${search || ''}%'
 WHERE
-    wa2.author_id <> ALL($4)
-OFFSET $5
-LIMIT $6
-;
+    wa_all.author_id <> rw.main_author
+OFFSET $4
+LIMIT $5;
 `;
 
-  const result = await client.query(query, [authorIds, minYear, pubYear, authorIds, offset, limit]);
+  const result = await client.query(query, [authorIds, minYear, pubYear, offset, limit]);
   let coauthors = result.rows.filter(Boolean);
   coauthors = _.uniqBy(coauthors, (entry) => entry.id);
   logger.trace({ uniqueAuthors: coauthors.length }, 'getUniqueCoauthors#result');
