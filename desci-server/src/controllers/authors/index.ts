@@ -117,7 +117,7 @@ export const getCoAuthors = async (req: Request, res: Response, next: NextFuncti
     setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
   }
 
-  const coauthorsCacheKey = `${COAUTHOR_CACHE_PREFIX}-${openalexProfile?.id}-${page}-${limit}-${search}`;
+  const coauthorsCacheKey = `${COAUTHOR_CACHE_PREFIX}-${openalexProfile?.id}-${page}-${limit}${search ? '-' + search : ''}`;
   let coauthors = await getFromCache<CoAuthor[]>(coauthorsCacheKey);
 
   try {
