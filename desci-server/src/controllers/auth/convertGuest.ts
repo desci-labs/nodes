@@ -1,4 +1,4 @@
-import { ActionType } from '@prisma/client';
+import { ActionType, User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
@@ -7,6 +7,7 @@ import { magicLinkRedeem, verifyMagicCode } from '../../services/auth.js';
 import { contributorService } from '../../services/Contributors.js';
 import { DataMigrationService } from '../../services/DataMigration/DataMigrationService.js';
 import { saveInteraction } from '../../services/interactionLog.js';
+import { MergeUserService } from '../../services/user/merge.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
 import { AuthenticatedRequest } from '../notifications/create.js';
@@ -56,11 +57,16 @@ export const convertGuestToUser = async (
 
     logger.info({ userId: guestUser.id, email: hideEmail(cleanEmail) }, 'Guest user attempting conversion');
 
+    let isExistingUser = false;
     // Check if email is already registered to another user
     const existingUser = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (existingUser && existingUser.id !== guestUser.id) {
-      logger.info({ userId: guestUser.id, email: hideEmail(email) }, 'Email already registered');
-      return res.status(409).send({ ok: false, error: 'Email already registered' });
+      isExistingUser = true;
+      logger.info(
+        { userId: guestUser.id, email: hideEmail(email), existingUserId: existingUser.id },
+        'Email already registered, will use merge guest -> existingUser flow',
+      );
+      // return res.status(409).send({ ok: false, error: 'Email already registered' });
     }
 
     const isCodeValid = await verifyMagicCode(email, magicCode);
@@ -69,15 +75,25 @@ export const convertGuestToUser = async (
       return res.status(400).send({ ok: false, error: 'Invalid or expired magic code' });
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: guestUser.id },
-      data: {
-        email,
-        name: name || null,
-        isGuest: false,
-        convertedGuest: true,
-      },
-    });
+    let updatedUser: User;
+    if (isExistingUser) {
+      const mergeRes = await MergeUserService.mergeGuestIntoExistingUser(guestUser.id, existingUser.id);
+      if (!mergeRes.success) {
+        logger.error({ error: mergeRes.error }, 'Error merging guest into existing user');
+        return res.status(500).send({ ok: false, error: 'Failed to merge guest into existing user' });
+      }
+      updatedUser = existingUser;
+    } else {
+      updatedUser = await prisma.user.update({
+        where: { id: guestUser.id },
+        data: {
+          email,
+          name: name || null,
+          isGuest: false,
+          convertedGuest: true,
+        },
+      });
+    }
 
     // Inherits existing user contribution entries that were made with the same email
     const inheritedContributions = await contributorService.updateContributorEntriesForNewUser({
@@ -113,7 +129,9 @@ export const convertGuestToUser = async (
 
     logger.info(
       { userId: updatedUser.id, email: hideEmail(email) },
-      'Guest user successfully converted to regular user via email/magic code',
+      isExistingUser
+        ? 'Guest user successfully merged into existing user via email/magic code'
+        : 'Guest user successfully converted to regular user via email/magic code',
     );
 
     // Queue data migration
@@ -126,9 +144,10 @@ export const convertGuestToUser = async (
         email: updatedUser.email,
         name: updatedUser.name,
         isGuest: false,
+        isExistingUser,
         ...(dev === 'true' && { token }),
       },
-      isNewUser: true,
+      isNewUser: !isExistingUser,
     });
   } catch (error) {
     logger.error({ error }, 'Failed to convert guest user');

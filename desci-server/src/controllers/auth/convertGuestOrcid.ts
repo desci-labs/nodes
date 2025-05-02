@@ -1,6 +1,5 @@
-import { ActionType } from '@prisma/client';
-import axios from 'axios';
-import { Request, Response } from 'express';
+import { ActionType, User } from '@prisma/client';
+import { Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
@@ -10,14 +9,13 @@ import { DataMigrationService } from '../../services/DataMigration/DataMigration
 import { saveInteraction } from '../../services/interactionLog.js';
 import orcidApiService from '../../services/orcid.js';
 import orcid from '../../services/orcid.js';
+import { MergeUserService } from '../../services/user/merge.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
 import { AuthenticatedRequest } from '../notifications/create.js';
 
 import { ConvertGuestResponse } from './convertGuest.js';
 import { generateAccessToken } from './magic.js';
-
-import { getOrcidRecord, OrcIdRecordData } from './index.js';
 
 type ConvertGuestOrcidBody = {
   orcidIdToken: string;
@@ -94,32 +92,76 @@ export const convertGuestToUserOrcid = async (
       where: { email: cleanEmail },
     });
 
-    if (existingEmailUser && existingEmailUser.id !== guestUser.id) {
-      logger.info({ userId: guestUser.id, email: hideEmail(cleanEmail) }, 'Email already registered');
-      return res.status(409).send({ ok: false, error: 'Email already registered' });
+    let isExistingUser = false;
+    if (existingEmailUser && existingEmailUser.orcid !== verifiedOrcid) {
+      // For Success in merge flow:
+      // The email+orcid combo has to be the same as the existing one.
+      logger.info(
+        { userId: guestUser.id, email: hideEmail(cleanEmail), existingUserId: existingEmailUser.id },
+        'ORCID ID already registered to a different email, rejecting.',
+      );
+      isExistingUser = true;
+      return res.status(409).send({ ok: false, error: 'ORCID ID already registered to a different email.' });
     }
 
-    // Check if ORCID is already registered to another user
+    // Check if the ORCID is already registered to another user
     const existingOrcidUser = await prisma.user.findFirst({
       where: { orcid: verifiedOrcid },
     });
 
-    if (existingOrcidUser && existingOrcidUser.id !== guestUser.id) {
-      logger.info({ userId: guestUser.id, orcid: verifiedOrcid }, 'ORCID ID already registered');
-      return res.status(409).send({ ok: false, error: 'ORCID ID already registered' });
+    if (existingOrcidUser) {
+      isExistingUser = true;
+      if (existingOrcidUser.email !== cleanEmail) {
+        // Check if the existing email is the same 'new email' that the user entered,
+        // if it doesn't match, we'll reject it as the user would be confused with which
+        // email they should sign in with.
+        logger.info(
+          { userId: guestUser.id, email: hideEmail(cleanEmail), existingUserId: existingEmailUser.id },
+          'ORCID ID already registered to a different email, rejecting.',
+        );
+        return res.status(409).send({ ok: false, error: 'ORCID ID already registered to a different email.' });
+      }
+      logger.info(
+        { userId: guestUser.id, orcid: verifiedOrcid },
+        'ORCID ID already registered, will use merge guest -> existingUser flow',
+      );
     }
 
-    // Update the guest user to a regular user
-    const updatedUser = await prisma.user.update({
-      where: { id: guestUser.id },
-      data: {
-        email: cleanEmail,
-        name: fullName || undefined,
-        orcid: verifiedOrcid,
-        isGuest: false,
-        convertedGuest: true,
-      },
-    });
+    let updatedUser: User;
+    if (isExistingUser) {
+      const mergeRes = await MergeUserService.mergeGuestIntoExistingUser(guestUser.id, existingOrcidUser.id);
+      if (!mergeRes.success) {
+        logger.error({ error: mergeRes.error }, 'Error merging guest into existing user');
+        return res.status(500).send({ ok: false, error: 'Failed to merge guest into existing user' });
+      }
+      updatedUser = existingOrcidUser;
+    } else {
+      // Update the guest user to a regular user
+      updatedUser = await prisma.user.update({
+        where: { id: guestUser.id },
+        data: {
+          email: cleanEmail,
+          name: fullName || undefined,
+          orcid: verifiedOrcid,
+          isGuest: false,
+          convertedGuest: true,
+        },
+      });
+
+      // Store ORCID identity
+      await prisma.userIdentity.create({
+        data: {
+          user: {
+            connect: { id: updatedUser.id },
+          },
+          provider: 'orcid',
+          uid: verifiedOrcid,
+          email: cleanEmail,
+          name: fullName || null,
+        },
+      });
+      logger.info({ userId: updatedUser.id, provider: 'orcid' }, 'Linked ORCID identity to converted user');
+    }
 
     // Inherits existing user contribution entries that were made with the same email
     const inheritedContributions = await contributorService.updateContributorEntriesForNewUser({
@@ -131,21 +173,6 @@ export const convertGuestToUserOrcid = async (
       user: updatedUser,
       email: updatedUser.email,
     });
-
-    // Store ORCID identity
-    await prisma.userIdentity.create({
-      data: {
-        user: {
-          connect: { id: updatedUser.id },
-        },
-        provider: 'orcid',
-        uid: verifiedOrcid,
-        email: cleanEmail,
-        name: fullName || null,
-      },
-    });
-
-    logger.info({ userId: updatedUser.id, provider: 'orcid' }, 'Linked ORCID identity to converted user');
 
     // Generate new token with both email and orcid
     const token = generateAccessToken({ email: cleanEmail, orcid: verifiedOrcid });
@@ -171,7 +198,9 @@ export const convertGuestToUserOrcid = async (
 
     logger.info(
       { userId: updatedUser.id, email: hideEmail(cleanEmail), orcid },
-      'Guest user successfully converted to regular user via ORCID',
+      isExistingUser
+        ? 'Guest user successfully merged with existing user via ORCID'
+        : 'Guest user successfully converted to regular user via ORCID',
     );
 
     // Queue data migration
@@ -187,7 +216,7 @@ export const convertGuestToUserOrcid = async (
         isGuest: false,
         ...(dev === 'true' && { token }),
       },
-      isNewUser: true,
+      isNewUser: !isExistingUser,
     });
   } catch (error) {
     logger.error({ error }, 'Failed to convert guest user with ORCID');
