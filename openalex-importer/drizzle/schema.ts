@@ -17,7 +17,7 @@ import { sql } from 'drizzle-orm';
 export const openalex = pgSchema('openalex');
 
 export const institutions_geoInOpenalex = openalex.table('institutions_geo', {
-  institution_id: text().notNull(),
+  institution_id: text().primaryKey(),
   city: text(),
   geonames_city_id: text(),
   region: text(),
@@ -25,12 +25,10 @@ export const institutions_geoInOpenalex = openalex.table('institutions_geo', {
   country: text(),
   latitude: real(),
   longitude: real(),
-}, (table) => [
-  index('idx_institutions_geo').using('btree', table.institution_id.asc().nullsLast().op('text_ops')),
-]);
+});
 
 export const institutions_idsInOpenalex = openalex.table('institutions_ids', {
-  institution_id: text().notNull(),
+  institution_id: text().primaryKey(),
   openalex: text(),
   ror: text(),
   grid: text(),
@@ -41,7 +39,7 @@ export const institutions_idsInOpenalex = openalex.table('institutions_ids', {
 });
 
 export const publishersInOpenalex = openalex.table('publishers', {
-  id: text().notNull(),
+  id: text().primaryKey(),
   display_name: text(),
   alternate_titles: json(),
   country_codes: json(),
@@ -51,9 +49,7 @@ export const publishersInOpenalex = openalex.table('publishers', {
   cited_by_count: integer(),
   sources_api_url: text(),
   updated_date: timestamp({ mode: 'string' }),
-}, (table) => [
-  index('idx_publishers_id').using('btree', table.id.asc().nullsLast().op('text_ops')),
-]);
+});
 
 export const publishers_counts_by_yearInOpenalex = openalex.table('publishers_counts_by_year', {
   publisher_id: text().notNull(),
@@ -62,24 +58,22 @@ export const publishers_counts_by_yearInOpenalex = openalex.table('publishers_co
   cited_by_count: integer(),
   oa_works_count: integer(),
 }, (table) => [
-  index('idx_publishers_counts').using('btree', table.publisher_id.asc().nullsLast().op('text_ops'), table.year.asc().nullsLast().op('int4_ops')),
+  primaryKey({ columns: [table.publisher_id, table.year] }),
 ]);
 
 export const publishers_idsInOpenalex = openalex.table('publishers_ids', {
-  publisher_id: text(),
+  publisher_id: text().primaryKey(),
   openalex: text(),
   ror: text(),
   wikidata: text(),
-}, (table) => [
-  index('idx_publishers_ids_publisher_id').using('btree', table.publisher_id.asc().nullsLast().op('text_ops')),
-]);
+});
 
 export const institutions_associated_institutionsInOpenalex = openalex.table('institutions_associated_institutions', {
   institution_id: text(),
   associated_institution_id: text(),
   relationship: text(),
 }, (table) => [
-  index('idx_institutions_id').using('btree', table.institution_id.asc().nullsLast().op('text_ops')),
+  primaryKey({ columns: [table.institution_id, table.associated_institution_id] }),
 ]);
 
 export const worksInOpenalex = openalex.table('works', {
@@ -96,10 +90,7 @@ export const worksInOpenalex = openalex.table('works', {
   cited_by_api_url: text(),
   abstract_inverted_index: json(),
   language: text(),
-}, (table) => [{
-  works_doi_idx: index('works_doi_idx').on(table.doi),
-  works_publication_year_idx: index('works_publication_year_idx').on(table.publication_year),
-}]);
+});
 
 export const works_primary_locationsInOpenalex = openalex.table('works_primary_locations', {
   work_id: text().primaryKey(),
@@ -127,14 +118,13 @@ export const sourcesInOpenalex = openalex.table('sources', {
 });
 
 export const sources_counts_by_yearInOpenalex = openalex.table('sources_counts_by_year', {
-  source_id: text().notNull(),
-  year: integer().notNull(),
+  source_id: text(),
+  year: integer(),
   works_count: integer(),
   cited_by_count: integer(),
   oa_works_count: integer(),
 }, (table) => [
-  index('idx_source_id').using('btree', table.source_id.asc().nullsLast().op('text_ops')),
-  index('idx_sources_counts').using('btree', table.source_id.asc().nullsLast().op('text_ops'), table.year.asc().nullsLast().op('int4_ops')),
+  primaryKey({ columns: [table.source_id, table.year] }),
 ]);
 
 export const works_biblioInOpenalex = openalex.table('works_biblio', {
@@ -162,7 +152,6 @@ export const works_meshInOpenalex = openalex.table('works_mesh', {
   is_major_topic: boolean(),
 }, (table) => [
   primaryKey({ columns: [table.work_id, table.descriptor_ui, table.qualifier_ui] }),
-  index('mesh_work_id_idx').using('btree', table.work_id),
 ]);
 
 export const works_open_accessInOpenalex = openalex.table('works_open_access', {
@@ -176,7 +165,7 @@ export const works_open_accessInOpenalex = openalex.table('works_open_access', {
 ]);
 
 export const sources_idsInOpenalex = openalex.table('sources_ids', {
-  source_id: text(),
+  source_id: text().primaryKey(),
   openalex: text(),
   issn_l: text(),
   issn: json(),
@@ -203,8 +192,6 @@ export const works_referenced_worksInOpenalex = openalex.table('works_referenced
   referenced_work_id: text(),
 }, (table) => [
   primaryKey({ columns: [table.work_id, table.referenced_work_id] }),
-  index('referenced_works_referenced_work_id_idx').on(table.referenced_work_id),
-  index('referenced_works_work_id_idx').on(table.work_id),
 ]);
 
 export const topicsInOpenalex = openalex.table('topics', {
@@ -241,8 +228,6 @@ export const works_related_worksInOpenalex = openalex.table('works_related_works
   related_work_id: text(),
 }, (table) => [
   primaryKey({ columns: [table.work_id, table.related_work_id] }),
-  index('related_works_work_id_idx').on(table.work_id),
-  index('related_works_related_work_id_idx').on(table.related_work_id),
 ]);
 
 export const works_topicsInOpenalex = openalex.table('works_topics', {
@@ -251,8 +236,6 @@ export const works_topicsInOpenalex = openalex.table('works_topics', {
   score: real(),
 }, (table) => [
   primaryKey({ columns: [table.work_id, table.topic_id] }),
-  index('topics_work_id_idx').on(table.work_id),
-  index('topics_topic_id_idx').on(table.topic_id),
 ]);
 
 export const authorsInOpenalex = openalex.table('authors', {
@@ -275,7 +258,6 @@ export const authors_counts_by_yearInOpenalex = openalex.table('authors_counts_b
   oa_works_count: integer(),
 }, (table) => [
   primaryKey({ columns: [table.author_id, table.year] }),
-  index('authors_counts_by_year_year_idx').on(table.year),
 ]);
 
 export const authors_idsInOpenalex = openalex.table('authors_ids', {
@@ -287,10 +269,7 @@ export const authors_idsInOpenalex = openalex.table('authors_ids', {
   wikipedia: text(),
   // You can use { mode: "bigint" } if numbers are exceeding js number limitations
   mag: bigint({ mode: 'number' }),
-}, (table) => [
-  index('authors_ids_openalex_idx').on(table.openalex),
-  index('authors_ids_orcid_idx').on(table.orcid),
-]);
+});
 
 export const institutionsInOpenalex = openalex.table('institutions', {
   id: text().primaryKey(),
@@ -307,23 +286,20 @@ export const institutionsInOpenalex = openalex.table('institutions', {
   cited_by_count: integer(),
   works_api_url: text(),
   updated_date: timestamp({ mode: 'string' }),
-}, (table) => [
-  index('institutions_id_idx').using('btree', table.id.asc().nullsLast().op('text_ops')),
-  index('institutions_ror_idx').using('btree', table.ror.asc().nullsLast().op('text_ops')),
-]);
+});
 
 export const institutions_counts_by_yearInOpenalex = openalex.table('institutions_counts_by_year', {
-  institution_id: text().notNull(),
-  year: integer().notNull(),
+  institution_id: text(),
+  year: integer(),
   works_count: integer(),
   cited_by_count: integer(),
   oa_works_count: integer(),
 }, (table) => [
-  index('idx_institution_year').using('btree', table.institution_id.asc().nullsLast().op('text_ops'), table.year.asc().nullsLast().op('int4_ops')),
+  primaryKey({ columns: [table.institution_id, table.year] }),
 ]);
 
 export const conceptsInOpenalex = openalex.table('concepts', {
-  id: text().notNull(),
+  id: text().primaryKey(),
   wikidata: text(),
   display_name: text(),
   level: integer(),
@@ -336,29 +312,21 @@ export const conceptsInOpenalex = openalex.table('concepts', {
   updated_date: timestamp({ mode: 'string' }),
   descriptions_embeddings: vector('descriptions_embeddings', { dimensions: 768 }),
   name_embeddings: vector('name_embeddings', { dimensions: 768 }),
-}, (table) => [
-  index('concepts_descriptions_embeddings_idx').using('ivfflat', table.descriptions_embeddings.asc().nullsLast().op('vector_l2_ops')).with({ lists: '100' }),
-  index('concepts_id_idx').using('btree', table.id.asc().nullsLast().op('text_ops')),
-  index('concepts_name_embeddings_idx').using('ivfflat', table.name_embeddings.asc().nullsLast().op('vector_l2_ops')).with({ lists: '100' }),
-]);
+});
 
 export const concepts_ancestorsInOpenalex = openalex.table('concepts_ancestors', {
   concept_id: text(),
   ancestor_id: text(),
-}, (table) => [
-  index('concepts_ancestors_concept_id_idx').using('btree', table.concept_id.asc().nullsLast().op('text_ops')),
-]);
+});
 
 export const concepts_counts_by_yearInOpenalex = openalex.table('concepts_counts_by_year', {
-  concept_id: text().notNull(),
-  year: integer().notNull(),
+  concept_id: text(),
+  year: integer(),
   works_count: integer(),
   cited_by_count: integer(),
   oa_works_count: integer(),
 }, (table) => [
-  index('idx_concept_id').using('btree', table.concept_id.asc().nullsLast().op('text_ops')),
-  index('idx_concept_id_by_year').using('btree', table.concept_id.asc().nullsLast().op('text_ops')),
-  index('idx_concepts_counts').using('btree', table.concept_id.asc().nullsLast().op('text_ops'), table.year.asc().nullsLast().op('int4_ops')),
+  primaryKey({ columns: [table.concept_id, table.year] }),
 ]);
 
 export const works_authorshipsInOpenalex = openalex.table('works_authorships', {
@@ -369,8 +337,6 @@ export const works_authorshipsInOpenalex = openalex.table('works_authorships', {
   raw_affiliation_string: text(),
 }, (table) => [
   primaryKey({ columns: [table.work_id, table.author_id] }),
-  index('works_authorships_author_id_idx').on(table.author_id),
-  index('works_authorships_work_id_idx').on(table.work_id),
 ]);
 
 export const works_best_oa_locationsInOpenalex = openalex.table('works_best_oa_locations', {
@@ -384,7 +350,7 @@ export const works_best_oa_locationsInOpenalex = openalex.table('works_best_oa_l
 });
 
 export const concepts_idsInOpenalex = openalex.table('concepts_ids', {
-  concept_id: text().notNull(),
+  concept_id: text().primaryKey(),
   openalex: text(),
   wikidata: text(),
   wikipedia: text(),
@@ -392,15 +358,12 @@ export const concepts_idsInOpenalex = openalex.table('concepts_ids', {
   umls_cui: json(),
   // You can use { mode: "bigint" } if numbers are exceeding js number limitations
   mag: bigint({ mode: 'number' }),
-}, (table) => [
-  index('idx_concept_ids').using('btree', table.concept_id.asc().nullsLast().op('text_ops')),
-]);
+});
 
 export const concepts_related_conceptsInOpenalex = openalex.table('concepts_related_concepts', {
   concept_id: text(),
   related_concept_id: text(),
   score: real(),
 }, (table) => [
-  index('concepts_related_concepts_concept_id_idx').using('btree', table.concept_id.asc().nullsLast().op('text_ops')),
-  index('concepts_related_concepts_related_concept_id_idx').using('btree', table.related_concept_id.asc().nullsLast().op('text_ops')),
+  primaryKey({ columns: [table.concept_id, table.related_concept_id] }),
 ]);
