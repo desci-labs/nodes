@@ -116,7 +116,7 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
     logger.trace({ openalexProfile: !!openalexProfile, isOrcidId }, 'openalexProfile');
   }
 
-  let profile: Author = openalexProfile;
+  const profile: Author = openalexProfile;
 
   const [experience, bibliometrics] = await Promise.all([
     getAuthorExperience(openalexProfile?.orcid ?? ''),
