@@ -68,18 +68,21 @@ async function getAuthorExperience(orcid: string) {
     `${AUTHOR_EXPERIENCE_CACHE_PREFIX}-${orcid}`,
   );
 
+  logger.trace({ experience }, 'getAuthorExperience#cache');
   if (!experience) {
     const { educationHistory, employmentHistory } = await crossRefClient.getProfileExperience(orcid);
+    logger.trace({ educationHistory, employmentHistory }, 'getAuthorExperience#getProfileExperience');
 
     const [education, employment] = await Promise.all([
       transformOrcidAffiliationToEducation(educationHistory),
       transformOrcidAffiliationToEmployment(employmentHistory),
     ]);
 
+    logger.trace({ education, employment }, 'getAuthorExperience#transformed');
     experience = { education, employment };
 
     // update cache
-    setToCache(`${AUTHOR_EXPERIENCE_CACHE_PREFIX}-${orcid}`, experience);
+    if (education?.length && employment?.length) setToCache(`${AUTHOR_EXPERIENCE_CACHE_PREFIX}-${orcid}`, experience);
   }
 
   return experience;
@@ -115,6 +118,8 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
         : null;
     logger.trace({ openalexProfile: !!openalexProfile, isOrcidId }, 'openalexProfile');
   }
+
+  if (!openalexProfile) return new SuccessResponse(null).send(res);
 
   const profile: Author = openalexProfile;
 
