@@ -1,8 +1,17 @@
-import { BookmarkType, NotificationType, Prisma, PrismaClient, User, UserNotifications } from '@prisma/client';
+import {
+  ActionType,
+  BookmarkType,
+  NotificationType,
+  Prisma,
+  PrismaClient,
+  User,
+  UserNotifications,
+} from '@prisma/client';
 import { text } from 'body-parser';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { saveInteraction, saveInteractionWithoutReq } from '../interactionLog.js';
 import { CommentPayload, ContributorInvitePayload } from '../NotificationService.js';
 
 const logger = parentLogger.child({
@@ -58,6 +67,11 @@ async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
     });
 
     logger.info({ fn: 'mergeGuestIntoExistingUser', guestId, userId }, 'Merging guest into existing user');
+    await saveInteractionWithoutReq({
+      action: ActionType.MERGE_GUEST_INTO_EXISTING_USER_ATTEMPT,
+      data: { guestId, existingUserId: existingUser.id },
+      userId: existingUser.id,
+    });
 
     if (!existingUser) {
       throw new Error('Existing user not found');
@@ -271,10 +285,22 @@ async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
         },
       });
     });
+
+    await saveInteractionWithoutReq({
+      action: ActionType.MERGE_GUEST_INTO_EXISTING_USER_SUCCESS,
+      data: { guestId, existingUserId: existingUser.id },
+      userId: existingUser.id,
+    });
     logger.info({ fn: 'mergeGuestIntoExistingUser', guestId, userId }, 'Completed db merging guest into existing user');
+
     return { success: true };
   } catch (e) {
     logger.error({ error: e }, 'Error merging guest into existing user');
+    await saveInteractionWithoutReq({
+      action: ActionType.MERGE_GUEST_INTO_EXISTING_USER_FAIL,
+      data: { guestId, existingUserId: userId, error: e },
+      userId: userId,
+    });
     return { success: false, error: e };
   }
 }
