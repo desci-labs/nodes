@@ -441,14 +441,12 @@ class CrossRefClient {
     const orcid = stripOrcidString(orcidIdentifier);
 
     let profile = await getFromCache<ProfileSummary>(`ORCID-PROFILE-${orcid}`);
-    logger.trace({ orcid, profile }, 'getProfileExperience#Cache');
 
     if (!profile) {
       const { profile: orcidProfile } = await this.profileSummary(orcid);
       profile = orcidProfile;
     }
 
-    logger.trace({ profile }, 'PROFILE');
     const employmentHistory = profile?.['activities-summary']?.['employments']?.['affiliation-group'] ?? [];
     const educationHistory = profile?.['activities-summary']?.['educations']?.['affiliation-group'] ?? [];
     return { employmentHistory, educationHistory };

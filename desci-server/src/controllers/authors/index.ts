@@ -123,7 +123,7 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
   if (!openalexProfile) return new SuccessResponse(null).send(res);
 
   const profile: Author = openalexProfile;
-  const orcidIdentifier = stripOrcidString(openalexProfile?.orcid ?? '');
+  const orcidIdentifier = stripOrcidString(openalexProfile?.orcid);
 
   const [experience, bibliometrics] = await Promise.all([
     getAuthorExperience(orcidIdentifier),
