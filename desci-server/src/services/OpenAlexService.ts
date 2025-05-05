@@ -368,7 +368,7 @@ SELECT
 FROM
     RecentWorks rw
     JOIN openalex.works_authorships wa_all ON rw.work_id = wa_all.work_id
-    LEFT JOIN openalex.authors author ON author.id = wa_all.author_id and author.display_name ILIKE '%${search || ''}%'
+    JOIN openalex.authors author ON author.id = wa_all.author_id and author.display_name ILIKE '%${search || ''}%'
 WHERE
     wa_all.author_id <> rw.main_author
 OFFSET $4

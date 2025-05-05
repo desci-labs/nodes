@@ -7,6 +7,7 @@ import { prisma } from '../../client.js';
 import { InternalErrorResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { delFromCache, getFromCache, ONE_WEEK_TTL, setToCache } from '../../redisClient.js';
+import { stripOrcidString } from '../../services/crossRef/utils.js';
 import { crossRefClient, openAlexService } from '../../services/index.js';
 import { WorksResult } from '../../services/openAlex/client.js';
 import { OpenAlexAuthor, OpenAlexWork } from '../../services/openAlex/types.js';
@@ -68,18 +69,21 @@ async function getAuthorExperience(orcid: string) {
     `${AUTHOR_EXPERIENCE_CACHE_PREFIX}-${orcid}`,
   );
 
+  logger.trace({ experience }, 'getAuthorExperience#cache');
   if (!experience) {
     const { educationHistory, employmentHistory } = await crossRefClient.getProfileExperience(orcid);
+    logger.trace({ educationHistory, employmentHistory }, 'getAuthorExperience#getProfileExperience');
 
     const [education, employment] = await Promise.all([
       transformOrcidAffiliationToEducation(educationHistory),
       transformOrcidAffiliationToEmployment(employmentHistory),
     ]);
 
+    logger.trace({ education, employment }, 'getAuthorExperience#transformed');
     experience = { education, employment };
 
     // update cache
-    setToCache(`${AUTHOR_EXPERIENCE_CACHE_PREFIX}-${orcid}`, experience);
+    if (education?.length && employment?.length) setToCache(`${AUTHOR_EXPERIENCE_CACHE_PREFIX}-${orcid}`, experience);
   }
 
   return experience;
@@ -116,10 +120,13 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
     logger.trace({ openalexProfile: !!openalexProfile, isOrcidId }, 'openalexProfile');
   }
 
-  let profile: Author = openalexProfile;
+  if (!openalexProfile) return new SuccessResponse(null).send(res);
+
+  const profile: Author = openalexProfile;
+  const orcidIdentifier = stripOrcidString(openalexProfile?.orcid);
 
   const [experience, bibliometrics] = await Promise.all([
-    getAuthorExperience(openalexProfile?.orcid ?? ''),
+    getAuthorExperience(orcidIdentifier),
     getBibliometrics(openalexProfile.id),
   ]);
 
