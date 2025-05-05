@@ -285,7 +285,8 @@ export function computeAuthorIndices(
   // Calculate age of publication and weighted citations
   const weightedIndices = authorIndices.map((row) => {
     const ageOfPublication = year - row.publicationYear;
-    const weightedCitations = ageOfPublication >= 0 ? row.citedByCount / Math.pow(ageOfPublication + delta, gamma) : 0;
+    const weightedCitations =
+      ageOfPublication >= 0 ? (gamma * row.citedByCount) / Math.pow(ageOfPublication + 1, delta) : 0;
 
     return {
       ...row,
