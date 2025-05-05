@@ -13,7 +13,7 @@ import { asyncMap } from '../../utils.js';
 import { CrossRefHttpResponse, Items, QueryWorkParams, RegisterDoiResponse, Work } from './definitions.js';
 import { ProfileSummary } from './types/summary.js';
 import { WorksResponse } from './types/works.js';
-import { keysToDotsAndDashses } from './utils.js';
+import { keysToDotsAndDashses, stripOrcidString } from './utils.js';
 
 const ORCID_PUBLIC_API = process.env.ORCID_PUBLIC_API || 'https://pub.sandbox.orcid.org/v3.0'; //  'https://pub.orcid.org/v3.0'; //
 
@@ -407,24 +407,23 @@ class CrossRefClient {
     }
   }
 
-  async profileSummary(_orcid: string) {
-    const formattedOrcid = _orcid.replace('https://orcid.org/', '');
+  async profileSummary(orcidIdentifier: string) {
+    const orcid = stripOrcidString(orcidIdentifier);
     try {
-      let profile: ProfileSummary = await getFromCache<ProfileSummary>(`ORCID-PROFILE-${formattedOrcid}`);
+      let profile: ProfileSummary = await getFromCache<ProfileSummary>(`ORCID-PROFILE-${orcid}`);
       if (!profile) {
-        const response = await fetch(`${ORCID_PUBLIC_API}/${formattedOrcid}`, {
+        const response = await fetch(`${ORCID_PUBLIC_API}/${orcid}`, {
           headers: {
             Accept: 'application/json',
           },
         });
         profile = response.status === 200 ? ((await response.json()) as ProfileSummary) : undefined;
-        logger.trace({ profile: profile }, 'ProfileSummary');
 
         // cache orcid profile
-        if (profile) setToCache(`ORCID-PROFILE-${formattedOrcid}`, profile);
+        if (profile) setToCache(`ORCID-PROFILE-${orcid}`, profile);
       }
 
-      const worksResponse = await fetch(`${ORCID_PUBLIC_API}/${formattedOrcid}/works`, {
+      const worksResponse = await fetch(`${ORCID_PUBLIC_API}/${orcid}/works`, {
         headers: {
           Accept: 'application/json',
         },
@@ -439,7 +438,7 @@ class CrossRefClient {
   }
 
   async getProfileExperience(orcidIdentifier: string) {
-    const orcid = orcidIdentifier.replace('https://orcid.org/', '');
+    const orcid = stripOrcidString(orcidIdentifier);
 
     let profile = await getFromCache<ProfileSummary>(`ORCID-PROFILE-${orcid}`);
     logger.trace({ orcid, profile }, 'getProfileExperience#Cache');
@@ -453,32 +452,6 @@ class CrossRefClient {
     const employmentHistory = profile?.['activities-summary']?.['employments']?.['affiliation-group'] ?? [];
     const educationHistory = profile?.['activities-summary']?.['educations']?.['affiliation-group'] ?? [];
     return { employmentHistory, educationHistory };
-  }
-
-  async getEmploymentHistory(orcid: string) {
-    let profile = await getFromCache<ProfileSummary>(`ORCID-PROFILE-${orcid}`);
-
-    if (!profile) {
-      const { profile: orcidProfile } = await this.profileSummary(orcid);
-      profile = orcidProfile;
-    }
-
-    const employmentHistory = profile['activities-summary']?.['employments']?.['affiliation-group'];
-    if (!employmentHistory || employmentHistory.length === 0) return [];
-    return employmentHistory;
-  }
-
-  async getEducationHistory(orcid: string) {
-    let profile = await getFromCache<ProfileSummary>(`ORCID-PROFILE-${orcid}`);
-
-    if (!profile) {
-      const { profile: orcidProfile } = await this.profileSummary(orcid);
-      profile = orcidProfile;
-    }
-
-    const educationHistory = profile['activities-summary']?.['educations']?.['affiliation-group'];
-    if (!educationHistory || educationHistory.length === 0) return [];
-    return educationHistory;
   }
 }
 

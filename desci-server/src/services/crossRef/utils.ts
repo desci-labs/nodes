@@ -25,3 +25,7 @@ export const getOrcidFromURL = (orcid: string) => {
   const match = orcid.match(pattern);
   return match ? match[0] : orcid;
 };
+
+export const stripOrcidString = (orcidIdentifier: string) => {
+  return orcidIdentifier.replace('https://orcid.org/', '');
+};

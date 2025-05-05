@@ -7,6 +7,7 @@ import { prisma } from '../../client.js';
 import { InternalErrorResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { delFromCache, getFromCache, ONE_WEEK_TTL, setToCache } from '../../redisClient.js';
+import { stripOrcidString } from '../../services/crossRef/utils.js';
 import { crossRefClient, openAlexService } from '../../services/index.js';
 import { WorksResult } from '../../services/openAlex/client.js';
 import { OpenAlexAuthor, OpenAlexWork } from '../../services/openAlex/types.js';
@@ -122,9 +123,10 @@ export const getAuthorProfile = async (req: Request, res: Response, next: NextFu
   if (!openalexProfile) return new SuccessResponse(null).send(res);
 
   const profile: Author = openalexProfile;
+  const orcidIdentifier = stripOrcidString(openalexProfile?.orcid ?? '');
 
   const [experience, bibliometrics] = await Promise.all([
-    getAuthorExperience(openalexProfile?.orcid ?? ''),
+    getAuthorExperience(orcidIdentifier),
     getBibliometrics(openalexProfile.id),
   ]);
 
