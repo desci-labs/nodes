@@ -147,7 +147,12 @@ export const convertGuestToUserOrcid = async (
           convertedGuest: true,
         },
       });
+    }
 
+    const existingOrcidIdentity = await prisma.userIdentity.findFirst({
+      where: { userId: updatedUser.id, provider: 'orcid' },
+    });
+    if (!existingOrcidIdentity) {
       // Store ORCID identity
       await prisma.userIdentity.create({
         data: {

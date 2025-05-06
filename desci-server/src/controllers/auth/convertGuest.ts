@@ -82,7 +82,7 @@ export const convertGuestToUser = async (
         logger.error({ error: mergeRes.error }, 'Error merging guest into existing user');
         return res.status(500).send({ ok: false, error: 'Failed to merge guest into existing user' });
       }
-      updatedUser = existingUser;
+      updatedUser = await prisma.user.findUnique({ where: { id: existingUser.id } });
     } else {
       updatedUser = await prisma.user.update({
         where: { id: guestUser.id },

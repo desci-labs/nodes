@@ -91,19 +91,22 @@ export const convertGuestToUserGoogle = async (
           convertedGuest: true,
         },
       });
+    }
 
-      // Store Google identity
+    const existingGoogleIdentity = await prisma.userIdentity.findFirst({
+      where: { userId: updatedUser.id, provider: 'google' },
+    });
+    if (!existingGoogleIdentity) {
       await prisma.userIdentity.create({
         data: {
-          user: {
-            connect: { id: updatedUser.id },
-          },
+          user: { connect: { id: updatedUser.id } },
           provider: 'google',
           uid: googleId,
           email: cleanEmail,
           name,
         },
       });
+      logger.info({ userId: updatedUser.id }, 'Linked Google identity in convertGuestToUserGoogle flow');
     }
 
     // Inherits existing user contribution entries that were made with the same email

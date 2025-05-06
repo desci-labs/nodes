@@ -65,6 +65,13 @@ async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
       },
     });
 
+    if (!existingUser) {
+      throw new Error('Existing user not found');
+    }
+    if (!guest?.isGuest) {
+      throw new Error('Guest user is not a guest');
+    }
+
     logger.info({ fn: 'mergeGuestIntoExistingUser', guestId, userId }, 'Merging guest into existing user');
     await saveInteractionWithoutReq({
       action: ActionType.MERGE_GUEST_INTO_EXISTING_USER_ATTEMPT,
@@ -72,12 +79,6 @@ async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
       userId: existingUser.id,
     });
 
-    if (!existingUser) {
-      throw new Error('Existing user not found');
-    }
-    if (!guest?.isGuest) {
-      throw new Error('Guest user is not a guest');
-    }
     const result = await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: {
