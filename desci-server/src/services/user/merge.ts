@@ -7,11 +7,10 @@ import {
   User,
   UserNotifications,
 } from '@prisma/client';
-import { text } from 'body-parser';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { saveInteraction, saveInteractionWithoutReq } from '../interactionLog.js';
+import { saveInteractionWithoutReq } from '../interactionLog.js';
 import { CommentPayload, ContributorInvitePayload } from '../NotificationService.js';
 
 const logger = parentLogger.child({

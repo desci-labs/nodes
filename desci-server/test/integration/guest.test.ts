@@ -14,9 +14,13 @@ describe('Guest User Tests', () => {
   let guestUser: User;
   let guestToken: string;
 
-  before(async () => {});
+  before(async () => {
+    await prisma.$executeRaw`TRUNCATE TABLE "User" CASCADE`;
+  });
 
-  after(async () => {});
+  after(async () => {
+    await prisma.$disconnect();
+  });
 
   it('should create a guest user session', async () => {
     const res = await request(app).post('/v1/auth/guest').send({ dev: 'true' }); // Assuming dev=true returns token
