@@ -174,7 +174,6 @@ model User {
   createdAt                   DateTime                      @default(now())
   updatedAt                   DateTime                      @updatedAt
   isGuest                     Boolean                       @default(false)
-  convertedGuest              Boolean                       @default(false)
   email                       String                        @unique
   phoneNumber                 String?                       @unique
   name                        String?
@@ -190,6 +189,8 @@ model User {
   orcid                       String?                       @unique
   notificationSettings        Json?
   unseenNotificationCount     Int                           @default(0)
+  convertedGuest              Boolean                       @default(false)
+  mergedIntoAt                DateTime[] // Timestamps for when a guest was merged into this existing user.
   // rorPid                     String[]              @default([])
   // organization               String[]              @default([])
   isAdmin                     Boolean                       @default(false)
@@ -264,6 +265,7 @@ model ApiKey {
   @@index([userId])
 }
 
+// Seems unused
 model Invite {
   id          Int      @id @default(autoincrement())
   createdAt   DateTime @default(now())
@@ -279,6 +281,7 @@ model Invite {
   sender      User     @relation("SentInvites", fields: [senderId], references: [id])
 }
 
+// Seems unused
 model AuthorInvite {
   id          Int      @id @default(autoincrement())
   createdAt   DateTime @default(now())
@@ -293,6 +296,7 @@ model AuthorInvite {
   sender      User     @relation("SentAuthorInvites", fields: [senderId], references: [id])
 }
 
+// Seems unused
 model NodeAuthor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -305,6 +309,7 @@ model NodeAuthor {
   @@id([userId, nodeId])
 }
 
+// Seems unused
 model NodeVote {
   id          Int               @id @default(autoincrement())
   createdAt   DateTime          @default(now())
@@ -317,6 +322,7 @@ model NodeVote {
   transaction ChainTransaction?
 }
 
+// Seems unused
 model ChainTransaction {
   id           Int                  @id @default(autoincrement())
   createdAt    DateTime             @default(now())
@@ -343,6 +349,7 @@ model MagicLink {
   email          String
 }
 
+// Seems unused
 model OauthAccessToken {
   id                    String           @id
   userId                Int
@@ -361,6 +368,7 @@ model OauthAccessToken {
   @@index([userId])
 }
 
+// Seems unused
 model OauthAccessGrant {
   id                  String           @id
   userId              Int
@@ -380,6 +388,7 @@ model OauthAccessGrant {
   @@index([userId])
 }
 
+// Seems unused
 model OauthApplication {
   id           String             @id
   name         String
@@ -599,7 +608,7 @@ model NodeContribution {
   updatedAt     DateTime  @updatedAt
   contributorId String    @unique
   nodeId        Int
-  userId        Int?
+  userId        Int? // Target contributor user id
   verified      Boolean   @default(false)
   denied        Boolean   @default(false)
   email         String?
@@ -1224,6 +1233,9 @@ enum ActionType {
   EDIT_COMMENT
   GUEST_USER_CONVERSION
   USER_SIGNUP_SUCCESS
+  MERGE_GUEST_INTO_EXISTING_USER_ATTEMPT
+  MERGE_GUEST_INTO_EXISTING_USER_SUCCESS
+  MERGE_GUEST_INTO_EXISTING_USER_FAIL
 }
 
 enum ChainTransactionType {
