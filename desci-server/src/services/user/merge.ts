@@ -80,7 +80,7 @@ async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
       throw new Error('Guest user is not a guest');
     }
     const result = await prisma.$transaction(async (tx) => {
-      tx.user.update({
+      await tx.user.update({
         where: {
           id: existingUser.id,
         },

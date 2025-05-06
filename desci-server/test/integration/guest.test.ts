@@ -240,7 +240,7 @@ describe('Guest User Tests', () => {
 
     // Merging shouldn't mark the existing user as convertedGuest
     expect(finalExistingUser?.convertedGuest).to.equal(false);
-    // expect(finalExistingUser?.mergedIntoAt).to.have.length(1); // FAILING.
+    expect(finalExistingUser?.mergedIntoAt).to.have.length(1);
 
     const mergedNode = await prisma.node.findUnique({ where: { id: nodeId } });
     expect(mergedNode).to.exist;
