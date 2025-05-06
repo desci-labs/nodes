@@ -1,12 +1,12 @@
 import { ActionType, User } from '@prisma/client';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { contributorService } from '../../services/Contributors.js';
 import { DataMigrationService } from '../../services/DataMigration/DataMigrationService.js';
-import { saveInteraction } from '../../services/interactionLog.js';
+import { saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import { MergeUserService } from '../../services/user/merge.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
@@ -124,21 +124,21 @@ export const convertGuestToUserGoogle = async (
     // Return the JWT
     sendCookie(res, token, dev === 'true');
 
-    await saveInteraction({
-      req,
+    await saveInteractionWithoutReq({
       action: ActionType.GUEST_USER_CONVERSION,
-      data: { userId: updatedUser.id, conversionType: 'google' },
+      data: { userId: updatedUser.id, conversionType: 'google', isExistingUser },
       userId: updatedUser.id,
       submitToMixpanel: true,
     });
 
-    await saveInteraction({
-      req,
-      action: ActionType.USER_SIGNUP_SUCCESS,
-      data: { userId: updatedUser.id, email: updatedUser.email, method: 'google', guestConversion: true },
-      userId: updatedUser.id,
-      submitToMixpanel: true,
-    });
+    if (!isExistingUser) {
+      await saveInteractionWithoutReq({
+        action: ActionType.USER_SIGNUP_SUCCESS,
+        data: { userId: updatedUser.id, email: updatedUser.email, method: 'google', guestConversion: true },
+        userId: updatedUser.id,
+        submitToMixpanel: true,
+      });
+    }
 
     logger.info(
       { userId: updatedUser.id, email: hideEmail(cleanEmail) },

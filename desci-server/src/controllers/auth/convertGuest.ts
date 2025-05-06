@@ -1,12 +1,12 @@
 import { ActionType, User } from '@prisma/client';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { magicLinkRedeem, verifyMagicCode } from '../../services/auth.js';
+import { verifyMagicCode } from '../../services/auth.js';
 import { contributorService } from '../../services/Contributors.js';
 import { DataMigrationService } from '../../services/DataMigration/DataMigrationService.js';
-import { saveInteraction } from '../../services/interactionLog.js';
+import { saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import { MergeUserService } from '../../services/user/merge.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
@@ -111,21 +111,21 @@ export const convertGuestToUser = async (
     // Return the JWT
     sendCookie(res, token, dev === 'true');
 
-    await saveInteraction({
-      req,
+    await saveInteractionWithoutReq({
       action: ActionType.GUEST_USER_CONVERSION,
-      data: { userId: updatedUser.id, conversionType: 'email' },
+      data: { userId: updatedUser.id, conversionType: 'email', isExistingUser },
       userId: updatedUser.id,
       submitToMixpanel: true,
     });
 
-    await saveInteraction({
-      req,
-      action: ActionType.USER_SIGNUP_SUCCESS,
-      data: { userId: updatedUser.id, email: updatedUser.email, method: 'magic', guestConversion: true },
-      userId: updatedUser.id,
-      submitToMixpanel: true,
-    });
+    if (!isExistingUser) {
+      await saveInteractionWithoutReq({
+        action: ActionType.USER_SIGNUP_SUCCESS,
+        data: { userId: updatedUser.id, email: updatedUser.email, method: 'magic', guestConversion: true },
+        userId: updatedUser.id,
+        submitToMixpanel: true,
+      });
+    }
 
     logger.info(
       { userId: updatedUser.id, email: hideEmail(email) },
