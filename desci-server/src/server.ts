@@ -129,7 +129,7 @@ class AppServer {
       // Prevent guest abuse
       const clientIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket.remoteAddress;
 
-      als.run({ traceId: req.traceId, timing: [new Date()], userAuth: req.userAuth, clientIp, req }, () => {
+      als.run({ traceId: req.traceId, timing: [new Date()], userAuth: req.userAuth, clientIp }, () => {
         next();
       });
     });
