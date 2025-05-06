@@ -31,7 +31,7 @@ spec:
       containers:
         - image: 523044037273.dkr.ecr.us-east-2.amazonaws.com/openalex-importer:latest
           name: openalex-importer
-          #          command: [ 'tail', '-f', '/dev/null' ]
+          # command: ['tail', '-f', '/dev/null']
           command: ['/bin/bash', '-c']
           args:
             - echo "SOURCING ENV";

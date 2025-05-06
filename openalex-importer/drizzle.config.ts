@@ -13,7 +13,7 @@ export default defineConfig({
     password: process.env.POSTGRES_PASSWORD as string,
     secretArn: '',
     resourceArn: '',
-    ssl: false,
+    ssl: process.env.PG_HOST?.includes('azure') ? true : false,
   },
   schemaFilter: ['openalex', 'public'],
   migrations: {
