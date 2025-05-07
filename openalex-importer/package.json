@@ -29,12 +29,14 @@
   },
   "dependencies": {
     "@date-fns/utc": "^2.1.0",
+    "@types/pg-promise": "^0.0.28",
     "croner": "^9.0.0",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.38.3",
     "lodash": "^4.17.21",
     "pg": "^8.12.0",
+    "pg-promise": "^11.13.0",
     "pino": "^9.3.2",
     "pino-pretty": "^13.0.0",
     "pino-std-serializers": "^7.0.0"

@@ -34,7 +34,9 @@ spec:
           #          command: [ 'tail', '-f', '/dev/null' ]
           command: ['/bin/bash', '-c']
           args:
-            - echo "SOURCING ENV"; source /vault/secrets/config; node ./dist/index.js;
+            - echo "SOURCING ENV";
+              source /vault/secrets/config;
+              node ./dist/index.js;
           env:
             - name: QUERY_TYPE
               value: 'updated'
