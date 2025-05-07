@@ -49,7 +49,7 @@ export const createSubmission = async (req: RequestWithNode, res: Response) => {
 
 export const getCommunitySubmissions = async (req: RequestWithUser, res: Response) => {
   const { communityId } = req.params as z.infer<typeof getCommunitySubmissionsSchema>['params'];
-  const { status } = req.query as z.infer<typeof getCommunitySubmissionsSchema>['query'];
+  const { status, limit, offset } = req.query as z.infer<typeof getCommunitySubmissionsSchema>['query'];
 
   // Check if user is a member of the community
   const isMember = req?.user?.id
@@ -66,6 +66,8 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
   const submissions = await communityService.getCommunitySubmissions({
     communityId: Number(communityId),
     status: isMember ? status : Submissionstatus.ACCEPTED,
+    limit: limit ? Number(limit) : undefined,
+    offset: offset ? Number(offset) : undefined,
   });
 
   const data = await asyncMap(submissions, async (submission) => {

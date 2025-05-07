@@ -21,6 +21,8 @@ export const getCommunitySubmissionsSchema = z.object({
       .enum([Submissionstatus.PENDING, Submissionstatus.ACCEPTED, Submissionstatus.REJECTED])
       .optional()
       .describe('Filter submissions by their status (pending, accepted, or rejected)'),
+    limit: z.coerce.number().optional().describe('The maximum number of submissions to return'),
+    offset: z.coerce.number().optional().describe('The offset to start from'),
   }),
 });
 
