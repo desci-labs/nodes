@@ -1,0 +1,7 @@
+{
+	"type": "module",
+	"dependencies": {
+		"kubo-rpc-client": "^5.1.0",
+		"minimatch": "^10.0.1"
+	}
+}
