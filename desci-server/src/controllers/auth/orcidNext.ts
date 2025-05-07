@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 
 import { logger as parentLogger } from '../../logger.js';
 import { saveInteraction } from '../../services/interactionLog.js';
+import { MergeUserService } from '../../services/user/merge.js';
 import { connectOrcidToUserIfPossible } from '../../services/user.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 
@@ -37,6 +38,7 @@ export const orcidCheck =
       return;
     }
     const user = (req as any).user;
+    const isUserGuest = user?.isGuest;
     const { access_token, refresh_token, expires_in, orcid, dev } = req.body;
     logger.trace({ access_token, refresh_token, expires_in, orcid, dev }, 'connectOrcidToUserIfPossible');
     const orcidRecord = await connectOrcidToUserIfPossible(
@@ -57,6 +59,23 @@ export const orcidCheck =
         data: { sub: 'orcid-missing-email', orcid },
         userId: user?.id,
       });
+    }
+
+    /*
+     ** Handle guest conversion for existing ORCID users
+     */
+    if (isUserGuest && orcidRecord?.userFound && orcidRecord?.user) {
+      const mergeRes = await MergeUserService.handleMergeExistingUserOrcid(orcidRecord.user, user);
+      if (!mergeRes.success) {
+        logger.error(
+          { fn: 'orcidNext', existingUserId: orcidRecord.user.id, guestId: user.id, error: mergeRes.error },
+          '[ExistingOrcidGuestConversion] Error merging guest into existing user',
+        );
+        res.status(500).send({ err: 'guest conversion to existing orcid failed', code: 0 });
+        return;
+      }
+      // Indiciate to the frontend that the guest conversion was successful for side-effects
+      orcidRecord['guestConverted'] = true;
     }
 
     const jwtToken = orcidRecord.jwt;

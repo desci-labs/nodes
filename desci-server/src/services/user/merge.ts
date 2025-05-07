@@ -10,6 +10,7 @@ import {
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { DataMigrationService } from '../DataMigration/DataMigrationService.js';
 import { saveInteractionWithoutReq } from '../interactionLog.js';
 import { CommentPayload, ContributorInvitePayload } from '../NotificationService.js';
 
@@ -530,6 +531,42 @@ async function mergeUserNotifications(tx: PrismaTransactionClient, guest: User, 
   );
 }
 
+/**
+ * Handles merging a guest user into an existing user authed via ORCID.
+ ** Unable to use standard convertGuestOrcid flow, to stay consistent with
+ * the existing ORCID flow.
+ */
+async function handleMergeExistingUserOrcid(existingUser: User, guest: User) {
+  logger.info(
+    { fn: 'handleMergeExistingUserOrcid', existingUserId: existingUser.id, guestId: guest.id },
+    '[ExistingOrcidGuestConversion] Merging guest into existing ORCID user',
+  );
+  debugger;
+  const mergeRes = await MergeUserService.mergeGuestIntoExistingUser(guest.id, existingUser.id);
+  if (!mergeRes.success) {
+    logger.error(
+      { fn: 'handleMergeExistingUserOrcid', existingUserId: existingUser.id, guestId: guest.id, error: mergeRes.error },
+      '[ExistingOrcidGuestConversion] Error merging guest into existing user',
+    );
+    return { success: false, error: mergeRes.error };
+  }
+
+  await saveInteractionWithoutReq({
+    action: ActionType.GUEST_USER_CONVERSION,
+    data: { userId: existingUser.id, conversionType: 'orcid', isExistingUser: true },
+    userId: existingUser.id,
+    submitToMixpanel: true,
+  });
+
+  await DataMigrationService.createGuestToPrivateMigrationJob(existingUser.id);
+  logger.info(
+    { fn: 'handleMergeExistingUserOrcid', existingUserId: existingUser.id, guestId: guest.id },
+    '[ExistingOrcidGuestConversion] Merge complete',
+  );
+  return { success: true };
+}
+
 export const MergeUserService = {
   mergeGuestIntoExistingUser,
+  handleMergeExistingUserOrcid,
 };
