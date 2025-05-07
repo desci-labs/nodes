@@ -148,7 +148,7 @@ export const transformDataModel = (data: Work[]) => {
       work.locations.map(
         (location) =>
           ({
-            work_id: oaUrlToId(work.id) ,
+            work_id: oaUrlToId(work.id),
             source_id: oaUrlToId(location.source?.id),
             landing_page_url: location.landing_page_url,
             pdf_url: location.pdf_url,

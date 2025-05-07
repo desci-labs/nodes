@@ -59,6 +59,7 @@ const dbInfo = {
   port: parseInt(process.env.PG_PORT || '5432'),
   password: process.env.POSTGRES_PASSWORD as string,
   ssl: process.env.POSTGRES_NO_SSL !== 'true',
+  application_name: 'openalex-importer',
 };
 
 const { workBatchesInOpenAlex } = batchesSchema;
@@ -156,11 +157,23 @@ export const saveData = async (tx: pgPromise.ITask<any>, batchId: number, models
   }
 };
 
+/**
+ * To minimize DB index page IO, all update functions try to sort the data by the primary key.
+ * For tables with composite primary keys, the sort function acts on all columns.
+ * This turns random access into index pages into sequential access, which is much faster.
+ */
+const sortWorks = (a: DataModels['works'][number], b: DataModels['works'][number]) => {
+  if (a.id < b.id) return -1;
+  if (a.id > b.id) return 1;
+
+  return 0;
+};
+
 const updateWorks = async (tx: pgPromise.ITask<any>, data: DataModels['works'], batchId: number) => {
   if (!data.length) return;
 
   const columns = getColumnSet(worksInOpenalex);
-  const query = pgp.helpers.insert(data, columns) +
+  const query = pgp.helpers.insert(data.sort(sortWorks), columns) +
     ' ON CONFLICT (id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: 'id' });
 
@@ -168,16 +181,23 @@ const updateWorks = async (tx: pgPromise.ITask<any>, data: DataModels['works'], 
 
   // Insert work-batch relationships
   const batchColumns = getColumnSet(workBatchesInOpenAlex);
-  const batchValues = data.map(work => ({ work_id: work.id, batch_id: batchId }));
+  const batchValues = data.map(work => ({ work_id: work.id, batch_id: batchId })).sort(sortByWorkId);
   const batchQuery = pgp.helpers.insert(batchValues, batchColumns) + ' ON CONFLICT DO NOTHING';
   await tx.none(batchQuery);
+};
+
+const sortByWorkId = (a: { work_id: string }, b: { work_id: string }) => {
+  if (a.work_id < b.work_id) return -1;
+  if (a.work_id > b.work_id) return 1;
+
+  return 0;
 };
 
 const updateWorkIds = async (tx: pgPromise.ITask<any>, data: DataModels['works_id']) => {
   if (!data.length) return;
 
   const columns = getColumnSet(works_idsInOpenalex);
-  const query = pgp.helpers.insert(data, columns) +
+  const query = pgp.helpers.insert(data.sort(sortByWorkId), columns) +
     ' ON CONFLICT (work_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: 'work_id' });
 
@@ -188,7 +208,7 @@ const updateWorksBestOaLocations = async (tx: pgPromise.ITask<any>, data: DataMo
   if (!data.length) return;
 
   const columns = getColumnSet(works_best_oa_locationsInOpenalex);
-  const query = pgp.helpers.insert(data, columns) +
+  const query = pgp.helpers.insert(data.sort(sortByWorkId), columns) +
     ' ON CONFLICT (work_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: 'work_id' });
 
@@ -199,7 +219,7 @@ const updateWorksPrimaryLocations = async (tx: pgPromise.ITask<any>, data: DataM
   if (!data.length) return;
 
   const columns = getColumnSet(works_primary_locationsInOpenalex);
-  const query = pgp.helpers.insert(data, columns) +
+  const query = pgp.helpers.insert(data.sort(sortByWorkId), columns) +
     ' ON CONFLICT (work_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: 'work_id' });
 
@@ -209,24 +229,48 @@ const updateWorksPrimaryLocations = async (tx: pgPromise.ITask<any>, data: DataM
 const updateWorksLocations = async (tx: pgPromise.ITask<any>, data: DataModels['works_locations']) => {
   if (!data.length) return;
 
+  // Manually remove previous info before insert as there is no sane unique constraint to put on the table
+  const uniqueWorkIds = [...new Set(data.map(w => w.work_id))];
+  await tx.none('DELETE FROM openalex.works_locations WHERE work_id IN ($1)', uniqueWorkIds);
+
   const columns = getColumnSet(works_locationsInOpenalex);
-  const query = pgp.helpers.insert(data, columns);
+  const query = pgp.helpers.insert(data.sort(sortByWorkId), columns);
   await tx.none(query);
+};
+
+const sortWorksReferencedWorks = (a: DataModels['works_referenced_works'][number], b: DataModels['works_referenced_works'][number]) => {
+  if (a.work_id! < b.work_id!) return -1;
+  if (a.work_id! > b.work_id!) return 1;
+
+  if (a.referenced_work_id! < b.referenced_work_id!) return -1;
+  if (a.referenced_work_id! > b.referenced_work_id!) return 1;
+
+  return 0;
 };
 
 const updateWorksReferencedWorks = async (tx: pgPromise.ITask<any>, data: DataModels['works_referenced_works']) => {
   if (!data.length) return;
 
   const columns = getColumnSet(works_referenced_worksInOpenalex);
-  const query = pgp.helpers.insert(data, columns) + ' ON CONFLICT DO NOTHING';
+  const query = pgp.helpers.insert(data.sort(sortWorksReferencedWorks), columns) + ' ON CONFLICT DO NOTHING';
   await tx.none(query);
+};
+
+const sortWorksRelatedWorks = (a: DataModels['works_related_works'][number], b: DataModels['works_related_works'][number]) => {
+  if (a.work_id! < b.work_id!) return -1;
+  if (a.work_id! > b.work_id!) return 1;
+
+  if (a.related_work_id! < b.related_work_id!) return -1;
+  if (a.related_work_id! > b.related_work_id!) return 1;
+
+  return 0;
 };
 
 const updateWorksRelatedWorks = async (tx: pgPromise.ITask<any>, data: DataModels['works_related_works']) => {
   if (!data.length) return;
 
   const columns = getColumnSet(works_related_worksInOpenalex);
-  const query = pgp.helpers.insert(data, columns) + ' ON CONFLICT DO NOTHING';
+  const query = pgp.helpers.insert(data.sort(sortWorksRelatedWorks), columns) + ' ON CONFLICT DO NOTHING';
   await tx.none(query);
 };
 
@@ -234,29 +278,43 @@ const updateWorksOpenAccess = async (tx: pgPromise.ITask<any>, data: DataModels[
   if (!data.length) return;
 
   const columns = getColumnSet(works_open_accessInOpenalex);
-  const query = pgp.helpers.insert(data, columns) +
+  const query = pgp.helpers.insert(data.sort(sortByWorkId), columns) +
     ' ON CONFLICT (work_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: 'work_id' });
 
   await tx.none(query);
 };
 
+const sortAuthors = (a: DataModels['authors'][number], b: DataModels['authors'][number]) => {
+  if (a.id! < b.id!) return -1;
+  if (a.id! > b.id!) return 1;
+
+  return 0;
+};
+
 const updateAuthors = async (tx: pgPromise.ITask<any>, data: DataModels['authors']) => {
   if (!data.length) return;
 
   const columns = getColumnSet(authorsInOpenalex);
-  const query = pgp.helpers.insert(data, columns) +
+  const query = pgp.helpers.insert(data.sort(sortAuthors), columns) +
     ' ON CONFLICT (id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: 'id' });
 
   await tx.none(query);
 };
 
+const sortAuthorIds = (a: DataModels['authors_ids'][number], b: DataModels['authors_ids'][number]) => {
+  if (a.author_id! < b.author_id!) return -1;
+  if (a.author_id! > b.author_id!) return 1;
+
+  return 0;
+};
+
 const updateAuthorIds = async (tx: pgPromise.ITask<any>, data: DataModels['authors_ids']) => {
   if (!data.length) return;
 
   const columns = getColumnSet(authors_idsInOpenalex);
-  const query = pgp.helpers.insert(data, columns) +
+  const query = pgp.helpers.insert(data.sort(sortAuthorIds), columns) +
     ' ON CONFLICT (author_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: 'author_id' });
 
@@ -267,37 +325,71 @@ const updateWorksBiblio = async (tx: pgPromise.ITask<any>, data: DataModels['wor
   if (!data.length) return;
 
   const columns = getColumnSet(works_biblioInOpenalex);
-  const query = pgp.helpers.insert(data, columns) +
+  const query = pgp.helpers.insert(data.sort(sortByWorkId), columns) +
     ' ON CONFLICT (work_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: 'work_id' });
 
   await tx.none(query);
 };
 
+const sortWorksConcepts = (a: DataModels['works_concepts'][number], b: DataModels['works_concepts'][number]) => {
+  if (a.concept_id! < b.concept_id!) return -1;
+  if (a.concept_id! > b.concept_id!) return 1;
+
+  if (a.work_id! < b.work_id!) return -1;
+  if (a.work_id! > b.work_id!) return 1;
+
+  return 0;
+};
+
 const updateWorksConcepts = async (tx: pgPromise.ITask<any>, data: DataModels['works_concepts']) => {
   if (!data.length) return;
 
   const columns = getColumnSet(works_conceptsInOpenalex);
-  const query = pgp.helpers.insert(data, columns) +
+  const query = pgp.helpers.insert(data.sort(sortWorksConcepts), columns) +
     ' ON CONFLICT (concept_id, work_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: ['concept_id', 'work_id'] });
 
   await tx.none(query);
 };
 
+const sortWorksMesh = (a: DataModels['works_mesh'][number], b: DataModels['works_mesh'][number]) => {
+  if (a.work_id! < b.work_id!) return -1;
+  if (a.work_id! > b.work_id!) return 1;
+
+  if (a.descriptor_ui! < b.descriptor_ui!) return -1;
+  if (a.descriptor_ui! > b.descriptor_ui!) return 1;
+
+  if (a.qualifier_ui! < b.qualifier_ui!) return -1;
+  if (a.qualifier_ui! > b.qualifier_ui!) return 1;
+
+  return 0;
+};
+
 const updateWorksMesh = async (tx: pgPromise.ITask<any>, data: DataModels['works_mesh']) => {
   if (!data.length) return;
 
   const columns = getColumnSet(works_meshInOpenalex);
-  const query = pgp.helpers.insert(data, columns) + ' ON CONFLICT DO NOTHING';
+  const query = pgp.helpers.insert(data.sort(sortWorksMesh), columns) +
+    ' ON CONFLICT (work_id, descriptor_ui, qualifier_ui) DO UPDATE SET ' +
+    columns.assignColumns({ from: 'EXCLUDED', skip: ['work_id', 'descriptor_ui', 'qualifier_ui'] });
   await tx.none(query);
+};
+
+const sortWorksTopics = (a: DataModels['works_topics'][number], b: DataModels['works_topics'][number]) => {
+  if (a.work_id! < b.work_id!) return -1;
+  if (a.work_id! > b.work_id!) return 1;
+
+  if (a.topic_id! < b.topic_id!) return -1;
+  if (a.topic_id! > b.topic_id!) return 1;
+
+  return 0;
 };
 
 const updateWorksTopics = async (tx: pgPromise.ITask<any>, data: DataModels['works_topics']) => {
   if (!data.length) return;
-
   const columns = getColumnSet(works_topicsInOpenalex);
-  const query = pgp.helpers.insert(data, columns) +
+  const query = pgp.helpers.insert(data.sort(sortWorksTopics), columns) +
     ' ON CONFLICT (work_id, topic_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: ['work_id', 'topic_id'] });
 
