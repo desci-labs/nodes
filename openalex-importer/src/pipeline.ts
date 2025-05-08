@@ -189,7 +189,7 @@ const createSaveStream = (tx: pgPromise.ITask<object>, batchId: number): Writabl
         logger.info({ duration: Date.now() - start }, 'Saved chunk to database');
         callback();
       } catch (error) {
-        logger.error(error, 'Error saving chunk to database');
+        logger.error(errWithCause(error as Error), 'Error saving chunk to database');
         callback(error as Error);
       }
     },
