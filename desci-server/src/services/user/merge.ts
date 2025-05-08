@@ -54,6 +54,7 @@ const logger = parentLogger.child({
  */
 async function mergeGuestIntoExistingUser(guestId: number, userId: number) {
   try {
+    // debugger;
     const guest = await prisma.user.findUnique({
       where: {
         id: guestId,
@@ -541,7 +542,7 @@ async function handleMergeExistingUserOrcid(existingUser: User, guest: User) {
     { fn: 'handleMergeExistingUserOrcid', existingUserId: existingUser.id, guestId: guest.id },
     '[ExistingOrcidGuestConversion] Merging guest into existing ORCID user',
   );
-  debugger;
+  // debugger;
   const mergeRes = await MergeUserService.mergeGuestIntoExistingUser(guest.id, existingUser.id);
   if (!mergeRes.success) {
     logger.error(

@@ -2,7 +2,7 @@
  * Updated orcid login flow following https://miro.com/app/board/uXjVM0RdtUs=/
  */
 
-import { ActionType } from '@prisma/client';
+import { ActionType, User } from '@prisma/client';
 import { Request, Response } from 'express';
 
 import { logger as parentLogger } from '../../logger.js';
@@ -60,7 +60,7 @@ export const orcidCheck =
         userId: user?.id,
       });
     }
-
+    // debugger;
     /*
      ** Handle guest conversion for existing ORCID users
      */
@@ -76,6 +76,16 @@ export const orcidCheck =
       }
       // Indiciate to the frontend that the guest conversion was successful for side-effects
       orcidRecord['guestConverted'] = true;
+
+      if (orcidRecord.user) {
+        const cleanUser = {
+          id: orcidRecord.user.id,
+          email: orcidRecord.user.email,
+          name: orcidRecord.user.name,
+          orcid: orcidRecord.user.orcid,
+        };
+        orcidRecord['user'] = cleanUser as User; // Send user info to the frontend
+      }
     }
 
     const jwtToken = orcidRecord.jwt;
