@@ -144,7 +144,6 @@ export const convertGuestToUser = async (
         email: updatedUser.email,
         name: updatedUser.name,
         isGuest: false,
-        isExistingUser,
         ...(dev === 'true' && { token }),
       },
       isNewUser: !isExistingUser,

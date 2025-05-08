@@ -162,9 +162,9 @@ export async function connectOrcidToUserIfPossible(
         });
       }
       const jwt = generateAccessToken({ email: user.email });
-      return { userFound: true, nodeConnect, jwt };
+      return { userFound: true, nodeConnect, jwt, user };
     } else {
-      return { error: 'orcid mismatch', code: 2, userFound: true };
+      return { error: 'orcid mismatch', code: 2, userFound: true, user };
     }
   } else {
     // we are not email auth'd, we have to check all users for this orcid
@@ -177,7 +177,7 @@ export async function connectOrcidToUserIfPossible(
         expiresIn,
       });
       const jwt = generateAccessToken({ email: userFound.email });
-      return { userFound: true, nodeConnect, jwt };
+      return { userFound: true, nodeConnect, jwt, user: userFound };
     } else {
       logger.info({ reason: 'No associated user found, prompt for email' }, 'OrcidCheck');
       // we didn't find a user, so we need to prompt for an email verification flow to assign an email to this orcid
