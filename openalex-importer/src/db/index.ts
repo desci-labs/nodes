@@ -135,7 +135,7 @@ export const saveData = async (tx: pgPromise.ITask<any>, batchId: number, models
     logger.info({  table: 'worksLocations',  duration: Date.now() - lap }, 'Table inserts done');
     lap = Date.now();
     await updateWorksOpenAccess(tx, models['works_open_access']);
-    logger.info({  table: 'authorIds',  duration: Date.now() - lap }, 'Table inserts done');
+    logger.info({  table: 'worksOpenAccess',  duration: Date.now() - lap }, 'Table inserts done');
     lap = Date.now();
     await updateWorksReferencedWorks(tx, models['works_referenced_works']);
     logger.info({  table: 'worksReferencedWorks',  duration: Date.now() - lap }, 'Table inserts done');
