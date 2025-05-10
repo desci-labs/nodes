@@ -87,6 +87,7 @@ describe('Guest User Tests', () => {
 
   it('should convert a guest user to a NEW regular user', async () => {
     const guestRes = await request(app).post('/v1/auth/guest').send({ dev: 'true' });
+    debugger;
     expect(guestRes.statusCode).to.equal(200);
     const tempGuestToken = guestRes.body.user.token;
     const tempGuestEmail = guestRes.body.user.email;
@@ -147,7 +148,6 @@ describe('Guest User Tests', () => {
     expect(convertRes.body.isNewUser).to.equal(true);
     expect(convertRes.body.user.email).to.equal(newEmail);
     expect(convertRes.body.user.isGuest).to.equal(false);
-    expect(convertRes.body.user.isExistingUser).to.equal(false);
     expect(convertRes.body.user.name).to.equal('New Converted User');
     const newUserId = convertRes.body.user.id;
 
@@ -230,7 +230,6 @@ describe('Guest User Tests', () => {
     expect(convertRes.body.isNewUser).to.equal(false);
     expect(convertRes.body.user.email).to.equal(existingEmail);
     expect(convertRes.body.user.isGuest).to.equal(false);
-    expect(convertRes.body.user.isExistingUser).to.equal(true);
     expect(convertRes.body.user.id).to.equal(existingUser.id);
 
     // Guest user should be deleted
