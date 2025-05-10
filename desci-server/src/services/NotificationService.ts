@@ -5,7 +5,6 @@ import { prisma } from '../client.js';
 import { CreateNotificationSchema } from '../controllers/notifications/create.js';
 import { GetNotificationsQuerySchema, PaginatedResponse } from '../controllers/notifications/index.js';
 import { logger as parentLogger } from '../logger.js';
-import { server } from '../server.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { attestationService } from './Attestation.js';

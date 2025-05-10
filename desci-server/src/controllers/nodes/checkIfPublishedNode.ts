@@ -1,9 +1,10 @@
 import { ResearchObjectV1, ResearchObjectV1Dpid } from '@desci-labs/desci-models';
-import { NodeCover } from '@prisma/client';
+import { NodeCover, Prisma } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { NoveltyScoreConfig } from '../../services/node.js';
 import { IndexedResearchObject, getIndexedResearchObjects } from '../../theGraph.js';
 import { resolveNodeManifest } from '../../utils/manifest.js';
 import { decodeBase64UrlSafeToHex, ensureUuidEndsWithDot, randomUUID64 } from '../../utils.js';
@@ -22,6 +23,7 @@ type NodeWithDpid = {
   cid: string;
   NodeCover: NodeCover[];
   isPublished: boolean;
+  noveltyScoreConfig?: NoveltyScoreConfig | Prisma.JsonValue;
 } & { dpid?: ResearchObjectV1Dpid; isPublished: boolean; index?: IndexedResearchObject };
 
 type GetPublishedNodeResponse = {
@@ -30,6 +32,7 @@ type GetPublishedNodeResponse = {
   dpid?: string;
   isPublished: boolean;
   indexInfo?: IndexedResearchObject;
+  noveltyScoreConfig?: NoveltyScoreConfig;
 };
 
 type GetPublishedNodeErrorResponse = {
@@ -60,6 +63,7 @@ export const checkIfPublishedNode = async (
       manifestUrl: true,
       cid: true,
       NodeCover: true,
+      noveltyScoreConfig: true,
     },
     where: {
       isDeleted: false,
@@ -108,5 +112,6 @@ export const checkIfPublishedNode = async (
     dpid: enhancedNode.dpid?.id,
     isPublished: enhancedNode.isPublished,
     indexInfo: enhancedNode.index,
+    noveltyScoreConfig: enhancedNode.noveltyScoreConfig as NoveltyScoreConfig,
   });
 };

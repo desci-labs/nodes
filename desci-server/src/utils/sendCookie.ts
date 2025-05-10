@@ -15,6 +15,7 @@ const AUTH_COOKIE_DOMAIN_MAPPING = {
 
 // auth, auth-stage, auth-dev
 export const AUTH_COOKIE_FIELDNAME = AUTH_COOKIE_DOMAIN_MAPPING[process.env.SERVER_URL] || 'auth';
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || 'localhost';
 
 export const sendCookie = (res: Response, token: string, isDevMode: boolean, cookieName = AUTH_COOKIE_FIELDNAME) => {
   if (isDevMode && process.env.SERVER_URL === 'https://nodes-api-dev.desci.com') {
@@ -27,7 +28,7 @@ export const sendCookie = (res: Response, token: string, isDevMode: boolean, coo
     });
   }
 
-  (process.env.COOKIE_DOMAIN?.split(',') || [undefined]).map((domain) => {
+  (COOKIE_DOMAIN.split(',') || [undefined]).map((domain) => {
     logger.info(
       { fn: 'sendCookie', domain, env: process.env.NODE_ENV, cookieName, AUTH_COOKIE_FIELDNAME },
       `cookie set`,
@@ -37,7 +38,7 @@ export const sendCookie = (res: Response, token: string, isDevMode: boolean, coo
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
       secure: process.env.NODE_ENV === 'production',
       domain: process.env.NODE_ENV === 'production' ? domain || '.desci.com' : 'localhost',
-      sameSite: 'none',
+      sameSite: 'lax',
     });
   });
 };
@@ -52,7 +53,7 @@ export const removeCookie = (res: Response, cookieName: string) => {
     path: '/',
   });
 
-  (process.env.COOKIE_DOMAIN?.split(',') || [undefined]).map((domain) => {
+  (COOKIE_DOMAIN.split(',') || [undefined]).map((domain) => {
     res.cookie(cookieName, 'unset', {
       maxAge: 0,
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response

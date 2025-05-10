@@ -1,8 +1,10 @@
+import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library.js';
 import { Request, Response } from 'express';
+
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library.js';
-
+import { NoveltyScoreConfig } from '../../services/node.js';
 const logger = parentLogger.child({
   module: 'NODE::nodeByStreamController',
 });
@@ -15,6 +17,7 @@ type NodeByStreamSuccess = {
   uuid: string;
   dpidAlias: number;
   ceramicStream: string;
+  noveltyScoreConfig?: NoveltyScoreConfig | Prisma.JsonValue;
 };
 
 type NodeByStreamError = {
@@ -24,18 +27,16 @@ type NodeByStreamError = {
   cause: any;
 };
 
-type NodeByStreamResponse =
-  | NodeByStreamSuccess
-  | NodeByStreamError;
+type NodeByStreamResponse = NodeByStreamSuccess | NodeByStreamError;
 
 /**
  * Lookup a node by it's streamID. If the node was published though Nodes,
  * this should be set in the Nodes table. A failure doesn't mean the stream
  * can't resolve, just that we haven't seen it.
-*/
+ */
 export const nodeByStream = async (
   req: Request<NodeByStreamParams>,
-  res: Response<NodeByStreamResponse>
+  res: Response<NodeByStreamResponse>,
 ): Promise<typeof res> => {
   const stream = req.params.stream;
 
@@ -50,7 +51,7 @@ export const nodeByStream = async (
       where: {
         ceramicStream: {
           equals: stream,
-        }
+        },
       },
     });
   } catch (e) {
@@ -63,10 +64,10 @@ export const nodeByStream = async (
         cause: e.meta,
       };
 
-      if (e?.code === "P2025") {
-        logger.warn(errPayload, "no node matching stream");
+      if (e?.code === 'P2025') {
+        logger.warn(errPayload, 'no node matching stream');
         return res.status(404).send(errPayload);
-      };
+      }
     } else {
       const err = e as Error;
       errPayload = {
@@ -75,12 +76,12 @@ export const nodeByStream = async (
         details: err.message,
         cause: err.cause,
       };
-    };
+    }
 
-    logger.error(errPayload, "unexpected error");
+    logger.error(errPayload, 'unexpected error');
     return res.status(500).send(errPayload);
-  };
+  }
 
-  logger.info({ stream, node }, "found matching node for stream");
+  logger.info({ stream, node }, 'found matching node for stream');
   return res.status(200).send(node);
 };

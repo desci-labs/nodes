@@ -126,13 +126,43 @@ export const cachedGetManifestAndDpid = async (cid: string, gateway?: string) =>
 
 export const zeropad = (data: string) => (data.length < 2 ? `0${data}` : data);
 
+/**
+ * Get the first manuscript from a manifest.
+ * Prioritizes in this order:
+ * 1. PDF type with MANUSCRIPT subtype
+ * 2. PDF type with RESEARCH_ARTICLE subtype
+ * 3. PDF type with PREPRINT subtype
+ * 4. Any PDF type
+ */
 export function getFirstManuscript(manifest: ResearchObjectV1) {
   if (!manifest?.components) return null;
-  const firstManuscript = manifest?.components.find(
+
+  // First priority: MANUSCRIPT subtype
+  const manuscriptComponent = manifest.components.find(
     (c) =>
       c?.type === ResearchObjectComponentType.PDF &&
       (c as PdfComponent)?.subtype === ResearchObjectComponentDocumentSubtype.MANUSCRIPT,
   );
-  if (!firstManuscript) return null;
-  return firstManuscript;
+  if (manuscriptComponent) return manuscriptComponent;
+
+  // Second priority: RESEARCH_ARTICLE subtype
+  const researchArticleComponent = manifest.components.find(
+    (c) =>
+      c?.type === ResearchObjectComponentType.PDF &&
+      (c as PdfComponent)?.subtype === ResearchObjectComponentDocumentSubtype.RESEARCH_ARTICLE,
+  );
+  if (researchArticleComponent) return researchArticleComponent;
+
+  // Third priority: PREPRINT subtype
+  const preprintComponent = manifest.components.find(
+    (c) =>
+      c?.type === ResearchObjectComponentType.PDF &&
+      (c as PdfComponent)?.subtype === ResearchObjectComponentDocumentSubtype.PREPRINT,
+  );
+  if (preprintComponent) return preprintComponent;
+
+  // Fourth priority: Any PDF type
+  const anyPdfComponent = manifest.components.find((c) => c?.type === ResearchObjectComponentType.PDF);
+
+  return anyPdfComponent || null;
 }

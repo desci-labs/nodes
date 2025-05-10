@@ -161,6 +161,7 @@ export const getBookmarks = async (
             dpidAlias: true,
             manifestUrl: true,
             manifestDocumentId: true,
+            cid: true,
             // Get published versions, if any
             versions: {
               where: {

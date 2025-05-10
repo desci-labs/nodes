@@ -133,7 +133,7 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
       },
       OR: [{ isGuest: false }, { isGuest: null }],
     },
-    select: { id: true, action: true, user: { select: { id: true, email: true, orcid: true } } },
+    select: { id: true, action: true, user: { select: { id: true, email: true, orcid: true, createdAt: true } } },
   });
 };
 

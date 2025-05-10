@@ -25,6 +25,8 @@ RUN rm -r ./desci-models
 RUN mkdir ./desci-models
 COPY --chown=node:node ./desci-models ./desci-models
 WORKDIR /app/desci-models
+RUN yarn config set registry https://registry.npmjs.org/
+
 RUN yarn
 RUN yarn build
 WORKDIR /app
