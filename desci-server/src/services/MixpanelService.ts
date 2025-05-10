@@ -19,7 +19,14 @@ export class MixpanelService {
   track(event: string, properties?: any): void {
     if (this.isEnabled) {
       try {
-        this.client.track(event, properties);
+        const enrichedProperties = { ...properties };
+
+        // Set $user_id if any of the user IDs are present
+        if (properties?.userId || properties?.ownerId || properties?.existingUserId) {
+          enrichedProperties.$user_id = properties.userId || properties.ownerId || properties.existingUserId;
+        }
+
+        this.client.track(event, enrichedProperties);
       } catch (e) {
         logger.error({ e }, '[Mixpanel] Error tracking event');
       }
