@@ -19,7 +19,10 @@ export class MixpanelService {
   track(event: string, properties?: any): void {
     if (this.isEnabled) {
       try {
-        const enrichedProperties = { ...properties };
+        const enrichedProperties = {
+          ...properties,
+          source: 'desci-server',
+        };
 
         // Set $user_id if any of the user IDs are present
         if (properties?.userId || properties?.ownerId || properties?.existingUserId) {
