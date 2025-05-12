@@ -99,6 +99,8 @@ export class OpenAlexClient {
 
       const data = await response.json();
 
+      logger.trace({ meta: data.meta }, 'METADATA');
+
       return {
         works: (data.results || []) as OpenAlexWork[],
         meta: {
