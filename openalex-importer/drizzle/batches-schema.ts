@@ -13,12 +13,14 @@ export const batchesInOpenAlex = openAlexSchema.table("batch", {
 });
 
 export const workBatchesInOpenAlex = openAlexSchema.table("works_batch", {
-  work_id: text().references(() => worksInOpenalex.id, { onDelete: "set null" }),
-  batch_id: integer().references(() => batchesInOpenAlex.id, { onDelete: "set null" }),
+  work_id: text().references(() => worksInOpenalex.id, {
+    onDelete: "set null",
+    onUpdate: "cascade"
+  }),
+  batch_id: integer().references(() => batchesInOpenAlex.id, {
+    onDelete: "set null",
+    onUpdate: "no action"
+  }),
 }, (table) => [
   primaryKey({ columns: [ table.work_id, table.batch_id ]}),
-  // Lookups what batches affected a given work (update log)
-  index('work_batches_work_id_idx').on(table.work_id),
-  // Lookup what works were affected by a given batch (update log)
-  index('work_batches_batch_id_idx').on(table.batch_id),
 ]);

@@ -3,11 +3,10 @@ import { pipeline } from 'stream/promises';
 import {
   createBatch,
   finalizeBatch,
-  getDrizzle,
-  type PgTransactionType,
-  type QueryInfo,
+  type OaDb,
   saveData,
 } from './db/index.js';
+import { type QueryInfo } from './db/types.js';
 import { fetchWorksPage, filterFromQueryInfo, type FilterParam, getInitialWorksQuery, type Query } from './fetch.js';
 import { appendToLogs, logger, nukeOldLogs } from './logger.js';
 import { errWithCause } from 'pino-std-serializers';
@@ -17,6 +16,7 @@ import { getDuration, sleep } from './util.js';
 import { Writable } from 'node:stream';
 import { IS_DEV, MAX_PAGES_TO_FETCH, SKIP_LOG_WRITE } from '../index.js';
 import { RateLimiter } from './rateLimiter.js';
+import * as pgPromise from 'pg-promise';
 
 const MAX_RETRIES = 10;
 const BASE_DELAY = 1_000;
@@ -178,7 +178,7 @@ const createLogStream = (): Transform => {
   });
 };
 
-const createSaveStream = (tx: PgTransactionType, batchId: number): Writable => {
+const createSaveStream = (tx: pgPromise.ITask<object>, batchId: number): Writable => {
   return new Writable({
     highWaterMark: 1,
     objectMode: true,
@@ -189,20 +189,20 @@ const createSaveStream = (tx: PgTransactionType, batchId: number): Writable => {
         logger.info({ duration: Date.now() - start }, 'Saved chunk to database');
         callback();
       } catch (error) {
+        logger.error(errWithCause(error as Error), 'Error saving chunk to database');
         callback(error as Error);
       }
     },
   });
 };
 
-export const runImportPipeline = async (queryInfo: QueryInfo): Promise<void> => {
+export const runImportPipeline = async (db: OaDb, queryInfo: QueryInfo): Promise<void> => {
   logger.info(queryInfo, 'Starting import pipeline');
   const startTime = Date.now();
   await nukeOldLogs();
   const filter = filterFromQueryInfo(queryInfo);
 
-  const db = getDrizzle();
-  await db.transaction(async (tx) => {
+  await db.tx(async (tx) => {
     const batchId = await createBatch(tx, queryInfo);
     await pipeline(
       createWorksAPIStream(filter),
@@ -214,6 +214,7 @@ export const runImportPipeline = async (queryInfo: QueryInfo): Promise<void> => 
 
     await finalizeBatch(tx, batchId);
   });
+
   const duration = getDuration(startTime, Date.now());
   logger.info({ duration: `${duration} s`, queryInfo }, 'Import pipeline finished!');
 };
