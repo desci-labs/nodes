@@ -231,7 +231,7 @@ const updateWorksLocations = async (tx: pgPromise.ITask<any>, data: DataModels['
 
   // Manually remove previous info before insert as there is no sane unique constraint to put on the table
   const uniqueWorkIds = [...new Set(data.map(w => w.work_id))];
-  await tx.none('DELETE FROM openalex.works_locations WHERE work_id IN ($1)', uniqueWorkIds);
+  await tx.none('DELETE FROM openalex.works_locations WHERE work_id IN ($1:list)', [uniqueWorkIds]);
 
   const columns = getColumnSet(works_locationsInOpenalex);
   const query = pgp.helpers.insert(data.sort(sortByWorkId), columns);
