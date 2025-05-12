@@ -83,8 +83,10 @@ export class OpenAlexClient {
       // Ensure the ID is properly formatted
       const formattedId = id.startsWith('https://openalex.org/') ? id : `https://openalex.org/${id}`;
 
+      const select =
+        'id,doi,title,display_name,publication_date,ids,cited_by_count,open_access,authorships,primary_location,created_date';
       // Build the URL with pagination parameters
-      const url = `${this.baseurl}works?filter=author.id:${encodeURIComponent(formattedId)}&page=${page}&per-page=${perPage}`;
+      const url = `${this.baseurl}works?select=${select}&filter=author.id:${encodeURIComponent(formattedId)}&page=${page}&per-page=${perPage}`;
 
       const response = await fetch(url, {
         headers: {
