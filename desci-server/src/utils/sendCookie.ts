@@ -16,6 +16,10 @@ const AUTH_COOKIE_DOMAIN_MAPPING = {
 // auth, auth-stage, auth-dev
 export const AUTH_COOKIE_FIELDNAME = AUTH_COOKIE_DOMAIN_MAPPING[process.env.SERVER_URL] || 'auth';
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || 'localhost';
+const OLD_COOKIE_DOMAINS = process.env.OLD_COOKIE_DOMAINS || '';
+
+// We remove old cookie domains, as they were sub-domain scoped and can prevent log out.
+const REMOVE_COOKIE_DOMAINS = [COOKIE_DOMAIN.split(','), OLD_COOKIE_DOMAINS.split(',')].flat().filter(Boolean);
 
 export const sendCookie = (res: Response, token: string, isDevMode: boolean, cookieName = AUTH_COOKIE_FIELDNAME) => {
   if (isDevMode && process.env.SERVER_URL === 'https://nodes-api-dev.desci.com') {
@@ -53,7 +57,7 @@ export const removeCookie = (res: Response, cookieName: string) => {
     path: '/',
   });
 
-  (COOKIE_DOMAIN.split(',') || [undefined]).map((domain) => {
+  REMOVE_COOKIE_DOMAINS?.map((domain) => {
     res.cookie(cookieName, 'unset', {
       maxAge: 0,
       httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response
