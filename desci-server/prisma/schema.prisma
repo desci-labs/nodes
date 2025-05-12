@@ -244,6 +244,16 @@ model User {
   GuestDataReference          GuestDataReference[]
   DataMigration               DataMigration[]
 
+  // Relationships
+  editorRoles         JournalEditor[] // User as editor
+  authoredSubmissions JournalSubmission[] @relation("AuthorSubmission")
+  assignedSubmissions JournalSubmission[] @relation("EditorSubmission")
+  refereeAssignments  RefereeAssignment[]
+  invitedEditors      JournalEditor[]     @relation("InviterRelation")
+  inviteCredits       Int                 @default(0)
+  auditLogs           AuditLog[]
+  JournalSubmission   JournalSubmission[]
+
   @@index([orcid])
   @@index([walletAddress])
   @@index([pseudonym])
@@ -1126,6 +1136,126 @@ model DataMigration {
   user            User                   @relation(fields: [userId], references: [id])
 }
 
+model Journal {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  icon         String? // URL to icon
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  isCommercial Boolean  @default(false)
+
+  // Relationships
+  editors     JournalEditor[]
+  submissions JournalSubmission[]
+}
+
+model JournalEditor {
+  id         String     @id @default(cuid())
+  journalId  String
+  userId     Int
+  role       EditorRole
+  expertise  String[] // OpenAlex topics
+  inviterId  Int?
+  invitedAt  DateTime   @default(now())
+  acceptedAt DateTime?
+
+  // Relationships
+  journal Journal @relation(fields: [journalId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  inviter User?   @relation("InviterRelation", fields: [inviterId], references: [id])
+
+  @@unique([userId, journalId])
+}
+
+model JournalSubmission {
+  id               Int              @id @default(autoincrement())
+  journalId        String
+  authorId         Int
+  dpid             String // Node dPID
+  version          String // Node version
+  title            String
+  status           SubmissionStatus @default(SUBMITTED)
+  assignedEditorId Int?
+  submittedAt      DateTime         @default(now())
+  acceptedAt       DateTime?
+  rejectedAt       DateTime?
+  doiMintedAt      DateTime?
+  doi              String? // Minted DOI
+
+  // Relationships
+  journal            Journal             @relation(fields: [journalId], references: [id])
+  author             User                @relation("AuthorSubmission", fields: [authorId], references: [id])
+  assignedEditor     User?               @relation("EditorSubmission", fields: [assignedEditorId], references: [id])
+  revisions          Revision[]
+  refereeAssignments RefereeAssignment[]
+  reviews            Review[]
+  auditLogs          AuditLog[]
+  User               User?               @relation(fields: [userId], references: [id])
+  userId             Int?
+}
+
+model Revision {
+  id           Int          @id @default(autoincrement())
+  submissionId Int
+  dpid         String // New Node dPID
+  version      String // New Node version
+  type         RevisionType
+  requestedAt  DateTime     @default(now())
+  submittedAt  DateTime?
+  comments     String?
+
+  // Relationships
+  submission JournalSubmission @relation(fields: [submissionId], references: [id])
+}
+
+model RefereeAssignment {
+  id                    Int       @id @default(autoincrement())
+  submissionId          Int
+  refereeId             Int
+  assignedById          Int // Editor who assigned
+  assignedAt            DateTime  @default(now())
+  inviteAcceptedAt      DateTime?
+  inviteDeclinedAt      DateTime?
+  reassignedAt          DateTime?
+  dueDate               DateTime?
+  suggestedAlternatives String[] // Alternative referees if declined
+
+  // Relationships
+  submission JournalSubmission @relation(fields: [submissionId], references: [id])
+  referee    User              @relation(fields: [refereeId], references: [id])
+  reviews    Review[]
+
+  @@unique([submissionId, refereeId])
+}
+
+model Review {
+  id                   Int            @id @default(autoincrement())
+  submissionId         Int
+  refereeAssignmentId  Int
+  recommendation       ReviewDecision
+  comments             String // Review content
+  submittedAt          DateTime       @default(now())
+  confidentialComments String? // Comments for editor only
+
+  // Relationships
+  submission        JournalSubmission @relation(fields: [submissionId], references: [id])
+  refereeAssignment RefereeAssignment @relation(fields: [refereeAssignmentId], references: [id])
+}
+
+model AuditLog {
+  id           Int            @id @default(autoincrement())
+  submissionId Int
+  userId       Int
+  action       AuditLogAction
+  details      Json?
+  timestamp    DateTime       @default(now())
+
+  // Relationships
+  submission JournalSubmission @relation(fields: [submissionId], references: [id])
+  user       User              @relation(fields: [userId], references: [id])
+}
+
 enum MigrationType {
   PRIVATE_TO_PUBLIC
   GUEST_TO_PRIVATE
@@ -1308,4 +1438,45 @@ enum Submissionstatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+enum EditorRole {
+  CHIEF_EDITOR
+  ASSOCIATE_EDITOR
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  REVISION_REQUESTED
+  ACCEPTED
+  REJECTED
+}
+
+enum RevisionType {
+  MINOR
+  MAJOR
+}
+
+enum ReviewDecision {
+  ACCEPT
+  MINOR_REVISION
+  MAJOR_REVISION
+  REJECT
+}
+
+enum AuditLogAction {
+  SUBMISSION_CREATED
+  EDITOR_ASSIGNED
+  SUBMISSION_ACCEPTED
+  SUBMISSION_REJECTED
+  REVISION_REQUESTED
+  REVISION_SUBMITTED
+  DOI_MINTED
+  REFEREE_INVITED
+  REFEREE_ACCEPTED
+  REFEREE_DECLINED
+  REFEREE_REASSIGNED
+  REVIEW_SUBMITTED
+  STATUS_CHANGED
 }
