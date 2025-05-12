@@ -80,6 +80,7 @@ import {
   unlikeNodeSchema,
 } from '../../controllers/nodes/likes.js';
 import { preparePublishPackage } from '../../controllers/nodes/preparePublishPackage.js';
+import { updateNoveltyScoreConfigController } from '../../controllers/nodes/updateNoveltyScoreConfig.js';
 import { attachUser } from '../../middleware/attachUser.js';
 import {
   ensureNodeAccess,
@@ -232,6 +233,8 @@ router.post('/:uuid/likes', [ensureUser, ensureNodeExists, validate(likeNodeSche
 router.delete('/:uuid/likes', [ensureUser, ensureNodeExists, validate(unlikeNodeSchema)], asyncHandler(deleteNodeLIke));
 
 router.get('/feed', [], feed);
+
+router.patch('/:uuid/noveltyScoreConfig', [ensureGuestOrUser, attachNode], updateNoveltyScoreConfigController);
 
 router.get('/legacy/retrieveTitle', retrieveTitle);
 

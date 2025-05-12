@@ -13,6 +13,7 @@ export class OpenAlexClient {
   constructor(private baseurl: string = 'https://api.openalex.org/') {}
 
   async searchAuthorByOrcid(orcid: string) {
+    logger.trace({ orcid }, 'searchAuthorByOrcid');
     // url should look like this: https://api.openalex.org/authors?filter=orcid:0000-0001-7413-0412
     try {
       // Format ORCID if needed (remove any prefixes like https://orcid.org/)
@@ -26,6 +27,7 @@ export class OpenAlexClient {
         },
       });
 
+      logger.trace({ orcid, response: response.status }, 'searchAuthorByOrcid');
       if (!response.ok) {
         return null;
       }
@@ -39,7 +41,7 @@ export class OpenAlexClient {
 
       return data.results[0] as OpenAlexAuthor;
     } catch (error) {
-      console.error('Error searching author by ORCID:', error);
+      logger.error({ error, orcid }, 'Error searching author by ORCID:');
       return null;
     }
   }

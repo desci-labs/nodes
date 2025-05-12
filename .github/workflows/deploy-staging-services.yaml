@@ -25,11 +25,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
-
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
 
@@ -81,11 +76,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
-
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
 
@@ -136,11 +126,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
         uses: actions/checkout@v4
-
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
@@ -197,11 +182,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
         uses: actions/checkout@v4
-
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
@@ -262,12 +242,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
         uses: actions/checkout@v4
-
-      # Add steps here like linting, testing, minification, etc.
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version

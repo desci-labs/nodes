@@ -4,8 +4,17 @@ import type {
   authors_idsInOpenalex,
   authorsInOpenalex,
   Works,
+  works_authorshipsInOpenalex,
+  works_best_oa_locationsInOpenalex,
   works_biblioInOpenalex,
+  works_conceptsInOpenalex,
+  works_idsInOpenalex,
+  works_locationsInOpenalex,
   works_meshInOpenalex,
+  works_open_accessInOpenalex,
+  works_primary_locationsInOpenalex,
+  works_referenced_worksInOpenalex,
+  works_related_worksInOpenalex,
   works_topicsInOpenalex,
   WorksBestOaLocation,
   WorksId,
@@ -23,6 +32,14 @@ interface ModelMap {
   // authors: ReturnType<typeof transformToWork>[];
 }
 
+const OA_ID_URL_PREFIX = 'https://openalex.org/';
+const DOI_ID_URL_PREFIX = 'https://doi.org/';
+const ORCID_ID_URL_PREFIX = 'https://orcid.org/';
+
+const oaUrlToId = (urlId: string) => urlId?.replace(OA_ID_URL_PREFIX, '');
+const doiUrlToId = (urlId?: string | null) => urlId?.replace(DOI_ID_URL_PREFIX, '');
+const orcidUrlToId = (urlId?: string | null) => urlId?.replace(ORCID_ID_URL_PREFIX, '');
+
 export const transformApiResponseToDbModel = (works: Work[]): ModelMap => {
   return {
     works: works.map(transformToWork),
@@ -35,8 +52,8 @@ export const transformApiResponseToDbModel = (works: Work[]): ModelMap => {
 
 export const transformToWork = (data: Work): Works => {
   return {
-    id: data.id,
-    doi: data.doi,
+    id: oaUrlToId(data.id),
+    doi: doiUrlToId(data.doi),
     title: data.title,
     display_name: data.display_name,
     publication_date: data.publication_date,
@@ -56,35 +73,32 @@ export const transformDataModel = (data: Work[]) => {
   const works = data.map(transformToWork);
 
   const authorship_data = data.map((work) => {
-    const authors: (typeof authorsInOpenalex.$inferInsert)[] = work.authorships.map((data) => data.author);
-
-    const authors_ids: (typeof authors_idsInOpenalex.$inferInsert)[] = work.authorships.map((authorship) => ({
-      author_id: authorship.author.id,
-      openalex: authorship.author.id,
-      orcid: authorship.author.orcid ?? null,
-      twitter: authorship.author.twitter ?? null,
-      scopus: authorship.author.scopus ?? null,
-      wikipedia: authorship.author.wikipedia ?? null,
-      mag: authorship.author.mag ?? null,
+    const authors: (typeof authorsInOpenalex.$inferInsert)[] = work.authorships.map((data) => ({
+      ...data.author,
+      id: oaUrlToId(data.author.id),
     }));
 
-    const works_authorships: {
-      work_id?: string;
-      author_position?: string;
-      author_id?: string;
-      institution_id?: string;
-      raw_affiliation_string?: string;
-    }[] = [];
+    const authors_ids: (typeof authors_idsInOpenalex.$inferInsert)[] = work.authorships.map((authorship) => ({
+      author_id: oaUrlToId(authorship.author.id),
+      openalex: oaUrlToId(authorship.author.id),
+      orcid: orcidUrlToId(authorship.author.orcid),
+      twitter: authorship.author.twitter,
+      scopus: authorship.author.scopus,
+      wikipedia: authorship.author.wikipedia,
+      mag: authorship.author.mag,
+    }));
+
+    const works_authorships: (typeof works_authorshipsInOpenalex.$inferInsert)[] = [];
 
     const institutions: Institution[] = [];
 
     for (const authorship of work.authorships) {
       for (const institution of authorship.institutions) {
         works_authorships.push({
-          work_id: work.id,
+          work_id: oaUrlToId(work.id),
           author_position: authorship.author_position,
-          author_id: authorship.author.id,
-          institution_id: institution.id,
+          author_id: oaUrlToId(authorship.author.id),
+          institution_id: oaUrlToId(institution.id),
         });
         institutions.push(institution);
       }
@@ -95,135 +109,137 @@ export const transformDataModel = (data: Work[]) => {
 
   const works_biblio: (typeof works_biblioInOpenalex.$inferInsert)[] = data.map((work) => ({
     ...work.biblio,
-    work_id: work.id,
+    work_id: oaUrlToId(work.id),
   }));
 
-  const works_id: WorksId[] = data.map((work) => ({
+  const works_id: (typeof works_idsInOpenalex.$inferInsert)[] = data.map((work) => ({
     ...work.ids,
+    openalex: oaUrlToId(work.ids.openalex),
+    doi: doiUrlToId(work.ids.doi),
     mag: work.ids?.mag,
-    work_id: work.id,
+    work_id: oaUrlToId(work.id),
   }));
 
-  const works_concepts = _.flatten(
+  const works_concepts: (typeof works_conceptsInOpenalex.$inferInsert)[] = _.flatten(
     data.map((work) =>
       work.concepts.map((concept) => ({
-        work_id: work.id,
-        concept_id: concept.id,
+        work_id: oaUrlToId(work.id),
+        concept_id: oaUrlToId(concept.id),
         score: concept.score,
       })),
     ),
   );
 
-  const works_topics = _.flatten(
+  const works_topics: (typeof works_topicsInOpenalex.$inferInsert)[] = _.flatten(
     data.map((work) =>
       work.topics.map(
         (topic) =>
           ({
-            work_id: work.id,
-            topic_id: topic.id,
+            work_id: oaUrlToId(work.id),
+            topic_id: oaUrlToId(topic.id),
             score: topic.score,
-          }) as typeof works_topicsInOpenalex.$inferInsert,
+          }),
       ),
     ),
   );
 
-  const works_locations = _.flatten(
+  const works_locations: (typeof works_locationsInOpenalex.$inferInsert)[] = _.flatten(
     data.map((work) =>
       work.locations.map(
         (location) =>
           ({
-            work_id: work.id,
-            source_id: location.source?.id,
+            work_id: oaUrlToId(work.id),
+            source_id: oaUrlToId(location.source?.id),
             landing_page_url: location.landing_page_url,
             pdf_url: location.pdf_url,
             is_oa: location.is_oa,
             version: location.version,
             license: location.license,
-          }) as WorksLocation,
+          }),
       ),
     ),
-  ) as WorksLocation[];
+  );
 
-  const works_mesh = _.flatten(
+  const works_mesh: (typeof works_meshInOpenalex.$inferInsert)[] = _.flatten(
     data.map((work) =>
       work.mesh.map(
         (mesh) =>
           ({
-            work_id: work.id,
+            work_id: oaUrlToId(work.id),
             descriptor_name: mesh.descriptor_name,
             descriptor_ui: mesh.descriptor_ui,
             qualifier_name: mesh.qualifier_name,
             qualifier_ui: mesh.qualifier_ui,
             is_major_topic: mesh.is_major_topic,
-          }) as typeof works_meshInOpenalex.$inferInsert,
+          }),
       ),
     ),
   );
 
-  const works_primary_locations = data
+  const works_primary_locations: (typeof works_primary_locationsInOpenalex.$inferInsert)[] = data
     .map((work) =>
       work.primary_location
         ? {
-            source_id: work.primary_location.source?.id,
+            source_id: oaUrlToId(work.primary_location.source?.id),
             landing_page_url: work.primary_location?.landing_page_url,
             pdf_url: work.primary_location.pdf_url,
             is_oa: work.primary_location.is_oa,
             version: work.primary_location.version,
             license: work.primary_location.license,
-            work_id: work.id,
+            work_id: oaUrlToId(work.id),
           }
         : null,
     )
-    .filter(Boolean) as WorksPrimaryLocation[];
+    .filter(l => l !== null);
 
-  const works_best_oa_locations = data
+  const works_best_oa_locations: (typeof works_best_oa_locationsInOpenalex.$inferInsert)[] = data
     .map((work) =>
       work?.best_oa_location
-        ? ({
-            source_id: work.best_oa_location.source?.id,
+        ? {
+            source_id: work.best_oa_location.source?.id ? oaUrlToId(work.best_oa_location.source?.id) : undefined,
             landing_page_url: work.best_oa_location.landing_page_url,
             pdf_url: work.best_oa_location.pdf_url,
             is_oa: work.best_oa_location.is_oa,
             version: work.best_oa_location.version,
             license: work.best_oa_location.license,
-            work_id: work.id,
-          } as WorksBestOaLocation)
+            work_id: oaUrlToId(work.id),
+          }
         : null,
     )
-    .filter(Boolean) as WorksBestOaLocation[];
+    .filter(l => l !== null);
 
-  const works_open_access = data.map((work) => ({
+  const works_open_access: (typeof works_open_accessInOpenalex.$inferInsert)[] = data.map((work) => ({
     ...work.open_access,
-    work_id: work.id,
+    work_id: oaUrlToId(work.id),
   }));
 
-  const works_related_works = _.flatten(
+  const works_related_works: (typeof works_related_worksInOpenalex.$inferInsert)[] = _.flatten(
     data.map((work) =>
       work.related_works.map((related_work_id) => ({
-        work_id: work.id,
-        related_work_id,
+        work_id: oaUrlToId(work.id),
+        related_work_id: oaUrlToId(related_work_id),
       })),
     ),
   );
 
-  const works_referenced_works = _.flatten(
+  const works_referenced_works: (typeof works_referenced_worksInOpenalex.$inferInsert)[] = _.flatten(
     data.map((work) =>
       work.referenced_works.map((referenced_work_id) => ({
-        work_id: work.id,
-        referenced_work_id,
+        work_id: oaUrlToId(work.id),
+        referenced_work_id: oaUrlToId(referenced_work_id),
       })),
     ),
   );
 
   // group unique authors
-  const all_authors = _.flatten(authorship_data.map((data) => data.authors));
+  const all_authors: (typeof authorsInOpenalex.$inferInsert)[] = _.flatten(authorship_data.map((data) => data.authors));
   const authors: (typeof authorsInOpenalex.$inferInsert)[] = _(all_authors)
     .groupBy((x) => x.id)
     .map(
-      (values, key) =>
+      (values, id) =>
         ({
-          id: key,
-          orcid: values[0].orcid,
+          id: oaUrlToId(id),
+          orcid: orcidUrlToId(values[0].orcid),
           display_name: values[0].display_name,
           display_name_alternatives: values[0].display_name_alternatives,
           works_count: values[0].works_count,
@@ -231,26 +247,26 @@ export const transformDataModel = (data: Work[]) => {
           last_known_institution: values[0].last_known_institution,
           works_api_url: values[0].works_api_url,
           updated_date: values[0].updated_date,
-        }) as typeof authorsInOpenalex.$inferInsert,
+        }),
     )
     .value();
 
   // group unique authors
-  const all_author_ids = _.flatten(authorship_data.map((data) => data.authors_ids));
+  const all_author_ids: (typeof authors_idsInOpenalex.$inferInsert)[] = _.flatten(authorship_data.map((data) => data.authors_ids));
 
   const authors_ids: (typeof authors_idsInOpenalex.$inferInsert)[] = _(all_author_ids)
     .groupBy((x) => x.author_id)
     .map(
-      (values, key) =>
+      (values, id) =>
         ({
-          author_id: key,
-          openalex: key,
-          orcid: values[0].orcid,
+          author_id: oaUrlToId(id),
+          openalex: oaUrlToId(id),
+          orcid: orcidUrlToId(values[0].orcid),
           twitter: values[0].twitter,
           scopus: values[0].scopus,
           wikipedia: values[0].wikipedia,
           mag: values[0].mag,
-        }) as typeof authors_idsInOpenalex.$inferInsert,
+        }),
     )
     .value();
 

@@ -4,22 +4,44 @@ import { Request, Response, NextFunction } from 'express';
 import z from 'zod';
 
 import { prisma } from '../../client.js';
-import { SuccessResponse } from '../../core/ApiResponse.js';
+import { InternalErrorResponse, SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getFromCache, setToCache } from '../../redisClient.js';
-import { openAlexService } from '../../services/index.js';
+import { delFromCache, getFromCache, ONE_WEEK_TTL, setToCache } from '../../redisClient.js';
+import { stripOrcidString } from '../../services/crossRef/utils.js';
+import { crossRefClient, openAlexService } from '../../services/index.js';
 import { WorksResult } from '../../services/openAlex/client.js';
 import { OpenAlexAuthor, OpenAlexWork } from '../../services/openAlex/types.js';
-import { CoAuthor, getUniqueCoauthors } from '../../services/OpenAlexService.js';
+import {
+  CoAuthor,
+  computeAuthorIndices,
+  getUniqueCoauthors,
+  queryIndicesFeats,
+} from '../../services/OpenAlexService.js';
 import { cachedGetManifestAndDpid } from '../../utils/manifest.js';
 import { asyncMap, formatOrcidString } from '../../utils.js';
 import { listAllUserNodes, PublishedNode } from '../nodes/list.js';
+
+import { transformOrcidAffiliationToEducation, transformOrcidAffiliationToEmployment } from './transformer.js';
+import { Author, AuthorExperience } from './types.js';
 
 export const getAuthorSchema = z.object({
   params: z.object({
     id: z
       .string({ required_error: 'Missing ORCID or OpenAlex ID' })
       .describe('The ORCID or OpenAlex identifier of the author'),
+  }),
+});
+
+export const getCoauthorSchema = z.object({
+  params: z.object({
+    id: z
+      .string({ required_error: 'Missing ORCID or OpenAlex ID' })
+      .describe('The ORCID or OpenAlex identifier of the author'),
+  }),
+  query: z.object({
+    page: z.coerce.string().optional().default('1').describe('Page number for pagination of returned list'),
+    limit: z.coerce.string().optional().default('50').describe('Number of entries to return per page'),
+    search: z.string().optional().describe('filter results by name'),
   }),
 });
 
@@ -36,32 +58,53 @@ export const getAuthorWorksSchema = z.object({
 const PROFILE_CACHE_PREFIX = 'OPENALEX_AUTHOR';
 const WORKS_CACHE_PREFIX = 'OPENALEX_WORKS';
 const COAUTHOR_CACHE_PREFIX = 'COAUTHOR';
+const AUTHOR_INDICES_CACHE_PREFIX = 'AUTHOR_INDICES';
+const AUTHOR_EXPERIENCE_CACHE_PREFIX = 'AUTHOR_EXPERIENCE';
 
 const OPENALEX_ID_REGEX = /^(?:https:\/\/openalex\.org\/)?A\d+$/;
 const ORCID_REGEX = /^(?:https:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
 
-export const getAuthorProfile = async (req: Request, res: Response, next: NextFunction) => {
-  const { params } = await getAuthorSchema.parseAsync(req);
+async function getAuthorExperience(orcid: string) {
+  let experience: { education: AuthorExperience[]; employment: AuthorExperience[] } = await getFromCache(
+    `${AUTHOR_EXPERIENCE_CACHE_PREFIX}-${orcid}`,
+  );
 
-  const isOpenAlexId = OPENALEX_ID_REGEX.test(params.id);
-  const isOrcidId = ORCID_REGEX.test(params.id);
+  logger.trace({ experience }, 'getAuthorExperience#cache');
+  if (!experience) {
+    const { educationHistory, employmentHistory } = await crossRefClient.getProfileExperience(orcid);
+    logger.trace({ educationHistory, employmentHistory }, 'getAuthorExperience#getProfileExperience');
 
-  let openalexProfile = await getFromCache(`${PROFILE_CACHE_PREFIX}-${params.id}`);
-  if (!openalexProfile) {
-    openalexProfile = isOrcidId
-      ? await openAlexService.searchAuthorByOrcid(params.id)
-      : isOpenAlexId
-        ? await openAlexService.searchAuthorByOpenAlexId(params.id)
-        : null;
-    // logger.trace({ openalexProfile }, 'openalexProfile');
+    const [education, employment] = await Promise.all([
+      transformOrcidAffiliationToEducation(educationHistory),
+      transformOrcidAffiliationToEmployment(employmentHistory),
+    ]);
+
+    logger.trace({ education, employment }, 'getAuthorExperience#transformed');
+    experience = { education, employment };
+
+    // update cache
+    if (education?.length && employment?.length) setToCache(`${AUTHOR_EXPERIENCE_CACHE_PREFIX}-${orcid}`, experience);
   }
 
-  if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
+  return experience;
+}
 
-  return new SuccessResponse(openalexProfile).send(res);
-};
+async function getBibliometrics(id: string) {
+  let bibliometrics = await getFromCache<ReturnType<typeof computeAuthorIndices>>(
+    `${AUTHOR_INDICES_CACHE_PREFIX}-${id}`,
+  );
+  if (!bibliometrics) {
+    const authorIndices = await queryIndicesFeats([id], new Date().getFullYear());
+    bibliometrics = computeAuthorIndices(authorIndices, id, new Date().getFullYear(), 1, 4);
 
-export const getCoAuthors = async (req: Request, res: Response, next: NextFunction) => {
+    // update cache
+    setToCache(`${AUTHOR_INDICES_CACHE_PREFIX}-${id}`, bibliometrics, ONE_WEEK_TTL);
+  }
+
+  return bibliometrics;
+}
+
+export const getAuthorProfile = async (req: Request, res: Response, next: NextFunction) => {
   const { params } = await getAuthorSchema.parseAsync(req);
 
   const isOpenAlexId = OPENALEX_ID_REGEX.test(params.id);
@@ -74,18 +117,78 @@ export const getCoAuthors = async (req: Request, res: Response, next: NextFuncti
       : isOpenAlexId
         ? await openAlexService.searchAuthorByOpenAlexId(params.id)
         : null;
+    logger.trace({ openalexProfile: !!openalexProfile, isOrcidId }, 'openalexProfile');
+  }
+
+  if (!openalexProfile) return new SuccessResponse(null).send(res);
+
+  const profile: Author = openalexProfile;
+  const orcidIdentifier = stripOrcidString(openalexProfile?.orcid);
+
+  const [experience, bibliometrics] = await Promise.all([
+    getAuthorExperience(orcidIdentifier),
+    getBibliometrics(openalexProfile.id),
+  ]);
+
+  if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, profile);
+
+  return new SuccessResponse({ bibliometrics, ...profile, ...experience }).send(res);
+};
+
+export const getCoAuthors = async (req: Request, res: Response, next: NextFunction) => {
+  const {
+    params,
+    query: { page, limit, search },
+  } = await getCoauthorSchema.parseAsync(req);
+
+  const isOpenAlexId = OPENALEX_ID_REGEX.test(params.id);
+  const isOrcidId = ORCID_REGEX.test(params.id);
+
+  const start = Date.now();
+
+  let openalexProfile = await getFromCache<OpenAlexAuthor>(`${PROFILE_CACHE_PREFIX}-${params.id}`);
+  if (!openalexProfile) {
+    openalexProfile = isOrcidId
+      ? await openAlexService.searchAuthorByOrcid(params.id)
+      : isOpenAlexId
+        ? await openAlexService.searchAuthorByOpenAlexId(params.id)
+        : null;
     setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
   }
 
-  // setToCache(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile.id}`, null);
-  let coauthors = await getFromCache<CoAuthor[]>(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile?.id}`);
-  if (!coauthors && openalexProfile) {
-    coauthors = await getUniqueCoauthors([openalexProfile.id], new Date().getFullYear());
+  const coauthorsCacheKey = `${COAUTHOR_CACHE_PREFIX}-${openalexProfile?.id}-${page}-${limit}${search ? '-' + search : ''}`;
+  let coauthors = await getFromCache<CoAuthor[]>(coauthorsCacheKey);
 
-    if (coauthors) setToCache(`${COAUTHOR_CACHE_PREFIX}-${openalexProfile.id}`, coauthors);
+  try {
+    if (!coauthors && openalexProfile) {
+      coauthors = await getUniqueCoauthors(
+        [openalexProfile.id],
+        new Date().getFullYear(),
+        search,
+        (parseInt(page) - 1) * parseInt(limit),
+        parseInt(limit),
+      );
+
+      if (coauthors) setToCache(coauthorsCacheKey, coauthors);
+    }
+  } catch (err) {
+    logger.error({ err }, 'Request to OPEN_ALEX_DATABASE Failed');
+    return new InternalErrorResponse(
+      "Endpoint is currently down, we're currently working on getting it back up asap",
+    ).send(res);
   }
 
-  return new SuccessResponse(coauthors).send(res);
+  const end = Date.now();
+  return new SuccessResponse({
+    meta: {
+      page,
+      limit,
+      duration: end - start,
+      count: coauthors?.length ?? 0,
+      nextPage: coauthors?.length == parseInt(limit) ? parseInt(page) + 1 : null,
+    },
+    results: coauthors,
+  }).send(res);
 };
 
 export const getAuthorWorks = async (req: Request, res: Response, next: NextFunction) => {

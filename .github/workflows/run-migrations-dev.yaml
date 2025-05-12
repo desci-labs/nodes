@@ -18,18 +18,11 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       # Add steps here like linting, testing, minification, etc.
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
-          workdir: ${{ runner.temp }}/aws_cli_install
-          rootdir: ${{ runner.temp }}/aws_cli
-          installrootdir: ${{ runner.temp }}/aws
 
-      - name: Add AWS tools to PATH
-        run: |
-          echo "${{ runner.temp }}/aws/bin" >> $GITHUB_PATH
-          echo "${{ runner.temp }}/aws_cli/bin" >> $GITHUB_PATH
+      # - name: Add AWS tools to PATH Probably not needed
+      #   run: |
+      #     echo "${{ runner.temp }}/aws/bin" >> $GITHUB_PATH
+      #     echo "${{ runner.temp }}/aws_cli/bin" >> $GITHUB_PATH
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version

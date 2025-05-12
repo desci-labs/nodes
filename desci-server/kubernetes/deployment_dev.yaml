@@ -36,10 +36,12 @@ spec:
           {{- end -}}
           {{- with secret "secrets/desci-server/dev/app" -}}
           echo "appstart"; 
+          export PINO_LOG_LEVEL={{ .Data.PINO_LOG_LEVEL }}
           export JWT_SECRET={{ .Data.JWT_SECRET }}
           export JWT_EXPIRATION=15m
           export SESSION_KEY={{ .Data.SESSION_KEY }}
           export COOKIE_DOMAIN={{ .Data.COOKIE_DOMAIN }}
+          export OLD_COOKIE_DOMAINS={{ .Data.OLD_COOKIE_DOMAINS }}
           export ORCID_API_DOMAIN={{ .Data.ORCID_API_DOMAIN }}
           export DPID_URL_OVERRIDE={{ .Data.DPID_URL_OVERRIDE }}
           export ORCID_CLIENT_ID={{ .Data.ORCID_CLIENT_ID }}
