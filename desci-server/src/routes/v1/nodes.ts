@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { showNodeAttestations } from '../../controllers/attestations/show.js';
+import { automateManuscriptSchema } from '../../controllers/doi/schema.js';
 import { createNodeBookmark } from '../../controllers/nodes/bookmarks/create.js';
 import { deleteNodeBookmark } from '../../controllers/nodes/bookmarks/delete.js';
 import { listBookmarkedNodes } from '../../controllers/nodes/bookmarks/index.js';
@@ -57,7 +58,6 @@ import {
   automateMetadataSchema,
   generateMetadataSchema,
   automateManuscriptDoi,
-  automateManuscriptDoiSchema,
   retrieveNodeDoi,
   prepublish,
   getGeneralComments,
@@ -181,7 +181,7 @@ router.post(
 // doi automation
 router.post(
   '/:uuid/automate-manuscript',
-  [ensureGuestOrUser, ensureNodeAccess, validate(automateManuscriptDoiSchema)],
+  [ensureGuestOrUser, ensureNodeAccess, validate(automateManuscriptSchema)],
   asyncHandler(automateManuscriptDoi),
 );
 

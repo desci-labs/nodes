@@ -2,7 +2,7 @@ import 'zod-openapi/extend';
 import z from 'zod';
 import { ZodOpenApiOperationObject, ZodOpenApiPathsObject } from 'zod-openapi';
 
-import { automateManuscriptDoiSchema } from '../../controllers/nodes/doi.js';
+import { automateManuscriptSchema } from '../../controllers/doi/schema.js';
 import { externalPublicationsSchema } from '../../controllers/nodes/externalPublications.js';
 
 export const getExternalPublicationsOperation: ZodOpenApiOperationObject = {
@@ -108,12 +108,12 @@ export const automateManuscriptOperation: ZodOpenApiOperationObject = {
   tags: ['Admin'],
   summary: 'Automatically extract and attach DOI metadata to a manuscript component',
   requestParams: {
-    path: automateManuscriptDoiSchema.shape.params,
+    path: automateManuscriptSchema.shape.params,
   },
   requestBody: {
     content: {
       'application/json': {
-        schema: automateManuscriptDoiSchema.shape.body,
+        schema: automateManuscriptSchema.shape.body,
       },
     },
   },

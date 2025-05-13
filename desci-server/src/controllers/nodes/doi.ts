@@ -26,18 +26,6 @@ import { getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
-export const automateManuscriptDoiSchema = z.object({
-  body: z.object({
-    uuid: z.string(),
-    path: z.string().startsWith('root/', 'Invalid component path').describe('Path to the PDF component in the node'),
-    prepublication: z.boolean().optional().describe('Whether this is a prepublication flow'),
-  }),
-  params: z.object({
-    // quickly disqualify false uuid strings
-    uuid: z.string().min(10).describe('UUID of the node'),
-  }),
-});
-
 export const automateManuscriptDoi = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid, path, prepublication } = req.body;
 

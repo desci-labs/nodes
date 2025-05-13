@@ -1,7 +1,8 @@
 import { Router } from 'express';
 
 import { clearExternalPubCache, getExternalPublications } from '../../../controllers/admin/nodes.js';
-import { automateManuscriptDoi, automateManuscriptDoiSchema } from '../../../controllers/nodes/doi.js';
+import { automateManuscriptSchema } from '../../../controllers/doi/schema.js';
+import { automateManuscriptDoi } from '../../../controllers/nodes/doi.js';
 import { externalPublicationsSchema } from '../../../controllers/nodes/externalPublications.js';
 import { ensureNodeExists } from '../../../middleware/authorisation.js';
 import { ensureAdmin } from '../../../middleware/ensureAdmin.js';
@@ -26,7 +27,7 @@ router.post(
 // doi automation
 router.post(
   '/:uuid/automate-manuscript',
-  [ensureUser, ensureAdmin, ensureNodeExists, validate(automateManuscriptDoiSchema)],
+  [ensureUser, ensureAdmin, ensureNodeExists, validate(automateManuscriptSchema)],
   asyncHandler(automateManuscriptDoi),
 );
 
