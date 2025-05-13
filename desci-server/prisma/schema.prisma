@@ -1145,7 +1145,7 @@ model Journal {
   id           Int      @id @default(autoincrement())
   name         String
   description  String?
-  icon         String? // URL to icon
+  iconCid      String? // URL to icon
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   isCommercial Boolean  @default(false)
