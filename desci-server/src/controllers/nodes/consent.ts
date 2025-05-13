@@ -10,15 +10,15 @@ import { ensureUuidEndsWithDot } from '../../utils.js';
 
 export const consent = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;
-  await saveInteraction(
+  await saveInteraction({
     req,
-    ActionType.USER_TERMS_CONSENT,
-    {
+    action: ActionType.USER_TERMS_CONSENT,
+    data: {
       ...req.body,
       email: user?.email,
     },
-    user?.id,
-  );
+    userId: user?.id,
+  });
   res.send({ ok: true });
 };
 
@@ -38,15 +38,15 @@ export const publishConsentSchema = zod.object({
 
 export const publishConsent = async (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;
-  await saveInteraction(
+  await saveInteraction({
     req,
-    ActionType.USER_PUBLISH_CONSENT,
-    {
+    action: ActionType.USER_PUBLISH_CONSENT,
+    data: {
       ...req.body,
       email: user?.email,
     },
-    user?.id,
-  );
+    userId: user?.id,
+  });
 
   new SuccessMessageResponse().send(res);
 };

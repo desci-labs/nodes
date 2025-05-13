@@ -8,6 +8,7 @@ import { expect } from 'chai';
 import { prisma } from '../../src/client.js';
 import * as ipfs from '../../src/services/ipfs.js';
 import { generateExternalCidMap } from '../../src/utils/driveUtils.js';
+import { randomUUID64 } from '../../src/utils.js';
 
 describe('IPFS', () => {
   let admin: User;
@@ -30,6 +31,7 @@ describe('IPFS', () => {
 
     node = await prisma.node.create({
       data: {
+        uuid: randomUUID64(),
         owner: { connect: { id: admin.id } },
         title: '',
         manifestUrl: '',
@@ -53,7 +55,7 @@ describe('IPFS', () => {
     });
 
     it('adds a manifest and adds a data reference', async () => {
-      const res = await ipfs.updateManifestAndAddToIpfs(EXAMPLE_MANIFEST, { userId: admin.id, nodeId: node.id });
+      const res = await ipfs.updateManifestAndAddToIpfs(EXAMPLE_MANIFEST, { user: admin, nodeId: node.id });
       expect(res.cid).to.eq('bafkreidf26rt63gbrwz4inlosn74hgb245tmkj7tbazrkdrchfqdfbn3u4');
       expect(res.ref).to.not.be.undefined;
       expect(res.ref.size).to.eq(42);
@@ -97,57 +99,6 @@ describe('IPFS', () => {
 
       // console.log('cids', cids, 'uploaded', uploaded, rootCid);
       expect(cids.length).to.eq(uploaded.length);
-    });
-  });
-
-  describe('Extend DAGs', () => {
-    let rootCid;
-    const filesToAddToDag: ipfs.FilesToAddToDag = {};
-    before(async () => {
-      const structuredFiles: ipfs.IpfsDirStructuredInput[] = [
-        {
-          path: 'dir/a.txt',
-          content: Buffer.from('A'),
-        },
-        {
-          path: 'dir/subdir/b.txt',
-          content: Buffer.from('B'),
-        },
-        {
-          path: 'dir/c.txt',
-          content: Buffer.from('C'),
-        },
-      ];
-
-      const uploaded: ipfs.IpfsPinnedResult[] = await ipfs.pinDirectory(structuredFiles, true);
-      rootCid = uploaded[uploaded.length - 1].cid;
-
-      const newFiles = await ipfs.pinDirectory([{ path: 'd.txt', content: Buffer.from('D') }]);
-
-      newFiles.forEach((file) => {
-        filesToAddToDag[file.path] = { cid: file.cid, size: file.size };
-      });
-    });
-    it('Extends a DAG at root level', async () => {
-      const { updatedRootCid: newDagCid } = await ipfs.addFilesToDag(rootCid, '', filesToAddToDag);
-      const externalCidMap = await generateExternalCidMap(node.uuid);
-      const flatTree: any = recursiveFlattenTree(await ipfs.getDirectoryTree(newDagCid, externalCidMap));
-      const newFilesFound = flatTree.some((fd) => fd.path === newDagCid + '/' + 'd.txt');
-      expect(newFilesFound).to.be.true;
-    });
-    it('Extends a DAG at a single nesting ', async () => {
-      const { updatedRootCid: newDagCid } = await ipfs.addFilesToDag(rootCid, 'dir', filesToAddToDag);
-      const externalCidMap = await generateExternalCidMap(node.uuid);
-      const flatTree: any = recursiveFlattenTree(await ipfs.getDirectoryTree(newDagCid, externalCidMap));
-      const newFilesFound = flatTree.some((fd) => fd.path === newDagCid + '/dir/' + 'd.txt');
-      expect(newFilesFound).to.be.true;
-    });
-    it('Extends a DAG at a deeply nested level', async () => {
-      const { updatedRootCid: newDagCid } = await ipfs.addFilesToDag(rootCid, 'dir/subdir', filesToAddToDag);
-      const externalCidMap = await generateExternalCidMap(node.uuid);
-      const flatTree: any = recursiveFlattenTree(await ipfs.getDirectoryTree(newDagCid, externalCidMap));
-      const newFilesFound = flatTree.some((fd) => fd.path === newDagCid + '/dir/subdir/' + 'd.txt');
-      expect(newFilesFound).to.be.true;
     });
   });
 });

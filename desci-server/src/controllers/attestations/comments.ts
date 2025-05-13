@@ -89,11 +89,10 @@ export const removeComment = async (req: Request<RemoveCommentBody, any, any>, r
   } else {
     if (comment.authorId !== user.id) throw new ForbiddenError();
     await attestationService.removeComment(parseInt(commentId));
-    await saveInteraction(req, ActionType.REMOVE_COMMENT, {
-      commentId,
-      claimId: comment.nodeAttestationId,
-      authorId: comment.authorId,
-      userId: user.id,
+    await saveInteraction({
+      req,
+      action: ActionType.REMOVE_COMMENT,
+      data: { commentId, claimId: comment.nodeAttestationId, authorId: comment.authorId, userId: user.id },
     });
     new SuccessMessageResponse().send(res);
   }
@@ -143,7 +142,11 @@ export const postComment = async (
       highlights: processedHighlights as unknown as HighlightBlock[],
       ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
     });
-    await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
+    await saveInteraction({
+      req,
+      action: ActionType.ADD_COMMENT,
+      data: { annotationId: annotation.id, claimId, authorId },
+    });
   } else {
     annotation = await attestationService.createComment({
       claimId: claimId && parseInt(claimId.toString()),
@@ -155,7 +158,11 @@ export const postComment = async (
       ...(uuid && { uuid: ensureUuidEndsWithDot(uuid) }),
     });
   }
-  await saveInteraction(req, ActionType.ADD_COMMENT, { annotationId: annotation.id, claimId, authorId });
+  await saveInteraction({
+    req,
+    action: ActionType.ADD_COMMENT,
+    data: { annotationId: annotation.id, claimId, authorId },
+  });
   await emitNotificationForAnnotation(annotation.id);
   new SuccessResponse({
     ...annotation,

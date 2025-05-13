@@ -44,7 +44,12 @@ export const newReferral = async (req: Request, res: Response) => {
     const savedReferrals = await saveReferralsInDbHelper(user, emails);
     const sentEmails = await sendReferralEmailsHelper(user, savedReferrals);
 
-    await saveInteraction(req, ActionType.NEW_REFERRAL, { emails });
+    await saveInteraction({
+      req,
+      action: ActionType.NEW_REFERRAL,
+      data: { emails },
+      userId: user.id,
+    });
 
     res.send({
       user,

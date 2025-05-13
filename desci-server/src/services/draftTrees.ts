@@ -22,6 +22,7 @@ export async function migrateIpfsTreeToNodeTree(nodeUuid: string) {
   if (!node) {
     throw new Error(`Node with uuid ${nodeUuid} not found`);
   }
+  const nodeOwner = await prisma.user.findFirst({ where: { id: node.ownerId }, select: { isGuest: true } });
 
   const { manifest, manifestCid } = await getManifestFromNode(node);
   const rootDagCid = extractRootDagCidFromManifest(manifest, manifestCid);
@@ -29,7 +30,7 @@ export async function migrateIpfsTreeToNodeTree(nodeUuid: string) {
 
   const ipfsTree = await getDirectoryTree(rootDagCid, externalCidMap);
 
-  const timestampMap: TimestampMap = await generateTimestampMapFromDataRefs(node.id);
+  const timestampMap: TimestampMap = await generateTimestampMapFromDataRefs(node.id, nodeOwner);
 
   const dbDraftTreeEntries = await ipfsDagToDraftNodeTreeEntries({ ipfsTree, node, user: node.owner, timestampMap });
 
@@ -39,9 +40,13 @@ export async function migrateIpfsTreeToNodeTree(nodeUuid: string) {
   });
 
   // Adjust existing private data references to use neutral paths
-  const currentPrivateDataRefs = await prisma.dataReference.findMany({
-    where: { nodeId: node.id, type: { not: DataType.MANIFEST } },
-  });
+  const currentPrivateDataRefs = nodeOwner.isGuest
+    ? await prisma.guestDataReference.findMany({
+        where: { nodeId: node.id, type: { not: DataType.MANIFEST } },
+      })
+    : await prisma.dataReference.findMany({
+        where: { nodeId: node.id, type: { not: DataType.MANIFEST } },
+      });
   const updatesForPrivateDataRefs = currentPrivateDataRefs.map((ref) =>
     prisma.dataReference.update({
       where: {

@@ -1,0 +1,2 @@
+ALTER TABLE "openalex"."works_concepts" DROP CONSTRAINT "works_concepts_concept_id_work_id_pk";--> statement-breakpoint
+ALTER TABLE "openalex"."works_concepts" ADD CONSTRAINT "works_concepts_work_id_concept_id_pk" PRIMARY KEY("work_id","concept_id");

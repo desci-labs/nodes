@@ -13,7 +13,7 @@ import {
   pathContainsExternalCids,
   updateManifestDataBucket,
 } from '../../src/services/data/processing.js';
-import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
+import { client as ipfs, IPFS_NODE, spawnEmptyManifest } from '../../src/services/ipfs.js';
 import { randomUUID64 } from '../../src/utils.js';
 
 describe('Data Processing Functions Tests', () => {
@@ -28,7 +28,7 @@ describe('Data Processing Functions Tests', () => {
     await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
     await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
 
-    const BASE_MANIFEST = await spawnEmptyManifest();
+    const BASE_MANIFEST = await spawnEmptyManifest(IPFS_NODE.PRIVATE);
     baseManifest = BASE_MANIFEST;
     const BASE_MANIFEST_CID = (await ipfs.add(JSON.stringify(BASE_MANIFEST), { cidVersion: 1, pin: true })).cid;
     baseManifestCid = BASE_MANIFEST_CID.toString();

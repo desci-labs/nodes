@@ -1187,7 +1187,7 @@ export interface NativeWork {
 export async function getWorkByDpid(dpid: string | number) {
   if (process.env.SERVER_URL === 'http://localhost:5420' && process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE) {
     // todo: remove before push
-    dpid = `ADAM${dpid}`; // process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE + dpid;
+    dpid = process.env.ELASTIC_SEARCH_LOCAL_DEV_DPID_NAMESPACE + dpid;
   }
 
   try {

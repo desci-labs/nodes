@@ -55,6 +55,7 @@ export const retrieveDoiOperation: ZodOpenApiOperationObject = {
                 z.object({
                   name: z.string(),
                   orcid: z.string().nullable(),
+                  id: z.string().nullable(),
                 }),
               ),
               abstract: z.string(),

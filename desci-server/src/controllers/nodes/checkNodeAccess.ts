@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
+
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { NoveltyScoreConfig } from '../../services/node.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
 const logger = parentLogger.child({
@@ -19,6 +21,7 @@ type GetCheckNodeAccessResponse = {
   sharedOn?: number;
   recentCid?: string;
   manifestUrl?: string;
+  noveltyScoreConfig?: NoveltyScoreConfig;
 };
 
 type GetCheckNodeAccessErrorResponse = {
@@ -54,8 +57,9 @@ export const checkNodeAccess = async (
           transactionId: true,
           commitId: true,
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: 'desc' },
       },
+      noveltyScoreConfig: true,
     },
     where: {
       isDeleted: false,
@@ -67,7 +71,7 @@ export const checkNodeAccess = async (
     res.status(404).send({ ok: false, message: 'Node not found' });
     return;
   }
-  
+
   const privSharedNode = !!shareId
     ? await prisma.privateShare.findFirst({
         where: {
@@ -79,8 +83,7 @@ export const checkNodeAccess = async (
 
   const isOwner = owner?.id === node.ownerId;
   const hasAccess = privSharedNode?.nodeUUID === node.uuid || isOwner;
-  const latestPublishedVersion = node.versions
-    .find(nv => nv.transactionId !== null || nv.commitId !== null);
+  const latestPublishedVersion = node.versions.find((nv) => nv.transactionId !== null || nv.commitId !== null);
   const isPublished = !!latestPublishedVersion;
 
   res.send({
@@ -95,5 +98,6 @@ export const checkNodeAccess = async (
     sharedOn: privSharedNode?.createdAt.getTime(),
     recentCid: latestPublishedVersion?.manifestUrl,
     manifestUrl: hasAccess ? node.versions[0]?.manifestUrl : undefined,
+    noveltyScoreConfig: node.noveltyScoreConfig as NoveltyScoreConfig,
   });
 };

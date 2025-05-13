@@ -15,13 +15,15 @@ import {
   isNodeRoot,
   isResearchObjectComponentTypeMap,
   ManifestActions,
+  DATA_SOURCE,
 } from '@desci-labs/desci-models';
-import { DataReference, DataType, Node } from '@prisma/client';
+import { DataReference, DataType, GuestDataReference, MigrationType, Node, PublicDataReference } from '@prisma/client';
 
 import { prisma } from '../client.js';
 import { DataReferenceSrc } from '../controllers/data/retrieve.js';
 import { logger } from '../logger.js';
 import { getFromCache, setToCache } from '../redisClient.js';
+import { DataMigrationService } from '../services/DataMigration/DataMigrationService.js';
 import { getDirectoryTree, type RecursiveLsResult } from '../services/ipfs.js';
 import { NodeUuid } from '../services/manifestRepo.js';
 import repoService from '../services/repoService.js';
@@ -30,29 +32,33 @@ import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { draftNodeTreeEntriesToFlatIpfsTree, flatTreeToHierarchicalTree } from './draftTreeUtils.js';
 
-export function fillDirSizes(tree, cidInfoMap) {
+// NOTE: Try collapse fillDirSizes() and fillCidInfo() into one function - optimization
+export function fillDirSizes(tree, cidInfoMap: Record<string, CidEntryDetails>) {
   const contains = [];
   tree.forEach((fd) => {
+    const cidInfo = cidInfoMap[fd.cid];
     if (fd.type === 'dir') {
-      fd.size = cidInfoMap[fd.cid]?.size || 0;
+      fd.size = cidInfo?.size || 0;
       fd.contains = fillDirSizes(fd.contains, cidInfoMap);
     }
-    // debugger
-    fd.date = cidInfoMap[fd.cid]?.date || Date.now();
-    fd.published = cidInfoMap[fd.cid]?.published;
+    fd.date = cidInfo?.date || Date.now();
+    fd.published = cidInfo?.published;
+    if (cidInfo?.dataSource) fd.dataSource = cidInfo.dataSource;
     contains.push(fd);
   });
   return contains;
 }
 
 // Fills in the access status of CIDs and dates
-export function fillCidInfo(tree, cidInfoMap) {
-  // debugger;
+export function fillCidInfo(tree, cidInfoMap: Record<string, CidEntryDetails>) {
   const contains = [];
   tree.forEach((fd) => {
     if (fd.type === 'dir' && fd.contains?.length) fd.contains = fillCidInfo(fd.contains, cidInfoMap);
-    fd.date = cidInfoMap[fd.cid]?.date || Date.now();
-    fd.published = cidInfoMap[fd.cid]?.published;
+    const cidInfo = cidInfoMap[fd.cid];
+
+    fd.date = cidInfo?.date || Date.now();
+    fd.published = cidInfo?.published;
+    if (cidInfo?.dataSource) fd.dataSource = cidInfo.dataSource;
     contains.push(fd);
   });
   return contains;
@@ -62,6 +68,7 @@ interface CidEntryDetails {
   size?: number;
   published?: boolean;
   date?: string;
+  dataSource?: DATA_SOURCE;
 }
 
 //deprecated tree filling function, used for old datasets, pre unopinionated data model
@@ -165,26 +172,53 @@ export async function getTreeAndFill(
     ? await getDirectoryTree(rootCid, externalCidMap)
     : flatTreeToHierarchicalTree(await draftNodeTreeEntriesToFlatIpfsTree(dbTree));
   logger.info('ran getTreeAndFill');
+
+  const nodeOwner = await prisma.user.findFirst({
+    where: { id: node.ownerId },
+    select: { isGuest: true, convertedGuest: true },
+  });
+
+  // If a user was previously a guest, their data may be in the process of migration.
+  // We need to mark the data source for these CIDs.
+  const unmigratedGuestCidsMap = nodeOwner.convertedGuest
+    ? await DataMigrationService.getUnmigratedCidsMap(nodeUuid, MigrationType.GUEST_TO_PRIVATE)
+    : {};
+
   /*
    ** Get all entries for the nodeUuid, for filling the tree
    ** Both entries neccessary to determine publish state, prioritize public entries over private
    */
-  const privEntries = await prisma.dataReference.findMany({
-    select: {
-      cid: true,
-      size: true,
-      createdAt: true,
-      external: true,
-    },
-    where: {
-      userId: ownerId,
-      type: { not: DataType.MANIFEST },
-      rootCid: rootCid,
-      node: {
-        uuid: ensureUuidEndsWithDot(nodeUuid),
-      },
-    },
-  });
+  const privEntries = nodeOwner.isGuest
+    ? await prisma.guestDataReference.findMany({
+        select: {
+          cid: true,
+          size: true,
+          createdAt: true,
+          external: true,
+        },
+        where: {
+          userId: ownerId,
+          type: { not: DataType.MANIFEST },
+          node: {
+            uuid: ensureUuidEndsWithDot(nodeUuid),
+          },
+        },
+      })
+    : await prisma.dataReference.findMany({
+        select: {
+          cid: true,
+          size: true,
+          createdAt: true,
+          external: true,
+        },
+        where: {
+          userId: ownerId,
+          type: { not: DataType.MANIFEST },
+          node: {
+            uuid: ensureUuidEndsWithDot(nodeUuid),
+          },
+        },
+      });
   const pubEntries = await prisma.publicDataReference.findMany({
     select: {
       createdAt: true,
@@ -210,7 +244,6 @@ export async function getTreeAndFill(
   if (privEntries.length | pubEntries.length) {
     const pubCids: Record<string, boolean> = {};
     pubEntries.forEach((e) => (pubCids[e.cid] = true));
-    // debugger;
     // Build cidInfoMap
     privEntries.forEach((ref) => {
       if (pubCids[ref.cid]) return; // Skip if there's a pub entry
@@ -219,6 +252,14 @@ export async function getTreeAndFill(
         published: false,
         date: ref.createdAt?.getTime().toString(),
         external: ref.external ? true : false,
+        // If a user is a guest, assume the data source for all data is GUEST.
+        // If a user was a guest, but has since converted to a user, the data source for any unmigrated guest data is still GUEST.
+        // Otherwise, the data source is PRIVATE.
+        dataSource: nodeOwner.isGuest
+          ? DATA_SOURCE.GUEST
+          : unmigratedGuestCidsMap[ref.cid]
+            ? DATA_SOURCE.GUEST
+            : DATA_SOURCE.PRIVATE,
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
@@ -264,6 +305,9 @@ export async function getTreeAndFill(
         published: true,
         date: date,
         external: ref.external ? true : false,
+        ...(unmigratedGuestCidsMap[ref.cid] && {
+          dataSource: DATA_SOURCE.GUEST, // Mark cids that may still be on the GUEST node.
+        }),
       };
       cidInfoMap[ref.cid] = entryDetails;
     });
@@ -399,13 +443,11 @@ export function inheritComponentType(path, pathToDbTypeMap: Record<string, DataT
     }
   }
 
-  // debugger;
   // No direct types found, so try to inherit from parents
   const pathSplit = path.split('/');
   // If pathSplit.length is < 2, and a direct component doesn't exist on it, it has no parent to inherit from.
   if (pathSplit.length < 2) return DataType.UNKNOWN;
   while (pathSplit.length > 1) {
-    // debugger;
     pathSplit.pop();
 
     const parentPath = pathSplit.join('/');
@@ -527,21 +569,14 @@ export async function addComponentsToDraftManifest(node: Node, firstNestingCompo
   }
 }
 
-export type oldCid = string;
-export type newCid = string;
-// export function updateManifestComponentDagCids(manifest: ResearchObjectV1, updatedDagCidMap: Record<oldCid, newCid>) {
-//   manifest.components.forEach((c) => {
-//     if (c.payload?.cid in updatedDagCidMap) c.payload.cid = updatedDagCidMap[c.payload.cid];
-//     if (c.payload?.url in updatedDagCidMap) c.payload.url = updatedDagCidMap[c.payload.url];
-//   });
-//   return manifest;
-// }
-
 export type ExternalCidMap = Record<string, { size: number; path: string; directory: boolean }>;
 
 export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
   // dataBucketCid matters for public nodes, if a dataBucketCid is provided, this function will generate external cids for a specific version of the node
   const externalCidMap: ExternalCidMap = {};
+
+  const node = await prisma.node.findUnique({ where: { uuid: ensureUuidEndsWithDot(nodeUuid) } });
+  const nodeOwner = await prisma.user.findFirst({ where: { id: node.ownerId }, select: { isGuest: true } });
 
   const dataReferences = dataBucketCid
     ? await prisma.publicDataReference.findMany({
@@ -553,16 +588,25 @@ export async function generateExternalCidMap(nodeUuid, dataBucketCid?: string) {
           external: true,
         },
       })
-    : await prisma.dataReference.findMany({
-        where: {
-          node: {
-            uuid: ensureUuidEndsWithDot(nodeUuid),
+    : nodeOwner.isGuest
+      ? await prisma.guestDataReference.findMany({
+          where: {
+            node: {
+              uuid: ensureUuidEndsWithDot(nodeUuid),
+            },
+            external: true,
           },
-          external: true,
-        },
-      });
+        })
+      : await prisma.dataReference.findMany({
+          where: {
+            node: {
+              uuid: ensureUuidEndsWithDot(nodeUuid),
+            },
+            external: true,
+          },
+        });
 
-  dataReferences.forEach((d: DataReference) => {
+  dataReferences.forEach((d: DataReference | GuestDataReference | PublicDataReference) => {
     externalCidMap[d.cid] = {
       size: d.size,
       path: d.path,

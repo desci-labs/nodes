@@ -26,15 +26,17 @@ import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import { ensureUniquePathsDraftTree, externalDirCheck, getLatestDriveTime } from '../../services/draftTrees.js';
 import {
   FilesToAddToDag,
+  IPFS_NODE,
   IpfsDirStructuredInput,
   IpfsPinnedResult,
   getDirectoryTree,
+  getNodeToUse,
   isDir,
   pinDirectory,
 } from '../../services/ipfs.js';
 import { fetchFileStreamFromS3, isS3Configured } from '../../services/s3.js';
 import { ResearchObjectDocument } from '../../types/documents.js';
-import { prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
+import { attachLoggedData, prepareDataRefsForDraftTrees } from '../../utils/dataRefTools.js';
 import { DRAFT_CID, DRAFT_DIR_CID, ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
   ExtensionDataTypeMap,
@@ -54,6 +56,7 @@ import {
   Either,
   ProcessingError,
   createDuplicateFileError,
+  createGuestFileSizeLimitError,
   createInvalidManifestError,
   createIpfsUnresolvableError,
   createIpfsUploadFailureError,
@@ -94,8 +97,8 @@ export async function processS3DataToIpfs({
   let manifestPathsToTypesPrune: Record<DrivePath, DataType | ExtensionDataTypeMap> = {};
   if (contextPath.endsWith('/')) contextPath = contextPath.slice(0, -1);
   try {
-    ensureSpaceAvailable(files, user);
-
+    await ensureSpaceAvailable(files, user);
+    await guestFileSizeLimitCheck(files, user);
     const manifest = await getLatestManifestFromNode(node);
     manifestPathsToTypesPrune = generateManifestPathsToDbTypeMap(manifest);
     const componentTypeMap: ResearchObjectComponentTypeMap = constructComponentTypeMapFromFiles(files);
@@ -107,11 +110,17 @@ export async function processS3DataToIpfs({
     await ensureUniquePathsDraftTree({ nodeId: node.id, contextPath, filesBeingAdded: files });
 
     // Pin new files, add draftNodeTree entries
-    pinResult = await pinNewFiles(files, true);
+    pinResult = await pinNewFiles(files, { wrapWithDirectory: true, ipfsNode: getNodeToUse(user.isGuest) });
     if (pinResult) {
       const root = pinResult[pinResult.length - 1];
-      const rootTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
-      // debugger;
+      const rootTree = (await getDirectoryTree(
+        root.cid,
+        {},
+        {
+          ipfsNode: getNodeToUse(user.isGuest),
+        },
+      )) as RecursiveLsResult[];
+
       const draftNodeTreeEntries: Prisma.DraftNodeTreeCreateManyInput[] = ipfsDagToDraftNodeTreeEntries({
         ipfsTree: rootTree,
         node,
@@ -151,7 +160,6 @@ export async function processS3DataToIpfs({
        * Only needs to happen if a predefined component type is to be added
        */
       if (autoStar) {
-        // debugger;
         const firstNestingComponents = predefineComponentsForPinnedFiles({
           pinnedFirstNestingFiles: filteredFiles,
           contextPath,
@@ -343,6 +351,19 @@ export async function ensureSpaceAvailable(files: any[], user: User) {
   return true;
 }
 
+/*
+ ** Guest file size upload limit per upload - currently 100MB.
+ */
+export function guestFileSizeLimitCheck(files: File[], user: Pick<User, 'isGuest'>) {
+  if (user.isGuest) {
+    const ONE_HUNDRED_MBS = 1000 * 1000 * 100;
+    const totalSize = files.reduce((acc, file) => acc + file.size, 0);
+    if (totalSize > ONE_HUNDRED_MBS) {
+      throw createGuestFileSizeLimitError();
+    }
+  }
+}
+
 export function extractRootDagCidFromManifest(manifest: ResearchObjectV1, manifestCid: string) {
   const component = manifest.components.find((c) => isNodeRoot(c));
   const rootCid: string = component?.payload?.cid;
@@ -351,10 +372,9 @@ export function extractRootDagCidFromManifest(manifest: ResearchObjectV1, manife
 }
 
 export async function getManifestFromNode(
-  node: { manifestUrl: string; cid?: string },
+  node: Pick<Node, 'manifestUrl' | 'cid'>,
   queryString?: string,
 ): Promise<{ manifest: ResearchObjectV1; manifestCid: string }> {
-  // debugger;
   const manifestCid = node.manifestUrl || node.cid;
   const manifestUrlEntry = manifestCid ? cleanupManifestUrl(manifestCid as string, queryString as string) : null;
   try {
@@ -421,7 +441,10 @@ export function ensureUniquePaths({
   return true;
 }
 
-export async function pinNewFiles(files: any[], wrapWithDirectory = false): Promise<IpfsPinnedResult[]> {
+export async function pinNewFiles(
+  files: any[],
+  { wrapWithDirectory = false, ipfsNode }: { wrapWithDirectory?: boolean; ipfsNode: IPFS_NODE },
+): Promise<IpfsPinnedResult[]> {
   const structuredFilesForPinning: IpfsDirStructuredInput[] = await Promise.all(
     files.map(async (f: any) => {
       const path = f.originalname ?? f.path;
@@ -435,7 +458,8 @@ export async function pinNewFiles(files: any[], wrapWithDirectory = false): Prom
   );
   let uploaded: IpfsPinnedResult[];
   if (structuredFilesForPinning.length) {
-    if (structuredFilesForPinning.length) uploaded = await pinDirectory(structuredFilesForPinning, wrapWithDirectory);
+    if (structuredFilesForPinning.length)
+      uploaded = await pinDirectory(structuredFilesForPinning, { wrapWithDirectory, node: ipfsNode });
     if (!uploaded.length) throw createIpfsUploadFailureError();
     logger.info({ uploaded }, '[UPDATE DATASET] Pinned files: ');
   }
@@ -505,9 +529,7 @@ export function predefineComponentsForPinnedFiles({
   star,
 }: PredefineComponentsForPinnedFilesParams): FirstNestingComponent[] {
   const firstNestingComponents: FirstNestingComponent[] = pinnedFirstNestingFiles.map((file) => {
-    const neutralFullPath = file.path.startsWith(contextPath)
-        ? file.path
-        : contextPath + '/' + file.path;
+    const neutralFullPath = file.path.startsWith(contextPath) ? file.path : contextPath + '/' + file.path;
     const pathSplit = file.path.split('/');
     const name = pathSplit.pop();
     return {
@@ -529,20 +551,30 @@ interface UpdateDataReferencesParams {
   updatedManifest: ResearchObjectV1;
 }
 export async function updateDataReferences({ node, user, updatedManifest }: UpdateDataReferencesParams) {
-  // const newRefs = await prepareDataRefs(node.uuid, updatedManifest, newRootCidString, false, externalCidMap);
   const newRefs = await prepareDataRefsForDraftTrees(node.uuid, updatedManifest);
-  // debugger;
+
   // Get old refs to match their DB entry id's with the updated refs
-  const existingRefs = await prisma.dataReference.findMany({
-    where: {
-      nodeId: node.id,
-      userId: user.id,
-      type: { not: DataType.MANIFEST },
-    },
-  });
+  const existingRefs = user.isGuest
+    ? await prisma.guestDataReference.findMany({
+        where: {
+          nodeId: node.id,
+          userId: user.id,
+          type: { not: DataType.MANIFEST },
+        },
+      })
+    : await prisma.dataReference.findMany({
+        where: {
+          nodeId: node.id,
+          userId: user.id,
+          type: { not: DataType.MANIFEST },
+        },
+      });
+
   // Map existing ref neutral paths to the ref for constant lookup
   const existingRefMap = existingRefs.reduce((map, ref) => {
-    map[neutralizePath(ref.path)] = ref;
+    if (ref.path) {
+      map[neutralizePath(ref.path)] = ref;
+    }
     return map;
   }, {});
 
@@ -553,17 +585,21 @@ export async function updateDataReferences({ node, user, updatedManifest }: Upda
     const newRefNeutralPath = neutralizePath(ref.path);
     const matchingExistingRef = existingRefMap[newRefNeutralPath];
     if (matchingExistingRef) {
-      dataRefUpdates.push({ ...matchingExistingRef, ...ref });
+      dataRefUpdates.push({ ...matchingExistingRef, ...ref, ...(user.isGuest ? attachLoggedData() : {}) });
     } else {
-      dataRefCreates.push(ref);
+      dataRefCreates.push({ ...ref, ...(user.isGuest ? attachLoggedData() : {}) });
     }
   });
 
   const upserts = await prisma.$transaction([
     ...(dataRefUpdates as any).map((fd) => {
-      return prisma.dataReference.update({ where: { id: fd.id }, data: fd });
+      return user.isGuest
+        ? prisma.guestDataReference.update({ where: { id: fd.id }, data: fd })
+        : prisma.dataReference.update({ where: { id: fd.id }, data: fd });
     }),
-    prisma.dataReference.createMany({ data: dataRefCreates }),
+    user.isGuest
+      ? prisma.guestDataReference.createMany({ data: dataRefCreates })
+      : prisma.dataReference.createMany({ data: dataRefCreates }),
   ]);
   return upserts;
 }
@@ -595,7 +631,7 @@ export async function cleanupDanglingRefs({
   // //CLEANUP DANGLING REFERENCES//
 
   const flatTree = recursiveFlattenTree(
-    await getDirectoryTree(newRootCidString, externalCidMap),
+    await getDirectoryTree(newRootCidString, externalCidMap, { ipfsNode: getNodeToUse(user.isGuest) }),
   ) as RecursiveLsResult[];
   flatTree.push({
     name: 'root',
@@ -672,7 +708,7 @@ export async function handleCleanupOnMidProcessingError({
       size: e.size || 0,
       nodeId: node.id,
       userId: user.id,
-      directory: await isDir(CID.parse(e.cid)),
+      directory: await isDir(CID.parse(e.cid), getNodeToUse(user.isGuest)),
     };
   });
   const prunedEntries = await prisma.cidPruneList.createMany({ data: await Promise.all(formattedPruneList) });
@@ -759,18 +795,20 @@ export async function assignTypeMapInManifest(
  */
 export async function processUploadToIpfs({
   files,
+  ipfsNode,
 }: {
   files:
     | {
         [fieldname: string]: Express.Multer.File[];
       }
     | Express.Multer.File[];
+  ipfsNode: IPFS_NODE;
 }): Promise<Either<IpfsPinnedResult[], ProcessingError>> {
   let pinResult: IpfsPinnedResult[] = [];
   try {
     const uploads = Array.isArray(files) ? files : Object.values(files).map((files) => files[0]);
     // Pin new files, add draftNodeTree entries
-    pinResult = await pinNewFiles(uploads, false);
+    pinResult = await pinNewFiles(uploads, { wrapWithDirectory: false, ipfsNode });
     if (pinResult) {
       logger.info({ pinResult }, 'Files uploaded to Ipfs');
     }

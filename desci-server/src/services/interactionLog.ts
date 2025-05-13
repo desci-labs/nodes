@@ -7,19 +7,66 @@ import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { getUtcDateXDaysAgo } from '../utils/clock.js';
 
+import { mixpanel } from './MixpanelService.js';
+
 const logger = parentLogger.child({ module: 'Services::InteractionLog' });
 
-export const saveInteraction = async (req: Request, action: ActionType, data: any, userId?: number) => {
+interface SaveInteractionArgs {
+  req: Request;
+  action: ActionType;
+  data: any;
+  userId?: number;
+  submitToMixpanel?: boolean;
+}
+
+export const saveInteraction = async ({ req, action, data, userId, submitToMixpanel }: SaveInteractionArgs) => {
   logger.info({ fn: 'saveInteractionController' }, 'interactionLog::saveInteraction');
+  const user = (req as any).user;
+
+  if (submitToMixpanel) {
+    mixpanel.track(action, data);
+  }
+
   return await prisma.interactionLog.create({
-    data: { userId, ip: req.ip, userAgent: req.headers['user-agent'], rep: 0, action, extra: JSON.stringify(data) },
+    data: {
+      userId,
+      ...(user?.isGuest === true || user?.isGuest === false ? { isGuest: user.isGuest } : {}), // We want null if the information isn't available
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+      rep: 0,
+      action,
+      extra: JSON.stringify(data),
+    },
   });
 };
 
-export const saveInteractionWithoutReq = async (action: ActionType, data: any, userId?: number) => {
+interface SaveInteractionWithoutReqArgs {
+  action: ActionType;
+  data: any;
+  userId?: number;
+  submitToMixpanel?: boolean;
+}
+
+export const saveInteractionWithoutReq = async ({
+  action,
+  data,
+  userId,
+  submitToMixpanel,
+}: SaveInteractionWithoutReqArgs) => {
   logger.info({ fn: 'saveInteractionController' }, 'interactionLog::saveInteraction');
+  let isGuest;
+  if (userId) {
+    // Distinguish if the user is a guest or not
+    const user = await prisma.user.findFirst({ where: { id: userId } });
+    isGuest = user?.isGuest;
+  }
+
+  if (submitToMixpanel) {
+    mixpanel.track(action, data);
+  }
+
   return await prisma.interactionLog.create({
-    data: { userId, rep: 0, action, extra: JSON.stringify(data) },
+    data: { userId, isGuest, rep: 0, action, extra: JSON.stringify(data) },
   });
 };
 
@@ -58,6 +105,7 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
         createdAt: {
           gte: utcMidnightXDaysAgo,
         },
+        OR: [{ isGuest: false }, { isGuest: null }],
         // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
         // from poluting returned data
         userId: {
@@ -73,6 +121,7 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
 
   return await prisma.interactionLog.findMany({
     distinct: ['userId'],
+
     where: {
       createdAt: {
         gte: dateXDaysAgo,
@@ -82,8 +131,9 @@ export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
       userId: {
         not: null,
       },
+      OR: [{ isGuest: false }, { isGuest: null }],
     },
-    select: { id: true, action: true, user: { select: { id: true, email: true, orcid: true } } },
+    select: { id: true, action: true, user: { select: { id: true, email: true, orcid: true, createdAt: true } } },
   });
 };
 
@@ -135,6 +185,7 @@ export const getCountActiveUsersInMonth = async (month: number, year: number): P
   const activeCount = await prisma.interactionLog.findMany({
     distinct: ['userId'],
     where: {
+      OR: [{ isGuest: false }, { isGuest: null }],
       createdAt: {
         gte: new Date(year, month, 1),
         lt: new Date(year, month + 1, 1),
@@ -234,6 +285,7 @@ export const getActiveUsersInRange = async (range: { from: Date; to: Date }) => 
       userId: {
         not: null,
       },
+      OR: [{ isGuest: false }, { isGuest: null }],
     },
     select: { user: { select: { createdAt: true } } },
   });

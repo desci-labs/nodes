@@ -1,18 +1,12 @@
-import * as fs from 'fs';
-
 import { DriveObject, FileDir, findAndPruneNode, isNodeRoot } from '@desci-labs/desci-models';
 import { DataType } from '@prisma/client';
-import archiver from 'archiver';
 import axios from 'axios';
-import { Request, Response, NextFunction } from 'express';
-import mkdirp from 'mkdirp';
-import tar from 'tar';
+import { Request, Response } from 'express';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { redisClient, getOrCache } from '../../redisClient.js';
 import { getLatestDriveTime } from '../../services/draftTrees.js';
-import { getDatasetTar } from '../../services/ipfs.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import { showNodeDraftManifest } from '../../services/nodeManager.js';
 import { getTreeAndFill, getTreeAndFillDeprecated } from '../../utils/driveUtils.js';
@@ -47,7 +41,6 @@ export const retrieveTree = async (req: Request, res: Response<RetrieveResponse 
   }
 
   const logger = parentLogger.child({
-    // id: req.id,
     module: 'DATA::RetrieveController',
     uuid: uuid,
     manifestCid,
@@ -223,124 +216,3 @@ export const pubTree = async (req: Request, res: Response<PubTreeResponse | Erro
 
   return res.status(200).json({ tree: depthTree, date: publicDataset.updatedAt.toString() });
 };
-
-export const downloadDataset = async (req: Request, res: Response, next: NextFunction) => {
-  const owner = (req as any).user;
-  const cid: string = req.params.cid;
-  const uuid: string = req.params.nodeUuid;
-  const logger = parentLogger.child({
-    // id: req.id,
-    module: 'DATA::RetrieveDownloadController',
-    uuid: uuid,
-    cid: cid,
-    user: owner.id,
-  });
-  logger.trace(`downloadDataset called, cid received: ${cid} uuid provided: ${uuid}`);
-
-  if (!uuid) {
-    res.status(400).json({ error: 'no UUID provided' });
-    return;
-  }
-
-  if (!cid) {
-    res.status(400).json({ error: 'no CID provided' });
-    return;
-  }
-
-  const dataset = await prisma.dataReference.findFirst({
-    where: {
-      userId: owner.id,
-      type: { not: DataType.MANIFEST },
-      cid: cid,
-      node: {
-        uuid: ensureUuidEndsWithDot(uuid),
-      },
-    },
-  });
-
-  if (!dataset) {
-    logger.warn(`unauthed access user: ${owner}, cid provided: ${cid}, nodeUuid provided: ${uuid}`);
-    res.status(400).json({ error: 'failed' });
-    return;
-  }
-
-  const tarPath = `temp_downloads/dataset_${cid}.tar`;
-  const zipPath = `temp_downloads/dataset_${cid}.zip`;
-
-  const contents = await getDatasetTar(cid);
-  const output = fs.createWriteStream(tarPath);
-
-  for await (const chunk of contents) {
-    output.write(chunk);
-  }
-  output.end();
-
-  await tarToZip(tarPath, zipPath);
-
-  res.writeHead(200, {
-    'Content-Type': 'application/zip',
-    'Content-disposition': `attachment; filename=dataset_${cid}.zip`,
-  });
-
-  const basePath = process.cwd() + '/';
-  const targetPath = basePath + zipPath;
-  const zipped = fs.createReadStream(targetPath);
-
-  zipped.on('open', function () {
-    zipped.pipe(res);
-  });
-
-  zipped.on('close', () => {
-    const dirPath = tarPath.split('.tar')[0];
-    fs.promises.rm(targetPath);
-    fs.promises.rm(basePath + tarPath);
-    fs.promises.rm(basePath + dirPath, { recursive: true });
-  });
-
-  zipped.on('error', (e) => {
-    logger.error(e);
-    res.status(500).send({ ok: false });
-  });
-};
-
-async function tarToZip(tarPath: string, zipPath: string): Promise<void> {
-  const dirPath = tarPath.split('.tar')[0];
-
-  //creates the dirs to prevent permission errors
-  await mkdirp(dirPath);
-  parentLogger.debug({ fn: tarToZip }, `dirPath: ${dirPath}`);
-
-  try {
-    await tar.extract({
-      file: tarPath,
-      cwd: dirPath,
-    });
-
-    const output = fs.createWriteStream(zipPath);
-    const archive = archiver('zip', { zlib: { level: 9 } });
-    return new Promise((success, fail) => {
-      output.on('close', () => {
-        parentLogger.info({ fn: tarToZip }, `Zipped ${tarPath}, ${archive.pointer()} bytes`);
-        success();
-      });
-      archive.on('warning', (err) => {
-        if (err.code === 'ENOENT') {
-          parentLogger.error({ fn: tarToZip }, `error: ${err}`);
-        } else {
-          throw err;
-        }
-      });
-      archive.on('error', function (err) {
-        fail(err);
-        throw err;
-      });
-
-      archive.pipe(output);
-      archive.directory(dirPath, false);
-      archive.finalize();
-    });
-    // return archive;
-  } catch (err) {
-    parentLogger.error({ fn: tarToZip }, `error: ${err}`);
-  }
-}

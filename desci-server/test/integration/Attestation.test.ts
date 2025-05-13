@@ -36,7 +36,7 @@ import {
 import { app } from '../../src/index.js';
 import { AllAttestation, attestationService, CommunityAttestation } from '../../src/services/Attestation.js';
 import { communityService } from '../../src/services/Communities.js';
-import { client as ipfs, spawnEmptyManifest } from '../../src/services/ipfs.js';
+import { client as ipfs, IPFS_NODE, spawnEmptyManifest } from '../../src/services/ipfs.js';
 import { randomUUID64 } from '../../src/utils.js';
 import { createDraftNode, createUsers } from '../util.js';
 
@@ -197,7 +197,7 @@ describe('Attestations Service', async () => {
 
     // console.log({ users });
 
-    const baseManifest = await spawnEmptyManifest();
+    const baseManifest = await spawnEmptyManifest(IPFS_NODE.PRIVATE);
     // baseManifest = BASE_MANIFEST;
     const BASE_MANIFEST_CID = (await ipfs.add(JSON.stringify(baseManifest), { cidVersion: 1, pin: true })).cid;
     baseManifestCid = BASE_MANIFEST_CID.toString();

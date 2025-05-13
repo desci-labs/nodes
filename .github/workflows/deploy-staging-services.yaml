@@ -19,16 +19,11 @@ env:
 jobs:
   build-isolated-media-server:
     name: Build and deploy desci-isolated-media-server STAGING
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
         uses: actions/checkout@v4
-
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
@@ -75,16 +70,11 @@ jobs:
 
   build-media-server:
     name: Build and deploy nodes-media STAGING
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
         uses: actions/checkout@v4
-
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
@@ -131,16 +121,11 @@ jobs:
 
   build-repo-server:
     name: Build and deploy desci-repo STAGING
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
         uses: actions/checkout@v4
-
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
@@ -192,16 +177,11 @@ jobs:
 
   build-nodes-server:
     name: Build and deploy desci-server STAGING
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
         uses: actions/checkout@v4
-
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
@@ -257,17 +237,11 @@ jobs:
 
   build-reverse-proxy:
     name: Build and deploy reverse-proxy STAGING
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - uses: hashicorp/setup-terraform@v1
       - name: Checkout
         uses: actions/checkout@v4
-
-      # Add steps here like linting, testing, minification, etc.
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version

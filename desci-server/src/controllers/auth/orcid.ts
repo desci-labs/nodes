@@ -73,10 +73,14 @@ export const getOrcidRecord = async (orcid: string, accessToken: string): Promis
     { fn: 'getOrcidRecord', orcid, orcidDomain: process.env.ORCID_API_DOMAIN },
     `Fetching OrcId Record for ${orcid}`,
   );
-  const { data } = await axios(config);
-  logger.info({ fn: 'getOrcidRecord', orcid }, `Received OrcId Record data`);
-
-  return data as OrcIdRecordData;
+  try {
+    const { data } = await axios(config);
+    logger.info({ fn: 'getOrcidRecord', orcid }, `Received OrcId Record data`);
+    return data as OrcIdRecordData;
+  } catch (e) {
+    logger.debug({ error: e }, 'Failed to fetch orcid record');
+  }
+  return null;
 };
 
 const getAllOrcData = async ({ queryCode, redirectUri }: { queryCode: string; redirectUri: string }) => {
@@ -126,7 +130,12 @@ const processOrcidConnect = async (req: Request, res: Response, closing: boolean
   try {
     // retrieve additional fields from orcid with auth token
     const { orcAuthData, orcRecord } = await getAllOrcData({ queryCode: req.query.code as string, redirectUri });
-    await saveInteraction(req, ActionType.ORCID_RETRIEVE, { orcAuthData, orcRecord });
+    await saveInteraction({
+      req,
+      action: ActionType.ORCID_RETRIEVE,
+      data: { orcAuthData, orcRecord },
+      userId: user.id,
+    });
 
     const cookieObj = {
       orcid_access_token: orcAuthData.orcidAccessToken,
@@ -154,11 +163,15 @@ const processOrcidAuth = async (req: Request, res: Response, closing: boolean) =
   try {
     const { orcAuthData, orcRecord } = await getAllOrcData({ queryCode: req.query.code as string, redirectUri });
 
-    await saveInteraction(req, ActionType.ORCID_RETRIEVE, { orcAuthData, orcRecord });
+    let user = await getUserByOrcId(orcAuthData.orcid);
+    await saveInteraction({
+      req,
+      action: ActionType.ORCID_RETRIEVE,
+      data: { orcAuthData, orcRecord },
+      userId: user.id,
+    });
 
     const orcid = orcRecord['orcid-identifier'].path;
-
-    let user = await getUserByOrcId(orcAuthData.orcid);
 
     if (!user) {
       const namesInOrcProfile = orcRecord.person.name

@@ -15,13 +15,9 @@ env:
 jobs:
   migrate:
     name: Migrate database (PROD)
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       # Add steps here like linting, testing, minification, etc.
-      - id: install-aws-cli
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 1
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version

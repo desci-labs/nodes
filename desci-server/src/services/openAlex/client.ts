@@ -13,6 +13,7 @@ export class OpenAlexClient {
   constructor(private baseurl: string = 'https://api.openalex.org/') {}
 
   async searchAuthorByOrcid(orcid: string) {
+    logger.trace({ orcid }, 'searchAuthorByOrcid');
     // url should look like this: https://api.openalex.org/authors?filter=orcid:0000-0001-7413-0412
     try {
       // Format ORCID if needed (remove any prefixes like https://orcid.org/)
@@ -26,6 +27,7 @@ export class OpenAlexClient {
         },
       });
 
+      logger.trace({ orcid, response: response.status }, 'searchAuthorByOrcid');
       if (!response.ok) {
         return null;
       }
@@ -39,7 +41,7 @@ export class OpenAlexClient {
 
       return data.results[0] as OpenAlexAuthor;
     } catch (error) {
-      console.error('Error searching author by ORCID:', error);
+      logger.error({ error, orcid }, 'Error searching author by ORCID:');
       return null;
     }
   }
@@ -81,8 +83,10 @@ export class OpenAlexClient {
       // Ensure the ID is properly formatted
       const formattedId = id.startsWith('https://openalex.org/') ? id : `https://openalex.org/${id}`;
 
+      const select =
+        'id,doi,title,display_name,publication_date,ids,cited_by_count,open_access,authorships,primary_location,created_date';
       // Build the URL with pagination parameters
-      const url = `${this.baseurl}works?filter=author.id:${encodeURIComponent(formattedId)}&page=${page}&per-page=${perPage}`;
+      const url = `${this.baseurl}works?select=${select}&filter=author.id:${encodeURIComponent(formattedId)}&page=${page}&per-page=${perPage}`;
 
       const response = await fetch(url, {
         headers: {
@@ -96,6 +100,8 @@ export class OpenAlexClient {
       }
 
       const data = await response.json();
+
+      logger.trace({ meta: data.meta }, 'METADATA');
 
       return {
         works: (data.results || []) as OpenAlexWork[],

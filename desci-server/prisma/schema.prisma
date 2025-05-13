@@ -23,6 +23,7 @@ model Node {
   uuid                 String?                @unique @default(uuid())
   manifestDocumentId   String                 @default("")
   owner                User                   @relation(fields: [ownerId], references: [id])
+  noveltyScoreConfig   Json?
   authorInvites        AuthorInvite[]
   transactions         ChainTransaction[]
   interactionLogs      InteractionLog[]
@@ -48,6 +49,7 @@ model Node {
   PdfPreviews          PdfPreviews[]
   DoiRecord            DoiRecord[]
   dpidAlias            Int?
+  legacyDpid           Int? // for backwards compatibility prior to ceramic
   DoiSubmissionQueue   DoiSubmissionQueue[]
   BookmarkedNode       BookmarkedNode[]
   DeferredEmails       DeferredEmails[]
@@ -59,6 +61,9 @@ model Node {
   NodeLike             NodeLike[]
   CommunitySubmission  CommunitySubmission[]
   PublishedWallet      PublishedWallet[]
+  GuestDataReference   GuestDataReference[]
+  DataMigration        DataMigration[]
+  dataMigrationId      Int?
 
   @@index([ownerId])
   @@index([uuid])
@@ -88,6 +93,7 @@ model InteractionLog {
   extra      String?
   action     ActionType?
   userId     Int?
+  isGuest    Boolean? // True = Guest, False = User, Null = Not logged
   rep        Int?
   nodeId     Int?
   waitlistId Int?
@@ -168,6 +174,7 @@ model User {
   id                          Int                           @id @default(autoincrement())
   createdAt                   DateTime                      @default(now())
   updatedAt                   DateTime                      @updatedAt
+  isGuest                     Boolean                       @default(false)
   email                       String                        @unique
   phoneNumber                 String?                       @unique
   name                        String?
@@ -183,6 +190,8 @@ model User {
   orcid                       String?                       @unique
   notificationSettings        Json?
   unseenNotificationCount     Int                           @default(0)
+  convertedGuest              Boolean                       @default(false)
+  mergedIntoAt                DateTime[] // Timestamps for when a guest was merged into this existing user.
   // rorPid                     String[]              @default([])
   // organization               String[]              @default([])
   isAdmin                     Boolean                       @default(false)
@@ -233,6 +242,8 @@ model User {
   NodeLike                    NodeLike[]
   CommunitySubmission         CommunitySubmission[]
   PublishedWallet             PublishedWallet[]
+  GuestDataReference          GuestDataReference[]
+  DataMigration               DataMigration[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -255,6 +266,7 @@ model ApiKey {
   @@index([userId])
 }
 
+// Seems unused
 model Invite {
   id          Int      @id @default(autoincrement())
   createdAt   DateTime @default(now())
@@ -270,6 +282,7 @@ model Invite {
   sender      User     @relation("SentInvites", fields: [senderId], references: [id])
 }
 
+// Seems unused
 model AuthorInvite {
   id          Int      @id @default(autoincrement())
   createdAt   DateTime @default(now())
@@ -284,6 +297,7 @@ model AuthorInvite {
   sender      User     @relation("SentAuthorInvites", fields: [senderId], references: [id])
 }
 
+// Seems unused
 model NodeAuthor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -296,6 +310,7 @@ model NodeAuthor {
   @@id([userId, nodeId])
 }
 
+// Seems unused
 model NodeVote {
   id          Int               @id @default(autoincrement())
   createdAt   DateTime          @default(now())
@@ -308,6 +323,7 @@ model NodeVote {
   transaction ChainTransaction?
 }
 
+// Seems unused
 model ChainTransaction {
   id           Int                  @id @default(autoincrement())
   createdAt    DateTime             @default(now())
@@ -334,6 +350,7 @@ model MagicLink {
   email          String
 }
 
+// Seems unused
 model OauthAccessToken {
   id                    String           @id
   userId                Int
@@ -352,6 +369,7 @@ model OauthAccessToken {
   @@index([userId])
 }
 
+// Seems unused
 model OauthAccessGrant {
   id                  String           @id
   userId              Int
@@ -371,6 +389,7 @@ model OauthAccessGrant {
   @@index([userId])
 }
 
+// Seems unused
 model OauthApplication {
   id           String             @id
   name         String
@@ -422,6 +441,25 @@ model DataReference {
   nodeVersion NodeVersion? @relation(fields: [versionId], references: [id])
 }
 
+model GuestDataReference {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  cid        String
+  root       Boolean
+  rootCid    String?
+  path       String?
+  directory  Boolean
+  size       Int
+  type       DataType
+  external   Boolean?
+  nodeId     Int
+  userId     Int
+  loggedData Json?
+  node       Node     @relation(fields: [nodeId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+}
+
 model CidPruneList {
   id          Int      @id @default(autoincrement())
   createdAt   DateTime @default(now())
@@ -444,7 +482,6 @@ model PublicDataReference {
   createdAt   DateTime                          @default(now())
   updatedAt   DateTime                          @updatedAt
   name        String?
-  description String?
   cid         String
   root        Boolean
   rootCid     String?
@@ -572,7 +609,7 @@ model NodeContribution {
   updatedAt     DateTime  @updatedAt
   contributorId String    @unique
   nodeId        Int
-  userId        Int?
+  userId        Int? // Target contributor user id
   verified      Boolean   @default(false)
   denied        Boolean   @default(false)
   email         String?
@@ -1076,6 +1113,40 @@ model NodeLike {
   @@unique([nodeUuid, userId])
 }
 
+model DataMigration {
+  id              Int                    @id @default(autoincrement())
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  migrationType   MigrationType
+  migrationStatus MigrationStatus
+  migrationError  String?
+  migrationData   Json
+  cleanupStatus   MigrationCleanupStatus @default(NOT_REQUESTED)
+  nodes           Node[]
+  userId          Int
+  user            User                   @relation(fields: [userId], references: [id])
+}
+
+enum MigrationType {
+  PRIVATE_TO_PUBLIC
+  GUEST_TO_PRIVATE
+}
+
+enum MigrationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum MigrationCleanupStatus {
+  NOT_REQUESTED
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
 enum VoteType {
   Yes
   No
@@ -1161,6 +1232,11 @@ enum ActionType {
   REMOVE_ORCID_WORK_RECORD
   ORCID_API_ERROR
   EDIT_COMMENT
+  GUEST_USER_CONVERSION
+  USER_SIGNUP_SUCCESS
+  MERGE_GUEST_INTO_EXISTING_USER_ATTEMPT
+  MERGE_GUEST_INTO_EXISTING_USER_SUCCESS
+  MERGE_GUEST_INTO_EXISTING_USER_FAIL
 }
 
 enum ChainTransactionType {
@@ -1187,6 +1263,9 @@ enum DataType {
   VIDEOS
   CODE_REPOS
   DOCUMENT
+  SUBMISSION_PACKAGE
+  SUBMISSION_PACKAGE_PREVIEW
+  THUMBNAIL
 }
 
 enum PublishState {

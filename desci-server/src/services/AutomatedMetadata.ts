@@ -1,10 +1,9 @@
-import { Readable } from 'stream';
-
 import { DocumentId } from '@automerge/automerge-repo';
 import { ManifestActions, ResearchObjectV1Author, ResearchObjectV1AuthorRole } from '@desci-labs/desci-models';
 import axios from 'axios';
 import FormData from 'form-data';
 import { v4 as uuidv4 } from 'uuid';
+import { parseStringPromise } from 'xml2js';
 
 import { logger as parentLogger } from '../logger.js';
 import { ONE_DAY_TTL, getFromCache, setToCache } from '../redisClient.js';
@@ -213,19 +212,41 @@ export class AutomatedMetadataClient {
       logger.info({ status: fetchRes.status, headers: fetchRes.headers }, 'DOWNLOAD PDF FETCH');
       const res = await fetchRes.arrayBuffer();
       const buffer = Buffer.from(res);
-      const inputStream = Readable.from(buffer);
-      // const blob = new Blob([res.data], { type: 'application/pdf' });
-      logger.info({ SIZE: inputStream.readableLength, fileSize }, 'PDF CONTENT');
+
+      logger.info({ SIZE: buffer.length, fileSize }, 'PDF CONTENT');
 
       const formdata = new FormData();
-      formdata.append('input', inputStream, { filename: 'manuscript.pdf', contentType: 'application/pdf' });
-
+      formdata.append('input', buffer, { filename: 'manuscript.pdf', contentType: 'application/pdf' });
       const url = 'https://grobid-dev.desci.com/api/processHeaderDocument';
       response = await axios.request({ url, method: 'POST', data: formdata, headers: { ...formdata.getHeaders() } });
+
       logger.info({ header: response.data }, 'GROBID RESPONSE');
       if (response.status !== 200) return DEFAULT_GROBID_METADATA;
       // transform data
       const headerMetadata = parseBibtext(response.data);
+      if (!headerMetadata.authors?.length || !headerMetadata.title || !headerMetadata.abstract) {
+        // Inadequate metadata extracted, try processFulltextDocument API
+        logger.info(headerMetadata, 'Inadequate metadata extracted, trying processFulltextDocument API');
+
+        const fulltextUrl = 'https://grobid-dev.desci.com/api/processFulltextDocument';
+        const formdata = new FormData();
+        formdata.append('input', buffer, { filename: 'manuscript.pdf', contentType: 'application/pdf' });
+        const fulltextRes = await axios.request({
+          url: fulltextUrl,
+          method: 'POST',
+          data: formdata,
+          headers: { ...formdata.getHeaders() },
+        });
+        const fulltextMetadata = await parseGrobidFulltextXml(fulltextRes.data);
+
+        // Fill in the headerMetadata with the longer values from the fulltextDocument API
+        Object.keys(headerMetadata).forEach((key) => {
+          if (fulltextMetadata[key] && fulltextMetadata[key].length > headerMetadata[key].length) {
+            headerMetadata[key] = fulltextMetadata[key];
+          }
+        });
+      }
+
       return headerMetadata;
     } catch (error) {
       logger.error(error, 'ERROR');
@@ -335,19 +356,21 @@ export class AutomatedMetadataClient {
   }
 }
 
+type GrobidMetadata = {
+  authors: string[];
+  title: string;
+  abstract: string;
+  doi: string;
+};
+
 /**
  * Custom Bibtext to JSON parser for pdf headers returned
  * from Grobid 'https://grobid-dev.desci.com/api/processHeaderDocument'
  * @param input Bibtext string
  * @returns Metadata
  */
-const parseBibtext = (input: string) => {
-  const metadata: {
-    authors: string[];
-    title: string;
-    abstract: string;
-    doi: string;
-  } = { title: '', authors: [], abstract: '', doi: '' };
+const parseBibtext = (input: string): GrobidMetadata => {
+  const metadata: GrobidMetadata = { title: '', authors: [], abstract: '', doi: '' };
 
   let cursor = 0;
 
@@ -497,6 +520,123 @@ const parseBibtext = (input: string) => {
     console.log({ cursor });
   }
 
+  return metadata;
+};
+
+/**
+ * Parses the TEI XML response from Grobid's processFulltextDocument endpoint.
+ * Requires the 'xml2js' library.
+ * @param xmlString The XML response string from Grobid.
+ * @returns Extracted metadata in the standard format.
+ */
+const parseGrobidFulltextXml = async (xmlString: string): Promise<GrobidMetadata> => {
+  const metadata: GrobidMetadata = { ...DEFAULT_GROBID_METADATA, authors: [] }; // Clone default
+
+  try {
+    // Explicit options often help with Grobid's structure
+    const options = {
+      explicitArray: false, // Don't put single elements into arrays
+      tagNameProcessors: [(name: string) => name.toLowerCase()], // Normalize tag names
+      attrNameProcessors: [(name: string) => name.toLowerCase()], // Normalize attribute names
+      // Ignore attributes generally if they cause issues, but keep for now
+      // ignoreAttrs: true,
+      // explicitRoot: false, // Usually default, but sometimes helps
+    };
+    const parsedXml = await parseStringPromise(xmlString, options);
+
+    const tei = parsedXml?.tei;
+    const fileDesc = tei?.teiheader?.filedesc;
+    const profileDesc = tei?.teiheader?.profiledesc;
+
+    // --- Extract Title ---
+    metadata.title = fileDesc?.titlestmt?.title?._ || fileDesc?.titlestmt?.title || '';
+    if (typeof metadata.title !== 'string') {
+      metadata.title = ''; // Handle cases where title might be an object
+    }
+
+    // --- Extract Authors ---
+    const authorsRaw = fileDesc?.sourcedesc?.biblstruct?.analytic?.author;
+    if (Array.isArray(authorsRaw)) {
+      metadata.authors = authorsRaw
+        .map((author: any) => {
+          const persName = author?.persname;
+          if (!persName) return '';
+          const forename = (
+            Array.isArray(persName.forename)
+              ? persName.forename.map((f: any) => f._ || f)
+              : [persName.forename?._ || persName.forename]
+          )
+            .filter(Boolean)
+            .join(' ');
+          const surname = persName.surname?._ || persName.surname || '';
+          return `${forename} ${surname}`.trim();
+        })
+        .filter(Boolean);
+    } else if (authorsRaw?.persname) {
+      // Handle single author case
+      const persName = authorsRaw.persname;
+      const forename = (
+        Array.isArray(persName.forename)
+          ? persName.forename.map((f: any) => f._ || f)
+          : [persName.forename?._ || persName.forename]
+      )
+        .filter(Boolean)
+        .join(' ');
+      const surname = persName.surname?._ || persName.surname || '';
+      metadata.authors = [`${forename} ${surname}`.trim()].filter(Boolean);
+    }
+
+    // --- Extract Abstract ---
+    const abstractElement = profileDesc?.abstract;
+    let abstractText = '';
+
+    if (abstractElement) {
+      // Prioritize looking inside abstract > div > p
+      const divElement = abstractElement.div;
+      if (divElement?.p) {
+        const paragraphs = Array.isArray(divElement.p) ? divElement.p : [divElement.p];
+        abstractText = paragraphs
+          .map((p: any) => (typeof p === 'string' ? p.trim() : (p?._ || '').trim())) // Trim each paragraph
+          .filter(Boolean) // Remove empty strings
+          .join('\n\n'); // Join paragraphs with double newline
+      } else if (typeof divElement === 'string') {
+        // Check text directly in div
+        abstractText = divElement.trim();
+      } else if (divElement?._) {
+        // Check text in div._ (if div has attributes)
+        abstractText = divElement._.trim();
+      } else if (abstractElement.p) {
+        // Fallback: Check for <p> directly under <abstract>
+        const paragraphs = Array.isArray(abstractElement.p) ? abstractElement.p : [abstractElement.p];
+        abstractText = paragraphs
+          .map((p: any) => (typeof p === 'string' ? p.trim() : (p?._ || '').trim()))
+          .filter(Boolean)
+          .join('\n\n');
+      } else if (typeof abstractElement === 'string') {
+        // Fallback: Text directly under <abstract>
+        abstractText = abstractElement.trim();
+      } else if (abstractElement._) {
+        // Fallback: Text under <abstract> with attributes
+        abstractText = abstractElement._.trim();
+      }
+    }
+    metadata.abstract = abstractText;
+
+    // --- Extract DOI ---
+    const idno = fileDesc?.publicationstmt?.idno;
+    if (Array.isArray(idno)) {
+      const doiElement = idno.find((id: any) => id?.$?.type?.toLowerCase() === 'doi');
+      metadata.doi = doiElement?._ || '';
+    } else if (idno?.$?.type?.toLowerCase() === 'doi') {
+      metadata.doi = idno._ || '';
+    }
+  } catch (error) {
+    logger.error({ error, xmlSubstring: xmlString.substring(0, 500) }, 'Failed to parse Grobid Fulltext XML');
+    // Return default metadata in case of parsing error
+    return { ...DEFAULT_GROBID_METADATA, authors: [] }; // Return a fresh clone
+  }
+
+  logger.info({ parsedMetadata: metadata }, 'Parsed Grobid Fulltext XML Metadata'); // Log successful parsing
   return metadata;
 };
 

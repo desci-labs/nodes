@@ -27,10 +27,10 @@ export const getOpenAlexWork = async (
     params: req.params,
   });
 
-  logger.info(`Fetching OpenAlex work: ${req.params.workId}`);
   try {
     const { workId } = GetWorkParamSchema.parse(req.params);
 
+    // logger.info(`Fetching OpenAlex work: ${req.params.workId}`);
     const workMetadata = await OpenAlexService.getMetadataByWorkId(workId);
 
     logger.info({ workMetadata, workId }, 'OPEN ALEX QUERY success via workId');

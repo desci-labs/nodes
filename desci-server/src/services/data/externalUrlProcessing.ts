@@ -20,7 +20,7 @@ import { persistManifest } from '../../controllers/data/utils.js';
 import { logger as parentLogger } from '../../logger.js';
 import { hasAvailableDataUsageForUpload } from '../../services/dataService.js';
 import { ensureUniquePathsDraftTree, externalDirCheck, getLatestDriveTime } from '../../services/draftTrees.js';
-import { IpfsDirStructuredInput, addDirToIpfs, getDirectoryTree } from '../../services/ipfs.js';
+import { IpfsDirStructuredInput, addDirToIpfs, getDirectoryTree, getNodeToUse } from '../../services/ipfs.js';
 import { ipfsDagToDraftNodeTreeEntries } from '../../utils/draftTreeUtils.js';
 import {
   ExtensionDataTypeMap,
@@ -166,13 +166,16 @@ export async function processExternalUrlDataToIpfs({
     // Pin new files, add draftNodeTree entries
     if (externalUrlFiles?.length) {
       // External URL non-repo
-      pinResult = await pinNewFiles(externalUrlFiles, false);
+      pinResult = await pinNewFiles(externalUrlFiles, {
+        wrapWithDirectory: false,
+        ipfsNode: getNodeToUse(user.isGuest),
+      });
     } else if (zipPath?.length > 0) {
       const outputPath = zipPath.replace('.zip', '');
       logger.debug({ outputPath }, 'Starting unzipping to output directory');
       await extractZipFileAndCleanup(zipPath, outputPath);
       logger.debug({ outputPath }, 'extraction complete, starting pinning');
-      pinResult = await addDirToIpfs(outputPath);
+      pinResult = await addDirToIpfs(outputPath, getNodeToUse(user.isGuest));
       // Overrides the path name of the root directory
       pinResult[pinResult.length - 1].path = externalUrl.path;
 
@@ -184,7 +187,11 @@ export async function processExternalUrlDataToIpfs({
     const isCodeRepo = zipPath.length > 0;
     let uploadedTree;
     if (isCodeRepo) {
-      uploadedTree = (await getDirectoryTree(root.cid, {})) as RecursiveLsResult[];
+      uploadedTree = (await getDirectoryTree(
+        root.cid,
+        {},
+        { ipfsNode: getNodeToUse(user.isGuest) },
+      )) as RecursiveLsResult[];
       // Overrides the path name of the root directory
       const rootName = externalUrl.path;
       uploadedTree = [{ ...root, type: 'dir', name: rootName, contains: uploadedTree }];
