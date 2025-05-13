@@ -48,7 +48,6 @@ model Node {
   PdfPreviews          PdfPreviews[]
   DoiRecord            DoiRecord[]
   dpidAlias            Int?
-  dpidAliasHint        Int?
   DoiSubmissionQueue   DoiSubmissionQueue[]
   BookmarkedNode       BookmarkedNode[]
   DeferredEmails       DeferredEmails[]
