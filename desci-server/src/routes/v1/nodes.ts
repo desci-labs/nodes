@@ -57,7 +57,7 @@ import {
   automateMetadataSchema,
   generateMetadataSchema,
   automateManuscriptDoi,
-  attachDoiSchema,
+  automateManuscriptDoiSchema,
   retrieveNodeDoi,
   prepublish,
   getGeneralComments,
@@ -181,7 +181,7 @@ router.post(
 // doi automation
 router.post(
   '/:uuid/automate-manuscript',
-  [ensureGuestOrUser, ensureNodeAccess, validate(attachDoiSchema)],
+  [ensureGuestOrUser, ensureNodeAccess, validate(automateManuscriptDoiSchema)],
   asyncHandler(automateManuscriptDoi),
 );
 

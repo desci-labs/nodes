@@ -130,7 +130,7 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
   if (!publications.length) return;
   // send email to node owner about potential publications
   const user = await prisma.user.findFirst({ where: { id: node.ownerId } });
-  const dpid = cachedGetDpidByUuid(node.uuid);
+  const dpid = await cachedGetDpidByUuid(node.uuid);
   const message = {
     to: user.email,
     from: 'no-reply@desci.com',
