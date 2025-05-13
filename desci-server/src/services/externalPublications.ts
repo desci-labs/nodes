@@ -5,6 +5,7 @@ import sgMail from '@sendgrid/mail';
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { ExternalPublicationsEmailHtml } from '../templates/emails/utils/emailRenderer.js';
+import { cachedGetDpidByUuid } from '../utils/manifest.js';
 import { asyncMap, ensureUuidEndsWithDot } from '../utils.js';
 
 import { getExternalPublications } from './crossRef/externalPublication.js';
@@ -129,6 +130,7 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
   if (!publications.length) return;
   // send email to node owner about potential publications
   const user = await prisma.user.findFirst({ where: { id: node.ownerId } });
+  const dpid = cachedGetDpidByUuid(node.uuid);
   const message = {
     to: user.email,
     from: 'no-reply@desci.com',
@@ -140,7 +142,7 @@ export const sendExternalPublicationsNotification = async (node: Node) => {
     }`,
     html: ExternalPublicationsEmailHtml({
       dpid: node?.dpidAlias?.toString(),
-      dpidPath: `${process.env.DAPP_URL}/dpid/${node.dpidAlias}`,
+      dpidPath: `${process.env.DAPP_URL}/dpid/${dpid}`,
       publisherName: publications?.[0]?.publisher,
       multiple: publications.length > 1,
     }),

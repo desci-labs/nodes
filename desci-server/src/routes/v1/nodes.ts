@@ -172,7 +172,11 @@ router.post(
   [ensureGuestOrUser, ensureNodeAccess, validate(automateMetadataSchema)],
   automateMetadata,
 );
-router.post('/generate-metadata', [ensureGuestOrUser, validate(generateMetadataSchema)], generateMetadata);
+router.post(
+  '/generate-metadata',
+  [ensureGuestOrUser, validate(generateMetadataSchema)],
+  asyncHandler(generateMetadata),
+);
 
 // doi automation
 router.post(
