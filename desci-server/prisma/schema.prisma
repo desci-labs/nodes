@@ -255,9 +255,12 @@ model User {
   JournalSubmissions  JournalSubmission[]
   EditorInvite        EditorInvite[]
   RefereeInvite       RefereeInvite[]
-  messagesSent        Message[]           @relation("MessageSender")
-  messagesReceived    Message[]           @relation("MessageReceiver")
-  Message             Message[]
+  // messagesSent        Message[]           @relation("MessageSender")
+  // messagesReceived    Message[]           @relation("MessageReceiver")
+  // Message             Message[]
+  // JournalSubmissionMessage JournalSubmissionMessage[]
+  // JournalSubmissionMessage JournalSubmissionMessage[]
+  // JournalSubmissionMessage JournalSubmissionMessage[]
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1151,11 +1154,11 @@ model Journal {
   isCommercial Boolean  @default(false)
 
   // Relationships
-  editors              JournalEditor[]
-  submissions          JournalSubmission[]
-  EditorInvite         EditorInvite[]
-  JournalEmailTemplate JournalEmailTemplate[]
-  JournalBilling       JournalBilling?
+  editors        JournalEditor[]
+  submissions    JournalSubmission[]
+  EditorInvite   EditorInvite[]
+  // JournalEmailTemplate JournalEmailTemplate[]
+  JournalBilling JournalBilling?
 }
 
 model JournalEditor {
@@ -1202,7 +1205,8 @@ model JournalSubmission {
   User               User?                       @relation(fields: [userId], references: [id])
   userId             Int?
   RefereeInvite      RefereeInvite[]
-  Message            Message[]
+  // Message            Message[]
+  // JournalSubmissionMessage JournalSubmissionMessage[]
 }
 
 model JournalSubmissionRevision {
@@ -1227,7 +1231,7 @@ model RefereeAssignment {
   assignedAt            DateTime  @default(now())
   inviteAcceptedAt      DateTime?
   inviteDeclinedAt      DateTime?
-  reassignedAt          DateTime?
+  // reassignedAt          DateTime? // Probably unused
   dueDate               DateTime?
   suggestedAlternatives String[] // Alternative referees if declined
 
@@ -1240,13 +1244,13 @@ model RefereeAssignment {
 }
 
 model JournalSubmissionReview {
-  id                   Int            @id @default(autoincrement())
-  submissionId         Int
-  refereeAssignmentId  Int
-  recommendation       ReviewDecision
-  comments             String // Review content
-  submittedAt          DateTime       @default(now())
-  confidentialComments String? // Comments for editor only
+  id                  Int            @id @default(autoincrement())
+  submissionId        Int
+  refereeAssignmentId Int
+  recommendation      ReviewDecision
+  // comments             String // Review content        Leaning towards Json type fields here, but lets work this out later.
+  submittedAt         DateTime       @default(now())
+  // confidentialComments String? // Comments for editor only  Leaning towards Json type fields here, but lets work this out later.
 
   // Relationships
   submission        JournalSubmission @relation(fields: [submissionId], references: [id])
@@ -1283,49 +1287,49 @@ model EditorInvite {
 }
 
 model RefereeInvite {
-  id                Int      @id @default(autoincrement())
-  email             String
-  submissionId      Int
-  invitedById       Int
-  token             String   @unique
-  createdAt         DateTime @default(now())
-  expiresAt         DateTime
-  accepted          Boolean  @default(false)
-  declined          Boolean  @default(false)
-  suggestedReferees String[] @default([])
+  id           Int      @id @default(autoincrement())
+  email        String
+  submissionId Int
+  invitedById  Int
+  token        String   @unique
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  accepted     Boolean  @default(false)
+  declined     Boolean  @default(false)
+  // suggestedReferees String[] @default([])   - We don't know the type of this yet TBD
 
   // Relationships
   submission JournalSubmission @relation(fields: [submissionId], references: [id])
   invitedBy  User              @relation(fields: [invitedById], references: [id])
 }
 
-model Message {
-  id           Int       @id @default(autoincrement())
-  submissionId Int
-  senderId     Int
-  receiverId   Int
-  message      String
-  createdAt    DateTime  @default(now())
-  readAt       DateTime?
+// model JournalSubmissionMessage {
+//   id           Int       @id @default(autoincrement())
+//   submissionId Int
+//   senderId     Int
+//   receiverId   Int
+//   message      String
+//   createdAt    DateTime  @default(now())
+//   readAt       DateTime?
 
-  // Relationships
-  submission JournalSubmission @relation(fields: [submissionId], references: [id])
-  sender     User              @relation("MessageSender", fields: [senderId], references: [id])
-  receiver   User              @relation("MessageReceiver", fields: [receiverId], references: [id])
-  User       User?             @relation(fields: [userId], references: [id])
-  userId     Int?
-}
+//   // Relationships
+//   submission JournalSubmission @relation(fields: [submissionId], references: [id])
+//   sender     User              @relation("MessageSender", fields: [senderId], references: [id])
+//   receiver   User              @relation("MessageReceiver", fields: [receiverId], references: [id])
+//   User       User?             @relation(fields: [userId], references: [id])
+//   userId     Int?
+// }
 
-model JournalEmailTemplate {
-  id        Int               @id @default(autoincrement())
-  journalId Int
-  type      EmailTemplateType
-  subject   String
-  body      String
+// model JournalEmailTemplate { 
+//   id        Int               @id @default(autoincrement())
+//   journalId Int
+//   type      EmailTemplateType
+//   subject   String
+//   body      String     // Don't think this can be expressed in a string in a useful way, maybe a JSON Object, lets deal with this during implementation.
 
-  // Relationships
-  journal Journal @relation(fields: [journalId], references: [id])
-}
+//   // Relationships
+//   journal Journal @relation(fields: [journalId], references: [id])
+// }
 
 model JournalBilling {
   id                Int       @id @default(autoincrement())
