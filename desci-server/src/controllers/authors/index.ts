@@ -51,7 +51,7 @@ export const getAuthorWorksSchema = z.object({
   }),
   query: z.object({
     page: z.coerce.number().optional().default(1).describe('Page number for pagination of author works'),
-    limit: z.coerce.number().optional().default(200).describe('Number of works to return per page'),
+    limit: z.coerce.number().optional().default(20).describe('Number of works to return per page'),
   }),
 });
 
@@ -193,7 +193,6 @@ export const getCoAuthors = async (req: Request, res: Response, next: NextFuncti
 
 export const getAuthorWorks = async (req: Request, res: Response, next: NextFunction) => {
   const { query, params } = await getAuthorWorksSchema.parseAsync(req);
-  const limit = 20;
 
   const isOpenAlexId = OPENALEX_ID_REGEX.test(params.id);
   const isOrcidId = ORCID_REGEX.test(params.id);
@@ -210,14 +209,16 @@ export const getAuthorWorks = async (req: Request, res: Response, next: NextFunc
     if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
   }
 
-  let openalexWorks = await getFromCache<WorksResult>(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}`);
+  let openalexWorks = await getFromCache<WorksResult>(
+    `${WORKS_CACHE_PREFIX}-${params.id}-${query.page}-${query.limit}`,
+  );
   if (!openalexWorks && openalexProfile?.id) {
     openalexWorks = await openAlexService.searchWorksByOpenAlexId(openalexProfile.id, {
       page: query.page,
       perPage: query.limit,
     });
 
-    if (openalexWorks) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}`, openalexWorks);
+    if (openalexWorks) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}-${query.limit}`, openalexWorks);
   }
 
   new SuccessResponse({ meta: { ...query }, works: openalexWorks?.works ?? [] }).send(res);
