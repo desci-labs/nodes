@@ -140,7 +140,7 @@ export const works_conceptsInOpenalex = openalex.table('works_concepts', {
   concept_id: text(),
   score: real(),
 }, (table) => [
-  primaryKey({ columns: [table.concept_id, table.work_id] }),
+  primaryKey({ columns: [table.work_id, table.concept_id] }),
 ]);
 
 export const works_meshInOpenalex = openalex.table('works_mesh', {
