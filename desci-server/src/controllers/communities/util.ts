@@ -110,6 +110,7 @@ export const getCommunityNodeDetails = async (
   radar.node = node;
   radar.node.dpid = node.dpidAlias || node.legacyDpid;
   delete radar.node.dpidAlias;
+  delete radar.node.legacyDpid;
 
   let gatewayUrl = publishedVersions[0].manifestUrl;
 
