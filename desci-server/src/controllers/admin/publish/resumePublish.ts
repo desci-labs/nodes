@@ -1,7 +1,7 @@
-import { User } from '@prisma/client';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { z } from 'zod';
 
+import { AuthenticatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { publishSequencer } from '../../../services/PublishServices.js';
 
@@ -15,10 +15,6 @@ const ResumePublishSchema = z
   .refine((data) => !!(data.publishStatusId || data.commitId || (data.nodeUuid && data.version)), {
     message: 'Must provide either publishStatusId, commitId, or both nodeUuid and version',
   });
-
-export interface AuthenticatedRequest extends Request {
-  user: User;
-}
 
 export interface ErrorResponse {
   allStepsSucceeded: false;

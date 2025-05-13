@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 
 import { prisma } from '../../client.js';
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getUserNotifications } from '../../services/NotificationService.js';
 
@@ -14,10 +15,6 @@ export const GetNotificationsQuerySchema = z.object({
     .optional()
     .transform((value) => (value === 'true' ? true : value === 'false' ? false : undefined)),
 });
-
-interface AuthenticatedRequest extends Request {
-  user: User;
-}
 
 export interface PaginatedResponse<T> {
   data: T[];

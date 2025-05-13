@@ -1,8 +1,8 @@
 import { User, UserNotifications } from '@prisma/client';
-import { all } from 'axios';
 import { Request, Response } from 'express';
 import { z } from 'zod';
 
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { updateUserNotification, batchUpdateUserNotifications } from '../../services/NotificationService.js';
 
@@ -15,10 +15,6 @@ const BatchUpdateSchema = z.object({
   notificationIds: z.array(z.number()),
   updateData: UpdateDataSchema,
 });
-
-interface AuthenticatedRequest extends Request {
-  user: User;
-}
 
 export interface ErrorResponse {
   error: string;

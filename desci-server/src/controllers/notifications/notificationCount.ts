@@ -1,10 +1,9 @@
 import { Response } from 'express';
 import { z } from 'zod';
 
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getUnseenNotificationCount, resetUnseenNotificationCount } from '../../services/NotificationService.js';
-
-import { AuthenticatedRequest } from './create.js';
 
 export interface ErrorResponse {
   error: string;

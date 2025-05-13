@@ -1,7 +1,8 @@
-import { NotificationType, User, UserNotifications } from '@prisma/client';
-import { Request, Response } from 'express';
+import { NotificationType, UserNotifications } from '@prisma/client';
+import { Response } from 'express';
 import { z } from 'zod';
 
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { createUserNotification } from '../../services/NotificationService.js';
 
@@ -13,11 +14,6 @@ export const CreateNotificationSchema = z.object({
   message: z.string(),
   payload: z.record(z.unknown()).optional(),
 });
-
-export interface AuthenticatedRequest<T = any> extends Request {
-  user: User;
-  body: T;
-}
 
 export interface ErrorResponse {
   error: string;
