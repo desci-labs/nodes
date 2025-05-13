@@ -193,7 +193,6 @@ export const getCoAuthors = async (req: Request, res: Response, next: NextFuncti
 
 export const getAuthorWorks = async (req: Request, res: Response, next: NextFunction) => {
   const { query, params } = await getAuthorWorksSchema.parseAsync(req);
-  const limit = 20;
 
   const isOpenAlexId = OPENALEX_ID_REGEX.test(params.id);
   const isOrcidId = ORCID_REGEX.test(params.id);
