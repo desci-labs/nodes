@@ -251,8 +251,8 @@ model User {
   refereeAssignments  RefereeAssignment[]
   invitedEditors      JournalEditor[]     @relation("InviterRelation")
   inviteCredits       Int                 @default(0)
-  auditLogs           AuditLog[]
-  JournalSubmission   JournalSubmission[]
+  JournalEventLogs    JournalEventLog[]
+  JournalSubmissions  JournalSubmission[]
   EditorInvite        EditorInvite[]
   RefereeInvite       RefereeInvite[]
   messagesSent        Message[]           @relation("MessageSender")
@@ -1192,20 +1192,20 @@ model JournalSubmission {
   doi              String? // Minted DOI
 
   // Relationships
-  journal            Journal             @relation(fields: [journalId], references: [id])
-  author             User                @relation("AuthorSubmission", fields: [authorId], references: [id])
-  assignedEditor     User?               @relation("EditorSubmission", fields: [assignedEditorId], references: [id])
-  revisions          Revision[]
+  journal            Journal                     @relation(fields: [journalId], references: [id])
+  author             User                        @relation("AuthorSubmission", fields: [authorId], references: [id])
+  assignedEditor     User?                       @relation("EditorSubmission", fields: [assignedEditorId], references: [id])
+  revisions          JournalSubmissionRevision[]
   refereeAssignments RefereeAssignment[]
-  reviews            Review[]
-  auditLogs          AuditLog[]
-  User               User?               @relation(fields: [userId], references: [id])
+  reviews            JournalSubmissionReview[]
+  eventLogs          JournalEventLog[]
+  User               User?                       @relation(fields: [userId], references: [id])
   userId             Int?
   RefereeInvite      RefereeInvite[]
   Message            Message[]
 }
 
-model Revision {
+model JournalSubmissionRevision {
   id           Int          @id @default(autoincrement())
   submissionId Int
   dpid         String // New Node dPID
@@ -1232,14 +1232,14 @@ model RefereeAssignment {
   suggestedAlternatives String[] // Alternative referees if declined
 
   // Relationships
-  submission JournalSubmission @relation(fields: [submissionId], references: [id])
-  referee    User              @relation(fields: [refereeId], references: [id])
-  reviews    Review[]
+  submission JournalSubmission         @relation(fields: [submissionId], references: [id])
+  referee    User                      @relation(fields: [refereeId], references: [id])
+  reviews    JournalSubmissionReview[]
 
   @@unique([submissionId, refereeId])
 }
 
-model Review {
+model JournalSubmissionReview {
   id                   Int            @id @default(autoincrement())
   submissionId         Int
   refereeAssignmentId  Int
@@ -1253,13 +1253,13 @@ model Review {
   refereeAssignment RefereeAssignment @relation(fields: [refereeAssignmentId], references: [id])
 }
 
-model AuditLog {
-  id           Int            @id @default(autoincrement())
+model JournalEventLog {
+  id           Int                   @id @default(autoincrement())
   submissionId Int
   userId       Int
-  action       AuditLogAction
+  action       JournalEventLogAction
   details      Json?
-  timestamp    DateTime       @default(now())
+  timestamp    DateTime              @default(now())
 
   // Relationships
   submission JournalSubmission @relation(fields: [submissionId], references: [id])
@@ -1566,7 +1566,7 @@ enum ReviewDecision {
   REJECT
 }
 
-enum AuditLogAction {
+enum JournalEventLogAction {
   SUBMISSION_CREATED
   EDITOR_ASSIGNED
   SUBMISSION_ACCEPTED
