@@ -918,7 +918,17 @@ export class CommunityService {
       },
     });
   }
-  async getCommunitySubmissions({ communityId, status }: { communityId: number; status?: Submissionstatus }) {
+  async getCommunitySubmissions({
+    communityId,
+    status,
+    limit,
+    offset,
+  }: {
+    communityId: number;
+    status?: Submissionstatus;
+    limit?: number;
+    offset?: number;
+  }) {
     return await prisma.communitySubmission.findMany({
       where: {
         communityId: Number(communityId),
@@ -928,6 +938,8 @@ export class CommunityService {
         node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
         // community: { select: { id: true, name: true, image_url: true, description: true } },
       },
+      take: limit,
+      skip: offset,
     });
   }
   async getUserSubmissions(userId: number, status?: Submissionstatus) {
