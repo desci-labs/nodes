@@ -166,13 +166,17 @@ async function fetchDpidFromApi(uuid: string, nodeId: number, title: string): Pr
  */
 async function listAttestations() {
   const attestations = await prisma.attestation.findMany({
-    select: { id: true, name: true },
+    select: {
+      id: true,
+      name: true,
+      protected: true,
+    },
     orderBy: { id: 'asc' },
   });
 
-  const rows = attestations.map((att) => [att.id.toString(), att.name]);
+  const rows = attestations.map((att) => [att.id.toString(), att.name, att.protected ? 'Yes' : 'No']);
 
-  formatTable(rows, ['ID', 'Name']);
+  formatTable(rows, ['ID', 'Name', 'Protected']);
 }
 
 /**
@@ -210,6 +214,7 @@ interface NodeWithAttestations {
   uuid: string | null;
   dpidAlias: number | null;
   legacyDpid: number | null;
+  ownerId: number;
   NodeAttestation: {
     attestationId: number;
     attestation: {
@@ -282,6 +287,7 @@ async function getNodesWithAttestations(attestationIds: number[]): Promise<NodeW
       uuid: true,
       dpidAlias: true,
       legacyDpid: true,
+      ownerId: true,
       NodeAttestation: {
         where: {
           attestationId: {
@@ -424,6 +430,7 @@ async function auditCommunity(communityId: number, attestationIds: number[]) {
       status: true,
       createdAt: true,
       updatedAt: true,
+      userId: true,
       node: {
         select: {
           id: true,
@@ -431,6 +438,7 @@ async function auditCommunity(communityId: number, attestationIds: number[]) {
           uuid: true,
           dpidAlias: true,
           legacyDpid: true,
+          ownerId: true,
           NodeAttestation: {
             where: {
               attestationId: {
@@ -454,6 +462,20 @@ async function auditCommunity(communityId: number, attestationIds: number[]) {
     },
     orderBy: {
       createdAt: 'desc',
+    },
+  });
+
+  // Fetch Node data for DPID information
+  const nodes = await prisma.node.findMany({
+    where: {
+      id: {
+        in: nodesWithAttestations.map((n) => n.id),
+      },
+    },
+    select: {
+      id: true,
+      dpidAlias: true,
+      legacyDpid: true,
     },
   });
 
@@ -489,6 +511,10 @@ async function auditCommunity(communityId: number, attestationIds: number[]) {
     // Find the submission for this node
     const submission = submissions.find((s) => s.node.id === node.id);
 
+    // Check if the node has a DPID in the Node table
+    const nodeData = nodes.find((n) => n.id === node.id);
+    const hasDpidInNode = !!nodeData?.dpidAlias || !!nodeData?.legacyDpid;
+
     let dpidStatus = '';
     let dpidApi = null;
     if (submission) {
@@ -496,7 +522,10 @@ async function auditCommunity(communityId: number, attestationIds: number[]) {
         submission.node.dpidAlias || submission.node.legacyDpid
           ? `Present (${submission.node.dpidAlias || submission.node.legacyDpid})`
           : 'Missing';
+    } else if (hasDpidInNode) {
+      dpidStatus = `Present in Node (${nodeData.dpidAlias || nodeData.legacyDpid})`;
     } else if (node.uuid) {
+      // Only call the API if neither dpidAlias nor legacyDpid is present
       dpidApi = await fetchDpidFromApi(node.uuid, node.id, node.title);
       dpidStatus = dpidApi ? `Found in API: ${dpidApi}` : 'Not found in API';
     } else {
@@ -512,9 +541,15 @@ async function auditCommunity(communityId: number, attestationIds: number[]) {
       issues.push('Missing UUID');
     }
 
+    // Check if ownerId matches submission userId
+    if (submission.node.ownerId !== submission.userId) {
+      issues.push(`Owner mismatch (Node owner: ${submission.node.ownerId}, Submission user: ${submission.userId})`);
+    }
+
     // Check DPID in the submission's node
     const hasDpidInSubmission = !!submission.node.dpidAlias || !!submission.node.legacyDpid;
     if (!hasDpidInSubmission && node.uuid) {
+      // Only call the API if neither dpidAlias nor legacyDpid is present
       const dpid = await fetchDpidFromApi(node.uuid, node.id, node.title);
       if (dpid) {
         missingDpidRows.push([nodeIdStr, node.title, `Missing DPID (Found in API: ${dpid})`]);
