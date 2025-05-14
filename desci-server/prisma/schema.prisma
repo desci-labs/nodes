@@ -1154,11 +1154,12 @@ model Journal {
   isCommercial Boolean  @default(false)
 
   // Relationships
-  editors        JournalEditor[]
-  submissions    JournalSubmission[]
-  EditorInvite   EditorInvite[]
+  editors         JournalEditor[]
+  submissions     JournalSubmission[]
+  EditorInvite    EditorInvite[]
   // JournalEmailTemplate JournalEmailTemplate[]
-  JournalBilling JournalBilling?
+  JournalBilling  JournalBilling?
+  JournalEventLog JournalEventLog[]
 }
 
 model JournalEditor {
@@ -1260,6 +1261,7 @@ model JournalSubmissionReview {
 model JournalEventLog {
   id           Int                   @id @default(autoincrement())
   submissionId Int? // Made optional to support events that aren't tied to a submission, e.g. assigining an associate editor.
+  journalId    Int
   userId       Int
   action       JournalEventLogAction
   details      Json?
@@ -1267,6 +1269,7 @@ model JournalEventLog {
 
   // Relationships
   submission JournalSubmission? @relation(fields: [submissionId], references: [id])
+  journal    Journal            @relation(fields: [journalId], references: [id])
   user       User               @relation(fields: [userId], references: [id])
 }
 
@@ -1574,6 +1577,9 @@ enum ReviewDecision {
 enum JournalEventLogAction {
   SUBMISSION_CREATED
   EDITOR_ASSIGNED
+  EDITOR_INVITED
+  EDITOR_ACCEPTED_INVITE
+  EDITOR_DECLINED_INVITE
   SUBMISSION_ACCEPTED
   SUBMISSION_REJECTED
   REVISION_REQUESTED
