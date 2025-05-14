@@ -1,5 +1,5 @@
 import { EditorRole } from '@prisma/client';
-import { NextFunction, Response } from 'express';
+import { NextFunction, Response, Request } from 'express';
 
 import { prisma } from '../client.js';
 import { AuthenticatedRequest } from '../core/types.js';
@@ -55,7 +55,8 @@ export function can(role: JournalRole, action: JournalAction): boolean {
 }
 
 export const ensureJournalRole = (requiredRole: EditorRole) => {
-  return async (req: AuthenticatedRequest<JournalParams>, res: Response, next: NextFunction) => {
+  return async (expressReq: Request, res: Response, next: NextFunction) => {
+    const req = expressReq as unknown as AuthenticatedRequest<JournalParams>;
     try {
       const journalId = req.params.journalId;
       const userId = req.user?.id;
