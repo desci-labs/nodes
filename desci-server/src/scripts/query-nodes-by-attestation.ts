@@ -239,6 +239,7 @@ async function fetchDpidFromApi(
  * Lists all available attestations in a formatted table
  */
 async function listAttestations() {
+  // Get all attestations
   const attestations = await prisma.attestation.findMany({
     select: {
       id: true,
@@ -248,9 +249,39 @@ async function listAttestations() {
     orderBy: { id: 'asc' },
   });
 
-  const rows = attestations.map((att) => [att.id.toString(), att.name, att.protected ? 'Yes' : 'No']);
+  // Get counts for each attestation
+  const attestationCounts = await Promise.all(
+    attestations.map(async (att) => {
+      const [totalCount, validatedCount] = await Promise.all([
+        prisma.nodeAttestation.count({
+          where: { attestationId: att.id },
+        }),
+        prisma.nodeAttestation.count({
+          where: {
+            attestationId: att.id,
+            NodeAttestationVerification: {
+              some: {},
+            },
+          },
+        }),
+      ]);
+      return { id: att.id, totalCount, validatedCount };
+    }),
+  );
 
-  formatTable(rows, ['ID', 'Name', 'Protected']);
+  // Combine the data
+  const rows = attestations.map((att) => {
+    const counts = attestationCounts.find((c) => c.id === att.id);
+    return [
+      att.id.toString(),
+      att.name,
+      att.protected ? 'Yes' : 'No',
+      counts?.totalCount.toString() || '0',
+      counts?.validatedCount.toString() || '0',
+    ];
+  });
+
+  formatTable(rows, ['ID', 'Name', 'Protected', 'Total Nodes', 'Validated Nodes']);
 }
 
 /**
@@ -329,20 +360,23 @@ interface CommunitySubmission {
 /**
  * Parses command line arguments for community and attestation IDs
  * @param args - Array of command line arguments
- * @returns Object containing parsed communityId and attestationIds
+ * @returns Object containing parsed communityId, attestationIds, and includeUnvalidated flag
  * @throws Error if arguments are invalid
  */
-function parseArgs(args: string[]): { communityId: number; attestationIds: number[] } {
+function parseArgs(args: string[]): { communityId: number; attestationIds: number[]; includeUnvalidated: boolean } {
   if (args.length < 2) {
     console.error('Error: Both communityId and attestationId(s) are required.');
     console.error(
-      'Usage: ts-node src/scripts/query-nodes-by-attestation.ts <command> <communityId> <attestationId>[,attestationId2,...]',
+      'Usage: ts-node src/scripts/query-nodes-by-attestation.ts <command> <communityId> <attestationId>[,attestationId2,...] [--unvalidated]',
     );
     process.exit(1);
   }
 
-  const communityId = parseInt(args[0], 10);
-  const attestationIds = args[1]
+  const includeUnvalidated = args.includes('--unvalidated');
+  const filteredArgs = args.filter((arg) => arg !== '--unvalidated');
+
+  const communityId = parseInt(filteredArgs[0], 10);
+  const attestationIds = filteredArgs[1]
     .split(',')
     .map((id) => parseInt(id.trim(), 10))
     .filter((id) => !isNaN(id));
@@ -350,29 +384,37 @@ function parseArgs(args: string[]): { communityId: number; attestationIds: numbe
   if (isNaN(communityId) || attestationIds.length === 0) {
     console.error('Error: Invalid communityId or attestationId(s).');
     console.error(
-      'Usage: ts-node src/scripts/query-nodes-by-attestation.ts <command> <communityId> <attestationId>[,attestationId2,...]',
+      'Usage: ts-node src/scripts/query-nodes-by-attestation.ts <command> <communityId> <attestationId>[,attestationId2,...] [--unvalidated]',
     );
     process.exit(1);
   }
 
-  return { communityId, attestationIds };
+  return { communityId, attestationIds, includeUnvalidated };
 }
 
 /**
  * Retrieves nodes that have validated attestations matching the provided IDs
  * @param attestationIds - Array of attestation IDs to match
+ * @param includeUnvalidated - Whether to include unvalidated attestations
  * @returns Array of nodes with their attestation details
  */
-async function getNodesWithAttestations(attestationIds: number[]): Promise<NodeWithAttestations[]> {
+async function getNodesWithAttestations(
+  attestationIds: number[],
+  includeUnvalidated: boolean = false,
+): Promise<NodeWithAttestations[]> {
   return prisma.node.findMany({
     where: {
       OR: attestationIds.map((attestationId) => ({
         NodeAttestation: {
           some: {
             attestationId: attestationId,
-            NodeAttestationVerification: {
-              some: {},
-            },
+            ...(includeUnvalidated
+              ? {}
+              : {
+                  NodeAttestationVerification: {
+                    some: {},
+                  },
+                }),
           },
         },
       })),
@@ -389,9 +431,13 @@ async function getNodesWithAttestations(attestationIds: number[]): Promise<NodeW
           attestationId: {
             in: attestationIds,
           },
-          NodeAttestationVerification: {
-            some: {},
-          },
+          ...(includeUnvalidated
+            ? {}
+            : {
+                NodeAttestationVerification: {
+                  some: {},
+                },
+              }),
         },
         select: {
           attestationId: true,
@@ -506,15 +552,17 @@ async function findNodesNeedingDpidFixes(nodes: NodeWithAttestations[]): Promise
  * Performs an audit of nodes in a community with specific attestations
  * @param communityId - The ID of the community to audit
  * @param attestationIds - Array of attestation IDs to check for
+ * @param includeUnvalidated - Whether to include unvalidated attestations
  */
-async function auditCommunity(communityId: number, attestationIds: number[]) {
+async function auditCommunity(communityId: number, attestationIds: number[], includeUnvalidated: boolean = false) {
   console.log('\n🔍 Audit Configuration:');
   console.log(`Target API URL: ${NODES_API_BASE_URL}`);
   console.log(`Community ID: ${communityId}`);
   console.log(`Attestation IDs: ${attestationIds.join(', ')}`);
+  console.log(`Include Unvalidated: ${includeUnvalidated ? 'Yes' : 'No'}`);
 
   const community = await getCommunityDetails(communityId);
-  const nodesWithAttestations = await getNodesWithAttestations(attestationIds);
+  const nodesWithAttestations = await getNodesWithAttestations(attestationIds, includeUnvalidated);
 
   // Get all submissions for the community with detailed information
   const submissions = await prisma.communitySubmission.findMany({
@@ -540,9 +588,13 @@ async function auditCommunity(communityId: number, attestationIds: number[]) {
               attestationId: {
                 in: attestationIds,
               },
-              NodeAttestationVerification: {
-                some: {},
-              },
+              ...(includeUnvalidated
+                ? {}
+                : {
+                    NodeAttestationVerification: {
+                      some: {},
+                    },
+                  }),
             },
             select: {
               attestation: {
@@ -699,17 +751,19 @@ async function auditCommunity(communityId: number, attestationIds: number[]) {
  * Applies fixes for nodes in a community that need DPID updates
  * @param communityId - The ID of the community to fix
  * @param attestationIds - Array of attestation IDs to check for
+ * @param includeUnvalidated - Whether to include unvalidated attestations
  */
-async function fixCommunity(communityId: number, attestationIds: number[]) {
+async function fixCommunity(communityId: number, attestationIds: number[], includeUnvalidated: boolean = false) {
   console.log('\n🔧 Fix Configuration:');
   console.log(`Target API URL: ${NODES_API_BASE_URL}`);
   console.log(`Community ID: ${communityId}`);
-  console.log(`Attestation IDs: ${attestationIds.join(', ')}\n`);
+  console.log(`Attestation IDs: ${attestationIds.join(', ')}`);
+  console.log(`Include Unvalidated: ${includeUnvalidated ? 'Yes' : 'No'}\n`);
 
   console.log('Running audit to identify nodes needing fixes...\n');
 
   const community = await getCommunityDetails(communityId);
-  const nodesWithAttestations = await getNodesWithAttestations(attestationIds);
+  const nodesWithAttestations = await getNodesWithAttestations(attestationIds, includeUnvalidated);
   const existingNodeIds = await getExistingSubmissions(communityId);
   const nodesToFix = await findNodesNeedingDpidFixes(nodesWithAttestations);
 
@@ -958,10 +1012,10 @@ async function main() {
     console.error('  ts-node src/scripts/query-nodes-by-attestation.ts nodes <attestationId>[,attestationId2,...]');
     console.error('  ts-node src/scripts/query-nodes-by-attestation.ts communities');
     console.error(
-      '  ts-node src/scripts/query-nodes-by-attestation.ts audit <communityId> <attestationId>[,attestationId2,...]',
+      '  ts-node src/scripts/query-nodes-by-attestation.ts audit <communityId> <attestationId>[,attestationId2,...] [--unvalidated]',
     );
     console.error(
-      '  ts-node src/scripts/query-nodes-by-attestation.ts fix <communityId> <attestationId>[,attestationId2,...]',
+      '  ts-node src/scripts/query-nodes-by-attestation.ts fix <communityId> <attestationId>[,attestationId2,...] [--unvalidated]',
     );
     process.exit(1);
   }
@@ -972,11 +1026,11 @@ async function main() {
     } else if (command === 'communities') {
       await listCommunities();
     } else if (command === 'audit' || command === 'fix') {
-      const { communityId, attestationIds } = parseArgs(args);
+      const { communityId, attestationIds, includeUnvalidated } = parseArgs(args);
       if (command === 'audit') {
-        await auditCommunity(communityId, attestationIds);
+        await auditCommunity(communityId, attestationIds, includeUnvalidated);
       } else {
-        await fixCommunity(communityId, attestationIds);
+        await fixCommunity(communityId, attestationIds, includeUnvalidated);
       }
     } else if (command === 'nodes') {
       if (!args[0]) {
