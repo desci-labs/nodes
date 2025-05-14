@@ -20,6 +20,13 @@ async function inviteJournalEditor({
   role: EditorRole;
   inviteTtlDays?: number;
 }) {
+  logger.trace(
+    { fn: 'inviteJournalEditor', journalId, inviterId, email, role, inviteTtlDays },
+    'Inviting journal editor',
+  );
+
+  // TODO: Inviter has perms to invite to this journal
+
   if (!email) {
     throw new Error('Email required');
   }
@@ -56,7 +63,19 @@ async function inviteJournalEditor({
     },
   });
 
+  // Log event
   // sendEmail({journalName, journalDescription, journalIconCid, token})
+
+  logger.info(
+    {
+      fn: 'inviteJournalEditor',
+      invite: {
+        ...invite,
+        token: invite.token.slice(0, 4) + '...',
+      },
+    },
+    'Invited journal editor',
+  );
 
   return invite;
 }
@@ -67,6 +86,18 @@ async function acceptJournalInvite({ token }: { token: string }) {
       token,
     },
   });
+
+  logger.trace(
+    {
+      fn: 'acceptJournalInvite',
+      token: invite?.token.slice(0, 4) + '...',
+      invite: {
+        ...invite,
+        token: invite?.token.slice(0, 4) + '...',
+      },
+    },
+    'Accepting journal invite',
+  );
 
   const isValid = invite && invite.expiresAt > new Date() && invite.accepted === null;
 
@@ -88,6 +119,16 @@ async function acceptJournalInvite({ token }: { token: string }) {
   // TODO: Log event
   // TODO: Notify the inviter
 
+  logger.info(
+    {
+      fn: 'acceptJournalInvite',
+      invite: {
+        ...updatedInvite,
+        token: updatedInvite.token.slice(0, 4) + '...',
+      },
+    },
+    'Accepted journal invite',
+  );
   return updatedInvite;
 }
 
@@ -98,8 +139,19 @@ async function declineJournalInvite({ token }: { token: string }) {
     },
   });
 
-  const isValid = invite && invite.expiresAt > new Date() && invite.accepted === null;
+  logger.trace(
+    {
+      fn: 'declineJournalInvite',
+      token: invite?.token.slice(0, 4) + '...',
+      invite: {
+        ...invite,
+        token: invite?.token.slice(0, 4) + '...',
+      },
+    },
+    'Declining journal invite',
+  );
 
+  const isValid = invite && invite.expiresAt > new Date() && invite.accepted === null;
   if (!invite) {
     throw new Error('Invite not found');
   }
@@ -117,6 +169,18 @@ async function declineJournalInvite({ token }: { token: string }) {
 
   // TODO: Log event
   // TODO: Notify the inviter
+
+  logger.info(
+    {
+      fn: 'declineJournalInvite',
+      invite: {
+        ...updatedInvite,
+        token: updatedInvite.token.slice(0, 4) + '...',
+      },
+    },
+    'Declined journal invite',
+  );
+
   return updatedInvite;
 }
 
