@@ -71,6 +71,7 @@ dotenv.config();
 const prisma = new PrismaClient();
 const SERVER_URL = process.env.SERVER_URL || 'https://nodes-api.desci.com';
 const NODES_API_BASE_URL = `${SERVER_URL}/v1/nodes/published`;
+const IPFS_NODE_URL = process.env.IPFS_READ_ONLY_GATEWAY_SERVER_URL || 'https://ipfs.desci.com';
 
 // Create readline interface for user input
 const rl = readline.createInterface({
@@ -117,27 +118,100 @@ function hasDpid(node: { dpidAlias: number | null; legacyDpid: number | null }):
 }
 
 /**
+ * Fetches DPID from the manifest file in the latest NodeVersion
+ * @param nodeId - The ID of the node
+ * @returns The DPID if found in manifest, null otherwise
+ */
+async function fetchDpidFromManifest(nodeId: number): Promise<string | null> {
+  try {
+    // Get the latest NodeVersion with a commitId
+    const latestVersion = await prisma.nodeVersion.findFirst({
+      where: {
+        nodeId,
+        commitId: { not: null },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!latestVersion) {
+      console.log(`No version with commitId found for node ${nodeId}`);
+      return null;
+    }
+
+    if (!latestVersion.manifestUrl) {
+      console.log(`No manifestUrl found for node version ${latestVersion.id}`);
+      return null;
+    }
+
+    // Construct the full IPFS URL
+    const manifestUrl = `${IPFS_NODE_URL}/${latestVersion.manifestUrl}`;
+    const response = await fetch(manifestUrl);
+    if (!response.ok) {
+      console.log(`Failed to fetch manifest from ${manifestUrl}`);
+      return null;
+    }
+
+    const manifest = await response.json();
+    // Handle the new DPID format from manifest
+    if (manifest.dpid && typeof manifest.dpid === 'object' && manifest.dpid.id) {
+      return manifest.dpid.id;
+    }
+    return manifest.dpid || null;
+  } catch (error) {
+    console.error(`Error fetching manifest for node ${nodeId}:`, error);
+    return null;
+  }
+}
+
+/**
  * Fetches DPID for a node from the nodes API with timeout
  * @param uuid - The UUID of the node to fetch DPID for
  * @param nodeId - The ID of the node
  * @param title - The title of the node
  * @returns The DPID if found, null otherwise
  */
-async function fetchDpidFromApi(uuid: string, nodeId: number, title: string): Promise<string | null> {
+async function fetchDpidFromApi(
+  uuid: string,
+  nodeId: number,
+  title: string,
+): Promise<{ dpid: string | null; source: 'api' | 'manifest' }> {
   const url = `${NODES_API_BASE_URL}/${uuid}`;
   try {
     const response = await axios.get(url, {
       timeout: 5000, // 5 second timeout
     });
 
-    if (response.data?.dpid && isValidDpid(response.data.dpid)) {
-      return response.data.dpid;
+    // Handle both string and object DPID formats
+    const dpid = response.data?.dpid;
+    if (dpid) {
+      // If dpid is an object, try to get the numeric value
+      const dpidValue = typeof dpid === 'object' ? dpid.toString() : dpid;
+      if (isValidDpid(dpidValue)) {
+        return { dpid: dpidValue, source: 'api' };
+      }
     }
+
+    // If API call fails or returns invalid DPID, try fetching from manifest
+    console.log(`Trying to fetch DPID from manifest for Node ${nodeId} (${title})`);
+    const manifestDpid = await fetchDpidFromManifest(nodeId);
+    if (manifestDpid) {
+      return { dpid: manifestDpid, source: 'manifest' };
+    }
+
     console.error(`Invalid DPID format in API response for Node ${nodeId} (${title}):`, response.data?.dpid);
     console.error(`UUID: ${uuid}`);
     console.error(`Check URL: ${url}`);
-    return null;
+    return { dpid: null, source: 'api' };
   } catch (error) {
+    // If API call fails, try fetching from manifest
+    console.log(`API call failed, trying to fetch DPID from manifest for Node ${nodeId} (${title})`);
+    const manifestDpid = await fetchDpidFromManifest(nodeId);
+    if (manifestDpid) {
+      return { dpid: manifestDpid, source: 'manifest' };
+    }
+
     if (axios.isAxiosError(error)) {
       if (error.code === 'ECONNABORTED') {
         console.error(`Timeout fetching DPID for Node ${nodeId} (${title})`);
@@ -157,7 +231,7 @@ async function fetchDpidFromApi(uuid: string, nodeId: number, title: string): Pr
       console.error(`UUID: ${uuid}`);
       console.error(`Check URL: ${url}`);
     }
-    return null;
+    return { dpid: null, source: 'api' };
   }
 }
 
@@ -223,11 +297,33 @@ interface NodeWithAttestations {
   }[];
 }
 
+interface NodeVersion {
+  id: number;
+  manifestUrl: string;
+  commitId: string | null;
+  createdAt: Date;
+}
+
 interface NodeToFix {
   id: number;
   title: string;
   uuid: string;
   dpid: string;
+}
+
+interface CommunitySubmission {
+  id: number;
+  nodeId: string;
+  userId: number;
+  status: string;
+  node: {
+    id: number;
+    title: string;
+    uuid: string;
+    ownerId: number;
+    dpidAlias: number | null;
+    legacyDpid: number | null;
+  };
 }
 
 /**
@@ -391,13 +487,13 @@ async function findNodesNeedingDpidFixes(nodes: NodeWithAttestations[]): Promise
 
   for (const node of nodes) {
     if (!hasDpid(node) && node.uuid) {
-      const dpid = await fetchDpidFromApi(node.uuid, node.id, node.title);
-      if (dpid) {
+      const result = await fetchDpidFromApi(node.uuid, node.id, node.title);
+      if (result.dpid) {
         nodesToFix.push({
           id: node.id,
           title: node.title,
           uuid: node.uuid,
-          dpid: dpid,
+          dpid: result.dpid,
         });
       }
     }
@@ -415,7 +511,7 @@ async function auditCommunity(communityId: number, attestationIds: number[]) {
   console.log('\n🔍 Audit Configuration:');
   console.log(`Target API URL: ${NODES_API_BASE_URL}`);
   console.log(`Community ID: ${communityId}`);
-  console.log(`Attestation IDs: ${attestationIds.join(', ')}\n`);
+  console.log(`Attestation IDs: ${attestationIds.join(', ')}`);
 
   const community = await getCommunityDetails(communityId);
   const nodesWithAttestations = await getNodesWithAttestations(attestationIds);
@@ -504,71 +600,61 @@ async function auditCommunity(communityId: number, attestationIds: number[]) {
   formatTable(submissionRows, ['Node ID', 'Title', 'Status', 'DPID', 'Legacy DPID', 'Attestations', 'Created At']);
 
   // Then analyze nodes with attestations
-  for (const node of nodesWithAttestations) {
-    const issues: string[] = [];
-    const nodeIdStr = node.id.toString();
-
-    // Find the submission for this node
-    const submission = submissions.find((s) => s.node.id === node.id);
-
-    // Check if the node has a DPID in the Node table
-    const nodeData = nodes.find((n) => n.id === node.id);
-    const hasDpidInNode = !!nodeData?.dpidAlias || !!nodeData?.legacyDpid;
-
-    let dpidStatus = '';
-    let dpidApi = null;
-    if (submission) {
-      dpidStatus =
-        submission.node.dpidAlias || submission.node.legacyDpid
-          ? `Present (${submission.node.dpidAlias || submission.node.legacyDpid})`
-          : 'Missing';
-    } else if (hasDpidInNode) {
-      dpidStatus = `Present in Node (${nodeData.dpidAlias || nodeData.legacyDpid})`;
-    } else if (node.uuid) {
-      // Only call the API if neither dpidAlias nor legacyDpid is present
-      dpidApi = await fetchDpidFromApi(node.uuid, node.id, node.title);
-      dpidStatus = dpidApi ? `Found in API: ${dpidApi}` : 'Not found in API';
-    } else {
-      dpidStatus = 'No UUID';
-    }
-
-    if (!submission) {
-      missingSubmissionRows.push([nodeIdStr, node.title, 'Not in community submissions', dpidStatus]);
+  for (const submission of submissions) {
+    const node = submission.node;
+    if (!node) {
+      console.log(`Node not found for submission ${submission.nodeId}`);
       continue;
     }
 
-    if (!node.uuid) {
-      issues.push('Missing UUID');
+    let dpidStatus = 'Not found';
+    let dpid = null;
+    let dpidSource = '';
+
+    // Check if DPID exists in Node table
+    if (node.dpidAlias || node.legacyDpid) {
+      dpidStatus = 'Present in Node';
+      dpid = node.dpidAlias || node.legacyDpid;
+    } else {
+      // Try to get DPID from API or manifest
+      const result = await fetchDpidFromApi(node.uuid, node.id, node.title);
+      dpid = result.dpid;
+      dpidSource = result.source;
+      if (dpid) {
+        dpidStatus = `Found in ${dpidSource === 'manifest' ? 'Manifest' : 'API'}`;
+      }
     }
 
     // Check if ownerId matches submission userId
-    if (submission.node.ownerId !== submission.userId) {
-      issues.push(`Owner mismatch (Node owner: ${submission.node.ownerId}, Submission user: ${submission.userId})`);
+    if (node.ownerId !== submission.userId) {
+      otherIssueRows.push([
+        node.id.toString(),
+        node.title,
+        `Owner mismatch (Node owner: ${node.ownerId}, Submission user: ${submission.userId})`,
+      ]);
     }
 
-    // Check DPID in the submission's node
-    const hasDpidInSubmission = !!submission.node.dpidAlias || !!submission.node.legacyDpid;
-    if (!hasDpidInSubmission && node.uuid) {
-      // Only call the API if neither dpidAlias nor legacyDpid is present
-      const dpid = await fetchDpidFromApi(node.uuid, node.id, node.title);
-      if (dpid) {
-        missingDpidRows.push([nodeIdStr, node.title, `Missing DPID (Found in API: ${dpid})`]);
-      } else {
-        missingDpidRows.push([nodeIdStr, node.title, 'Missing DPID (Not found in API)']);
-      }
+    // Check DPID status
+    const hasDpidInSubmission = !!node.dpidAlias || !!node.legacyDpid;
+    if (!hasDpidInSubmission && dpid) {
+      missingDpidRows.push([
+        node.id.toString(),
+        node.title,
+        `Missing DPID (Found in ${dpidSource === 'manifest' ? 'Manifest' : 'API'}: ${dpid})`,
+      ]);
     } else if (!hasDpidInSubmission) {
-      issues.push('Missing DPID');
+      missingDpidRows.push([node.id.toString(), node.title, 'Missing DPID (Not found in API)']);
     }
 
     // Only mark as properly configured if there are no issues and DPID is present in submission
-    if (issues.length === 0 && hasDpidInSubmission) {
+    if (otherIssueRows.length === 0 && hasDpidInSubmission) {
       validRows.push([
-        nodeIdStr,
+        node.id.toString(),
         node.title,
-        `✓ Properly configured (DPID: ${submission.node.dpidAlias || submission.node.legacyDpid})`,
+        `✓ Properly configured (DPID: ${node.dpidAlias || node.legacyDpid})`,
       ]);
-    } else if (issues.length > 0) {
-      otherIssueRows.push([nodeIdStr, node.title, issues.join('; ')]);
+    } else if (otherIssueRows.length > 0) {
+      otherIssueRows.push([node.id.toString(), node.title, otherIssueRows.join('; ')]);
     }
   }
 
