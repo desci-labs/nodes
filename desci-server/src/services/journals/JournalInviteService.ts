@@ -1,7 +1,9 @@
-import { EditorRole } from '@prisma/client';
+import { EditorRole, JournalEventLogAction } from '@prisma/client';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+
+import { JournalEventLogService } from './JournalEventLogService.js';
 
 const logger = parentLogger.child({
   module: 'Journals::JournalInviteService',
@@ -64,6 +66,16 @@ async function inviteJournalEditor({
   });
 
   // Log event
+  await JournalEventLogService.log({
+    journalId,
+    action: JournalEventLogAction.EDITOR_INVITED,
+    userId: inviterId,
+    details: {
+      email,
+      role,
+    },
+  });
+
   // sendEmail({journalName, journalDescription, journalIconCid, token})
 
   logger.info(
@@ -80,7 +92,7 @@ async function inviteJournalEditor({
   return invite;
 }
 
-async function acceptJournalInvite({ token }: { token: string }) {
+async function acceptJournalInvite({ token, userId }: { token: string; userId: number }) {
   const invite = await prisma.editorInvite.findUnique({
     where: {
       token,
@@ -91,6 +103,7 @@ async function acceptJournalInvite({ token }: { token: string }) {
     {
       fn: 'acceptJournalInvite',
       token: invite?.token.slice(0, 4) + '...',
+      userId,
       invite: {
         ...invite,
         token: invite?.token.slice(0, 4) + '...',
@@ -116,15 +129,23 @@ async function acceptJournalInvite({ token }: { token: string }) {
     },
   });
 
-  // TODO: Log event
-  // TODO: Notify the inviter
-
+  await JournalEventLogService.log({
+    journalId: invite.journalId,
+    action: JournalEventLogAction.EDITOR_ACCEPTED_INVITE,
+    userId,
+    details: {
+      email: invite.email,
+      role: invite.role,
+      inviteId: invite.id,
+    },
+  });
   logger.info(
     {
       fn: 'acceptJournalInvite',
+      userId,
       invite: {
         ...updatedInvite,
-        token: updatedInvite.token.slice(0, 4) + '...',
+        token: updatedInvite.token,
       },
     },
     'Accepted journal invite',
@@ -167,7 +188,17 @@ async function declineJournalInvite({ token }: { token: string }) {
     },
   });
 
-  // TODO: Log event
+  await JournalEventLogService.log({
+    journalId: invite.journalId,
+    action: JournalEventLogAction.EDITOR_DECLINED_INVITE,
+    details: {
+      role: invite.role,
+      token: invite.token,
+      inviteId: invite.id,
+      email: invite.email,
+    },
+  });
+
   // TODO: Notify the inviter
 
   logger.info(
@@ -175,7 +206,7 @@ async function declineJournalInvite({ token }: { token: string }) {
       fn: 'declineJournalInvite',
       invite: {
         ...updatedInvite,
-        token: updatedInvite.token.slice(0, 4) + '...',
+        token: updatedInvite.token,
       },
     },
     'Declined journal invite',
