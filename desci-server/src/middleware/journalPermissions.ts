@@ -29,7 +29,7 @@ export type JournalPermissionMatrix = {
   [R in JournalRole]: Partial<Record<JournalAction, boolean>>;
 };
 
-const JournalPermissionMatrix: JournalPermissionMatrix = {
+export const JournalPermissionMatrix: JournalPermissionMatrix = {
   [JournalRole.CHIEF_EDITOR]: {
     [JournalAction.INVITE_EDITOR]: true,
     [JournalAction.INVITE_REFEREE]: true,
