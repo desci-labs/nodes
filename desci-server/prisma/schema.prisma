@@ -1271,15 +1271,16 @@ model JournalEventLog {
 }
 
 model EditorInvite {
-  id        Int        @id @default(autoincrement())
-  email     String
-  journalId Int
-  role      EditorRole
-  inviterId Int
-  createdAt DateTime   @default(now())
-  expiresAt DateTime
-  token     String     @unique
-  accepted  Boolean    @default(false)
+  id         Int        @id @default(autoincrement())
+  email      String
+  journalId  Int
+  role       EditorRole
+  inviterId  Int
+  createdAt  DateTime   @default(now())
+  expiresAt  DateTime
+  decisionAt DateTime?
+  token      String     @unique
+  accepted   Boolean?
 
   // Relationships
   journal Journal @relation(fields: [journalId], references: [id])
