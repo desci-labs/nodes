@@ -138,6 +138,7 @@ export const getNodeDetails = async (nodeUuid: string) => {
       title: true,
       NodeCover: true,
       dpidAlias: true,
+      legacyDpid: true,
       manifestDocumentId: true,
     },
   });
@@ -157,7 +158,7 @@ export const getNodeDetails = async (nodeUuid: string) => {
   data['publishedDate'] = publishedVersions[0].createdAt;
   node.manifestUrl = publishedVersions[0].manifestUrl;
   // data.node = node;
-  data.dpid = node.dpidAlias;
+  data.dpid = node.dpidAlias || node.legacyDpid;
 
   let gatewayUrl = publishedVersions[0].manifestUrl;
 

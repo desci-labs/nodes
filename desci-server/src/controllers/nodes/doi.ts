@@ -26,13 +26,6 @@ import { getLatestManifestFromNode } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
 
-export const attachDoiSchema = z.object({
-  body: z.object({
-    uuid: z.string(),
-    path: z.string().startsWith('root/', 'Invalid component path'),
-  }),
-});
-
 export const automateManuscriptDoi = async (req: RequestWithNode, res: Response, _next: NextFunction) => {
   const { uuid, path, prepublication } = req.body;
 

@@ -64,7 +64,7 @@ export const getExternalPublications = async (manifest: ResearchObjectV1) => {
   if (manifest.authors && manifest.authors.length > 0) relevantSourceFields.push('authors');
 
   const totalMatchingFields = relevantSourceFields.length;
-  const minimunMatchScore = (0.9 * totalMatchingFields) / 3;
+  const minimunMatchScore = (0.75 * totalMatchingFields) / 3;
 
   logger.trace({ relevantSourceFields, totalMatchingFields, minimunMatchScore }, '[CrossrefPubParameters]');
   const matches = data

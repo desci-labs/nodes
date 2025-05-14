@@ -514,7 +514,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
             : null;
       }
     };
+
     const allDatesInInterval = getIntervals();
+    logger.trace({ allDatesInInterval }, 'allDatesInInterval');
 
     aggregatedData = allDatesInInterval.map((period) => {
       const selectedDatesInterval =
@@ -551,8 +553,13 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
       const badgeVerificationsAgg = badgeVerifications.filter((log) =>
         isWithinInterval(log.createdAt, selectedDatesInterval),
       );
+
+      const peggedPeriod = isWithinInterval(period, interval(selectedDates.from, selectedDates.to))
+        ? period
+        : selectedDates.from;
+
       return {
-        date: period,
+        date: peggedPeriod,
         newUsers: newUsersAgg.length,
         newOrcidUsers: newOrcidUsersAgg.length,
         activeUsers: activeUsersAgg.length,

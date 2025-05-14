@@ -333,11 +333,11 @@ const updateWorksBiblio = async (tx: pgPromise.ITask<any>, data: DataModels['wor
 };
 
 const sortWorksConcepts = (a: DataModels['works_concepts'][number], b: DataModels['works_concepts'][number]) => {
-  if (a.concept_id! < b.concept_id!) return -1;
-  if (a.concept_id! > b.concept_id!) return 1;
-
   if (a.work_id! < b.work_id!) return -1;
   if (a.work_id! > b.work_id!) return 1;
+
+  if (a.concept_id! < b.concept_id!) return -1;
+  if (a.concept_id! > b.concept_id!) return 1;
 
   return 0;
 };
@@ -347,8 +347,8 @@ const updateWorksConcepts = async (tx: pgPromise.ITask<any>, data: DataModels['w
 
   const columns = getColumnSet(works_conceptsInOpenalex);
   const query = pgp.helpers.insert(data.sort(sortWorksConcepts), columns) +
-    ' ON CONFLICT (concept_id, work_id) DO UPDATE SET ' +
-    columns.assignColumns({ from: 'EXCLUDED', skip: ['concept_id', 'work_id'] });
+    ' ON CONFLICT (work_id, concept_id) DO UPDATE SET ' +
+    columns.assignColumns({ from: 'EXCLUDED', skip: ['work_id', 'concept_id'] });
 
   await tx.none(query);
 };
