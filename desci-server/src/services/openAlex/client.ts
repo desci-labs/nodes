@@ -96,7 +96,7 @@ export class OpenAlexClient {
 
       logger.trace({ url, response: response.ok }, 'searchWorksByOpenAlexId');
       if (!response.ok) {
-        return { works: [], meta: { count: 0, page, perPage } };
+        return { works: [], meta: { count: 0, page, perPage, nextPage: null } };
       }
 
       const data = await response.json();
@@ -104,27 +104,40 @@ export class OpenAlexClient {
       logger.trace({ meta: data.meta }, 'METADATA');
 
       return {
-        works: (data.results || []) as OpenAlexWork[],
         meta: {
+          nextPage: data.meta?.page * data.meta?.per_page < data.meta?.count ? data.meta?.page + 1 : null,
           count: data.meta?.count || 0,
           page: data.meta?.page || page,
           perPage: data.meta?.per_page || perPage,
-          totalPages: data.meta?.total_pages || 1,
         },
+        works: (data.results || []) as OpenAlexWork[],
       };
     } catch (error) {
       console.error('Error searching works by OpenAlex ID:', error);
-      return { works: [], meta: { count: 0, page, perPage } };
+      return { works: [], meta: { count: 0, page, perPage, nextPage: null } };
     }
   }
 }
 
 export interface WorksResult {
-  works: OpenAlexWork[];
+  works: Pick<
+    OpenAlexWork,
+    | 'id'
+    | 'doi'
+    | 'title'
+    | 'display_name'
+    | 'publication_date'
+    | 'ids'
+    | 'cited_by_count'
+    | 'open_access'
+    | 'authorships'
+    | 'primary_location'
+    | 'created_date'
+  >[];
   meta: {
+    nextPage: number | null;
     count: number;
     page: number;
     perPage: number;
-    totalPages?: number;
   };
 }
