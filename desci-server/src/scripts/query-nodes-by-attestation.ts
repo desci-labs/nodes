@@ -532,6 +532,12 @@ async function findNodesNeedingDpidFixes(nodes: NodeWithAttestations[]): Promise
   const nodesToFix: NodeToFix[] = [];
 
   for (const node of nodes) {
+    // Skip if node already has a DPID
+    if (hasDpid(node)) {
+      continue;
+    }
+
+    // Only try to fetch DPID if node has no DPID and has a UUID
     if (!hasDpid(node) && node.uuid) {
       const result = await fetchDpidFromApi(node.uuid, node.id, node.title);
       if (result.dpid) {
@@ -613,23 +619,13 @@ async function auditCommunity(communityId: number, attestationIds: number[], inc
     },
   });
 
-  // Fetch Node data for DPID information
-  const nodes = await prisma.node.findMany({
-    where: {
-      id: {
-        in: nodesWithAttestations.map((n) => n.id),
-      },
-    },
-    select: {
-      id: true,
-      dpidAlias: true,
-      legacyDpid: true,
-    },
-  });
+  // Create a set of existing node UUIDs from submissions
+  const existingNodeUuids = new Set(submissions.map((s) => s.nodeId));
 
-  const existingNodeIds = new Set(submissions.map((s) => s.node.id.toString()));
+  // Find nodes that need to be added to submissions
+  const nodesToAdd = nodesWithAttestations.filter((node) => node.uuid && !existingNodeUuids.has(node.uuid));
 
-  console.log(`Found ${nodesWithAttestations.length} nodes with any of the required validated attestations.\n`);
+  console.log(`Found ${nodesWithAttestations.length} nodes with any of the required attestations.\n`);
   console.log(`Found ${submissions.length} existing submissions in the community.`);
 
   // Analyze results
@@ -651,7 +647,20 @@ async function auditCommunity(communityId: number, attestationIds: number[], inc
   ]);
   formatTable(submissionRows, ['Node ID', 'Title', 'Status', 'DPID', 'Legacy DPID', 'Attestations', 'Created At']);
 
-  // Then analyze nodes with attestations
+  // Add nodes that need to be added to submissions
+  for (const node of nodesToAdd) {
+    if (node.uuid) {
+      missingSubmissionRows.push([
+        node.id.toString(),
+        node.title,
+        'Not Submitted',
+        node.dpidAlias?.toString() || 'N/A',
+        node.legacyDpid?.toString() || 'N/A',
+      ]);
+    }
+  }
+
+  // Then analyze existing submissions
   for (const submission of submissions) {
     const node = submission.node;
     if (!node) {
@@ -720,7 +729,7 @@ async function auditCommunity(communityId: number, attestationIds: number[], inc
 
   if (missingSubmissionRows.length > 0) {
     console.log(`\nNodes to be added to community submissions (${missingSubmissionRows.length}):`);
-    formatTable(missingSubmissionRows, ['Node ID', 'Title', 'Status', 'DPID Status']);
+    formatTable(missingSubmissionRows, ['Node ID', 'Title', 'Status', 'DPID', 'Legacy DPID']);
   }
 
   if (missingDpidRows.length > 0) {
@@ -755,7 +764,6 @@ async function auditCommunity(communityId: number, attestationIds: number[], inc
  */
 async function fixCommunity(communityId: number, attestationIds: number[], includeUnvalidated: boolean = false) {
   console.log('\n🔧 Fix Configuration:');
-  console.log(`Target API URL: ${NODES_API_BASE_URL}`);
   console.log(`Community ID: ${communityId}`);
   console.log(`Attestation IDs: ${attestationIds.join(', ')}`);
   console.log(`Include Unvalidated: ${includeUnvalidated ? 'Yes' : 'No'}\n`);
@@ -764,26 +772,73 @@ async function fixCommunity(communityId: number, attestationIds: number[], inclu
 
   const community = await getCommunityDetails(communityId);
   const nodesWithAttestations = await getNodesWithAttestations(attestationIds, includeUnvalidated);
-  const existingNodeIds = await getExistingSubmissions(communityId);
+
+  // Get existing submissions
+  const submissions = await prisma.communitySubmission.findMany({
+    where: {
+      communityId: communityId,
+    },
+    select: {
+      nodeId: true,
+    },
+  });
+
+  // Create a set of existing node UUIDs
+  const existingNodeUuids = new Set(submissions.map((s) => s.nodeId));
+
+  // Find nodes that need to be added to submissions
+  const nodesToAdd = nodesWithAttestations.filter((node) => node.uuid && !existingNodeUuids.has(node.uuid));
+
+  // Find nodes that need DPID fixes
   const nodesToFix = await findNodesNeedingDpidFixes(nodesWithAttestations);
 
-  if (nodesToFix.length === 0) {
-    console.log('No nodes found that need DPID fixes.');
+  // Show API URL in config if we'll be making DPID API calls
+  if (nodesToFix.length > 0) {
+    console.log(`Target API URL: ${NODES_API_BASE_URL}`);
+  }
+
+  if (nodesToAdd.length === 0 && nodesToFix.length === 0) {
+    console.log('No nodes found that need fixes.');
     return;
   }
 
   // Show preview of changes
-  console.log(`\nFound ${nodesToFix.length} nodes that need DPID fixes:`);
-  formatTable(
-    nodesToFix.map((n) => [n.id.toString(), n.title, n.uuid, n.dpid]),
-    ['Node ID', 'Title', 'UUID', 'DPID to Add'],
-  );
+  if (nodesToAdd.length > 0) {
+    console.log(`\nFound ${nodesToAdd.length} nodes that need to be added to submissions:`);
+    formatTable(
+      nodesToAdd.map((n) => [
+        n.id.toString(),
+        n.title,
+        n.uuid,
+        n.dpidAlias?.toString() || 'N/A',
+        n.legacyDpid?.toString() || 'N/A',
+      ]),
+      ['Node ID', 'Title', 'UUID', 'DPID', 'Legacy DPID'],
+    );
+  }
+
+  if (nodesToFix.length > 0) {
+    console.log(`\nFound ${nodesToFix.length} nodes that need DPID fixes:`);
+    formatTable(
+      nodesToFix.map((n) => [n.id.toString(), n.title, n.uuid, n.dpid]),
+      ['Node ID', 'Title', 'UUID', 'DPID to Add'],
+    );
+  }
 
   // Multiple confirmation steps
   console.log('\n⚠️  IMPORTANT: This will:');
-  console.log('   1. Update the legacyDpid field for nodes missing it');
-  console.log('   2. Add nodes to community submissions if they have validated attestations');
-  console.log(`   3. Use API URL: ${NODES_API_BASE_URL}`);
+  let stepNumber = 1;
+  if (nodesToAdd.length > 0) {
+    console.log(`   ${stepNumber}. Add ${nodesToAdd.length} nodes to community submissions`);
+    stepNumber++;
+  }
+  if (nodesToFix.length > 0) {
+    console.log(`   ${stepNumber}. Update the legacyDpid field for ${nodesToFix.length} nodes`);
+    stepNumber++;
+  }
+  if (nodesToFix.length > 0) {
+    console.log(`   ${stepNumber}. Use API URL: ${NODES_API_BASE_URL}`);
+  }
 
   const confirm1 = await askQuestion('\nDo you want to proceed with these changes?');
   if (!confirm1) {
@@ -797,28 +852,35 @@ async function fixCommunity(communityId: number, attestationIds: number[], inclu
     return;
   }
 
-  // Final safety check - verify nodes haven't changed
-  const finalCheck = await prisma.node.findMany({
-    where: {
-      id: { in: nodesToFix.map((n) => n.id) },
-    },
-    select: {
-      id: true,
-      dpidAlias: true,
-      legacyDpid: true,
-    },
-  });
+  // Pre-fetch node versions and details outside transaction
+  const nodeVersions = new Map<number, number>();
+  const nodeDetails = new Map<number, { ownerId: number }>();
 
-  // Verify no nodes have been modified since we started
-  const nodesChanged = finalCheck.some((node) => {
-    const original = nodesToFix.find((n) => n.id === node.id);
-    return !original || hasDpid(node);
-  });
+  for (const node of nodesToAdd) {
+    if (!node.uuid) continue;
 
-  if (nodesChanged) {
-    console.error('\n⚠️  Safety check failed: Some nodes have been modified since the audit.');
-    console.error('Please run the audit again to get fresh data.');
-    return;
+    try {
+      const version = await prisma.nodeVersion.count({
+        where: {
+          node: { uuid: node.uuid },
+          OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+        },
+      });
+      nodeVersions.set(node.id, version);
+
+      const details = await prisma.node.findUnique({
+        where: { uuid: node.uuid },
+        select: { ownerId: true },
+      });
+      if (details) {
+        nodeDetails.set(node.id, details);
+      }
+    } catch (error) {
+      console.error(
+        `Failed to fetch details for node ${node.id}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   }
 
   // Proceed with updates using a transaction
@@ -828,109 +890,143 @@ async function fixCommunity(communityId: number, attestationIds: number[], inclu
   let skippedCount = 0;
   let addedToCommunityCount = 0;
 
-  try {
-    await prisma.$transaction(async (tx) => {
-      for (const node of nodesToFix) {
-        try {
-          // Additional safety check
-          if (!node.id || typeof node.id !== 'number') {
-            console.error(`Skipping node with invalid ID: ${JSON.stringify(node)}`);
-            skippedCount++;
-            continue;
-          }
+  // Process nodes in batches of 50
+  const BATCH_SIZE = 50;
+  const batches = [];
+  for (let i = 0; i < nodesToAdd.length; i += BATCH_SIZE) {
+    batches.push(nodesToAdd.slice(i, i + BATCH_SIZE));
+  }
 
-          if (!isValidDpid(node.dpid)) {
-            console.error(`Skipping node ${node.id}: Invalid DPID format: ${node.dpid}`);
-            skippedCount++;
-            continue;
-          }
+  for (const batch of batches) {
+    try {
+      await prisma.$transaction(
+        async (transaction) => {
+          // First, add nodes to submissions
+          for (const node of batch) {
+            try {
+              if (!node.uuid) {
+                console.error(`Skipping node ${node.id}: No UUID`);
+                skippedCount++;
+                continue;
+              }
 
-          // Check if node still needs update
-          const currentState = await tx.node.findUnique({
-            where: { id: node.id },
-            select: { dpidAlias: true, legacyDpid: true },
-          });
+              const nodeVersion = nodeVersions.get(node.id);
+              const nodeDetail = nodeDetails.get(node.id);
 
-          if (!currentState) {
-            console.error(`Skipping node ${node.id}: Node no longer exists`);
-            skippedCount++;
-            continue;
-          }
+              if (!nodeDetail) {
+                console.error(`Node ${node.id} not found in database`);
+                errorCount++;
+                continue;
+              }
 
-          if (currentState.dpidAlias || currentState.legacyDpid) {
-            console.log(
-              `Skipping node ${node.id}: Already has DPID (dpidAlias: ${currentState.dpidAlias}, legacyDpid: ${currentState.legacyDpid})`,
-            );
-            skippedCount++;
-            continue;
-          }
-
-          // Check if node is in community submissions
-          const isInCommunity = await submissionExists(tx, communityId, node.uuid);
-          if (!isInCommunity) {
-            // Get node version and owner
-            const nodeVersion = await tx.nodeVersion.count({
-              where: {
-                node: { uuid: node.uuid },
-                OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
-              },
-            });
-
-            const nodeDetails = await tx.node.findUnique({
-              where: { uuid: node.uuid },
-              select: { ownerId: true },
-            });
-
-            if (!nodeDetails) {
-              console.error(`Node ${node.id} not found in database`);
+              // Double-check before creating submission
+              if (!(await submissionExists(transaction, communityId, node.uuid))) {
+                await transaction.communitySubmission.create({
+                  data: {
+                    communityId: communityId,
+                    nodeId: node.uuid,
+                    userId: nodeDetail.ownerId,
+                    nodeVersion: nodeVersion || 0,
+                    status: Submissionstatus.ACCEPTED,
+                  },
+                });
+                console.log(`Added node ${node.id} to community submissions`);
+                addedToCommunityCount++;
+              } else {
+                console.log(`Node ${node.id} already in community submissions`);
+              }
+            } catch (error) {
+              console.error(
+                `Failed to add node ${node.id} to submissions:`,
+                error instanceof Error ? error.message : String(error),
+              );
               errorCount++;
               continue;
             }
+          }
+        },
+        {
+          timeout: 30000, // Increase timeout to 30 seconds
+        },
+      );
+    } catch (error) {
+      console.error('\n⚠️  Batch transaction failed:', error instanceof Error ? error.message : String(error));
+      continue; // Continue with next batch even if this one failed
+    }
+  }
 
-            // Double-check before creating submission
-            if (!(await submissionExists(tx, communityId, node.uuid))) {
-              await tx.communitySubmission.create({
-                data: {
-                  communityId: communityId,
-                  nodeId: node.uuid,
-                  userId: nodeDetails.ownerId,
-                  nodeVersion,
-                  status: Submissionstatus.ACCEPTED,
-                },
+  // Process DPID fixes in a separate transaction
+  if (nodesToFix.length > 0) {
+    try {
+      await prisma.$transaction(
+        async (transaction) => {
+          for (const node of nodesToFix) {
+            try {
+              // Additional safety check
+              if (!node.id || typeof node.id !== 'number') {
+                console.error(`Skipping node with invalid ID: ${JSON.stringify(node)}`);
+                skippedCount++;
+                continue;
+              }
+
+              if (!isValidDpid(node.dpid)) {
+                console.error(`Skipping node ${node.id}: Invalid DPID format: ${node.dpid}`);
+                skippedCount++;
+                continue;
+              }
+
+              // Check if node still needs update
+              const currentState = await transaction.node.findUnique({
+                where: { id: node.id },
+                select: { dpidAlias: true, legacyDpid: true },
               });
-              console.log(`Added node ${node.id} to community submissions`);
-              addedToCommunityCount++;
-            } else {
-              console.log(`Node ${node.id} already in community submissions`);
+
+              if (!currentState) {
+                console.error(`Skipping node ${node.id}: Node no longer exists`);
+                skippedCount++;
+                continue;
+              }
+
+              if (currentState.dpidAlias || currentState.legacyDpid) {
+                console.log(
+                  `Skipping node ${node.id}: Already has DPID (dpidAlias: ${currentState.dpidAlias}, legacyDpid: ${currentState.legacyDpid})`,
+                );
+                skippedCount++;
+                continue;
+              }
+
+              // Update node DPID
+              await transaction.node.update({
+                where: { id: node.id },
+                data: { legacyDpid: parseInt(node.dpid, 10) },
+              });
+              successCount++;
+            } catch (error) {
+              console.error(
+                `Failed to update node ${node.id}:`,
+                error instanceof Error ? error.message : String(error),
+              );
+              errorCount++;
+              continue;
             }
           }
-
-          // Update node DPID
-          await tx.node.update({
-            where: { id: node.id },
-            data: { legacyDpid: parseInt(node.dpid, 10) },
-          });
-          successCount++;
-        } catch (error) {
-          console.error(`Failed to update node ${node.id}:`, error instanceof Error ? error.message : String(error));
-          errorCount++;
-          throw error; // This will trigger transaction rollback
-        }
-      }
-    });
-  } catch (error) {
-    console.error(
-      '\n⚠️  Transaction failed and was rolled back:',
-      error instanceof Error ? error.message : String(error),
-    );
-    return;
+        },
+        {
+          timeout: 30000, // Increase timeout to 30 seconds
+        },
+      );
+    } catch (error) {
+      console.error('\n⚠️  DPID fix transaction failed:', error instanceof Error ? error.message : String(error));
+    }
   }
 
   // Summary
   console.log('\nFix operation completed:');
-  console.log(`- Successfully updated: ${successCount} nodes`);
   if (addedToCommunityCount > 0) {
     console.log(`- Added to community: ${addedToCommunityCount} nodes`);
+  }
+  if (successCount > 0) {
+    console.log(`- Successfully updated DPIDs: ${successCount} nodes`);
   }
   if (skippedCount > 0) {
     console.log(`- Skipped: ${skippedCount} nodes (already have DPID or invalid state)`);

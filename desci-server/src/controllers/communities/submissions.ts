@@ -66,7 +66,7 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
   const submissions = await communityService.getCommunitySubmissions({
     communityId: Number(communityId),
     status: isMember ? status : Submissionstatus.ACCEPTED,
-    limit: limit ? Number(limit) : undefined,
+    limit: limit ? Number(limit) : 10,
     offset: offset ? Number(offset) : undefined,
   });
 
