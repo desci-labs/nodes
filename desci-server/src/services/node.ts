@@ -147,7 +147,13 @@ export const getNodeDetails = async (nodeUuid: string) => {
     logger.warn({ uuid }, 'uuid not found');
   }
 
-  const selectAttributes: (keyof typeof discovery)[] = ['ownerId', 'NodeCover', 'dpidAlias', 'manifestDocumentId'];
+  const selectAttributes: (keyof typeof discovery)[] = [
+    'ownerId',
+    'NodeCover',
+    'dpidAlias',
+    'manifestDocumentId',
+    'legacyDpid',
+  ];
   const node: Partial<Node & { versions: number; dpid?: number }> = _.pick(discovery, selectAttributes);
   const publishedVersions =
     (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND ("transactionId" IS NOT NULL or "commitId" IS NOT NULL) ORDER BY "createdAt" DESC`) as NodeVersion[];
@@ -159,6 +165,7 @@ export const getNodeDetails = async (nodeUuid: string) => {
   node.manifestUrl = publishedVersions[0].manifestUrl;
   // data.node = node;
   data.dpid = node.dpidAlias || node.legacyDpid;
+  data.dpidAlias = node.dpidAlias || node.legacyDpid; // Ensure dpidAlias is set using legacy dpid if not present
 
   let gatewayUrl = publishedVersions[0].manifestUrl;
 
