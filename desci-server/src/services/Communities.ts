@@ -942,6 +942,16 @@ export class CommunityService {
       skip: offset,
     });
   }
+
+  async getCommunitySubmissionsCount({ communityId, status }: { communityId: number; status?: Submissionstatus }) {
+    return await prisma.communitySubmission.count({
+      where: {
+        communityId: Number(communityId),
+        ...(status && { status: status as Submissionstatus }),
+      },
+    });
+  }
+
   async getUserSubmissions(userId: number, status?: Submissionstatus) {
     return await prisma.communitySubmission.findMany({
       where: {
