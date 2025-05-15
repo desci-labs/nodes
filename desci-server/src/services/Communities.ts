@@ -938,6 +938,9 @@ export class CommunityService {
         node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
         // community: { select: { id: true, name: true, image_url: true, description: true } },
       },
+      orderBy: {
+        createdAt: 'desc',
+      },
       take: limit,
       skip: offset,
     });
