@@ -938,10 +938,23 @@ export class CommunityService {
         node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
         // community: { select: { id: true, name: true, image_url: true, description: true } },
       },
+      orderBy: {
+        createdAt: 'desc',
+      },
       take: limit,
       skip: offset,
     });
   }
+
+  async getCommunitySubmissionsCount({ communityId, status }: { communityId: number; status?: Submissionstatus }) {
+    return await prisma.communitySubmission.count({
+      where: {
+        communityId: Number(communityId),
+        ...(status && { status: status as Submissionstatus }),
+      },
+    });
+  }
+
   async getUserSubmissions(userId: number, status?: Submissionstatus) {
     return await prisma.communitySubmission.findMany({
       where: {
