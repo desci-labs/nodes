@@ -70,11 +70,17 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
     offset: offset ? Number(offset) : undefined,
   });
 
+  // Get total count
+  const totalCount = await communityService.getCommunitySubmissionsCount({
+    communityId: Number(communityId),
+    status: isMember ? status : Submissionstatus.ACCEPTED,
+  });
+
   const data = await asyncMap(submissions, async (submission) => {
     const node = await getNodeDetails(submission.nodeId);
     return { ...submission, node: { ...submission.node, ...node } };
   });
-  new SuccessResponse(data).send(res);
+  new SuccessResponse({ submissions: data, totalCount }).send(res);
 };
 
 export const getUserSubmissions = async (req: RequestWithUser, res: Response) => {
