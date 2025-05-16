@@ -1,4 +1,4 @@
-import { CommunitySubmission, DesciCommunity, User } from '@prisma/client';
+import { CommunitySubmission, DesciCommunity, Node, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
 import { logger as parentLogger } from '../logger.js';
@@ -33,7 +33,8 @@ type RejectSubmissionPayload = {
       name: string;
     };
     submission: CommunitySubmission & {
-      community: DesciCommunity;
+      community: Partial<DesciCommunity>;
+      node: Partial<Node>;
     };
   };
 };

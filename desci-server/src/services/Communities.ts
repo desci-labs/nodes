@@ -935,7 +935,18 @@ export class CommunityService {
         ...(status && { status: status as Submissionstatus }),
       },
       include: {
-        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        node: {
+          select: {
+            id: true,
+            uuid: true,
+            title: true,
+            ownerId: true,
+            dpidAlias: true,
+            legacyDpid: true,
+            manifestUrl: true,
+            manifestDocumentId: true,
+          },
+        },
         // community: { select: { id: true, name: true, image_url: true, description: true } },
       },
       orderBy: {
@@ -964,7 +975,18 @@ export class CommunityService {
         ...(status && { status: status as Submissionstatus }),
       },
       include: {
-        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        node: {
+          select: {
+            id: true,
+            uuid: true,
+            title: true,
+            ownerId: true,
+            dpidAlias: true,
+            legacyDpid: true,
+            manifestUrl: true,
+            manifestDocumentId: true,
+          },
+        },
         community: { select: { id: true, name: true, image_url: true, description: true } },
       },
     });
@@ -988,7 +1010,18 @@ export class CommunityService {
         // ...(status && { status: status as Submissionstatus }),
       },
       include: {
-        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        node: {
+          select: {
+            id: true,
+            uuid: true,
+            title: true,
+            ownerId: true,
+            dpidAlias: true,
+            legacyDpid: true,
+            manifestUrl: true,
+            manifestDocumentId: true,
+          },
+        },
         community: { select: { id: true, name: true, image_url: true, description: true } },
       },
     });
@@ -1019,7 +1052,18 @@ export class CommunityService {
     return prisma.communitySubmission.findUnique({
       where: { id: submissionId },
       include: {
-        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        node: {
+          select: {
+            id: true,
+            uuid: true,
+            title: true,
+            ownerId: true,
+            dpidAlias: true,
+            legacyDpid: true,
+            manifestUrl: true,
+            manifestDocumentId: true,
+          },
+        },
         community: { select: { id: true, name: true, image_url: true, description: true } },
       },
     });

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { prisma } from '../../client.js';
 import { BadRequestError, ForbiddenError } from '../../core/ApiError.js';
 import { CreatedSuccessResponse, SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
+import { logger } from '../../logger.js';
 import { RequestWithNode, RequestWithUser } from '../../middleware/authorisation.js';
 import {
   createSubmissionSchema,
@@ -63,11 +64,14 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
 
   // logger.trace({ isMember }, 'isMember');
   // Get submissions
+  const queryLimit = limit ? Number(limit) : 10;
+  const queryOffset = offset !== undefined ? Number(offset) : undefined;
+  logger.trace({ queryLimit, queryOffset, isMember }, 'QUERY');
   const submissions = await communityService.getCommunitySubmissions({
     communityId: Number(communityId),
     status: isMember ? status : Submissionstatus.ACCEPTED,
-    limit: limit ? Number(limit) : 10,
-    offset: offset ? Number(offset) : undefined,
+    limit: queryLimit,
+    offset: queryOffset,
   });
 
   // Get total count
@@ -77,10 +81,10 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
   });
 
   const data = await asyncMap(submissions, async (submission) => {
-    const node = await getNodeDetails(submission.nodeId);
+    const node = await getNodeDetails(submission.node);
     return { ...submission, node: { ...submission.node, ...node } };
   });
-  new SuccessResponse({ submissions: data, totalCount }).send(res);
+  new SuccessResponse({ submissions: data, meta: { totalCount, offset: queryOffset, limit: queryLimit } }).send(res);
 };
 
 export const getUserSubmissions = async (req: RequestWithUser, res: Response) => {
@@ -101,10 +105,7 @@ export const updateSubmissionStatus = async (req: RequestWithUser, res: Response
   const { status, reason } = req.body as z.infer<typeof rejectSubmissionSchema>['body'];
 
   // Get submission and check if it exists
-  const submission = await prisma.communitySubmission.findUnique({
-    where: { id: Number(submissionId) },
-    include: { community: true },
-  });
+  const submission = await communityService.getSubmission(Number(submissionId));
 
   if (!submission) {
     throw new BadRequestError('Submission not found');
@@ -154,8 +155,8 @@ export const updateSubmissionStatus = async (req: RequestWithUser, res: Response
     });
   }
 
-  const node = await getNodeDetails(submission.nodeId);
-  new SuccessResponse({ ...updatedSubmission, ...node }).send(res);
+  const node = await getNodeDetails(submission.node);
+  new SuccessResponse({ ...updatedSubmission, node: { ...updatedSubmission.node, ...node } }).send(res);
 };
 
 export const getSubmission = async (req: RequestWithUser, res: Response) => {
@@ -180,9 +181,9 @@ export const getSubmission = async (req: RequestWithUser, res: Response) => {
     throw new ForbiddenError('Unauthorized to view this submission');
   }
 
-  const node = await getNodeDetails(submission.nodeId);
+  const node = await getNodeDetails(submission.node);
 
-  new SuccessResponse({ ...submission, ...node }).send(res);
+  new SuccessResponse({ ...submission, node: { ...submission.node, ...node } }).send(res);
 };
 
 export const cancelUserSubmission = async (req: RequestWithUser, res: Response) => {
