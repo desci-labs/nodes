@@ -222,6 +222,11 @@ async function removeEditorFromJournal(
       return err(new Error('Editor not found.'));
     }
 
+    if (editorBeingRemoved.userId === managerId) {
+      logger.info({ journalId, managerId, editorId }, 'CHIEF_EDITOR attempted to remove themselves');
+      return err(new Error('Cannot remove yourself as a CHIEF_EDITOR.'));
+    }
+
     await prisma.$transaction([
       prisma.journalEventLog.create({
         data: {
