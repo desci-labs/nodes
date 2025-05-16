@@ -1,4 +1,4 @@
-import { NextFunction, Response } from 'express';
+import { Response } from 'express';
 import { z } from 'zod';
 
 import { sendError, sendSuccess } from '../../../core/api.js';
@@ -26,23 +26,46 @@ export const createJournalController = async (req: CreateJournalRequest, res: Re
 
     logger.info({ name, ownerId, description, iconCid }, 'Attempting to create journal');
 
-    const journal = await JournalManagementService.createJournal({
+    const result = await JournalManagementService.createJournal({
       name,
       description,
       iconCid,
       ownerId,
     });
 
+    if (result.isErr()) {
+      const error = result.error;
+      logger.error({ error, body: req.body, user: req.user }, 'Failed to create journal');
+
+      if (error.message && error.message.toLowerCase().includes('unique constraint failed')) {
+        return sendError(
+          res,
+          'A journal with this name may already exist or another unique field constraint was violated.',
+          undefined,
+          409,
+        );
+      }
+
+      return sendError(
+        res,
+        'Failed to create journal due to a server error.',
+        [{ field: 'SYSTEM', message: error.message }],
+        500,
+      );
+    }
+
+    const journal = result.value;
     return sendSuccess(res, { journal }, 'Journal created successfully.');
   } catch (error) {
     if (error instanceof z.ZodError) {
-      logger.warn({ error }, 'Validation failed for journal creation');
+      logger.warn({ errorDetails: error.flatten() }, 'Validation failed for journal creation');
       const formattedErrors = Object.entries(error.flatten().fieldErrors).flatMap(([field, messages]) =>
         (messages || []).map((message) => ({ field, message })),
       );
       return sendError(res, 'Validation failed', formattedErrors, 400);
     }
-    logger.error({ error, body: req.body, user: req.user }, 'Failed to create journal');
-    return sendError(res, 'Failed to create journal', undefined, 500);
+
+    logger.error({ error, body: req.body, user: req.user }, 'Unhandled error in createJournalController');
+    return sendError(res, 'An unexpected error occurred while processing your request.', undefined, 500);
   }
 };

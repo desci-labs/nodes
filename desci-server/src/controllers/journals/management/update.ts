@@ -40,28 +40,50 @@ export const updateJournalController = async (req: UpdateJournalRequest, res: Re
 
     logger.info({ journalId, userId, updateData }, 'Attempting to update journal');
 
-    const updatedJournal = await JournalManagementService.updateJournal(journalId, userId, updateData);
+    const result = await JournalManagementService.updateJournal(journalId, userId, updateData);
 
-    if (!updatedJournal) {
-      return sendError(res, 'Journal not found or update failed.', undefined, 404);
+    if (result.isErr()) {
+      const error = result.error;
+      logger.error({ error, journalId, userId, body: req.body }, 'Failed to update journal');
+
+      if (error.message === 'Journal not found.') {
+        return sendError(res, 'Journal not found.', [{ field: 'journalId', message: error.message }], 404);
+      }
+      if (error.message && error.message.toLowerCase().includes('unique constraint failed')) {
+        return sendError(
+          res,
+          'Failed to update journal due to a conflict. The name might already be in use.',
+          [{ field: 'name', message: 'This name might already be taken by another journal.' }],
+          409,
+        );
+      }
+
+      return sendError(
+        res,
+        'Failed to update journal due to a server error.',
+        [{ field: 'SYSTEM', message: error.message }],
+        500,
+      );
     }
 
+    const updatedJournal = result.value;
     return sendSuccess(res, { journal: updatedJournal }, 'Journal updated successfully.');
   } catch (error) {
     if (error instanceof z.ZodError) {
-      logger.warn({ error, params: req.params, body: req.body }, 'Validation failed for journal update');
+      logger.warn(
+        { errorDetails: error.flatten(), params: req.params, body: req.body },
+        'Validation failed for journal update request',
+      );
       const formattedErrors = Object.entries(error.flatten().fieldErrors).flatMap(([field, messages]) =>
         (messages || []).map((message) => ({ field, message })),
       );
       return sendError(res, 'Validation failed', formattedErrors, 400);
     }
+
     logger.error(
       { error, journalId: req.params?.journalId, userId: req.user?.id, body: req.body },
       'Failed to update journal',
     );
-    if (error.message === 'Journal not found.') {
-      return sendError(res, error.message, undefined, 404);
-    }
     return sendError(res, 'Failed to update journal', undefined, 500);
   }
 };
