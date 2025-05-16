@@ -2,6 +2,7 @@ import {
   Attestation,
   CommunityMembershipRole,
   CommunityRadarEntry,
+  CommunitySubmission,
   NodeAttestation,
   NodeFeedItem,
   Prisma,
@@ -18,6 +19,9 @@ import { attestationService } from './Attestation.js';
 
 export type CommunityRadarNode = NodeAttestation & { annotations: number; reactions: number; verifications: number };
 export type RadarEntry = CommunityRadarEntry & { annotations: number; reactions: number; verifications: number };
+
+export type CommunitySubmissionItem = Awaited<ReturnType<CommunityService['getCommunitySubmissions']>>[number];
+
 export class CommunityService {
   async createCommunity(data: Prisma.DesciCommunityCreateManyInput) {
     const exists = await prisma.desciCommunity.findFirst({ where: { name: data.name } });
@@ -918,6 +922,7 @@ export class CommunityService {
       },
     });
   }
+
   async getCommunitySubmissions({
     communityId,
     status,
@@ -934,9 +939,35 @@ export class CommunityService {
         communityId: Number(communityId),
         ...(status && { status: status as Submissionstatus }),
       },
-      include: {
-        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
-        // community: { select: { id: true, name: true, image_url: true, description: true } },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+        nodeId: true,
+        communityId: true,
+        nodeVersion: true,
+        node: {
+          select: {
+            id: true,
+            uuid: true,
+            title: true,
+            ownerId: true,
+            dpidAlias: true,
+            legacyDpid: true,
+            manifestUrl: true,
+            manifestDocumentId: true,
+            versions: {
+              where: { OR: [{ transactionId: { not: null } }, { commitId: { not: null } }] },
+              orderBy: { createdAt: 'desc' },
+              select: {
+                transactionId: true,
+                commitId: true,
+                manifestUrl: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -964,7 +995,18 @@ export class CommunityService {
         ...(status && { status: status as Submissionstatus }),
       },
       include: {
-        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        node: {
+          select: {
+            id: true,
+            uuid: true,
+            title: true,
+            ownerId: true,
+            dpidAlias: true,
+            legacyDpid: true,
+            manifestUrl: true,
+            manifestDocumentId: true,
+          },
+        },
         community: { select: { id: true, name: true, image_url: true, description: true } },
       },
     });
@@ -988,7 +1030,18 @@ export class CommunityService {
         // ...(status && { status: status as Submissionstatus }),
       },
       include: {
-        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
+        node: {
+          select: {
+            id: true,
+            uuid: true,
+            title: true,
+            ownerId: true,
+            dpidAlias: true,
+            legacyDpid: true,
+            manifestUrl: true,
+            manifestDocumentId: true,
+          },
+        },
         community: { select: { id: true, name: true, image_url: true, description: true } },
       },
     });
@@ -1018,9 +1071,39 @@ export class CommunityService {
   async getSubmission(submissionId: number) {
     return prisma.communitySubmission.findUnique({
       where: { id: submissionId },
-      include: {
-        node: { select: { id: true, uuid: true, title: true, ownerId: true, dpidAlias: true } },
-        community: { select: { id: true, name: true, image_url: true, description: true } },
+      select: {
+        id: true,
+        communityId: true,
+        nodeId: true,
+        nodeVersion: true,
+        userId: true,
+        status: true,
+        rejectionReason: true,
+        acceptedAt: true,
+        rejectedAt: true,
+        node: {
+          select: {
+            id: true,
+            uuid: true,
+            title: true,
+            ownerId: true,
+            dpidAlias: true,
+            legacyDpid: true,
+            manifestUrl: true,
+            manifestDocumentId: true,
+            versions: {
+              where: { OR: { transactionId: { not: null }, commitId: { not: null } } },
+              orderBy: { createdAt: 'desc' },
+              select: {
+                transactionId: true,
+                commitId: true,
+                manifestUrl: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
+        community: { select: { id: true, name: true, image_url: true, description: true, slug: true } },
       },
     });
   }
