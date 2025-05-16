@@ -73,6 +73,7 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
     limit: queryLimit,
     offset: queryOffset,
   });
+  logger.trace({ submissions }, 'SUBMISSIONS');
 
   // Get total count
   const totalCount = await communityService.getCommunitySubmissionsCount({
@@ -151,7 +152,15 @@ export const updateSubmissionStatus = async (req: RequestWithUser, res: Response
     // send user rejection email
     sendEmail({
       type: EmailTypes.RejectedSubmission,
-      payload: { dpid: dpid.toString(), reason, recipient, submission },
+      payload: {
+        dpid: dpid.toString(),
+        reason,
+        recipient,
+        communityName: submission.community.name,
+        communitySlug: submission.community.slug,
+        nodeVersion: submission.nodeVersion,
+        nodeDpid: dpid.toString(),
+      },
     });
   }
 

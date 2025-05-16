@@ -9,6 +9,7 @@ import { getFromCache, setToCache } from '../redisClient.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
+import { CommunitySubmissionItem } from './Communities.js';
 import { getManifestByCid } from './data/processing.js';
 import { NodeUuid } from './manifestRepo.js';
 import repoService from './repoService.js';
@@ -133,46 +134,40 @@ export interface NodeDetails {
   authors?: any[];
 }
 
-export const getNodeDetails = async (discovery: Partial<Node>) => {
+export const getNodeDetails = async (discovery: CommunitySubmissionItem['node']) => {
   if (!discovery) return {};
 
   const logger = parentLogger.child({ module: 'getNodeDetails' });
 
-  const cacheKey = `${NODE_DETAILS_CACHE_KEY}_${discovery.id}`;
+  const nodeVersion = discovery?.versions?.length ?? 0;
+  const latestVersion = discovery?.versions?.[0];
+  const cacheKey = `${NODE_DETAILS_CACHE_KEY}_${discovery.id}_${latestVersion?.manifestUrl}`;
 
   const cachedDetails = await getFromCache<NodeDetails>(cacheKey);
   logger.trace({ cacheKey, hit: !!cachedDetails }, 'CACHE check');
   if (cachedDetails) return cachedDetails;
 
-  const selectAttributes: (keyof typeof discovery)[] = [
-    'uuid',
-    'ownerId',
-    'dpidAlias',
-    'manifestDocumentId',
-    'legacyDpid',
-  ];
-  const node: Partial<Node & { versions: number; dpid?: number }> = _.pick(discovery, selectAttributes);
-  const publishedVersions =
-    (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND ("transactionId" IS NOT NULL or "commitId" IS NOT NULL) ORDER BY "createdAt" DESC`) as NodeVersion[];
-
   const data: Record<string, any> = {};
-  logger.info({ uuid: discovery.uuid, publishedVersions }, 'Resolve node');
+  logger.trace({ uuid: discovery.uuid, latestVersion }, 'Resolve node');
 
-  data['versions'] = publishedVersions.length;
-  data['publishedDate'] = publishedVersions?.[0].createdAt;
-  data.manifestUrl = publishedVersions?.[0].manifestUrl;
-  data.dpid = node.dpidAlias || node.legacyDpid;
-  data.dpidAlias = node.dpidAlias || node.legacyDpid; // Ensure dpidAlias is set using legacy dpid if not present
+  data['versions'] = nodeVersion;
+  if (latestVersion) {
+    data['publishedDate'] = latestVersion.createdAt;
+    data['manifestUrl'] = latestVersion.manifestUrl;
+  }
+  const resolvedDpid = discovery.dpidAlias || discovery.legacyDpid;
+  data.dpid = resolvedDpid;
+  data.dpidAlias = resolvedDpid; // Ensure dpidAlias is set using legacy dpid if not present
 
   try {
     const manifest = await repoService.getDraftManifest({
-      uuid: node.uuid as NodeUuid,
-      documentId: node.manifestDocumentId,
+      uuid: discovery.uuid as NodeUuid,
+      documentId: discovery.manifestDocumentId,
     });
-    logger.info({ manifestFound: !!manifest }, '[SHOW API GET LAST PUBLISHED MANIFEST]');
+    logger.trace({ manifestFound: !!manifest }, '[repoService.getDraftManifest]');
     data.authors = manifest.authors;
   } catch (err) {
-    let gatewayUrl = publishedVersions?.[0].manifestUrl;
+    let gatewayUrl = latestVersion?.manifestUrl ?? discovery?.manifestUrl;
     if (gatewayUrl !== undefined) {
       gatewayUrl = cleanupManifestUrl(gatewayUrl);
       // logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
