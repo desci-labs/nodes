@@ -337,13 +337,12 @@ describe('Journal Invite Service', () => {
       });
 
       it('should accept an editor invite', async () => {
-        debugger;
         const res = await request(app)
           .post(`/v1/journals/${journal.id}/invitation/editor`)
           .set('authorization', `Bearer ${editorAuthToken}`)
           .send({
             token: invite.token,
-            accept: true,
+            decision: 'accept',
           });
 
         expect(res.status).to.equal(200);
@@ -356,7 +355,7 @@ describe('Journal Invite Service', () => {
           .set('authorization', `Bearer ${editorAuthToken}`)
           .send({
             token: invite.token,
-            accept: false,
+            decision: 'decline',
           });
 
         expect(res.status).to.equal(200);
@@ -366,7 +365,7 @@ describe('Journal Invite Service', () => {
       it('should return 401 without auth token', async () => {
         const res = await request(app).post(`/v1/journals/${journal.id}/invitation/editor`).send({
           token: invite.token,
-          accept: true,
+          decision: 'accept',
         });
 
         expect(res.status).to.equal(401);
@@ -378,7 +377,7 @@ describe('Journal Invite Service', () => {
           .set('authorization', `Bearer ${editorAuthToken}`)
           .send({
             token: 'invalid-token',
-            accept: true,
+            decision: 'accept',
           });
 
         expect(res.status).to.equal(400);
