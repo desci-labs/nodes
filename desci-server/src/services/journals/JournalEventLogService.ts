@@ -64,10 +64,20 @@ async function logJournalEvent({ journalId, action, userId, submissionId, detail
   try {
     const event = await prisma.journalEventLog.create({
       data: {
-        journalId,
+        journal: {
+          connect: { id: journalId },
+        },
         action,
-        userId,
-        submissionId,
+        user: userId
+          ? {
+              connect: { id: userId },
+            }
+          : undefined,
+        submission: submissionId
+          ? {
+              connect: { id: submissionId },
+            }
+          : undefined,
         details,
       },
     });

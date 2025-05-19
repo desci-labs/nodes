@@ -54,26 +54,29 @@ async function inviteJournalEditor({
 
   const token = crypto.randomUUID();
 
-  const invite = await prisma.editorInvite.create({
-    data: {
-      journalId,
-      email,
-      role,
-      inviterId,
-      expiresAt: new Date(Date.now() + inviteTtlDays * 24 * 60 * 60 * 1000),
-      token,
-    },
-  });
+  const result = await prisma.$transaction(async (tx) => {
+    const invite = await tx.editorInvite.create({
+      data: {
+        journalId,
+        email,
+        role,
+        inviterId,
+        expiresAt: new Date(Date.now() + inviteTtlDays * 24 * 60 * 60 * 1000),
+        token,
+      },
+    });
 
-  // Log event
-  await JournalEventLogService.log({
-    journalId,
-    action: JournalEventLogAction.EDITOR_INVITED,
-    userId: inviterId,
-    details: {
-      email,
-      role,
-    },
+    await JournalEventLogService.log({
+      journalId,
+      action: JournalEventLogAction.EDITOR_INVITED,
+      userId: inviterId,
+      details: {
+        email,
+        role,
+      },
+    });
+
+    return invite;
   });
 
   // sendEmail({journalName, journalDescription, journalIconCid, token})
@@ -82,14 +85,14 @@ async function inviteJournalEditor({
     {
       fn: 'inviteJournalEditor',
       invite: {
-        ...invite,
-        token: invite.token.slice(0, 4) + '...',
+        ...result,
+        token: result.token.slice(0, 4) + '...',
       },
     },
     'Invited journal editor',
   );
 
-  return invite;
+  return result;
 }
 
 async function acceptJournalInvite({ token, userId }: { token: string; userId: number }) {
@@ -121,39 +124,56 @@ async function acceptJournalInvite({ token, userId }: { token: string; userId: n
     throw new Error('Invite expired');
   }
 
-  const updatedInvite = await prisma.editorInvite.update({
-    where: { id: invite.id },
-    data: {
-      accepted: true,
-      decisionAt: new Date(),
-    },
+  const result = await prisma.$transaction(async (tx) => {
+    const now = new Date();
+    const updatedInvite = await tx.editorInvite.update({
+      where: { id: invite.id },
+      data: {
+        accepted: true,
+        decisionAt: now,
+      },
+    });
+
+    await tx.journalEditor.create({
+      data: {
+        journalId: invite.journalId,
+        userId,
+        role: invite.role,
+        invitedAt: invite.createdAt,
+        acceptedAt: now,
+        inviterId: invite.inviterId,
+      },
+    });
+
+    await JournalEventLogService.log({
+      journalId: invite.journalId,
+      action: JournalEventLogAction.EDITOR_ACCEPTED_INVITE,
+      userId,
+      details: {
+        email: invite.email,
+        role: invite.role,
+        inviteId: invite.id,
+      },
+    });
+
+    return updatedInvite;
   });
 
-  await JournalEventLogService.log({
-    journalId: invite.journalId,
-    action: JournalEventLogAction.EDITOR_ACCEPTED_INVITE,
-    userId,
-    details: {
-      email: invite.email,
-      role: invite.role,
-      inviteId: invite.id,
-    },
-  });
   logger.info(
     {
       fn: 'acceptJournalInvite',
       userId,
       invite: {
-        ...updatedInvite,
-        token: updatedInvite.token,
+        ...result,
+        token: result.token,
       },
     },
     'Accepted journal invite',
   );
-  return updatedInvite;
+  return result;
 }
 
-async function declineJournalInvite({ token }: { token: string }) {
+async function declineJournalInvite({ token, userId }: { token: string; userId?: number }) {
   const invite = await prisma.editorInvite.findUnique({
     where: {
       token,
@@ -168,6 +188,7 @@ async function declineJournalInvite({ token }: { token: string }) {
         ...invite,
         token: invite?.token.slice(0, 4) + '...',
       },
+      userId,
     },
     'Declining journal invite',
   );
@@ -180,23 +201,32 @@ async function declineJournalInvite({ token }: { token: string }) {
     throw new Error('Invite expired');
   }
 
-  const updatedInvite = await prisma.editorInvite.update({
-    where: { id: invite.id },
-    data: {
-      accepted: false,
-      decisionAt: new Date(),
-    },
-  });
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedInvite = await tx.editorInvite.update({
+      where: { id: invite.id },
+      data: {
+        accepted: false,
+        decisionAt: new Date(),
+      },
+    });
 
-  await JournalEventLogService.log({
-    journalId: invite.journalId,
-    action: JournalEventLogAction.EDITOR_DECLINED_INVITE,
-    details: {
-      role: invite.role,
-      token: invite.token,
-      inviteId: invite.id,
-      email: invite.email,
-    },
+    await tx.journalEventLog.create({
+      data: {
+        journal: {
+          connect: { id: invite.journalId },
+        },
+        user: userId ? { connect: { id: userId } } : undefined,
+        action: JournalEventLogAction.EDITOR_DECLINED_INVITE,
+        details: {
+          role: invite.role,
+          token: invite.token,
+          inviteId: invite.id,
+          email: invite.email,
+        },
+      },
+    });
+
+    return updatedInvite;
   });
 
   // TODO: Notify the inviter
@@ -205,14 +235,15 @@ async function declineJournalInvite({ token }: { token: string }) {
     {
       fn: 'declineJournalInvite',
       invite: {
-        ...updatedInvite,
-        token: updatedInvite.token,
+        ...result,
+        token: result.token,
       },
+      userId,
     },
     'Declined journal invite',
   );
 
-  return updatedInvite;
+  return result;
 }
 
 export const JournalInviteService = {
