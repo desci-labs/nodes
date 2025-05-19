@@ -1262,7 +1262,7 @@ model JournalEventLog {
   id           Int                   @id @default(autoincrement())
   submissionId Int? // Made optional to support events that aren't tied to a submission, e.g. assigining an associate editor.
   journalId    Int
-  userId       Int
+  userId       Int? // Optional for unauthed actions, i.e. decline an invite.
   action       JournalEventLogAction
   details      Json?
   timestamp    DateTime              @default(now())
@@ -1270,7 +1270,7 @@ model JournalEventLog {
   // Relationships
   submission JournalSubmission? @relation(fields: [submissionId], references: [id])
   journal    Journal            @relation(fields: [journalId], references: [id])
-  user       User               @relation(fields: [userId], references: [id])
+  user       User?              @relation(fields: [userId], references: [id])
 }
 
 model EditorInvite {
