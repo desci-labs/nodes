@@ -1,5 +1,6 @@
 import { EditorRole } from '@prisma/client';
-import { NextFunction, Response } from 'express';
+import { Response } from 'express';
+import _ from 'lodash';
 import { z } from 'zod';
 
 import { sendError, sendSuccess } from '../../../core/api.js';
@@ -43,7 +44,11 @@ export const inviteEditor = async (req: InviteEditorRequest, res: Response) => {
       role,
     });
 
-    return sendSuccess(res, { invite }, 'Editor invited successfully.');
+    return sendSuccess(
+      res,
+      { invite: _.omit(invite, ['token', 'decisionAt', 'accepted']) },
+      'Editor invited successfully.',
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       logger.warn({ error }, 'Validation failed');

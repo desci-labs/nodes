@@ -10,29 +10,23 @@ const logger = parentLogger.child({
   module: 'Journals::EditorInviteDecisionController',
 });
 
-const EditorInviteDecisionParamsSchema = z.object({
+const EditorInviteDecisionRequestBodySchema = z.object({
+  decision: z.enum(['accept', 'decline']),
   token: z.string(),
 });
 
-const EditorInviteDecisionRequestBodySchema = z.object({
-  decision: z.enum(['accept', 'decline']),
-});
-
 interface EditorInviteDecisionRequest
-  extends AuthenticatedRequest<
-    z.input<typeof EditorInviteDecisionParamsSchema>,
-    any,
-    z.input<typeof EditorInviteDecisionRequestBodySchema>,
-    any
-  > {}
+  extends AuthenticatedRequest<any, any, z.input<typeof EditorInviteDecisionRequestBodySchema>, any> {}
 
 export const editorInviteDecision = async (req: EditorInviteDecisionRequest, res: Response, next: NextFunction) => {
   try {
-    const { token } = EditorInviteDecisionParamsSchema.parse(req.params);
-    const { decision } = EditorInviteDecisionRequestBodySchema.parse(req.body);
+    const { decision, token } = EditorInviteDecisionRequestBodySchema.parse(req.body);
     const user = req.user; // User can be undefined, declining doesn't require auth.
 
-    logger.info({ token, decision, userId: req.user?.id }, 'Processing editor invite decision');
+    logger.info(
+      { token: token.slice(0, 4) + '...', decision, userId: req.user?.id },
+      'Processing editor invite decision',
+    );
 
     let invite;
     if (decision === 'accept') {
