@@ -78,10 +78,10 @@ spec:
           resources:
             limits:
               cpu: '0.1'
-              memory: 100M
+              memory: 100Mi
             requests:
               cpu: '0.1'
-              memory: 100M
+              memory: 100Mi
           # restart pod after failureThreshold*periodSeconds total seconds
           livenessProbe:
             httpGet:

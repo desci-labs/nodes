@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-    echo "Usage: $0 [-m <mount-path>] [-t <vault-token>] [-a <vault-addr>]"
+    echo "Usage: $0 [-m <mount-path>] [-s] [-t <vault-token>] [-a <vault-addr>]"
     echo
     echo "Options:"
     echo "  -m  Mount path to start search from (default: search all mounts)"
@@ -19,7 +19,7 @@ MOUNT_PATH="secrets"
 SHOW_SECRETS=false
 
 # Parse command line arguments
-while getopts "m:s:t:a:h" opt; do
+while getopts "m:st:a:h" opt; do
     case $opt in
         m) MOUNT_PATH="$OPTARG" ;;
         s) SHOW_SECRETS=true ;;
