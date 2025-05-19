@@ -1,8 +1,8 @@
 import { Response, Request } from 'express';
 
-import { sendError, sendSuccess } from '../../../core/api.js';
-import { logger as parentLogger } from '../../../logger.js';
-import { JournalManagementService } from '../../../services/journals/JournalManagementService.js';
+import { sendError, sendSuccess } from '../../core/api.js';
+import { logger as parentLogger } from '../../logger.js';
+import { JournalManagementService } from '../../services/journals/JournalManagementService.js';
 
 const logger = parentLogger.child({
   module: 'Journals::ListJournalsController',

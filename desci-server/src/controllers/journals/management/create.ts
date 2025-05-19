@@ -1,11 +1,11 @@
 import { Response } from 'express';
+import _ from 'lodash';
 import { z } from 'zod';
 
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { AuthenticatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { JournalManagementService } from '../../../services/journals/JournalManagementService.js';
-
 const logger = parentLogger.child({
   module: 'Journals::CreateJournalController',
 });
@@ -54,7 +54,7 @@ export const createJournalController = async (req: CreateJournalRequest, res: Re
       );
     }
 
-    const journal = result.value;
+    const journal = _.pick(result.value, ['id', 'name', 'description', 'iconCid', 'createdAt']);
     return sendSuccess(res, { journal }, 'Journal created successfully.');
   } catch (error) {
     if (error instanceof z.ZodError) {
