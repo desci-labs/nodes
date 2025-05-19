@@ -114,7 +114,7 @@ async function updateJournal(
   }
 }
 
-type JournalDetails = Prisma.JournalGetPayload<{
+export type JournalDetails = Prisma.JournalGetPayload<{
   select: {
     id: true;
     name: true;
@@ -173,7 +173,7 @@ async function getJournalById(journalId: number): Promise<Result<JournalDetails,
   }
 }
 
-type ListedJournal = Prisma.JournalGetPayload<{
+export type ListedJournal = Prisma.JournalGetPayload<{
   select: {
     id: true;
     name: true;
@@ -194,7 +194,6 @@ async function listJournals(): Promise<Result<ListedJournal[], Error>> {
         createdAt: true,
       },
     });
-    // 'journals' here will be an array of objects matching the ListedJournal type
     return ok(journals);
   } catch (error) {
     logger.error({ error }, 'Failed to list journals in service');
@@ -320,7 +319,6 @@ async function updateEditorRole(
     return err(error instanceof Error ? error : new Error('An unexpected error occurred while updating editor role'));
   }
 }
-
 export const JournalManagementService = {
   createJournal,
   updateJournal,
