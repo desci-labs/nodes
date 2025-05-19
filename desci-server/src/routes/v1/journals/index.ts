@@ -21,7 +21,7 @@ router.get('/:journalId', showJournalController);
 
 // Invites
 router.post('/:journalId/invites/editor', [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)], inviteEditor);
-router.post('/:journalId/invitation/editor', [attachUser], editorInviteDecision);
+router.post('/:journalId/invitation/editor', [attachUser], editorInviteDecision); // editor accept/deny route
 
 // Management
 router.post('/', [ensureUser], createJournalController);

@@ -46,7 +46,7 @@ export const editorInviteDecision = async (req: EditorInviteDecisionRequest, res
     } else {
       // decision === 'decline'
       // For 'decline', user does not need to be authenticated
-      invite = await JournalInviteService.declineJournalInvite({ token });
+      invite = await JournalInviteService.declineJournalInvite({ token, userId: user?.id });
       return sendSuccess(res, { invite }, 'Editor invitation declined successfully.');
     }
   } catch (error) {
