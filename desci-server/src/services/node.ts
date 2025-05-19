@@ -94,6 +94,7 @@ export async function getNodeLikesInRange({ from, to }: { from: string | Date; t
 
 export const getPublishedNodesInRange = async (range: { from: Date; to: Date }) => {
   const publishes = await prisma.nodeVersion.findMany({
+    distinct: ['nodeId'],
     where: {
       createdAt: {
         gte: range.from,
@@ -111,6 +112,7 @@ export const getPublishedNodesInRange = async (range: { from: Date; to: Date }) 
 
 export const countPublishedNodesInRange = async (range: { from: Date; to: Date }) => {
   const publishes = await prisma.nodeVersion.count({
+    distinct: ['nodeId'],
     where: {
       createdAt: {
         gte: range.from,
