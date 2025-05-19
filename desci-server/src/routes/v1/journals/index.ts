@@ -16,27 +16,23 @@ import { ensureUser } from '../../../middleware/permissions.js';
 const router = Router();
 
 // General
-router.get('/journals', listJournalsController);
-router.get('/journals/:journalId', showJournalController);
+router.get('/', listJournalsController);
+router.get('/:journalId', showJournalController);
 
 // Invites
-router.post(
-  '/journals/:journalId/invites/editor',
-  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)],
-  inviteEditor,
-);
-router.post('/journals/:journalId/invitation/editor', [attachUser], editorInviteDecision);
+router.post('/:journalId/invites/editor', [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)], inviteEditor);
+router.post('/:journalId/invitation/editor', [attachUser], editorInviteDecision);
 
 // Management
-router.post('/journals', [ensureUser], createJournalController);
-router.put('/journals/:journalId', [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)], updateJournalController);
+router.post('/', [ensureUser], createJournalController);
+router.put('/:journalId', [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)], updateJournalController);
 router.patch(
-  '/journals/:journalId/editors/:editorId',
+  '/:journalId/editors/:editorId',
   [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)],
   updateEditorRoleController,
 );
 router.delete(
-  '/journals/:journalId/editors/:editorId',
+  '/:journalId/editors/:editorId',
   [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)],
   removeEditorController,
 );
