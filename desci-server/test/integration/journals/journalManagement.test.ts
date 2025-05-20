@@ -468,10 +468,10 @@ describe('Journal Management Service', () => {
       });
     });
 
-    describe('PUT /journals/:journalId', () => {
+    describe('PATCH /journals/:journalId', () => {
       it('should update journal details', async () => {
         const res = await request(app)
-          .put(`/v1/journals/${journal.id}`)
+          .patch(`/v1/journals/${journal.id}`)
           .set('authorization', `Bearer ${authToken}`)
           .send({
             name: 'Updated Journal',
@@ -485,7 +485,7 @@ describe('Journal Management Service', () => {
 
       it('should return 403 for non-chief editor', async () => {
         const res = await request(app)
-          .put(`/v1/journals/${journal.id}`)
+          .patch(`/v1/journals/${journal.id}`)
           .set('authorization', `Bearer ${editorAuthToken}`)
           .send({
             name: 'Updated Journal',

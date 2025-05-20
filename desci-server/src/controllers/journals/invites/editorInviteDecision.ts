@@ -1,7 +1,7 @@
 import { NextFunction, Response } from 'express';
 
 import { sendError, sendSuccess } from '../../../core/api.js';
-import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
+import { OptionalAuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { editorInviteDecisionSchema } from '../../../schemas/journals.schema.js';
 import { JournalInviteService } from '../../../services/journals/JournalInviteService.js';
@@ -10,7 +10,7 @@ const logger = parentLogger.child({
   module: 'Journals::EditorInviteDecisionController',
 });
 
-type EditorInviteDecisionRequest = ValidatedRequest<typeof editorInviteDecisionSchema, AuthenticatedRequest>;
+type EditorInviteDecisionRequest = ValidatedRequest<typeof editorInviteDecisionSchema, OptionalAuthenticatedRequest>;
 
 export const editorInviteDecision = async (req: EditorInviteDecisionRequest, res: Response, next: NextFunction) => {
   try {

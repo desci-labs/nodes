@@ -37,13 +37,12 @@ router.post(
 );
 router.post(
   '/:journalId/invitation/editor',
-  [attachUser, validateInputs(editorInviteDecisionSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+  [attachUser, validateInputs(editorInviteDecisionSchema)],
   editorInviteDecision,
 ); // editor accept/deny route
 
 // Management
 router.post('/', [ensureUser, validateInputs(createJournalSchema)], createJournalController);
-router.put('/:journalId', [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)], updateJournalController);
 router.patch(
   '/:journalId',
   [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(updateJournalSchema)],
