@@ -344,7 +344,10 @@ const updateWorksAuthorships = async (tx: pgPromise.ITask<any>, data: DataModels
       acc[key] = curr;
       return acc;
     } else {
-      acc[key].institution_ids!.push(...curr.institution_ids!);
+      acc[key].institution_ids = Array.from(new Set([
+        ...acc[key].institution_ids!,
+        ...curr.institution_ids!
+      ]));
     }
     return acc;
   }, {} as Record<string, DataModels['works_authorships'][number]>);
