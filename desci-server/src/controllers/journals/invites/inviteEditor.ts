@@ -55,9 +55,9 @@ export const inviteEditor = async (req: InviteEditorRequest, res: Response) => {
       const formattedErrors = Object.entries(error.flatten().fieldErrors).flatMap(([field, messages]) =>
         (messages || []).map((message) => ({ field, message })),
       );
-      return sendError(res, 'Validation failed', formattedErrors, 400);
+      return sendError(res, 'Validation failed', 400, formattedErrors);
     }
     logger.error({ error }, 'Failed to invite editor');
-    return sendError(res, 'Failed to invite editor', undefined, 500);
+    return sendError(res, 'Failed to invite editor', 500);
   }
 };

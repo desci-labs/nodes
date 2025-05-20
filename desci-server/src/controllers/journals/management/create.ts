@@ -41,17 +41,11 @@ export const createJournalController = async (req: CreateJournalRequest, res: Re
         return sendError(
           res,
           'A journal with this name may already exist or another unique field constraint was violated.',
-          undefined,
           409,
         );
       }
 
-      return sendError(
-        res,
-        'Failed to create journal due to a server error.',
-        [{ field: 'SYSTEM', message: error.message }],
-        500,
-      );
+      return sendError(res, 'Failed to create journal due to a server error.', 500);
     }
 
     const journal = _.pick(result.value, ['id', 'name', 'description', 'iconCid', 'createdAt']);
@@ -62,10 +56,10 @@ export const createJournalController = async (req: CreateJournalRequest, res: Re
       const formattedErrors = Object.entries(error.flatten().fieldErrors).flatMap(([field, messages]) =>
         (messages || []).map((message) => ({ field, message })),
       );
-      return sendError(res, 'Validation failed', formattedErrors, 400);
+      return sendError(res, 'Validation failed', 400, formattedErrors);
     }
 
     logger.error({ error, body: req.body, user: req.user }, 'Unhandled error in createJournalController');
-    return sendError(res, 'An unexpected error occurred while processing your request.', undefined, 500);
+    return sendError(res, 'An unexpected error occurred while processing your request.', 500);
   }
 };

@@ -17,13 +17,13 @@ export const listJournalsController = async (req: Request, res: Response) => {
     if (result.isErr()) {
       const error = result.error;
       logger.error({ error }, 'Failed to list journals');
-      return sendError(res, 'Failed to retrieve journals due to a server error.', undefined, 500);
+      return sendError(res, 'Failed to retrieve journals due to a server error.', 500);
     }
 
     const journals = result.value;
     return sendSuccess(res, { journals }, 'Journals listed successfully.');
   } catch (error) {
     logger.error({ error, userId: (req as any).user?.id }, 'Unhandled error in listJournalsController');
-    return sendError(res, 'An unexpected error occurred while retrieving journals.', undefined, 500);
+    return sendError(res, 'An unexpected error occurred while retrieving journals.', 500);
   }
 };

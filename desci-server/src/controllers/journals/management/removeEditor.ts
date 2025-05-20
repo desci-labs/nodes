@@ -31,13 +31,13 @@ export const removeEditorController = async (req: RemoveEditorRequest, res: Resp
       logger.error({ error, journalId, editorIdToRemove: editorId, managerId }, 'Failed to remove editor');
 
       if (error.message === 'Editor not found.') {
-        return sendError(res, 'Editor not found in this journal.', undefined, 404);
+        return sendError(res, 'Editor not found in this journal.', 404);
       }
       if (error.message === 'Cannot remove yourself as a CHIEF_EDITOR.') {
-        return sendError(res, error.message, undefined, 403);
+        return sendError(res, error.message, 403);
       }
 
-      return sendError(res, 'Failed to remove editor due to a server error.', undefined, 500);
+      return sendError(res, 'Failed to remove editor due to a server error.', 500);
     }
 
     return sendSuccess(res, { message: 'Editor removed successfully.' }, 'Editor removed successfully.');
@@ -47,10 +47,10 @@ export const removeEditorController = async (req: RemoveEditorRequest, res: Resp
       const formattedErrors = Object.entries(error.flatten().fieldErrors).flatMap(([field, messages]) =>
         (messages || []).map((message) => ({ field, message })),
       );
-      return sendError(res, 'Validation failed', formattedErrors, 400);
+      return sendError(res, 'Validation failed', 400, formattedErrors);
     }
 
     logger.error({ error, params: req.params, userId: req.user?.id }, 'Unhandled error in removeEditorController');
-    return sendError(res, 'An unexpected error occurred.', undefined, 500);
+    return sendError(res, 'An unexpected error occurred.', 500);
   }
 };

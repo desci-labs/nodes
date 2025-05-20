@@ -49,19 +49,14 @@ export const updateEditorRoleController = async (req: UpdateEditorRoleRequest, r
       );
 
       if (error.message === 'Editor not found.') {
-        return sendError(
-          res,
-          'Editor not found in this journal.',
-          [{ field: 'editorId', message: error.message }],
-          404,
-        );
+        return sendError(res, 'Editor not found in this journal.', 404);
       }
 
       if (error.message === 'Cannot demote yourself.') {
-        return sendError(res, error.message, [{ field: 'editorId', message: error.message }], 403);
+        return sendError(res, error.message, 403);
       }
 
-      return sendError(res, 'Failed to update editor role due to a server error.', undefined, 500);
+      return sendError(res, 'Failed to update editor role due to a server error.', 500);
     }
 
     return sendSuccess(res, { message: 'Editor role updated successfully.' }, 'Editor role updated successfully.');
@@ -74,13 +69,13 @@ export const updateEditorRoleController = async (req: UpdateEditorRoleRequest, r
       const formattedErrors = Object.entries(error.flatten().fieldErrors).flatMap(([field, messages]) =>
         (messages || []).map((message) => ({ field, message })),
       );
-      return sendError(res, 'Validation failed', formattedErrors, 400);
+      return sendError(res, 'Validation failed', 400, formattedErrors);
     }
 
     logger.error(
       { error, params: req.params, userId: req.user?.id, body: req.body },
       'Unhandled error in updateEditorRoleController',
     );
-    return sendError(res, 'An unexpected error occurred.', undefined, 500);
+    return sendError(res, 'An unexpected error occurred.', 500);
   }
 };

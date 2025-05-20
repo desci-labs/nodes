@@ -12,12 +12,14 @@ import { showJournalController } from '../../../controllers/journals/show.js';
 import { attachUser } from '../../../middleware/attachUser.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
 import { ensureUser } from '../../../middleware/permissions.js';
+import { validateInputs } from '../../../middleware/validator.js';
+import { GetJournalSchema } from '../../../schemas/journals.schema.js';
 
 const router = Router();
 
 // General
 router.get('/', listJournalsController);
-router.get('/:journalId', showJournalController);
+router.get('/:journalId', [attachUser, validateInputs(GetJournalSchema)], showJournalController);
 
 // Invites
 router.post('/:journalId/invites/editor', [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)], inviteEditor);

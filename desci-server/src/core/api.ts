@@ -10,8 +10,8 @@ export function sendSuccess<T>(res: Response, data: T, message?: string, statusC
 export function sendError(
   res: Response,
   message: string,
-  errors?: ApiResponse<unknown>['errors'],
   statusCode: number = 400,
+  errors?: ApiResponse<unknown>['errors'],
 ) {
   const payload: ApiResponse<null> = { ok: false, message, errors };
   return res.status(statusCode).json(payload);
