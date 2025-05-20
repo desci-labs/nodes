@@ -2,24 +2,20 @@ import { Response } from 'express';
 import { z } from 'zod';
 
 import { sendError, sendSuccess } from '../../../core/api.js';
-import { AuthenticatedRequest } from '../../../core/types.js';
+import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
+import { removeEditorSchema } from '../../../schemas/journals.schema.js';
 import { JournalManagementService } from '../../../services/journals/JournalManagementService.js';
 
 const logger = parentLogger.child({
   module: 'Journals::RemoveEditorController',
 });
 
-const RemoveEditorParamsSchema = z.object({
-  journalId: z.string().transform((val) => parseInt(val, 10)),
-  editorId: z.string().transform((val) => parseInt(val, 10)),
-});
-
-interface RemoveEditorRequest extends AuthenticatedRequest<z.input<typeof RemoveEditorParamsSchema>, any, any, any> {}
+type RemoveEditorRequest = ValidatedRequest<typeof removeEditorSchema, AuthenticatedRequest>;
 
 export const removeEditorController = async (req: RemoveEditorRequest, res: Response) => {
   try {
-    const { journalId, editorId } = RemoveEditorParamsSchema.parse(req.params);
+    const { journalId, editorId } = req.validatedData.params;
     const managerId = req.user.id;
 
     logger.info({ journalId, editorIdToRemove: editorId, managerId }, 'Attempting to remove editor from journal');

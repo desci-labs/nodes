@@ -3,14 +3,14 @@ import { Response } from 'express';
 import { sendError, sendSuccess } from '../../core/api.js';
 import { ValidatedRequest, OptionalAuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { GetJournalSchema } from '../../schemas/journals.schema.js';
+import { getJournalSchema } from '../../schemas/journals.schema.js';
 import { JournalManagementService } from '../../services/journals/JournalManagementService.js';
 
 const logger = parentLogger.child({
   module: 'Journals::ShowJournalController',
 });
 
-type ShowJournalRequest = ValidatedRequest<typeof GetJournalSchema, OptionalAuthenticatedRequest>;
+type ShowJournalRequest = ValidatedRequest<typeof getJournalSchema, OptionalAuthenticatedRequest>;
 
 export const showJournalController = async (req: ShowJournalRequest, res: Response) => {
   try {

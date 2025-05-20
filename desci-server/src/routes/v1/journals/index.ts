@@ -13,29 +13,50 @@ import { attachUser } from '../../../middleware/attachUser.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 import { validateInputs } from '../../../middleware/validator.js';
-import { GetJournalSchema } from '../../../schemas/journals.schema.js';
+import {
+  createJournalSchema,
+  editorInviteDecisionSchema,
+  getJournalSchema,
+  inviteEditorSchema,
+  removeEditorSchema,
+  updateEditorRoleSchema,
+  updateJournalSchema,
+} from '../../../schemas/journals.schema.js';
 
 const router = Router();
 
 // General
 router.get('/', listJournalsController);
-router.get('/:journalId', [attachUser, validateInputs(GetJournalSchema)], showJournalController);
+router.get('/:journalId', [attachUser, validateInputs(getJournalSchema)], showJournalController);
 
 // Invites
-router.post('/:journalId/invites/editor', [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)], inviteEditor);
-router.post('/:journalId/invitation/editor', [attachUser], editorInviteDecision); // editor accept/deny route
+router.post(
+  '/:journalId/invites/editor',
+  [ensureUser, validateInputs(inviteEditorSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+  inviteEditor,
+);
+router.post(
+  '/:journalId/invitation/editor',
+  [attachUser, validateInputs(editorInviteDecisionSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+  editorInviteDecision,
+); // editor accept/deny route
 
 // Management
-router.post('/', [ensureUser], createJournalController);
+router.post('/', [ensureUser, validateInputs(createJournalSchema)], createJournalController);
 router.put('/:journalId', [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)], updateJournalController);
 router.patch(
+  '/:journalId',
+  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(updateJournalSchema)],
+  updateJournalController,
+);
+router.patch(
   '/:journalId/editors/:editorId',
-  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(updateEditorRoleSchema)],
   updateEditorRoleController,
 );
 router.delete(
   '/:journalId/editors/:editorId',
-  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(removeEditorSchema)],
   removeEditorController,
 );
 

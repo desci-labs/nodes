@@ -2,6 +2,7 @@ import { EditorRole } from '@prisma/client';
 import { NextFunction, Response, Request } from 'express';
 
 import { prisma } from '../client.js';
+import { sendError } from '../core/api.js';
 import { AuthenticatedRequest } from '../core/types.js';
 import { logger as parentLogger } from '../logger.js';
 
@@ -62,12 +63,12 @@ export const ensureJournalRole = (requiredRole: EditorRole) => {
       const userId = req.user?.id;
 
       if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
+        sendError(res, 'Unauthorized', 401);
         return;
       }
 
       if (!journalId) {
-        res.status(400).json({ error: 'Bad Request - Journal ID is required' });
+        sendError(res, 'Bad Request - Journal ID is required', 400);
         return;
       }
 
@@ -81,12 +82,12 @@ export const ensureJournalRole = (requiredRole: EditorRole) => {
       });
 
       if (!editor) {
-        res.status(403).json({ error: 'Forbidden - Not a journal editor' });
+        sendError(res, 'Forbidden - Not a journal editor', 403);
         return;
       }
 
       if (editor.role !== requiredRole) {
-        res.status(403).json({ error: 'Forbidden - Insufficient permissions' });
+        sendError(res, 'Forbidden - Insufficient permissions', 403);
         return;
       }
 

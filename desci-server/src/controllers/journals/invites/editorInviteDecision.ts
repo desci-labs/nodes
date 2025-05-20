@@ -1,26 +1,20 @@
 import { NextFunction, Response } from 'express';
-import { z } from 'zod';
 
 import { sendError, sendSuccess } from '../../../core/api.js';
-import { AuthenticatedRequest } from '../../../core/types.js';
+import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
+import { editorInviteDecisionSchema } from '../../../schemas/journals.schema.js';
 import { JournalInviteService } from '../../../services/journals/JournalInviteService.js';
 
 const logger = parentLogger.child({
   module: 'Journals::EditorInviteDecisionController',
 });
 
-const EditorInviteDecisionRequestBodySchema = z.object({
-  decision: z.enum(['accept', 'decline']),
-  token: z.string(),
-});
-
-interface EditorInviteDecisionRequest
-  extends AuthenticatedRequest<any, any, z.input<typeof EditorInviteDecisionRequestBodySchema>, any> {}
+type EditorInviteDecisionRequest = ValidatedRequest<typeof editorInviteDecisionSchema, AuthenticatedRequest>;
 
 export const editorInviteDecision = async (req: EditorInviteDecisionRequest, res: Response, next: NextFunction) => {
   try {
-    const { decision, token } = EditorInviteDecisionRequestBodySchema.parse(req.body);
+    const { decision, token } = req.validatedData.body;
     const user = req.user; // User can be undefined, declining doesn't require auth.
 
     logger.info(
@@ -44,18 +38,10 @@ export const editorInviteDecision = async (req: EditorInviteDecisionRequest, res
       return sendSuccess(res, { invite }, 'Editor invitation declined successfully.');
     }
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      logger.warn({ error }, 'Validation failed for editor invite decision');
-      const formattedErrors = Object.entries(error.flatten().fieldErrors).flatMap(([field, messages]) =>
-        (messages || []).map((message) => ({ field, message })),
-      );
-      return sendError(res, 'Validation failed', 400, formattedErrors);
-    }
-    const errorLogDetails: any = { error, body: req.body, params: req.params };
-    if (req.user) {
-      errorLogDetails.user = req.user;
-    }
-    logger.error(errorLogDetails, 'Failed to process editor invite decision');
+    logger.error(
+      { error, body: req.body, params: req.params, userId: req.user?.id },
+      'Failed to process editor invite decision',
+    );
 
     if (error.message === 'Invite not found' || error.message === 'Invite expired') {
       return sendError(res, error.message, 400);
