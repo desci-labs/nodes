@@ -1049,18 +1049,19 @@ model DoiSubmissionQueue {
 }
 
 model UserNotifications {
-  id        Int              @id @default(autoincrement())
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id        Int                  @id @default(autoincrement())
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
   userId    Int
   nodeUuid  String?
   type      NotificationType
+  category  NotificationCategory @default(DESCI_PUBLISH)
   title     String
   message   String
   payload   Json? // E.g. hyperlinks, DPID, DOI, frontend handles.
-  dismissed Boolean          @default(false)
-  node      Node?            @relation(fields: [nodeUuid], references: [uuid])
-  user      User             @relation(fields: [userId], references: [id])
+  dismissed Boolean              @default(false)
+  node      Node?                @relation(fields: [nodeUuid], references: [uuid])
+  user      User                 @relation(fields: [userId], references: [id])
 }
 
 model PublishStatus {
@@ -1171,6 +1172,7 @@ model JournalEditor {
   inviterId  Int?
   invitedAt  DateTime   @default(now())
   acceptedAt DateTime?
+  workload   Int?       @default(5)
 
   // Relationships
   journal Journal @relation(fields: [journalId], references: [id])
@@ -1535,6 +1537,11 @@ enum NotificationType {
   CONTRIBUTOR_INVITE
   DOI_ISSUANCE_STATUS
   ATTESTATION_VALIDATION
+}
+
+enum NotificationCategory {
+  DESCI_PUBLISH
+  DESCI_JOURNALS
 }
 
 enum BookmarkType {
