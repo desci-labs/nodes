@@ -82,7 +82,7 @@ const logMockUserActions = async (
   return interactions;
 };
 
-describe.only('Desci Analytics', async () => {
+describe('Desci Analytics', async () => {
   let mockAdmin: MockUser;
 
   let request: supertest.SuperTest<supertest.Test>;
