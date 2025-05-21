@@ -11,9 +11,9 @@ export interface InviteEditorEmailProps {
   inviteToken: string;
 }
 
-const roleCopy = {
-  [EditorRole.ASSOCIATE_EDITOR]: 'Associate Editor',
-  [EditorRole.CHIEF_EDITOR]: 'Chief Editor',
+export const roleCopy = {
+  [EditorRole.ASSOCIATE_EDITOR]: 'an Associate Editor',
+  [EditorRole.CHIEF_EDITOR]: 'a Chief Editor',
 };
 
 export const InviteEditorEmail = ({ journal, inviterName, role, inviteToken }: InviteEditorEmailProps) => (
@@ -21,14 +21,12 @@ export const InviteEditorEmail = ({ journal, inviterName, role, inviteToken }: I
     <Html>
       <Head />
       <Preview>
-        You've been invited to join {journal.name} as{' '}
-        {['A', 'E', 'I', 'O', 'U'].includes(roleCopy[role]?.charAt(0).toUpperCase()) ? 'an' : 'a'} {roleCopy[role]}
+        You've been invited to join {journal.name} as {roleCopy[role]}
       </Preview>
       <Body style={baseStyles.main}>
         <Container style={baseStyles.container}>
           <Heading style={baseStyles.h1} className="text-center !text-black">
-            {inviterName} has invited you to join {journal.name} as{' '}
-            {['A', 'E', 'I', 'O', 'U'].includes(roleCopy[role]?.charAt(0).toUpperCase()) ? 'an' : 'a'} {roleCopy[role]}
+            {inviterName} has invited you to join {journal.name} as {roleCopy[role]}
           </Heading>
           <Text className="text-lg text-center font-bold">{journal.description}</Text>
           <Section className="mx-auto w-fit my-5 bg-[#dadce0] rounded-md px-14 py-3" align="center">
