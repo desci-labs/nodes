@@ -1172,7 +1172,6 @@ model JournalEditor {
   inviterId  Int?
   invitedAt  DateTime   @default(now())
   acceptedAt DateTime?
-  workload   Int?       @default(5)
 
   // Relationships
   journal Journal @relation(fields: [journalId], references: [id])
