@@ -302,5 +302,14 @@ export const getAuthorPublishedNodes = async (req: PublishedNodesRequest, res: P
     };
   });
 
-  return new SuccessResponse({ meta: { page, limit: size, g: gateway }, nodes: formattedNodes }).send(res);
+  return new SuccessResponse({
+    meta: {
+      page,
+      limit: size,
+      g: gateway,
+      count: formattedNodes.length,
+      nextPage: formattedNodes.length === size ? page + 1 : null,
+    },
+    nodes: formattedNodes,
+  }).send(res);
 };
