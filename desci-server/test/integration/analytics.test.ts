@@ -45,8 +45,8 @@ const createMockUsers = async (count: number, createdAt: Date, withOrcid?: boole
   const promises = new Array(count).fill(0).map((_, index) =>
     prisma.user.create({
       data: {
-        email: `user${index}_${randomInt(1, 1000000)}@test.com`,
-        name: `User_${index}_${randomInt(1, 1000000)}`,
+        email: `user${index}_${uuidv4()}@test.com`,
+        name: `User_${index}_${uuidv4()}`,
         createdAt,
         ...(withOrcid ? { orcid: generateOrcid() } : {}),
       },
@@ -125,12 +125,12 @@ describe('Desci Analytics', async () => {
       }
 
       // print database counts of user per day
-      const userCounts =
-        (await prisma.$queryRaw`SELECT COUNT(1), DATE("createdAt" )::text AS d       FROM "User"       GROUP BY d        ORDER BY d DESC`) as {
-          count: number;
-          d: string;
-        }[];
-      console.log(JSON.stringify(sanitizeBigInts(userCounts), null, 2));
+      // const userCounts =
+      //   (await prisma.$queryRaw`SELECT COUNT(1), DATE("createdAt" )::text AS d       FROM "User"       GROUP BY d        ORDER BY d DESC`) as {
+      //     count: number;
+      //     d: string;
+      //   }[];
+      // console.log(JSON.stringify(sanitizeBigInts(userCounts), null, 2));
 
       // ensure the counts are correct in analytics controller route /admin/analytics
       const response = await request.get('/v1/admin/analytics').set('authorization', `Bearer ${mockAdmin.token}`);
@@ -154,11 +154,11 @@ describe('Desci Analytics', async () => {
         }
       }
 
-      const userCounts =
-        (await prisma.$queryRaw`SELECT COUNT(1), DATE("createdAt" )::text AS d       FROM "User"       GROUP BY d        ORDER BY d DESC`) as {
-          count: number;
-          d: string;
-        }[];
+      // const userCounts =
+      //   (await prisma.$queryRaw`SELECT COUNT(1), DATE("createdAt" )::text AS d       FROM "User"       GROUP BY d        ORDER BY d DESC`) as {
+      //     count: number;
+      //     d: string;
+      //   }[];
       // console.log(JSON.stringify(sanitizeBigInts(userCounts), null, 2));
 
       const today = new Date();
@@ -244,9 +244,9 @@ describe('Desci Analytics', async () => {
       // console.log(JSON.stringify(sanitizeBigInts(response.body), null, 2));
 
       // check active orcid user stats
-      expect(1).to.equal(response.body.activeUsersToday, 'active orcid users today');
-      expect(6).to.equal(response.body.activeUsersInLast7Days, 'active orcid users in last 7 days');
-      expect(9).to.equal(response.body.activeUsersInLast30Days, 'active orcid users in last 30 days');
+      expect(1).to.equal(response.body.activeOrcidUsersToday, 'active orcid users today');
+      expect(6).to.equal(response.body.activeOrcidUsersInLast7Days, 'active orcid users in last 7 days');
+      expect(9).to.equal(response.body.activeOrcidUsersInLast30Days, 'active orcid users in last 30 days');
     });
   });
 
@@ -480,11 +480,11 @@ describe('Desci Analytics', async () => {
       );
 
       // create 5 node views today
-      await viewNodes(nodesInLast7Days.slice(0, 5), mockUsers[0].user.id, new Date());
+      await viewNodes(nodesInLast7Days.slice(0, 5), usersToday[0].user.id, new Date());
       // create 10 node views in the past 7 days
-      await viewNodes(nodesInLast30Days.slice(0, 10), mockUsers[1].user.id, subDays(new Date(), 5));
+      await viewNodes(nodesInLast30Days.slice(0, 10), usersInLast7Days[1].user.id, subDays(new Date(), 5));
       // create 10 node views in the past 30 days
-      await viewNodes(nodesInLast30Days, mockUsers[2].user.id, subDays(new Date(), 28));
+      await viewNodes(nodesInLast30Days, usersInLast30Days[2].user.id, subDays(new Date(), 28));
 
       // create 10 node likes today
       await likeNodes(mockNodes.slice(0, 10), mockUsers[0].user.id, new Date());
@@ -537,7 +537,7 @@ describe('Desci Analytics', async () => {
 
       expect(response.body.data.analytics[0].publishedNodes, 'published nodes today').to.equal(2); // sum of published nodes today
       expect(response.body.data.analytics[0].activeUsers, 'active users today').to.equal(
-        userInteractionsToday.length + orcidUsersInteractionsToday.length + 1, // mock user[0] viewed a node,
+        userInteractionsToday.length + orcidUsersInteractionsToday.length,
       ); // sum of user interactions today and orcid user interactions today
       expect(response.body.data.analytics[0].activeOrcidUsers, 'active orcid users today').to.equal(
         orcidUsersInteractionsToday.length,
@@ -577,7 +577,7 @@ describe('Desci Analytics', async () => {
       expect(analytics[0].nodeLikes, 'node likes today').to.equal(10); // sum of node likes today
       expect(analytics[0].publishedNodes, 'published nodes').to.equal(2); // sum of published nodes today
       expect(analytics[0].activeUsers, 'active users').to.equal(
-        userInteractionsToday.length + orcidUsersInteractionsToday.length + 1, // mock user[0] viewed a node,
+        userInteractionsToday.length + orcidUsersInteractionsToday.length,
       ); // sum of user interactions today and orcid user interactions today
       expect(analytics[0].activeOrcidUsers, 'active orcid users').to.equal(orcidUsersInteractionsToday.length); // sum of orcid user interactions today
 
@@ -589,7 +589,7 @@ describe('Desci Analytics', async () => {
       expect(analytics[5].nodeLikes, 'node likes on day 5').to.equal(15); // sum of node likes in last 7 days
       expect(analytics[5].publishedNodes, 'published nodes on day 5').to.equal(6); // sum of published nodes in last 7 days
       expect(analytics[5].activeUsers, 'active users on day 5').to.equal(
-        userInteractionsInLast7Days.length + orcidUsersInteractionsInLast7Days.length + 1,
+        userInteractionsInLast7Days.length + orcidUsersInteractionsInLast7Days.length,
       ); // sum of user interactions in last 7 days and orcid user interactions in last 7 days
       expect(response.body.data.analytics[5].activeOrcidUsers, 'active orcid user on day 5').to.equal(
         orcidUsersInteractionsInLast7Days.length,
@@ -629,14 +629,14 @@ describe('Desci Analytics', async () => {
       expect(analytics[0].nodeLikes, 'node likes this week').to.equal(10); // sum of node likes today
       expect(analytics[0].publishedNodes, 'published nodes this week').to.equal(2); // sum of published nodes today
       expect(analytics[0].activeUsers, 'active users this week').to.equal(
-        userInteractionsToday.length + orcidUsersInteractionsToday.length + 1, // mock user[0] viewed a node,
+        userInteractionsToday.length + orcidUsersInteractionsToday.length,
       ); // sum of user interactions in last 7 days and orcid user interactions in last 7 days
       expect(analytics[0].activeOrcidUsers, 'active orcid users this week').to.equal(
         orcidUsersInteractionsToday.length,
       ); // sum of orcid user interactions in last 7 days
 
       expect(analytics[4].newUsers, 'new users 4 weeks ago').to.equal(
-        usersInLast30Days.length + orcidUsersInLast30Days.length + mockUsers.length, // +1 for the mock admin user
+        usersInLast30Days.length + orcidUsersInLast30Days.length + mockUsers.length,
       ); // sum of users today and orcid users today
       expect(analytics[4].newOrcidUsers, 'new orcid users 4 weeks ago').to.equal(orcidUsersInLast30Days.length); // sum of orcid users today
       expect(analytics[4].newNodes, 'new nodes 4 weeks ago').to.equal(nodesInLast30Days.length); // sum of nodes today
@@ -650,7 +650,7 @@ describe('Desci Analytics', async () => {
       });
       console.log({ actualActiveUsers4WeeksAgo });
       expect(analytics[4].activeUsers, 'active users 4 weeks ago').to.equal(
-        userInteractionsInLast30Days.length + orcidUsersInteractionsInLast30Days.length + 1, // mockUser[2].user.id viewed nodes
+        userInteractionsInLast30Days.length + orcidUsersInteractionsInLast30Days.length,
       ); // sum of user interactions in last 30 days and orcid user interactions in last 30 days
       expect(analytics[4].activeOrcidUsers, 'active orcid users 4 weeks ago').to.equal(
         orcidUsersInteractionsInLast30Days.length,
