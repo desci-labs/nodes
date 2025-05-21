@@ -5,7 +5,7 @@ import * as React from 'react';
 import MainLayout, { baseStyles } from '../MainLayout.js';
 
 export interface InviteEditorEmailProps {
-  journal: Journal;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
   inviterName: string;
   role: string;
   inviteToken: string;

@@ -2,6 +2,7 @@ import { EditorRole, JournalEventLogAction } from '@prisma/client';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { EmailTypes, sendEmail } from '../email.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
 
@@ -27,6 +28,12 @@ async function inviteJournalEditor({
     'Inviting journal editor',
   );
 
+  const inviter = await prisma.user.findUnique({
+    where: {
+      id: inviterId,
+    },
+  });
+
   // TODO: Inviter has perms to invite to this journal
 
   if (!email) {
@@ -42,6 +49,7 @@ async function inviteJournalEditor({
       id: journalId,
     },
     select: {
+      id: true,
       name: true,
       description: true,
       iconCid: true,
@@ -79,7 +87,16 @@ async function inviteJournalEditor({
     return invite;
   });
 
-  // sendEmail({journalName, journalDescription, journalIconCid, token})
+  sendEmail({
+    type: EmailTypes.EDITOR_INVITE,
+    payload: {
+      email,
+      journal,
+      inviterName: inviter.name,
+      role,
+      inviteToken: token,
+    },
+  });
 
   logger.info(
     {

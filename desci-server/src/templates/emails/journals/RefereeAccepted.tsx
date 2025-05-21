@@ -5,7 +5,7 @@ import * as React from 'react';
 import MainLayout, { baseStyles } from '../MainLayout.js';
 
 export interface RefereeAcceptedEmailProps {
-  journal: Journal;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
   refereeName: string;
   refereeEmail: string;
   submissionTitle: string;

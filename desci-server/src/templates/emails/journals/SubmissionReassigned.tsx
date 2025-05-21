@@ -5,7 +5,7 @@ import * as React from 'react';
 import MainLayout, { baseStyles } from '../MainLayout.js';
 
 export interface SubmissionReassignedEmailProps {
-  journal: Journal;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
   assignerName: string;
   submissionTitle: string;
   submissionId: string;

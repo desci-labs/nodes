@@ -5,7 +5,7 @@ import * as React from 'react';
 import MainLayout, { baseStyles } from '../MainLayout.js';
 
 export interface MajorRevisionRequestEmailProps {
-  journal: Journal;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
   editorName: string;
   submissionTitle: string;
   submissionId: string;
