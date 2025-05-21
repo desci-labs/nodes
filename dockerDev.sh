@@ -44,7 +44,6 @@ init_node() {
 
 # Check prerequisites
 assert_command_available "docker"
-assert_command_available "docker-compose"
 assert_command_available "lsof"
 assert_command_available "make"
 assert_command_available "curl"
