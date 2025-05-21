@@ -287,7 +287,7 @@ export const getActiveUsersInRange = async (range: { from: Date; to: Date }) => 
       },
       OR: [{ isGuest: false }, { isGuest: null }],
     },
-    select: { user: { select: { createdAt: true } } },
+    select: { createdAt: true, user: { select: { id: true } } },
   });
 };
 
@@ -307,7 +307,7 @@ export const getActiveOrcidUsersInRange = async (range: { from: Date; to: Date }
         },
       },
     },
-    select: { user: { select: { createdAt: true } } },
+    select: { createdAt: true },
   });
 };
 
