@@ -93,34 +93,50 @@ export async function getNodeLikesInRange({ from, to }: { from: string | Date; t
 }
 
 export const getPublishedNodesInRange = async (range: { from: Date; to: Date }) => {
-  const publishes = await prisma.nodeVersion.findMany({
-    where: {
-      createdAt: {
-        gte: range.from,
-        lt: range.to,
-      },
-      OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
-    },
-    select: {
-      createdAt: true,
-    },
-  });
+  const publishes = (await prisma.$queryRaw`SELECT
+    DISTINCT nv."nodeId",
+    MAX(nv."createdAt") AS "createdAt"
+FROM
+    "Node" node
+    JOIN "NodeVersion" nv ON nv."createdAt" >= ${range.from}
+    AND nv."createdAt" < ${range.to}
+    AND (
+        nv."transactionId" IS NOT NULL
+        OR nv."commitId" IS NOT NULL
+    )
+GROUP BY
+    nv."nodeId";
+        `) as { nodeId: number; createdAt: string }[];
 
   return publishes;
 };
 
 export const countPublishedNodesInRange = async (range: { from: Date; to: Date }) => {
-  const publishes = await prisma.nodeVersion.count({
+  const result = await prisma.nodeVersion.groupBy({
+    by: ['nodeId'],
+    _count: {
+      _all: true,
+    },
     where: {
       createdAt: {
         gte: range.from,
         lt: range.to,
       },
-      OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+      OR: [
+        {
+          transactionId: {
+            not: null,
+          },
+        },
+        {
+          commitId: {
+            not: null,
+          },
+        },
+      ],
     },
   });
-
-  return publishes;
+  return result.length;
 };
 
 const NODE_DETAILS_CACHE_KEY = `NODE_DETAILS_CACHE_KEY`;
