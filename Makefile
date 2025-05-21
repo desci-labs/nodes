@@ -29,7 +29,7 @@ clean-rec:
 	$(MAKE) -C desci-repo clean
 
 .PHONY: .env
-.env: nodes-media/.env desci-repo/.env
+.env: nodes-media/.env desci-repo/.env sync-server/.env
 	# Phony target, always runs but is idempotent
 	# Copies example env if not present, and fails until MNEMONIC is set
 	if [ ! -f .env ]; then cp .env.example .env; fi
@@ -47,3 +47,5 @@ desci-repo/.env:
 desci-media-isolated/.env:
 	if [ ! -f desci-media-isolated/.env ]; then cp desci-media-isolated/.env.example desci-media-isolated/.env; fi
 
+sync-server/.env:
+	if [ ! -f sync-server/.env ]; then cp sync-server/.env.example sync-server/.env; fi
