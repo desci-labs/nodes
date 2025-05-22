@@ -1,4 +1,12 @@
-import { NotificationType, Prisma, User, UserNotifications, Node, DoiStatus } from '@prisma/client';
+import {
+  NotificationType,
+  Prisma,
+  User,
+  UserNotifications,
+  Node,
+  DoiStatus,
+  NotificationCategory,
+} from '@prisma/client';
 import { z } from 'zod';
 
 import { prisma } from '../client.js';
@@ -318,6 +326,7 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
     title: `${annotationAuthorName} commented on your research object`,
     message: `Your research object titled ${node.title}, has received a new comment.`, // TODO:: Ideally deserialize some of the message body from the annotation and show a truncated snippet
     nodeUuid: node.uuid,
+    category: NotificationCategory.DESCI_PUBLISH,
     payload,
   };
 
@@ -340,6 +349,7 @@ export const emitNotificationOnPublish = async (node: Node, user: User, dpid: st
       message: `Your research object titled "${node.title}" has been published and is now available for public access.`,
       nodeUuid: node.uuid,
       payload,
+      category: NotificationCategory.DESCI_PUBLISH,
     };
 
     await createUserNotification(notificationData);
@@ -396,6 +406,7 @@ export const emitNotificationOnContributorInvite = async ({
     message: `Confirm your contribution status for the research object titled "${node.title}".`,
     nodeUuid: node.uuid,
     payload,
+    category: NotificationCategory.DESCI_PUBLISH,
   };
 
   await createUserNotification(notificationData);
@@ -433,6 +444,7 @@ export const emitNotificationOnAttestationValidation = async ({
     message: `An attestation maintainer has validated your attestation claim on your research object titled "${node.title}".`,
     nodeUuid: node.uuid,
     payload,
+    category: NotificationCategory.DESCI_PUBLISH,
   };
 
   await createUserNotification(notificationData);
@@ -470,6 +482,7 @@ export const emitNotificationOnDoiIssuance = async ({
     message: `A DOI has been successfuly assigned to your research object with DPID ${dpid}. The DOI is ${doi}.`,
     nodeUuid,
     payload,
+    category: NotificationCategory.DESCI_PUBLISH,
   };
 
   await createUserNotification(notificationData);

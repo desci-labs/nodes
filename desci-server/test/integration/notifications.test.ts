@@ -1,5 +1,5 @@
 import 'mocha';
-import { NotificationType, User, UserNotifications } from '@prisma/client';
+import { NotificationCategory, NotificationType, User, UserNotifications } from '@prisma/client';
 import { expect } from 'chai';
 
 import { prisma } from '../../src/client.js';
@@ -33,6 +33,7 @@ describe('Notification Service', () => {
         type: NotificationType.PUBLISH,
         title: 'Test Notification',
         message: 'This is a test notification',
+        category: NotificationCategory.DESCI_PUBLISH,
       });
 
       expect(notification?.userId).to.equal(user.id);
@@ -52,6 +53,7 @@ describe('Notification Service', () => {
               type: NotificationType.PUBLISH,
               title: 'Test Notification',
               message: 'This is a test notification',
+              category: NotificationCategory.DESCI_PUBLISH,
             },
             { throwOnDisabled: true },
           ),
@@ -68,6 +70,7 @@ describe('Notification Service', () => {
           type: NotificationType.PUBLISH,
           title: `Notification ${i}`,
           message: `This is notification ${i}`,
+          category: NotificationCategory.DESCI_PUBLISH,
         });
       }
 
@@ -87,6 +90,7 @@ describe('Notification Service', () => {
         type: NotificationType.PUBLISH,
         title: 'Test Notification',
         message: 'This is a test notification',
+        category: NotificationCategory.DESCI_PUBLISH,
       });
 
       const updatedNotification = await updateUserNotification(notification!.id, user.id, { dismissed: true });
@@ -110,12 +114,14 @@ describe('Notification Service', () => {
           type: NotificationType.PUBLISH,
           title: 'Notification 1',
           message: 'This is notification 1',
+          category: NotificationCategory.DESCI_PUBLISH,
         }),
         createUserNotification({
           userId: user.id,
           type: NotificationType.PUBLISH,
           title: 'Notification 2',
           message: 'This is notification 2',
+          category: NotificationCategory.DESCI_PUBLISH,
         }),
       ]);
 

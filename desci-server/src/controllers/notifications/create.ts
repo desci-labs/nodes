@@ -1,4 +1,4 @@
-import { NotificationType, UserNotifications } from '@prisma/client';
+import { NotificationCategory, NotificationType, UserNotifications } from '@prisma/client';
 import { Response } from 'express';
 import { z } from 'zod';
 
@@ -12,6 +12,7 @@ export const CreateNotificationSchema = z.object({
   type: z.nativeEnum(NotificationType),
   title: z.string(),
   message: z.string(),
+  category: z.nativeEnum(NotificationCategory),
   payload: z.record(z.unknown()).optional(),
 });
 
