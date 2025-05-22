@@ -12,7 +12,7 @@ import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { DataMigrationService } from '../DataMigration/DataMigrationService.js';
 import { saveInteractionWithoutReq } from '../interactionLog.js';
-import { CommentPayload, ContributorInvitePayload } from '../NotificationService.js';
+import { CommentPayload, ContributorInvitePayload } from '../Notifications/NotificationService.js';
 
 const logger = parentLogger.child({
   module: 'UserServices::Merge',

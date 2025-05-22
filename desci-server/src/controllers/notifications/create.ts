@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { createUserNotification } from '../../services/NotificationService.js';
+import { NotificationService } from '../../services/Notifications/NotificationService.js';
 
 export const CreateNotificationSchema = z.object({
   userId: z.number(),
@@ -41,7 +41,7 @@ export const createNotification = async (
     const { id: userId } = req.user;
     const notificationData = CreateNotificationSchema.parse({ ...req.body, userId });
 
-    const notification = await createUserNotification(notificationData, {
+    const notification = await NotificationService.createUserNotification(notificationData, {
       throwOnDisabled: true,
       emittedFromClient: true,
     });

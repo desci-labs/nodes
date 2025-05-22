@@ -13,7 +13,7 @@ import { attestationService } from './Attestation.js';
 import { contributorService } from './Contributors.js';
 import { getManifestFromNode } from './data/processing.js';
 import { getLatestManifestFromNode } from './manifestRepo.js';
-import { emitNotificationOnPublish } from './NotificationService.js';
+import { emitNotificationOnPublish } from './Notifications/NotificationService.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 

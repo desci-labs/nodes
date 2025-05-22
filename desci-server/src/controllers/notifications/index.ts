@@ -1,11 +1,10 @@
-import { User, UserNotifications } from '@prisma/client';
-import { Request, Response } from 'express';
+import { UserNotifications } from '@prisma/client';
+import { Response } from 'express';
 import { z } from 'zod';
 
-import { prisma } from '../../client.js';
 import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { getUserNotifications } from '../../services/NotificationService.js';
+import { NotificationService } from '../../services/Notifications/NotificationService.js';
 
 export const GetNotificationsQuerySchema = z.object({
   page: z.string().regex(/^\d+$/).transform(Number).optional().default('1'),
@@ -50,7 +49,7 @@ export const listUserNotifications = async (
     const { id: userId } = req.user;
     const query = GetNotificationsQuerySchema.parse(req.query);
 
-    const notifs = await getUserNotifications(userId, query);
+    const notifs = await NotificationService.getUserNotifications(userId, query);
 
     logger.info(
       {

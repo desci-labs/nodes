@@ -14,17 +14,40 @@ import {
 import _ from 'lodash';
 import { z } from 'zod';
 
-import { prisma } from '../client.js';
-import { CreateNotificationSchema } from '../controllers/notifications/create.js';
-import { GetNotificationsQuerySchema, PaginatedResponse } from '../controllers/notifications/index.js';
-import { logger as parentLogger } from '../logger.js';
-import { roleCopy } from '../templates/emails/journals/InviteEditor.js';
-import { ensureUuidEndsWithDot } from '../utils.js';
+import { prisma } from '../../client.js';
+import { CreateNotificationSchema } from '../../controllers/notifications/create.js';
+import { GetNotificationsQuerySchema, PaginatedResponse } from '../../controllers/notifications/index.js';
+import { logger as parentLogger } from '../../logger.js';
+import { roleCopy } from '../../templates/emails/journals/InviteEditor.js';
+import { ensureUuidEndsWithDot } from '../../utils.js';
+import { attestationService } from '../Attestation.js';
+import { getDpidFromNode, getDpidFromNodeUuid } from '../node.js';
+import { PublishServices } from '../PublishServices.js';
+import { emitWebsocketEvent, WebSocketEventType } from '../websocketService.js';
 
-import { attestationService } from './Attestation.js';
-import { getDpidFromNode, getDpidFromNodeUuid } from './node.js';
-import { PublishServices } from './PublishServices.js';
-import { emitWebsocketEvent, WebSocketEventType } from './websocketService.js';
+import {
+  AttestationValidationPayload,
+  CommentPayload,
+  ContributorInvitePayload,
+  DoiIssuanceStatusPayload,
+  JournalEditorInvitePayload,
+  JournalNotificationType,
+  PublishPayload,
+  RefereeInvitePayload,
+  RefereeReassignedPayload,
+  RefereeReviewReminderPayload,
+  SubmissionAcceptedPayload,
+  SubmissionAssignedToEditorPayload,
+  SubmissionDeskRejectionPayload,
+  SubmissionReassignedToEditorPayload,
+  SubmissionOverdueEditorReminderPayload,
+  MajorRevisionRequestedPayload,
+  RefereeAcceptedPayload,
+  RefereeDeclinedPayload,
+  MinorRevisionRequestedPayload,
+  RevisionSubmittedPayload,
+  SubmissionFinalRejectionPayload,
+} from './notificationPayloadTypes.js';
 
 type GetNotificationsQuery = z.infer<typeof GetNotificationsQuerySchema>;
 export type CreateNotificationData = z.infer<typeof CreateNotificationSchema>;
@@ -39,273 +62,7 @@ export type NotificationUpdateData = {
   dismissed?: boolean;
 };
 
-export type CommentPayload = {
-  type: 'COMMENTS';
-  nodeUuid: string;
-  annotationId: number;
-  nodeTitle: string;
-  dpid: number | string | undefined;
-  commentAuthor: {
-    name: string;
-    userId: number;
-  };
-};
-
-export type PublishPayload = {
-  type: 'PUBLISH';
-  nodeUuid: string;
-  dpid: string | number;
-  nodeTitle: string;
-};
-
-export type ContributorInvitePayload = {
-  type: 'CONTRIBUTOR_INVITE';
-  nodeUuid: string;
-  nodeTitle: string;
-  dpid: number | string | undefined;
-  contributorId: string;
-  shareCode: string;
-  inviterName: string;
-  inviterId: number;
-};
-
-export type AttestationValidationPayload = {
-  type: 'ATTESTATION_VALIDATION';
-  nodeUuid: string;
-  nodeTitle: string;
-  dpid: number | string;
-  claimId: number;
-  attestationId: number;
-  attestationVersionId: number;
-  attestationName: string;
-};
-
-export type DoiIssuanceStatusPayload = {
-  type: 'DOI_ISSUANCE_STATUS';
-  nodeUuid: string;
-  nodeTitle: string;
-  dpid: number | string;
-  issuanceStatus: DoiStatus;
-  doi: string;
-};
-
-// Journal Notifications
-
-export enum JournalNotificationType {
-  JOURNAL_EDITOR_INVITE = 'JOURNAL_EDITOR_INVITE',
-  SUBMISSION_ASSIGNED_TO_EDITOR = 'SUBMISSION_ASSIGNED_TO_EDITOR',
-  SUBMISSION_REASSIGNED_TO_EDITOR = 'SUBMISSION_REASSIGNED_TO_EDITOR',
-  REFEREE_INVITE = 'REFEREE_INVITE',
-  REFEREE_REASSIGNED = 'REFEREE_REASSIGNED',
-  REFEREE_ACCEPTED = 'REFEREE_ACCEPTED',
-  REFEREE_DECLINED = 'REFEREE_DECLINED',
-  REFEREE_REVIEW_REMINDER = 'REFEREE_REVIEW_REMINDER',
-  MAJOR_REVISION_REQUESTED = 'MAJOR_REVISION_REQUESTED',
-  MINOR_REVISION_REQUESTED = 'MINOR_REVISION_REQUESTED',
-  REVISION_SUBMITTED = 'REVISION_SUBMITTED',
-  SUBMISSION_DESK_REJECTION = 'SUBMISSION_DESK_REJECTION',
-  SUBMISSION_FINAL_REJECTION = 'SUBMISSION_FINAL_REJECTION',
-  SUBMISSION_ACCEPTED = 'SUBMISSION_ACCEPTED',
-  SUBMISSION_OVERDUE_EDITOR_REMINDER = 'SUBMISSION_OVERDUE_EDITOR_REMINDER',
-}
-
-export type JournalEditorInvitePayload = {
-  type: JournalNotificationType.JOURNAL_EDITOR_INVITE;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  role: EditorRole;
-  inviterName: string;
-  inviterUserId: number;
-};
-
-export type SubmissionAssignedToEditorPayload = {
-  type: JournalNotificationType.SUBMISSION_ASSIGNED_TO_EDITOR;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
-  >;
-  managerName: string; // Chief who assigned the submission
-  managerUserId: number;
-  managerEditorId: number;
-  editorName: string; // Editor who was assigned the submission
-  editorUserId: number;
-  journalEditorId: number;
-};
-
-export type SubmissionReassignedToEditorPayload = {
-  type: JournalNotificationType.SUBMISSION_REASSIGNED_TO_EDITOR;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
-  >;
-  managerName: string; // Chief who assigned the submission
-  managerUserId: number;
-  managerEditorId: number;
-  editorName: string; // Editor who was assigned the submission
-  editorUserId: number;
-  journalEditorId: number;
-};
-
-export type RefereeInvitePayload = {
-  type: JournalNotificationType.REFEREE_INVITE;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
-  >;
-  editorName: string; // Editor who invited the referee
-  editorUserId: number;
-  refereeName: string;
-  refereeUserId: number;
-  dueDate: Date;
-};
-
-export type RefereeReassignedPayload = {
-  // Audience: New Referee, mentions they were re-assigned.
-  type: JournalNotificationType.REFEREE_REASSIGNED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
-  >;
-  editorName: string; // Editor who invited the referee
-  editorUserId: number;
-  refereeName: string;
-  refereeUserId: number;
-  dueDate: Date;
-};
-
-export type RefereeAcceptedPayload = {
-  type: JournalNotificationType.REFEREE_ACCEPTED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
-  >;
-  refereeName: string;
-  refereeUserId: number;
-  dueDate: Date;
-};
-
-export type RefereeDeclinedPayload = {
-  type: JournalNotificationType.REFEREE_DECLINED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
-  >;
-  refereeName: string;
-  refereeUserId: number;
-  refereeEmail: string;
-  dueDate: Date;
-};
-
-export type RefereeReviewReminderPayload = {
-  type: JournalNotificationType.REFEREE_REVIEW_REMINDER;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
-  >;
-  editorName: string; // Editor who invited the referee
-  editorUserId: number;
-  refereeName: string;
-  refereeUserId: number;
-  dueDate: Date;
-};
-
-export type MajorRevisionRequestedPayload = {
-  type: JournalNotificationType.MAJOR_REVISION_REQUESTED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
-  >;
-  editorName: string;
-  editorUserId: number;
-  authorName: string;
-  authorUserId: number;
-};
-
-export type MinorRevisionRequestedPayload = {
-  type: JournalNotificationType.MINOR_REVISION_REQUESTED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
-  >;
-  editorName: string;
-  editorUserId: number;
-  authorName: string;
-  authorUserId: number;
-};
-
-export type RevisionSubmittedPayload = {
-  type: JournalNotificationType.REVISION_SUBMITTED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
-  >;
-  editorName: string;
-  editorUserId: number;
-  authorName: string;
-  authorUserId: number;
-};
-
-export type SubmissionDeskRejectionPayload = {
-  type: JournalNotificationType.SUBMISSION_DESK_REJECTION;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status' | 'rejectedAt'
-  >;
-  editorName: string;
-  editorUserId: number;
-  authorName: string;
-  authorUserId: number;
-};
-
-export type SubmissionFinalRejectionPayload = {
-  type: JournalNotificationType.SUBMISSION_FINAL_REJECTION;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status' | 'rejectedAt'
-  >;
-  editorName: string;
-  editorUserId: number;
-  authorName: string;
-  authorUserId: number;
-};
-
-export type SubmissionAcceptedPayload = {
-  type: JournalNotificationType.SUBMISSION_ACCEPTED;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status' | 'acceptedAt'
-  >;
-  editorName: string;
-  editorUserId: number;
-  authorName: string;
-  authorUserId: number;
-};
-
-export type SubmissionOverdueEditorReminderPayload = {
-  type: JournalNotificationType.SUBMISSION_OVERDUE_EDITOR_REMINDER;
-  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
-  submission: Pick<
-    JournalSubmission,
-    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
-  >;
-  editorName: string;
-  editorUserId: number;
-  dueDate: Date;
-};
-
-export const getUserNotifications = async (
+const getUserNotifications = async (
   userId: number,
   query: GetNotificationsQuery,
 ): Promise<PaginatedResponse<UserNotifications>> => {
@@ -338,7 +95,7 @@ export const getUserNotifications = async (
   };
 };
 
-export const createUserNotification = async (
+const createUserNotification = async (
   data: CreateNotificationData,
   options?: { throwOnDisabled?: boolean; emittedFromClient?: boolean },
 ): Promise<UserNotifications | null> => {
@@ -351,7 +108,6 @@ export const createUserNotification = async (
     if (options?.throwOnDisabled) throw new Error('Notification type is disabled for this user');
     return null;
   }
-  // debugger; //
 
   if (data.nodeUuid) {
     // Validate node belongs to user
@@ -399,7 +155,7 @@ export const createUserNotification = async (
   return notification;
 };
 
-export const updateUserNotification = async (
+const updateUserNotification = async (
   notificationId: number,
   userId: number,
   updateData: NotificationUpdateData,
@@ -429,7 +185,7 @@ export const updateUserNotification = async (
   return updatedNotification;
 };
 
-export const batchUpdateUserNotifications = async ({
+const batchUpdateUserNotifications = async ({
   notificationIds,
   userId,
   updateData,
@@ -454,7 +210,7 @@ export const batchUpdateUserNotifications = async ({
   return result.count;
 };
 
-export const updateNotificationSettings = async (
+const updateNotificationSettings = async (
   userId: number,
   newSettings: NotificationSettings,
 ): Promise<Partial<Record<NotificationType, boolean>>> => {
@@ -483,7 +239,7 @@ export const updateNotificationSettings = async (
  ** A JSON object stored on the User model, if <NotificationType> is set to false, the user will not receive notifications of that type,
  ** otherwise, they will receive notifications of that type. Note: Undefined types will default to true.
  */
-export const getNotificationSettings = async (userId: number): Promise<NotificationSettings> => {
+const getNotificationSettings = async (userId: number): Promise<NotificationSettings> => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { notificationSettings: true },
@@ -492,11 +248,11 @@ export const getNotificationSettings = async (userId: number): Promise<Notificat
   return (user?.notificationSettings as NotificationSettings) || {};
 };
 
-export const shouldSendNotification = (settings: NotificationSettings, type: NotificationType): boolean => {
+const shouldSendNotification = (settings: NotificationSettings, type: NotificationType): boolean => {
   return settings[type] !== false;
 };
 
-export const emitNotificationForAnnotation = async (annotationId: number) => {
+const emitOnAnnotation = async (annotationId: number) => {
   const annotation = await prisma.annotation.findUnique({
     where: { id: annotationId },
     include: {
@@ -554,7 +310,7 @@ export const emitNotificationForAnnotation = async (annotationId: number) => {
   await createUserNotification(notificationData);
 };
 //
-export const emitNotificationOnPublish = async (node: Node, user: User, dpid: string, publishStatusId: number) => {
+const emitOnPublish = async (node: Node, user: User, dpid: string, publishStatusId: number) => {
   try {
     const dotlessUuid = node.uuid.replace(/\./g, '');
     const payload: PublishPayload = {
@@ -591,7 +347,7 @@ export const emitNotificationOnPublish = async (node: Node, user: User, dpid: st
   }
 };
 
-export const emitNotificationOnContributorInvite = async ({
+const emitOnContributorInvite = async ({
   node,
   nodeOwner,
   targetUserId,
@@ -632,15 +388,7 @@ export const emitNotificationOnContributorInvite = async ({
 
   await createUserNotification(notificationData);
 };
-export const emitNotificationOnAttestationValidation = async ({
-  node,
-  user,
-  claimId,
-}: {
-  node: Node;
-  user: User;
-  claimId: number;
-}) => {
+const emitOnAttestationValidation = async ({ node, user, claimId }: { node: Node; user: User; claimId: number }) => {
   const dotlessUuid = node.uuid.replace(/\./g, '');
   const claim = await attestationService.findClaimById(claimId);
   const versionedAttestation = await attestationService.getAttestationVersion(claim.attestationVersionId, claimId);
@@ -671,15 +419,7 @@ export const emitNotificationOnAttestationValidation = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnDoiIssuance = async ({
-  nodeUuid,
-  doi,
-  status,
-}: {
-  nodeUuid: string;
-  doi: string;
-  status: DoiStatus;
-}) => {
+const emitOnDoiIssuance = async ({ nodeUuid, doi, status }: { nodeUuid: string; doi: string; status: DoiStatus }) => {
   const dotlessUuid = nodeUuid.replace(/\./g, '');
   const node = await prisma.node.findUnique({
     where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
@@ -709,7 +449,7 @@ export const emitNotificationOnDoiIssuance = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnJournalEditorInvite = async ({
+const emitOnJournalEditorInvite = async ({
   journal,
   editor,
   inviter,
@@ -739,7 +479,7 @@ export const emitNotificationOnJournalEditorInvite = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnJournalSubmissionAssignedToEditor = async ({
+const emitOnJournalSubmissionAssignedToEditor = async ({
   journal,
   editor,
   submission,
@@ -780,7 +520,7 @@ export const emitNotificationOnJournalSubmissionAssignedToEditor = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnJournalSubmissionReassignedToEditor = async ({
+const emitOnJournalSubmissionReassignedToEditor = async ({
   journal,
   editor,
   submission,
@@ -821,7 +561,7 @@ export const emitNotificationOnJournalSubmissionReassignedToEditor = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationRefereeInvitation = async ({
+const emitOnRefereeInvitation = async ({
   journal,
   editor,
   submission,
@@ -860,7 +600,7 @@ export const emitNotificationRefereeInvitation = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationRefereeReassignmentInvitation = async ({
+const emitOnRefereeReassignmentInvitation = async ({
   journal,
   editor,
   submission,
@@ -899,7 +639,7 @@ export const emitNotificationRefereeReassignmentInvitation = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnRefereeAcceptance = async ({
+const emitOnRefereeAcceptance = async ({
   journal,
   editor,
   submission,
@@ -932,7 +672,7 @@ export const emitNotificationOnRefereeAcceptance = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnRefereeDecline = async ({
+const emitOnRefereeDecline = async ({
   journal,
   editor,
   submission,
@@ -966,7 +706,7 @@ export const emitNotificationOnRefereeDecline = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnRefereeReviewReminder = async ({
+const emitOnRefereeReviewReminder = async ({
   journal,
   editor,
   submission,
@@ -1006,7 +746,7 @@ export const emitNotificationOnRefereeReviewReminder = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnMajorRevisionRequest = async ({
+const emitOnMajorRevisionRequest = async ({
   journal,
   editor,
   submission,
@@ -1042,7 +782,7 @@ export const emitNotificationOnMajorRevisionRequest = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnMinorRevisionRequest = async ({
+const emitOnMinorRevisionRequest = async ({
   journal,
   editor,
   submission,
@@ -1078,7 +818,7 @@ export const emitNotificationOnMinorRevisionRequest = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnRevisionSubmittedToEditor = async ({
+const emitOnRevisionSubmittedToEditor = async ({
   journal,
   editor,
   submission,
@@ -1114,7 +854,7 @@ export const emitNotificationOnRevisionSubmittedToEditor = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnSubmissionDeskRejection = async ({
+const emitOnSubmissionDeskRejection = async ({
   journal,
   editor,
   submission,
@@ -1159,7 +899,7 @@ export const emitNotificationOnSubmissionDeskRejection = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnSubmissionFinalRejection = async ({
+const emitOnSubmissionFinalRejection = async ({
   journal,
   editor,
   submission,
@@ -1204,7 +944,7 @@ export const emitNotificationOnSubmissionFinalRejection = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnSubmissionAcceptance = async ({
+const emitOnSubmissionAcceptance = async ({
   journal,
   editor,
   submission,
@@ -1249,7 +989,7 @@ export const emitNotificationOnSubmissionAcceptance = async ({
   await createUserNotification(notificationData);
 };
 
-export const emitNotificationOnSubmissionOverdueEditorReminder = async ({
+const emitOnSubmissionOverdueEditorReminder = async ({
   journal,
   editor,
   submission,
@@ -1284,7 +1024,7 @@ export const emitNotificationOnSubmissionOverdueEditorReminder = async ({
   await createUserNotification(notificationData);
 };
 
-export const getUnseenNotificationCount = async ({ userId, user }: { userId?: number; user?: User }) => {
+const getUnseenNotificationCount = async ({ userId, user }: { userId?: number; user?: User }) => {
   if (!userId && !user) {
     throw new Error('Missing userId or user');
   }
@@ -1298,7 +1038,7 @@ export const getUnseenNotificationCount = async ({ userId, user }: { userId?: nu
   return user.unseenNotificationCount;
 };
 
-export const incrementUnseenNotificationCount = async ({ userId }: { userId: number }) => {
+const incrementUnseenNotificationCount = async ({ userId }: { userId: number }) => {
   try {
     await prisma.user.update({
       where: { id: userId },
@@ -1309,9 +1049,40 @@ export const incrementUnseenNotificationCount = async ({ userId }: { userId: num
   }
 };
 
-export const resetUnseenNotificationCount = async ({ userId }: { userId: number }) => {
+const resetUnseenNotificationCount = async ({ userId }: { userId: number }) => {
   await prisma.user.update({
     where: { id: userId },
     data: { unseenNotificationCount: 0 },
   });
+};
+
+export const NotificationService = {
+  getUserNotifications,
+  createUserNotification,
+  updateUserNotification,
+  batchUpdateUserNotifications,
+  updateNotificationSettings,
+  getNotificationSettings,
+  getUnseenNotificationCount,
+  resetUnseenNotificationCount,
+  emitOnAnnotation,
+  emitOnPublish,
+  emitOnContributorInvite,
+  emitOnAttestationValidation,
+  emitOnDoiIssuance,
+  emitOnJournalEditorInvite,
+  emitOnJournalSubmissionAssignedToEditor,
+  emitOnJournalSubmissionReassignedToEditor,
+  emitOnRefereeInvitation,
+  emitOnRefereeReassignmentInvitation,
+  emitOnRefereeAcceptance,
+  emitOnRefereeDecline,
+  emitOnRefereeReviewReminder,
+  emitOnMajorRevisionRequest,
+  emitOnMinorRevisionRequest,
+  emitOnRevisionSubmittedToEditor,
+  emitOnSubmissionDeskRejection,
+  emitOnSubmissionFinalRejection,
+  emitOnSubmissionAcceptance,
+  emitOnSubmissionOverdueEditorReminder,
 };
