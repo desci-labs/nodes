@@ -6,13 +6,19 @@ import {
   Node,
   DoiStatus,
   NotificationCategory,
+  Journal,
+  EditorRole,
+  JournalSubmission,
+  JournalEditor,
 } from '@prisma/client';
+import _ from 'lodash';
 import { z } from 'zod';
 
 import { prisma } from '../client.js';
 import { CreateNotificationSchema } from '../controllers/notifications/create.js';
 import { GetNotificationsQuerySchema, PaginatedResponse } from '../controllers/notifications/index.js';
 import { logger as parentLogger } from '../logger.js';
+import { roleCopy } from '../templates/emails/journals/InviteEditor.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 import { attestationService } from './Attestation.js';
@@ -31,7 +37,6 @@ export type NotificationSettings = Partial<Record<NotificationType, boolean>>;
 
 export type NotificationUpdateData = {
   dismissed?: boolean;
-  //   seen?: boolean; // future
 };
 
 export type CommentPayload = {
@@ -82,6 +87,222 @@ export type DoiIssuanceStatusPayload = {
   dpid: number | string;
   issuanceStatus: DoiStatus;
   doi: string;
+};
+
+// Journal Notifications
+
+export enum JournalNotificationType {
+  JOURNAL_EDITOR_INVITE = 'JOURNAL_EDITOR_INVITE',
+  SUBMISSION_ASSIGNED_TO_EDITOR = 'SUBMISSION_ASSIGNED_TO_EDITOR',
+  SUBMISSION_REASSIGNED_TO_EDITOR = 'SUBMISSION_REASSIGNED_TO_EDITOR',
+  REFEREE_INVITE = 'REFEREE_INVITE',
+  REFEREE_REASSIGNED = 'REFEREE_REASSIGNED',
+  REFEREE_ACCEPTED = 'REFEREE_ACCEPTED',
+  REFEREE_DECLINED = 'REFEREE_DECLINED',
+  REFEREE_REVIEW_REMINDER = 'REFEREE_REVIEW_REMINDER',
+  MAJOR_REVISION_REQUESTED = 'MAJOR_REVISION_REQUESTED',
+  MINOR_REVISION_REQUESTED = 'MINOR_REVISION_REQUESTED',
+  REVISION_SUBMITTED = 'REVISION_SUBMITTED',
+  SUBMISSION_DESK_REJECTION = 'SUBMISSION_DESK_REJECTION',
+  SUBMISSION_FINAL_REJECTION = 'SUBMISSION_FINAL_REJECTION',
+  SUBMISSION_ACCEPTED = 'SUBMISSION_ACCEPTED',
+  SUBMISSION_OVERDUE_EDITOR_REMINDER = 'SUBMISSION_OVERDUE_EDITOR_REMINDER',
+}
+
+export type JournalEditorInvitePayload = {
+  type: JournalNotificationType.JOURNAL_EDITOR_INVITE;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  role: EditorRole;
+  inviterName: string;
+  inviterUserId: number;
+};
+
+export type SubmissionAssignedToEditorPayload = {
+  type: JournalNotificationType.SUBMISSION_ASSIGNED_TO_EDITOR;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
+  >;
+  managerName: string; // Chief who assigned the submission
+  managerUserId: number;
+  managerEditorId: number;
+  editorName: string; // Editor who was assigned the submission
+  editorUserId: number;
+  journalEditorId: number;
+};
+
+export type SubmissionReassignedToEditorPayload = {
+  type: JournalNotificationType.SUBMISSION_REASSIGNED_TO_EDITOR;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
+  >;
+  managerName: string; // Chief who assigned the submission
+  managerUserId: number;
+  managerEditorId: number;
+  editorName: string; // Editor who was assigned the submission
+  editorUserId: number;
+  journalEditorId: number;
+};
+
+export type RefereeInvitePayload = {
+  type: JournalNotificationType.REFEREE_INVITE;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
+  >;
+  editorName: string; // Editor who invited the referee
+  editorUserId: number;
+  refereeName: string;
+  refereeUserId: number;
+  dueDate: Date;
+};
+
+export type RefereeReassignedPayload = {
+  // Audience: New Referee, mentions they were re-assigned.
+  type: JournalNotificationType.REFEREE_REASSIGNED;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
+  >;
+  editorName: string; // Editor who invited the referee
+  editorUserId: number;
+  refereeName: string;
+  refereeUserId: number;
+  dueDate: Date;
+};
+
+export type RefereeAcceptedPayload = {
+  type: JournalNotificationType.REFEREE_ACCEPTED;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
+  >;
+  refereeName: string;
+  refereeUserId: number;
+  dueDate: Date;
+};
+
+export type RefereeDeclinedPayload = {
+  type: JournalNotificationType.REFEREE_DECLINED;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
+  >;
+  refereeName: string;
+  refereeUserId: number;
+  refereeEmail: string;
+  dueDate: Date;
+};
+
+export type RefereeReviewReminderPayload = {
+  type: JournalNotificationType.REFEREE_REVIEW_REMINDER;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
+  >;
+  editorName: string; // Editor who invited the referee
+  editorUserId: number;
+  refereeName: string;
+  refereeUserId: number;
+  dueDate: Date;
+};
+
+export type MajorRevisionRequestedPayload = {
+  type: JournalNotificationType.MAJOR_REVISION_REQUESTED;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
+  >;
+  editorName: string;
+  editorUserId: number;
+  authorName: string;
+  authorUserId: number;
+};
+
+export type MinorRevisionRequestedPayload = {
+  type: JournalNotificationType.MINOR_REVISION_REQUESTED;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
+  >;
+  editorName: string;
+  editorUserId: number;
+  authorName: string;
+  authorUserId: number;
+};
+
+export type RevisionSubmittedPayload = {
+  type: JournalNotificationType.REVISION_SUBMITTED;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
+  >;
+  editorName: string;
+  editorUserId: number;
+  authorName: string;
+  authorUserId: number;
+};
+
+export type SubmissionDeskRejectionPayload = {
+  type: JournalNotificationType.SUBMISSION_DESK_REJECTION;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status' | 'rejectedAt'
+  >;
+  editorName: string;
+  editorUserId: number;
+  authorName: string;
+  authorUserId: number;
+};
+
+export type SubmissionFinalRejectionPayload = {
+  type: JournalNotificationType.SUBMISSION_FINAL_REJECTION;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status' | 'rejectedAt'
+  >;
+  editorName: string;
+  editorUserId: number;
+  authorName: string;
+  authorUserId: number;
+};
+
+export type SubmissionAcceptedPayload = {
+  type: JournalNotificationType.SUBMISSION_ACCEPTED;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status' | 'acceptedAt'
+  >;
+  editorName: string;
+  editorUserId: number;
+  authorName: string;
+  authorUserId: number;
+};
+
+export type SubmissionOverdueEditorReminderPayload = {
+  type: JournalNotificationType.SUBMISSION_OVERDUE_EDITOR_REMINDER;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
+  submission: Pick<
+    JournalSubmission,
+    'id' | 'title' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'
+  >;
+  editorName: string;
+  editorUserId: number;
+  dueDate: Date;
 };
 
 export const getUserNotifications = async (
@@ -483,6 +704,581 @@ export const emitNotificationOnDoiIssuance = async ({
     nodeUuid,
     payload,
     category: NotificationCategory.DESCI_PUBLISH,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnJournalEditorInvite = async ({
+  journal,
+  editor,
+  inviter,
+  role,
+}: {
+  journal: Journal;
+  editor: User;
+  inviter: User;
+  role: EditorRole;
+}) => {
+  const payload: JournalEditorInvitePayload = {
+    type: JournalNotificationType.JOURNAL_EDITOR_INVITE,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    role,
+    inviterName: inviter.name,
+    inviterUserId: inviter.id,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: editor.id,
+    type: NotificationType.JOURNAL_EDITOR_INVITE,
+    title: `You have been invited to join the ${journal.name} journal as ${roleCopy[role]}`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnJournalSubmissionAssignedToEditor = async ({
+  journal,
+  editor,
+  submission,
+  managerEditor,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  managerEditor: JournalEditor;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+  const managerUser = await prisma.user.findUnique({
+    where: { id: managerEditor.userId },
+  });
+
+  const payload: SubmissionAssignedToEditorPayload = {
+    type: JournalNotificationType.SUBMISSION_ASSIGNED_TO_EDITOR,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    managerName: managerUser?.name,
+    managerUserId: managerUser?.id,
+    managerEditorId: managerEditor.id,
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+    journalEditorId: editor.id,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: editor.userId,
+    type: NotificationType.SUBMISSION_ASSIGNED_TO_EDITOR,
+    title: `You have been assigned as the editor for a submission titled "${submission.title}" for the ${journal.name} journal`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnJournalSubmissionReassignedToEditor = async ({
+  journal,
+  editor,
+  submission,
+  managerEditor,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  managerEditor: JournalEditor;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+  const managerUser = await prisma.user.findUnique({
+    where: { id: managerEditor.userId },
+  });
+
+  const payload: SubmissionReassignedToEditorPayload = {
+    type: JournalNotificationType.SUBMISSION_REASSIGNED_TO_EDITOR,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    managerName: managerUser?.name,
+    managerUserId: managerUser?.id,
+    managerEditorId: managerEditor.id,
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+    journalEditorId: editor.id,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: editor.userId,
+    type: NotificationType.SUBMISSION_REASSIGNED_TO_EDITOR,
+    title: `You have been reassigned as the editor for the submission titled "${submission.title}" for the ${journal.name} journal`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationRefereeInvitation = async ({
+  journal,
+  editor,
+  submission,
+  referee,
+  dueDate,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  referee: User;
+  dueDate: Date;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+
+  const payload: RefereeInvitePayload = {
+    type: JournalNotificationType.REFEREE_INVITE,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+    refereeName: referee.name,
+    refereeUserId: referee.id,
+    dueDate: dueDate,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: referee.id,
+    type: NotificationType.REFEREE_INVITE,
+    title: `You have been invited to review the submission titled "${submission.title}" for the ${journal.name} journal`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationRefereeReassignmentInvitation = async ({
+  journal,
+  editor,
+  submission,
+  referee,
+  dueDate,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  referee: User;
+  dueDate: Date;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+
+  const payload: RefereeReassignedPayload = {
+    type: JournalNotificationType.REFEREE_REASSIGNED,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+    refereeName: referee.name,
+    refereeUserId: referee.id,
+    dueDate: dueDate,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: referee.id,
+    type: NotificationType.REFEREE_REASSIGNED,
+    title: `You have been invited to review the submission titled "${submission.title}" for the ${journal.name} journal`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnRefereeAcceptance = async ({
+  journal,
+  editor,
+  submission,
+  referee,
+  dueDate,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  referee: User;
+  dueDate: Date;
+}) => {
+  const payload: RefereeAcceptedPayload = {
+    type: JournalNotificationType.REFEREE_ACCEPTED,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    refereeName: referee.name,
+    refereeUserId: referee.id,
+    dueDate: dueDate,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: editor.userId,
+    type: NotificationType.REFEREE_ACCEPTED,
+    title: `${referee.name} has accepted the invitation to review the submission titled "${submission.title}" for the ${journal.name} journal`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnRefereeDecline = async ({
+  journal,
+  editor,
+  submission,
+  referee,
+  dueDate,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  referee: User;
+  dueDate: Date;
+}) => {
+  const payload: RefereeDeclinedPayload = {
+    type: JournalNotificationType.REFEREE_DECLINED,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    refereeName: referee.name,
+    refereeUserId: referee.id,
+    refereeEmail: referee.email,
+    dueDate: dueDate,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: editor.userId,
+    type: NotificationType.REFEREE_DECLINED,
+    title: `${referee.name} has declined the invitation to review the submission titled "${submission.title}" for the ${journal.name} journal. Please reassign a new referee.`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnRefereeReviewReminder = async ({
+  journal,
+  editor,
+  submission,
+  referee,
+  dueDate,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  referee: User;
+  dueDate: Date;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+
+  const payload: RefereeReviewReminderPayload = {
+    type: JournalNotificationType.REFEREE_REVIEW_REMINDER,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    refereeName: referee.name,
+    refereeUserId: referee.id,
+    dueDate: dueDate,
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: editorUser.id,
+    type: NotificationType.REFEREE_REVIEW_REMINDER,
+    title: `You have a submission titled "${submission.title}" for the ${journal.name} journal that is awaiting your review and nearing the due date.
+     Please review it as soon as possible.`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnMajorRevisionRequest = async ({
+  journal,
+  editor,
+  submission,
+  author,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  author: User;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+
+  const payload: MajorRevisionRequestedPayload = {
+    type: JournalNotificationType.MAJOR_REVISION_REQUESTED,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    authorName: author.name,
+    authorUserId: author.id,
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: author.id,
+    type: NotificationType.MAJOR_REVISION_REQUESTED,
+    title: `${editorUser?.name} has requested a major revision for your submission titled "${submission.title}" in the ${journal.name} journal`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnMinorRevisionRequest = async ({
+  journal,
+  editor,
+  submission,
+  author,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  author: User;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+
+  const payload: MinorRevisionRequestedPayload = {
+    type: JournalNotificationType.MINOR_REVISION_REQUESTED,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    authorName: author.name,
+    authorUserId: author.id,
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: author.id,
+    type: NotificationType.MINOR_REVISION_REQUESTED,
+    title: `${editorUser?.name} has requested a minor revision for your submission titled "${submission.title}" in the ${journal.name} journal`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnRevisionSubmittedToEditor = async ({
+  journal,
+  editor,
+  submission,
+  author,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  author: User;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+
+  const payload: RevisionSubmittedPayload = {
+    type: JournalNotificationType.REVISION_SUBMITTED,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    authorName: author.name,
+    authorUserId: author.id,
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: editorUser.id,
+    type: NotificationType.REVISION_SUBMITTED,
+    title: `${author.name} has submitted a revision for their submission titled "${submission.title}" in the ${journal.name} journal`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnSubmissionDeskRejection = async ({
+  journal,
+  editor,
+  submission,
+  author,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  author: User;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+
+  const payload: SubmissionDeskRejectionPayload = {
+    type: JournalNotificationType.SUBMISSION_DESK_REJECTION,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, [
+      'id',
+      'title',
+      'version',
+      'dpid',
+      'assignedEditorId',
+      'submittedAt',
+      'status',
+      'rejectedAt',
+    ]),
+    authorName: author.name,
+    authorUserId: author.id,
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: author.id,
+    type: NotificationType.SUBMISSION_DESK_REJECTION,
+    title: `Your submission titled "${submission.title}" in the ${journal.name} journal has been desk rejected.`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnSubmissionFinalRejection = async ({
+  journal,
+  editor,
+  submission,
+  author,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  author: User;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+
+  const payload: SubmissionFinalRejectionPayload = {
+    type: JournalNotificationType.SUBMISSION_FINAL_REJECTION,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, [
+      'id',
+      'title',
+      'version',
+      'dpid',
+      'assignedEditorId',
+      'submittedAt',
+      'status',
+      'rejectedAt',
+    ]),
+    authorName: author.name,
+    authorUserId: author.id,
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: author.id,
+    type: NotificationType.SUBMISSION_FINAL_REJECTION,
+    title: `Your submission titled "${submission.title}" in the ${journal.name} journal has been rejected.`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnSubmissionAcceptance = async ({
+  journal,
+  editor,
+  submission,
+  author,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  author: User;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+
+  const payload: SubmissionAcceptedPayload = {
+    type: JournalNotificationType.SUBMISSION_ACCEPTED,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, [
+      'id',
+      'title',
+      'version',
+      'dpid',
+      'assignedEditorId',
+      'submittedAt',
+      'status',
+      'acceptedAt',
+    ]),
+    authorName: author.name,
+    authorUserId: author.id,
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: author.id,
+    type: NotificationType.SUBMISSION_ACCEPTED,
+    title: `Congratulations! Your submission titled "${submission.title}" in the ${journal.name} journal has been accepted.`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
+  };
+
+  await createUserNotification(notificationData);
+};
+
+export const emitNotificationOnSubmissionOverdueEditorReminder = async ({
+  journal,
+  editor,
+  submission,
+  dueDate,
+}: {
+  journal: Journal;
+  editor: JournalEditor;
+  submission: JournalSubmission;
+  dueDate: Date;
+}) => {
+  const editorUser = await prisma.user.findUnique({
+    where: { id: editor.userId },
+  });
+
+  const payload: SubmissionOverdueEditorReminderPayload = {
+    type: JournalNotificationType.SUBMISSION_OVERDUE_EDITOR_REMINDER,
+    journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
+    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    editorName: editorUser?.name,
+    editorUserId: editorUser?.id,
+    dueDate: dueDate,
+  };
+
+  const notificationData: CreateNotificationData = {
+    userId: editor.userId,
+    type: NotificationType.SUBMISSION_OVERDUE_EDITOR_REMINDER,
+    title: `The submission titled "${submission.title}", that you are assigned to as the editor for the ${journal.name} journal, is overdue. Please review it as soon as possible.`,
+    payload,
+    category: NotificationCategory.DESCI_JOURNALS,
   };
 
   await createUserNotification(notificationData);
