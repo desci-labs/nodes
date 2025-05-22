@@ -79,3 +79,43 @@ export const updateJournalSchema = z.object({
     iconCid: z.string().optional(),
   }),
 });
+
+export const createJournalSubmissionSchema = z.object({
+  params: z.object({
+    journalId: z.string().transform((val) => parseInt(val, 10)),
+  }),
+  body: z.object({
+    dpid: z.coerce.number(),
+    version: z.coerce.number(),
+  }),
+});
+
+export const listJournalSubmissionsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal'),
+  }),
+  query: z.object({
+    limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
+    offset: z.coerce.number().optional().default(0).describe('The number of submissions to skip'),
+  }),
+});
+
+export const assignSubmissionToEditorSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+  }),
+  body: z.object({
+    editorId: z.coerce.number(),
+  }),
+});
+
+export const getAuthorJournalSubmissionsSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number().describe('The ID of the journal'),
+  }),
+  query: z.object({
+    limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
+    offset: z.coerce.number().optional().default(0).describe('The number of submissions to skip'),
+  }),
+});

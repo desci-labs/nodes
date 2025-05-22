@@ -9,15 +9,25 @@ import { removeEditorController } from '../../../controllers/journals/management
 import { updateJournalController } from '../../../controllers/journals/management/update.js';
 import { updateEditorRoleController } from '../../../controllers/journals/management/updateRole.js';
 import { showJournalController } from '../../../controllers/journals/show.js';
+import {
+  assignSubmissionToEditorController,
+  createJournalSubmissionController,
+  getAuthorSubmissionsController,
+  listJournalSubmissionsController,
+} from '../../../controllers/journals/submissions/index.js';
 import { attachUser } from '../../../middleware/attachUser.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
 import { ensureUser } from '../../../middleware/permissions.js';
 import { validateInputs } from '../../../middleware/validator.js';
 import {
+  assignSubmissionToEditorSchema,
   createJournalSchema,
+  createJournalSubmissionSchema,
   editorInviteDecisionSchema,
+  getAuthorJournalSubmissionsSchema,
   getJournalSchema,
   inviteEditorSchema,
+  listJournalSubmissionsSchema,
   removeEditorSchema,
   updateEditorRoleSchema,
   updateJournalSchema,
@@ -59,4 +69,28 @@ router.delete(
   removeEditorController,
 );
 
+// Submissions
+router.post(
+  '/:journalId/submissions',
+  [ensureUser, validateInputs(createJournalSubmissionSchema)],
+  createJournalSubmissionController,
+);
+
+router.post(
+  '/:journalId/submissions/:submissionId/assign',
+  [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(assignSubmissionToEditorSchema)],
+  assignSubmissionToEditorController,
+);
+
+router.get(
+  '/:journalId/submissions',
+  [ensureUser, validateInputs(listJournalSubmissionsSchema)],
+  listJournalSubmissionsController,
+);
+
+router.get(
+  '/:journalId/submissions/author',
+  [ensureUser, validateInputs(getAuthorJournalSubmissionsSchema)],
+  getAuthorSubmissionsController,
+);
 export default router;

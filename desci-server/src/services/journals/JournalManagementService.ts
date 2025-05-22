@@ -319,6 +319,19 @@ async function updateEditorRole(
     return err(error instanceof Error ? error : new Error('An unexpected error occurred while updating editor role'));
   }
 }
+
+async function getUserJournalRole(journalId: number, userId: number): Promise<Result<EditorRole, Error>> {
+  const editor = await prisma.journalEditor.findUnique({
+    where: { userId_journalId: { userId, journalId } },
+  });
+
+  if (!editor) {
+    return err(new Error('Editor not found.'));
+  }
+
+  return ok(editor.role);
+}
+
 export const JournalManagementService = {
   createJournal,
   updateJournal,
@@ -326,4 +339,5 @@ export const JournalManagementService = {
   listJournals,
   removeEditorFromJournal,
   updateEditorRole,
+  getUserJournalRole,
 };
