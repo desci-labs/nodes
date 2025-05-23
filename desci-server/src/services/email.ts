@@ -348,7 +348,7 @@ async function sendSgMail(message: sgMail.MailDataRequired, devLog?: Record<stri
       const BIG_SIGNAL = `\n\n${BgYellow}$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$${Reset}\n\n`;
       logger.info(
         { devLog },
-        `${BIG_SIGNAL}Email sent to ${email}\n\nToken: ${BgGreen}${message.subject}${Reset}${BIG_SIGNAL}`,
+        `${BIG_SIGNAL}Email sent to ${email}\n\n${BgGreen}${message.subject}${Reset}${BIG_SIGNAL}`,
       );
     }
   } catch (err) {
