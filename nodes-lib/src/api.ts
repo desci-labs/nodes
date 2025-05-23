@@ -20,7 +20,7 @@ import {
 import FormData from "form-data";
 import {createReadStream} from "fs";
 import type {NodeIDs} from "@desci-labs/desci-codex-lib";
-import {legacyPublish, publish} from "./publish.js";
+import { publish} from "./publish.js";
 import type {ResearchObjectDocument} from "./automerge.js";
 import {randomUUID} from "crypto";
 import {makeRequest} from "./routes.js";
@@ -136,13 +136,6 @@ export const ENDPOINTS = {
     route: `/v1/nodes/createDpid`,
     _payloadT: <{ uuid: string }>{},
     _responseT: <{ dpid: number }>{},
-  },
-  /** Append `/[uuid] `*/
-  dpidHistory: {
-    method: "get",
-    route: `/v1/pub/versions`,
-    _payloadT: undefined,
-    _responseT: <IndexedNode>{},
   },
   claimAttestation: {
     method: "post",
@@ -389,75 +382,6 @@ export const createDpid = async (uuid: string): Promise<number> => {
     throw PublishError.backendCall("Failed to create dPID alias", e as Error);
   }
   return dpid;
-};
-
-/** Result of publishing a draft node */
-export type LegacyPublishResponse = {
-  /** The updated manifest */
-  updatedManifest: ResearchObjectV1;
-  /** The new manifest CID, which could have changed from adding the dPID */
-  updatedManifestCid: string;
-  /** Ceramic stream and commit IDs from publishing to Codex */
-  ceramicIDs?: NodeIDs;
-  /** dPID transaction ID */
-  dpidTxId?: string;
-};
-
-/**
- * Publish a draft node, meaning to compile the state of the drive into an
- * actual IPLD DAG, make the IPFS CIDs public, and register the node on
- * the dPID registry and Codex.
- *
- * @param uuid - UUID of node to publish
- * @param signer - Signer to use for publish, if not set with env
- * @param mintDoi - opt-in to DOI registration
- * @throws (@link WrongOwnerError) if signer address isn't research object token owner
- * @throws (@link DpidPublishError) if dPID couldnt be registered or updated
- * @depreated use publishNode instead, as this function uses the old on-chain registry
- */
-export const publishDraftNode = async ({
-  uuid,
-  signer,
-  did,
-  mintDoi = false,
-}: {
-  uuid: string;
-  signer: Signer;
-  did?: DID;
-  mintDoi?: boolean;
-}): Promise<LegacyPublishResponse> => {
-  const publishResult = await legacyPublish(uuid, signer, did);
-
-  const pubParams: PublishParams = {
-    uuid,
-    cid: publishResult.cid,
-    manifest: publishResult.manifest,
-    transactionId: publishResult.transactionId,
-    ceramicStream: publishResult.ceramicIDs?.streamID,
-    commitId: publishResult.ceramicIDs?.commitID,
-    useNewPublish: false,
-    mintDoi,
-  };
-
-  try {
-    await makeRequest(ENDPOINTS.publish, getHeaders(), pubParams);
-  } catch (e) {
-    console.log(
-      `${LOG_CTX} publish flow was successful, but backend request failed`,
-      { uuid, err: errWithCause(e as Error) }
-    );
-    throw PublishError.backendCall(
-      "Publish finished, but backend request failed",
-      e as Error
-    );
-  }
-
-  return {
-    ceramicIDs: publishResult.ceramicIDs,
-    dpidTxId: publishResult.transactionId,
-    updatedManifest: publishResult.manifest,
-    updatedManifestCid: publishResult.cid,
-  };
 };
 
 /** Parameters required for deleting a drive entry */
@@ -803,13 +727,6 @@ export const getLegacyHistory = async (
     versions: nodeVersions,
   };
 };
-
-/**
- * Get the dPID publish history for a node.
- * @deprecated use getPublishHistory or getLegacyHistory when using new contracts
- */
-export const getDpidHistory = async (uuid: string) =>
-  await makeRequest(ENDPOINTS.dpidHistory, getHeaders(), undefined, `/${uuid}`);
 
 /** Parameters requried for changing the manifest */
 export type ChangeManifestParams = {
