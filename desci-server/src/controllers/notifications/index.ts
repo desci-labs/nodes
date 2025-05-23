@@ -1,4 +1,4 @@
-import { UserNotifications } from '@prisma/client';
+import { NotificationCategory, UserNotifications } from '@prisma/client';
 import { Response } from 'express';
 import { z } from 'zod';
 
@@ -13,6 +13,7 @@ export const GetNotificationsQuerySchema = z.object({
     .enum(['true', 'false'])
     .optional()
     .transform((value) => (value === 'true' ? true : value === 'false' ? false : undefined)),
+  category: z.nativeEnum(NotificationCategory).optional(),
 });
 
 export interface PaginatedResponse<T> {

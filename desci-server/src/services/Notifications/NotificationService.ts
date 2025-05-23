@@ -66,11 +66,14 @@ const getUserNotifications = async (
   userId: number,
   query: GetNotificationsQuery,
 ): Promise<PaginatedResponse<UserNotifications>> => {
+  let { category } = query;
+  if (!category) category = NotificationCategory.DESCI_PUBLISH; // Default if none provided, for backwards compatibility
   const { page, perPage, dismissed } = query;
   const skip = (page - 1) * perPage;
   const whereClause = {
     userId,
     ...(dismissed !== undefined && { dismissed }),
+    category,
   };
 
   const [notifications, totalItems] = await Promise.all([
