@@ -35,6 +35,27 @@ async function getAuthorSubmissions(payload: { journalId: number; authorId: numb
       journalId: payload.journalId,
       authorId: payload.authorId,
     },
+    select: {
+      journal: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      dpid: true,
+      version: true,
+      status: true,
+      id: true,
+      assignedEditorId: true,
+      assignedEditor: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          orcid: true,
+        },
+      },
+    },
     skip: payload.offset,
     take: payload.limit,
   });
@@ -53,6 +74,34 @@ async function getJournalSubmissions(payload: {
     },
     skip: payload.offset,
     take: payload.limit,
+    select: {
+      id: true,
+      assignedEditorId: true,
+      dpid: true,
+      version: true,
+      status: true,
+      submittedAt: true,
+      acceptedAt: true,
+      rejectedAt: true,
+      doiMintedAt: true,
+      doi: true,
+      author: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          orcid: true,
+        },
+      },
+      assignedEditor: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          orcid: true,
+        },
+      },
+    },
   });
 }
 

@@ -88,7 +88,7 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
 
     return sendSuccess(
       res,
-      { submissions, metadata: { count: submissions.length, limit, offset } },
+      { submissions, meta: { count: submissions.length, limit, offset } },
       'Journal submissions retrieved successfully',
     );
   } catch (error) {
