@@ -3,6 +3,7 @@ import { EditorRole, JournalEventLogAction } from '@prisma/client';
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
 import { EmailTypes, sendEmail } from '../email.js';
+import { NotificationService } from '../Notifications/NotificationService.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
 
@@ -34,11 +35,15 @@ async function inviteJournalEditor({
     },
   });
 
-  // TODO: Inviter has perms to invite to this journal
-
   if (!email) {
     throw new Error('Email required');
   }
+
+  const inviteeExistingUser = await prisma.user.findUnique({
+    where: {
+      email: email.toLowerCase(),
+    },
+  });
 
   if (!journalId) {
     throw new Error('Journal ID required');
@@ -97,6 +102,15 @@ async function inviteJournalEditor({
       inviteToken: token,
     },
   });
+
+  if (inviteeExistingUser) {
+    await NotificationService.emitOnJournalEditorInvite({
+      journal,
+      editor: inviteeExistingUser,
+      inviter,
+      role,
+    });
+  }
 
   logger.info(
     {

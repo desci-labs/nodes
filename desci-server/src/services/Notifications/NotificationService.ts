@@ -455,7 +455,7 @@ const emitOnJournalEditorInvite = async ({
   inviter,
   role,
 }: {
-  journal: Journal;
+  journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
   editor: User;
   inviter: User;
   role: EditorRole;
