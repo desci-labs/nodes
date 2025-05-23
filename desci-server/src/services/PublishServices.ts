@@ -13,7 +13,7 @@ import { attestationService } from './Attestation.js';
 import { contributorService } from './Contributors.js';
 import { getManifestFromNode } from './data/processing.js';
 import { getLatestManifestFromNode } from './manifestRepo.js';
-import { emitNotificationOnPublish } from './Notifications/NotificationService.js';
+import { NotificationService } from './Notifications/NotificationService.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -701,7 +701,7 @@ export async function publishSequencer({
       if (unmetPrereqs.length)
         throw `Unmet prerequisites for firing notifications, requires: ${unmetPrereqs.join(', ')}`;
 
-      await emitNotificationOnPublish(node, owner, node.dpidAlias.toString(), publishStatusId);
+      await NotificationService.emitOnPublish(node, owner, node.dpidAlias.toString(), publishStatusId);
 
       publishStatusEntry = await PublishServices.getPublishStatusEntryById(publishStatusEntry.id);
       if (!publishStatusEntry.fireNotifications) throw 'Failed to fire notifications';
