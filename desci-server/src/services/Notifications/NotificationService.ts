@@ -363,7 +363,6 @@ const emitOnContributorInvite = async ({
   privShareCode: string;
   contributorId;
 }) => {
-  // debugger; //
   const dotlessUuid = node.uuid.replace(/\./g, '');
   const nodeOwnerName = nodeOwner.name || 'A user';
   const dpid = await getDpidFromNode(node);
@@ -474,7 +473,8 @@ const emitOnJournalEditorInvite = async ({
   const notificationData: CreateNotificationData = {
     userId: editor.id,
     type: NotificationType.JOURNAL_EDITOR_INVITE,
-    title: `You have been invited to join the ${journal.name} journal as ${roleCopy[role]}`,
+    title: `You've received a journal editor invite!`,
+    message: `You have been invited to join the ${journal.name} journal as ${roleCopy[role]}.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -515,7 +515,8 @@ const emitOnJournalSubmissionAssignedToEditor = async ({
   const notificationData: CreateNotificationData = {
     userId: editor.userId,
     type: NotificationType.SUBMISSION_ASSIGNED_TO_EDITOR,
-    title: `You have been assigned as the editor for a submission titled "${submission.title}" for the ${journal.name} journal`,
+    title: `[${journal.name}] You've been assigned as the editor for a submission!`,
+    message: `You have been assigned as the editor for a submission titled "${submission.title}" for the ${journal.name} journal.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -556,7 +557,8 @@ const emitOnJournalSubmissionReassignedToEditor = async ({
   const notificationData: CreateNotificationData = {
     userId: editor.userId,
     type: NotificationType.SUBMISSION_REASSIGNED_TO_EDITOR,
-    title: `You have been reassigned as the editor for the submission titled "${submission.title}" for the ${journal.name} journal`,
+    title: `[${journal.name}] You've been reassigned as the editor for a submission!`,
+    message: `You have been reassigned as the editor for a submission titled "${submission.title}" for the ${journal.name} journal.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -595,7 +597,8 @@ const emitOnRefereeInvitation = async ({
   const notificationData: CreateNotificationData = {
     userId: referee.id,
     type: NotificationType.REFEREE_INVITE,
-    title: `You have been invited to review the submission titled "${submission.title}" for the ${journal.name} journal`,
+    title: `${journal.name} has invited you to review a submission!`,
+    message: `You have been invited as a referee to review the submission titled "${submission.title}" for the ${journal.name} journal.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -634,7 +637,8 @@ const emitOnRefereeReassignmentInvitation = async ({
   const notificationData: CreateNotificationData = {
     userId: referee.id,
     type: NotificationType.REFEREE_REASSIGNED,
-    title: `You have been invited to review the submission titled "${submission.title}" for the ${journal.name} journal`,
+    title: `${journal.name} has invited you as a referee for a submission!`,
+    message: `You have been reassigned as a referee to review the submission titled "${submission.title}" for the ${journal.name} journal. Accept or deny the request as soon as possible.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -667,7 +671,8 @@ const emitOnRefereeAcceptance = async ({
   const notificationData: CreateNotificationData = {
     userId: editor.userId,
     type: NotificationType.REFEREE_ACCEPTED,
-    title: `${referee.name} has accepted the invitation to review the submission titled "${submission.title}" for the ${journal.name} journal`,
+    title: `[${journal.name}] ${referee.name} has accepted the invitation to review a submission!`,
+    message: `${referee.name} has accepted the invitation to review the submission titled "${submission.title}" for the ${journal.name} journal.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -701,7 +706,8 @@ const emitOnRefereeDecline = async ({
   const notificationData: CreateNotificationData = {
     userId: editor.userId,
     type: NotificationType.REFEREE_DECLINED,
-    title: `${referee.name} has declined the invitation to review the submission titled "${submission.title}" for the ${journal.name} journal. Please reassign a new referee.`,
+    title: `[${journal.name}] ${referee.name} has declined the invitation to review a submission!`,
+    message: `${referee.name} has declined the invitation to review the submission titled "${submission.title}" for the ${journal.name} journal. Please reassign a new referee.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -740,8 +746,8 @@ const emitOnRefereeReviewReminder = async ({
   const notificationData: CreateNotificationData = {
     userId: editorUser.id,
     type: NotificationType.REFEREE_REVIEW_REMINDER,
-    title: `You have a submission titled "${submission.title}" for the ${journal.name} journal that is awaiting your review and nearing the due date.
-     Please review it as soon as possible.`,
+    title: `[${journal.name}] You have a submission awaiting your review and nearing the due date!`,
+    message: `You have a submission titled "${submission.title}" for the ${journal.name} journal that is awaiting your review and nearing the due date. Please review it as soon as possible.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -777,7 +783,8 @@ const emitOnMajorRevisionRequest = async ({
   const notificationData: CreateNotificationData = {
     userId: author.id,
     type: NotificationType.MAJOR_REVISION_REQUESTED,
-    title: `${editorUser?.name} has requested a major revision for your submission titled "${submission.title}" in the ${journal.name} journal`,
+    title: `[${journal.name}] ${editorUser?.name} has requested a major revision for your submission!`,
+    message: `${editorUser?.name} has requested a major revision for your submission titled "${submission.title}" in the ${journal.name} journal.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -813,7 +820,8 @@ const emitOnMinorRevisionRequest = async ({
   const notificationData: CreateNotificationData = {
     userId: author.id,
     type: NotificationType.MINOR_REVISION_REQUESTED,
-    title: `${editorUser?.name} has requested a minor revision for your submission titled "${submission.title}" in the ${journal.name} journal`,
+    title: `[${journal.name}] ${editorUser?.name} has requested a minor revision for your submission!`,
+    message: `${editorUser?.name} has requested a minor revision for your submission titled "${submission.title}" in the ${journal.name} journal.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -849,7 +857,8 @@ const emitOnRevisionSubmittedToEditor = async ({
   const notificationData: CreateNotificationData = {
     userId: editorUser.id,
     type: NotificationType.REVISION_SUBMITTED,
-    title: `${author.name} has submitted a revision for their submission titled "${submission.title}" in the ${journal.name} journal`,
+    title: `[${journal.name}] ${author.name} has submitted a revision for their submission!`,
+    message: `${author.name} has submitted a revision for their submission titled "${submission.title}" in the ${journal.name} journal.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -894,7 +903,8 @@ const emitOnSubmissionDeskRejection = async ({
   const notificationData: CreateNotificationData = {
     userId: author.id,
     type: NotificationType.SUBMISSION_DESK_REJECTION,
-    title: `Your submission titled "${submission.title}" in the ${journal.name} journal has been desk rejected.`,
+    title: `[${journal.name}] Your submission has been desk rejected.`,
+    message: `Your submission titled "${submission.title}" in the ${journal.name} journal has been desk rejected.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -939,7 +949,8 @@ const emitOnSubmissionFinalRejection = async ({
   const notificationData: CreateNotificationData = {
     userId: author.id,
     type: NotificationType.SUBMISSION_FINAL_REJECTION,
-    title: `Your submission titled "${submission.title}" in the ${journal.name} journal has been rejected.`,
+    title: `[${journal.name}] Your submission has been rejected.`,
+    message: `Your submission titled "${submission.title}" in the ${journal.name} journal has been rejected.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -984,7 +995,8 @@ const emitOnSubmissionAcceptance = async ({
   const notificationData: CreateNotificationData = {
     userId: author.id,
     type: NotificationType.SUBMISSION_ACCEPTED,
-    title: `Congratulations! Your submission titled "${submission.title}" in the ${journal.name} journal has been accepted.`,
+    title: `[${journal.name}] Congratulations! Your submission has been accepted.`,
+    message: `Your submission titled "${submission.title}" in the ${journal.name} journal has been accepted.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -1019,7 +1031,8 @@ const emitOnSubmissionOverdueEditorReminder = async ({
   const notificationData: CreateNotificationData = {
     userId: editor.userId,
     type: NotificationType.SUBMISSION_OVERDUE_EDITOR_REMINDER,
-    title: `The submission titled "${submission.title}", that you are assigned to as the editor for the ${journal.name} journal, is overdue. Please review it as soon as possible.`,
+    title: `[${journal.name}] The submission is overdue.`,
+    message: `The submission titled "${submission.title}", that you are assigned to as the editor for the ${journal.name} journal, is overdue. Please review it as soon as possible.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
