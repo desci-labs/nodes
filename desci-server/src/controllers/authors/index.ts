@@ -1,6 +1,6 @@
 import 'zod-openapi/extend';
 import { User } from '@prisma/client';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, query } from 'express';
 import z from 'zod';
 
 import { prisma } from '../../client.js';
@@ -45,15 +45,19 @@ export const getCoauthorSchema = z.object({
   }),
 });
 
-export const getAuthorWorksSchema = z.object({
-  params: z.object({
-    id: z.string({ required_error: 'Missing ORCID or OpenAlex ID' }).describe('The ORCID identifier of the author'),
-  }),
-  query: z.object({
-    page: z.coerce.number().optional().default(1).describe('Page number for pagination of author works'),
-    limit: z.coerce.number().optional().default(200).describe('Number of works to return per page'),
-  }),
-});
+export const getAuthorWorksSchema = z
+  .object({
+    params: z.object({
+      id: z.string({ required_error: 'Missing ORCID or OpenAlex ID' }).describe('The ORCID identifier of the author'),
+    }),
+    query: z.object({
+      page: z.coerce.number().optional().default(1).describe('Page number for pagination of author works'),
+      limit: z.coerce.number().optional().default(20).describe('Number of works to return per page'),
+    }),
+  })
+  .describe(
+    'Get works by an author. Returns a paginated list of works with metadata including title, authors, publication date, and citations.',
+  );
 
 const PROFILE_CACHE_PREFIX = 'OPENALEX_AUTHOR';
 const WORKS_CACHE_PREFIX = 'OPENALEX_WORKS';
@@ -193,7 +197,6 @@ export const getCoAuthors = async (req: Request, res: Response, next: NextFuncti
 
 export const getAuthorWorks = async (req: Request, res: Response, next: NextFunction) => {
   const { query, params } = await getAuthorWorksSchema.parseAsync(req);
-  const limit = 20;
 
   const isOpenAlexId = OPENALEX_ID_REGEX.test(params.id);
   const isOrcidId = ORCID_REGEX.test(params.id);
@@ -210,17 +213,20 @@ export const getAuthorWorks = async (req: Request, res: Response, next: NextFunc
     if (openalexProfile) setToCache(`${PROFILE_CACHE_PREFIX}-${params.id}`, openalexProfile);
   }
 
-  let openalexWorks = await getFromCache<WorksResult>(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}`);
+  let openalexWorks = await getFromCache<WorksResult>(
+    `${WORKS_CACHE_PREFIX}-${params.id}-${query.page}-${query.limit}`,
+  );
+
   if (!openalexWorks && openalexProfile?.id) {
     openalexWorks = await openAlexService.searchWorksByOpenAlexId(openalexProfile.id, {
       page: query.page,
       perPage: query.limit,
     });
 
-    if (openalexWorks) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}`, openalexWorks);
+    if (openalexWorks) setToCache(`${WORKS_CACHE_PREFIX}-${params.id}-${query.page}-${query.limit}`, openalexWorks);
   }
 
-  new SuccessResponse({ meta: { ...query }, works: openalexWorks?.works ?? [] }).send(res);
+  new SuccessResponse(openalexWorks).send(res);
 };
 
 const logger = parentLogger.child({
@@ -296,5 +302,14 @@ export const getAuthorPublishedNodes = async (req: PublishedNodesRequest, res: P
     };
   });
 
-  return new SuccessResponse({ meta: { page, limit: size, g: gateway }, nodes: formattedNodes }).send(res);
+  return new SuccessResponse({
+    meta: {
+      page,
+      limit: size,
+      g: gateway,
+      count: formattedNodes.length,
+      nextPage: formattedNodes.length === size ? page + 1 : null,
+    },
+    nodes: formattedNodes,
+  }).send(res);
 };

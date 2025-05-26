@@ -77,7 +77,7 @@ const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.
                   </Link>
                 </Column>
               </Row>
-              <Text className="text-center">©2024 Desci Nodes</Text>
+              <Text className="text-center">©{new Date().getFullYear()} DeSci Labs AG</Text>
             </Container>
           </Container>
         </Body>

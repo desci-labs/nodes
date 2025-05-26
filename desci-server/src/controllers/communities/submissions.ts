@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { prisma } from '../../client.js';
 import { BadRequestError, ForbiddenError } from '../../core/ApiError.js';
 import { CreatedSuccessResponse, SuccessMessageResponse, SuccessResponse } from '../../core/ApiResponse.js';
+import { logger } from '../../logger.js';
 import { RequestWithNode, RequestWithUser } from '../../middleware/authorisation.js';
 import {
   createSubmissionSchema,
@@ -49,7 +50,7 @@ export const createSubmission = async (req: RequestWithNode, res: Response) => {
 
 export const getCommunitySubmissions = async (req: RequestWithUser, res: Response) => {
   const { communityId } = req.params as z.infer<typeof getCommunitySubmissionsSchema>['params'];
-  const { status } = req.query as z.infer<typeof getCommunitySubmissionsSchema>['query'];
+  const { status, limit, offset } = req.query as z.infer<typeof getCommunitySubmissionsSchema>['query'];
 
   // Check if user is a member of the community
   const isMember = req?.user?.id
@@ -63,16 +64,28 @@ export const getCommunitySubmissions = async (req: RequestWithUser, res: Respons
 
   // logger.trace({ isMember }, 'isMember');
   // Get submissions
+  const queryLimit = limit ? Number(limit) : 10;
+  const queryOffset = offset !== undefined ? Number(offset) : undefined;
+  logger.trace({ queryLimit, queryOffset, isMember }, 'QUERY');
   const submissions = await communityService.getCommunitySubmissions({
+    communityId: Number(communityId),
+    status: isMember ? status : Submissionstatus.ACCEPTED,
+    limit: queryLimit,
+    offset: queryOffset,
+  });
+  logger.trace({ submissions }, 'SUBMISSIONS');
+
+  // Get total count
+  const totalCount = await communityService.getCommunitySubmissionsCount({
     communityId: Number(communityId),
     status: isMember ? status : Submissionstatus.ACCEPTED,
   });
 
   const data = await asyncMap(submissions, async (submission) => {
-    const node = await getNodeDetails(submission.nodeId);
+    const node = await getNodeDetails(submission.node);
     return { ...submission, node: { ...submission.node, ...node } };
   });
-  new SuccessResponse(data).send(res);
+  new SuccessResponse({ submissions: data, meta: { totalCount, offset: queryOffset, limit: queryLimit } }).send(res);
 };
 
 export const getUserSubmissions = async (req: RequestWithUser, res: Response) => {
@@ -93,10 +106,7 @@ export const updateSubmissionStatus = async (req: RequestWithUser, res: Response
   const { status, reason } = req.body as z.infer<typeof rejectSubmissionSchema>['body'];
 
   // Get submission and check if it exists
-  const submission = await prisma.communitySubmission.findUnique({
-    where: { id: Number(submissionId) },
-    include: { community: true },
-  });
+  const submission = await communityService.getSubmission(Number(submissionId));
 
   if (!submission) {
     throw new BadRequestError('Submission not found');
@@ -142,12 +152,20 @@ export const updateSubmissionStatus = async (req: RequestWithUser, res: Response
     // send user rejection email
     sendEmail({
       type: EmailTypes.RejectedSubmission,
-      payload: { dpid: dpid.toString(), reason, recipient, submission },
+      payload: {
+        dpid: dpid.toString(),
+        reason,
+        recipient,
+        communityName: submission.community.name,
+        communitySlug: submission.community.slug,
+        nodeVersion: submission.nodeVersion,
+        nodeDpid: dpid.toString(),
+      },
     });
   }
 
-  const node = await getNodeDetails(submission.nodeId);
-  new SuccessResponse({ ...updatedSubmission, ...node }).send(res);
+  const node = await getNodeDetails(submission.node);
+  new SuccessResponse({ ...updatedSubmission, node: { ...updatedSubmission.node, ...node } }).send(res);
 };
 
 export const getSubmission = async (req: RequestWithUser, res: Response) => {
@@ -172,9 +190,9 @@ export const getSubmission = async (req: RequestWithUser, res: Response) => {
     throw new ForbiddenError('Unauthorized to view this submission');
   }
 
-  const node = await getNodeDetails(submission.nodeId);
+  const node = await getNodeDetails(submission.node);
 
-  new SuccessResponse({ ...submission, ...node }).send(res);
+  new SuccessResponse({ ...submission, node: { ...submission.node, ...node } }).send(res);
 };
 
 export const cancelUserSubmission = async (req: RequestWithUser, res: Response) => {

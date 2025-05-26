@@ -514,7 +514,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
             : null;
       }
     };
+
     const allDatesInInterval = getIntervals();
+    logger.trace({ allDatesInInterval }, 'allDatesInInterval');
 
     aggregatedData = allDatesInInterval.map((period) => {
       const selectedDatesInterval =
@@ -530,9 +532,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
 
       const newUsersAgg = newUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const newOrcidUsersAgg = newOrcidUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
-      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.user.createdAt, selectedDatesInterval));
+      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const activeOrcidUsersAgg = activeOrcidUsers.filter((user) =>
-        isWithinInterval(user.user.createdAt, selectedDatesInterval),
+        isWithinInterval(user.createdAt, selectedDatesInterval),
       );
       const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
@@ -551,8 +553,13 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
       const badgeVerificationsAgg = badgeVerifications.filter((log) =>
         isWithinInterval(log.createdAt, selectedDatesInterval),
       );
+
+      const peggedPeriod = isWithinInterval(period, interval(selectedDates.from, selectedDates.to))
+        ? period
+        : selectedDates.from;
+
       return {
-        date: period,
+        date: peggedPeriod,
         newUsers: newUsersAgg.length,
         newOrcidUsers: newOrcidUsersAgg.length,
         activeUsers: activeUsersAgg.length,
@@ -679,9 +686,9 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
 
       const newUsersAgg = newUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const newOrcidUsersAgg = newOrcidUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
-      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.user.createdAt, selectedDatesInterval));
+      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const activeOrcidUsersAgg = activeOrcidUsers.filter((user) =>
-        isWithinInterval(user.user.createdAt, selectedDatesInterval),
+        isWithinInterval(user.createdAt, selectedDatesInterval),
       );
       const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));

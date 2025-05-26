@@ -4,6 +4,7 @@ import path from 'path';
 import { stringify } from 'yaml';
 import { createDocument } from 'zod-openapi';
 
+import { adminNodesPaths } from './admin/nodes.js';
 import {
   getAnalyticsOperation,
   getAggregatedAnalyticsOperation,
@@ -128,6 +129,7 @@ export const openaiDocumentation = createDocument({
     ...doiPaths,
     ...openAlexPaths,
     ...journalPaths,
+    ...adminNodesPaths,
   },
 });
 

@@ -5,9 +5,11 @@ import _ from 'lodash';
 
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
+import { getFromCache, setToCache } from '../redisClient.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
+import { CommunitySubmissionItem } from './Communities.js';
 import { getManifestByCid } from './data/processing.js';
 import { NodeUuid } from './manifestRepo.js';
 import repoService from './repoService.js';
@@ -91,91 +93,107 @@ export async function getNodeLikesInRange({ from, to }: { from: string | Date; t
 }
 
 export const getPublishedNodesInRange = async (range: { from: Date; to: Date }) => {
-  const publishes = await prisma.nodeVersion.findMany({
-    where: {
-      createdAt: {
-        gte: range.from,
-        lt: range.to,
-      },
-      OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
-    },
-    select: {
-      createdAt: true,
-    },
-  });
+  const publishes = (await prisma.$queryRaw`SELECT
+    DISTINCT nv."nodeId",
+    MAX(nv."createdAt") AS "createdAt"
+FROM
+    "Node" node
+    JOIN "NodeVersion" nv ON nv."createdAt" >= ${range.from}
+    AND nv."createdAt" < ${range.to}
+    AND (
+        nv."transactionId" IS NOT NULL
+        OR nv."commitId" IS NOT NULL
+    )
+GROUP BY
+    nv."nodeId";
+        `) as { nodeId: number; createdAt: string }[];
 
   return publishes;
 };
 
 export const countPublishedNodesInRange = async (range: { from: Date; to: Date }) => {
-  const publishes = await prisma.nodeVersion.count({
+  const result = await prisma.nodeVersion.groupBy({
+    by: ['nodeId'],
+    _count: {
+      _all: true,
+    },
     where: {
       createdAt: {
         gte: range.from,
         lt: range.to,
       },
-      OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+      OR: [
+        {
+          transactionId: {
+            not: null,
+          },
+        },
+        {
+          commitId: {
+            not: null,
+          },
+        },
+      ],
     },
   });
-
-  return publishes;
+  return result.length;
 };
 
-export const getNodeDetails = async (nodeUuid: string) => {
+const NODE_DETAILS_CACHE_KEY = `NODE_DETAILS_CACHE_KEY`;
+
+export interface NodeDetails {
+  versions?: number;
+  publishedDate?: Date;
+  manifestUrl?: string;
+  dpid?: number;
+  dpidAlias?: number;
+  authors?: any[];
+}
+
+export const getNodeDetails = async (discovery: CommunitySubmissionItem['node']) => {
+  if (!discovery) return {};
+
   const logger = parentLogger.child({ module: 'getNodeDetails' });
-  const uuid = ensureUuidEndsWithDot(nodeUuid);
 
-  const discovery = await prisma.node.findFirst({
-    where: {
-      uuid,
-      isDeleted: false,
-    },
-    select: {
-      id: true,
-      manifestUrl: true,
-      ownerId: true,
-      uuid: true,
-      title: true,
-      NodeCover: true,
-      dpidAlias: true,
-      manifestDocumentId: true,
-    },
-  });
+  const nodeVersion = discovery?.versions?.length ?? 0;
+  const latestVersion = discovery?.versions?.[0];
+  const cacheKey = `${NODE_DETAILS_CACHE_KEY}_${discovery.id}_${latestVersion?.manifestUrl}`;
 
-  if (!discovery) {
-    logger.warn({ uuid }, 'uuid not found');
+  const cachedDetails = await getFromCache<NodeDetails>(cacheKey);
+  logger.trace({ cacheKey, hit: !!cachedDetails }, 'CACHE check');
+  if (cachedDetails) return cachedDetails;
+
+  const data: Record<string, any> = {};
+  logger.trace({ uuid: discovery.uuid, latestVersion }, 'Resolve node');
+
+  data['versions'] = nodeVersion;
+  if (latestVersion) {
+    data['publishedDate'] = latestVersion.createdAt;
+    data['manifestUrl'] = latestVersion.manifestUrl;
   }
-
-  const selectAttributes: (keyof typeof discovery)[] = ['ownerId', 'NodeCover', 'dpidAlias', 'manifestDocumentId'];
-  const node: Partial<Node & { versions: number; dpid?: number }> = _.pick(discovery, selectAttributes);
-  const publishedVersions =
-    (await prisma.$queryRaw`SELECT * from "NodeVersion" where "nodeId" = ${discovery.id} AND ("transactionId" IS NOT NULL or "commitId" IS NOT NULL) ORDER BY "createdAt" DESC`) as NodeVersion[];
-
-  const data: { [key: string]: any } = {};
-  logger.info({ uuid: discovery.uuid, publishedVersions }, 'Resolve node');
-  data['versions'] = publishedVersions.length;
-  data['publishedDate'] = publishedVersions[0].createdAt;
-  node.manifestUrl = publishedVersions[0].manifestUrl;
-  // data.node = node;
-  data.dpid = node.dpidAlias;
-
-  let gatewayUrl = publishedVersions[0].manifestUrl;
+  const resolvedDpid = discovery.dpidAlias || discovery.legacyDpid;
+  data.dpid = resolvedDpid;
+  data.dpidAlias = resolvedDpid; // Ensure dpidAlias is set using legacy dpid if not present
 
   try {
     const manifest = await repoService.getDraftManifest({
-      uuid: uuid as NodeUuid,
-      documentId: node.manifestDocumentId,
+      uuid: discovery.uuid as NodeUuid,
+      documentId: discovery.manifestDocumentId,
     });
-    logger.info({ manifestFound: !!manifest }, '[SHOW API GET LAST PUBLISHED MANIFEST]');
+    logger.trace({ manifestFound: !!manifest }, '[repoService.getDraftManifest]');
     data.authors = manifest.authors;
   } catch (err) {
-    gatewayUrl = cleanupManifestUrl(gatewayUrl);
-    // logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
-    const manifest = (await axios.get(gatewayUrl)).data;
-    data.authors = manifest.authors;
-
+    let gatewayUrl = latestVersion?.manifestUrl ?? discovery?.manifestUrl;
+    if (gatewayUrl !== undefined) {
+      gatewayUrl = cleanupManifestUrl(gatewayUrl);
+      // logger.trace({ gatewayUrl, uuid }, 'transforming manifest');
+      const manifest = (await axios.get(gatewayUrl)).data;
+      data.authors = manifest.authors;
+    }
     logger.error({ err, manifestUrl: discovery.manifestUrl, gatewayUrl }, 'nodes/show.ts: failed to preload manifest');
   }
+
+  await setToCache(cacheKey, data);
   return data;
 };
 

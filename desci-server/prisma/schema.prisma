@@ -49,6 +49,7 @@ model Node {
   PdfPreviews          PdfPreviews[]
   DoiRecord            DoiRecord[]
   dpidAlias            Int?                   @unique
+  legacyDpid           Int? // for backwards compatibility prior to ceramic
   DoiSubmissionQueue   DoiSubmissionQueue[]
   BookmarkedNode       BookmarkedNode[]
   DeferredEmails       DeferredEmails[]
