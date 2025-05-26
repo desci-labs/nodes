@@ -30,11 +30,7 @@ import routes from './routes/index.js';
 import { dataMigrationWorker } from './services/DataMigration/DataMigrationWorker.js';
 import { refereeRecommenderSqsHandler } from './services/externalApi/RefereeRecommenderSqsHandler.js';
 import { initializeWebSockets, getIO } from './services/websocketService.js';
-// import swaggerFile from './swagger_output.json' with { type: 'json' };
 import { SubmissionQueueJob } from './workers/doiSubmissionQueue.js';
-// import { runWorkerUntilStopped } from './workers/publish.js';
-
-// const __dirname = path.dirname(__filename);
 
 const logger = parentLogger.child({
   module: 'server.ts',
