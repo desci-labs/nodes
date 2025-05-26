@@ -242,6 +242,28 @@ services:
       db_postgres:
         condition: service_healthy
 
+  ceramic-one:
+    image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.54.2
+    container_name: ceramic-one
+    restart: on-failure
+    ports:
+      - 5101:5101 # RPC
+      - 5102:5102 # flight SQL (> v0.53.0)
+    environment:
+      CERAMIC_ONE_STORE_DIR: "/data/ceramic-one"
+      CERAMIC_ONE_P2P_KEY_DIR: "/data/ceramic-one"
+      CERAMIC_ONE_BIND_ADDRESS: "0.0.0.0:5101"
+      CERAMIC_ONE_SWARM_ADDRESSES: "/ip4/0.0.0.0/tcp/4101,/ip4/0.0.0.0/udp/4102/quic-v1"
+      CERAMIC_ONE_METRICS_BIND_ADDRESS: "0.0.0.0:9465"
+      CERAMIC_ONE_FLIGHT_SQL_BIND_ADDRESS: "0.0.0.0:5102"
+      CERAMIC_ONE_NETWORK: "inmemory"
+      RUST_LOG: "warn"
+      CERAMIC_ONE_LOG_FORMAT: "multi-line"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./local-data/ceramic-one:/data/ceramic-one
+
   desci-media-isolated:
     build:
       context: ./desci-media-isolated
