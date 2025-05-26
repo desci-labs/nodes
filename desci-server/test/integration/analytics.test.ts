@@ -6,7 +6,16 @@ import { ActionType, InteractionLog, Node, User } from '@prisma/client';
 // import { Sql } from '@prisma/client/runtime/library.js';
 import chai, { use, util } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import { endOfDay, startOfDay, subDays } from 'date-fn-latest';
+import {
+  eachDayOfInterval,
+  eachMonthOfInterval,
+  eachWeekOfInterval,
+  eachYearOfInterval,
+  endOfDay,
+  interval,
+  startOfDay,
+  subDays,
+} from 'date-fn-latest';
 // import { sql } from 'googleapis/build/src/apis/sql/index.js';
 import supertest from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
@@ -15,7 +24,19 @@ import { prisma } from '../../src/client.js';
 import { generateAccessToken } from '../../src/controllers/auth/magic.js';
 import { app } from '../../src/index.js';
 import { getActiveUsersInRange } from '../../src/services/interactionLog.js';
-import { createDraftNode } from '../util.js';
+import {
+  createDraftNode,
+  createMockNodes,
+  createMockUsers,
+  getAllDatesInInterval,
+  likeNodes,
+  logMockUserActions,
+  MockUser,
+  publishMockNodes,
+  sanitizeBigInts,
+  viewNodes,
+} from '../util.js';
+
 // use async chai assertions
 chai.use(chaiAsPromised);
 const expect = chai.expect;
@@ -25,61 +46,6 @@ const clearDatabase = async () => {
   await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
   await prisma.$queryRaw`TRUNCATE TABLE "NodeVersion" CASCADE;`;
   await prisma.$queryRaw`TRUNCATE TABLE "InteractionLog" CASCADE;`;
-};
-
-interface MockUser {
-  user: User;
-  token: string;
-}
-
-const randomInt = (min: number, max: number) => {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-};
-
-// generate a random orcid
-const generateOrcid = () => {
-  return `0000-000${randomInt(1, 9)}-80${randomInt(1, 9)}0-${randomInt(1, 9)}${randomInt(1, 9)}${randomInt(1, 9)}X`;
-};
-
-const createMockUsers = async (count: number, createdAt: Date, withOrcid?: boolean): Promise<MockUser[]> => {
-  const promises = new Array(count).fill(0).map((_, index) =>
-    prisma.user.create({
-      data: {
-        email: `user${index}_${uuidv4()}@test.com`,
-        name: `User_${index}_${uuidv4()}`,
-        createdAt,
-        ...(withOrcid ? { orcid: generateOrcid() } : {}),
-      },
-    }),
-  );
-
-  const users = await Promise.all(promises);
-  return users.map((user) => ({
-    user,
-    token: generateAccessToken({ email: user.email }),
-  }));
-};
-
-const logMockUserActions = async (
-  users: MockUser[],
-  action: AvailableUserActionLogTypes,
-  date: Date,
-): Promise<InteractionLog[]> => {
-  const promises = users.map((entry, index) =>
-    prisma.interactionLog.create({
-      data: {
-        userId: entry.user.id,
-        createdAt: date,
-        action: ActionType.USER_ACTION,
-        extra: JSON.stringify({
-          action,
-        }),
-      },
-    }),
-  );
-
-  const interactions = await Promise.all(promises);
-  return interactions;
 };
 
 describe('Desci Analytics', async () => {
@@ -409,7 +375,7 @@ describe('Desci Analytics', async () => {
     let nodesInLast30Days: Node[];
 
     beforeEach(async () => {
-      mockUsers = await createMockUsers(10, subDays(new Date(), 30));
+      mockUsers = await createMockUsers(10, subDays(new Date(), 60));
 
       // create 3 nodes today
       nodesToday = await createMockNodes(mockUsers.slice(0, 3), new Date());
@@ -500,17 +466,26 @@ describe('Desci Analytics', async () => {
       // create 10 published nodes in the past 30 days
       await publishMockNodes(mockNodes.slice(0, 10), subDays(new Date(), 28));
 
+      let selectedDates = {
+        from: new Date().toISOString(),
+        to: new Date().toISOString(),
+      };
+      let timeInterval = 'daily';
+
+      let allDatesInInterval = getAllDatesInInterval(selectedDates, timeInterval);
       let response = await request
         .get(
-          `/v1/admin/analytics/query?to=${encodeURIComponent(new Date().toISOString())}&from=${encodeURIComponent(new Date().toISOString())}&interval=daily`,
+          `/v1/admin/analytics/query?to=${encodeURIComponent(selectedDates.to)}&from=${encodeURIComponent(selectedDates.from)}&interval=${timeInterval}`,
         )
         .set('authorization', `Bearer ${mockAdmin.token}`);
-      console.log(JSON.stringify(sanitizeBigInts(response.body), null, 2));
-
+      console.log(JSON.stringify(sanitizeBigInts(response.body), null, 2), allDatesInInterval);
+      console.log({ allDatesInInterval });
       expect(response.status).to.equal(200);
 
       // add assertions for today here
-      expect(response.body.data.analytics).to.be.an('array').with.lengthOf(1);
+      expect(response.body.data.analytics)
+        .to.be.an('array')
+        .with.lengthOf(allDatesInInterval?.length ?? 1);
       expect(response.body.data.analytics[0].newUsers, 'new users today').to.equal(
         usersToday.length + orcidUsersToday.length,
       ); // sum of users today and orcid users today
@@ -543,12 +518,20 @@ describe('Desci Analytics', async () => {
         orcidUsersInteractionsToday.length,
       ); // sum of orcid user interactions today
 
+      selectedDates = {
+        from: subDays(new Date(), 7).toISOString(),
+        to: new Date().toISOString(),
+      };
+      timeInterval = 'daily';
+      allDatesInInterval = getAllDatesInInterval(selectedDates, timeInterval);
+
       response = await request
         .get(
-          `/v1/admin/analytics/query?to=${encodeURIComponent(new Date().toISOString())}&from=${encodeURIComponent(subDays(new Date(), 7).toISOString())}&interval=daily`,
+          `/v1/admin/analytics/query?to=${encodeURIComponent(selectedDates.to)}&from=${encodeURIComponent(selectedDates.from)}&interval=${timeInterval}`,
         )
         .set('authorization', `Bearer ${mockAdmin.token}`);
       console.log(JSON.stringify(sanitizeBigInts(response.body), null, 2));
+      console.log({ allDatesInInterval });
       expect(response.status).to.equal(200);
       let analytics = response.body.data.analytics.reverse();
 
@@ -570,7 +553,9 @@ describe('Desci Analytics', async () => {
       console.log({ publishesInLast7Days });
 
       // add assertions for last 7 days here
-      expect(analytics, 'analytics array length').to.be.an('array').with.lengthOf(8);
+      expect(analytics, 'analytics array length')
+        .to.be.an('array')
+        .with.lengthOf(allDatesInInterval?.length ?? 8);
       expect(analytics[0].newUsers, 'new users today').to.equal(usersToday.length + orcidUsersToday.length); // sum of users today and orcid users today
       expect(analytics[0].newNodes, 'new nodes today').to.equal(nodesToday.length); // sum of nodes today
       expect(analytics[0].nodeViews, 'node views today').to.equal(5); // sum of node views today
@@ -595,12 +580,21 @@ describe('Desci Analytics', async () => {
         orcidUsersInteractionsInLast7Days.length,
       ); // sum of orcid user interactions in last 7 days
 
+      // test for last 30 days
+      selectedDates = {
+        from: subDays(new Date(), 30).toISOString(),
+        to: new Date().toISOString(),
+      };
+      timeInterval = 'weekly';
+      allDatesInInterval = getAllDatesInInterval(selectedDates, timeInterval);
+
       response = await request
         .get(
-          `/v1/admin/analytics/query?to=${encodeURIComponent(new Date().toISOString())}&from=${encodeURIComponent(subDays(new Date(), 30).toISOString())}&interval=weekly`,
+          `/v1/admin/analytics/query?to=${encodeURIComponent(selectedDates.to)}&from=${encodeURIComponent(selectedDates.from)}&interval=${timeInterval}`,
         )
         .set('authorization', `Bearer ${mockAdmin.token}`);
       console.log(JSON.stringify(sanitizeBigInts(response.body), null, 2));
+      console.log({ allDatesInInterval });
 
       const publishesInLast30Days = (await prisma.$queryRaw`
       SELECT
@@ -622,7 +616,9 @@ describe('Desci Analytics', async () => {
       expect(response.status).to.equal(200);
       // add assertions for last 30 days here
       analytics = response.body.data.analytics.reverse();
-      expect(analytics).to.be.an('array').with.lengthOf(5);
+      expect(analytics)
+        .to.be.an('array')
+        .with.lengthOf(allDatesInInterval?.length ?? 5);
       expect(analytics[0].newUsers, 'new users this week').to.equal(usersToday.length + orcidUsersToday.length); // sum of users today and orcid users today
       expect(analytics[0].newNodes, 'new nodes this week').to.equal(nodesToday.length); // sum of nodes today
       expect(analytics[0].nodeViews, 'node views this week').to.equal(5); // sum of node views today
@@ -636,7 +632,7 @@ describe('Desci Analytics', async () => {
       ); // sum of orcid user interactions in last 7 days
 
       expect(analytics[4].newUsers, 'new users 4 weeks ago').to.equal(
-        usersInLast30Days.length + orcidUsersInLast30Days.length + mockUsers.length,
+        usersInLast30Days.length + orcidUsersInLast30Days.length,
       ); // sum of users today and orcid users today
       expect(analytics[4].newOrcidUsers, 'new orcid users 4 weeks ago').to.equal(orcidUsersInLast30Days.length); // sum of orcid users today
       expect(analytics[4].newNodes, 'new nodes 4 weeks ago').to.equal(nodesInLast30Days.length); // sum of nodes today
@@ -658,77 +654,3 @@ describe('Desci Analytics', async () => {
     });
   });
 });
-
-function sanitizeBigInts(obj: any): any {
-  if (Array.isArray(obj)) {
-    return obj.map(sanitizeBigInts);
-  } else if (obj && typeof obj === 'object') {
-    return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, sanitizeBigInts(v)]));
-  } else if (typeof obj === 'bigint') {
-    return obj.toString();
-  } else {
-    return obj;
-  }
-}
-
-function createMockNodes(users: MockUser[], createdAt: Date) {
-  return Promise.all(
-    users.map((owner) =>
-      createDraftNode({
-        title: `Test Node ${randomInt(1, 1000000)}`,
-        createdAt,
-        ownerId: owner.user.id,
-        manifestUrl: `bafkreibhcuvtojyratsjpqvte7lyxgcbluwi7p4c5ogs4lluyrdiurgmdi`,
-        replicationFactor: 1,
-        uuid: uuidv4(),
-      }),
-    ),
-  );
-}
-
-function publishMockNode(node: Node, createdAt: Date) {
-  return prisma.nodeVersion.create({
-    data: {
-      nodeId: node.id,
-      manifestUrl: node.manifestUrl,
-      createdAt,
-      commitId: 'k3y52mos6605bnn40br13xp3gu5gbgbcktw1zlww98ha346j22ejm8ti9qfallzpc',
-    },
-  });
-}
-
-function publishMockNodes(nodes: Node[], createdAt: Date) {
-  return Promise.all(nodes.map((node) => publishMockNode(node, createdAt)));
-}
-
-function viewNodes(nodes: Node[], userId: number, createdAt: Date) {
-  return Promise.all(
-    nodes.map((node) =>
-      prisma.interactionLog.create({
-        data: {
-          userId,
-          nodeId: node.id,
-          action: ActionType.USER_ACTION,
-          extra: JSON.stringify({
-            action: AvailableUserActionLogTypes.viewedNode,
-          }),
-          createdAt,
-        },
-      }),
-    ),
-  );
-}
-
-function likeNodes(nodes: Node[], userId: number, createdAt: Date) {
-  return Promise.all(
-    nodes.map((node) =>
-      prisma.nodeLike.create({
-        data: {
-          nodeUuid: node.uuid!,
-          userId,
-          createdAt,
-        },
-      }),
-    ),
-  );
-}

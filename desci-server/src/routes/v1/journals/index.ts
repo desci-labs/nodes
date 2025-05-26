@@ -32,6 +32,7 @@ import {
   updateEditorRoleSchema,
   updateJournalSchema,
 } from '../../../schemas/journals.schema.js';
+import { asyncHandler } from '../../../utils/asyncHandler.js';
 
 const router = Router();
 
@@ -73,24 +74,24 @@ router.delete(
 router.post(
   '/:journalId/submissions',
   [ensureUser, validateInputs(createJournalSubmissionSchema)],
-  createJournalSubmissionController,
+  asyncHandler(createJournalSubmissionController),
 );
 
 router.post(
   '/:journalId/submissions/:submissionId/assign',
   [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(assignSubmissionToEditorSchema)],
-  assignSubmissionToEditorController,
+  asyncHandler(assignSubmissionToEditorController),
 );
 
 router.get(
   '/:journalId/submissions',
   [ensureUser, validateInputs(listJournalSubmissionsSchema)],
-  listJournalSubmissionsController,
+  asyncHandler(listJournalSubmissionsController),
 );
 
 router.get(
-  '/:journalId/submissions/author',
+  '/:journalId/my-submissions/:authorId',
   [ensureUser, validateInputs(getAuthorJournalSubmissionsSchema)],
-  getAuthorSubmissionsController,
+  asyncHandler(getAuthorSubmissionsController),
 );
 export default router;

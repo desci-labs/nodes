@@ -1,6 +1,7 @@
 import { EditorRole, JournalEventLogAction, SubmissionStatus } from '@prisma/client';
 
 import { prisma } from '../../client.js';
+import { ForbiddenError } from '../../core/ApiError.js';
 import { logger as parentLogger } from '../../logger.js';
 
 // import { JournalEventLogService } from './JournalEventLogService.js';
@@ -19,7 +20,8 @@ async function createSubmission(payload: { journalId: number; authorId: number; 
   });
 
   if (existing) {
-    throw new Error('Submission already exists');
+    // replace with error class from journals/core/errors.ts
+    throw new ForbiddenError('Submission already exists');
   }
 
   const submission = await prisma.journalSubmission.create({
@@ -46,6 +48,7 @@ async function getAuthorSubmissions(payload: { journalId: number; authorId: numb
       version: true,
       status: true,
       id: true,
+      authorId: true,
       assignedEditorId: true,
       assignedEditor: {
         select: {
@@ -65,12 +68,56 @@ async function getJournalSubmissions(payload: {
   journalId: number;
   limit: number;
   offset: number;
-  filter: SubmissionStatus[] | undefined;
+  filter?: SubmissionStatus[] | undefined;
 }) {
   return await prisma.journalSubmission.findMany({
     where: {
       journalId: payload.journalId,
       ...(payload.filter && { status: { in: payload.filter } }),
+    },
+    skip: payload.offset,
+    take: payload.limit,
+    select: {
+      id: true,
+      assignedEditorId: true,
+      dpid: true,
+      version: true,
+      status: true,
+      submittedAt: true,
+      acceptedAt: true,
+      rejectedAt: true,
+      doiMintedAt: true,
+      doi: true,
+      author: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          orcid: true,
+        },
+      },
+      assignedEditor: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          orcid: true,
+        },
+      },
+    },
+  });
+}
+
+export async function getAssociateEditorSubmissions(payload: {
+  assignedEditorId: number;
+  journalId: number;
+  limit: number;
+  offset: number;
+}) {
+  return await prisma.journalSubmission.findMany({
+    where: {
+      journalId: payload.journalId,
+      OR: [{ assignedEditorId: payload.assignedEditorId }, { status: SubmissionStatus.ACCEPTED }],
     },
     skip: payload.offset,
     take: payload.limit,
@@ -144,4 +191,5 @@ export const journalSubmissionService = {
   getAuthorSubmissions,
   getJournalSubmissions,
   assignSubmissionToEditor,
+  getAssociateEditorSubmissions,
 };

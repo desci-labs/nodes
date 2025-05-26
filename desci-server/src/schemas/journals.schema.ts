@@ -85,8 +85,12 @@ export const createJournalSubmissionSchema = z.object({
     journalId: z.string().transform((val) => parseInt(val, 10)),
   }),
   body: z.object({
-    dpid: z.coerce.number(),
-    version: z.coerce.number(),
+    dpid: z.coerce
+      .number({ message: 'DPID must be a positive integer greater than zero' })
+      .min(1, 'DPID must be a positive integer greater than zero'),
+    version: z.coerce
+      .number({ message: 'Version must be a positive integer greater than zero' })
+      .min(1, 'Version must be a positive integer greater than zero'),
   }),
 });
 
@@ -113,6 +117,7 @@ export const assignSubmissionToEditorSchema = z.object({
 export const getAuthorJournalSubmissionsSchema = z.object({
   params: z.object({
     journalId: z.coerce.number().describe('The ID of the journal'),
+    authorId: z.coerce.number().describe('The ID of the author'),
   }),
   query: z.object({
     limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),

@@ -503,7 +503,7 @@ const emitOnJournalSubmissionAssignedToEditor = async ({
   const payload: SubmissionAssignedToEditorPayload = {
     type: JournalNotificationType.SUBMISSION_ASSIGNED_TO_EDITOR,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
-    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     managerName: managerUser?.name,
     managerUserId: managerUser?.id,
     managerEditorId: managerEditor.id,
@@ -515,7 +515,7 @@ const emitOnJournalSubmissionAssignedToEditor = async ({
   const notificationData: CreateNotificationData = {
     userId: editor.userId,
     type: NotificationType.SUBMISSION_ASSIGNED_TO_EDITOR,
-    title: `You have been assigned as the editor for a submission titled "${submission.title}" for the ${journal.name} journal`,
+    title: `You have been assigned as the editor for a submission "DPID://${submission.dpid}" for the ${journal.name} journal`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -544,7 +544,7 @@ const emitOnJournalSubmissionReassignedToEditor = async ({
   const payload: SubmissionReassignedToEditorPayload = {
     type: JournalNotificationType.SUBMISSION_REASSIGNED_TO_EDITOR,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
-    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     managerName: managerUser?.name,
     managerUserId: managerUser?.id,
     managerEditorId: managerEditor.id,
@@ -556,7 +556,7 @@ const emitOnJournalSubmissionReassignedToEditor = async ({
   const notificationData: CreateNotificationData = {
     userId: editor.userId,
     type: NotificationType.SUBMISSION_REASSIGNED_TO_EDITOR,
-    title: `You have been reassigned as the editor for the submission titled "${submission.title}" for the ${journal.name} journal`,
+    title: `You have been reassigned as the editor for the submission "DPID://${submission.dpid}" for the ${journal.name} journal`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -584,7 +584,7 @@ const emitOnRefereeInvitation = async ({
   const payload: RefereeInvitePayload = {
     type: JournalNotificationType.REFEREE_INVITE,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
-    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     editorName: editorUser?.name,
     editorUserId: editorUser?.id,
     refereeName: referee.name,
@@ -595,7 +595,7 @@ const emitOnRefereeInvitation = async ({
   const notificationData: CreateNotificationData = {
     userId: referee.id,
     type: NotificationType.REFEREE_INVITE,
-    title: `You have been invited to review the submission titled "${submission.title}" for the ${journal.name} journal`,
+    title: `You have been invited to review the submission "DPID://${submission.dpid}" for the ${journal.name} journal`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -623,7 +623,7 @@ const emitOnRefereeReassignmentInvitation = async ({
   const payload: RefereeReassignedPayload = {
     type: JournalNotificationType.REFEREE_REASSIGNED,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
-    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     editorName: editorUser?.name,
     editorUserId: editorUser?.id,
     refereeName: referee.name,
@@ -634,7 +634,7 @@ const emitOnRefereeReassignmentInvitation = async ({
   const notificationData: CreateNotificationData = {
     userId: referee.id,
     type: NotificationType.REFEREE_REASSIGNED,
-    title: `You have been invited to review the submission titled "${submission.title}" for the ${journal.name} journal`,
+    title: `You have been invited to review the submission "DPID://${submission.dpid}" for the ${journal.name} journal`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -658,7 +658,7 @@ const emitOnRefereeAcceptance = async ({
   const payload: RefereeAcceptedPayload = {
     type: JournalNotificationType.REFEREE_ACCEPTED,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
-    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     refereeName: referee.name,
     refereeUserId: referee.id,
     dueDate: dueDate,
@@ -667,7 +667,7 @@ const emitOnRefereeAcceptance = async ({
   const notificationData: CreateNotificationData = {
     userId: editor.userId,
     type: NotificationType.REFEREE_ACCEPTED,
-    title: `${referee.name} has accepted the invitation to review the submission titled "${submission.title}" for the ${journal.name} journal`,
+    title: `${referee.name} has accepted the invitation to review the submission "DPID://${submission.dpid}" for the ${journal.name} journal`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -691,7 +691,7 @@ const emitOnRefereeDecline = async ({
   const payload: RefereeDeclinedPayload = {
     type: JournalNotificationType.REFEREE_DECLINED,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
-    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     refereeName: referee.name,
     refereeUserId: referee.id,
     refereeEmail: referee.email,
@@ -701,7 +701,7 @@ const emitOnRefereeDecline = async ({
   const notificationData: CreateNotificationData = {
     userId: editor.userId,
     type: NotificationType.REFEREE_DECLINED,
-    title: `${referee.name} has declined the invitation to review the submission titled "${submission.title}" for the ${journal.name} journal. Please reassign a new referee.`,
+    title: `${referee.name} has declined the invitation to review the submission "DPID://${submission.dpid}" for the ${journal.name} journal. Please reassign a new referee.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -729,7 +729,7 @@ const emitOnRefereeReviewReminder = async ({
   const payload: RefereeReviewReminderPayload = {
     type: JournalNotificationType.REFEREE_REVIEW_REMINDER,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
-    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     refereeName: referee.name,
     refereeUserId: referee.id,
     dueDate: dueDate,
@@ -740,7 +740,7 @@ const emitOnRefereeReviewReminder = async ({
   const notificationData: CreateNotificationData = {
     userId: editorUser.id,
     type: NotificationType.REFEREE_REVIEW_REMINDER,
-    title: `You have a submission titled "${submission.title}" for the ${journal.name} journal that is awaiting your review and nearing the due date.
+    title: `You have a submission "DPID://${submission.dpid}" for the ${journal.name} journal that is awaiting your review and nearing the due date.
      Please review it as soon as possible.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
@@ -767,7 +767,7 @@ const emitOnMajorRevisionRequest = async ({
   const payload: MajorRevisionRequestedPayload = {
     type: JournalNotificationType.MAJOR_REVISION_REQUESTED,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
-    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     authorName: author.name,
     authorUserId: author.id,
     editorName: editorUser?.name,
@@ -777,7 +777,7 @@ const emitOnMajorRevisionRequest = async ({
   const notificationData: CreateNotificationData = {
     userId: author.id,
     type: NotificationType.MAJOR_REVISION_REQUESTED,
-    title: `${editorUser?.name} has requested a major revision for your submission titled "${submission.title}" in the ${journal.name} journal`,
+    title: `${editorUser?.name} has requested a major revision for your submission "DPID://${submission.dpid}" in the ${journal.name} journal`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -803,7 +803,7 @@ const emitOnMinorRevisionRequest = async ({
   const payload: MinorRevisionRequestedPayload = {
     type: JournalNotificationType.MINOR_REVISION_REQUESTED,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
-    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     authorName: author.name,
     authorUserId: author.id,
     editorName: editorUser?.name,
@@ -813,7 +813,7 @@ const emitOnMinorRevisionRequest = async ({
   const notificationData: CreateNotificationData = {
     userId: author.id,
     type: NotificationType.MINOR_REVISION_REQUESTED,
-    title: `${editorUser?.name} has requested a minor revision for your submission titled "${submission.title}" in the ${journal.name} journal`,
+    title: `${editorUser?.name} has requested a minor revision for your submission "DPID://${submission.dpid}" in the ${journal.name} journal`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -839,7 +839,7 @@ const emitOnRevisionSubmittedToEditor = async ({
   const payload: RevisionSubmittedPayload = {
     type: JournalNotificationType.REVISION_SUBMITTED,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
-    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     authorName: author.name,
     authorUserId: author.id,
     editorName: editorUser?.name,
@@ -849,7 +849,7 @@ const emitOnRevisionSubmittedToEditor = async ({
   const notificationData: CreateNotificationData = {
     userId: editorUser.id,
     type: NotificationType.REVISION_SUBMITTED,
-    title: `${author.name} has submitted a revision for their submission titled "${submission.title}" in the ${journal.name} journal`,
+    title: `${author.name} has submitted a revision for their submission "DPID://${submission.dpid}" in the ${journal.name} journal`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -877,7 +877,7 @@ const emitOnSubmissionDeskRejection = async ({
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
     submission: _.pick(submission, [
       'id',
-      'title',
+
       'version',
       'dpid',
       'assignedEditorId',
@@ -894,7 +894,7 @@ const emitOnSubmissionDeskRejection = async ({
   const notificationData: CreateNotificationData = {
     userId: author.id,
     type: NotificationType.SUBMISSION_DESK_REJECTION,
-    title: `Your submission titled "${submission.title}" in the ${journal.name} journal has been desk rejected.`,
+    title: `Your submission "DPID://${submission.dpid}" in the ${journal.name} journal has been desk rejected.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -922,7 +922,7 @@ const emitOnSubmissionFinalRejection = async ({
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
     submission: _.pick(submission, [
       'id',
-      'title',
+
       'version',
       'dpid',
       'assignedEditorId',
@@ -939,7 +939,7 @@ const emitOnSubmissionFinalRejection = async ({
   const notificationData: CreateNotificationData = {
     userId: author.id,
     type: NotificationType.SUBMISSION_FINAL_REJECTION,
-    title: `Your submission titled "${submission.title}" in the ${journal.name} journal has been rejected.`,
+    title: `Your submission "DPID://${submission.dpid}" in the ${journal.name} journal has been rejected.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -967,7 +967,7 @@ const emitOnSubmissionAcceptance = async ({
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
     submission: _.pick(submission, [
       'id',
-      'title',
+
       'version',
       'dpid',
       'assignedEditorId',
@@ -984,7 +984,7 @@ const emitOnSubmissionAcceptance = async ({
   const notificationData: CreateNotificationData = {
     userId: author.id,
     type: NotificationType.SUBMISSION_ACCEPTED,
-    title: `Congratulations! Your submission titled "${submission.title}" in the ${journal.name} journal has been accepted.`,
+    title: `Congratulations! Your submission "DPID://${submission.dpid}" in the ${journal.name} journal has been accepted.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -1010,7 +1010,7 @@ const emitOnSubmissionOverdueEditorReminder = async ({
   const payload: SubmissionOverdueEditorReminderPayload = {
     type: JournalNotificationType.SUBMISSION_OVERDUE_EDITOR_REMINDER,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
-    submission: _.pick(submission, ['id', 'title', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
+    submission: _.pick(submission, ['id', 'version', 'dpid', 'assignedEditorId', 'submittedAt', 'status']),
     editorName: editorUser?.name,
     editorUserId: editorUser?.id,
     dueDate: dueDate,
@@ -1019,7 +1019,7 @@ const emitOnSubmissionOverdueEditorReminder = async ({
   const notificationData: CreateNotificationData = {
     userId: editor.userId,
     type: NotificationType.SUBMISSION_OVERDUE_EDITOR_REMINDER,
-    title: `The submission titled "${submission.title}", that you are assigned to as the editor for the ${journal.name} journal, is overdue. Please review it as soon as possible.`,
+    title: `The submission "DPID://${submission.dpid}", that you are assigned to as the editor for the ${journal.name} journal, is overdue. Please review it as soon as possible.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };

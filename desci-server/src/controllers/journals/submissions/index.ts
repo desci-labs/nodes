@@ -1,8 +1,9 @@
-import { EditorRole, SubmissionStatus } from '@prisma/client';
+import { EditorRole, JournalSubmission, SubmissionStatus } from '@prisma/client';
 import { NextFunction, Response } from 'express';
 
 import { prisma } from '../../../client.js';
 import { sendError, sendSuccess } from '../../../core/api.js';
+import { ForbiddenError } from '../../../core/ApiError.js';
 import { AuthenticatedRequest, OptionalAuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
 import {
@@ -22,40 +23,35 @@ const logger = parentLogger.child({
 type CreateSubmissionRequest = ValidatedRequest<typeof createJournalSubmissionSchema, OptionalAuthenticatedRequest>;
 
 export const createJournalSubmissionController = async (req: CreateSubmissionRequest, res: Response) => {
-  try {
-    const { journalId } = req.validatedData.params;
-    const { dpid, version } = req.validatedData.body;
-    const authorId = req.user?.id;
+  const { journalId } = req.validatedData.params;
+  const { dpid, version } = req.validatedData.body;
+  const authorId = req.user?.id;
 
-    const node = await prisma.node.findFirst({
-      where: {
-        dpidAlias: dpid,
-        ownerId: authorId,
-      },
-    });
+  const node = await prisma.node.findFirst({
+    where: {
+      dpidAlias: dpid,
+      ownerId: authorId,
+    },
+  });
 
-    if (!node) {
-      return sendError(res, 'Node not found', 404);
-    }
-
-    const nodeVersions = await getPublishedNodeVersionCount(node.id);
-
-    if (version > nodeVersions) {
-      return sendError(res, 'Node version not found', 404);
-    }
-
-    const submission = await journalSubmissionService.createSubmission({
-      journalId,
-      dpid,
-      version,
-      authorId,
-    });
-
-    return sendSuccess(res, { submissionId: submission.id }, 'Journal submission created successfully');
-  } catch (error) {
-    logger.error({ error });
-    return sendError(res, 'Failed to create journal submission', 500);
+  if (!node) {
+    return sendError(res, 'Node not found', 404);
   }
+
+  const nodeVersions = await getPublishedNodeVersionCount(node.id);
+
+  if (version > nodeVersions) {
+    throw new ForbiddenError('Node version not found');
+  }
+
+  const submission = await journalSubmissionService.createSubmission({
+    journalId,
+    dpid,
+    version,
+    authorId,
+  });
+
+  return sendSuccess(res, { submissionId: submission.id });
 };
 
 type ListJournalSubmissionsRequest = ValidatedRequest<typeof listJournalSubmissionsSchema, AuthenticatedRequest>;
@@ -66,31 +62,32 @@ export const listJournalSubmissionsController = async (req: ListJournalSubmissio
     const { limit, offset } = req.validatedData.query;
 
     const editor = await JournalManagementService.getUserJournalRole(journalId, req.user.id);
-    if (editor.isErr()) {
-      return sendError(res, 'Editor not found', 404);
-    }
-    const role = editor.value;
-    const filter =
-      role === EditorRole.CHIEF_EDITOR
-        ? undefined
-        : [
-            SubmissionStatus.ACCEPTED,
-            SubmissionStatus.REJECTED,
-            SubmissionStatus.UNDER_REVIEW,
-            SubmissionStatus.REVISION_REQUESTED,
-          ];
-    const submissions = await journalSubmissionService.getJournalSubmissions({
-      journalId,
-      limit,
-      offset,
-      filter,
-    });
+    const role = editor.isOk() ? editor.value : undefined;
+    let submissions: Partial<JournalSubmission>[] = [];
 
-    return sendSuccess(
-      res,
-      { submissions, meta: { count: submissions.length, limit, offset } },
-      'Journal submissions retrieved successfully',
-    );
+    if (role === EditorRole.CHIEF_EDITOR) {
+      submissions = await journalSubmissionService.getJournalSubmissions({
+        journalId,
+        limit,
+        offset,
+      });
+    } else if (role === EditorRole.ASSOCIATE_EDITOR) {
+      submissions = await journalSubmissionService.getAssociateEditorSubmissions({
+        journalId,
+        assignedEditorId: req.user.id,
+        limit,
+        offset,
+      });
+    } else {
+      submissions = await journalSubmissionService.getJournalSubmissions({
+        journalId,
+        limit,
+        offset,
+        filter: [SubmissionStatus.ACCEPTED],
+      });
+    }
+
+    return sendSuccess(res, { submissions, meta: { count: submissions.length, limit, offset } });
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to retrieve journal submissions', 500);
@@ -112,11 +109,7 @@ export const getAuthorSubmissionsController = async (req: GetAuthorSubmissionsRe
       offset,
     });
 
-    return sendSuccess(
-      res,
-      { submissions, meta: { count: submissions.length, limit, offset } },
-      'Journal submissions retrieved successfully',
-    );
+    return sendSuccess(res, { submissions, meta: { count: submissions.length, limit, offset } });
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to retrieve journal submissions', 500);
@@ -146,7 +139,7 @@ export const assignSubmissionToEditorController = async (req: AssignSubmissionTo
       editorId,
     });
 
-    return sendSuccess(res, { submission }, 'Submission assigned to editor successfully');
+    return sendSuccess(res, { submission });
   } catch (error) {
     logger.error({ error });
     return sendError(res, 'Failed to assign submission to editor', 500);
