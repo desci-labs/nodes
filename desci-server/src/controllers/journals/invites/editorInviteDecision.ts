@@ -1,4 +1,5 @@
 import { NextFunction, Response } from 'express';
+import _ from 'lodash';
 
 import { sendError, sendSuccess } from '../../../core/api.js';
 import { OptionalAuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
@@ -35,7 +36,13 @@ export const editorInviteDecision = async (req: EditorInviteDecisionRequest, res
       // decision === 'decline'
       // For 'decline', user does not need to be authenticated
       invite = await JournalInviteService.declineJournalInvite({ token, userId: user?.id });
-      return sendSuccess(res, { invite }, 'Editor invitation declined successfully.');
+      return sendSuccess(
+        res,
+        {
+          invite: _.pick(invite, ['id', 'role', 'inviterId', 'journalId', 'decisionAt', 'accepted', 'declined']),
+        },
+        'Editor invitation declined successfully.',
+      );
     }
   } catch (error) {
     logger.error(
