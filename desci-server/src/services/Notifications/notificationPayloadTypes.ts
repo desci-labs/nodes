@@ -138,6 +138,7 @@ export type RefereeAcceptedPayload = {
   refereeName: string;
   refereeUserId: number;
   dueDate: Date;
+  inviteId: number;
 };
 
 export type RefereeDeclinedPayload = {
@@ -145,10 +146,10 @@ export type RefereeDeclinedPayload = {
   journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
   submission: Pick<JournalSubmission, 'id' | 'version' | 'dpid' | 'assignedEditorId' | 'submittedAt' | 'status'>;
   submissionTitle: string;
-  refereeName: string;
-  refereeUserId: number;
+  refereeName?: string;
+  refereeUserId?: number;
   refereeEmail: string;
-  dueDate: Date;
+  inviteId: number;
 };
 
 export type RefereeReviewReminderPayload = {

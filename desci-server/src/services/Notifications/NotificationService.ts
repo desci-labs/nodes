@@ -10,6 +10,7 @@ import {
   EditorRole,
   JournalSubmission,
   JournalEditor,
+  RefereeInvite,
 } from '@prisma/client';
 import _ from 'lodash';
 import { z } from 'zod';
@@ -692,19 +693,27 @@ const emitOnRefereeReassignmentInvitation = async ({
 
 const emitOnRefereeAcceptance = async ({
   journal,
-  editor,
   submission,
   submissionTitle,
   referee,
   dueDate,
+  refereeInvite,
 }: {
   journal: Journal;
-  editor: JournalEditor;
   submission: JournalSubmission;
   submissionTitle: string;
   referee: User;
   dueDate: Date;
+  refereeInvite: RefereeInvite;
 }) => {
+  if (!submission.assignedEditorId) {
+    logger.info(
+      { fn: 'emitOnRefereeAcceptance', submissionId: submission.id },
+      'Skipping notification - No editor assigned to submission',
+    );
+    return;
+  }
+
   const payload: RefereeAcceptedPayload = {
     type: JournalNotificationType.REFEREE_ACCEPTED,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
@@ -713,10 +722,11 @@ const emitOnRefereeAcceptance = async ({
     refereeName: referee.name,
     refereeUserId: referee.id,
     dueDate: dueDate,
+    inviteId: refereeInvite.id,
   };
 
   const notificationData: CreateNotificationData = {
-    userId: editor.userId,
+    userId: submission.assignedEditorId,
     type: NotificationType.REFEREE_ACCEPTED,
     title: `[${journal.name}] ${referee.name} has accepted the invitation to review a submission!`,
     message: `${referee.name} has accepted the invitation to review the submission titled "${submissionTitle}" for the ${journal.name} journal.`,
@@ -729,19 +739,28 @@ const emitOnRefereeAcceptance = async ({
 
 const emitOnRefereeDecline = async ({
   journal,
-  editor,
   submission,
   submissionTitle,
   referee,
-  dueDate,
+  refereeInvite,
 }: {
   journal: Journal;
-  editor: JournalEditor;
   submission: JournalSubmission;
   submissionTitle: string;
-  referee: User;
-  dueDate: Date;
+  referee?: User;
+  refereeInvite: RefereeInvite;
 }) => {
+  if (!submission.assignedEditorId) {
+    logger.info(
+      { fn: 'emitOnRefereeDecline', submissionId: submission.id },
+      'Skipping notification - No editor assigned to submission',
+    );
+    return;
+  }
+
+  // Referee isn't guaranteed to have a user account.
+  const refereeName = referee?.name || refereeInvite.email;
+
   const payload: RefereeDeclinedPayload = {
     type: JournalNotificationType.REFEREE_DECLINED,
     journal: _.pick(journal, ['id', 'name', 'description', 'iconCid']),
@@ -750,14 +769,14 @@ const emitOnRefereeDecline = async ({
     refereeName: referee.name,
     refereeUserId: referee.id,
     refereeEmail: referee.email,
-    dueDate: dueDate,
+    inviteId: refereeInvite.id,
   };
 
   const notificationData: CreateNotificationData = {
-    userId: editor.userId,
+    userId: submission.assignedEditorId,
     type: NotificationType.REFEREE_DECLINED,
-    title: `[${journal.name}] ${referee.name} has declined the invitation to review a submission!`,
-    message: `${referee.name} has declined the invitation to review the submission titled "${submissionTitle}" for the ${journal.name} journal. Please reassign a new referee.`,
+    title: `[${journal.name}] ${refereeName} has declined the invitation to review a submission!`,
+    message: `${refereeName} has declined the invitation to review the submission titled "${submissionTitle}" for the ${journal.name} journal. Please reassign a new referee.`,
     payload,
     category: NotificationCategory.DESCI_JOURNALS,
   };
@@ -1026,19 +1045,17 @@ const emitOnSubmissionFinalRejection = async ({
 
 const emitOnSubmissionAcceptance = async ({
   journal,
-  editor,
   submission,
   submissionTitle,
   author,
 }: {
   journal: Journal;
-  editor: JournalEditor;
   submission: JournalSubmission;
   submissionTitle: string;
   author: User;
 }) => {
   const editorUser = await prisma.user.findUnique({
-    where: { id: editor.userId },
+    where: { id: submission.assignedEditorId },
   });
 
   const payload: SubmissionAcceptedPayload = {
