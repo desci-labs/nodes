@@ -1232,9 +1232,9 @@ model RefereeAssignment {
   refereeId           Int
   assignedById        Int // Editor who assigned
   assignedAt          DateTime  @default(now())
-  reassignedAt        DateTime?
+  reassignedAt        DateTime? // Would show if the assignment is a reassignment.
   dueDate             DateTime?
-  completedAssignment Boolean?
+  completedAssignment Boolean? // Only false if the referee drops out.
   completedAt         DateTime?
 
   // Relationships
@@ -1292,18 +1292,19 @@ model EditorInvite {
 }
 
 model RefereeInvite {
-  id           Int       @id @default(autoincrement())
-  email        String
-  userId       Int?
-  submissionId Int
-  invitedById  Int
-  token        String    @unique
-  createdAt    DateTime  @default(now())
-  expiresAt    DateTime
-  accepted     Boolean   @default(false)
-  acceptedAt   DateTime?
-  declined     Boolean   @default(false)
-  declinedAt   DateTime?
+  id                 Int       @id @default(autoincrement())
+  email              String
+  userId             Int?
+  submissionId       Int
+  invitedById        Int
+  token              String    @unique
+  createdAt          DateTime  @default(now())
+  expiresAt          DateTime
+  accepted           Boolean   @default(false)
+  acceptedAt         DateTime?
+  declined           Boolean   @default(false)
+  declinedAt         DateTime?
+  relativeDueDateHrs Int? // Proposed review deadline in hours, relative to the time of invite acceptance.
 
   // suggestedReferees String[] @default([])   - We don't know the type of this yet TBD
 
@@ -1620,6 +1621,7 @@ enum JournalEventLogAction {
   REFEREE_ACCEPTED
   REFEREE_DECLINED
   REFEREE_REASSIGNED
+  REFEREE_ASSIGNMENT_DROPPED
   REVIEW_SUBMITTED
   STATUS_CHANGED
 }
