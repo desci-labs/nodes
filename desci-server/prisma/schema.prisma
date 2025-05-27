@@ -247,22 +247,21 @@ model User {
   DataMigration               DataMigration[]
 
   // Relationships
-  editorRoles         JournalEditor[] // User as editor
-  authoredSubmissions JournalSubmission[] @relation("AuthorSubmission")
-  assignedSubmissions JournalSubmission[] @relation("EditorSubmission")
-  refereeAssignments  RefereeAssignment[]
-  invitedEditors      JournalEditor[]     @relation("InviterRelation")
-  inviteCredits       Int                 @default(0)
-  JournalEventLogs    JournalEventLog[]
-  JournalSubmissions  JournalSubmission[]
-  EditorInvite        EditorInvite[]
-  RefereeInvite       RefereeInvite[]
+  editorRoles            JournalEditor[] // User as editor
+  authoredSubmissions    JournalSubmission[] @relation("AuthorSubmission")
+  assignedSubmissions    JournalSubmission[] @relation("EditorSubmission")
+  refereeAssignments     RefereeAssignment[]
+  invitedEditors         JournalEditor[]     @relation("InviterRelation")
+  inviteCredits          Int                 @default(0)
+  JournalEventLogs       JournalEventLog[]
+  JournalSubmissions     JournalSubmission[]
+  EditorInvite           EditorInvite[]
   // messagesSent        Message[]           @relation("MessageSender")
   // messagesReceived    Message[]           @relation("MessageReceiver")
   // Message             Message[]
   // JournalSubmissionMessage JournalSubmissionMessage[]
-  // JournalSubmissionMessage JournalSubmissionMessage[]
-  // JournalSubmissionMessage JournalSubmissionMessage[]
+  refereeInvitesSent     RefereeInvite[]     @relation("InvitedBy")
+  refereeInvitesReceived RefereeInvite[]     @relation("RefereeUser")
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1228,16 +1227,15 @@ model JournalSubmissionRevision {
 }
 
 model RefereeAssignment {
-  id                    Int       @id @default(autoincrement())
-  submissionId          Int
-  refereeId             Int
-  assignedById          Int // Editor who assigned
-  assignedAt            DateTime  @default(now())
-  inviteAcceptedAt      DateTime?
-  inviteDeclinedAt      DateTime?
-  // reassignedAt          DateTime? // Probably unused
-  dueDate               DateTime?
-  suggestedAlternatives String[] // Alternative referees if declined
+  id                  Int       @id @default(autoincrement())
+  submissionId        Int
+  refereeId           Int
+  assignedById        Int // Editor who assigned
+  assignedAt          DateTime  @default(now())
+  reassignedAt        DateTime?
+  dueDate             DateTime?
+  completedAssignment Boolean?
+  completedAt         DateTime?
 
   // Relationships
   submission JournalSubmission         @relation(fields: [submissionId], references: [id])
@@ -1294,20 +1292,25 @@ model EditorInvite {
 }
 
 model RefereeInvite {
-  id           Int      @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   email        String
+  userId       Int?
   submissionId Int
   invitedById  Int
-  token        String   @unique
-  createdAt    DateTime @default(now())
+  token        String    @unique
+  createdAt    DateTime  @default(now())
   expiresAt    DateTime
-  accepted     Boolean  @default(false)
-  declined     Boolean  @default(false)
+  accepted     Boolean   @default(false)
+  acceptedAt   DateTime?
+  declined     Boolean   @default(false)
+  declinedAt   DateTime?
+
   // suggestedReferees String[] @default([])   - We don't know the type of this yet TBD
 
   // Relationships
   submission JournalSubmission @relation(fields: [submissionId], references: [id])
-  invitedBy  User              @relation(fields: [invitedById], references: [id])
+  invitedBy  User              @relation("InvitedBy", fields: [invitedById], references: [id])
+  user       User?             @relation("RefereeUser", fields: [userId], references: [id])
 }
 
 // model JournalSubmissionMessage {
