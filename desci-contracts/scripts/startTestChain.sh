@@ -72,13 +72,9 @@ npx ganache \
   | grep --line-buffered -v '^eth_.*$' &
 
 # Wait for ganache process to be findable
-until GANACHE_PID=$(pgrep -P $$ ganache); do
+until GANACHE_PID=$(pgrep -fP $$ ganache); do
   sleep 0.1
 done
 
-until curl -s -o /dev/null -w '' http://localhost:8545; do
-  sleep 1
-done
-
 makeDeployments
-wait $GANACHE_PID
+wait "$GANACHE_PID"
