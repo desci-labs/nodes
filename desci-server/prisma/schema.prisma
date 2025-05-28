@@ -1156,13 +1156,14 @@ model Journal {
   isCommercial Boolean  @default(false)
 
   // Relationships
-  editors         JournalEditor[]
-  submissions     JournalSubmission[]
-  EditorInvite    EditorInvite[]
+  editors                 JournalEditor[]
+  submissions             JournalSubmission[]
+  EditorInvite            EditorInvite[]
   // JournalEmailTemplate JournalEmailTemplate[]
-  JournalBilling  JournalBilling?
-  JournalEventLog JournalEventLog[]
-  // JournalSubmissionReview JournalSubmissionReview[]
+  JournalBilling          JournalBilling?
+  JournalEventLog         JournalEventLog[]
+  RefereeAssignment       RefereeAssignment[]
+  JournalSubmissionReview JournalSubmissionReview[]
 }
 
 model JournalEditor {
@@ -1237,11 +1238,13 @@ model RefereeAssignment {
   dueDate             DateTime?
   completedAssignment Boolean? // Only false if the referee drops out.
   completedAt         DateTime?
+  journalId           Int
 
   // Relationships
   submission JournalSubmission         @relation(fields: [submissionId], references: [id])
   referee    User                      @relation(fields: [refereeId], references: [id])
   reviews    JournalSubmissionReview[]
+  journal    Journal                   @relation(fields: [journalId], references: [id])
 
   @@unique([submissionId, refereeId])
 }
@@ -1249,16 +1252,16 @@ model RefereeAssignment {
 model JournalSubmissionReview {
   id                  Int             @id @default(autoincrement())
   submissionId        Int
-  // journalId           Int
+  journalId           Int
   refereeAssignmentId Int
   recommendation      ReviewDecision?
   submittedAt         DateTime?
-  // editorFeedback      String?
-  // authorFeedback      String?
-  // review              Json            @default("[]")
+  editorFeedback      String?
+  authorFeedback      String?
+  review              Json            @default("[]")
 
   // Relationships
-  // journal           Journal           @relation(fields: [journalId], references: [id])
+  journal           Journal           @relation(fields: [journalId], references: [id])
   submission        JournalSubmission @relation(fields: [submissionId], references: [id])
   refereeAssignment RefereeAssignment @relation(fields: [refereeAssignmentId], references: [id])
 }

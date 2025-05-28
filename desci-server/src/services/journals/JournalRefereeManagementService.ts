@@ -102,6 +102,28 @@ async function getActiveRefereeAssignments(submissionId: number): Promise<Result
   }
 }
 
+/**
+ * Get all referee assignments for a submission that are either complete, or in progress.
+ * Does not retrieve assignments that have been dropped out. (completedAssignment === false)
+ */
+async function getRefereeAssignments(refereeId: number): Promise<Result<RefereeAssignment[], Error>> {
+  try {
+    const refereeAssignments = await prisma.refereeAssignment.findMany({
+      where: {
+        refereeId,
+        // CompletedAssignment is only false if the referee drops out.
+        OR: [{ completedAssignment: true }, { completedAssignment: null }],
+      },
+    });
+    return ok(refereeAssignments);
+  } catch (error) {
+    logger.error({ error, refereeId }, 'Failed to get active referee assignments');
+    return err(
+      error instanceof Error ? error : new Error('An unexpected error occurred during referee assignment retrieval'),
+    );
+  }
+}
+
 type AcceptRefereeInviteInput = {
   inviteToken: string;
   userId: number;
@@ -175,6 +197,7 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
       refereeUserId: data.userId,
       managerId: refereeInvite.invitedById,
       dueDateHrs: relativeDueDateHrs,
+      journalId: submission.journalId,
     });
 
     if (submission.assignedEditorId) {
@@ -211,6 +234,7 @@ type AssignRefereeInput = {
   managerId: number; // Editor who is assigning the referee
   isReassignment?: boolean;
   dueDateHrs: number;
+  journalId: number;
 };
 
 async function assignReferee(data: AssignRefereeInput): Promise<Result<RefereeAssignment, Error>> {
@@ -242,6 +266,7 @@ async function assignReferee(data: AssignRefereeInput): Promise<Result<RefereeAs
           assignedAt: new Date(),
           ...(data.isReassignment ? { reassignedAt: new Date() } : {}), // Indicate if its a reassignment
           dueDate,
+          journalId: data.journalId,
         },
       }),
       prisma.journalEventLog.create({
@@ -385,5 +410,6 @@ export const JournalRefereeManagementService = {
   inviteReferee,
   acceptRefereeInvite,
   declineRefereeInvite,
+  getRefereeAssignments,
   invalidateRefereeAssignment,
 };

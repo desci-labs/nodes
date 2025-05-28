@@ -1,7 +1,7 @@
 import { EditorRole, JournalEventLogAction, SubmissionStatus } from '@prisma/client';
 
 import { prisma } from '../../client.js';
-import { ForbiddenError } from '../../core/ApiError.js';
+import { AuthorisationError, ForbiddenError, NotFoundError } from '../../core/ApiError.js';
 import { logger as parentLogger } from '../../logger.js';
 
 // import { JournalEventLogService } from './JournalEventLogService.js';
@@ -186,10 +186,106 @@ async function assignSubmissionToEditor(payload: { assignerId: number; submissio
   });
 }
 
+async function acceptSubmission({ editorId, submissionId }: { editorId: number; submissionId: number }) {
+  const submission = await prisma.journalSubmission.findUnique({
+    where: { id: submissionId },
+  });
+
+  if (!submission || submission.assignedEditorId !== editorId) {
+    throw new NotFoundError('Submission not found');
+  }
+
+  if (submission.status === SubmissionStatus.ACCEPTED) {
+    throw new ForbiddenError('Submission is already accepted');
+  }
+
+  if (submission.status === SubmissionStatus.REJECTED) {
+    throw new ForbiddenError('Submission is already rejected');
+  }
+
+  return await prisma.journalSubmission.update({
+    where: { id: submissionId },
+    data: {
+      status: SubmissionStatus.ACCEPTED,
+      acceptedAt: new Date(),
+    },
+    select: {
+      id: true,
+      status: true,
+      acceptedAt: true,
+    },
+  });
+}
+async function rejectSubmission({ editorId, submissionId }: { editorId: number; submissionId: number }) {
+  const submission = await prisma.journalSubmission.findUnique({
+    where: { id: submissionId },
+  });
+
+  if (!submission || submission.assignedEditorId !== editorId) {
+    throw new NotFoundError('Submission not found');
+  }
+
+  if (submission.status === SubmissionStatus.ACCEPTED) {
+    throw new ForbiddenError('Submission is already accepted');
+  }
+
+  if (submission.status === SubmissionStatus.REJECTED) {
+    throw new ForbiddenError('Submission is already rejected');
+  }
+
+  return await prisma.journalSubmission.update({
+    where: { id: submissionId },
+    data: {
+      status: SubmissionStatus.REJECTED,
+      rejectedAt: new Date(),
+      acceptedAt: null, // reset acceptedAt to null
+    },
+    select: {
+      id: true,
+      status: true,
+      rejectedAt: true,
+    },
+  });
+}
+
+async function requestRevision({ editorId, submissionId }: { editorId: number; submissionId: number }) {
+  const submission = await prisma.journalSubmission.findUnique({
+    where: { id: submissionId },
+  });
+
+  if (!submission || submission.assignedEditorId !== editorId) {
+    throw new NotFoundError('Submission not found');
+  }
+
+  if (submission.status === SubmissionStatus.ACCEPTED) {
+    throw new ForbiddenError('Submission is already accepted');
+  }
+
+  if (submission.status === SubmissionStatus.REJECTED) {
+    throw new ForbiddenError('Submission is already rejected');
+  }
+
+  return await prisma.journalSubmission.update({
+    where: { id: submissionId },
+    data: {
+      status: SubmissionStatus.REJECTED,
+      rejectedAt: new Date(),
+      acceptedAt: null, // reset acceptedAt to null
+    },
+    select: {
+      id: true,
+      status: true,
+      rejectedAt: true,
+    },
+  });
+}
+
 export const journalSubmissionService = {
   createSubmission,
   getAuthorSubmissions,
   getJournalSubmissions,
   assignSubmissionToEditor,
   getAssociateEditorSubmissions,
+  acceptSubmission,
+  rejectSubmission,
 };
