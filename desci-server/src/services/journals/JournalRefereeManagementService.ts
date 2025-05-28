@@ -189,6 +189,7 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
         refereeInvite: updatedRefereeInvite,
       });
       // TODO: Send email to editor
+      // TODO: Notify author of status change (Under review)
     }
 
     logger.info(

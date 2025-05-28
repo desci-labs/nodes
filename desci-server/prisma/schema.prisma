@@ -1162,6 +1162,7 @@ model Journal {
   // JournalEmailTemplate JournalEmailTemplate[]
   JournalBilling  JournalBilling?
   JournalEventLog JournalEventLog[]
+  // JournalSubmissionReview JournalSubmissionReview[]
 }
 
 model JournalEditor {
@@ -1246,15 +1247,18 @@ model RefereeAssignment {
 }
 
 model JournalSubmissionReview {
-  id                  Int            @id @default(autoincrement())
+  id                  Int             @id @default(autoincrement())
   submissionId        Int
+  // journalId           Int
   refereeAssignmentId Int
-  recommendation      ReviewDecision
-  // comments             String // Review content        Leaning towards Json type fields here, but lets work this out later.
-  submittedAt         DateTime       @default(now())
-  // confidentialComments String? // Comments for editor only  Leaning towards Json type fields here, but lets work this out later.
+  recommendation      ReviewDecision?
+  submittedAt         DateTime?
+  // editorFeedback      String?
+  // authorFeedback      String?
+  // review              Json            @default("[]")
 
   // Relationships
+  // journal           Journal           @relation(fields: [journalId], references: [id])
   submission        JournalSubmission @relation(fields: [submissionId], references: [id])
   refereeAssignment RefereeAssignment @relation(fields: [refereeAssignmentId], references: [id])
 }
