@@ -153,3 +153,26 @@ export const updateReviewSchema = z.object({
   }),
   body: reviewSchema,
 });
+
+export const inviteRefereeSchema = z.object({
+  params: z.object({
+    submissionId: z.string(),
+  }),
+  body: z.object({
+    refereeUserId: z.number().int().positive(),
+    relativeDueDateHrs: z.number().int().positive().optional(), // lets restric tthis further.
+  }),
+});
+
+export const refereeInviteDecisionSchema = z.object({
+  body: z.object({
+    token: z.string(),
+    decision: z.enum(['accept', 'decline']),
+  }),
+});
+
+export const invalidateRefereeAssignmentSchema = z.object({
+  params: z.object({
+    assignmentId: z.string(),
+  }),
+});

@@ -17,7 +17,7 @@ type InviteRefereeInput = {
   submissionId: number;
   refereeUserId?: number;
   managerId: number; // Editor who is inviting the referee
-  dueDate?: Date;
+  relativeDueDateHrs?: number;
 };
 
 /**
@@ -44,7 +44,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
     const token = crypto.randomUUID();
 
     const refereeInvite = await prisma.$transaction(async (tx) => {
-      const relativeDueDateHrs = DEFAULT_REVIEW_DUE_DATE / (60 * 60 * 1000); // ms to hours conversion
+      //   const relativeDueDateHrs = DEFAULT_REVIEW_DUE_DATE / (60 * 60 * 1000); // ms to hours conversion
       const invite = await tx.refereeInvite.create({
         data: {
           userId: referee.id,
@@ -53,7 +53,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
           invitedById: data.managerId,
           token,
           expiresAt: new Date(Date.now() + DEFAULT_INVITE_DUE_DATE),
-          relativeDueDateHrs: relativeDueDateHrs,
+          relativeDueDateHrs: data.relativeDueDateHrs,
         },
       });
 
@@ -66,7 +66,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
             submissionId: invite.submissionId,
             refereeId: invite.userId,
             assignedSubmissionEditorId: submission.assignedEditorId,
-            relativeDueDateHrs,
+            relativeDueDateHrs: data.relativeDueDateHrs,
           },
         },
       });
