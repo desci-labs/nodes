@@ -8,6 +8,9 @@ import { createJournalController } from '../../../controllers/journals/managemen
 import { removeEditorController } from '../../../controllers/journals/management/removeEditor.js';
 import { updateJournalController } from '../../../controllers/journals/management/update.js';
 import { updateEditorRoleController } from '../../../controllers/journals/management/updateRole.js';
+import { invalidateRefereeAssignmentController } from '../../../controllers/journals/referees/invalidateRefereeAssignment.js';
+import { inviteRefereeController } from '../../../controllers/journals/referees/inviteReferee.js';
+import { refereeInviteDecisionController } from '../../../controllers/journals/referees/refereeInviteDecision.js';
 import {
   createReviewController,
   getReviewByIdController,
@@ -40,6 +43,9 @@ import {
   updateEditorRoleSchema,
   updateJournalSchema,
   updateReviewSchema,
+  inviteRefereeSchema,
+  refereeInviteDecisionSchema,
+  invalidateRefereeAssignmentSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -137,5 +143,25 @@ router.get(
   [ensureUser, validateInputs(updateReviewSchema)],
   asyncHandler(getReviewByIdController),
 );
+
+// Referee Management for Submissions
+router.post(
+  '/:journalId/submissions/:submissionId/referee/invite',
+  [ensureUser, validateInputs(inviteRefereeSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+  asyncHandler(inviteRefereeController),
+);
+
+router.post(
+  '/:journalId/submissions/:submissionId/referee/invite/decision',
+  [attachUser, validateInputs(refereeInviteDecisionSchema)],
+  asyncHandler(refereeInviteDecisionController),
+);
+
+// Disable for now
+// router.patch(
+//   '/:journalId/submissions/:submissionId/referees/:assignmentId/invalidate',
+//   [ensureUser, validateInputs(invalidateRefereeAssignmentSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+//   asyncHandler(invalidateRefereeAssignmentController),
+// );
 
 export default router;
