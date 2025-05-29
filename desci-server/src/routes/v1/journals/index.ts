@@ -8,6 +8,13 @@ import { createJournalController } from '../../../controllers/journals/managemen
 import { removeEditorController } from '../../../controllers/journals/management/removeEditor.js';
 import { updateJournalController } from '../../../controllers/journals/management/update.js';
 import { updateEditorRoleController } from '../../../controllers/journals/management/updateRole.js';
+import {
+  createReviewController,
+  getReviewByIdController,
+  getSubmissionReviewsController,
+  submitReviewController,
+  updateReviewController,
+} from '../../../controllers/journals/reviews/index.js';
 import { showJournalController } from '../../../controllers/journals/show.js';
 import {
   assignSubmissionToEditorController,
@@ -23,6 +30,7 @@ import {
   assignSubmissionToEditorSchema,
   createJournalSchema,
   createJournalSubmissionSchema,
+  createReviewSchema,
   editorInviteDecisionSchema,
   getAuthorJournalSubmissionsSchema,
   getJournalSchema,
@@ -31,6 +39,7 @@ import {
   removeEditorSchema,
   updateEditorRoleSchema,
   updateJournalSchema,
+  updateReviewSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -94,4 +103,39 @@ router.get(
   [ensureUser, validateInputs(getAuthorJournalSubmissionsSchema)],
   asyncHandler(getAuthorSubmissionsController),
 );
+
+// Reviews
+router.post(
+  '/:journalId/submissions/:submissionId/reviews',
+  [ensureUser, validateInputs(createReviewSchema)],
+  asyncHandler(createReviewController),
+);
+
+router.put(
+  '/:journalId/submissions/:submissionId/reviews/:reviewId',
+  [ensureUser, validateInputs(updateReviewSchema)],
+  asyncHandler(updateReviewController),
+);
+
+// submit review route
+router.post(
+  '/:journalId/submissions/:submissionId/reviews/:reviewId/submit',
+  [ensureUser, validateInputs(updateReviewSchema)],
+  asyncHandler(submitReviewController),
+);
+
+// get submission reviews route
+router.get(
+  '/:journalId/submissions/:submissionId/reviews',
+  [ensureUser, validateInputs(createReviewSchema)],
+  asyncHandler(getSubmissionReviewsController),
+);
+
+// get review by id route
+router.get(
+  '/:journalId/submissions/:submissionId/reviews/:reviewId',
+  [ensureUser, validateInputs(updateReviewSchema)],
+  asyncHandler(getReviewByIdController),
+);
+
 export default router;

@@ -1259,6 +1259,8 @@ model JournalSubmissionReview {
   editorFeedback      String?
   authorFeedback      String?
   review              Json            @default("[]")
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   // Relationships
   journal           Journal           @relation(fields: [journalId], references: [id])
@@ -1629,6 +1631,8 @@ enum JournalEventLogAction {
   REFEREE_DECLINED
   REFEREE_REASSIGNED
   REFEREE_ASSIGNMENT_DROPPED
+  REVIEW_CREATED
+  REVIEW_UPDATED
   REVIEW_SUBMITTED
   STATUS_CHANGED
 }

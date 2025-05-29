@@ -124,6 +124,17 @@ async function getRefereeAssignments(refereeId: number): Promise<Result<RefereeA
   }
 }
 
+async function isRefereeAssignedToSubmission(
+  submissionId: number,
+  refereeId: number,
+  journalId: number,
+): Promise<Result<boolean, Error>> {
+  const refereeAssignment = await prisma.refereeAssignment.findFirst({
+    where: { submissionId, refereeId, journalId },
+  });
+  return ok(refereeAssignment !== null);
+}
+
 type AcceptRefereeInviteInput = {
   inviteToken: string;
   userId: number;
@@ -411,5 +422,6 @@ export const JournalRefereeManagementService = {
   acceptRefereeInvite,
   declineRefereeInvite,
   getRefereeAssignments,
+  isRefereeAssignedToSubmission,
   invalidateRefereeAssignment,
 };

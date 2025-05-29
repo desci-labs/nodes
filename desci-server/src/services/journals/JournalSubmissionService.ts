@@ -1,4 +1,6 @@
 import { EditorRole, JournalEventLogAction, SubmissionStatus } from '@prisma/client';
+import _ from 'lodash';
+import { err, ok } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { AuthorisationError, ForbiddenError, NotFoundError } from '../../core/ApiError.js';
@@ -29,6 +31,16 @@ async function createSubmission(payload: { journalId: number; authorId: number; 
   });
 
   return submission;
+}
+
+async function updateSubmissionStatus(submissionId: number, status: SubmissionStatus) {
+  logger.trace({ submissionId, status }, 'Updating submission status');
+  const submission = await prisma.journalSubmission.update({
+    where: { id: submissionId },
+    data: { status },
+  });
+
+  return _.pick(submission, ['id', 'status']);
 }
 
 async function getAuthorSubmissions(payload: { journalId: number; authorId: number; limit: number; offset: number }) {
@@ -280,6 +292,30 @@ async function requestRevision({ editorId, submissionId }: { editorId: number; s
   });
 }
 
+async function getSubmissionById(submissionId: number) {
+  const submission = await prisma.journalSubmission.findUnique({
+    where: { id: submissionId },
+  });
+
+  if (!submission) {
+    return err('Submission not found');
+  }
+
+  return ok(submission);
+}
+
+async function isSubmissionByAuthor(submissionId: number, authorId: number) {
+  const submission = await prisma.journalSubmission.findFirst({
+    where: { id: submissionId, authorId },
+  });
+
+  if (!submission) {
+    return ok(false);
+  }
+
+  return ok(true);
+}
+
 export const journalSubmissionService = {
   createSubmission,
   getAuthorSubmissions,
@@ -288,4 +324,7 @@ export const journalSubmissionService = {
   getAssociateEditorSubmissions,
   acceptSubmission,
   rejectSubmission,
+  getSubmissionById,
+  updateSubmissionStatus,
+  isSubmissionByAuthor,
 };

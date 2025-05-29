@@ -1,4 +1,4 @@
-import { EditorRole } from '@prisma/client';
+import { EditorRole, ReviewDecision } from '@prisma/client';
 import { z } from 'zod';
 
 export const getJournalSchema = z.object({
@@ -123,4 +123,33 @@ export const getAuthorJournalSubmissionsSchema = z.object({
     limit: z.coerce.number().optional().default(20).describe('The number of submissions to return'),
     offset: z.coerce.number().optional().default(0).describe('The number of submissions to skip'),
   }),
+});
+
+const reviewSchema = z.object({
+  editorFeedback: z.string().optional(),
+  authorFeedback: z.string().optional(),
+  recommendation: z.nativeEnum(ReviewDecision),
+  review: z.array(
+    z.object({
+      question: z.string(),
+      answer: z.string(),
+    }),
+  ),
+});
+
+export const createReviewSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+  }),
+  body: reviewSchema,
+});
+
+export const updateReviewSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+    reviewId: z.coerce.number(),
+  }),
+  body: reviewSchema,
 });
