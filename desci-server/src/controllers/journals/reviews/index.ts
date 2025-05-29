@@ -15,6 +15,7 @@ import {
   checkRefereeSubmissionReview,
   getAllRefereeReviewsBySubmission,
   getAuthorSubmissionReviews,
+  getJournalReviewById,
   getSubmissionReviews,
   saveReview,
   submitReview,
@@ -272,4 +273,36 @@ export const getSubmissionReviewsController = async (req: GetSubmissionReviewsRe
   const reviews = await getAuthorSubmissionReviews({ submissionId, authorId: userId });
 
   return sendSuccess(res, reviews);
+};
+
+type GetReviewByIdRequest = ValidatedRequest<typeof updateReviewSchema, AuthenticatedRequest>;
+export const getReviewByIdController = async (req: GetReviewByIdRequest, res: Response) => {
+  const { journalId, submissionId, reviewId } = req.validatedData.params;
+
+  const userId = req.user.id;
+  const userRoleInJournal = await JournalManagementService.getUserJournalRole(journalId, userId);
+  const isEditor = userRoleInJournal.isOk();
+
+  if (!isEditor) {
+    const review = await getJournalReviewById({ journalId, reviewId });
+    return sendSuccess(res, review);
+  }
+
+  const isReferee = await JournalRefereeManagementService.isRefereeAssignedToSubmission(
+    submissionId,
+    userId,
+    journalId,
+  );
+  if (isReferee._unsafeUnwrap() === true) {
+    const review = await getJournalReviewById({ journalId, reviewId });
+    return sendSuccess(res, review);
+  }
+
+  const isAuthor = await journalSubmissionService.isSubmissionByAuthor(submissionId, userId);
+  if (isAuthor._unsafeUnwrap() === true) {
+    const review = await getAuthorSubmissionReviews({ submissionId, authorId: userId });
+    return sendSuccess(res, review);
+  }
+
+  return sendError(res, 'User is not authorized to view this review', 403);
 };
