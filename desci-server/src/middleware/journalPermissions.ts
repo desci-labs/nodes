@@ -55,7 +55,7 @@ export function can(role: JournalRole, action: JournalAction): boolean {
   return JournalPermissionMatrix[role]?.[action] ?? false;
 }
 
-export const ensureJournalRole = (requiredRole: EditorRole) => {
+export const ensureJournalRole = (requiredRole: EditorRole | EditorRole[]) => {
   return async (expressReq: Request, res: Response, next: NextFunction) => {
     const req = expressReq as unknown as AuthenticatedRequest<JournalParams>;
     try {
@@ -86,9 +86,16 @@ export const ensureJournalRole = (requiredRole: EditorRole) => {
         return;
       }
 
-      if (editor.role !== requiredRole) {
-        sendError(res, 'Forbidden - Insufficient permissions', 403);
-        return;
+      if (!Array.isArray(requiredRole)) {
+        if (editor.role !== requiredRole) {
+          sendError(res, 'Forbidden - Insufficient permissions', 403);
+          return;
+        }
+      } else {
+        if (!requiredRole.includes(editor.role)) {
+          sendError(res, 'Forbidden - Insufficient permissions', 403);
+          return;
+        }
       }
 
       next();
