@@ -62,6 +62,17 @@ export const updateEditorRoleSchema = z.object({
   }),
 });
 
+export const updateEditorSchema = z.object({
+  params: z.object({
+    journalId: z.string().transform((val) => parseInt(val, 10)),
+    editorId: z.string().transform((val) => parseInt(val, 10)),
+  }),
+  body: z.object({
+    expertise: z.array(z.string()).optional(),
+    maxWorkload: z.number().int().positive().optional(),
+  }),
+});
+
 export const removeEditorSchema = z.object({
   params: z.object({
     journalId: z.string().transform((val) => parseInt(val, 10)),
