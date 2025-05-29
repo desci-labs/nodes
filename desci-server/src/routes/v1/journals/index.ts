@@ -7,6 +7,7 @@ import { listJournalsController } from '../../../controllers/journals/list.js';
 import { createJournalController } from '../../../controllers/journals/management/create.js';
 import { removeEditorController } from '../../../controllers/journals/management/removeEditor.js';
 import { updateJournalController } from '../../../controllers/journals/management/update.js';
+import { updateEditorController } from '../../../controllers/journals/management/updateEditor.js';
 import { updateEditorRoleController } from '../../../controllers/journals/management/updateRole.js';
 import { invalidateRefereeAssignmentController } from '../../../controllers/journals/referees/invalidateRefereeAssignment.js';
 import { inviteRefereeController } from '../../../controllers/journals/referees/inviteReferee.js';
@@ -46,6 +47,7 @@ import {
   inviteRefereeSchema,
   refereeInviteDecisionSchema,
   invalidateRefereeAssignmentSchema,
+  updateEditorSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -75,10 +77,20 @@ router.patch(
   updateJournalController,
 );
 router.patch(
-  '/:journalId/editors/:editorId',
+  '/:journalId/editors/:editorId/manage', // This route is for CHIEF_EDITORS to manage editors.
   [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(updateEditorRoleSchema)],
   updateEditorRoleController,
 );
+router.patch(
+  '/:journalId/editors/:editorId/settings', // This route is for EDITORS to manage their own settings.
+  [
+    ensureUser,
+    ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
+    validateInputs(updateEditorSchema),
+  ],
+  updateEditorController,
+);
+
 router.delete(
   '/:journalId/editors/:editorId',
   [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(removeEditorSchema)],

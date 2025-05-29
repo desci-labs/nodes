@@ -1,4 +1,5 @@
-import { PrismaClient, EditorRole, JournalEventLogAction, Journal, Prisma } from '@prisma/client';
+import { PrismaClient, EditorRole, JournalEventLogAction, Journal, Prisma, JournalEditor } from '@prisma/client';
+import _ from 'lodash';
 import { ok, err, Result } from 'neverthrow';
 
 import { logger } from '../../logger.js';
@@ -264,7 +265,7 @@ async function updateEditorRole(
   managerId: number,
   editorId: number,
   role: EditorRole,
-): Promise<Result<void, Error>> {
+): Promise<Result<JournalEditor, Error>> {
   logger.trace({ journalId, managerId, editorId, role }, 'Attempting to update editor role');
   try {
     const editorBeingUpdated = await prisma.journalEditor.findUnique({
@@ -289,7 +290,7 @@ async function updateEditorRole(
       return ok(undefined);
     }
 
-    await prisma.$transaction([
+    const [updatedEditor] = await prisma.$transaction([
       prisma.journalEditor.update({
         where: { id: editorBeingUpdated.id },
         data: { role },
@@ -313,10 +314,69 @@ async function updateEditorRole(
       { journalId, managerId, editorId, newRole: role, previousRole: editorBeingUpdated.role },
       'Editor role updated',
     );
-    return ok(undefined);
+    return ok(updatedEditor);
   } catch (error) {
     logger.error({ error, journalId, managerId, editorId, role }, 'Failed to update editor role');
     return err(error instanceof Error ? error : new Error('An unexpected error occurred while updating editor role'));
+  }
+}
+
+/**
+ * Update editor settings, configurable by the editor themselves.
+ * @example expertise, workload.
+ */
+async function updateEditor(
+  journalId: number,
+  editorUserId: number,
+  data: Prisma.JournalEditorUpdateInput,
+): Promise<Result<JournalEditor, Error>> {
+  logger.trace({ journalId, editorUserId }, 'Attempting to update editor role');
+  try {
+    const editorBeingUpdated = await prisma.journalEditor.findUnique({
+      where: { userId_journalId: { userId: editorUserId, journalId } },
+    });
+
+    if (!editorBeingUpdated) {
+      logger.warn({ journalId, editorUserId }, 'Editor not found for update');
+      return err(new Error('Editor not found.'));
+    }
+
+    const filteredFields = ['expertise', 'maxWorkload'];
+    const filteredInputs = _.pick(data, filteredFields);
+    const previousData = _.pick(editorBeingUpdated, filteredFields);
+
+    const [updatedEditor] = await prisma.$transaction([
+      prisma.journalEditor.update({
+        where: { id: editorBeingUpdated.id },
+        data: filteredInputs,
+      }),
+      prisma.journalEventLog.create({
+        data: {
+          journalId,
+          action: JournalEventLogAction.EDITOR_UPDATED,
+          userId: editorUserId,
+          details: {
+            editorUserId,
+            previousData: previousData as Prisma.InputJsonValue,
+            newData: filteredInputs as Prisma.InputJsonValue,
+          },
+        },
+      }),
+    ]);
+
+    logger.info(
+      {
+        journalId,
+        editorUserId,
+        newData: filteredInputs,
+        previousData,
+      },
+      'Editor updated',
+    );
+    return ok(updatedEditor);
+  } catch (error) {
+    logger.error({ error, journalId, editorUserId }, 'Failed to update editor');
+    return err(error instanceof Error ? error : new Error('An unexpected error occurred while updating editor'));
   }
 }
 
@@ -339,5 +399,6 @@ export const JournalManagementService = {
   listJournals,
   removeEditorFromJournal,
   updateEditorRole,
+  updateEditor,
   getUserJournalRole,
 };
