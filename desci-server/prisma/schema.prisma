@@ -1167,14 +1167,15 @@ model Journal {
 }
 
 model JournalEditor {
-  id         Int        @id @default(autoincrement())
-  journalId  Int
-  userId     Int
-  role       EditorRole
-  expertise  String[] // OpenAlex topics
-  inviterId  Int?
-  invitedAt  DateTime   @default(now())
-  acceptedAt DateTime?
+  id          Int        @id @default(autoincrement())
+  journalId   Int
+  userId      Int
+  role        EditorRole
+  expertise   String[] // OpenAlex topics
+  inviterId   Int?
+  invitedAt   DateTime   @default(now())
+  acceptedAt  DateTime?
+  maxWorkload Int        @default(10) // Maximum number of submissions an editor is comfortable handling.
 
   // Relationships
   journal Journal @relation(fields: [journalId], references: [id])
