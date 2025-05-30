@@ -88,7 +88,7 @@ describe.only('Journal Reviews', () => {
       },
     });
 
-    assert(draftNode?.dpidAlias, 'Failed to create draft node with dpidAlias');
+    assert(node?.dpidAlias, 'Failed to create draft node with dpidAlias');
     if (!node) {
       throw new Error('Node is not published');
     }
@@ -379,7 +379,7 @@ describe.only('Journal Reviews', () => {
     it('should prevent empty review from being submitted', async () => {
       const response = await submitReview(review, { review: '' });
 
-      console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
+      // console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
 
       expect(response.status).to.equal(400);
     });
@@ -392,7 +392,7 @@ describe.only('Journal Reviews', () => {
         authorFeedback: 'Author feedback',
       });
 
-      console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
+      // console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
 
       expect(response.status).to.equal(200);
       expect(response.body.ok).to.be.true;
@@ -414,7 +414,7 @@ describe.only('Journal Reviews', () => {
           authorFeedback: 'Author feedback',
         });
 
-      console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
+      // console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
 
       expect(response.status).to.equal(403);
       expect(response.body.message).to.equal('User is not an assigned referee to this submission');
@@ -500,6 +500,7 @@ describe.only('Journal Reviews', () => {
       console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
 
       expect(response.status).to.equal(400);
+      expect(response.body.data).to.be.an('array').of.length(2);
     });
 
     it('should prevent unauthorised user from viewing reviews', async () => {
@@ -536,7 +537,9 @@ describe.only('Journal Reviews', () => {
       const response = await getSubmissionReviews(submission, referee);
 
       console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
-      const reviews = response.body as { ok: boolean; data: JournalSubmissionReview[] };
+      const reviews = (response.body as { ok: boolean; data: JournalSubmissionReview[] }).data;
+      expect(response.status).to.equal(200);
+      expect(reviews.length).to.be.equal(4);
     });
   });
 });
