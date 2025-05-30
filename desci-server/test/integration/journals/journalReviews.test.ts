@@ -32,7 +32,7 @@ server.ready().then((_) => {
 });
 export const app = server.app;
 
-describe.only('Journal Reviews', () => {
+describe('Journal Reviews', () => {
   let author: MockUser;
   let chiefEditor: MockUser;
   let associateEditor: MockUser;
@@ -286,7 +286,7 @@ describe.only('Journal Reviews', () => {
       });
 
       response = await request
-        .put(`/v1/journals/${journal.id}/submissions/${submission.id}/reviews/${review.id}`)
+        .patch(`/v1/journals/${journal.id}/submissions/${submission.id}/reviews/${review.id}`)
         .set('authorization', `Bearer ${referee.token}`)
         .send({
           review: reviewTemplate,
@@ -312,7 +312,7 @@ describe.only('Journal Reviews', () => {
 
     it('should prevent unAuthorised user from updating a review', async () => {
       response = await request
-        .put(`/v1/journals/${journal.id}/submissions/${submission.id}/reviews/${review.id}`)
+        .patch(`/v1/journals/${journal.id}/submissions/${submission.id}/reviews/${review.id}`)
         .set('authorization', `Bearer ${unAuthorisedUser.token}`)
         .send({
           review: reviewTemplate,
@@ -325,7 +325,7 @@ describe.only('Journal Reviews', () => {
 
     it('should prevent associate editor from updating a review', async () => {
       response = await request
-        .put(`/v1/journals/${journal.id}/submissions/${submission.id}/reviews/${review.id}`)
+        .patch(`/v1/journals/${journal.id}/submissions/${submission.id}/reviews/${review.id}`)
         .set('authorization', `Bearer ${associateEditor.token}`)
         .send({
           review: reviewTemplate,

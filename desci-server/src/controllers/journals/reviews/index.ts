@@ -322,7 +322,6 @@ export const getReviewByIdController = async (req: GetReviewByIdRequest, res: Re
       return sendError(res, result.error, 400);
     }
 
-    // const review = result._unsafeUnwrap();
     return sendSuccess(res, result.isOk() ? result.value : null);
   }
 

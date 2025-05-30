@@ -132,7 +132,7 @@ router.post(
   asyncHandler(createReviewController),
 );
 
-router.put(
+router.patch(
   '/:journalId/submissions/:submissionId/reviews/:reviewId',
   [ensureUser, validateInputs(updateReviewSchema)],
   asyncHandler(updateReviewController),

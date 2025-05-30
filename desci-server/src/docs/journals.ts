@@ -13,6 +13,8 @@ import {
   listJournalSubmissionsSchema,
   assignSubmissionToEditorSchema,
   getAuthorJournalSubmissionsSchema,
+  reviewsApiSchema,
+  reviewDetailsApiSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -524,6 +526,355 @@ export const assignSubmissionToEditorOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// List Submission Reviews
+export const listSubmissionReviewsOperation: ZodOpenApiOperationObject = {
+  operationId: 'listSubmissionReviews',
+  tags: ['Journals'],
+  summary: 'List all reviews for a submission',
+  requestParams: {
+    path: reviewsApiSchema.shape.params,
+    query: reviewsApiSchema.shape.query,
+  },
+  responses: {
+    '200': {
+      description: 'Reviews retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            reviews: z.array(
+              z.object({
+                id: z.number(),
+                editorFeedback: z.string().nullable(),
+                authorFeedback: z.string().nullable(),
+                recommendation: z.string().nullable(),
+                createdAt: z.string(),
+                updatedAt: z.string(),
+                editor: z.object({
+                  id: z.number(),
+                  name: z.string().nullable(),
+                  email: z.string().nullable(),
+                  orcid: z.string().nullable(),
+                }),
+                review: z.array(
+                  z.object({
+                    question: z.string(),
+                    answer: z.string(),
+                  }),
+                ),
+              }),
+            ),
+            meta: z.object({
+              count: z.number(),
+              limit: z.number(),
+              offset: z.number(),
+            }),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Get Review Details
+export const getReviewDetailsOperation: ZodOpenApiOperationObject = {
+  operationId: 'getReviewDetails',
+  tags: ['Journals'],
+  summary: 'Get details of a specific review',
+  requestParams: { path: reviewDetailsApiSchema.shape.params },
+  responses: {
+    '200': {
+      description: 'Review details retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            review: z.object({
+              id: z.number(),
+              editorFeedback: z.string().nullable(),
+              authorFeedback: z.string().nullable(),
+              recommendation: z.string().nullable(),
+              createdAt: z.string(),
+              updatedAt: z.string(),
+              editor: z.object({
+                id: z.number(),
+                name: z.string().nullable(),
+                email: z.string().nullable(),
+                orcid: z.string().nullable(),
+              }),
+              review: z.array(
+                z.object({
+                  question: z.string(),
+                  answer: z.string(),
+                }),
+              ),
+            }),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Review not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Create Review
+export const createReviewOperation: ZodOpenApiOperationObject = {
+  operationId: 'createReview',
+  tags: ['Journals'],
+  summary: 'Create a new review for a submission',
+  requestParams: {
+    path: z.object({
+      journalId: z.coerce.number(),
+      submissionId: z.coerce.number(),
+    }),
+  },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: z.object({
+          editorFeedback: z.string().optional(),
+          authorFeedback: z.string().optional(),
+          recommendation: z.enum(['ACCEPT', 'MINOR_REVISION', 'MAJOR_REVISION', 'REJECT']).optional(),
+          review: z.array(
+            z.object({
+              question: z.string(),
+              answer: z.string(),
+            }),
+          ),
+        }),
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Review created successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            review: z.object({
+              id: z.number(),
+              editorFeedback: z.string().nullable(),
+              authorFeedback: z.string().nullable(),
+              recommendation: z.string().nullable(),
+              createdAt: z.string(),
+              updatedAt: z.string(),
+              editor: z.object({
+                id: z.number(),
+                name: z.string().nullable(),
+                email: z.string().nullable(),
+                orcid: z.string().nullable(),
+              }),
+              review: z.array(
+                z.object({
+                  question: z.string(),
+                  answer: z.string(),
+                }),
+              ),
+            }),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to create review',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Update Review
+export const updateReviewOperation: ZodOpenApiOperationObject = {
+  operationId: 'updateReview',
+  tags: ['Journals'],
+  summary: 'Update an existing review',
+  requestParams: {
+    path: z.object({
+      journalId: z.coerce.number(),
+      submissionId: z.coerce.number(),
+      reviewId: z.coerce.number(),
+    }),
+  },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: z.object({
+          editorFeedback: z.string().optional(),
+          authorFeedback: z.string().optional(),
+          recommendation: z.enum(['ACCEPT', 'MINOR_REVISION', 'MAJOR_REVISION', 'REJECT']).optional(),
+          review: z
+            .array(
+              z.object({
+                question: z.string(),
+                answer: z.string(),
+              }),
+            )
+            .optional(),
+        }),
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Review updated successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            review: z.object({
+              id: z.number(),
+              editorFeedback: z.string().nullable(),
+              authorFeedback: z.string().nullable(),
+              recommendation: z.string().nullable(),
+              createdAt: z.string(),
+              updatedAt: z.string(),
+              editor: z.object({
+                id: z.number(),
+                name: z.string().nullable(),
+                email: z.string().nullable(),
+                orcid: z.string().nullable(),
+              }),
+              review: z.array(
+                z.object({
+                  question: z.string(),
+                  answer: z.string(),
+                }),
+              ),
+            }),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Review not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to update review',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Submit Review
+export const submitReviewOperation: ZodOpenApiOperationObject = {
+  operationId: 'submitReview',
+  tags: ['Journals'],
+  summary: 'Submit a completed review',
+  requestParams: {
+    path: z.object({
+      journalId: z.coerce.number(),
+      submissionId: z.coerce.number(),
+      reviewId: z.coerce.number(),
+    }),
+  },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: z.object({
+          editorFeedback: z.string(),
+          recommendation: z.enum(['ACCEPT', 'MINOR_REVISION', 'MAJOR_REVISION', 'REJECT']),
+          review: z.array(
+            z.object({
+              question: z.string(),
+              answer: z.string(),
+            }),
+          ),
+        }),
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Review submitted successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            review: z.object({
+              id: z.number(),
+              editorFeedback: z.string(),
+              recommendation: z.string(),
+              submittedAt: z.string(),
+              editor: z.object({
+                id: z.number(),
+                name: z.string().nullable(),
+                email: z.string().nullable(),
+                orcid: z.string().nullable(),
+              }),
+              review: z.array(
+                z.object({
+                  question: z.string(),
+                  answer: z.string(),
+                }),
+              ),
+            }),
+          }),
+        },
+      },
+    },
+    '404': {
+      description: 'Review not found',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '403': {
+      description: 'Not authorized to submit review',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    '400': {
+      description: 'Invalid review submission',
+      content: {
+        'application/json': {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -552,5 +903,16 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/submissions/{submissionId}/assign': {
     post: assignSubmissionToEditorOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/reviews': {
+    get: listSubmissionReviewsOperation,
+    post: createReviewOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/reviews/{reviewId}': {
+    get: getReviewDetailsOperation,
+    patch: updateReviewOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/reviews/{reviewId}/submit': {
+    post: submitReviewOperation,
   },
 };
