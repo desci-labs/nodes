@@ -272,24 +272,28 @@ export const getSubmissionReviewsController = async (req: GetSubmissionReviewsRe
 
   const userId = req.user.id;
   const userRoleInJournal = await JournalManagementService.getUserJournalRole(journalId, userId);
-  const isEditor = [EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR].includes(userRoleInJournal._unsafeUnwrap());
+  const isEditor =
+    userRoleInJournal.isOk() &&
+    [EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR].includes(userRoleInJournal.value);
 
   if (isEditor) {
     const reviews = await getSubmissionReviews({ submissionId });
     return sendSuccess(res, reviews);
   }
 
-  const isReferee = (
-    await JournalRefereeManagementService.isRefereeAssignedToSubmission(submissionId, userId, journalId)
-  )._unsafeUnwrap();
-  if (isReferee) {
+  const isReferee = await JournalRefereeManagementService.isRefereeAssignedToSubmission(
+    submissionId,
+    userId,
+    journalId,
+  );
+  if (isReferee.isOk() && isReferee.value === true) {
     const reviews = await getAllRefereeReviewsBySubmission({ submissionId, refereeId: userId });
-    return sendSuccess(res, reviews._unsafeUnwrap());
+    return sendSuccess(res, reviews.isOk() ? reviews.value : []);
   }
 
   const reviews = await getAuthorSubmissionReviews({ submissionId, authorId: userId });
 
-  return sendSuccess(res, reviews._unsafeUnwrapErr());
+  return sendSuccess(res, reviews.isOk() ? reviews.value : []);
 };
 
 type GetReviewByIdRequest = ValidatedRequest<typeof updateReviewSchema, AuthenticatedRequest>;
@@ -298,11 +302,13 @@ export const getReviewByIdController = async (req: GetReviewByIdRequest, res: Re
 
   const userId = req.user.id;
   const userRoleInJournal = await JournalManagementService.getUserJournalRole(journalId, userId);
-  const isEditor = userRoleInJournal.isOk();
+  const isEditor =
+    userRoleInJournal.isOk() &&
+    [EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR].includes(userRoleInJournal.value);
 
   if (isEditor) {
     const review = await getJournalReviewById({ journalId, reviewId });
-    return sendSuccess(res, review);
+    return sendSuccess(res, review.isOk() ? review.value : null);
   }
 
   const isReferee = await JournalRefereeManagementService.isRefereeAssignedToSubmission(
@@ -310,14 +316,29 @@ export const getReviewByIdController = async (req: GetReviewByIdRequest, res: Re
     userId,
     journalId,
   );
-  if (isReferee._unsafeUnwrap() === true) {
-    const review = await getJournalReviewById({ journalId, reviewId });
-    return sendSuccess(res, review._unsafeUnwrap());
+  if (isReferee.isOk() && isReferee.value === true) {
+    const result = await getJournalReviewById({ journalId, reviewId });
+    if (result.isErr()) {
+      return sendError(res, result.error, 400);
+    }
+
+    // const review = result._unsafeUnwrap();
+    return sendSuccess(res, result.isOk() ? result.value : null);
   }
 
   const isAuthor = await journalSubmissionService.isSubmissionByAuthor(submissionId, userId);
   if (isAuthor.isOk()) {
-    const review = (await getJournalReviewById({ journalId, reviewId, completed: true }))._unsafeUnwrap();
+    const result = await getJournalReviewById({ journalId, reviewId, completed: true });
+
+    if (result.isErr()) {
+      return sendError(res, result.error, 400);
+    }
+
+    const review = result.isOk() ? result.value : null;
+    if (!review) {
+      return sendSuccess(res, null);
+    }
+
     if (
       review.submission.status === SubmissionStatus.UNDER_REVIEW ||
       review.submission.status === SubmissionStatus.SUBMITTED

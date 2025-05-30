@@ -41,6 +41,8 @@ import {
   inviteEditorSchema,
   listJournalSubmissionsSchema,
   removeEditorSchema,
+  reviewDetailsApiSchema,
+  reviewsApiSchema,
   submitReviewSchema,
   updateEditorRoleSchema,
   updateJournalSchema,
@@ -146,14 +148,14 @@ router.post(
 // get submission reviews route
 router.get(
   '/:journalId/submissions/:submissionId/reviews',
-  [ensureUser, validateInputs(createReviewSchema)],
+  [ensureUser, validateInputs(reviewsApiSchema)],
   asyncHandler(getSubmissionReviewsController),
 );
 
 // get review by id route
 router.get(
   '/:journalId/submissions/:submissionId/reviews/:reviewId',
-  [ensureUser, validateInputs(updateReviewSchema)],
+  [ensureUser, validateInputs(reviewDetailsApiSchema)],
   asyncHandler(getReviewByIdController),
 );
 

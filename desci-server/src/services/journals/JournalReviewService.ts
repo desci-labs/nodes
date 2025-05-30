@@ -260,7 +260,16 @@ async function getJournalReviewById({
   completed?: boolean;
 }) {
   const review = await prisma.journalSubmissionReview.findFirst({
-    where: { id: reviewId, journalId, ...(completed !== undefined ? { submittedAt: { not: null } } : {}) },
+    where: {
+      id: reviewId,
+      journalId,
+      ...(completed !== undefined
+        ? {
+            submittedAt: { not: null },
+            submission: { status: { notIn: [SubmissionStatus.SUBMITTED, SubmissionStatus.UNDER_REVIEW] } },
+          }
+        : {}),
+    },
     include: {
       refereeAssignment: {
         select: {
