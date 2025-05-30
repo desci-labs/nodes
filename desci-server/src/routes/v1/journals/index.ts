@@ -172,11 +172,14 @@ router.post(
   asyncHandler(refereeInviteDecisionController),
 );
 
-// Disable for now
-// router.patch(
-//   '/:journalId/submissions/:submissionId/referees/:assignmentId/invalidate',
-//   [ensureUser, validateInputs(invalidateRefereeAssignmentSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
-//   asyncHandler(invalidateRefereeAssignmentController),
-// );
+// CHIEF_EDITORS can invalidate referee assignments.
+// ASSOCIATE_EDITORS can invalidate referee assignments for submissions they're handling.
+// REFEREES can invalidate referee assignments they're assigned to.
+// Handled inside the service.
+router.patch(
+  '/:journalId/submissions/:submissionId/referees/:assignmentId/invalidate',
+  [ensureUser, validateInputs(invalidateRefereeAssignmentSchema)],
+  asyncHandler(invalidateRefereeAssignmentController),
+);
 
 export default router;

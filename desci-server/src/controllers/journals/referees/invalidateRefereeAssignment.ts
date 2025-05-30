@@ -19,14 +19,15 @@ type InvalidateRefereeAssignmentRequest = ValidatedRequest<
 export const invalidateRefereeAssignmentController = async (req: InvalidateRefereeAssignmentRequest, res: Response) => {
   try {
     const { assignmentId } = req.validatedData.params;
+    const userId = req.user.id;
 
-    logger.info({ assignmentId, managerId: req.user.id }, 'Attempting to invalidate referee assignment');
+    logger.info({ assignmentId, userId }, 'Attempting to invalidate referee assignment');
 
-    const result = await JournalRefereeManagementService.invalidateRefereeAssignment(parseInt(assignmentId));
+    const result = await JournalRefereeManagementService.invalidateRefereeAssignment(parseInt(assignmentId), userId);
 
     if (result.isErr()) {
       const error = result.error;
-      logger.error({ error, assignmentId, managerId: req.user.id }, 'Failed to invalidate referee assignment');
+      logger.error({ error, assignmentId, userId }, 'Failed to invalidate referee assignment');
 
       if (error.message.toLowerCase().includes('not found')) {
         return sendError(res, 'Referee assignment not found.', 404);

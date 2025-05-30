@@ -1,4 +1,4 @@
-import { JournalEventLogAction, RefereeAssignment, RefereeInvite } from '@prisma/client';
+import { EditorRole, JournalEventLogAction, RefereeAssignment, RefereeInvite } from '@prisma/client';
 import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
@@ -386,9 +386,67 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
  ** Reassignment due to deadline reached
  ** Referee drops out
  */
-export async function invalidateRefereeAssignment(assignmentId: number): Promise<Result<RefereeAssignment, Error>> {
+export async function invalidateRefereeAssignment(
+  assignmentId: number,
+  userId: number,
+): Promise<Result<RefereeAssignment, Error>> {
   try {
-    logger.trace({ fn: 'invalidateRefereeAssignment', assignmentId }, 'Invalidating referee assignment');
+    logger.trace({ fn: 'invalidateRefereeAssignment', assignmentId }, 'Attempting to invalidate referee assignment');
+
+    const refereeAssignment = await prisma.refereeAssignment.findUnique({
+      where: { id: assignmentId },
+      include: {
+        submission: {
+          include: {
+            journal: true,
+          },
+        },
+      },
+    });
+    if (!refereeAssignment) {
+      return err(new Error('Referee assignment not found'));
+    }
+
+    if (!userId) {
+      // Should never happen, but its a hard-stop.
+      // To prevent querying on undefined userId
+      logger.error({ fn: 'invalidateRefereeAssignment', userId, assignmentId }, 'User ID is required');
+      return err(new Error('User ID is required'));
+    }
+
+    // Figure out auth method.
+    // 1. User is the referee
+    // 2. User is the editor for that submission
+    // 3. User is the chief editor of that journal
+
+    let authMethod: 'referee' | 'editor' | 'chiefEditor' | null = null;
+
+    const isUserReferee = refereeAssignment.refereeId === userId;
+    if (isUserReferee) {
+      authMethod = 'referee';
+    } else if (refereeAssignment.submission.assignedEditorId === userId) {
+      authMethod = 'editor';
+    } else {
+      const chiefEditorRecord = await prisma.journalEditor.findFirst({
+        where: {
+          userId,
+          journalId: refereeAssignment.journalId,
+          role: EditorRole.CHIEF_EDITOR,
+        },
+      });
+      if (chiefEditorRecord) {
+        authMethod = 'chiefEditor';
+      }
+    }
+
+    if (!authMethod) {
+      logger.warn(
+        { fn: 'invalidateRefereeAssignment', userId, assignmentId },
+        'Unauthorized to invalidate referee assignment',
+      );
+      return err(new Error('Unauthorized'));
+    }
+
     const updatedRefereeAssignment = await prisma.$transaction(async (tx) => {
       const assignment = await tx.refereeAssignment.update({
         where: { id: assignmentId },
@@ -399,17 +457,22 @@ export async function invalidateRefereeAssignment(assignmentId: number): Promise
         data: {
           journalId: assignment.submissionId,
           action: JournalEventLogAction.REFEREE_ASSIGNMENT_DROPPED,
-          userId: assignment.refereeId,
+          userId: refereeAssignment.refereeId,
           details: {
             submissionId: assignment.submissionId,
             refereeId: assignment.refereeId,
             assignedEditorId: assignment.assignedById,
+            triggeredByUserId: userId,
+            authMethod,
           },
         },
       });
       return assignment;
     });
-    logger.info({ fn: 'invalidateRefereeAssignment', assignmentId }, 'Invalidated referee assignment');
+    logger.info(
+      { fn: 'invalidateRefereeAssignment', assignmentId, authMethod, userId },
+      'Invalidated referee assignment',
+    );
 
     return ok(updatedRefereeAssignment);
   } catch (error) {
