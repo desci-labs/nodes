@@ -1,4 +1,4 @@
-import { CommunitySubmission, DesciCommunity, User } from '@prisma/client';
+import { CommunitySubmission, DesciCommunity, Node, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
 import { logger as parentLogger } from '../logger.js';
@@ -32,9 +32,14 @@ type RejectSubmissionPayload = {
       email: string;
       name: string;
     };
-    submission: CommunitySubmission & {
-      community: DesciCommunity;
-    };
+    communityName: string;
+    communitySlug: string;
+    nodeVersion: number;
+    nodeDpid: string;
+    // submission: CommunitySubmission & {
+    //   community: Partial<DesciCommunity>;
+    //   node: Partial<Node>;
+    // };
   };
 };
 
@@ -79,19 +84,27 @@ async function sendDoiRequested(payload: DoiRequestedPayload['payload']) {
   //
 }
 
-async function sendRejectSubmissionEmail({ submission, dpid, reason, recipient }: RejectSubmissionPayload['payload']) {
+async function sendRejectSubmissionEmail({
+  communityName,
+  communitySlug,
+  nodeVersion,
+  nodeDpid,
+  dpid,
+  reason,
+  recipient,
+}: RejectSubmissionPayload['payload']) {
   const message = {
     to: recipient.email,
     from: 'no-reply@desci.com',
-    subject: `[nodes.desci.com] Your submission to ${submission.community.name} for DPID://${dpid}/v${submission.nodeVersion} was rejected `,
-    text: `Hi ${recipient.name}, your submission to ${submission.community.name} was rejected.`,
+    subject: `[nodes.desci.com] Your submission to ${communityName} for DPID://${nodeDpid}/v${nodeVersion} was rejected `,
+    text: `Hi ${recipient.name}, your submission to ${communityName} was rejected.`,
     html: RejectedSubmissionEmailHtml({
       reason,
       dpid: dpid.toString(),
-      communityName: submission.community.name,
+      communityName,
       userName: recipient.name,
-      dpidPath: `${process.env.DAPP_URL}/dpid/${dpid}/v${submission.nodeVersion}/badges`,
-      communityPage: `${process.env.DAPP_URL}/community/${submission.community.slug}?tab=mysubmissions`,
+      dpidPath: `${process.env.DAPP_URL}/dpid/${dpid}/v${nodeVersion}/badges`,
+      communityPage: `${process.env.DAPP_URL}/community/${communitySlug}?tab=mysubmissions`,
     }),
   };
 

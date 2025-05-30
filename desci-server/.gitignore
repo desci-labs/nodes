@@ -21,3 +21,5 @@ queries.sql
 .sentryclirc
 
 seed-doi-queue.ts
+
+journal*

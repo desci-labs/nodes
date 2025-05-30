@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { expect } from 'chai';
+import { subDays } from 'date-fn-latest';
 
 import { prisma } from '../src/client.js';
 import { sendMagicLink } from '../src/services/auth.js';
@@ -52,6 +53,21 @@ export const createUsers = async (noOfUsers: number) => {
       data: {
         email: `user${index}@desci.com`,
         name: `User_${index}`,
+      },
+    }),
+  );
+
+  const users = await Promise.all(promises);
+  return users;
+};
+
+export const createUsersWithCreatedAt = async (noOfUsers: number, createdAt: Date) => {
+  const promises = new Array(noOfUsers).fill(0).map((_, index) =>
+    prisma.user.create({
+      data: {
+        email: `user${index}@test.com`,
+        name: `User_${index}`,
+        createdAt: subDays(createdAt, index),
       },
     }),
   );
