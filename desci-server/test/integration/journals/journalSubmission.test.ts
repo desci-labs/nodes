@@ -1,17 +1,14 @@
 import 'dotenv/config';
 import 'mocha';
 
-import { EditorRole, Journal, Node, SubmissionStatus, User } from '@prisma/client';
+import { EditorRole, Journal, Node, SubmissionStatus } from '@prisma/client';
 import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import jwt from 'jsonwebtoken';
-import request from 'supertest';
 import supertest from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
 
 import { prisma } from '../../../src/client.js';
 import { server } from '../../../src/server.js';
-import { JournalManagementService } from '../../../src/services/journals/JournalManagementService.js';
 import { createDraftNode, createMockUsers, MockUser, publishMockNode, sanitizeBigInts } from '../../util.js';
 
 // use async chai assertions
@@ -78,7 +75,7 @@ describe('Journal Submission Service', () => {
     await prisma.$queryRaw`TRUNCATE TABLE "JournalSubmission" CASCADE;`;
   });
 
-  describe.skip('createSubmission', () => {
+  describe('createSubmission', () => {
     beforeEach(async () => {
       // create a draft node
       draftNode = await createDraftNode({

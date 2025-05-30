@@ -367,7 +367,7 @@ describe('Desci Analytics', async () => {
     });
   });
 
-  describe.only('Analytics aggregate calculation', async () => {
+  describe('Analytics aggregate calculation', async () => {
     let mockNodes: Node[];
     let mockUsers: MockUser[];
     let nodesToday: Node[];

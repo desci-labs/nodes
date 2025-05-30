@@ -139,12 +139,14 @@ export const getAuthorJournalSubmissionsSchema = z.object({
 const reviewSchema = z.object({
   editorFeedback: z.string().optional(),
   authorFeedback: z.string().optional(),
-  recommendation: z.nativeEnum(ReviewDecision),
+  recommendation: z.nativeEnum(ReviewDecision).optional(),
   review: z.array(
-    z.object({
-      question: z.string(),
-      answer: z.string(),
-    }),
+    z
+      .object({
+        question: z.string(),
+        answer: z.string(),
+      })
+      .optional(),
   ),
 });
 
@@ -185,5 +187,24 @@ export const refereeInviteDecisionSchema = z.object({
 export const invalidateRefereeAssignmentSchema = z.object({
   params: z.object({
     assignmentId: z.string(),
+  }),
+});
+
+export const submitReviewSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+    reviewId: z.coerce.number(),
+  }),
+  body: z.object({
+    editorFeedback: z.string(),
+    authorFeedback: z.string(),
+    recommendation: z.nativeEnum(ReviewDecision),
+    review: z.array(
+      z.object({
+        question: z.string(),
+        answer: z.string(),
+      }),
+    ),
   }),
 });

@@ -58,7 +58,7 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
   );
 
   if (isRefereeAssigned._unsafeUnwrap() !== true) {
-    return sendError(res, 'Referee not assigned to submission', 400);
+    return sendError(res, 'User is not an assigned referee to this submission', 403);
   }
 
   const existingReview = await checkRefereeSubmissionReview({
@@ -68,10 +68,10 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
   });
 
   if (existingReview._unsafeUnwrap() !== null) {
-    return sendError(res, 'Review already exists', 400);
+    return sendError(res, 'Review already exists', 403);
   }
 
-  const newReview = await saveReview({
+  const result = await saveReview({
     journalId,
     submissionId,
     refereeId,
@@ -79,9 +79,15 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      review,
+      review: JSON.stringify(review),
     },
   });
+
+  if (result.isErr()) {
+    return sendError(res, result.error, 400);
+  }
+
+  const newReview = result._unsafeUnwrap();
 
   await JournalEventLogService.log({
     journalId,
@@ -89,19 +95,26 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
     userId: req.user.id,
     submissionId,
     details: {
-      reviewId: newReview._unsafeUnwrap().id,
+      reviewId: newReview.id,
     },
   });
 
   // TODO: Send email to editor and author
 
-  const data = _.pick(newReview._unsafeUnwrap(), [
+  const data = _.pick(newReview, [
     'id',
     'recommendation',
     'editorFeedback',
     'authorFeedback',
     'review',
+    'submissionId',
+    'refereeAssignmentId',
+    'journalId',
+    'submittedAt',
   ]);
+
+  data.review = JSON.parse(data.review as string);
+
   return sendSuccess(res, data);
 };
 
@@ -135,7 +148,7 @@ export const updateReviewController = async (req: UpdateReviewRequest, res: Resp
   );
 
   if (isRefereeAssigned._unsafeUnwrap() !== true) {
-    return sendError(res, 'Referee not assigned to submission', 400);
+    return sendError(res, 'User is not an assigned referee to this submission', 403);
   }
 
   const updatedReview = await saveReview({
@@ -147,7 +160,7 @@ export const updateReviewController = async (req: UpdateReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      review,
+      review: JSON.stringify(review),
     },
   });
 
@@ -173,7 +186,12 @@ export const updateReviewController = async (req: UpdateReviewRequest, res: Resp
     'editorFeedback',
     'authorFeedback',
     'review',
+    'submissionId',
+    'refereeAssignmentId',
+    'journalId',
+    'submittedAt',
   ]);
+  data.review = JSON.parse(data.review as string);
   return sendSuccess(res, data);
 };
 
@@ -207,7 +225,7 @@ export const submitReviewController = async (req: SubmitReviewRequest, res: Resp
   );
 
   if (isRefereeAssigned._unsafeUnwrap() !== true) {
-    return sendError(res, 'Referee not assigned to submission', 400);
+    return sendError(res, 'User is not an assigned referee to this submission', 403);
   }
 
   const updatedReview = await submitReview({
@@ -216,7 +234,7 @@ export const submitReviewController = async (req: SubmitReviewRequest, res: Resp
       recommendation,
       editorFeedback,
       authorFeedback,
-      review,
+      review: JSON.stringify(review),
     },
   });
 
@@ -244,6 +262,7 @@ export const submitReviewController = async (req: SubmitReviewRequest, res: Resp
     'review',
     'submittedAt',
   ]);
+  data.review = JSON.parse(data.review as string);
   return sendSuccess(res, data);
 };
 
@@ -255,24 +274,22 @@ export const getSubmissionReviewsController = async (req: GetSubmissionReviewsRe
   const userRoleInJournal = await JournalManagementService.getUserJournalRole(journalId, userId);
   const isEditor = [EditorRole.CHIEF_EDITOR, EditorRole.ASSOCIATE_EDITOR].includes(userRoleInJournal._unsafeUnwrap());
 
-  if (!isEditor) {
+  if (isEditor) {
     const reviews = await getSubmissionReviews({ submissionId });
     return sendSuccess(res, reviews);
   }
 
-  const isReferee = await JournalRefereeManagementService.isRefereeAssignedToSubmission(
-    submissionId,
-    userId,
-    journalId,
-  );
-  if (isReferee._unsafeUnwrap() === true) {
+  const isReferee = (
+    await JournalRefereeManagementService.isRefereeAssignedToSubmission(submissionId, userId, journalId)
+  )._unsafeUnwrap();
+  if (isReferee) {
     const reviews = await getAllRefereeReviewsBySubmission({ submissionId, refereeId: userId });
-    return sendSuccess(res, reviews);
+    return sendSuccess(res, reviews._unsafeUnwrap());
   }
 
   const reviews = await getAuthorSubmissionReviews({ submissionId, authorId: userId });
 
-  return sendSuccess(res, reviews);
+  return sendSuccess(res, reviews._unsafeUnwrapErr());
 };
 
 type GetReviewByIdRequest = ValidatedRequest<typeof updateReviewSchema, AuthenticatedRequest>;
@@ -283,7 +300,7 @@ export const getReviewByIdController = async (req: GetReviewByIdRequest, res: Re
   const userRoleInJournal = await JournalManagementService.getUserJournalRole(journalId, userId);
   const isEditor = userRoleInJournal.isOk();
 
-  if (!isEditor) {
+  if (isEditor) {
     const review = await getJournalReviewById({ journalId, reviewId });
     return sendSuccess(res, review);
   }
@@ -295,14 +312,20 @@ export const getReviewByIdController = async (req: GetReviewByIdRequest, res: Re
   );
   if (isReferee._unsafeUnwrap() === true) {
     const review = await getJournalReviewById({ journalId, reviewId });
-    return sendSuccess(res, review);
+    return sendSuccess(res, review._unsafeUnwrap());
   }
 
   const isAuthor = await journalSubmissionService.isSubmissionByAuthor(submissionId, userId);
-  if (isAuthor._unsafeUnwrap() === true) {
-    const review = await getAuthorSubmissionReviews({ submissionId, authorId: userId });
+  if (isAuthor.isOk()) {
+    const review = (await getJournalReviewById({ journalId, reviewId, completed: true }))._unsafeUnwrap();
+    if (
+      review.submission.status === SubmissionStatus.UNDER_REVIEW ||
+      review.submission.status === SubmissionStatus.SUBMITTED
+    ) {
+      return sendSuccess(res, null);
+    }
     return sendSuccess(res, review);
   }
 
-  return sendError(res, 'User is not authorized to view this review', 403);
+  return sendSuccess(res, null);
 };

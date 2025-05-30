@@ -2,6 +2,7 @@ import { Prisma, SubmissionStatus } from '@prisma/client';
 import { err, ok } from 'neverthrow';
 
 import { prisma } from '../../client.js';
+import { logger } from '../../logger.js';
 
 export type JournalReview = Record<string, any>[];
 
@@ -55,7 +56,7 @@ async function checkRefereeSubmissionReview({
   submissionId: number;
 }) {
   const review = await prisma.journalSubmissionReview.findFirst({
-    where: { journalId, submissionId, refereeAssignmentId: refereeId },
+    where: { journalId, submissionId, refereeAssignment: { refereeId } },
     select: {
       id: true,
       refereeAssignmentId: true,
@@ -86,10 +87,18 @@ async function saveReview({
   update: SaveReviewUpdateFields;
   reviewId?: number;
 }) {
+  const refereeAssignment = await prisma.refereeAssignment.findFirst({
+    where: { submissionId, refereeId, journalId },
+  });
+
+  if (!refereeAssignment) {
+    return err('Referee not assigned to submission');
+  }
+
   let review = await prisma.journalSubmissionReview.findFirst({
     where: {
       ...(reviewId !== undefined ? { id: reviewId } : {}),
-      refereeAssignmentId: refereeId,
+      refereeAssignmentId: refereeAssignment.id,
       submissionId,
       journalId,
       submittedAt: null,
@@ -101,15 +110,11 @@ async function saveReview({
   }
 
   if (review) {
-    if (review.refereeAssignmentId !== refereeId) {
-      return err('Review not found');
-    }
-
     review = await prisma.journalSubmissionReview.update({
       where: { id: review.id },
       data: {
         ...update,
-        refereeAssignmentId: refereeId,
+        refereeAssignmentId: refereeAssignment.id,
         submissionId,
         journalId,
       },
@@ -118,7 +123,7 @@ async function saveReview({
     review = await prisma.journalSubmissionReview.create({
       data: {
         ...update,
-        refereeAssignmentId: refereeId,
+        refereeAssignmentId: refereeAssignment.id,
         submissionId,
         journalId,
       },
@@ -215,6 +220,10 @@ async function getAllRefereeReviewsBySubmission({
       reviews: {
         select: {
           id: true,
+          recommendation: true,
+          review: true,
+          editorFeedback: true,
+          authorFeedback: true,
           submittedAt: true,
         },
       },
@@ -228,7 +237,11 @@ async function getAuthorSubmissionReviews({ authorId, submissionId }: { authorId
     where: {
       submission: {
         authorId,
-        status: { not: { in: [SubmissionStatus.SUBMITTED, SubmissionStatus.UNDER_REVIEW] } },
+        status: {
+          not: {
+            in: [SubmissionStatus.SUBMITTED, SubmissionStatus.UNDER_REVIEW],
+          },
+        },
       },
       submissionId,
       submittedAt: { not: null },
@@ -237,9 +250,17 @@ async function getAuthorSubmissionReviews({ authorId, submissionId }: { authorId
   return ok(reviews);
 }
 
-async function getJournalReviewById({ journalId, reviewId }: { journalId: number; reviewId: number }) {
+async function getJournalReviewById({
+  journalId,
+  reviewId,
+  completed,
+}: {
+  journalId: number;
+  reviewId: number;
+  completed?: boolean;
+}) {
   const review = await prisma.journalSubmissionReview.findFirst({
-    where: { id: reviewId, journalId },
+    where: { id: reviewId, journalId, ...(completed !== undefined ? { submittedAt: { not: null } } : {}) },
     include: {
       refereeAssignment: {
         select: {
@@ -249,6 +270,7 @@ async function getJournalReviewById({ journalId, reviewId }: { journalId: number
       submission: {
         select: {
           id: true,
+          status: true,
           author: { select: { id: true, name: true, orcid: true } },
         },
       },

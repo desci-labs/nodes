@@ -166,7 +166,7 @@ export async function getAssociateEditorSubmissions(payload: {
 
 async function assignSubmissionToEditor(payload: { assignerId: number; submissionId: number; editorId: number }) {
   const chiefEditor = await prisma.journalEditor.findFirst({
-    where: { id: payload.assignerId, role: EditorRole.CHIEF_EDITOR },
+    where: { userId: payload.assignerId, role: EditorRole.CHIEF_EDITOR },
   });
 
   if (!chiefEditor) {
@@ -310,7 +310,7 @@ async function isSubmissionByAuthor(submissionId: number, authorId: number) {
   });
 
   if (!submission) {
-    return ok(false);
+    return err(false);
   }
 
   return ok(true);

@@ -41,6 +41,7 @@ import {
   inviteEditorSchema,
   listJournalSubmissionsSchema,
   removeEditorSchema,
+  submitReviewSchema,
   updateEditorRoleSchema,
   updateJournalSchema,
   updateReviewSchema,
@@ -138,7 +139,7 @@ router.put(
 // submit review route
 router.post(
   '/:journalId/submissions/:submissionId/reviews/:reviewId/submit',
-  [ensureUser, validateInputs(updateReviewSchema)],
+  [ensureUser, validateInputs(submitReviewSchema)],
   asyncHandler(submitReviewController),
 );
 
