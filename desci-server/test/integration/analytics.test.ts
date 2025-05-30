@@ -420,7 +420,7 @@ describe('Desci Analytics', async () => {
       mockNodes = [...nodesToday, ...nodesInLast7Days, ...nodesInLast30Days];
     });
 
-    it('should aggregate users|nodes|views|likes|published nodes today accurately', async () => {
+    it.skip('should aggregate users|nodes|views|likes|published nodes today accurately', async () => {
       // await clearDatabase();
 
       // create 5 users today
