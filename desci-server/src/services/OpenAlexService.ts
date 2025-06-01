@@ -411,6 +411,17 @@ export async function getTopicsByIds(topicIds: string[]): Promise<OpenAlexTopic[
   return rows;
 }
 
+export async function getPublishersBySourceIds(sourceIds: string[]): Promise<Record<string, string>> {
+  logger.trace({ sourceIds }, 'startgetPublishersBySourceIds');
+  const { rows } = await client.query(`SELECT id, display_name FROM openalex.sources WHERE id = ANY($1)`, [sourceIds]);
+  const result = rows.reduce((acc, row) => {
+    acc[row.id] = row.display_name;
+    return acc;
+  }, {});
+  logger.trace({ result }, 'getPublishersBySourceIds');
+  return result;
+}
+
 export const OpenAlexService = {
   getMetadataByWorkId,
   getMetadataByDoi,
