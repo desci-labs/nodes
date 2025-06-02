@@ -495,7 +495,7 @@ describe('Journal Management Service', () => {
       });
     });
 
-    describe('PATCH /journals/:journalId/editors/:editorId', () => {
+    describe('PATCH /journals/:journalId/editors/:editorId/manage', () => {
       beforeEach(async () => {
         // Add editor to journal
         await prisma.journalEditor.create({
@@ -511,7 +511,7 @@ describe('Journal Management Service', () => {
 
       it('should update editor role', async () => {
         const res = await request(app)
-          .patch(`/v1/journals/${journal.id}/editors/${editor.id}`)
+          .patch(`/v1/journals/${journal.id}/editors/${editor.id}/manage`)
           .set('authorization', `Bearer ${authToken}`)
           .send({
             role: EditorRole.CHIEF_EDITOR,
@@ -522,7 +522,7 @@ describe('Journal Management Service', () => {
 
       it('should return 403 for non-chief editor', async () => {
         const res = await request(app)
-          .patch(`/v1/journals/${journal.id}/editors/${editor.id}`)
+          .patch(`/v1/journals/${journal.id}/editors/${editor.id}/manage`)
           .set('authorization', `Bearer ${editorAuthToken}`)
           .send({
             role: EditorRole.CHIEF_EDITOR,
