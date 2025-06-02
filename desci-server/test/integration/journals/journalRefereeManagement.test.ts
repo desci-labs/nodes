@@ -189,6 +189,7 @@ describe('Journal Referee Management Service', () => {
     });
 
     it('should successfully accept a valid referee invite', async () => {
+      debugger;
       const result = await JournalRefereeManagementService.acceptRefereeInvite({
         inviteToken: invite.token,
         userId: refereeUser.id,

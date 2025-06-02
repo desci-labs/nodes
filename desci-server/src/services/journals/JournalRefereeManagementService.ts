@@ -48,6 +48,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
       const invite = await tx.refereeInvite.create({
         data: {
           userId: referee.id,
+          //   journalId: submission.journalId,
           submissionId: data.submissionId,
           email: referee.email,
           invitedById: data.managerId,
@@ -59,7 +60,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
 
       await tx.journalEventLog.create({
         data: {
-          journalId: invite.submissionId,
+          journalId: submission.journalId,
           action: JournalEventLogAction.REFEREE_INVITED,
           userId: invite.invitedById,
           details: {
@@ -455,7 +456,7 @@ export async function invalidateRefereeAssignment(
 
       await tx.journalEventLog.create({
         data: {
-          journalId: assignment.submissionId,
+          journalId: assignment.journalId,
           action: JournalEventLogAction.REFEREE_ASSIGNMENT_DROPPED,
           userId: refereeAssignment.refereeId,
           details: {
