@@ -6,7 +6,8 @@
  *
  *
  * Usage:
- * ts-node src/scripts/fix-global-legacy-dpids.ts   - DRY RUN
+ * npm run script:backfill-legacy-dpids - DRY RUN
+ * DO_WRITES=true npm run script:backfill-legacy-dpids - THIS WILL WRITE TO THE DB.
  *
  * The script will:
  * - Scan all nodes in the database.
@@ -25,11 +26,9 @@
 import * as readline from 'readline';
 
 import { PrismaClient } from '@prisma/client';
-import axios from 'axios';
 import * as dotenv from 'dotenv';
 
 import { getManifestByCid } from '../services/data/processing.js';
-import { cleanupManifestUrl } from '../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 // Load environment variables
@@ -164,7 +163,7 @@ async function fixAllMissingLegacyDpids() {
 
   console.log(`\nIdentified ${nodesToFix.length} nodes for which a DPID was found and can be fixed:`);
   formatTable(
-    nodesToFix.map((n) => [n.id.toString(), n.title, n.uuid, n.dpid]),
+    nodesToFix.map((n) => [n.id.toString(), n.title.slice(0, 30), n.uuid, n.dpid]),
     ['Node ID', 'Title', 'UUID', 'DPID to Add (legacyDpid)'],
   );
 
