@@ -61,7 +61,9 @@ export const associateOrcidWallet = async (req: Request, res: Response, next: Ne
         },
       })) > 0;
     if (doesExist) {
-      res.status(400).send({ err: 'orcid DID already register to some other' });
+      res
+        .status(400)
+        .send({ err: 'orcid DID already registered to another user' });
       return;
     }
 
