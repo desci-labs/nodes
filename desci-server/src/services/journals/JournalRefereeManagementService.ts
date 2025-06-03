@@ -146,6 +146,7 @@ type AcceptRefereeInviteInput = {
 
 async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Result<RefereeInvite, Error>> {
   try {
+    // debugger;
     logger.trace({ fn: 'acceptRefereeInvite', data }, 'Accepting referee invite');
     const refereeInvite = await prisma.refereeInvite.findUnique({
       where: { token: data.inviteToken },
@@ -154,8 +155,9 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
       return err(new Error('Referee invite not found'));
     }
 
-    const inviteIsValid =
-      refereeInvite.expiresAt > new Date() && refereeInvite.accepted === null && refereeInvite.declined === null;
+    const alreadyAcceptedOrDeclined = refereeInvite.accepted === true || refereeInvite.declined === true;
+    const inviteExpired = refereeInvite.expiresAt < new Date();
+    const inviteIsValid = !alreadyAcceptedOrDeclined && !inviteExpired;
     if (!inviteIsValid) {
       return err(new Error('Referee invite not valid'));
     }
@@ -340,8 +342,9 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
     const submission = refereeInvite.submission;
     const journal = submission.journal;
 
-    const inviteIsValid =
-      refereeInvite.expiresAt > new Date() && refereeInvite.accepted === null && refereeInvite.declined === null;
+    const alreadyAcceptedOrDeclined = refereeInvite.accepted === true || refereeInvite.declined === true;
+    const inviteExpired = refereeInvite.expiresAt < new Date();
+    const inviteIsValid = !alreadyAcceptedOrDeclined && !inviteExpired;
     if (!inviteIsValid) {
       return err(new Error('Referee invite not valid'));
     }
