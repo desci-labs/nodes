@@ -20,6 +20,7 @@
     "script:fix-publish": "NODE_OPTIONS='--loader ts-node/esm' debug=* node --inspect=0.0.0.0:9277 --no-warnings --enable-source-maps ./src/scripts/fixPublish.ts",
     "script:increase-base-drive-storage": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/increase-base-drive-storage.ts",
     "script:testing": "debug=* node --inspect=0.0.0.0:9277 --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/test-exec.ts",
+    "script:backfill-legacy-dpids": "debug=* node --inspect=0.0.0.0:9277 --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/fix-global-legacy-dpids.ts",
     "script:es-index-published-nodes": "debug=* node --inspect=0.0.0.0:9277 --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/index-published-nodes-elastic-search.ts",
     "script:preload-ai-api": "debug=* node --inspect=0.0.0.0:9277 --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/preload-ai-api.ts",
     "script:migrate-draft-trees": "debug=* node --no-warnings --enable-source-maps --loader ts-node/esm ./src/scripts/migrate-draft-trees.ts",
