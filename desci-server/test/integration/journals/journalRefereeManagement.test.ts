@@ -189,7 +189,7 @@ describe('Journal Referee Management Service', () => {
     });
 
     it('should successfully accept a valid referee invite', async () => {
-      debugger;
+      // debugger;
       const result = await JournalRefereeManagementService.acceptRefereeInvite({
         inviteToken: invite.token,
         userId: refereeUser.id,
@@ -463,7 +463,7 @@ describe('Journal Referee Management Service', () => {
     it('should correctly reflect active assignments count when checking max referees (implicit test of getActiveRefereeAssignments)', async () => {
       // This test case in acceptRefereeInvite ('should return error if max referees already assigned')
       // implicitly tests the behavior of the internal getActiveRefereeAssignments.
-      const tempNode = await prisma.node.create({
+      let tempNode = await prisma.node.create({
         data: {
           title: 'Temp Node',
           uuid: 'temp-uuid-' + Date.now(),
@@ -472,7 +472,15 @@ describe('Journal Referee Management Service', () => {
           replicationFactor: 0,
         },
       });
-      const submissionXPayload = { journalId: journal.id, dpid: tempNode.id, authorId: authorUser.id, version: 1 };
+      await publishMockNode(tempNode, new Date());
+      tempNode = (await prisma.node.findUnique({ where: { id: tempNode.id } })) as Node;
+
+      const submissionXPayload = {
+        journalId: journal.id,
+        dpid: tempNode.dpidAlias!,
+        authorId: authorUser.id,
+        version: 1,
+      };
       const submissionX = await journalSubmissionService.createSubmission(submissionXPayload);
 
       const refereesToInvite = 3;
@@ -487,6 +495,7 @@ describe('Journal Referee Management Service', () => {
           relativeDueDateHrs: 24,
         });
         if (inviteRes.isErr()) throw inviteRes.error;
+
         const acceptRes = await JournalRefereeManagementService.acceptRefereeInvite({
           inviteToken: inviteRes.value.token,
           userId: tempReferee.id,
