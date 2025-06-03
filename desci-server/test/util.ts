@@ -190,7 +190,7 @@ export async function publishMockNode(node: Node, createdAt: Date) {
   await prisma.node.update({
     where: { id: node.id },
     data: {
-      dpidAlias: randomInt(100, 99999),
+      dpidAlias: node.dpidAlias ? node.dpidAlias : randomInt(100, 99999),
     },
   });
 

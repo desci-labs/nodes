@@ -50,7 +50,11 @@ export const submitRevisionController = async (req: SubmitRevisionRequest, res: 
   }
 
   if (submission.status !== SubmissionStatus.REVISION_REQUESTED) {
-    return sendError(res, 'Submission is not expecting a revision', 400);
+    return sendError(res, 'Submission is not expecting a revision', 403);
+  }
+
+  if (submission.dpid !== dpid) {
+    return sendError(res, 'DPID does not match with submission', 403);
   }
 
   const node = await prisma.node.findFirst({
@@ -67,11 +71,11 @@ export const submitRevisionController = async (req: SubmitRevisionRequest, res: 
   const nodeVersions = await getPublishedNodeVersionCount(node.id);
 
   if (version > nodeVersions) {
-    return sendError(res, 'Invalid node version', 404);
+    return sendError(res, 'Invalid node version', 403);
   }
 
-  if (submission.version >= version) {
-    return sendError(res, 'Revision version is same as initial submission version', 404);
+  if (version <= submission.version) {
+    return sendError(res, 'Revision version should be greater than initial submission version', 403);
   }
 
   const revision = await JournalRevisionService.createRevision({
@@ -129,18 +133,17 @@ export const revisionActionController = async (req: RevisionActionRequest, res: 
 
   if (decision === 'accept') {
     await JournalRevisionService.updateRevisionStatus({ revisionId, status: JournalRevisionStatus.ACCEPTED });
+    await journalSubmissionService.updateSubmissionStatus(submissionId, SubmissionStatus.UNDER_REVIEW);
   } else if (decision === 'reject') {
     await JournalRevisionService.updateRevisionStatus({ revisionId, status: JournalRevisionStatus.REJECTED });
   }
 
-  await journalSubmissionService.updateSubmissionStatus(submissionId, SubmissionStatus.UNDER_REVIEW);
-
   await JournalEventLogService.log({
     journalId,
-    action: JournalEventLogAction.REVISION_ACCEPTED,
+    action: decision === 'accept' ? JournalEventLogAction.REVISION_ACCEPTED : JournalEventLogAction.REVISION_REJECTED,
     userId: req.user.id,
     submissionId,
-    details: { revisionId },
+    details: { revisionId, decision },
   });
 
   // TODO: notify the author that the revision is accepted or rejected.
@@ -200,10 +203,11 @@ export const getRevisionByIdController = async (req: GetRevisionByIdRequest, res
     req.user.id,
     journalId,
   );
-  const isAssignedReferee = isAssignedRefereeResult.isOk();
+  const isAssignedReferee = isAssignedRefereeResult.unwrapOr(false);
 
+  logger.info({ isEditor, isAuthor, isAssignedReferee }, 'Revision access check');
   if (!isEditor && !isAuthor && !isAssignedReferee) {
-    return sendError(res, 'User is not authorized to get revisions', 403);
+    return sendError(res, 'Revision not found', 404);
   }
 
   const submissionResult = await journalSubmissionService.getSubmissionById(submissionId);

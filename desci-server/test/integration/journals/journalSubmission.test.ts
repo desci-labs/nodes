@@ -1,7 +1,16 @@
 import 'dotenv/config';
 import 'mocha';
 
-import { EditorRole, Journal, Node, SubmissionStatus } from '@prisma/client';
+import {
+  EditorRole,
+  Journal,
+  JournalSubmission,
+  JournalSubmissionReview,
+  Node,
+  RefereeAssignment,
+  ReviewDecision,
+  SubmissionStatus,
+} from '@prisma/client';
 import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import supertest from 'supertest';
@@ -9,6 +18,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { prisma } from '../../../src/client.js';
 import { server } from '../../../src/server.js';
+import { JournalManagementService } from '../../../src/services/journals/JournalManagementService.js';
+import { JournalRefereeManagementService } from '../../../src/services/journals/JournalRefereeManagementService.js';
+import { journalSubmissionService } from '../../../src/services/journals/JournalSubmissionService.js';
 import { createDraftNode, createMockUsers, MockUser, publishMockNode, sanitizeBigInts } from '../../util.js';
 
 // use async chai assertions
@@ -223,6 +235,9 @@ describe('Journal Submission Service', () => {
   });
 
   describe('Associate Editor', () => {
+    let submission: JournalSubmission;
+    let review: JournalSubmissionReview;
+
     beforeEach(async () => {
       // Add associate editor to the journal
       await prisma.journalEditor.create({
@@ -460,6 +475,245 @@ describe('Journal Submission Service', () => {
       expect(submissions).to.be.an('array');
       expect(submissions.length).to.equal(1);
       expect(submissions.map((s: any) => s.status)).to.include.members([SubmissionStatus.ACCEPTED]);
+    });
+  });
+
+  describe('Submission review/action', () => {
+    let author: MockUser;
+    let chiefEditor: MockUser;
+    let associateEditor: MockUser;
+    let referee: MockUser;
+    let unAuthorisedUser: MockUser;
+    let journal: Journal;
+    let submission: JournalSubmission;
+    let request: supertest.SuperTest<supertest.Test>;
+    let response: supertest.Response;
+    let draftNode: Node | null;
+    let publishedNode: Node | null;
+    let refereeAssignment: RefereeAssignment;
+    let review: JournalSubmissionReview;
+    const reviewTemplate = [
+      {
+        question: 'Is the background and literature section up to date and appropriate for the topic?',
+        answer: 'Yes',
+      },
+    ];
+
+    beforeEach(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Journal" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeVersion" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "JournalEditor" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "JournalEventLog" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "JournalSubmission" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "JournalSubmissionReview" CASCADE;`;
+
+      const mockUsers = await createMockUsers(5, new Date());
+      author = mockUsers[0];
+      chiefEditor = mockUsers[1];
+      associateEditor = mockUsers[2];
+      referee = mockUsers[3];
+      unAuthorisedUser = mockUsers[4];
+
+      // create a journal
+      const result = await JournalManagementService.createJournal({
+        name: 'Test Journal',
+        description: 'A test journal',
+        ownerId: chiefEditor.user.id,
+      });
+      if (result.isErr()) {
+        throw new Error('Failed to create journal');
+      }
+      journal = result._unsafeUnwrap();
+
+      // add associate editor to journal
+      await prisma.journalEditor.create({
+        data: {
+          journalId: journal.id,
+          userId: associateEditor.user.id,
+          role: EditorRole.ASSOCIATE_EDITOR,
+          invitedAt: new Date(),
+          acceptedAt: new Date(),
+        },
+      });
+
+      // create and publish draft node
+      draftNode = await createDraftNode({
+        title: 'Test Node',
+        ownerId: author.user.id,
+        manifestUrl: 'https://example.com/manifest.json',
+        replicationFactor: 1,
+        uuid: uuidv4(),
+      });
+      await publishMockNode(draftNode, new Date());
+      draftNode = await prisma.node.findFirst({
+        where: {
+          id: draftNode.id,
+        },
+      });
+
+      if (!draftNode?.dpidAlias) {
+        throw new Error('Failed to create draft node with dpidAlias');
+      }
+
+      // create submission
+      submission = await journalSubmissionService.createSubmission({
+        journalId: journal.id,
+        authorId: author.user.id,
+        dpid: draftNode.dpidAlias,
+        version: 1,
+      });
+
+      if (!submission) {
+        throw new Error('Failed to create submission');
+      }
+
+      // assign submission to referee
+      await journalSubmissionService.assignSubmissionToEditor({
+        assignerId: chiefEditor.user.id,
+        submissionId: submission.id,
+        editorId: associateEditor.user.id,
+      });
+
+      // assign referee to submission
+      const refereeAssignmentResult = await JournalRefereeManagementService.assignReferee({
+        submissionId: submission.id,
+        refereeUserId: referee.user.id,
+        dueDateHrs: 24,
+        journalId: journal.id,
+        managerId: associateEditor.user.id,
+      });
+      if (refereeAssignmentResult.isErr()) {
+        throw new Error('Failed to assign referee to submission');
+      }
+      refereeAssignment = refereeAssignmentResult._unsafeUnwrap();
+
+      // update submission status to under review
+      await journalSubmissionService.updateSubmissionStatus(submission.id, SubmissionStatus.UNDER_REVIEW);
+
+      // create review
+      review = await prisma.journalSubmissionReview.create({
+        data: {
+          submissionId: submission.id,
+          refereeAssignmentId: refereeAssignment.id,
+          journalId: journal.id,
+          review: JSON.stringify(reviewTemplate),
+          recommendation: ReviewDecision.ACCEPT,
+          editorFeedback: 'Editor feedback',
+          authorFeedback: 'Author feedback',
+        },
+      });
+
+      request = supertest(app);
+    });
+
+    afterEach(async () => {
+      await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "NodeVersion" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "Journal" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "JournalEditor" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "JournalEventLog" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "JournalSubmission" CASCADE;`;
+      await prisma.$queryRaw`TRUNCATE TABLE "JournalSubmissionReview" CASCADE;`;
+    });
+
+    it('can request revision', async () => {
+      response = await request
+        .post(`/v1/journals/${journal.id}/submissions/${submission.id}/request-revision`)
+        .set('authorization', `Bearer ${associateEditor.token}`)
+        .send({
+          comment: 'Revision comment',
+          revisionType: 'minor',
+        });
+
+      expect(response.status).to.equal(200);
+      expect(response.body.ok).to.be.true;
+    });
+
+    it('can accept submission', async () => {
+      response = await request
+        .post(`/v1/journals/${journal.id}/submissions/${submission.id}/accept`)
+        .set('authorization', `Bearer ${associateEditor.token}`)
+        .send();
+
+      expect(response.status).to.equal(200);
+      expect(response.body.ok).to.be.true;
+    });
+
+    it('can reject submission', async () => {
+      response = await request
+        .post(`/v1/journals/${journal.id}/submissions/${submission.id}/reject`)
+        .set('authorization', `Bearer ${associateEditor.token}`)
+        .send();
+
+      console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
+
+      expect(response.status).to.equal(200);
+      expect(response.body.ok).to.be.true;
+    });
+
+    it('should prevent CHIEF EDITOR from accepting submission', async () => {
+      response = await request
+        .post(`/v1/journals/${journal.id}/submissions/${submission.id}/accept`)
+        .set('authorization', `Bearer ${chiefEditor.token}`)
+        .send();
+
+      expect(response.status).to.equal(403);
+      expect(response.body.message).to.equal('Forbidden - Insufficient permissions');
+    });
+
+    it('should prevent Referee from accepting submission', async () => {
+      response = await request
+        .post(`/v1/journals/${journal.id}/submissions/${submission.id}/accept`)
+        .set('authorization', `Bearer ${referee.token}`)
+        .send();
+
+      expect(response.status).to.equal(403);
+      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
+    });
+
+    it('should prevent Author from accepting submission', async () => {
+      response = await request
+        .post(`/v1/journals/${journal.id}/submissions/${submission.id}/accept`)
+        .set('authorization', `Bearer ${author.token}`)
+        .send();
+
+      expect(response.status).to.equal(403);
+      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
+    });
+
+    it('should prevent unauthorized users from accepting submission', async () => {
+      response = await request
+        .post(`/v1/journals/${journal.id}/submissions/${submission.id}/accept`)
+        .set('authorization', `Bearer ${unAuthorisedUser.token}`)
+        .send();
+
+      expect(response.status).to.equal(403);
+      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
+    });
+
+    it('should prevent unauthorized users from reject submission', async () => {
+      response = await request
+        .post(`/v1/journals/${journal.id}/submissions/${submission.id}/reject`)
+        .set('authorization', `Bearer ${unAuthorisedUser.token}`)
+        .send();
+
+      expect(response.status).to.equal(403);
+      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
+    });
+    it('should prevent unauthorized users from requesting revision', async () => {
+      response = await request
+        .post(`/v1/journals/${journal.id}/submissions/${submission.id}/request-revision`)
+        .set('authorization', `Bearer ${unAuthorisedUser.token}`)
+        .send({
+          comment: 'Revision comment',
+          revisionType: 'minor',
+        });
+
+      expect(response.status).to.equal(403);
+      expect(response.body.message).to.equal('Forbidden - Not a journal editor');
     });
   });
 });

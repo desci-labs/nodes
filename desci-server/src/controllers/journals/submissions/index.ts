@@ -196,19 +196,32 @@ export const acceptSubmissionController = async (req: AcceptSubmissionRequest, r
     submissionId,
   });
 
-  // TODO: trigger DOI minting workflow.
-  const node = await getNodeByDpid(submission.dpid);
-  const doiSubmission = await doiService.autoMintTrigger(node.uuid);
-  const targetDpidUrl = getTargetDpidUrl();
-  discordNotify({
-    channel: DiscordChannel.DoiMinting,
-    type: DiscordNotifyType.INFO,
-    title: 'Mint DOI',
-    message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${doiSubmission.uniqueDoi}`,
-  });
+  try {
+    const node = await getNodeByDpid(submission.dpid);
+    const doiSubmission = await doiService.autoMintTrigger(node.uuid);
+    const targetDpidUrl = getTargetDpidUrl();
+    discordNotify({
+      channel: DiscordChannel.DoiMinting,
+      type: DiscordNotifyType.INFO,
+      title: 'Mint DOI',
+      message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${doiSubmission.uniqueDoi}`,
+    });
 
-  // update submissioin with doi
-  await journalSubmissionService.updateSubmissionDoi(submissionId, doiSubmission.uniqueDoi);
+    // update submissioin with doi
+    await journalSubmissionService.updateSubmissionDoi(submissionId, doiSubmission.uniqueDoi);
+  } catch (error) {
+    logger.error({ error }, 'JOURNAL_SUBMISSION::ACCEPT_SUBMISSION::Failed to mint DOI');
+    // TODO: log error to sentry or private discord channel
+    // JournalEventLogService.log({
+    //   journalId,
+    //   action: JournalEventLogAction.DOI_MINTING_FAILED,
+    //   userId: req.user.id,
+    //   submissionId,
+    //   details: {
+    //     error: error.message,
+    //   },
+    // });
+  }
 
   // TODO: notify the author that the revision is requested.
   // TODO: notify the referee of the editor decision.

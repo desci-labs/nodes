@@ -15,6 +15,12 @@ import {
   getAuthorJournalSubmissionsSchema,
   reviewsApiSchema,
   reviewDetailsApiSchema,
+  requestRevisionSchema,
+  submissionApiSchema,
+  rejectSubmissionSchema,
+  submitRevisionSchema,
+  revisionApiSchema,
+  revisionActionSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -875,6 +881,319 @@ export const submitReviewOperation: ZodOpenApiOperationObject = {
   security: [{ BearerAuth: [] }],
 };
 
+// Request Revision
+export const requestRevisionOperation: ZodOpenApiOperationObject = {
+  operationId: 'requestRevision',
+  tags: ['Journals'],
+  summary: 'Request a revision for a submission',
+  requestParams: { path: requestRevisionSchema.shape.params },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: requestRevisionSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Revision requested successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.boolean(),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Forbidden - Not a journal editor',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission not found',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Accept Submission
+export const acceptSubmissionOperation: ZodOpenApiOperationObject = {
+  operationId: 'acceptSubmission',
+  tags: ['Journals'],
+  summary: 'Accept a submission',
+  requestParams: { path: submissionApiSchema.shape.params },
+  responses: {
+    '200': {
+      description: 'Submission accepted successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.boolean(),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Forbidden - Not a journal editor',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission not found',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Reject Submission
+export const rejectSubmissionOperation: ZodOpenApiOperationObject = {
+  operationId: 'rejectSubmission',
+  tags: ['Journals'],
+  summary: 'Reject a submission',
+  requestParams: { path: rejectSubmissionSchema.shape.params },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: rejectSubmissionSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Submission rejected successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.boolean(),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Forbidden - Not a journal editor',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission not found',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Submit Revision
+export const submitRevisionOperation: ZodOpenApiOperationObject = {
+  operationId: 'submitRevision',
+  tags: ['Journals'],
+  summary: 'Submit a revision for a submission',
+  requestParams: { path: submitRevisionSchema.shape.params },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: submitRevisionSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Revision submitted successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.boolean(),
+            data: z.object({
+              id: z.number(),
+              submissionId: z.number(),
+              dpid: z.number(),
+              version: z.number(),
+              status: z.string(),
+              createdAt: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Forbidden - User is not the author of the submission',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission or node not found',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Get Revisions
+export const getRevisionsOperation: ZodOpenApiOperationObject = {
+  operationId: 'getRevisions',
+  tags: ['Journals'],
+  summary: 'Get all revisions for a submission',
+  requestParams: { path: submissionApiSchema.shape.params },
+  responses: {
+    '200': {
+      description: 'Revisions retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.boolean(),
+            data: z.array(
+              z.object({
+                id: z.number(),
+                submissionId: z.number(),
+                dpid: z.number(),
+                version: z.number(),
+                status: z.string(),
+                createdAt: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Forbidden - User is not authorized to view revisions',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Submission not found',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Get Revision by ID
+export const getRevisionByIdOperation: ZodOpenApiOperationObject = {
+  operationId: 'getRevisionById',
+  tags: ['Journals'],
+  summary: 'Get a specific revision by ID',
+  requestParams: { path: revisionApiSchema.shape.params },
+  responses: {
+    '200': {
+      description: 'Revision retrieved successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.boolean(),
+            data: z.object({
+              id: z.number(),
+              submissionId: z.number(),
+              dpid: z.number(),
+              version: z.number(),
+              status: z.string(),
+              createdAt: z.string(),
+            }),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Forbidden - User is not authorized to view revision',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Revision not found',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
+// Revision Action
+export const revisionActionOperation: ZodOpenApiOperationObject = {
+  operationId: 'revisionAction',
+  tags: ['Journals'],
+  summary: 'Accept or reject a revision',
+  requestParams: { path: revisionActionSchema.shape.params },
+  requestBody: {
+    content: {
+      'application/json': {
+        schema: revisionActionSchema.shape.body,
+      },
+    },
+  },
+  responses: {
+    '200': {
+      description: 'Revision action processed successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            ok: z.boolean(),
+          }),
+        },
+      },
+    },
+    '403': {
+      description: 'Forbidden - Not a journal editor',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+    '404': {
+      description: 'Revision not found',
+      content: {
+        'application/json': {
+          schema: z.object({ message: z.string() }),
+        },
+      },
+    },
+  },
+  security: [{ BearerAuth: [] }],
+};
+
 export const journalPaths: ZodOpenApiPathsObject = {
   '/v1/journals': {
     get: listJournalsOperation,
@@ -914,5 +1233,24 @@ export const journalPaths: ZodOpenApiPathsObject = {
   },
   '/v1/journals/{journalId}/submissions/{submissionId}/reviews/{reviewId}/submit': {
     post: submitReviewOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/request-revision': {
+    post: requestRevisionOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/accept': {
+    post: acceptSubmissionOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/reject': {
+    post: rejectSubmissionOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/revisions': {
+    post: submitRevisionOperation,
+    get: getRevisionsOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/revisions/{revisionId}': {
+    get: getRevisionByIdOperation,
+  },
+  '/v1/journals/{journalId}/submissions/{submissionId}/revisions/{revisionId}/action': {
+    post: revisionActionOperation,
   },
 };
