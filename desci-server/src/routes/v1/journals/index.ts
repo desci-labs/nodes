@@ -19,12 +19,21 @@ import {
   submitReviewController,
   updateReviewController,
 } from '../../../controllers/journals/reviews/index.js';
+import {
+  getRevisionByIdController,
+  getRevisionsController,
+  revisionActionController,
+  submitRevisionController,
+} from '../../../controllers/journals/revision/index.js';
 import { showJournalController } from '../../../controllers/journals/show.js';
 import {
   assignSubmissionToEditorController,
   createJournalSubmissionController,
   getAuthorSubmissionsController,
   listJournalSubmissionsController,
+  rejectSubmissionController,
+  acceptSubmissionController,
+  requestRevisionController,
 } from '../../../controllers/journals/submissions/index.js';
 import { attachUser } from '../../../middleware/attachUser.js';
 import { ensureJournalRole } from '../../../middleware/journalPermissions.js';
@@ -51,6 +60,12 @@ import {
   refereeInviteDecisionSchema,
   invalidateRefereeAssignmentSchema,
   updateEditorSchema,
+  submissionApiSchema,
+  requestRevisionSchema,
+  submitRevisionSchema,
+  rejectSubmissionSchema,
+  revisionActionSchema,
+  revisionApiSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
@@ -125,6 +140,25 @@ router.get(
   asyncHandler(getAuthorSubmissionsController),
 );
 
+// submission action routes
+router.post(
+  '/:journalId/submissions/:submissionId/request-revision',
+  [ensureUser, ensureJournalRole(EditorRole.ASSOCIATE_EDITOR), validateInputs(requestRevisionSchema)],
+  asyncHandler(requestRevisionController),
+);
+
+router.post(
+  '/:journalId/submissions/:submissionId/accept',
+  [ensureUser, ensureJournalRole(EditorRole.ASSOCIATE_EDITOR), validateInputs(submissionApiSchema)],
+  asyncHandler(acceptSubmissionController),
+);
+
+router.post(
+  '/:journalId/submissions/:submissionId/reject',
+  [ensureUser, ensureJournalRole(EditorRole.ASSOCIATE_EDITOR), validateInputs(rejectSubmissionSchema)],
+  asyncHandler(rejectSubmissionController),
+);
+
 // Reviews
 router.post(
   '/:journalId/submissions/:submissionId/reviews',
@@ -181,5 +215,36 @@ router.patch(
   [ensureUser, validateInputs(invalidateRefereeAssignmentSchema)],
   asyncHandler(invalidateRefereeAssignmentController),
 );
+
+// Journal revision routes
+router.post(
+  '/:journalId/submissions/:submissionId/revisions',
+  [ensureUser, validateInputs(submitRevisionSchema)],
+  asyncHandler(submitRevisionController),
+);
+router.get(
+  '/:journalId/submissions/:submissionId/revisions',
+  [ensureUser, validateInputs(submissionApiSchema)],
+  asyncHandler(getRevisionsController),
+);
+
+router.get(
+  '/:journalId/submissions/:submissionId/revisions/:revisionId',
+  [ensureUser, validateInputs(revisionApiSchema)],
+  asyncHandler(getRevisionByIdController),
+);
+
+router.post(
+  '/:journalId/submissions/:submissionId/revisions/:revisionId/action',
+  [ensureUser, ensureJournalRole(EditorRole.ASSOCIATE_EDITOR), validateInputs(revisionActionSchema)],
+  asyncHandler(revisionActionController),
+);
+
+// Disable for now
+// router.patch(
+//   '/:journalId/submissions/:submissionId/referees/:assignmentId/invalidate',
+//   [ensureUser, validateInputs(invalidateRefereeAssignmentSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+//   asyncHandler(invalidateRefereeAssignmentController),
+// );
 
 export default router;

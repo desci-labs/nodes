@@ -211,8 +211,8 @@ async function acceptSubmission({ editorId, submissionId }: { editorId: number; 
     throw new ForbiddenError('Submission is already accepted');
   }
 
-  if (submission.status === SubmissionStatus.REJECTED) {
-    throw new ForbiddenError('Submission is already rejected');
+  if (submission.status !== SubmissionStatus.UNDER_REVIEW) {
+    throw new ForbiddenError('Submission is not under review');
   }
 
   return await prisma.journalSubmission.update({
@@ -225,6 +225,7 @@ async function acceptSubmission({ editorId, submissionId }: { editorId: number; 
       id: true,
       status: true,
       acceptedAt: true,
+      dpid: true,
     },
   });
 }
@@ -241,8 +242,8 @@ async function rejectSubmission({ editorId, submissionId }: { editorId: number; 
     throw new ForbiddenError('Submission is already accepted');
   }
 
-  if (submission.status === SubmissionStatus.REJECTED) {
-    throw new ForbiddenError('Submission is already rejected');
+  if (submission.status !== SubmissionStatus.UNDER_REVIEW) {
+    throw new ForbiddenError('Submission is not under review');
   }
 
   return await prisma.journalSubmission.update({
@@ -280,14 +281,11 @@ async function requestRevision({ editorId, submissionId }: { editorId: number; s
   return await prisma.journalSubmission.update({
     where: { id: submissionId },
     data: {
-      status: SubmissionStatus.REJECTED,
-      rejectedAt: new Date(),
-      acceptedAt: null, // reset acceptedAt to null
+      status: SubmissionStatus.REVISION_REQUESTED,
     },
     select: {
       id: true,
       status: true,
-      rejectedAt: true,
     },
   });
 }
@@ -316,6 +314,28 @@ async function isSubmissionByAuthor(submissionId: number, authorId: number) {
   return ok(true);
 }
 
+async function updateSubmissionDoi(submissionId: number, doi: string) {
+  return await prisma.journalSubmission.update({
+    where: { id: submissionId },
+    data: { doi },
+  });
+}
+
+async function updateSubmissionDoiMintedAt(doi: string) {
+  const submission = await prisma.journalSubmission.findFirst({
+    where: { doi },
+  });
+
+  if (!submission) {
+    throw new NotFoundError('Submission not found');
+  }
+
+  return await prisma.journalSubmission.update({
+    where: { id: submission.id },
+    data: { doiMintedAt: new Date() },
+  });
+}
+
 export const journalSubmissionService = {
   createSubmission,
   getAuthorSubmissions,
@@ -324,7 +344,10 @@ export const journalSubmissionService = {
   getAssociateEditorSubmissions,
   acceptSubmission,
   rejectSubmission,
+  requestRevision,
   getSubmissionById,
   updateSubmissionStatus,
   isSubmissionByAuthor,
+  updateSubmissionDoi,
+  updateSubmissionDoiMintedAt,
 };

@@ -150,6 +150,13 @@ const reviewSchema = z.object({
   ),
 });
 
+export const submissionApiSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+  }),
+});
+
 export const reviewsApiSchema = z.object({
   params: z.object({
     journalId: z.coerce.number(),
@@ -225,5 +232,60 @@ export const submitReviewSchema = z.object({
         answer: z.string(),
       }),
     ),
+  }),
+});
+
+export const revisionApiSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+    revisionId: z.coerce.number(),
+  }),
+});
+
+export const requestRevisionSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+  }),
+  body: z.object({
+    comment: z.string().optional(),
+    revisionType: z.enum(['minor', 'major']),
+  }),
+});
+
+export const rejectSubmissionSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+  }),
+  body: z.object({
+    comment: z.string().optional(),
+  }),
+});
+
+export const submitRevisionSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+  }),
+  body: z.object({
+    dpid: z.coerce
+      .number({ message: 'DPID must be a positive integer greater than zero' })
+      .min(1, 'DPID must be a positive integer greater than zero'),
+    version: z.coerce
+      .number({ message: 'Version must be a positive integer greater than zero' })
+      .min(1, 'Version must be a positive integer greater than zero'),
+  }),
+});
+
+export const revisionActionSchema = z.object({
+  params: z.object({
+    journalId: z.coerce.number(),
+    submissionId: z.coerce.number(),
+    revisionId: z.coerce.number(),
+  }),
+  body: z.object({
+    decision: z.enum(['accept', 'reject']),
   }),
 });

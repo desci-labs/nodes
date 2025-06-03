@@ -1156,14 +1156,15 @@ model Journal {
   isCommercial Boolean  @default(false)
 
   // Relationships
-  editors                 JournalEditor[]
-  submissions             JournalSubmission[]
-  EditorInvite            EditorInvite[]
+  editors                   JournalEditor[]
+  submissions               JournalSubmission[]
+  EditorInvite              EditorInvite[]
   // JournalEmailTemplate JournalEmailTemplate[]
-  JournalBilling          JournalBilling?
-  JournalEventLog         JournalEventLog[]
-  RefereeAssignment       RefereeAssignment[]
-  JournalSubmissionReview JournalSubmissionReview[]
+  JournalBilling            JournalBilling?
+  JournalEventLog           JournalEventLog[]
+  RefereeAssignment         RefereeAssignment[]
+  JournalSubmissionReview   JournalSubmissionReview[]
+  JournalSubmissionRevision JournalSubmissionRevision[]
 }
 
 model JournalEditor {
@@ -1216,17 +1217,20 @@ model JournalSubmission {
 }
 
 model JournalSubmissionRevision {
-  id           Int          @id @default(autoincrement())
+  id           Int                   @id @default(autoincrement())
+  journalId    Int
   submissionId Int
-  dpid         String // New Node dPID
-  version      String // New Node version
-  type         RevisionType
-  requestedAt  DateTime     @default(now())
-  submittedAt  DateTime?
+  dpid         Int // New Node dPID
+  version      Int // New Node version
+  status       JournalRevisionStatus @default(PENDING)
+  submittedAt  DateTime              @default(now())
   comments     String?
+  acceptedAt   DateTime?
+  rejectedAt   DateTime?
 
   // Relationships
   submission JournalSubmission @relation(fields: [submissionId], references: [id])
+  journal    Journal           @relation(fields: [journalId], references: [id])
 }
 
 model RefereeAssignment {
@@ -1599,9 +1603,10 @@ enum SubmissionStatus {
   REJECTED
 }
 
-enum RevisionType {
-  MINOR
-  MAJOR
+enum JournalRevisionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 enum ReviewDecision {
@@ -1626,6 +1631,8 @@ enum JournalEventLogAction {
   SUBMISSION_REJECTED
   REVISION_REQUESTED
   REVISION_SUBMITTED
+  REVISION_ACCEPTED
+  REVISION_REJECTED
   DOI_MINTED
   REFEREE_INVITED
   REFEREE_ACCEPTED

@@ -17,6 +17,7 @@ import { asyncMap, ensureUuidEndsWithDot, hexToCid } from '../utils.js';
 import { attestationService } from './Attestation.js';
 import { WorkSelectOptions } from './crossRef/definitions.js';
 import { getManifestByCid } from './data/processing.js';
+import { journalSubmissionService } from './journals/JournalSubmissionService.js';
 import { NotificationService } from './Notifications/NotificationService.js';
 
 import { crossRefClient } from './index.js';
@@ -337,5 +338,7 @@ export class DoiService {
       doi: submission.uniqueDoi,
       status: DoiStatus.SUCCESS,
     });
+
+    await journalSubmissionService.updateSubmissionDoiMintedAt(submission.uniqueDoi);
   }
 }

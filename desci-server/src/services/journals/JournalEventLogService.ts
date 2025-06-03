@@ -32,6 +32,8 @@ const logAudience = {
     [JournalEventLogAction.REVISION_SUBMITTED]: true,
     [JournalEventLogAction.DOI_MINTED]: true,
     [JournalEventLogAction.REVIEW_SUBMITTED]: true,
+    [JournalEventLogAction.REVISION_ACCEPTED]: true,
+    [JournalEventLogAction.REVISION_REJECTED]: true,
   },
   BillingEvents: {},
 };

@@ -1,4 +1,4 @@
-import { EditorRole, JournalSubmission, SubmissionStatus } from '@prisma/client';
+import { EditorRole, JournalEventLogAction, JournalSubmission, SubmissionStatus } from '@prisma/client';
 import { NextFunction, Response } from 'express';
 
 import { prisma } from '../../../client.js';
@@ -11,10 +11,19 @@ import {
   createJournalSubmissionSchema,
   getAuthorJournalSubmissionsSchema,
   listJournalSubmissionsSchema,
+  requestRevisionSchema,
+  submissionApiSchema,
+  rejectSubmissionSchema,
 } from '../../../schemas/journals.schema.js';
+import { getTargetDpidUrl } from '../../../services/fixDpid.js';
+import { doiService } from '../../../services/index.js';
+import { JournalEventLogService } from '../../../services/journals/JournalEventLogService.js';
 import { JournalManagementService } from '../../../services/journals/JournalManagementService.js';
 import { journalSubmissionService } from '../../../services/journals/JournalSubmissionService.js';
+import { getNodeByDpid } from '../../../services/node.js';
 import { getPublishedNodeVersionCount } from '../../../services/nodeManager.js';
+import { DiscordChannel, DiscordNotifyType } from '../../../utils/discordUtils.js';
+import { discordNotify } from '../../../utils/discordUtils.js';
 
 const logger = parentLogger.child({
   module: 'Journals::SubmissionsController',
@@ -144,4 +153,90 @@ export const assignSubmissionToEditorController = async (req: AssignSubmissionTo
     logger.error({ error });
     return sendError(res, 'Failed to assign submission to editor', 500);
   }
+};
+
+type RequestRevisionRequest = ValidatedRequest<typeof requestRevisionSchema, AuthenticatedRequest>;
+
+export const requestRevisionController = async (req: RequestRevisionRequest, res: Response) => {
+  const { journalId, submissionId } = req.validatedData.params;
+  const { comment, revisionType } = req.validatedData.body;
+
+  // check if journal and submission are valid.
+  await journalSubmissionService.requestRevision({ submissionId, editorId: req.user.id });
+
+  // LOG the event
+  await JournalEventLogService.log({
+    journalId,
+    action: JournalEventLogAction.REVISION_REQUESTED,
+    userId: req.user.id,
+    submissionId,
+    details: {
+      comment,
+      revisionType,
+    },
+  });
+  // TODO: notify the author that the revision is requested.
+  // TODO: notify the referee of the editor decision.
+
+  return sendSuccess(res, null);
+};
+
+type AcceptSubmissionRequest = ValidatedRequest<typeof submissionApiSchema, AuthenticatedRequest>;
+export const acceptSubmissionController = async (req: AcceptSubmissionRequest, res: Response) => {
+  const { journalId, submissionId } = req.validatedData.params;
+
+  // check if journal and submission are valid.
+  const submission = await journalSubmissionService.acceptSubmission({ submissionId, editorId: req.user.id });
+
+  // LOG the event
+  await JournalEventLogService.log({
+    journalId,
+    action: JournalEventLogAction.SUBMISSION_ACCEPTED,
+    userId: req.user.id,
+    submissionId,
+  });
+
+  // TODO: trigger DOI minting workflow.
+  const node = await getNodeByDpid(submission.dpid);
+  const doiSubmission = await doiService.autoMintTrigger(node.uuid);
+  const targetDpidUrl = getTargetDpidUrl();
+  discordNotify({
+    channel: DiscordChannel.DoiMinting,
+    type: DiscordNotifyType.INFO,
+    title: 'Mint DOI',
+    message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${doiSubmission.uniqueDoi}`,
+  });
+
+  // update submissioin with doi
+  await journalSubmissionService.updateSubmissionDoi(submissionId, doiSubmission.uniqueDoi);
+
+  // TODO: notify the author that the revision is requested.
+  // TODO: notify the referee of the editor decision.
+
+  return sendSuccess(res, null);
+};
+
+type RejectSubmissionRequest = ValidatedRequest<typeof rejectSubmissionSchema, AuthenticatedRequest>;
+export const rejectSubmissionController = async (req: RejectSubmissionRequest, res: Response) => {
+  const { journalId, submissionId } = req.validatedData.params;
+  const { comment } = req.validatedData.body;
+
+  // check if journal and submission are valid.
+  await journalSubmissionService.rejectSubmission({ submissionId, editorId: req.user.id });
+
+  // LOG the event
+  await JournalEventLogService.log({
+    journalId,
+    action: JournalEventLogAction.SUBMISSION_REJECTED,
+    userId: req.user.id,
+    submissionId,
+    details: {
+      comment,
+    },
+  });
+
+  // TODO: notify the author that the submission is rejected.
+  // TODO: notify the referee of the editor decision.
+
+  return sendSuccess(res, null);
 };
