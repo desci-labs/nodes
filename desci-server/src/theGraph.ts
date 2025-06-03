@@ -253,42 +253,6 @@ const getTxTimeFromGraph = async (txIds: string[]): Promise<TransactionsWithTime
   return response.researchObjectVersions;
 };
 
-type RegisterEvent = {
-  transactionHash: string;
-  entryId: string;
-};
-
-type DpidRegistersResponse = {
-  registers: RegisterEvent[];
-};
-
-/**
- * Find the legacy dPID for a given node by looking up a transaction hash,
- * as the graph doesn't index dPIDs by UUID.
- * @deprecated
- */
-export const _getDpidForTxIds = async (txs: string[]): Promise<RegisterEvent[]> => {
-  logger.info({ txs }, "Getting legacy dpid's for transactions");
-  // Usually called with way less arguments, but 500 will prevent very odd errors as it will always  include all dpids
-  const q = `
-  {
-    registers(
-      first: 500
-      where: {
-        transactionHash_in: ["${txs.join('","')}"],
-      }
-      orderBy: entryId
-    ) {
-      transactionHash
-      entryId
-    }
-  }`;
-  console.log('Sending graph query:', { q });
-  const url = THEGRAPH_API_URL.replace('name/nodes', 'name/dpid-registry');
-  const response = await query<DpidRegistersResponse>(q, url);
-  return response.registers;
-};
-
 export const query = async <T>(query: string, overrideUrl?: string): Promise<T> => {
   const payload = JSON.stringify({
     query,
