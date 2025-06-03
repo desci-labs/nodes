@@ -50,6 +50,7 @@ interface NodeToFixInfo {
   title: string;
   uuid: string;
   dpid: string;
+  ceramicStream: string;
 }
 
 /**
@@ -101,6 +102,7 @@ export async function getDpidFromNodeUuid(nodeUuid: string): Promise<number | st
   });
 
   try {
+    if (!node?.manifestUrl) throw new Error('No manifest URL found for node');
     const manifestCid = node.manifestUrl;
     const manifest = await getManifestByCid(manifestCid);
     return manifest?.dpid?.id;
@@ -152,6 +154,7 @@ async function fixAllMissingLegacyDpids() {
         title: node.title,
         uuid: node.uuid,
         dpid: dpid,
+        ceramicStream: node.ceramicStream ?? '',
       });
     }
   }
@@ -163,8 +166,10 @@ async function fixAllMissingLegacyDpids() {
 
   console.log(`\nIdentified ${nodesToFix.length} nodes for which a DPID was found and can be fixed:`);
   formatTable(
-    nodesToFix.map((n) => [n.id.toString(), n.title.slice(0, 30), n.uuid, n.dpid]),
-    ['Node ID', 'Title', 'UUID', 'DPID to Add (legacyDpid)'],
+    nodesToFix
+      .sort((a, b) => parseInt(a.dpid, 10) - parseInt(b.dpid, 10))
+      .map((n) => [n.id.toString(), n.title.slice(0, 30), n.uuid, n.dpid, n.ceramicStream]),
+    ['Node ID', 'Title', 'UUID', 'DPID to Add (legacyDpid)', 'Ceramic Stream'],
   );
 
   console.log('\n⚠️  IMPORTANT: This script will update the `legacyDpid` field for the nodes listed above.');
