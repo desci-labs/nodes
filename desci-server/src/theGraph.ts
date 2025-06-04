@@ -82,7 +82,10 @@ export const getIndexedResearchObjects = async (
   */
   const dpidLookupMap: Record<number, string> = nodeRes.reduce(
     (acc, n) => {
-      acc[n.dpidAlias ?? n.legacyDpid] = n.uuid;
+      const dpid = n.dpidAlias ?? n.legacyDpid;
+      if (dpid != null) {
+        acc[dpid] = n.uuid;
+      }
       return acc;
     },
     {} as Record<number, string>,
