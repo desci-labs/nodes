@@ -1,5 +1,5 @@
 import { getResources } from "@desci-labs/desci-codex-lib";
-import { CHAIN_CONFIGS, ChainConfig } from "./chain.js";
+import { CHAIN_CONFIGS, ChainConfig, LEGACY_CHAIN_CONFIGS, LegacyChainConfig } from "./chain.js";
 
 export type NodesEnv =
   | "local"
@@ -11,6 +11,7 @@ export type NodesLibConfig = {
   apiUrl: string,
   apiKey?: string,
   ceramicNodeUrl: string,
+  legacyChainConfig: LegacyChainConfig,
   chainConfig: ChainConfig,
 };
 
@@ -19,24 +20,28 @@ export const NODESLIB_CONFIGS = {
     apiUrl: "http://localhost:5420",
     apiKey: undefined,
     ceramicNodeUrl: "http://localhost:7007",
+    legacyChainConfig: LEGACY_CHAIN_CONFIGS.local,
     chainConfig: CHAIN_CONFIGS.local,
   },
   dev: {
     apiUrl: "https://nodes-api-dev.desci.com",
     apiKey: undefined,
     ceramicNodeUrl: "https://ceramic-dev.desci.com",
+    legacyChainConfig: LEGACY_CHAIN_CONFIGS.dev,
     chainConfig: CHAIN_CONFIGS.dev,
   },
   staging: {
     apiUrl: "https://nodes-api-staging.desci.com",
     apiKey: undefined,
     ceramicNodeUrl: "https://ceramic-prod.desci.com",
+    legacyChainConfig: LEGACY_CHAIN_CONFIGS.prod, // also using the prod contracts
     chainConfig: CHAIN_CONFIGS.prod, // also using prod contracts
   },
   prod: {
     apiUrl: "https://nodes-api.desci.com",
     apiKey: undefined,
     ceramicNodeUrl: "https://ceramic-prod.desci.com",
+    legacyChainConfig: LEGACY_CHAIN_CONFIGS.prod,
     chainConfig: CHAIN_CONFIGS.prod,
   },
 } as const satisfies { [Env in NodesEnv ]: NodesLibConfig };
