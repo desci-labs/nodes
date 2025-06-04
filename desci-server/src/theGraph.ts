@@ -60,7 +60,6 @@ export const getIndexedResearchObjects = async (
   _urlSafeBase64s: string[],
 ): Promise<{ researchObjects: IndexedResearchObject[] }> => {
   const paddedUuids = _urlSafeBase64s.map(ensureUuidEndsWithDot);
-
   // Get known nodes for each UUID
   const nodeRes = await prisma.node.findMany({
     select: {
@@ -128,13 +127,12 @@ const getHistoryFromDpids = async (dpidsToUuidsMap: Record<number, string>): Pro
   });
 
   const uuids = Object.values(dpidsToUuidsMap);
-
   let indexedHistory: IndexedResearchObject[];
   try {
     // Convert resolver format to server format
     indexedHistory = historyRes.data.map((ro, index) => ({
       id: uuids[index],
-      id10: BigInt(uuids[index]).toString(),
+      id10: BigInt('0x' + decodeBase64UrlSafeToHex(uuids[index])).toString(),
       streamId: ro.id,
       owner: ro.owner,
       recentCid: convertCidTo0xHex(ro.manifest),
