@@ -1,8 +1,11 @@
+import { AvailableUserActionLogTypes } from '@desci-labs/desci-models';
+import { ActionType } from '@prisma/client';
 import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { saveInteraction } from '../../services/interactionLog.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 
 import { generateAccessToken } from './magic.js';
@@ -44,6 +47,18 @@ export const createGuestUser = async (req: Request, res: Response): Promise<Resp
     sendCookie(res, token, dev === 'true');
 
     logger.info({ userId: user.id }, '[GUEST] Guest user created successfully');
+
+    await saveInteraction({
+      req,
+      action: ActionType.USER_ACTION,
+      data: JSON.stringify({
+        action: AvailableUserActionLogTypes.actionGuestModeVisit,
+        details: {
+          id: user.id,
+        },
+      }),
+      userId: user?.id,
+    });
 
     return res.send({
       ok: true,
