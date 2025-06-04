@@ -52,9 +52,7 @@ export const nodeByDpid = async (
         noveltyScoreConfig: true,
       },
       where: {
-        dpidAlias: {
-          equals: dpid,
-        },
+        OR: [{ dpidAlias: { equals: dpid } }, { legacyDpid: { equals: dpid } }],
       },
     });
   } catch (e) {
