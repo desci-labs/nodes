@@ -1,11 +1,9 @@
-import { EditorRole, JournalEventLogAction, JournalSubmission, SubmissionStatus } from '@prisma/client';
-import { NextFunction, Response } from 'express';
+import { EditorRole, JournalEventLogAction, SubmissionStatus } from '@prisma/client';
+import { Response } from 'express';
 import _ from 'lodash';
 
-import { prisma } from '../../../client.js';
 import { sendError, sendSuccess } from '../../../core/api.js';
-import { ForbiddenError } from '../../../core/ApiError.js';
-import { AuthenticatedRequest, OptionalAuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
+import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { createReviewSchema, updateReviewSchema } from '../../../schemas/journals.schema.js';
 import { JournalEventLogService } from '../../../services/journals/JournalEventLogService.js';
@@ -38,14 +36,12 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
     return sendError(res, 'Journal not found', 404);
   }
 
-  // TODO: check referee management controller to make sure submission is update to under review status
-  // when referee is assigned to submission
   const submission = await journalSubmissionService.getSubmissionById(submissionId);
   if (submission.isErr()) {
     return sendError(res, submission.error, 400);
   }
 
-  if (submission._unsafeUnwrap().status !== SubmissionStatus.UNDER_REVIEW) {
+  if (submission.value.status !== SubmissionStatus.UNDER_REVIEW) {
     return sendError(res, 'Submission is not in under review status', 400);
   }
 
@@ -57,7 +53,7 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
     journalId,
   );
 
-  if (isRefereeAssigned._unsafeUnwrap() !== true) {
+  if (isRefereeAssigned.isOk() && isRefereeAssigned.value === false) {
     return sendError(res, 'User is not an assigned referee to this submission', 403);
   }
 
@@ -67,7 +63,7 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
     refereeId,
   });
 
-  if (existingReview._unsafeUnwrap() !== null) {
+  if (existingReview.isOk() && existingReview.value !== null) {
     return sendError(res, 'Review already exists', 403);
   }
 
@@ -98,8 +94,6 @@ export const createReviewController = async (req: CreateReviewRequest, res: Resp
       reviewId: newReview.id,
     },
   });
-
-  // TODO: Send email to editor and author
 
   const data = _.pick(newReview, [
     'id',
@@ -177,8 +171,6 @@ export const updateReviewController = async (req: UpdateReviewRequest, res: Resp
       reviewId,
     },
   });
-
-  // TODO: Send email to editor and author
 
   const data = _.pick(updatedReview._unsafeUnwrap(), [
     'id',

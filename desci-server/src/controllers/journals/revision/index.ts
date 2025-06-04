@@ -1,12 +1,5 @@
-import {
-  EditorRole,
-  JournalEventLogAction,
-  JournalRevisionStatus,
-  ReviewDecision,
-  SubmissionStatus,
-} from '@prisma/client';
-import { Request, Response } from 'express';
-import { z } from 'zod';
+import { JournalEventLogAction, JournalRevisionStatus, SubmissionStatus } from '@prisma/client';
+import { Response } from 'express';
 
 import { prisma } from '../../../client.js';
 import { sendError, sendSuccess } from '../../../core/api.js';

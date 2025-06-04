@@ -1,5 +1,5 @@
 import { EditorRole, JournalEventLogAction, JournalSubmission, SubmissionStatus } from '@prisma/client';
-import { NextFunction, Response } from 'express';
+import { Response } from 'express';
 
 import { prisma } from '../../../client.js';
 import { sendError, sendSuccess } from '../../../core/api.js';
@@ -197,30 +197,43 @@ export const acceptSubmissionController = async (req: AcceptSubmissionRequest, r
   });
 
   try {
-    const node = await getNodeByDpid(submission.dpid);
-    const doiSubmission = await doiService.autoMintTrigger(node.uuid);
-    const targetDpidUrl = getTargetDpidUrl();
-    discordNotify({
-      channel: DiscordChannel.DoiMinting,
-      type: DiscordNotifyType.INFO,
-      title: 'Mint DOI',
-      message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${doiSubmission.uniqueDoi}`,
-    });
+    const isFirstDoi = await doiService.isFirstDoi(submission.dpid.toString());
+    if (isFirstDoi) {
+      const node = await getNodeByDpid(submission.dpid);
+      const doiSubmission = await doiService.autoMintTrigger(node.uuid);
+      const targetDpidUrl = getTargetDpidUrl();
+      discordNotify({
+        channel: DiscordChannel.DoiMinting,
+        type: DiscordNotifyType.INFO,
+        title: 'Mint DOI',
+        message: `${targetDpidUrl}/${submission.dpid} sent a request to mint: ${doiSubmission.uniqueDoi}`,
+      });
 
-    // update submissioin with doi
-    await journalSubmissionService.updateSubmissionDoi(submissionId, doiSubmission.uniqueDoi);
+      // update submissioin with doi
+      await journalSubmissionService.updateSubmissionDoi(submissionId, doiSubmission.uniqueDoi);
+
+      JournalEventLogService.log({
+        journalId,
+        action: JournalEventLogAction.SUBMISSION_DOI_REQUESTED,
+        userId: req.user.id,
+        submissionId,
+        details: {
+          doi: doiSubmission.uniqueDoi,
+        },
+      });
+    }
   } catch (error) {
     logger.error({ error }, 'JOURNAL_SUBMISSION::ACCEPT_SUBMISSION::Failed to mint DOI');
     // TODO: log error to sentry or private discord channel
-    // JournalEventLogService.log({
-    //   journalId,
-    //   action: JournalEventLogAction.DOI_MINTING_FAILED,
-    //   userId: req.user.id,
-    //   submissionId,
-    //   details: {
-    //     error: error.message,
-    //   },
-    // });
+    JournalEventLogService.log({
+      journalId,
+      action: JournalEventLogAction.SUBMISSION_DOI_MINTING_FAILED,
+      userId: req.user.id,
+      submissionId,
+      details: {
+        error: error.message,
+      },
+    });
   }
 
   // TODO: notify the author that the revision is requested.

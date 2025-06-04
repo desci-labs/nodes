@@ -3,8 +3,10 @@ import _ from 'lodash';
 import { err, ok } from 'neverthrow';
 
 import { prisma } from '../../client.js';
-import { AuthorisationError, ForbiddenError, NotFoundError } from '../../core/ApiError.js';
+import { ForbiddenError, NotFoundError } from '../../core/ApiError.js';
 import { logger as parentLogger } from '../../logger.js';
+
+import { JournalEventLogService } from './JournalEventLogService.js';
 
 // import { JournalEventLogService } from './JournalEventLogService.js';
 // import { AuthFailureError, ForbiddenError } from '../../core/ApiError.js';
@@ -329,6 +331,15 @@ async function updateSubmissionDoiMintedAt(doi: string) {
   if (!submission) {
     throw new NotFoundError('Submission not found');
   }
+
+  JournalEventLogService.log({
+    journalId: submission.journalId,
+    action: JournalEventLogAction.SUBMISSION_DOI_MINTED,
+    submissionId: submission.id,
+    details: {
+      doi,
+    },
+  });
 
   return await prisma.journalSubmission.update({
     where: { id: submission.id },
