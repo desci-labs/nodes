@@ -5,6 +5,7 @@ import {
   Signer,
   providers,
 } from "ethers";
+import { convertUUIDToHex } from "./util/converting.js";
 import { getNodesLibInternalConfig } from "./config/index.js";
 import { streams } from "@desci-labs/desci-codex-lib";
 import { typechain as tc } from "@desci-labs/desci-contracts";
@@ -12,6 +13,20 @@ import { PublishError } from "./errors.js";
 import { errWithCause } from "pino-std-serializers";
 
 const LOG_CTX = "[nodes-lib::chain]";
+
+/**
+ * Interact with the legacy ResearchObject contract
+ * @deprecated
+ */
+const researchObjectWriter = (signer: Signer) =>
+  getNodesLibInternalConfig().legacyChainConfig.researchObjectConnector(signer);
+
+/**
+ * Interact with the legacy dPID contract
+ * @deprecated
+ */
+const dpidRegistryWriter = (signer: Signer) =>
+  getNodesLibInternalConfig().legacyChainConfig.dpidRegistryConnector(signer);
 
 const dpidAliasRegistryWriter = (signer: Signer) =>
   getNodesLibInternalConfig().chainConfig.dpidAliasRegistryConnector(signer);
@@ -30,7 +45,7 @@ const dpidAliasRegistryReader = (provider: providers.Provider) =>
  * API method and let the backend mint the ID for you.
  */
 export const createDpidAlias = async (
-  streamId: StreamID,
+  streamId: streams.StreamID,
   signer: Signer
 ): Promise<{ dpid: number; receipt: ContractReceipt }> => {
   let tx: ContractTransaction | undefined;
@@ -107,3 +122,31 @@ export const findDpid = async (streamId: string): Promise<number> => {
   const dpidBn = await dpidAliasRegistryReader(provider).find(streamId);
   return dpidBn.toNumber();
 };
+
+/**
+ * Check if an UUID has an assigned legacy dPID
+ * @deprecated
+ */
+export const hasDpid = async (uuid: string, signer: Signer): Promise<boolean> =>
+  await researchObjectWriter(signer).exists(convertUUIDToHex(uuid));
+
+/**
+ * Get the owner address of a legacy dPID
+ * @deprecated
+ */
+export const getTokenOwner = async (
+  uuid: string,
+  signer: Signer
+): Promise<string> =>
+  (
+    await researchObjectWriter(signer).ownerOf(convertUUIDToHex(uuid))
+  ).toLowerCase();
+
+/**
+ * Get the research object token ID for a legacy dPID
+ * @deprecated
+ */
+export const getTokenId = async (
+  dpid: number,
+  signer: Signer
+): Promise<BigNumber> => await dpidRegistryWriter(signer).get("beta", dpid);
