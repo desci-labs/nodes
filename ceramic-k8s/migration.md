@@ -74,7 +74,6 @@ ceramic-one migrations from-ipfs \
     --output-store-path $CERAMIC_ONE_STORE_DIR \
     --network testnet-clay \
     --validate-signatures \
-    --validate-chain \
     --model-filter='kjzl6hvfrbw6cbe01it6hlcwopsv4cqrqysho4f1xd7rtqxew9yag3x2wxczhz0,kh4q0ozorrgaq2mezktnrmdwleo1d' \
     --log-tile-docs \
     --log-format json \
@@ -89,6 +88,29 @@ At this point, what's important is that no errors happen for our `ResearchObject
 ```bash
 # Should print "No match!"
 grep kjzl6hvfrbw6cbe01it6hlcwopsv4cqrqysho4f1xd7rtqxew9yag3x2wxczhz0 model_error_counts.csv || echo "No match!"
+```
+
+Note: on dev, there should/might be 18 errors. Grep on the same model ID in the log file, and all related errors should be mismatched chainID's in the controller (`11155420` vs `11155111`):
+```json
+{
+  "timestamp": "2025-06-03T09:05:26.289302Z",
+  "level": "ERROR",
+  "fields": {
+    "message": "error processing block",
+    "cid": "bagcqceravakeblrrcm7sh6owcau5nzrkwpvaowg2u6ytrzoxk6joym3amota",
+    "err": "fatal error: invalid_jws: 'did:pkh:eip155:11155420:0xdaf8752ddcce8a6b709aa271e7efc60f75cddf64' not in controllers list for issuer: 'did:pkh:eip155:11155111:0xdaf8752ddcce8a6b709aa271e7efc60f75cddf64'",
+    "model": "kjzl6hvfrbw6cbe01it6hlcwopsv4cqrqysho4f1xd7rtqxew9yag3x2wxczhz0"
+  },
+  "target": "ceramic_event_svc::event::migration",
+  "span": {
+    "name": "migrate"
+  },
+  "spans": [
+    {
+      "name": "migrate"
+    }
+  ]
+}
 ```
 
 ### For subsequent refreshes:

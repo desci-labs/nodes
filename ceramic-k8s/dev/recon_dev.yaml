@@ -17,6 +17,7 @@ data:
   CERAMIC_ONE_P2P_KEY_DIR: "/data/ceramic-one"
   CERAMIC_ONE_BIND_ADDRESS: "0.0.0.0:5101"
   CERAMIC_ONE_SWARM_ADDRESSES: "/ip4/0.0.0.0/tcp/4101,/ip4/0.0.0.0/udp/4102/quic-v1"
+  CERAMIC_ONE_FLIGHT_SQL_BIND_ADDRESS: "0.0.0.0:5102"
   CERAMIC_ONE_METRICS_BIND_ADDRESS: "0.0.0.0:9465"
   CERAMIC_ONE_LOCAL_NETWORK_ID: "0"
   CERAMIC_ONE_NETWORK: "testnet-clay"
@@ -88,7 +89,7 @@ spec:
       serviceAccountName: "vault-auth"
       containers:
         - name: ceramic-one
-          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.54.2
+          image: public.ecr.aws/r5b3e0r5/3box/ceramic-one:0.55.0
           command: [ "bash", "-c" ]
           args:
             # - echo "Container idling..."; tail --follow /dev/null
@@ -294,3 +295,7 @@ spec:
       protocol: UDP
       port: 4102
       targetPort: 4102
+    - name: flight-sql
+      protocol: TCP
+      port: 5102
+      targetPort: 5102
