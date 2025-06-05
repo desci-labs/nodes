@@ -203,28 +203,25 @@ async function getAllRefereeReviewsBySubmission({
   submissionId: number;
   refereeId: number;
 }) {
-  const reviews = await prisma.refereeAssignment.findMany({
+  const reviews = await prisma.journalSubmissionReview.findMany({
     where: {
-      refereeId,
-      submissionId,
-      // CompletedAssignment is only false if the referee drops out.
-      OR: [{ completedAssignment: true }, { completedAssignment: null }],
+      refereeAssignment: {
+        refereeId,
+        submissionId,
+        OR: [{ completedAssignment: true }, { completedAssignment: null }],
+      },
     },
-    include: {
+    select: {
+      id: true,
+      recommendation: true,
+      review: true,
+      editorFeedback: true,
+      authorFeedback: true,
+      submittedAt: true,
       submission: {
         select: {
           id: true,
           author: { select: { id: true, name: true, orcid: true } },
-        },
-      },
-      reviews: {
-        select: {
-          id: true,
-          recommendation: true,
-          review: true,
-          editorFeedback: true,
-          authorFeedback: true,
-          submittedAt: true,
         },
       },
     },
