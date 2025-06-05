@@ -48,17 +48,21 @@ export const createGuestUser = async (req: Request, res: Response): Promise<Resp
 
     logger.info({ userId: user.id }, '[GUEST] Guest user created successfully');
 
-    await saveInteraction({
-      req,
-      action: ActionType.USER_ACTION,
-      data: JSON.stringify({
-        action: AvailableUserActionLogTypes.actionGuestModeVisit,
-        details: {
-          id: user.id,
-        },
-      }),
-      userId: user?.id,
-    });
+    try {
+      await saveInteraction({
+        req,
+        action: ActionType.USER_ACTION,
+        data: JSON.stringify({
+          action: AvailableUserActionLogTypes.actionGuestModeVisit,
+          details: {
+            id: user.id,
+          },
+        }),
+        userId: user?.id,
+      });
+    } catch (error) {
+      logger.error({ error }, 'Failed to save interaction');
+    }
 
     return res.send({
       ok: true,
