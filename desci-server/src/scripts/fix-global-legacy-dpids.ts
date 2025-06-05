@@ -28,6 +28,8 @@ import * as readline from 'readline';
 import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
 
+import { SERVER_ENV } from '../config/index.js';
+import legacyDpidContractMap from '../data/legacy_dpid_contract_map.json' assert { type: 'json' };
 import { getManifestByCid } from '../services/data/processing.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
@@ -95,23 +97,6 @@ function askQuestion(question: string): Promise<boolean> {
   });
 }
 
-export async function getDpidFromNodeUuid(nodeUuid: string): Promise<number | string | undefined> {
-  const node = await prisma.node.findUnique({
-    where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
-    select: { manifestUrl: true },
-  });
-
-  try {
-    if (!node?.manifestUrl) throw new Error('No manifest URL found for node');
-    const manifestCid = node.manifestUrl;
-    const manifest = await getManifestByCid(manifestCid);
-    return manifest?.dpid?.id;
-  } catch (e) {
-    console.log(`failing to resolve the manifest for ${nodeUuid}`, e);
-    return undefined;
-  }
-}
-
 /**
  * Main function to find and fix missing legacy DPIDs for published nodes.
  */
@@ -120,15 +105,24 @@ async function fixAllMissingLegacyDpids() {
   console.log(`Target API URL for DPID lookup (if manifest fails): ${NODES_API_BASE_URL}`);
   console.log(`Target IPFS Gateway for manifest lookup: ${IPFS_NODE_URL}`);
 
+  const contractMap = SERVER_ENV === 'PRODUCTION' ? legacyDpidContractMap.prod : legacyDpidContractMap.dev;
+
+  const inverseContractUuidToDpidMap = Object.fromEntries(
+    Object.entries(contractMap).map(([dpid, uuid]) => [uuid + '.', dpid]), // The UUIDS are dotless in the JSON, we transform this for the db lookup.
+  );
+
   const candidateNodes = await prisma.node.findMany({
     where: {
       dpidAlias: null,
       legacyDpid: null,
-      versions: {
-        some: {
-          OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
-        },
+      uuid: {
+        in: Object.keys(inverseContractUuidToDpidMap),
       },
+      //   versions: { Flawed condition for getting all published nodes - missing entries.
+      //     some: {
+      //       OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+      //     },
+      //   },
     },
     orderBy: { createdAt: 'asc' },
   });
@@ -146,7 +140,7 @@ async function fixAllMissingLegacyDpids() {
   for (const node of candidateNodes) {
     if (!node.uuid) continue;
 
-    const dpid = (await getDpidFromNodeUuid(node.uuid))?.toString();
+    const dpid = inverseContractUuidToDpidMap[node.uuid];
 
     if (dpid && isValidDpid(dpid)) {
       nodesToFix.push({
