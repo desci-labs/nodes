@@ -32,7 +32,7 @@ server.ready().then((_) => {
 });
 export const app = server.app;
 
-describe.only('Journal Reviews', () => {
+describe('Journal Reviews', () => {
   let author: MockUser;
   let chiefEditor: MockUser;
   let associateEditor: MockUser;
