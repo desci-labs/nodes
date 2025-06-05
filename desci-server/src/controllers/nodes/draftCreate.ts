@@ -3,6 +3,7 @@ import { DataReference, GuestDataReference } from '@prisma/client';
 import { Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { addBufferToIpfs, makeManifest, getNodeToUse, updateManifestAndAddToIpfs } from '../../services/ipfs.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
@@ -10,7 +11,6 @@ import repoService from '../../services/repoService.js';
 import { transformDataRefsToGuestDataRefs } from '../../utils/dataRefTools.js';
 import { DRIVE_NODE_ROOT_PATH, getDbComponentType } from '../../utils/driveUtils.js';
 import { randomUUID64 } from '../../utils.js';
-import { AuthenticatedRequest } from '../notifications/create.js';
 
 export const draftCreate = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const owner = req.user;

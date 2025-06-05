@@ -20,5 +20,5 @@ npx prisma db seed
 cp node_modules/.prisma/*/* ../desci-repo/node_modules/.prisma/
 
 (npx prisma studio &)
-# npm run test:destructive:debug
-npm run test:destructive:analytics
+npm run test:destructive:debug
+# npm run test:destructive:analytics

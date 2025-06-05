@@ -48,7 +48,7 @@ model Node {
   DistributionPdfs     DistributionPdfs[]
   PdfPreviews          PdfPreviews[]
   DoiRecord            DoiRecord[]
-  dpidAlias            Int?
+  dpidAlias            Int?                   @unique
   legacyDpid           Int? // for backwards compatibility prior to ceramic
   DoiSubmissionQueue   DoiSubmissionQueue[]
   BookmarkedNode       BookmarkedNode[]
@@ -64,6 +64,7 @@ model Node {
   GuestDataReference   GuestDataReference[]
   DataMigration        DataMigration[]
   dataMigrationId      Int?
+  JournalSubmission    JournalSubmission[]
 
   @@index([ownerId])
   @@index([uuid])
@@ -244,6 +245,23 @@ model User {
   PublishedWallet             PublishedWallet[]
   GuestDataReference          GuestDataReference[]
   DataMigration               DataMigration[]
+
+  // Relationships
+  editorRoles            JournalEditor[] // User as editor
+  authoredSubmissions    JournalSubmission[] @relation("AuthorSubmission")
+  assignedSubmissions    JournalSubmission[] @relation("EditorSubmission")
+  refereeAssignments     RefereeAssignment[]
+  invitedEditors         JournalEditor[]     @relation("InviterRelation")
+  inviteCredits          Int                 @default(0)
+  JournalEventLogs       JournalEventLog[]
+  JournalSubmissions     JournalSubmission[]
+  EditorInvite           EditorInvite[]
+  // messagesSent        Message[]           @relation("MessageSender")
+  // messagesReceived    Message[]           @relation("MessageReceiver")
+  // Message             Message[]
+  // JournalSubmissionMessage JournalSubmissionMessage[]
+  refereeInvitesSent     RefereeInvite[]     @relation("InvitedBy")
+  refereeInvitesReceived RefereeInvite[]     @relation("RefereeUser")
 
   @@index([orcid])
   @@index([walletAddress])
@@ -1032,18 +1050,19 @@ model DoiSubmissionQueue {
 }
 
 model UserNotifications {
-  id        Int              @id @default(autoincrement())
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id        Int                  @id @default(autoincrement())
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
   userId    Int
   nodeUuid  String?
   type      NotificationType
+  category  NotificationCategory @default(DESCI_PUBLISH)
   title     String
   message   String
   payload   Json? // E.g. hyperlinks, DPID, DOI, frontend handles.
-  dismissed Boolean          @default(false)
-  node      Node?            @relation(fields: [nodeUuid], references: [uuid])
-  user      User             @relation(fields: [userId], references: [id])
+  dismissed Boolean              @default(false)
+  node      Node?                @relation(fields: [nodeUuid], references: [uuid])
+  user      User                 @relation(fields: [userId], references: [id])
 }
 
 model PublishStatus {
@@ -1125,6 +1144,246 @@ model DataMigration {
   nodes           Node[]
   userId          Int
   user            User                   @relation(fields: [userId], references: [id])
+}
+
+model Journal {
+  id           Int      @id @default(autoincrement())
+  name         String
+  description  String?
+  iconCid      String? // URL to icon
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  isCommercial Boolean  @default(false)
+
+  // Relationships
+  editors                   JournalEditor[]
+  submissions               JournalSubmission[]
+  EditorInvite              EditorInvite[]
+  // JournalEmailTemplate JournalEmailTemplate[]
+  JournalBilling            JournalBilling?
+  JournalEventLog           JournalEventLog[]
+  RefereeAssignment         RefereeAssignment[]
+  JournalSubmissionReview   JournalSubmissionReview[]
+  JournalSubmissionRevision JournalSubmissionRevision[]
+}
+
+model JournalEditor {
+  id          Int        @id @default(autoincrement())
+  journalId   Int
+  userId      Int
+  role        EditorRole
+  expertise   String[] // OpenAlex topics
+  inviterId   Int?
+  invitedAt   DateTime   @default(now())
+  acceptedAt  DateTime?
+  maxWorkload Int        @default(10) // Maximum number of submissions an editor is comfortable handling.
+
+  // Relationships
+  journal Journal @relation(fields: [journalId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  inviter User?   @relation("InviterRelation", fields: [inviterId], references: [id])
+
+  @@unique([userId, journalId])
+}
+
+model JournalSubmission {
+  id               Int              @id @default(autoincrement())
+  journalId        Int
+  authorId         Int
+  dpid             Int // Node dPID
+  version          Int // Node version
+  status           SubmissionStatus @default(SUBMITTED)
+  assignedEditorId Int?
+  submittedAt      DateTime         @default(now())
+  acceptedAt       DateTime?
+  rejectedAt       DateTime?
+  doiMintedAt      DateTime?
+  doi              String? // Minted DOI
+
+  // Relationships
+  journal            Journal                     @relation(fields: [journalId], references: [id])
+  author             User                        @relation("AuthorSubmission", fields: [authorId], references: [id])
+  assignedEditor     User?                       @relation("EditorSubmission", fields: [assignedEditorId], references: [id])
+  revisions          JournalSubmissionRevision[]
+  refereeAssignments RefereeAssignment[]
+  reviews            JournalSubmissionReview[]
+  eventLogs          JournalEventLog[]
+  User               User?                       @relation(fields: [userId], references: [id])
+  userId             Int?
+  RefereeInvite      RefereeInvite[]
+  node               Node                        @relation(fields: [dpid], references: [dpidAlias])
+  // Message            Message[]
+  // JournalSubmissionMessage JournalSubmissionMessage[]
+}
+
+model JournalSubmissionRevision {
+  id           Int                   @id @default(autoincrement())
+  journalId    Int
+  submissionId Int
+  dpid         Int // New Node dPID
+  version      Int // New Node version
+  status       JournalRevisionStatus @default(PENDING)
+  submittedAt  DateTime              @default(now())
+  comments     String?
+  acceptedAt   DateTime?
+  rejectedAt   DateTime?
+
+  // Relationships
+  submission JournalSubmission @relation(fields: [submissionId], references: [id])
+  journal    Journal           @relation(fields: [journalId], references: [id])
+}
+
+model RefereeAssignment {
+  id                  Int       @id @default(autoincrement())
+  submissionId        Int
+  refereeId           Int
+  assignedById        Int // Editor who assigned
+  assignedAt          DateTime  @default(now())
+  reassignedAt        DateTime? // Would show if the assignment is a reassignment.
+  dueDate             DateTime?
+  completedAssignment Boolean? // Only false if the referee drops out.
+  completedAt         DateTime?
+  journalId           Int
+
+  // Relationships
+  submission JournalSubmission         @relation(fields: [submissionId], references: [id])
+  referee    User                      @relation(fields: [refereeId], references: [id])
+  reviews    JournalSubmissionReview[]
+  journal    Journal                   @relation(fields: [journalId], references: [id])
+
+  @@unique([submissionId, refereeId])
+}
+
+model JournalSubmissionReview {
+  id                  Int             @id @default(autoincrement())
+  submissionId        Int
+  journalId           Int
+  refereeAssignmentId Int
+  recommendation      ReviewDecision?
+  submittedAt         DateTime?
+  editorFeedback      String?
+  authorFeedback      String?
+  review              Json            @default("[]")
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  // Relationships
+  journal           Journal           @relation(fields: [journalId], references: [id])
+  submission        JournalSubmission @relation(fields: [submissionId], references: [id])
+  refereeAssignment RefereeAssignment @relation(fields: [refereeAssignmentId], references: [id])
+}
+
+model JournalEventLog {
+  id           Int                   @id @default(autoincrement())
+  submissionId Int? // Made optional to support events that aren't tied to a submission, e.g. assigining an associate editor.
+  journalId    Int
+  userId       Int? // Optional for unauthed actions, i.e. decline an invite.
+  action       JournalEventLogAction
+  details      Json?
+  timestamp    DateTime              @default(now())
+
+  // Relationships
+  submission JournalSubmission? @relation(fields: [submissionId], references: [id])
+  journal    Journal            @relation(fields: [journalId], references: [id])
+  user       User?              @relation(fields: [userId], references: [id])
+}
+
+model EditorInvite {
+  id         Int        @id @default(autoincrement())
+  email      String
+  journalId  Int
+  role       EditorRole
+  inviterId  Int
+  createdAt  DateTime   @default(now())
+  expiresAt  DateTime
+  decisionAt DateTime?
+  token      String     @unique
+  accepted   Boolean?
+
+  // Relationships
+  journal Journal @relation(fields: [journalId], references: [id])
+  inviter User    @relation(fields: [inviterId], references: [id])
+}
+
+model RefereeInvite {
+  id                 Int       @id @default(autoincrement())
+  email              String
+  userId             Int?
+  submissionId       Int
+  invitedById        Int
+  token              String    @unique
+  createdAt          DateTime  @default(now())
+  expiresAt          DateTime
+  accepted           Boolean   @default(false)
+  acceptedAt         DateTime?
+  declined           Boolean   @default(false)
+  declinedAt         DateTime?
+  relativeDueDateHrs Int? // Proposed review deadline in hours, relative to the time of invite acceptance.
+
+  // suggestedReferees String[] @default([])   - We don't know the type of this yet TBD
+
+  // Relationships
+  submission JournalSubmission @relation(fields: [submissionId], references: [id])
+  invitedBy  User              @relation("InvitedBy", fields: [invitedById], references: [id])
+  user       User?             @relation("RefereeUser", fields: [userId], references: [id])
+}
+
+// model JournalSubmissionMessage {
+//   id           Int       @id @default(autoincrement())
+//   submissionId Int
+//   senderId     Int
+//   receiverId   Int
+//   message      String
+//   createdAt    DateTime  @default(now())
+//   readAt       DateTime?
+
+//   // Relationships
+//   submission JournalSubmission @relation(fields: [submissionId], references: [id])
+//   sender     User              @relation("MessageSender", fields: [senderId], references: [id])
+//   receiver   User              @relation("MessageReceiver", fields: [receiverId], references: [id])
+//   User       User?             @relation(fields: [userId], references: [id])
+//   userId     Int?
+// }
+
+// model JournalEmailTemplate { 
+//   id        Int               @id @default(autoincrement())
+//   journalId Int
+//   type      EmailTemplateType
+//   subject   String
+//   body      String     // Don't think this can be expressed in a string in a useful way, maybe a JSON Object, lets deal with this during implementation.
+
+//   // Relationships
+//   journal Journal @relation(fields: [journalId], references: [id])
+// }
+
+model JournalBilling {
+  id                Int       @id @default(autoincrement())
+  journalId         Int       @unique
+  invoicingEmail    String?
+  billingAddress    String?
+  totalDoisMinted   Int       @default(0)
+  totalAmountBilled Float     @default(0)
+  lastInvoiceDate   DateTime?
+
+  // Relationships
+  journal  Journal          @relation(fields: [journalId], references: [id])
+  invoices JournalInvoice[]
+}
+
+model JournalInvoice {
+  id            Int           @id @default(autoincrement())
+  billingId     Int
+  invoiceNumber String
+  amount        Float
+  doisMinted    Int
+  periodStart   DateTime
+  periodEnd     DateTime
+  issueDate     DateTime
+  paidDate      DateTime?
+  status        InvoiceStatus @default(PENDING)
+
+  // Relationships
+  billing JournalBilling @relation(fields: [billingId], references: [id])
 }
 
 enum MigrationType {
@@ -1297,6 +1556,26 @@ enum NotificationType {
   CONTRIBUTOR_INVITE
   DOI_ISSUANCE_STATUS
   ATTESTATION_VALIDATION
+  JOURNAL_EDITOR_INVITE
+  SUBMISSION_ASSIGNED_TO_EDITOR
+  SUBMISSION_REASSIGNED_TO_EDITOR
+  REFEREE_INVITE
+  REFEREE_REASSIGNED
+  REFEREE_ACCEPTED
+  REFEREE_DECLINED
+  REFEREE_REVIEW_REMINDER
+  MAJOR_REVISION_REQUESTED
+  MINOR_REVISION_REQUESTED
+  REVISION_SUBMITTED
+  SUBMISSION_DESK_REJECTION
+  SUBMISSION_FINAL_REJECTION
+  SUBMISSION_ACCEPTED
+  SUBMISSION_OVERDUE_EDITOR_REMINDER
+}
+
+enum NotificationCategory {
+  DESCI_PUBLISH
+  DESCI_JOURNALS
 }
 
 enum BookmarkType {
@@ -1309,4 +1588,78 @@ enum Submissionstatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+enum EditorRole {
+  CHIEF_EDITOR
+  ASSOCIATE_EDITOR
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  REVISION_REQUESTED
+  ACCEPTED
+  REJECTED
+}
+
+enum JournalRevisionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum ReviewDecision {
+  ACCEPT
+  MINOR_REVISION
+  MAJOR_REVISION
+  REJECT
+}
+
+enum JournalEventLogAction {
+  JOURNAL_CREATED
+  JOURNAL_UPDATED
+  SUBMISSION_CREATED
+  EDITOR_ASSIGNED
+  EDITOR_INVITED
+  EDITOR_ACCEPTED_INVITE
+  EDITOR_DECLINED_INVITE
+  EDITOR_REMOVED
+  EDITOR_UPDATED
+  EDITOR_ROLE_CHANGED
+  SUBMISSION_ACCEPTED
+  SUBMISSION_REJECTED
+  REVISION_REQUESTED
+  REVISION_SUBMITTED
+  REVISION_ACCEPTED
+  REVISION_REJECTED
+  DOI_MINTED
+  REFEREE_INVITED
+  REFEREE_ACCEPTED
+  REFEREE_DECLINED
+  REFEREE_REASSIGNED
+  REFEREE_ASSIGNMENT_DROPPED
+  REVIEW_CREATED
+  REVIEW_UPDATED
+  REVIEW_SUBMITTED
+  STATUS_CHANGED
+  SUBMISSION_DOI_REQUESTED
+  SUBMISSION_DOI_MINTED
+  SUBMISSION_DOI_MINTING_FAILED
+}
+
+enum EmailTemplateType {
+  EDITOR_INVITE
+  REFEREE_INVITE
+  SUBMISSION_STATUS_UPDATE
+  REVISION_REQUEST
+  DECISION_NOTIFICATION
+  DOI_MINTED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELED
 }
