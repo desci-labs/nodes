@@ -131,7 +131,7 @@ const getHistoryFromDpids = async (dpidsToUuidsMap: Record<number, string>): Pro
   try {
     // Convert resolver format to server format
     indexedHistory = historyRes.data.map((ro, index) => ({
-      id: uuids[index],
+      id: '0x' + decodeBase64UrlSafeToHex(uuids[index]),
       id10: BigInt('0x' + decodeBase64UrlSafeToHex(uuids[index])).toString(),
       streamId: ro.id,
       owner: ro.owner,
