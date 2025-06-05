@@ -6,7 +6,7 @@ import { prisma } from '../../src/client.js';
 import { NotificationService } from '../../src/services/Notifications/NotificationService.js';
 import { expectThrowsAsync } from '../util.js';
 
-describe.skip('Notification Service', () => {
+describe('Notification Service', () => {
   let user: User;
 
   beforeEach(async () => {
