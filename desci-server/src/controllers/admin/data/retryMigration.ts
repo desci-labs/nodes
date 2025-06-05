@@ -3,9 +3,9 @@ import { Response } from 'express';
 import { z } from 'zod';
 
 import { prisma } from '../../../client.js';
+import { AuthenticatedRequest } from '../../../core/types.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { DataMigrationService } from '../../../services/DataMigration/DataMigrationService.js';
-import { AuthenticatedRequest } from '../../notifications/create.js';
 
 const retryMigrationSchema = z.object({
   params: z.object({
