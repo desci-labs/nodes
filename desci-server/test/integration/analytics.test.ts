@@ -665,7 +665,6 @@ describe('Desci Analytics', async () => {
       // expect(analytics[4].activeUsers, 'active users 4 weeks ago').to.equal(
       //   userInteractionsInLast30Days.length + orcidUsersInteractionsInLast30Days.length,
       // ); // sum of user interactions in last 30 days and orcid user interactions in last 30 days
-
       // expect(analytics[4].activeOrcidUsers, 'active orcid users 4 weeks ago').to.equal(
       //   orcidUsersInteractionsInLast30Days.length,
       // ); // sum of orcid user interactions in last 30 days
