@@ -104,12 +104,12 @@ async function inviteJournalEditor({
   });
 
   if (inviteeExistingUser) {
-    await NotificationService.emitOnJournalEditorInvite({
-      journal,
-      editor: inviteeExistingUser,
-      inviter,
-      role,
-    });
+    // await NotificationService.emitOnJournalEditorInvite({
+    //   journal,
+    //   editor: inviteeExistingUser,
+    //   inviter,
+    //   role,
+    // });
   }
 
   logger.info(
