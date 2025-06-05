@@ -18,7 +18,7 @@ kubectl port-forward ipfs-gateway-staging-[pod_ID] 5001:5001
 
 First, install dependencies:
 ```bash
-pnpm i
+npm i
 ```
 
 The script takes two command-line arguments:
