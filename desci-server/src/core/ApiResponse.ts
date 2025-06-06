@@ -1,5 +1,7 @@
 import { Response } from 'express';
 
+import { sanitizeBigInts } from './utils.js';
+
 enum ResponseStatus {
   SUCCESS = 200,
   CREATED = 201,
@@ -25,7 +27,7 @@ export abstract class ApiResponse {
 
   protected prepare<T extends ApiResponse>(res: Response, data: T, headers: { [key: string]: string }): Response {
     for (const [key, value] of Object.entries(headers)) res.append(key, value);
-    const sanitizedData = ApiResponse.sanitize(data);
+    const sanitizedData = ApiResponse.sanitize(sanitizeBigInts(data));
     return sanitizedData ? res.status(this.status).json(sanitizedData) : res.status(this.status).send();
   }
 

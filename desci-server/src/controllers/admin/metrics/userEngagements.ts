@@ -70,6 +70,5 @@ export const getUserEngagementMetrics = async (req: RequestWithUser, res: Respon
   const exploringUsers = await getExploringUsersEngagementMetrics();
   logger.trace({ activeUsers, publishingUsers, exploringUsers }, 'getUserEngagementMetrics');
 
-  //   new SuccessResponse({ activeUsers, publishingUsers, exploringUsers }).send(res);
-  res.send({ activeUsers, publishingUsers, exploringUsers });
+  new SuccessResponse({ activeUsers, publishingUsers, exploringUsers }).send(res);
 };
