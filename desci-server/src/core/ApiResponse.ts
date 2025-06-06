@@ -23,10 +23,10 @@ export abstract class ApiResponse {
     private message?: string,
   ) {}
 
-  protected prepare<T extends ApiResponse>(res: Response, response: T, headers: { [key: string]: string }): Response {
+  protected prepare<T extends ApiResponse>(res: Response, data: T, headers: { [key: string]: string }): Response {
     for (const [key, value] of Object.entries(headers)) res.append(key, value);
-    const data = ApiResponse.sanitize(response);
-    return data ? res.status(this.status).json(data) : res.status(this.status).send();
+    const sanitizedData = ApiResponse.sanitize(data);
+    return sanitizedData ? res.status(this.status).json(sanitizedData) : res.status(this.status).send();
   }
 
   public send(res: Response, headers: Headers = {}): Response {

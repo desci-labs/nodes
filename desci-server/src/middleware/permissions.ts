@@ -20,7 +20,7 @@ export const ensureUser = async (req: ExpressRequest, res: Response, next: NextF
   const authTokenRetrieval = await extractUserFromToken(token);
   const apiKeyRetrieval = await extractUserFromApiKey(apiKey, req.ip);
   const retrievedUser = authTokenRetrieval || apiKeyRetrieval;
-
+  logger.trace({ token, apiKey, retrievedUser }, 'ENSURE USER');
   if (!retrievedUser) {
     res.status(401).send({ ok: false, message: 'Unauthorized' });
   } else if (retrievedUser.isGuest) {
@@ -73,7 +73,7 @@ export const ensureGuestOrUser = async (req: ExpressRequest, res: Response, next
  */
 export const extractAuthToken = async (request: ExpressRequest | Request) => {
   let token = await extractTokenFromCookie(request, AUTH_COOKIE_FIELDNAME);
-
+  logger.trace({ token, AUTH_COOKIE_FIELDNAME }, 'extractAuthToken');
   if (!token) {
     // Try to retrieve the token from the header
     const authHeader = request.headers['authorization'];

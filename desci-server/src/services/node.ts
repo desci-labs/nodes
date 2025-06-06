@@ -1,10 +1,10 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Node, NodeVersion, Prisma } from '@prisma/client';
 import axios from 'axios';
-import _ from 'lodash';
+import _, { range } from 'lodash';
 
 import { prisma } from '../client.js';
-import { logger as parentLogger } from '../logger.js';
+import { logger, logger as parentLogger } from '../logger.js';
 import { getFromCache, setToCache } from '../redisClient.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
@@ -137,6 +137,40 @@ export const countPublishedNodesInRange = async (range: { from: Date; to: Date }
     },
   });
   return result.length;
+};
+
+export const countAllNodes = async () => {
+  return await prisma.node.count({});
+};
+
+export const countAllPublishedNodes = async () => {
+  const result = await prisma.nodeVersion.groupBy({
+    by: ['nodeId'],
+    _count: {
+      _all: true,
+    },
+    where: {
+      OR: [
+        {
+          transactionId: {
+            not: null,
+          },
+        },
+        {
+          commitId: {
+            not: null,
+          },
+        },
+      ],
+    },
+  });
+  return result.length;
+};
+
+export const countAllCommunityNodes = async () => {
+  const res = (await prisma.communitySubmission.groupBy({ by: ['nodeId'] })).length;
+  logger.trace({ res }, 'countAllCommunityNodes');
+  return res;
 };
 
 const NODE_DETAILS_CACHE_KEY = `NODE_DETAILS_CACHE_KEY`;

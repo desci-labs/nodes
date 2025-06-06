@@ -388,3 +388,70 @@ export const getDownloadedBytesInXDays = async (daysAgo: number) => {
 
   return bytes;
 };
+
+export const countExploringUsersInRange = async (range: { from: Date; to: Date }): Promise<number> => {
+  logger.trace({ fn: 'countExploringUsersInRange' }, 'interactionLog::countExploringUsersInRange');
+
+  const res = (await prisma.$queryRaw`
+  SELECT
+      count(distinct "userId")
+  FROM
+      "InteractionLog" z
+  WHERE
+      ACTION = 'USER_ACTION'
+      AND "userId" IS NOT NULL
+      AND (
+          extra :: jsonb -> 'action' = '"search"' :: jsonb
+          OR  extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
+          OR  extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
+          OR  extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
+          OR  extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
+          OR  extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
+          OR  extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
+      ) and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`) as {
+    count: number;
+  }[];
+
+  logger.trace({ res }, 'countExploringUsersInRange');
+  return res[0].count;
+};
+
+export const countResearchObjectsUpdated = async () => {
+  logger.trace({ fn: 'countResearchObjectsUpdated' }, 'interactionLog::countResearchObjectsUpdated');
+
+  const res = (await prisma.$queryRaw`
+  SELECT
+      count(distinct "userId")
+  FROM
+      "InteractionLog" z
+  WHERE
+      ACTION = 'USER_ACTION'
+      AND "userId" IS NOT NULL
+      AND (
+          extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
+      )`) as {
+    count: number;
+  }[];
+
+  logger.trace({ res }, 'countResearchObjectsUpdated');
+  return res[0].count;
+};
+export const countResearchObjectsShared = async () => {
+  logger.trace({ fn: 'countResearchObjectsShared' }, 'interactionLog::countResearchObjectsShared');
+
+  const res = (await prisma.$queryRaw`
+  SELECT
+      count(distinct "userId")
+  FROM
+      "InteractionLog" z
+  WHERE
+      ACTION = 'USER_ACTION'
+      AND "userId" IS NOT NULL
+      AND extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
+      `) as {
+    count: number;
+  }[];
+
+  logger.trace({ res }, 'countResearchObjectsShared');
+  return res[0].count;
+};
