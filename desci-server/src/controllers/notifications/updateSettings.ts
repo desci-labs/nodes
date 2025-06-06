@@ -1,15 +1,12 @@
-import { User, NotificationType } from '@prisma/client';
-import { Request, Response } from 'express';
+import { NotificationType } from '@prisma/client';
+import { Response } from 'express';
 import { z } from 'zod';
 
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { updateNotificationSettings } from '../../services/NotificationService.js';
+import { NotificationService } from '../../services/Notifications/NotificationService.js';
 
 const NotificationSettingsSchema = z.record(z.nativeEnum(NotificationType), z.boolean());
-
-interface AuthenticatedRequest extends Request {
-  user: User;
-}
 
 export interface ErrorResponse {
   error: string;
@@ -34,7 +31,7 @@ export const updateSettings = async (
     const { id: userId } = req.user;
     const settings = NotificationSettingsSchema.parse(req.body);
 
-    const newSettings = await updateNotificationSettings(userId, settings);
+    const newSettings = await NotificationService.updateNotificationSettings(userId, settings);
 
     return res.status(200).json(newSettings);
   } catch (error) {

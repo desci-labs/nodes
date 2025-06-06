@@ -17,6 +17,7 @@ import {
 import { authorPaths } from './authors.js';
 import { communityPaths } from './communities.js';
 import { doiPaths } from './doi.js';
+import { journalPaths } from './journals.js';
 import { openAlexPaths } from './openalex.js';
 import { searchPaths } from './search.js';
 import {
@@ -128,6 +129,7 @@ export const openaiDocumentation = createDocument({
     ...searchPaths,
     ...doiPaths,
     ...openAlexPaths,
+    ...journalPaths,
     ...adminNodesPaths,
     ...metricsPaths,
   },
