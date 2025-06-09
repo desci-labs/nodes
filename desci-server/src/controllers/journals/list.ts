@@ -17,7 +17,7 @@ type ListJournalsRequest = ValidatedRequest<typeof listJournalsSchema, OptionalA
  */
 export const listJournalsController = async (req: ListJournalsRequest, res: Response) => {
   try {
-    const { participatingOnly } = req.validatedData.params;
+    const { participatingOnly } = req.validatedData.query;
     const user = req.user;
     logger.info({ participatingOnly, userId: user?.id }, 'Attempting to list all journals');
 
