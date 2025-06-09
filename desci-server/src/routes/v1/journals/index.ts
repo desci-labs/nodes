@@ -73,7 +73,15 @@ const router = Router();
 
 // General
 router.get('/', listJournalsController);
-router.get('/:journalId', [attachUser, validateInputs(getJournalSchema)], showJournalController);
+router.get(
+  '/:journalId',
+  [
+    ensureUser,
+    ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
+    validateInputs(getJournalSchema),
+  ],
+  showJournalController,
+);
 
 // Invites
 router.post(
@@ -239,12 +247,5 @@ router.post(
   [ensureUser, ensureJournalRole(EditorRole.ASSOCIATE_EDITOR), validateInputs(revisionActionSchema)],
   asyncHandler(revisionActionController),
 );
-
-// Disable for now
-// router.patch(
-//   '/:journalId/submissions/:submissionId/referees/:assignmentId/invalidate',
-//   [ensureUser, validateInputs(invalidateRefereeAssignmentSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
-//   asyncHandler(invalidateRefereeAssignmentController),
-// );
 
 export default router;
