@@ -29,7 +29,7 @@ export const listJournalsOperation: ZodOpenApiOperationObject = {
   operationId: 'listJournals',
   tags: ['Journals'],
   summary: 'List all journals',
-  requestParams: { path: listJournalsSchema.shape.params },
+  requestParams: { query: listJournalsSchema.shape.query },
   responses: {
     '200': {
       description: 'Successful operation',

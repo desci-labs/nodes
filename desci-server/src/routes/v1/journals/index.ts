@@ -66,13 +66,14 @@ import {
   rejectSubmissionSchema,
   revisionActionSchema,
   revisionApiSchema,
+  listJournalsSchema,
 } from '../../../schemas/journals.schema.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
 const router = Router();
 
 // General
-router.get('/', [attachUser], listJournalsController);
+router.get('/', [attachUser, validateInputs(listJournalsSchema)], listJournalsController);
 router.get(
   '/:journalId',
   [
