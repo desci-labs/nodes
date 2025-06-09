@@ -72,7 +72,7 @@ import { asyncHandler } from '../../../utils/asyncHandler.js';
 const router = Router();
 
 // General
-router.get('/', listJournalsController);
+router.get('/', [attachUser], listJournalsController);
 router.get(
   '/:journalId',
   [

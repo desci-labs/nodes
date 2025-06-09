@@ -184,8 +184,17 @@ export type ListedJournal = Prisma.JournalGetPayload<{
   };
 }>;
 
-async function listJournals(): Promise<Result<ListedJournal[], Error>> {
+/**
+ * @param userId - The user ID to filter journals by. If not provided, all journals will be returned.
+ */
+async function listJournals(userId?: number): Promise<Result<ListedJournal[], Error>> {
   try {
+    const whereClause: Prisma.JournalWhereInput = {};
+
+    if (userId) {
+      whereClause.editors = { some: { userId } };
+    }
+
     const journals = await prisma.journal.findMany({
       select: {
         id: true,
@@ -194,6 +203,7 @@ async function listJournals(): Promise<Result<ListedJournal[], Error>> {
         iconCid: true,
         createdAt: true,
       },
+      where: whereClause,
     });
     return ok(journals);
   } catch (error) {
