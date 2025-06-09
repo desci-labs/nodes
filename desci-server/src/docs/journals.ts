@@ -21,6 +21,7 @@ import {
   submitRevisionSchema,
   revisionApiSchema,
   revisionActionSchema,
+  listJournalsSchema,
 } from '../schemas/journals.schema.js';
 
 // List Journals
@@ -28,6 +29,7 @@ export const listJournalsOperation: ZodOpenApiOperationObject = {
   operationId: 'listJournals',
   tags: ['Journals'],
   summary: 'List all journals',
+  requestParams: { query: listJournalsSchema.shape.query },
   responses: {
     '200': {
       description: 'Successful operation',

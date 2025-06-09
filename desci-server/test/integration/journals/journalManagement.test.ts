@@ -439,10 +439,23 @@ describe('Journal Management Service', () => {
         expect(res.body.data.journal.editors).to.be.an('array');
       });
 
-      it('should return 404 for non-existent journal', async () => {
-        const res = await request(app).get('/v1/journals/999').set('authorization', `Bearer ${authToken}`);
+      it('should return 403 for a journal you dont have access to', async () => {
+        const newJournalResult = await JournalManagementService.createJournal({
+          name: 'Test Journal',
+          description: 'A test journal',
+          ownerId: editor.id, // Different owner to auth token used below
+        });
+        const newJournal = newJournalResult._unsafeUnwrap();
+        const res = await request(app).get(`/v1/journals/${newJournal.id}`).set('authorization', `Bearer ${authToken}`);
 
-        expect(res.status).to.equal(404);
+        expect(res.status).to.equal(403);
+      });
+
+      it('should return 403 for a non existing journal', async () => {
+        // 403 Because the user can't be a member of the journal
+        const res = await request(app).get(`/v1/journals/999`).set('authorization', `Bearer ${authToken}`);
+
+        expect(res.status).to.equal(403);
       });
     });
 

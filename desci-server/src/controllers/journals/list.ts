@@ -1,18 +1,27 @@
 import { Response, Request } from 'express';
 
 import { sendError, sendSuccess } from '../../core/api.js';
+import { OptionalAuthenticatedRequest, ValidatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
+import { listJournalsSchema } from '../../schemas/journals.schema.js';
 import { JournalManagementService } from '../../services/journals/JournalManagementService.js';
 
 const logger = parentLogger.child({
   module: 'Journals::ListJournalsController',
 });
 
-export const listJournalsController = async (req: Request, res: Response) => {
-  try {
-    logger.info('Attempting to list all journals');
+type ListJournalsRequest = ValidatedRequest<typeof listJournalsSchema, OptionalAuthenticatedRequest>;
 
-    const result = await JournalManagementService.listJournals();
+/**
+ * @param participatingOnly - If true, only journals that the user is participating in will be returned.
+ */
+export const listJournalsController = async (req: ListJournalsRequest, res: Response) => {
+  try {
+    const { participatingOnly } = req.validatedData.query;
+    const user = req.user;
+    logger.info({ participatingOnly, userId: user?.id }, 'Attempting to list all journals');
+
+    const result = await JournalManagementService.listJournals(participatingOnly ? user?.id : undefined);
 
     if (result.isErr()) {
       const error = result.error;

@@ -1,6 +1,15 @@
 import { EditorRole, ReviewDecision } from '@prisma/client';
 import { z } from 'zod';
 
+export const listJournalsSchema = z.object({
+  query: z.object({
+    participatingOnly: z.coerce
+      .boolean()
+      .optional()
+      .describe('If true, only journals that the user is participating in will be returned.'),
+  }),
+});
+
 export const getJournalSchema = z.object({
   params: z.object({
     journalId: z.string().transform((val, ctx) => {
