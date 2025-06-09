@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 export const listJournalsSchema = z.object({
   query: z.object({
-    participatingOnly: z
+    participatingOnly: z.coerce
       .boolean()
       .optional()
       .describe('If true, only journals that the user is participating in will be returned.'),
