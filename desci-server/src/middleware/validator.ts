@@ -3,6 +3,7 @@ import { ZodError, z, ZodTypeAny } from 'zod';
 
 import { sendError } from '../core/api.js';
 import { BadRequestError, InternalError } from '../core/ApiError.js';
+import { logger } from '../logger.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const validate = <T extends z.ZodRawShape>(schema: z.ZodObject<T>) =>
@@ -30,6 +31,7 @@ export const validateInputs = <S extends ZodTypeAny, R extends Request = Request
       (req as R & { validatedData: z.infer<S> }).validatedData = parsed;
       next();
     } catch (err) {
+      logger.error({ err }, 'Error during validation');
       if (err instanceof ZodError) {
         const validationErrors = err.issues.map((issue) => ({
           field: issue.path.join('.'),

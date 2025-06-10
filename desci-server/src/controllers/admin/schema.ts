@@ -13,3 +13,11 @@ export const analyticsChartSchema = zod.object({
       .openapi({ description: 'Time aggregates for which the returned data should be grouped together' }),
   }),
 });
+
+export const metricsApiSchema = zod.object({
+  query: zod.object({
+    from: zod.string().datetime().openapi({ description: 'start date', example: '2025-03-03T00:00:00.000Z' }),
+    to: zod.string().datetime().openapi({ description: 'end date', example: '2025-03-17T00:00:00.000Z' }),
+    compareToPreviousPeriod: zod.coerce.boolean().optional().default(false).describe('Compare to previous period'),
+  }),
+});

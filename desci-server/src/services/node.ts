@@ -173,6 +173,24 @@ export const countAllPublishedNodes = async () => {
   return result.length;
 };
 
+export const countUniqueUsersPublished = async (range: { from: Date; to: Date }) => {
+  const res = await prisma.$queryRaw`SELECT
+    COUNT(DISTINCT node."ownerId")
+  FROM
+    "NodeVersion" nv
+    LEFT JOIN "Node" node ON node.id = nv."nodeId"
+  WHERE
+    "transactionId" IS NOT NULL
+    OR "commitId" IS NOT NULL
+    AND (
+        nv."createdAt" >= ${range.from}
+        AND nv."createdAt" < ${range.to}
+    );
+  `;
+  logger.trace({ res }, 'countUniqueUsersPublished');
+  return res[0].count;
+};
+
 export const countAllCommunityNodes = async () => {
   const res = (await prisma.communitySubmission.groupBy({ by: ['nodeId'] })).length;
   logger.trace({ res }, 'countAllCommunityNodes');

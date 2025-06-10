@@ -1,7 +1,6 @@
 import { endOfDay, startOfDay, subDays } from 'date-fn-latest';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 
-import { sendSuccess } from '../../../core/api.js';
 import { SuccessResponse } from '../../../core/ApiResponse.js';
 import { logger } from '../../../logger.js';
 import { RequestWithUser } from '../../../middleware/index.js';
