@@ -1,9 +1,10 @@
-import { NotificationType, User, UserNotifications } from '@prisma/client';
-import { Request, Response } from 'express';
+import { NotificationCategory, NotificationType, UserNotifications } from '@prisma/client';
+import { Response } from 'express';
 import { z } from 'zod';
 
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { createUserNotification } from '../../services/NotificationService.js';
+import { NotificationService } from '../../services/Notifications/NotificationService.js';
 
 export const CreateNotificationSchema = z.object({
   userId: z.number(),
@@ -11,13 +12,9 @@ export const CreateNotificationSchema = z.object({
   type: z.nativeEnum(NotificationType),
   title: z.string(),
   message: z.string(),
+  category: z.nativeEnum(NotificationCategory),
   payload: z.record(z.unknown()).optional(),
 });
-
-export interface AuthenticatedRequest<T = any> extends Request {
-  user: User;
-  body: T;
-}
 
 export interface ErrorResponse {
   error: string;
@@ -44,7 +41,7 @@ export const createNotification = async (
     const { id: userId } = req.user;
     const notificationData = CreateNotificationSchema.parse({ ...req.body, userId });
 
-    const notification = await createUserNotification(notificationData, {
+    const notification = await NotificationService.createUserNotification(notificationData, {
       throwOnDisabled: true,
       emittedFromClient: true,
     });

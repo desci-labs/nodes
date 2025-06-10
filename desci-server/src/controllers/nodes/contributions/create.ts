@@ -5,7 +5,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { contributorService } from '../../../services/Contributors.js';
-import { emitNotificationOnContributorInvite } from '../../../services/NotificationService.js';
+import { NotificationService } from '../../../services/Notifications/NotificationService.js';
 import { ContributorInviteEmailHtml } from '../../../templates/emails/utils/emailRenderer.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -105,7 +105,7 @@ export const addContributor = async (req: AddContributorRequest, res: Response<A
 
       if (!!contributorAdded.userId) {
         // Emit push notif to contributor if they already have a nodes account
-        await emitNotificationOnContributorInvite({
+        await NotificationService.emitOnContributorInvite({
           node: node,
           nodeOwner: user,
           targetUserId: contributorAdded.userId,

@@ -12,7 +12,7 @@ import { attestationService } from '../../services/Attestation.js';
 import { getTargetDpidUrl } from '../../services/fixDpid.js';
 import { doiService } from '../../services/index.js';
 import { saveInteraction, saveInteractionWithoutReq } from '../../services/interactionLog.js';
-import { emitNotificationOnAttestationValidation } from '../../services/NotificationService.js';
+import { NotificationService } from '../../services/Notifications/NotificationService.js';
 import orcidApiService from '../../services/orcid.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
@@ -160,7 +160,7 @@ export const addVerification = async (
     /**
      * Fire off notification
      */
-    await emitNotificationOnAttestationValidation({ node, user: owner, claimId: parseInt(claimId) });
+    await NotificationService.emitOnAttestationValidation({ node, user: owner, claimId: parseInt(claimId) });
   }
 };
 

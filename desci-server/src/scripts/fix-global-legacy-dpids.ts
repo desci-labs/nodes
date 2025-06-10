@@ -6,7 +6,8 @@
  *
  *
  * Usage:
- * ts-node src/scripts/fix-global-legacy-dpids.ts   - DRY RUN
+ * npm run script:backfill-legacy-dpids - DRY RUN
+ * DO_WRITES=true npm run script:backfill-legacy-dpids - THIS WILL WRITE TO THE DB.
  *
  * The script will:
  * - Scan all nodes in the database.
@@ -25,11 +26,11 @@
 import * as readline from 'readline';
 
 import { PrismaClient } from '@prisma/client';
-import axios from 'axios';
 import * as dotenv from 'dotenv';
 
+import { SERVER_ENV } from '../config/index.js';
+import legacyDpidContractMap from '../data/legacy_dpid_contract_map.json' assert { type: 'json' };
 import { getManifestByCid } from '../services/data/processing.js';
-import { cleanupManifestUrl } from '../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
 
 // Load environment variables
@@ -51,6 +52,7 @@ interface NodeToFixInfo {
   title: string;
   uuid: string;
   dpid: string;
+  ceramicStream: string;
 }
 
 /**
@@ -95,22 +97,6 @@ function askQuestion(question: string): Promise<boolean> {
   });
 }
 
-export async function getDpidFromNodeUuid(nodeUuid: string): Promise<number | string | undefined> {
-  const node = await prisma.node.findUnique({
-    where: { uuid: ensureUuidEndsWithDot(nodeUuid) },
-    select: { manifestUrl: true },
-  });
-
-  try {
-    const manifestCid = node.manifestUrl;
-    const manifest = await getManifestByCid(manifestCid);
-    return manifest?.dpid?.id;
-  } catch (e) {
-    console.log(`failing to resolve the manifest for ${nodeUuid}`, e);
-    return undefined;
-  }
-}
-
 /**
  * Main function to find and fix missing legacy DPIDs for published nodes.
  */
@@ -119,15 +105,24 @@ async function fixAllMissingLegacyDpids() {
   console.log(`Target API URL for DPID lookup (if manifest fails): ${NODES_API_BASE_URL}`);
   console.log(`Target IPFS Gateway for manifest lookup: ${IPFS_NODE_URL}`);
 
+  const contractMap = SERVER_ENV === 'PRODUCTION' ? legacyDpidContractMap.prod : legacyDpidContractMap.dev;
+
+  const inverseContractUuidToDpidMap = Object.fromEntries(
+    Object.entries(contractMap).map(([dpid, uuid]) => [uuid + '.', dpid]), // The UUIDS are dotless in the JSON, we transform this for the db lookup.
+  );
+
   const candidateNodes = await prisma.node.findMany({
     where: {
       dpidAlias: null,
       legacyDpid: null,
-      versions: {
-        some: {
-          OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
-        },
+      uuid: {
+        in: Object.keys(inverseContractUuidToDpidMap),
       },
+      //   versions: { Flawed condition for getting all published nodes - missing entries.
+      //     some: {
+      //       OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+      //     },
+      //   },
     },
     orderBy: { createdAt: 'asc' },
   });
@@ -145,7 +140,7 @@ async function fixAllMissingLegacyDpids() {
   for (const node of candidateNodes) {
     if (!node.uuid) continue;
 
-    const dpid = (await getDpidFromNodeUuid(node.uuid))?.toString();
+    const dpid = inverseContractUuidToDpidMap[node.uuid];
 
     if (dpid && isValidDpid(dpid)) {
       nodesToFix.push({
@@ -153,6 +148,7 @@ async function fixAllMissingLegacyDpids() {
         title: node.title,
         uuid: node.uuid,
         dpid: dpid,
+        ceramicStream: node.ceramicStream ?? '',
       });
     }
   }
@@ -164,8 +160,10 @@ async function fixAllMissingLegacyDpids() {
 
   console.log(`\nIdentified ${nodesToFix.length} nodes for which a DPID was found and can be fixed:`);
   formatTable(
-    nodesToFix.map((n) => [n.id.toString(), n.title, n.uuid, n.dpid]),
-    ['Node ID', 'Title', 'UUID', 'DPID to Add (legacyDpid)'],
+    nodesToFix
+      .sort((a, b) => parseInt(a.dpid, 10) - parseInt(b.dpid, 10))
+      .map((n) => [n.id.toString(), n.title.slice(0, 30), n.uuid, n.dpid, n.ceramicStream]),
+    ['Node ID', 'Title', 'UUID', 'DPID to Add (legacyDpid)', 'Ceramic Stream'],
   );
 
   console.log('\n⚠️  IMPORTANT: This script will update the `legacyDpid` field for the nodes listed above.');

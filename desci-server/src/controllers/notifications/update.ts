@@ -1,10 +1,10 @@
 import { User, UserNotifications } from '@prisma/client';
-import { all } from 'axios';
 import { Request, Response } from 'express';
 import { z } from 'zod';
 
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
-import { updateUserNotification, batchUpdateUserNotifications } from '../../services/NotificationService.js';
+import { NotificationService } from '../../services/Notifications/NotificationService.js';
 
 const UpdateDataSchema = z.object({
   dismissed: z.boolean().optional(),
@@ -15,10 +15,6 @@ const BatchUpdateSchema = z.object({
   notificationIds: z.array(z.number()),
   updateData: UpdateDataSchema,
 });
-
-interface AuthenticatedRequest extends Request {
-  user: User;
-}
 
 export interface ErrorResponse {
   error: string;
@@ -53,13 +49,18 @@ export const updateNotification = async (
       // Single update
       const notificationId = parseInt(req.params.notificationId);
       const updateData = UpdateDataSchema.parse(req.body);
-      const updatedNotification = await updateUserNotification(notificationId, userId, updateData);
+      const updatedNotification = await NotificationService.updateUserNotification(notificationId, userId, updateData);
       logger.info({ notificationId: updatedNotification.id }, 'Successfully updated user notification');
       return res.status(200).json(updatedNotification);
     } else {
       // Batch update
       const { notificationIds, updateData, all } = BatchUpdateSchema.parse(req.body);
-      const count = await batchUpdateUserNotifications({ notificationIds, userId, updateData, all });
+      const count = await NotificationService.batchUpdateUserNotifications({
+        notificationIds,
+        userId,
+        updateData,
+        all,
+      });
       logger.info({ count }, 'Successfully batch updated user notifications');
       return res.status(200).json({ count });
     }

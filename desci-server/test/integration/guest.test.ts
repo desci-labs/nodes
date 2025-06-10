@@ -87,7 +87,6 @@ describe('Guest User Tests', () => {
 
   it('should convert a guest user to a NEW regular user', async () => {
     const guestRes = await request(app).post('/v1/auth/guest').send({ dev: 'true' });
-    debugger;
     expect(guestRes.statusCode).to.equal(200);
     const tempGuestToken = guestRes.body.user.token;
     const tempGuestEmail = guestRes.body.user.email;
