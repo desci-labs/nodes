@@ -278,7 +278,7 @@ describe('Journal Management Service', () => {
       expect(eventLog?.userId).to.equal(user.id);
       expect(eventLog?.details).to.deep.include({
         managerId: user.id,
-        editorId: editor.id,
+        editorUserId: editor.id,
       });
     });
   });
@@ -338,7 +338,7 @@ describe('Journal Management Service', () => {
       expect(eventLog?.userId).to.equal(user.id);
       expect(eventLog?.details).to.deep.include({
         managerId: user.id,
-        editorId: editor.id,
+        editorUserId: editor.id,
         previousRole: EditorRole.ASSOCIATE_EDITOR,
         newRole: EditorRole.CHIEF_EDITOR,
       });
@@ -508,7 +508,7 @@ describe('Journal Management Service', () => {
       });
     });
 
-    describe('PATCH /journals/:journalId/editors/:editorId/manage', () => {
+    describe('PATCH /journals/:journalId/editors/:editorUserId/manage', () => {
       beforeEach(async () => {
         // Add editor to journal
         await prisma.journalEditor.create({
@@ -545,7 +545,7 @@ describe('Journal Management Service', () => {
       });
     });
 
-    describe('DELETE /journals/:journalId/editors/:editorId', () => {
+    describe('DELETE /journals/:journalId/editors/:editorUserId', () => {
       beforeEach(async () => {
         // Add editor to journal
         await prisma.journalEditor.create({
