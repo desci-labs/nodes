@@ -15,16 +15,19 @@ type RemoveEditorRequest = ValidatedRequest<typeof removeEditorSchema, Authentic
 
 export const removeEditorController = async (req: RemoveEditorRequest, res: Response) => {
   try {
-    const { journalId, editorId } = req.validatedData.params;
+    const { journalId, editorUserId } = req.validatedData.params;
     const managerId = req.user.id;
 
-    logger.info({ journalId, editorIdToRemove: editorId, managerId }, 'Attempting to remove editor from journal');
+    logger.info(
+      { journalId, editorUserIdToRemove: editorUserId, managerId },
+      'Attempting to remove editor from journal',
+    );
 
-    const result = await JournalManagementService.removeEditorFromJournal(journalId, managerId, editorId);
+    const result = await JournalManagementService.removeEditorFromJournal(journalId, managerId, editorUserId);
 
     if (result.isErr()) {
       const error = result.error;
-      logger.error({ error, journalId, editorIdToRemove: editorId, managerId }, 'Failed to remove editor');
+      logger.error({ error, journalId, editorUserIdToRemove: editorUserId, managerId }, 'Failed to remove editor');
 
       if (error.message === 'Editor not found.') {
         return sendError(res, 'Editor not found in this journal.', 404);

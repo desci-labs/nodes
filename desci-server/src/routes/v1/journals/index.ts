@@ -104,12 +104,12 @@ router.patch(
   updateJournalController,
 );
 router.patch(
-  '/:journalId/editors/:editorId/manage', // This route is for CHIEF_EDITORS to manage editors.
+  '/:journalId/editors/:editorUserId/manage', // This route is for CHIEF_EDITORS to manage editors.
   [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(updateEditorRoleSchema)],
   updateEditorRoleController,
 );
 router.patch(
-  '/:journalId/editors/:editorId/settings', // This route is for EDITORS to manage their own settings.
+  '/:journalId/editors/:editorUserId/settings', // This route is for EDITORS to manage their own settings.
   [
     ensureUser,
     ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
@@ -119,7 +119,7 @@ router.patch(
 );
 
 router.delete(
-  '/:journalId/editors/:editorId',
+  '/:journalId/editors/:editorUserId',
   [ensureUser, ensureJournalRole(EditorRole.CHIEF_EDITOR), validateInputs(removeEditorSchema)],
   removeEditorController,
 );
