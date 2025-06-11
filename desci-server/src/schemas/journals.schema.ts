@@ -64,7 +64,7 @@ export const createJournalSchema = z.object({
 export const updateEditorRoleSchema = z.object({
   params: z.object({
     journalId: z.string().transform((val) => parseInt(val, 10)),
-    editorId: z.string().transform((val) => parseInt(val, 10)),
+    editorUserId: z.string().transform((val) => parseInt(val, 10)),
   }),
   body: z.object({
     role: z.nativeEnum(EditorRole),
@@ -74,7 +74,7 @@ export const updateEditorRoleSchema = z.object({
 export const updateEditorSchema = z.object({
   params: z.object({
     journalId: z.string().transform((val) => parseInt(val, 10)),
-    editorId: z.string().transform((val) => parseInt(val, 10)),
+    editorUserId: z.string().transform((val) => parseInt(val, 10)),
   }),
   body: z.object({
     expertise: z.array(z.string()).optional(),
@@ -85,7 +85,7 @@ export const updateEditorSchema = z.object({
 export const removeEditorSchema = z.object({
   params: z.object({
     journalId: z.string().transform((val) => parseInt(val, 10)),
-    editorId: z.string().transform((val) => parseInt(val, 10)),
+    editorUserId: z.string().transform((val) => parseInt(val, 10)),
   }),
 });
 

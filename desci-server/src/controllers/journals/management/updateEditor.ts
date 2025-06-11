@@ -15,12 +15,12 @@ type UpdateEditorRequest = ValidatedRequest<typeof updateEditorSchema, Authentic
 
 export const updateEditorController = async (req: UpdateEditorRequest, res: Response) => {
   try {
-    const { journalId, editorId } = req.validatedData.params;
+    const { journalId } = req.validatedData.params;
     const { expertise, maxWorkload } = req.validatedData.body;
     const editorUserId = req.user.id;
 
     logger.info(
-      { journalId, editorIdBeingChanged: editorId, expertise, maxWorkload, editorUserId },
+      { journalId, editorUserIdBeingChanged: editorUserId, expertise, maxWorkload, editorUserId },
       'Attempting to update editor',
     );
 
@@ -32,7 +32,7 @@ export const updateEditorController = async (req: UpdateEditorRequest, res: Resp
     if (result.isErr()) {
       const error = result.error;
       logger.error(
-        { error, journalId, editorIdBeingChanged: editorId, expertise, maxWorkload, editorUserId },
+        { error, journalId, editorUserIdBeingChanged: editorUserId, expertise, maxWorkload, editorUserId },
         'Failed to update editor',
       );
 

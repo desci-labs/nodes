@@ -215,25 +215,25 @@ async function listJournals(userId?: number): Promise<Result<ListedJournal[], Er
 async function removeEditorFromJournal(
   journalId: number,
   managerId: number,
-  editorId: number,
+  editorUserId: number,
 ): Promise<Result<void, Error>> {
   try {
     const editorBeingRemoved = await prisma.journalEditor.findUnique({
-      where: { userId_journalId: { userId: editorId, journalId } },
+      where: { userId_journalId: { userId: editorUserId, journalId } },
     });
 
     logger.info(
-      { journalId, managerId, editorId, editorBeingRemovedId: editorBeingRemoved?.id },
+      { journalId, managerId, editorUserId, editorBeingRemovedId: editorBeingRemoved?.id },
       'Attempting to remove editor from journal',
     );
 
     if (!editorBeingRemoved) {
-      logger.warn({ journalId, managerId, editorId }, 'Editor not found for removal');
+      logger.warn({ journalId, managerId, editorUserId }, 'Editor not found for removal');
       return err(new Error('Editor not found.'));
     }
 
     if (editorBeingRemoved.userId === managerId) {
-      logger.info({ journalId, managerId, editorId }, 'CHIEF_EDITOR attempted to remove themselves');
+      logger.info({ journalId, managerId, editorUserId }, 'CHIEF_EDITOR attempted to remove themselves');
       return err(new Error('Cannot remove yourself as a CHIEF_EDITOR.'));
     }
 
@@ -245,7 +245,7 @@ async function removeEditorFromJournal(
           userId: managerId,
           details: {
             managerId,
-            editorId,
+            editorUserId,
             editorEntry: {
               ...editorBeingRemoved,
               invitedAt: editorBeingRemoved.invitedAt.toISOString(),
@@ -260,12 +260,12 @@ async function removeEditorFromJournal(
     ]);
 
     logger.info(
-      { journalId, managerId, editorId, removedEditorId: editorBeingRemoved.id },
+      { journalId, managerId, editorUserId, removedEditorId: editorBeingRemoved.id },
       'Editor removed successfully from journal',
     );
     return ok(undefined);
   } catch (error) {
-    logger.error({ error, journalId, managerId, editorId }, 'Failed to remove editor from journal');
+    logger.error({ error, journalId, managerId, editorUserId }, 'Failed to remove editor from journal');
     return err(error instanceof Error ? error : new Error('An unexpected error occurred while removing editor'));
   }
 }
@@ -273,28 +273,28 @@ async function removeEditorFromJournal(
 async function updateEditorRole(
   journalId: number,
   managerId: number,
-  editorId: number,
+  editorUserId: number,
   role: EditorRole,
 ): Promise<Result<JournalEditor, Error>> {
-  logger.trace({ journalId, managerId, editorId, role }, 'Attempting to update editor role');
+  logger.trace({ journalId, managerId, editorUserId, role }, 'Attempting to update editor role');
   try {
     const editorBeingUpdated = await prisma.journalEditor.findUnique({
-      where: { userId_journalId: { userId: editorId, journalId } },
+      where: { userId_journalId: { userId: editorUserId, journalId } },
     });
 
     if (!editorBeingUpdated) {
-      logger.warn({ journalId, managerId, editorId, role }, 'Editor not found for role update');
+      logger.warn({ journalId, managerId, editorUserId, role }, 'Editor not found for role update');
       return err(new Error('Editor not found.'));
     }
 
     if (managerId === editorBeingUpdated.userId) {
-      logger.warn({ journalId, managerId, editorId, role }, 'CHIEF_EDITOR attempted to change their own role');
+      logger.warn({ journalId, managerId, editorUserId, role }, 'CHIEF_EDITOR attempted to change their own role');
       return err(new Error('Cannot demote yourself.'));
     }
 
     if (editorBeingUpdated.role === role) {
       logger.info(
-        { journalId, managerId, editorId, role },
+        { journalId, managerId, editorUserId, role },
         'Editor role is already set to the target role. No update needed.',
       );
       return ok(undefined);
@@ -312,7 +312,7 @@ async function updateEditorRole(
           userId: managerId,
           details: {
             managerId,
-            editorId,
+            editorUserId,
             previousRole: editorBeingUpdated.role,
             newRole: role,
           },
@@ -321,12 +321,12 @@ async function updateEditorRole(
     ]);
 
     logger.info(
-      { journalId, managerId, editorId, newRole: role, previousRole: editorBeingUpdated.role },
+      { journalId, managerId, editorUserId, newRole: role, previousRole: editorBeingUpdated.role },
       'Editor role updated',
     );
     return ok(updatedEditor);
   } catch (error) {
-    logger.error({ error, journalId, managerId, editorId, role }, 'Failed to update editor role');
+    logger.error({ error, journalId, managerId, editorUserId, role }, 'Failed to update editor role');
     return err(error instanceof Error ? error : new Error('An unexpected error occurred while updating editor role'));
   }
 }

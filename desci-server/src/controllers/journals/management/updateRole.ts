@@ -14,21 +14,21 @@ type UpdateEditorRoleRequest = ValidatedRequest<typeof updateEditorRoleSchema, A
 
 export const updateEditorRoleController = async (req: UpdateEditorRoleRequest, res: Response) => {
   try {
-    const { journalId, editorId } = req.validatedData.params;
+    const { journalId, editorUserId } = req.validatedData.params;
     const { role } = req.validatedData.body;
     const managerId = req.user.id;
 
     logger.info(
-      { journalId, editorIdBeingChanged: editorId, newRole: role, managerId },
+      { journalId, editorUserIdBeingChanged: editorUserId, newRole: role, managerId },
       'Attempting to update editor role',
     );
 
-    const result = await JournalManagementService.updateEditorRole(journalId, managerId, editorId, role);
+    const result = await JournalManagementService.updateEditorRole(journalId, managerId, editorUserId, role);
 
     if (result.isErr()) {
       const error = result.error;
       logger.error(
-        { error, journalId, editorIdBeingChanged: editorId, newRole: role, managerId },
+        { error, journalId, editorUserIdBeingChanged: editorUserId, newRole: role, managerId },
         'Failed to update editor role',
       );
 
