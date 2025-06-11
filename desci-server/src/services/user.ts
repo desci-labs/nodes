@@ -542,18 +542,25 @@ export const getNewOrcidUsersInRange = async (range: { from: Date; to: Date }) =
   return newUsers;
 };
 
-export const countAllUsers = async (range: { from: Date; to: Date }): Promise<number> => {
+export const countAllUsers = async (range?: { from: Date; to: Date }): Promise<number> => {
   logger.trace({ fn: 'countAllUsers' }, 'user::countAllUsers');
-  return await client.user.count({ where: { createdAt: { gte: range.from, lt: range.to } } });
+  return await client.user.count({ where: { ...(range && { createdAt: { gte: range.from, lt: range.to } }) } });
 };
 
-export const countAllGuestUsersWhoSignedUp = async (range: { from: Date; to: Date }): Promise<number> => {
+export const countAllGuestUsersWhoSignedUp = async (range?: { from: Date; to: Date }): Promise<number> => {
   logger.trace({ fn: 'countAllUsers' }, 'user::countAllUsers');
   const allGuestUsers = await client.user.count({
-    where: { createdAt: { gte: range.from, lt: range.to }, OR: [{ isGuest: true }, { convertedGuest: true }] },
+    where: {
+      ...(range && { createdAt: { gte: range.from, lt: range.to } }),
+      OR: [{ isGuest: true }, { convertedGuest: true }],
+    },
   });
   const signedUpGuestUsers = await client.user.count({
-    where: { isGuest: false, convertedGuest: true, createdAt: { gte: range.from, lt: range.to } },
+    where: {
+      ...(range && { createdAt: { gte: range.from, lt: range.to } }),
+      isGuest: false,
+      convertedGuest: true,
+    },
   });
   return Math.round((signedUpGuestUsers / allGuestUsers) * 100);
 };
