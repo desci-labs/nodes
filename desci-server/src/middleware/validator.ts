@@ -31,7 +31,7 @@ export const validateInputs = <S extends ZodTypeAny, R extends Request = Request
       (req as R & { validatedData: z.infer<S> }).validatedData = parsed;
       next();
     } catch (err) {
-      logger.error({ err }, 'Error during validation');
+      logger.trace({ issues: err instanceof ZodError ? err.issues : err }, 'Validation failed');
       if (err instanceof ZodError) {
         const validationErrors = err.issues.map((issue) => ({
           field: issue.path.join('.'),
