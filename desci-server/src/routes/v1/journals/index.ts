@@ -205,7 +205,11 @@ router.get(
 // Referee Management for Submissions
 router.post(
   '/:journalId/submissions/:submissionId/referee/invite',
-  [ensureUser, validateInputs(inviteRefereeSchema), ensureJournalRole(EditorRole.CHIEF_EDITOR)],
+  [
+    ensureUser,
+    validateInputs(inviteRefereeSchema),
+    ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
+  ],
   asyncHandler(inviteRefereeController),
 );
 
