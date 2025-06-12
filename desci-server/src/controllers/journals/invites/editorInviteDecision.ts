@@ -31,7 +31,11 @@ export const editorInviteDecision = async (req: EditorInviteDecisionRequest, res
         return sendError(res, 'Authentication is required to accept this invitation.', 401);
       }
       invite = await JournalInviteService.acceptJournalInvite({ token, userId: user.id });
-      return sendSuccess(res, { invite }, 'Editor invitation accepted successfully.');
+      return sendSuccess(
+        res,
+        { invite: _.pick(invite, ['id', 'role', 'inviterId', 'journalId', 'decisionAt', 'accepted', 'declined']) },
+        'Editor invitation accepted successfully.',
+      );
     } else {
       // decision === 'decline'
       // For 'decline', user does not need to be authenticated
