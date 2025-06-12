@@ -569,3 +569,12 @@ export const getBytesInRange = async ({ from, to, guest }: { from: Date; to: Dat
 
   // return bytesInXDays._sum.size;
 };
+
+export const getPublishedNodeVersionCount = async (nodeId: number) => {
+  return await prisma.nodeVersion.count({
+    where: {
+      nodeId,
+      OR: [{ transactionId: { not: null } }, { commitId: { not: null } }],
+    },
+  });
+};

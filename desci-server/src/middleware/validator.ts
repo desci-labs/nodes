@@ -1,7 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
-import { ZodError, z } from 'zod';
+import { ZodError, z, ZodTypeAny } from 'zod';
 
+import { sendError } from '../core/api.js';
 import { BadRequestError, InternalError } from '../core/ApiError.js';
+import { logger } from '../logger.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const validate = <T extends z.ZodRawShape>(schema: z.ZodObject<T>) =>
@@ -18,5 +20,27 @@ export const validate = <T extends z.ZodRawShape>(schema: z.ZodObject<T>) =>
         );
       }
       throw new InternalError(err.toString());
+    }
+  });
+
+// Note: Happy to consolidate these into one, if we use cleaner err resp code
+export const validateInputs = <S extends ZodTypeAny, R extends Request = Request>(schema: S) =>
+  asyncHandler(async (req: R, res: Response, next: NextFunction) => {
+    try {
+      const parsed = await schema.parseAsync(req);
+      (req as R & { validatedData: z.infer<S> }).validatedData = parsed;
+      next();
+    } catch (err) {
+      logger.trace({ issues: err instanceof ZodError ? err.issues : err }, 'Validation failed');
+      if (err instanceof ZodError) {
+        const validationErrors = err.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        }));
+        sendError(res, 'Invalid inputs', 400, validationErrors);
+        return;
+      }
+      console.error('Internal error during validation:', err);
+      throw new InternalError('An unexpected error occurred during input validation.');
     }
   });

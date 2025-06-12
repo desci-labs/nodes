@@ -16,10 +16,6 @@ import type {
   works_referenced_worksInOpenalex,
   works_related_worksInOpenalex,
   works_topicsInOpenalex,
-  WorksBestOaLocation,
-  WorksId,
-  WorksLocation,
-  WorksPrimaryLocation,
 } from './db/index.js';
 import type { Institution } from './types/institutions.js';
 import type { Work } from './types/works.js';
@@ -93,15 +89,19 @@ export const transformDataModel = (data: Work[]) => {
     const institutions: Institution[] = [];
 
     for (const authorship of work.authorships) {
+      const authorshipData = {
+        work_id: oaUrlToId(work.id),
+        author_position: authorship.author_position,
+        author_id: oaUrlToId(authorship.author.id),
+        institution_ids: [] as string[],
+      };
+
       for (const institution of authorship.institutions) {
-        works_authorships.push({
-          work_id: oaUrlToId(work.id),
-          author_position: authorship.author_position,
-          author_id: oaUrlToId(authorship.author.id),
-          institution_id: oaUrlToId(institution.id),
-        });
+        authorshipData.institution_ids.push(oaUrlToId(institution.id));
         institutions.push(institution);
       }
+
+      works_authorships.push(authorshipData);
     }
 
     return { authors, authors_ids, works_authorships, institutions };

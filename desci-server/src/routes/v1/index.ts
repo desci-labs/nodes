@@ -19,6 +19,7 @@ import submissions from './communities/submissions.js';
 import { ensureCrossrefNotifier, identifyEndpoint } from './crossref.js';
 import data from './data.js';
 import doi from './doi.js';
+import journals from './journals/index.js';
 import log from './log.js';
 import nodes from './nodes.js';
 import notifications from './notifications.js';
@@ -68,6 +69,7 @@ router.use('/search', search);
 router.use('/notifications', notifications);
 router.use('/submissions', submissions);
 router.use('/authors', authors);
+router.use('/journals', journals);
 
 router.get('/nft/:id', nft);
 router.use('/referral', referral);

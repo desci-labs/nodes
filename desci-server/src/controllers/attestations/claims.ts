@@ -39,7 +39,12 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
 
   if (claim && claim.revoked) {
     const reclaimed = await attestationService.reClaimAttestation(claim.id);
-    await saveInteraction({ req, action: ActionType.CLAIM_ATTESTATION, data: { ...body, claimId: reclaimed.id } });
+    await saveInteraction({
+      req,
+      userId: body.claimerId,
+      action: ActionType.CLAIM_ATTESTATION,
+      data: { ...body, claimId: reclaimed.id },
+    });
     // trigger update radar entry
     await communityService.addToRadar(reclaimed.desciCommunityId, reclaimed.nodeUuid);
     // invalidate radar and curated feed count cache
@@ -64,7 +69,12 @@ export const claimAttestation = async (req: RequestWithUser, res: Response, _nex
   await delFromCache(`curated-${nodeClaim.desciCommunityId}-count`);
   await delFromCache(`all-communities-curated-count`);
 
-  await saveInteraction({ req, action: ActionType.CLAIM_ATTESTATION, data: { ...body, claimId: nodeClaim.id } });
+  await saveInteraction({
+    req,
+    userId: body.claimerId,
+    action: ActionType.CLAIM_ATTESTATION,
+    data: { ...body, claimId: nodeClaim.id },
+  });
 
   // notifiy community members if attestation is protected
   // new attestations should be trigger notification of org members if protected

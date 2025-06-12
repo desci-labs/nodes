@@ -5,7 +5,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../../client.js';
 import { logger as parentLogger } from '../../../logger.js';
 import { contributorService } from '../../../services/Contributors.js';
-import { emitNotificationOnContributorInvite } from '../../../services/NotificationService.js';
+import { NotificationService } from '../../../services/Notifications/NotificationService.js';
 import { ContributorInviteEmailHtml } from '../../../templates/emails/utils/emailRenderer.js';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -108,7 +108,7 @@ export const updateContributor = async (req: UpdateContributorRequest, res: Resp
         if (!!!contribution.userId && !!contributorUpdated.userId) {
           // Emit push notif to contributor if the previous contribution entry didn't have a nodes account associated,
           // but the updated entry now has a nodes account associated.
-          await emitNotificationOnContributorInvite({
+          await NotificationService.emitOnContributorInvite({
             node: node,
             nodeOwner: user,
             targetUserId: contributorUpdated.userId,

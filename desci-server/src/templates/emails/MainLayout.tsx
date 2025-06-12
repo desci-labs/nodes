@@ -77,7 +77,7 @@ const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.
                   </Link>
                 </Column>
               </Row>
-              <Text className="text-center">©2024 Desci Nodes</Text>
+              <Text className="text-center">©{new Date().getFullYear()} DeSci Labs AG</Text>
             </Container>
           </Container>
         </Body>
@@ -87,3 +87,23 @@ const MainLayout = ({ children, footerMsg = defaultFooterMsg }: { children: JSX.
 };
 
 export default MainLayout;
+
+export const baseStyles = {
+  main: {
+    backgroundColor: '#ffffff',
+    margin: '0 auto',
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+  },
+  container: {
+    margin: '0 auto',
+    padding: '0px 20px',
+  },
+  h1: {
+    // color: '#000000',
+    fontSize: '30px',
+    fontWeight: '700',
+    margin: '30px 0',
+    padding: '0',
+    lineHeight: '42px',
+  },
+};

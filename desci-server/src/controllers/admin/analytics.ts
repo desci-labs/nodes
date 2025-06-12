@@ -28,6 +28,7 @@ import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { getFromCache, ONE_DAY_TTL, setToCache } from '../../redisClient.js';
+import { getCountActiveUsersInXDays } from '../../services/admin/interactionLog.js';
 import { communityService } from '../../services/Communities.js';
 import { crossRefClient } from '../../services/index.js';
 import {
@@ -40,7 +41,6 @@ import {
   getCountActiveOrcidUsersInMonth,
   getCountActiveOrcidUsersInXDays,
   getCountActiveUsersInMonth,
-  getCountActiveUsersInXDays,
   getDownloadedBytesInRange,
   getDownloadedBytesInXDays,
   getNodeViewsInMonth,
@@ -532,9 +532,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
 
       const newUsersAgg = newUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const newOrcidUsersAgg = newOrcidUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
-      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.user.createdAt, selectedDatesInterval));
+      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const activeOrcidUsersAgg = activeOrcidUsers.filter((user) =>
-        isWithinInterval(user.user.createdAt, selectedDatesInterval),
+        isWithinInterval(user.createdAt, selectedDatesInterval),
       );
       const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
@@ -686,9 +686,9 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
 
       const newUsersAgg = newUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const newOrcidUsersAgg = newOrcidUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
-      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.user.createdAt, selectedDatesInterval));
+      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const activeOrcidUsersAgg = activeOrcidUsers.filter((user) =>
-        isWithinInterval(user.user.createdAt, selectedDatesInterval),
+        isWithinInterval(user.createdAt, selectedDatesInterval),
       );
       const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));

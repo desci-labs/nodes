@@ -2,13 +2,13 @@ import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Request, Response, NextFunction } from 'express';
 
 import { prisma } from '../../client.js';
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { getNodeToUse, updateManifestAndAddToIpfs } from '../../services/ipfs.js';
 import { NodeUuid } from '../../services/manifestRepo.js';
 import repoService from '../../services/repoService.js';
 import { cleanManifestForSaving } from '../../utils/manifestDraftUtils.js';
 import { ensureUuidEndsWithDot } from '../../utils.js';
-import { AuthenticatedRequest } from '../notifications/create.js';
 
 export const draftUpdate = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const { uuid, manifest } = req.body;

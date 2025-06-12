@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 
 import { elasticClient } from '../../elasticSearchClient.js';
-import { logger as parentLogger } from '../../logger.js';
+import { logger, logger as parentLogger } from '../../logger.js';
 import {
   buildBoolQuery,
   buildMultiMatchQuery,
@@ -9,6 +9,7 @@ import {
   MAIN_WORKS_ALIAS,
   VALID_ENTITIES,
 } from '../../services/ElasticSearchService.js';
+import { getPublishersBySourceIds } from '../../services/OpenAlexService.js';
 
 import { MIN_RELEVANCE_SCORE } from './query.js';
 import { Entity, Filter, Query, QueryDebuggingResponse, QueryErrorResponse, QuerySuccessResponse } from './types.js';
@@ -104,6 +105,8 @@ export const multiQuery = async (
     const { hits } = await elasticClient.search(finalQuery);
     const duration = Date.now() - startTime;
 
+    const hitsDecorated = await decorateWithPublisherInfo(hits.hits);
+
     logger.info({ fn: 'Elastic search multi query executed successfully' });
     return res.json({
       finalQuery,
@@ -112,7 +115,7 @@ export const multiQuery = async (
       total: hits.total,
       page: pagination.page,
       perPage: pagination.perPage,
-      data: hits.hits,
+      data: hitsDecorated,
       duration,
     });
   } catch (error) {
@@ -124,3 +127,39 @@ export const multiQuery = async (
     });
   }
 };
+
+const decorateWithPublisherInfo = async (hits: any[]) => {
+  let results = [];
+  try {
+    const sourceIds = hits.map((hit) => hit._source.locations[0]?.source_id).filter(Boolean);
+    logger.trace({ sourceIds }, 'sourceIds');
+    const publishers = await getPublishersBySourceIds(sourceIds);
+    logger.trace({ sourceIds, publishers }, 'publishers');
+
+    results = hits.map((hit) => {
+      const sourceId = hit._source.locations[0]?.source_id;
+      if (!sourceId) {
+        return hit;
+      }
+      const sourceDisplayName = cleanCorruptedText(publishers[sourceId]);
+
+      hit._source.locations[0].source_display_name = sourceDisplayName;
+
+      return {
+        ...hit,
+        sourceDisplayName,
+      };
+    });
+  } catch (error) {
+    logger.error({ error }, 'Error decorating with publisher info');
+    return hits;
+  }
+  return results;
+};
+
+export function cleanCorruptedText(text: string) {
+  return text
+    .replace(/[\u0098\u009C]/g, '') // remove corrupt control characters
+    .normalize('NFKC') // normalize quotes, ligatures, etc.
+    .trim();
+}
