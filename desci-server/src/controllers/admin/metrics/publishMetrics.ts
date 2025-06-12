@@ -8,9 +8,9 @@ import { safePct } from '../../../services/admin/helper.js';
 import { communityService } from '../../../services/Communities.js';
 import { countUniqueUsersPublished } from '../../../services/node.js';
 import { countAllGuestUsersWhoSignedUp, countAllUsers } from '../../../services/user.js';
-import { metricsApiOptionalSchema } from '../schema.js';
+import { metricsApiSchema } from '../schema.js';
 
-type PublishMetricsRequest = ValidatedRequest<typeof metricsApiOptionalSchema, AuthenticatedRequest>;
+type PublishMetricsRequest = ValidatedRequest<typeof metricsApiSchema, AuthenticatedRequest>;
 type PublishMetricsResponse = {
   totalUsers: number;
   publishers: number;

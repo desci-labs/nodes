@@ -13,9 +13,9 @@ import {
   countProfileViews,
   countGuestModeVisits,
 } from '../../../services/admin/interactionLog.js';
-import { metricsApiOptionalSchema } from '../schema.js';
+import { metricsApiSchema } from '../schema.js';
 
-type FeatureAdoptionMetricsRequest = ValidatedRequest<typeof metricsApiOptionalSchema, AuthenticatedRequest>;
+type FeatureAdoptionMetricsRequest = ValidatedRequest<typeof metricsApiSchema, AuthenticatedRequest>;
 type FeatureAdoptionMetricsResponse = {
   totalShares: number;
   totalCoAuthorInvites: number;

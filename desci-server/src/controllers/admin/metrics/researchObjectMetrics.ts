@@ -9,9 +9,9 @@ import {
   countAverageResearchObjectsCreatedPerUser,
   countMedianResearchObjectsCreatedPerUser,
 } from '../../../services/node.js';
-import { metricsApiOptionalSchema } from '../schema.js';
+import { metricsApiSchema } from '../schema.js';
 
-type ResearchObjectMetricsRequest = ValidatedRequest<typeof metricsApiOptionalSchema, AuthenticatedRequest>;
+type ResearchObjectMetricsRequest = ValidatedRequest<typeof metricsApiSchema, AuthenticatedRequest>;
 type ResearchObjectMetricsResponse = {
   totalRoCreated: number;
   averageRoCreatedPerUser: number;
