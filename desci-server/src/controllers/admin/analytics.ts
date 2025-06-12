@@ -28,6 +28,7 @@ import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { getFromCache, ONE_DAY_TTL, setToCache } from '../../redisClient.js';
+import { getCountActiveUsersInXDays } from '../../services/admin/interactionLog.js';
 import { communityService } from '../../services/Communities.js';
 import { crossRefClient } from '../../services/index.js';
 import {
@@ -40,7 +41,6 @@ import {
   getCountActiveOrcidUsersInMonth,
   getCountActiveOrcidUsersInXDays,
   getCountActiveUsersInMonth,
-  getCountActiveUsersInXDays,
   getDownloadedBytesInRange,
   getDownloadedBytesInXDays,
   getNodeViewsInMonth,

@@ -1124,6 +1124,17 @@ export class CommunityService {
       select: { createdAt: true },
     });
   }
+
+  async countUniqueUsersCommunitySubmission(range?: { from: Date; to: Date }) {
+    const res = (
+      await prisma.communitySubmission.groupBy({
+        by: ['userId'],
+        where: { ...(range ? { createdAt: { gte: range.from, lt: range.to } } : {}) },
+      })
+    ).length;
+    logger.trace({ res }, 'countUniqueUsersCommunitySubmission');
+    return res;
+  }
 }
 
 export const communityService = new CommunityService();

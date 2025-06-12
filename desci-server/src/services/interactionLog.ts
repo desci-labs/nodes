@@ -1,5 +1,5 @@
 import { AccessStatus } from '@desci-labs/desci-models';
-import { ActionType } from '@prisma/client';
+import { ActionType, Prisma } from '@prisma/client';
 import { subDays } from 'date-fn-latest';
 import { Request } from 'express';
 
@@ -90,30 +90,6 @@ export const getUserPublishConsent = async (userId?: number) => {
     },
     // data: { userId, ip: req.ip, userAgent: req.headers['user-agent'], rep: 0, action, extra: JSON.stringify(data) },
   });
-};
-
-export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<number> => {
-  logger.info({ fn: 'getCountActiveUsersInXDays' }, 'interactionLog::getCountActiveUsersInXDays');
-
-  const now = new Date();
-
-  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
-  return (
-    await prisma.interactionLog.findMany({
-      distinct: ['userId'],
-      where: {
-        createdAt: {
-          gte: utcMidnightXDaysAgo,
-        },
-        OR: [{ isGuest: false }, { isGuest: null }],
-        // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
-        // from poluting returned data
-        userId: {
-          not: null,
-        },
-      },
-    })
-  ).length;
 };
 
 export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {

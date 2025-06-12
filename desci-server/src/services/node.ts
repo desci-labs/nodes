@@ -1,10 +1,11 @@
 import { ResearchObjectV1 } from '@desci-labs/desci-models';
 import { Node, NodeVersion, Prisma } from '@prisma/client';
 import axios from 'axios';
-import _ from 'lodash';
+import _, { range, sum } from 'lodash';
+import { mean, median } from 'mathjs';
 
 import { prisma } from '../client.js';
-import { logger as parentLogger } from '../logger.js';
+import { logger, logger as parentLogger } from '../logger.js';
 import { getFromCache, setToCache } from '../redisClient.js';
 import { cleanupManifestUrl } from '../utils/manifest.js';
 import { ensureUuidEndsWithDot } from '../utils.js';
@@ -143,6 +144,108 @@ export const countPublishedNodesInRange = async (range: { from: Date; to: Date }
     },
   });
   return result.length;
+};
+
+export const countAllNodes = async (range?: { from: Date; to: Date }) => {
+  return await prisma.node.count({
+    where: {
+      ...(range && {
+        createdAt: {
+          gte: range.from,
+          lt: range.to,
+        },
+      }),
+    },
+  });
+};
+
+export const countAllPublishedNodes = async () => {
+  const result = await prisma.nodeVersion.groupBy({
+    by: ['nodeId'],
+    _count: {
+      _all: true,
+    },
+    where: {
+      OR: [
+        {
+          transactionId: {
+            not: null,
+          },
+        },
+        {
+          commitId: {
+            not: null,
+          },
+        },
+      ],
+    },
+  });
+  return result.length;
+};
+
+/**
+ * Count all users who have ever published at a research object
+ * @param range Date filter
+ * @returns number
+ */
+export const countUniqueUsersPublished = async (range?: { from: Date; to: Date }) => {
+  const from = range?.from || Prisma.raw('to_timestamp(0)');
+  const to = range?.to || Prisma.raw('to_timestamp(extract(epoch from now()))');
+  const res = await prisma.$queryRaw`SELECT
+    COUNT(DISTINCT node."ownerId")::integer
+  FROM
+    "NodeVersion" nv
+    LEFT JOIN "Node" node ON node.id = nv."nodeId"
+  WHERE
+    (
+      ("transactionId" IS NOT NULL OR "commitId" IS NOT NULL)
+      AND nv."createdAt" >= ${from}
+      AND nv."createdAt" < ${to}
+    );
+  `;
+  logger.trace({ res }, 'countUniqueUsersPublished');
+  return Number(res?.[0]?.count ?? 0);
+};
+
+/**
+ * Count the unique number of nodes each user has created and return the average
+ * @param range Optional date filter
+ * @returns number
+ */
+export const countAverageResearchObjectsCreatedPerUser = async (range?: { from: Date; to: Date }) => {
+  const res = await prisma.node.groupBy({
+    by: ['ownerId'],
+    _count: { _all: true },
+    where: { ...(range && { createdAt: { gte: range.from, lt: range.to } }) },
+  });
+  const counts = res.map((r) => r._count._all);
+  const totalCount = counts.reduce((acc, count) => acc + count, 0);
+  const averageCount = counts.length === 0 ? 0 : totalCount / counts.length;
+  logger.trace({ averageCount, totalCount, countsLength: counts.length }, 'countAverageResearchObjectsCreatedPerUser');
+  return averageCount;
+};
+
+/**
+ * Count the unique number of nodes each user has created and return the median
+ * @param range Optional date filter
+ * @returns number
+ */
+export const countMedianResearchObjectsCreatedPerUser = async (range?: { from: Date; to: Date }) => {
+  const res = await prisma.node.groupBy({
+    by: ['ownerId'],
+    _count: { _all: true },
+    where: { ...(range && { createdAt: { gte: range.from, lt: range.to } }) },
+  });
+  const counts = res.map((r) => r._count._all);
+  const medianCount = counts.length === 0 ? 0 : median(counts);
+  logger.trace({ medianCount, counts }, 'countMedianResearchObjectsCreatedPerUser');
+  return medianCount;
+};
+
+export const countAllCommunityNodes = async () => {
+  const res = (await prisma.communitySubmission.groupBy({ by: ['nodeId'] })).length;
+  logger.trace({ res }, 'countAllCommunityNodes');
+  return res;
 };
 
 const NODE_DETAILS_CACHE_KEY = `NODE_DETAILS_CACHE_KEY`;
