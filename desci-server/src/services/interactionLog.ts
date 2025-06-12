@@ -1,5 +1,5 @@
 import { AccessStatus } from '@desci-labs/desci-models';
-import { ActionType } from '@prisma/client';
+import { ActionType, Prisma } from '@prisma/client';
 import { subDays } from 'date-fn-latest';
 import { Request } from 'express';
 
@@ -90,30 +90,6 @@ export const getUserPublishConsent = async (userId?: number) => {
     },
     // data: { userId, ip: req.ip, userAgent: req.headers['user-agent'], rep: 0, action, extra: JSON.stringify(data) },
   });
-};
-
-export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<number> => {
-  logger.info({ fn: 'getCountActiveUsersInXDays' }, 'interactionLog::getCountActiveUsersInXDays');
-
-  const now = new Date();
-
-  const utcMidnightXDaysAgo = getUtcDateXDaysAgo(daysAgo);
-  return (
-    await prisma.interactionLog.findMany({
-      distinct: ['userId'],
-      where: {
-        createdAt: {
-          gte: utcMidnightXDaysAgo,
-        },
-        OR: [{ isGuest: false }, { isGuest: null }],
-        // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
-        // from poluting returned data
-        userId: {
-          not: null,
-        },
-      },
-    })
-  ).length;
 };
 
 export const getActiveUsersInXDays = async (dateXDaysAgo: Date) => {
@@ -387,71 +363,4 @@ export const getDownloadedBytesInXDays = async (daysAgo: number) => {
   logger.info({ bytes }, 'getDownloadedBytesInXDays');
 
   return bytes;
-};
-
-export const countExploringUsersInRange = async (range: { from: Date; to: Date }): Promise<number> => {
-  logger.trace({ fn: 'countExploringUsersInRange' }, 'interactionLog::countExploringUsersInRange');
-
-  const res = (await prisma.$queryRaw`
-  SELECT
-      count(distinct "userId")
-  FROM
-      "InteractionLog" z
-  WHERE
-      ACTION = 'USER_ACTION'
-      AND "userId" IS NOT NULL
-      AND (
-          extra :: jsonb -> 'action' = '"search"' :: jsonb
-          OR  extra :: jsonb -> 'action' = '"actionSearchResultClicked"' :: jsonb
-          OR  extra :: jsonb -> 'action' = '"actionSearchPerformed"' :: jsonb
-          OR  extra :: jsonb -> 'action' = '"actionSearchBarUsed"' :: jsonb
-          OR  extra :: jsonb -> 'action' = '"actionAuthorProfileViewed"' :: jsonb
-          OR  extra :: jsonb -> 'action' = '"btnSidebarNavigation"' :: jsonb
-          OR  extra :: jsonb -> 'action' = '"actionRelatedArticleClickedInAi"' :: jsonb
-      ) and "createdAt" >= ${range.from} and "createdAt" < ${range.to}`) as {
-    count: number;
-  }[];
-
-  logger.trace({ res }, 'countExploringUsersInRange');
-  return res[0].count;
-};
-
-export const countResearchObjectsUpdated = async () => {
-  logger.trace({ fn: 'countResearchObjectsUpdated' }, 'interactionLog::countResearchObjectsUpdated');
-
-  const res = (await prisma.$queryRaw`
-  SELECT
-      count(distinct "userId")
-  FROM
-      "InteractionLog" z
-  WHERE
-      ACTION = 'USER_ACTION'
-      AND "userId" IS NOT NULL
-      AND (
-          extra :: jsonb -> 'action' = '"actionResearchObjectUpdated"' :: jsonb
-      )`) as {
-    count: number;
-  }[];
-
-  logger.trace({ res }, 'countResearchObjectsUpdated');
-  return res[0].count;
-};
-export const countResearchObjectsShared = async () => {
-  logger.trace({ fn: 'countResearchObjectsShared' }, 'interactionLog::countResearchObjectsShared');
-
-  const res = (await prisma.$queryRaw`
-  SELECT
-      count(distinct "userId")
-  FROM
-      "InteractionLog" z
-  WHERE
-      ACTION = 'USER_ACTION'
-      AND "userId" IS NOT NULL
-      AND extra :: jsonb -> 'action' = '"actionResearchObjectShared"' :: jsonb
-      `) as {
-    count: number;
-  }[];
-
-  logger.trace({ res }, 'countResearchObjectsShared');
-  return res[0].count;
 };

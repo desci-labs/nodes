@@ -1,9 +1,10 @@
-import { differenceInDays, endOfDay, startOfDay, subDays, toDate } from 'date-fn-latest';
+import { differenceInDays, endOfDay, startOfDay, subDays } from 'date-fn-latest';
 import { Response } from 'express';
 
 import { SuccessResponse } from '../../../core/ApiResponse.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger } from '../../../logger.js';
+import { safePct } from '../../../services/admin/helper.js';
 import { communityService } from '../../../services/Communities.js';
 import { countUniqueUsersPublished } from '../../../services/node.js';
 import { countAllGuestUsersWhoSignedUp, countAllUsers } from '../../../services/user.js';
@@ -26,13 +27,15 @@ type PublishMetricsResponse = {
 export const getPublishMetrics = async (req: PublishMetricsRequest, res: Response) => {
   const { from, to, compareToPreviousPeriod } = req.validatedData.query;
 
-  const range = from && to ? { from: startOfDay(from), to: endOfDay(to) } : undefined;
+  const range = from ? { from: startOfDay(from), to: endOfDay(to ?? new Date()) } : undefined;
 
-  const diffInDays = range ? differenceInDays(range.to, range.from) : 0;
-  const prevStartDate = range ? startOfDay(subDays(range.from, diffInDays)) : undefined;
-  const prevEndDate = range ? endOfDay(subDays(range.to, diffInDays)) : undefined;
+  // hard check the from and to dates are valid, to prevent previouse period from being bogus in cases where user selects a from and no to date.
+  const diffInDays = from && to && compareToPreviousPeriod ? differenceInDays(range.to, range.from) + 1 : 0; // +1 to include the end date
+  const prevStartDate = from && to && compareToPreviousPeriod ? startOfDay(subDays(range.from, diffInDays)) : undefined;
+  const prevEndDate = from && to && compareToPreviousPeriod ? endOfDay(subDays(range.to, diffInDays)) : undefined;
 
-  const prevRange = range && compareToPreviousPeriod ? { from: prevStartDate, to: prevEndDate } : undefined;
+  const prevRange =
+    prevStartDate && prevEndDate && compareToPreviousPeriod ? { from: prevStartDate, to: prevEndDate } : undefined;
 
   logger.trace({ fn: 'getPublishMetrics', range, compareToPreviousPeriod, prevRange }, 'getPublishMetrics');
 
@@ -45,12 +48,12 @@ export const getPublishMetrics = async (req: PublishMetricsRequest, res: Respons
 
   let data: PublishMetricsResponse = {
     totalUsers,
-    publishers: Math.round((Number(publishers) / totalUsers) * 100),
-    publishersInCommunity: Math.round((publishersInCommunity / totalUsers) * 100),
+    publishers: safePct(publishers, totalUsers),
+    publishersInCommunity: safePct(publishersInCommunity, totalUsers),
     guestSignUpSuccessRate,
   };
 
-  if (compareToPreviousPeriod) {
+  if (compareToPreviousPeriod && prevRange) {
     const [prevTotalUsers, prevPublishers, prevPublishersInCommunity, guestSignUpSuccessRate] = await Promise.all([
       countAllUsers(prevRange),
       countUniqueUsersPublished(prevRange),
@@ -62,8 +65,8 @@ export const getPublishMetrics = async (req: PublishMetricsRequest, res: Respons
       ...data,
       previousPeriod: {
         totalUsers: prevTotalUsers,
-        publishers: Math.round((Number(prevPublishers) / prevTotalUsers) * 100),
-        publishersInCommunity: Math.round((prevPublishersInCommunity / prevTotalUsers) * 100),
+        publishers: safePct(prevPublishers, prevTotalUsers),
+        publishersInCommunity: safePct(prevPublishersInCommunity, prevTotalUsers),
         guestSignUpSuccessRate,
       },
     };

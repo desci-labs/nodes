@@ -1,9 +1,11 @@
 import { Router } from 'express';
 
+import { getFeatureAdoptionMetrics } from '../../../../controllers/admin/metrics/featureAdoptionMetrics.js';
 import { getPublishMetrics } from '../../../../controllers/admin/metrics/publishMetrics.js';
 import { getResearchObjectMetrics } from '../../../../controllers/admin/metrics/researchObjectMetrics.js';
+import { getRetentionMetrics } from '../../../../controllers/admin/metrics/retentionMetrics.js';
 import { getUserEngagementMetrics } from '../../../../controllers/admin/metrics/userEngagements.js';
-import { metricsApiOptionalSchema, metricsApiSchema } from '../../../../controllers/admin/schema.js';
+import { metricsApiOptionalSchema } from '../../../../controllers/admin/schema.js';
 import { ensureUserIsAdmin } from '../../../../middleware/ensureAdmin.js';
 import { ensureUser } from '../../../../middleware/index.js';
 import { validateInputs } from '../../../../middleware/validator.js';
@@ -21,6 +23,12 @@ router.get(
   '/research-object-metrics',
   [ensureUser, ensureUserIsAdmin, validateInputs(metricsApiOptionalSchema)],
   asyncHandler(getResearchObjectMetrics),
+);
+router.get('/retention-metrics', [ensureUser, ensureUserIsAdmin], asyncHandler(getRetentionMetrics));
+router.get(
+  '/feature-adoption-metrics',
+  [ensureUser, ensureUserIsAdmin, validateInputs(metricsApiOptionalSchema)],
+  asyncHandler(getFeatureAdoptionMetrics),
 );
 
 export default router;

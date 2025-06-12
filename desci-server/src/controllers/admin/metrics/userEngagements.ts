@@ -9,7 +9,7 @@ import {
   countResearchObjectsShared,
   countResearchObjectsUpdated,
   getCountActiveUsersInXDays,
-} from '../../../services/interactionLog.js';
+} from '../../../services/admin/interactionLog.js';
 import { countAllCommunityNodes, countAllNodes, countAllPublishedNodes } from '../../../services/node.js';
 
 const getActiveUsersEngagementMetrics = async () => {

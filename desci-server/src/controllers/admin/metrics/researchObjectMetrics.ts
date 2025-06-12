@@ -25,18 +25,20 @@ type ResearchObjectMetricsResponse = {
 
 export const getResearchObjectMetrics = async (req: ResearchObjectMetricsRequest, res: Response) => {
   const { from, to, compareToPreviousPeriod } = req.validatedData.query;
-  const fromDate = startOfDay(from);
-  const toDate = endOfDay(to);
-  const diffInDays = differenceInDays(toDate, fromDate);
-  const prevStartDate = startOfDay(subDays(fromDate, diffInDays));
-  const prevEndDate = endOfDay(subDays(toDate, diffInDays));
+  const range = from ? { from: startOfDay(from), to: endOfDay(to ?? new Date()) } : undefined;
+
+  // hard check the from and to dates are valid, to prevent previouse period from being bogus in cases where user selects a from and no to date.
+  const diffInDays = from && to && compareToPreviousPeriod ? differenceInDays(range.to, range.from) + 1 : 0; // +1 to include the end date
+  const prevStartDate = from && to && compareToPreviousPeriod ? startOfDay(subDays(range.from, diffInDays)) : undefined;
+  const prevEndDate = from && to && compareToPreviousPeriod ? endOfDay(subDays(range.to, diffInDays)) : undefined;
+
+  const prevRange =
+    prevStartDate && prevEndDate && compareToPreviousPeriod ? { from: prevStartDate, to: prevEndDate } : undefined;
+
   logger.trace(
     { fn: 'getResearchObjectMetrics', from, to, compareToPreviousPeriod, prevStartDate, prevEndDate },
     'getResearchObjectMetrics',
   );
-
-  const range = from && to ? { from: fromDate, to: toDate } : undefined;
-  const prevRange = from && to && compareToPreviousPeriod ? { from: prevStartDate, to: prevEndDate } : undefined;
 
   const [totalRoCreated, averageRoCreatedPerUser, medianRoCreatedPerUser] = await Promise.all([
     countAllNodes(range),

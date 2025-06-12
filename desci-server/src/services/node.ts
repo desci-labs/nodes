@@ -188,9 +188,11 @@ export const countAllPublishedNodes = async () => {
  * @param range Date filter
  * @returns number
  */
-export const countUniqueUsersPublished = async (range: { from: Date; to: Date }) => {
+export const countUniqueUsersPublished = async (range?: { from: Date; to: Date }) => {
+  const from = range?.from || Prisma.raw('to_timestamp(0)');
+  const to = range?.to || Prisma.raw('to_timestamp(extract(epoch from now()))');
   const res = await prisma.$queryRaw`SELECT
-    COUNT(DISTINCT node."ownerId")
+    COUNT(DISTINCT node."ownerId")::integer
   FROM
     "NodeVersion" nv
     LEFT JOIN "Node" node ON node.id = nv."nodeId"
@@ -198,12 +200,12 @@ export const countUniqueUsersPublished = async (range: { from: Date; to: Date })
     "transactionId" IS NOT NULL
     OR "commitId" IS NOT NULL
     AND (
-        nv."createdAt" >= ${range.from}
-        AND nv."createdAt" < ${range.to}
+        nv."createdAt" >= ${from}
+        AND nv."createdAt" < ${to}
     );
   `;
   logger.trace({ res }, 'countUniqueUsersPublished');
-  return res[0].count;
+  return Number(res[0].count);
 };
 
 /**
