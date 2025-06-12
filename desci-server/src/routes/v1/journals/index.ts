@@ -152,19 +152,31 @@ router.get(
 // submission action routes
 router.post(
   '/:journalId/submissions/:submissionId/request-revision',
-  [ensureUser, ensureJournalRole(EditorRole.ASSOCIATE_EDITOR), validateInputs(requestRevisionSchema)],
+  [
+    ensureUser,
+    ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
+    validateInputs(requestRevisionSchema),
+  ],
   asyncHandler(requestRevisionController),
 );
 
 router.post(
   '/:journalId/submissions/:submissionId/accept',
-  [ensureUser, ensureJournalRole(EditorRole.ASSOCIATE_EDITOR), validateInputs(submissionApiSchema)],
+  [
+    ensureUser,
+    ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
+    validateInputs(submissionApiSchema),
+  ],
   asyncHandler(acceptSubmissionController),
 );
 
 router.post(
   '/:journalId/submissions/:submissionId/reject',
-  [ensureUser, ensureJournalRole(EditorRole.ASSOCIATE_EDITOR), validateInputs(rejectSubmissionSchema)],
+  [
+    ensureUser,
+    ensureJournalRole([EditorRole.ASSOCIATE_EDITOR, EditorRole.CHIEF_EDITOR]),
+    validateInputs(rejectSubmissionSchema),
+  ],
   asyncHandler(rejectSubmissionController),
 );
 
