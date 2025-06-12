@@ -197,15 +197,14 @@ export const countUniqueUsersPublished = async (range?: { from: Date; to: Date }
     "NodeVersion" nv
     LEFT JOIN "Node" node ON node.id = nv."nodeId"
   WHERE
-    "transactionId" IS NOT NULL
-    OR "commitId" IS NOT NULL
-    AND (
-        nv."createdAt" >= ${from}
-        AND nv."createdAt" < ${to}
+    (
+      ("transactionId" IS NOT NULL OR "commitId" IS NOT NULL)
+      AND nv."createdAt" >= ${from}
+      AND nv."createdAt" < ${to}
     );
   `;
   logger.trace({ res }, 'countUniqueUsersPublished');
-  return Number(res[0].count);
+  return Number(res?.[0]?.count ?? 0);
 };
 
 /**
@@ -221,7 +220,7 @@ export const countAverageResearchObjectsCreatedPerUser = async (range?: { from: 
   });
   const counts = res.map((r) => r._count._all);
   const totalCount = counts.reduce((acc, count) => acc + count, 0);
-  const averageCount = totalCount / counts.length;
+  const averageCount = counts.length === 0 ? 0 : totalCount / counts.length;
   logger.trace({ averageCount, totalCount, countsLength: counts.length }, 'countAverageResearchObjectsCreatedPerUser');
   return averageCount;
 };

@@ -7,6 +7,7 @@ import { logger as parentLogger } from '../logger.js';
 import { getUtcDateXDaysAgo } from '../utils/clock.js';
 import { hideEmail } from '../utils.js';
 
+import { safePct } from './admin/helper.js';
 import { contributorService } from './Contributors.js';
 import { getUserConsent } from './interactionLog.js';
 const logger = parentLogger.child({
@@ -555,6 +556,11 @@ export const countAllGuestUsersWhoSignedUp = async (range?: { from: Date; to: Da
       OR: [{ isGuest: true }, { convertedGuest: true }],
     },
   });
+
+  if (allGuestUsers === 0) {
+    return 0;
+  }
+
   const signedUpGuestUsers = await client.user.count({
     where: {
       ...(range && { createdAt: { gte: range.from, lt: range.to } }),
@@ -562,5 +568,5 @@ export const countAllGuestUsersWhoSignedUp = async (range?: { from: Date; to: Da
       convertedGuest: true,
     },
   });
-  return Math.round((signedUpGuestUsers / allGuestUsers) * 100);
+  return safePct(signedUpGuestUsers, allGuestUsers);
 };

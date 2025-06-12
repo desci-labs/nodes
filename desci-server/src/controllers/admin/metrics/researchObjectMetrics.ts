@@ -1,4 +1,4 @@
-import { differenceInDays, endOfDay, startOfDay, subDays } from 'date-fn-latest';
+import { differenceInDays, endOfDay, startOfDay, subDays } from 'date-fns';
 import { Response } from 'express';
 
 import { SuccessResponse } from '../../../core/ApiResponse.js';

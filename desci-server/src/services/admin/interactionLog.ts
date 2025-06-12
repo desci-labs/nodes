@@ -60,7 +60,7 @@ export const countExploringUsersInRange = async (range: { from: Date; to: Date }
   }[];
 
   logger.trace({ res }, 'countExploringUsersInRange');
-  return res[0].count;
+  return Number(res[0]?.count || 0);
 };
 
 /**
@@ -85,7 +85,7 @@ export const countResearchObjectsUpdated = async () => {
   }[];
 
   logger.trace({ res }, 'countResearchObjectsUpdated');
-  return res[0].count;
+  return Number(res[0]?.count || 0);
 };
 
 /**
@@ -109,7 +109,7 @@ export const countResearchObjectsShared = async () => {
   }[];
 
   logger.trace({ res }, 'countResearchObjectsShared');
-  return res[0].count;
+  return Number(res[0]?.count || 0);
 };
 
 /**
@@ -146,7 +146,7 @@ export const getUserRetention = async (days: number) => {
     count: number;
   }[];
 
-  return res[0].count;
+  return Number(res[0]?.count || 0);
 };
 
 // function to count Interactions related to sharing research objects within an optional time range\
