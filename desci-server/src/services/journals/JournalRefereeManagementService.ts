@@ -220,14 +220,14 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
     if (submission.assignedEditorId) {
       const dueDate = new Date(Date.now() + refereeInvite.relativeDueDateHrs * 60 * 60 * 1000); // hours to ms conversion
       // Acceptance notif to editor
-      // NotificationService.emitOnRefereeAcceptance({
-      //   journal: submission.journal,
-      //   submission: submission,
-      //   submissionTitle: submission.node.title,
-      //   referee: refereeUser,
-      //   dueDate,
-      //   refereeInvite: updatedRefereeInvite,
-      // });
+      await NotificationService.emitOnRefereeAcceptance({
+        journal: submission.journal,
+        submission: submission,
+        submissionTitle: submission.node.title,
+        referee: refereeUser,
+        dueDate,
+        refereeInvite: updatedRefereeInvite,
+      });
       // TODO: Send email to editor
       // TODO: Notify author of status change (Under review)
     }
@@ -360,13 +360,13 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
 
     if (submission.assignedEditorId) {
       // Emit notif to inform editor that referee declined
-      // NotificationService.emitOnRefereeDecline({
-      //   journal: submission.journal,
-      //   submission: submission,
-      //   submissionTitle: submission.node.title,
-      //   referee: refereeUser,
-      //   refereeInvite,
-      // });
+      await NotificationService.emitOnRefereeDecline({
+        journal: submission.journal,
+        submission: submission,
+        submissionTitle: submission.node.title,
+        referee: refereeUser,
+        refereeInvite,
+      });
       // TODO: Send email to editor
     }
 
