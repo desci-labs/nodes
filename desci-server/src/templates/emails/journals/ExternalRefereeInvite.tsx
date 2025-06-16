@@ -13,6 +13,8 @@ export interface ExternalRefereeInviteEmailProps {
   submissionLink: string;
   submissionAuthors: string[]; // Possibly not needed here if blind review
   submissionAbstract: string;
+  submissionUuid?: string;
+  submissionDpid?: string;
   inviteToken: string;
 }
 
@@ -22,6 +24,8 @@ export const ExternalRefereeInviteEmail = ({
   refereeName,
   submissionTitle,
   submissionId,
+  submissionUuid,
+  submissionDpid,
   submissionLink,
   submissionAuthors,
   submissionAbstract,

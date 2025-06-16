@@ -1,4 +1,4 @@
-import { CommunitySubmission, DesciCommunity, Node, User } from '@prisma/client';
+import { CommunitySubmission, DesciCommunity, EditorRole, Node, User } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
 import { logger as parentLogger } from '../logger.js';
@@ -21,6 +21,7 @@ import { SubmissionAcceptedEmailProps } from '../templates/emails/journals/Submi
 import { SubmissionAssignedEmailProps } from '../templates/emails/journals/SubmissionAssigned.js';
 import { SubmissionReassignedEmailProps } from '../templates/emails/journals/SubmissionReassigned.js';
 import { DoiMintedEmailHtml, RejectedSubmissionEmailHtml } from '../templates/emails/utils/emailRenderer.js';
+import { prependIndefiniteArticle } from '../utils.js';
 
 export enum EmailTypes {
   DoiMinted,
@@ -45,6 +46,25 @@ export enum EmailTypes {
   SUBMISSION_DESK_REJECTED,
   SUBMISSION_FINAL_REJECTED,
 }
+
+export const templateIdMap = {
+  [EmailTypes.EDITOR_INVITE]: 'tba',
+  [EmailTypes.EXTERNAL_REFEREE_INVITE]: 'tba',
+  [EmailTypes.REFEREE_INVITE]: 'tba',
+  [EmailTypes.REFEREE_DECLINED]: 'tba',
+  [EmailTypes.REFEREE_ACCEPTED]: 'tba',
+  [EmailTypes.REFEREE_REASSIGNED]: 'tba',
+  [EmailTypes.REFEREE_REVIEW_REMINDER]: 'tba',
+  [EmailTypes.MINOR_REVISION_REQUEST]: 'tba',
+  [EmailTypes.MAJOR_REVISION_REQUEST]: 'tba',
+  [EmailTypes.REVISION_SUBMITTED]: 'tba',
+  [EmailTypes.OVERDUE_ALERT_TO_EDITOR]: 'tba',
+  [EmailTypes.SUBMISSION_ASSIGNED_TO_EDITOR]: 'tba',
+  [EmailTypes.SUBMISSION_REASSIGNED_TO_EDITOR]: 'tba',
+  [EmailTypes.SUBMISSION_ACCEPTED]: 'tba',
+  [EmailTypes.SUBMISSION_DESK_REJECTED]: 'tba',
+  [EmailTypes.SUBMISSION_FINAL_REJECTED]: 'tba',
+};
 
 // export const JournalEmailTemplates = {
 //   InviteEditor: (props: InviteEditorEmailProps) => render(InviteEditorEmail(props)),
@@ -202,6 +222,44 @@ export type EmailProps =
 
 const logger = parentLogger.child({ module: 'EmailService' });
 
+/**
+ * Sends an email using SendGrid
+ * @param devLog - Optional object with additional information to log in dev mode
+ */
+async function sendSgMail(message: sgMail.MailDataRequired, devLog?: Record<string, string>) {
+  try {
+    if (process.env.SHOULD_SEND_EMAIL) {
+      const subjectPrefix =
+        process.env.SERVER_URL === 'https://nodes-api.desci.com'
+          ? '[nodes.desci.com]'
+          : process.env.SERVER_URL === 'https://nodes-api-dev.desci.com'
+            ? '[nodes-dev.desci.com]'
+            : '[nodes-local-dev]';
+
+      message.subject = `${subjectPrefix} ${message.subject}`;
+      const response = await sgMail.send(message);
+      logger.trace(response, '[EMAIL]:: Response');
+    } else {
+      logger.info({ nodeEnv: process.env.NODE_ENV }, '[EMAIL]::', message.subject);
+    }
+
+    if (process.env.NODE_ENV === 'dev') {
+      // Print this anyway whilst developing, even if emails are being sent
+      const email = message.to;
+      const Reset = '\x1b[0m';
+      const BgGreen = '\x1b[42m';
+      const BgYellow = '\x1b[43m';
+      const BIG_SIGNAL = `\n\n${BgYellow}$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$${Reset}\n\n`;
+      logger.info(
+        { devLog },
+        `${BIG_SIGNAL}Email sent to ${email}\n\n${BgGreen}${message.subject}${Reset}${BIG_SIGNAL}`,
+      );
+    }
+  } catch (err) {
+    logger.error({ err }, '[ERROR]:: EMAIL');
+  }
+}
+
 export function assertNever(value: never) {
   console.error('Unknown value', value);
   throw Error('Not Possible');
@@ -263,17 +321,23 @@ async function sendRejectSubmissionEmail({
     }),
   };
 
-  try {
-    if (process.env.NODE_ENV === 'production') {
-      const response = await sgMail.send(message);
-      logger.trace(response, '[EMAIL]:: Response');
-    } else {
-      logger.info({ nodeEnv: process.env.NODE_ENV }, message.subject);
-    }
-  } catch (err) {
-    logger.error({ err }, '[ERROR]:: RejectedSubmission EMAIL');
-  }
+  await sendSgMail(message);
 }
+
+export type EditorInviteDynamicTemplateData = {
+  journal: {
+    id: number;
+    name: string;
+    description: string;
+    iconCid: string;
+  };
+  inviter: {
+    name: string;
+  };
+  role: string;
+  roleWithArticle: string;
+  inviteToken: string;
+};
 
 async function sendInviteEditorEmail({
   email,
@@ -285,15 +349,21 @@ async function sendInviteEditorEmail({
   const message = {
     to: email,
     from: 'no-reply@desci.com',
-    subject: `You've been invited to join ${journal.name} as ${roleCopy[role]}`,
-    text: `${inviterName} has invited you to join ${journal.name} as ${roleCopy[role]}. 
-    Invite Code: ${inviteToken}`,
-    html: InviteEditorEmail({
-      journal,
-      inviterName,
-      role,
+    templateId: templateIdMap[EmailTypes.EDITOR_INVITE],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconColor: journal.iconCid,
+      },
+      inviter: {
+        name: inviterName,
+      },
+      role: role === EditorRole.CHIEF_EDITOR ? 'Chief Editor' : 'Associate Editor',
+      roleWithArticle: prependIndefiniteArticle(role === EditorRole.CHIEF_EDITOR ? 'Chief Editor' : 'Associate Editor'),
       inviteToken,
-    }) as unknown as string,
+    },
   };
   await sendSgMail(message, { inviteToken });
 }
@@ -306,67 +376,42 @@ async function sendExternalRefereeInviteEmail({
   inviteToken,
   submissionTitle,
   submissionId,
+  submissionDpid,
   submissionLink,
   submissionAuthors,
   submissionAbstract,
+  submissionUuid,
 }: ExternalRefereeInvitePayload['payload']) {
   const message = {
     to: email,
     from: 'no-reply@desci.com',
-    subject: `You've been invited to peer review a submission for ${journal.name}`,
-    text: `${inviterName} has invited you to peer review a submission for ${journal.name}. 
-    Invite Code: ${inviteToken}`,
-    html: ExternalRefereeInviteEmail({
-      journal,
-      inviterName,
+    templateId: templateIdMap[EmailTypes.EXTERNAL_REFEREE_INVITE],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      inviter: {
+        name: inviterName,
+      },
+      referee: {
+        name: refereeName,
+      },
+      submission: {
+        title: submissionTitle,
+        id: submissionId,
+        uuid: submissionUuid,
+        dpid: submissionDpid,
+        link: submissionLink,
+        authors: submissionAuthors,
+        abstract: submissionAbstract,
+      },
       inviteToken,
-      refereeName,
-      submissionTitle,
-      submissionId,
-      submissionLink,
-      submissionAuthors,
-      submissionAbstract,
-    }) as unknown as string,
+    },
   };
   await sendSgMail(message, { inviteToken });
-}
-
-/**
- * Sends an email using SendGrid
- * @param devLog - Optional object with additional information to log in dev mode
- */
-async function sendSgMail(message: sgMail.MailDataRequired, devLog?: Record<string, string>) {
-  try {
-    if (process.env.SHOULD_SEND_EMAIL) {
-      const subjectPrefix =
-        process.env.SERVER_URL === 'https://nodes-api.desci.com'
-          ? '[nodes.desci.com]'
-          : process.env.SERVER_URL === 'https://nodes-api-dev.desci.com'
-            ? '[nodes-dev.desci.com]'
-            : '[nodes-local-dev]';
-
-      message.subject = `${subjectPrefix} ${message.subject}`;
-      const response = await sgMail.send(message);
-      logger.trace(response, '[EMAIL]:: Response');
-    } else {
-      logger.info({ nodeEnv: process.env.NODE_ENV }, '[EMAIL]::', message.subject);
-    }
-
-    if (process.env.NODE_ENV === 'dev') {
-      // Print this anyway whilst developing, even if emails are being sent
-      const email = message.to;
-      const Reset = '\x1b[0m';
-      const BgGreen = '\x1b[42m';
-      const BgYellow = '\x1b[43m';
-      const BIG_SIGNAL = `\n\n${BgYellow}$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$${Reset}\n\n`;
-      logger.info(
-        { devLog },
-        `${BIG_SIGNAL}Email sent to ${email}\n\n${BgGreen}${message.subject}${Reset}${BIG_SIGNAL}`,
-      );
-    }
-  } catch (err) {
-    logger.error({ err }, '[ERROR]:: EMAIL');
-  }
 }
 
 export const sendEmail = async (props: EmailProps) => {
