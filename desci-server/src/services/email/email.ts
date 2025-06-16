@@ -1,28 +1,26 @@
-import { CommunitySubmission, DesciCommunity, EditorRole, Node, User } from '@prisma/client';
+import { EditorRole } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
-import { logger as parentLogger } from '../logger.js';
-import { DeskRejectionEmailProps } from '../templates/emails/journals/DeskRejection.js';
-import ExternalRefereeInviteEmail, {
-  ExternalRefereeInviteEmailProps,
-} from '../templates/emails/journals/ExternalRefereeInvite.js';
-import { FinalRejectionDecisionEmailProps } from '../templates/emails/journals/FinalRejectionDecision.js';
-import InviteEditorEmail, { InviteEditorEmailProps, roleCopy } from '../templates/emails/journals/InviteEditor.js';
-import { MajorRevisionRequestEmailProps } from '../templates/emails/journals/MajorRevisionRequest.js';
-import { MinorRevisionRequestEmailProps } from '../templates/emails/journals/MinorRevisionRequest.js';
-import { OverdueAlertEditorEmailProps } from '../templates/emails/journals/OverdueAlertEditor.js';
-import { RefereeAcceptedEmailProps } from '../templates/emails/journals/RefereeAccepted.js';
-import { RefereeDeclinedEmailProps } from '../templates/emails/journals/RefereeDeclinedEmail.js';
-import RefereeInviteEmail, { RefereeInviteEmailProps } from '../templates/emails/journals/RefereeInvite.js';
-import { RefereeReassignedEmailProps } from '../templates/emails/journals/RefereeReassigned.js';
-import { RefereeReviewReminderEmailProps } from '../templates/emails/journals/RefereeReviewReminder.js';
-import { RevisionSubmittedEditorEmailProps } from '../templates/emails/journals/RevisionSubmittedConfirmation.js';
-import { SubmissionAcceptedEmailProps } from '../templates/emails/journals/SubmissionAcceped.js';
-import { SubmissionAssignedEmailProps } from '../templates/emails/journals/SubmissionAssigned.js';
-import { SubmissionReassignedEmailProps } from '../templates/emails/journals/SubmissionReassigned.js';
-import { DoiMintedEmailHtml, RejectedSubmissionEmailHtml } from '../templates/emails/utils/emailRenderer.js';
-import { getRelativeTime } from '../utils/clock.js';
-import { prependIndefiniteArticle } from '../utils.js';
+import { logger as parentLogger } from '../../logger.js';
+import { DeskRejectionEmailProps } from '../../templates/emails/journals/DeskRejection.js';
+import { ExternalRefereeInviteEmailProps } from '../../templates/emails/journals/ExternalRefereeInvite.js';
+import { FinalRejectionDecisionEmailProps } from '../../templates/emails/journals/FinalRejectionDecision.js';
+import { InviteEditorEmailProps } from '../../templates/emails/journals/InviteEditor.js';
+import { MajorRevisionRequestEmailProps } from '../../templates/emails/journals/MajorRevisionRequest.js';
+import { MinorRevisionRequestEmailProps } from '../../templates/emails/journals/MinorRevisionRequest.js';
+import { OverdueAlertEditorEmailProps } from '../../templates/emails/journals/OverdueAlertEditor.js';
+import { RefereeAcceptedEmailProps } from '../../templates/emails/journals/RefereeAccepted.js';
+import { RefereeDeclinedEmailProps } from '../../templates/emails/journals/RefereeDeclinedEmail.js';
+import { RefereeInviteEmailProps } from '../../templates/emails/journals/RefereeInvite.js';
+import { RefereeReassignedEmailProps } from '../../templates/emails/journals/RefereeReassigned.js';
+import { RefereeReviewReminderEmailProps } from '../../templates/emails/journals/RefereeReviewReminder.js';
+import { RevisionSubmittedEditorEmailProps } from '../../templates/emails/journals/RevisionSubmittedConfirmation.js';
+import { SubmissionAcceptedEmailProps } from '../../templates/emails/journals/SubmissionAcceped.js';
+import { SubmissionAssignedEmailProps } from '../../templates/emails/journals/SubmissionAssigned.js';
+import { SubmissionReassignedEmailProps } from '../../templates/emails/journals/SubmissionReassigned.js';
+import { DoiMintedEmailHtml, RejectedSubmissionEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
+import { getRelativeTime } from '../../utils/clock.js';
+import { prependIndefiniteArticle } from '../../utils.js';
 
 export enum EmailTypes {
   DoiMinted = 'DoiMinted',
