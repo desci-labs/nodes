@@ -46,24 +46,7 @@ export enum EmailTypes {
   SUBMISSION_FINAL_REJECTED = 'SUBMISSION_FINAL_REJECTED',
 }
 
-export const templateIdMap = {
-  [EmailTypes.EDITOR_INVITE]: 'tba',
-  [EmailTypes.EXTERNAL_REFEREE_INVITE]: 'tba',
-  [EmailTypes.REFEREE_INVITE]: 'tba',
-  [EmailTypes.REFEREE_DECLINED]: 'tba',
-  [EmailTypes.REFEREE_ACCEPTED]: 'tba',
-  [EmailTypes.REFEREE_REASSIGNED]: 'tba',
-  [EmailTypes.REFEREE_REVIEW_REMINDER]: 'tba',
-  [EmailTypes.MINOR_REVISION_REQUEST]: 'tba',
-  [EmailTypes.MAJOR_REVISION_REQUEST]: 'tba',
-  [EmailTypes.REVISION_SUBMITTED]: 'tba',
-  [EmailTypes.OVERDUE_ALERT_TO_EDITOR]: 'tba',
-  [EmailTypes.SUBMISSION_ASSIGNED_TO_EDITOR]: 'tba',
-  [EmailTypes.SUBMISSION_REASSIGNED_TO_EDITOR]: 'tba',
-  [EmailTypes.SUBMISSION_ACCEPTED]: 'tba',
-  [EmailTypes.SUBMISSION_DESK_REJECTED]: 'tba',
-  [EmailTypes.SUBMISSION_FINAL_REJECTED]: 'tba',
-};
+const templateIdMap = JSON.parse(process.env.SENDGRID_TEMPLATE_ID_MAP ?? '{}') as Record<EmailTypes, string>;
 
 // export const JournalEmailTemplates = {
 //   InviteEditor: (props: InviteEditorEmailProps) => render(InviteEditorEmail(props)),
