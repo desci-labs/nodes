@@ -21,30 +21,31 @@ import { SubmissionAcceptedEmailProps } from '../templates/emails/journals/Submi
 import { SubmissionAssignedEmailProps } from '../templates/emails/journals/SubmissionAssigned.js';
 import { SubmissionReassignedEmailProps } from '../templates/emails/journals/SubmissionReassigned.js';
 import { DoiMintedEmailHtml, RejectedSubmissionEmailHtml } from '../templates/emails/utils/emailRenderer.js';
+import { getRelativeTime } from '../utils/clock.js';
 import { prependIndefiniteArticle } from '../utils.js';
 
 export enum EmailTypes {
-  DoiMinted,
-  DOI_REGISTRATION_REQUESTED,
-  RejectedSubmission,
+  DoiMinted = 'DoiMinted',
+  DOI_REGISTRATION_REQUESTED = 'DOI_REGISTRATION_REQUESTED',
+  RejectedSubmission = 'RejectedSubmission',
 
   // Journals
-  EDITOR_INVITE,
-  EXTERNAL_REFEREE_INVITE,
-  REFEREE_INVITE,
-  REFEREE_DECLINED,
-  REFEREE_ACCEPTED,
-  REFEREE_REASSIGNED,
-  REFEREE_REVIEW_REMINDER,
-  MINOR_REVISION_REQUEST,
-  MAJOR_REVISION_REQUEST,
-  REVISION_SUBMITTED,
-  OVERDUE_ALERT_TO_EDITOR,
-  SUBMISSION_ASSIGNED_TO_EDITOR,
-  SUBMISSION_REASSIGNED_TO_EDITOR,
-  SUBMISSION_ACCEPTED,
-  SUBMISSION_DESK_REJECTED,
-  SUBMISSION_FINAL_REJECTED,
+  EDITOR_INVITE = 'EDITOR_INVITE',
+  EXTERNAL_REFEREE_INVITE = 'EXTERNAL_REFEREE_INVITE',
+  REFEREE_INVITE = 'REFEREE_INVITE',
+  REFEREE_DECLINED = 'REFEREE_DECLINED',
+  REFEREE_ACCEPTED = 'REFEREE_ACCEPTED',
+  REFEREE_REASSIGNED = 'REFEREE_REASSIGNED',
+  REFEREE_REVIEW_REMINDER = 'REFEREE_REVIEW_REMINDER',
+  MINOR_REVISION_REQUEST = 'MINOR_REVISION_REQUEST',
+  MAJOR_REVISION_REQUEST = 'MAJOR_REVISION_REQUEST',
+  REVISION_SUBMITTED = 'REVISION_SUBMITTED',
+  OVERDUE_ALERT_TO_EDITOR = 'OVERDUE_ALERT_TO_EDITOR',
+  SUBMISSION_ASSIGNED_TO_EDITOR = 'SUBMISSION_ASSIGNED_TO_EDITOR',
+  SUBMISSION_REASSIGNED_TO_EDITOR = 'SUBMISSION_REASSIGNED_TO_EDITOR',
+  SUBMISSION_ACCEPTED = 'SUBMISSION_ACCEPTED',
+  SUBMISSION_DESK_REJECTED = 'SUBMISSION_DESK_REJECTED',
+  SUBMISSION_FINAL_REJECTED = 'SUBMISSION_FINAL_REJECTED',
 }
 
 export const templateIdMap = {
@@ -374,13 +375,7 @@ async function sendExternalRefereeInviteEmail({
   journal,
   inviterName,
   inviteToken,
-  submissionTitle,
-  submissionId,
-  submissionDpid,
-  submissionLink,
-  submissionAuthors,
-  submissionAbstract,
-  submissionUuid,
+  submission,
 }: ExternalRefereeInvitePayload['payload']) {
   const message = {
     to: email,
@@ -400,18 +395,371 @@ async function sendExternalRefereeInviteEmail({
         name: refereeName,
       },
       submission: {
-        title: submissionTitle,
-        id: submissionId,
-        uuid: submissionUuid,
-        dpid: submissionDpid,
-        link: submissionLink,
-        authors: submissionAuthors,
-        abstract: submissionAbstract,
+        title: submission.title,
+        id: submission.id,
+        dpid: submission.dpid,
+        authors: submission.authors,
+        abstract: submission.abstract,
       },
       inviteToken,
     },
   };
   await sendSgMail(message, { inviteToken });
+}
+
+async function sendRefereeDeclinedEmail({
+  email,
+  journal,
+  refereeName,
+  refereeEmail,
+  submission,
+  declineReason,
+  suggestedReferees,
+}: RefereeDeclinedPayload['payload']) {
+  const submittedAtFromNow = getRelativeTime(submission.submittedAt);
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.REFEREE_DECLINED],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      referee: {
+        name: refereeName,
+        email: refereeEmail,
+      },
+      submission,
+      declineReason,
+      suggestedReferees,
+      submittedAtFromNow,
+    },
+  };
+  await sendSgMail(message);
+}
+
+async function sendRefereeAcceptedEmail({
+  email,
+  journal,
+  refereeName,
+  refereeEmail,
+  submission,
+  reviewDeadline,
+}: RefereeAcceptedPayload['payload']) {
+  const deadlineFromNow = getRelativeTime(new Date(reviewDeadline));
+  const submittedAtFromNow = getRelativeTime(submission.submittedAt);
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.REFEREE_ACCEPTED],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      referee: {
+        name: refereeName,
+        email: refereeEmail,
+      },
+      submission,
+      reviewDeadline,
+      deadlineFromNow,
+      submittedAtFromNow,
+    },
+  };
+  await sendSgMail(message);
+}
+
+async function sendRefereeReassignedEmail({
+  email,
+  journal,
+  refereeName,
+  refereeEmail,
+  submission,
+  reviewDeadline,
+}: RefereeReassignedPayload['payload']) {
+  const deadlineFromNow = getRelativeTime(new Date(reviewDeadline));
+  const submittedAtFromNow = getRelativeTime(submission.submittedAt);
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.REFEREE_REASSIGNED],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      referee: {
+        name: refereeName,
+        email: refereeEmail,
+      },
+      submission,
+      reviewDeadline,
+      deadlineFromNow,
+      submittedAtFromNow,
+    },
+  };
+  await sendSgMail(message);
+}
+
+async function sendRefereeReviewReminderEmail({
+  email,
+  journal,
+  submission,
+  reviewDeadline,
+}: RefereeReviewReminderPayload['payload']) {
+  const deadlineFromNow = getRelativeTime(new Date(reviewDeadline));
+  const submittedAtFromNow = getRelativeTime(submission.submittedAt);
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.REFEREE_REVIEW_REMINDER],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      submission,
+      reviewDeadline,
+      deadlineFromNow,
+      submittedAtFromNow,
+    },
+  };
+  await sendSgMail(message);
+}
+
+async function sendMinorRevisionRequestEmail({
+  email,
+  journal,
+  submission,
+  editorName,
+  comments,
+}: MinorRevisionRequestPayload['payload']) {
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.MINOR_REVISION_REQUEST],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      editor: {
+        name: editorName,
+      },
+      submission,
+      comments,
+    },
+  };
+  await sendSgMail(message);
+}
+
+async function sendMajorRevisionRequestEmail({
+  email,
+  journal,
+  submission,
+  editorName,
+  comments,
+}: MajorRevisionRequestPayload['payload']) {
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.MAJOR_REVISION_REQUEST],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      editor: {
+        name: editorName,
+      },
+      submission,
+      comments,
+    },
+  };
+  await sendSgMail(message);
+}
+
+async function sendRevisionSubmittedEmail({ email, journal, submission }: RevisionSubmittedPayload['payload']) {
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.REVISION_SUBMITTED],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      submission,
+    },
+  };
+  await sendSgMail(message);
+}
+
+async function sendOverdueAlertEditorEmail({
+  email,
+  journal,
+  reviewDeadline,
+  submission,
+}: OverdueAlertEditorPayload['payload']) {
+  const deadlineFromNow = getRelativeTime(new Date(reviewDeadline));
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.OVERDUE_ALERT_TO_EDITOR],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      submission,
+      reviewDeadline,
+      deadlineFromNow,
+    },
+  };
+  await sendSgMail(message);
+}
+
+async function sendSubmissionAssignedToEditorEmail({
+  email,
+  journal,
+  assigner,
+  editor,
+  submission,
+}: SubmissionAssignedToEditorPayload['payload']) {
+  const submittedAtFromNow = getRelativeTime(submission.submittedAt);
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.SUBMISSION_ASSIGNED_TO_EDITOR],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      submission,
+      assigner: {
+        name: assigner.name,
+        userId: assigner.userId,
+      },
+      editor: {
+        name: editor.name,
+        userId: editor.userId,
+      },
+      submittedAtFromNow,
+    },
+  };
+  await sendSgMail(message);
+}
+
+async function sendSubmissionAcceptedEmail({
+  email,
+  journal,
+  editor,
+  submission,
+}: SubmissionAcceptedPayload['payload']) {
+  const submittedAtFromNow = getRelativeTime(submission.submittedAt);
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.SUBMISSION_ACCEPTED],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      submission,
+      editor: {
+        name: editor.name,
+        userId: editor.userId,
+      },
+      submittedAtFromNow,
+    },
+  };
+  await sendSgMail(message);
+}
+
+async function sendSubmissionDeskRejectedEmail({
+  email,
+  journal,
+  editor,
+  submission,
+  comments,
+}: DeskRejectionPayload['payload']) {
+  const submittedAtFromNow = getRelativeTime(submission.submittedAt);
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.SUBMISSION_DESK_REJECTED],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      submission,
+      editor: {
+        name: editor.name,
+        userId: editor.userId,
+      },
+      comments,
+      submittedAtFromNow,
+    },
+  };
+  await sendSgMail(message);
+}
+
+async function sendSubmissionFinalRejectedEmail({
+  email,
+  journal,
+  editor,
+  submission,
+  comments,
+}: FinalRejectionDecisionPayload['payload']) {
+  const submittedAtFromNow = getRelativeTime(submission.submittedAt);
+  const message = {
+    to: email,
+    from: 'no-reply@desci.com',
+    templateId: templateIdMap[EmailTypes.SUBMISSION_FINAL_REJECTED],
+    dynamicTemplateData: {
+      journal: {
+        id: journal.id,
+        name: journal.name,
+        description: journal.description,
+        iconCid: journal.iconCid,
+      },
+      submission,
+      editor: {
+        name: editor.name,
+        userId: editor.userId,
+      },
+      comments,
+      submittedAtFromNow,
+    },
+  };
+  await sendSgMail(message);
 }
 
 export const sendEmail = async (props: EmailProps) => {
@@ -422,41 +770,42 @@ export const sendEmail = async (props: EmailProps) => {
       return sendDoiRequested(props.payload);
     case EmailTypes.RejectedSubmission:
       return sendRejectSubmissionEmail(props.payload);
+
+    // JOURNALS
     case EmailTypes.EDITOR_INVITE:
       return sendInviteEditorEmail(props.payload);
     case EmailTypes.EXTERNAL_REFEREE_INVITE:
       return sendExternalRefereeInviteEmail(props.payload);
     case EmailTypes.REFEREE_INVITE:
-    // NOTE: Lets not over commit on these emails, as the solution for these will likely change (mailchimp templates)
-    // return sendRefereeInviteEmail(props.payload);
+      return sendExternalRefereeInviteEmail(props.payload); // Change if copy is different
     case EmailTypes.REFEREE_DECLINED:
-    // return sendRefereeDeclinedEmail(props.payload);
+      return sendRefereeDeclinedEmail(props.payload);
     case EmailTypes.REFEREE_ACCEPTED:
-    // return sendRefereeAcceptedEmail(props.payload);
+      return sendRefereeAcceptedEmail(props.payload);
     case EmailTypes.REFEREE_REASSIGNED:
-    // return sendRefereeReassignedEmail(props.payload);
+      return sendRefereeReassignedEmail(props.payload);
     case EmailTypes.REFEREE_REVIEW_REMINDER:
-    // return sendRefereeReviewReminderEmail(props.payload);
+      return sendRefereeReviewReminderEmail(props.payload);
     case EmailTypes.MINOR_REVISION_REQUEST:
-    // return sendMinorRevisionRequestEmail(props.payload);
+      return sendMinorRevisionRequestEmail(props.payload);
     case EmailTypes.MAJOR_REVISION_REQUEST:
-    // return sendMajorRevisionRequestEmail(props.payload);
+      return sendMajorRevisionRequestEmail(props.payload);
     case EmailTypes.REVISION_SUBMITTED:
-    // return sendRevisionSubmittedEmail(props.payload);
+      return sendRevisionSubmittedEmail(props.payload);
     case EmailTypes.OVERDUE_ALERT_TO_EDITOR:
-    // return sendOverdueAlertEditorEmail(props.payload);
+      return sendOverdueAlertEditorEmail(props.payload);
     case EmailTypes.SUBMISSION_ASSIGNED_TO_EDITOR:
-    // return sendSubmissionAssignedToEditorEmail(props.payload);
+      return sendSubmissionAssignedToEditorEmail(props.payload);
     case EmailTypes.SUBMISSION_REASSIGNED_TO_EDITOR:
+      return sendSubmissionAssignedToEditorEmail(props.payload); // Change if copy is different to SUBMISSION_ASSIGNED_TO_EDITOR
     // return sendSubmissionReassignedToEditorEmail(props.payload);
     case EmailTypes.SUBMISSION_ACCEPTED:
-    // return sendSubmissionAcceptedEmail(props.payload);
+      return sendSubmissionAcceptedEmail(props.payload);
     case EmailTypes.SUBMISSION_DESK_REJECTED:
-    // return sendSubmissionDeskRejectedEmail(props.payload);
+      return sendSubmissionDeskRejectedEmail(props.payload);
     case EmailTypes.SUBMISSION_FINAL_REJECTED:
-      // return sendSubmissionFinalRejectedEmail(props.payload);
-      // NOTE: Lets not over commit on these emails, as the solution for these will likely change (mailchimp templates)
-      return;
+      return sendSubmissionFinalRejectedEmail(props.payload);
+
     default:
       assertNever(props);
   }
