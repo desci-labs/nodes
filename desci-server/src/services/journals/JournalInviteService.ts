@@ -2,7 +2,7 @@ import { EditorRole, JournalEventLogAction } from '@prisma/client';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { EmailTypes, sendEmail } from '../email.js';
+import { EmailTypes, sendEmail } from '../email/email.js';
 import { NotificationService } from '../Notifications/NotificationService.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
