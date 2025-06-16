@@ -22,6 +22,17 @@ import { DoiMintedEmailHtml, RejectedSubmissionEmailHtml } from '../../templates
 import { getRelativeTime } from '../../utils/clock.js';
 import { prependIndefiniteArticle } from '../../utils.js';
 
+/**
+ * Used to add a suffix to the email subject to indicate the deployment environment
+ * e.g. [nodes-dev.desci.com], [nodes.desci.com]
+ */
+const deploymentEnvironmentString =
+  process.env.SERVER_URL === 'https://nodes-api.desci.com'
+    ? '' // Prod wouldn't need a prefix
+    : process.env.SERVER_URL === 'https://nodes-api-dev.desci.com'
+      ? '-dev'
+      : '-local';
+
 export enum EmailTypes {
   DoiMinted = 'DoiMinted',
   DOI_REGISTRATION_REQUESTED = 'DOI_REGISTRATION_REQUESTED',
@@ -333,6 +344,7 @@ async function sendInviteEditorEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.EDITOR_INVITE],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -363,6 +375,7 @@ async function sendExternalRefereeInviteEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.EXTERNAL_REFEREE_INVITE],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -403,6 +416,7 @@ async function sendRefereeDeclinedEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.REFEREE_DECLINED],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -437,6 +451,7 @@ async function sendRefereeAcceptedEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.REFEREE_ACCEPTED],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -471,6 +486,7 @@ async function sendRefereeReassignedEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.REFEREE_REASSIGNED],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -503,6 +519,7 @@ async function sendRefereeReviewReminderEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.REFEREE_REVIEW_REMINDER],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -530,6 +547,7 @@ async function sendMinorRevisionRequestEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.MINOR_REVISION_REQUEST],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -558,6 +576,7 @@ async function sendMajorRevisionRequestEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.MAJOR_REVISION_REQUEST],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -580,6 +599,7 @@ async function sendRevisionSubmittedEmail({ email, journal, submission }: Revisi
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.REVISION_SUBMITTED],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -604,6 +624,7 @@ async function sendOverdueAlertEditorEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.OVERDUE_ALERT_TO_EDITOR],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -631,6 +652,7 @@ async function sendSubmissionAssignedToEditorEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.SUBMISSION_ASSIGNED_TO_EDITOR],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -664,6 +686,7 @@ async function sendSubmissionAcceptedEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.SUBMISSION_ACCEPTED],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -694,6 +717,7 @@ async function sendSubmissionDeskRejectedEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.SUBMISSION_DESK_REJECTED],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
@@ -725,6 +749,7 @@ async function sendSubmissionFinalRejectedEmail({
     from: 'no-reply@desci.com',
     templateId: templateIdMap[EmailTypes.SUBMISSION_FINAL_REJECTED],
     dynamicTemplateData: {
+      envSuffix: deploymentEnvironmentString,
       journal: {
         id: journal.id,
         name: journal.name,
