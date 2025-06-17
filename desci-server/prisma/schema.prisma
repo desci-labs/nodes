@@ -254,7 +254,6 @@ model User {
   invitedEditors         JournalEditor[]     @relation("InviterRelation")
   inviteCredits          Int                 @default(0)
   JournalEventLogs       JournalEventLog[]
-  JournalSubmissions     JournalSubmission[]
   EditorInvite           EditorInvite[]
   // messagesSent        Message[]           @relation("MessageSender")
   // messagesReceived    Message[]           @relation("MessageReceiver")
@@ -1208,12 +1207,8 @@ model JournalSubmission {
   refereeAssignments RefereeAssignment[]
   reviews            JournalSubmissionReview[]
   eventLogs          JournalEventLog[]
-  User               User?                       @relation(fields: [userId], references: [id])
-  userId             Int?
   RefereeInvite      RefereeInvite[]
   node               Node                        @relation(fields: [dpid], references: [dpidAlias])
-  // Message            Message[]
-  // JournalSubmissionMessage JournalSubmissionMessage[]
 }
 
 model JournalSubmissionRevision {
