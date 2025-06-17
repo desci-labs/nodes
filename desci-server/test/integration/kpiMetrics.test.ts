@@ -8,52 +8,28 @@ import {
   DesciCommunity,
   InteractionLog,
   Node,
-  NodeVersion,
   Submissionstatus,
-  User,
 } from '@prisma/client';
 // import { Sql } from '@prisma/client/runtime/library.js';
-import chai, { assert, use, util } from 'chai';
+import chai, { assert } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import {
-  eachDayOfInterval,
-  eachMonthOfInterval,
-  eachWeekOfInterval,
-  eachYearOfInterval,
-  endOfDay,
-  interval,
-  startOfDay,
-  subDays,
-} from 'date-fns';
+import { subDays } from 'date-fns';
 // import { sql } from 'googleapis/build/src/apis/sql/index.js';
 import supertest from 'supertest';
-import { v4 as uuidv4 } from 'uuid';
 
 import { prisma } from '../../src/client.js';
 import { generateAccessToken } from '../../src/controllers/auth/magic.js';
 import { app } from '../../src/index.js';
 import { safePct } from '../../src/services/admin/helper.js';
-import { getUserRetention } from '../../src/services/admin/interactionLog.js';
 import { communityService } from '../../src/services/Communities.js';
-import {
-  getActiveUsersInRange,
-  saveInteraction,
-  saveInteractionWithoutReq,
-} from '../../src/services/interactionLog.js';
 import { countAllUsers } from '../../src/services/user.js';
-import { ensureUuidEndsWithDot } from '../../src/utils.js';
 import {
-  createDraftNode,
   createMockGuestUsers,
   createMockNodes,
   createMockUsers,
-  getAllDatesInInterval,
-  likeNodes,
   logMockUserActions,
   MockUser,
   publishMockNodes,
-  sanitizeBigInts,
-  viewNodes,
 } from '../util.js';
 
 // use async chai assertions
@@ -83,12 +59,7 @@ describe('KPI Metrics', async () => {
   let mockNodesInLast7Days: Node[];
   let mockNodesInLast30Days: Node[];
 
-  // mock published nodes
-  let publishedNodesToday: NodeVersion[];
-  let publishedNodesInLast7Days: NodeVersion[];
-  let publishedNodesInLast30Days: NodeVersion[];
-
-  // mock community \
+  // mock community
   let desciCommunity: DesciCommunity;
 
   beforeEach(async () => {
@@ -176,11 +147,11 @@ describe('KPI Metrics', async () => {
       );
 
       // publish 5 nodes today
-      publishedNodesToday = await publishMockNodes(mockNodesToday.slice(0, 5), new Date());
+      await publishMockNodes(mockNodesToday.slice(0, 5), new Date());
       // publish 5 nodes in the past 7 days
-      publishedNodesInLast7Days = await publishMockNodes(mockNodesInLast7Days.slice(0, 5), subDays(new Date(), 5));
+      await publishMockNodes(mockNodesInLast7Days.slice(0, 5), subDays(new Date(), 5));
       // publish 7 nodes in the past 30 days
-      publishedNodesInLast30Days = await publishMockNodes(mockNodesInLast30Days.slice(0, 7), subDays(new Date(), 28));
+      await publishMockNodes(mockNodesInLast30Days.slice(0, 7), subDays(new Date(), 28));
 
       // log 5 "actionResearchObjectUpdated" interactions
       await logMockUserActions(
@@ -269,11 +240,11 @@ describe('KPI Metrics', async () => {
 
     beforeEach(async () => {
       // publish 50% nodes today
-      publishedNodesToday = await publishMockNodes(mockNodesToday.slice(0, 5), new Date());
+      await publishMockNodes(mockNodesToday.slice(0, 5), new Date());
       // publish 50% nodes in the past 7 days
-      publishedNodesInLast7Days = await publishMockNodes(mockNodesInLast7Days.slice(0, 5), subDays(new Date(), 5));
+      await publishMockNodes(mockNodesInLast7Days.slice(0, 5), subDays(new Date(), 5));
       // publish 70% nodes in the past 30 days
-      publishedNodesInLast30Days = await publishMockNodes(mockNodesInLast30Days.slice(0, 7), subDays(new Date(), 28));
+      await publishMockNodes(mockNodesInLast30Days.slice(0, 7), subDays(new Date(), 28));
 
       // create a 5 community submission for nodes today
       await Promise.all(
