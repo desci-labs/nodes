@@ -17,14 +17,14 @@ export const inviteRefereeController = async (req: InviteRefereeRequest, res: Re
   try {
     const { submissionId } = req.validatedData.params;
     const { refereeUserId, relativeDueDateHrs } = req.validatedData.body;
-    const managerId = req.user.id;
+    const managerUserId = req.user.id;
 
-    logger.info({ submissionId, refereeUserId, managerId, relativeDueDateHrs }, 'Attempting to invite referee');
+    logger.info({ submissionId, refereeUserId, managerUserId, relativeDueDateHrs }, 'Attempting to invite referee');
 
     const result = await JournalRefereeManagementService.inviteReferee({
       submissionId: parseInt(submissionId),
       refereeUserId,
-      managerId,
+      managerUserId,
       relativeDueDateHrs,
     });
 

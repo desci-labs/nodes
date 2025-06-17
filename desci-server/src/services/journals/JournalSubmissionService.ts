@@ -401,4 +401,5 @@ export const journalSubmissionService = {
   isSubmissionByAuthor,
   updateSubmissionDoi,
   updateSubmissionDoiMintedAt,
+  getSubmissionExtendedData,
 };

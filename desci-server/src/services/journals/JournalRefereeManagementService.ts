@@ -3,7 +3,10 @@ import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { EmailTypes, sendEmail } from '../email/email.js';
 import { NotificationService } from '../Notifications/NotificationService.js';
+
+import { journalSubmissionService } from './JournalSubmissionService.js';
 
 const logger = parentLogger.child({
   module: 'Journals::JournalRefereeManagementService',
@@ -16,8 +19,9 @@ const MAX_ASSIGNED_REFEREES = 3;
 type InviteRefereeInput = {
   submissionId: number;
   refereeUserId?: number;
-  managerId: number; // Editor who is inviting the referee
+  managerUserId: number; // Editor who is inviting the referee
   relativeDueDateHrs?: number;
+  refereeEmail?: string; // If not an existing user.
 };
 
 /**
@@ -26,19 +30,47 @@ type InviteRefereeInput = {
 async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeInvite, Error>> {
   try {
     logger.trace({ fn: 'inviteReferee', data }, 'Inviting referee');
-    const referee = await prisma.user.findUnique({
-      where: { id: data.refereeUserId },
-    });
-    if (!referee) {
-      return err(new Error('Referee not found'));
-    }
+    const existingReferee = data.refereeUserId
+      ? await prisma.user.findUnique({
+          where: { id: data.refereeUserId },
+        })
+      : null;
 
     const submission = await prisma.journalSubmission.findUnique({
       where: { id: data.submissionId },
+      include: {
+        journal: true,
+        node: true,
+      },
     });
+
+    const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(data.submissionId);
+    if (submissionExtendedResult.isErr()) {
+      return err(submissionExtendedResult.error);
+    }
+    const submissionExtended = submissionExtendedResult.value;
+
+    const editor = await prisma.journalEditor.findFirst({
+      where: {
+        userId: data.managerUserId,
+        journalId: submission.journalId,
+      },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!editor) {
+      return err(new Error('Editor not found for submission'));
+    }
 
     if (!submission) {
       return err(new Error('Submission not found'));
+    }
+
+    const refereeEmail = existingReferee?.email ?? data.refereeEmail;
+    if (!refereeEmail) {
+      return err(new Error('Referee email is required'));
     }
 
     const token = crypto.randomUUID();
@@ -47,11 +79,10 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
       //   const relativeDueDateHrs = DEFAULT_REVIEW_DUE_DATE / (60 * 60 * 1000); // ms to hours conversion
       const invite = await tx.refereeInvite.create({
         data: {
-          userId: referee.id,
-          //   journalId: submission.journalId,
+          userId: existingReferee?.id ?? null, // If referee doesn't have an account yet, userId is null. (External referee)
           submissionId: data.submissionId,
-          email: referee.email,
-          invitedById: data.managerId,
+          email: refereeEmail,
+          invitedById: data.managerUserId,
           token,
           expiresAt: new Date(Date.now() + DEFAULT_INVITE_DUE_DATE),
           relativeDueDateHrs: data.relativeDueDateHrs,
@@ -66,6 +97,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
           details: {
             submissionId: invite.submissionId,
             refereeId: invite.userId,
+            refereeEmail,
             assignedSubmissionEditorId: submission.assignedEditorId,
             relativeDueDateHrs: data.relativeDueDateHrs,
           },
@@ -73,6 +105,32 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
       });
       return invite;
     });
+
+    // Send email
+    sendEmail({
+      type: EmailTypes.REFEREE_INVITE,
+      payload: {
+        email: refereeEmail,
+        journal: submission.journal,
+        inviterName: editor.user.name,
+        inviteToken: token,
+        refereeName: existingReferee?.name ?? '',
+        submission: submissionExtended,
+      },
+    });
+    if (existingReferee) {
+      // notification
+      await NotificationService.emitOnRefereeInvitation({
+        journal: submission.journal,
+        submission: submission,
+        submissionTitle: submission.node.title,
+        referee: existingReferee,
+        inviteToken: refereeInvite.token,
+        dueDateHrs: refereeInvite.relativeDueDateHrs,
+        editor,
+      });
+    }
+
     logger.info({ fn: 'inviteReferee', data, refereeInviteId: refereeInvite.id }, 'Invited referee');
     return ok(refereeInvite);
   } catch (error) {
