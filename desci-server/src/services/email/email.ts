@@ -2,25 +2,28 @@ import { EditorRole } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
 import { logger as parentLogger } from '../../logger.js';
-import { DeskRejectionEmailProps } from '../../templates/emails/journals/DeskRejection.js';
-import { ExternalRefereeInviteEmailProps } from '../../templates/emails/journals/ExternalRefereeInvite.js';
-import { FinalRejectionDecisionEmailProps } from '../../templates/emails/journals/FinalRejectionDecision.js';
-import { InviteEditorEmailProps } from '../../templates/emails/journals/InviteEditor.js';
-import { MajorRevisionRequestEmailProps } from '../../templates/emails/journals/MajorRevisionRequest.js';
-import { MinorRevisionRequestEmailProps } from '../../templates/emails/journals/MinorRevisionRequest.js';
-import { OverdueAlertEditorEmailProps } from '../../templates/emails/journals/OverdueAlertEditor.js';
-import { RefereeAcceptedEmailProps } from '../../templates/emails/journals/RefereeAccepted.js';
-import { RefereeDeclinedEmailProps } from '../../templates/emails/journals/RefereeDeclinedEmail.js';
-import { RefereeInviteEmailProps } from '../../templates/emails/journals/RefereeInvite.js';
-import { RefereeReassignedEmailProps } from '../../templates/emails/journals/RefereeReassigned.js';
-import { RefereeReviewReminderEmailProps } from '../../templates/emails/journals/RefereeReviewReminder.js';
-import { RevisionSubmittedEditorEmailProps } from '../../templates/emails/journals/RevisionSubmittedConfirmation.js';
-import { SubmissionAcceptedEmailProps } from '../../templates/emails/journals/SubmissionAcceped.js';
-import { SubmissionAssignedEmailProps } from '../../templates/emails/journals/SubmissionAssigned.js';
-import { SubmissionReassignedEmailProps } from '../../templates/emails/journals/SubmissionReassigned.js';
 import { DoiMintedEmailHtml, RejectedSubmissionEmailHtml } from '../../templates/emails/utils/emailRenderer.js';
 import { getRelativeTime } from '../../utils/clock.js';
 import { prependIndefiniteArticle } from '../../utils.js';
+
+import {
+  EditorInvitePayload,
+  ExternalRefereeInvitePayload,
+  RefereeInvitePayload,
+  RefereeDeclinedPayload,
+  RefereeAcceptedPayload,
+  RefereeReassignedPayload,
+  RefereeReviewReminderPayload,
+  MinorRevisionRequestPayload,
+  MajorRevisionRequestPayload,
+  RevisionSubmittedPayload,
+  OverdueAlertEditorPayload,
+  SubmissionAssignedToEditorPayload,
+  SubmissionReassignedToEditorPayload,
+  SubmissionAcceptedPayload,
+  DeskRejectionPayload,
+  FinalRejectionDecisionPayload,
+} from './journalEmailTypes.js';
 
 /**
  * Used to add a suffix to the email subject to indicate the deployment environment
@@ -109,86 +112,6 @@ type RejectSubmissionPayload = {
     //   node: Partial<Node>;
     // };
   };
-};
-
-type EditorInvitePayload = {
-  type: EmailTypes.EDITOR_INVITE;
-  payload: { email: string } & InviteEditorEmailProps;
-};
-
-type ExternalRefereeInvitePayload = {
-  type: EmailTypes.EXTERNAL_REFEREE_INVITE;
-  payload: { email: string } & ExternalRefereeInviteEmailProps;
-};
-
-type RefereeInvitePayload = {
-  type: EmailTypes.REFEREE_INVITE;
-  payload: { email: string } & RefereeInviteEmailProps;
-};
-
-type RefereeDeclinedPayload = {
-  type: EmailTypes.REFEREE_DECLINED;
-  payload: { email: string } & RefereeDeclinedEmailProps;
-};
-
-type RefereeAcceptedPayload = {
-  type: EmailTypes.REFEREE_ACCEPTED;
-  payload: { email: string } & RefereeAcceptedEmailProps;
-};
-
-type RefereeReassignedPayload = {
-  type: EmailTypes.REFEREE_REASSIGNED;
-  payload: { email: string } & RefereeReassignedEmailProps;
-};
-
-type RefereeReviewReminderPayload = {
-  type: EmailTypes.REFEREE_REVIEW_REMINDER;
-  payload: { email: string } & RefereeReviewReminderEmailProps;
-};
-
-type MinorRevisionRequestPayload = {
-  type: EmailTypes.MINOR_REVISION_REQUEST;
-  payload: { email: string } & MinorRevisionRequestEmailProps;
-};
-
-type MajorRevisionRequestPayload = {
-  type: EmailTypes.MAJOR_REVISION_REQUEST;
-  payload: { email: string } & MajorRevisionRequestEmailProps;
-};
-
-type RevisionSubmittedPayload = {
-  type: EmailTypes.REVISION_SUBMITTED;
-  payload: { email: string } & RevisionSubmittedEditorEmailProps;
-};
-
-type OverdueAlertEditorPayload = {
-  type: EmailTypes.OVERDUE_ALERT_TO_EDITOR;
-  payload: { email: string } & OverdueAlertEditorEmailProps;
-};
-
-type SubmissionAssignedToEditorPayload = {
-  type: EmailTypes.SUBMISSION_ASSIGNED_TO_EDITOR;
-  payload: { email: string } & SubmissionAssignedEmailProps;
-};
-
-type SubmissionReassignedToEditorPayload = {
-  type: EmailTypes.SUBMISSION_REASSIGNED_TO_EDITOR;
-  payload: { email: string } & SubmissionReassignedEmailProps;
-};
-
-type SubmissionAcceptedPayload = {
-  type: EmailTypes.SUBMISSION_ACCEPTED;
-  payload: { email: string } & SubmissionAcceptedEmailProps;
-};
-
-type DeskRejectionPayload = {
-  type: EmailTypes.SUBMISSION_DESK_REJECTED;
-  payload: { email: string } & DeskRejectionEmailProps;
-};
-
-type FinalRejectionDecisionPayload = {
-  type: EmailTypes.SUBMISSION_FINAL_REJECTED;
-  payload: { email: string } & FinalRejectionDecisionEmailProps;
 };
 
 export type EmailProps =
