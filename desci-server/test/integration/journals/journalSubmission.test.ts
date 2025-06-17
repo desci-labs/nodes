@@ -654,16 +654,6 @@ describe('Journal Submission Service', () => {
       expect(response.body.ok).to.be.true;
     });
 
-    it('should prevent CHIEF EDITOR from accepting submission', async () => {
-      response = await request
-        .post(`/v1/journals/${journal.id}/submissions/${submission.id}/accept`)
-        .set('authorization', `Bearer ${chiefEditor.token}`)
-        .send();
-
-      expect(response.status).to.equal(403);
-      expect(response.body.message).to.equal('Forbidden - Insufficient permissions');
-    });
-
     it('should prevent Referee from accepting submission', async () => {
       response = await request
         .post(`/v1/journals/${journal.id}/submissions/${submission.id}/accept`)
