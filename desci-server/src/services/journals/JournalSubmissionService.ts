@@ -1,10 +1,14 @@
 import { EditorRole, JournalEventLogAction, SubmissionStatus } from '@prisma/client';
 import _ from 'lodash';
-import { err, ok } from 'neverthrow';
+import { err, ok, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { ForbiddenError, NotFoundError } from '../../core/ApiError.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getIndexedResearchObjects } from '../../theGraph.js';
+import { hexToCid } from '../../utils.js';
+import { getManifestByCid } from '../data/processing.js';
+import { SubmissionExtended } from '../email/journalEmailTypes.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
 
@@ -346,6 +350,42 @@ async function updateSubmissionDoiMintedAt(doi: string) {
     data: { doiMintedAt: new Date() },
   });
 }
+
+const getSubmissionExtendedData = async (submissionId: number): Promise<Result<SubmissionExtended, Error>> => {
+  const submission = await prisma.journalSubmission.findUnique({
+    where: { id: submissionId },
+    include: {
+      journal: true,
+      node: true,
+      author: true,
+    },
+  });
+  const { researchObjects } = await getIndexedResearchObjects([submission.node.uuid]);
+  if (!researchObjects || researchObjects.length === 0) {
+    return err(new Error('No published version found for submission'));
+  }
+  const researchObject = researchObjects[0];
+  const targetVersionIndex = researchObject.versions.length - 1 - submission.version;
+  const targetVersion = researchObject.versions[targetVersionIndex];
+  const targetVersionManifestCid = hexToCid(targetVersion.cid);
+  const manifest = await getManifestByCid(targetVersionManifestCid);
+
+  const authors = manifest.authors.map((author) => author.name);
+  const abstract = manifest.description;
+  const title = manifest.title;
+
+  const submitterName = submission.author.name;
+  const submitterUserId = submission.author.id;
+
+  return ok({
+    ...submission,
+    title,
+    authors,
+    abstract,
+    submitterName,
+    submitterUserId,
+  });
+};
 
 export const journalSubmissionService = {
   createSubmission,
