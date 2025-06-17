@@ -32,8 +32,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../../src/client.js';
 import { generateAccessToken } from '../../src/controllers/auth/magic.js';
 import { app } from '../../src/index.js';
+import { safePct } from '../../src/services/admin/helper.js';
+import { getUserRetention } from '../../src/services/admin/interactionLog.js';
 import { communityService } from '../../src/services/Communities.js';
-import { getActiveUsersInRange } from '../../src/services/interactionLog.js';
+import {
+  getActiveUsersInRange,
+  saveInteraction,
+  saveInteractionWithoutReq,
+} from '../../src/services/interactionLog.js';
+import { countAllUsers } from '../../src/services/user.js';
 import { ensureUuidEndsWithDot } from '../../src/utils.js';
 import {
   createDraftNode,
@@ -242,7 +249,7 @@ describe('KPI Metrics', async () => {
     });
   });
 
-  describe.only('Publish Metrics', () => {
+  describe('Publish Metrics', () => {
     interface PublishMetricsData {
       totalUsers: number;
       publishers: number;
@@ -398,6 +405,358 @@ describe('KPI Metrics', async () => {
       expect(data.previousPeriod?.publishers).to.equal(25);
       expect(data.previousPeriod?.publishersInCommunity).to.equal(25);
       expect(data.previousPeriod?.guestSignUpSuccessRate).to.equal(50);
+    });
+  });
+
+  describe('Research Object Metrics', () => {
+    interface ResearchObjectMetrics {
+      totalRoCreated: number;
+      averageRoCreatedPerUser: number;
+      medianRoCreatedPerUser: number;
+      previousPeriod?: {
+        totalRoCreated: number;
+        averageRoCreatedPerUser: number;
+        medianRoCreatedPerUser: number;
+      };
+    }
+
+    beforeEach(async () => {
+      // create 10 mock nodes
+      await createMockNodes(mockUsersToday.slice(0, 5), new Date());
+      // create 10 mock nodes in the past 7 days
+      await createMockNodes(mockUsersInLast7Days.slice(0, 8), subDays(new Date(), 5));
+      // create 10 mock nodes in the past 30 days
+      await createMockNodes(mockUsersInLast30Days.slice(0, 2), subDays(new Date(), 28));
+    });
+
+    it('should return the correct all time research object metrics', async () => {
+      const response = await request
+        .get('/v1/admin/metrics/research-object-metrics')
+        .set('Authorization', `Bearer ${admin.token}`);
+      console.log(response.body);
+      const data = response.body.data as ResearchObjectMetrics;
+
+      // assert response status
+      expect(response.status).to.equal(200);
+      expect(data.totalRoCreated).to.be.equal(45);
+      expect(data.averageRoCreatedPerUser).to.be.equal(1.5);
+      expect(data.medianRoCreatedPerUser).to.be.equal(1.5);
+    });
+
+    it('should return the correct research object metrics for the past 3 days with compareToPreviousPeriod enabled', async () => {
+      const selectedDates = {
+        from: subDays(new Date(), 3).toISOString(),
+        to: new Date().toISOString(),
+      };
+
+      const response = await request
+        .get('/v1/admin/metrics/research-object-metrics')
+        .query({
+          from: selectedDates.from,
+          to: selectedDates.to,
+          compareToPreviousPeriod: true,
+        })
+        .set('Authorization', `Bearer ${admin.token}`);
+      console.log(response.body);
+      const data = response.body.data as ResearchObjectMetrics;
+
+      // assert response status
+      expect(response.status).to.equal(200);
+
+      // assert publishing users KPIs
+      expect(data.totalRoCreated).to.be.equal(15);
+      expect(data.averageRoCreatedPerUser).to.be.equal(1.5);
+      expect(data.medianRoCreatedPerUser).to.be.equal(1.5);
+
+      // assert previous period KPIs
+      expect(data.previousPeriod?.totalRoCreated).to.be.equal(18);
+      expect(data.previousPeriod?.averageRoCreatedPerUser).to.be.equal(1.8);
+      expect(data.previousPeriod?.medianRoCreatedPerUser).to.be.equal(2);
+    });
+  });
+
+  describe('Retention Metrics', () => {
+    let mockUsersInLastYear: MockUser[];
+    let day1InteractionLogs: InteractionLog[];
+    let day7InteractionLogs: InteractionLog[];
+    let day30InteractionLogs: InteractionLog[];
+    let day365InteractionLogs: InteractionLog[];
+
+    interface RetentionMetrics {
+      day1Retention: number;
+      day7Retention: number;
+      day30Retention: number;
+      day365Retention: number;
+    }
+
+    beforeEach(async () => {
+      // log 5 user interactions today
+      day1InteractionLogs = await logMockUserActions(
+        mockUsersToday.slice(0, 5),
+        AvailableUserActionLogTypes.viewedNode,
+        new Date(),
+      );
+      // log 10 user interactions today
+      day7InteractionLogs = await logMockUserActions(
+        mockUsersInLast7Days.slice(0, 8),
+        AvailableUserActionLogTypes.viewedNode,
+        new Date(),
+      );
+      // log 10 user interactions today
+      day30InteractionLogs = await logMockUserActions(
+        mockUsersInLast30Days.slice(0, 5),
+        AvailableUserActionLogTypes.viewedNode,
+        new Date(),
+      );
+
+      mockUsersInLastYear = await createMockUsers(10, subDays(new Date(), 363));
+      day365InteractionLogs = await logMockUserActions(
+        mockUsersInLastYear.slice(0, 5),
+        AvailableUserActionLogTypes.viewedNode,
+        new Date(),
+      );
+    });
+
+    it('should return the correct all time retention metrics', async () => {
+      const response = await request
+        .get('/v1/admin/metrics/retention-metrics')
+        .set('Authorization', `Bearer ${admin.token}`);
+      console.log(response.body);
+      const data = response.body.data as RetentionMetrics;
+
+      const total = await countAllUsers();
+      // assert response status
+      expect(response.status).to.equal(200);
+      expect(data.day1Retention).to.be.equal(safePct(day1InteractionLogs.length, total));
+      expect(data.day7Retention).to.be.equal(safePct(day7InteractionLogs.length + day1InteractionLogs.length, total));
+      expect(data.day30Retention).to.be.equal(
+        safePct(day1InteractionLogs.length + day7InteractionLogs.length + day30InteractionLogs.length, total),
+      );
+      expect(data.day365Retention).to.be.equal(
+        safePct(
+          day1InteractionLogs.length +
+            day7InteractionLogs.length +
+            day30InteractionLogs.length +
+            day365InteractionLogs.length,
+          total,
+        ),
+      );
+    });
+  });
+
+  describe('Feature Adoption Metrics', () => {
+    interface FeatureAdoptionMetricsData {
+      totalShares: number;
+      totalCoAuthorInvites: number;
+      totalAIAnalyticsClicks: number;
+      totalMatchedArticleClicks: number;
+      totalClaimedBadges: number;
+      totalProfileViews: number;
+      totalGuestModeVisits: number;
+      previousPeriod?: {
+        totalShares: number;
+        totalCoAuthorInvites: number;
+        totalAIAnalyticsClicks: number;
+        totalMatchedArticleClicks: number;
+        totalClaimedBadges: number;
+        totalProfileViews: number;
+        totalGuestModeVisits: number;
+      };
+    }
+
+    let guestUsersToday: MockUser[];
+    let guestUsersInLast7Days: MockUser[];
+    let guestUsersInLast30Days: MockUser[];
+
+    let day1ShareLogs: InteractionLog[];
+    let day1CoAuthorInviteLogs: InteractionLog[];
+    let day1AIAnalyticsClicksLogs: InteractionLog[];
+    let day1MatchedArticleClicksLogs: InteractionLog[];
+    let day1ClaimedBadgesLogs: number;
+    let day1ProfileViewsLogs: InteractionLog[];
+
+    let day7ShareLogs: InteractionLog[];
+    let day7CoAuthorInviteLogs: InteractionLog[];
+    let day7AIAnalyticsClicksLogs: InteractionLog[];
+    let day7MatchedArticleClicksLogs: InteractionLog[];
+    let day7ClaimedBadgesLogs: number;
+    let day7ProfileViewsLogs: InteractionLog[];
+
+    beforeEach(async () => {
+      // create 10 guest users today
+      guestUsersToday = await createMockGuestUsers(10, new Date());
+      // create 5 guest users in last 7 days
+      guestUsersInLast7Days = await createMockGuestUsers(5, subDays(new Date(), 5));
+
+      // log 5 actionResearchObjectShared interactions today
+      day1ShareLogs = await logMockUserActions(
+        mockUsersToday.slice(0, 5),
+        AvailableUserActionLogTypes.actionResearchObjectShared,
+        new Date(),
+      );
+      // log 5 actionResearchObjectShared interactions today
+      day1CoAuthorInviteLogs = await logMockUserActions(
+        mockUsersToday.slice(0, 2),
+        AvailableUserActionLogTypes.actionCoAuthorInvited,
+        new Date(),
+      );
+      // log 5 actionResearchObjectShared interactions today
+      day1AIAnalyticsClicksLogs = await logMockUserActions(
+        mockUsersToday.slice(0, 5),
+        AvailableUserActionLogTypes.actionAiAnalyticsTabClicked,
+        new Date(),
+      );
+      // log 5 actionResearchObjectShared interactions today
+      day1MatchedArticleClicksLogs = await logMockUserActions(
+        mockUsersToday.slice(0, 3),
+        AvailableUserActionLogTypes.actionRelatedArticleClickedInAi,
+        new Date(),
+      );
+      // log 5 actionResearchObjectShared interactions today
+      let claimedBadges = await prisma.interactionLog.createMany({
+        data: mockUsersToday.slice(0, 5).map((user) => ({
+          userId: user.user.id,
+          action: ActionType.CLAIM_ATTESTATION,
+          createdAt: new Date(),
+        })),
+      });
+      day1ClaimedBadgesLogs = claimedBadges.count;
+      // log 5 actionResearchObjectShared interactions today
+      day1ProfileViewsLogs = await logMockUserActions(
+        mockUsersToday.slice(0, 10),
+        AvailableUserActionLogTypes.actionAuthorProfileViewed,
+        new Date(),
+      );
+
+      /// 7 days feature adoption activities
+
+      // log 5 actionResearchObjectShared interactions in the past 4 days
+      day7ShareLogs = await logMockUserActions(
+        mockUsersInLast7Days.slice(0, 2),
+        AvailableUserActionLogTypes.actionResearchObjectShared,
+        subDays(new Date(), 4),
+      );
+      // log 5 actionResearchObjectShared interactions in the past 4 days
+      day7CoAuthorInviteLogs = await logMockUserActions(
+        mockUsersInLast7Days.slice(0, 1),
+        AvailableUserActionLogTypes.actionCoAuthorInvited,
+        subDays(new Date(), 4),
+      );
+      // log 5 actionResearchObjectShared interactions in the past 4 days
+      day7AIAnalyticsClicksLogs = await logMockUserActions(
+        mockUsersInLast7Days.slice(0, 8),
+        AvailableUserActionLogTypes.actionAiAnalyticsTabClicked,
+        subDays(new Date(), 4),
+      );
+      // log 5 actionResearchObjectShared interactions in the past 4 days
+      day7MatchedArticleClicksLogs = await logMockUserActions(
+        mockUsersInLast7Days.slice(0, 6),
+        AvailableUserActionLogTypes.actionRelatedArticleClickedInAi,
+        subDays(new Date(), 4),
+      );
+      // log 5 actionResearchObjectShared interactions in the past 4 days
+      claimedBadges = await prisma.interactionLog.createMany({
+        data: mockUsersInLast7Days.slice(0, 2).map((user) => ({
+          userId: user.user.id,
+          action: ActionType.CLAIM_ATTESTATION,
+          createdAt: subDays(new Date(), 4),
+        })),
+      });
+      day7ClaimedBadgesLogs = claimedBadges.count;
+      // log 5 actionResearchObjectShared interactions in the past 4 days
+      day7ProfileViewsLogs = await logMockUserActions(
+        mockUsersInLast7Days.slice(0, 5),
+        AvailableUserActionLogTypes.actionAuthorProfileViewed,
+        subDays(new Date(), 4),
+      );
+    });
+
+    it('should return the correct feature adoption metrics for today', async () => {
+      const selectedDates = {
+        from: subDays(new Date(), 1).toISOString(),
+        to: new Date().toISOString(),
+      };
+
+      const response = await request
+        .get('/v1/admin/metrics/feature-adoption-metrics')
+        .query({
+          from: selectedDates.from,
+          to: selectedDates.to,
+        })
+        .set('Authorization', `Bearer ${admin.token}`);
+      console.log(response.body);
+      const data = response.body.data as FeatureAdoptionMetricsData;
+
+      // assert response status
+      expect(response.status).to.equal(200);
+
+      // assert publishing users KPIs
+      expect(data.totalShares).to.equal(day1ShareLogs.length);
+      expect(data.totalCoAuthorInvites).to.equal(day1CoAuthorInviteLogs.length);
+      expect(data.totalAIAnalyticsClicks).to.equal(day1AIAnalyticsClicksLogs.length);
+      expect(data.totalMatchedArticleClicks).to.equal(day1MatchedArticleClicksLogs.length);
+      expect(data.totalClaimedBadges).to.equal(day1ClaimedBadgesLogs);
+      expect(data.totalProfileViews).to.equal(day1ProfileViewsLogs.length);
+      expect(data.totalGuestModeVisits).to.equal(guestUsersToday.length);
+    });
+
+    it('should return the correct all time feature adoption metrics', async () => {
+      const response = await request
+        .get('/v1/admin/metrics/feature-adoption-metrics')
+        .set('Authorization', `Bearer ${admin.token}`);
+      console.log(response.body);
+      const data = response.body.data as FeatureAdoptionMetricsData;
+
+      // assert response status
+      expect(response.status).to.equal(200);
+
+      // assert publishing users KPIs
+      expect(data.totalShares).to.equal(day1ShareLogs.length + day7ShareLogs.length);
+      expect(data.totalCoAuthorInvites).to.equal(day1CoAuthorInviteLogs.length + day7CoAuthorInviteLogs.length);
+      expect(data.totalAIAnalyticsClicks).to.equal(day1AIAnalyticsClicksLogs.length + day7AIAnalyticsClicksLogs.length);
+      expect(data.totalMatchedArticleClicks).to.equal(
+        day1MatchedArticleClicksLogs.length + day7MatchedArticleClicksLogs.length,
+      );
+      expect(data.totalClaimedBadges).to.equal(day1ClaimedBadgesLogs + day7ClaimedBadgesLogs);
+      expect(data.totalProfileViews).to.equal(day1ProfileViewsLogs.length + day7ProfileViewsLogs.length);
+      expect(data.totalGuestModeVisits).to.equal(guestUsersToday.length + guestUsersInLast7Days.length);
+    });
+
+    it('should return the correct feature adoption metrics for the past 3 days with compareToPreviousPeriod enabled', async () => {
+      const selectedDates = {
+        from: subDays(new Date(), 3).toISOString(),
+        to: new Date().toISOString(),
+      };
+
+      const response = await request
+        .get('/v1/admin/metrics/feature-adoption-metrics')
+        .query({
+          from: selectedDates.from,
+          to: selectedDates.to,
+          compareToPreviousPeriod: true,
+        })
+        .set('Authorization', `Bearer ${admin.token}`);
+      console.log(response.body);
+      const data = response.body.data as FeatureAdoptionMetricsData;
+
+      // assert response status
+      expect(response.status).to.equal(200);
+
+      // assert publishing users KPIs
+      expect(data.totalShares).to.equal(day1ShareLogs.length);
+      expect(data.totalCoAuthorInvites).to.equal(day1CoAuthorInviteLogs.length);
+      expect(data.totalAIAnalyticsClicks).to.equal(day1AIAnalyticsClicksLogs.length);
+      expect(data.totalMatchedArticleClicks).to.equal(day1MatchedArticleClicksLogs.length);
+      expect(data.totalClaimedBadges).to.equal(day1ClaimedBadgesLogs);
+      expect(data.totalProfileViews).to.equal(day1ProfileViewsLogs.length);
+      expect(data.totalGuestModeVisits).to.equal(guestUsersToday.length);
+      expect(data.previousPeriod?.totalShares).to.equal(day7ShareLogs.length);
+      expect(data.previousPeriod?.totalCoAuthorInvites).to.equal(day7CoAuthorInviteLogs.length);
+      expect(data.previousPeriod?.totalAIAnalyticsClicks).to.equal(day7AIAnalyticsClicksLogs.length);
+      expect(data.previousPeriod?.totalMatchedArticleClicks).to.equal(day7MatchedArticleClicksLogs.length);
+      expect(data.previousPeriod?.totalClaimedBadges).to.equal(day7ClaimedBadgesLogs);
+      expect(data.previousPeriod?.totalProfileViews).to.equal(day7ProfileViewsLogs.length);
+      expect(data.previousPeriod?.totalGuestModeVisits).to.equal(guestUsersInLast7Days.length);
     });
   });
 });

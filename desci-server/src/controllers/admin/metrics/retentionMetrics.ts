@@ -24,6 +24,5 @@ export const getRetentionMetrics = async (_req: AuthenticatedRequest, res: Respo
     day30Retention: safePct(day30Retention, total),
     day365Retention: safePct(day365Retention, total),
   };
-  logger.trace({ data }, 'getRetentionMetrics');
   new SuccessResponse(data).send(res);
 };
