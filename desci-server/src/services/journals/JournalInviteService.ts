@@ -92,24 +92,31 @@ async function inviteJournalEditor({
     return invite;
   });
 
-  sendEmail({
-    type: EmailTypes.EDITOR_INVITE,
-    payload: {
-      email,
-      journal,
-      inviterName: inviter.name,
-      role,
-      inviteToken: token,
-    },
-  });
-
-  if (inviteeExistingUser) {
-    await NotificationService.emitOnJournalEditorInvite({
-      journal,
-      editor: inviteeExistingUser,
-      inviter,
-      role,
+  try {
+    await sendEmail({
+      type: EmailTypes.EDITOR_INVITE,
+      payload: {
+        email,
+        journal,
+        inviterName: inviter.name,
+        role,
+        inviteToken: token,
+      },
     });
+
+    if (inviteeExistingUser) {
+      await NotificationService.emitOnJournalEditorInvite({
+        journal,
+        editor: inviteeExistingUser,
+        inviter,
+        role,
+      });
+    }
+  } catch (error) {
+    logger.error(
+      { fn: 'inviteJournalEditor', error, email, journalId, inviterId, existingUserId: inviteeExistingUser?.id },
+      'Notification push failed',
+    );
   }
 
   logger.info(

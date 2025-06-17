@@ -9,7 +9,7 @@ export interface DeskRejectionEmailProps {
   journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
   editor: {
     name: string;
-    userId: string;
+    userId: number;
   };
   submission: SubmissionExtended;
   comments: string;

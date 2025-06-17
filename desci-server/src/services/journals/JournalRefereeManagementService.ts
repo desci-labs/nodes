@@ -3,6 +3,7 @@ import { ok, err, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getRelativeTime } from '../../utils/clock.js';
 import { EmailTypes, sendEmail } from '../email/email.js';
 import { NotificationService } from '../Notifications/NotificationService.js';
 
@@ -232,8 +233,17 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
       include: {
         journal: true,
         node: true,
+        assignedEditor: true,
       },
     });
+    const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(
+      refereeInvite.submissionId,
+    );
+    if (submissionExtendedResult.isErr()) {
+      return err(submissionExtendedResult.error);
+    }
+    const submissionExtended = submissionExtendedResult.value;
+
     if (!submission) {
       return err(new Error('Submission not found'));
     }
@@ -275,19 +285,33 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
       journalId: submission.journalId,
     });
 
-    if (submission.assignedEditorId) {
-      const dueDate = new Date(Date.now() + refereeInvite.relativeDueDateHrs * 60 * 60 * 1000); // hours to ms conversion
-      // Acceptance notif to editor
-      await NotificationService.emitOnRefereeAcceptance({
-        journal: submission.journal,
-        submission: submission,
-        submissionTitle: submission.node.title,
-        referee: refereeUser,
-        dueDate,
-        refereeInvite: updatedRefereeInvite,
-      });
-      // TODO: Send email to editor
-      // TODO: Notify author of status change (Under review)
+    try {
+      if (submission.assignedEditorId) {
+        const dueDate = new Date(Date.now() + refereeInvite.relativeDueDateHrs * 60 * 60 * 1000); // hours to ms conversion
+        // Acceptance notif to editor
+        await NotificationService.emitOnRefereeAcceptance({
+          journal: submission.journal,
+          submission: submission,
+          submissionTitle: submission.node.title,
+          referee: refereeUser,
+          dueDate,
+          refereeInvite: updatedRefereeInvite,
+        });
+        await sendEmail({
+          type: EmailTypes.REFEREE_ACCEPTED,
+          payload: {
+            email: submission.assignedEditor.email,
+            journal: submission.journal,
+            refereeName: refereeUser.name,
+            refereeEmail: refereeUser.email,
+            submission: submissionExtended,
+            reviewDeadline: dueDate.toISOString(),
+          },
+        });
+        // TODO: Notify author of status change (Under review)
+      }
+    } catch (error) {
+      logger.error({ fn: 'acceptRefereeInvite', data, error }, 'Notification push failed');
     }
 
     logger.info(
@@ -317,7 +341,13 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
     logger.trace({ fn: 'assignReferee', data }, 'Assigning referee');
     const submission = await prisma.journalSubmission.findUnique({
       where: { id: data.submissionId },
+      include: {
+        journal: true,
+        node: true,
+        assignedEditor: true,
+      },
     });
+
     if (!submission) {
       return err(new Error('Submission not found'));
     }
@@ -358,6 +388,7 @@ export async function assignReferee(data: AssignRefereeInput): Promise<Result<Re
         },
       }),
     ]);
+
     logger.info({ fn: 'assignReferee', data, refereeAssignmentId: refereeAssignment.id }, 'Assigned referee');
     return ok(refereeAssignment);
   } catch (error) {
@@ -381,6 +412,7 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
           include: {
             journal: true,
             node: true,
+            assignedEditor: true,
           },
         },
       },
@@ -400,6 +432,14 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
     const submission = refereeInvite.submission;
     const journal = submission.journal;
 
+    const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(
+      refereeInvite.submissionId,
+    );
+    if (submissionExtendedResult.isErr()) {
+      return err(submissionExtendedResult.error);
+    }
+    const submissionExtended = submissionExtendedResult.value;
+
     const alreadyAcceptedOrDeclined = refereeInvite.accepted === true || refereeInvite.declined === true;
     const inviteExpired = refereeInvite.expiresAt < new Date();
     const inviteIsValid = !alreadyAcceptedOrDeclined && !inviteExpired;
@@ -416,16 +456,32 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
       },
     });
 
-    if (submission.assignedEditorId) {
-      // Emit notif to inform editor that referee declined
-      await NotificationService.emitOnRefereeDecline({
-        journal: submission.journal,
-        submission: submission,
-        submissionTitle: submission.node.title,
-        referee: refereeUser,
-        refereeInvite,
+    try {
+      if (submission.assignedEditorId) {
+        // Emit notif to inform editor that referee declined
+        await NotificationService.emitOnRefereeDecline({
+          journal: submission.journal,
+          submission: submission,
+          submissionTitle: submission.node.title,
+          referee: refereeUser,
+          refereeInvite,
+        });
+      }
+
+      sendEmail({
+        type: EmailTypes.REFEREE_DECLINED,
+        payload: {
+          email: submission.assignedEditor.email,
+          journal: submission.journal,
+          refereeName: refereeUser.name,
+          refereeEmail: refereeUser.email,
+          submission: submissionExtended,
+          declineReason: 'N/A', // Add this in the future.
+          suggestedReferees: [], // Add this in the future.
+        },
       });
-      // TODO: Send email to editor
+    } catch (error) {
+      logger.error({ fn: 'declineRefereeInvite', data, error }, 'Notification push failed');
     }
 
     logger.info(

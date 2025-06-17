@@ -9,7 +9,7 @@ export interface SubmissionAcceptedEmailProps {
   journal: Pick<Journal, 'id' | 'name' | 'description' | 'iconCid'>;
   editor: {
     name: string;
-    userId: string;
+    userId: number;
   };
   submission: SubmissionExtended;
 }

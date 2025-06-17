@@ -462,7 +462,7 @@ async function sendMinorRevisionRequestEmail({
   email,
   journal,
   submission,
-  editorName,
+  editor,
   comments,
 }: MinorRevisionRequestPayload['payload']) {
   const message = {
@@ -478,7 +478,8 @@ async function sendMinorRevisionRequestEmail({
         iconCid: journal.iconCid,
       },
       editor: {
-        name: editorName,
+        name: editor.name,
+        userId: editor.userId,
       },
       submission,
       comments,
@@ -491,7 +492,7 @@ async function sendMajorRevisionRequestEmail({
   email,
   journal,
   submission,
-  editorName,
+  editor,
   comments,
 }: MajorRevisionRequestPayload['payload']) {
   const message = {
@@ -507,7 +508,8 @@ async function sendMajorRevisionRequestEmail({
         iconCid: journal.iconCid,
       },
       editor: {
-        name: editorName,
+        name: editor.name,
+        userId: editor.userId,
       },
       submission,
       comments,
@@ -712,7 +714,7 @@ export const sendEmail = async (props: EmailProps) => {
     case EmailTypes.REFEREE_ACCEPTED:
       return sendRefereeAcceptedEmail(props.payload);
     case EmailTypes.REFEREE_REASSIGNED:
-      return sendRefereeReassignedEmail(props.payload);
+      return sendRefereeReassignedEmail(props.payload); // Removed for now, prod mentioned not used.
     case EmailTypes.REFEREE_REVIEW_REMINDER:
       return sendRefereeReviewReminderEmail(props.payload);
     case EmailTypes.MINOR_REVISION_REQUEST:
