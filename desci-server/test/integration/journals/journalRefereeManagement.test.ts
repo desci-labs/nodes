@@ -128,7 +128,7 @@ describe('Journal Referee Management Service', () => {
       const inviteInput = {
         submissionId: submission.id,
         refereeUserId: refereeUser.id,
-        managerId: associateEditor.id,
+        managerUserId: associateEditor.id,
         relativeDueDateHrs: 7 * 24, // 7 days
       };
       const result = await JournalRefereeManagementService.inviteReferee(inviteInput);
@@ -154,7 +154,7 @@ describe('Journal Referee Management Service', () => {
       const inviteInput = {
         submissionId: submission.id,
         refereeUserId: 9999, // Non-existent user
-        managerId: associateEditor.id,
+        managerUserId: associateEditor.id,
       };
       const result = await JournalRefereeManagementService.inviteReferee(inviteInput);
       expect(result.isErr()).to.be.true;
@@ -165,7 +165,7 @@ describe('Journal Referee Management Service', () => {
       const inviteInput = {
         submissionId: 9999, // Non-existent submission
         refereeUserId: refereeUser.id,
-        managerId: associateEditor.id,
+        managerUserId: associateEditor.id,
       };
       const result = await JournalRefereeManagementService.inviteReferee(inviteInput);
       expect(result.isErr()).to.be.true;
@@ -180,7 +180,7 @@ describe('Journal Referee Management Service', () => {
       const inviteInput = {
         submissionId: submission.id,
         refereeUserId: refereeUser.id,
-        managerId: associateEditor.id,
+        managerUserId: associateEditor.id,
         relativeDueDateHrs: 72, // 3 days
       };
       const inviteResult = await JournalRefereeManagementService.inviteReferee(inviteInput);
@@ -269,7 +269,7 @@ describe('Journal Referee Management Service', () => {
         const otherInviteRes = await JournalRefereeManagementService.inviteReferee({
           submissionId: submission.id,
           refereeUserId: otherReferee.id,
-          managerId: associateEditor.id,
+          managerUserId: associateEditor.id,
           relativeDueDateHrs: 24,
         });
         if (otherInviteRes.isErr()) throw otherInviteRes.error;
@@ -353,7 +353,7 @@ describe('Journal Referee Management Service', () => {
       const inviteInput = {
         submissionId: submission.id,
         refereeUserId: refereeUser.id,
-        managerId: associateEditor.id,
+        managerUserId: associateEditor.id,
       };
       const inviteResult = await JournalRefereeManagementService.inviteReferee(inviteInput);
       if (inviteResult.isErr()) throw inviteResult.error;
@@ -491,7 +491,7 @@ describe('Journal Referee Management Service', () => {
         const inviteRes = await JournalRefereeManagementService.inviteReferee({
           submissionId: submissionX.id,
           refereeUserId: tempReferee.id,
-          managerId: chiefEditor.id,
+          managerUserId: chiefEditor.id,
           relativeDueDateHrs: 24,
         });
         if (inviteRes.isErr()) throw inviteRes.error;
@@ -508,7 +508,7 @@ describe('Journal Referee Management Service', () => {
       const extraInviteRes = await JournalRefereeManagementService.inviteReferee({
         submissionId: submissionX.id,
         refereeUserId: extraReferee.id,
-        managerId: chiefEditor.id,
+        managerUserId: chiefEditor.id,
         relativeDueDateHrs: 24,
       });
       if (extraInviteRes.isErr()) throw extraInviteRes.error;
