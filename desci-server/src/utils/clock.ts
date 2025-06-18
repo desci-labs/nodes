@@ -1,4 +1,4 @@
-import { subDays, startOfDay } from 'date-fn-latest';
+import { subDays, startOfDay } from 'date-fns';
 
 /**
  * Returns a Date object representing UTC midnight X days ago

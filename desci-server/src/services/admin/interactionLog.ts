@@ -20,7 +20,6 @@ export const getCountActiveUsersInXDays = async (daysAgo: number): Promise<numbe
         createdAt: {
           gte: utcMidnightXDaysAgo,
         },
-        OR: [{ isGuest: false }, { isGuest: null }],
         // this is necessary to filter out 'USER_ACTION' interactions saved in orcidNext
         // from poluting returned data
         userId: {

@@ -8,7 +8,7 @@ import {
   eachYearOfInterval,
   interval,
   subDays,
-} from 'date-fn-latest';
+} from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
 import { prisma } from '../src/client.js';
@@ -126,6 +126,25 @@ export const createMockUsers = async (count: number, createdAt: Date, withOrcid?
         name: `User_${index}_${uuidv4()}`,
         createdAt,
         ...(withOrcid ? { orcid: generateOrcid() } : {}),
+      },
+    }),
+  );
+
+  const users = await Promise.all(promises);
+  return users.map((user) => ({
+    user,
+    token: generateAccessToken({ email: user.email }),
+  }));
+};
+
+export const createMockGuestUsers = async (count: number, createdAt: Date): Promise<MockUser[]> => {
+  const promises = new Array(count).fill(0).map((_, index) =>
+    prisma.user.create({
+      data: {
+        email: `guest${index}_${uuidv4()}@test.com`,
+        name: `Guest_${index}_${uuidv4()}`,
+        createdAt,
+        isGuest: true,
       },
     }),
   );
