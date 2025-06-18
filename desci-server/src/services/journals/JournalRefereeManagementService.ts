@@ -15,6 +15,7 @@ const logger = parentLogger.child({
 
 const DEFAULT_INVITE_DUE_DATE = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
 const DEFAULT_REVIEW_DUE_DATE = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+const DEFAULT_REVIEW_DUE_DATE_HRS = DEFAULT_REVIEW_DUE_DATE / (60 * 60 * 1000); // ms to hours conversion
 const MAX_ASSIGNED_REFEREES = 3;
 
 type InviteRefereeInput = {
@@ -30,6 +31,9 @@ type InviteRefereeInput = {
  */
 async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeInvite, Error>> {
   try {
+    if (!data.relativeDueDateHrs) {
+      data.relativeDueDateHrs = DEFAULT_REVIEW_DUE_DATE_HRS;
+    }
     logger.trace({ fn: 'inviteReferee', data }, 'Inviting referee');
     const existingReferee = data.refereeUserId
       ? await prisma.user.findUnique({
@@ -287,7 +291,8 @@ async function acceptRefereeInvite(data: AcceptRefereeInviteInput): Promise<Resu
 
     try {
       if (submission.assignedEditorId) {
-        const dueDate = new Date(Date.now() + refereeInvite.relativeDueDateHrs * 60 * 60 * 1000); // hours to ms conversion
+        const relativeDueDateHrs = refereeInvite.relativeDueDateHrs ?? DEFAULT_REVIEW_DUE_DATE_HRS;
+        const dueDate = new Date(Date.now() + relativeDueDateHrs * 60 * 60 * 1000); // hours to ms conversion
         // Acceptance notif to editor
         await NotificationService.emitOnRefereeAcceptance({
           journal: submission.journal,
@@ -429,6 +434,8 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
           })
         : null;
 
+    const refereeEmail = refereeUser?.email ?? refereeInvite.email;
+
     const submission = refereeInvite.submission;
     const journal = submission.journal;
 
@@ -468,13 +475,14 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
         });
       }
 
+      const refereeName = refereeUser?.name ?? 'A Referee';
       await sendEmail({
         type: EmailTypes.REFEREE_DECLINED,
         payload: {
           email: submission.assignedEditor.email,
           journal: submission.journal,
-          refereeName: refereeUser.name,
-          refereeEmail: refereeUser.email,
+          refereeName: refereeName,
+          refereeEmail: refereeEmail,
           submission: submissionExtended,
           declineReason: 'N/A', // Add this in the future.
           suggestedReferees: [], // Add this in the future.
