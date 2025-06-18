@@ -1,4 +1,12 @@
-import { PrismaClient, EditorRole, JournalEventLogAction, Journal, Prisma, JournalEditor } from '@prisma/client';
+import {
+  PrismaClient,
+  EditorRole,
+  JournalEventLogAction,
+  Journal,
+  Prisma,
+  JournalEditor,
+  SubmissionStatus,
+} from '@prisma/client';
 import _ from 'lodash';
 import { ok, err, Result } from 'neverthrow';
 
@@ -135,7 +143,22 @@ export type JournalDetails = Prisma.JournalGetPayload<{
       };
     };
   };
-}>;
+}> & {
+  editors: Array<
+    Prisma.JournalEditorGetPayload<{
+      include: {
+        user: {
+          select: {
+            id: true;
+            name: true;
+            email: true;
+            orcid: true;
+          };
+        };
+      };
+    }> & { currentWorkload: number }
+  >;
+};
 
 async function getJournalById(journalId: number): Promise<Result<JournalDetails, Error>> {
   try {
@@ -167,7 +190,32 @@ async function getJournalById(journalId: number): Promise<Result<JournalDetails,
       return err(new Error('Journal not found.'));
     }
 
-    return ok(journal);
+    // Calculate current workload for each editor
+    const editorsWithWorkload = await Promise.all(
+      journal.editors.map(async (editor) => {
+        const workloadCount = await prisma.journalSubmission.count({
+          where: {
+            journalId: journal.id,
+            assignedEditorId: editor.userId,
+            status: {
+              notIn: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
+            },
+          },
+        });
+
+        return {
+          ...editor,
+          currentWorkload: workloadCount,
+        };
+      }),
+    );
+
+    const journalWithWorkload = {
+      ...journal,
+      editors: editorsWithWorkload,
+    };
+
+    return ok(journalWithWorkload);
   } catch (error) {
     logger.error({ error, journalId }, 'Failed to get journal by ID');
     return err(error instanceof Error ? error : new Error('An unexpected error occurred while fetching journal by ID'));
