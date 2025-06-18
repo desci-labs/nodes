@@ -240,7 +240,7 @@ async function assignSubmissionToEditor(payload: { assignerId: number; submissio
       submissionTitle: submissionExtended.title,
     });
 
-    sendEmail({
+    await sendEmail({
       type: EmailTypes.SUBMISSION_ASSIGNED_TO_EDITOR,
       payload: {
         email: editor.user.email,
@@ -315,7 +315,7 @@ async function acceptSubmission({ editorId, submissionId }: { editorId: number; 
       submissionTitle: submissionExtended.title,
       author: submission.author,
     });
-    sendEmail({
+    await sendEmail({
       type: EmailTypes.SUBMISSION_ACCEPTED,
       payload: {
         email: submission.author.email,
@@ -451,7 +451,7 @@ async function requestRevision({
       // Minor Revision
       await NotificationService.emitOnMinorRevisionRequest(notifArgs);
     }
-    sendEmail({
+    await sendEmail({
       type: isMajorRevision ? EmailTypes.MAJOR_REVISION_REQUEST : EmailTypes.MINOR_REVISION_REQUEST,
       payload: emailPayload,
     });

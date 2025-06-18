@@ -321,7 +321,7 @@ export const rejectSubmissionController = async (req: RejectSubmissionRequest, r
       // Final Rejection
       await NotificationService.emitOnSubmissionFinalRejection(notifPayload);
     }
-    sendEmail({
+    await sendEmail({
       type: isDeskRejection ? EmailTypes.SUBMISSION_DESK_REJECTED : EmailTypes.SUBMISSION_FINAL_REJECTED,
       payload: emailPayload,
     });

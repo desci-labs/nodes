@@ -73,7 +73,7 @@ async function createRevision({
       submissionTitle: submissionExtended.title,
       author: submission.author,
     });
-    sendEmail({
+    await sendEmail({
       type: EmailTypes.REVISION_SUBMITTED,
       payload: {
         email: submission.assignedEditor.email,

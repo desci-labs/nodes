@@ -108,7 +108,7 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
     });
 
     // Send email
-    sendEmail({
+    await sendEmail({
       type: EmailTypes.REFEREE_INVITE,
       payload: {
         email: refereeEmail,
@@ -468,7 +468,7 @@ async function declineRefereeInvite(data: DeclineRefereeInviteInput): Promise<Re
         });
       }
 
-      sendEmail({
+      await sendEmail({
         type: EmailTypes.REFEREE_DECLINED,
         payload: {
           email: submission.assignedEditor.email,

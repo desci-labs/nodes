@@ -50,7 +50,7 @@ export const onTick = async () => {
         });
 
         if (node.owner.email) {
-          sendEmail({
+          await sendEmail({
             type: EmailTypes.DoiMinted,
             payload: {
               name: node.owner.name,

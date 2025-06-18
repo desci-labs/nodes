@@ -94,7 +94,7 @@ export const handleCrossrefNotificationCallback = async (
       });
 
       if (!node.owner.email) return;
-      sendEmail({
+      await sendEmail({
         type: EmailTypes.DoiMinted,
         payload: {
           name: node.owner.name,
