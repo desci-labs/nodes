@@ -8,7 +8,7 @@ import {
   eachYearOfInterval,
   interval,
   subDays,
-} from 'date-fn-latest';
+} from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
 import { prisma } from '../src/client.js';

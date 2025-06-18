@@ -15,7 +15,7 @@ import {
   interval,
   startOfDay,
   subDays,
-} from 'date-fn-latest';
+} from 'date-fns';
 // import { sql } from 'googleapis/build/src/apis/sql/index.js';
 import supertest from 'supertest';
 import { v4 as uuidv4 } from 'uuid';

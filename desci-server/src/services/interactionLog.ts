@@ -1,6 +1,6 @@
 import { AccessStatus } from '@desci-labs/desci-models';
 import { ActionType, Prisma } from '@prisma/client';
-import { subDays } from 'date-fn-latest';
+import { subDays } from 'date-fns';
 import { Request } from 'express';
 
 import { prisma } from '../client.js';

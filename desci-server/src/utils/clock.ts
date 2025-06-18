@@ -1,5 +1,4 @@
-import { subDays, startOfDay, Duration } from 'date-fn-latest';
-import { intervalToDuration, formatDuration } from 'date-fns';
+import { subDays, formatDistanceToNow } from 'date-fns';
 
 /**
  * Returns a Date object representing UTC midnight X days ago
@@ -21,11 +20,6 @@ export const getUtcDateXDaysAgo = (daysAgo: number): Date => {
  * @param format optional: Array of keys from the Duration type to include in the formatted string. Defaults to ['days', 'hours', 'minutes']
  * @returns String representing the relative time between now and the target date
  */
-export const getRelativeTime = (target: Date, format: (keyof Duration)[] = ['days', 'hours', 'minutes']): string => {
-  const now = new Date();
-  const targetDate = new Date(target);
-
-  const duration = intervalToDuration({ start: now, end: targetDate });
-  const formatted = formatDuration(duration, { format });
-  return formatted;
+export const getRelativeTime = (target: Date): string => {
+  return formatDistanceToNow(target, { addSuffix: true });
 };

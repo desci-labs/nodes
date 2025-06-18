@@ -19,7 +19,7 @@ import {
   endOfYear,
   sub,
   formatDistanceToNow,
-} from 'date-fn-latest';
+} from 'date-fns';
 import { Request, Response } from 'express';
 import _ from 'lodash';
 import zod, { z } from 'zod';
