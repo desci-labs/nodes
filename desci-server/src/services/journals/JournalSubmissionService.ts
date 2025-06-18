@@ -531,12 +531,13 @@ const getSubmissionExtendedData = async (submissionId: number): Promise<Result<S
     return err(new Error('No published version found for submission'));
   }
   const researchObject = researchObjects[0];
-  const targetVersionIndex = researchObject.versions.length - 1 - submission.version;
+
+  const targetVersionIndex = researchObject.versions.length - submission.version;
   const targetVersion = researchObject.versions[targetVersionIndex];
   const targetVersionManifestCid = hexToCid(targetVersion.cid);
   const manifest = await getManifestByCid(targetVersionManifestCid);
 
-  const authors = manifest.authors.map((author) => author.name);
+  const authors = manifest.authors?.map((author) => author.name) ?? [];
   const abstract = manifest.description;
   const title = manifest.title;
 
