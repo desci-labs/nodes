@@ -191,24 +191,26 @@ async function getJournalById(journalId: number): Promise<Result<JournalDetails,
     }
 
     // Calculate current workload for each editor
-    const editorsWithWorkload = await Promise.all(
-      journal.editors.map(async (editor) => {
-        const workloadCount = await prisma.journalSubmission.count({
-          where: {
-            journalId: journal.id,
-            assignedEditorId: editor.userId,
-            status: {
-              notIn: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
-            },
-          },
-        });
+    const workloadCounts = await prisma.journalSubmission.groupBy({
+      by: ['assignedEditorId'],
+      where: {
+        journalId: journal.id,
+        assignedEditorId: { in: journal.editors.map((e) => e.userId) },
+        status: {
+          notIn: [SubmissionStatus.ACCEPTED, SubmissionStatus.REJECTED],
+        },
+      },
+      _count: {
+        id: true,
+      },
+    });
 
-        return {
-          ...editor,
-          currentWorkload: workloadCount,
-        };
-      }),
-    );
+    const workloadMap = new Map(workloadCounts.map((w) => [w.assignedEditorId, w._count.id]));
+
+    const editorsWithWorkload = journal.editors.map((editor) => ({
+      ...editor,
+      currentWorkload: workloadMap.get(editor.userId) || 0,
+    }));
 
     const journalWithWorkload = {
       ...journal,
