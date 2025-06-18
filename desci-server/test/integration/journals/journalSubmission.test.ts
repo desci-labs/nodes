@@ -609,6 +609,8 @@ describe('Journal Submission Service', () => {
     });
 
     afterEach(async () => {
+      // Wait for any pending transactions to complete - db deadlock occuring without this.
+      await new Promise((resolve) => setTimeout(resolve, 100));
       await prisma.$queryRaw`TRUNCATE TABLE "User" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "Node" CASCADE;`;
       await prisma.$queryRaw`TRUNCATE TABLE "NodeVersion" CASCADE;`;

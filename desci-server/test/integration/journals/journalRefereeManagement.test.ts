@@ -111,6 +111,7 @@ describe('Journal Referee Management Service', () => {
     };
     submission = await journalSubmissionService.createSubmission(submissionPayload);
 
+    // debugger;
     // Assign associate editor to the submission
     const updatedSubmission = await journalSubmissionService.assignSubmissionToEditor({
       submissionId: submission.id,
@@ -150,15 +151,16 @@ describe('Journal Referee Management Service', () => {
       expect(eventLog?.userId).to.equal(associateEditor.id);
     });
 
-    it('should return error if referee user not found', async () => {
+    it('should return error if referee user not found and no email is provided for external referee', async () => {
       const inviteInput = {
         submissionId: submission.id,
         refereeUserId: 9999, // Non-existent user
         managerUserId: associateEditor.id,
       };
+
       const result = await JournalRefereeManagementService.inviteReferee(inviteInput);
       expect(result.isErr()).to.be.true;
-      expect(result._unsafeUnwrapErr().message).to.equal('Referee not found');
+      expect(result._unsafeUnwrapErr().message).to.equal('Referee email is required');
     });
 
     it('should return error if submission not found', async () => {
@@ -167,6 +169,7 @@ describe('Journal Referee Management Service', () => {
         refereeUserId: refereeUser.id,
         managerUserId: associateEditor.id,
       };
+
       const result = await JournalRefereeManagementService.inviteReferee(inviteInput);
       expect(result.isErr()).to.be.true;
       expect(result._unsafeUnwrapErr().message).to.equal('Submission not found');
@@ -340,6 +343,7 @@ describe('Journal Referee Management Service', () => {
         dueDateHrs: 24,
         journalId: journal.id,
       };
+
       const result = await JournalRefereeManagementService.assignReferee(assignInput);
       expect(result.isErr()).to.be.true;
       expect(result._unsafeUnwrapErr().message).to.equal('Referee not found');

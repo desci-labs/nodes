@@ -49,6 +49,10 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
       },
     });
 
+    if (!submission) {
+      return err(new Error('Submission not found'));
+    }
+
     const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(data.submissionId);
     if (submissionExtendedResult.isErr()) {
       return err(submissionExtendedResult.error);
@@ -67,10 +71,6 @@ async function inviteReferee(data: InviteRefereeInput): Promise<Result<RefereeIn
 
     if (!editor) {
       return err(new Error('Editor not found for submission'));
-    }
-
-    if (!submission) {
-      return err(new Error('Submission not found'));
     }
 
     const refereeEmail = existingReferee?.email ?? data.refereeEmail;
