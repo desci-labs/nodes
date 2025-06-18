@@ -272,7 +272,7 @@ async function sendInviteEditorEmail({
         id: journal.id,
         name: journal.name,
         description: journal.description,
-        iconColor: journal.iconCid,
+        iconCid: journal.iconCid,
       },
       inviter: {
         name: inviterName,
