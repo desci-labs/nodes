@@ -137,6 +137,25 @@ export const createMockUsers = async (count: number, createdAt: Date, withOrcid?
   }));
 };
 
+export const createMockGuestUsers = async (count: number, createdAt: Date): Promise<MockUser[]> => {
+  const promises = new Array(count).fill(0).map((_, index) =>
+    prisma.user.create({
+      data: {
+        email: `guest${index}_${uuidv4()}@test.com`,
+        name: `Guest_${index}_${uuidv4()}`,
+        createdAt,
+        isGuest: true,
+      },
+    }),
+  );
+
+  const users = await Promise.all(promises);
+  return users.map((user) => ({
+    user,
+    token: generateAccessToken({ email: user.email }),
+  }));
+};
+
 export const logMockUserActions = async (
   users: MockUser[],
   action: AvailableUserActionLogTypes,
