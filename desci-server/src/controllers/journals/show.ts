@@ -5,7 +5,7 @@ import { ValidatedRequest, OptionalAuthenticatedRequest } from '../../core/types
 import { logger as parentLogger } from '../../logger.js';
 import { getJournalSchema } from '../../schemas/journals.schema.js';
 import { JournalManagementService } from '../../services/journals/JournalManagementService.js';
-
+//
 const logger = parentLogger.child({
   module: 'Journals::ShowJournalController',
 });
