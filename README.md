@@ -51,46 +51,47 @@ We would like to open up our task management software, let us know if interested
 ## **desci-contracts**
 
 Houses all the tooling to build and deploy the ResearchObject contracts locally and for production. Includes a subgraph configuration for The Graph, which is run in a local Docker container and autodeploys your contract locally.
-<br><br>
+<br>
 
-## **nodes-web**
+## **nodes-web-v2**
 
 This is the React-based frontend for DeSci Nodes. It implements a Research Object viewer with support for editing and viewing IPLD-compliant JSON-LD self-describing linked data objects. It implements a frontend resolution of the [dPID](https://dpid.org) Resolution Scheme.
 
-_Note:_ This repo lives separately at [https://github.com/desci-labs/nodes-web](https://github.com/desci-labs/nodes-web) because it has a different open source license.
-<br><br>
+_Note:_ This repo lives separately at [https://github.com/desci-labs/nodes-web-v2](https://github.com/desci-labs/nodes-web-v2) because it has a different open source license.
+<br>
 
 ## **nodes-media**
 
 This is a NodeJS backend that helps Nodes with media transcoding videos to HLS using ffmpeg, and also helps run headless browser sessions to download PDFs and other free/fair-use media from the internet. It also implements an experimental LaTeX rendering service.
-<br><br>
+<br>
 
 ## **desci-models**
 
-This is a Typescript types library that describes a spec for Research Objects. It has an internal representation used by `nodes-web` and `desci-server` and can marshal/unmarshal to JSON-LD to be self-describing.
-<br><br>
+This is a Typescript types library that describes a spec for Research Objects. It has an internal representation used by `nodes-web-v2` and `desci-server` and can marshal/unmarshal to JSON-LD to be self-describing.
+<br>
 
 ## **desci-server**
 
 This is a NodeJS backend that manages draft Nodes. It maintains a user auth, verifies wallet credentials, offers 2FA to users, and is the main system that orchestrates between microservices. It maintains version history for each update to Nodes. It interfaces with a Graph index to implement the [DPID](https://dpid.org) Resolution Scheme.
-<br><br>
+<br>
 
 ## **nodes-lib**
 
 A library for programmatically interacting with Nodes, basically allowing automation of actions possible in the webapp. See separate documentation in the [README](./nodes-lib/README.md).
-<br><br>
+<br>
 
-## **reverse-proxy-service**
+## **reverse-proxy**
 
-A tiny service for proxying route segments to given target URL's, allowing hiding many target destinations under aliases on one domain. See docs in [README](./reverse-proxy-service/README.md).
+A tiny service for proxying route segments to given target URL's, allowing hiding many target destinations under aliases on one domain. See docs in [README](./reverse-proxy/README.md).
+<br>
 
 ## **desci-art-viewer**
 
 Nobody knows why this is still here, but it implements a React+Three.js 3d torus that plays [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life) on the surface of the torus. We were totally inspired by [this gif on Wikipedia](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life#/media/File:Trefoil_knot_conways_game_of_life.gif) and it only seems to work on Mac/Linux right now, YMMV.
-<br><br>
+<br>
 
 There is more information on each module within each folder's individual README.md.
-<br><br>
+<br>
 
 ---
 
@@ -132,23 +133,18 @@ _Optional:_ Edit the DB, open http://localhost:5555
 
 1. Go to User table
 2. Edit user to have your email (or use the default user, `noreply@desci.com`)
-   <br><br>
 
 ---
 
-<br>
-## 2.) Run frontend
-Follow the instructions in [`nodes-web`](https://github.com/desci-labs/nodes-web) and run the frontend.
+## 2) Run frontend
+
+Follow the instructions in [`nodes-web-v2`](https://github.com/desci-labs/nodes-web-v2) and run the frontend.
 
 Enjoy your local development setup of Nodes!
 
-<br>
-
 ---
 
-<br>
-
-### _Optional_: Run VSCode Server locally
+## _Optional_: Run VSCode Server locally
 
 You may want to run VSCode server locally instead of using the default https://desci.dev to test VSCode extension development and other Nodes integrations with VSCode.
 
@@ -159,7 +155,7 @@ The recommended option is to use our [code-server configuration](https://github.
 git clone https://github.com/desci-labs/code-server
 # starts server on http://localhost:8085
 ./start.sh
-# make sure you modify REACT_APP_CODE_SERVER in ../nodes-web/.env
+# make sure you modify REACT_APP_CODE_SERVER in ../nodes-web-v2/.env
 ```
 
 Another option is to run run openvscode-server:
@@ -169,18 +165,21 @@ docker run -it --init -p 8085:3000 -v "$(pwd):/home/workspace:cached" gitpod/ope
 ```
 
 Note: Modify desci-dapp/.env `REACT_APP_VSCODE_DISABLE=1` to use old custom code viewer
-<br><br>
+<br>
+
+---
 
 # Troubleshooting
 
 [Troubleshooting Page](https://github.com/desci-labs/nodes/wiki/Local-Environment-Troubleshooting)
-<br><br>
+
+---
 
 # Deploying
 
-Every Github push to develop will auto build + deploy to nodes-dev server cluster
+Every Github push to develop will auto build + deploy to nodes-dev server cluster.
 
-- nodes-web is deployed to both Amplify and Vercel, depending on the branch
-- desci-server is deployed to Kubernetes cluster via Github action
+- nodes-web-v2 is deployed to both Amplify and Vercel, depending on the branch.
+- desci-server is deployed to Kubernetes cluster via Github action.
 
-<br>
+---
