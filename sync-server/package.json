@@ -30,7 +30,8 @@
     ]
   },
   "resolutions": {
-    "cliui": "^8.0.1"
+    "cliui": "^8.0.1",
+    "pg-cloudflare": "1.1.1"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",

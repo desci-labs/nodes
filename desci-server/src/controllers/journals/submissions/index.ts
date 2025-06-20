@@ -212,7 +212,7 @@ export const acceptSubmissionController = async (req: AcceptSubmissionRequest, r
       // update submissioin with doi
       await journalSubmissionService.updateSubmissionDoi(submissionId, doiSubmission.uniqueDoi);
 
-      JournalEventLogService.log({
+      await JournalEventLogService.log({
         journalId,
         action: JournalEventLogAction.SUBMISSION_DOI_REQUESTED,
         userId: req.user.id,
@@ -223,9 +223,18 @@ export const acceptSubmissionController = async (req: AcceptSubmissionRequest, r
       });
     }
   } catch (error) {
-    logger.error({ error }, 'JOURNAL_SUBMISSION::ACCEPT_SUBMISSION::Failed to mint DOI');
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    logger.error(
+      { error: error.message, reqUser: req?.user?.id, user: user?.id },
+      'JOURNAL_SUBMISSION::ACCEPT_SUBMISSION::Failed to mint DOI',
+    );
+    // console.log('JOURNAL_SUBMISSION::ACCEPT_SUBMISSION::Failed to mint DOI', {
+    //   error: error.message,
+    //   reqUser: req.user,
+    //   user,
+    // });
     // TODO: log error to sentry or private discord channel
-    JournalEventLogService.log({
+    await JournalEventLogService.log({
       journalId,
       action: JournalEventLogAction.SUBMISSION_DOI_MINTING_FAILED,
       userId: req.user.id,

@@ -455,7 +455,7 @@ describe('Journal Submission Service', () => {
       response = await request
         .get(`/v1/journals/${journal.id}/my-submissions/${author.user.id}`)
         .set('authorization', `Bearer ${author.token}`);
-      console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
+      // console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
 
       expect(response.status).to.equal(200);
       const submissions = response.body.data.submissions;
@@ -648,7 +648,7 @@ describe('Journal Submission Service', () => {
         .set('authorization', `Bearer ${associateEditor.token}`)
         .send();
 
-      console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
+      // console.log({ status: response.status, response: JSON.stringify(sanitizeBigInts(response.body), null, 2) });
 
       expect(response.status).to.equal(200);
       expect(response.body.ok).to.be.true;
