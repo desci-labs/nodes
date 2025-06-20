@@ -60,12 +60,13 @@ export const getIndexedResearchObjects = async (
   _urlSafeBase64s: string[],
 ): Promise<{ researchObjects: IndexedResearchObject[] }> => {
   const paddedUuids = _urlSafeBase64s.map(ensureUuidEndsWithDot);
-
   // Get known nodes for each UUID
   const nodeRes = await prisma.node.findMany({
     select: {
       uuid: true,
       ceramicStream: true,
+      legacyDpid: true,
+      dpidAlias: true,
     },
     where: {
       uuid: {
@@ -75,49 +76,22 @@ export const getIndexedResearchObjects = async (
   });
 
   /**
-  For stream resolution, build a map to allow for also returning the UUID
+  For dpid resolution, build a map to allow for also returning the UUID
   to match the format returned by the graph lookup
   */
-  const streamLookupMap: Record<string, string> = {};
-  /** For legacy nodes, the graph lookup only needs the UUID */
-  const legacyUuids = [];
+  const dpidLookupMap: Record<number, string> = nodeRes.reduce(
+    (acc, n) => {
+      const dpid = n.dpidAlias ?? n.legacyDpid;
+      if (dpid != null) {
+        acc[dpid] = n.uuid;
+      }
+      return acc;
+    },
+    {} as Record<number, string>,
+  );
 
-  // Bin the UUIDs for resolution depending on DB matching
-  for (const uuid of paddedUuids) {
-    const matchingDbNode = nodeRes.find((n) => (n.uuid = uuid));
-    if (matchingDbNode === undefined) {
-      // Either:
-      // - old node missing DB UUID
-      // - created outside Nodes
-      legacyUuids.push(uuid);
-    } else if (matchingDbNode.ceramicStream === null) {
-      // Either:
-      // - unpublished
-      // - not migrated to stream
-      legacyUuids.push(uuid);
-    } else {
-      // We had a stream on record for this node, attach hex converted UUID
-      streamLookupMap[matchingDbNode.ceramicStream] = `0x${decodeBase64UrlSafeToHex(uuid)}`;
-    }
-  }
-
-  let streamHistory: IndexedResearchObject[] = [];
-  if (Object.keys(streamLookupMap).length > 0) {
-    logger.info({ streamLookupMap }, 'Querying resolver for history');
-    streamHistory = await getHistoryFromStreams(streamLookupMap);
-    logger.info({ streamHistory }, 'Resolver history for nodes found');
-  }
-
-  let legacyHistory: IndexedResearchObject[] = [];
-  if (legacyUuids.length > 0) {
-    logger.info({ legacyUuids, _urlSafeBase64s }, 'Falling back to subgraph query for history');
-    legacyHistory = (await _getIndexedResearchObjects(legacyUuids)).researchObjects;
-    logger.info({ legacyHistory }, 'Subgraph history for nodes found');
-  }
-
-  return {
-    researchObjects: [...streamHistory, ...legacyHistory],
-  };
+  const researchObjects = await getHistoryFromDpids(dpidLookupMap);
+  return { researchObjects };
 };
 
 /** Resolver return type for history queries. Needs some massage to fit
@@ -147,17 +121,18 @@ type ResolverIndexResult = {
  * This function emulates the format returned by the old subgraph, which
  * is what motivates the conversions to hex and the inclusion of the UUIDs.
  */
-const getHistoryFromStreams = async (streamToHexUuid: Record<string, string>): Promise<IndexedResearchObject[]> => {
+const getHistoryFromDpids = async (dpidsToUuidsMap: Record<number, string>): Promise<IndexedResearchObject[]> => {
   const historyRes = await axios.post<ResolverIndexResult[]>(`${RESOLVER_URL}/api/v2/query/history`, {
-    ids: Object.keys(streamToHexUuid),
+    ids: Object.keys(dpidsToUuidsMap),
   });
 
+  const uuids = Object.values(dpidsToUuidsMap);
   let indexedHistory: IndexedResearchObject[];
   try {
     // Convert resolver format to server format
-    indexedHistory = historyRes.data.map((ro) => ({
-      id: streamToHexUuid[ro.id],
-      id10: BigInt(streamToHexUuid[ro.id]).toString(),
+    indexedHistory = historyRes.data.map((ro, index) => ({
+      id: '0x' + decodeBase64UrlSafeToHex(uuids[index]),
+      id10: BigInt('0x' + decodeBase64UrlSafeToHex(uuids[index])).toString(),
       streamId: ro.id,
       owner: ro.owner,
       recentCid: convertCidTo0xHex(ro.manifest),
@@ -277,42 +252,6 @@ const getTxTimeFromGraph = async (txIds: string[]): Promise<TransactionsWithTime
   }`;
   const response = await query<TransactionsWithTimestamp>(q);
   return response.researchObjectVersions;
-};
-
-type RegisterEvent = {
-  transactionHash: string;
-  entryId: string;
-};
-
-type DpidRegistersResponse = {
-  registers: RegisterEvent[];
-};
-
-/**
- * Find the legacy dPID for a given node by looking up a transaction hash,
- * as the graph doesn't index dPIDs by UUID.
- * @deprecated
- */
-export const _getDpidForTxIds = async (txs: string[]): Promise<RegisterEvent[]> => {
-  logger.info({ txs }, "Getting legacy dpid's for transactions");
-  // Usually called with way less arguments, but 500 will prevent very odd errors as it will always  include all dpids
-  const q = `
-  {
-    registers(
-      first: 500
-      where: {
-        transactionHash_in: ["${txs.join('","')}"],
-      }
-      orderBy: entryId
-    ) {
-      transactionHash
-      entryId
-    }
-  }`;
-  console.log('Sending graph query:', { q });
-  const url = THEGRAPH_API_URL.replace('name/nodes', 'name/dpid-registry');
-  const response = await query<DpidRegistersResponse>(q, url);
-  return response.registers;
 };
 
 export const query = async <T>(query: string, overrideUrl?: string): Promise<T> => {

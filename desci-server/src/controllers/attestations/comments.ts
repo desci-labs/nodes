@@ -14,7 +14,7 @@ import { createCommentSchema, getAttestationCommentsSchema } from '../../routes/
 import { attestationService } from '../../services/Attestation.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { client } from '../../services/ipfs.js';
-import { emitNotificationForAnnotation } from '../../services/NotificationService.js';
+import { NotificationService } from '../../services/Notifications/NotificationService.js';
 import { base64ToBlob } from '../../utils/upload.js';
 import { asyncMap, ensureUuidEndsWithDot } from '../../utils.js';
 
@@ -163,7 +163,7 @@ export const postComment = async (
     action: ActionType.ADD_COMMENT,
     data: { annotationId: annotation.id, claimId, authorId },
   });
-  await emitNotificationForAnnotation(annotation.id);
+  await NotificationService.emitOnAnnotation(annotation.id);
   new SuccessResponse({
     ...annotation,
     highlights: annotation.highlights.map((h) => JSON.parse(h as string)),

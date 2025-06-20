@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { subDays } from 'date-fn-latest';
+import { subDays } from 'date-fns';
 import { describe, it } from 'mocha';
 
 import { getUtcDateXDaysAgo } from '../../src/utils/clock.js';

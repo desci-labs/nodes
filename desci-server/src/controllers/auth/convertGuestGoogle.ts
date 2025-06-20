@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 
 import { prisma } from '../../client.js';
+import { AuthenticatedRequest } from '../../core/types.js';
 import { logger as parentLogger } from '../../logger.js';
 import { contributorService } from '../../services/Contributors.js';
 import { DataMigrationService } from '../../services/DataMigration/DataMigrationService.js';
@@ -10,7 +11,6 @@ import { saveInteractionWithoutReq } from '../../services/interactionLog.js';
 import { MergeUserService } from '../../services/user/merge.js';
 import { sendCookie } from '../../utils/sendCookie.js';
 import { hideEmail } from '../../utils.js';
-import { AuthenticatedRequest } from '../notifications/create.js';
 
 import { ConvertGuestResponse } from './convertGuest.js';
 import { generateAccessToken } from './magic.js';

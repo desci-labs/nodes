@@ -79,6 +79,7 @@ const {
   works_conceptsInOpenalex,
   works_meshInOpenalex,
   works_topicsInOpenalex,
+  works_authorshipsInOpenalex,
 } = openAlexSchema;
 
 logger.info(
@@ -118,6 +119,9 @@ export const saveData = async (tx: pgPromise.ITask<any>, batchId: number, models
     lap = Date.now();
     await updateAuthorIds(tx, models['authors_ids']);
     logger.info({  table: 'authorIds',  duration: Date.now() - lap }, 'Table inserts done');
+    lap = Date.now();
+    await updateWorksAuthorships(tx, models['works_authorships']);
+    logger.info({  table: 'worksAuthorships',  duration: Date.now() - lap }, 'Table inserts done');
     lap = Date.now();
     await updateWorkIds(tx, models['works_id']);
     logger.info({  table: 'workIds',  duration: Date.now() - lap }, 'Table inserts done');
@@ -317,6 +321,43 @@ const updateAuthorIds = async (tx: pgPromise.ITask<any>, data: DataModels['autho
   const query = pgp.helpers.insert(data.sort(sortAuthorIds), columns) +
     ' ON CONFLICT (author_id) DO UPDATE SET ' +
     columns.assignColumns({ from: 'EXCLUDED', skip: 'author_id' });
+
+  await tx.none(query);
+};
+
+const sortWorksAuthorships = (a: DataModels['works_authorships'][number], b: DataModels['works_authorships'][number]) => {
+  if (a.work_id! < b.work_id!) return -1;
+  if (a.work_id! > b.work_id!) return 1;
+
+  if (a.author_id! < b.author_id!) return -1;
+  if (a.author_id! > b.author_id!) return 1;
+
+  return 0;
+};
+
+const updateWorksAuthorships = async (tx: pgPromise.ITask<any>, data: DataModels['works_authorships']) => {
+  if (!data.length) return;
+
+  const merged = data.reduce((acc, curr) => {
+    const key = `${curr.work_id!}-${curr.author_id!}`;
+    if (!acc[key]) {
+      acc[key] = curr;
+      return acc;
+    } else {
+      acc[key].institution_ids = Array.from(new Set([
+        ...acc[key].institution_ids!,
+        ...curr.institution_ids!
+      ]));
+    }
+    return acc;
+  }, {} as Record<string, DataModels['works_authorships'][number]>);
+
+  const sorted = Object.values(merged).sort(sortWorksAuthorships);
+
+  const columns = getColumnSet(works_authorshipsInOpenalex);
+  const query = pgp.helpers.insert(sorted, columns) +
+    ' ON CONFLICT (work_id, author_id) DO UPDATE SET ' +
+    columns.assignColumns({ from: 'EXCLUDED', skip: ['work_id', 'author_id'] });
 
   await tx.none(query);
 };

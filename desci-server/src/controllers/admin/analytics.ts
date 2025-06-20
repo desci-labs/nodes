@@ -19,7 +19,7 @@ import {
   endOfYear,
   sub,
   formatDistanceToNow,
-} from 'date-fn-latest';
+} from 'date-fns';
 import { Request, Response } from 'express';
 import _ from 'lodash';
 import zod, { z } from 'zod';
@@ -28,6 +28,7 @@ import { SuccessResponse } from '../../core/ApiResponse.js';
 import { logger as parentLogger } from '../../logger.js';
 import { RequestWithUser } from '../../middleware/authorisation.js';
 import { getFromCache, ONE_DAY_TTL, setToCache } from '../../redisClient.js';
+import { getCountActiveUsersInXDays } from '../../services/admin/interactionLog.js';
 import { communityService } from '../../services/Communities.js';
 import { crossRefClient } from '../../services/index.js';
 import {
@@ -40,7 +41,6 @@ import {
   getCountActiveOrcidUsersInMonth,
   getCountActiveOrcidUsersInXDays,
   getCountActiveUsersInMonth,
-  getCountActiveUsersInXDays,
   getDownloadedBytesInRange,
   getDownloadedBytesInXDays,
   getNodeViewsInMonth,
@@ -463,16 +463,16 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
   const fromDate = new Date(from.split('GMT')[0]);
 
   const diffInDays = differenceInDays(toDate, fromDate);
-  const startDate = fromDate;
+  // const startDate = fromDate;
   const endDate = endOfDay(toDate);
-  logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, startDate, endDate }, 'getAggregatedAnalytics');
+  logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, fromDate, endDate }, 'getAggregatedAnalytics');
 
-  const selectedDates = { from: startOfDay(startDate), to: endDate };
-  const selectedDatesInterval = interval(from, endDate);
+  const selectedDates = { from: startOfDay(fromDate), to: endDate };
+  const selectedDatesInterval = interval(selectedDates.from, selectedDates.to);
 
   const cacheKey = `aggregateAnalytics-${selectedDates.from.toDateString()}-${selectedDates.to.toDateString()}-${timeInterval}`;
   logger.trace({ cacheKey }, 'GET: CACHE KEY');
-  let aggregatedData = null; // await getFromCache<AnalyticsData[]>(cacheKey);
+  let aggregatedData = await getFromCache<AnalyticsData[]>(cacheKey);
 
   if (!aggregatedData) {
     const {
@@ -517,6 +517,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
 
     const allDatesInInterval = getIntervals();
     logger.trace({ allDatesInInterval }, 'allDatesInInterval');
+    logger.trace({ selectedDatesInterval }, 'selectedDatesInterval');
 
     aggregatedData = allDatesInInterval.map((period) => {
       const selectedDatesInterval =
@@ -532,9 +533,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
 
       const newUsersAgg = newUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const newOrcidUsersAgg = newOrcidUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
-      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.user.createdAt, selectedDatesInterval));
+      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const activeOrcidUsersAgg = activeOrcidUsers.filter((user) =>
-        isWithinInterval(user.user.createdAt, selectedDatesInterval),
+        isWithinInterval(user.createdAt, selectedDatesInterval),
       );
       const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
@@ -559,7 +560,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
         : selectedDates.from;
 
       return {
-        date: peggedPeriod,
+        date: peggedPeriod.toISOString(),
         newUsers: newUsersAgg.length,
         newOrcidUsers: newOrcidUsersAgg.length,
         activeUsers: activeUsersAgg.length,
@@ -583,10 +584,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
   const data = {
     analytics: aggregatedData,
     meta: {
-      selectedDatesInterval,
+      from: selectedDates.from.toISOString(),
+      to: selectedDates.to.toISOString(),
       diffInDays,
-      startDate,
-      endDate,
     },
   };
   return new SuccessResponse(data).send(res);
@@ -686,9 +686,9 @@ export const getAggregatedAnalyticsCsv = async (req: RequestWithUser, res: Respo
 
       const newUsersAgg = newUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const newOrcidUsersAgg = newOrcidUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
-      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.user.createdAt, selectedDatesInterval));
+      const activeUsersAgg = activeUsers.filter((user) => isWithinInterval(user.createdAt, selectedDatesInterval));
       const activeOrcidUsersAgg = activeOrcidUsers.filter((user) =>
-        isWithinInterval(user.user.createdAt, selectedDatesInterval),
+        isWithinInterval(user.createdAt, selectedDatesInterval),
       );
       const newNodesAgg = newNodes.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));
       const nodeViewsAgg = nodeViews.filter((node) => isWithinInterval(node.createdAt, selectedDatesInterval));

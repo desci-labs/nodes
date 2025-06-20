@@ -8,6 +8,7 @@ import { logger } from '../logger.js';
  */
 
 const AUTH_COOKIE_DOMAIN_MAPPING = {
+  'http://localhost:5420': 'auth',
   'https://nodes-api.desci.com': 'auth',
   'https://nodes-api-dev.desci.com': 'auth-dev',
   'https://nodes-api-staging.desci.com': 'auth-stage',
@@ -48,6 +49,7 @@ export const sendCookie = (res: Response, token: string, isDevMode: boolean, coo
 };
 
 export const removeCookie = (res: Response, cookieName: string) => {
+  logger.trace({ cookieName }, 'removeCookie');
   res.cookie(cookieName, 'unset', {
     maxAge: 0,
     httpOnly: true, // Ineffective whilst we still return the bearer token to the client in the response

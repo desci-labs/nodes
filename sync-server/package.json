@@ -30,7 +30,8 @@
     ]
   },
   "resolutions": {
-    "cliui": "^8.0.1"
+    "cliui": "^8.0.1",
+    "pg-cloudflare": "1.1.1"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
@@ -63,7 +64,7 @@
     "@automerge/automerge-repo": "^1.2.1",
     "@automerge/automerge-repo-network-websocket": "^1.2.1",
     "@automerge/automerge-repo-react-hooks": "^1.0.19",
-    "@cloudflare/workers-types": "^4.20241022.0",
+    "@cloudflare/workers-types": "4.20241022.0",
     "@desci-labs/desci-models": "^0.2.19",
     "@sentry/cloudflare": "^8.50.0",
     "deep-equal": "^2.2.3",

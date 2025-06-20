@@ -20,7 +20,7 @@ import {
   setCeramicStream,
   setDpidAlias,
 } from '../../services/nodeManager.js';
-import { emitNotificationOnPublish } from '../../services/NotificationService.js';
+import { NotificationService } from '../../services/Notifications/NotificationService.js';
 import { PublishServices } from '../../services/PublishServices.js';
 import { _getIndexedResearchObjects } from '../../theGraph.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../../utils/discordUtils.js';
@@ -308,7 +308,7 @@ const syncPublish = async (
   /*
    * Emit notification on publish
    */
-  await emitNotificationOnPublish(node, owner, dpid, publishStatusId);
+  await NotificationService.emitOnPublish(node, owner, dpid, publishStatusId);
 
   const targetDpidUrl = getTargetDpidUrl();
   discordNotify({ message: `${targetDpidUrl}/${dpidAlias}` });
@@ -586,7 +586,7 @@ export const publishHandler = async ({
     /*
      * Emit notification on publish
      */
-    await emitNotificationOnPublish(node, owner, dpid, publishStatusEntry.id);
+    await NotificationService.emitOnPublish(node, owner, dpid, publishStatusEntry.id);
 
     /**
      * Save the cover art for this Node for later sharing: PDF -> JPG for this version

@@ -1,0 +1,20 @@
+/*
+  Warnings:
+
+  - The values [REFEREE_ASSIGNMENT_DROPPED] on the enum `NotificationType` will be removed. If these variants are still used in the database, this will fail.
+
+*/
+-- AlterEnum
+ALTER TYPE "JournalEventLogAction" ADD VALUE 'REFEREE_ASSIGNMENT_DROPPED';
+
+-- AlterEnum
+BEGIN;
+CREATE TYPE "NotificationType_new" AS ENUM ('PUBLISH', 'COMMENTS', 'CONTRIBUTOR_INVITE', 'DOI_ISSUANCE_STATUS', 'ATTESTATION_VALIDATION', 'JOURNAL_EDITOR_INVITE', 'SUBMISSION_ASSIGNED_TO_EDITOR', 'SUBMISSION_REASSIGNED_TO_EDITOR', 'REFEREE_INVITE', 'REFEREE_REASSIGNED', 'REFEREE_ACCEPTED', 'REFEREE_DECLINED', 'REFEREE_REVIEW_REMINDER', 'MAJOR_REVISION_REQUESTED', 'MINOR_REVISION_REQUESTED', 'REVISION_SUBMITTED', 'SUBMISSION_DESK_REJECTION', 'SUBMISSION_FINAL_REJECTION', 'SUBMISSION_ACCEPTED', 'SUBMISSION_OVERDUE_EDITOR_REMINDER');
+ALTER TABLE "UserNotifications" ALTER COLUMN "type" TYPE "NotificationType_new" USING ("type"::text::"NotificationType_new");
+ALTER TYPE "NotificationType" RENAME TO "NotificationType_old";
+ALTER TYPE "NotificationType_new" RENAME TO "NotificationType";
+DROP TYPE "NotificationType_old";
+COMMIT;
+
+-- AlterTable
+ALTER TABLE "RefereeInvite" ALTER COLUMN "relativeDueDateHrs" DROP NOT NULL;
