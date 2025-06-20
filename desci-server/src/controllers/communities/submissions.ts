@@ -17,7 +17,7 @@ import {
   updateSubmissionStatusSchema,
 } from '../../routes/v1/communities/submissions-schema.js';
 import { communityService } from '../../services/Communities.js';
-import { EmailTypes, sendEmail } from '../../services/email.js';
+import { EmailTypes, sendEmail } from '../../services/email/email.js';
 import { saveInteraction } from '../../services/interactionLog.js';
 import { getNodeDetails } from '../../services/node.js';
 import { cachedGetDpidByUuid } from '../../utils/manifest.js';
@@ -150,7 +150,7 @@ export const updateSubmissionStatus = async (req: RequestWithUser, res: Response
     });
     const dpid = await cachedGetDpidByUuid(submission.nodeId);
     // send user rejection email
-    sendEmail({
+    await sendEmail({
       type: EmailTypes.RejectedSubmission,
       payload: {
         dpid: dpid.toString(),

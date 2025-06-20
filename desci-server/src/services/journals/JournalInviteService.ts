@@ -2,7 +2,7 @@ import { EditorRole, JournalEventLogAction } from '@prisma/client';
 
 import { prisma } from '../../client.js';
 import { logger as parentLogger } from '../../logger.js';
-import { EmailTypes, sendEmail } from '../email.js';
+import { EmailTypes, sendEmail } from '../email/email.js';
 import { NotificationService } from '../Notifications/NotificationService.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
@@ -92,24 +92,31 @@ async function inviteJournalEditor({
     return invite;
   });
 
-  sendEmail({
-    type: EmailTypes.EDITOR_INVITE,
-    payload: {
-      email,
-      journal,
-      inviterName: inviter.name,
-      role,
-      inviteToken: token,
-    },
-  });
+  try {
+    await sendEmail({
+      type: EmailTypes.EDITOR_INVITE,
+      payload: {
+        email,
+        journal,
+        inviterName: inviter.name,
+        role,
+        inviteToken: token,
+      },
+    });
 
-  if (inviteeExistingUser) {
-    // await NotificationService.emitOnJournalEditorInvite({
-    //   journal,
-    //   editor: inviteeExistingUser,
-    //   inviter,
-    //   role,
-    // });
+    if (inviteeExistingUser) {
+      await NotificationService.emitOnJournalEditorInvite({
+        journal,
+        editor: inviteeExistingUser,
+        inviter,
+        role,
+      });
+    }
+  } catch (error) {
+    logger.error(
+      { fn: 'inviteJournalEditor', error, email, journalId, inviterId, existingUserId: inviteeExistingUser?.id },
+      'Notification push failed',
+    );
   }
 
   logger.info(

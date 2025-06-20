@@ -611,14 +611,16 @@ const emitOnRefereeInvitation = async ({
   submission,
   submissionTitle,
   referee,
-  dueDate,
+  inviteToken,
+  dueDateHrs,
 }: {
   journal: Journal;
   editor: JournalEditor;
   submission: JournalSubmission;
   submissionTitle: string;
   referee: User;
-  dueDate: Date;
+  inviteToken: string;
+  dueDateHrs: number;
 }) => {
   const editorUser = await prisma.user.findUnique({
     where: { id: editor.userId },
@@ -633,7 +635,8 @@ const emitOnRefereeInvitation = async ({
     editorUserId: editorUser?.id,
     refereeName: referee.name,
     refereeUserId: referee.id,
-    dueDate: dueDate,
+    dueDateHrs,
+    inviteToken,
   };
 
   const notificationData: CreateNotificationData = {

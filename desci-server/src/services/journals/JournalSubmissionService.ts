@@ -1,10 +1,24 @@
 import { EditorRole, JournalEventLogAction, SubmissionStatus } from '@prisma/client';
 import _ from 'lodash';
-import { err, ok } from 'neverthrow';
+import { err, ok, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { ForbiddenError, NotFoundError } from '../../core/ApiError.js';
 import { logger as parentLogger } from '../../logger.js';
+import { getIndexedResearchObjects } from '../../theGraph.js';
+import { hexToCid } from '../../utils.js';
+import { getManifestByCid } from '../data/processing.js';
+import { EmailTypes, sendEmail } from '../email/email.js';
+import {
+  MajorRevisionRequestPayload,
+  MinorRevisionRequestPayload,
+  SubmissionExtended,
+} from '../email/journalEmailTypes.js';
+import {
+  MajorRevisionRequestedPayload,
+  MinorRevisionRequestedPayload,
+} from '../Notifications/notificationPayloadTypes.js';
+import { NotificationService } from '../Notifications/NotificationService.js';
 
 import { JournalEventLogService } from './JournalEventLogService.js';
 
@@ -169,6 +183,9 @@ export async function getAssociateEditorSubmissions(payload: {
 async function assignSubmissionToEditor(payload: { assignerId: number; submissionId: number; editorId: number }) {
   const chiefEditor = await prisma.journalEditor.findFirst({
     where: { userId: payload.assignerId, role: EditorRole.CHIEF_EDITOR },
+    include: {
+      user: true,
+    },
   });
 
   if (!chiefEditor) {
@@ -177,7 +194,15 @@ async function assignSubmissionToEditor(payload: { assignerId: number; submissio
 
   const submission = await prisma.journalSubmission.findUnique({
     where: { id: payload.submissionId },
+    include: {
+      journal: true,
+    },
   });
+  const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(payload.submissionId);
+  if (submissionExtendedResult.isErr()) {
+    throw new Error('Failed to get submission extended data');
+  }
+  const submissionExtended = submissionExtendedResult.value;
 
   if (!submission) {
     throw new Error('Submission not found');
@@ -187,7 +212,14 @@ async function assignSubmissionToEditor(payload: { assignerId: number; submissio
     throw new Error('Submission is not in the submitted state');
   }
 
-  return await prisma.journalSubmission.update({
+  const editor = await prisma.journalEditor.findFirst({
+    where: { userId: payload.editorId, journalId: submission.journalId },
+    include: {
+      user: true,
+    },
+  });
+
+  const updatedSubmission = await prisma.journalSubmission.update({
     where: { id: payload.submissionId },
     data: {
       assignedEditorId: payload.editorId,
@@ -198,12 +230,57 @@ async function assignSubmissionToEditor(payload: { assignerId: number; submissio
       status: true,
     },
   });
+
+  try {
+    await NotificationService.emitOnJournalSubmissionAssignedToEditor({
+      journal: submission.journal,
+      editor: editor,
+      managerEditor: chiefEditor,
+      submission: submission,
+      submissionTitle: submissionExtended.title,
+    });
+
+    await sendEmail({
+      type: EmailTypes.SUBMISSION_ASSIGNED_TO_EDITOR,
+      payload: {
+        email: editor.user.email,
+        journal: submission.journal,
+        assigner: {
+          name: chiefEditor.user.name,
+          userId: chiefEditor.user.id,
+        },
+        editor: {
+          name: editor.user.name,
+          userId: editor.user.id,
+        },
+        submission: submissionExtended,
+      },
+    });
+  } catch (e) {
+    logger.error(
+      { fn: 'assignSubmissionToEditor', error: e, submissionId: payload.submissionId },
+      'Notification push failed',
+    );
+  }
+
+  return updatedSubmission;
 }
 
 async function acceptSubmission({ editorId, submissionId }: { editorId: number; submissionId: number }) {
   const submission = await prisma.journalSubmission.findUnique({
     where: { id: submissionId },
+    include: {
+      journal: true,
+      author: true,
+      assignedEditor: true,
+    },
   });
+
+  const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(submissionId);
+  if (submissionExtendedResult.isErr()) {
+    throw new Error('Failed to get submission extended data');
+  }
+  const submissionExtended = submissionExtendedResult.value;
 
   if (!submission || submission.assignedEditorId !== editorId) {
     throw new NotFoundError('Submission not found');
@@ -217,7 +294,7 @@ async function acceptSubmission({ editorId, submissionId }: { editorId: number; 
     throw new ForbiddenError('Submission is not under review');
   }
 
-  return await prisma.journalSubmission.update({
+  const updatedSubmission = await prisma.journalSubmission.update({
     where: { id: submissionId },
     data: {
       status: SubmissionStatus.ACCEPTED,
@@ -230,6 +307,31 @@ async function acceptSubmission({ editorId, submissionId }: { editorId: number; 
       dpid: true,
     },
   });
+
+  try {
+    await NotificationService.emitOnSubmissionAcceptance({
+      journal: submission.journal,
+      submission: submission,
+      submissionTitle: submissionExtended.title,
+      author: submission.author,
+    });
+    await sendEmail({
+      type: EmailTypes.SUBMISSION_ACCEPTED,
+      payload: {
+        email: submission.author.email,
+        journal: submission.journal,
+        editor: {
+          name: submission.assignedEditor.name,
+          userId: submission.assignedEditor.id,
+        },
+        submission: submissionExtended,
+      },
+    });
+  } catch (e) {
+    logger.error({ fn: 'acceptSubmission', error: e, submissionId }, 'Notification push failed');
+  }
+
+  return updatedSubmission;
 }
 async function rejectSubmission({ editorId, submissionId }: { editorId: number; submissionId: number }) {
   const submission = await prisma.journalSubmission.findUnique({
@@ -263,7 +365,17 @@ async function rejectSubmission({ editorId, submissionId }: { editorId: number; 
   });
 }
 
-async function requestRevision({ editorId, submissionId }: { editorId: number; submissionId: number }) {
+async function requestRevision({
+  editorId,
+  submissionId,
+  revisionType,
+  comment,
+}: {
+  editorId: number;
+  submissionId: number;
+  revisionType: 'minor' | 'major';
+  comment: string;
+}) {
   const submission = await prisma.journalSubmission.findUnique({
     where: { id: submissionId },
   });
@@ -280,7 +392,7 @@ async function requestRevision({ editorId, submissionId }: { editorId: number; s
     throw new ForbiddenError('Submission is already rejected');
   }
 
-  return await prisma.journalSubmission.update({
+  const updatedSubmission = await prisma.journalSubmission.update({
     where: { id: submissionId },
     data: {
       status: SubmissionStatus.REVISION_REQUESTED,
@@ -290,6 +402,64 @@ async function requestRevision({ editorId, submissionId }: { editorId: number; s
       status: true,
     },
   });
+
+  try {
+    // Notification logic
+    const submission = await prisma.journalSubmission.findUnique({
+      where: { id: submissionId },
+      include: {
+        journal: true,
+        author: true,
+      },
+    });
+
+    const assignedEditor = await prisma.journalEditor.findUnique({
+      where: { userId_journalId: { userId: submission.assignedEditorId, journalId: submission.journalId } },
+      include: {
+        user: true,
+      },
+    });
+
+    const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(submissionId);
+    if (submissionExtendedResult.isErr()) {
+      throw new Error('Failed to get submission extended data');
+    }
+    const submissionExtended = submissionExtendedResult.value;
+
+    const notifArgs = {
+      journal: submission.journal,
+      editor: assignedEditor,
+      submission: submission,
+      submissionTitle: submissionExtended.title,
+      author: submission.author,
+    };
+    const emailPayload = {
+      email: submission.author.email,
+      journal: submission.journal,
+      submission: submissionExtended,
+      editor: {
+        name: assignedEditor.user.name,
+        userId: assignedEditor.userId,
+      },
+      comments: comment,
+    };
+    const isMajorRevision = revisionType === 'major';
+
+    if (isMajorRevision) {
+      await NotificationService.emitOnMajorRevisionRequest(notifArgs);
+    } else {
+      // Minor Revision
+      await NotificationService.emitOnMinorRevisionRequest(notifArgs);
+    }
+    await sendEmail({
+      type: isMajorRevision ? EmailTypes.MAJOR_REVISION_REQUEST : EmailTypes.MINOR_REVISION_REQUEST,
+      payload: emailPayload,
+    });
+  } catch (e) {
+    logger.error({ fn: 'acceptSubmission', error: e, submissionId }, 'Notification push failed');
+  }
+
+  return updatedSubmission;
 }
 
 async function getSubmissionById(submissionId: number) {
@@ -347,6 +517,74 @@ async function updateSubmissionDoiMintedAt(doi: string) {
   });
 }
 
+const getSubmissionExtendedData = async (submissionId: number): Promise<Result<SubmissionExtended, Error>> => {
+  const submission = await prisma.journalSubmission.findUnique({
+    where: { id: submissionId },
+    include: {
+      journal: true,
+      node: true,
+      author: true,
+    },
+  });
+  if (process.env.NODE_ENV === 'test') {
+    // The tests don't really care about this data, so just partial dummy data is used
+    // In tests, we can't get resolve the research object, as it's not actually being published.
+    return ok({
+      ...submission,
+      title: submission.node.title,
+      authors: ['Test Author'],
+      abstract: 'Test Abstract',
+      submitterName: submission.author.name,
+      submitterUserId: submission.author.id,
+    });
+  }
+  const { researchObjects } = await getIndexedResearchObjects([submission.node.uuid]);
+  if (!researchObjects || researchObjects.length === 0) {
+    return err(new Error('No published version found for submission'));
+  }
+  const researchObject = researchObjects[0];
+
+  const targetVersionIndex = researchObject.versions.length - submission.version;
+  const targetVersion = researchObject.versions[targetVersionIndex];
+  const targetVersionManifestCid = hexToCid(targetVersion.cid);
+  const manifest = await getManifestByCid(targetVersionManifestCid);
+
+  const authors = manifest.authors?.map((author) => author.name) ?? [];
+  const abstract = manifest.description;
+  const title = manifest.title;
+
+  const submitterName = submission.author.name;
+  const submitterUserId = submission.author.id;
+
+  return ok({
+    ...submission,
+    title,
+    authors,
+    abstract,
+    submitterName,
+    submitterUserId,
+  });
+};
+
+/**
+ * Check if the submission is desk rejected.
+ ** Current criteria is if the submission was rejected before any referee invites are sent.
+ */
+const isSubmissionDeskRejection = async (submissionId: number): Promise<Result<boolean, Error>> => {
+  const hasRefereeInvites = await prisma.refereeInvite.findFirst({
+    where: { submissionId },
+    select: {
+      id: true,
+    },
+  });
+
+  if (hasRefereeInvites) {
+    return ok(false);
+  }
+
+  return ok(true);
+};
+
 export const journalSubmissionService = {
   createSubmission,
   getAuthorSubmissions,
@@ -361,4 +599,6 @@ export const journalSubmissionService = {
   isSubmissionByAuthor,
   updateSubmissionDoi,
   updateSubmissionDoiMintedAt,
+  getSubmissionExtendedData,
+  isSubmissionDeskRejection,
 };

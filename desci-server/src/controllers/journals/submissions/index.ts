@@ -15,6 +15,7 @@ import {
   submissionApiSchema,
   rejectSubmissionSchema,
 } from '../../../schemas/journals.schema.js';
+import { EmailTypes, sendEmail } from '../../../services/email/email.js';
 import { getTargetDpidUrl } from '../../../services/fixDpid.js';
 import { doiService } from '../../../services/index.js';
 import { JournalEventLogService } from '../../../services/journals/JournalEventLogService.js';
@@ -22,6 +23,7 @@ import { JournalManagementService } from '../../../services/journals/JournalMana
 import { journalSubmissionService } from '../../../services/journals/JournalSubmissionService.js';
 import { getNodeByDpid } from '../../../services/node.js';
 import { getPublishedNodeVersionCount } from '../../../services/nodeManager.js';
+import { NotificationService } from '../../../services/Notifications/NotificationService.js';
 import { DiscordChannel, DiscordNotifyType } from '../../../utils/discordUtils.js';
 import { discordNotify } from '../../../utils/discordUtils.js';
 
@@ -162,7 +164,12 @@ export const requestRevisionController = async (req: RequestRevisionRequest, res
   const { comment, revisionType } = req.validatedData.body;
 
   // check if journal and submission are valid.
-  await journalSubmissionService.requestRevision({ submissionId, editorId: req.user.id });
+  await journalSubmissionService.requestRevision({
+    submissionId,
+    editorId: req.user.id,
+    revisionType,
+    comment,
+  });
 
   // LOG the event
   await JournalEventLogService.log({
@@ -175,7 +182,6 @@ export const requestRevisionController = async (req: RequestRevisionRequest, res
       revisionType,
     },
   });
-  // TODO: notify the author that the revision is requested.
   // TODO: notify the referee of the editor decision.
 
   return sendSuccess(res, null);
@@ -270,7 +276,67 @@ export const rejectSubmissionController = async (req: RejectSubmissionRequest, r
     },
   });
 
-  // TODO: notify the author that the submission is rejected.
+  try {
+    // Notification logic
+    const submission = await prisma.journalSubmission.findUnique({
+      where: { id: submissionId },
+      include: {
+        journal: true,
+        author: true,
+      },
+    });
+
+    const assignedEditor = await prisma.journalEditor.findUnique({
+      where: { userId_journalId: { userId: submission.assignedEditorId, journalId: submission.journalId } },
+      include: {
+        user: true,
+      },
+    });
+
+    const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(submissionId);
+    if (submissionExtendedResult.isErr()) {
+      throw new Error('Failed to get submission extended data');
+    }
+    const submissionExtended = submissionExtendedResult.value;
+
+    const isDeskRejectionResult = await journalSubmissionService.isSubmissionDeskRejection(submissionId);
+    if (isDeskRejectionResult.isErr()) {
+      throw new Error('Failed to check if the submission is desk rejected');
+    }
+    const isDeskRejection = isDeskRejectionResult.value;
+
+    const notifPayload = {
+      journal: submission.journal,
+      editor: assignedEditor,
+      submission: submission,
+      submissionTitle: submissionExtended.title,
+      author: submission.author,
+    };
+    const emailPayload = {
+      email: submission.author.email,
+      journal: submission.journal,
+      editor: {
+        name: assignedEditor.user.name,
+        userId: assignedEditor.userId,
+      },
+      comments: comment,
+      submission: submissionExtended,
+    };
+
+    if (isDeskRejection) {
+      // Desk Rejection
+      await NotificationService.emitOnSubmissionDeskRejection(notifPayload);
+    } else {
+      // Final Rejection
+      await NotificationService.emitOnSubmissionFinalRejection(notifPayload);
+    }
+    await sendEmail({
+      type: isDeskRejection ? EmailTypes.SUBMISSION_DESK_REJECTED : EmailTypes.SUBMISSION_FINAL_REJECTED,
+      payload: emailPayload,
+    });
+  } catch (e) {
+    logger.error({ fn: 'acceptSubmission', error: e, submissionId }, 'Notification push failed');
+  }
   // TODO: notify the referee of the editor decision.
 
   return sendSuccess(res, null);

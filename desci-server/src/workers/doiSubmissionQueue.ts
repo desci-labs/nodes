@@ -3,7 +3,7 @@ import { CronJob } from 'cron';
 import { prisma } from '../client.js';
 import { logger as parentLogger } from '../logger.js';
 import { lockService } from '../redisClient.js';
-import { EmailTypes, sendEmail } from '../services/email.js';
+import { EmailTypes, sendEmail } from '../services/email/email.js';
 import { doiService } from '../services/index.js';
 import { DiscordChannel, discordNotify, DiscordNotifyType } from '../utils/discordUtils.js';
 import { asyncMap } from '../utils.js';
@@ -50,7 +50,7 @@ export const onTick = async () => {
         });
 
         if (node.owner.email) {
-          sendEmail({
+          await sendEmail({
             type: EmailTypes.DoiMinted,
             payload: {
               name: node.owner.name,

@@ -114,7 +114,8 @@ export type RefereeInvitePayload = {
   editorUserId: number;
   refereeName: string;
   refereeUserId: number;
-  dueDate: Date;
+  dueDateHrs: number;
+  inviteToken: string;
 };
 
 export type RefereeReassignedPayload = {

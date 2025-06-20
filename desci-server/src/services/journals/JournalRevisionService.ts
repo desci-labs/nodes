@@ -1,8 +1,12 @@
-import { JournalRevisionStatus, Prisma, SubmissionStatus } from '@prisma/client';
-import { err, ok } from 'neverthrow';
+import { JournalRevisionStatus, JournalSubmissionRevision, Prisma, SubmissionStatus } from '@prisma/client';
+import { err, ok, Result } from 'neverthrow';
 
 import { prisma } from '../../client.js';
 import { logger } from '../../logger.js';
+import { EmailTypes, sendEmail } from '../email/email.js';
+import { NotificationService } from '../Notifications/NotificationService.js';
+
+import { journalSubmissionService } from './JournalSubmissionService.js';
 
 // function to create revision (submissionId, dpid, version)
 async function createRevision({
@@ -15,7 +19,7 @@ async function createRevision({
   dpid: number;
   version: number;
   journalId: number;
-}) {
+}): Promise<Result<JournalSubmissionRevision, Error>> {
   const pendingRevision = await prisma.journalSubmissionRevision.findFirst({
     where: {
       submissionId,
@@ -35,6 +39,51 @@ async function createRevision({
       status: JournalRevisionStatus.PENDING,
     },
   });
+
+  try {
+    // Notification logic
+    const submission = await prisma.journalSubmission.findUnique({
+      where: { id: submissionId },
+      include: {
+        journal: true,
+        author: true,
+        assignedEditor: true,
+      },
+    });
+
+    const editor = await prisma.journalEditor.findUnique({
+      where: {
+        userId_journalId: {
+          userId: submission.assignedEditorId,
+          journalId,
+        },
+      },
+    });
+
+    const submissionExtendedResult = await journalSubmissionService.getSubmissionExtendedData(submissionId);
+    if (submissionExtendedResult.isErr()) {
+      throw new Error('Failed to get submission extended data');
+    }
+    const submissionExtended = submissionExtendedResult.value;
+
+    await NotificationService.emitOnRevisionSubmittedToEditor({
+      journal: submission.journal,
+      editor,
+      submission: submission,
+      submissionTitle: submissionExtended.title,
+      author: submission.author,
+    });
+    await sendEmail({
+      type: EmailTypes.REVISION_SUBMITTED,
+      payload: {
+        email: submission.assignedEditor.email,
+        journal: submission.journal,
+        submission: submissionExtended,
+      },
+    });
+  } catch (e) {
+    logger.error({ fn: 'createRevision', error: e, submissionId }, 'Notification push failed');
+  }
 
   return ok(revision);
 }
