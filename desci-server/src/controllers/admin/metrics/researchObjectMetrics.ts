@@ -4,6 +4,7 @@ import { Response } from 'express';
 import { SuccessResponse } from '../../../core/ApiResponse.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger } from '../../../logger.js';
+import { getFromCache, ONE_DAY_TTL, setToCache } from '../../../redisClient.js';
 import {
   countAllNodes,
   countAverageResearchObjectsCreatedPerUser,
@@ -40,6 +41,16 @@ export const getResearchObjectMetrics = async (req: ResearchObjectMetricsRequest
     'getResearchObjectMetrics',
   );
 
+  const cacheKey = range
+    ? `researchObjectMetrics-${range.from.toISOString()}-${range.to.toISOString()}-${compareToPreviousPeriod.toString()}`
+    : `researchObjectMetrics`;
+  const cachedResponse = await getFromCache<ResearchObjectMetricsResponse>(cacheKey);
+  if (cachedResponse) {
+    logger.trace({ cachedResponse }, 'getResearchObjectMetrics: CACHED RESPONSE');
+    new SuccessResponse(cachedResponse).send(res);
+    return;
+  }
+
   const [totalRoCreated, averageRoCreatedPerUser, medianRoCreatedPerUser] = await Promise.all([
     countAllNodes(range),
     countAverageResearchObjectsCreatedPerUser(range),
@@ -69,5 +80,6 @@ export const getResearchObjectMetrics = async (req: ResearchObjectMetricsRequest
     };
   }
   logger.trace({ data }, 'getResearchObjectMetrics');
+  await setToCache(cacheKey, data, ONE_DAY_TTL);
   new SuccessResponse(data).send(res);
 };

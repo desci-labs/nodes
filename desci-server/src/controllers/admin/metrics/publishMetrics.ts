@@ -4,6 +4,7 @@ import { Response } from 'express';
 import { SuccessResponse } from '../../../core/ApiResponse.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger } from '../../../logger.js';
+import { getFromCache, ONE_DAY_TTL, setToCache } from '../../../redisClient.js';
 import { safePct } from '../../../services/admin/helper.js';
 import { communityService } from '../../../services/Communities.js';
 import { countUniqueUsersPublished } from '../../../services/node.js';
@@ -39,6 +40,25 @@ export const getPublishMetrics = async (req: PublishMetricsRequest, res: Respons
 
   logger.trace({ fn: 'getPublishMetrics', range, compareToPreviousPeriod, prevRange }, 'getPublishMetrics');
 
+  const cacheKey = range
+    ? `publishMetrics-${range.from.toISOString()}-${range.to.toISOString()}-${compareToPreviousPeriod.toString()}`
+    : `publishMetrics`;
+
+  // Try to get cached response with error handling
+  let cachedResponse: PublishMetricsResponse | null = null;
+
+  try {
+    cachedResponse = await getFromCache<PublishMetricsResponse>(cacheKey);
+  } catch (error) {
+    logger.error({ error, cacheKey }, 'Failed to read from cache in getPublishMetrics');
+  }
+
+  if (cachedResponse) {
+    logger.trace({ cachedResponse }, 'getPublishMetrics: CACHED RESPONSE');
+    new SuccessResponse(cachedResponse).send(res);
+    return;
+  }
+
   const [totalUsers, publishers, publishersInCommunity, guestSignUpSuccessRate] = await Promise.all([
     countAllUsers(range),
     countUniqueUsersPublished(range),
@@ -72,5 +92,13 @@ export const getPublishMetrics = async (req: PublishMetricsRequest, res: Respons
     };
   }
   logger.trace({ data }, 'getPublishMetrics');
+
+  // Try to set cache with error handling
+  try {
+    await setToCache(cacheKey, data, ONE_DAY_TTL);
+  } catch (error) {
+    logger.error({ error, cacheKey }, 'Failed to write to cache in getPublishMetrics');
+  }
+
   new SuccessResponse(data).send(res);
 };

@@ -463,16 +463,16 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
   const fromDate = new Date(from.split('GMT')[0]);
 
   const diffInDays = differenceInDays(toDate, fromDate);
-  const startDate = fromDate;
+  // const startDate = fromDate;
   const endDate = endOfDay(toDate);
-  logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, startDate, endDate }, 'getAggregatedAnalytics');
+  logger.trace({ fn: 'getAggregatedAnalytics', diffInDays, from, to, fromDate, endDate }, 'getAggregatedAnalytics');
 
-  const selectedDates = { from: startOfDay(startDate), to: endDate };
-  const selectedDatesInterval = interval(from, endDate);
+  const selectedDates = { from: startOfDay(fromDate), to: endDate };
+  const selectedDatesInterval = interval(selectedDates.from, selectedDates.to);
 
   const cacheKey = `aggregateAnalytics-${selectedDates.from.toDateString()}-${selectedDates.to.toDateString()}-${timeInterval}`;
   logger.trace({ cacheKey }, 'GET: CACHE KEY');
-  let aggregatedData = null; // await getFromCache<AnalyticsData[]>(cacheKey);
+  let aggregatedData = await getFromCache<AnalyticsData[]>(cacheKey);
 
   if (!aggregatedData) {
     const {
@@ -517,6 +517,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
 
     const allDatesInInterval = getIntervals();
     logger.trace({ allDatesInInterval }, 'allDatesInInterval');
+    logger.trace({ selectedDatesInterval }, 'selectedDatesInterval');
 
     aggregatedData = allDatesInInterval.map((period) => {
       const selectedDatesInterval =
@@ -559,7 +560,7 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
         : selectedDates.from;
 
       return {
-        date: peggedPeriod,
+        date: peggedPeriod.toISOString(),
         newUsers: newUsersAgg.length,
         newOrcidUsers: newOrcidUsersAgg.length,
         activeUsers: activeUsersAgg.length,
@@ -583,10 +584,9 @@ export const getAggregatedAnalytics = async (req: RequestWithUser, res: Response
   const data = {
     analytics: aggregatedData,
     meta: {
-      selectedDatesInterval,
+      from: selectedDates.from.toISOString(),
+      to: selectedDates.to.toISOString(),
       diffInDays,
-      startDate,
-      endDate,
     },
   };
   return new SuccessResponse(data).send(res);

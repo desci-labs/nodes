@@ -4,6 +4,7 @@ import { Response } from 'express';
 import { SuccessResponse } from '../../../core/ApiResponse.js';
 import { AuthenticatedRequest, ValidatedRequest } from '../../../core/types.js';
 import { logger } from '../../../logger.js';
+import { getFromCache, ONE_DAY_TTL, setToCache } from '../../../redisClient.js';
 import {
   countClaimedBadgesLogs,
   countAiAnalyticsTabsClicks,
@@ -47,6 +48,25 @@ export const getFeatureAdoptionMetrics = async (req: FeatureAdoptionMetricsReque
   const prevRange =
     prevStartDate && prevEndDate && compareToPreviousPeriod ? { from: prevStartDate, to: prevEndDate } : undefined;
   logger.trace({ fn: 'getFeatureAdoptionMetrics', range, prevRange }, 'getFeatureAdoptionMetrics');
+
+  const cacheKey = range
+    ? `featureAdoptionMetrics-${range.from.toISOString()}-${range.to.toISOString()}-${compareToPreviousPeriod.toString()}`
+    : `featureAdoptionMetrics`;
+
+  // Try to get cached response with error handling
+  let cachedResponse: FeatureAdoptionMetricsResponse | null = null;
+
+  try {
+    cachedResponse = await getFromCache<FeatureAdoptionMetricsResponse>(cacheKey);
+  } catch (error) {
+    logger.error({ error, cacheKey }, 'Failed to read from cache in getFeatureAdoptionMetrics');
+  }
+
+  if (cachedResponse) {
+    logger.trace({ cachedResponse }, 'getFeatureAdoptionMetrics: CACHED RESPONSE');
+    new SuccessResponse(cachedResponse).send(res);
+    return;
+  }
 
   const [
     totalShares,
@@ -109,5 +129,13 @@ export const getFeatureAdoptionMetrics = async (req: FeatureAdoptionMetricsReque
     };
   }
   logger.trace({ data }, 'getFeatureAdoptionMetrics');
+
+  // Try to set cache with error handling
+  try {
+    await setToCache(cacheKey, data, ONE_DAY_TTL);
+  } catch (error) {
+    logger.error({ error, cacheKey }, 'Failed to write to cache in getFeatureAdoptionMetrics');
+  }
+
   new SuccessResponse(data).send(res);
 };
