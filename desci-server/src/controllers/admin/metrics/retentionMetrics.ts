@@ -12,12 +12,26 @@ export const getRetentionMetrics = async (_req: AuthenticatedRequest, res: Respo
   logger.trace({ fn: 'getRetentionMetrics' }, 'getRetentionMetrics');
 
   const cacheKey = 'retentionMetrics';
-  const cachedResponse = await getFromCache<{
+
+  // Try to get cached response with error handling
+  let cachedResponse: {
     day1Retention: number;
     day7Retention: number;
     day30Retention: number;
     day365Retention: number;
-  }>(cacheKey);
+  } | null = null;
+
+  try {
+    cachedResponse = await getFromCache<{
+      day1Retention: number;
+      day7Retention: number;
+      day30Retention: number;
+      day365Retention: number;
+    }>(cacheKey);
+  } catch (error) {
+    logger.error({ error, cacheKey }, 'Failed to read from cache in getRetentionMetrics');
+  }
+
   if (cachedResponse) {
     logger.trace({ cachedResponse }, 'getRetentionMetrics: CACHED RESPONSE');
     new SuccessResponse(cachedResponse).send(res);
@@ -38,6 +52,12 @@ export const getRetentionMetrics = async (_req: AuthenticatedRequest, res: Respo
     day30Retention: safePct(day30Retention, total),
     day365Retention: safePct(day365Retention, total),
   };
-  await setToCache(cacheKey, data, ONE_DAY_TTL);
+
+  try {
+    await setToCache(cacheKey, data, ONE_DAY_TTL);
+  } catch (error) {
+    logger.error({ error, cacheKey }, 'Failed to write to cache in getRetentionMetrics');
+  }
+
   new SuccessResponse(data).send(res);
 };

@@ -52,7 +52,16 @@ export const getFeatureAdoptionMetrics = async (req: FeatureAdoptionMetricsReque
   const cacheKey = range
     ? `featureAdoptionMetrics-${range.from.toISOString()}-${range.to.toISOString()}-${compareToPreviousPeriod.toString()}`
     : `featureAdoptionMetrics`;
-  const cachedResponse = await getFromCache<FeatureAdoptionMetricsResponse>(cacheKey);
+
+  // Try to get cached response with error handling
+  let cachedResponse: FeatureAdoptionMetricsResponse | null = null;
+
+  try {
+    cachedResponse = await getFromCache<FeatureAdoptionMetricsResponse>(cacheKey);
+  } catch (error) {
+    logger.error({ error, cacheKey }, 'Failed to read from cache in getFeatureAdoptionMetrics');
+  }
+
   if (cachedResponse) {
     logger.trace({ cachedResponse }, 'getFeatureAdoptionMetrics: CACHED RESPONSE');
     new SuccessResponse(cachedResponse).send(res);
@@ -120,6 +129,13 @@ export const getFeatureAdoptionMetrics = async (req: FeatureAdoptionMetricsReque
     };
   }
   logger.trace({ data }, 'getFeatureAdoptionMetrics');
-  await setToCache(cacheKey, data, ONE_DAY_TTL);
+
+  // Try to set cache with error handling
+  try {
+    await setToCache(cacheKey, data, ONE_DAY_TTL);
+  } catch (error) {
+    logger.error({ error, cacheKey }, 'Failed to write to cache in getFeatureAdoptionMetrics');
+  }
+
   new SuccessResponse(data).send(res);
 };
